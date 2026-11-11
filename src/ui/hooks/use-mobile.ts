@@ -1,6 +1,7 @@
 import * as React from "react"
 
-const MOBILE_BREAKPOINT = 768
+// Match the app's narrow-window boundary: the docked menu starts at 761px.
+const MOBILE_BREAKPOINT = 761
 
 export function useIsMobile() {
   const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined)

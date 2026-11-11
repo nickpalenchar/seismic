@@ -29,7 +29,7 @@ const rowButton = 'flex w-full cursor-pointer items-center gap-[7px] rounded-[6p
 const menuPanel = 'w-[min(360px,calc(100vw-28px))] rounded-[12px] border border-glass-edge px-3.5 pt-3.5 pb-4';
 
 /** Default and limits for the docked menu's remembered width. */
-export const NAV_W = 310;
+export const NAV_W = 256;
 export const NAV_MIN_W = 240;
 export const NAV_MAX_W = 460;
 /** The least room the project keeps beside the docked menu and a sheet on the right; with less, it folds back under ☰. */
@@ -200,6 +200,13 @@ export function NavSheet({ on, onOpenChange, width, maxWidth, onWidthChange, onW
     onWidthChange(value);
     onWidthEnd(value);
   };
+  const cancel = () => {
+    const drag = grip.current;
+    if (!drag) return;
+    grip.current = null;
+    onWidthChange(drag.width);
+    onResizing(false);
+  };
   return (
     // pinned: a sidebar docked to the window's left edge, from top to bottom, as the sheets are on the
     // right; above the dim of an open card (#dim), so it stays in view and switches project from there
@@ -241,7 +248,8 @@ export function NavSheet({ on, onOpenChange, width, maxWidth, onWidthChange, onW
             if (grip.current) onWidthChange(nextWidth(grip.current.width + e.clientX - grip.current.x));
           }}
           onPointerUp={release}
-          onPointerCancel={release}
+          onPointerCancel={cancel}
+          onLostPointerCapture={cancel}
           onDoubleClick={() => { const value = nextWidth(NAV_W); onWidthChange(value); onWidthEnd(value); }}
           onKeyDown={(e) => {
             if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
