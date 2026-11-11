@@ -2280,6 +2280,8 @@ function Project({
     if (e.code === 'Space' && !typing) {
       // Space on a focused switch, checkbox, radio, menu item, the button of a menu or the docked logo does that control's own thing
       if (e.target instanceof Element && e.target.closest('[role=switch], [role=checkbox], [role=radio], [role=menu], [aria-haspopup=menu], .app-logo')) return;
+      // so does any button, link or tab the keyboard focused (Tab): Space presses it; one focused by a click keeps Space for talking
+      if (e.target instanceof Element && e.target.matches(':focus-visible') && e.target.closest('button, a[href], summary, [role=button], [role=tab], [role=option], [role=menuitem]')) return;
       e.preventDefault();
       if (!e.repeat) press(true);
       return;
