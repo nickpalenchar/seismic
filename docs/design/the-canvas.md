@@ -23,7 +23,7 @@ the right the gear of the project settings (see The project settings) and then o
 buttons, the agents' (a robot) and "Needs you" (a bell). "Needs you" counts in the orange of a
 waiting card the cards that wait for the owner on every project, read or not, and nothing else
 (Seismic's answers and proposals count in the inbox alone); its click opens the "Needs you" sheet
-(see below). Its label shows until
+(see below). The selected button shows an on state while its sheet is open. Its label shows until
 the owner has clicked it once (per browser), then the bell and the count stand alone: the label is
 how a first-time owner learns what the bell is. The camera keeps content below the row as it does
 below the bar.
@@ -38,6 +38,7 @@ The open card's entry is ringed, and the sheet stays undimmed beside any card.
 
 The agents' button counts in grey the cards waiting in the queue, and only those; its click slides
 out "Agent work", a sheet (see Sheets) with two tabs, the one chosen last remembered per browser.
+Its button shows an on state while that sheet is open.
 "Work" holds two groups, each heading with a plain count: "Working" (the project's cards at work:
 a worker at it, making its demo included, which its state line says; its code review running; its
 worker fixing findings the owner gave it; approved and landing, or in a pull request), each a pane

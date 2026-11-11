@@ -2635,7 +2635,7 @@ function Project({
             {/* two buttons as one: the agents and what needs the owner */}
             <div className="flex rounded-[17px] shadow-glass hover:shadow-lift">
               <Tooltip content={t.agents.button(queued)}>
-                <PillButton size="bar" on={agentsOn} className="rounded-none rounded-l-[17px] pl-3.5 shadow-none hover:shadow-none" aria-label={t.agents.button(queued)} aria-expanded={agentsOn} onClick={toggleAgents}>
+                <PillButton size="bar" on={agentsOn} tone="ink" className="rounded-none rounded-l-[17px] pl-3.5 shadow-none hover:shadow-none" aria-label={t.agents.button(queued)} aria-expanded={agentsOn} aria-pressed={agentsOn} onClick={toggleAgents}>
                   <BarIcon icon={Bot} />
                   {queued > 0 && <Badge variant="count">{queued}</Badge>}
                 </PillButton>
@@ -2644,9 +2644,11 @@ function Project({
                 <PillButton
                     size="bar"
                     on={nyOn}
+                    tone="ink"
                     className="rounded-none rounded-r-[17px] border-l-line px-3 pr-3.5 shadow-none hover:shadow-none"
                     id="attention" aria-label={t.needsYou.button(needsYouCards)}
                     aria-expanded={nyOn}
+                    aria-pressed={nyOn}
                     onClick={() => {
                       if (!needsYouKnown) {
                         know(NEEDS_YOU_KNOWN);
