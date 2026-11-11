@@ -21,6 +21,7 @@ export { feedback } from './feedback';
 export { folderCards } from './folder-cards';
 export { friction } from './friction';
 export { groups } from './groups';
+export { needsYou } from './needs-you';
 export { preferences } from './preferences';
 export { projects } from './projects';
 export { settingProposals } from './setting-proposals';

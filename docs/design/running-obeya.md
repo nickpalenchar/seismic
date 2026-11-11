@@ -143,9 +143,9 @@ remembered per browser ("All" until one was chosen):
 
 - **"All"**: the cards by stage, under a row of chips (one per stage that has cards, with its
   count, scrolling sideways) that show or hide each group. "Needs you" comes first
-  and is the inbox (see The bar): what waits for the owner across every project in one list, most
-  recently updated first, Seismic's unread answers among them. A new demo or another card update
-  moves that card to the top. Each entry names its project, says what it waits for (its state line:
+  and is the inbox (see The bar): what waits for the owner across every project in one list, in the inbox's
+  order (the wait that last changed first), Seismic's unread answers among them. A new demo or a new
+  question moves that card to the top; moving it on the canvas does not. Each entry names its project, says what it waits for (its state line:
   "Demo ready", "Question for you" …) and since when (the server keeps that across restarts), with
   the same one-click replies and "Go to card". Snoozed cards stand at the end (see Snoozing a card).
   The desktop's inbox shows the same entries with the latest wait first; both share the entry

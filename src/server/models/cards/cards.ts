@@ -52,7 +52,6 @@ export const cards = sqliteTable(
     thread: text({ mode: 'json' }).$type<StoredThread>(),
     unheard: text({ mode: 'json' }).$type<Unheard[]>(),
     app: text(),
-    waitingSince: text('waiting_since'),
     keptIn: text('kept_in'),
     agentSetting: text('agent_setting', { mode: 'json' }).$type<AgentSetting>(),
     /** Set on every card (`SHORT` in db.ts); nullable only because it was added to a table that had rows. */
@@ -67,7 +66,6 @@ export const cards = sqliteTable(
     index('cards_canvas').on(t.canvasId),
     // the cards each change of a project reads, without going through its archive
     index('cards_open').on(t.projectId).where(sql`deleted_at IS NULL AND archived_at IS NULL`),
-    index('cards_waiting').on(t.projectId).where(sql`waiting_since IS NOT NULL`),
   ],
 );
 
@@ -150,8 +148,6 @@ export interface CardRow {
   unheard: string | null;
   /** The address its worker opens the app in the card's workstation at, while it runs (`app_running`); gone once Seismic stops the app or the workstation goes. */
   app: string | null;
-  /** Since when the card waits for the owner (`needsYou`), kept while it does; null while it does not. */
-  waiting_since: string | null;
   /**
    * The clone (`ssh://<host>/…` on a host) that holds the newest state of the card's branch since
    * the owner took its workstation from it, its uncommitted work in a commit of Seismic's on top; gone
@@ -402,12 +398,6 @@ export class Cards {
       .map((r) => r.id);
   }
 
-  /** Since when each of the project's cards waits for the owner, for those that do. */
-  waitingSince(projectId: string): Map<string, string> {
-    const rows = this.db.select({ id: cards.id, since: cards.waitingSince }).from(cards).where(and(eq(cards.projectId, projectId), isNotNull(cards.waitingSince))).all();
-    return new Map(rows.map((r) => [r.id, r.since!]));
-  }
-
   /** The cards the work retrospective proposed for a repository (`null`: the home repository), oldest first, with what became of them. */
   retroProposals(projectId: string, repo: string | null): { title: string; retro: string; state: CardState; dismissed: boolean }[] {
     return this.db
@@ -467,11 +457,6 @@ export class Cards {
   /** The card counts as changed now: a part of it in a table of its own changed. */
   touch(id: string) {
     this.db.update(cards).set({ updatedAt: now() }).where(eq(cards.id, id)).run();
-  }
-
-  /** Notes since when a card waits for the owner, or that it no longer does (`null`); the card counts as unchanged. */
-  setWaitingSince(id: string, since: string | null) {
-    this.db.update(cards).set({ waitingSince: since }).where(eq(cards.id, id)).run();
   }
 
   /** Puts the card on another workstream (`planRef`, in plan `parentId`), or takes it out of its plan (both null). */

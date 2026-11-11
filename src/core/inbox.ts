@@ -1,8 +1,10 @@
-// The owner's inbox: everything that waits for them, across every project, as one list, newest first
-// of entries. Built once from what each project has waiting, so the desktop's inbox and the phone's
-// "Needs you" list the same entries. The phone puts the most recently updated first.
+// The owner's inbox: everything that waits for them, across every project, as one list, the latest
+// changed first. Built once from each project's open waits (the server's `needs_you` rows, which it
+// reconciles from card state), so the desktop's inbox, its "Needs you" sheet and the phone's list
+// the same entries in the same order.
 
-import { handedOver, type Item, needsYou, snoozeOf, type Talk, type Waiting, type Preference, type SettingProposal, type RepoRef } from './types';
+import { handedOver, type Item, snoozeOf, type Talk, type Waiting, type Preference, type SettingProposal, type RepoRef } from './types';
+import type { NeedsYou, NeedsYouKind } from './waits';
 
 export interface InboxEntry {
   /** What the entry is known by in the list. */
@@ -20,8 +22,13 @@ export interface InboxEntry {
   proposalItems?: Item[];
   /** The question, the summary or whatever else it waits for (markdown for a card, plain for Seismic). */
   text: string;
+  /** The wait it stands for, and what it waits for: what renders it (`src/ui/needsYou/renderers.tsx`). */
+  row: NeedsYou;
+  kind: NeedsYouKind;
   /** Since when it waits (ISO). */
   since: string;
+  /** When what it waits on last changed (ms): what the list is ordered by. */
+  updated: number;
 }
 
 /** What a card waits for, in one line or a few. */
@@ -33,31 +40,46 @@ export function waitsFor(i: Item): string {
   return i.question?.text ?? i.agent?.statusLine ?? '';
 }
 
-/** One project's entries: the cards that need the owner (none they just acted on, `underway`) and Seismic's latest unread answer. */
-function projectEntries(c: { id: string; name: string }, w: Waiting, underway: (id: string) => boolean, now: string): InboxEntry[] {
+/**
+ * One project's entries, one for each of its open waits (`needs_you`, the snapshot's `needsYou`)
+ * whose target this list has: none for a card the owner just acted on (`underway`), nor for an
+ * answer read or left out meanwhile.
+ */
+function projectEntries(c: { id: string; name: string }, w: Waiting, underway: (id: string) => boolean): InboxEntry[] {
   const here = { project: c.id, projectName: c.name };
-  const cards = w.items.filter((i) => needsYou(i) && !underway(i.id));
-  const out = cards.map((i): InboxEntry => ({ ...here, key: `${c.id}/${i.id}`, card: i, text: waitsFor(i), since: i.waitingSince ?? now }));
   const context = { rules: w.preferences ?? [], repos: w.project?.repos ?? [], proposalItems: w.proposalItems ?? w.items };
-  for (const p of w.preferences ?? []) if (p.state === 'proposed') out.push({ ...here, ...context, key: `${c.id}/preference/${p.id}`, preference: p, text: p.text, since: now });
-  for (const p of w.settingProposals ?? []) out.push({ ...here, ...context, key: `${c.id}/setting/${p.id}`, setting: p, text: p.basis, since: now });
-  const last = w.talk.filter((x) => x.unread).at(-1);
-  if (last) out.push({ ...here, key: `${c.id}/obeya`, obeya: last, text: last.answer ?? last.reply ?? last.question ?? last.said, since: last.at });
-  return out;
+  const items = new Map(w.items.map((i) => [i.id, i]));
+  return (w.needsYou ?? []).flatMap((row): InboxEntry[] => {
+    const at = { row, kind: row.kind, since: new Date(row.createdAt).toISOString(), updated: row.lastUpdated };
+    if (row.card != null) {
+      const i = items.get(row.card);
+      return i && !underway(i.id) ? [{ ...here, ...at, key: `${c.id}/${i.id}`, card: i, text: waitsFor(i) }] : [];
+    }
+    if (row.preference != null) {
+      const p = w.preferences?.find((x) => x.id === row.preference && x.state === 'proposed');
+      return p ? [{ ...here, ...context, ...at, key: `${c.id}/preference/${p.id}`, preference: p, text: p.text }] : [];
+    }
+    if (row.setting != null) {
+      const p = w.settingProposals?.find((x) => x.id === row.setting);
+      return p ? [{ ...here, ...context, ...at, key: `${c.id}/setting/${p.id}`, setting: p, text: p.basis }] : [];
+    }
+    const x = w.talk.find((t) => t.id === row.talk && t.unread);
+    return x ? [{ ...here, ...at, key: `${c.id}/obeya`, obeya: x, text: x.answer ?? x.reply ?? x.question ?? x.said }] : [];
+  });
 }
 
 /**
- * Every project's entries in one list, the one that began waiting last first; cards snoozed while they
- * waited come at the end, until they come back. The phone uses `updated` to order by last update instead.
- * Ties keep the projects' order and, within one, Tab's.
+ * Every project's entries in one list, the one whose wait changed last first (`lastUpdated`: a new
+ * question, a new summary, an agent's new reply); cards snoozed while they waited come at the end,
+ * until they come back. The desktop's inbox, its "Needs you" sheet and the phone order alike. Ties
+ * keep the projects' order and, within one, the order the waits began in.
  */
-export function inboxEntries(projects: { id: string; name: string }[], waiting: Record<string, Waiting | undefined>, underway: (id: string) => boolean = () => false, order: 'waiting' | 'updated' = 'waiting'): InboxEntry[] {
-  const now = new Date().toISOString();
-  const all = projects.flatMap((c) => (waiting[c.id] ? projectEntries(c, waiting[c.id]!, underway, now) : []));
+export function inboxEntries(projects: { id: string; name: string }[], waiting: Record<string, Waiting | undefined>, underway: (id: string) => boolean = () => false): InboxEntry[] {
+  const all = projects.flatMap((c) => (waiting[c.id] ? projectEntries(c, waiting[c.id]!, underway) : []));
   // a stable sort: ties stay in the order built above
   return all
-    .map((e, n) => ({ e, n, later: counted(e) ? 0 : 1, t: Date.parse(order === 'updated' ? (e.card?.updatedAt ?? e.card?.createdAt ?? e.since) : e.since) }))
-    .sort((a, b) => a.later - b.later || b.t - a.t || a.n - b.n)
+    .map((e, n) => ({ e, n, later: counted(e) ? 0 : 1 }))
+    .sort((a, b) => a.later - b.later || b.e.updated - a.e.updated || a.n - b.n)
     .map((x) => x.e);
 }
 
@@ -72,7 +94,7 @@ export const counted = (e: InboxEntry) => !(e.card && snoozeOf(e.card));
 export const readMark = (e: InboxEntry) => (e.preference || e.setting ? e.key : `${e.key}@${e.since}#${digest(e.text)}`);
 
 /** A short digest of a text, to tell it changed without keeping it. */
-function digest(s: string): string {
+export function digest(s: string): string {
   let h = 5381;
   for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
   return (h >>> 0).toString(36);

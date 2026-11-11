@@ -217,8 +217,8 @@ describe('folding into a progressed survivor', () => {
     await finishMerge({ outcome: 'followUp', titleCovered: false, parts: [{ text: 'Add CSV.', covered: true }, { text: ' Also XLSX.', covered: false }], followUp: { title: 'XLSX', task: 'Add XLSX.', images: [], questions: [] } });
     expect(board().item(a.id)!.idea!.proposal!.merge!.task).toBe('Add CSV.');
     project.act(a.id, { action: 'separate' });
-    const { updated_at: _, waiting_since: __, ...after } = store.cards.get(a.id)!;
-    const { updated_at: ___, waiting_since: ____, ...before } = original;
+    const { updated_at: _, ...after } = store.cards.get(a.id)!;
+    const { updated_at: ___, ...before } = original;
     expect(after).toEqual(before);
     expect(board().items()).toHaveLength(2);
   });

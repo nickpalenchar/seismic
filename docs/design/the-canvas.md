@@ -117,13 +117,18 @@ menu's canvases and "Archived", which take its place. Opened, it stays open as t
 project (per tab) and across a reload, until they close it. A sheet on the right (Seismic's, say)
 opens beside it.
 
-The desktop's inbox lists the shown project's entries; a switch "All projects", right-aligned on the line of the Unread | All filter, lists every project's entries in one list (off by default, remembered). The list is ordered newest first by the time shown on the entry;
-cards snoozed while they waited stand at the end (see Snoozing a card). The phone's "Needs you"
-shares the entries, layout and actions, but sorts by last update, newest first: a refreshed demo
-moves its card to the top (see The phone view). An entry is a pane of glass of its own holding the
+The desktop's inbox lists the shown project's entries; a switch "All projects", right-aligned on the line of the Unread | All filter, lists every project's entries in one list (off by default, remembered). The list is ordered by when what the
+entry waits on last changed, the latest first: a new question, a new handover summary, an idea's
+new reply or a change of what it waits for moves its entry to the top, while moving or relabelling
+the card does not (see "Needs you" in Data); cards snoozed while they waited stand at the end (see
+Snoozing a card). The "Needs you" sheet and the phone's "Needs you" share the entries, layout,
+actions and order. Each kind of wait has one renderer, kept with the UI, which every list draws its
+entries with, so a new kind cannot be added without saying how it shows: the card kinds share the
+card's entry and differ only in the line of what it waits for and its replies; a rule, a setting
+proposal and Seismic's answer have their own. An entry is a pane of glass of its own holding the
 card at size S (see Card sizes): its project (name and icon) and since when it waits on its top
 line, and what the card waits for (the question, the summary, the proposal's text) in place of the
-line under its title. Rule and setting proposals offer their decisions directly in the inbox. Seismic's latest unread answer on a project is an entry too, placed by
+line under its title. Rule and setting proposals offer their decisions directly in the inbox. Seismic's latest unread answer on a project is an entry too, dated by
 when it came, and leads to Seismic's sheet there.
 
 Under an entry stand the buttons that answer it in one click, the same as its card's own, and of
@@ -838,8 +843,9 @@ code, a generic one otherwise.
   the room of the page and leaves the right edge to Seismic's sheet, and the card unfolds beside the
   list instead of over a sheet. The cards alone, the everyday part, stay one click away behind the
   bell as a sheet, the shown project first. Shared entries, layout and actions on desktop and phone
-  keep their behaviour consistent; the desktop sorts by the time shown, newest first, and the phone
-  newest update first. Rejected: the inbox as a dock view (it competed with Seismic's sheet for the
+  keep their behaviour consistent; all of them sort by when what an entry waits on last changed,
+  the latest first (2026-11-11, replacing the desktop's newest wait first and the phone's card
+  update time, which a move on the canvas changed too). Rejected: the inbox as a dock view (it competed with Seismic's sheet for the
   right edge), and a list on the left that closed on every click or grouped entries by project,
   which hid which wait was oldest.
 - **Inbox entries read and unread** (owner, 2026-11-07): an entry already looked at still stood out as

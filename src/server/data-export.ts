@@ -19,6 +19,7 @@ const BY_PROJECT: [string, SQLiteTable & { projectId: SQLiteColumn }][] = [
   ['commands', t.commands],
   ['setting_proposals', t.settingProposals],
   ['feedback', t.feedback],
+  ['needs_you', t.needsYou],
 ];
 const BY_CARD: [string, SQLiteTable & { cardId: SQLiteColumn }][] = [
   ['events', t.events],

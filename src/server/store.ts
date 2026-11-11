@@ -23,6 +23,7 @@ import { Feedbacks } from './models/feedback';
 import { FolderCards } from './models/folder-cards';
 import { Frictions } from './models/friction';
 import { Groups } from './models/groups';
+import { NeedsYou } from './models/needs-you';
 import { Preferences } from './models/preferences';
 import { Projects } from './models/projects';
 import { SettingProposals } from './models/setting-proposals';
@@ -76,6 +77,7 @@ export class Store {
   readonly labels: Labels;
   readonly holds: Holds;
   readonly groups: Groups;
+  readonly needsYou: NeedsYou;
   readonly activity: Activity;
   readonly events: Events;
   readonly workstations: Workstations;
@@ -107,6 +109,7 @@ export class Store {
     this.labels = new Labels(orm);
     this.holds = new Holds(orm);
     this.groups = new Groups(orm);
+    this.needsYou = new NeedsYou(orm);
     this.activity = new Activity(orm);
     this.events = new Events(orm);
     this.workstations = new Workstations(orm);

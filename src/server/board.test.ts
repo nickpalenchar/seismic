@@ -918,32 +918,76 @@ describe('canvases', () => {
   });
 });
 
-describe('waiting since', () => {
-  test('card updates expose the stored update time without resetting the wait', () => {
-    const c = board.create({ title: 'Updated demo', x: 0, y: 0 });
-    board.work(c.id, { state: 'waiting', need: 'demo' });
-    const since = board.item(c.id)!.waitingSince;
-    store.db.query("UPDATE cards SET updated_at = '2020-01-01T00:00:00Z' WHERE id = ?").run(c.id);
-    board.work(c.id, { detail: JSON.stringify({ summary: 'Revised demo ready' }) });
-    expect(board.item(c.id)!.updatedAt).toBe(store.cards.get(c.id)!.updated_at);
-    expect(Date.parse(board.item(c.id)!.updatedAt!)).toBeGreaterThan(Date.parse('2020-01-01T00:00:00Z'));
-    expect(board.item(c.id)!.waitingSince).toBe(since);
+describe('needs you', () => {
+  // what the latest snapshot reconciled, as stored
+  const open = () => (board.snapshot(), store.needsYou.open('shop'));
+  const rowOf = (card: string) => open().find((r) => r.card === card);
+
+  test('a card gets a wait when it starts to need the owner, keeps it while it waits, across a restart, and ends it after', () => {
+    const c = board.create({ title: 'Own', x: 0, y: 0 });
+    expect(rowOf(c.id)).toBeUndefined();
+    board.work(c.id, { state: 'waiting', need: 'demo', detail: JSON.stringify({ summary: 'Demo ready' }) });
+    const row = rowOf(c.id)!;
+    expect(row).toMatchObject({ kind: 'demo', createdAt: row.lastUpdated });
+    expect(Date.now() - row.createdAt).toBeLessThan(5000);
+    // a change to what it waits for does not touch the wait; neither does a new board on the same database (a restart)
+    board.work(c.id, { status_line: 'Demo fertig' });
+    expect(rowOf(c.id)).toEqual(row);
+    const again = new Board(store, { id: 'shop', name: 'Shop', repos: [{ id: 'home', name: 'Home', path: '/r', branch: 'main' }] }, () => ({ docs, dirs }));
+    expect(again.snapshot().needsYou).toEqual([row]);
+    board.work(c.id, { state: 'working', need: null });
+    expect(open()).toEqual([]);
+    // the ended wait stays, with when it ended; waiting again is a new wait
+    expect(store.needsYou.all('shop')).toMatchObject([{ id: row.id, resolvedAt: expect.any(Number) }]);
+    board.work(c.id, { state: 'waiting', need: 'question', detail: JSON.stringify({ question: { text: 'Which one?', options: [] } }) });
+    expect(rowOf(c.id)).toMatchObject({ kind: 'question' });
+    expect(rowOf(c.id)!.id).not.toBe(row.id);
   });
 
-  test('a card notes when it starts to wait for the owner, keeps it while it waits and forgets it after', () => {
+  test('a new summary or question, or a change of kind, counts as an update; moving the card does not', () => {
     const c = board.create({ title: 'Own', x: 0, y: 0 });
-    expect(board.item(c.id)!.waitingSince).toBeUndefined();
-    board.work(c.id, { state: 'waiting', need: 'demo' });
-    const since = board.item(c.id)!.waitingSince!;
-    expect(Date.now() - Date.parse(since)).toBeLessThan(5000);
-    // a change while it waits keeps the time, and so does a new board on the same database (a restart)
-    board.work(c.id, { status_line: 'Demo fertig' });
-    expect(board.item(c.id)!.waitingSince).toBe(since);
+    board.work(c.id, { state: 'waiting', need: 'demo', detail: JSON.stringify({ summary: 'Demo ready' }) });
+    open();
+    store.db.run('UPDATE needs_you SET created_at = 1000, last_updated = 1000');
+    board.patch(c.id, { x: 50, y: 60 });
+    expect(rowOf(c.id)).toMatchObject({ createdAt: 1000, lastUpdated: 1000 });
+    board.work(c.id, { detail: JSON.stringify({ summary: 'Revised demo ready' }) });
+    const revised = rowOf(c.id)!;
+    expect(revised.createdAt).toBe(1000);
+    expect(revised.lastUpdated).toBeGreaterThan(1000);
+    open();
+    store.db.run('UPDATE needs_you SET last_updated = 2000');
+    board.work(c.id, { need: 'question', detail: JSON.stringify({ question: { text: 'Shipping too?', options: [] } }) });
+    expect(rowOf(c.id)).toMatchObject({ kind: 'question', createdAt: 1000 });
+    expect(rowOf(c.id)!.lastUpdated).toBeGreaterThan(2000);
+  });
+
+  test('a wait moved over from before the table takes its kind and text at its first reconcile, without counting as an update', () => {
+    const c = board.create({ title: 'Own', x: 0, y: 0 });
+    board.work(c.id, { state: 'waiting', need: 'question', detail: JSON.stringify({ question: { text: 'Which one?', stuck: true, options: [] } }) });
+    open();
+    store.db.run("UPDATE needs_you SET kind = 'question', digest = NULL, created_at = 1000, last_updated = 1000");
     const again = new Board(store, { id: 'shop', name: 'Shop', repos: [{ id: 'home', name: 'Home', path: '/r', branch: 'main' }] }, () => ({ docs, dirs }));
-    expect(again.item(c.id)!.waitingSince).toBe(since);
-    board.work(c.id, { state: 'working', need: null });
-    expect(board.item(c.id)!.waitingSince).toBeUndefined();
-    expect(store.cards.waitingSince('shop').size).toBe(0);
+    expect(again.snapshot().needsYou).toMatchObject([{ card: c.id, kind: 'stuck', createdAt: 1000, lastUpdated: 1000 }]);
+  });
+
+  test('a proposed rule, a setting proposal and the Koordinator’s latest unread answer wait too, until decided or read', () => {
+    const rule = board.proposePreference('Always test', {});
+    const setting = board.proposeSetting({ repo: 'home', field: 'checks', value: 'bun test', basis: 'Tests ran each time', cards: [] });
+    const first = board.addTalk('How far?', 'Looking.');
+    board.replyTalk(first, 'Halfway.', undefined, undefined, true);
+    const second = board.addTalk('And now?', 'Looking.');
+    board.replyTalk(second, 'Done.', undefined, undefined, true);
+    expect(open().map((r) => [r.kind, r.preference ?? r.setting ?? r.talk])).toEqual([
+      ['rule', rule],
+      ['setting', setting],
+      ['answer', second],
+    ]);
+    board.acceptProposal(rule);
+    board.decideSetting(setting, 'rejected');
+    board.readTalk();
+    expect(open()).toEqual([]);
+    expect(store.needsYou.all('shop').every((r) => r.resolvedAt !== null)).toBe(true);
   });
 });
 

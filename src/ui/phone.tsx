@@ -19,7 +19,8 @@ import { useStoredState } from './stored';
 import { ChatsHead } from './chats';
 import { api, beforeReload, cardsOn, onNotice, phoneInUse, setProject, useProject, type Where } from './api';
 import { enterBreaksLines } from './composer';
-import { InboxList, when } from './inbox';
+import { InboxList } from './inbox';
+import { when } from './needsYou/renderers';
 import { inboxEntries, readMark } from '../core/inbox';
 import { useInboxRead } from './inboxRead';
 import { sendReply } from './quickReply';
@@ -645,7 +646,7 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
   const isUnderway = (id: string) => underway.includes(id);
   // "Needs you" as the desktop's inbox: what the owner has read there, and the open card's entry read while it is open
   // (hooks, so above the open card's early return)
-  const entries = inboxEntries(ordered, snaps, isUnderway, 'updated');
+  const entries = inboxEntries(ordered, snaps, isUnderway);
   const inboxRead = useInboxRead();
   const openEntry = open ? entries.find((e) => e.card?.id === open) : undefined;
   useEffect(() => {

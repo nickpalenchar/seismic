@@ -1,33 +1,27 @@
-// The inbox: what waits for the owner on every project, newest first (src/core/inbox.ts). The
+// The inbox: what waits for the owner on every project, the latest changed first (src/core/inbox.ts). The
 // desktop shows it as a full-page view of the main area, opened from the left menu's "Inbox", its
 // list at the left, where a card opened from it unfolds beside the list; the phone lists it as
 // "Needs you". The desktop's "Needs you" sheet (src/ui/needsYou.tsx) shows its cards' entries alike.
-// Each card's entry is its face at size S (src/ui/card), its project and canvas on its top line and
-// what it waits for under its state ("Demo ready" on a handover, which is judged on the card);
-// under it, the card's one-click replies
-// (src/ui/quickReply.ts), only its default primary, and "Go to card", always there and never the
-// primary one. Only a click on a button (the title included) reads an entry. Unread entries carry an orange dot and a bold title; the switch above the list shows
-// all of them or only the unread ones (src/ui/inboxRead.ts keeps what was read).
+// Each entry shows as its kind's renderer has it (src/ui/needsYou/renderers.tsx): a card's is its face
+// at size S (src/ui/card), its project and canvas on its top line and what it waits for under its
+// state ("Demo ready" on a handover, which is judged on the card); under it, the card's one-click
+// replies (src/ui/quickReply.ts), only its default primary, and "Go to card", always there and never
+// the primary one. Only a click on a button (the title included) reads an entry. Unread entries carry
+// an orange dot and a bold title; the switch above the list shows all of them or only the unread ones
+// (src/ui/inboxRead.ts keeps what was read).
 
-import type { MouseEvent, ReactNode } from 'react';
-import { GitBranch } from 'lucide-react';
+import { Fragment, type ReactNode } from 'react';
 import type { InboxEntry } from '../core/inbox';
 import type { Item } from '../core/types';
-import { ProposalRow, SettingRow } from './koordinator';
 import { FullPage } from './fullPage';
-import { Inline, plain } from './markdown';
-import { OtherCanvas } from './canvases';
-import { CardFace, shownTitle, UnreadDot } from './card';
-import { type QuickReply, quickReplies } from './quickReply';
+import { renderEntry } from './needsYou/renderers';
+import type { QuickReply } from './quickReply';
 import { useStoredState } from './stored';
-import { clock, shortDay, t } from './strings';
-import { Button, CloseButton } from './components/button';
+import { t } from './strings';
+import { CloseButton } from './components/button';
 import { CheckLabel } from './components/check-label';
 import { Switch } from './components/switch';
 import { SegmentedControl } from './components/segmented';
-
-/** When it began: the time today, else the day. */
-export const when = (iso: string | number) => (new Date(iso).toDateString() === new Date().toDateString() ? clock(iso) : shortDay(iso));
 
 export interface InboxProps {
   entries: InboxEntry[];
@@ -46,72 +40,6 @@ export interface InboxProps {
   /** Where a card opened from its entry unfolds from and folds back to. */
   els?: Map<string, HTMLElement>;
 }
-
-/**
- * Only a click on a button reads the entry, not one on the text around it; read as the click
- * bubbles up, after the button's own action: read in the capture phase, the entry leaves the
- * "Unread" list before the click reaches its button, which then neither opens nor answers.
- */
-const readOnButton = (ev: MouseEvent, read: () => void) => {
-  const hit = (ev.target as Element).closest('button, a');
-  if (hit?.tagName === 'BUTTON') read();
-};
-
-/** A card's entry: its face at size S (subtle in the inbox, regular in "Needs you") with what it waits for, its one-click replies and "Go to card"; the open card's is ringed. */
-export function CardEntry({ e, unread, here, current, onGo, onReply, onRead, els, subtle = true }: { e: InboxEntry & { card: Item }; subtle?: boolean; unread: boolean; here: boolean; current?: string; onGo: (e: InboxEntry) => void; onReply: InboxProps['onReply']; onRead: (e: InboxEntry) => void; els?: Map<string, HTMLElement> }) {
-  const i = e.card;
-  return (
-    <li
-      ref={els ? (el) => void (el ? els.set(i.id, el) : els.delete(i.id)) : undefined}
-      className={`inbox-entry${unread ? ' unread' : ' read'}${here ? ' on' : ''}`}
-      aria-current={here || undefined}
-      onClick={(ev) => readOnButton(ev, () => onRead(e))}
-    >
-      <CardFace
-        item={i}
-        size="s"
-        subtle={subtle}
-        unread={unread}
-        where={
-          <>
-            <ProjectName name={e.projectName} />
-            {e.project === current && <OtherCanvas item={i} named />}
-          </>
-        }
-        since={when(e.since)}
-        title={
-          <button type="button" className="ttl-link" onClick={() => onGo(e)}>
-            {i.title ? plain(i.title) : shownTitle(i)}
-          </button>
-        }
-        text={e.text && <Inline md={e.text} />}
-      >
-        <div className="replies">
-          {quickReplies(i).map((r) => (
-            <Button key={r.label} type="button" size="small" variant={r.primary ? 'primary' : 'default'} title={r.title} onClick={() => onReply(e.project, i, r)}>
-              {r.label}
-            </Button>
-          ))}
-          <GoTo e={e} onGo={onGo} />
-        </div>
-      </CardFace>
-    </li>
-  );
-}
-
-const ProjectName = ({ name }: { name: string }) => (
-  <>
-    <GitBranch size={12} strokeWidth={2} aria-hidden />
-    <span className="project">{name}</span>
-  </>
-);
-
-/** "Go to card", or "Go to Seismic" on Seismic's answer: on every entry, last and never primary. */
-const GoTo = ({ e, onGo }: { e: InboxEntry; onGo: (e: InboxEntry) => void }) => (
-  <Button type="button" onClick={() => onGo(e)}>
-    {e.card ? t.inbox.goToCard : t.inbox.goToObeya}
-  </Button>
-);
 
 type Filter = 'all' | 'unread';
 
@@ -143,45 +71,11 @@ export function InboxList({ entries: all, current, open, onGo, onReply, onPropos
       {!entries.length && <p className="empty-inbox">{t.inbox.empty}</p>}
       {!!entries.length && !shown.length && <p className="empty-inbox">{t.inbox.noneUnread}</p>}
       <ul className="inbox-list">
-        {shown.map((e) => {
-          const unread = !isRead(e);
-          const cls = unread ? ' unread' : ' read';
-          if (e.preference || e.setting) return (
-            <li key={e.key} className={`inbox-entry proposal-entry${cls}`} onClick={(ev) => readOnButton(ev, () => onRead(e))}>
-              <div className="where"><GitBranch size={12} aria-hidden /><span className="project">{e.projectName}</span>{unread && <UnreadDot />}</div>
-              <ul className="prefs proposals">
-                {e.preference && <ProposalRow p={e.preference} items={e.proposalItems ?? []} rules={e.rules ?? []} repos={e.repos ?? []} project={e.project} onOpen={(i) => onProposalCard(e.project, i)} />}
-                {e.setting && <SettingRow p={e.setting} items={e.proposalItems ?? []} repo={e.repos?.find((r) => r.id === e.setting!.repo)} project={e.project} onOpen={(i) => onProposalCard(e.project, i)} onConfig={onProposalConfig ? () => onProposalConfig(e.project, e.setting!.repo, e.setting!.field) : undefined} />}
-              </ul>
-            </li>
-          );
-          if (e.card) return <CardEntry key={e.key} e={e as InboxEntry & { card: Item }} unread={unread} here={e.card.id === open} current={current} onGo={onGo} onReply={onReply} onRead={onRead} els={e.project === current ? els : undefined} />;
-          return (
-            // Seismic's answers, which are no card, in the same lines as a card's entry
-            <li key={e.key} className={`inbox-entry${cls}`} onClick={(ev) => readOnButton(ev, () => onRead(e))}>
-              <div className="face face-s obeya-answer">
-                <div className="f-top">
-                  <span className="f-where">
-                    <ProjectName name={e.projectName} /> · {when(e.since)}
-                  </span>
-                </div>
-                <div className="f-ttl">
-                  {unread && <UnreadDot />}
-                  <span className="f-ttl-text">
-                    <button type="button" className="ttl-link" onClick={() => onGo(e)}>
-                      {t.koordinator.title}
-                    </button>
-                  </span>
-                </div>
-                <div className="f-state">{t.phone.obeyaAnswered}</div>
-                {e.text && <div className="f-text">{plain(e.text)}</div>}
-                <div className="replies">
-                  <GoTo e={e} onGo={onGo} />
-                </div>
-              </div>
-            </li>
-          );
-        })}
+        {shown.map((e) => (
+          <Fragment key={e.key}>
+            {renderEntry(e, { unread: !isRead(e), here: !!e.card && e.card.id === open, current, subtle: true, onGo, onReply, onRead, onProposalCard, onProposalConfig, els: e.project === current ? els : undefined })}
+          </Fragment>
+        ))}
       </ul>
     </>
   );

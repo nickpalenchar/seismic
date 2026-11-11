@@ -497,6 +497,7 @@ const en = {
     stuck: 'The agent is stuck',
     landing: 'Landing failed',
     proposal: 'Proposal from an agent',
+    merge: 'A merge proposal is ready',
     superseded: 'Withdrawn or replaced by its agent',
     pr: 'A PR waits for you',
     idea: 'Idea · your turn',

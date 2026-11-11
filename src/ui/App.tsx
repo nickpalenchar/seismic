@@ -2202,7 +2202,7 @@ function Project({
    * "Go to card": the card unfolds over the inbox's view (or beside "Needs you"), which stays open;
    * one on another project opens there, the inbox's view open under it again. Seismic's answer opens its sheet.
    */
-  function goToEntry(e: InboxEntry) {
+  function goToEntry(e: Pick<InboxEntry, 'project' | 'card'>) {
     if (e.project !== snapshot.project.id) return goTo(e.card ? cardPath(e.project, e.card) : `${projectPath(e.project)}?talk`);
     if (!e.card) return kOnRef.current || toggleKoordinator();
     // the entry's own copy opens it when the project no longer lists the card (it just left the inbox)
@@ -2417,7 +2417,7 @@ function Project({
   const openCardId = (focus?.type === 'card' ? focus.id : openId) ?? undefined;
   const dockViews: DockView[] = [
     { id: 'needs-you', besideCard: true, title: t.needsYou.title, icon: ConciergeBell, component: () => (<NeedsYouSheet on={nyOn} entries={entries} current={snapshot.project.id} open={openCardId} onGo={goToEntry} onReply={replyTo} isRead={inboxRead.isRead} onRead={inboxRead.markRead} />) },
-    { id: 'agents', besideCard: true, title: t.agents.title, icon: Bot, component: () => (<AgentsSheet on={agentsOn} items={items} open={openId ?? undefined} underway={(id) => !!underway[id]} onOpen={(i) => void openFresh(i)} project={snapshot.project.id} changed={snapshot} onGo={(project, card) => goToEntry({ key: card.id, project, projectName: '', card, text: '', since: '' })} />) },
+    { id: 'agents', besideCard: true, title: t.agents.title, icon: Bot, component: () => (<AgentsSheet on={agentsOn} items={items} open={openId ?? undefined} underway={(id) => !!underway[id]} onOpen={(i) => void openFresh(i)} project={snapshot.project.id} changed={snapshot} onGo={(project, card) => goToEntry({ project, card })} />) },
     { id: 'settings', besideCard: true, title: t.projectSettings.title, icon: Settings, component: () => (<ProjectSettingsSheet project={snapshot.project.id} name={snapshot.project.name} homePath={snapshot.project.repos[0]?.path} onAddSite={() => (showAddSite(), setPrefsOn(false), setCOn(true))} on={csOn} covered={cOn} problems={configProblems} onConfig={() => (showProjectsSection(), setPrefsOn(false), setCOn(true))} />) },
     { id: 'seismic', title: t.koordinator.title, icon: MessageSquare, buttonCloses: true, component: () => (<KoordinatorSheet on={kOn} onClose={toggleKoordinator} project={snapshot.project.id} projectName={snapshot.project.name} items={items} preferences={snapshot.preferences} settings={snapshot.settingProposals ?? []} repos={snapshot.project.repos} talk={snapshot.talk} chat={snapshot.chat} chatModel={snapshot.chatModel} chats={snapshot.chats} reshare={snapshot.reshare} onOpen={(i) => void openFresh(i)} onTell={(text, images, replyTo) => tellTyped(text, images, null, undefined, replyTo)} onProject={(c) => goTo(`${projectPath(c)}?talk`)} onConfig={(repo, setting) => {
             showRepoClones({ project: snapshot.project.id, repo, field: 'settings', setting });
@@ -2667,7 +2667,7 @@ function Project({
           </div>
         </div>
         <InboxView on={inboxOn} held={focus?.type === 'card'} onClose={() => setInboxOn(false)} entries={entries} current={snapshot.project.id} open={openCardId} onGo={goToEntry} onReply={replyTo} isRead={inboxRead.isRead} onRead={inboxRead.markRead} els={inboxEls}
-          onProposalCard={(project, card) => goToEntry({ key: card.id, project, projectName: '', card, text: '', since: '' })}
+          onProposalCard={(project, card) => goToEntry({ project, card })}
           onProposalConfig={(project, repo, setting) => { showRepoClones({ project, repo, field: 'settings', setting }); setCOn(true); }} />
         <ArchiveView on={aOn} onClose={() => setAOn(false)} held={focus?.type === 'card'} archived={archived} done={doneCount} onOpen={open} onArchiveDone={() => archiveDone().catch(console.error)} els={archiveEls} />
         <ParkedView on={fullPage.active === 'parked'} items={items} open={openCardId} underway={(id) => !!underway[id]} onOpen={(i) => void openFresh(i)} onClose={() => showPage(null)} els={parkedEls} />

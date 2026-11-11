@@ -688,6 +688,41 @@ export const MIGRATIONS = [
    UPDATE card_reviews SET code_review = json_remove(code_review, '$.previous', '$.ignored', '$.review.findings') WHERE code_review IS NOT NULL;`,
   // what a card was at when the owner stopped it, to say "Stopped at …" (JSON `StoppedAt`)
   'ALTER TABLE cards ADD COLUMN stopped_at TEXT;',
+  // "Needs you" as a table of its own: one row per wait for the owner, on a card, a proposed rule, a
+  // setting proposal or the Koordinator's answer (exactly one), with when it began, when what it waits
+  // on last changed and when it ended (ms). The cards' open waits move over, their kind guessed from
+  // the card's need and their digest unknown (null): the first reconcile takes both as they are, without
+  // counting it as a change; `cards.waiting_since` goes
+  `CREATE TABLE \`needs_you\` (
+     \`id\` integer PRIMARY KEY NOT NULL,
+     \`project_id\` text NOT NULL,
+     \`kind\` text NOT NULL,
+     \`card_id\` text,
+     \`preference_id\` integer,
+     \`setting_proposal_id\` integer,
+     \`talk_id\` integer,
+     \`digest\` text,
+     \`created_at\` integer NOT NULL,
+     \`last_updated\` integer NOT NULL,
+     \`resolved_at\` integer,
+     FOREIGN KEY (\`project_id\`) REFERENCES \`projects\`(\`id\`) ON UPDATE no action ON DELETE no action,
+     FOREIGN KEY (\`card_id\`) REFERENCES \`cards\`(\`id\`) ON UPDATE no action ON DELETE no action,
+     FOREIGN KEY (\`preference_id\`) REFERENCES \`preferences\`(\`id\`) ON UPDATE no action ON DELETE no action,
+     FOREIGN KEY (\`setting_proposal_id\`) REFERENCES \`setting_proposals\`(\`id\`) ON UPDATE no action ON DELETE no action,
+     FOREIGN KEY (\`talk_id\`) REFERENCES \`talk\`(\`id\`) ON UPDATE no action ON DELETE no action,
+     CONSTRAINT "needs_you_one_target" CHECK((card_id IS NOT NULL) + (preference_id IS NOT NULL) + (setting_proposal_id IS NOT NULL) + (talk_id IS NOT NULL) = 1)
+   );
+   CREATE UNIQUE INDEX \`needs_you_open_card\` ON \`needs_you\` (\`card_id\`) WHERE resolved_at IS NULL;
+   CREATE UNIQUE INDEX \`needs_you_open_preference\` ON \`needs_you\` (\`preference_id\`) WHERE resolved_at IS NULL;
+   CREATE UNIQUE INDEX \`needs_you_open_setting\` ON \`needs_you\` (\`setting_proposal_id\`) WHERE resolved_at IS NULL;
+   CREATE UNIQUE INDEX \`needs_you_open_talk\` ON \`needs_you\` (\`talk_id\`) WHERE resolved_at IS NULL;
+   CREATE INDEX \`needs_you_open\` ON \`needs_you\` (\`project_id\`) WHERE resolved_at IS NULL;
+   INSERT INTO needs_you (project_id, kind, card_id, created_at, last_updated)
+     SELECT project_id, CASE need WHEN 'question' THEN 'question' WHEN 'demo' THEN 'demo' ELSE 'review' END, id,
+       CAST(round((julianday(waiting_since) - 2440587.5) * 86400000) AS INTEGER), CAST(round((julianday(waiting_since) - 2440587.5) * 86400000) AS INTEGER)
+     FROM cards WHERE waiting_since IS NOT NULL AND julianday(waiting_since) IS NOT NULL ORDER BY waiting_since;
+   DROP INDEX \`cards_waiting\`;
+   ALTER TABLE cards DROP COLUMN waiting_since;`,
 ];
 
 /**

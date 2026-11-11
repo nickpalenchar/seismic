@@ -32,6 +32,14 @@ const MOVED = [
   'owner_labels TEXT', 'code_review TEXT', 'parking_lot TEXT', 'hold TEXT',
 ];
 
+/** The database as it was before "Needs you" had a table of its own: the cards' `waiting_since` back, `needs_you` gone. */
+function withoutNeedsYou(db: Database) {
+  db.run('DROP TABLE IF EXISTS needs_you');
+  if (db.query("SELECT 1 FROM pragma_table_info('cards') WHERE name = 'waiting_since'").get()) return;
+  db.run('ALTER TABLE cards ADD COLUMN waiting_since TEXT');
+  db.run('CREATE INDEX cards_waiting ON cards (project_id) WHERE waiting_since IS NOT NULL');
+}
+
 /** The database as it was before the columns that moved into the tables of a card's parts were dropped from `cards`. */
 function withMovedColumns(db: Database) {
   for (const t of ['card_review_item_events', 'card_review_items']) db.run(`DROP TABLE IF EXISTS ${t}`);
@@ -110,6 +118,7 @@ test('what an Seismic before the release kept in earlier shapes is in today’s'
     set(held!.id, 'share', { slug: 's', state: 'pending', dir: '/d', shown: { title: 'T', text: '', chapters: [] } });
     s.settings.set('c', 'work_retro_since:app', '2026-10-01T00:00:00Z');
     // the schema as released: without the columns and indexes later migrations add
+    withoutNeedsYou(s.db);
     withoutParts(s.db);
     for (const index of ['cards_open', 'cards_plan_docs', 'cards_prototypes', 'cards_waiting', 'cards_shared']) s.db.run(`DROP INDEX ${index}`);
     s.db.run('ALTER TABLE talk DROP COLUMN reply_to');
@@ -205,6 +214,7 @@ test('a card gets the shortest code no other card has: the start of its id, one 
 test('the migration gives the cards there are codes of their own, longer where their ids start alike', () =>
   withPath((path) => {
     const s = new Store(path);
+    withoutNeedsYou(s.db);
     s.ensureProject('c', 'C');
     const ids = ['12345678-0000-4000-8000-000000000001', '12345678-0000-4000-8000-000000000002', '1234aaaa-0000-4000-8000-000000000003', 'ffffffff-0000-4000-8000-000000000004'];
     const insert = s.db.query("INSERT INTO cards (id, short, project_id, kind, x, y, created_at, updated_at) VALUES ($id, $id, 'c', 'task', 0, 0, '', '')");
@@ -238,6 +248,7 @@ test('the migration gives the cards there are codes of their own, longer where t
 test('the sessions of cards from before runs were recorded: the last as pinned, one for each other identity their agents spoke as', () =>
   withPath((path) => {
     const s = new Store(path);
+    withoutNeedsYou(s.db);
     s.ensureProject('c', 'C');
     const [pinned, spoke, legacy, mixed, idle] = s.addCards([0, 1, 2, 3, 4].map((y) => ({ project_id: 'c', kind: 'task' as const, x: 0, y })));
     s.cards.update(pinned!.id, { session_id: 's-1', agent_setting: JSON.stringify({ model: 'opus', effort: 'high' }) });
@@ -355,6 +366,7 @@ test('a chat opened and a new one made in the same millisecond become current in
 test('what was said before chats existed becomes one chat per project', () =>
   withPath((path) => {
     const store = new Store(path);
+    withoutNeedsYou(store.db);
     store.db.run("INSERT INTO projects (id, name, created_at) VALUES ('c', 'Shop', '2026-11-01')");
     store.addTalk('c', 'eins', 'A', null);
     store.addTalk('c', 'zwei', 'B', null);
@@ -377,6 +389,7 @@ test('what was said before chats existed becomes one chat per project', () =>
 test('what an Seismic kept while projects were canvases is in today’s names, tables and stored JSON', () =>
   withPath((path) => {
     const s = new Store(path);
+    withoutNeedsYou(s.db);
     s.ensureProject('c', 'Shop');
     const [card] = s.addCards([{ project_id: 'c', kind: 'task', x: 0, y: 0 }]);
     s.settings.set('c', 'paused', '');
@@ -407,6 +420,7 @@ test('what an Seismic kept while projects were canvases is in today’s names, t
 test('the migration gives every project a canvas main holding all its cards and groups', () =>
   withPath((path) => {
     const s = new Store(path);
+    withoutNeedsYou(s.db);
     s.ensureProject('c', 'Shop');
     s.ensureProject('d', 'Site');
     const [a, plan] = s.addCards([
@@ -436,6 +450,7 @@ test('the migration gives every project a canvas main holding all its cards and 
 test('the pause, the pause at a safe point, the usage limit, the snooze and the parking lot move into one hold, with what they held for the worker', () =>
   withPath((path) => {
     const s = new Store(path);
+    withoutNeedsYou(s.db);
     s.ensureProject('c', 'Shop');
     const rows = s.addCards(Array.from({ length: 8 }, () => ({ project_id: 'c', kind: 'task' as const, x: 0, y: 0 })));
     const [paused, idea, pausing, limit, snoozed, ownerSnoozed, parked, free] = rows.map((r) => r.id);
@@ -472,6 +487,7 @@ test('the pause, the pause at a safe point, the usage limit, the snooze and the 
 test('an idea, a prototype, a proposal, a card built on a prototype, one that becomes a plan and one for a new repository move into the ideas table', () =>
   withPath((path) => {
     const s = new Store(path);
+    withoutNeedsYou(s.db);
     s.ensureProject('c', 'Shop');
     const rows = s.addCards(Array.from({ length: 7 }, () => ({ project_id: 'c', kind: 'task' as const, x: 0, y: 0 })));
     const [idea, prototype, proposed, built, plan, repo, plain] = rows.map((r) => r.id);
@@ -519,6 +535,7 @@ test('a card gets its idea part once any of it is set, and loses it once all of 
 test('a pull request, a demo with earlier ones, a plan, labels and a hold move into tables of their own', () =>
   withPath((path) => {
     const s = new Store(path);
+    withoutNeedsYou(s.db);
     s.ensureProject('c', 'Shop');
     const [reviewed, demoed, planned, labelled, held, plain] = s.addCards(Array.from({ length: 6 }, () => ({ project_id: 'c', kind: 'task' as const, x: 0, y: 0 }))).map((r) => r.id);
     withoutParts(s.db);
@@ -565,6 +582,7 @@ test('a pull request, a demo with earlier ones, a plan, labels and a hold move i
 test('the latest completed run of a code review becomes the list of items, the ignored findings closed items after them; earlier runs are dropped', () =>
   withPath((path) => {
     const s = new Store(path);
+    withoutNeedsYou(s.db);
     s.ensureProject('c', 'Shop');
     const [done, running, plain] = s.addCards(Array.from({ length: 3 }, () => ({ project_id: 'c', kind: 'task' as const, x: 0, y: 0 }))).map((r) => r.id);
     const f = (id: number, status: string, over: Record<string, unknown> = {}) => ({ id, title: `T${id}`, text: `Text ${id}`, severity: 'major', status, ...over });
@@ -618,6 +636,7 @@ test('the latest completed run of a code review becomes the list of items, the i
 test('the columns that moved into the tables of the parts leave cards; each card keeps its own fields, its rowid and what refers to it', () =>
   withPath((path) => {
     const s = new Store(path);
+    withoutNeedsYou(s.db);
     s.ensureProject('c', 'Shop');
     const [plan, gone, kid] = s.addCards([
       { project_id: 'c', kind: 'plan', plan_ref: 'docs/plan/a.md', x: 0, y: 0 },
@@ -805,4 +824,35 @@ test('a retried migration keeps the backup of the first attempt, the state befor
     expect(copy.query('PRAGMA user_version').get()).toEqual({ user_version: before });
     expect(copy.query("SELECT 1 FROM sqlite_master WHERE name = 'step_one'").get()).toBeNull();
     copy.close();
+  }));
+
+test('the cards’ open waits move into needs_you, with when they began; waiting_since leaves cards', () =>
+  withPath((path) => {
+    const s = new Store(path);
+    withoutNeedsYou(s.db);
+    s.ensureProject('c', 'Shop');
+    const [asks, done, idle] = s.addCards([
+      { project_id: 'c', kind: 'task', x: 0, y: 0 },
+      { project_id: 'c', kind: 'task', x: 1, y: 0 },
+      { project_id: 'c', kind: 'task', x: 2, y: 0 },
+    ]);
+    s.db.query("UPDATE cards SET state = 'waiting', need = 'question', waiting_since = '2026-11-05T08:00:00.000Z' WHERE id = ?").run(asks!.id);
+    s.db.query("UPDATE cards SET state = 'waiting', need = 'review', waiting_since = '2026-11-05T09:30:00.250Z' WHERE id = ?").run(done!.id);
+    s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('CREATE TABLE `needs_you`'))}`);
+    s.db.close();
+
+    const after = new Store(path);
+    expect(after.needsYou.open('c')).toEqual([
+      { id: 1, kind: 'question', card: asks!.id, createdAt: Date.parse('2026-11-05T08:00:00.000Z'), lastUpdated: Date.parse('2026-11-05T08:00:00.000Z') },
+      { id: 2, kind: 'review', card: done!.id, createdAt: Date.parse('2026-11-05T09:30:00.250Z'), lastUpdated: Date.parse('2026-11-05T09:30:00.250Z') },
+    ]);
+    expect(after.db.query("SELECT digest FROM needs_you").all()).toEqual([{ digest: null }, { digest: null }]);
+    expect(after.db.query("SELECT 1 FROM pragma_table_info('cards') WHERE name = 'waiting_since'").get()).toBeNull();
+    expect(after.cards.get(idle!.id)).toBeTruthy();
+    // exactly one target, and one open wait per target
+    expect(() => after.db.run("INSERT INTO needs_you (project_id, kind, created_at, last_updated) VALUES ('c', 'demo', 0, 0)")).toThrow();
+    expect(() => after.db.query("INSERT INTO needs_you (project_id, kind, card_id, created_at, last_updated) VALUES ('c', 'demo', ?, 0, 0)").run(asks!.id)).toThrow();
+    after.db.run('UPDATE needs_you SET resolved_at = 1 WHERE id = 1');
+    after.db.query("INSERT INTO needs_you (project_id, kind, card_id, created_at, last_updated) VALUES ('c', 'demo', ?, 2, 2)").run(asks!.id);
+    after.db.close();
   }));

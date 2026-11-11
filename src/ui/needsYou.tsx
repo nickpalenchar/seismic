@@ -1,16 +1,18 @@
 // "Needs you": the cards that wait for the owner, docked on the right behind the floating row's bell.
-// The shown project's cards come first, as the inbox lists them (newest wait first, snoozed ones at
-// the end); every other project with cards waiting follows as a header with its count, folded until
+// The shown project's cards come first, as the inbox lists them (the latest changed first, snoozed
+// ones at the end); every other project with cards waiting follows as a header with its count, folded until
 // clicked open. "Hide other projects" leaves those headers out, remembered per browser. Each card is
-// its inbox entry (src/ui/inbox.tsx): its face at size S, its one-click replies and "Go to card".
+// its inbox entry as its kind renders it (src/ui/needsYou/renderers.tsx): its face at size S, its
+// one-click replies and "Go to card".
 // Seismic's answers and rule or setting proposals are the inbox's alone.
 
 import { ChevronRight } from 'lucide-react';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { counted, type InboxEntry } from '../core/inbox';
 import type { Item } from '../core/types';
 import { Docked } from './docked';
-import { CardEntry, type InboxProps } from './inbox';
+import type { InboxProps } from './inbox';
+import { renderEntry } from './needsYou/renderers';
 import { useStoredState } from './stored';
 import { t } from './strings';
 import { CheckLabel } from './components/check-label';
@@ -27,7 +29,7 @@ export function NeedsYouSheet({ on, entries, current, open, onGo, onReply, isRea
   const here = cards.filter((e) => e.project === current);
   const others = [...new Set(cards.filter((e) => e.project !== current).map((e) => e.project))].map((project) => ({ project, entries: cards.filter((e) => e.project === project) }));
   const entry = (e: CardOnly) => (
-    <CardEntry key={e.key} e={e} subtle={false} unread={!isRead(e)} here={e.project === current && e.card.id === open} current={current} onGo={onGo} onReply={onReply} onRead={onRead} />
+    <Fragment key={e.key}>{renderEntry(e, { unread: !isRead(e), here: e.project === current && e.card.id === open, current, subtle: false, onGo, onReply, onRead })}</Fragment>
   );
   return (
     <Docked id="needs-you" on={on} label={t.needsYou.title}>

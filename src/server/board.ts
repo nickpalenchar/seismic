@@ -61,6 +61,7 @@ import {
   type ProposedSetting,
   type SettingProposal,
   type SettingProposalState,
+  type Talk,
   type PrReviewEntry,
   type PrWait,
   type PullRequest,
@@ -102,6 +103,9 @@ import type { DecisionRow } from './models/decisions';
 import type { Friction, FrictionNote } from './models/friction';
 import type { GroupRow } from './models/groups';
 import type { HeldTalk, TalkWaitRow } from './models/talk';
+import type { Wait } from './models/needs-you';
+import { waitsFor } from '../core/inbox';
+import { kindOf, type NeedsYou } from '../core/waits';
 import type { Mark, Store } from './store';
 import { attribute, checkedFeedback } from './feedback';
 import type { Images } from './images';
@@ -498,6 +502,8 @@ export class Board {
   private cache: ProjectSnapshot | null = null;
   /** The snapshot's `items`, also while the rest of it is not built (`items`); gone with `cache`. */
   private itemsCache: Item[] | null = null;
+  /** The cards as the last reconcile of "Needs you" saw them, to tell what a card waits for by what it was before (a failed landing was landing). */
+  private waited = new Map<string, Item>();
   /** What `toItems` made of each card's row, for as long as the row stays the same; gone with any change but a write to one card (`work`). */
   private worked: Worked = new Map();
   /** The archive as `archived` built it; gone with `cache`, since it changes with the same writes. */
@@ -2035,6 +2041,7 @@ export class Board {
       ...(pools.length ? { workstations: pools } : {}),
       ...(reshare ? { reshare } : {}),
       ...(planDirs.length ? { planDirs } : {}),
+      needsYou: this.reconcileNeedsYou(items, talk),
       ...this.agentAt('koordinatorAgent', 'koordinator'),
     };
     return this.cache;
@@ -2140,7 +2147,6 @@ export class Board {
     // a worker the usage limit paused resumes at the known reset
     items = items.map((i) => (i.hold?.reason === 'limit' && i.hold.until ? withPart(i, 'agent', { limitedUntil: i.hold.until }) : i));
     items = this.withoutStaleSnoozes(items, rows);
-    items = this.withWaitingSince(items);
     items = this.withRate(items);
     // a card whose repository does not run on the project waits for it
     const running = new Set(this.project.repos.map((r) => r.id));
@@ -2265,21 +2271,25 @@ export class Board {
   }
 
   /**
-   * Each card that waits for the owner with since when: noted when it starts to wait, kept in the
-   * database across restarts while it waits, and forgotten once it no longer does.
+   * What waits for the owner on the project now, brought into `needs_you` (the one place that writes
+   * it): the cards that need them, the proposed rules, the setting proposals and the Koordinator's
+   * latest unread answer. Returns the open waits.
    */
-  private withWaitingSince(items: Item[]): Item[] {
-    const known = this.store.cards.waitingSince(this.project.id);
-    const at = new Date().toISOString();
-    const out = items.map((i) => {
-      if (!needsYou(i)) return i;
-      let since = known.get(i.id);
-      if (!since) this.store.cards.setWaitingSince(i.id, (since = at));
-      return { ...i, waitingSince: since };
+  private reconcileNeedsYou(items: Item[], talk: Talk[]): NeedsYou[] {
+    const before = this.waited;
+    const open = new Map(this.store.needsYou.open(this.project.id).flatMap((r) => (r.card ? [[r.card, r.kind] as const] : [])));
+    const waits: Wait[] = items.filter(needsYou).map((i) => {
+      const kind = kindOf(i, before.get(i.id));
+      // a failed landing stays one, also after a restart, which forgets the card was landing
+      const landing = open.get(i.id) === 'landing' && (kind === 'demo' || kind === 'review');
+      return { target: { card: i.id }, kind: landing ? 'landing' : kind, text: waitsFor(i) };
     });
-    const waiting = new Set(out.flatMap((i) => (i.waitingSince ? [i.id] : [])));
-    for (const id of known.keys()) if (!waiting.has(id)) this.store.cards.setWaitingSince(id, null);
-    return out;
+    for (const p of this.store.preferences.of(this.project.id, ['proposed'])) waits.push({ target: { preference: p.id }, kind: 'rule', text: p.text });
+    for (const p of this.settingProposals()) if (p.state === 'proposed') waits.push({ target: { setting: p.id }, kind: 'setting', text: p.basis });
+    const answer = talk.filter((x) => x.unread).at(-1);
+    if (answer) waits.push({ target: { talk: answer.id }, kind: 'answer', text: answer.answer ?? answer.reply ?? answer.question ?? answer.said, since: Date.parse(answer.at) || undefined });
+    this.waited = new Map(items.map((i) => [i.id, i]));
+    return this.store.needsYou.reconcile(this.project.id, waits);
   }
 
   private read(): PlanDoc[] {

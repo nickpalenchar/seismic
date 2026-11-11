@@ -67,6 +67,17 @@ Persistent (SQLite):
   (`held`): always on a pause, on a snooze only where the owner snoozed a worker. These never hold
   together: setting one replaces the one before, a snooze keeping what a pause held. The Koordinator's
   queue and a waiting card's stopped app are kept apart, as they hold beside any of them;
+- what waits for the owner ("Needs you", the inbox): a row per wait, on exactly one target (a
+  card, a proposed rule, a setting proposal or the Koordinator's latest unread answer on a project),
+  with its kind (the card kinds the pushes name, plus `merge`, `rule`, `setting`, `answer`), a
+  digest of what it waits for (the question, the summary, the rule's text), when it began, when
+  what it waits on last changed and when it ended, all three in milliseconds. At most one row per
+  target is open; a row stays once its wait ended, and a target that waits again gets a new one.
+  The rows are written in one place, the step that builds a project's snapshot, from the same card
+  state that decides whether a card needs the owner (`needsYou`): a target that waits and has no
+  open row gets one (an answer dated by when it came); an open row whose kind or digest changed
+  counts as updated; an open row whose target no longer waits ends. A card moved, relabelled or
+  snoozed changes nothing but the last: a snooze ends the wait, as the card leaves the inbox;
 - card events (the conversation log, with the owner's screenshots and agents' mocks, and the
   producing agent's harness and model when known); the Koordinator's replies and looked-up answers
   each retain their own producing identity, never inferred for old messages; workstations
@@ -136,6 +147,16 @@ Decisions:
   made reading a project's cards take about twice the time. The card's columns that moved were
   dropped in a step of their own after the move had run on the live database and every value was
   found in the new tables; the backup before that step still has them.
+- "Needs you" as a table of its own (owner, 2026-11-11): the waits were decided anew from card state
+  on every snapshot, with only the card's `waiting_since` stored, so rule and setting proposals had
+  no wait time and sorted to the top, and the phone could only sort by the card's update time, which
+  a move on the canvas changes too. The rows are reconciled in one place from card state rather than
+  written by each event: the condition has about eight branches spread over many call sites, and
+  one missed site would leave a stale row. Ended waits keep their row (`resolved_at`) as a history
+  of waits, leaving room for read state on the server later. The migration moved each card's open
+  wait over with the time it began, its kind guessed from the card's need and its digest left
+  empty, which the first reconcile fills in without counting as an update, so the order of waits
+  stays as it was; `cards.waiting_since` was dropped. Read and unread stay in the browser.
 - The data layer on Drizzle ORM, one model per table holding its definition and its queries, with
   what spans several tables in one composition layer (2026-11-08): the hand-written store had grown
   to one class over every table with its rows parsed by hand. The migrations stay Seismic's own

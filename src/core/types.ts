@@ -9,6 +9,7 @@ import type { Language } from './locale';
 import { MESSAGES } from './messages';
 import type { OutdatedBy } from './page-changes';
 import type { NotAPlan } from './plan-doc';
+import type { NeedsYou } from './waits';
 import type { Wish } from './wish';
 
 export type { DemoSettings, NarrationLanguage, VoiceKind } from '../../plugin/skills/demo/lib/settings.ts';
@@ -327,10 +328,11 @@ export const waitingOn = (s: Pick<ProjectSnapshot, 'items' | 'talk'>) => s.items
  * the cards that need the owner and those snoozed while they did, and the Koordinator's answers that
  * wait unread.
  */
-export type Waiting = Pick<ProjectSnapshot, 'items' | 'talk'> & Partial<Pick<ProjectSnapshot, 'preferences' | 'settingProposals' | 'project'>> & { proposalItems?: Item[] };
-export const waitingIn = (s: Pick<ProjectSnapshot, 'items' | 'talk'> & Partial<Pick<ProjectSnapshot, 'preferences' | 'settingProposals' | 'project'>>): Waiting => ({
+export type Waiting = Pick<ProjectSnapshot, 'items' | 'talk' | 'needsYou'> & Partial<Pick<ProjectSnapshot, 'preferences' | 'settingProposals' | 'project'>> & { proposalItems?: Item[] };
+export const waitingIn = (s: Pick<ProjectSnapshot, 'items' | 'talk' | 'needsYou'> & Partial<Pick<ProjectSnapshot, 'preferences' | 'settingProposals' | 'project'>>): Waiting => ({
   items: s.items.filter((i) => needsYou(i) || !!snoozeOf(i)?.waiting),
   talk: s.talk.filter((x) => x.unread),
+  needsYou: s.needsYou,
   preferences: s.preferences, settingProposals: s.settingProposals, project: s.project, proposalItems: s.items.filter((i) => s.preferences?.some((p) => p.state === 'proposed' && p.cardId === i.id) || s.settingProposals?.some((p) => p.cards.some((c) => c.id === i.id))),
 });
 
@@ -395,8 +397,6 @@ export interface Item {
   archivedAt?: string;
   /** Question cards, and an idea that was one: the thread of looked-up answers it holds. */
   thread?: Thread;
-  /** Since when it waits for the owner (`needsYou`), for the phone view's "Needs you". */
-  waitingSince?: string;
   /** Why the card's agent does not run now, or why the card is off the canvas: one reason at a time (`ItemHold`). */
   hold?: ItemHold;
   /**
@@ -1689,6 +1689,8 @@ export interface ProjectSnapshot {
   reshare?: Reshare;
   /** The plan directories the project has a note about (`PlanDir`); none when it has none. */
   planDirs?: PlanDir[];
+  /** What waits for the owner on the project now ("Needs you", the inbox): the open rows of `needs_you`. */
+  needsYou: NeedsYou[];
   /** The harness and model of the Koordinator's session that reads the owner's words, while one runs. */
   koordinatorAgent?: AgentIdentity;
 }
