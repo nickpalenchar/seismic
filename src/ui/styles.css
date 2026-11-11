@@ -268,10 +268,10 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-family: var(--font); f
 @keyframes flow { from { background-position: 100% 0; } to { background-position: -100% 0; } }
 
 /* the pin that holds a card needing the owner: its disc (::before) and its pulse (::after) lie under
-   its mark. The pulse only grows and fades, which the compositor does on its own: an animated
+   its mark. The pulse is a sonar ring that only grows and fades, which the compositor does on its own: an animated
    box-shadow repainted the card under it every frame, and on a zoomed-out project every repaint
    rasterised the card a little differently, so the whole card flickered. */
-@keyframes pulse { 0% { transform: scale(.52); opacity: .6; } 70%, 100% { transform: none; opacity: 0; } }
+@keyframes pulse { 0% { transform: scale(.52); opacity: .9; } 70%, 100% { transform: none; opacity: 0; } }
 /* a plan's badges side by side at its corner: its agent's unread answers (a speech bubble in the
    plan agent's colour), then the count of workstreams that need the owner */
 .plan > .badges { position: absolute; top: -10px; right: -8px; display: flex; gap: 6px;

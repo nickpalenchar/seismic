@@ -35,10 +35,10 @@ const badgeVariants = cva(
   },
 );
 
-/** `pulse` rings a pin outward, for what waits for the owner. */
+/** `pulse` sends a sonar ring outward from a pin, for what waits for the owner. */
 function Badge({ className, variant = 'default', asChild = false, pulse, ...props }: ComponentProps<'span'> & VariantProps<typeof badgeVariants> & { asChild?: boolean; pulse?: boolean }) {
   const Comp = asChild ? Slot.Root : 'span';
-  return <Comp data-slot="badge" data-variant={variant} className={cn(badgeVariants({ variant }), pulse && 'after:pointer-events-none after:absolute after:-inset-[15px] after:-z-20 after:animate-[pulse_1.8s_ease-out_infinite] after:rounded-[27px] after:bg-[var(--pin)] after:opacity-0 after:content-[\'\']', className)} {...props} />;
+  return <Comp data-slot="badge" data-variant={variant} className={cn(badgeVariants({ variant }), pulse && 'after:pointer-events-none after:absolute after:-inset-[15px] after:-z-20 after:animate-[pulse_1.8s_ease-out_infinite] after:rounded-[27px] after:border-2 after:border-[var(--pin)] after:bg-[color-mix(in_srgb,var(--pin)_18%,transparent)] after:opacity-0 after:content-[\'\']', className)} {...props} />;
 }
 
 /** The class string of a badge variant for what is not React (the card-link pill the composer builds as DOM); `extra` joins it. */

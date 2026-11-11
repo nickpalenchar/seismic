@@ -604,8 +604,8 @@ calm and modern without looking like a stock component kit.
   in its ink (a taller one when zoomed out). Zoomed far out a card keeps its title, its label chips
   (those that fit in one line) and its state line with the moving stroke of an agent at work, all
   drawn larger so they still read; its other text goes. The owner's turn is an orange frame with a soft orange
-  glow and a pulsing pin with "!", a failed worker's the same in red with "!!" (the pulse, a halo
-  growing and fading, changes nothing but size and opacity: an animation the browser has to repaint
+  glow and a pulsing pin with "!", a failed worker's the same in red with "!!" (the pulse, a sonar ring
+  growing and fading from the pin, changes nothing but size and opacity: an animation the browser has to repaint
   makes the whole card under it shimmer on a zoomed-out canvas, 2026-10-30); an idea is glass tinted
   rose; a proposal only pencilled in (dashed, no glass); a queued card's tab dashed; done and live
   cards are glass tinted muted green, in a plan or outside one (a Question card keeps its own;
