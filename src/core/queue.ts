@@ -33,6 +33,13 @@ export function drawnWaits(card: Item, items: Item[]): string[] {
 const behind = (card: Item, items: Item[]) => [...new Set([...(card.queue && 'behind' in card.queue ? card.queue.behind : []), ...drawnWaits(card, items)])];
 
 /**
+ * The cards `card` relies on whether or not the reliance holds right now: also the owner's arrows
+ * of a card at work (started anyway) and the workstreams it builds on, so that a wait the
+ * Koordinator adds never closes a loop with them.
+ */
+const reliesOn = (card: Item) => [...new Set([...(card.queue && 'behind' in card.queue ? card.queue.behind : []), ...(card.plan?.manualDependsOn ?? []), ...(card.plan?.buildsOn ?? [])])];
+
+/**
  * A card no agent works on until it starts: planned, in the queue or not, a stopped one too. What the
  * owner types on it waits there for the agent that takes it on, and goes to it with the task.
  */
@@ -49,13 +56,14 @@ export const asksAhead = (i: Pick<Item, 'kind' | 'state' | 'archivedAt' | 'agent
 /** A card that has not been started: planned and not in the queue (a stopped one too). */
 export const notStarted = (i: Pick<Item, 'state' | 'queue'>) => i.state === 'planned' && !i.queue;
 
-/** Whether `card` waits for `id`, directly or through cards it waits for. */
-export function waitsOn(card: Item, id: string, items: Item[]): boolean {
+/** Whether `card` waits for `id`, directly or through cards it waits for; with `anyArrow`, counting every arrow the owner drew, held or not. */
+export function waitsOn(card: Item, id: string, items: Item[], anyArrow = false): boolean {
+  const next = (c: Item) => (anyArrow ? reliesOn(c) : behind(c, items));
   const byId = new Map(items.map((i) => [i.id, i]));
   const seen = new Set<string>();
   const todo = [card];
   while (todo.length) {
-    for (const b of behind(todo.pop()!, items)) {
+    for (const b of next(todo.pop()!)) {
       if (b === id) return true;
       if (seen.has(b)) continue;
       seen.add(b);

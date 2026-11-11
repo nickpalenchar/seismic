@@ -359,7 +359,7 @@ in the card's colour once the pointer comes close to the dot or to that edge; a 
 arrow that follows the pointer and snaps to the closest point on the nearest edge of the card under
 it or close to it, a click there connects the two at that point (Escape cancels). A click on empty
 canvas instead makes a new card there, already connected as the one that waits, and opens it to be
-written; left empty, it goes again as any new card does, and its arrow with it. The arrow keeps
+written; left empty, it goes again as any new card does, and its arrow with it. Two cards never wait for each other, directly or through others: an arrow that would close such a loop is refused, and the Koordinator never queues a card behind one that relies on it through an arrow the owner drew, even while that arrow holds nothing (the card is at work). The arrow keeps
 the edges it was drawn between and its place along the waiting card's edge; arrows drawn before
 that choice was kept are routed between the cards as the other waits are. Until the owner has drawn
 their first arrow, a line beside the pointer says what it will do while they draw: which card is to

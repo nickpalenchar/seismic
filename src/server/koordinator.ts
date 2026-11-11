@@ -661,7 +661,7 @@ export class Koordinator {
     if (!since) return [];
     const items = this.o.board.items();
     return items
-      .filter((i) => i.id !== card.id && i.repo === card.repo && inQueue(i) && (i.queue!.since ?? '') < since && !waitsOn(i, card.id, items))
+      .filter((i) => i.id !== card.id && i.repo === card.repo && inQueue(i) && (i.queue!.since ?? '') < since && !waitsOn(i, card.id, items, true))
       .sort((a, b) => a.queue!.since.localeCompare(b.queue!.since));
   }
 
@@ -675,7 +675,7 @@ export class Koordinator {
     const items = this.o.board.items();
     const seen = new Set([card.id, ...active.map((i) => i.id), ...ahead.map((i) => i.id)]);
     return items.filter(
-      (i) => i.parent === card.parent && i.kind !== 'plan' && !seen.has(i.id) && !finished(i.state) && !i.archivedAt && !waitsOn(i, card.id, items),
+      (i) => i.parent === card.parent && i.kind !== 'plan' && !seen.has(i.id) && !finished(i.state) && !i.archivedAt && !waitsOn(i, card.id, items, true),
     );
   }
 
@@ -749,7 +749,7 @@ export class Koordinator {
     // an arrow drawn while it was judged may make a card it was to wait for wait for it instead
     inferred = inferred.filter((id) => {
       const i = items.find((x) => x.id === id);
-      return !(i && waitsOn(i, cardId, items));
+      return !(i && waitsOn(i, cardId, items, true));
     });
     buildsOn = buildsOn.filter((id) => inferred.includes(id));
     const drawn = drawnWaits(this.card(cardId), items).filter((id) => !inferred.includes(id));
@@ -797,7 +797,7 @@ export class Koordinator {
     // cards keep their places, so what was queued after the last of them is not ahead
     const last = batch.map((w) => w.queue!.since).sort().at(-1)!;
     const ahead = items
-      .filter((i) => i.repo === repo && !ids.has(i.id) && inQueue(i) && (planCard || i.queue!.since < last) && !batch.some((w) => waitsOn(i, w.id, items)))
+      .filter((i) => i.repo === repo && !ids.has(i.id) && inQueue(i) && (planCard || i.queue!.since < last) && !batch.some((w) => waitsOn(i, w.id, items, true)))
       .sort((a, b) => a.queue!.since.localeCompare(b.queue!.since));
     let plan: Planned[];
     try {
