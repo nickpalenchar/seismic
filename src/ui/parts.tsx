@@ -779,9 +779,11 @@ function wsDot(w: PoolWorkstation | undefined, host: PoolHost, items: Item[], un
 
 /**
  * A machine's workstations in the order of its dots: each clone; in worktrees each card's worktree,
- * then an empty circle for each slot left up to the maximum (none without slots).
+ * then an empty circle for each slot no worker is busy in, up to the maximum (none without slots).
+ * A waiting card keeps its worktree but its worker has released the slot; a hidden card's worker
+ * can still occupy one.
  */
-const hostSpots = (h: PoolHost, items: Item[]): (PoolWorkstation | undefined)[] => {
+export const hostSpots = (h: PoolHost, items: Item[]): (PoolWorkstation | undefined)[] => {
   // a card that is stopped, queued, snoozed, parked or not on this project does not show: only cards at work or waiting on the owner here
   const shown = (w: PoolWorkstation) => {
     if (!w.card) return true;
@@ -791,8 +793,8 @@ const hostSpots = (h: PoolHost, items: Item[]): (PoolWorkstation | undefined)[] 
   const held = h.workstations.filter(shown);
   if (!h.worktrees) return held;
   const cards = held.filter((w) => w.card);
-  // every slot up to the maximum shows, an empty circle where no worktree is held
-  return [...cards, ...Array.from({ length: h.uncapped ? 0 : Math.max(0, h.slots - cards.length) }, () => undefined)];
+  // an empty circle for each slot without a busy worker, the pool's count (hidden cards included), as in the pill's summary
+  return [...cards, ...Array.from({ length: h.uncapped ? 0 : Math.max(0, h.slots - h.busy.length) }, () => undefined)];
 };
 
 const hostDots = (h: PoolHost, items: Item[], underway: Record<string, string>) => hostSpots(h, items).map((w) => wsDot(w, h, items, underway));

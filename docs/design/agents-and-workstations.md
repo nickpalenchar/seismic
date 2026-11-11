@@ -431,7 +431,7 @@ front where too long, so its end stays readable); a free or blocked one says so.
 cards wait for a workstation or a slot. While none is free and a card waits, "⋯" beside the cards
 whose clone may go to it (see Taking a card's workstation). A click on a card closes the list,
 flies to the card and opens it; A repository in
-worktrees shows a dot per card holding a worktree, then an empty ring for each slot up to the configured maximum ("Max workstations") that no worktree holds;
+worktrees shows a dot per card holding a worktree, then an empty ring for each slot up to the configured maximum ("Max workstations") in which no worker is busy (a waiting card keeps its worktree but has released its slot; a hidden card's busy worker still takes one);
 without slots nothing caps it, and it shows the cards' dots alone ("2 at work", "none at work").
 Its list names the cards' worktrees, and a line per free slot.
 
