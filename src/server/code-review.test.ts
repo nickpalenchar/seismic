@@ -13,7 +13,7 @@ import { described, listed, reopenings } from './code-review';
 import { artifact, type FakeSession, until } from './testing';
 import { Workers } from './workers';
 import { git } from './workstations';
-import { board, eachTest, manual, runtime, setWorkers, spaces, state, workers } from './workers-fixture';
+import { board, dir, eachTest, main, manual, runtime, setWorkers, spaces, state, workers } from './workers-fixture';
 
 eachTest();
 
@@ -29,7 +29,7 @@ function reviewing(mode: CodeReviewSetting['mode'] = 'auto', on = true, land: Re
       board,
       runtime,
       workstations: spaces,
-      adapter: { ...generic, land, workstations: 'clones' },
+      adapter: { ...generic, land, direct: land === 'pr', workstations: 'clones' },
       codeReviews: () => setting,
       ...(reviewAgentSetting ? { reviewAgentSetting } : {}),
       onFollowUpTask: (task, of) => followed.push([task, of]),
@@ -152,6 +152,33 @@ describe('code reviews', () => {
     await until(() => !!board.item(id)!.review?.codeReview);
     expect(board.item(id)!.review?.codeReview).toEqual({ mode: 'manual', items: [] });
     expect(reviewers()).toHaveLength(0);
+  });
+
+  for (const completed of [false, true]) test(`Straight to main on a PR card with a ${completed ? 'completed' : 'running'} review pushes the reviewed work without opening a PR`, async () => {
+    reviewing('auto', true, 'pr');
+    const origin = join(dir, 'direct-origin.git');
+    git(dir, 'clone', '--quiet', '--bare', main, origin);
+    const id = await started();
+    const ws = board.row(id).workstation!;
+    git(ws, 'remote', 'set-url', 'origin', origin);
+    await handOver(id, 'direct.ts');
+    await until(() => reviewers().length === 1);
+    const reviewer = reviewers()[0]!;
+    if (completed) await review(id, reviewer);
+    const findings = itemsOf(id);
+    expect(board.item(id)!.review?.codeReview?.state).toBe(completed ? 'done' : 'running');
+    expect(state(id)).toBe('waiting:demo');
+    // The review is intact until the owner confirms approval in the UI.
+    expect(git(origin, 'log', '--format=%s', '-1', 'main')).not.toBe('direct.ts');
+    const head = git(ws, 'rev-parse', 'HEAD');
+    await workers.approve(id, { direct: true });
+    expect(state(id)).toBe('live');
+    expect(git(origin, 'rev-parse', 'main')).toBe(head);
+    expect(board.item(id)!.review?.pr).toBeUndefined();
+    expect(board.item(id)!.review?.codeReview?.state).toBe(completed ? 'done' : undefined);
+    expect(itemsOf(id)).toEqual(findings);
+    if (!completed) expect(reviewer.closed).toBe(true);
+    expect(board.events(id).some((e) => e.author === 'owner' && e.text === 'Approved and pushed straight to main.')).toBe(true);
   });
 
   test('automatic: the review starts with the demo, read-only, and the card goes to the owner at once', async () => {

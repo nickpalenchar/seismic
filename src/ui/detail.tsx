@@ -390,6 +390,8 @@ export function Detail(p: Props) {
   const fixing = !!cr?.items.some((r) => r.status === 'fixing');
   const verifying = !!cr?.items.some((r) => r.status === 'underReview');
   const reviewRunning = cr?.state === 'running' || fixing || verifying;
+  const approvalWarningClass = 'start-agent-main';
+  const approvalWarning = reviewRunning && <span className="start-agent-model">{cr?.state === 'running' || (verifying && !fixing) ? t.approveDuringReview.reviewing : t.approveDuringReview.fixing}</span>;
   // choices on items picked but not sent yet: approving would drop them
   const unsent = Object.keys(unsentPicks ?? {}).filter((id) => cr?.items.some((r) => r.number === Number(id) && needsOwner(r))).length;
   const reviewed = cr?.state === 'done' && !cr.stale;
@@ -416,9 +418,9 @@ export function Detail(p: Props) {
   ) : (
     <>
       {/* while yellow, a second line inside it says why, as on the start buttons */}
-      <Button variant={reviewRunning ? 'review-warning' : 'primary'} className={reviewRunning ? 'start-agent-main' : undefined} onClick={() => approve(false)}>
+      <Button variant={reviewRunning ? 'review-warning' : 'primary'} className={reviewRunning ? approvalWarningClass : undefined} onClick={() => approve(false)}>
         <span>{item.review?.noChange ? t.approveNoChange : pr ? t.approvePr : t.approve}</span>
-        {reviewRunning && <span className="start-agent-model">{cr?.state === 'running' || (verifying && !fixing) ? t.approveDuringReview.reviewing : t.approveDuringReview.fixing}</span>}
+        {approvalWarning}
       </Button>
       {unsent > 0 && (
         <ConfirmDialog
@@ -449,8 +451,9 @@ export function Detail(p: Props) {
         </Button>
       )}
       {direct && (
-        <Button title={t.directHint(reviewed)} onClick={() => approve(true)}>
-          {t.approveDirect}
+        <Button variant={reviewRunning ? 'review-warning' : 'default'} className={reviewRunning ? approvalWarningClass : undefined} title={t.directHint(reviewed)} onClick={() => approve(true)}>
+          <span>{t.approveDirect}</span>
+          {approvalWarning}
         </Button>
       )}
     </>

@@ -272,7 +272,7 @@ only the latest.
   automatic review and opens its tab.
 
 While either review runs, the card's state rule and status line turn blue-green and say "Agent
-reviewing"; it does not show an attention badge while the review runs. "Approve" becomes a yellow warning button, and stays one while
+reviewing"; it does not show an attention badge while the review runs. "Approve" and "Straight to main" become yellow warning buttons, and stay so while
 the card's agent (the same or a new one) fixes items the owner sent it, and while items wait under review
 for the next review to verify them: fixing is part of the review. A second, smaller line inside it says why: "Review in progress" or "Fixing in progress". Clicking it asks "Approve without Review?"
 and explains that approval stops the in-progress review and moves straight to landing. The owner
