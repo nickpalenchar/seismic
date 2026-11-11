@@ -1035,6 +1035,15 @@ describe('needs you', () => {
     }
   });
 
+  test('an older question answered after more exchanges than the sheet shows is still the answer that waits', () => {
+    const older = board.addTalk('Which tests?', '');
+    for (let i = 0; i < 40; i++) board.addTalk(`Chatter ${i}`, 'Ok.');
+    board.replyTalk(older, 'The unit tests.', undefined, undefined, true);
+    expect(open().find((r) => r.kind === 'answer')!.talk).toBe(older);
+    const again = new Board(store, { id: 'shop', name: 'Shop', repos: [{ id: 'home', name: 'Home', path: '/r', branch: 'main' }] }, () => ({ docs, dirs }));
+    expect(again.snapshot().needsYou.find((r) => r.kind === 'answer')!.talk).toBe(older);
+  });
+
   test('exchanges from before arrivals were kept come in the order of their ids', () => {
     const a = board.addTalk('One?', '');
     const b = board.addTalk('Two?', '');

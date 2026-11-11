@@ -320,6 +320,18 @@ export class Talk {
     return elsewhere.length ? [...elsewhere.map((r) => this.withContinues(r)), ...here].sort((a, b) => a.id - b.id) : here;
   }
 
+  /** The unread answer of the project that was written last, in any chat however far back; exchanges from before arrivals were kept come first, by id. */
+  latestUnread(projectId: string): TalkView | undefined {
+    const r = this.db
+      .select()
+      .from(talk)
+      .where(and(eq(talk.projectId, projectId), eq(talk.unread, true)))
+      .orderBy(sql`COALESCE(${talk.arrived}, 0) DESC`, desc(talk.id))
+      .limit(1)
+      .get();
+    return r ? toTalk(r) : undefined;
+  }
+
   /** A message of the project's sheet (an exchange with no card open), as a reply quotes it. */
   sheetQuote(projectId: string, ref: TalkRef): TalkQuote | undefined {
     const sheet = this.db

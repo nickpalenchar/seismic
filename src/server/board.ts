@@ -2041,7 +2041,7 @@ export class Board {
       ...(pools.length ? { workstations: pools } : {}),
       ...(reshare ? { reshare } : {}),
       ...(planDirs.length ? { planDirs } : {}),
-      needsYou: this.reconcileNeedsYou(items, talk),
+      needsYou: this.reconcileNeedsYou(items),
       ...this.agentAt('koordinatorAgent', 'koordinator'),
     };
     return this.cache;
@@ -2275,7 +2275,7 @@ export class Board {
    * it): the cards that need them, the proposed rules, the setting proposals and the Koordinator's
    * latest unread answer. Returns the open waits.
    */
-  private reconcileNeedsYou(items: Item[], talk: Talk[]): NeedsYou[] {
+  private reconcileNeedsYou(items: Item[]): NeedsYou[] {
     const before = this.waited;
     const rows = this.store.needsYou.open(this.project.id);
     const open = new Map(rows.flatMap((r) => (r.card ? [[r.card, r.kind] as const] : [])));
@@ -2287,19 +2287,10 @@ export class Board {
     });
     for (const p of this.store.preferences.of(this.project.id, ['proposed'])) waits.push({ target: { preference: p.id }, kind: 'rule', text: p.text });
     for (const p of this.settingProposals()) if (p.state === 'proposed') waits.push({ target: { setting: p.id }, kind: 'setting', text: p.basis });
-    const answer = this.latestAnswer(talk);
+    const answer = this.store.talk.latestUnread(this.project.id);
     if (answer) waits.push({ target: { talk: answer.id }, kind: 'answer', text: answer.answer ?? answer.reply ?? answer.question ?? answer.said });
     this.waited = new Map(items.map((i) => [i.id, i]));
     return this.store.needsYou.reconcile(this.project.id, waits);
-  }
-
-  /**
-   * The Koordinator's unread answer that came last: by the order its reply or answer was written in
-   * (`Talk.arrived`), not by when the owner asked; exchanges from before it was kept come first, in
-   * the order of their ids.
-   */
-  private latestAnswer(talk: Talk[]): Talk | undefined {
-    return talk.filter((x) => x.unread).reduce<Talk | undefined>((best, x) => (!best || (x.arrived ?? 0) > (best.arrived ?? 0) || ((x.arrived ?? 0) === (best.arrived ?? 0) && x.id > best.id) ? x : best), undefined);
   }
 
   private read(): PlanDoc[] {
