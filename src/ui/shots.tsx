@@ -63,7 +63,7 @@ async function markedImage(src: string, marks: Mark[]): Promise<Blob> {
 export async function attachTo(key: string, files: File[], added?: () => void) {
   let arrived = 0;
   if (!files.length) return arrived;
-  updateDraft(key, (d) => ({ error: '', uploading: d.uploading + files.length }));
+  updateDraft(key, (d) => ({ error: '', uploading: d.uploading + files.length, uploadingImages: d.uploadingImages + files.length }));
   // a switch to another project meanwhile: they go to the draft of the project they were added on
   const into = draftIn(key);
   // stored with the project they were added on, also once the owner has switched to another
@@ -77,7 +77,7 @@ export async function attachTo(key: string, files: File[], added?: () => void) {
     } catch (e) {
       into.update({ error: failText(e) });
     } finally {
-      into.update((d) => ({ uploading: d.uploading - 1 }));
+      into.update((d) => ({ uploading: d.uploading - 1, uploadingImages: d.uploadingImages - 1 }));
     }
   }
   return arrived;
@@ -161,7 +161,7 @@ export function useShotInput({ draft, name, initial = [], onChange, off = false,
       queueMicrotask(settle);
     };
   }, [key]);
-  const { images, uploading, marking, error } = useDraft(key);
+  const { images, uploading, uploadingImages, marking, error } = useDraft(key);
   const [dropping, setDropping] = useState(false);
   const picker = useRef<HTMLInputElement>(null);
   const update = (fn: (cur: string[]) => string[]) => {
@@ -185,6 +185,7 @@ export function useShotInput({ draft, name, initial = [], onChange, off = false,
     pasteHint,
     images,
     uploading,
+    uploadingImages,
     marking,
     dropping,
     error,
@@ -260,10 +261,12 @@ export type ShotInput = ReturnType<typeof useShotInput>;
 export function ShotStrip({ shots }: { shots: ShotInput }) {
   const enlarge = useEnlarge(shots);
   if (!shots.images.length && !shots.uploading && !shots.pasteHint) return null;
+  const filesUploading = shots.uploading - shots.uploadingImages;
   return (
     <div className="c-shots">
       {shots.images.map((id) => (
         <span key={id} className={shots.marking.includes(id) ? 'c-shot marking' : 'c-shot'}>
+          {shots.marking.includes(id) && <Spinner className="marking-loader size-5" aria-label={t.shots.uploading} />}
           <Tooltip content={t.shots.markUp}>
             <button className="open" onClick={(e) => enlarge.open(id, e)}>
               <img src={imageUrl(id)} alt={t.shots.alt} />
@@ -272,11 +275,12 @@ export function ShotStrip({ shots }: { shots: ShotInput }) {
           <CloseButton label={t.shots.remove} size="small" className="remove" onClick={() => shots.remove(id)} />
         </span>
       ))}
-      {Array.from({ length: shots.uploading }, (_, i) => (
+      {Array.from({ length: shots.uploadingImages }, (_, i) => (
         <span key={`u${i}`} className="c-shot loading">
           <Spinner className="size-5" aria-label={t.shots.uploading} />
         </span>
       ))}
+      {filesUploading > 0 && <span className="c-file-loading" role="status">{t.shots.uploading}</span>}
       {shots.pasteHint && (
         <div className="c-paste-hint" role="note">
           <p>{t.shots.pasteHint(pasteKeys())}</p>

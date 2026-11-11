@@ -14,8 +14,10 @@ import type { Reply } from './reply';
 export interface Draft {
   text: string;
   images: string[];
-  /** Screenshots still uploading. */
+  /** Screenshots and other files still uploading; blocks sending until all settle. */
   uploading: number;
+  /** Screenshot uploads among `uploading`, whose placeholders belong in the thumbnail strip. */
+  uploadingImages: number;
   /** The screenshots whose marked version is still uploading, to take their place. */
   marking: string[];
   error: string;
@@ -81,7 +83,7 @@ const keptOf = ({ text, images, picks, reply, files, findings, findingNotes, fin
     : null;
 };
 
-const EMPTY: Draft = { text: '', images: [], uploading: 0, error: '', dictation: '', note: '', marking: [] };
+const EMPTY: Draft = { text: '', images: [], uploading: 0, uploadingImages: 0, error: '', dictation: '', note: '', marking: [] };
 
 /** The draft of a card's field. */
 export const cardDraft = (id: string) => `card:${id}`;

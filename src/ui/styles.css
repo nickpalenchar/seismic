@@ -1143,6 +1143,8 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .ptt-shots .c-paste-hint { flex: 0 0 auto; width: 320px; }
 /* the marked version is being drawn and uploaded, to take its place */
 .c-shot.marking img { opacity: .5; }
+.c-shot .marking-loader { position: absolute; z-index: 1; pointer-events: none; }
+.c-file-loading { align-self: center; color: var(--muted-foreground); font-size: 12px; }
 .shots { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .shot { border: 1px solid var(--line); border-radius: 2px; padding: 0; background: var(--card); cursor: zoom-in; line-height: 0; }
 .shot img { height: 88px; max-width: 240px; object-fit: cover; border-radius: 2px; display: block; }
