@@ -305,7 +305,7 @@ choices and context in the draft survive a new review. Review answers can be sen
 runs or after a handover that made the review outdated: the worker then hands over again, and
 that handover stops a review of the earlier commit.
 Each item that needs the owner also has a "Write more context" button at its bottom right, apart from the choices: it opens a text box and becomes "Save"; the saved words stand on the item (button "Edit context") and go to the agent verbatim with the item's decision, on review cards too. They are kept like the choices until sent and dropped with them; an ignored item sends none; once sent they stay on the item, and when it needs the owner again they stand there to edit, going with the next decision unless replaced.
-Approving while choices on items are picked but not sent asks first: "Approve and close items" approves and drops them, "Go back" keeps them.
+Approving (also "Straight to main") while choices on items are picked but not sent asks first: "Approve and close items" approves and drops them, "Go back" keeps them.
 The Review tab also offers "Submit answers" beneath the list once a choice is made, so the
 owner can send those choices without opening the conversation on a phone. Sending them takes the
 card straight into the agent's response, clearing "Waiting for you", its "Needs you" inbox count,
@@ -317,7 +317,7 @@ decide stand out. Follow-up tasks it makes with a tool of its own, only of items
 else as the review bundled them: tasks beside the card, following up on it, started at once and
 waiting in the queue until its work has landed (the reason reads "Builds on it"); until each item
 chosen has its task, the worker's handover and reply are refused. An item made a follow-up task
-links it. The project stops reviewing work (or the work stops landing on `main`): the list goes with the review.
+links it. The project stops reviewing work (or the work no longer changes anything): the list goes with the review.
 
 ### Approval and landing
 
@@ -327,8 +327,10 @@ it through to the merge, which it does itself unless the settings leave the merg
 forge (see PR loop).
 
 Where the settings allow it (`direct`), "Straight to main" beside it pushes the work onto the
-default branch without a pull request, review or the PR's CI (see How work lands); only the button
-does, never words to the Koordinator. Where work lands on `main`, approval lands it at once.
+default branch without a pull request or the PR's CI, and without the forge's reviewers (see How work
+lands); the Obeya code review, where the project has it, comes first, and the button asks the same
+questions as Approve while a review is at work or choices are unsent. Only the button does, never
+words to the Koordinator. Where work lands on `main`, approval lands it at once.
 
 A review card, a contributor's pull request (see Review cards), reads "Merge (PR #5)": Seismic merges
 the head its worker reviewed, and the card is `live`; while a change request waits for the

@@ -196,6 +196,8 @@ export function Detail(p: Props) {
   const [picking, setPicking] = useState(false);
   const [confirmReviewApproval, setConfirmReviewApproval] = useState(false);
   const [confirmUnsent, setConfirmUnsent] = useState(false);
+  // whether the approval the owner is asked to confirm is "Straight to main"
+  const [confirmDirect, setConfirmDirect] = useState(false);
   const unsentPicks = useFindingDraft(item).findings;
   const all = p.all;
   const duplicateMatches = (item.possibleDuplicates ?? []).map((id) => all.find((other) => other.id === id)).filter((other): other is Item => !!other);
@@ -392,6 +394,16 @@ export function Detail(p: Props) {
   const unsent = Object.keys(unsentPicks ?? {}).filter((id) => cr?.items.some((r) => r.number === Number(id) && needsOwner(r))).length;
   const reviewed = cr?.state === 'done' && !cr.stale;
   const asksReview = !!cr && cr.mode === 'manual' && (!cr.state || !!cr.stale || cr.state === 'failed' || (cr.state === 'done' && verifying));
+  // approval asks first where choices are unsent or a review is still at work, the same for "Straight to main"
+  const approveNow = (direct: boolean) =>
+    void act(
+      direct ? { action: 'approve', direct: true } : { action: 'approve' },
+      direct ? { close: true, ack: t.approvedDirect, pending: t.approvingDirect, rate: item.id } : item.review?.noChange ? { close: true, ack: t.approvedNoChange, rate: item.id } : { close: true, ack: t.approved, pending: t.approving, rate: item.id },
+    );
+  const approve = (direct: boolean) => {
+    if (unsent || reviewRunning) (setConfirmDirect(direct), unsent ? setConfirmUnsent(true) : setConfirmReviewApproval(true));
+    else approveNow(direct);
+  };
   const approveButton = item.review?.landing ? null : item.review?.contribution ? (
     <ApproveReview c={item.review?.contribution} act={act} />
   ) : inFolder ? (
@@ -404,7 +416,7 @@ export function Detail(p: Props) {
   ) : (
     <>
       {/* while yellow, a second line inside it says why, as on the start buttons */}
-      <Button variant={reviewRunning ? 'review-warning' : 'primary'} className={reviewRunning ? 'start-agent-main' : undefined} onClick={() => unsent ? setConfirmUnsent(true) : reviewRunning ? setConfirmReviewApproval(true) : act({ action: 'approve' }, item.review?.noChange ? { close: true, ack: t.approvedNoChange, rate: item.id } : { close: true, ack: t.approved, pending: t.approving, rate: item.id })}>
+      <Button variant={reviewRunning ? 'review-warning' : 'primary'} className={reviewRunning ? 'start-agent-main' : undefined} onClick={() => approve(false)}>
         <span>{item.review?.noChange ? t.approveNoChange : pr ? t.approvePr : t.approve}</span>
         {reviewRunning && <span className="start-agent-model">{cr?.state === 'running' || (verifying && !fixing) ? t.approveDuringReview.reviewing : t.approveDuringReview.fixing}</span>}
       </Button>
@@ -413,7 +425,7 @@ export function Detail(p: Props) {
           open={confirmUnsent}
           onOpenChange={setConfirmUnsent}
           title={t.unsentChoices.title}
-          confirm={{ label: t.unsentChoices.approve, onClick: () => void act({ action: 'approve' }, item.review?.noChange ? { close: true, ack: t.approvedNoChange, rate: item.id } : { close: true, ack: t.approved, pending: t.approving, rate: item.id }) }}
+          confirm={{ label: t.unsentChoices.approve, onClick: () => { setConfirmUnsent(false); approveNow(confirmDirect); } }}
           cancel={t.unsentChoices.back}
         >
           <p>{t.unsentChoices.body(unsent)}</p>
@@ -424,7 +436,7 @@ export function Detail(p: Props) {
           open={confirmReviewApproval}
           onOpenChange={setConfirmReviewApproval}
           title={t.approveDuringReview.title}
-          confirm={{ label: t.approveDuringReview.land, onClick: () => void act({ action: 'approve' }, { close: true, ack: t.approved, pending: t.approving, rate: item.id }) }}
+          confirm={{ label: t.approveDuringReview.land, onClick: () => { setConfirmReviewApproval(false); approveNow(confirmDirect); } }}
           cancel={t.approveDuringReview.continue}
         >
           <p>{t.approveDuringReview.body}</p>
@@ -437,7 +449,7 @@ export function Detail(p: Props) {
         </Button>
       )}
       {direct && (
-        <Button title={t.directHint(reviewed)} onClick={() => act({ action: 'approve', direct: true }, { close: true, ack: t.approvedDirect, pending: t.approvingDirect, rate: item.id })}>
+        <Button title={t.directHint(reviewed)} onClick={() => approve(true)}>
           {t.approveDirect}
         </Button>
       )}
