@@ -73,9 +73,10 @@ if (isMain(import.meta.filename)) {
   }
   try {
     const input = checkInput(JSON.parse(fs.readFileSync(from, 'utf8')));
-    fs.writeFileSync(to, renderSchemaPage(input));
-    const diffs = diffModels(input.before, input.after).filter((d) => d.status !== 'same');
-    console.log(diffs.length ? `${to}: ${diffs.map((d) => `${d.name} ${d.status}`).join(', ')}` : `${to}: no change to the models`);
+    const diffs = diffModels(input.before, input.after);
+    fs.writeFileSync(to, renderSchemaPage(input, diffs));
+    const changed = diffs.filter((d) => d.status !== 'same');
+    console.log(changed.length ? `${to}: ${changed.map((d) => `${d.name} ${d.status}`).join(', ')}` : `${to}: no change to the models`);
   } catch (e) {
     console.error(e instanceof Error ? e.message : String(e));
     process.exit(1);

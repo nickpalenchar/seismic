@@ -55,8 +55,7 @@ export function SchemaEntity({ entity: e, neighbour = false, focus, drawn }: {
       sameIndexes > 0 && el('li', { class: 'more' }, `${sameIndexes} more index${sameIndexes === 1 ? '' : 'es'} unchanged`)));
 }
 
-export function SchemaDiagram({ diffs }: { diffs: EntityDiff[] }): Markup {
-  const shown = cut(diffs);
+export function SchemaDiagram({ shown }: { shown: ReturnType<typeof cut> }): Markup {
   const focus = new Set(shown.filter(s => !s.neighbour).map(s => s.entity.name));
   const drawn = new Set(shown.map(s => s.entity.name));
   const colors: Record<Status, string> = { added: 'var(--add)', removed: 'var(--del)', same: 'var(--muted)', changed: 'var(--chg)' };
@@ -71,8 +70,7 @@ export function SchemaChanges({ diffs }: { diffs: EntityDiff[] }): Markup {
     c.parts.map(p => typeof p === 'string' ? p : el('code', null, p.code)))));
 }
 
-export function SchemaPage(input: SchemaChange): string {
-  const diffs = diffModels(input.before, input.after);
+export function SchemaPage(input: SchemaChange, diffs = diffModels(input.before, input.after)): string {
   const shown = cut(diffs);
   const touched = shown.filter(s => !s.neighbour).length;
   const neighbours = shown.length - touched;
@@ -84,7 +82,7 @@ export function SchemaPage(input: SchemaChange): string {
     el('body', null, el('main', null, el('h1', null, title), shown.length ? [
       el('p', { class: 'sub' }, `${touched} ${touched === 1 ? 'entity' : 'entities'} changed${neighbours ? ` · ${neighbours} related ${neighbours === 1 ? 'entity' : 'entities'} shown for context` : ''}`),
       el('div', { class: 'legend' }, span('added', 'added'), span('changed', 'changed'), span('removed', 'removed'), neighbours > 0 && span('same', 'related, unchanged')),
-      SchemaDiagram({ diffs }), el('h2', null, 'Changes'), SchemaChanges({ diffs }),
+      SchemaDiagram({ shown }), el('h2', null, 'Changes'), SchemaChanges({ diffs }),
     ] : el('p', { class: 'none' }, 'The data models are the same before and after.'),
     el('h2', null, 'Drawn from'), el('p', { class: 'sources' }, input.sources.length ? input.sources.flatMap((s, i) => [i ? ', ' : '', el('code', null, s)]) : 'No source files named.')),
     el('script', { type: 'application/json', id: 'relations' }, new Markup(json)),
