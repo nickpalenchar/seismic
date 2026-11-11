@@ -2239,6 +2239,9 @@ const en = {
     noneQueued: 'No task is waiting in the queue.',
   },
   leftMenu: {
+    sidebarTitle: 'Sidebar',
+    sidebarDescription: 'Navigation on a small screen',
+    toggleSidebar: 'Toggle sidebar',
     button: 'Menu: inbox, projects, agents and settings',
     inbox: 'Inbox',
     configureAgents: 'Configure agents',

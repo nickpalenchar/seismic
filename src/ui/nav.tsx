@@ -242,7 +242,7 @@ export function NavSheet({ on, onOpenChange, width, maxWidth, onWidthChange, onW
           }}
           onPointerUp={release}
           onPointerCancel={release}
-          onDoubleClick={() => { onWidthChange(NAV_W); onWidthEnd(NAV_W); }}
+          onDoubleClick={() => { const value = nextWidth(NAV_W); onWidthChange(value); onWidthEnd(value); }}
           onKeyDown={(e) => {
             if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
               e.preventDefault();
