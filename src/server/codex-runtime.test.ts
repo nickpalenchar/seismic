@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { z } from 'zod';
 import { CodexRpcError, type CodexConnection, type CodexHandlers } from './codex-rpc';
-import { codexLimit, codexSandbox, createCodexRuntime, projectTrust } from './codex-runtime';
+import { codexLimit, codexSandbox, codexUsage, codexUsageOf, createCodexRuntime, projectTrust } from './codex-runtime';
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs';
 import { gitRepo } from './testing';
 import { execTools } from './exec-tools';
@@ -533,4 +533,49 @@ test("with auto review, Codex's own reviewer decides on approvals, a refusal sho
     await until(() => wire.n === 1);
     expect(wire.calls.find((c) => c.method === 'thread/start')?.params).toMatchObject({ approvalsReviewer: 'user' });
   }
+});
+
+test('the usage limits Codex reports: each window of each limit, its own first, graded by how much is used', () => {
+  const at = new Date('2026-11-11T08:00:00Z');
+  const snapshot = (limitId: string, limitName: string | null, primary: unknown, secondary: unknown = null) => ({ limitId, limitName, primary, secondary, credits: null, planType: 'pro', rateLimitReachedType: null });
+  const spark = snapshot('codex_spark', 'GPT-5.3-Codex-Spark', { usedPercent: 96, windowDurationMins: 300, resetsAt: null });
+  const own = snapshot('codex', null, { usedPercent: 12, windowDurationMins: 300, resetsAt: 1794670717 }, { usedPercent: 81, windowDurationMins: 10080, resetsAt: null });
+  expect(codexUsageOf({ rateLimits: own, rateLimitsByLimitId: { codex_spark: spark, codex: own } }, at)).toEqual({
+    harness: 'codex',
+    at: at.toISOString(),
+    limits: [
+      { kind: 'session', group: 'session', percent: 12, resetsAt: new Date(1794670717 * 1000).toISOString(), severity: 'normal' },
+      { kind: 'weekly_all', group: 'weekly', percent: 81, severity: 'warning' },
+      { kind: 'session_scoped', group: 'session', scope: 'GPT-5.3-Codex-Spark', percent: 96, severity: 'critical' },
+    ],
+  });
+  // an app-server that names no limits by id: the one it reports
+  expect(codexUsageOf({ rateLimits: snapshot('codex', null, { usedPercent: 17, windowDurationMins: 10080, resetsAt: null }) }, at).limits).toEqual([
+    { kind: 'weekly_all', group: 'weekly', percent: 17, severity: 'normal' },
+  ]);
+});
+
+test('Codex signed out shows no usage, and the next round asks a fresh app-server', async () => {
+  const wires: Wire[] = [];
+  let signedIn = false;
+  const source = codexUsage(() => {
+    const wire = new Wire();
+    wire.override = (method) => {
+      if (method !== 'account/rateLimits/read') return undefined;
+      if (!signedIn) return Promise.reject(new CodexRpcError(-32600, 'codex account authentication required to read rate limits'));
+      return Promise.resolve({ rateLimits: { limitId: 'codex', primary: { usedPercent: 5, windowDurationMins: 10080, resetsAt: null }, secondary: null } });
+    };
+    wires.push(wire);
+    return wire;
+  });
+  expect(await source.fetch()).toBeNull();
+  expect(wires[0]!.calls.map((c) => c.method)).toEqual(['initialize', 'account/rateLimits/read']);
+  expect(wires[0]!.closed).toBe(true);
+  signedIn = true;
+  expect((await source.fetch())?.limits[0]?.percent).toBe(5);
+  // the app-server stays for the rounds after
+  expect((await source.fetch())?.limits[0]?.percent).toBe(5);
+  expect(wires).toHaveLength(2);
+  source.close();
+  expect(wires[1]!.closed).toBe(true);
 });

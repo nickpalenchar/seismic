@@ -287,8 +287,8 @@ function Project({
   restart: PendingRestart | null;
   update: AppUpdate | null;
   source: SourceUpdate | null;
-  /** The plan's usage limits, while the bar shows them. */
-  usage: Usage | null;
+  /** The plans' usage limits, a harness's each, while the bar shows them. */
+  usage: Usage[];
   projects: ProjectInfo[];
   waiting: Record<string, Waiting>;
   /** The Bun the server runs on, when it is too old for it (docs/design/distribution.md, Builds). */
@@ -2683,7 +2683,7 @@ function Project({
           <div className="flex min-w-0 justify-center" ref={setTargetSlot} />
           <div className="flex min-w-0 items-center justify-end gap-1.5">
             {snapshot.workstations && <WorkstationsPill pools={snapshot.workstations} project={snapshot.project} projects={projects} items={items} underway={underway} onOpen={(i) => void openFresh(i)} onElsewhere={(c, card) => goTo(cardPath(c, card))} onTake={takeWorkstation} onKeep={keepWorkstation} />}
-            {online && usage && <UsagePill usage={usage} />}
+            {online && usage.map((u) => <UsagePill key={u.harness} usage={u} />)}
           </div>
         </footer>
         <NavSheet on={side.left > 0} {...menu} />

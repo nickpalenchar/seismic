@@ -1,6 +1,7 @@
 // The usage limits of the Claude plan Claude Code is logged in with on this machine (the five-hour
 // session, the week, a model's week), for the bar while the owner has it show them (the settings'
-// `usageMeter`) and a page of Seismic's is open. They come from the data behind Claude Code's
+// `usageMeter`) and a page of Seismic's is open; Codex's, beside them, come from its app-server
+// (`codexUsage` in codex-runtime.ts) on a meter of their own. Claude's come from the data behind Claude Code's
 // `/usage`, which asks the plan's usage endpoint: one idle Claude Code session is asked about every
 // minute and sends no prompt, so it uses none of what it reports. The session keeps an answer for a
 // minute, so the rounds are a little longer apart and each gets a fresh one. A login without plan
@@ -225,13 +226,14 @@ export function usageOf(r: SDKControlGetUsageResponse, now = new Date()): Usage 
         },
       ];
     });
-    return { limits, at };
+    return { harness: 'claude', limits, at };
   }
   const window = (kind: string, group: string, w: Window, scope?: string): UsageLimit[] =>
     w && typeof w.utilization === 'number'
       ? [{ kind, group, ...(scope ? { scope } : {}), percent: w.utilization, ...(w.resets_at ? { resetsAt: w.resets_at } : {}), severity: 'normal' }]
       : [];
   return {
+    harness: 'claude',
     limits: [
       ...window('session', 'session', plan.five_hour),
       ...window('weekly_all', 'weekly', plan.seven_day),

@@ -5,7 +5,8 @@ import { homedir } from 'node:os';
 import { realpathSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { GIT } from './workstations';
-import type { CodexModel } from '../core/types';
+import type { CodexModel, Usage, UsageLimit } from '../core/types';
+import type { UsageSource } from './usage';
 import { z } from 'zod';
 import { messageOf } from '../core/text';
 import { sessionRegistry } from './session-registry';
@@ -42,8 +43,9 @@ function reviewedAction(action: Record<string, unknown>): { name: string; input:
   const { type, ...input } = action;
   return { name: String(type), input };
 }
-const rateLimitWindow = z.object({ usedPercent: z.number(), resetsAt: z.number().nullable().optional() }).nullable().optional();
-const rateLimitSnapshot = z.object({ limitId: z.string().nullable().optional(), primary: rateLimitWindow, secondary: rateLimitWindow, rateLimitReachedType: z.unknown().optional() });
+const rateLimitWindow = z.object({ usedPercent: z.number(), windowDurationMins: z.number().nullable().optional(), resetsAt: z.number().nullable().optional() }).nullable().optional();
+const rateLimitSnapshot = z.object({ limitId: z.string().nullable().optional(), limitName: z.string().nullable().optional(), primary: rateLimitWindow, secondary: rateLimitWindow, rateLimitReachedType: z.unknown().optional() });
+const rateLimitsRead = z.object({ rateLimits: rateLimitSnapshot, rateLimitsByLimitId: z.record(z.string(), rateLimitSnapshot).nullable().optional() });
 const rateLimitsUpdate = z.object({ rateLimits: rateLimitSnapshot });
 
 /**
@@ -490,6 +492,88 @@ export async function codexModels(): Promise<CodexModel[]> {
   });
   try { return await discover(connection, () => false); }
   finally { connection.close(); await connection.done.catch(() => {}); }
+}
+
+/**
+ * The limits of an `account/rateLimits/read` answer, for the bar: each window of each limit Codex
+ * reports (its own `codex` first, a limit of a model's with that model's name), a window of up to a
+ * day as the session's, a longer one as the week's. Codex grades none: from 80 % on it shows as a
+ * warning, from 95 % as critical.
+ */
+export function codexUsageOf(answer: unknown, now = new Date()): Usage {
+  const r = rateLimitsRead.parse(answer);
+  const snapshots = Object.values(r.rateLimitsByLimitId ?? {});
+  if (!snapshots.length) snapshots.push(r.rateLimits);
+  snapshots.sort((a, b) => Number(b.limitId === 'codex') - Number(a.limitId === 'codex'));
+  const limits = snapshots.flatMap((s) => {
+    const scope = s.limitId && s.limitId !== 'codex' ? (s.limitName ?? s.limitId) : undefined;
+    return [s.primary, s.secondary].flatMap((w): UsageLimit[] => {
+      if (!w) return [];
+      const minutes = w.windowDurationMins ?? 0;
+      const group = minutes && minutes <= 24 * 60 ? 'session' : 'weekly';
+      const kind = scope ? `${group}_scoped` : minutes === 300 ? 'session' : minutes === 7 * 24 * 60 ? 'weekly_all' : group;
+      const percent = Math.max(0, Math.min(100, w.usedPercent));
+      return [{
+        kind,
+        group,
+        ...(scope ? { scope } : {}),
+        percent,
+        ...(w.resetsAt ? { resetsAt: new Date(w.resetsAt * 1000).toISOString() } : {}),
+        severity: percent >= 95 ? 'critical' : percent >= 80 ? 'warning' : 'normal',
+      }];
+    });
+  });
+  return { harness: 'codex', limits, at: now.toISOString() };
+}
+
+/**
+ * Codex's usage limits, from an idle app-server asked `account/rateLimits/read`, which starts no
+ * thread and spends no turn. Nothing to show (`null`) while Codex is not installed, without starting
+ * anything, or not signed in, whereupon the app-server is closed and the next round starts one anew
+ * (a sign-in meanwhile counts then).
+ */
+export function codexUsage(connect: Connect = connectInstalled): UsageSource {
+  let connection: CodexConnection | null = null;
+  let ready: Promise<void> | null = null;
+  let closed = false;
+  const close = () => {
+    const c = connection;
+    connection = null;
+    ready = null;
+    c?.close();
+    void c?.done.catch(() => {});
+  };
+  return {
+    fetch: async () => {
+      if (closed || (connect === connectInstalled && !installedCodex())) return null;
+      if (!connection) {
+        const c = connect({ cwd: homedir(), system: '', tools: [], onEvent() {} }, {
+          notification() {}, request: async () => { throw new CodexRpcError(-32601, 'No active worker'); },
+        });
+        connection = c;
+        ready = (async () => {
+          await c.request('initialize', { clientInfo: { name: 'obeya', title: 'Seismic', version: '0.1.0' }, capabilities: { experimentalApi: true } });
+          c.notify('initialized', {});
+        })();
+      }
+      const c = connection;
+      try {
+        await ready;
+        return codexUsageOf(await c.request('account/rateLimits/read', {}));
+      } catch (e) {
+        // signed out: nothing to show, and a fresh app-server next round
+        if (e instanceof CodexRpcError && /authentication required/i.test(e.message)) {
+          if (connection === c) close();
+          return null;
+        }
+        throw e;
+      }
+    },
+    close: () => {
+      closed = true;
+      close();
+    },
+  };
 }
 
 export const codexRuntime = createCodexRuntime();

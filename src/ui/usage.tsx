@@ -1,5 +1,5 @@
-// The plan's usage limits in the status bar: behind the logo of the harness they belong to (Claude
-// Code for now), the session's and the week's, each as a short meter with how much of it is used, in
+// The plans' usage limits in the status bar, a pill per harness signed in here (Claude Code's, and
+// Codex's beside it): behind the harness's mark, the session's and the week's, each as a short meter with how much of it is used, in
 // the grade the usage endpoint gives it. A click (a tap on the phone) lists
 // every limit with when it starts anew, where the numbers come from, and the button
 // that hides them again (the setting in Konfiguration → Benachrichtigungen und Limits shows them again).
@@ -27,7 +27,7 @@ export function headline(limits: UsageLimit[]): UsageLimit[] {
 
 /** A limit as the list names it. */
 export function limitName(l: UsageLimit): string {
-  if (l.scope) return t.usage.scoped(l.scope);
+  if (l.scope) return t.usage.scoped(l.scope, l.group);
   return t.usage.kinds[l.kind] ?? t.usage.groups[l.group] ?? l.kind;
 }
 
@@ -59,8 +59,21 @@ function ClaudeMark() {
   );
 }
 
-/** In the status bar; `phone`: at the right end of the phone's bar, a pill of glass. */
-export function UsagePill({ usage, phone }: { usage: Usage; phone?: boolean }) {
+/** Codex's mark, small: a terminal prompt in a rounded square. */
+function CodexMark() {
+  return (
+    <svg className="block fill-none stroke-current stroke-[2.2] [stroke-linecap:round] [stroke-linejoin:round]" viewBox="0 0 24 24" width="14" height="14" aria-hidden>
+      <rect x="2.5" y="3.5" width="19" height="17" rx="4.5" />
+      <path d="M7.5 9.5l3 2.5-3 2.5M12.5 15h4" />
+    </svg>
+  );
+}
+
+/**
+ * In the status bar; `phone`: at the right end of the phone's bar, a pill of glass; `compact`: only
+ * the most used limit, without its name (the phone, with another harness's pill beside it).
+ */
+export function UsagePill({ usage, phone, compact }: { usage: Usage; phone?: boolean; compact?: boolean }) {
   // open by a click (a tap) until one elsewhere or Escape
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState('');
@@ -69,29 +82,30 @@ export function UsagePill({ usage, phone }: { usage: Usage; phone?: boolean }) {
     setStatus('');
     api.saveUsageMeter(false).catch((e) => setStatus(failText(e)));
   };
-  const shown = headline(usage.limits);
+  const groups = headline(usage.limits);
+  const shown = compact ? groups.filter((l) => l === groups.reduce((a, b) => (b.percent > a.percent ? b : a))) : groups;
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <Pill variant={phone ? 'glass' : 'flat'} className={cn('relative p-0', phone && 'ml-auto')} id="usage">
+      <Pill variant={phone ? 'glass' : 'flat'} className="relative p-0" id={usage.harness === 'claude' ? 'usage' : `usage-${usage.harness}`}>
         <PopoverTrigger
           className={cn(statusFace, 'gap-4 rounded-full', phone ? 'gap-2.5 px-2.5 py-1.5 text-[13px]' : 'hover:bg-chip data-[state=open]:bg-chip')}
-          aria-label={t.usage.title}
+          aria-label={t.usage.title[usage.harness]}
         >
-          <span className="-mr-1.5 flex items-center" title={t.usage.harness}>
-            <ClaudeMark />
+          <span className="-mr-1.5 flex items-center" title={t.usage.harness[usage.harness]}>
+            {usage.harness === 'codex' ? <CodexMark /> : <ClaudeMark />}
           </span>
           {shown.map((l) => (
-            <span key={l.group} className="flex items-center gap-1.5">
-              <span>{t.usage.groups[l.group] ?? limitName(l)}</span>
+            <span key={l.group} className="flex items-center gap-1.5" title={compact ? limitName(l) : undefined}>
+              {!compact && <span>{t.usage.groups[l.group] ?? limitName(l)}</span>}
               <Meter limit={l} />
               <b className={cn('font-semibold tabular-nums', l.severity === 'critical' && 'text-error')}>{percent(l.percent)}</b>
             </span>
           ))}
         </PopoverTrigger>
       </Pill>
-      <PopoverContent side="top" align="end" aria-label={t.usage.title} className="w-[min(380px,calc(100vw-16px))]">
+      <PopoverContent side="top" align="end" aria-label={t.usage.title[usage.harness]} className="w-[min(380px,calc(100vw-16px))]">
         <p className="m-0 mb-1.5">
-          <b>{t.usage.title}</b>
+          <b>{t.usage.title[usage.harness]}</b>
         </p>
         <ul className="m-0 mb-2 list-none p-0">
           {usage.limits.map((l, i) => (
@@ -103,7 +117,7 @@ export function UsagePill({ usage, phone }: { usage: Usage; phone?: boolean }) {
             </li>
           ))}
         </ul>
-        <p className="hint m-0 mb-1.5">{t.usage.source(clock(usage.at))}</p>
+        <p className="hint m-0 mb-1.5">{t.usage.source(usage.harness, clock(usage.at))}</p>
         <p className="hint m-0">
           <Button size="small" onClick={hide}>
             {t.usage.hide}

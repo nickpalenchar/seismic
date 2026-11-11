@@ -1071,21 +1071,23 @@ describe('new commits on the upstream of the checkout Seismic runs from', () => 
 });
 
 describe('the usage limits in the bar', () => {
-  test('a page gets them once fetched for it, and its closing ends the session that fetched them', async () => {
+  test('a page gets them once fetched for it, each harness’s, and its closing ends the sessions that fetched them', async () => {
     let closed = 0;
-    const usage = new UsageMeter(() => ({ fetch: async () => ({ at: '2026-10-28T08:00:00.000Z', limits: [{ kind: 'session', group: 'session', percent: 7, severity: 'normal' }] }), close: () => void closed++ }), { on: true, lingerMs: 10 });
+    const meter = (harness: 'claude' | 'codex', percent: number) =>
+      new UsageMeter(() => ({ fetch: async () => ({ harness, at: '2026-10-28T08:00:00.000Z', limits: [{ kind: 'session', group: 'session', percent, severity: 'normal' }] }), close: () => void closed++ }), { on: true, lingerMs: 10 });
+    const usage = [meter('claude', 7), meter('codex', 40)];
     server.stop(true);
     server = serve([project], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, usage);
     const messages: ServerMessage[] = [];
     const ws = new WebSocket(new URL(api('/ws'), server.url.href.replace('http', 'ws')));
     ws.onmessage = (e) => messages.push(JSON.parse(e.data));
     const shown = () => messages.filter((m): m is Extract<ServerMessage, { type: 'usage' }> => m.type === 'usage');
-    await until(() => shown().length === 2);
-    expect(shown()[0]!.usage).toBeNull();
-    expect(shown()[1]!.usage?.limits[0]?.percent).toBe(7);
+    await until(() => shown().at(-1)?.usage.length === 2);
+    expect(shown()[0]!.usage).toEqual([]);
+    expect(shown().at(-1)!.usage.map((u) => [u.harness, u.limits[0]?.percent])).toEqual([['claude', 7], ['codex', 40]]);
     ws.close();
-    await until(() => closed === 1);
-    expect(usage.current()).toBeNull();
+    await until(() => closed === 2);
+    expect(usage.map((m) => m.current())).toEqual([null, null]);
   });
 });
 

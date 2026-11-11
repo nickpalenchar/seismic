@@ -65,6 +65,7 @@ import { headOf, installDependencies, ownCheckout, reinstallDependencies, RESTAR
 import { AppUpdates } from './app-update';
 import { SourceUpdates } from './source-update';
 import { claudeUsage, UsageMeter } from './usage';
+import { codexUsage } from './codex-runtime';
 import { COMPILED, resource, SELF, VERSION } from './resources';
 import { oldLinuxBun, onGitHub } from './repo';
 import { Access } from './remote';
@@ -342,8 +343,8 @@ const voiceSetup = new VoiceSetup({ home, local: transcriber.local });
 const updates = new AppUpdates();
 // run from a clone of Seismic's repository: new commits on its upstream, for the owner to pull
 const sources = own ? new SourceUpdates(own) : undefined;
-// the plan's usage limits in the bar, while the owner has it show them and a page is open
-const usage = new UsageMeter(() => claudeUsage(home), { on: usageMeterView(home).on });
+// the plans' usage limits in the bar, Claude Code's and Codex's, while the owner has it show them and a page is open
+const usage = [new UsageMeter(() => claudeUsage(home), { on: usageMeterView(home).on }), new UsageMeter(() => codexUsage(), { on: usageMeterView(home).on })];
 const machine = new MachineSetup({ home, config, voice: voiceSetup });
 // the project the assistant created gets a first card that says what to try
 welcome(home, projects.all());
@@ -351,7 +352,7 @@ const shutdown = async (code: number, forced = false) => {
   // Force while the sessions and their process identities are still available.
   const agents = forced ? endAgentsHere(true) : undefined;
   projects?.shutdown();
-  usage.stop();
+  for (const m of usage) m.stop();
   demoSpace.stop();
   await (agents ?? endAgentsHere());
   awake.stop();

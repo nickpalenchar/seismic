@@ -183,8 +183,8 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
   const [offline, setOffline] = useState<Record<string, number | null>>({});
   // the projects whose connection is open but answers nothing
   const [frozen, setFrozen] = useState<Record<string, boolean>>({});
-  // the plan's usage limits, the same over every project's connection
-  const [usage, setUsage] = useState<Usage | null>(null);
+  // the plans' usage limits, the same over every project's connection
+  const [usage, setUsage] = useState<Usage[]>([]);
   const feed = (id: string, live: ReturnType<typeof useProject>) => {
     setUsage(live.usage);
     if (live.snapshot) setSnaps((s) => (s[id] === live.snapshot ? s : { ...s, [id]: live.snapshot! }));
@@ -753,7 +753,13 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
         <header className="ph-bar ph-home">
           <Sign size={26} />
           <span className="ph-word">Seismic</span>
-          {usage && <UsagePill usage={usage} phone />}
+          {usage.length > 0 && (
+            <span className="ml-auto flex min-w-0 items-center gap-1.5">
+              {usage.map((u) => (
+                <UsagePill key={u.harness} usage={u} phone compact={usage.length > 1} />
+              ))}
+            </span>
+          )}
         </header>
         {banner}
         <Notify />

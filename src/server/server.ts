@@ -133,8 +133,8 @@ export function serve(
   push = new Push({ store: access.store }),
   /** New commits on the upstream of the checkout Seismic runs from; none for the app or the compiled binary. */
   sources?: SourceUpdates,
-  /** The plan's usage limits for the bar, fetched while the owner has it show them and a page is open. */
-  usage?: UsageMeter,
+  /** The plans' usage limits for the bar, a meter per harness (Claude Code's first), fetched while the owner has it show them and a page is open. */
+  usage: UsageMeter[] = [],
   /** Where the stalls of the pages go, beside the server's own. */
   stalls?: Stalls,
   /** What the Developer section may do here; nothing by default. */
@@ -232,8 +232,9 @@ export function serve(
   });
   updates.onChange(() => everyone(JSON.stringify({ type: 'update', update: updates.current() } satisfies ServerMessage)));
   sources?.onChange(() => everyone(JSON.stringify({ type: 'source', source: sources.current() } satisfies ServerMessage)));
-  usage?.onChange(() => everyone(JSON.stringify({ type: 'usage', usage: usage.current() } satisfies ServerMessage)));
-  /** What tells the usage meter a page closed, by page. */
+  const usageMessage = () => JSON.stringify({ type: 'usage', usage: usage.flatMap((m) => m.current() ?? []) } satisfies ServerMessage);
+  for (const m of usage) m.onChange(() => everyone(usageMessage()));
+  /** What tells the usage meters a page closed, by page. */
   const unwatch = new Map<string, () => void>();
   /** What stops sending each project's changes to its pages. */
   const detach = new Map<string, () => void>();
@@ -606,7 +607,7 @@ export function serve(
         GET: needs(config, (c) => usageMeterView(c.home)),
         PUT: needs(config, async (c, req) => {
           const view = saveUsageMeter(c.home, await req.json());
-          usage?.setOn(view.on);
+          for (const m of usage) m.setOn(view.on);
           return view;
         }),
       },
@@ -1159,8 +1160,11 @@ export function serve(
         ws.send(JSON.stringify({ type: 'restart', restart: pending(c.id) } satisfies ServerMessage));
         ws.send(JSON.stringify({ type: 'update', update: updates.current() } satisfies ServerMessage));
         ws.send(JSON.stringify({ type: 'source', source: sources?.current() ?? null } satisfies ServerMessage));
-        ws.send(JSON.stringify({ type: 'usage', usage: usage?.current() ?? null } satisfies ServerMessage));
-        if (usage) unwatch.set(ws.data.page, usage.watch());
+        ws.send(usageMessage());
+        if (usage.length) {
+          const closed = usage.map((m) => m.watch());
+          unwatch.set(ws.data.page, () => closed.forEach((f) => f()));
+        }
         ws.send(JSON.stringify({ type: 'snapshot', snapshot: c.board.snapshot() } satisfies ServerMessage));
         ws.send(waitingMessage());
         // a page that reloads within a command's undo window offers "Undo" again

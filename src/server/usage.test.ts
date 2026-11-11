@@ -21,6 +21,7 @@ test('the endpoint’s meters as it sends them, a scoped one with what it is for
     AT,
   );
   expect(usage).toEqual({
+    harness: 'claude',
     at: AT.toISOString(),
     limits: [
       { kind: 'session', group: 'session', percent: 3, resetsAt: '2026-10-28T10:40:00Z', severity: 'normal' },
@@ -70,7 +71,7 @@ function fakeSource() {
   };
   return { answers, counts, open };
 }
-const usage = (percent: number, at = new Date().toISOString()): Usage => ({ at, limits: [{ kind: 'session', group: 'session', percent, severity: 'normal' }] });
+const usage = (percent: number, at = new Date().toISOString()): Usage => ({ harness: 'claude', at, limits: [{ kind: 'session', group: 'session', percent, severity: 'normal' }] });
 const settle = () => new Promise((r) => setTimeout(r, 5));
 
 test('fetched only while the bar shows them and a page is open; closed and forgotten once neither holds', async () => {

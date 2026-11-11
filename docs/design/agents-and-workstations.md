@@ -82,7 +82,7 @@ the allow-list shortcut below (no command runs unasked on that list until the ow
 configuration). Decided 2026-11-02; rejected: refusing it, as before, which stopped Codex workers in
 every repository with a change to `.claude/` not trusted yet, for no protection. A review card, whose
 workstation holds a stranger's code, stays refused for Codex.
-Other roles, setup and the usage meter remain Claude-based. A Codex worker's runs feed the
+Other roles and setup remain Claude-based; the usage limits of Codex's login show beside Claude's in the status bar (see The status bar in `the-canvas.md`). A Codex worker's runs feed the
 work retrospective like a Claude worker's (its rollout is read, see `the-koordinator.md`). An
 unsupported capability fails visibly, never by substituting Claude.
 

@@ -250,19 +250,25 @@ the restart); beside it "Creating demo site …" while the project's demo site i
 (see A project's demo site in Sharing demos). In the middle, whom the microphone speaks to (see Voice). It stays above an open
 card's dimming, so that line stays readable while a card is open; the view switcher sits just above
 the bar. Until the owner has talked once (remembered per browser), that line starts with "Hold Space
-to talk", which is how voice is found without a microphone button. Right, the usage limits of the Claude plan that Claude Code on this machine is logged in
-with, behind the small mark of the harness they belong to (Claude Code's; other harnesses get their
-own mark and meters beside it): the session's (five hours) and the week's, each a short meter with its
-percentage, the most used limit of each group, coloured in the grade the plan's usage endpoint gives
-it (warning, critical). A click lists every limit (the session, the week for all models,
-the week for a single model) with when it starts anew, where the numbers come from and as of when,
-and "Hide", which turns the setting off; "Usage limits in the bar" under Configuration →
-Notifications and limits turns it on again (on until then). The phone view shows the same at the right of its top bar.
-The numbers come from the data behind Claude Code's `/usage`: one idle Claude Code session, which
+to talk", which is how voice is found without a microphone button. Right, the usage limits of the plans the harnesses on this machine are logged in with, a pill per
+harness behind its small mark: the Claude plan Claude Code is logged in with, and beside it the
+ChatGPT plan Codex is signed in with, while it is (Codex not installed or signed out shows no pill).
+Each shows the session's (five hours) and the week's, each a short meter with its percentage, the
+most used limit of each group, coloured in its grade (warning, critical): the grade Claude's usage
+endpoint gives, and for Codex, which grades none, warning from 80 % and critical from 95 %. A click
+lists every limit of that harness (the session, the week for all models, the week or session of a
+single model) with when it starts anew, where the numbers come from and as of when, and "Hide",
+which turns the setting off for both; "Usage limits in the bar" under Configuration → Notifications
+and limits turns it on again (on until then). The phone view shows the same at the right of its top
+bar; with two pills there, each shows only its most used limit, without its name (both do not fit
+otherwise), and a tap lists them all.
+Claude's numbers come from the data behind Claude Code's `/usage`: one idle Claude Code session, which
 sends no prompt and so uses none of the limits, is asked a little over every minute (it keeps an
-answer for a minute) while the setting is on and a page of Seismic is open, and closed once neither
+answer for a minute); Codex's from an idle Codex app-server asked `account/rateLimits/read`, which
+starts no thread. Both are asked while the setting is on and a page of Seismic is open, and closed once neither
 holds, half a minute after the last page closed: a reload, or a switch to another project, finds the
-numbers there and shows them as soon as its connection opens. Nothing shows for a login without plan limits (an API key, a cloud provider), a Claude Code
+numbers there and shows them as soon as its connection opens. A signed-out Codex is asked again by a
+fresh app-server each round, so a sign-in meanwhile shows its pill within a minute. Nothing shows for a login without plan limits (an API key, a cloud provider), a harness
 too old to answer, or numbers that could not be fetched again for five minutes. The workers on other
 machines may use other logins; the bar shows this machine's. The lists the status bar opens
 open upwards.
@@ -786,6 +792,11 @@ code, a generic one otherwise.
 
 ### Decisions
 
+- **Codex's usage limits get a pill of their own beside Claude's** (owner, 2026-11-11): each harness
+  keeps its own mark, list and source line, since the two plans' limits are unrelated; one setting
+  shows or hides both. On the phone, two full pills do not fit the top bar beside the wordmark, so
+  each then shows its most used limit only. Rejected: a second row on the phone (space the list
+  needs), one merged pill (it would mix two plans' numbers).
 - **A canvas's cards and groups point to it without a database foreign key** (2026-11-07): SQLite
   cannot drop a column that is part of one, and a column added to an existing table cannot be
   required either; the server sets it on every card and group it writes, falling back to "main".

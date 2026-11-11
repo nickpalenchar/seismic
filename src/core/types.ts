@@ -3048,27 +3048,29 @@ export interface MotionView {
 }
 
 /**
- * One of the usage limits of the Claude plan Claude Code is logged in with on this machine, as the
- * plan's usage endpoint reports it (src/server/usage.ts): how much of its window is used, and when
- * the window starts anew.
+ * One of the usage limits of the plan a harness is logged in with on this machine (Claude Code's
+ * Claude plan, Codex's ChatGPT plan), as the harness reports it (src/server/usage.ts,
+ * src/server/codex-runtime.ts): how much of its window is used, and when the window starts anew.
  */
 export interface UsageLimit {
   /** The endpoint's kind of meter: `session` (five hours), `weekly_all`, `weekly_scoped` (one model's), or one Seismic does not know yet. */
   kind: string;
   /** The endpoint's group of the meter: `session` or `weekly`. */
   group: string;
-  /** What a scoped meter is for, as the endpoint names it: a model (`Fable`) or a surface. */
+  /** What a scoped meter is for, as the endpoint names it: a model (`Fable`) or a surface; for Codex, a limit of its own (a model's). */
   scope?: string;
   /** Share of the window used, 0–100. */
   percent: number;
   /** When the window starts anew (ISO time), when the endpoint says. */
   resetsAt?: string;
-  /** The endpoint's grade of the meter: `normal`, `warning` or `critical`. */
+  /** The endpoint's grade of the meter: `normal`, `warning` or `critical` (for Codex, which grades none, Seismic's from the percentage). */
   severity: string;
 }
 
-/** The plan's usage limits as last fetched, for the bar while the owner has it show them. */
+/** A harness's plan usage limits as last fetched, for the bar while the owner has it show them. */
 export interface Usage {
+  /** The harness whose login they belong to. */
+  harness: 'claude' | 'codex';
   limits: UsageLimit[];
   /** When they were fetched (ISO time). */
   at: string;
@@ -3511,8 +3513,8 @@ export type ServerMessage =
   | { type: 'update'; update: AppUpdate | null }
   /** On connect and whenever it changes: new commits on the upstream of the checkout Seismic runs from, if any. */
   | { type: 'source'; source: SourceUpdate | null }
-  /** On connect and whenever it changes: how much of its usage limits the account Claude Code runs with here has used, while the bar shows it. */
-  | { type: 'usage'; usage: Usage | null }
+  /** On connect and whenever it changes: how much of their usage limits the accounts Claude Code and Codex (when signed in) run with here have used, while the bar shows it; Claude's first. */
+  | { type: 'usage'; usage: Usage[] }
   /** On connect and whenever it changes: what waits for the owner on each project, by project id. */
   | { type: 'waiting'; waiting: Record<string, Waiting> }
   /** Whenever a project starts, stops, or changes its name or repositories while Seismic runs. */

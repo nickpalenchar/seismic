@@ -593,8 +593,8 @@ export function useProject(id = projectId): {
   update: AppUpdate | null;
   /** New commits on the upstream of the checkout Seismic runs from. */
   source: SourceUpdate | null;
-  /** The plan's usage limits, while the bar shows them. */
-  usage: Usage | null;
+  /** The plans' usage limits, a harness's each (Claude Code's first), while the bar shows them. */
+  usage: Usage[];
   /** What waits for the owner on each project, by project id. */
   waiting: Record<string, Waiting>;
   oldBun: string | null;
@@ -609,7 +609,7 @@ export function useProject(id = projectId): {
   const [restart, setRestart] = useState<PendingRestart | null>(null);
   const [update, setUpdate] = useState<AppUpdate | null>(null);
   const [source, setSource] = useState<SourceUpdate | null>(null);
-  const [usage, setUsage] = useState<Usage | null>(null);
+  const [usage, setUsage] = useState<Usage[]>([]);
   const [waiting, setWaiting] = useState<Record<string, Waiting>>({});
   const [oldBun, setOldBun] = useState<string | null>(null);
   const [projects, setProjects] = useState<ProjectInfo[] | null>(null);
