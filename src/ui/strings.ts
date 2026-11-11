@@ -2448,7 +2448,6 @@ const en = {
     buildWaitsHint: 'It is built as soon as the reply is there, unless the agent still asks something.',
     unbuild: 'Don’t build after all',
     buildsAfterReply: 'builds after the reply',
-    built: 'The idea is being built; where it stands is its task.',
     planned: 'An agent is writing the plan doc now; then the plan stands here.',
     parked: 'Idea parked.',
     dropped: 'Idea dropped. It stays here as it stands until you archive it.',

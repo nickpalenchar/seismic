@@ -68,7 +68,7 @@ import { cn } from 'cn';
  * With `pending`, the card folds at once, before the server has answered, and says so until it has.
  */
 /** `rate`: the card whose approved work the owner is asked for feedback on, once the action went through. */
-export type ActDone = { close: true; ack: string; undo?: () => unknown; pending?: string; rate?: string } | { close: false };
+export type ActDone = { close: true; ack?: string; undo?: () => unknown; pending?: string; rate?: string } | { close: false };
 
 /** An action the server is still at, after its card has folded: the answer confirms it or tells why not. */
 export type Pending = { card: string; title: string; answered: Promise<void> };
@@ -1149,7 +1149,7 @@ function IdeaView({
                   label={t.idea.build}
                   {...btn('build')}
                   codexAllowed={prototypes && !item.review?.contribution}
-                  onStart={(agent) => guard(() => void act({ action: 'build', ...(agent ? { agent } : {}) }, idea.thinking ? { close: false } : { close: true, ack: t.idea.built }))}
+                  onStart={(agent) => guard(() => void act({ action: 'build', ...(agent ? { agent } : {}) }, idea.thinking ? { close: false } : { close: true }))}
                 />
               )
             )}

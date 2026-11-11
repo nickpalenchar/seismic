@@ -815,7 +815,8 @@ function Project({
     closeCard({ keepUntitled: true });
     if (!p || !d.pending) {
       if (d.rate) ratePrompt.ask(d.rate);
-      return showAck(d.ack, d.undo);
+      if (d.ack) showAck(d.ack, d.undo);
+      return;
     }
     // the card says it is under way until the snapshot moves it on; a refusal puts it back as it was
     const what = d.pending;
@@ -824,7 +825,7 @@ function Project({
     p.answered.then(
       () => {
         if (d.rate) ratePrompt.ask(d.rate);
-        showAck(d.ack, d.undo);
+        if (d.ack) showAck(d.ack, d.undo);
       },
       (e) => {
         if (!(e instanceof ApiError)) console.error(e);

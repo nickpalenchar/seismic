@@ -526,7 +526,8 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
     back();
     if (!p || !d.pending) {
       if (d.rate) ratePrompt.ask(d.rate);
-      return showAck(d.ack, d.undo);
+      if (d.ack) showAck(d.ack, d.undo);
+      return;
     }
     const card = p.card;
     setUnderway((u) => [...u, card]);
@@ -534,7 +535,7 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
     p.answered.then(
       () => {
         if (d.rate) ratePrompt.ask(d.rate);
-        showAck(d.ack, d.undo);
+        if (d.ack) showAck(d.ack, d.undo);
       },
       (e) => {
         setUnderway((u) => u.filter((id) => id !== card));
