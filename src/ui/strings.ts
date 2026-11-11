@@ -1602,7 +1602,7 @@ const en = {
           : `${existing + made} clones on this machine in all${existing && made ? ` (${existing} existing, ${made} new)` : ''}.`,
     workstations: 'Existing clones, one per line',
     cloneIsRepo: "The repository's own folder is no clone for agents: finished work lands on its main there.",
-    slots: 'Slots here',
+    slots: 'Max workstations',
     slotsAll: 'all',
     slotsHint: 'How many agents may work on the machine at once. A new task goes to the first machine with a free slot; empty: as many as there are clones.',
     slotsAny: 'any',
