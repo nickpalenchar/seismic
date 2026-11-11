@@ -2660,7 +2660,7 @@ function Project({
           </div>
           <div className="st-mid" ref={setTargetSlot} />
           <div className="st-right">
-            {snapshot.workstations && <WorkstationsPill pools={snapshot.workstations} project={snapshot.project} projects={projects} items={items} onOpen={(i) => void openFresh(i)} onElsewhere={(c, card) => goTo(cardPath(c, card))} onTake={takeWorkstation} onKeep={keepWorkstation} />}
+            {snapshot.workstations && <WorkstationsPill pools={snapshot.workstations} project={snapshot.project} projects={projects} items={items} underway={underway} onOpen={(i) => void openFresh(i)} onElsewhere={(c, card) => goTo(cardPath(c, card))} onTake={takeWorkstation} onKeep={keepWorkstation} />}
             {online && usage && <UsagePill usage={usage} />}
           </div>
         </footer>

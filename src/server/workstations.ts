@@ -1113,7 +1113,8 @@ export class Workstations implements CardWorkstations {
 
   /**
    * The pool by machine for the Workstations pill, `busy` the cards whose worker is in a turn. Worktrees
-   * are never short, so their pool is this machine's slots, each taken while a worker is at work.
+   * are never short, so their pool is this machine's slots, each taken while a worker is at work, or,
+   * without slots, `uncapped`: only the worktrees the cards hold.
    * `kept`: the folders of clones Seismic made that left the pool and stay since something in them would be lost.
    * `blocked`: the free clones no new card gets now, and why. `workstations`: each clone or worktree
    * by its path there, with the card that holds it.
@@ -1128,6 +1129,8 @@ export class Workstations implements CardWorkstations {
     if (this.o.mode === 'worktrees') {
       const slots = this.slots(null);
       const cards = all.flatMap((w) => (w.card_id && busy.includes(w.card_id) ? [w.card_id] : []));
+      // without slots nothing caps them: the pill shows the cards in worktrees alone
+      if (!Number.isFinite(slots)) return [{ name: HERE, here: true, worktrees: true, uncapped: true, slots: 0, total: 0, cards, busy: cards, workstations: held(all), ...keptOn(null) }];
       return [{ name: HERE, here: true, worktrees: true, slots, total: slots, cards, busy: cards, workstations: held(all), ...keptOn(null) }];
     }
     return this.machines().map((host) => {

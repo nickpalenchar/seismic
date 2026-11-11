@@ -1621,6 +1621,8 @@ export interface PoolHost {
   worktrees?: boolean;
   /** How many of its workers may be in a turn at once; a new card goes elsewhere or waits once they are. */
   slots: number;
+  /** In worktrees without slots: nothing caps its workers (`slots` and `total` are 0), and the pill shows the cards in worktrees alone. */
+  uncapped?: true;
   /** Its clones: how many, and the cards that hold one now. */
   total: number;
   cards: string[];

@@ -1076,6 +1076,10 @@ describe('Koordinator waits for a free workstation', () => {
       await scope([`src/${i}.ts`]);
     }
     expect(cards.map((c) => item(c.id).state)).toEqual(['working', 'working', 'working']);
+    // the pill shows the cards in worktrees alone, nothing capping them
+    const [here] = workstations.pool(workers.inTurn());
+    expect(here).toMatchObject({ worktrees: true, uncapped: true, slots: 0, total: 0 });
+    expect(here!.workstations.map((w) => w.card).sort()).toEqual(cards.map((c) => c.id).sort());
   });
 
   test('the card waiting longest gets the workstation; a card behind a waiting one waits too', async () => {

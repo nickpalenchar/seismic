@@ -409,22 +409,28 @@ meanwhile waits for it.
 
 #### The pool in the status bar
 
-For each repository in clones the status bar along the bottom shows the pool ("Workstations"), left
+For each repository the status bar along the bottom shows the pool ("Workstations"), left
 of the usage limits (owner, 2026-11-09: not in the top bar, which holds only what is about Seismic
-as a whole): per machine (named once
-there is more than one) a dot per clone, solid while its card's worker is at work, pale while merely
-held, orange while free but blocked, and how many new cards could start ("2 free", "all taken",
-"none free · 1 blocked"). Hovering or clicking it opens a list above it: per machine its slots at
-work and clones taken, then each workstation on a line of its own, free ones included, with its path
-(cut at the front where too long, so its end stays readable), the dot the pill shows for it, and
-the card in it, "free" or "blocked"; then how many cards wait for a workstation or a slot. While
-none is free and a card waits, "⋯" beside the cards whose clone may go to it (see Taking a card's
-workstation). The card
-is a link: a click closes the list, flies to the card and opens it; for a card on another project
-the page switches to that project at the card's address (see Addresses in The canvas), which opens
-it once the project has loaded. A card not on any project (archived, say) shows by its title without a link. A
-repository in worktrees shows a dot per slot, and none without slots (no pill if all are so); its
-list names the cards' worktrees.
+as a whole): per machine (named once there is more than one) a dot per clone, and how many new
+cards could start ("2 free", "all taken", "none free · 1 blocked"). A taken clone's dot wears the
+colour of its card's state as the card on the canvas shows it, derived from the same rule, so a
+change to the cards' colours changes the dots with it (owner, 2026-11-11): blue while its agent
+works, teal while a code review runs, orange while it needs the owner (a question, a demo ready),
+green while it lands; at work, in review and landing it pulses slowly (no pulse with reduced
+motion). A card on another project shows solid blue while its worker is at work, pale otherwise.
+A free clone is a dark grey ring, a blocked one an orange ring. Hovering or clicking it opens a
+list above it: per machine its slots at work and clones taken, then each workstation on a line of
+its own in the order of the dots (left to right is top to bottom), free ones included: its dot,
+the card in it as a compact card (title and state line) that opens it, and its path (cut at the
+front where too long, so its end stays readable); a free or blocked one says so. Then how many
+cards wait for a workstation or a slot. While none is free and a card waits, "⋯" beside the cards
+whose clone may go to it (see Taking a card's workstation). A click on a card closes the list,
+flies to the card and opens it; for a card on another project the page switches to that project
+at the card's address (see Addresses in The canvas), which opens it once the project has loaded. A
+card not on any project (archived, say) shows by its title without a link. A repository in
+worktrees shows a dot per card holding a worktree, then a ring per slot its workers leave free;
+without slots nothing caps it, and it shows the cards' dots alone ("2 at work", "none at work").
+Its list names the cards' worktrees, and a line per free slot.
 
 A free clone is blocked when the last look at it (see Workstations) says no new card gets it: it has
 uncommitted or untracked changes (the list names the first five files), git fails in it, its

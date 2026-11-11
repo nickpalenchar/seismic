@@ -2363,6 +2363,9 @@ const en = {
     host: (name: string, busy: number, slots: number, taken: number, total: number) =>
       `${name}: ${busy} of ${slots} ${slots === 1 ? 'slot' : 'slots'} at work, ${taken} of ${total} ${total === 1 ? 'clone' : 'clones'} taken${total ? ':' : '.'}`,
     worktreeSlots: (name: string, busy: number, slots: number, listed: boolean) => `${name}: ${busy} of ${slots} ${slots === 1 ? 'slot' : 'slots'} at work${listed ? ':' : '.'}`,
+    worktreesUncapped: (name: string, busy: number, listed: boolean) => `${name}: ${busy} at work, no slot limit${listed ? ':' : '.'}`,
+    uncapped: (busy: number) => (busy ? `${busy} at work` : 'none at work'),
+    freeSlot: 'free slot',
     offProject: 'a card that is not in the project',
     notOnProject: (title: string) => `${title} (not in the project)`,
     onProject: (project: string) => `on ${project}`,

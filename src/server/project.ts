@@ -344,7 +344,7 @@ export class ProjectRuntime {
     });
     board.showPools(() =>
       this.repos
-        .filter((r) => r.workstations.pooled)
+        .filter((r) => r.workstations.mode !== 'folder')
         .map((r) => ({
           repo: r.ref.id,
           hosts: r.workstations.pool(r.workers.inTurn()).map((h) => ({
