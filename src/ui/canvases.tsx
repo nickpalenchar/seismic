@@ -339,7 +339,7 @@ export function CanvasDialog({ project, canvases, canvas, onClose, onDone }: { p
   const icon = draft ? draft.icon : (canvas?.icon ?? null);
   const lucide = lucideIcon(icon ?? undefined);
   const color = draft?.color !== undefined ? draft.color : (lucide?.color ?? null);
-  const tab = draft?.tab ?? (lucide ? 'icons' : 'emoji');
+  const tab = draft?.tab ?? (icon && !lucide ? 'emoji' : 'icons');
   const set = (p: Partial<CanvasDraft>) => setDraft({ ...draft, name, icon, ...p });
   const pickColor = (c: CanvasIconColor | null) => set({ color: c, ...(lucide ? { icon: lucideIconValue(lucide.name, c) } : {}) });
   const matching = iconsMatching(draft?.iconSearch ?? '');
@@ -428,22 +428,13 @@ export function CanvasDialog({ project, canvases, canvas, onClose, onDone }: { p
           <div className="cd-icon-bar">
             <span className="cd-label">{t.canvases.icon}</span>
             <TabsList variant="segmented" aria-label={t.canvases.icon}>
-              <TabsTrigger value="emoji">{t.canvases.emojis}</TabsTrigger>
               <TabsTrigger value="icons">{t.canvases.icons}</TabsTrigger>
+              <TabsTrigger value="emoji">{t.canvases.emojis}</TabsTrigger>
             </TabsList>
             <Button type="button" size="small" variant="ghost" className="cd-none" aria-pressed={!icon} disabled={!icon} onClick={() => set({ icon: null })}>
               {t.canvases.noIcon}
             </Button>
           </div>
-          <TabsContent value="emoji" className="cd-panel">
-            <EmojiPicker
-              className="h-full"
-              value={icon && !lucide ? icon : undefined}
-              search={draft?.emojiSearch ?? ''}
-              onSearch={(emojiSearch) => set({ emojiSearch })}
-              onEmojiSelect={({ emoji }) => set({ icon: emoji })}
-            />
-          </TabsContent>
           <TabsContent value="icons" className="cd-panel">
             <div className="cd-search">
               <Input
@@ -467,6 +458,15 @@ export function CanvasDialog({ project, canvases, canvas, onClose, onDone }: { p
               })}
             </RadioGroup>
             {!matching.length && <p className="cd-empty">{t.canvases.noIconFound}</p>}
+          </TabsContent>
+          <TabsContent value="emoji" className="cd-panel">
+            <EmojiPicker
+              className="h-full"
+              value={icon && !lucide ? icon : undefined}
+              search={draft?.emojiSearch ?? ''}
+              onSearch={(emojiSearch) => set({ emojiSearch })}
+              onEmojiSelect={({ emoji }) => set({ icon: emoji })}
+            />
           </TabsContent>
         </Tabs>
         {failed && <p className="cd-problem on">{failed}</p>}

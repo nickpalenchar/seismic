@@ -725,11 +725,12 @@ place in the order, and a trash on a canvas without cards (never "main"); the dr
 "+ New canvas". Tab and Shift+Tab can leave the drawer and keep focus at their destination;
 Escape or choosing a canvas from the keyboard returns focus to the selected tab. Opening the
 new-canvas or edit dialog leaves focus in that dialog. The "+" and "+ New canvas" open the canvas dialog: a name, checked against the
-naming rule as it is typed, and an icon, or none ("No icon"), from one of two tabs: "Emoji", a
-picker of every emoji the browser can draw, by category, with a search by name, skin tones and the
-name of the emoji under the pointer (its data is Emojibase's, which Seismic serves itself, so it works
-offline); or "Icons", the curated Lucide icons with a search by name and a row of colours they are
-drawn in (picking a colour recolours the icon chosen); "Create canvas" makes it and shows it. The same dialog, from the pencil,
+naming rule as it is typed, and an icon, or none ("No icon"), from one of two tabs: "Icons",
+the first and the one it opens on (unless the canvas has an emoji), the curated Lucide icons with a
+search by name and a row of colours they are drawn in (picking a colour recolours the icon chosen);
+or "Emoji", a picker of every emoji the browser can draw, by category, with a search by name, skin
+tones and the name of the emoji under the pointer (its data is Emojibase's, which Seismic serves
+itself, so it works offline); "Create canvas" makes it and shows it. The same dialog, from the pencil,
 changes a canvas ("main" keeps its name and changes only its icon). What is typed and picked in it (searches, tab and colour too)
 stays until it is saved or cancelled, also across closing it and a reload. While a card is open the
 strip lies under the dimming, so switching never leaves a card's unsent input behind; the drafts of
