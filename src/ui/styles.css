@@ -1427,13 +1427,15 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .diff-tree { grid-row: 3; border: 1px solid var(--line); border-radius: 8px; padding: 8px; min-width: 0; }
 .diff-tree ul { list-style: none; margin: 0; padding: 0; }
 .diff-tree ul ul { padding-left: 14px; }
-.diff-tree button { width: 100%; justify-content: flex-start; min-height: 32px; padding: 5px 6px; }
+.diff-tree button { width: 100%; justify-content: flex-start; min-height: 26px; padding: 3px 6px; }
 .diff-tree button.selected { background: var(--chip); color: var(--ink); }
 .diff-tree button svg { flex-shrink: 0; }
 .diff-tree-name { overflow: hidden; text-overflow: ellipsis; }
-.diff-status { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 4px; background: var(--chip); font: 12px var(--mono); }
-.diff-status.added { color: var(--approved); }
-.diff-status.deleted { color: var(--destructive); }
+.diff-status { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 3px; color: color-mix(in srgb, var(--diff-status) 75%, var(--ink)); background: color-mix(in srgb, var(--diff-status) 22%, transparent); font: 700 11px/1 var(--mono); }
+.diff-status.added { --diff-status: var(--approved); }
+.diff-status.deleted { --diff-status: var(--destructive); }
+.diff-status.modified { --diff-status: var(--warn); }
+.diff-status.moved { --diff-status: var(--working); }
 .diff-browser[data-wide=true][data-open=true] { grid-template-columns: 240px minmax(0,1fr); }
 .diff-browser[data-wide=true][data-open=true] .diff-tree { grid-column: 1; grid-row: 2; align-self: start; }
 .diff-browser[data-wide=true][data-open=true] .diff-selection { grid-column: 2; }
