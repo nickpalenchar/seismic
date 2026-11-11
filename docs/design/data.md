@@ -75,7 +75,7 @@ Persistent (SQLite):
   target is open; a row stays once its wait ended, and a target that waits again gets a new one.
   The rows are written in one place, the step that builds a project's snapshot, from the same card
   state that decides whether a card needs the owner (`needsYou`): a target that waits and has no
-  open row gets one (an answer dated by when it came); an open row whose kind or digest changed
+  open row gets one, dated by that reconcile (an answer by when it came, not by when the owner asked); an open row whose kind or digest changed
   counts as updated; an open row whose target no longer waits ends. A card moved, relabelled or
   snoozed changes nothing but the last: a snooze ends the wait, as the card leaves the inbox;
 - card events (the conversation log, with the owner's screenshots and agents' mocks, and the

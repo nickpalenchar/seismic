@@ -911,11 +911,10 @@ code, a generic one otherwise.
   (merged into one on 2026-11-10). The earlier
   look, index cards pinned to a wall (2026-10-10), is gone.
 - **The inbox opens a list instead of jumping to the next card** (owner, 2026-11-01): with
-  several things waiting, a jump hides what the others are and cannot answer anything. Entries are
-  newest first on desktop (owner, 2026-11-08), as in a mail inbox,
-  with "Unread" the default filter so what is still to do stays short.
-  Mobile uses newest update first (owner, 2026-11-07), so a refreshed demo rises to the top.
-  Rejected: keeping the jump on the button (Tab keeps it).
+  several things waiting, a jump hides what the others are and cannot answer anything. Entries
+  come the latest changed first on desktop and phone alike (see "The inbox a full-page view"), as
+  in a mail inbox, so a refreshed demo rises to the top, with "Unread" the default filter so what
+  is still to do stays short. Rejected: keeping the jump on the button (Tab keeps it).
 - **Groups are contours drawn in SVG** (2026-10-05): calm, no WebGL, no cost at rest. Rejected: two
   WebGL shader prototypes ("plasma" areas, a drifting honeycomb), livelier but costing frames all
   the time.

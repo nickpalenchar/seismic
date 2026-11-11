@@ -2287,7 +2287,8 @@ export class Board {
     for (const p of this.store.preferences.of(this.project.id, ['proposed'])) waits.push({ target: { preference: p.id }, kind: 'rule', text: p.text });
     for (const p of this.settingProposals()) if (p.state === 'proposed') waits.push({ target: { setting: p.id }, kind: 'setting', text: p.basis });
     const answer = talk.filter((x) => x.unread).at(-1);
-    if (answer) waits.push({ target: { talk: answer.id }, kind: 'answer', text: answer.answer ?? answer.reply ?? answer.question ?? answer.said, since: Date.parse(answer.at) || undefined });
+    // dated by the reconcile that first sees it unread: the exchange's own time is when the owner asked, not when the answer came
+    if (answer) waits.push({ target: { talk: answer.id }, kind: 'answer', text: answer.answer ?? answer.reply ?? answer.question ?? answer.said });
     this.waited = new Map(items.map((i) => [i.id, i]));
     return this.store.needsYou.reconcile(this.project.id, waits);
   }

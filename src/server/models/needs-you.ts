@@ -47,13 +47,12 @@ export const needsYou = sqliteTable(
 /** What waits for the owner by one row: exactly one target. */
 export type NeedsYouTarget = { card: string } | { preference: number } | { setting: number } | { talk: number };
 
-/** What waits for the owner now, as the board finds it: its target, kind, what it waits for, and since when when that is known (`since`, ms: an answer's arrival). */
+/** What waits for the owner now, as the board finds it: its target, kind and what it waits for. A wait begins at the reconcile that first finds it. */
 export interface Wait {
   target: NeedsYouTarget;
   kind: NeedsYouKind;
   /** What it waits for (the question, the summary, the rule's text). */
   text: string;
-  since?: number;
 }
 
 type Row = typeof needsYou.$inferSelect;
@@ -109,7 +108,6 @@ export class NeedsYou {
         const r = open.get(key);
         if (!r) {
           const t = w.target;
-          const since = w.since ?? at;
           this.db
             .insert(needsYou)
             .values({
@@ -120,8 +118,8 @@ export class NeedsYou {
               settingProposalId: 'setting' in t ? t.setting : null,
               talkId: 'talk' in t ? t.talk : null,
               digest: d,
-              createdAt: since,
-              lastUpdated: since,
+              createdAt: at,
+              lastUpdated: at,
             })
             .run();
         } else if (r.digest === null) this.db.update(needsYou).set({ kind: w.kind, digest: d }).where(eq(needsYou.id, r.id)).run();

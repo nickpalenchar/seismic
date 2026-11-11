@@ -978,6 +978,13 @@ describe('needs you', () => {
     board.replyTalk(first, 'Halfway.', undefined, undefined, true);
     const second = board.addTalk('And now?', 'Looking.');
     board.replyTalk(second, 'Done.', undefined, undefined, true);
+    // the answer waits from when it came, not from when the owner asked
+    store.db.query("UPDATE talk SET at = '2020-01-01T00:00:00.000Z' WHERE id = ?").run(second);
+    const third = board.addTalk('Anything else?', 'Looking.');
+    store.db.query("UPDATE talk SET at = '2020-01-01T00:00:00.000Z' WHERE id = ?").run(third);
+    board.replyTalk(third, 'Nothing else.', undefined, undefined, true);
+    expect(Date.now() - open().find((r) => r.kind === 'answer')!.createdAt).toBeLessThan(5000);
+    board.readTalk([third]);
     expect(open().map((r) => [r.kind, r.preference ?? r.setting ?? r.talk])).toEqual([
       ['rule', rule],
       ['setting', setting],
