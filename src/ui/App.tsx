@@ -75,6 +75,8 @@ import { ACK_MS, noticeLine, tellers, useAck, useWarnings, voiceTarget } from '.
 import { CloseButton } from './components/button';
 import { Tooltip } from './components/tooltip';
 import { Badge } from './components/badge';
+import { PillButton } from './components/pill';
+import { cn } from 'cn';
 
 export function App() {
   const [phone] = useState(phoneView);
@@ -218,7 +220,7 @@ function ConnectionLost({ since, frozen }: { since: number | null; frozen: boole
   const text = frozen
     ? long ? t.unresponsiveSince(clock(since!)) : t.notResponding
     : long ? t.noConnectionSince(clock(since!)) : t.reconnecting;
-  return <span className="st offline">{text}</span>;
+  return <span className={cn(statusWord, 'text-waiting')}>{text}</span>;
 }
 
 function Splash({ offline }: { offline: boolean }) {
@@ -2384,14 +2386,14 @@ function Project({
   };
   const talkButton = (
     <Tooltip content={t.koordinator.buttonTitle}>
-      <button className={kOn ? 'pill kpill talk-pill on' : 'pill kpill talk-pill'} aria-label={t.koordinator.button} onClick={talkKoordinator}>
+      <PillButton size="bar" tone="ink" on={kOn} className="px-3" aria-label={t.koordinator.button} onClick={talkKoordinator}>
         <TalkIcon />
         {unread > 0 && (
           <Badge variant="count" className="bg-waiting" title={t.koordinator.unreadCount(unread)}>
             {unread}
           </Badge>
         )}
-      </button>
+      </PillButton>
     </Tooltip>
   );
 
@@ -2572,13 +2574,21 @@ function Project({
         )}
         {(!focus || focus.type === 'plan') && <Edges cam={cam} targets={edgeTargets} side={side} onOpen={open} />}
         {/* in the app on a Mac the bar is the window's title bar: it moves the window (app/src/main.rs); beside the pinned navigation, the traffic lights sit in that */}
-        <header id="bar" ref={barRef} {...(window.obeyaApp?.platform === 'macos' ? { className: side.left ? 'titlebar beside-nav' : 'titlebar', 'data-tauri-drag-region': '' } : {})}>
-          <div className="left">
+        <header
+          id="bar"
+          ref={barRef}
+          className={cn(
+            'group/bar frost-bar fixed top-0 right-[var(--side,0px)] left-[var(--left,0px)] z-25 box-border grid h-[58px] grid-cols-[1fr_minmax(150px,440px)_1fr] items-center gap-3.5 border-b border-line px-3.5 transition-[right,left,padding-left] duration-450 ease-[cubic-bezier(.3,.9,.3,1)] resizing:transition-none data-[fit~="3"]:grid-cols-[auto_minmax(34px,440px)_auto]',
+            window.obeyaApp?.platform === 'macos' && !side.left && 'pl-[92px]',
+          )}
+          {...(window.obeyaApp?.platform === 'macos' ? { 'data-tauri-drag-region': '' } : {})}
+        >
+          <div className="left flex items-center gap-2.5">
             {extensions.map((e, i) => { const Slot = e.slots?.topBar; return Slot ? <Slot key={i} /> : null; })}
             <MenuButton {...menu} docked={pinned && nav.pinnable} dockedOn={side.left > 0} onDocked={showDocked} />
           </div>
           <CardSearch items={items} field={searchField} hidden={!!focus} onOpen={(item) => void openFresh(item)} />
-          <div className="right">
+          <div className="right flex items-center justify-end gap-2.5">
             {oldBun && <OldBunPill version={oldBun} />}
             {online && update && restart?.reason !== 'update' && <UpdatePill update={update} />}
             {online && source && <SourcePill source={source} />}
@@ -2592,42 +2602,49 @@ function Project({
               />
             )}
             {!kOn && (
-              <div className="talk-room" aria-hidden>
+              <div className="invisible" aria-hidden>
                 {talkButton}
               </div>
             )}
             {/* Seismic has no user accounts yet: the avatar holds the place, without a menu */}
             <Tooltip content={t.avatar}>
-              <span className="avatar" aria-label={t.avatar} role="img">
+              <span className="grid size-[34px] place-items-center text-muted-foreground" aria-label={t.avatar} role="img">
                 <CircleUserRound size={22} strokeWidth={1.75} aria-hidden />
               </span>
             </Tooltip>
           </div>
         </header>
         {/* under the bar, floating over the main area: the project switcher at the left; the project's settings, its agents and what needs the owner at the right */}
-        <div id="floating-row" ref={rowRef}>
+        <div
+          id="floating-row"
+          ref={rowRef}
+          className="group/row pointer-events-none fixed top-[66px] right-[calc(var(--side,0px)+14px)] left-[calc(var(--left,0px)+48px)] z-24 flex items-center gap-2.5 transition-[right,left] duration-450 ease-[cubic-bezier(.3,.9,.3,1)] resizing:transition-none [&>*]:pointer-events-auto"
+        >
           {!side.left && <NavPill {...nav} />}
-          <div className="right">
+          <div className="right ml-auto flex flex-none items-center gap-2.5 [&>*]:pointer-events-auto">
             <Tooltip content={t.projectSettings.button}>
-              <button className={csOn ? 'pill kpill cs-pill on' : 'pill kpill cs-pill'} aria-label={t.projectSettings.button} aria-expanded={csOn} onClick={toggleProjectSettings}>
+              <PillButton size="bar" on={csOn} className="px-2.5 [&_[data-variant=count]]:ml-1" aria-label={t.projectSettings.button} aria-expanded={csOn} onClick={toggleProjectSettings}>
                 <BarIcon icon={Settings} />
                 {configProblems > 0 && (
                   <Badge variant="count" className="bg-error" title={t.config.problemCount(configProblems)}>
                     {configProblems}
                   </Badge>
                 )}
-              </button>
+              </PillButton>
             </Tooltip>
-            <div className="pill-group">
+            {/* two buttons as one: the agents and what needs the owner */}
+            <div className="flex rounded-[17px] shadow-glass hover:shadow-lift">
               <Tooltip content={t.agents.button(queued)}>
-                <button className={agentsOn ? 'pill kpill agents-pill on' : 'pill kpill agents-pill'} aria-label={t.agents.button(queued)} aria-expanded={agentsOn} onClick={toggleAgents}>
+                <PillButton size="bar" on={agentsOn} className="rounded-none rounded-l-[17px] pl-3.5 shadow-none hover:shadow-none" aria-label={t.agents.button(queued)} aria-expanded={agentsOn} onClick={toggleAgents}>
                   <BarIcon icon={Bot} />
                   {queued > 0 && <Badge variant="count">{queued}</Badge>}
-                </button>
+                </PillButton>
               </Tooltip>
               <Tooltip content={t.needsYou.button(needsYouCards)}>
-                <button
-                    className={nyOn ? 'pill kpill needs-you-pill on' : 'pill kpill needs-you-pill'}
+                <PillButton
+                    size="bar"
+                    on={nyOn}
+                    className="rounded-none rounded-r-[17px] border-l-line px-3 pr-3.5 shadow-none hover:shadow-none"
                     id="attention" aria-label={t.needsYou.button(needsYouCards)}
                     aria-expanded={nyOn}
                     onClick={() => {
@@ -2639,9 +2656,9 @@ function Project({
                     }}
                 >
                   <BarIcon icon={ConciergeBell} />
-                  {!needsYouKnown && <span className="lbl">{t.needsYou.label}</span>}
+                  {!needsYouKnown && <span className="font-semibold group-data-[fit~='2']/row:hidden">{t.needsYou.label}</span>}
                   {needsYouCards > 0 && <Badge variant="count" className="bg-waiting">{needsYouCards}</Badge>}
-                </button>
+                </PillButton>
               </Tooltip>
             </div>
           </div>
@@ -2653,13 +2670,16 @@ function Project({
         <ParkedView on={fullPage.active === 'parked'} items={items} open={openCardId} underway={(id) => !!underway[id]} onOpen={(i) => void openFresh(i)} onClose={() => showPage(null)} els={parkedEls} />
         <QueueView on={fullPage.active === 'queue'} items={items} onOpen={(i) => void openFresh(i)} onClose={() => showPage(null)} />
         {/* the status bar along the bottom: the connection (or the restart that waits), whom the microphone speaks to, the workstation pool and the usage limits */}
-        <footer id="status">
-          <div className="st-left">
-            {!online || frozen ? <ConnectionLost since={downSince} frozen={frozen} /> : restart ? <RestartPill restart={restart} items={items} project={snapshot.project.id} onOpen={(i) => void openFresh(i)} /> : <span className="st online">{t.online}</span>}
-            {online && snapshot.project.demoSite?.init?.running && <span className="st site-init">{t.creatingSite}</span>}
+        <footer
+          id="status"
+          className="frost-bar fixed right-[var(--side,0px)] bottom-0 left-[var(--left,0px)] z-45 grid h-[34px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3.5 border-t border-line px-2.5 text-[13px] transition-[right,left] duration-450 ease-[cubic-bezier(.3,.9,.3,1)] resizing:transition-none"
+        >
+          <div className="flex min-w-0 items-center">
+            {!online || frozen ? <ConnectionLost since={downSince} frozen={frozen} /> : restart ? <RestartPill restart={restart} items={items} project={snapshot.project.id} onOpen={(i) => void openFresh(i)} /> : <span className={cn(statusWord, 'text-online')}>{t.online}</span>}
+            {online && snapshot.project.demoSite?.init?.running && <span className={statusWord}>{t.creatingSite}</span>}
           </div>
-          <div className="st-mid" ref={setTargetSlot} />
-          <div className="st-right">
+          <div className="flex min-w-0 justify-center" ref={setTargetSlot} />
+          <div className="flex min-w-0 items-center justify-end gap-1.5">
             {snapshot.workstations && <WorkstationsPill pools={snapshot.workstations} project={snapshot.project} projects={projects} items={items} underway={underway} onOpen={(i) => void openFresh(i)} onElsewhere={(c, card) => goTo(cardPath(c, card))} onTake={takeWorkstation} onKeep={keepWorkstation} />}
             {online && usage && <UsagePill usage={usage} />}
           </div>
@@ -2886,6 +2906,9 @@ function useLive<T>(init: T | (() => T)): [T, (v: T) => void, { readonly current
 
 /** A button's icon in the top bar, shown in place of its label where the bar is narrow (beside a wide sheet). */
 function BarIcon({ icon: I }: { icon: LucideIcon }) {
-  return <I className="bar-icon" size={16} strokeWidth={2} aria-hidden />;
+  return <I className="block" size={16} strokeWidth={2} aria-hidden />;
 }
+
+/** A word of the status bar's left end: online, or what the server is setting up. */
+const statusWord = 'rounded-full px-2.5 py-[3px] font-semibold whitespace-nowrap';
 

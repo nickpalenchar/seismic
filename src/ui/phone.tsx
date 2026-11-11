@@ -46,6 +46,8 @@ import { scrollBehavior } from './motion';
 import { Tooltip } from './components/tooltip';
 import { layerOpen } from './components/ui';
 import { Badge } from './components/badge';
+import { PillButton, pillVariants } from './components/pill';
+import { cn } from 'cn';
 
 /**
  * Whether the page shows the phone view: on a phone, which has a coarse pointer and a short side
@@ -751,7 +753,7 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
         <header className="ph-bar ph-home">
           <Sign size={26} />
           <span className="ph-word">Seismic</span>
-          {usage && <UsagePill usage={usage} />}
+          {usage && <UsagePill usage={usage} phone />}
         </header>
         {banner}
         <Notify />
@@ -855,10 +857,10 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
       <TalkButton label={t.phone.talkTitle} shown={shown} n={unread} count={t.koordinator.unreadCount(unread)} working={ordered.some((c) => obeyaWorks(snaps[c.id]!.talk))} onClick={() => (talk ? leaveTalk.current?.() : openTalkNewest())} />
       {/* right of the microphone, with several projects: whose Seismic the microphone and the panel speak to */}
       {several && (
-        <label className="pill ph-project-pick">
-          <span className="name">{projects.find((c) => c.id === obeyaId)?.name}</span>
+        <label className={cn(pillVariants(), phoneControl, 'right-[max(14px,env(safe-area-inset-right))] box-border max-w-[calc(50vw-106px)] cursor-pointer gap-1.5 px-3 text-[15px] ph-landscape:top-[52px] ph-landscape:bottom-auto ph-landscape:max-w-[104px]')}>
+          <span className="overflow-hidden font-semibold text-ellipsis">{projects.find((c) => c.id === obeyaId)?.name}</span>
           <span className="hint">▾</span>
-          <select value={obeyaId} aria-label={t.phone.project} onChange={(e) => setObeyaProject(e.target.value)}>
+          <select className="absolute inset-0 h-full w-full cursor-pointer text-base opacity-0" value={obeyaId} aria-label={t.phone.project} onChange={(e) => setObeyaProject(e.target.value)}>
             {projects.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -911,20 +913,41 @@ function ProjectQueue({ items, scroller, onOpen }: { items: Item[]; scroller: Re
 }
 
 /**
+ * The talk button and the project picker beside the microphone, a finger's size; hidden while the
+ * keyboard is up (the field has its own microphone then). With the phone turned they stand in the
+ * microphone's strip at the right edge, centred in it (`translate`, since a pressed button sets `transform`).
+ */
+const phoneControl =
+  'fixed bottom-[calc(30px+env(safe-area-inset-bottom))] z-50 h-11 py-0 [.ph-kb_.ph-view~&]:hidden ph-landscape:right-[calc(56px+env(safe-area-inset-right))] ph-landscape:left-auto ph-landscape:[translate:50%_0]';
+
+/**
  * Left of the microphone, in reach of the thumb, as the project's top bar has it: opens the conversation
  * of what is in view as a panel, and closes it while it is open (inverted then). `n`: what waits there;
  * `working`: the conversation shows an agent (or Seismic) at work, which the moving line of a working card says.
  */
 function TalkButton({ label, shown, n, count, working, onClick }: { label: string; shown: boolean; n: number; count: string; working: boolean; onClick: () => void }) {
   return (
-    <button className={['pill kpill talk-pill ph-talk-open', shown && 'on', working && 'working'].filter(Boolean).join(' ')} aria-expanded={shown} aria-label={shown ? t.phone.closeTalk : label} onClick={onClick}>
+    <PillButton
+      tone="ink"
+      on={shown}
+      className={cn(
+        phoneControl,
+        'left-[max(14px,env(safe-area-inset-left))] px-3.5 text-ink active:[transform:translateY(1px)] active:shadow-none ph-landscape:bottom-[calc(14px+env(safe-area-inset-bottom))] [&_svg]:size-5',
+        // the conversation shows an agent at work: the moving line of a working card, along the button's foot
+        working &&
+          "after:absolute after:inset-x-2.5 after:bottom-[5px] after:h-0.5 after:animate-[draw_1.6s_cubic-bezier(.5,0,.3,1)_infinite] after:content-[''] after:[background:linear-gradient(90deg,var(--working)_0_50%,transparent_50%)_0_0/200%_100%_no-repeat,color-mix(in_srgb,var(--working)_22%,transparent)]",
+      )}
+      aria-expanded={shown}
+      aria-label={shown ? t.phone.closeTalk : label}
+      onClick={onClick}
+    >
       <TalkIcon />
       {!shown && n > 0 && (
         <Badge variant="count" className="bg-waiting" title={count}>
           {n}
         </Badge>
       )}
-    </button>
+    </PillButton>
   );
 }
 

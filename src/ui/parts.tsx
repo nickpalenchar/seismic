@@ -21,6 +21,7 @@ import { clock, shortDay, stateLabel, t } from './strings';
 import { edgeChipPositions } from './edgeChips';
 import { cardPath, switchTo } from './address';
 import { cn } from 'cn';
+import { Pill as BarPill } from './components/pill';
 import { Button, LinkButton } from './components/button';
 import { Badge } from './components/badge';
 import { Popover, PopoverContent, PopoverTrigger, useHoverOpen } from './components/popover';
@@ -259,12 +260,23 @@ export function ProjectAgents({ project, item }: { project: ProjectInfo; item?: 
     (pause ? api.pauseAgents(project.id) : api.resumeAgents(project.id)).catch(console.error).finally(() => setAsked(false));
   };
   const turn = (
-    <button type="button" className="agents-turn" aria-label={`${label}: ${project.name}`} disabled={asked} onClick={click}>
+    // faint like the pause on a card and on the bubble in its conversation, full under the pointer
+    <button
+      type="button"
+      className="grid h-5 w-[26px] cursor-pointer place-items-center rounded-[3px] border border-line bg-transparent p-0 text-muted-foreground opacity-0 transition-opacity duration-120 group-focus-within/project:opacity-55 group-hover/project:opacity-55 hover:border-muted-foreground! hover:text-ink! hover:opacity-100! focus-visible:border-muted-foreground! focus-visible:text-ink! focus-visible:opacity-100! data-highlighted:border-muted-foreground! data-highlighted:text-ink! data-highlighted:opacity-100! [@media(hover:none)]:opacity-55"
+      aria-label={`${label}: ${project.name}`} disabled={asked} onClick={click}>
       {pause ? <PauseMark /> : <PlayMark />}
     </button>
   );
   return (
-    <span className={pause ? 'project-agents running' : 'project-agents'}>
+    // on its project's row: the moving line while one works there, which turns into the pause while the pointer is on the row
+    <span
+      className={cn(
+        'absolute top-1/2 right-2.5 flex h-5 w-[26px] -translate-y-1/2 items-center justify-center',
+        pause &&
+          "before:h-0.5 before:w-[26px] before:animate-[draw_1.6s_cubic-bezier(.5,0,.3,1)_infinite] before:content-[''] before:[background:linear-gradient(90deg,var(--working)_0_50%,transparent_50%)_0_0/200%_100%_no-repeat,color-mix(in_srgb,var(--working)_22%,transparent)] group-focus-within/project:before:hidden group-hover/project:before:hidden [@media(hover:none)]:before:hidden",
+      )}
+    >
       <Tooltip content={label} side="right">
         {item ? (
           <MenuItem asChild disabled={asked || !item.active} onSelect={(e) => e.preventDefault()}>
@@ -379,23 +391,24 @@ function Pill({ restart, items, project, onOpen, elsewhere = [], go, going, say,
   };
   if (on)
     return (
-      <div className="pill restart going" id="restart">
-        <span className="spin">↻</span> {going}
-      </div>
+      <BarPill variant="flat" className={tipPill(true, false)} id="restart">
+        <Spin flat /> {going}
+      </BarPill>
     );
   return (
     <TipPill
       id="restart"
+      flat
       label={
         <>
-          <span className="spin">↻</span>
-          <span className="say">{say}</span>
-          {until && <span className="hint">{t.restart.until(clock(restart.deadline))}</span>}
+          <Spin flat />
+          <span className="overflow-hidden text-ellipsis">{say}</span>
+          {until && <span className="text-[12px] font-normal text-ice opacity-80">{t.restart.until(clock(restart.deadline))}</span>}
         </>
       }
       action={
         <Tooltip content={risk}>
-          <button className="go" onClick={click}>
+          <button className={goButton(true)} onClick={click}>
             {now}
           </button>
         </Tooltip>
@@ -445,21 +458,36 @@ function Pill({ restart, items, project, onOpen, elsewhere = [], go, going, say,
   );
 }
 
+/** A pill with a tip, in the top bar or `flat` in the status bar (in the ice blue of a restart there); tighter at the right where a button ends it. */
+const tipPill = (flat: boolean, action: boolean) =>
+  cn('relative cursor-default', flat ? 'min-w-0 gap-2 pl-2.5 font-semibold text-ice' : 'pl-3.5', action ? 'pr-1' : 'pr-3.5');
+
+/** The button that ends a pill with a tip: go ahead now, install, pull. */
+const goButton = (flat: boolean) =>
+  cn('cursor-pointer rounded-[3px] border-0 bg-chip px-[11px] py-1 text-[12px] font-semibold text-ink hover:bg-ink hover:text-background', flat && 'rounded-full px-2.5 py-[3px]');
+
+/** The turning arrow of a restart that waits or goes. */
+const Spin = ({ flat }: { flat?: boolean }) => <span className={cn('inline-block animate-[spin_2.4s_linear_infinite] font-bold', flat ? 'text-ice' : 'text-working')}>↻</span>;
+
 /**
- * A pill of the status bar with a tip: its `label` shows the tip (`children`) while the pointer
+ * A pill with a tip, in the top bar or `flat` in the status bar: its `label` shows the tip (`children`) while the pointer
  * rests on it, and pins it open on a click (Enter, a tap) until a click elsewhere or Esc; `action`
  * is the pill's button beside the label.
  */
-function TipPill({ id, className, label, action, children }: { id: string; className?: string; label: ReactNode; action?: ReactNode; children: ReactNode }) {
+function TipPill({ id, flat = false, label, action, children }: { id: string; flat?: boolean; label: ReactNode; action?: ReactNode; children: ReactNode }) {
   const pop = useHoverOpen();
   return (
     <Popover {...pop.root}>
-      <div className={cn('pill restart', className)} id={id}>
-        <PopoverTrigger className="tip-face" {...pop.hover} {...pop.trigger}>
+      <BarPill variant={flat ? 'flat' : 'glass'} size={flat ? undefined : 'bar'} className={tipPill(flat, !!action)} id={id}>
+        <PopoverTrigger
+          className="flex min-w-0 cursor-default items-center gap-2 rounded-full border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-ring"
+          {...pop.hover}
+          {...pop.trigger}
+        >
           {label}
         </PopoverTrigger>
         {action}
-      </div>
+      </BarPill>
       <PopoverContent
         side="top"
         align="start"
@@ -487,15 +515,14 @@ export function UpdatePill({ update }: { update: AppUpdate }) {
   return (
     <TipPill
       id="update"
-      className="update"
       label={<span>{t.update.pill(update.version)}</span>}
       action={
         update.download ? (
-          <button className="go" onClick={() => window.open(update.download, '_blank')}>
+          <button className={goButton(false)} onClick={() => window.open(update.download, '_blank')}>
             {t.update.download}
           </button>
         ) : (
-          <button className="go" onClick={install} disabled={asked}>
+          <button className={goButton(false)} onClick={install} disabled={asked}>
             {t.update.install}
           </button>
         )
@@ -533,11 +560,10 @@ export function SourcePill({ source }: { source: SourceUpdate }) {
   return (
     <TipPill
       id="source-update"
-      className={source.blocked ? 'update source by-hand' : 'update source'}
       label={<span>{t.source.pill(source.count)}</span>}
       action={
         !source.blocked && (
-          <button className="go" onClick={pull} disabled={asked}>
+          <button className={goButton(false)} onClick={pull} disabled={asked}>
             {t.source.pull}
           </button>
         )
@@ -570,11 +596,10 @@ export function OldBunPill({ version }: { version: string }) {
   return (
     <TipPill
       id="old-bun"
-      className="old-bun"
       label={
         <>
-          <span className="warn">⚠</span>
-          <span className="say">{t.oldBun.pill(version)}</span>
+          <span className="font-bold text-waiting">⚠</span>
+          <span className="overflow-hidden text-ellipsis">{t.oldBun.pill(version)}</span>
         </>
       }
     >
@@ -637,32 +662,32 @@ export function WorkstationsPill({ pools, project, projects, items, underway, on
   };
   return (
     <Popover {...pop.root}>
-      <div className={['pill workstations', full && 'full', pop.open && 'open'].filter(Boolean).join(' ')} id="workstations">
-        <PopoverTrigger className="face" {...pop.hover} {...pop.trigger}>
-        <span className="lbl">{t.workstations.label}</span>
+      <BarPill variant="flat" className="relative p-0" id="workstations">
+        <PopoverTrigger className={statusFace} {...pop.hover} {...pop.trigger}>
+        <span>{t.workstations.label}</span>
         {pools.map((p) => {
           const hosts = named(p);
           return (
-            <span key={p.repo} className="pool">
+            <span key={p.repo} className="flex items-center gap-1.5">
               {several && <span className="hint">{name(p.repo)}</span>}
               {hosts.map((h) => (
-                <span key={h.name} className="host">
+                <span key={h.name} className="flex items-center gap-[5px]">
                   {hosts.length > 1 && <span className="hint">{h.name}</span>}
-                  <span className="slots" aria-hidden>
+                  <span className="flex gap-[3px]" aria-hidden>
                     {hostDots(h, items, underway).map((d, i) => (
-                      <i key={i} className={d.className} style={d.style} />
+                      <i key={i} className={cn('size-2', d.className)} style={d.style} />
                     ))}
                   </span>
                 </span>
               ))}
-              <b>{uncapped(p) ? t.workstations.uncapped(p.hosts.reduce((n, h) => n + h.busy.length, 0)) : t.workstations.free(free(p), total(p), blockedIn(p))}</b>
-              {blockedIn(p) > 0 && <b className="warn">{t.workstations.blockedCount(blockedIn(p))}</b>}
+              <b className={cn(full && 'text-waiting')}>{uncapped(p) ? t.workstations.uncapped(p.hosts.reduce((n, h) => n + h.busy.length, 0)) : t.workstations.free(free(p), total(p), blockedIn(p))}</b>
+              {blockedIn(p) > 0 && <b className="text-waiting">{t.workstations.blockedCount(blockedIn(p))}</b>}
             </span>
           );
         })}
-        <span className="hint drop">▾</span>
+        <span className="hint">▾</span>
         </PopoverTrigger>
-      </div>
+      </BarPill>
       <PopoverContent
         side="top"
         align="end"
@@ -716,6 +741,9 @@ export function WorkstationsPill({ pools, project, projects, items, underway, on
   );
 }
 
+/** The face of a status bar's pill that opens a list, the pill's whole height. */
+export const statusFace = 'flex h-full cursor-pointer flex-row items-center gap-2 rounded-[3px] border-0 bg-transparent px-2 text-inherit';
+
 /** The colours of a card's state that pulse on its workstation's dot: at work, in review, landing. */
 const PULSING = new Set(['working', 'reviewing', 'approved']);
 
@@ -726,11 +754,15 @@ const PULSING = new Set(['working', 'reviewing', 'approved']);
  * pale; a ring while free, orange while blocked. `w` is undefined for a free slot of worktrees.
  */
 function wsDot(w: PoolWorkstation | undefined, host: PoolHost, items: Item[], underway: Record<string, string>): { className: string; style?: CSSProperties } {
-  if (!w?.card) return { className: w && host.blocked?.some((b) => b.path === w.path) ? 'ws-dot blocked' : 'ws-dot free' };
+  const dot = 'block rounded-full';
+  if (!w?.card) return { className: cn(dot, w && host.blocked?.some((b) => b.path === w.path) ? 'shadow-[inset_0_0_0_1.5px_var(--waiting)]' : 'shadow-[inset_0_0_0_1.5px_var(--muted-foreground)]') };
   const item = w.project ? undefined : items.find((i) => i.id === w.card);
   const tone = item ? cardTone(item, underway[item.id]) : host.busy.includes(w.card) ? 'working' : null;
-  if (!tone) return { className: 'ws-dot held' };
-  return { className: PULSING.has(tone) ? 'ws-dot taken pulse' : 'ws-dot taken', style: { '--c': `var(--${tone})` } as CSSProperties };
+  if (!tone) return { className: cn(dot, 'bg-[color-mix(in_srgb,var(--working)_35%,transparent)]') };
+  return {
+    className: cn(dot, 'bg-[var(--c)]', PULSING.has(tone) && 'animate-[ws-pulse_2.4s_ease-in-out_infinite] motion-reduce:animate-none'),
+    style: { '--c': `var(--${tone})` } as CSSProperties,
+  };
 }
 
 /**
@@ -799,7 +831,7 @@ function WorkstationRows({ host, items, underway, projects, onOpen, onElsewhere,
             {!item && path}
             <span className={cn('col-start-2 [overflow-wrap:anywhere]', item ? 'row-start-1 flex min-w-0 items-start gap-1' : 'row-start-2')}>
               {item ? (
-                <button type="button" className="ws-card" onClick={() => onOpen(item)}>
+                <button type="button" className="-mx-1.5 -my-0.5 block min-w-0 flex-1 cursor-pointer rounded-[6px] border-0 bg-transparent px-1.5 py-0.5 text-left text-inherit hover:bg-chip focus-visible:bg-chip [&_.f-dot]:hidden" onClick={() => onOpen(item)}>
                   <CardFace item={item} size="xs" underway={underway[item.id]} />
                 </button>
               ) : w.card && there ? (

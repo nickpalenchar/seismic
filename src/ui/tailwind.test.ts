@@ -23,8 +23,21 @@ test('Tailwind builds, without its preflight', () => {
   expect(generated).not.toMatch(/@layer base\s*\{/);
 });
 
+/**
+ * The utilities a stylesheet's rules are for: per rule the longest class its selector names, as the
+ * other classes there are those an arbitrary variant reaches (`[.ph-kb_.ph-view~&]:hidden`,
+ * `[&_.f-dot]:hidden`, `resizing:` on `.resizing`), not utilities of their own.
+ */
+const subjects = (css: string) =>
+  new Set(
+    [...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{/g)].flatMap((m) => {
+      const own = [...classes(m[1]!)];
+      return own.length ? [own.reduce((a, b) => (b.length > a.length ? b : a))] : [];
+    }),
+  );
+
 test('no class the old stylesheets style is also a Tailwind utility', async () => {
-  const utilities = classes(generated.slice(generated.indexOf('@layer utilities')));
+  const utilities = subjects(generated.slice(generated.indexOf('@layer utilities')));
   const clashes: string[] = [];
   for (const sheet of oldSheets) for (const c of classes(await read(sheet))) if (utilities.has(c)) clashes.push(`${sheet}: .${c}`);
   expect(clashes).toEqual([]);

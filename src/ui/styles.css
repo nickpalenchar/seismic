@@ -51,10 +51,9 @@ html, body { margin: 0; height: 100%; overflow: hidden; background-color: var(--
    and what is fixed to the screen with it, the body being their containing block (its transform) */
 .kb-pin body { transform: translateY(var(--kb-top)); height: var(--kb-h); }
 /* in the base layer, so the components' utilities set their own colour and size over it */
-@layer base { button, input, textarea { font: inherit; color: inherit; } }
+@layer base { button, input, textarea { font: inherit; color: inherit; } a { color: inherit; } }
 svg.lucide { flex: none; }
 code { font: .92em var(--mono); background: var(--chip); border-radius: 5px; padding: 0 .25em; }
-a { color: inherit; }
 /* a link in text, written by an agent or in a plan doc: in the text's ink with a faint pencil line under it,
    which the pointer marks like a highlighter */
 a.link { text-decoration: underline 1px color-mix(in srgb, currentColor 28%, transparent); text-underline-offset: .22em;
@@ -361,198 +360,10 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-family: var(--font); f
 .prio.bare.prio-critical, .prio.bare.sugg { padding: 1px 3px; line-height: 1; }
 
 /* ---------- chrome ---------- */
-/* a frosted strip the project slides under, so cards never run into the pills; it ends at the panels docked at the window's edges.
-   Three columns: ☰ and the logo, the search field in the middle (centred while both sides leave it room), the chat and the avatar */
-#bar { position: fixed; top: 0; left: var(--left, 0px); right: var(--side, 0px); transition: right .45s cubic-bezier(.3,.9,.3,1), left .45s cubic-bezier(.3,.9,.3,1), padding-left .45s cubic-bezier(.3,.9,.3,1); height: 58px; padding: 0 14px; box-sizing: border-box;
-  display: grid; grid-template-columns: 1fr minmax(150px, 440px) 1fr; align-items: center; gap: 14px; z-index: 25;
-  background: color-mix(in srgb, var(--bg) 45%, transparent); backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6);
-  border-bottom: 1px solid var(--line); }
-/* the status bar along the bottom, frosted like the top bar: the connection (or the restart that waits) at the
-   left, whom the microphone speaks to in the middle, the usage limits at the right; lists open upwards */
-#status { position: fixed; bottom: 0; left: var(--left, 0px); right: var(--side, 0px); transition: right .45s cubic-bezier(.3,.9,.3,1), left .45s cubic-bezier(.3,.9,.3,1); height: 34px; padding: 0 10px;
-  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 14px; z-index: 45; font-size: 13px;
-  background: color-mix(in srgb, var(--bg) 45%, transparent); backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6);
-  border-top: 1px solid var(--line); }
-.resizing #status { transition: none; }
-#status .st-left { display: flex; align-items: center; min-width: 0; }
-#status .st-right { display: flex; align-items: center; justify-content: flex-end; min-width: 0; }
-#status .st-mid { display: flex; justify-content: center; min-width: 0; }
-#status .st { font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
-#status .st.online { color: var(--online); }
-#status .st.offline { color: var(--waiting); }
-#status .pill { box-shadow: none; background: none; border: 0; height: 28px; padding-block: 0; font-size: 13px; backdrop-filter: none; -webkit-backdrop-filter: none; }
-#status .pill.restart { color: var(--ice); font-weight: 600; padding-left: 10px; gap: 8px; min-width: 0; }
-#status .pill.restart .say { overflow: hidden; text-overflow: ellipsis; }
-#status .pill.restart .spin { color: var(--ice); }
-#status .pill.restart .hint { color: var(--ice); opacity: .8; font-weight: 400; }
-#status .pill.restart .go { padding: 3px 10px; border-radius: 999px; }
-#status .pill:is(.usage, .workstations) .face { padding: 0 8px; border-radius: 3px; }
-#status .pill.usage .face { border-radius: 999px; }
-#status .st-right { gap: 6px; }
-#status .pill.usage .face:hover, #status .pill.usage.open .face { background: var(--chip); }
-#status #target { background: none; box-shadow: none; padding: 3px 10px; font-size: 13px; max-width: 100%; }
-#status #target.flat { background: var(--error); }
-.pill { background: var(--card); box-shadow: inset 0 1px 0 var(--glass-hi), var(--shadow); border-radius: 999px; padding: 7px 14px; display: flex; align-items: center; gap: 8px; font-size: 14px; border: 1px solid var(--glass-edge); white-space: nowrap;
-  backdrop-filter: blur(12px) saturate(1.4); -webkit-backdrop-filter: blur(12px) saturate(1.4); }
-.pill b { font-weight: 600; }
-button.pill { cursor: pointer; }
-button.pill:hover { box-shadow: var(--lift); }
-.pill.restart { position: relative; padding: 4px 4px 4px 14px; cursor: default; }
-.pill.restart.going { padding: 7px 14px; cursor: default; }
-.pill.restart.old-bun { padding: 7px 14px; }
-.pill.restart.old-bun .warn { color: var(--waiting); font-weight: 700; }
-.pill.restart.source.by-hand { padding: 7px 14px; }
-.pill.restart .spin { display: inline-block; color: var(--working); font-weight: 700; animation: spin 2.4s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-.pill.restart .tip-face { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 0; border: 0; background: none; cursor: default; }
-.pill.restart .tip-face:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; border-radius: 999px; }
-.pill.restart .go { border: 0; border-radius: 3px; padding: 4px 11px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
-  background: var(--chip); color: var(--ink); }
-.pill.restart .go:hover { background: var(--ink); color: var(--bg); }
-/* the left menu (src/ui/nav.tsx), under ☰ or docked on the left, and the floating row's project switcher:
-   the projects */
-.nav-pill { position: relative; }
-.nav-pill .project-switch { cursor: pointer; }
-.nav-pill .project-switch.on { background: var(--chip); }
-.nav-menu { width: min(360px, calc(100vw - 28px)); padding: 14px 14px 16px; border: 1px solid var(--glass-edge); border-radius: 12px; }
-.nav-menu.left-menu { width: min(340px, calc(100vw - 28px)); overflow-x: hidden; }
-/* the menu's two pages side by side, the second ("Configure agents") sliding in over the first */
-.menu-pages { display: grid; grid-template-columns: 100% 100%; transition: transform .3s cubic-bezier(.3,.9,.3,1); }
-.menu-pages.sub { transform: translateX(-100%); }
-.menu-page { min-width: 0; }
-.menu-pages:not(.sub) > .menu-page + .menu-page, .menu-pages.sub > .menu-page:first-child { visibility: hidden; transition: visibility 0s .3s; }
-/* the page out of view takes no height, so the menu is as tall as the page it shows */
-.menu-pages { align-items: start; }
-.menu-pages:not(.sub) > .menu-page + .menu-page, .menu-pages.sub > .menu-page:first-child { height: 0; }
-.menu-list { list-style: none; margin: 0; padding: 0; }
-.menu-list.expand { flex: 1; min-width: 0; }
-.menu-list + .menu-list, .nav-projects + .menu-list { margin-top: 2px; }
-.menu-entry { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; padding: 6px 10px; border: 0; border-radius: 6px; background: none;
-  font: inherit; font-size: 14px; color: var(--ink); text-align: left; cursor: pointer; box-sizing: border-box; }
-.menu-entry > svg, .menu-entry > .canvas-icon { flex: none; color: var(--muted-foreground); }
-.menu-entry-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.menu-entry > :is(.more, .soon) { margin-left: auto; flex: none; }
-.menu-entry .more { color: var(--muted-foreground); }
-.menu-entry:hover:not(:disabled), .menu-entry:focus-visible, .menu-entry[data-highlighted] { background: var(--chip); outline: none; }
-.menu-entry.on { background: var(--chip); font-weight: 600; }
-.menu-entry:disabled { color: var(--muted-foreground); opacity: .6; cursor: default; }
-.menu-entry .soon { font-size: 12px; }
-/* entries under another: the open project's canvases and views, what sits under Settings and Performance */
-.menu-list.nav-tree { margin: 2px 0 4px; padding-left: 22px; }
-.nav-tree .menu-entry { min-height: 30px; padding-block: 5px; font-size: 13px; color: var(--ink); }
-.menu-label { margin: 16px 10px 6px; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted-foreground); }
-.menu-foot { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); }
-.left-menu .nav-head .menu-list { margin: 0; }
-.left-menu .nav-head { margin-bottom: 2px; }
-.left-menu .nav-row.on a { font-weight: 600; }
-.nav-open { list-style: none; }
-.menu-back { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; margin-left: -2px; border: 0; border-radius: 6px; background: none;
-  font: inherit; font-size: 14px; color: var(--ink); cursor: pointer; }
-.menu-back:hover { background: var(--chip); }
-/* pinned: a sidebar docked to the window's left edge, from top to bottom, as the sheets are on the right;
-   above the dim of an open card (#dim), so it stays in view and switches project from there */
 /* panes: the open card, sheets, dialogs, one frosted glass */
-#panel, .nav-sheet, .cfg-box, .d-sheet, .perf-box, .setup-page, :is(#help, #wish, #phone, #merge-pick, #canvas-dialog) .box {
+#panel, .cfg-box, .d-sheet, .perf-box, .setup-page, :is(#help, #wish, #phone, #merge-pick, #canvas-dialog) .box {
   background: var(--glass); border: 1px solid var(--glass-edge); border-radius: 18px; box-shadow: inset 0 1px 0 var(--glass-hi), var(--lift);
   backdrop-filter: blur(28px) saturate(1.6); -webkit-backdrop-filter: blur(28px) saturate(1.6); }
-.nav-sheet { position: fixed; top: 0; left: 0; bottom: 0; width: 340px; box-sizing: border-box; border-radius: 0; border-left: 0;
-  z-index: 31; transform: translateX(calc(-100% - 1px)); visibility: hidden; transition: transform .45s cubic-bezier(.3,.9,.3,1), visibility 0s .45s;
-  overflow: auto; padding: 14px 14px 30px; }
-.nav-sheet.on { transform: none; visibility: visible; transition-delay: 0s; }
-.nav-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-.nav-sheet .nav-head { min-height: 32px; margin: 0 0 2px; }
-/* in the app on a Mac the window's traffic lights sit in its head, as tall as the bar; it stays put as the list scrolls under it
-   (a sticky box keeps clear of its scroller's padding, hence the negative top) */
-.nav-sheet.titlebar .nav-head { position: sticky; top: -14px; z-index: 1; height: 58px; margin: -14px -14px 0; padding: 0 14px 0 92px; background: color-mix(in srgb, var(--panel) 88%, transparent); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
-.nav-pin { margin-left: auto; width: 30px; height: 30px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 3px;
-  background: var(--chip); color: var(--muted-foreground); cursor: pointer; }
-.nav-pin:hover, .nav-pin.on { color: var(--ink); }
-.nav-projects { list-style: none; margin: 0; padding: 0; }
-.nav-row { position: relative; }
-.nav-row + .nav-row { margin-top: 2px; }
-.nav-row a { display: flex; align-items: center; gap: 7px; padding: 6px 10px; border-radius: 6px; text-decoration: none; font-size: 13px; color: var(--muted-foreground); }
-.nav-row a svg { flex: none; }
-/* a long name and its repositories shorten rather than wrap, the repositories first; the count stays */
-.nav-row a b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nav-row a .hint { flex: 0 1000 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nav-row a:is(:hover, [data-highlighted]) { background: var(--chip); outline: none; }
-.nav-new button { display: flex; align-items: center; gap: 7px; width: 100%; padding: 6px 10px; border: 0; border-radius: 6px; background: none; font: inherit; font-size: 13px; color: var(--muted-foreground); cursor: pointer; text-align: left; }
-.nav-new button:is(:hover, [data-highlighted]) { background: var(--chip); color: var(--ink); outline: none; }
-.nav-row.on a { color: var(--ink); background: var(--chip); }
-.nav-row:has(.project-agents) a { padding-right: 46px; }
-/* a project's agents on its row: the moving line while one works there, which turns into a pause for
-   all of them while the pointer is on the row; with only paused ones, a play on the same hover */
-.project-agents { position: absolute; top: 50%; right: 10px; transform: translateY(-50%); width: 26px; height: 20px;
-  display: flex; align-items: center; justify-content: center; --c: var(--working); }
-.project-agents.running::before { content: ""; width: 26px; height: 2px;
-  background: linear-gradient(90deg, var(--c) 0 50%, transparent 50%) 0 0 / 200% 100% no-repeat, color-mix(in srgb, var(--c) 22%, transparent);
-  animation: draw 1.6s cubic-bezier(.5,0,.3,1) infinite; }
-/* faint like the pause on a card and on the bubble in its conversation, full under the pointer */
-.agents-turn { display: grid; place-items: center; width: 26px; height: 20px; padding: 0; border: 1px solid var(--line); border-radius: 3px;
-  background: transparent; color: var(--muted-foreground); opacity: 0; cursor: pointer; transition: opacity .12s; }
-.agents-turn .btn-mark { margin: 0; }
-.nav-row .agents-turn:is(:hover, :focus-visible, [data-highlighted]) { opacity: 1; color: var(--ink); border-color: var(--muted-foreground); }
-.nav-row:is(:hover, :focus-within) .agents-turn { opacity: .55; }
-.nav-row:is(:hover, :focus-within) .project-agents::before { display: none; }
-@media (hover: none) {
-  .agents-turn { opacity: .55; }
-  .project-agents::before { display: none; }
-}
-.pill:is(.workstations, .usage) { position: relative; padding: 0; }
-#bar .pill:is(.workstations, .usage) { padding: 0; }
-.pill:is(.workstations, .usage) .face { display: flex; flex-direction: row; align-items: center; gap: 8px; height: 100%; padding: 7px 14px; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; border-radius: inherit; }
-.pill.workstations .pool { display: flex; align-items: center; gap: 6px; }
-.pill.workstations .slots { display: flex; gap: 3px; }
-.pill.workstations .slots i { width: 8px; height: 8px; }
-.pill.workstations .host { display: flex; align-items: center; gap: 5px; }
-.pill.workstations.full .face b, .pill.workstations b.warn { color: var(--waiting); }
-/* a workstation's dot, on the pill and in its list: its card's state colour (pulsing slowly while at work, in review, landing), a dark grey ring while free */
-.ws-dot { display: block; border-radius: 50%; }
-.ws-dot.taken { background: var(--c); }
-.ws-dot.held { background: color-mix(in srgb, var(--working) 35%, transparent); }
-.ws-dot.free { box-shadow: inset 0 0 0 1.5px var(--muted-foreground); }
-.ws-dot.blocked { box-shadow: inset 0 0 0 1.5px var(--waiting); }
-.ws-dot.pulse { animation: ws-pulse 2.4s ease-in-out infinite; }
-@keyframes ws-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
-@media (prefers-reduced-motion: reduce) { .ws-dot.pulse { animation: none; } }
-/* a card in the list: its compact face as a button, its dot the row's own */
-.ws-card { flex: 1; min-width: 0; display: block; padding: 2px 6px; margin: -2px -6px; border: 0; border-radius: 6px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
-.ws-card:hover, .ws-card:focus-visible { background: var(--chip); }
-.ws-card .f-dot { display: none; }
-/* the plan's usage limits: a short meter per group, in the usage endpoint's grade */
-.pill.usage .face { gap: 16px; }
-.pill.usage .harness { display: flex; align-items: center; margin-right: -6px; }
-.harness-mark { display: block; stroke: #d97757; stroke-width: 2.6; stroke-linecap: round; }
-/* on the phone at the bar's right end */
-.ph-home .pill.usage { margin-left: auto; }
-.ph-home .pill.usage .face { padding: 6px 10px; gap: 10px; font-size: 13px; }
-.pill.usage .limit { display: flex; align-items: center; gap: 6px; }
-.pill.usage .limit b { font-weight: 600; font-variant-numeric: tabular-nums; }
-.pill.usage .limit.critical b { color: var(--error); }
-/* ☰ and the logo open the left menu (nav.tsx); ☰ says it is a button */
-.app-logo { display: flex; align-items: center; gap: 5px; height: 34px; margin-right: 4px; padding: 0 6px; margin-left: -6px; border: 0; border-radius: 3px;
-  background: none; color: var(--ink); cursor: pointer; }
-.app-logo:hover, .app-logo.on { background: color-mix(in srgb, var(--ink) 7%, transparent); }
-.app-logo .bar-word { display: block; line-height: 0; }
-.app-logo .burger { flex: none; display: block; margin-right: 3px; }
-#bar .left { display: flex; gap: 10px; align-items: center; }
-#bar .right { display: flex; gap: 10px; align-items: center; justify-content: flex-end; }
-/* the traffic lights of the app's window on a Mac sit at the bar's left, or in the pinned navigation's head */
-#bar.titlebar { padding-left: 92px; }
-#bar.titlebar.beside-nav { padding-left: 14px; }
-.kpill.on { background: var(--ink); color: var(--bg); }
-/* the bar's buttons always fit (src/ui/barFit.ts): narrower than its contents, the search field shrinks first, then
-   the bar gives up in steps the wordmark for the sign, the help, and last lets the search field shrink to its icon */
-.bar-sign, .bar-icon { display: none; }
-#bar[data-fit~="1"] .bar-word { display: none; }
-#bar[data-fit~="1"] .bar-sign { display: block; line-height: 0; }
-#bar[data-fit~="2"] .help { display: none; }
-#bar[data-fit~="3"] { grid-template-columns: auto minmax(34px, 440px) auto; }
-/* the bar's buttons are one height, whatever they hold: text, an icon, a count */
-#bar .pill, .pill.talk-pill { height: 34px; box-sizing: border-box; padding-block: 0; }
-#bar button.pill.help { width: 34px; height: 34px; }
-.talk-pill, #bar .talk-pill { padding: 0 12px; }
-.talk-pill svg { display: block; flex: none; }
 .prefs { list-style: none; padding: 0; margin: 10px 0 0; }
 .prefs li { display: flex; gap: 8px; align-items: flex-start; padding: 7px 8px 7px 10px; border-radius: 3px; background: var(--chip); margin: 6px 0;
   font-size: 13px; cursor: default; flex-wrap: wrap; }
@@ -582,10 +393,6 @@ button.pill:hover { box-shadow: var(--lift); }
 .proposals .setting-diff textarea { min-width: 0; }
 .proposals .setting-value { flex-basis: 100%; margin: 0; font: 12px/1.45 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; background: var(--card); border-radius: 2px; padding: 6px 8px; }
 .prefs .pref-actions .take-on { flex-basis: 100%; color: var(--muted-foreground); font-size: 12px; }
-/* an answer waits in Seismic's sheet: orange, like everything that waits for the owner */
-/* the agents' button counts the queued cards in grey (src/ui/agents.tsx) */
-.agents-pill .bar-icon { display: block; }
-.agents-pill.on { background: var(--chip); color: var(--ink); }
 .reshare { margin-top: 16px; }
 .reshare .failed { display: block; margin-top: 2px; }
 .reshare .page-changes { flex-basis: 100%; margin: 0; }
@@ -596,8 +403,6 @@ button.pill:hover { box-shadow: var(--lift); }
 .pref-new textarea { min-height: 38px; }
 .pref-new .filed, .pref-new .p-error { flex-basis: 100%; }
 .hint { color: var(--muted-foreground); font-size: 12px; }
-button.pill.help { width: 32px; height: 32px; padding: 0; justify-content: center; font-weight: 700; font-size: 15px; color: var(--muted-foreground); }
-button.pill.help:hover, button.pill.help.on { color: var(--ink); }
 #help .box { position: relative; padding: 22px 26px 24px; width: 860px; max-width: 100%; max-height: 100%; overflow: auto; }
 #help h2 { margin: 0 0 14px; font-size: 23px; }
 #help .close { position: absolute; right: 14px; top: 12px; }
@@ -1414,7 +1219,6 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
    sheet it goes left with the bar's end; in the bar it stands left of the avatar (34px and the gap) */
 #talk-docked { position: fixed; top: 11.5px; right: calc(var(--side, 0px) + 14px + 34px + 10px); transition: right .45s cubic-bezier(.3,.9,.3,1); z-index: 27; }
 #talk-docked.on { right: 14px; display: none; }
-.talk-room { visibility: hidden; }
 /* the grip on the open sheet's left edge: drag to widen or narrow it, double-click for the default */
 #sheet-grip { position: fixed; top: 0; bottom: 0; width: 12px; z-index: 26; cursor: ew-resize; touch-action: none;
   opacity: 0; pointer-events: none; transition: opacity .2s, right .45s cubic-bezier(.3,.9,.3,1); }
@@ -1423,7 +1227,7 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
   background: var(--planned); opacity: .55; transition: background .15s, opacity .15s, height .15s, margin-top .15s; }
 #sheet-grip:hover::after, .resizing #sheet-grip::after { background: var(--muted-foreground); opacity: 1; height: 64px; margin-top: -32px; }
 .resizing, .resizing * { cursor: ew-resize !important; -webkit-user-select: none; user-select: none; }
-.resizing .sheet, .resizing #sheet-grip, .resizing #bar, .resizing #talk-docked, .resizing #ptt, .resizing #acks, .resizing .empty { transition: none; }
+.resizing .sheet, .resizing #sheet-grip, .resizing #talk-docked, .resizing #ptt, .resizing #acks, .resizing .empty { transition: none; }
 .sheet h2 { margin: 2px 0 8px; font-size: 24px; line-height: 1.15; }
 /* a sheet's heading keeps clear of the button in its top corner (Seismic's, or the ✕) */
 .sheet > .p-kind:first-child, .sheet > .p-kind:first-child + h2, .sheet > h2:first-child { margin-right: 40px; }
@@ -1744,11 +1548,6 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 #ptt.listening #mic { background: var(--waiting); color: var(--on-ink); }
 #ptt.listening #mic .mic-ring { opacity: .8; }
 @keyframes spin { to { transform: rotate(360deg); } }
-#target { font-size: 12px; color: var(--muted-foreground); background: var(--card); box-shadow: var(--shadow); border-radius: 3px; padding: 4px 12px; white-space: nowrap; max-width: calc((100vw - var(--left, 0px) - var(--side, 0px)) * .6); overflow: hidden; text-overflow: ellipsis; }
-#target b { color: var(--ink); font-weight: 600; }
-#target.flat { color: var(--on-ink); background: var(--error); font-weight: 600; }
-#target.into, #target.into b { color: var(--working); }
-#target .with { color: var(--warn); }
 /* screenshots for the next recording: a small button and thumbnails to the right of the mic, which stays centred */
 .ptt-row { position: relative; }
 .ptt-shots { position: absolute; left: calc(100% + 12px); top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 10px; }
@@ -1775,7 +1574,6 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 #ptt.switching .c-file { height: 38px; }
 #mic.listen { width: 46px; height: 46px; cursor: default; }
 #mic.listen svg { width: 20px; height: 20px; }
-#target .hint-talk { color: var(--muted-foreground); }
 /* Parked and Queue, full-page views (src/ui/views.tsx) */
 :is(#parked-full, #queue-full) .a-full-head h2 .count { margin-left: 4px; font-weight: 400; color: var(--muted-foreground); }
 :is(#parked-full, #queue-full) .a-full-head .expand { flex: 1; }
@@ -2177,24 +1975,6 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 #ph-home .qlist .face-xs .f-words { white-space: normal; }
 /* the cards snoozed while they waited stand under it, as far off as the cards from each other */
 .ph-none + .ph-list { margin-top: 14px; }
-/* the button for Seismic's conversation (the project's talk pill, a finger's size), left of the microphone in
-   reach of the thumb; inverted while the panel is open */
-.pill.ph-talk-open { position: fixed; z-index: 50; left: max(14px, env(safe-area-inset-left)); bottom: calc(30px + env(safe-area-inset-bottom));
-  height: 44px; padding: 0 14px; color: var(--ink); cursor: pointer; }
-.pill.ph-talk-open.on { color: var(--bg); }
-.ph-talk-open svg { width: 20px; height: 20px; }
-.ph-talk-open:active { box-shadow: none; transform: translateY(1px); }
-/* the conversation shows an agent at work: the moving line of a working card, along the button's foot */
-.ph-talk-open.working::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: 5px; height: 2px;
-  background: linear-gradient(90deg, var(--working) 0 50%, transparent 50%) 0 0 / 200% 100% no-repeat,
-    color-mix(in srgb, var(--working) 22%, transparent);
-  animation: draw 1.6s cubic-bezier(.5,0,.3,1) infinite; }
-.ph-kb .ph-view ~ :is(.ph-talk-open, .ph-project-pick) { display: none; }
-/* the project whose Seismic is spoken to, right of the microphone and its screenshot button: the phone's own picker opens */
-.pill.ph-project-pick { position: fixed; z-index: 50; right: max(14px, env(safe-area-inset-right)); bottom: calc(30px + env(safe-area-inset-bottom));
-  height: 44px; box-sizing: border-box; padding: 0 12px; gap: 6px; max-width: calc(50vw - 106px); font-size: 15px; cursor: pointer; }
-.ph-project-pick .name { overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
-.ph-project-pick select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 16px; }
 /* Seismic's conversation: a panel from below over the list, in the part of the screen the keyboard leaves;
    only the conversation scrolls, the field stands under it, and below that the room of the microphone */
 .ph-panel { --ph-h: 1; top: calc(100% * (1 - var(--ph-h))); bottom: auto; height: calc(100% * var(--ph-h)); z-index: 20; overflow: hidden; display: flex; flex-direction: column;
@@ -2277,7 +2057,6 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .ph-new:active { box-shadow: var(--shadow); transform: translateX(-50%) translateY(1px); }
 .ph-new:disabled { color: var(--muted-foreground); cursor: default; }
 /* the cursor in a field says where the words go: a line under the microphone would lift it onto the field */
-.ph-view ~ #ptt #target.into { display: none; }
 /* the microphone is held by a finger: no long-press menu, no text selected */
 #mic, [data-slot=prompt-input-button] { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: none; }
 @media (pointer: coarse) { .lb-bar { flex-wrap: wrap; max-width: 100%; } }
@@ -2297,9 +2076,6 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
   #ph-home .ph-quiet { top: 8px; }
   .ph-section { margin-top: 14px; }
   .ph-view ~ #ptt { left: auto; right: env(safe-area-inset-right); width: 112px; top: calc(50% - 34px); bottom: auto; transform: none; }
-  /* the clamped lines end at the padding's edge: the space above and below is a border, so no fifth line peeks out */
-  .ph-view ~ #ptt #target { max-width: 104px; white-space: normal; text-align: center; padding: 0 8px; border-block: 4px solid var(--card);
-    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; }
   .ph-view ~ #ptt .ptt-error { max-width: 104px; }
   /* the screenshot button and the screenshots above the microphone, not beside it */
   .ph-view ~ #ptt .ptt-shots { left: 50%; top: auto; bottom: calc(100% + 12px); transform: translateX(-50%); flex-direction: column-reverse; }
@@ -2308,12 +2084,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
   .ph-view ~ #ptt .c-file { max-width: 104px; }
   .ph-view ~ #acks { bottom: calc(14px + env(safe-area-inset-bottom));
     width: calc(100vw - 112px - env(safe-area-inset-right) - 24px); }
-  /* the strip holds the rest that stood beside the microphone: the project picker at its top, the button for Seismic's
-     conversation at its bottom, both centred in it (`translate`, since a pressed button sets `transform`) */
-  .pill.ph-talk-open, .pill.ph-project-pick { left: auto; right: calc(56px + env(safe-area-inset-right)); translate: 50% 0; }
-  .pill.ph-talk-open { bottom: calc(14px + env(safe-area-inset-bottom)); }
   .ph-new, .ph-new:active { left: auto; right: calc(56px + env(safe-area-inset-right)); translate: 50% 0; top: calc(50% - 34px); bottom: auto; transform: none; }
-  .pill.ph-project-pick { top: 52px; bottom: auto; max-width: 104px; }
   /* the panel needs no room under the field: the microphone stands beside it */
   .ph-grip { padding-top: 10px; }
   /* half of 400 px leaves no room for a conversation, and the video does not fit above it anyway */
@@ -2753,34 +2524,6 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 /* on the phone the replies are sized for a finger */
 .ph-section .inbox-entry .replies { gap: 8px; }
 .ph-section .inbox-entry .replies > [data-slot=button] { min-height: 40px; font-size: 14px; }
-/* under the bar, floating over the main area: the project switcher at the left; the project settings and the
-   group of the agents and "Needs you" at the right. Only the buttons take the pointer: the project between them stays the project's */
-#floating-row { position: fixed; top: 66px; left: calc(var(--left, 0px) + 48px); right: calc(var(--side, 0px) + 14px); z-index: 24; display: flex; align-items: center; gap: 10px;
-  pointer-events: none; transition: right .45s cubic-bezier(.3,.9,.3,1), left .45s cubic-bezier(.3,.9,.3,1); }
-#floating-row > *, #floating-row .right > * { pointer-events: auto; }
-#floating-row .right { margin-left: auto; display: flex; gap: 10px; align-items: center; flex: none; }
-#floating-row .pill { height: 34px; box-sizing: border-box; padding-block: 0; }
-#floating-row .nav-pill { flex: none; }
-/* it fits as the bar does (barFit.ts): narrower than its buttons, it gives up the branch, then the "Needs you" label, then the project's name shrinks */
-#floating-row[data-fit~="1"] .nav-pill .lbl, #floating-row[data-fit~="2"] .needs-you-pill .lbl { display: none; }
-#floating-row[data-fit~="3"] .nav-pill { flex: 0 1 auto; min-width: 0; }
-#floating-row[data-fit~="3"] .nav-pill .project-switch { max-width: 100%; }
-#floating-row[data-fit~="3"] .nav-pill .project-switch b { overflow: hidden; text-overflow: ellipsis; }
-.resizing #floating-row { transition: none; }
-/* two buttons as one: the agents and what needs the owner */
-.pill-group { display: flex; border-radius: 17px; box-shadow: var(--shadow); }
-.pill-group > .pill { box-shadow: none; border-radius: 0; }
-.pill-group > .pill:first-child { border-radius: 17px 0 0 17px; padding-left: 14px; }
-.pill-group > .pill:last-child { border-radius: 0 17px 17px 0; border-left: 1px solid var(--line); padding-right: 14px; }
-.pill-group:hover { box-shadow: var(--lift); }
-/* "Needs you": the bell, its label until the first click, the cards waiting in orange */
-.needs-you-pill { padding-inline: 12px; }
-.needs-you-pill .bar-icon { display: block; }
-.needs-you-pill .lbl { font-weight: 600; }
-.needs-you-pill.on { background: var(--chip); color: var(--ink); }
-/* the avatar's place, until Seismic has accounts */
-#bar .avatar { width: 34px; height: 34px; display: grid; place-items: center; color: var(--muted-foreground); }
-
 /* the canvas zoomed far out or moving (frost.ts): no blur behind the cards. Each blurred card is a layer the GPU
    re-samples on every frame of a move; with ~100 on screen that drops frames (a fifth with a GPU, more than half
    without one), and many small ones shimmer zoomed out. --unblurred stands in for the blur's saturate: a tint that
@@ -2804,8 +2547,7 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 /* glass that blurred what lies behind it turns solid, so the canvas does not show through the bars and panes,
    and the cards take the tint they have zoomed out */
 :root[data-motion="reduce"] { --glass: var(--panel); }
-:root[data-motion="reduce"] :is(#bar, #status) { background: var(--bg); }
-:root[data-motion="reduce"] :is(#panel .content > .actions:last-child, #panel .merge-actions, .cfg-actions, .read-head, .nav-sheet.titlebar .nav-head) { background: var(--panel); }
+:root[data-motion="reduce"] :is(#panel .content > .actions:last-child, #panel .merge-actions, .cfg-actions, .read-head) { background: var(--panel); }
 :root[data-motion="reduce"] .card:not(.s-proposal) { background-image: linear-gradient(var(--unblurred), var(--unblurred)); }
 
 /* the project's settings, a sheet like the inbox (projectSettings.tsx) */
@@ -2825,10 +2567,6 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 .agents-stage h4 [data-variant=count] { margin-left: 4px; }
 /* the chips above "All": one per stage, tinted in its colour while its group shows */
 .agents-filter { margin: 12px 8px 0; }
-.cs-pill .bar-icon { display: block; }
-.cs-pill { padding-inline: 10px; }
-.cs-pill [data-variant=count] { margin-left: 4px; }
-.cs-pill.on { background: var(--chip); color: var(--ink); }
 
 #project-settings .cs-project { margin: 0 40px 2px 0; font-size: 12px; color: var(--muted-foreground); }
 #project-settings > .hint { margin: 0 0 6px; font-size: 12.5px; line-height: 1.45; }

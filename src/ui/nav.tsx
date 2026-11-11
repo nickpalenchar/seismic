@@ -16,6 +16,16 @@ import { ProjectAgents } from './parts';
 import { t } from './strings';
 import { openWish } from './wish';
 import { Tooltip } from './components/tooltip';
+import { PillButton } from './components/pill';
+import { cn } from 'cn';
+
+// the looks the menu's pieces share, docked or dropped down
+const list = 'm-0 list-none p-0';
+/** entries under another: the open project's canvases and views, what sits under Settings and Performance */
+const tree = cn(list, 'mt-0.5 mb-1 pl-[22px]');
+const rowButton = 'flex w-full cursor-pointer items-center gap-[7px] rounded-[6px] border-0 bg-transparent px-2.5 py-1.5 text-left text-[13px] text-muted-foreground no-underline outline-none hover:bg-chip data-highlighted:bg-chip [&_svg]:flex-none';
+/** the dropdown's panel: under ☰, or the floating row's project switcher */
+const menuPanel = 'w-[min(360px,calc(100vw-28px))] rounded-[12px] border border-glass-edge px-3.5 pt-3.5 pb-4';
 
 /** How wide the menu is, docked as a sidebar. */
 export const NAV_W = 340;
@@ -56,19 +66,20 @@ export function NavPill(p: ProjectsProps) {
   const home = p.project.repos[0];
   return (
     <Menu open={open} onOpenChange={setOpen}>
-      <div className="nav-pill">
+      {/* it fits as the bar does (barFit.ts): narrower than its buttons, the row gives up the branch, then the project's name shrinks */}
+      <div className="relative flex-none group-data-[fit~='3']/row:min-w-0 group-data-[fit~='3']/row:flex-[0_1_auto]">
         <MenuTrigger asChild>
-          <button className={open ? 'pill project-switch on' : 'pill project-switch'} title={t.nav.button}>
+          <PillButton size="bar" on={open} className="group-data-[fit~='3']/row:max-w-full group-data-[fit~='3']/row:[&_b]:overflow-hidden group-data-[fit~='3']/row:[&_b]:text-ellipsis" title={t.nav.button}>
             <ProjectIcon />
             <b>{p.project.name}</b>
-            <span className="hint lbl">{p.project.repos.length > 1 ? t.repos(p.project.repos.length) : home?.branch}</span>
-            <span className="hint">▾</span>
-          </button>
+            <span className="text-[12px] text-muted-foreground group-data-[fit~='1']/row:hidden">{p.project.repos.length > 1 ? t.repos(p.project.repos.length) : home?.branch}</span>
+            <span className="text-[12px] text-muted-foreground">▾</span>
+          </PillButton>
         </MenuTrigger>
       </div>
-      <MenuContent className="nav-menu nav-switch">
+      <MenuContent className={menuPanel}>
         <InMenu.Provider value={ACTIVE}>
-          <ul className="nav-projects">
+          <ul className={list}>
             {p.projects.map((c) => (
               <ProjectRow key={c.id} project={c} here={c.id === p.project.id} repos />
             ))}
@@ -125,23 +136,30 @@ export function MenuButton({ docked, dockedOn, onDocked, ...p }: MenuProps & { d
   const [open, setOpen] = useState(false);
   const on = docked ? dockedOn : open;
   const logo = (
-    <button className={on ? 'app-logo on' : 'app-logo'} aria-label={t.leftMenu.button} aria-expanded={docked ? dockedOn : undefined} onClick={docked ? () => onDocked(!dockedOn) : undefined}>
-      <Menu_ className="burger" size={18} strokeWidth={2} aria-hidden />
-      <span className="bar-word">
+    <button
+      data-on={on || undefined}
+      className="-ml-1.5 mr-1 flex h-[34px] cursor-pointer items-center gap-[5px] rounded-[3px] border-0 bg-transparent px-1.5 text-ink hover:bg-[color-mix(in_srgb,var(--ink)_7%,transparent)] data-[on]:bg-[color-mix(in_srgb,var(--ink)_7%,transparent)]"
+      aria-label={t.leftMenu.button}
+      aria-expanded={docked ? dockedOn : undefined}
+      onClick={docked ? () => onDocked(!dockedOn) : undefined}
+    >
+      <Menu_ className="mr-[3px] block flex-none" size={18} strokeWidth={2} aria-hidden />
+      {/* narrow, the bar gives up the wordmark for the sign (barFit.ts) */}
+      <span className="block leading-0 group-data-[fit~='1']/bar:hidden">
         <Wordmark height={22} />
       </span>
-      <span className="bar-sign">
+      <span className="hidden leading-0 group-data-[fit~='1']/bar:block">
         <Sign size={24} />
       </span>
     </button>
   );
   return (
     <Menu open={open && !docked} onOpenChange={setOpen}>
-      <div className="app-menu">
+      <div>
         {/* docked, the button toggles the sidebar: a trigger would swallow Enter and Space to open a menu that is not there */}
         <Tooltip content={t.leftMenu.button}>{docked ? logo : <MenuTrigger asChild>{logo}</MenuTrigger>}</Tooltip>
       </div>
-      <MenuContent className="nav-menu left-menu">
+      <MenuContent className={cn(menuPanel, 'w-[min(340px,calc(100vw-28px))] overflow-x-hidden')}>
         <MenuBody {...p} floating />
       </MenuContent>
     </Menu>
@@ -153,7 +171,16 @@ export function NavSheet({ on, ...p }: MenuProps & { on: boolean }) {
   // in the app on a Mac it reaches up to the window's top: the traffic lights sit in its head, which moves the window as the bar does
   const titlebar = window.obeyaApp?.platform === 'macos';
   return (
-    <aside id="nav" className={['nav-sheet', 'left-menu', on && 'on', titlebar && 'titlebar'].filter(Boolean).join(' ')} aria-hidden={!on}>
+    // pinned: a sidebar docked to the window's left edge, from top to bottom, as the sheets are on the
+    // right; above the dim of an open card (#dim), so it stays in view and switches project from there
+    <aside
+      id="nav"
+      className={cn(
+        'fixed top-0 bottom-0 left-0 z-31 box-border w-[340px] overflow-auto border border-l-0 border-glass-edge bg-glass px-3.5 pt-3.5 pb-[30px] shadow-[inset_0_1px_0_var(--glass-hi),var(--lift)] backdrop-blur-[28px] backdrop-saturate-[1.6]',
+        on ? 'visible translate-x-0 [transition:translate_.45s_cubic-bezier(.3,.9,.3,1)]' : 'invisible -translate-x-[calc(100%+1px)] [transition:translate_.45s_cubic-bezier(.3,.9,.3,1),visibility_0s_.45s]',
+      )}
+      aria-hidden={!on}
+    >
       <MenuBody {...p} titlebar={titlebar} />
     </aside>
   );
@@ -180,7 +207,7 @@ function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean
   // an entry's action: in the dropdown the menu closes with the choice
   const run = (f: () => void) => f;
   const pin = (p.pinnable || p.pinned) && (
-    <Act className={p.pinned ? 'nav-pin on' : 'nav-pin'} tip={p.pinned ? m.unpin : m.pin} aria-label={p.pinned ? m.unpin : m.pin} aria-pressed={p.pinned} onAct={() => p.onPin(!p.pinned)}>
+    <Act className={cn('ml-auto grid size-[30px] cursor-pointer place-items-center rounded-[3px] border-0 bg-chip p-0 text-muted-foreground hover:text-ink', p.pinned && 'text-ink')} tip={p.pinned ? m.unpin : m.pin} aria-label={p.pinned ? m.unpin : m.pin} aria-pressed={p.pinned} onAct={() => p.onPin(!p.pinned)}>
       {p.pinned ? <PanelLeftClose size={16} strokeWidth={2} aria-hidden /> : <PanelLeft size={16} strokeWidth={2} aria-hidden />}
     </Act>
   );
@@ -188,34 +215,36 @@ function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean
     <Entry icon={<Inbox size={16} strokeWidth={2} aria-hidden />} label={m.inbox} on={p.showing === 'inbox'} onClick={run(p.onInbox)} />
   );
   return (
-    <div className={page === 'agents' ? 'menu-pages sub' : 'menu-pages'}>
+    // the menu's two pages side by side, the second ("Configure agents") sliding in over the first; the
+    // page out of view takes no height, so the menu is as tall as the page it shows
+    <div className={cn('grid grid-cols-[100%_100%] items-start transition-transform duration-300 ease-[cubic-bezier(.3,.9,.3,1)]', page === 'agents' && '-translate-x-full')}>
       <InMenu.Provider value={!floating ? null : page === 'main' ? ACTIVE : INACTIVE}>
-      <div className="menu-page" inert={page !== 'main'}>
+      <div className={pageClass(page !== 'main')} inert={page !== 'main'}>
         {/* in the app on a Mac the traffic lights take the head; the inbox's entry follows under it */}
-        <div className="nav-head" {...drag}>
-          {!titlebar && <ul className="menu-list expand">{inbox}</ul>}
+        <div className={head(titlebar)} {...drag}>
+          {!titlebar && <ul className={cn(list, 'min-w-0 flex-1')}>{inbox}</ul>}
           {pin}
         </div>
-        <ul className="menu-list">
+        <ul className={list}>
           {titlebar && inbox}
-          <Entry icon={<Bot size={16} strokeWidth={2} aria-hidden />} label={m.configureAgents} focusRef={configureButton} keep onClick={() => setPage('agents')} end={<ChevronRight size={16} strokeWidth={2} className="more" aria-hidden />} />
+          <Entry icon={<Bot size={16} strokeWidth={2} aria-hidden />} label={m.configureAgents} focusRef={configureButton} keep onClick={() => setPage('agents')} end={<ChevronRight size={16} strokeWidth={2} className="ml-auto flex-none text-muted-foreground" aria-hidden />} />
         </ul>
-        <h3 className="menu-label">{m.projects}</h3>
-        <ul className="nav-projects">
+        <h3 className="mx-2.5 mt-4 mb-1.5 text-[12px] font-semibold tracking-[.04em] text-muted-foreground uppercase">{m.projects}</h3>
+        <ul className={list}>
           {p.projects.map((c) =>
             c.id === p.project.id ? (
-              <li key={c.id} className="nav-open">
-                <ul className="nav-projects">
-                  <ProjectRow project={c} here />
+              <li key={c.id}>
+                <ul className={list}>
+                  <ProjectRow project={c} here bold />
                 </ul>
-                <ul className="menu-list nav-tree">
+                <ul className={tree}>
                   {p.canvases.map((v) => (
-                    <Entry key={v.id} icon={<CanvasIcon canvas={v} size={15} />} label={v.name} on={!p.showing && v.id === p.canvas} onClick={run(() => p.onCanvas(v))} />
+                    <Entry key={v.id} icon={<CanvasIcon canvas={v} size={15} />} label={v.name} sub on={!p.showing && v.id === p.canvas} onClick={run(() => p.onCanvas(v))} />
                   ))}
-                  <Entry icon={<ListOrdered size={16} strokeWidth={2} aria-hidden />} label={m.queue} on={p.showing === 'queue'} onClick={run(p.onQueue)} />
-                  <Entry icon={<Car size={16} strokeWidth={2} aria-hidden />} label={m.parked} on={p.showing === 'parked'} onClick={run(p.onParked)} />
-                  <Entry icon={<Archive size={16} strokeWidth={2} aria-hidden />} label={m.archived} on={p.showing === 'archived'} onClick={run(p.onArchived)} />
-                  <Entry icon={<Settings size={16} strokeWidth={2} aria-hidden />} label={m.projectSettings} on={p.showing === 'settings'} onClick={run(p.onProjectSettings)} end={<ChevronRight size={16} strokeWidth={2} className="more" aria-hidden />} />
+                  <Entry icon={<ListOrdered size={16} strokeWidth={2} aria-hidden />} label={m.queue} sub on={p.showing === 'queue'} onClick={run(p.onQueue)} />
+                  <Entry icon={<Car size={16} strokeWidth={2} aria-hidden />} label={m.parked} sub on={p.showing === 'parked'} onClick={run(p.onParked)} />
+                  <Entry icon={<Archive size={16} strokeWidth={2} aria-hidden />} label={m.archived} sub on={p.showing === 'archived'} onClick={run(p.onArchived)} />
+                  <Entry icon={<Settings size={16} strokeWidth={2} aria-hidden />} label={m.projectSettings} sub on={p.showing === 'settings'} onClick={run(p.onProjectSettings)} end={<ChevronRight size={16} strokeWidth={2} className="ml-auto flex-none text-muted-foreground" aria-hidden />} />
                 </ul>
               </li>
             ) : (
@@ -224,35 +253,35 @@ function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean
           )}
           <NewProject onNew={run(p.onNew)} />
         </ul>
-        <ul className="menu-list menu-foot">
+        <ul className={cn(list, 'mt-0.5 border-t border-line pt-2.5')}>
           <Entry icon={<SlidersHorizontal size={16} strokeWidth={2} aria-hidden />} label={m.settings} onClick={run(p.onConfig)} />
           <li>
-            <ul className="menu-list nav-tree">
-              <Entry label={m.prefs} onClick={run(p.onPrefs)} />
-              <Entry label={m.help} onClick={run(p.onHelp)} />
-              <Entry label={t.wish.link} onClick={run(() => openWish())} />
+            <ul className={tree}>
+              <Entry label={m.prefs} sub onClick={run(p.onPrefs)} />
+              <Entry label={m.help} sub onClick={run(p.onHelp)} />
+              <Entry label={t.wish.link} sub onClick={run(() => openWish())} />
             </ul>
           </li>
         </ul>
       </div>
       </InMenu.Provider>
       <InMenu.Provider value={!floating ? null : page === 'agents' ? ACTIVE : INACTIVE}>
-      <div className="menu-page" inert={page !== 'agents'}>
-        <div className="nav-head" {...drag}>
-          <Act className="menu-back" ref={backButton} keep onAct={() => setPage('main')} tip={m.back} aria-label={m.back}>
+      <div className={pageClass(page !== 'agents')} inert={page !== 'agents'}>
+        <div className={head(titlebar)} {...drag}>
+          <Act className="-ml-0.5 flex h-8 cursor-pointer items-center gap-2 rounded-[6px] border-0 bg-transparent px-2.5 text-[14px] text-ink hover:bg-chip" ref={backButton} keep onAct={() => setPage('main')} tip={m.back} aria-label={m.back}>
             <ArrowLeft size={16} strokeWidth={2} aria-hidden />
             <b>{m.configureAgents}</b>
           </Act>
           {pin}
         </div>
-        <ul className="menu-list">
+        <ul className={list}>
           <Entry icon={<Users size={16} strokeWidth={2} aria-hidden />} label={m.agents} soon />
           <Entry icon={<ScrollText size={16} strokeWidth={2} aria-hidden />} label={m.rules} soon />
           <Entry icon={<FileCheck size={16} strokeWidth={2} aria-hidden />} label={m.reviewRules} soon />
           <Entry icon={<ChartLine size={16} strokeWidth={2} aria-hidden />} label={m.performance} onClick={run(p.onPerformance)} />
           <li>
-            <ul className="menu-list nav-tree">
-              <Entry label={m.feedbackLog} onClick={run(p.onFeedbackLog)} />
+            <ul className={tree}>
+              <Entry label={m.feedbackLog} sub onClick={run(p.onFeedbackLog)} />
             </ul>
           </li>
         </ul>
@@ -261,6 +290,20 @@ function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean
     </div>
   );
 }
+
+/** One of the menu's two pages; the one out of view hides once it has slid away, and takes no height. */
+const pageClass = (away: boolean) => cn('min-w-0', away && 'invisible h-0 [transition:visibility_0s_.3s]');
+
+/**
+ * A page's head: the inbox's entry or the way back, and the pin. In the app on a Mac the window's
+ * traffic lights sit in it, as tall as the bar; it stays put as the list scrolls under it (a sticky box
+ * keeps clear of its scroller's padding, hence the negative top).
+ */
+const head = (titlebar?: boolean) =>
+  cn(
+    'mb-0.5 flex min-h-8 items-center gap-2.5',
+    titlebar && 'sticky -top-3.5 z-1 -mx-3.5 -mt-3.5 h-[58px] bg-[color-mix(in_srgb,var(--panel)_88%,transparent)] pr-3.5 pl-[92px] backdrop-blur-[16px] reduced:bg-panel',
+  );
 
 /** A button of the menu: an item of the open dropdown, else a plain button. `keep` leaves the dropdown open. */
 function Act({ onAct, keep, disabled, tip, children, ...props }: { onAct?: (() => void) | undefined; keep?: boolean; disabled?: boolean; tip?: string } & Omit<ComponentProps<'button'>, 'onClick'>) {
@@ -290,23 +333,36 @@ function Act({ onAct, keep, disabled, tip, children, ...props }: { onAct?: (() =
 }
 
 /** One of the menu's entries: an icon, its label and what stands at its end; greyed out with "Coming soon" while it opens nothing yet. */
-function Entry({ icon, label, end, on, soon, keep, onClick, focusRef }: { icon?: ReactNode; label: string; end?: ReactNode; on?: boolean; soon?: boolean; keep?: boolean; onClick?: () => void; focusRef?: Ref<HTMLButtonElement> }) {
+function Entry({ icon, label, end, on, soon, sub, keep, onClick, focusRef }: { icon?: ReactNode; label: string; end?: ReactNode; on?: boolean; soon?: boolean; sub?: boolean; keep?: boolean; onClick?: () => void; focusRef?: Ref<HTMLButtonElement> }) {
   return (
     <li>
-      <Act ref={focusRef} className={on ? 'menu-entry on' : 'menu-entry'} aria-current={on || undefined} disabled={soon} title={soon ? t.leftMenu.comingSoon : undefined} keep={keep} onAct={onClick}>
+      <Act
+        ref={focusRef}
+        className={cn(
+          'box-border flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-[6px] border-0 bg-transparent px-2.5 py-1.5 text-left text-[14px] text-ink outline-none hover:not-disabled:bg-chip focus-visible:bg-chip disabled:cursor-default disabled:text-muted-foreground disabled:opacity-60 data-highlighted:bg-chip [&>svg]:flex-none [&>svg]:text-muted-foreground',
+          sub && 'min-h-[30px] py-[5px] text-[13px]',
+          on && 'bg-chip font-semibold',
+        )}
+        aria-current={on || undefined}
+        disabled={soon}
+        title={soon ? t.leftMenu.comingSoon : undefined}
+        keep={keep}
+        onAct={onClick}
+      >
         {icon}
-        <span className="menu-entry-label">{label}</span>
-        {soon ? <span className="soon">{t.leftMenu.comingSoon}</span> : end}
+        <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{label}</span>
+        {soon ? <span className="ml-auto flex-none text-[12px]">{t.leftMenu.comingSoon}</span> : end}
       </Act>
     </li>
   );
 }
 
 /** A project's row: a click switches there (the open one stays); its agents' pause. */
-function ProjectRow({ project: c, here, repos, onGo }: { project: ProjectInfo; here: boolean; repos?: boolean; onGo?: () => void }) {
+function ProjectRow({ project: c, here, repos, bold, onGo }: { project: ProjectInfo; here: boolean; repos?: boolean; bold?: boolean; onGo?: () => void }) {
   const menu = useContext(InMenu);
   const link = (
     <a
+      className={cn(rowButton, here && 'bg-chip text-ink', here && bold && 'font-semibold', c.agents && 'pr-[46px]')}
       href={projectPath(c.id)}
       aria-current={here ? 'page' : undefined}
       onClick={(e) => {
@@ -321,12 +377,13 @@ function ProjectRow({ project: c, here, repos, onGo }: { project: ProjectInfo; h
       }}
     >
       <ProjectIcon />
-      <b title={c.name}>{c.name}</b>
-      {repos && <span className="hint">{c.repos.map((r) => r.name).join(', ')}</span>}
+      {/* a long name and its repositories shorten rather than wrap, the repositories first */}
+      <b className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap" title={c.name}>{c.name}</b>
+      {repos && <span className="min-w-0 flex-[0_1000_auto] overflow-hidden text-[12px] text-ellipsis whitespace-nowrap text-muted-foreground">{c.repos.map((r) => r.name).join(', ')}</span>}
     </a>
   );
   return (
-    <li className={here ? 'nav-row on' : 'nav-row'}>
+    <li data-row className="group/project relative [[data-row]+&]:mt-0.5">
       {menu ? <MenuItem asChild disabled={!menu.active} onSelect={leaveMenu}>{link}</MenuItem> : link}
       <ProjectAgents project={c} item={menu} />
     </li>
@@ -335,8 +392,8 @@ function ProjectRow({ project: c, here, repos, onGo }: { project: ProjectInfo; h
 
 function NewProject({ onNew }: { onNew: () => void }) {
   return (
-    <li className="nav-row nav-new">
-      <Act onAct={onNew}>
+    <li data-row className="[[data-row]+&]:mt-0.5">
+      <Act className={cn(rowButton, 'hover:text-ink data-highlighted:text-ink')} onAct={onNew}>
         <Plus size={15} strokeWidth={2} aria-hidden />
         <b>{t.nav.newProject}</b>
       </Act>

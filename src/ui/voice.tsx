@@ -24,6 +24,7 @@ import { replyOn, setReply, useReply } from './reply';
 import { sent, take, type Taken } from './spot';
 import { failText, t } from './strings';
 import { CloseButton } from './components/button';
+import { cn } from 'cn';
 
 /** Starts a recording, for a text field's microphone and Space held in it; null where nobody listens. */
 export const HoldToTalk = createContext<(() => void) | null>(null);
@@ -322,24 +323,32 @@ export function PushToTalk({ phase, level, flat, target, field, slot, onDown, in
   const n = shots.images.length;
   const mic = useHeldByTouch<HTMLButtonElement>();
   const parts = [...(text.trim() ? [t.voice.withText] : []), ...(n ? [t.voice.withShots(n)] : []), ...(on && quote ? [t.voice.withQuote] : [])];
+  // whom the microphone speaks to: in the status bar on its glass, else under the microphone (the
+  // phone, where a field's own microphone says it, and turned, the line wraps to four in the strip)
+  const lineClass = cn(
+    'overflow-hidden rounded-[3px] text-ellipsis whitespace-nowrap text-muted-foreground [&_b]:font-semibold [&_b]:text-ink',
+    slot !== undefined
+      ? 'max-w-full px-2.5 py-[3px] text-[13px]'
+      : 'max-w-[calc((100vw-var(--left,0px)-var(--side,0px))*.6)] bg-card px-3 py-1 text-[12px] shadow-glass ph-landscape:max-w-[104px] ph-landscape:border-y-4 ph-landscape:border-[var(--card)] ph-landscape:px-2 ph-landscape:py-0 ph-landscape:text-center ph-landscape:whitespace-normal ph-landscape:[-webkit-box-orient:vertical] ph-landscape:[-webkit-line-clamp:4] ph-landscape:[display:-webkit-box]',
+  );
   const line = flat ? (
-        <div id="target" className="flat">
+        <div id="target" className={cn(lineClass, 'bg-error font-semibold text-on-ink')}>
           {t.voice.flat}
         </div>
       ) : into ? (
-        <div id="target" className="into">
+        <div id="target" className={cn(lineClass, 'text-working [&_b]:text-working', slot === undefined && 'hidden')}>
           → <b>{t.voice.intoField}</b>
           {t.voice.sendWithEnter && ` · ${t.voice.sendWithEnter}`}
         </div>
       ) : (
         (target !== null || hint) && (
-          <div id="target">
-            {hint && <span className="hint-talk">{t.voice.holdSpace}</span>}
+          <div id="target" className={lineClass}>
+            {hint && <span className="text-muted-foreground">{t.voice.holdSpace}</span>}
             {hint && target !== null && ' '}
             {target !== null && (
               <>
                 → <b>{target}</b>
-                {parts.length > 0 && <span className="with"> {t.voice.with(parts)}</span>}
+                {parts.length > 0 && <span className="text-warn"> {t.voice.with(parts)}</span>}
               </>
             )}
           </div>

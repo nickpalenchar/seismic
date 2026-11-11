@@ -35,6 +35,13 @@
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities) source("./");
 
+/* the window or a docked panel being resized (App.tsx sets `.resizing`): what follows its edges jumps, no transition */
+@custom-variant resizing (&:where(.resizing, .resizing *));
+/* reduced motion as Seismic decides it (motion.ts sets data-motion from the settings or the system) */
+@custom-variant reduced (&:where(:root[data-motion=reduce] *));
+/* the phone turned: a short height, the microphone at the right edge */
+@custom-variant ph-landscape (@media (orientation: landscape) and (max-height: 599px));
+
 /* `dark:` follows frost: data-theme=dark, or the system's dark where the owner chose neither */
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *, :not([data-theme])[data-system-theme=dark], :not([data-theme])[data-system-theme=dark] *));
 
@@ -67,6 +74,9 @@
   --text-sm: 14px;
   --text-sm--line-height: 20px;
 }
+
+/* a workstation's dot while its card is at work, in review or landing */
+@keyframes ws-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 
 @theme inline {
   --color-background: var(--background);
@@ -120,4 +130,15 @@
   --color-panel: var(--panel);
   --color-error: var(--error);
   --color-warn: var(--warn);
+  --color-online: var(--online);
+  --color-ice: var(--ice);
+}
+
+/* frost's frosted strip along a window edge (the top bar, the status bar): the board shows through,
+   blurred, and turns solid under reduced motion */
+@utility frost-bar {
+  background: color-mix(in srgb, var(--bg) 45%, transparent);
+  backdrop-filter: blur(20px) saturate(1.6);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  :root[data-motion="reduce"] & { background: var(--bg); }
 }

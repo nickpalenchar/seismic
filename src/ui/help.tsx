@@ -5,15 +5,23 @@ import { t } from './strings';
 import { WishLink } from './wish';
 import { CloseButton } from './components/button';
 import { Dialog, DialogContent, DialogTitle } from './components/dialog';
+import { PillButton } from './components/pill';
 import { Tooltip } from './components/tooltip';
 
 /** The `?` button in the bar. */
 export function HelpButton({ on, onClick }: { on: boolean; onClick: () => void }) {
   return (
     <Tooltip content={t.help.button}>
-      <button className={on ? 'pill help on' : 'pill help'} aria-label={t.help.button} onClick={onClick}>
+      {/* the bar gives it up before the search field shrinks to its icon (barFit.ts) */}
+      <PillButton
+        size="bar"
+        on={on}
+        className="w-[34px] justify-center p-0 text-[15px] font-bold text-muted-foreground hover:text-ink data-[on]:bg-card data-[on]:text-ink group-data-[fit~='2']/bar:hidden"
+        aria-label={t.help.button}
+        onClick={onClick}
+      >
         ?
-      </button>
+      </PillButton>
     </Tooltip>
   );
 }
