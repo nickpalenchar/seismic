@@ -322,7 +322,7 @@ function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean
                   <Entry icon={<ListOrdered size={16} strokeWidth={2} aria-hidden />} label={m.queue} sub on={p.showing === 'queue'} onClick={run(p.onQueue)} />
                   <Entry icon={<Car size={16} strokeWidth={2} aria-hidden />} label={m.parked} sub on={p.showing === 'parked'} onClick={run(p.onParked)} />
                   <Entry icon={<Archive size={16} strokeWidth={2} aria-hidden />} label={m.archived} sub on={p.showing === 'archived'} onClick={run(p.onArchived)} />
-                  <Entry icon={<Settings size={16} strokeWidth={2} aria-hidden />} label={m.projectSettings} sub on={p.showing === 'settings'} onClick={run(p.onProjectSettings)} end={<ChevronRight size={16} strokeWidth={2} className="ml-auto flex-none text-muted-foreground" aria-hidden />} />
+                  <Entry icon={<SlidersHorizontal size={16} strokeWidth={2} aria-hidden />} label={m.projectSettings} sub on={p.showing === 'settings'} onClick={run(p.onProjectSettings)} end={<ChevronRight size={16} strokeWidth={2} className="ml-auto flex-none text-muted-foreground" aria-hidden />} />
                 </NavList>
               </li>
             ) : (
@@ -332,7 +332,7 @@ function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean
           <NewProject onNew={run(p.onNew)} />
         </NavList>
         <NavList className={cn(list, 'mt-0.5 border-t border-line pt-2.5')}>
-          <Entry icon={<SlidersHorizontal size={16} strokeWidth={2} aria-hidden />} label={m.settings} onClick={run(p.onConfig)} />
+          <Entry icon={<Settings size={16} strokeWidth={2} aria-hidden />} label={m.settings} onClick={run(p.onConfig)} />
           <li>
             <NavList className={tree}>
               <Entry label={m.prefs} sub onClick={run(p.onPrefs)} />
