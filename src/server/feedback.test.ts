@@ -243,7 +243,8 @@ test('archiving after the landing, a finished card goes into the archive once it
   // a workstream goes with its plan, not on its own
   board.archiving = () => 'landed';
   const w = board.snapshot().items.find((i) => i.plan?.label === 'W1')!;
-  board.work(w.id, { state: 'live' });
+  // landed, but the Lesestand does not hold it yet: the card stays in its plan
+  board.work(w.id, { state: 'live', shipped: JSON.stringify({ fetch: true }) });
   board.workDone(w.id);
   expect(board.archived().map((i) => i.id)).not.toContain(w.id);
 });

@@ -674,6 +674,9 @@ export class Board {
    * read checkout holds what landed and the doc still leaves the workstream open, only a part of it is
    * done: the card is finished and leaves the plan, and a new card takes the workstream for the rest.
    */
+  /** The card each workstream split off from after a part landed, by plan reference: the card for the rest follows up on it (`placeNew` adds it). */
+  private restOf = new Map<string, string>();
+
   private reopen(docs: PlanDoc[]) {
     const byFile = new Map(docs.map((d) => [d.file, d]));
     for (const r of this.store.cards.onProject(this.project.id)) {
@@ -691,7 +694,7 @@ export class Board {
       // the landed card is done and leaves the plan; the rest is a card of its own, following up on it
       this.store.updateCard(r.id, { need: null, shipped: JSON.stringify(shipped) });
       this.leave(r, plan, w, this.t.idea.partLanded);
-      this.store.addCards([{ project_id: this.project.id, kind: 'task', parent_id: plan.id, plan_ref: r.plan_ref, from_id: r.id, x: r.x, y: r.y }]);
+      this.restOf.set(r.plan_ref, r.id);
     }
   }
 
@@ -3454,10 +3457,11 @@ export class Board {
       const kids = items.filter((i) => i.parent === plan.id);
       const startY = kids.length ? Math.max(...kids.map((k) => k.y + sizeOf(k, items)[1])) + GAP : PLAN_HEAD;
       placeWorkstreams(missing, startY).forEach((pos, n) =>
-        add.push({ project_id: c, kind: 'task', parent_id: plan.id, plan_ref: `${doc.file}#${missing[n]!.key}`, ...pos }),
+        add.push({ project_id: c, kind: 'task', parent_id: plan.id, plan_ref: `${doc.file}#${missing[n]!.key}`, ...(this.restOf.has(`${doc.file}#${missing[n]!.key}`) ? { from_id: this.restOf.get(`${doc.file}#${missing[n]!.key}`)! } : {}), ...pos }),
       );
     }
     if (add.length) this.store.addCards(add);
+    this.restOf.clear();
     const linked = this.linkOrigins(docs);
 
     const known = new Set(this.store.cards.plans(this.project.id).map((r) => r.plan_ref!));

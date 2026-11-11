@@ -113,8 +113,8 @@ with the workstream's log.
 
 A card whose workstream the doc no longer lists, while the doc is there, leaves the plan once an
 agent worked on it: as a task of its own, with its log, under the workstream's label and title and
-its text as the doc last had them, its log saying why. Finished (live or done, or planned again
-after a part landed), it goes into the archive; at work or stopped, it stands beside the plan. A
+its text as the doc last had them, its log saying why. Finished (live or done, or split off after
+a part landed), it goes into the archive; at work or stopped, it stands beside the plan. A
 stopped card holding a workstation gives the workstation back first. A doc in a plan folder outside the
 repository is written in place, an item moved in two edits, so its card leaves only once the
 workstream stayed away for five minutes; back before that, it keeps its card. A card nobody worked
@@ -171,11 +171,11 @@ the doc's. `done` (finished without a change) stays: the doc has nothing to say 
 A stored `live` holds only until the read checkout has what landed. A card keeps the commit it landed
 with (on main after a direct landing, the merge commit for a pull request, else the read checkout's
 commit after the next fetch). When the read checkout has it and the workstream is still unchecked, only
-part is done: the card goes back to `planned`, logs "Part landed; the plan doc keeps it open." and
-shows "Part landed · PR #821" (or the commit) until the rest lands. Its log and handover stay, its
-branch goes, so a new run starts fresh from main and hears what landed. Unfolded, it shows what the
-doc still holds open, what landed (with its pull request and last demo) beside the conversation, and
-"Start the rest".
+part is done: the card is finished and leaves the plan (it goes into the archive, logging "Part landed;
+the plan doc keeps the workstream open. The rest continues on a new card."), and a new card takes the
+workstream, planned and following up on the landed one. So two cards stand for one workstream: what
+landed keeps its log, handover, PR and demo; the new one starts fresh from main and its worker hears
+what landed (the pull request, the commit).
 
 A worker still finishing after the landing keeps its card live until done. A workstream in a pull
 request whose box the main branch ticks off counts as merged even where the PR watcher missed the
@@ -637,9 +637,9 @@ Prompts only agents read stay English.
 - **A stored `live` holds only until the read checkout has what landed** (2026-10-06), so a workstream the
   doc keeps open on purpose reopens. Rejected: the worker reporting "only a part" (a second source
   against the doc); a "Reopen" button (the problem shows only when someone asks).
-- **A partly landed workstream lays out as worked on, and its doc text stays in view on its card**
-  (2026-10-21): done and remaining could not be told apart, nor what a running workstream was meant
-  to do. Rejected: the text only as the conversation's first message.
+- **A partly landed workstream splits into two cards** (2026-11-11, the owner): the landed card is done
+  and the rest is a card of its own, as one card going back to planned mixed what landed with what was
+  left. Rejected: a "Part landed" mark and a "Start the rest" button on the same card.
 - **A plan doc with every workstream ticked ends its plan** (2026-10-12, the owner), or finished
   plans kept in a repository stay on the canvas forever.
 - **A plan doc that disappears ends its plan automatically** (2026-10-01); an explicit

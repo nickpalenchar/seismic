@@ -815,6 +815,8 @@ describe('a workstream merged as a pull request, its box still empty', () => {
     const rest = w1();
     expect(rest).toMatchObject({ state: 'planned', from: w.id });
     expect(rest.review?.pr).toBeUndefined();
+    // the landed card's clone returns to the pool once its worker is done
+    for (let i = 0; i < 100 && spaces.leasedBy(w.id); i++) await new Promise((r) => setTimeout(r, 20));
     await workers.start(rest.id);
     expect(runtime.last.inbox[0]).toContain('pull request #821 (https://github.com/acme/app/pull/821)');
   });
