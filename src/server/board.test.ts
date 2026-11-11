@@ -1040,6 +1040,7 @@ describe('needs you', () => {
     for (let i = 0; i < 40; i++) board.addTalk(`Chatter ${i}`, 'Ok.');
     board.replyTalk(older, 'The unit tests.', undefined, undefined, true);
     expect(open().find((r) => r.kind === 'answer')!.talk).toBe(older);
+    expect(board.snapshot().talk.some((x) => x.id === older)).toBe(true);
     const again = new Board(store, { id: 'shop', name: 'Shop', repos: [{ id: 'home', name: 'Home', path: '/r', branch: 'main' }] }, () => ({ docs, dirs }));
     expect(again.snapshot().needsYou.find((r) => r.kind === 'answer')!.talk).toBe(older);
   });

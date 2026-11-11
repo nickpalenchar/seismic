@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, getTableColumns, inArray, isNotNull, isNull, ne, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, getTableColumns, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 import { alias, index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { currentAgent } from '../agent-identity';
 import type { Place } from '../../core/layout';
@@ -308,16 +308,18 @@ export class Talk {
       .map((r) => this.withContinues(r));
   }
 
-  /** What Seismic's sheet shows: the latest exchanges of chat `chat` without an open card, and the answers that wait unread in the project's other chats; oldest first. */
+  /** What Seismic's sheet shows: the latest exchanges of chat `chat` without an open card, and every answer that waits unread in the project, also one of this chat older than those; oldest first. */
   sheet(projectId: string, chat: number, limit: number): TalkView[] {
-    const elsewhere = this.db
+    const here = this.latest(projectId, limit, true, chat);
+    const shown = new Set(here.map((x) => x.id));
+    const unread = this.db
       .select()
       .from(talk)
-      .where(and(eq(talk.projectId, projectId), eq(talk.unread, true), ne(talk.chat, chat)))
+      .where(and(eq(talk.projectId, projectId), eq(talk.unread, true)))
       .orderBy(talk.id)
-      .all();
-    const here = this.latest(projectId, limit, true, chat);
-    return elsewhere.length ? [...elsewhere.map((r) => this.withContinues(r)), ...here].sort((a, b) => a.id - b.id) : here;
+      .all()
+      .filter((r) => !shown.has(r.id));
+    return unread.length ? [...unread.map((r) => this.withContinues(r)), ...here].sort((a, b) => a.id - b.id) : here;
   }
 
   /** The unread answer of the project that was written last, in any chat however far back; exchanges from before arrivals were kept come first, by id. */
