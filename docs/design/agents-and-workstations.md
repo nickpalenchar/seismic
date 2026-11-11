@@ -417,17 +417,14 @@ colour of its card's state as the card on the canvas shows it, derived from the 
 change to the cards' colours changes the dots with it (owner, 2026-11-11): blue while its agent
 works, teal while a code review runs, orange while it needs the owner (a question, a demo ready),
 green while it lands; at work, in review and landing it pulses slowly (no pulse with reduced
-motion). A card on another project shows solid blue while its worker is at work, pale otherwise.
-A free clone is a dark grey ring, a blocked one an orange ring. Hovering or clicking it opens a
+motion). The pool shows only this project's cards that are in progress or wait for the owner: a card that is queued, snoozed, parked, archived or on another project leaves the dots and the list (a clone it holds still counts as taken in the numbers), and the list changes with the project. A free clone is a dark grey ring, a blocked one an orange ring. Hovering or clicking it opens a
 list above it: per machine its slots at work and clones taken, then each workstation on a line of
 its own in the order of the dots (left to right is top to bottom), free ones included: its dot,
 the card in it as a compact card (title and state line) that opens it, and its path (cut at the
 front where too long, so its end stays readable); a free or blocked one says so. Then how many
 cards wait for a workstation or a slot. While none is free and a card waits, "⋯" beside the cards
 whose clone may go to it (see Taking a card's workstation). A click on a card closes the list,
-flies to the card and opens it; for a card on another project the page switches to that project
-at the card's address (see Addresses in The canvas), which opens it once the project has loaded. A
-card not on any project (archived, say) shows by its title without a link. A repository in
+flies to the card and opens it; A repository in
 worktrees shows a dot per card holding a worktree, then a ring per slot its workers leave free;
 without slots nothing caps it, and it shows the cards' dots alone ("2 at work", "none at work").
 Its list names the cards' worktrees, and a line per free slot.

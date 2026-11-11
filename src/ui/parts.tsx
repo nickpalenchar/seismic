@@ -5,7 +5,7 @@ import { Docked } from './docked';
 import { type CSSProperties, memo, type MouseEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import { type Bounds, dependencyOrder, shapeOf } from '../core/layout';
 import { clip } from '../core/text';
-import { agentFailed, type AppUpdate, type ProjectInfo, type BlockedClone, type ClonePool, finished, finishedArchivable, type Item, merging, needsYou, pausable, type PendingRestart, halted, type PoolHost, type PoolWorkstation, type PlanHistory, type SourceUpdate, stoppedArchivable, snoozeOf, isPausing } from '../core/types';
+import { agentFailed, type AppUpdate, type ProjectInfo, type BlockedClone, type ClonePool, finished, finishedArchivable, type Item, merging, needsYou, pausable, type PendingRestart, halted, type PoolHost, type PoolWorkstation, type PlanHistory, type SourceUpdate, stoppedArchivable, snoozeOf, inParkingLot, isPausing } from '../core/types';
 import { CardMore } from './canvases';
 import { PlanTalk } from './koordinator';
 import { api } from './api';
@@ -737,12 +737,20 @@ function wsDot(w: PoolWorkstation | undefined, host: PoolHost, items: Item[], un
  * A machine's workstations in the order of its dots: each clone; in worktrees each card's worktree,
  * then a free slot for each its workers leave (none without slots).
  */
-const hostSpots = (h: PoolHost): (PoolWorkstation | undefined)[] =>
-  h.worktrees
-    ? [...h.workstations.filter((w) => w.card), ...Array.from({ length: h.uncapped ? 0 : Math.max(0, h.slots - h.busy.length) }, () => undefined)]
-    : h.workstations;
+const hostSpots = (h: PoolHost, items: Item[]): (PoolWorkstation | undefined)[] => {
+  // a card that is queued, snoozed, parked or not on this project does not show: only cards at work or waiting on the owner here
+  const shown = (w: PoolWorkstation) => {
+    if (!w.card) return true;
+    const i = items.find((x) => x.id === w.card);
+    return !!i && !i.queue && !snoozeOf(i) && !inParkingLot(i);
+  };
+  const held = h.workstations.filter(shown);
+  return h.worktrees
+    ? [...held.filter((w) => w.card), ...Array.from({ length: h.uncapped ? 0 : Math.max(0, h.slots - h.busy.length) }, () => undefined)]
+    : held;
+};
 
-const hostDots = (h: PoolHost, items: Item[], underway: Record<string, string>) => hostSpots(h).map((w) => wsDot(w, h, items, underway));
+const hostDots = (h: PoolHost, items: Item[], underway: Record<string, string>) => hostSpots(h, items).map((w) => wsDot(w, h, items, underway));
 
 /**
  * A machine's workstations, one per line in the order of the pill's dots: the dot, the card in it
@@ -766,7 +774,7 @@ function WorkstationRows({ host, items, underway, projects, onOpen, onElsewhere,
   const [more, setMore] = useState<string | null>(null);
   return (
     <ul className="m-0 mb-0.5 list-none p-0">
-      {hostSpots(host).map((w, n) => {
+      {hostSpots(host, items).map((w, n) => {
         const dot = wsDot(w, host, items, underway);
         if (!w)
           return (
