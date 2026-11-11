@@ -472,7 +472,10 @@ has it go ahead at once, its tooltip saying what that cuts off. The bar's other 
 The page that reloads keeps what was open: just before, it writes down per tab the open card, project
 (plan doc read or not) and sheet, the scroll positions in them, the drafts and where the demo video
 stood (playing on only in a tab in sight); the new page reopens them without flights or unfold. The
-camera is kept anyway.
+camera is kept anyway. Content arriving after the reload moves boxes, so the scroll positions are
+put back until it has settled, and longer (up to 20 s) while a box's content is still too short to
+scroll as far as it was: a server just restarted answers slowly, and the Configuration's sections
+fill in only once it has; a scroll or key press of the owner's ends it.
 
 #### Restarting by hand
 
