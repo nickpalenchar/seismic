@@ -22,10 +22,10 @@ export const acksClass =
 /**
  * On the phone the column is centred above the microphone, as wide as the screen; with the phone
  * turned it takes the width the microphone's strip leaves, and with a conversation's panel open
- * (`--ph-field`: the height of its field) it stands above the field.
+ * (`--ph-field`: how far its field's top stands above the screen's bottom) it stands above the field.
  */
 export const phoneAcksClass =
-  'fixed left-1/2 right-auto [transform:translateX(-50%)] transition-none bottom-[calc(91px+env(safe-area-inset-bottom))] w-[calc(100vw-24px)] z-90 flex flex-col items-center gap-1.5 pointer-events-none ph-landscape:bottom-[calc(14px+env(safe-area-inset-bottom))] ph-landscape:w-[calc(100vw-112px-env(safe-area-inset-right)-24px)] ph-landscape:[.ph-panel~&]:bottom-[calc(var(--ph-field,0px)+34px+env(safe-area-inset-bottom))]';
+  'fixed left-1/2 right-auto [transform:translateX(-50%)] transition-none bottom-[calc(91px+env(safe-area-inset-bottom))] w-[calc(100vw-24px)] z-90 flex flex-col items-center gap-1.5 pointer-events-none [.ph-panel~&]:bottom-[calc(var(--ph-field,0px)+10px)] ph-landscape:bottom-[calc(14px+env(safe-area-inset-bottom))] ph-landscape:w-[calc(100vw-112px-env(safe-area-inset-right)-24px)] ph-landscape:[.ph-panel~&]:bottom-[calc(var(--ph-field,0px)+10px)]';
 
 /**
  * What a toast is: a confirmation (dark), what the server is still at (dark, turning), a warning

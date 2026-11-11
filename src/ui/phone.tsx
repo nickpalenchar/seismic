@@ -1116,7 +1116,17 @@ function TalkPanel({
     if (!el) return;
     const root = document.documentElement;
     let field: Element | null = null;
-    const size = new ResizeObserver(() => field && root.style.setProperty('--ph-field', `${field.getBoundingClientRect().height}px`));
+    // how far the field's top stands above the bottom of the screen (what sits below it counts)
+    const measure = () => field && root.style.setProperty('--ph-field', `${Math.max(0, root.clientHeight - field.getBoundingClientRect().top)}px`);
+    const size = new ResizeObserver(measure);
+    size.observe(el);
+    // the panel slides up when it opens: the field only stands in place once it has
+    el.addEventListener('animationend', measure);
+    addEventListener('resize', measure);
+    visualViewport?.addEventListener('resize', measure);
+    // the keyboard flag moves the field (the panel's bottom padding changes)
+    const flag = new MutationObserver(measure);
+    flag.observe(root, { attributes: true, attributeFilter: ['class'] });
     const find = () => {
       const f = el.querySelector('.composer');
       if (f === field) return;
@@ -1124,6 +1134,7 @@ function TalkPanel({
       field = f;
       if (!f) return root.style.removeProperty('--ph-field');
       size.observe(f);
+      measure();
       if (focus?.current) {
         focus.current = false;
         f.querySelector<HTMLTextAreaElement>('textarea')?.focus();
@@ -1135,6 +1146,10 @@ function TalkPanel({
     return () => {
       watch.disconnect();
       size.disconnect();
+      flag.disconnect();
+      el.removeEventListener('animationend', measure);
+      removeEventListener('resize', measure);
+      visualViewport?.removeEventListener('resize', measure);
       root.style.removeProperty('--ph-field');
     };
   }, []);
