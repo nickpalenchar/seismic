@@ -102,7 +102,6 @@ const prShort = (p: PullRequest) => {
   return t.pr.short(`${p.repo ? `${p.repo.split('/').pop()} ` : ''}#${p.number}`, p.checks.filter((c) => c.state === 'failure').length, p.conflict, p.ready, p.held?.score, wait && t.pr.waitShort[wait]);
 };
 
-export const landedRef = (l: NonNullable<NonNullable<Item['review']>['landedPart']>) => (l.pr ? `PR #${l.pr.number}` : (l.commit?.slice(0, 7) ?? ''));
 
 /** The first line of a card's text that says something (not a bare "Goal" label, as briefs start). */
 const firstLine = (md: string) =>
@@ -132,7 +131,6 @@ export interface CardSummary {
     stopped?: { prefix: string; status: string; tone: string };
     marks: StateMark[];
     /** The part of it that has landed already: its pull request or commit. */
-    landed?: string;
     /** What follows the state, each after a " · ". */
     notes: string[];
     /** What its agent does in its turn: `demo` a stage of its demo, `conflict` resolving conflicts. */
@@ -211,7 +209,6 @@ export function cardSummary(item: Item, underway?: string): CardSummary {
       short: underway ?? (revising ? t.revisingShort : stateLabel(item, true)),
       stopped: underway ? undefined : stoppedAtOf(item),
       marks,
-      landed: item.review?.landedPart && landedRef(item.review.landedPart),
       notes,
       doing: doing || undefined,
       live: !!now && !underway,

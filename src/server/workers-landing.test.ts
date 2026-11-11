@@ -748,7 +748,7 @@ describe('a workstream whose plan doc keeps it open after its work landed', () =
     });
   });
 
-  test('landed on main, the box still empty: once its worker is done, the card is planned again and starts for the rest', async () => {
+  test('landed on main, the box still empty: once its worker is done, the card is done and a new card does the rest', async () => {
     const w = await handOver();
     await workers.approve(w.id);
     // its worker still finishes: the card stays live until then
@@ -756,20 +756,19 @@ describe('a workstream whose plan doc keeps it open after its work landed', () =
     expect(state(w.id)).toBe('live');
     runtime.last.emit({ type: 'idle' });
     const commit = git(main, 'rev-parse', 'HEAD');
-    expect(state(w.id)).toBe('planned');
-    expect(w1().review?.landedPart).toEqual({ commit });
-    expect(board.events(w.id).at(-1)).toMatchObject({ author: 'obeya', text: 'Part landed; the plan doc keeps it open.' });
+    expect(board.archived().find((i) => i.id === w.id)).toMatchObject({ state: 'live' });
+    expect(board.events(w.id).at(-1)).toMatchObject({ author: 'obeya', text: 'Part landed; the plan doc keeps the workstream open. The rest continues on a new card.' });
     // the handover stays in the log, the summary with it
     expect(board.events(w.id).some((e) => e.text.includes('Approved'))).toBe(true);
 
-    await workers.start(w.id);
-    expect(state(w.id)).toBe('working');
+    const rest = w1();
+    expect(rest.id).not.toBe(w.id);
+    expect(rest).toMatchObject({ state: 'planned', origin: w.id });
+    await workers.start(rest.id);
+    expect(state(rest.id)).toBe('working');
     // a fresh branch from main, not the landed one
-    expect(board.row(w.id).branch).toEndWith(`-${commit.slice(0, 7)}`);
-    expect(git(board.row(w.id).workstation!, 'rev-parse', 'HEAD')).toBe(commit);
+    expect(git(board.row(rest.id).workstation!, 'rev-parse', 'HEAD')).toBe(commit);
     expect(runtime.last.inbox[0]).toContain(`A part of this workstream has landed already (commit ${commit.slice(0, 7)})`);
-    // what landed stays on the card while the rest is done
-    expect(w1().review?.landedPart).toEqual({ commit });
   });
 });
 
@@ -811,11 +810,12 @@ describe('a workstream merged as a pull request, its box still empty', () => {
 
     git(main, 'merge', '--quiet', '--ff-only', 'merged');
     board.docsChanged();
-    expect(state(w.id)).toBe('planned');
-    expect(w1().review?.landedPart).toEqual({ commit, pr: { url: 'https://github.com/acme/app/pull/821', number: 821 } });
-    // the pull request is history now: starting again opens a new one
-    expect(w1().review?.pr).toBeUndefined();
-    await workers.start(w.id);
+    expect(board.archived().find((i) => i.id === w.id)).toMatchObject({ state: 'live' });
+    // the pull request is history now: the new card for the rest opens a new one
+    const rest = w1();
+    expect(rest).toMatchObject({ state: 'planned', origin: w.id });
+    expect(rest.review?.pr).toBeUndefined();
+    await workers.start(rest.id);
     expect(runtime.last.inbox[0]).toContain('pull request #821 (https://github.com/acme/app/pull/821)');
   });
 
@@ -826,8 +826,8 @@ describe('a workstream merged as a pull request, its box still empty', () => {
     board.docsChanged();
     expect(state(w.id)).toBe('live');
     board.lesestandMoved('home', git(main, 'rev-parse', 'HEAD'));
-    expect(state(w.id)).toBe('planned');
-    expect(w1().review?.landedPart).toEqual({ commit: git(main, 'rev-parse', 'HEAD'), pr: { url: 'https://github.com/acme/app/pull/821', number: 821 } });
+    expect(board.archived().find((i) => i.id === w.id)).toMatchObject({ state: 'live' });
+    expect(w1()).toMatchObject({ state: 'planned', origin: w.id });
   });
 });
 

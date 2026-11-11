@@ -284,12 +284,6 @@ const en = {
     demoed: 'Folded in: the agent works the changes in and brings a new demo.',
     folding: 'Folding in the changes …',
   },
-  landedPart: {
-    short: 'Part landed',
-    long: 'A part has landed already, but the plan doc keeps the workstream open. A new run does the rest.',
-    start: 'Start the rest',
-    startHint: 'A new agent starts on a fresh branch and does what the plan doc still keeps open. What landed stays in view here.',
-  },
   stop: 'Stop',
   stopHint: 'Ends the agent: the task is planned again, and starting it again begins a new session. Committed work stays on the branch.',
   pause: {

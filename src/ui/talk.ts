@@ -536,25 +536,22 @@ export const obeyaWorks = (talk: Exchange[]) =>
 
 /**
  * A task an agent has worked on, stopped ones included: what came of it stands beside its
- * conversation. A workstream planned again after a part of it landed has no branch until its rest
- * starts, and still shows what landed.
+ * conversation.
  */
-export const worked = (i: Pick<Item, 'state' | 'agent' | 'review'>) => i.state !== 'idea' && i.state !== 'proposal' && (!!i.agent?.branch || !!i.review?.landedPart);
+export const worked = (i: Pick<Item, 'state' | 'agent' | 'review'>) => i.state !== 'idea' && i.state !== 'proposal' && (!!i.agent?.branch);
 
 /** What decides a card's layout. */
 type Laid = Pick<Item, 'state' | 'agent' | 'review' | 'demo' | 'idea' | 'queue'> & Partial<Pick<Item, 'source' | 'id' | 'archivedAt'>>;
 
 /**
  * What a task an agent worked on shows beside its conversation: a demo, the files it named as the
- * result (or, in a folder, the files it changed there), a pull request, what landed, what remains
- * after the landing, a decided idea's brief, a workstream's text in its plan doc.
+ * result (or, in a folder, the files it changed there), a pull request, what landed, a decided idea's brief, a workstream's text in its plan doc.
  */
 export const result = (i: Laid) =>
   !!i.demo?.latest ||
   !!i.demo?.files ||
   i.state === 'inPr' ||
   (!!i.review?.pr && i.state === 'waiting') ||
-  !!i.review?.landedPart ||
   finishingUp(i) ||
   (i.idea?.brief !== undefined && (!!i.idea.brief.trim() || !!i.idea.prototypes?.length)) ||
   i.source === 'plan';

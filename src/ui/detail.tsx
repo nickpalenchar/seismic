@@ -22,7 +22,7 @@ import { know, known } from './known';
 import { Branch } from './diff';
 import { ResultFiles, REVIEW } from './files';
 import { DiscardChanges, FolderBox, FolderLine, useFolderDiff } from './folder';
-import { asksYou, CardFace, cardClass, cardKind, HourglassMark, LabelMarks, LabelPicks, landedRef, QuestionMark, RestartMark, shownTitle, StoppedWords, Title } from './card';
+import { asksYou, CardFace, cardClass, cardKind, HourglassMark, LabelMarks, LabelPicks, QuestionMark, RestartMark, shownTitle, StoppedWords, Title } from './card';
 import { DepArrow, LimitNotice, PauseMark, PlayMark } from './parts';
 import { asksAhead, holdsNotes, queueOrder } from '../core/queue';
 import { forcedText, QueueList, scrollerOf, useQueueMove, useQueueSort, waitText, type Behind } from './queue';
@@ -451,8 +451,6 @@ export function Detail(p: Props) {
   const archivable = finishedArchivable(item);
   // a stopped task starts again, or goes into the archive with its conversation, from the row below it
   const halted = stopped(item) && !item.queue;
-  // a workstream planned again after a part of it landed starts its rest from the same row
-  const rest = item.state === 'planned' && !!item.review?.landedPart && !item.agent?.branch && !item.queue;
   const duplicateNotice = duplicatePartner && item.state === 'planned' && !item.queue && !item.idea?.proposal?.merge && <div className="question duplicate-notice">
     <h4>{t.duplicate.title}</h4>
     <p>{t.duplicate.detail}</p>
@@ -611,12 +609,6 @@ export function Detail(p: Props) {
         ) : (
           item.agent?.statusLine && (item.state === 'working' || item.state === 'inPr' || item.agent.finishing || answering(item)) && <span className="p-status"> · {item.agent.statusLine}</span>
         )}
-        {item.review?.landedPart && (
-          <span className="p-status">
-            {' · '}
-            {t.landedPart.short} · {landedRef(item.review?.landedPart)}
-          </span>
-        )}
         <Limited item={item} />
         {archivedOn(item)}
       </div>
@@ -735,19 +727,6 @@ export function Detail(p: Props) {
                       <Body md={item.body} />
                     )}
                   </div>
-                )}
-                {/* what landed of a workstream the plan doc keeps open comes first: the demo below shows it */}
-                {item.review?.landedPart && (
-                  <p className="hint">
-                    {t.landedPart.long}{' '}
-                    {item.review?.landedPart.pr ? (
-                      <a href={item.review?.landedPart.pr.url} target="_blank" rel="noreferrer">
-                        {t.pr.title(item.review?.landedPart.pr.number)} ↗
-                      </a>
-                    ) : (
-                      <code>{landedRef(item.review?.landedPart)}</code>
-                    )}
-                  </p>
                 )}
                 {/* what a review card's agent found comes first, at a glance above its demo */}
                 {item.review?.contribution && (item.review.contribution.results || item.review.contribution.findings || item.review.contribution.clash) && <Findings
@@ -888,11 +867,8 @@ export function Detail(p: Props) {
       )}
 
       {/* the decisions go below both columns, as on an idea or a proposal */}
-      {worked && (running || archivable || halted || rest || snoozable(item)) && (
+      {worked && (running || archivable || halted || snoozable(item)) && (
         <div className="actions">
-          {rest && (
-            <StartAgent draft={cardDraft(item.id)} label={t.landedPart.start} title={t.landedPart.startHint} codexAllowed={!inFolder && !item.review?.contribution} onStart={(agent) => act({ action: 'start', ...(agent ? { agent } : {}) }, { close: false })} />
-          )}
           {halted && !item.archivedAt && (
             <StartAgent draft={cardDraft(item.id)} label={t.startAgain} title={t.startAgainHint} codexAllowed={!inFolder && !item.review?.contribution} onStart={(agent) => act({ action: 'start', ...(agent ? { agent } : {}) }, { close: false })} />
           )}

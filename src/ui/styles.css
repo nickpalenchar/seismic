@@ -192,7 +192,6 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-family: var(--font); f
 /* its agent paused by the owner: the line stands still, in pencil grey */
 .card.paused .state, .p-state.paused { --c: var(--muted-foreground); }
 .card.paused .state::after { display: none; }
-.card .landed-part { color: var(--approved); border: 1px solid color-mix(in srgb, var(--approved) 45%, transparent); border-radius: 6px; padding: 0 5px; font-weight: 500; }
 .card.s-live .ttl, .card.s-done .ttl { font-weight: 500; }
 /* a proposal is a card only pencilled in: no stock yet, a dashed outline */
 .card.s-proposal { background: transparent; box-shadow: none; border: 1.5px dashed var(--proposal); backdrop-filter: none; -webkit-backdrop-filter: none; }
@@ -313,7 +312,6 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-family: var(--font); f
 .face .f-state .doing { font-style: italic; font-weight: 500; color: var(--muted-foreground); }
 .face .f-state .doing.demo { color: var(--approved); font-weight: 600; }
 .face .f-state .doing.conflict { color: var(--waiting); }
-.face .f-state .landed-part { margin-left: 6px; color: var(--approved); border: 1px solid color-mix(in srgb, var(--approved) 45%, transparent); border-radius: 2px; padding: 0 5px; font-weight: 500; }
 .face .f-state :is(.clock-mark, .question-mark, .restart-mark, .hourglass-mark, .parked-mark) { flex: none; }
 /* the pin of a card that needs the owner, after its title in a list */
 .f-pin { --pin: var(--waiting); flex: none; display: inline-grid; place-items: center; min-width: 17px; height: 17px; padding: 0 5px; box-sizing: border-box;
@@ -340,14 +338,12 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-family: var(--font); f
 .pin-dot.failed { --pin: var(--error); }
 .face.subtle { position: relative; }
 .face.subtle :is(.f-top, .f-ttl) { padding-right: 14px; }
-.face.subtle .f-state, .face.subtle .f-state .doing.demo, .face.subtle .f-state .landed-part { color: var(--muted-foreground); font-weight: 400; }
-.face.subtle .f-state .landed-part { border-color: var(--line); }
+.face.subtle .f-state, .face.subtle .f-state .doing.demo { color: var(--muted-foreground); font-weight: 400; }
 .face.subtle .f-state :is(.doing, .doing.conflict, .doing.demo) { color: var(--muted-foreground); font-style: normal; font-weight: 400; }
 .face.subtle .f-line .f-state { color: inherit; font-weight: 400; }
 .card .state.subtle { color: var(--muted-foreground); font-weight: 400; }
 .card .state.subtle::after { display: none; }
 .card .state.subtle .state-text :is(.doing, .doing.conflict, .doing.demo) { color: var(--muted-foreground); font-style: normal; font-weight: 400; }
-.card .state.subtle .state-text .landed-part { color: var(--muted-foreground); font-weight: 400; border-color: var(--line); }
 .card:has(> .state.subtle)::before { display: none; }
 .card.q-card::before { display: block; }
 .face-xs.subtle .f-dot { background: var(--muted-foreground); }

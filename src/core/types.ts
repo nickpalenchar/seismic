@@ -573,11 +573,6 @@ export interface ItemReview {
    * card's does: present from its handover on (design: Code reviews in Card lifecycle).
    */
   codeReview?: CodeReview;
-  /**
-   * A workstream planned again: a part of it landed (this commit, this pull request), but its plan
-   * doc keeps it open. A new run does the rest.
-   */
-  landedPart?: { commit?: string; pr?: { url: string; number: number } };
 }
 
 /** What shows the work: the demo, earlier demos, the result's files and the demo's page for colleagues. */

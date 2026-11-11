@@ -315,7 +315,7 @@ describe('plan docs', () => {
     expect(board.item(w2.id)!.state).toBe('live');
   });
 
-  test('a stored live gives way to an empty box once the Lesestand holds what landed; a stored done stays', () => {
+  test('a stored live splits into a done card and a new one for the rest once the Lesestand holds what landed; a stored done stays', () => {
     const items = board.snapshot().items;
     const w2 = items.find((i) => i.plan?.label === 'W2')!;
     const w3 = items.find((i) => i.plan?.label === 'W3')!;
@@ -323,16 +323,18 @@ describe('plan docs', () => {
     board.work(w2.id, { state: 'live', review: { pr: { url: 'https://github.com/acme/app/pull/821', number: 821, seen: [], reported: [] } } });
     board.work(w3.id, { state: 'done' });
     board.docsChanged();
-    expect(board.item(w2.id)).toMatchObject({ state: 'planned', review: { landedPart: { pr: { url: 'https://github.com/acme/app/pull/821', number: 821 } } } });
-    expect(board.item(w2.id)!.review?.pr).toBeUndefined();
-    expect(board.events(w2.id).map((e) => e.text)).toEqual(['Part landed; the plan doc keeps it open.']);
+    // the landed card is done and in the archive; a new card takes the workstream for the rest
+    expect(board.item(w2.id)).toBeUndefined();
+    expect(board.archived().find((i) => i.id === w2.id)).toMatchObject({ state: 'live' });
+    expect(board.events(w2.id).map((e) => e.text)).toEqual(['Part landed; the plan doc keeps the workstream open. The rest continues on a new card.']);
+    const rest = board.snapshot().items.find((i) => i.plan?.label === 'W2')!;
+    expect(rest).toMatchObject({ state: 'planned', origin: w2.id });
+    expect(rest.id).not.toBe(w2.id);
     expect(board.item(w3.id)!.state).toBe('done');
     // reading again changes nothing more
     board.docsChanged();
     expect(board.events(w2.id)).toHaveLength(1);
-    // what landed stays on the card while a new run does the rest
-    board.work(w2.id, { state: 'working', branch: 'obeya/w2-rest' });
-    expect(board.item(w2.id)).toMatchObject({ state: 'working', review: { landedPart: { pr: { number: 821 } } } });
+    expect(board.snapshot().items.filter((i) => i.plan?.label === 'W2')).toHaveLength(1);
   });
 
   test('plan cards are read-only apart from placement and state', () => {

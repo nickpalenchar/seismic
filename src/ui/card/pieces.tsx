@@ -55,7 +55,6 @@ export function StateText({ state, since }: { state: CardSummary['state']; since
   return (
     <>
       {state.stopped ? <StoppedWords stopped={state.stopped} /> : state.label}
-      {state.landed !== undefined && <span className="landed-part">{t.landedPart.short} · {state.landed}</span>}
       {state.notes.map((n) => ` · ${n}`).join('')}
       {state.doing && <span className={state.doing.conflict ? 'doing conflict' : state.doing.demo ? 'doing demo' : 'doing'}> · {state.doing.text}</span>}
       {since && <span className="since"> · {since}</span>}

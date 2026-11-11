@@ -299,7 +299,7 @@ const en = {
     decision: (question: string, answer: string) => `Decision: ${question} → ${answer}`,
     becamePlan: 'The plan now stands in the idea’s place; the idea is in the archive.',
     taskBecamePlan: 'The plan now stands in the task’s place; the task is in the archive.',
-    partLanded: 'Part landed; the plan doc keeps it open.',
+    partLanded: 'Part landed; the plan doc keeps the workstream open. The rest continues on a new card.',
     leftGone: (plan: string) => `Left the plan “${plan}”: the plan doc no longer lists this workstream.`,
     leftOther: (plan: string) => `Left the plan “${plan}”: this history belongs to a workstream the plan doc no longer lists.`,
     briefName: 'Where the idea stands',

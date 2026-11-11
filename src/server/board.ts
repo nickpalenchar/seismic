@@ -672,7 +672,7 @@ export class Board {
   /**
    * The plan doc decides a workstream's state. Stored `live` means its work landed; once the
    * read checkout holds what landed and the doc still leaves the workstream open, only a part of it is
-   * done: the card is planned again, to be started for the rest. Its log, PR and handover stay.
+   * done: the card is finished and leaves the plan, and a new card takes the workstream for the rest.
    */
   private reopen(docs: PlanDoc[]) {
     const byFile = new Map(docs.map((d) => [d.file, d]));
@@ -686,9 +686,12 @@ export class Board {
       if (s.fetch || (s.commit && this.holds && !this.holds(repoOfRef(r.plan_ref, this.home), s.commit))) continue;
       const pr = r.review?.pr ?? null;
       const shipped: Shipped = { ...s, ...(!s.pr && pr?.url && pr.number ? { pr: { url: pr.url, number: pr.number } } : {}) };
-      // a new run starts on a fresh branch: the old one is merged, perhaps squashed
-      this.store.updateCard(r.id, { state: 'planned', need: null, review: { pr: null }, branch: null, shipped: JSON.stringify(shipped) });
-      this.log(r.id, 'state', 'obeya', this.t.idea.partLanded);
+      const plan = this.store.cards.get(r.parent_id!);
+      if (!plan?.plan_ref) continue;
+      // the landed card is done and leaves the plan; the rest is a card of its own, following up on it
+      this.store.updateCard(r.id, { need: null, shipped: JSON.stringify(shipped) });
+      this.leave(r, plan, w, this.t.idea.partLanded);
+      this.store.addCards([{ project_id: this.project.id, kind: 'task', parent_id: plan.id, plan_ref: r.plan_ref, from_id: r.id, x: r.x, y: r.y }]);
     }
   }
 
@@ -3704,8 +3707,6 @@ export function toItems(rows: CardRow[], docs: PlanDoc[], home: string, worked?:
     // work in progress wins over the doc: a ticked-off workstream may still wait for its merge, and so
     // does a stopped one whose box a plan folder outside the repository ticked
     const state = r.state && (ACTIVE.includes(r.state) || tickedAhead(r)) ? r.state : derived === 'live' ? 'live' : (r.state ?? derived);
-    // what landed of a workstream planned again, also while a new run does the rest; once that lands, the card is live
-    const shipped = (state === 'planned' || ACTIVE.includes(state)) && r.shipped ? (JSON.parse(r.shipped) as Shipped) : null;
     const buildsOn = (depsOf.get(r.parent_id)?.on?.[key] ?? []).flatMap((k) => idOfRef.get(`${doc.file}#${k}`) ?? []);
     const worker = work(r);
     workstreams.push({
@@ -3727,7 +3728,6 @@ export function toItems(rows: CardRow[], docs: PlanDoc[], home: string, worked?:
         ...worker,
         ...(groupOf.get(r.parent_id) ? { group: groupOf.get(r.parent_id)! } : {}),
         ...parts({
-          review: shipped ? { landedPart: { ...(shipped.commit ? { commit: shipped.commit } : {}), ...(shipped.pr ? { pr: shipped.pr } : {}) } } : {},
           idea: r.idea?.builtOn ? { builtOn: r.idea.builtOn } : {},
           plan: { ...(w.label ? { label: w.label } : {}), ...(buildsOn.length ? { buildsOn } : {}) },
           labels: labelsOf(r),

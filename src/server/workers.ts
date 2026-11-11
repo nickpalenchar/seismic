@@ -755,9 +755,7 @@ export class Workers {
     if (this.evicting.has(card.id)) throw new BadRequest('evicting', 'its workstation is being given to another card');
     // once work has begun the branch stays the card's, whatever the title says now
     const row = this.o.board.row(card.id);
-    // a workstream planned again after a part landed: the branch of that part may still be in a clone
-    const shipped = row.shipped ? (JSON.parse(row.shipped) as Shipped) : null;
-    const branch = row.branch ?? `${branchName(card.title, card.id)}${shipped ? `-${shipped.commit?.slice(0, 7) ?? 'rest'}` : ''}`;
+    const branch = row.branch ?? branchName(card.title, card.id);
     const { path, ready } = asBadRequest(() => this.o.workstations.lease(card.id, branch, { from: row.kept_in }));
     this.bump(card.id);
     // the run before is not resumed, but the work retrospective still reads it
@@ -5637,7 +5635,8 @@ ${idea.idea.discussion.brief}` : '',
     if (plan?.plan?.file) parts.push(`This is workstream ${card.plan?.label ?? ''} of the plan “${plan.title}”. Read its plan doc ${plan.plan.file} first; it holds the context and decisions.`);
     const decisions = plan ? this.o.board.decisions(plan.id) : [];
     if (decisions.length) parts.push(`Decisions taken in this plan so far:\n${decisionLog(decisions)}`);
-    const part = plan?.plan?.file && this.o.board.row(card.id).shipped;
+    // a workstream that part landed for: the card of that part is the one this follows up on
+    const part = plan?.plan?.file && from && fromBoard === this.o.board ? this.o.board.row(from.id).shipped : null;
     if (part) {
       const s = JSON.parse(part) as Shipped;
       const what = [s.pr && `pull request #${s.pr.number} (${s.pr.url})`, s.commit && `commit ${s.commit.slice(0, 7)}`].filter(Boolean).join(', ');

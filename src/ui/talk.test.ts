@@ -486,18 +486,6 @@ test("a workstream an agent works on keeps its plan doc's text beside the conver
   expect(split({ state: 'planned', source: 'plan' })).toBe(true);
 });
 
-test('a workstream planned again after a part of it landed keeps what landed beside its conversation', () => {
-  const landedPart = { pr: { url: 'https://github.com/acme/app/pull/821', number: 821 } };
-  const demo = { kind: 'video' as const, chapters: [] };
-  // its branch went with the landing; the demo of the part that landed stays, in the queue too
-  expect(split({ state: 'planned', review: { landedPart }, demo: { latest: demo } })).toBe(true);
-  expect(split({ state: 'planned', review: { landedPart } })).toBe(true);
-  expect(split({ state: 'planned', review: { landedPart }, queue: { checking: true, since: '2026-10-16T10:00:00Z' } })).toBe(true);
-  expect(talkAlone({ state: 'planned', review: { landedPart } })).toBe(false);
-  // and while a new run does the rest
-  expect(split({ state: 'working', agent: { branch: 'obeya/x-4f2a9c1' }, review: { landedPart } })).toBe(true);
-});
-
 test('the conversation ends with the agent at work exactly while its agent works on something, whatever the card\'s state', () => {
   const task = { kind: 'task' } as const;
   // a worker in a turn: at work, taking in the owner's words on its handover, on its pull request, after the landing
