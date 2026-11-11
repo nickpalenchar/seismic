@@ -3,6 +3,7 @@
 // HTML artifact, text as it is, anything else as a tile; each to open on the computer, show in its
 // folder, or download. Folder and git cards alike.
 
+import { Database } from 'lucide-react';
 import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { type CardDiff, diffSize, shownChanges, splitDiff } from '../core/diff';
 import { type ChangeRow, changeRows, imageAt, type ShownFile } from '../core/files';
@@ -56,11 +57,11 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
   const files = rows.flatMap((r) => (r.file ? [r.file] : []));
   const named = files.filter((f) => f.caption !== undefined);
   const schema = (f: ShownFile) => f.kind === 'page' && /(^|\/)[^/]*schema[^/]*\.html?$/i.test(f.path);
-  const label = (f: ShownFile) => schema(f) ? t.files.tabs.schema : f.kind === 'page' ? t.files.tabs.document : base(f.path);
+  const label = (f: ShownFile): ReactNode => schema(f) ? <span className="inline-flex items-center gap-1.5"><Database className="size-3.5" aria-hidden />{t.files.tabs.schema}</span> : f.kind === 'page' ? t.files.tabs.document : base(f.path);
   const tabs = [
     ...(demo ? [{ path: DEMO, label: item.demo?.latest?.kind === 'html' ? t.files.tabs.document : t.files.tabs.video }] : []),
     ...named.filter((f) => !schema(f)).map((f) => ({ path: f.path, label: label(f), title: f.caption })),
-    ...named.filter(schema).map((f) => ({ path: f.path, label: label(f) as ReactNode, title: f.caption })),
+    ...named.filter(schema).map((f) => ({ path: f.path, label: label(f), title: f.caption })),
     ...(review ? [{ path: REVIEW, label: review.label, ...(review.title ? { title: review.title } : {}) }] : []),
     ...(rows.length ? [{ path: DIFF, label: t.files.tabs.diff }] : []),
   ];
