@@ -10,6 +10,7 @@ import { inParkingLot, type Item } from '../core/types';
 import { AgentEntry } from './agents';
 import { CloseButton } from './components/button';
 import { FullPage } from './fullPage';
+import { entryListClass } from './inboxClasses';
 import { QueueList, useQueueSort } from './queue';
 import { t } from './strings';
 import { Tooltip } from './components/tooltip';
@@ -50,7 +51,7 @@ export function ParkedView({ on, items, open, underway, onOpen, onClose, els }: 
       <Head title={t.views.parked} n={parked.length} onClose={onClose} />
       <div className="a-full-body">
         <p className="hint">{parked.length ? t.views.parkedHint : t.agents.noneParked}</p>
-        <ul className="inbox-list">
+        <ul className={entryListClass}>
           {parked.map((i) => (
             <AgentEntry key={i.id} item={i} els={els} here={i.id === open} underway={underway(i.id)} onOpen={onOpen} />
           ))}

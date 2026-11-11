@@ -14,9 +14,16 @@ import { Choice, configText, harnessName, StarText } from './performance';
 import { failText, t } from './strings';
 import { Button, LinkButton } from './components/button';
 import { Select, SelectItem } from './components/select';
+import { cn } from 'cn';
+import { aboutClass, barClass, choiceClass, clearClass, emptyClass, filtersClass, headClass, pageLinkClass, tableClass, titleClass } from './performanceClasses';
 
 /** A filter's value for an unknown harness, model or effort (the empty string in the core), as a `<Select>` can hold it apart from "all". */
 const UNKNOWN = '-';
+
+/** A cell of the log: a line under each row, the text on its first line's baseline. */
+const cell = 'py-2 px-2.5 border-b border-line text-left align-baseline';
+/** A column's head: small and quiet on one line, standing at the top while the log scrolls under it. */
+const headCell = cn(cell, 'text-[12px] font-semibold text-muted-foreground whitespace-nowrap sticky top-0 bg-panel z-1');
 
 export function FeedbackLog({ projects, here }: { projects: ProjectInfo[]; here: string }) {
   const p = t.performance;
@@ -73,14 +80,14 @@ export function FeedbackLog({ projects, here }: { projects: ProjectInfo[]; here:
   else if (!all) body = <p className="hint">{p.loading}</p>;
   else if (!all.length)
     body = (
-      <div className="perf-empty">
+      <div className={emptyClass}>
         <h2>{p.none}</h2>
         <p className="hint">{p.noneHint}</p>
       </div>
     );
   else if (!shown.length)
     body = (
-      <div className="perf-empty">
+      <div className={emptyClass}>
         <h2>{p.noMatch}</h2>
         <Button size="small" onClick={clear}>
           {p.clear}
@@ -89,15 +96,23 @@ export function FeedbackLog({ projects, here }: { projects: ProjectInfo[]; here:
     );
   else
     body = (
-      <table className="flog-table" aria-labelledby="flog-title">
+      <table className={cn('flog-table', tableClass)} aria-labelledby="flog-title">
         <thead>
           <tr>
-            <th scope="col">{l.cols.when}</th>
-            <th scope="col">{l.cols.card}</th>
-            <th scope="col">{l.cols.stars}</th>
-            <th scope="col">{l.cols.comment}</th>
+            <th scope="col" className={headCell}>
+              {l.cols.when}
+            </th>
+            <th scope="col" className={headCell}>
+              {l.cols.card}
+            </th>
+            <th scope="col" className={headCell}>
+              {l.cols.stars}
+            </th>
+            <th scope="col" className={headCell}>
+              {l.cols.comment}
+            </th>
             {COLUMNS.filter((c) => c !== group).map((c) => (
-              <th key={c} scope="col">
+              <th key={c} scope="col" className={headCell}>
                 {l.cols[c]}
               </th>
             ))}
@@ -106,10 +121,10 @@ export function FeedbackLog({ projects, here }: { projects: ProjectInfo[]; here:
         {sections.map((s) => (
           <tbody key={s.key}>
             {group !== 'none' && (
-              <tr className="flog-group">
-                <th scope="rowgroup" colSpan={4 + COLUMNS.filter((c) => c !== group).length}>
-                  <span className="flog-group-name">{sectionName(s)}</span>
-                  <span className="hint">{l.sectionSummary(s.responses.length, s.ratings, s.mean)}</span>
+              <tr>
+                <th scope="rowgroup" colSpan={4 + COLUMNS.filter((c) => c !== group).length} className={cn(cell, 'bg-[color-mix(in_srgb,var(--chip)_70%,transparent)] pt-3.5')}>
+                  <span className="font-semibold mr-3">{sectionName(s)}</span>
+                  <span className="font-normal text-[12.5px] text-muted-foreground">{l.sectionSummary(s.responses.length, s.ratings, s.mean)}</span>
                 </th>
               </tr>
             )}
@@ -122,25 +137,25 @@ export function FeedbackLog({ projects, here }: { projects: ProjectInfo[]; here:
     );
 
   return (
-    <div id="flog">
-      <main className="flog-main">
-        <a className="link flog-back" href={back}>
+    <div id="flog" className="fixed inset-0 overflow-y-auto bg-panel">
+      <main className="flog-main max-w-[1500px] mx-auto pt-[22px] px-10 pb-12">
+        <a className={cn('flog-back inline-block mb-3.5', pageLinkClass)} href={back}>
           ← {p.title}
         </a>
-        <header className="perf-head">
-          <h1 id="flog-title">
+        <header className={headClass}>
+          <h1 id="flog-title" className={titleClass}>
             {l.title}
           </h1>
-          {all && all.length > 0 && <p className="hint">{l.summary(shown.length, ratings, all.length)}</p>}
+          {all && all.length > 0 && <p className="hint m-0">{l.summary(shown.length, ratings, all.length)}</p>}
         </header>
-        <p className="hint perf-about">{l.about}</p>
+        <p className={aboutClass}>{l.about}</p>
         {all && all.length > 0 && (
-          <div className="perf-bar">
-            <div className="perf-filters">
+          <div className={barClass}>
+            <div className={filtersClass}>
               {choices.projects.length > 1 && <Choice label={p.filters.project} value={filter.project} options={choices.projects.map((id) => ({ id, name: projectName(id) }))} onChange={(v) => set('project', v)} />}
               {choices.repos.length > 1 && <Choice label={p.filters.repo} value={filter.repo} options={choices.repos.map((id) => ({ id, name: id }))} onChange={(v) => set('repo', v)} />}
               {choices.plans.length > 0 && <Choice label={p.filters.plan} value={filter.plan} options={choices.plans.map(({ id, title }) => ({ id, name: plain(title) }))} onChange={(v) => set('plan', v)} />}
-              <label className="perf-choice">
+              <label className={choiceClass}>
                 <span>{p.filters.period}</span>
                 <Select value={filter.period ?? 'all'} onValueChange={(picked) => set('period', picked === 'all' ? undefined : picked)}>
                   {PERIODS.map((d) => (
@@ -160,12 +175,12 @@ export function FeedbackLog({ projects, here }: { projects: ProjectInfo[]; here:
                 onChange={(v) => set('rating', v)}
               />
               {filtered(filter) && (
-                <LinkButton className="perf-clear" onClick={clear}>
+                <LinkButton className={clearClass} onClick={clear}>
                   {p.clear}
                 </LinkButton>
               )}
             </div>
-            <label className="perf-choice">
+            <label className={choiceClass}>
               <span>{l.groupBy}</span>
               <Select value={group} onValueChange={(picked) => setState((s) => ({ ...s, group: picked as LogGroup }))}>
                 {LOG_GROUPS.map((g) => (
@@ -198,8 +213,8 @@ function Row({ f, projectName, without }: { f: Feedback; projectName: (id: strin
   const config = c ? configText(c, true) : f.attribution === 'mixed' && f.configs.length ? `${p.mixed}: ${f.configs.map((x) => configText(x, true)).join(' + ')}` : p.missing;
   return (
     <tr>
-      <td className="flog-when">{p.when(new Date(givenAt(f)))}</td>
-      <td className="flog-card">
+      <td className={cn(cell, 'whitespace-nowrap')}>{p.when(new Date(givenAt(f)))}</td>
+      <td className={cn(cell, 'min-w-[180px] max-w-[320px]')}>
         {f.deleted ? (
           <span>
             {name} <span className="hint">{p.deleted}</span>
@@ -210,14 +225,14 @@ function Row({ f, projectName, without }: { f: Feedback; projectName: (id: strin
           </a>
         )}
       </td>
-      <td className="flog-stars">
+      <td className={cn(cell, 'whitespace-nowrap')}>
         <StarText rating={f.answer.rating} />
       </td>
-      <td className="flog-comment">{f.answer.comment ? t.feedback.quoted(f.answer.comment) : ''}</td>
-      {without !== 'config' && <td className={c ? undefined : 'perf-special'}>{config}</td>}
-      {without !== 'plan' && <td>{f.plan ? plain(f.plan.title) : ''}</td>}
-      {without !== 'repo' && <td>{f.repo ?? ''}</td>}
-      {without !== 'project' && <td>{projectName(f.projectId)}</td>}
+      <td className={cn(cell, 'min-w-[220px] whitespace-pre-wrap')}>{f.answer.comment ? t.feedback.quoted(f.answer.comment) : ''}</td>
+      {without !== 'config' && <td className={cn(cell, !c && 'italic')}>{config}</td>}
+      {without !== 'plan' && <td className={cell}>{f.plan ? plain(f.plan.title) : ''}</td>}
+      {without !== 'repo' && <td className={cell}>{f.repo ?? ''}</td>}
+      {without !== 'project' && <td className={cell}>{projectName(f.projectId)}</td>}
     </tr>
   );
 }

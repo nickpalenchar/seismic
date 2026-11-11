@@ -89,7 +89,7 @@ export function SnoozeMenu({
   const picked = value ? new Date(value) : null;
   const valid = !!picked && !Number.isNaN(picked.getTime()) && picked.getTime() > Date.now();
   const option = 'cursor-pointer border-0 bg-transparent px-3 py-[7px] text-left text-[13.5px] text-ink outline-none hover:bg-chip focus-visible:bg-chip';
-  const more = 'mt-0.5 border-t border-solid border-line';
+  const more = 'mt-0.5 border-0 border-t border-solid border-line';
   return (
     <Popover open={open} onOpenChange={show}>
       {/* above the button in a card's action row; on the snooze line over the conversation, placed by script */}

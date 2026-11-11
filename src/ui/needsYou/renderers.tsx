@@ -4,6 +4,7 @@
 // one-click replies (src/ui/quickReply.ts); a proposed rule and a setting proposal show their rows
 // of the Koordinator's sheet; the Koordinator's answer shows in the same lines as a card's entry.
 
+import { cn } from 'cn';
 import type { MouseEvent, ReactNode } from 'react';
 import { GitBranch } from 'lucide-react';
 import type { InboxEntry } from '../../core/inbox';
@@ -16,6 +17,8 @@ import { ProposalRow, SettingRow } from '../koordinator';
 import { Inline, plain } from '../markdown';
 import { type QuickReply, quickReplies } from '../quickReply';
 import { clock, shortDay, t } from '../strings';
+import { entryClass, entryOnClass, proposalEntryClass, repliesClass, ttlLinkClass } from '../inboxClasses';
+import { proposalsClass } from '../prefsClasses';
 
 /** When it began: the time today, else the day. */
 export const when = (iso: string | number) => (new Date(iso).toDateString() === new Date().toDateString() ? clock(iso) : shortDay(iso));
@@ -70,7 +73,7 @@ function CardEntry({ e, unread, here, current, onGo, onReply, onRead, els, subtl
   return (
     <li
       ref={els ? (el) => void (el ? els.set(i.id, el) : els.delete(i.id)) : undefined}
-      className={`inbox-entry${unread ? ' unread' : ' read'}${here ? ' on' : ''}`}
+      className={cn(entryClass, unread ? 'unread' : 'read', here && entryOnClass)}
       aria-current={here || undefined}
       onClick={(ev) => readOnButton(ev, () => onRead(e))}
     >
@@ -87,13 +90,13 @@ function CardEntry({ e, unread, here, current, onGo, onReply, onRead, els, subtl
         }
         since={when(e.since)}
         title={
-          <button type="button" className="ttl-link" onClick={() => onGo(e)}>
+          <button type="button" className={ttlLinkClass} onClick={() => onGo(e)}>
             {i.title ? plain(i.title) : shownTitle(i)}
           </button>
         }
         text={e.text && <Inline md={e.text} />}
       >
-        <div className="replies">
+        <div className={repliesClass}>
           {quickReplies(i).map((r) => (
             <Button key={r.label} type="button" size="small" variant={r.primary ? 'primary' : 'default'} title={r.title} onClick={() => onReply(e.project, i, r)}>
               {r.label}
@@ -109,13 +112,15 @@ function CardEntry({ e, unread, here, current, onGo, onReply, onRead, els, subtl
 /** A proposed rule's or setting's entry: its row of the Koordinator's sheet under its project. */
 function ProposalEntry({ e, unread, onRead, children }: { e: InboxEntry; unread: boolean; onRead: (e: InboxEntry) => void; children: ReactNode }) {
   return (
-    <li className={`inbox-entry proposal-entry${unread ? ' unread' : ' read'}`} onClick={(ev) => readOnButton(ev, () => onRead(e))}>
-      <div className="where">
+    <li className={cn(entryClass, proposalEntryClass, unread ? 'unread' : 'read')} onClick={(ev) => readOnButton(ev, () => onRead(e))}>
+      {/* the unread dot at the end of the project's line */}
+      <div className="where flex items-center gap-[5px] text-[11.5px] text-muted-foreground [&_svg]:flex-none [&_.unread-dot]:m-0 [&_.unread-dot]:ml-auto">
         <GitBranch size={12} aria-hidden />
-        <span className="project">{e.projectName}</span>
+        <span className="project font-semibold min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{e.projectName}</span>
         {unread && <UnreadDot />}
       </div>
-      <ul className="prefs proposals">{children}</ul>
+      {/* the rows stand in the entry's own tint, without a pane of their own */}
+      <ul className={cn(proposalsClass, 'mt-1 [&>li]:bg-transparent [&>li]:pt-[7px] [&>li]:px-0 [&>li]:pb-0 [&>li]:m-0')}>{children}</ul>
     </li>
   );
 }
@@ -142,8 +147,8 @@ const setting: Renderer = (e, p) => {
 
 /** Seismic's answer, which is no card, in the same lines as a card's entry. */
 const answer: Renderer = (e, { unread, onGo, onRead }) => (
-  <li className={`inbox-entry${unread ? ' unread' : ' read'}`} onClick={(ev) => readOnButton(ev, () => onRead(e))}>
-    <div className="face face-s obeya-answer">
+  <li className={cn(entryClass, unread ? 'unread' : 'read')} onClick={(ev) => readOnButton(ev, () => onRead(e))}>
+    <div className="face face-s obeya-answer [--c:var(--waiting)]">
       <div className="f-top">
         <span className="f-where">
           <ProjectName name={e.projectName} /> · {when(e.since)}
@@ -152,14 +157,14 @@ const answer: Renderer = (e, { unread, onGo, onRead }) => (
       <div className="f-ttl">
         {unread && <UnreadDot />}
         <span className="f-ttl-text">
-          <button type="button" className="ttl-link" onClick={() => onGo(e)}>
+          <button type="button" className={ttlLinkClass} onClick={() => onGo(e)}>
             {t.koordinator.title}
           </button>
         </span>
       </div>
       <div className="f-state">{t.phone.obeyaAnswered}</div>
       {e.text && <div className="f-text">{plain(e.text)}</div>}
-      <div className="replies">
+      <div className={repliesClass}>
         <GoTo e={e} onGo={onGo} />
       </div>
     </div>

@@ -5,12 +5,15 @@ import { useEffect, useState } from 'react';
 import type { ConfigView, Preference, RepoRef } from '../core/types';
 import { api } from './api';
 import { NewPreference, PreferenceRow } from './koordinator';
+import { prefsClass } from './prefsClasses';
 import { Head, LanguageBlock, MotionBlock, ServerBlock, ThemeBlock } from './config';
 import { t } from './strings';
 import { WishLink } from './wish';
 import { Button, CloseButton } from './components/button';
 import { Dialog, DialogContent, DialogTitle } from './components/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
+import { cn } from 'cn';
+import * as K from './configClasses';
 
 /** The dialog's sections, in the order its list shows them. */
 type PrefsSection = 'appearance' | 'rules' | 'about';
@@ -45,35 +48,35 @@ export function PrefsDialog({ on, onClose, onConfig, preferences, repos }: { on:
   return (
     <Dialog open={on} onOpenChange={(open) => !open && onClose()}>
       <Tabs asChild orientation="vertical" value={section} onValueChange={(s) => setSection(s as PrefsSection)}>
-      <DialogContent id="prefs" keepMounted className="cfg-box" layerClassName="z-55 items-stretch p-7">
-        <nav className="cfg-nav">
-          <div className="p-kind">{p.kind}</div>
+      <DialogContent id="prefs" glass keepMounted className={K.cfgBoxClass} layerClassName={K.cfgLayerClass}>
+        <nav className={K.cfgNavClass}>
+          <div className={K.cfgKindClass}>{p.kind}</div>
           <DialogTitle asChild>
-            <h2>{p.title}</h2>
+            <h2 className={K.cfgTitleClass}>{p.title}</h2>
           </DialogTitle>
-          <div className="cfg-ask">
-            <p className="hint">{p.hint}</p>
+          <div className={K.cfgAskClass}>
+            <p className={cn('hint', K.cfgAskHintClass)}>{p.hint}</p>
             <Button size="small" onClick={onConfig}>
               {p.toConfig}
             </Button>
           </div>
           <TabsList asChild aria-label={p.title}>
-            <ul>
+            <ul className={K.cfgNavListClass}>
               {SECTIONS.map((s) => (
                 <li key={s} role="presentation">
-                  <TabsTrigger value={s}>{p.sections[s]}</TabsTrigger>
+                  <TabsTrigger value={s} className={K.cfgNavEntryClass()}>{p.sections[s]}</TabsTrigger>
                 </li>
               ))}
             </ul>
           </TabsList>
-          <div className="cfg-nav-foot">
+          <div className={K.cfgNavFootClass}>
             <WishLink onOpen={onClose} />
           </div>
         </nav>
-        <CloseButton label={t.close} className="cfg-close" onClick={onClose} />
-        <div className="cfg-main">
+        <CloseButton label={t.close} className={K.cfgCloseClass} onClick={onClose} />
+        <div className={K.cfgMainClass}>
           <TabsContent value="appearance" forceMount asChild>
-          <section className="cfg-sec" hidden={section !== 'appearance'}>
+          <section className={K.cfgSecClass} hidden={section !== 'appearance'}>
             <Head title={p.sections.appearance} />
             <LanguageBlock on={on} />
             <ThemeBlock on={on} />
@@ -81,15 +84,15 @@ export function PrefsDialog({ on, onClose, onConfig, preferences, repos }: { on:
           </section>
           </TabsContent>
           <TabsContent value="rules" forceMount asChild>
-          <section className="cfg-sec" hidden={section !== 'rules'}>
+          <section className={K.cfgSecClass} hidden={section !== 'rules'}>
             <Head title={p.sections.rules} />
             <p className="hint">{t.koordinator.preferencesHint}</p>
-            <ul className="prefs">{preferences.filter((p) => p.state === 'active').map((p) => <PreferenceRow key={p.id} p={p} />)}</ul>
+            <ul className={prefsClass}>{preferences.filter((p) => p.state === 'active').map((p) => <PreferenceRow key={p.id} p={p} />)}</ul>
             <NewPreference repos={repos} />
           </section>
           </TabsContent>
           <TabsContent value="about" forceMount asChild>
-          <section className="cfg-sec" hidden={section !== 'about'}>
+          <section className={K.cfgSecClass} hidden={section !== 'about'}>
             <Head title={p.sections.about} />
             {server && <ServerBlock server={server} />}
           </section>

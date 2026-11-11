@@ -120,7 +120,7 @@ function LabelPick<L extends Label>({ item, label, values, shown, empty, option,
                 {option(v)}
               </MenuRadioItem>
             ))}
-            <MenuRadioItem value={NONE} className="mt-0.5 rounded-none rounded-b-[3px] border-t border-solid border-line text-muted-foreground">
+            <MenuRadioItem value={NONE} className="mt-0.5 rounded-none rounded-b-[3px] border-0 border-t border-solid border-line text-muted-foreground">
               {t.priority.none}
             </MenuRadioItem>
           </MenuRadioGroup>

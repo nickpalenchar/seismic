@@ -19,6 +19,8 @@ import { Input } from './components/input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './components/collapsible';
 import { Select, SelectItem } from './components/select';
 import { Dialog, DialogContent, DialogTitle } from './components/dialog';
+import { cn } from 'cn';
+import { installClass, installHintClass, pathClass, projectClass, rowClass, setupItemClass, setupListClass, statusClass } from './setupClasses';
 
 const PLATFORMS: Record<string, string> = { darwin: 'macOS', win32: 'Windows', linux: 'Linux' };
 /** The machine's system and processor, as the owner knows them: "macOS (arm64)". */
@@ -28,9 +30,9 @@ export const platformName = (v: { platform: string; arch: string }) => `${PLATFO
 function Command({ text }: { text: string }) {
   const [copied, copy] = useCopy(1500);
   return (
-    <span className="c-cmd">
+    <span className="c-cmd inline-flex items-baseline gap-1 max-w-full [&_code]:min-w-0 [&_code]:[overflow-wrap:anywhere]">
       <code>{text}</code>
-      <button className="c-copy" onClick={() => copy(text)} title={t.setup.copy}>
+      <button className="c-copy [border:0] bg-transparent text-muted-foreground text-[11.5px] cursor-pointer py-0 px-0.5 underline decoration-dotted [&:hover]:text-ink" onClick={() => copy(text)} title={t.setup.copy}>
         {copied ? t.setup.copied : t.setup.copy}
       </button>
     </span>
@@ -51,23 +53,24 @@ export function SetupList<I extends SetupItem | VoiceSetupItem | MachineItem>({
 }) {
   const s = t.config.setup;
   return (
-    <ul>
+    <ul className={setupListClass}>
       {items.map((i) => {
         const act = action?.(i);
         // the speech recognition, there but too slow on this machine
         const slow = 'speed' in i && typeof i.speed === 'object' && i.speed.slow && !i.cloud?.used;
         return (
-          <li key={i.id} className={slow ? `${i.state} slow` : i.state}>
-            <span className="c-mark" aria-hidden>
+          <li key={i.id} className={cn(i.state, slow && 'slow', setupItemClass)}>
+            <span className={cn('c-mark font-bold text-center', slow ? 'text-warn' : { ok: 'text-approved', missing: 'text-error', later: 'text-muted-foreground' }[i.state])} aria-hidden>
               {slow ? '!' : { ok: '✓', missing: '✗', later: '…' }[i.state]}
             </span>
-            <span className="c-name">{name(i)}</span>
-            <span className="hint" title={i.found}>
+            <span className={i.state === 'missing' ? 'c-name font-semibold' : 'c-name'}>{name(i)}</span>
+            {/* a speech recognition too slow here says so in the warning colour */}
+            <span className={slow ? 'text-warn text-[12px] m-0 [overflow-wrap:anywhere]' : 'hint'} title={i.found}>
               {state(i)}
             </span>
-            {act && <div className="c-act">{act}</div>}
+            {act && <div className="c-act col-[2/-1] flex flex-wrap gap-2 items-center mt-0.5 mb-1 mx-0">{act}</div>}
             {i.state === 'missing' && i.install && (!!i.install.commands.length || i.install.url) && (
-              <div className="c-how">
+              <div className="c-how col-[2/-1] flex flex-wrap gap-x-2 gap-y-1 items-baseline mt-[3px] mb-1 mx-0 [&_code]:py-0.5 [&_code]:px-1.5 [&_code]:rounded-[2px] [&_code]:bg-card [&_code]:border [&_code]:border-solid [&_code]:border-line [&_code]:select-all [&_a]:text-[12px]">
                 {!!i.install.commands.length && <span className="hint">{act ? t.setup.byHand : s.install}</span>}
                 {i.install.commands.map((c) => (
                   <Command key={c} text={c} />
@@ -99,6 +102,13 @@ export function voiceState(i: VoiceSetupItem | MachineItem) {
   }
   return (i.found && v.found[i.found]) ?? i.found ?? s.there;
 }
+
+/** Under the speech recognition's line: what was measured, the cloud's offer, each on a line of its own. */
+const voiceClass = 'c-voice flex flex-col items-start gap-1 w-full';
+/** Why the cloud or the measurement failed; in the configuration dialog in that dialog's size for errors. */
+const voiceErrorClass = 'text-error m-0 text-[12.5px] [#config_&]:mt-1.5 [#config_&]:text-[13px]';
+/** A row of the cloud's offer: the service, its address and model, the key's link and the test. */
+const cloudRowClass = cn(rowClass, 'gap-1.5');
 
 /**
  * Under the speech recognition's line, in the setup assistant and the configuration dialog alike:
@@ -151,29 +161,29 @@ export function RecognitionDetail({ item, busy, changed }: { item: VoiceSetupIte
   };
   if (cloud?.used)
     return (
-      <div className="c-voice">
+      <div className={voiceClass}>
         <span className="hint">{c.used(item.found ?? '', v.seconds(cloud.tested?.seconds ?? 0))}</span>
         <LinkButton onClick={() => act(api.useLocalVoice)}>
           {c.back}
         </LinkButton>
-        {status && <span className="p-error">{status}</span>}
+        {status && <span className={voiceErrorClass}>{status}</span>}
       </div>
     );
   const slow = typeof speed === 'object' && speed.slow ? speed : null;
   const kept = cloud?.key && cloud.preset === preset;
   return (
-    <div className="c-voice">
-      {slow && <span className="hint warn">{v.slowDetail(v.seconds(slow.seconds))}</span>}
+    <div className={voiceClass}>
+      {slow && <span className="text-warn text-[12px] m-0 [overflow-wrap:anywhere]">{v.slowDetail(v.seconds(slow.seconds))}</span>}
       {item.state === 'ok' && !measuring && (
         <LinkButton disabled={busy} onClick={() => act(api.measureVoice)}>
           {speed ? v.remeasure : v.measure}
         </LinkButton>
       )}
       {slow || open || cloud ? (
-        <div className="c-cloud">
+        <div className="c-cloud flex flex-col gap-[5px] w-full max-w-[460px] box-border py-2 px-2.5 rounded-[6px] bg-chip text-[12.5px]">
           <b>{c.offer}</b>
-          <span className="c-row">
-            <Select aria-label={c.service} value={preset} onValueChange={(picked) => setPreset(picked as CloudPreset)}>
+          <span className={cloudRowClass}>
+            <Select className="text-[12.5px] py-1 px-1.5 box-border" aria-label={c.service} value={preset} onValueChange={(picked) => setPreset(picked as CloudPreset)}>
               {CLOUD_PRESETS.map((p) => (
                 <SelectItem key={p} value={p}>
                   {c.names[p]}
@@ -183,13 +193,13 @@ export function RecognitionDetail({ item, busy, changed }: { item: VoiceSetupIte
           </span>
           <span className="hint">{c.about[preset]}</span>
           {preset === 'openai' && (
-            <span className="c-row">
-              <Input className="text-[12.5px] px-1.5 py-1" aria-label={c.baseUrl} spellCheck={false} placeholder={CLOUD_VOICES.openai.baseUrl} value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
-              <Input className="text-[12.5px] px-1.5 py-1" aria-label={c.model} spellCheck={false} placeholder={CLOUD_VOICES.openai.model} value={model} onChange={(e) => setModel(e.target.value)} />
+            <span className={cloudRowClass}>
+              <Input className="text-[12.5px] px-1.5 py-1 flex-1 min-w-0 w-full" aria-label={c.baseUrl} spellCheck={false} placeholder={CLOUD_VOICES.openai.baseUrl} value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
+              <Input className="text-[12.5px] px-1.5 py-1 flex-1 min-w-0 w-full" aria-label={c.model} spellCheck={false} placeholder={CLOUD_VOICES.openai.model} value={model} onChange={(e) => setModel(e.target.value)} />
             </span>
           )}
-          <Input type="password" autoComplete="off" spellCheck={false} placeholder={kept ? c.keyKept : c.key} value={key} onChange={(e) => setKey(e.target.value)} />
-          <span className="c-row c-cloud-go">
+          <Input className="flex-1 min-w-0 w-full" type="password" autoComplete="off" spellCheck={false} placeholder={kept ? c.keyKept : c.key} value={key} onChange={(e) => setKey(e.target.value)} />
+          <span className={cn(cloudRowClass, 'c-cloud-go justify-between items-center')}>
             <a href={CLOUD_VOICES[preset].keys} target="_blank" rel="noreferrer">
               {c.getKey}
             </a>
@@ -203,7 +213,7 @@ export function RecognitionDetail({ item, busy, changed }: { item: VoiceSetupIte
           {c.open}
         </LinkButton>
       )}
-      {status && <span className="p-error">{status}</span>}
+      {status && <span className={voiceErrorClass}>{status}</span>}
     </div>
   );
 }
@@ -273,11 +283,11 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
     if (job?.kind === 'install' && job.section === section.id && job.id === i.id) {
       if (job.running)
         return (
-          <span className="hint c-install">
+          <span className={cn('hint', installClass, 'm-0 min-w-0')}>
             <span className="c-step">{s.installing}</span> <code>{job.line}</code>
           </span>
         );
-      if (job.error) return <span className="p-error">{s.failed(job.error.split('\n').at(-1) ?? '')}</span>;
+      if (job.error) return <span className="text-error m-0 text-[12.5px]">{s.failed(job.error.split('\n').at(-1) ?? '')}</span>;
     }
     if (i.act === 'identity') return <Identity onSaved={setView} onError={failed} />;
     const detail = section.id === 'voice' && i.id === 'recognition' && <RecognitionDetail item={i} busy={running} changed={recheck} />;
@@ -321,19 +331,20 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
   const shownPage = recommended ? page : 'required';
   return (
     <SetupShell first={first} onClose={onClose}>
-        <header className="setup-head">
+        <header className={cn('setup-head flex items-center gap-3.5', !first && 'flex-none pr-7')}>
           {first && <Sign size={34} />}
           <div>
             <div className="p-kind">{s.kind}</div>
-            {first ? <h2>{s.titleFirst}</h2> : <DialogTitle asChild><h2>{s.title}</h2></DialogTitle>}
+            {first ? <h2 className={headingClass}>{s.titleFirst}</h2> : <DialogTitle asChild><h2 className={headingClass}>{s.title}</h2></DialogTitle>}
           </div>
           {first && <LanguagePick />}
           {onClose && (
-            <CloseButton label={s.close} variant="ghost" className="setup-close" onClick={onClose} />
+            <CloseButton label={s.close} variant="ghost" className="setup-close ml-auto" onClick={onClose} />
           )}
         </header>
-        <div className="setup-body">
-          <p className="hint setup-intro">{first ? s.introFirst : s.intro}</p>
+        {/* over the project the dialog stays within the window: its head stays, the rest scrolls inside */}
+        <div className={cn('setup-body', !first && 'flex-[1_1_auto] min-h-0 overflow-y-auto pt-0 pr-7 pb-[26px] pl-0')}>
+          <p className="setup-intro text-muted-foreground text-[13.5px] leading-normal mt-3.5 mb-1 mx-0">{first ? s.introFirst : s.intro}</p>
           {!view ? (
             <p className="hint">{checking ? t.config.setup.checking : status}</p>
           ) : (
@@ -341,7 +352,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
               <p className="hint">{s.platform(platformName(view))}</p>
               <Tabs value={shownPage} onValueChange={(p) => setPage(p as typeof shownPage)}>
               {recommended && (
-                  <TabsList variant="pill" className="setup-pages">
+                  <TabsList variant="pill" className="setup-pages mt-1 mb-2.5 mx-0">
                     {(['required', 'recommended'] as const).map((p) => (
                       <TabsTrigger key={p} value={p}>
                         {s.pages[p]}
@@ -351,12 +362,12 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
               )}
               <TabsContent value={shownPage}>
               {view.sections.filter((x) => RECOMMENDED_SECTIONS.includes(x.id) === (shownPage === 'recommended')).map((section) => (
-                <section key={section.id} className={`c-project c-setup setup-${section.id}`}>
-                  <div className="setup-sh">
+                <section key={section.id} className={cn(projectClass, 'c-setup', `setup-${section.id}`, '[&>.hint]:mt-0.5 [&>.hint]:mb-1.5 [&>.hint]:mx-0')}>
+                  <div className={sectionHeadClass}>
                     <b>{s.sections[section.id].title}</b>
-                    <span className={section.id === 'needed' ? 'setup-tag needed' : 'setup-tag'}>{section.id === 'needed' ? s.needed : s.optional}</span>
+                    <span className={cn('setup-tag text-[11px] py-px px-2 rounded-[3px]', section.id === 'needed' ? 'needed bg-ink text-background' : 'bg-chip text-muted-foreground')}>{section.id === 'needed' ? s.needed : s.optional}</span>
                     {section.mb > 0 && <span className="hint">{s.size(fileSize(section.mb * 1e6))}</span>}
-                    <span className={ready(section) ? 'setup-ok on' : 'setup-ok'}>
+                    <span className={cn('setup-ok ml-auto text-[12px]', ready(section) ? 'on text-approved' : 'text-error')}>
                       {!ready(section) ? s.open(section.items.filter((i) => i.state === 'missing').length) : section.items.some((i) => i.state === 'later') ? s.readyLater : s.ready}
                     </span>
                   </div>
@@ -370,7 +381,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
               ))}
               </TabsContent>
               </Tabs>
-              {status && <p className="hint c-status">{status}</p>}
+              {status && <p className={`hint ${statusClass}`}>{status}</p>}
               <Button size="small" disabled={checking || running} onClick={recheck}>
                 {checking ? t.config.setup.checking : t.config.setup.recheck}
               </Button>
@@ -382,11 +393,19 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
   );
 }
 
+/** The assistant's pane: frost's glass, its commands in the page's mono. */
+const pageClass = 'setup-page frost-pane max-w-[720px] pt-[22px] px-7 pb-[26px] [&_code]:[font:12px_var(--mono)]';
+/** Its title, close under the kind above it. */
+const headingClass = 'mt-0.5 mb-0 mx-0';
+/** A block's head: its title, whether it is needed, its size and how much of it is still open. */
+const sectionHeadClass = 'setup-sh flex items-baseline gap-2 mb-0.5';
+
+/** The whole page on the first start; over the project from the settings, a dialog within the window. */
 function SetupShell({ first, onClose, children }: { first?: boolean; onClose?: () => void; children: ReactNode }) {
   const [opener] = useState(() => document.activeElement instanceof HTMLElement ? document.activeElement : null);
-  if (first) return <div className="setup first"><div className="setup-page">{children}</div></div>;
+  if (first) return <div className="setup first fixed inset-0 overflow-y-auto z-80 bg-background"><div className={cn(pageClass, 'mx-auto mt-14 mb-12')}>{children}</div></div>;
   return <Dialog open onOpenChange={(open) => !open && onClose?.()}>
-    <DialogContent layerClassName="setup over" className="setup-page" onCloseAutoFocus={(e) => {
+    <DialogContent layerClassName="setup over z-80 overflow-hidden py-12 px-6 bg-(--dim)" glass className={cn(pageClass, 'w-full my-0 mx-auto flex flex-col pr-0 pb-0')} onCloseAutoFocus={(e) => {
       e.preventDefault();
       opener?.focus();
     }}>{children}</DialogContent>
@@ -409,9 +428,9 @@ function Identity({ onSaved, onError }: { onSaved: (v: MachineView) => void; onE
     setBusy(false);
   };
   return (
-    <span className="c-row setup-identity">
-      <Input placeholder={s.yourName} value={name} onChange={(e) => setName(e.target.value)} />
-      <Input placeholder={s.yourEmail} value={email} onChange={(e) => setEmail(e.target.value)} />
+    <span className={cn(rowClass, 'setup-identity')}>
+      <Input className="w-[170px]" placeholder={s.yourName} value={name} onChange={(e) => setName(e.target.value)} />
+      <Input className="w-[170px]" placeholder={s.yourEmail} value={email} onChange={(e) => setEmail(e.target.value)} />
       <Button size="small" disabled={busy || !name.trim() || !email.trim()} onClick={save}>
         {s.saveIdentity}
       </Button>
@@ -428,7 +447,7 @@ function LanguagePick() {
   if (!chosen || LANGUAGES.length < 2) return null;
   return (
     <Select
-      className="setup-lang"
+      className="setup-lang ml-auto text-[13px] py-1 px-2 rounded-[2px] border-line hover:border-line bg-card focus:bg-card text-ink"
       aria-label={t.config.language.title}
       value={chosen}
       onValueChange={(picked) => api.saveLanguage(picked as Language).then(() => reload(), console.error)}
@@ -441,6 +460,15 @@ function LanguagePick() {
     </Select>
   );
 }
+
+/** A field of the first project: its name above it, small. */
+const fieldClass = 'block my-1.5 mx-0';
+const fieldLabelClass = 'block text-muted-foreground text-[11.5px] mb-0.5';
+const firstPathClass = 'w-full py-[7px] px-[9px]';
+/** What went wrong with the first project, in a block of the assistant. */
+const firstErrorClass = 'text-error mt-1 mb-0 mx-0 text-[12.5px]';
+/** The buttons that go on. */
+const actionsClass = 'c-actions flex gap-2 mt-4';
 
 /** The first project: a repository's folder on this machine, or a clone of one. Seismic then starts again with it, and the page opens it. */
 function FirstProject({ view, ready, onView }: { view: MachineView; ready: boolean; onView: (v: MachineView) => void }) {
@@ -502,21 +530,22 @@ function FirstProject({ view, ready, onView }: { view: MachineView; ready: boole
   };
   const can = mode === 'folder' ? !!path.trim() : !!clone.trim();
   return (
-    <section className="c-project setup-first">
-      <div className="setup-sh">
+    <section className={cn(projectClass, 'setup-first border-2')}>
+      <div className={sectionHeadClass}>
         <b>{s.first.title}</b>
       </div>
       <p className="hint">{s.first.hint}</p>
-      {!ready && <p className="hint warn">{s.first.notReady}</p>}
+      {!ready && <p className="text-warn text-[12px]">{s.first.notReady}</p>}
       {saved ? (
-        <p className="hint setup-saved">
+        <p className="setup-saved text-[13.5px] text-ink">
           {branch && `${s.first.branch(branch)} `}{saved.opens ? s.first.opens : s.first.startAgain}</p>
       ) : (
         <>
-          <RadioGroup className="setup-where" labelledBy="setup-where" value={mode} onValueChange={(m) => setMode(m as typeof mode)}>
+          {/* where the project is: two cards with a radio button each, the fields for the one chosen below */}
+          <RadioGroup className="setup-where grid grid-cols-2 gap-2.5 mt-3 mb-2.5 mx-0 [&>b]:col-span-full" labelledBy="setup-where" value={mode} onValueChange={(m) => setMode(m as typeof mode)}>
             <b id="setup-where">{s.first.where}</b>
             {(['folder', 'clone'] as const).map((m) => (
-              <RadioOption key={m} value={m} className={mode === m ? 'setup-choice on' : 'setup-choice'}>
+              <RadioOption key={m} value={m} className={cn('setup-choice grid grid-cols-[auto_1fr] [align-content:start] items-center gap-x-2.5 gap-y-0.5 m-0 border border-solid rounded-[10px] cursor-pointer [&_.hint]:col-start-2', mode === m ? 'on border-2 border-ink py-[11px] px-[13px]' : 'border-line py-3 px-3.5 [&:hover]:border-ink')}>
                 <b>{s.first.modes[m].title}</b>
                 <span className="hint">{s.first.modes[m].hint}</span>
               </RadioOption>
@@ -524,12 +553,12 @@ function FirstProject({ view, ready, onView }: { view: MachineView; ready: boole
           </RadioGroup>
           {mode === 'folder' ? (
             <>
-              <label>
-                <span className="hint">{s.first.folder}</span>
-                <span className="c-row">
-                  <Input className="c-path" spellCheck={false} placeholder={s.first.pathPlaceholder} value={path} onChange={(e) => setPath(e.target.value)} />
+              <label className={fieldClass}>
+                <span className={fieldLabelClass}>{s.first.folder}</span>
+                <span className={rowClass}>
+                  <Input className={cn(pathClass, firstPathClass)} spellCheck={false} placeholder={s.first.pathPlaceholder} value={path} onChange={(e) => setPath(e.target.value)} />
                   {view.picker && (
-                    <Button size="small" className="setup-pick" onClick={pick}>
+                    <Button size="small" className="setup-pick mt-0! flex-none" onClick={pick}>
                       {s.first.pick}
                     </Button>
                   )}
@@ -540,31 +569,31 @@ function FirstProject({ view, ready, onView }: { view: MachineView; ready: boole
             </>
           ) : (
             <>
-              <label>
-                <span className="hint">{s.first.repo}</span>
-                <Input className="c-path" spellCheck={false} placeholder={s.first.repoPlaceholder} value={clone} onChange={(e) => setClone(e.target.value)} />
+              <label className={fieldClass}>
+                <span className={fieldLabelClass}>{s.first.repo}</span>
+                <Input className={cn(pathClass, firstPathClass)} spellCheck={false} placeholder={s.first.repoPlaceholder} value={clone} onChange={(e) => setClone(e.target.value)} />
               </label>
-              <label>
-                <span className="hint">{s.first.into}</span>
-                <Input className="c-path" spellCheck={false} value={into} onChange={(e) => setInto(e.target.value)} />
+              <label className={fieldClass}>
+                <span className={fieldLabelClass}>{s.first.into}</span>
+                <Input className={cn(pathClass, firstPathClass)} spellCheck={false} value={into} onChange={(e) => setInto(e.target.value)} />
               </label>
             </>
           )}
           {noGit ? null : job?.running ? (
-            <p className="hint c-install">
+            <p className={installHintClass}>
               <span className="c-step">{s.first.cloning}</span> <code>{job.line}</code>
             </p>
           ) : (
-            <div className="c-actions">
+            <div className={actionsClass}>
               <Button variant="primary" disabled={!can || busy} onClick={() => create()}>
                 {mode === 'folder' ? s.first.create : s.first.cloneCreate}
               </Button>
             </div>
           )}
-          {job?.error && !job.running && <p className="p-error">{s.first.cloneFailed(job.error)}</p>}
+          {job?.error && !job.running && <p className={firstErrorClass}>{s.first.cloneFailed(job.error)}</p>}
         </>
       )}
-      {status && <p className="p-error">{status}</p>}
+      {status && <p className={firstErrorClass}>{status}</p>}
     </section>
   );
 }
@@ -582,6 +611,13 @@ function useFolder(path: string): { branch?: string; noGit?: boolean } | null {
 
 /** The path, once Seismic found a folder without git there (where git can be set up); else empty. */
 export const useFolderWithoutGit = (path: string) => (useFolder(path)?.noGit ? path : '');
+
+/** A line of text in the offer to set up git. */
+const gitLineClass = 'hint my-1 mx-0';
+/** A choice of the offer: a frame with its title and what it means. */
+const gitChoiceClass = 'git-choice grid gap-[3px] [align-content:start] text-left bg-transparent py-2.5 px-3 border border-solid border-line rounded-[10px] cursor-pointer [&:hover:not(:disabled)]:border-ink';
+/** What the first commit holds, in two columns where there is room. */
+const gitEntriesClass = 'git-entries list-none my-1.5 mx-0 p-0 max-w-[640px] [columns:2_260px] gap-x-6';
 
 // what stays out, listed up to this many
 const IGNORED_SHOWN = 12;
@@ -622,48 +658,43 @@ export function GitSetup({ path, confirm, onDone, onFolder }: { path: string; co
   };
   const p = preview;
   return (
-    <div className="git-setup">
+    <div className="git-setup my-2 mx-0 [&_code]:bg-transparent [&_code]:[border:0] [&_code]:p-0">
       {!p ? (
         <>
-          <p className="hint">{s.none}</p>
-          <div className="git-choices">
-            <button className="git-choice" disabled={!!busy} onClick={onFolder}>
+          <p className={gitLineClass}>{s.none}</p>
+          {/* use the folder as it is, or set up git there; each with what it means */}
+          <div className="git-choices grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-2.5 max-w-[720px] my-1.5 mx-0">
+            <button className={gitChoiceClass} disabled={!!busy} onClick={onFolder}>
               <b>{s.folder}</b>
-              <span className="hint">{s.folderHint}</span>
+              <span className="text-muted-foreground text-[11.5px]">{s.folderHint}</span>
             </button>
-            <button className="git-choice" disabled={!!busy} onClick={look}>
+            <button className={gitChoiceClass} disabled={!!busy} onClick={look}>
               <b>{busy === 'looking' ? s.looking : s.offer}</b>
-              <span className="hint">{s.offerHint}</span>
+              <span className="text-muted-foreground text-[11.5px]">{s.offerHint}</span>
             </button>
           </div>
         </>
       ) : (
         <>
-          <b>{s.title}</b>
-          <p className="hint">{s.summary(p.files, fileSize(p.bytes), p.branch)}</p>
-          <ul className="git-entries">
+          <b className="block mt-1">{s.title}</b>
+          <p className={gitLineClass}>{s.summary(p.files, fileSize(p.bytes), p.branch)}</p>
+          <ul className={gitEntriesClass}>
             {p.entries.map((e) => (
-              <li key={e.path} className={!e.dir && e.bytes >= LARGE_FILE ? 'large' : undefined}>
-                <code>{e.path}</code>
-                <span className="hint">{e.dir ? `${s.files(e.files)} · ${fileSize(e.bytes)}` : fileSize(e.bytes)}</span>
-              </li>
+              <GitEntry key={e.path} path={e.path} large={!e.dir && e.bytes >= LARGE_FILE} size={e.dir ? `${s.files(e.files)} · ${fileSize(e.bytes)}` : fileSize(e.bytes)} />
             ))}
           </ul>
           {p.large.length > 0 && (
-            <div className="git-large">
+            <div className="git-large my-2 mx-0">
               <b>{s.large}</b> <span className="hint">{s.largeHint}</span>
-              <ul className="git-entries">
+              <ul className={gitEntriesClass}>
                 {p.large.map((f) => (
-                  <li key={f.path} className="large">
-                    <code>{f.path}</code>
-                    <span className="hint">{fileSize(f.bytes)}</span>
-                  </li>
+                  <GitEntry key={f.path} path={f.path} large size={fileSize(f.bytes)} />
                 ))}
               </ul>
             </div>
           )}
           {p.ignored.length > 0 && (
-            <p className="git-ignored">
+            <p className="git-ignored my-1 mx-0">
               <b>{s.ignored}:</b> {p.ignored.slice(0, IGNORED_SHOWN).map((f, i) => (
                 <Fragment key={f}>
                   {i > 0 && ', '}
@@ -679,12 +710,12 @@ export function GitSetup({ path, confirm, onDone, onFolder }: { path: string; co
                 {s.gitignore} <u>{s.gitignoreShow}</u>
               </CollapsibleTrigger>
               <CollapsibleContent>
-                <pre>{p.gitignore}</pre>
+                <pre className="[font:12px_var(--mono)] my-1.5 mx-0 py-2 px-2.5 bg-card border border-solid border-line rounded-[4px]">{p.gitignore}</pre>
               </CollapsibleContent>
             </Collapsible>
           )}
-          <p className="hint">{s.change}</p>
-          <div className="c-actions">
+          <p className={gitLineClass}>{s.change}</p>
+          <div className={actionsClass}>
             <Button variant="primary" disabled={!!busy} onClick={go}>
               {busy === 'working' ? s.working : confirm}
             </Button>
@@ -697,7 +728,17 @@ export function GitSetup({ path, confirm, onDone, onFolder }: { path: string; co
           </div>
         </>
       )}
-      {error && <p className="p-error">{error}</p>}
+      {error && <p className={cn(firstErrorClass, '[#config_&]:mt-1.5 [#config_&]:text-[13px]')}>{error}</p>}
     </div>
+  );
+}
+
+/** One of what the first commit holds: its path, its size on the right; a large file in the warning colour. */
+function GitEntry({ path, large, size }: { path: string; large?: boolean; size: string }) {
+  return (
+    <li className={cn('flex justify-between gap-3 py-0.5 px-0 break-inside-avoid', large && 'large text-warn')}>
+      <code className="[overflow-wrap:anywhere]">{path}</code>
+      <span className={large ? 'flex-none text-[12px]' : 'hint flex-none'}>{size}</span>
+    </li>
   );
 }

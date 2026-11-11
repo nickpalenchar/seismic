@@ -31,7 +31,7 @@ test('S shows chips, where, kind and since on top, the pin or the unread dot, th
   expect(html).toContain('<div class="f-text">Serif or sans?</div>');
   // an inbox entry: its unread dot in the pin's place, what it waits for in the meta line's
   const entry = face({ item: asking, size: 's', unread: true, text: 'Pick one' });
-  expect(entry).toContain('class="unread-dot"');
+  expect(entry).toContain('class="unread-dot ');
   expect(entry).not.toContain('f-pin');
   expect(entry).toContain('<div class="f-text">Pick one</div>');
   // once read, it shows the pin again
@@ -81,7 +81,7 @@ test('subtle: the pin is a small dot in the corner, the state line is plain, and
   expect(s).toContain('class="face face-s subtle"');
   expect(s).toContain('class="pin-dot asking"');
   expect(s).not.toContain('f-pin');
-  expect(face({ item: asking, size: 's', subtle: true, unread: true })).toContain('class="unread-dot"');
+  expect(face({ item: asking, size: 's', subtle: true, unread: true })).toContain('class="unread-dot ');
   expect(face({ item: asking, size: 'xs', subtle: true })).toContain('pin-dot');
   const m = face({ item: asking, subtle: true });
   expect(m).toContain('state subtle');

@@ -24,6 +24,7 @@ import { usePageVisible } from './seen';
 import { Conversation as Scroll } from './components/ai/conversation';
 import { useFitHeight } from './fitHeight';
 import { PageChangeList } from './page-changes';
+import { fromLinkClass, occasionClass, prefActionsClass, prefRowClass, prefTextClass, proposalRowClass, proposalsClass, proposalTextClass, settingLabelClass, settingValueClass, targetClass } from './prefsClasses';
 import { WishReplyLink } from './wish';
 import { ClockMark } from './snooze';
 import { know, known } from './known';
@@ -372,7 +373,7 @@ function useAct(fail?: Parameters<typeof failText>[1]): [string, (fn: () => Prom
 /** Where a rule goes: the owner's preferences or a repository's CLAUDE.md. */
 function TargetPick({ value, repos, onChange }: { value: string; repos: RepoRef[]; onChange: (target: string) => void }) {
   return (
-    <label className="target">
+    <label className={targetClass}>
       {t.koordinator.target}
       <Select value={value} onValueChange={(picked) => onChange(picked)}>
         <SelectItem value="">{t.koordinator.targetPreferences}</SelectItem>
@@ -391,6 +392,7 @@ function RuleEdit({ draft, setDraft, onEnter, onBlur }: { draft: string; setDraf
   return (
     <Textarea
       data-esc
+      className="flex-1"
       autoFocus
       value={draft}
       rows={2}
@@ -424,14 +426,14 @@ export function ProposalRow({ p, items, rules, repos, onOpen, project }: { p: Pr
     decide(() => api.acceptProposal(p.id, draft === null || draft.trim() === p.text ? undefined : draft.trim(), target === (p.target ?? '') ? undefined : target || null, project));
   const quote = p.quote && (p.quote.length > 200 ? `${p.quote.slice(0, 200).trimEnd()} …` : p.quote);
   return (
-    <li className="proposal">
+    <li className={cn(proposalRowClass, 'proposal')}>
       {draft === null ? (
-        <span className="pref-text">{p.text}</span>
+        <span className={proposalTextClass}>{p.text}</span>
       ) : (
         <RuleEdit draft={draft} setDraft={setDraft} onEnter={() => draft.trim() && accept()} />
       )}
-      {replaced && <span className="occasion">{t.koordinator.changes(replaced.text)}</span>}
-      <span className="occasion">
+      {replaced && <span className={occasionClass}>{t.koordinator.changes(replaced.text)}</span>}
+      <span className={occasionClass}>
         {p.review ? (
           <>
             {t.koordinator.fromReview}
@@ -446,7 +448,7 @@ export function ProposalRow({ p, items, rules, repos, onOpen, project }: { p: Pr
         )}
       </span>
       <TargetPick value={target} repos={repos} onChange={setTarget} />
-      <span className="pref-actions">
+      <span className={prefActionsClass}>
         <Button size="small" variant="primary" disabled={draft !== null && !draft.trim()} onClick={accept}>
           {t.koordinator.accept}
         </Button>
@@ -522,32 +524,32 @@ export function SettingRow({ p, items, repo, onOpen, onConfig, project }: { p: S
   const branch = repo?.branch ?? 'main';
   const everyone = repo?.pullRequests ? k.forEveryonePr(branch) : k.forEveryoneMain(branch);
   return (
-    <li className="proposal setting">
-      <span className="setting-kind">
+    <li className={cn(proposalRowClass, 'proposal setting')}>
+      <span className="setting-kind basis-full flex flex-wrap items-center gap-[5px] text-proposal text-[11.5px] font-semibold tracking-[.02em]">
         <GearIcon />
         {k.settingKind(repo?.name ?? p.repo)}
       </span>
-      <span className="setting-name">
-        <span className="pref-text">{t.config.settings[p.field]}</span>
-        {onConfig && <a className="from" title={k.openConfigHint} onClick={onConfig}>
+      <span className="setting-name basis-full flex items-baseline gap-2">
+        <span className={proposalTextClass}>{t.config.settings[p.field]}</span>
+        {onConfig && <a className={cn(fromLinkClass, 'ml-auto whitespace-nowrap text-[12px]')} title={k.openConfigHint} onClick={onConfig}>
           {k.openConfig}
         </a>}
       </span>
-      <span className="setting-diff">
+      <span className="setting-diff basis-full grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 [align-items:start]">
         {now !== null && (
           <>
-            <span className="setting-label">{k.settingWas}</span>
-            <pre className={now ? 'setting-value was' : 'setting-value was setting-none'}>{now || k.settingEmpty}</pre>
+            <span className={settingLabelClass}>{k.settingWas}</span>
+            <pre className={cn(settingValueClass, 'was text-muted-foreground bg-transparent border border-dashed border-line', !now && 'setting-none [font-family:inherit] italic')}>{now || k.settingEmpty}</pre>
           </>
         )}
-        <span className="setting-label">{k.settingNew}</span>
-        <span className="setting-new">
-          <Textarea ref={field} className="setting-value" aria-label={k.settingNew} spellCheck={false} rows={1} value={draft} onChange={(e) => setDraft(e.target.value)} />
-          <span className="setting-edit">
+        <span className={settingLabelClass}>{k.settingNew}</span>
+        <span className="setting-new flex flex-col gap-[3px] min-w-0">
+          <Textarea ref={field} className={cn(settingValueClass, 'flex-none resize-none overflow-hidden min-w-0 focus:bg-card')} aria-label={k.settingNew} spellCheck={false} rows={1} value={draft} onChange={(e) => setDraft(e.target.value)} />
+          <span className="setting-edit text-muted-foreground text-[11.5px]">
             {changed ? (
               <>
                 {k.settingEdited}{' '}
-                <a className="from" onClick={() => setDraft(asText(p.value))}>
+                <a className={fromLinkClass} onClick={() => setDraft(asText(p.value))}>
                   {k.settingRestore}
                 </a>
               </>
@@ -557,7 +559,7 @@ export function SettingRow({ p, items, repo, onOpen, onConfig, project }: { p: S
           </span>
         </span>
       </span>
-      <span className="occasion">
+      <span className={occasionClass}>
         {k.fromRetro}: <Inline md={p.basis} />{' '}
         {p.cards.map((c, i) => {
           const card = items.find((x) => x.id === c.id);
@@ -569,8 +571,8 @@ export function SettingRow({ p, items, repo, onOpen, onConfig, project }: { p: S
           );
         })}
       </span>
-      <span className="pref-actions">
-        <span className="take-on">{k.takeOn}</span>
+      <span className={prefActionsClass}>
+        <span className="take-on basis-full text-muted-foreground text-[12px]">{k.takeOn}</span>
         <Button variant="primary" disabled={busy || !draft.trim()} title={k.onMachineHint} onClick={() => take('machine')}>
           {k.onMachine}
         </Button>
@@ -578,10 +580,10 @@ export function SettingRow({ p, items, repo, onOpen, onConfig, project }: { p: S
           {k.forEveryone}
         </Button>
       </span>
-      <span className="occasion">
+      <span className={occasionClass}>
         {k.onMachine}: {k.onMachineHint} {k.forEveryone}: {everyone}
       </span>
-      <span className="pref-actions">
+      <span className={prefActionsClass}>
         <Button size="small" variant="danger" disabled={busy} onClick={() => decide(() => api.rejectSetting(p.id, project))}>
           {k.reject}
         </Button>
@@ -609,11 +611,11 @@ function ReshareBox({ r, items, onOpen }: { r: Reshare; items: Item[]; onOpen: (
   const s = t.koordinator.reshare;
   const out = run ? run.done + run.failed.length : 0;
   return (
-    <div className="reshare">
-      <ul className="prefs proposals">
+    <div className="reshare mt-4 [.k-rest_&]:my-2">
+      <ul className={proposalsClass}>
         {run && (
-          <li>
-            <span className="pref-text">
+          <li className={proposalRowClass}>
+            <span className={proposalTextClass}>
               {run.tags
                 ? going
                   ? s.tagProgress(out, run.total)
@@ -632,14 +634,14 @@ function ReshareBox({ r, items, onOpen }: { r: Reshare; items: Item[]; onOpen: (
               className="basis-full bg-proposal/18"
               indicatorClassName="bg-proposal"
             />
-            {going && run.current && <span className="occasion">{s.now(plain(run.current))}</span>}
+            {going && run.current && <span className={occasionClass}>{s.now(plain(run.current))}</span>}
             {run.failed.length > 0 && (
-              <span className="occasion">
+              <span className={occasionClass}>
                 {s.failed(run.failed.length)}
                 {run.failed.map((f) => {
                   const card = items.find((i) => i.id === f.id);
                   return (
-                    <span key={f.id} className="failed">
+                    <span key={f.id} className="failed block mt-0.5">
                       <CardLink card={card} title={f.title} onOpen={onOpen} />
                     </span>
                   );
@@ -648,7 +650,7 @@ function ReshareBox({ r, items, onOpen }: { r: Reshare; items: Item[]; onOpen: (
             )}
             {/* beside the notice of outdated pages, its "Ausblenden" puts both away; a run tagging pages goes alone */}
             {(going || run.tags || !r.outdated) && (
-              <span className="pref-actions">
+              <span className={prefActionsClass}>
                 {going ? (
                   <Button size="small" title={s.stopHint} disabled={!!run.stopped} onClick={() => act(api.stopReshare)}>
                     {s.stop}
@@ -663,11 +665,12 @@ function ReshareBox({ r, items, onOpen }: { r: Reshare; items: Item[]; onOpen: (
           </li>
         )}
         {r.outdated > 0 && !going && (
-          <li>
-            <span className="pref-text">{s.outdated(r.outdated)}</span>
-            <span className="occasion">{s.outdatedHint}</span>
-            {r.changes && <PageChangeList changes={r.changes} />}
-            <span className="pref-actions">
+          <li className={proposalRowClass}>
+            <span className={proposalTextClass}>{s.outdated(r.outdated)}</span>
+            <span className={occasionClass}>{s.outdatedHint}</span>
+            {/* the list's rows in the type of the row it stands in */}
+            {r.changes && <PageChangeList changes={r.changes} className="basis-full m-0 [&>li]:items-start [&>li]:text-[13px] [&>li]:cursor-default" />}
+            <span className={prefActionsClass}>
               {counts.length > 0 && (
                 <Select value={chosen == null ? '' : String(chosen)} onValueChange={(picked) => setPick(picked ? Number(picked) : 'all')}>
                   {counts.map((n) => (
@@ -688,10 +691,10 @@ function ReshareBox({ r, items, onOpen }: { r: Reshare; items: Item[]; onOpen: (
           </li>
         )}
         {!!r.untagged && !going && (
-          <li>
-            <span className="pref-text">{s.untagged(r.untagged)}</span>
-            <span className="occasion">{s.untaggedHint}</span>
-            <span className="pref-actions">
+          <li className={proposalRowClass}>
+            <span className={proposalTextClass}>{s.untagged(r.untagged)}</span>
+            <span className={occasionClass}>{s.untaggedHint}</span>
+            <span className={prefActionsClass}>
               <Button size="small" variant="primary" onClick={() => act(() => api.reshare(null, true))}>
                 {s.tag(r.untagged)}
               </Button>
@@ -715,9 +718,9 @@ export function PreferenceRow({ p }: { p: Preference }) {
     });
   };
   return (
-    <li>
+    <li className={prefRowClass}>
       {draft === null ? (
-        <span className="pref-text" title={t.koordinator.edit} onClick={() => setDraft(p.text)}>
+        <span className={prefTextClass} title={t.koordinator.edit} onClick={() => setDraft(p.text)}>
           {p.text}
         </span>
       ) : (
@@ -743,8 +746,9 @@ export function NewPreference({ repos }: { repos: RepoRef[] }) {
       setFiled(target ? t.koordinator.filed(repos.find((r) => r.id === target)?.name ?? target) : '');
     });
   return (
-    <div className="composer pref-new">
+    <div className="composer pref-new mt-2 gap-x-2.5 gap-y-1.5">
       <Textarea
+        className="min-h-[38px]"
         value={text}
         rows={1}
         placeholder={t.koordinator.addPlaceholder}
@@ -763,8 +767,8 @@ export function NewPreference({ repos }: { repos: RepoRef[] }) {
         {t.koordinator.add}
       </Button>
       <TargetPick value={target} repos={repos} onChange={setTarget} />
-      {filed && <span className="hint filed">{filed}</span>}
-      {error && <span className="p-error">{error}</span>}
+      {filed && <span className="hint filed basis-full">{filed}</span>}
+      {error && <span className="p-error basis-full">{error}</span>}
     </div>
   );
 }

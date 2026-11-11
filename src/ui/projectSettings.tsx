@@ -7,12 +7,18 @@
 import { Fragment, useEffect, useState } from 'react';
 import { AGENT_EFFORTS, AGENT_MODELS, AGENT_ROLES, choosesHarness, harnessChoice, type AgentEffort, type AgentModel, type AgentRole, type ProjectAgents, type ProjectSettings, type ProjectSettingsView, type CodexModel, type Harness } from '../core/types';
 import { api } from './api';
-import { ProjectSiteField, CardArchiveField, RightClickField, CodeReviewField, Head, PlanBaselineField, SuggestField } from './config';
+import { agentClass, ProjectSiteField, CardArchiveField, RightClickField, CodeReviewField, Head, PlanBaselineField, SuggestField } from './config';
+import { settingsSheetClass } from './configClasses';
 import { Docked } from './docked';
 import { failText, t } from './strings';
 import { LinkButton } from './components/button';
 import { Badge } from './components/badge';
 import { Select, SelectItem } from './components/select';
+import { statusClass } from './setupClasses';
+import { cn } from 'cn';
+
+/** A choice of the agents' harness, model and effort: as wide as its column, quiet while it takes Configuration's. */
+const choiceClass = 'min-w-0 w-full';
 
 /** The sheet of the project `project`; read afresh each time it opens or the Configuration over it closes. */
 export function ProjectSettingsSheet({ project, name, homePath, on, covered, problems, onConfig, onAddSite }: { project: string; name: string; /** The project's home repository, which proposing the demo site's tags reads. */ homePath?: string | undefined; /** Opens Configuration at the page that adds a demo site. */ onAddSite: () => void; on: boolean; /** The Configuration dialog is open over it: read afresh once it closes, as models may have changed there. */ covered: boolean; /** The configuration's problems, counted on the gear too. */ problems: number; onConfig: () => void }) {
@@ -56,14 +62,14 @@ export function ProjectSettingsSheet({ project, name, homePath, on, covered, pro
     return save({ agents: own });
   };
   return (
-    <Docked id="project-settings" on={on} label={l.title}>
-      <p className="cs-project">{name}</p>
+    <Docked id="project-settings" on={on} label={l.title} className={settingsSheetClass}>
+      <p className="cs-project mt-0 mr-10 mb-0.5 ml-0 text-[12px] text-muted-foreground">{name}</p>
       <h2>{l.title}</h2>
-      <p className="hint">{l.hint}</p>
+      <p className="text-muted-foreground text-[12.5px] leading-[1.45] mt-0 mx-0 mb-1.5">{l.hint}</p>
       {view && (
         <>
           <Head title={l.models} hint={l.modelsHint} />
-          <div className="cs-agents">
+          <div className="cs-agents flex flex-col">
             {AGENT_ROLES.map((role) => {
               const base = view.agents[role];
               const own = view.settings.agents[role] ?? {};
@@ -77,12 +83,12 @@ export function ProjectSettingsSheet({ project, name, homePath, on, covered, pro
               const baseModel = base.harness && base.harness !== 'claude' ? inherited.model === 'default' ? l.accountDefault : inherited.model : a.models[base.model];
               return (
                 <Fragment key={role}>
-                  <div className="cfg-agent">
+                  <div className={agentClass}>
                     {a.roles[role].name}
                     <span className="hint">{a.roles[role].hint}</span>
                   </div>
-                  <div className="cs-choice">
-                    <Select className={own.harness ? 'own' : undefined} aria-label={`${a.roles[role].name}: ${a.harness}`} value={own.harness ?? ''} disabled={busy || !choosesHarness(role)} onValueChange={(picked) => {
+                  <div className="cs-choice grid grid-cols-[minmax(0,1.2fr)_repeat(2,minmax(0,.9fr))] gap-2">
+                    <Select className={cn(choiceClass, own.harness ? 'own' : 'text-muted-foreground')} aria-label={`${a.roles[role].name}: ${a.harness}`} value={own.harness ?? ''} disabled={busy || !choosesHarness(role)} onValueChange={(picked) => {
                       const value = picked as Harness | '';
                       if (!value) return choose(role, null);
                       return choose(role, { harness: value, model: undefined, effort: undefined });
@@ -92,7 +98,7 @@ export function ProjectSettingsSheet({ project, name, homePath, on, covered, pro
                       <SelectItem value="codex">{a.harnesses.codex}</SelectItem>
                       <SelectItem value="agy">{a.harnesses.agy}</SelectItem>
                     </Select>
-                    <Select className={own.model || (other && own[other]?.model) ? 'own' : undefined} aria-label={`${a.roles[role].name}: ${a.model}`} value={other ? own[other]?.model ?? '' : own.model ?? ''} disabled={busy} onValueChange={(picked) => {
+                    <Select className={cn(choiceClass, own.model || (other && own[other]?.model) ? 'own' : 'text-muted-foreground')} aria-label={`${a.roles[role].name}: ${a.model}`} value={other ? own[other]?.model ?? '' : own.model ?? ''} disabled={busy} onValueChange={(picked) => {
                       const model = picked;
                       if (other) return choose(role, { harness: other, [other]: { ...selected, model: model || (base.harness === other ? inherited.model : 'default') } });
                       return choose(role, { harness: own.harness ?? 'claude', model: model as AgentModel || undefined });
@@ -104,7 +110,7 @@ export function ProjectSettingsSheet({ project, name, homePath, on, covered, pro
                         {models?.map((m) => <SelectItem key={m.model} value={m.model}>{m.model}</SelectItem>)}
                       </> : AGENT_MODELS.map((m) => <SelectItem key={m} value={m}>{a.models[m]}</SelectItem>)}
                     </Select>
-                    <Select className={own.effort || (other && own[other]?.effort) ? 'own' : undefined} aria-label={`${a.roles[role].name}: ${a.effort}`} value={other ? own[other]?.effort ?? (own.harness ? '' : own.effort ?? '') : own.effort ?? ''} disabled={busy} onValueChange={(picked) => {
+                    <Select className={cn(choiceClass, own.effort || (other && own[other]?.effort) ? 'own' : 'text-muted-foreground')} aria-label={`${a.roles[role].name}: ${a.effort}`} value={other ? own[other]?.effort ?? (own.harness ? '' : own.effort ?? '') : own.effort ?? ''} disabled={busy} onValueChange={(picked) => {
                       const effort = picked as AgentEffort | '';
                       if (other) return choose(role, { harness: other, [other]: { ...selected, effort: effort || (base.harness === other ? inherited.effort : base.effort) } });
                       return choose(role, { harness: own.harness ?? 'claude', effort: effort || undefined });
@@ -130,9 +136,9 @@ export function ProjectSettingsSheet({ project, name, homePath, on, covered, pro
           <PlanBaselineField value={view.settings.planBaselines} onChange={(planBaselines) => save({ planBaselines })} />
         </>
       )}
-      {status && <p className="hint c-status">{status}</p>}
-      <div className="cs-more">
-        <span className="hint">{l.more}</span>
+      {status && <p className={`hint ${statusClass}`}>{status}</p>}
+      <div className="cs-more mt-[26px] pt-3.5 border-t border-t-line flex flex-col items-start gap-1 text-[13px]">
+        <span className="text-muted-foreground text-[12.5px]">{l.more}</span>
         <LinkButton type="button" onClick={onConfig}>
           {l.toConfig}
         </LinkButton>

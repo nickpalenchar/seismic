@@ -75,7 +75,7 @@ a.link.card-link { color: var(--working); text-decoration: underline 1px current
 .smart-link.gone .sl-title { text-decoration: none; }
 .smart-link.gone .sl-dot { background: transparent; border: 1px solid var(--muted-foreground); width: 5px; height: 5px; }
 /* headings are the same face, a little heavier */
-h1, h2, .cfg-head h3, .plan > .head .ttl { font-family: var(--font); font-weight: 650; letter-spacing: -.018em; }
+h1, h2, .plan > .head .ttl { font-family: var(--font); font-weight: 650; letter-spacing: -.018em; }
 
 /* ---------- project ---------- */
 #viewport { position: fixed; inset: 0; cursor: grab; touch-action: none; background-color: transparent;
@@ -360,47 +360,11 @@ h1, h2, .cfg-head h3, .plan > .head .ttl { font-family: var(--font); font-weight
 
 /* ---------- chrome ---------- */
 /* panes: the open card, sheets, dialogs, one frosted glass */
-.cfg-box, .d-sheet, .perf-box, .setup-page, :is(#help, #wish, #phone, #merge-pick, #canvas-dialog) .box {
+.d-sheet, :is(#help, #wish, #merge-pick, #canvas-dialog) .box {
   background: var(--glass); border: 1px solid var(--glass-edge); border-radius: 18px; box-shadow: inset 0 1px 0 var(--glass-hi), var(--lift);
   backdrop-filter: blur(28px) saturate(1.6); -webkit-backdrop-filter: blur(28px) saturate(1.6); }
-.prefs { list-style: none; padding: 0; margin: 10px 0 0; }
-.prefs li { display: flex; gap: 8px; align-items: flex-start; padding: 7px 8px 7px 10px; border-radius: 3px; background: var(--chip); margin: 6px 0;
-  font-size: 13px; cursor: default; flex-wrap: wrap; }
-.prefs li:hover { background: var(--chip); }
-.prefs .pref-text { flex: 1; cursor: text; min-width: 0; overflow-wrap: anywhere; }
-.prefs textarea { flex: 1; }
+/* an error under a rule or proposal (prefsClasses.ts) takes the row's width, without the margin .p-error sets */
 .prefs .p-error { flex-basis: 100%; margin: 0; }
-.prefs .occasion { flex-basis: 100%; color: var(--muted-foreground); font-size: 12px; overflow-wrap: anywhere; }
-.prefs .occasion .from { color: var(--ink); cursor: pointer; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 2px; }
-.prefs .occasion q { font-style: italic; }
-.prefs .target, .pref-new .target { flex-basis: 100%; display: flex; align-items: center; gap: 6px; color: var(--muted-foreground); font-size: 12px; }
-.prefs .pref-actions { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
-.proposals li { background: color-mix(in srgb, var(--proposal) 9%, var(--chip)); }
-.proposals li:hover { background: color-mix(in srgb, var(--proposal) 9%, var(--chip)); }
-.proposals .pref-text { cursor: default; font-weight: 600; }
-.proposals .setting-kind { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 5px; color: var(--proposal); font-size: 11.5px; font-weight: 600; letter-spacing: .02em; }
-.proposals .setting-name { flex-basis: 100%; display: flex; align-items: baseline; gap: 8px; }
-.proposals .setting-name .from { margin-left: auto; white-space: nowrap; font-size: 12px; color: var(--ink); cursor: pointer; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 2px; }
-.proposals .setting-new { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.proposals .setting-new textarea.setting-value { flex: none; resize: none; overflow: hidden; }
-.proposals .setting-edit { color: var(--muted-foreground); font-size: 11.5px; }
-.proposals .setting-edit .from { color: var(--ink); cursor: pointer; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 2px; }
-.proposals .setting-diff { flex-basis: 100%; display: grid; grid-template-columns: auto 1fr; gap: 4px 8px; align-items: start; }
-.proposals .setting-label { color: var(--muted-foreground); font-size: 12px; padding-top: 6px; }
-.proposals .setting-diff .setting-value.was { color: var(--muted-foreground); background: transparent; border: 1px dashed var(--line); }
-.proposals .setting-diff .setting-value.was.setting-none { font-family: inherit; font-style: italic; }
-.proposals .setting-diff textarea { min-width: 0; }
-.proposals .setting-value { flex-basis: 100%; margin: 0; font: 12px/1.45 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; background: var(--card); border-radius: 2px; padding: 6px 8px; }
-.prefs .pref-actions .take-on { flex-basis: 100%; color: var(--muted-foreground); font-size: 12px; }
-.reshare { margin-top: 16px; }
-.reshare .failed { display: block; margin-top: 2px; }
-.reshare .page-changes { flex-basis: 100%; margin: 0; }
-/* not the sheet's entries it stands in */
-.reshare .page-changes li, .reshare .page-changes li:hover { margin: 0; padding: 0; border: 0; background: none; border-radius: 0; flex-wrap: nowrap; }
-.pref-new { margin-top: 8px; }
-.pref-new { gap: 6px 10px; }
-.pref-new textarea { min-height: 38px; }
-.pref-new .filed, .pref-new .p-error { flex-basis: 100%; }
 .hint { color: var(--muted-foreground); font-size: 12px; }
 #help .box { position: relative; padding: 22px 26px 24px; width: 860px; max-width: 100%; max-height: 100%; overflow: auto; }
 #help h2 { margin: 0 0 14px; font-size: 23px; }
@@ -478,8 +442,6 @@ h1, h2, .cfg-head h3, .plan > .head .ttl { font-family: var(--font); font-weight
 /* ---------- canvases: the tab strip at the bottom right, the drawer it slides out, the dialog ---------- */
 #canvas-tabs { position: fixed; right: calc(var(--side, 0px) + 14px); transition: right .45s cubic-bezier(.3,.9,.3,1); bottom: 44px; z-index: 22;
   display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-/* the confirmations stand above the strip */
-:root:has(#canvas-tabs) #acks { bottom: 86px; }
 .canvas-strip { display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: 999px; background: var(--card); border: 1px solid var(--glass-edge); box-shadow: inset 0 1px 0 var(--glass-hi), var(--shadow);
   backdrop-filter: blur(12px) saturate(1.4); -webkit-backdrop-filter: blur(12px) saturate(1.4); }
 .ctab { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 28px; height: 28px; padding: 0 7px; box-sizing: border-box;
@@ -699,7 +661,7 @@ h1, h2, .cfg-head h3, .plan > .head .ttl { font-family: var(--font); font-weight
   background: var(--planned); opacity: .55; transition: background .15s, opacity .15s, height .15s, margin-top .15s; }
 #sheet-grip:hover::after, .resizing #sheet-grip::after { background: var(--muted-foreground); opacity: 1; height: 64px; margin-top: -32px; }
 .resizing, .resizing * { cursor: ew-resize !important; -webkit-user-select: none; user-select: none; }
-.resizing .sheet, .resizing #sheet-grip, .resizing #talk-docked, .resizing #ptt, .resizing #acks, .resizing .empty { transition: none; }
+.resizing .sheet, .resizing #sheet-grip, .resizing #talk-docked, .resizing #ptt, .resizing .empty { transition: none; }
 .sheet h2 { margin: 2px 0 8px; font-size: 24px; line-height: 1.15; }
 /* a sheet's heading keeps clear of the button in its top corner (Seismic's, or the ✕) */
 .sheet > .p-kind:first-child, .sheet > .p-kind:first-child + h2, .sheet > h2:first-child { margin-right: 40px; }
@@ -754,221 +716,17 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .sheet .arrange { margin-top: 10px; }
 .sheet .arrange .hint { margin: 6px 0 0; font-size: 12px; }
 
-/* Seismic's configuration: a dialog over the page, nearly as large as the window, its sections listed
-   on the left and the one chosen on the right; settings as rows of label and control, without boxes */
-.cfg-box { flex: 1; display: grid; grid-template-columns: 230px minmax(0, 1fr); min-width: 0;
-  overflow: hidden; position: relative; }
-.cfg-nav { display: flex; flex-direction: column; padding: 22px 14px 18px; background: transparent; border-right: 1px solid var(--line); overflow-y: auto; }
-.cfg-nav > .p-kind, .cfg-nav > h2 { padding: 0 10px; }
-.cfg-nav h2 { margin: 2px 0 18px; font-size: 24px; }
-.cfg-nav ul { list-style: none; margin: 0; padding: 0; }
-.cfg-nav li button { width: 100%; display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 0; border-radius: 8px; background: none;
-  font: inherit; font-size: 14px; color: var(--ink); text-align: left; cursor: pointer; }
-.cfg-nav li button:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); }
-.cfg-nav li button[data-state=active] { background: var(--card); font-weight: 600; box-shadow: inset 0 1px 0 var(--glass-hi), var(--shadow); }
-.cfg-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--waiting); }
-/* Projects: a heading over the projects, each indented under it, and "+ Project" last */
-.cfg-nav-title { display: flex; align-items: center; gap: 8px; padding: 8px 10px 4px; font-size: 14px; color: var(--muted-foreground); }
-.cfg-nav-group > ul { margin-bottom: 6px; }
-.cfg-nav-group > ul > li > button { padding-left: 24px; }
-.cfg-nav-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cfg-nav li button.cfg-nav-add { padding-top: 5px; padding-bottom: 5px; font-size: 13px; color: var(--muted-foreground); }
-.cfg-nav li button.cfg-nav-add:hover { color: var(--ink); }
-.cfg-ask { margin: -6px 0 22px; padding: 0 10px; }
-.cfg-ask .hint { margin: 0 0 14px; line-height: 1.45; }
-.cfg-export-actions { display: flex; gap: 6px; margin: 16px 0 0; }
+/* Seismic's configuration (config.tsx, configClasses.ts) is Tailwind; what stays here reaches the parts of
+   other families inside its dialogs and the project's settings sheet: setup's, the rules list's, access's,
+   performance's text primitives and code */
 /* a small button under text stands a little apart from it */
 :is(p, ul, ol, .c-install) + [data-slot=button][data-size=small] { margin-top: 8px; }
-.cfg-nav-foot { margin-top: auto; padding: 18px 10px 0; }
 .cfg-nav-foot .wish-link { display: flex; margin-top: 14px; }
-.cfg-nav { --button-bg: var(--panel); }
-/* the right padding keeps a lane for the close button, so nothing scrolls under it or stands beside it */
-.cfg-main { position: relative; overflow-y: auto; padding: 26px 66px 0 40px; }
-.cfg-close { position: absolute; right: 22px; top: 14px; z-index: 2; }
-.cfg-sec { max-width: 1180px; padding-bottom: 32px; }
-.cfg-sec[hidden] { display: none; }
-:is(#config, #prefs, #project-settings) code, #phone code { font: 12px var(--mono); overflow-wrap: anywhere; }
+:is(#config, #prefs, #project-settings) code { font: 12px var(--mono); overflow-wrap: anywhere; }
 :is(#config, #prefs, #project-settings) .warn { color: var(--warn); }
 :is(#config, #prefs, #project-settings) .p-error { margin: 6px 0 0; font-size: 13px; }
-/* a repository's commands that wait for the owner's trust: each group's lines as a diff, the button below */
-.c-trust { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin-top: 8px; }
-.c-trust-group { align-self: stretch; }
-.c-trust-group > .hint { margin: 0 0 4px; }
-:is(#config, #prefs, #project-settings) textarea { width: 100%; }
-.cfg-head { margin-bottom: 14px; }
-.cfg-head h3 { margin: 0 48px 6px 0; font-size: 26px; line-height: 1.15; }
-.cfg-head.sub { margin-top: 30px; padding-top: 22px; border-top: 1px solid var(--line); }
-.cfg-head h4 { margin: 0 0 4px; font-size: 15px; }
-.cfg-head .hint { max-width: 76ch; margin: 0 0 4px; font-size: 13px; line-height: 1.5; }
-.cfg-head .cfg-file { font-size: 12px; }
-.cfg-head:not(.sub) + .cfg-head.sub { margin-top: 0; padding-top: 4px; border-top: 0; }
-/* a setting: its name on the left, the control and what to know about it on the right */
-.cfg-field { display: grid; grid-template-columns: 200px minmax(0, 1fr); column-gap: 24px; align-items: baseline; padding: 7px 0; font-size: 13.5px; }
-.cfg-label { color: var(--muted-foreground); font-size: 13px; }
-.cfg-control { min-width: 0; max-width: 640px; }
+/* what to know about a setting, under its control */
 .cfg-control > .hint { margin: 5px 0 0; font-size: 12.5px; line-height: 1.45; }
-.cfg-control > [data-slot=select-trigger], .cfg-control > .c-path { width: 100%; max-width: 420px; }
-.cfg-control > .c-style, .cfg-control > .c-sample { display: block; width: 100%; max-width: 420px; resize: vertical; }
-/* prose, not a path: the page's font */
-#config .cfg-control > :is(.c-style, .c-sample) { font-family: inherit; font-size: 13px; line-height: 1.45; padding: 6px 8px; }
-.cfg-control > [data-slot=button] { margin-top: 6px; }
-:is(#config, #prefs, #project-settings) [data-slot=check-label] { margin: 8px 0 0; }
-.cfg-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 0 56px; align-items: start; }
-.cfg-cols > .c-setup > .cfg-head.sub { margin-top: 0; padding-top: 0; border-top: 0; }
-/* the save buttons stay in view at the foot of the section */
-.cfg-actions { position: sticky; bottom: 0; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 20px;
-  padding: 14px 0 18px; background: color-mix(in srgb, var(--panel) 88%, transparent); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-top: 1px solid var(--line); }
-.cfg-actions .c-status { margin: 0; font-size: 12.5px; }
-.cfg-actions .cfg-json { margin: 0 0 0 auto; }
-.cfg-actions .cfg-json.on { background: var(--ink); color: var(--bg); }
-/* what to know about a field: an icon beside its label, shown only while the pointer is on the field or the
-   label (the nearest .cfg-has-info) or the field has the focus */
-.cfg-info { display: inline-flex; vertical-align: -3px; margin-left: 2px; padding: 0 1px; border: 0; background: none; color: var(--muted-foreground);
-  cursor: help; line-height: 0; opacity: 0; transition: opacity .12s; }
-.cfg-has-info:hover .cfg-info, .cfg-has-info:focus-within .cfg-info { opacity: 1; }
-.cfg-has-info:is(:hover, :focus-within) .cfg-has-info:not(:hover, :focus-within) .cfg-info { opacity: 0; }
-.cfg-info:hover, .cfg-info.on, :is(#config, #prefs, #project-settings) .cfg-info:focus-visible { opacity: 1; color: var(--ink); }
-.cfg-info:focus-visible { outline: 1px solid var(--muted-foreground); outline-offset: 1px; border-radius: 50%; }
-
-/* a project: its name as a heading line, its repositories as a table below it */
-/* a project as its own page: its title line, then each repository under a heading of its own, its
-   settings in groups under small headings */
-.cfg-project { padding: 0 0 8px; }
-.cfg-project-head { display: flex; align-items: baseline; gap: 12px; margin-right: 48px; }
-.cfg-project-head h3 { margin: 0 0 6px; min-width: 0; overflow-wrap: anywhere; }
-.cfg-project-head .qmoves { margin-left: auto; align-self: center; }
-.cfg-project-head .qmoves + .c-del { margin-left: 0; }
-.cfg-project-head > .c-del { align-self: center; }
-.cfg-project .cfg-name { width: 100%; max-width: 420px; }
-.cfg-old-names { margin: 0; padding: 0; list-style: none; max-width: 420px; }
-.cfg-old-names li { display: flex; align-items: center; gap: 10px; min-height: 30px; }
-.cfg-old-names li > .c-del { margin-left: 0; }
-.old-name-warning { padding: 8px 12px; border-radius: 4px; color: var(--error); background: color-mix(in srgb, var(--error) 10%, transparent); font-weight: 600; }
-.old-name-warning { margin: 0 0 12px; }
-.old-name-effects { margin: 0 0 12px; padding-left: 20px; line-height: 1.5; }
-[data-slot=confirm-dialog] .hint { margin: 0 0 18px; }
-.cfg-host { display: contents; }
-/* labels line up with the top of their controls, which are often several lines high */
-.cfg-project .cfg-field { align-items: start; }
-.cfg-project .cfg-field > .cfg-label { padding-top: 7px; }
-.cfg-repo-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
-.cfg-repo-tabs [data-variant=count] { margin-left: 6px; }
-.cfg-repo { margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
-.cfg-repo-path { display: flex; align-items: center; gap: 12px; max-width: 664px; }
-.cfg-repo-path > .c-path { flex: 1; }
-.cfg-repo-path > .c-del { margin-left: 0; }
-.cfg-repo-problem { margin: 2px 0 8px; }
-.cfg-repo > .c-row { margin: 6px 0 4px; max-width: 900px; }
-.cfg-group { margin-top: 18px; border-radius: 2px; }
-.cfg-group-head { margin: 0 0 2px; font-size: 11.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-foreground); }
-.cfg-group input[type=number] { width: 80px; }
-.cfg-existing { width: 100%; max-width: 640px; }
-:is(#config, #prefs, #project-settings) .cfg-existing { resize: none; overflow-y: hidden; }
-.cfg-wide .cfg-control { max-width: 900px; }
-.cfg-add-repo { margin-top: 22px !important; }
-.cfg-clone-leaving { margin: 5px 0 0; font-size: 12.5px; line-height: 1.45; }
-
-.cfg-group.flash { animation: cfg-flash 2.4s ease-out; }
-.cfg-setting.flash { animation: cfg-setting-flash 2.4s ease-out; }
-@keyframes cfg-setting-flash { 0%, 45% { background: color-mix(in srgb, var(--proposal) 14%, transparent); } }
-@keyframes cfg-flash { 0%, 45% { background: color-mix(in srgb, var(--working) 12%, transparent); } }
-
-.cfg-setting { align-items: start; }
-.cfg-setting .cfg-label { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; padding-top: 7px; }
-.cfg-source { font-size: 11.5px; color: color-mix(in srgb, var(--muted-foreground) 80%, var(--panel)); }
-.cfg-source.here { color: var(--working); }
-.cfg-reset { padding: 0; border: 0; background: none; color: var(--muted-foreground); font-size: 11.5px; text-decoration: underline; cursor: pointer; }
-.cfg-reset:hover { color: var(--ink); }
-.cfg-setting textarea { max-width: 640px; }
-/* "Take over into the repository for everyone": the file as it would be, where it goes, and what came of it */
-.cfg-share-settings { margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--line); }
-.cfg-share-settings .hint { max-width: 76ch; margin: 4px 0 0; }
-.cfg-share-settings .hint.ok { color: var(--ink); }
-.cfg-share-settings .hint.warn { color: var(--warn); }
-.cfg-share-confirm { max-width: 640px; }
-.cfg-share-confirm .c-json { margin: 6px 0 8px; white-space: pre-wrap; }
-.cfg-share-actions { display: flex; gap: 8px; }
-.cfg-plan { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; max-width: 640px; }
-/* a setting with several fields (the demo site), each labelled above it */
-.cfg-sub { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px 12px; max-width: 640px; }
-.cfg-sub > label, .cfg-sub > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.cfg-sub > .wide { grid-column: 1 / -1; }
-.cfg-sub > label > .hint, .cfg-sub > div > .hint { font-size: 11.5px; }
-.cfg-sub > div > [data-slot=toggle-group] { align-self: flex-start; }
-.cfg-sub input, .cfg-sub textarea { width: 100%; }
-.cfg-host-rows { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.3fr) minmax(0, 1.5fr) auto auto 24px; gap: 6px 10px; align-items: center; }
-.cfg-host-rows input { min-width: 0; width: 100%; }
-:is(#config, #prefs, #project-settings) .cfg-host-clones { display: flex; align-items: center; gap: 6px; }
-.cfg-host-clones > .hint { font-size: 11.5px; }
-:is(#config, #prefs, #project-settings) .cfg-host-clones input { width: 64px; }
-.cfg-host-rows + [data-slot=button] { margin-top: 6px; }
-.cfg-agents { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(130px, .85fr) minmax(160px, 1fr) minmax(100px, .65fr); gap: 0 14px; align-items: center; max-width: 1000px; }
-.cfg-agents > .hint { font-size: 11.5px; padding-bottom: 4px; }
-.cfg-agents > [data-slot=select-trigger] { min-width: 0; }
-.cfg-agent { display: flex; flex-direction: column; padding: 9px 0; font-size: 14px; }
-.cfg-agent > .hint { font-size: 12px; }
-@media (max-width: 900px) {
-  :is(#config, #prefs) { padding: 10px; }
-  .cfg-box { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
-  .cfg-nav { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 12px; }
-  .cfg-nav > .p-kind, .cfg-ask, .cfg-nav-foot { display: none; }
-  .cfg-nav h2 { margin: 0 8px 0 0; font-size: 20px; }
-  .cfg-nav ul { display: flex; flex-wrap: wrap; gap: 2px; padding-right: 36px; }
-  .cfg-close { right: 12px; top: 12px; }
-  .cfg-nav li button { width: auto; padding: 6px 10px; font-size: 13px; }
-  .cfg-main { padding: 18px 18px 0; }
-  .cfg-field { grid-template-columns: 1fr; row-gap: 4px; }
-  .cfg-nav-group { display: contents; }
-  .cfg-nav-group > ul { display: contents; }
-  .cfg-nav-title { padding: 6px 4px 6px 10px; font-size: 13px; }
-  .cfg-nav-group > ul > li > button { padding-left: 10px; }
-  .cfg-cols { grid-template-columns: 1fr; }
-  .cfg-agents { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, .8fr); }
-  .cfg-agent { grid-column: 1 / -1; padding-bottom: 2px; }
-  .cfg-agents > span:first-child { display: none; }
-}
-/* shared with the setup assistant */
-.c-project { margin: 16px 0 6px; padding: 12px 12px 10px; border: 1px solid var(--line); border-radius: 3px; }
-.c-project .p-error { margin: 4px 0 0; font-size: 12.5px; }
-.c-id { font: 11.5px var(--mono); color: var(--muted-foreground); }
-.c-id.fresh { color: var(--warn); }
-.c-del { margin-left: auto; }
-.c-remove svg { display: block; }
-/* a waste bin shows while the pointer or focus is on its entry; without a pointer that hovers, always */
-@media (hover: hover) {
-  .c-remove { opacity: 0; transition: opacity .12s; }
-  .cfg-project-head:hover > .c-remove, .cfg-project-head:focus-within > .c-remove, .cfg-repo-path:hover > .c-remove, .cfg-repo-path:focus-within > .c-remove,
-  .cfg-host:hover > .c-remove, .cfg-host:focus-within > .c-remove, .cfg-old-names li:hover > .c-remove, .cfg-old-names li:focus-within > .c-remove { opacity: 1; }
-}
-.c-row { display: flex; gap: 8px; align-items: center; margin: 4px 0; }
-.c-row .hint { font-size: 11.5px; min-width: 0; }
-/* the hint beside it wraps, the button keeps its label on one line */
-.c-row > [data-slot=button] { flex: none; }
-.c-path { flex: 1; min-width: 0; font-family: var(--mono) !important; font-size: 12px !important; }
-.c-problem { margin: 6px 0 0; font-size: 13px; }
-.c-problem code { display: block; margin-top: 4px; white-space: pre-wrap; overflow-wrap: break-word; }
-.c-problem > [data-slot=button]:not([data-variant=link]) { display: flex; width: fit-content; margin-top: 6px; }
-.c-actions { display: flex; gap: 8px; margin-top: 16px; }
-.c-install { display: flex; gap: 10px; align-items: center; margin: 4px 0; font-size: 12.5px; }
-.c-install .hint { margin: 0; }
-.c-install .c-step { flex: none; }
-.c-install code { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.c-status { margin-top: 8px; }
-/* what a machine needs: one line per piece, how to install a missing one below it */
-.c-setup > .hint:first-child { margin-top: 0; }
-.c-setup ul { list-style: none; padding: 0; margin: 6px 0; }
-.c-setup li { display: grid; grid-template-columns: 16px auto 1fr; column-gap: 8px; align-items: baseline; padding: 3px 0; font-size: 13px; }
-.c-setup li .hint { margin: 0; font-size: 12px; overflow-wrap: anywhere; }
-:is(#config, #prefs, #project-settings) .c-setup li { padding: 5px 0; font-size: 13.5px; border-bottom: 1px solid var(--line); }
-:is(#config, #prefs, #project-settings) .c-setup li:last-child { border-bottom: 0; }
-.c-mark { font-weight: 700; text-align: center; color: var(--approved); }
-.c-setup li.missing .c-mark { color: var(--error); }
-.c-setup li.later .c-mark { color: var(--muted-foreground); }
-.c-setup li.missing .c-name { font-weight: 600; }
-.c-how { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; margin: 3px 0 4px; }
-.c-how code { padding: 2px 6px; border-radius: 2px; background: var(--card); border: 1px solid var(--line); -webkit-user-select: all; user-select: all; }
-.c-how a { font-size: 12px; }
-.c-json { font: 11.5px/1.4 var(--mono); background: var(--chip); border-radius: 3px; padding: 10px; overflow: auto; }
 
 /* the plan doc, read in the widened sheet */
 .sheet.reading { width: var(--read-w); padding: 0 30px 40px; }
@@ -1103,7 +861,6 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 /* what the owner took back stays, struck through */
 
 .k-rest { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; }
-.k-rest .reshare { margin: 8px 0; }
 .fold-head { display: flex; align-items: center; gap: 6px; width: 100%; padding: 6px 2px; border: 0; background: none; font: inherit; font-size: 13px;
   font-weight: 600; color: var(--ink); text-align: left; cursor: pointer; border-radius: 2px; }
 .fold-head:hover { background: var(--chip); }
@@ -1114,33 +871,8 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .fold-body { padding: 0 0 10px 18px; }
 .fold-body > .hint:first-child { margin-top: 0; }
 
-/* the toasts (confirmations, what the server is still at, warnings, each command's line), stacked in the bottom right corner, newest last */
-#acks { position: fixed; right: calc(var(--side, 0px) + 14px); transition: right .45s cubic-bezier(.3,.9,.3,1); bottom: 46px; z-index: 90; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; pointer-events: none; }
-.toast { background: var(--ink); color: var(--bg); border-radius: 3px; padding: 12px 16px; max-width: min(560px, max(300px, calc((100vw - var(--left, 0px) - var(--side, 0px)) / 2 - 110px)), calc(100vw - var(--left, 0px) - var(--side, 0px) - 32px)); font-size: 14px;
-  display: flex; gap: 14px; align-items: center; pointer-events: auto; }
+/* the rating's stars come up as a toast does (`.rate-pop`); the toasts themselves are Tailwind in components/toast.tsx */
 @keyframes toast-in { from { opacity: 0; transform: translateY(12px); } }
-.toast b { font-weight: 600; }
-.toast.wait::before { content: ""; flex: none; width: 12px; height: 12px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--bg) 25%, transparent); border-top-color: var(--bg); animation: spin .8s linear infinite; }
-.toast button { background: transparent; border: 1px solid color-mix(in srgb, var(--bg) 40%, transparent); color: var(--bg); border-radius: 2px; padding: 3px 10px; cursor: pointer; flex: none; }
-/* a line with a button for each of several new cards: the words above, the buttons wrapping under them */
-.toast.several { flex-wrap: wrap; gap: 10px 8px; }
-.toast.several > span { flex-basis: 100%; }
-.toast.several button { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.toast.warning { background: color-mix(in srgb, var(--warn) 22%, var(--panel)); color: var(--ink); box-shadow: var(--shadow); outline: 1px solid color-mix(in srgb, var(--warn) 45%, transparent); }
-.toast.warning button { border-color: var(--warn); color: var(--warn); }
-.toast.reading { background: var(--panel); color: var(--muted-foreground); box-shadow: var(--shadow); padding: 7px 14px; font-size: 13px; }
-.toast.reading::before { content: ""; flex: none; width: 10px; height: 10px; border-radius: 50%; border: 2px solid transparent; border-top-color: var(--working); animation: spin .8s linear infinite; }
-/* the stack itself is Sonner's (components/sonner.tsx): it stands above what else `#acks` holds, its bottom edge on that column's top;
-   a toast is as wide as its words, to the right on the project, centred on the phone, where `.swipeable` ones are swiped aside; until that has
-   happened once, each nudges aside and back */
-#acks [data-sonner-toaster] { position: absolute; top: auto; bottom: calc(100% + 6px); left: auto; right: 0; width: 0; transform: none; --width: max-content; }
-#acks [data-sonner-toast] { width: max-content; max-width: inherit; left: auto; right: 0; pointer-events: none; }
-.ph-view ~ #acks [data-sonner-toaster] { left: 0; right: 0; width: auto; }
-.ph-view ~ #acks [data-sonner-toast] { left: 0; right: 0; width: 100%; }
-.ph-view ~ #acks :is([data-content], [data-title]) { display: flex; justify-content: center; width: 100%; }
-.toast.swipeable { user-select: none; -webkit-user-select: none; }
-.toast.nudge:not(.reading) { animation: toast-nudge .9s .7s ease-in-out; }
-@keyframes toast-nudge { 30% { transform: translateX(36px); } 55% { transform: translateX(-10px); } 75%, 100% { transform: none; } }
 /* `/` in a card's field: the skills of its agent that fit, over the conversation just above the field */
 .skill-menu { position: absolute; left: 0; right: 0; bottom: 100%; margin-bottom: 4px; z-index: 5; max-height: min(320px, 45vh); overflow: hidden auto;
   border: 1px solid var(--line); border-radius: 3px; background: var(--card); box-shadow: 0 6px 20px rgb(0 0 0 / 14%); font-size: 13px; }
@@ -1303,123 +1035,10 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .rname { position: absolute; left: -80px; top: -16px; width: 160px; height: 32px; box-sizing: border-box; border-radius: 3px; border: 1.5px solid var(--working);
   background: var(--card); color: var(--ink); font: 14px var(--font); padding: 0 12px; text-align: center; outline: none; box-shadow: 0 0 18px color-mix(in srgb, var(--working) 40%, transparent); }
 
-/* the setup assistant: the whole page on the first start, over the project from the settings */
-.setup { position: fixed; inset: 0; overflow-y: auto; z-index: 80; }
-.setup.first { background: var(--bg); }
-.setup.over { background: var(--dim); }
-.setup-page { max-width: 720px; margin: 48px auto; padding: 22px 28px 26px; }
-/* over the project the dialog stays within the window: its head stays, the rest scrolls inside */
-.setup.over { display: flex; padding: 48px 24px; overflow: hidden; }
-.setup.over .setup-page { box-sizing: border-box; width: 100%; max-height: 100%; margin: 0 auto; display: flex; flex-direction: column; padding-right: 0; padding-bottom: 0; }
-.setup.over .setup-head { flex: none; padding-right: 28px; }
-.setup.over .setup-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 0 28px 26px 0; }
-.setup.first .setup-page { margin-top: 56px; }
-.setup-head { display: flex; align-items: center; gap: 14px; }
-.setup-head h2 { margin: 2px 0 0; }
-.setup-lang, .setup-close { margin-left: auto; }
-.setup-lang { font-size: 13px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 2px; background: var(--card); color: var(--ink); }
-.setup-intro { font-size: 13.5px; line-height: 1.5; margin: 14px 0 4px; }
-.setup-pages { margin: 4px 0 10px; }
-.setup-sh { display: flex; align-items: baseline; gap: 8px; margin-bottom: 2px; }
-.setup-sh > .hint { font-size: 12px; }
-.setup-tag { font-size: 11px; padding: 1px 8px; border-radius: 3px; background: var(--chip); color: var(--muted-foreground); }
-.setup-tag.needed { background: var(--ink); color: var(--bg); }
-.setup-ok { margin-left: auto; font-size: 12px; color: var(--error); }
-.setup-ok.on { color: var(--approved); }
-.setup .c-setup > .hint { margin: 2px 0 6px; }
-.setup .c-setup li { grid-template-columns: 16px 210px 1fr; }
-.c-act { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 2px 0 4px; }
-.c-act .p-error { margin: 0; font-size: 12.5px; }
-.c-act .c-install { margin: 0; min-width: 0; }
-.c-voice { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; width: 100%; }
-.c-voice .warn, .c-setup li .c-voice .hint.warn { color: var(--warn); }
-.c-cloud { display: flex; flex-direction: column; gap: 5px; width: 100%; max-width: 460px; box-sizing: border-box; padding: 8px 10px; border-radius: 6px; background: var(--chip); font-size: 12.5px; }
-.c-cloud .c-row { display: flex; gap: 6px; }
-.c-cloud [data-slot=select-trigger] { font-size: 12.5px; padding: 4px 6px; box-sizing: border-box; }
-.c-cloud > input, .c-cloud .c-row input { flex: 1; min-width: 0; width: 100%; }
-.c-cloud-go { justify-content: space-between; align-items: center; }
-.c-setup li.slow .c-mark, .c-setup li.slow > .hint { color: var(--warn); }
-.c-cmd { display: inline-flex; align-items: baseline; gap: 4px; max-width: 100%; }
-.c-cmd code { min-width: 0; overflow-wrap: anywhere; }
-.c-copy { border: 0; background: transparent; color: var(--muted-foreground); font-size: 11.5px; cursor: pointer; padding: 0 2px; text-decoration: underline dotted; }
-.c-copy:hover { color: var(--ink); }
-.setup-identity input { width: 170px; }
-.setup-first { border-width: 2px; }
-.setup-first .warn { color: var(--warn); }
-/* "Wo liegt dein Projekt?": two cards with a radio button each, the fields for the one chosen below */
-.setup-where { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0 10px; }
-.setup-where > b { grid-column: 1 / -1; }
-.setup-first label.setup-choice { display: grid; grid-template-columns: auto 1fr; align-content: start; align-items: center; column-gap: 10px; row-gap: 2px; margin: 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
-.setup-first label.setup-choice:hover { border-color: var(--ink); }
-.setup-first label.setup-choice.on { border: 2px solid var(--ink); padding: 11px 13px; }
-.setup-choice .hint { grid-column: 2; }
-.setup-first label { display: block; margin: 6px 0; }
-.setup-first label:not(.setup-choice) > .hint { display: block; font-size: 11.5px; margin-bottom: 2px; }
-.setup-first .c-path { width: 100%; padding: 7px 9px; }
-.setup-pick { margin-top: 0 !important; flex: none; }
-.setup-saved { font-size: 13.5px; color: var(--ink); }
-/* setting up git in a folder: the offer, then what the first commit holds */
-.git-setup { margin: 8px 0; }
-.git-setup > b { display: block; margin-top: 4px; }
-.git-setup p { margin: 4px 0; }
-/* a folder without git: use it as it is, or set up git there; each with what it means */
-.git-choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; max-width: 720px; margin: 6px 0; }
-.git-choice { display: grid; gap: 3px; align-content: start; text-align: left; font: inherit; color: inherit; background: none; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
-.git-choice:hover:not(:disabled) { border-color: var(--ink); }
-.git-choice .hint { font-size: 11.5px; }
-.git-entries { list-style: none; margin: 6px 0; padding: 0; max-width: 640px; columns: 2 260px; column-gap: 24px; }
-.git-entries li { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0; break-inside: avoid; }
-.git-setup code { font: 12.5px var(--mono); background: none; border: 0; padding: 0; }
-.git-entries li code { overflow-wrap: anywhere; }
-.git-entries li .hint { flex: none; }
-.git-entries li.large, .git-entries li.large .hint { color: var(--warn); }
-.git-large { margin: 8px 0; }
-.git-ignore-file pre { font: 12px var(--mono); margin: 6px 0; padding: 8px 10px; background: var(--card); border: 1px solid var(--line); border-radius: 4px; }
-.setup code { font: 12px var(--mono); }
-.setup .c-how code { padding: 2px 6px; border-radius: 2px; background: var(--card); border: 1px solid var(--line); -webkit-user-select: all; user-select: all; }
 
-/* "Connect a phone" (access.tsx): the QR code beside the address and the code to type */
-#phone .box { position: relative; padding: 22px 26px 20px; width: 680px; max-width: 100%; max-height: 100%; overflow: auto; font-size: 14px; }
-#phone h2 { margin: 0 0 16px; font-size: 23px; }
-#phone .close { position: absolute; right: 14px; top: 12px; }
-#phone .cfg-field { grid-template-columns: 150px minmax(0, 1fr); }
-.acc-pair { display: flex; gap: 26px; align-items: flex-start; }
-.acc-pair p { margin: 0 0 10px; line-height: 1.45; }
-.acc-qr { flex: none; border-radius: 3px; box-shadow: var(--shadow); }
-.acc-code { font: 600 34px/1.1 var(--mono); letter-spacing: .08em; margin: 4px 0 6px !important; }
-.acc-address { font-size: 13px !important; }
-.acc-connected { font-size: 18px; font-weight: 600; margin: 8px 0; }
-.acc-connected::before { content: "✓ "; color: var(--approved); }
-.acc-foot { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); }
-.acc-state.ok::before { content: "✓ "; color: var(--approved); }
-.acc-step { margin: 4px 0 0 !important; }
-.acc-alone { color: var(--warn) !important; font-weight: 600; }
-.acc-devices { list-style: none; margin: 0; padding: 0; max-width: 720px; }
-.acc-devices li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 18px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }
-.acc-name { font-weight: 600; }
-.acc-connect { margin-top: 12px; }
-.acc-note { margin-top: 18px; max-width: 76ch; }
-
-/* ---------------------------------------------------------------- the phone view (phone.tsx) */
-.ph-view { position: fixed; inset: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
-  padding: env(safe-area-inset-top) max(14px, env(safe-area-inset-right)) calc(157px + env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); }
-.ph-bar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 10px; min-height: 52px; margin: 0 -14px; padding: 6px 14px;
-  background: var(--bg); border-bottom: 1px solid var(--line); }
-.ph-home .ph-word { font: 600 22px/1 var(--font); }
-.ph-back { display: inline-flex; align-items: center; gap: 2px; min-height: 40px; padding: 0 12px 0 6px; border: 0; border-radius: 3px;
-  background: var(--chip); font-size: 16px; cursor: pointer; }
-.ph-project { margin-left: auto; color: var(--muted-foreground); font-size: 13px; }
-.ph-quiet { position: sticky; top: 60px; z-index: 5; margin: 12px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--ink); color: var(--bg); display: flex; flex-direction: column; gap: 2px; font-size: 13.5px; }
-.ph-quiet b { font-weight: 600; font-size: 14.5px; }
-.ph-notify { margin: 14px 0 0; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--glass-edge); background: var(--card); box-shadow: inset 0 1px 0 var(--glass-hi), var(--shadow); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); font-size: 14.5px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
-.ph-section { margin-top: 22px; }
-.ph-section h2 { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font: 600 21px/1.15 var(--font); }
-
+/* ---------------------------------------------------------------- the phone view (phone.tsx; its own controls are Tailwind there) */
 /* the lists' rows are the cards of the project, as wide as the screen: the state's rule across the top, an idea's
    stock, the owner's turn framed and pinned, the state line in its colour */
-/* one column held upright, two (or more) side by side once the screen is wide enough, the phone turned, say */
-.ph-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 14px; }
-.ph-list > li { display: flex; }
 .ph-card { position: relative; display: flex; flex-direction: column; width: 100%; text-align: left; color: var(--ink); border: 0; padding: 14px 14px 12px; }
 .ph-card:hover { transform: none; }
 .ph-card:active { transform: translateY(1px); }
@@ -1432,96 +1051,23 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .ph-card .state .since { color: var(--muted-foreground); font-weight: 500; white-space: pre; }
 /* everything in "Needs you" waits for the owner: the heading says so, no pin on each card */
 .ph-card [data-slot=badge][data-variant=pin] { display: none; }
-.ph-none { margin: 0; color: var(--muted-foreground); font-size: 14.5px; }
-/* the Agents view's tabs across the screen, and the stage chips in one row that scrolls sideways, sized for a finger */
-#ph-home .agents-tabs { display: flex; width: 100%; margin-top: 14px; }
-#ph-home .agents-tabs [data-slot=tabs-trigger] { flex: 1; display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 4px; font-size: 15px; }
-#ph-home .agents-filter { flex-wrap: nowrap; overflow-x: auto; margin: 12px -14px 0; padding: 0 14px 2px; scrollbar-width: none; }
-#ph-home .agents-filter::-webkit-scrollbar { display: none; }
-#ph-home .agents-filter [data-slot=toggle-group-item] { flex: none; min-height: 36px; padding: 0 14px; font-size: 14px; }
-#ph-home .agents-filter [data-slot=toggle-group-item] span { font-size: 13px; }
-/* a stage's count beside its heading, trimmed to its capitals so it centres on what the eye sees */
-.ph-empty { margin-top: 18px; line-height: 1.45; }
 /* the queue's rows sized for a finger: its card's face larger, a row of its own per card */
 #ph-home .qlist li { gap: 12px; padding: 12px 10px; margin-bottom: 8px; border-radius: 3px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); font-size: 14.5px; }
 #ph-home .qlist .face-xs .f-ttl { font-size: 16.5px; }
 #ph-home .qlist .face-xs .f-line { font-size: 13.5px; }
 #ph-home .qlist .face-xs .f-words { white-space: normal; }
-/* the cards snoozed while they waited stand under it, as far off as the cards from each other */
-.ph-none + .ph-list { margin-top: 14px; }
-/* Seismic's conversation: a panel from below over the list, in the part of the screen the keyboard leaves;
-   only the conversation scrolls, the field stands under it, and below that the room of the microphone */
-.ph-panel { --ph-h: 1; top: calc(100% * (1 - var(--ph-h))); bottom: auto; height: calc(100% * var(--ph-h)); z-index: 20; overflow: hidden; display: flex; flex-direction: column;
-  padding-bottom: calc(87px + env(safe-area-inset-bottom)); background: var(--bg); box-shadow: 0 -6px 24px rgba(0, 0, 0, .12);
-  animation: ph-up .22s ease-out; transition: transform .2s ease-out, top .2s ease-out, height .2s ease-out; }
-.ph-panel.dragging { transition: none; }
-.ph-panel.leaving { transform: translateY(100%); }
-.ph-panel::after { display: none; }
-@keyframes ph-up { from { transform: translateY(100%); } }
-/* `--ph-h`: its height as a share of the screen the keyboard leaves, the one the owner dragged it to (set on the panel)
-   or the one it opens with: beside a demo video the lower half, so the video stays in view above it */
-.ph-panel.half { --ph-h: .52; }
-.ph-panel:is(.half, .part) { border-top: 1px solid var(--line); }
-.ph-panel:has(#ph-card-talk) .ph-grip .ph-word { font-size: 18px; }
-/* the page scrolls on under a panel lower than the screen, so all of it can stand above it (`--ph-panel`: its height) */
-.ph-view:has(~ .ph-panel) { padding-bottom: max(calc(157px + env(safe-area-inset-bottom)), calc(var(--ph-panel, 0px) + 20px)); }
-/* its top is the grip: the panel follows the finger up and down, and closes when let go near the bottom */
-.ph-grip { touch-action: none; -webkit-user-select: none; user-select: none; padding-top: 14px; cursor: ns-resize; }
-.ph-grip::before { content: ""; position: absolute; left: 50%; top: 5px; width: 40px; height: 4px; margin-left: -20px; border-radius: 2px;
-  background: color-mix(in srgb, var(--ink) 22%, transparent); }
-.ph-grip .ph-word { font: 600 21px/1 var(--font); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.ph-talk { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: flex-end; padding-top: 12px; }
-.ph-talk > :is(.conv, .talk) { flex: 0 1 auto; min-height: 0; max-height: none; max-width: none; }
-/* a card's conversation: the panel's top names the card, no heading above the conversation */
-#ph-card-talk > .p-h { display: none; }
-/* while the keyboard is up the field has its own microphone: the field stands right above the keyboard */
-.ph-kb .ph-panel { padding-bottom: 10px; }
-.ph-panel ~ #acks { bottom: calc(var(--ph-field, 0px) + 97px + env(safe-area-inset-bottom)); }
-
-/* a card opened: full screen, in its state's colour along the top */
-/* the list fades out under the microphone */
-.ph-view::after { content: ""; position: fixed; left: 0; right: 0; bottom: 0; height: calc(87px + env(safe-area-inset-bottom)); z-index: 4;
-  background: linear-gradient(transparent, var(--bg) 65%); pointer-events: none; }
-#ph-card::before { content: ""; position: fixed; left: 0; right: 0; top: 0; height: 4px; background: var(--c); z-index: 6; }
-.ph-sheet { padding-top: 14px; }
-/* a phone's browser zooms into a text field written smaller than 16 px */
-.ph-view textarea, .ph-view select, .ph-view [data-slot=select-trigger], .ph-view input { font-size: 16px; }
-/* no pointer hovers on a phone: the reply button shows on every message */
-.ph-view .talk .msg > .msg-reply { opacity: .75; }
-.ph-view ~ #ptt, .ph-view ~ #acks { left: 50%; }
-.ph-view ~ #acks { right: auto; transform: translateX(-50%); align-items: center; transition: none; }
-.ph-view ~ #ptt { bottom: calc(18px + env(safe-area-inset-bottom)); }
-.ph-view ~ #acks { bottom: calc(91px + env(safe-area-inset-bottom)); width: calc(100vw - 24px); }
-.ph-view ~ #acks .toast { max-width: 100%; }
-/* a warning's words take the phone's width, its buttons under them */
-.ph-view ~ #acks .toast.warning { flex-wrap: wrap; justify-content: flex-end; gap: 10px 8px; }
-.ph-view ~ #acks .toast.warning > span { flex-basis: 100%; }
+/* the microphone in the phone's views, centred under them and larger (the phone's toasts are `phoneAcksClass`) */
+.ph-view ~ #ptt { left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); }
 .ph-view ~ #ptt #mic { width: 68px; height: 68px; }
-/* the list's plus button, in the microphone's place and of its size: a new card */
-.ph-new { position: fixed; z-index: 50; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); transform: translateX(-50%);
-  width: 68px; height: 68px; border-radius: 50%; border: 0; padding: 0; display: grid; place-items: center; cursor: pointer;
-  background: var(--card); color: var(--ink); box-shadow: var(--lift); -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
-.ph-new:active { box-shadow: var(--shadow); transform: translateX(-50%) translateY(1px); }
-.ph-new:disabled { color: var(--muted-foreground); cursor: default; }
 
 /* the cursor in a field says where the words go: a line under the microphone would lift it onto the field */
 /* the microphone is held by a finger: no long-press menu, no text selected */
 #mic, [data-slot=prompt-input-button] { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: none; }
 /* while the keyboard is up the field has its own microphone: the big one would stand over the field */
-.ph-kb .ph-view ~ :is(#ptt, .ph-new), .ph-kb .ph-view::after { display: none; }
+.ph-kb .ph-view ~ #ptt { display: none; }
 /* the phone turned: the height is short, so the microphone moves to the right edge, where the thumb holds the phone,
-   in a strip of its own beside the cards; no fade at the bottom, a slimmer bar, the sign's bar scrolls away */
+   in a strip of its own beside the cards */
 @media (orientation: landscape) and (max-height: 599px) {
-  .ph-view { --ph-side: calc(112px + env(safe-area-inset-right));
-    padding: env(safe-area-inset-top) var(--ph-side) calc(24px + env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); }
-  .ph-view::after { display: none; }
-  .ph-bar { min-height: 42px; padding: 3px 14px; margin-right: calc(-1 * var(--ph-side)); padding-right: max(14px, env(safe-area-inset-right)); }
-  .ph-home.ph-bar { position: static; }
-  .ph-home .ph-word { font-size: 19px; }
-  .ph-back { min-height: 36px; }
-  .ph-quiet { top: 50px; }
-  #ph-home .ph-quiet { top: 8px; }
-  .ph-section { margin-top: 14px; }
   .ph-view ~ #ptt { left: auto; right: env(safe-area-inset-right); width: 112px; top: calc(50% - 34px); bottom: auto; transform: none; }
   .ph-view ~ #ptt .ptt-error { max-width: 104px; }
   /* the screenshot button and the screenshots above the microphone, not beside it */
@@ -1529,17 +1075,6 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
   .ph-view ~ #ptt .c-shots { flex-direction: column-reverse; }
   .ph-view ~ #ptt .ptt-files { flex-direction: column-reverse; flex-wrap: nowrap; max-width: 104px; }
   .ph-view ~ #ptt .c-file { max-width: 104px; }
-  .ph-view ~ #acks { bottom: calc(14px + env(safe-area-inset-bottom));
-    width: calc(100vw - 112px - env(safe-area-inset-right) - 24px); }
-  .ph-new, .ph-new:active { left: auto; right: calc(56px + env(safe-area-inset-right)); translate: 50% 0; top: calc(50% - 34px); bottom: auto; transform: none; }
-  /* the panel needs no room under the field: the microphone stands beside it */
-  .ph-grip { padding-top: 10px; }
-  /* half of 400 px leaves no room for a conversation, and the video does not fit above it anyway */
-  .ph-panel.half { --ph-h: 1; }
-  .ph-view:has(~ .ph-panel) { padding-bottom: max(calc(24px + env(safe-area-inset-bottom)), calc(var(--ph-panel, 0px) + 20px)); }
-  /* while the keyboard is up the strip is empty (the field has its own microphone): the field takes its width */
-  .ph-kb .ph-panel { padding-right: max(14px, env(safe-area-inset-right)); }
-  .ph-panel ~ #acks { bottom: calc(var(--ph-field, 0px) + 34px + env(safe-area-inset-bottom)); }
 }
 
 /* a review card: the checks and merge probe, and its findings, each to decide on */
@@ -1570,11 +1105,6 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .finding .f-choices { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
 
 /* Finding badges and the open findings counted beside the Review tab. */
-/* "Reviews happen" under the toggle of code reviews */
-.cr-when { margin-top: 12px; }
-.cr-when > .hint:first-child { display: block; font-size: 12.5px; }
-.cr-when [data-slot=check-label] { margin-top: 6px; }
-.cr-when > p.hint { margin: 8px 0 0; }
 .finding .f-sev, .rv-count { --sev: var(--asking); }
 .finding .f-sev.blocker, .rv-count.blocker { --sev: #93409b; }
 .finding .f-sev.critical, .rv-count.critical { --sev: #d00018; }
@@ -1645,36 +1175,6 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .tell-hint { display: flex; align-items: center; gap: 4px; margin: -2px 0 8px; font-size: 11px; color: var(--muted-foreground); }
 .tell-hint span { flex: 1; min-width: 0; }
 
-/* this machine's demo sites (Configuration → Demos), adding one, and a project's demo site */
-.personal-site { margin-top: 32px; }
-.cfg-narrow { max-width: 620px; }
-.cfg-narrow > [data-slot=toggle-group] { margin-top: 4px; }
-.cfg-narrow > .hint { margin: 6px 0; }
-.personal-url { font-size: 15px; margin: 0 0 6px; }
-.personal-private { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; }
-.personal-private li { display: flex; align-items: center; gap: 8px; font-size: 13.5px; }
-.cfg-sub > .tag-propose { flex-direction: column; align-items: flex-start; gap: 6px; }
-.tag-propose > .hint { margin: 0; }
-.personal-actions { display: flex; gap: 8px; align-items: center; margin: 10px 0 4px; }
-.cfg-narrow > [data-slot=button][data-variant=primary] { margin: 4px 0 8px; }
-.site-account { display: grid; gap: 6px; margin: 2px 0 10px; max-width: 520px; }
-.site-account label { display: flex; flex-direction: column; gap: 3px; }
-.site-account label:first-child { flex-direction: row; align-items: center; gap: 8px; }
-.site-account [data-slot=select-trigger] { font: inherit; font-size: 13px; }
-.cfg-narrow > [data-slot=button][data-variant=link] { display: block; margin-top: 10px; font-size: 13px; }
-.personal-connect { margin-top: 12px; }
-.demo-site { padding: 10px 0; border-bottom: 1px solid var(--line); }
-.demo-site:first-of-type { padding-top: 0; }
-.demo-site > .hint { margin: 2px 0; }
-.demo-site + [data-slot=button] { margin-top: 12px; }
-.personal-url a, .site-init a { color: var(--working); text-decoration: underline 1px currentColor; text-underline-offset: .2em; }
-.add-site-back { display: inline-block; margin: 0 0 12px; font-size: 13.5px; }
-.add-site { display: flex; flex-direction: column; align-items: stretch; gap: 8px; margin-top: 10px; }
-.add-site > [data-slot=toggle-group] { align-self: flex-start; }
-.add-site > .hint, .add-site > .p-error { margin: 0; }
-.add-site > [data-slot=check-label] { font-size: 13.5px; }
-.site-init > .hint { margin: 4px 0; }
-.site-init .personal-actions { margin: 6px 0 2px; }
 
 /* Owner-drawn dependencies and their edge handles. */
 .manual-deps { position: absolute; left: 0; top: 0; overflow: visible; z-index: 3; pointer-events: none; }
@@ -1730,110 +1230,6 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .ph-card .state .doing { white-space: pre; }
 .ph-card .state.doing-now::after { margin-left: 0; bottom: 0; }
 
-/* feedback on approved work (feedback.tsx): on the card, and above the microphone right after the approval */
-.rate { margin: 18px 0 0; padding: 12px 16px; border-radius: 3px; border: 1px solid var(--line); max-width: 80ch; font-size: 14px; }
-.rate-row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; }
-.rate-q { font-weight: 600; }
-.stars { display: inline-flex; }
-.star { background: none; border: none; padding: 0 3px; font-size: 22px; line-height: 1; cursor: pointer; color: var(--muted-foreground); }
-.star.on { color: #e0a400; }
-.star:disabled { cursor: default; }
-.rate-name { color: var(--muted-foreground); }
-.rate.prompt .rate-q { flex-basis: 100%; }
-.rate-skip { margin-left: auto; }
-.rate-comment { display: flex; align-items: flex-end; gap: 10px; margin-top: 10px; }
-.rate-comment textarea { flex: 1; min-height: 3.2em; }
-.rate-given { margin: 0; color: var(--muted-foreground); font-style: italic; }
-.rate .hint, .rate .p-error { margin: 8px 0 0; }
-.rate-pop { pointer-events: auto; animation: toast-in .25s; }
-.rate.prompt { margin: 0; width: min(560px, calc(100vw - var(--left, 0px) - var(--side, 0px) - 32px)); background: var(--panel); box-shadow: inset 0 1px 0 var(--glass-hi), var(--lift); border: 1px solid var(--glass-edge); border-radius: 14px; }
-@media (pointer: coarse) { .star { font-size: 28px; padding: 0 5px; } }
-
-/* The performance dashboard: over the page as the configuration is, a table of the owner's ratings by model and effort */
-.perf-box { flex: 1; min-width: 0; position: relative; display: flex; }
-.perf-main { flex: 1; overflow-y: auto; padding: 26px 66px 32px 40px; }
-.perf-main > * { max-width: 980px; }
-.perf-table td:nth-child(4), .perf-table thead th:nth-child(4) { width: 45%; }
-.perf-head { display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap; }
-.perf-head h2 { margin: 0; font-size: 26px; }
-.perf-head .hint { margin: 0; }
-.perf-about { margin: 6px 0 18px; line-height: 1.45; }
-.perf-bar { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
-.perf-filters { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
-.perf-choice { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted-foreground); }
-.perf-clear { font-size: 13px; padding-bottom: 9px; }
-.perf-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-.perf-table th, .perf-table td { padding: 7px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
-.perf-table thead th { font-size: 12px; font-weight: 600; color: var(--muted-foreground); white-space: nowrap; }
-.perf-table td:last-child, .perf-table thead th:last-child { padding-left: 18px; }
-.perf-table .num { text-align: right; font-variant-numeric: tabular-nums; width: 1%; white-space: nowrap; }
-.perf-table tr.perf-group th { font-weight: 600; background: color-mix(in srgb, var(--chip) 70%, transparent); padding-top: 6px; padding-bottom: 6px; }
-.perf-table tbody th[scope="row"] { font-weight: 400; }
-.perf-row.few td, .perf-row.few .perf-expand { color: var(--muted-foreground); }
-.perf-expand { display: inline-flex; align-items: center; gap: 6px; padding: 2px 0; color: var(--ink); }
-.perf-expand:hover { text-decoration: underline; text-underline-offset: 3px; }
-.perf-caret { display: inline-flex; vertical-align: middle; width: 12px; color: var(--muted-foreground); font-size: 11px; }
-.perf-model { font: 13px var(--mono); }
-.perf-special { font-style: italic; }
-.perf-tag { display: inline-block; margin-left: 8px; padding: 0 7px; border: 1px solid var(--muted-foreground); border-radius: 9px; font-size: 11px; color: var(--muted-foreground); line-height: 16px; vertical-align: 1px; }
-.perf-spread { display: flex; width: 100%; max-width: 260px; min-width: 120px; height: 14px; border-radius: 2px; overflow: hidden; background: var(--line); }
-.perf-spread > span { display: block; height: 100%; }
-.perf-row.few .perf-spread { opacity: .6; }
-.perf-r1 { --r: color-mix(in srgb, var(--error) 85%, var(--panel)); } .perf-r2 { --r: color-mix(in srgb, var(--waiting) 70%, var(--panel)); }
-.perf-r3 { --r: color-mix(in srgb, var(--planned) 70%, var(--panel)); } .perf-r4 { --r: color-mix(in srgb, var(--approved) 55%, var(--panel)); } .perf-r5 { --r: var(--approved); }
-.perf-spread > span { background: var(--r); }
-.perf-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 10px 0 0; font-size: 12px; color: var(--muted-foreground); }
-.perf-key::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; background: var(--r); }
-.perf-dots { position: relative; display: block; min-width: 160px; height: 32px; margin: 0 26px; }
-.perf-dots .perf-axis { position: absolute; left: 0; right: 0; top: 50%; border-top: 1px dashed var(--line); }
-.perf-dots i { position: absolute; z-index: 1; border-radius: 50%; background: var(--working); opacity: .7; }
-.perf-sizes { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
-.perf-sizes > span { display: inline-flex; align-items: center; gap: 4px; }
-.perf-sizes i { display: inline-block; border-radius: 50%; background: var(--working); opacity: .7; }
-.perf-dots b { position: absolute; top: 1px; bottom: 1px; width: 2px; margin-left: -1px; background: var(--ink); opacity: .55; }
-.perf-row.few .perf-dots i { background: var(--muted-foreground); }
-.perf-scale { position: relative; display: block; height: 1.2em; margin: 0 26px; font-weight: 400; }
-.perf-scale span { position: absolute; transform: translateX(-50%); }
-.perf-detail > td { background: color-mix(in srgb, var(--chip) 35%, transparent); padding: 4px 8px 10px 28px; }
-.perf-responses { list-style: none; margin: 0; padding: 0; }
-.perf-responses li { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 8px 0; border-bottom: 1px solid var(--line); }
-.perf-responses li:last-child { border-bottom: 0; }
-.perf-r-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.perf-r-ctx, .perf-r-config { font-size: 12.5px; }
-.perf-r-comment { margin: 2px 0 0; font-size: 13.5px; color: var(--ink); white-space: pre-wrap; }
-.perf-stars { color: var(--waiting); letter-spacing: 1px; white-space: nowrap; font-size: 15px; }
-.perf-stars .off { color: var(--line); }
-.perf-few-note { margin: 0 0 6px; }
-.perf-empty { text-align: center; padding: 48px 10px; }
-.perf-empty h3 { font-family: var(--font); font-weight: 500; font-size: 20px; margin: 0 0 6px; }
-.perf-empty > [data-slot=button] { margin-top: 8px; }
-.rate-compare { margin-top: 6px; font-size: 13px; }
-:is(#config, #prefs, #project-settings) .cfg-perf { margin-top: 10px; }
-@media (max-width: 700px) { #perf { padding: 10px; } .perf-main { padding: 20px 56px 24px 18px; } .perf-spread, .perf-dots { min-width: 100px; } }
-.perf-to-log { margin-left: auto; font-size: 13.5px; }
-a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: underline 1px currentColor; }
-/* the Agent Feedback Log: a page of its own in place of the project */
-#flog { position: fixed; inset: 0; overflow-y: auto; background: var(--panel); }
-.flog-main { max-width: 1500px; margin: 0 auto; padding: 22px 40px 48px; }
-.flog-back { display: inline-block; font-size: 13.5px; margin-bottom: 14px; }
-.flog-main h1 { margin: 0; font-size: 26px; }
-.flog-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-.flog-table th, .flog-table td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: baseline; }
-.flog-table thead th { font-size: 12px; font-weight: 600; color: var(--muted-foreground); white-space: nowrap; position: sticky; top: 0; background: var(--panel); z-index: 1; }
-.flog-when, .flog-stars { white-space: nowrap; }
-.flog-card { min-width: 180px; max-width: 320px; }
-.flog-comment { min-width: 220px; white-space: pre-wrap; }
-.flog-group th { background: color-mix(in srgb, var(--chip) 70%, transparent); padding-top: 14px; }
-.flog-group-name { font-weight: 600; margin-right: 12px; }
-.flog-group .hint { font-weight: 400; font-size: 12.5px; }
-.perf-trend { margin: 0 0 18px; }
-.perf-trend svg { display: block; width: 100%; height: auto; overflow: visible; }
-.perf-grid { stroke: var(--line); }
-.perf-axis-text { fill: var(--muted-foreground); font-size: 12px; }
-.perf-line-key::before { content: ""; display: inline-block; width: 14px; height: 3px; border-radius: 2px; margin-right: 5px; vertical-align: 3px; background: var(--r); }
-
-.notify-ask { pointer-events: auto; width: min(460px, calc(100vw - 32px)); padding: 14px 16px; border-radius: 14px; border: 1px solid var(--glass-edge); background: var(--panel); box-shadow: inset 0 1px 0 var(--glass-hi), var(--lift); font-size: 14.5px; display: flex; flex-direction: column; gap: 8px; }
-.notify-ask-actions { display: flex; gap: 8px; align-items: center; }
 
 /* a card's priority: a flag and its name, in a colour that rises from pencil grey to red */
 .prio { --p: var(--muted-foreground); display: inline-flex; align-items: center; gap: 3px; flex: none; color: var(--p); font-weight: 600;
@@ -1930,54 +1326,11 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 .merge-callout.covered { background: color-mix(in srgb, #41a05a 14%, var(--card)); color: var(--ink); }
 .merge-callout.followUp { background: color-mix(in srgb, #d9a732 15%, var(--card)); color: var(--ink); }
 
-/* the inbox (src/ui/inbox.tsx): what waits for the owner on every project, a full-page view on the desktop
-   and "Needs you" on the phone. Its entries are panes of glass of their own; the card open now gets a ring
-   and a tint. The view's list keeps to its left, out of the dim beside an open card (App), so the owner
-   works down the list; the card unfolds in the room beside it */
+/* the inbox (src/ui/inbox.tsx, inboxClasses.ts): its full-page view lays its list and the room beside it in a
+   row, over .full-page's column; an entry's title is bold while unread, over the card face's weight */
 #inbox-full { flex-direction: row; }
-.inbox-col { flex: none; width: min(480px, max(340px, 36vw)); box-sizing: border-box; overflow: auto; padding: 12px 14px 30px; border-right: 1px solid var(--line); }
-.inbox-col h2 { margin: 0 8px 10px; font-size: 18px; }
-.inbox-room { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-end; padding: 12px 24px; }
-.inbox-room .hint { align-self: center; margin: auto 0; max-width: 320px; text-align: center; font-size: 13px; }
-/* "Needs you" (src/ui/needsYou.tsx): the shown project's cards, then every other project folded under its header */
-#needs-you { padding: 20px 14px 30px; }
-#needs-you h2 { padding: 0 8px; }
-#needs-you .inbox-bar { justify-content: flex-end; }
-.ny-project { margin-top: 14px; }
-.ny-head { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px; border: 0; border-radius: 6px; background: none; font: inherit; font-size: 14px; font-weight: 600; color: var(--ink); cursor: pointer; text-align: left; }
-.ny-head:hover { background: var(--chip); }
-.ny-head svg { flex: none; color: var(--muted-foreground); transition: transform .15s; }
-.ny-head.open svg { transform: rotate(90deg); }
-.ny-head .ny-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ny-project .inbox-list { margin-top: 6px; }
-
-.inbox-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-.inbox-entry { padding: 12px 14px 14px; border-radius: 14px; background: var(--card); border: 1px solid var(--glass-edge, var(--line));
-  box-shadow: inset 0 1px 0 var(--glass-hi, transparent), var(--shadow); }
-.inbox-entry.proposal-entry { background: color-mix(in srgb, var(--proposal) 9%, var(--chip)); border-color: transparent; }
-.inbox-entry.proposal-entry .prefs { margin-top: 4px; }
-.inbox-entry.proposal-entry .prefs li, .inbox-entry.proposal-entry .prefs li:hover { background: transparent; padding: 7px 0 0; margin: 0; }
-.inbox-entry.on { background: color-mix(in srgb, var(--working) 10%, var(--card)); box-shadow: 0 0 0 2px color-mix(in srgb, var(--working) 55%, transparent), var(--shadow); }
-.inbox-entry .where { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--muted-foreground); }
-.inbox-entry .where svg { flex: none; }
-.inbox-entry .where .project { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .inbox-entry.unread .f-ttl { font-weight: 700; }
 .inbox-entry.read .f-ttl { font-weight: 400; }
-.inbox-entry .obeya-answer { --c: var(--waiting); }
-.inbox-entry .ttl-link { all: unset; cursor: pointer; min-width: 0; }
-.inbox-entry .ttl-link:hover { text-decoration: underline; }
-.inbox-entry .ttl-link:focus-visible { text-decoration: underline; outline: 2px solid var(--working); outline-offset: 2px; border-radius: 3px; }
-/* an unread entry: an orange dot centred on the title's first line (or at the end of a proposal's project line) */
-.unread-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--waiting); margin-top: 6px; }
-.face.subtle > .unread-dot { position: absolute; top: 8px; right: 8px; margin: 0; }
-.inbox-entry .where .unread-dot { margin: 0 0 0 auto; }
-.inbox-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 8px 12px; }
-.ph-section .inbox-bar { margin: 0 0 12px; }
-.inbox-entry .replies { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-.empty-inbox { margin: 0; padding: 8px; color: var(--muted-foreground); font-size: 13px; }
-/* on the phone the replies are sized for a finger */
-.ph-section .inbox-entry .replies { gap: 8px; }
-.ph-section .inbox-entry .replies > [data-slot=button] { min-height: 40px; font-size: 14px; }
 /* the canvas zoomed far out or moving (frost.ts): no blur behind the cards. Each blurred card is a layer the GPU
    re-samples on every frame of a move; with ~100 on screen that drops frames (a fifth with a GPU, more than half
    without one), and many small ones shimmer zoomed out. --unblurred stands in for the blur's saturate: a tint that
@@ -2001,40 +1354,9 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 /* glass that blurred what lies behind it turns solid, so the canvas does not show through the bars and panes,
    and the cards take the tint they have zoomed out */
 :root[data-motion="reduce"] { --glass: var(--panel); }
-:root[data-motion="reduce"] :is(.cfg-actions, .read-head) { background: var(--panel); }
+:root[data-motion="reduce"] .read-head { background: var(--panel); }
 :root[data-motion="reduce"] .card:not(.s-proposal) { background-image: linear-gradient(var(--unblurred), var(--unblurred)); }
 
-/* the project's settings, a sheet like the inbox (projectSettings.tsx) */
-#project-settings { padding: 20px 22px 30px; }
-/* the agents (src/ui/agents.tsx): the queue and the cards at work by stage, a docked sheet like the inbox,
-   above the dim beside an open card */
-#agents { padding: 20px 14px 30px; }
-#agents h2 { padding: 0 8px; }
-
-#agents .agents-tabs { margin: 0 8px 4px; }
-.agents-tabs .count { margin-left: 6px; font-weight: 600; font-size: 12px; color: var(--muted-foreground); }
-.agents-tabs [data-variant=count] { margin-left: 6px; }
-#agents .agents-empty { margin: 14px 8px; font-size: 13px; line-height: 1.45; }
-.agents-stage h3 { margin: 18px 8px 8px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted-foreground); }
-.agents-stage h3 .count { font-weight: 400; }
-.agents-stage h4 { margin: 10px 8px 6px; font-size: 12px; font-weight: 600; color: var(--muted-foreground); }
-.agents-stage h4 [data-variant=count] { margin-left: 4px; }
-/* the chips above "All": one per stage, tinted in its colour while its group shows */
-.agents-filter { margin: 12px 8px 0; }
-
-#project-settings .cs-project { margin: 0 40px 2px 0; font-size: 12px; color: var(--muted-foreground); }
-#project-settings > .hint { margin: 0 0 6px; font-size: 12.5px; line-height: 1.45; }
-#project-settings .cfg-head { margin-top: 22px; }
-#project-settings .cfg-head h3 { margin: 0 0 4px; font-size: 16px; }
-#project-settings .cfg-head .hint { margin: 0; font-size: 12.5px; line-height: 1.45; }
-#project-settings .cfg-field { grid-template-columns: 1fr; row-gap: 2px; }
-.cs-agents { display: flex; flex-direction: column; }
-.cs-agents .cfg-agent { padding: 10px 0 4px; }
-.cs-choice { display: grid; grid-template-columns: minmax(0, 1.2fr) repeat(2, minmax(0, .9fr)); gap: 8px; }
-.cs-choice [data-slot=select-trigger] { min-width: 0; width: 100%; }
-#project-settings [data-slot=select-trigger]:not(.own) { color: var(--muted-foreground); }
-.cs-more { margin-top: 26px; padding-top: 14px; border-top: 1px solid var(--line); display: flex; flex-direction: column; align-items: flex-start; gap: 4px; font-size: 13px; }
-.cs-more .hint { font-size: 12.5px; }
 /* a narrow window: the project's settings float over the whole page, down to the status bar */
 @media (max-width: 760px) { #project-settings.sheet { bottom: 46px; } body:has(#project-settings.on) .ptt-row { visibility: hidden; } }
 /* beside the two-line Start agent button, the other action buttons take its height */
@@ -2049,14 +1371,8 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 .chat-model { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; color: var(--muted-foreground); font-size: 12px; }
 .card .state .hourglass-mark { width: 9px; height: 12px; }
 
-/* The Agents sheet's Activity tab: a line saying what happened, above the card's compact face */
-#agents .activity-bar { margin: 0 8px 6px; justify-content: flex-end; }
-.activity-list { list-style: none; margin: 0; padding: 0 8px 8px; display: flex; flex-direction: column; gap: 10px; }
-.activity-day { margin: 8px 2px 0; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted-foreground); }
-.activity-what { display: flex; align-items: center; gap: 8px; margin: 0 2px 6px; font-size: 12px; color: var(--muted-foreground); }
-.activity-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.activity-where { flex: none; display: inline-flex; align-items: center; gap: 3px; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.activity-time { margin-left: auto; flex: none; font-variant-numeric: tabular-nums; }
+/* The Agents sheet's Activity tab (src/ui/activity.tsx): the card's compact face under each line, fitted into the
+   row over the .card rules it is */
 .activity-row .act-card { position: relative; display: block; width: 100%; height: auto; min-height: 0; padding: 8px 10px 8px; text-align: left; color: var(--ink); border: 0; }
 .activity-row .act-card:hover { transform: none; }
 .activity-row .act-card.gone { cursor: default; opacity: .65; }
@@ -2067,7 +1383,6 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 .activity-row .act-card .state { position: relative; left: auto; right: auto; bottom: auto; margin-top: 4px; font-size: 11.5px; }
 .activity-row .act-card .state.doing-now { padding-bottom: 6px; }
 .activity-row .act-card .state.doing-now::after { bottom: 0; }
-.activity-end { height: 1px; }
 
 /* Dock views that remain usable beside an unfolded card. */
 .sheet.beside-card { z-index: 31; }

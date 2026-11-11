@@ -6,6 +6,7 @@
 // one-click replies and "Go to card".
 // Seismic's answers and rule or setting proposals are the inbox's alone.
 
+import { cn } from 'cn';
 import { ChevronRight } from 'lucide-react';
 import { Fragment, useState } from 'react';
 import { counted, type InboxEntry } from '../core/inbox';
@@ -18,6 +19,7 @@ import { t } from './strings';
 import { CheckLabel } from './components/check-label';
 import { Switch } from './components/switch';
 import { Badge } from './components/badge';
+import { emptyInboxClass, entryListClass, inboxBarClass } from './inboxClasses';
 
 type CardOnly = InboxEntry & { card: Item };
 
@@ -32,33 +34,36 @@ export function NeedsYouSheet({ on, entries, current, open, onGo, onReply, isRea
     <Fragment key={e.key}>{renderEntry(e, { unread: !isRead(e), here: e.project === current && e.card.id === open, current, subtle: false, onGo, onReply, onRead })}</Fragment>
   );
   return (
-    <Docked id="needs-you" on={on} label={t.needsYou.title}>
-      <h2>{t.needsYou.title}</h2>
-      <div className="inbox-bar">
+    <Docked id="needs-you" className="pt-5 px-3.5 pb-[30px]" on={on} label={t.needsYou.title}>
+      <h2 className="px-2">{t.needsYou.title}</h2>
+      <div className={cn(inboxBarClass, 'justify-end')}>
         <CheckLabel>
           <Switch checked={hideOthers} onCheckedChange={setHideOthers} />
           {t.needsYou.hideOthers}
         </CheckLabel>
       </div>
-      {here.length ? <ul className="inbox-list">{here.map(entry)}</ul> : <p className="empty-inbox">{others.length ? t.needsYou.noneHere : t.needsYou.empty}</p>}
+      {here.length ? <ul className={entryListClass}>{here.map(entry)}</ul> : <p className={emptyInboxClass}>{others.length ? t.needsYou.noneHere : t.needsYou.empty}</p>}
       {!hideOthers &&
         others.map(({ project, entries: list }) => {
           const open = unfolded.includes(project);
           const n = list.filter(counted).length;
           return (
-            <section key={project} className="ny-project">
+            <section key={project} className="ny-project mt-3.5">
               <button
                 type="button"
-                className={open ? 'ny-head open' : 'ny-head'}
+                className={cn(
+                  'ny-head flex items-center gap-2 w-full p-2 [border:0] rounded-[6px] bg-transparent text-[14px] font-semibold text-ink cursor-pointer text-left hover:bg-chip [&>svg]:flex-none [&>svg]:text-muted-foreground [&>svg]:[transition:transform_.15s]',
+                  open && 'open [&>svg]:[transform:rotate(90deg)]',
+                )}
                 aria-expanded={open}
                 title={t.needsYou.project(list[0]!.projectName, n)}
                 onClick={() => setUnfolded(open ? unfolded.filter((p) => p !== project) : [...unfolded, project])}
               >
                 <ChevronRight size={14} strokeWidth={2} aria-hidden />
-                <span className="ny-name">{list[0]!.projectName}</span>
+                <span className="ny-name flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{list[0]!.projectName}</span>
                 {n > 0 && <Badge variant="count" className="bg-waiting">{n}</Badge>}
               </button>
-              {open && <ul className="inbox-list">{list.map(entry)}</ul>}
+              {open && <ul className={cn(entryListClass, 'mt-1.5')}>{list.map(entry)}</ul>}
             </section>
           );
         })}

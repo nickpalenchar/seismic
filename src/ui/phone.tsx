@@ -20,6 +20,7 @@ import { ChatsHead } from './chats';
 import { api, beforeReload, cardsOn, onNotice, phoneInUse, setProject, useProject, type Where } from './api';
 import { enterBreaksLines } from './composer';
 import { InboxList } from './inbox';
+import { phoneNoneClass } from './inboxClasses';
 import { when } from './needsYou/renderers';
 import { inboxEntries, readMark } from '../core/inbox';
 import { useInboxRead } from './inboxRead';
@@ -40,7 +41,7 @@ import { UsagePill } from './usage';
 import { agentWorks, beingWritten, cardTalk, koordinatorReads, obeyaWorks, opensWithTalk, runs, unseen } from './talk';
 import { seenOf } from './seen';
 import { noticeLine, tellers, useAck, useWarnings } from './tell';
-import { Toasts, useToasts } from './components/toast';
+import { phoneAcksClass, Toasts, useToasts } from './components/toast';
 import { HoldToTalk, PushToTalk, usePushToTalk, useTold } from './voice';
 import { projectPath, cardPath, named, knowProjects, projectNamed, queryWithout, readAddress } from './address';
 import { scrollBehavior } from './motion';
@@ -80,6 +81,75 @@ const talkInAddress = () => new URLSearchParams(location.search).has('talk');
 type Step = 'card' | 'talk';
 /** The open card's demo video, on its page. */
 const pageVideo = () => document.querySelector<HTMLVideoElement>('#ph-card .demo-view video');
+
+/**
+ * A view of the phone's (the list, an open card, a conversation's panel), fixed over the screen, clear of
+ * its notch and rounded corners. Turned, the microphone has a strip of its own at the right (`--ph-side`).
+ * A phone's browser zooms into a text field written smaller than 16 px: every field in it is 16 px.
+ */
+const viewClass =
+  'ph-view fixed overscroll-contain [-webkit-overflow-scrolling:touch] pt-[env(safe-area-inset-top)] pr-[max(14px,env(safe-area-inset-right))] pl-[max(14px,env(safe-area-inset-left))] ph-landscape:[--ph-side:calc(112px+env(safe-area-inset-right))] ph-landscape:pr-(--ph-side) [&_:is(textarea,select,input,[data-slot=select-trigger])]:text-[16px]';
+
+/**
+ * The list and an open card: the page scrolls, with the microphone's room under its end, and fades
+ * out under the microphone (not with the phone turned, nor while the keyboard is up: the field has its
+ * own microphone then). Under a panel lower than the screen it scrolls on until all of it can stand
+ * above the panel (`--ph-panel`: the panel's height).
+ */
+const pageClass = `${viewClass} inset-0 overflow-y-auto pb-[calc(157px+env(safe-area-inset-bottom))] ph-landscape:pb-[calc(24px+env(safe-area-inset-bottom))] [&:has(~.ph-panel)]:pb-[max(calc(157px+env(safe-area-inset-bottom)),calc(var(--ph-panel,0px)+20px))] ph-landscape:[&:has(~.ph-panel)]:pb-[max(calc(24px+env(safe-area-inset-bottom)),calc(var(--ph-panel,0px)+20px))] after:content-[''] after:fixed after:inset-x-0 after:bottom-0 after:h-[calc(87px+env(safe-area-inset-bottom))] after:z-4 after:bg-[linear-gradient(transparent,var(--bg)_65%)] after:pointer-events-none ph-landscape:after:hidden [.ph-kb_&]:after:hidden`;
+
+/**
+ * The bar at a view's top, across the screen and sticking while the page scrolls under it; with the
+ * phone turned slimmer and reaching across the microphone's strip. `ph-bar` stays for the chats' head in it.
+ */
+const barClass =
+  'ph-bar sticky top-0 z-5 flex items-center gap-2.5 min-h-[52px] -mx-3.5 px-3.5 bg-background border-b border-line ph-landscape:min-h-[42px] ph-landscape:mr-[calc(-1*var(--ph-side))] ph-landscape:pr-[max(14px,env(safe-area-inset-right))]';
+/** The list's and the card's bar; the list's scrolls away with the phone turned. */
+const pageBarClass = `${barClass} py-1.5 ph-landscape:py-[3px]`;
+
+/** The word a bar leads with, in frost's own font. */
+const wordClass = 'ph-word font-semibold leading-none [font-family:var(--font)]';
+/** A panel's title in its grip, cut short; a card's (its title) smaller than Seismic's. */
+const gripWordClass = `${wordClass} text-[21px] overflow-hidden text-ellipsis whitespace-nowrap min-w-0 [.ph-panel:has(#ph-card-talk)_&]:text-[18px]`;
+
+/** A group of the list (a stage, a project's queue …), and its heading with its count beside it (`!` over the `h1, h2` rule styles.css still has). */
+const sectionClass = 'ph-section mt-[22px] ph-landscape:mt-3.5';
+const sectionHeadClass = 'flex items-center gap-2.5 mt-0 mx-0 mb-2 font-semibold! text-[21px] leading-[1.15] [font-family:var(--font)]';
+
+/**
+ * Seismic's conversation in its panel: only the conversation scrolls, the field stands under it at
+ * its own height. A card's names no heading over its conversation: the panel's top names the card.
+ * `!`: the conversation's own sizes for a card's split view (`.split-talk`, which the card's panel
+ * carries too) reach it with as much weight.
+ */
+const talkClass =
+  'ph-talk flex-1 min-h-0 flex flex-col justify-end pt-3 [&>:is(.conv,.talk)]:flex-[0_1_auto]! [&>:is(.conv,.talk)]:min-h-0! [&>:is(.conv,.talk)]:max-h-none! [&>:is(.conv,.talk)]:max-w-none! [&>[data-slot=prompt-input]]:max-w-none! [&>[data-slot=prompt-input]]:mt-2.5! [&>[data-slot=prompt-input]]:flex-none!';
+
+/**
+ * Seismic's conversation, or the open card's: a panel from below over the list, in the part of the
+ * screen the keyboard leaves, `--ph-h` of it high (the one the owner dragged it to, set on the panel,
+ * or the one it opens with: beside a demo video the lower half, so the video stays in view above it;
+ * with the phone turned the full height, since half of 400 px leaves no room for a conversation).
+ * Only the conversation scrolls, the field stands under it, and below that the room of the
+ * microphone; while the keyboard is up the field has its own microphone and stands right above the
+ * keyboard, and with the phone turned the microphone's strip is empty then, so the field takes its width.
+ */
+const panelClass = `${viewClass} ph-panel inset-x-0 top-[calc(100%*(1-var(--ph-h)))] bottom-auto h-[calc(100%*var(--ph-h))] z-20 overflow-hidden flex flex-col pb-[calc(87px+env(safe-area-inset-bottom))] ph-landscape:pb-[calc(24px+env(safe-area-inset-bottom))] [.ph-kb_&]:pb-2.5 ph-landscape:[.ph-kb_&]:pr-[max(14px,env(safe-area-inset-right))] bg-background shadow-[0_-6px_24px_rgba(0,0,0,.12)] animate-[ph-up_.22s_ease-out]`;
+
+/**
+ * The panel's top is its grip: the panel follows the finger up and down, and closes when let go near the
+ * bottom. Its handle's colour comes through `--grip`: Tailwind's fallback for a color-mix on a
+ * pseudo-element nests it where it never applies.
+ */
+const gripClass = `${barClass} ph-grip pt-3.5 pb-1.5 ph-landscape:pt-2.5 ph-landscape:pb-[3px] touch-none select-none cursor-ns-resize before:content-[''] before:absolute before:left-1/2 before:top-[5px] before:w-10 before:h-1 before:-ml-5 before:rounded-[2px] [--grip:color-mix(in_srgb,var(--ink)_22%,transparent)] before:bg-(--grip)`;
+
+/**
+ * The list's plus button, in the microphone's place and of its size: a new card. Held by a finger, it
+ * opens no long-press menu and selects nothing; hidden while the keyboard is up, and with the phone
+ * turned in the microphone's strip, centred in it.
+ */
+const newClass =
+  'ph-new fixed z-50 left-1/2 bottom-[calc(18px+env(safe-area-inset-bottom))] [transform:translateX(-50%)] w-[68px] h-[68px] rounded-full border-0 p-0 grid place-items-center cursor-pointer bg-card text-ink shadow-lift [-webkit-touch-callout:none] select-none active:shadow-glass active:[transform:translateX(-50%)_translateY(1px)] disabled:text-muted-foreground disabled:cursor-default [.ph-kb_.ph-view~&]:hidden ph-landscape:left-auto ph-landscape:right-[calc(56px+env(safe-area-inset-right))] ph-landscape:[translate:50%_0] ph-landscape:top-[calc(50%-34px)] ph-landscape:bottom-auto ph-landscape:[transform:none] ph-landscape:active:[transform:none]';
 
 /** The kinds of input the keyboard comes up for; a date or a time opens the phone's own picker instead. */
 const TYPED = new Set(['text', 'search', 'email', 'url', 'tel', 'password', 'number']);
@@ -574,14 +644,15 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
 
   const feeds = projects.map((c) => <Feed key={c.id} id={c.id} onChange={feed} />);
   const several = projects.length > 1;
+  // stays in view under the bar while the page scrolls; with the phone turned the list's bar scrolls away, so there it sticks at the top
   const banner = quiet && (
-    <div className="ph-quiet" role="status">
-      <b>{isFrozen ? (unresponsive ? t.unresponsiveSince(when(quietSince!)) : t.notResponding) : t.phone.notAnswering(when(quietSince!))}</b>
+    <div className="ph-quiet sticky top-[60px] z-5 mt-3 py-2.5 px-3 rounded-[8px] bg-ink text-background flex flex-col gap-0.5 text-[13.5px] ph-landscape:top-[50px] ph-landscape:[#ph-home_&]:top-2" role="status">
+      <b className="font-semibold text-[14.5px]">{isFrozen ? (unresponsive ? t.unresponsiveSince(when(quietSince!)) : t.notResponding) : t.phone.notAnswering(when(quietSince!))}</b>
       <span>{t.phone.notAnsweringWhy}</span>
     </div>
   );
   const acks = (
-      <div id="acks">
+      <div id="acks" className={phoneAcksClass}>
         <Cards.Provider value={{ items: Object.values(snaps).flatMap((x) => x.items), open: openCard }}>
           <Toasts toasts={toasts} open={open ?? undefined} aside />
         </Cards.Provider>
@@ -660,16 +731,22 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
     return (
       <HoldToTalk.Provider value={press}>
         {feeds}
-        <div id="ph-card" className="ph-view" ref={cardRef} style={i ? ({ '--c': `var(--${shownState(i)})` } as React.CSSProperties) : undefined}>
-          <header className="ph-bar">
-            <button className="ph-back" onClick={back}>
+        {/* a card opened: full screen, in its state's colour along the top */}
+        <div
+          id="ph-card"
+          className={`${pageClass} before:content-[''] before:fixed before:inset-x-0 before:top-0 before:h-1 before:bg-(--c) before:z-6`}
+          ref={cardRef}
+          style={i ? ({ '--c': `var(--${shownState(i)})` } as React.CSSProperties) : undefined}
+        >
+          <header className={pageBarClass}>
+            <button className="ph-back inline-flex items-center gap-0.5 min-h-10 py-0 pr-3 pl-1.5 border-0 rounded-[3px] bg-chip text-[16px] cursor-pointer ph-landscape:min-h-9" onClick={back}>
               <ChevronLeft size={18} strokeWidth={2.25} aria-hidden="true" />
               {t.phone.back}
             </button>
-            {c && several && <span className="ph-project">{c.name}</span>}
+            {c && several && <span className="ph-project ml-auto text-muted-foreground text-[13px]">{c.name}</span>}
           </header>
           {banner}
-          <div className="card-sheet ph-sheet">
+          <div className="card-sheet ph-sheet pt-3.5">
             {i && c ? (
               <Cards.Provider value={{ items, open: openCard }}>
                 <KoordinatorAgent.Provider value={snaps[c.id]!.koordinatorAgent}>
@@ -707,7 +784,7 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
             onLeave={() => setClosing(true)}
             focus={wantFocus}
           >
-            <div id="ph-card-talk" className="ph-talk split-talk" ref={setTalkEl} />
+            <div id="ph-card-talk" className={`${talkClass} split-talk [&>.p-h]:hidden`} ref={setTalkEl} />
           </TalkPanel>
         )}
         {i && <CardTalkButton key={i.id} item={i} open={talk} shown={talk && !closing} onClick={() => (talk ? leaveTalk.current?.() : openTalk())} />}
@@ -751,10 +828,10 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
   return (
     <HoldToTalk.Provider value={press}>
       {feeds}
-      <div id="ph-home" className="ph-view" ref={homeRef}>
-        <header className="ph-bar ph-home">
+      <div id="ph-home" className={pageClass} ref={homeRef}>
+        <header className={`${pageBarClass} ph-home ph-landscape:static`}>
           <Sign size={26} />
-          <span className="ph-word">Seismic</span>
+          <span className={`${wordClass} text-[22px] ph-landscape:text-[19px]`}>Seismic</span>
           {usage.length > 0 && (
             <span className="ml-auto flex min-w-0 items-center gap-1.5">
               {usage.map((u) => (
@@ -770,13 +847,14 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
           <>
             <StageChips stages={PHONE_STAGES} count={count} hidden={hidden} onHidden={setHidden} onlyFull />
             {!groups.length ? (
-              <p className="ph-none ph-empty">{t.agents.none}</p>
+              <p className={phoneNoneClass}>{t.agents.none}</p>
             ) : !shownGroups.length ? (
-              <p className="ph-none ph-empty">{t.agents.allHidden}</p>
+              <p className={phoneNoneClass}>{t.agents.allHidden}</p>
             ) : (
               shownGroups.map((s) => (
-                <section key={s} className={`ph-section ph-stage stage-${s}`}>
-                  <h2>
+                <section key={s} className={`${sectionClass} ph-stage stage-${s}`}>
+                  {/* the stage's count beside its heading, trimmed to its capitals so it centres on what the eye sees */}
+                  <h2 className={sectionHeadClass}>
                     {t.agents.stages[s]} <Badge variant="count" className="rounded-lg bg-chip px-2 py-1.5 text-[13px] font-semibold text-muted-foreground [text-box:trim-both_cap_alphabetic]">{count(s)}</Badge>
                   </h2>
                   {s === 'needsYou' ? (
@@ -808,24 +886,24 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
         ) : tab === 'queue' ? (
           queuedOn.length ? (
             queuedOn.map((c) => (
-              <section key={c.id} className="ph-section ph-queue">
-                {several && <h2>{c.name}</h2>}
+              <section key={c.id} className={`${sectionClass} ph-queue`}>
+                {several && <h2 className={sectionHeadClass}>{c.name}</h2>}
                 <ProjectQueue items={snaps[c.id]!.items} scroller={homeRef} onOpen={openCard} />
               </section>
             ))
           ) : (
-            <p className="ph-none ph-empty">{t.queue.empty}</p>
+            <p className={phoneNoneClass}>{t.queue.empty}</p>
           )
         ) : tab === 'parked' ? (
           parked.length ? (
-            <section className="ph-section">
+            <section className={sectionClass}>
               <CardList entries={parked} several={several} onOpen={openCard} />
             </section>
           ) : (
-            <p className="ph-none ph-empty">{t.agents.noneParked}</p>
+            <p className={phoneNoneClass}>{t.agents.noneParked}</p>
           )
         ) : (
-          <section className="ph-section ph-activity">
+          <section className={`${sectionClass} ph-activity`}>
             <ActivityTab project={obeyaId} changed={snaps} onGo={(_project, i) => openCard(i)} allProjects />
           </section>
         )}
@@ -834,7 +912,7 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
       {talk && (
         <TalkPanel
           title={t.koordinator.title}
-          head={obeyaSnap && <ChatsHead title={<span className="ph-word">{t.koordinator.title}</span>} project={obeyaId} projectName={obeyaSnap.project.name} chat={obeyaSnap.chat} chats={obeyaSnap.chats} talk={obeyaSnap.talk} onProject={setObeyaProject} />}
+          head={obeyaSnap && <ChatsHead title={<span className={gripWordClass}>{t.koordinator.title}</span>} project={obeyaId} projectName={obeyaSnap.project.name} chat={obeyaSnap.chat} chats={obeyaSnap.chats} talk={obeyaSnap.talk} onProject={setObeyaProject} />}
           label={t.phone.talkTitle}
           banner={banner}
           onClose={closeTalk}
@@ -842,7 +920,7 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
           onLeave={() => setClosing(true)}
         >
           {obeyaSnap && (
-            <div className="ph-talk" key={obeyaId}>
+            <div className={talkClass} key={obeyaId}>
               <KoordinatorAgent.Provider value={obeyaSnap.koordinatorAgent}>
               <KoordinatorTalk
                 on
@@ -883,7 +961,7 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
         mic
       ) : (
         <Tooltip content={t.newCard}>
-          <button className="ph-new" aria-label={t.newCard} disabled={making || !!made} onClick={() => void newCard()}>
+          <button className={newClass} aria-label={t.newCard} disabled={making || !!made} onClick={() => void newCard()}>
             <Plus size={30} strokeWidth={2.25} aria-hidden="true" />
           </button>
         </Tooltip>
@@ -902,9 +980,10 @@ function Feed({ id, onChange }: { id: string; onChange: (id: string, live: Retur
 /** Cards as the project shows them, as wide as the screen, each opening at a tap; led by its project's name where there are several. */
 function CardList({ entries, several, onOpen }: { entries: { item: Item; project: ProjectInfo }[]; several: boolean; onOpen: (i: Item) => void }) {
   return (
-    <ul className="ph-list">
+    // one column held upright, two (or more) side by side once the screen is wide enough, the phone turned, say
+    <ul className="ph-list list-none m-0 p-0 grid grid-cols-[repeat(auto-fill,minmax(min(100%,340px),1fr))] gap-3.5">
       {entries.map(({ item: i, project: c }) => (
-        <li key={i.id}>
+        <li key={i.id} className="flex">
           <button className={`${cardClass(i)} ph-card`} onClick={() => onOpen(i)}>
             <CardFace item={i} where={several ? c.name : undefined} />
           </button>
@@ -1127,14 +1206,21 @@ function TalkPanel({
   return (
     <div
       id="ph-talk"
-      className={['ph-view ph-panel', half && 'half', (height ?? 1) < 1 && 'part', leaving && 'leaving', dragging && 'dragging'].filter(Boolean).join(' ')}
+      className={cn(
+        panelClass,
+        half ? 'half [--ph-h:.52] ph-landscape:[--ph-h:1]' : '[--ph-h:1]',
+        (half || (height ?? 1) < 1) && 'border-t border-line',
+        (height ?? 1) < 1 && 'part',
+        leaving && 'leaving [transform:translateY(100%)]',
+        dragging ? 'dragging transition-none' : '[transition:transform_.2s_ease-out,top_.2s_ease-out,height_.2s_ease-out]',
+      )}
       ref={panel}
       style={style as React.CSSProperties}
       role="dialog"
       aria-label={label}
     >
-      <header className="ph-bar ph-grip" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
-        {head ?? <span className="ph-word">{title}</span>}
+      <header className={gripClass} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
+        {head ?? <span className={gripWordClass}>{title}</span>}
       </header>
       {banner}
       {children}

@@ -20,6 +20,7 @@ import { keepConfigDraft, keptConfigDraft } from './configDraft';
 import { keep } from './keep';
 import { plain } from './markdown';
 import { demoState, GitSetup, platformName, RecognitionDetail, Setup, SetupList, useFolderWithoutGit, voiceState } from './setup';
+import { idClass, installClass, installHintClass, jsonClass, pathClass, problemClass, removeClass, rowClass, statusClass, trustClass, trustGroupClass } from './setupClasses';
 import { useFitHeight } from './fitHeight';
 import { useCopy } from './copy';
 import { failText, fileSize, snoozeWhen, t } from './strings';
@@ -42,6 +43,8 @@ import { Tooltip } from './components/tooltip';
 import { Input, Textarea } from './components/input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './components/collapsible';
 import { Select, SelectGroup, SelectItem, SelectLabel } from './components/select';
+import { cn } from 'cn';
+import * as K from './configClasses';
 
 declare global {
   interface Window {
@@ -63,6 +66,9 @@ type Ask = (text: string, project?: string) => void;
 /** The dialog's sections, in the order its list shows them. */
 type Section = 'projects' | 'defaults' | 'agents' | 'voice' | 'demos' | 'notices' | 'devices' | 'advanced' | 'developer';
 /** The value of a project's tab in the navigation, followed by its number. */
+/** A field of prose in a setting (a voice's style, its sample text): the page's font, not a path's. */
+const proseFieldClass = (hook: string) => `${hook} block w-full max-w-[420px] resize-y text-[13px] leading-[1.45] py-1.5 px-2`;
+
 const PROJECT_TAB = 'project:';
 const SECTIONS: Section[] = ['projects', 'defaults', 'agents', 'voice', 'demos', 'notices', 'devices', 'advanced', 'developer'];
 // the section shown, per tab: a save that restarts Seismic reloads the page, and the dialog comes back at it
@@ -389,42 +395,42 @@ export function ConfigDialog({ on, page, onClose, onAsk, onTalk, onProblems, onC
     // a press on the dim around the dialog closes it; a press that starts inside does not
     <Dialog open={on} onOpenChange={(open) => !open && onClose()}>
       <Tabs asChild orientation="vertical" value={tabOf} onValueChange={(v) => (v.startsWith(PROJECT_TAB) ? showProject(Number(v.slice(PROJECT_TAB.length))) : setSection(v as Section))}>
-      <DialogContent id="config" keepMounted className="cfg-box" layerClassName="z-55 items-stretch p-7">
-        <nav className="cfg-nav">
-          <div className="p-kind">{c.kind}</div>
+      <DialogContent id="config" glass keepMounted className={K.cfgBoxClass} layerClassName={K.cfgLayerClass}>
+        <nav className={K.cfgNavClass}>
+          <div className={K.cfgKindClass}>{c.kind}</div>
           <DialogTitle asChild>
-            <h2>{c.title}</h2>
+            <h2 className={K.cfgTitleClass}>{c.title}</h2>
           </DialogTitle>
-          <div className="cfg-ask">
-            <p className="hint">{c.koordinator}</p>
+          <div className={K.cfgAskClass}>
+            <p className={cn('hint', K.cfgAskHintClass)}>{c.koordinator}</p>
             <Button size="small" onClick={onTalk}>
               {c.askObeya}
             </Button>
           </div>
           <TabsList asChild aria-label={c.title}>
-          <ul>
+          <ul className={K.cfgNavListClass}>
             {SECTIONS.map((s) =>
               s === 'projects' ? (
-                <li key={s} className="cfg-nav-group" role="presentation">
+                <li key={s} className={K.cfgNavGroupClass} role="presentation">
                   {/* a heading over the projects, each of them a section of its own */}
-                  <span className="cfg-nav-title">
+                  <span className={K.cfgNavTitleClass}>
                     {c.sections.projects}
-                    {changed && !draft.some((_, i) => projectChanged(i)) && <span className="cfg-dot" title={c.unsaved} />}
+                    {changed && !draft.some((_, i) => projectChanged(i)) && <span className={K.cfgDotClass} title={c.unsaved} />}
                     {overall.length > 0 && (
                       <Badge variant="destructive" className="ml-auto" title={c.problemCount(overall.length)}>
                         {overall.length}
                       </Badge>
                     )}
                   </span>
-                  <ul role="presentation">
+                  <ul role="presentation" className={K.cfgNavGroupListClass}>
                     {draft.map((x, i) => {
                       const on = section === 'projects' && i === shown;
                       const n = problems.filter((p) => p.project === i).length;
                       return (
                         <li key={keys.current[i]} role="presentation">
-                          <TabsTrigger value={PROJECT_TAB + i} aria-controls="cfg-sec-projects" onClick={() => on && showProject(i)}>
-                            <span className="cfg-nav-name">{projectName(x, i)}</span>
-                            {projectChanged(i) && <span className="cfg-dot" title={c.unsaved} />}
+                          <TabsTrigger value={PROJECT_TAB + i} aria-controls="cfg-sec-projects" className={K.cfgNavEntryClass(true)} onClick={() => on && showProject(i)}>
+                            <span className={K.cfgNavNameClass}>{projectName(x, i)}</span>
+                            {projectChanged(i) && <span className={K.cfgDotClass} title={c.unsaved} />}
                             {n > 0 && (
                               <Badge variant="destructive" className="ml-auto" title={c.problemCount(n)}>
                                 {n}
@@ -436,7 +442,7 @@ export function ConfigDialog({ on, page, onClose, onAsk, onTalk, onProblems, onC
                     })}
                     {view && (
                       <li role="presentation">
-                        <button className="cfg-nav-add" onClick={addProject}>
+                        <button className={K.cfgNavAddClass} onClick={addProject}>
                           {c.addProject}
                         </button>
                       </li>
@@ -445,7 +451,7 @@ export function ConfigDialog({ on, page, onClose, onAsk, onTalk, onProblems, onC
                 </li>
               ) : (
                 <li key={s} role="presentation">
-                  <TabsTrigger value={s} aria-controls={`cfg-sec-${s}`} onClick={() => s === section && setSection(s)}>
+                  <TabsTrigger value={s} aria-controls={`cfg-sec-${s}`} className={K.cfgNavEntryClass()} onClick={() => s === section && setSection(s)}>
                     {c.sections[s]}
                   </TabsTrigger>
                 </li>
@@ -453,7 +459,7 @@ export function ConfigDialog({ on, page, onClose, onAsk, onTalk, onProblems, onC
             )}
           </ul>
           </TabsList>
-          <div className="cfg-nav-foot">
+          <div className={K.cfgNavFootClass}>
             <Button size="small" onClick={() => setSetupOn(true)}>
               {t.setup.check}
             </Button>
@@ -461,9 +467,9 @@ export function ConfigDialog({ on, page, onClose, onAsk, onTalk, onProblems, onC
           </div>
         </nav>
         {/* on the box, not in the scrolling column, so it stays in view however far that scrolls */}
-        <CloseButton label={t.close} className="cfg-close" onClick={onClose} />
-        <div className="cfg-main">
-          <section id="cfg-sec-projects" role="tabpanel" className="cfg-sec" hidden={section !== 'projects'}>
+        <CloseButton label={t.close} className={K.cfgCloseClass} onClick={onClose} />
+        <div className={K.cfgMainClass}>
+          <section id="cfg-sec-projects" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'projects'}>
             {!view ? (
               <>
                 <Head title={c.sections.projects} />
@@ -518,35 +524,35 @@ export function ConfigDialog({ on, page, onClose, onAsk, onTalk, onProblems, onC
               />
             )}
           </section>
-          <section id="cfg-sec-defaults" role="tabpanel" className="cfg-sec" hidden={section !== 'defaults'}>
+          <section id="cfg-sec-defaults" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'defaults'}>
             <ProjectDefaultsBlock view={defaults} onSaved={setDefaults} />
           </section>
-          <section id="cfg-sec-agents" role="tabpanel" className="cfg-sec" hidden={section !== 'agents'}>
+          <section id="cfg-sec-agents" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'agents'}>
             <AgentsBlock on={on} />
           </section>
-          <section id="cfg-sec-voice" role="tabpanel" className="cfg-sec" hidden={section !== 'voice'}>
+          <section id="cfg-sec-voice" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'voice'}>
             <VoiceBlock on={on} />
           </section>
-          <section id="cfg-sec-demos" role="tabpanel" className="cfg-sec" hidden={section !== 'demos' || addingSite}>
+          <section id="cfg-sec-demos" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'demos' || addingSite}>
             <DemoBlock on={on} />
             <DemoSitesBlock on={on && section === 'demos' && !addingSite} onAdd={() => setAddingSite(true)} />
           </section>
-          <section className="cfg-sec" hidden={section !== 'demos' || !addingSite}>
+          <section className={K.cfgSecClass} hidden={section !== 'demos' || !addingSite}>
             {addingSite && <AddSitePage on={on} onBack={() => setAddingSite(false)} />}
           </section>
-          <section id="cfg-sec-notices" role="tabpanel" className="cfg-sec" hidden={section !== 'notices'}>
+          <section id="cfg-sec-notices" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'notices'}>
             <Head title={c.sections.notices} />
             <NotificationsBlock on={on} />
             <UsageBlock on={on} />
             <FeedbackBlock on={on} />
           </section>
-          <section id="cfg-sec-devices" role="tabpanel" className="cfg-sec" hidden={section !== 'devices'}>
+          <section id="cfg-sec-devices" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'devices'}>
             <AccessSection on={on && section === 'devices'} onConnect={onConnect} />
           </section>
-          <section id="cfg-sec-advanced" role="tabpanel" className="cfg-sec" hidden={section !== 'advanced'}>
+          <section id="cfg-sec-advanced" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'advanced'}>
             <ProjectExport projects={draft} ids={origin} />
           </section>
-          <section id="cfg-sec-developer" role="tabpanel" className="cfg-sec" hidden={section !== 'developer'}>
+          <section id="cfg-sec-developer" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'developer'}>
             <DeveloperBlock on={on && section === 'developer'} />
           </section>
         </div>
@@ -572,7 +578,7 @@ function ProjectExport({ projects, ids: savedIds }: { projects: ProjectConfig[];
     <p className="hint">{t.config.dataExport.hint}</p>
     <CheckLabel><Checkbox checked={selected === null} onCheckedChange={() => setSelected(null)} />{t.config.dataExport.all}</CheckLabel>
     {names.map((project) => <CheckLabel key={project.id}><Checkbox checked={selected === null || selected.includes(project.id)} onCheckedChange={(on) => setSelected(on === true ? [...(selected ?? []), project.id] : (selected ?? names.map((n) => n.id)).filter((id) => id !== project.id))} />{project.name}</CheckLabel>)}
-    <p className="cfg-export-actions"><Button size="small" disabled={!ids.length} onClick={() => exportAs('csv')}>{t.config.dataExport.csv}</Button><Button size="small" disabled={!ids.length} onClick={() => exportAs('json')}>{t.config.dataExport.json}</Button></p>
+    <p className="cfg-export-actions flex gap-1.5 mt-4 mx-0 mb-0"><Button size="small" disabled={!ids.length} onClick={() => exportAs('csv')}>{t.config.dataExport.csv}</Button><Button size="small" disabled={!ids.length} onClick={() => exportAs('json')}>{t.config.dataExport.json}</Button></p>
     {error && <p role="alert">{error}</p>}
   </>;
 }
@@ -611,7 +617,7 @@ function DeveloperBlock({ on }: { on: boolean }) {
           </Field>
         </>
       )}
-      {status && <p className="hint c-status">{status}</p>}
+      {status && <p className={`hint ${statusClass}`}>{status}</p>}
     </>
   );
 }
@@ -619,11 +625,11 @@ function DeveloperBlock({ on }: { on: boolean }) {
 /** A section's title, what it is about, and the file it is saved in; `sub` for a part of a section. */
 export function Head({ title, hint, file, sub }: { title: string; hint?: ReactNode; file?: string; sub?: boolean }) {
   return (
-    <header className={sub ? 'cfg-head sub' : 'cfg-head'}>
-      {sub ? <h4>{title}</h4> : <h3>{title}</h3>}
-      {hint && <p className="hint">{hint}</p>}
+    <header className={K.cfgHeadClass(sub)}>
+      {sub ? <h4 className={K.cfgHeadSubTitleClass}>{title}</h4> : <h3 className={K.cfgHeadTitleClass}>{title}</h3>}
+      {hint && <p className={K.cfgHeadHintClass}>{hint}</p>}
       {file && (
-        <p className="hint cfg-file">
+        <p className={K.cfgHeadFileClass}>
           {t.config.fromFile} <code>{file}</code>
         </p>
       )}
@@ -634,9 +640,9 @@ export function Head({ title, hint, file, sub }: { title: string; hint?: ReactNo
 /** One setting: what it is on the left (an info icon there shows while the pointer is on the row), the control with what to know about it on the right. */
 export function Field({ label, hint, className, children }: { label: ReactNode; hint?: ReactNode; className?: string; children: ReactNode }) {
   return (
-    <div className={className ? `cfg-field cfg-has-info ${className}` : 'cfg-field cfg-has-info'}>
-      <div className="cfg-label">{label}</div>
-      <div className="cfg-control">
+    <div className={cn(K.cfgFieldClass, 'cfg-has-info', className)}>
+      <div className={K.cfgLabelClass}>{label}</div>
+      <div className={K.cfgControlClass}>
         {children}
         {hint && <p className="hint">{hint}</p>}
       </div>
@@ -655,7 +661,7 @@ function Info({ text }: { text: string }) {
     <Tooltip content={text} side="bottom" align="start" open={open} onOpenChange={setOpen} delayDuration={0}>
       <button
             type="button"
-            className={open ? 'cfg-info on' : 'cfg-info'}
+            className={cn(K.cfgInfoClass, open && 'on')}
             aria-label={t.config.info}
             // the trigger closes the tip on a click once this handler has run: open it again after that
           onClick={(e) => (e.preventDefault(), setTimeout(() => setOpen(true)))}
@@ -746,8 +752,8 @@ function Projects({ view, draft, origin, n, projectKey, checked, changed, busy, 
           <Problem key={k} problem={p} where="" ask={changed ? undefined : onAsk} />
         ))}
       {changed && gone.length > 0 && <p className="hint warn">{c.gone(gone.join(', '))}</p>}
-      {json && <pre className="c-json">{JSON.stringify(draft, null, 2)}</pre>}
-      <div className="cfg-actions">
+      {json && <pre className={jsonClass}>{JSON.stringify(draft, null, 2)}</pre>}
+      <div className={K.cfgActionsClass}>
         <Button variant="primary" disabled={!changed || busy || problems.some(blocksSaving)} onClick={() => void onSave()}>
           {/* a configuration from the file applies while Seismic runs; one from the command line becomes the file with a restart */}
           {view.server.restarts && (view.source === 'args' || view.restarting) ? c.save : c.saveOnly}
@@ -757,8 +763,8 @@ function Projects({ view, draft, origin, n, projectKey, checked, changed, busy, 
             {c.reset}
           </Button>
         )}
-        {status ? <span className="hint c-status">{status}</span> : changed && draft.length > 1 && <span className="hint c-status">{c.savesAll}</span>}
-        <Button size="small" variant={json ? 'primary' : 'default'} className="cfg-json" aria-pressed={json} onClick={onJson}>
+        {status ? <span className={`hint ${statusClass}`}>{status}</span> : changed && draft.length > 1 && <span className={`hint ${statusClass}`}>{c.savesAll}</span>}
+        <Button size="small" variant={json ? 'primary' : 'default'} className="cfg-json m-0 ml-auto" aria-pressed={json} onClick={onJson}>
           {c.json}
         </Button>
       </div>
@@ -887,7 +893,7 @@ export function LanguageBlock({ on }: { on: boolean }) {
           ))}
         </Select>
       </Field>
-      {status && <p className="hint c-status">{status}</p>}
+      {status && <p className={`hint ${statusClass}`}>{status}</p>}
     </>
   );
 }
@@ -925,7 +931,7 @@ export function ThemeBlock({ on }: { on: boolean }) {
           options={[SYSTEM, ...THEMES].map((x) => ({ value: x, label: x === SYSTEM ? l.system : l.names[x as Theme] }))}
         />
       </Field>
-      {status && <p className="hint c-status">{status}</p>}
+      {status && <p className={`hint ${statusClass}`}>{status}</p>}
     </>
   );
 }
@@ -963,7 +969,7 @@ export function MotionBlock({ on }: { on: boolean }) {
           options={[SYSTEM, ...MOTIONS].map((x) => ({ value: x, label: x === SYSTEM ? l.system : l.names[x as Motion] }))}
         />
       </Field>
-      {status && <p className="hint c-status">{status}</p>}
+      {status && <p className={`hint ${statusClass}`}>{status}</p>}
     </>
   );
 }
@@ -994,7 +1000,7 @@ function UsageBlock({ on }: { on: boolean }) {
           {l.label}
         </CheckLabel>
       </Field>
-      {status && <p className="hint c-status">{status}</p>}
+      {status && <p className={`hint ${statusClass}`}>{status}</p>}
     </>
   );
 }
@@ -1031,8 +1037,8 @@ function NotificationsBlock({ on }: { on: boolean }) {
           {l.label}
         </CheckLabel>
       </Field>
-      {view.on === true && perm !== 'granted' && <p className="hint c-status">{perm === 'denied' ? l.denied : l.notGranted}</p>}
-      {status && <p className="hint c-status">{status}</p>}
+      {view.on === true && perm !== 'granted' && <p className={`hint ${statusClass}`}>{perm === 'denied' ? l.denied : l.notGranted}</p>}
+      {status && <p className={`hint ${statusClass}`}>{status}</p>}
     </>
   );
 }
@@ -1064,12 +1070,12 @@ function FeedbackBlock({ on }: { on: boolean }) {
           {l.label}
         </CheckLabel>
         {openPerformance && (
-          <Button size="small" className="cfg-perf" title={t.performance.openHint} onClick={openPerformance}>
+          <Button size="small" className="cfg-perf [:is(#config,#prefs,#project-settings)_&]:mt-2.5" title={t.performance.openHint} onClick={openPerformance}>
             {t.performance.open}
           </Button>
         )}
       </Field>
-      {status && <p className="hint c-status">{status}</p>}
+      {status && <p className={`hint ${statusClass}`}>{status}</p>}
     </>
   );
 }
@@ -1150,8 +1156,8 @@ export function CodeReviewField({ value, onChange, bare }: { value: Partial<Code
         {l.on}
       </CheckLabel>
       {now.on && (
-        <RadioGroup className="cr-when" label={l.when} value={now.mode} onValueChange={(mode) => onChange({ ...now, mode: mode as typeof now.mode })}>
-          <span className="hint">{l.when}</span>
+        <RadioGroup className="cr-when mt-3 [&>p.hint]:mt-2 [&>p.hint]:mb-0 [&>p.hint]:mx-0" label={l.when} value={now.mode} onValueChange={(mode) => onChange({ ...now, mode: mode as typeof now.mode })}>
+          <span className="block text-muted-foreground text-[12.5px]">{l.when}</span>
           {CODE_REVIEW_MODES.map((mode) => (
             <RadioOption key={mode} value={mode}>
               {l[mode]}
@@ -1199,10 +1205,16 @@ function ProjectDefaultsBlock({ view, onSaved }: { view: ProjectDefaultsView | n
       {Object.entries(fields).map(([k, field]) => (
         <Fragment key={k}>{field}</Fragment>
       ))}
-      {status && <p className="hint c-status">{status}</p>}
+      {status && <p className={`hint ${statusClass}`}>{status}</p>}
     </>
   );
 }
+
+/** The columns' names over the agents' table. */
+const agentsHeadClass = 'text-muted-foreground text-[11.5px] pb-1';
+
+/** A group of agents, its name over what it does; in the project's settings sheet a little closer to its choices. */
+export const agentClass = 'cfg-agent flex flex-col py-[9px] px-0 text-[14px] max-[900px]:col-span-full max-[900px]:pb-0.5 [.cs-agents_&]:pt-2.5 [.cs-agents_&]:pb-1';
 
 /** The model and effort of each group of agents: saved on each change, taken by the next agent that starts. */
 function AgentsBlock({ on }: { on: boolean }) {
@@ -1254,12 +1266,12 @@ function AgentsBlock({ on }: { on: boolean }) {
         </>
       )}
       {agyOn && <p className="hint">{a.agyScope}</p>}
-      {(codexOn || agyOn) && (loading || catalogError) && <p className="hint c-status">{loading ? a.loadingModels : catalogError} {!loading && <button type="button" onClick={loadModels}>{a.reloadModels}</button>}</p>}
-      <div className="cfg-agents">
-        <span />
-        <span className="hint">{a.harness}</span>
-        <span className="hint">{a.model}</span>
-        <span className="hint">{a.effort}</span>
+      {(codexOn || agyOn) && (loading || catalogError) && <p className={`hint ${statusClass}`}>{loading ? a.loadingModels : catalogError} {!loading && <button type="button" onClick={loadModels}>{a.reloadModels}</button>}</p>}
+      <div className="cfg-agents grid grid-cols-[minmax(0,1.4fr)_minmax(130px,.85fr)_minmax(160px,1fr)_minmax(100px,.65fr)] gap-y-0 gap-x-3.5 items-center max-w-[1000px] max-[900px]:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,.8fr)]">
+        <span className="max-[900px]:hidden" />
+        <span className={agentsHeadClass}>{a.harness}</span>
+        <span className={agentsHeadClass}>{a.model}</span>
+        <span className={agentsHeadClass}>{a.effort}</span>
         {AGENT_ROLES.map((role) => {
           const setting = view.agents[role];
           const other = choosesHarness(role) && (setting.harness === 'codex' || setting.harness === 'agy') ? setting.harness : null;
@@ -1270,16 +1282,16 @@ function AgentsBlock({ on }: { on: boolean }) {
           const efforts = codex ? AGENT_EFFORTS.filter((e) => !selected || selected.supportedReasoningEfforts.some((x) => x.reasoningEffort === e)) : AGENT_EFFORTS;
           return (
             <Fragment key={role}>
-              <div className="cfg-agent">
+              <div className={agentClass}>
                 {a.roles[role].name}
                 <span className="hint">{a.roles[role].hint}</span>
               </div>
-              <Select aria-label={`${a.roles[role].name}: ${a.harness}`} value={choosesHarness(role) ? setting.harness ?? 'claude' : 'claude'} disabled={busy || !choosesHarness(role)} onValueChange={(picked) => choose(role, { harness: picked as Harness })}>
+              <Select className="min-w-0" aria-label={`${a.roles[role].name}: ${a.harness}`} value={choosesHarness(role) ? setting.harness ?? 'claude' : 'claude'} disabled={busy || !choosesHarness(role)} onValueChange={(picked) => choose(role, { harness: picked as Harness })}>
                 <SelectItem value="claude">{a.harnesses.claude}</SelectItem>
                 <SelectItem value="codex">{a.harnesses.codex}</SelectItem>
                 <SelectItem value="agy">{a.harnesses.agy}</SelectItem>
               </Select>
-              <Select aria-label={`${a.roles[role].name}: ${a.model}`} value={codex ? choice.model : setting.model} disabled={busy || (codex && loading)} onValueChange={(picked) => {
+              <Select className="min-w-0" aria-label={`${a.roles[role].name}: ${a.model}`} value={codex ? choice.model : setting.model} disabled={busy || (codex && loading)} onValueChange={(picked) => {
                 if (!codex) return choose(role, { model: picked as AgentModel });
                 const next = models?.find((m) => picked === 'default' ? m.isDefault : m.model === picked);
                 const supported = AGENT_EFFORTS.filter((x) => next?.supportedReasoningEfforts.some((y) => y.reasoningEffort === x));
@@ -1291,7 +1303,7 @@ function AgentsBlock({ on }: { on: boolean }) {
                   {models?.map((m) => <SelectItem key={m.model} value={m.model}>{m.model}</SelectItem>)}
                 </> : AGENT_MODELS.map((m) => <SelectItem key={m} value={m}>{a.models[m]}</SelectItem>)}
               </Select>
-              <Select aria-label={`${a.roles[role].name}: ${a.effort}`} value={codex ? choice.effort : setting.effort} disabled={busy || (codex && loading)} onValueChange={(picked) => choose(role, codex ? { [other!]: { ...choice, effort: picked as AgentEffort } } : { effort: picked as AgentEffort })}>
+              <Select className="min-w-0" aria-label={`${a.roles[role].name}: ${a.effort}`} value={codex ? choice.effort : setting.effort} disabled={busy || (codex && loading)} onValueChange={(picked) => choose(role, codex ? { [other!]: { ...choice, effort: picked as AgentEffort } } : { effort: picked as AgentEffort })}>
                 {codex && !efforts.includes(choice.effort) && <SelectItem value={choice.effort}>{a.efforts[choice.effort]}</SelectItem>}
                 {efforts.map((x) => (
                   <SelectItem key={x} value={x}>
@@ -1303,7 +1315,7 @@ function AgentsBlock({ on }: { on: boolean }) {
           );
         })}
       </div>
-      {status && <p className="hint c-status">{status}</p>}
+      {status && <p className={`hint ${statusClass}`}>{status}</p>}
     </>
   );
 }
@@ -1434,7 +1446,7 @@ function DemoBlock({ on }: { on: boolean }) {
   const field = (k: (typeof VOICE_FIELDS)[VoiceKind][number]) => (
     <Field key={k} label={d.field[k](draft.voice)}>
       <Input
-        className="c-path"
+        className={pathClass}
         aria-label={d.field[k](draft.voice)}
         spellCheck={false}
         placeholder={d.placeholder[k](draft.voice)}
@@ -1446,11 +1458,11 @@ function DemoBlock({ on }: { on: boolean }) {
   return (
     <>
       <Head title={d.title} hint={d.hint} file={view.file} />
-      <div className="cfg-cols">
+      <div className={K.cfgColsClass}>
         <div>
           <Field label={d.directory} hint={d.directoryHint(shown.directory)}>
             <Input
-              className="c-path"
+              className={pathClass}
               aria-label={d.directory}
               spellCheck={false}
               placeholder={DEFAULT_DEMO_DIRECTORY}
@@ -1498,8 +1510,8 @@ function DemoBlock({ on }: { on: boolean }) {
           {VOICE_FIELDS[draft.voice].map((k) => (k === 'voiceName' && draft.voice === 'qwen3' ? speakerField() : field(k)))}
           {(STYLED_VOICES as readonly VoiceKind[]).includes(draft.voice) && !(draft.voice === 'qwen3' && qwen3IsClone(draft)) && (
             <Field label={d.style} hint={d.styleHint}>
-              <Textarea mono
-                className="c-style"
+              <Textarea
+                className={proseFieldClass('c-style')}
                 rows={4}
                 aria-label={d.style}
                 placeholder={DEFAULT_STYLE}
@@ -1513,7 +1525,7 @@ function DemoBlock({ on }: { on: boolean }) {
             LANGUAGES.map((l) => (
               <Field key={l} label={d.field.reference(d.languages[l])}>
                 <Input
-                  className="c-path"
+                  className={pathClass}
                   aria-label={d.field.reference(d.languages[l])}
                   spellCheck={false}
                   placeholder={d.placeholder.reference()}
@@ -1536,16 +1548,16 @@ function DemoBlock({ on }: { on: boolean }) {
             )}
           </Field>
           <Field label={d.sampleText}>
-            <Textarea mono className="c-sample" rows={2} aria-label={d.sampleText} placeholder={d.sampleTextPlaceholder} value={sampleText} onChange={(e) => keepSampleText(e.target.value)} />
+            <Textarea className={proseFieldClass('c-sample')} rows={2} aria-label={d.sampleText} placeholder={d.sampleTextPlaceholder} value={sampleText} onChange={(e) => keepSampleText(e.target.value)} />
           </Field>
           <Field label="">
             {job?.running ? (
-              <p className="hint c-install">
+              <p className={installHintClass}>
                 <span className="c-step">{d.installing}</span> <code>{job.line}</code>
               </p>
             ) : (
               !shown.install.installed && (
-                <div className="c-install">
+                <div className={installClass}>
                   <p className="hint">{d.notInstalled(shown.install.missing.join(', '), fileSize(shown.install.mb * 1e6))}</p>
                   <Button size="small" disabled={installing} onClick={install}>
                     {d.install(fileSize(shown.install.mb * 1e6))}
@@ -1563,7 +1575,7 @@ function DemoBlock({ on }: { on: boolean }) {
               {sampling ? d.sampling : d.listen}
             </Button>
           </Field>
-          <div className="cfg-actions">
+          <div className={K.cfgActionsClass}>
             <Button variant="primary" disabled={!changed || busy} onClick={save}>
               {d.save}
             </Button>
@@ -1572,7 +1584,7 @@ function DemoBlock({ on }: { on: boolean }) {
                 {t.config.reset}
               </Button>
             )}
-            {status && <span className="hint c-status">{status}</span>}
+            {status && <span className={`hint ${statusClass}`}>{status}</span>}
           </div>
         </div>
         <SetupBlock draft={draft} installing={installing} />
@@ -1602,10 +1614,10 @@ const CLOUDFLARE_TOKENS = 'https://dash.cloudflare.com/profile/api-tokens';
 function CloudflareAccount({ accounts, way, onChange, disabled }: { accounts: string[]; way: CloudflareWay; onChange: (way: CloudflareWay) => void; disabled?: boolean }) {
   const a = t.config.sites;
   return (
-    <div className="site-account">
+    <div className="site-account grid gap-1.5 mt-0.5 mx-0 mb-2.5 max-w-[520px] [&_label]:flex [&_label]:flex-col [&_label]:gap-[3px] [&_label:first-child]:flex-row [&_label:first-child]:items-center [&_label:first-child]:gap-2">
       <label>
         <span className="hint">{a.account}</span>
-        <Select aria-label={a.account} value={way.account} disabled={disabled} onValueChange={(picked) => onChange({ ...way, account: picked })}>
+        <Select className="text-[13px]" aria-label={a.account} value={way.account} disabled={disabled} onValueChange={(picked) => onChange({ ...way, account: picked })}>
           {accounts.map((x) => (
             <SelectItem key={x} value={x}>
               {a.accountOf(x)}
@@ -1624,11 +1636,11 @@ function CloudflareAccount({ accounts, way, onChange, disabled }: { accounts: st
                 {a.tokenLink}
               </a>
             </span>
-            <Input className="c-path" type="password" autoComplete="off" spellCheck={false} aria-label={a.tokenLabel} value={way.token} disabled={disabled} onChange={(e) => onChange({ ...way, token: e.target.value })} />
+            <Input className={pathClass} type="password" autoComplete="off" spellCheck={false} aria-label={a.tokenLabel} value={way.token} disabled={disabled} onChange={(e) => onChange({ ...way, token: e.target.value })} />
           </label>
           <label>
             <span className="hint">{a.accountIdLabel}</span>
-            <Input className="c-path" spellCheck={false} aria-label={a.accountIdLabel} value={way.accountId} disabled={disabled} onChange={(e) => onChange({ ...way, accountId: e.target.value })} />
+            <Input className={pathClass} spellCheck={false} aria-label={a.accountIdLabel} value={way.accountId} disabled={disabled} onChange={(e) => onChange({ ...way, accountId: e.target.value })} />
           </label>
         </>
       )}
@@ -1739,12 +1751,12 @@ function AddSite({ view, onView, onAdded, onCancel }: { view: DemoSitesView; onV
   // a part of the hand-entered site: its label above it
   const sub = (label: string, control: ReactNode) => (
     <label className="wide">
-      <span className="hint">{label}</span>
+      <span className={K.cfgSubHintClass}>{label}</span>
       {control}
     </label>
   );
   return (
-    <div className="add-site">
+    <div className="add-site flex flex-col items-stretch gap-2 mt-2.5 [&>[data-slot=toggle-group]]:self-start [&>.hint]:m-0 [&>.c-install]:m-0 [&>[data-slot=check-label]]:text-[13.5px]">
       <SegmentedControl label={p.add} value={host} disabled={running} onValueChange={setHost} options={ADD_HOSTS.map((h) => ({ value: h, label: p.hosts[h] }))} />
       <p className="hint">{p.notes[host]}</p>
       {host === 'cloudflare' && (
@@ -1757,16 +1769,16 @@ function AddSite({ view, onView, onAdded, onCancel }: { view: DemoSitesView; onV
         </>
       )}
       {host === 'manual' && (
-        <div className="cfg-sub">
-          {sub(c.siteUrl, <Input className="c-path" aria-label={c.siteUrl} placeholder="https://demos.example.com" spellCheck={false} value={manual.url} disabled={running} onChange={(e) => setManual({ ...manual, url: e.target.value })} />)}
-          {sub(c.siteDeploy, <Input className="c-path" aria-label={c.siteDeploy} placeholder="bunx wrangler@4 pages deploy {dir} --project-name demos" spellCheck={false} value={manual.deploy} disabled={running} onChange={(e) => setManual({ ...manual, deploy: e.target.value })} />)}
-          {sub(c.siteEnv, <Input className="c-path" aria-label={c.siteEnv} placeholder="sites/demos/deploy.env" spellCheck={false} value={manual.env} disabled={running} onChange={(e) => setManual({ ...manual, env: e.target.value })} />)}
-          {sub(c.siteMaxFile, <Input className="c-path" type="number" min={1} aria-label={c.siteMaxFile} placeholder="25" value={manual.maxFile} disabled={running} onChange={(e) => setManual({ ...manual, maxFile: e.target.value })} />)}
+        <div className={K.cfgSubClass}>
+          {sub(c.siteUrl, <Input className={pathClass} aria-label={c.siteUrl} placeholder="https://demos.example.com" spellCheck={false} value={manual.url} disabled={running} onChange={(e) => setManual({ ...manual, url: e.target.value })} />)}
+          {sub(c.siteDeploy, <Input className={pathClass} aria-label={c.siteDeploy} placeholder="bunx wrangler@4 pages deploy {dir} --project-name demos" spellCheck={false} value={manual.deploy} disabled={running} onChange={(e) => setManual({ ...manual, deploy: e.target.value })} />)}
+          {sub(c.siteEnv, <Input className={pathClass} aria-label={c.siteEnv} placeholder="sites/demos/deploy.env" spellCheck={false} value={manual.env} disabled={running} onChange={(e) => setManual({ ...manual, env: e.target.value })} />)}
+          {sub(c.siteMaxFile, <Input className={pathClass} type="number" min={1} aria-label={c.siteMaxFile} placeholder="25" value={manual.maxFile} disabled={running} onChange={(e) => setManual({ ...manual, maxFile: e.target.value })} />)}
         </div>
       )}
       {(host === 'github' || (host === 'cloudflare' && unlisted)) && <p className="hint">{p.unlistedNote}</p>}
       <p className="hint">{p.checkNote}</p>
-      <div className="personal-actions">
+      <div className={K.cfgPersonalActionsClass}>
         <Button variant="primary" disabled={running || !ready} onClick={() => void add(host)}>
           {running ? p.adding : p.addGo}
         </Button>
@@ -1776,7 +1788,7 @@ function AddSite({ view, onView, onAdded, onCancel }: { view: DemoSitesView; onV
           </Button>
         )}
       </div>
-      {job && job.running && job.lines.length > 0 && <p className="hint c-install">{job.lines.at(-1)}</p>}
+      {job && job.running && job.lines.length > 0 && <p className={installHintClass}>{job.lines.at(-1)}</p>}
       {job?.error && !job.running && (
         <p className="p-error">
           {p.failed} {job.error}
@@ -1796,8 +1808,8 @@ function AddSite({ view, onView, onAdded, onCancel }: { view: DemoSitesView; onV
         </p>
       ) : (
         <Field label={p.connect} hint={p.connectHint}>
-          <Textarea mono className="c-path" rows={3} spellCheck={false} placeholder="obeya-site:…" aria-label={p.connect} value={code} onChange={(e) => setCode(e.target.value)} />
-          <div className="personal-actions">
+          <Textarea mono className={pathClass} rows={3} spellCheck={false} placeholder="obeya-site:…" aria-label={p.connect} value={code} onChange={(e) => setCode(e.target.value)} />
+          <div className={K.cfgPersonalActionsClass}>
             <Button
               disabled={!code.trim()}
               onClick={async () => {
@@ -1840,18 +1852,21 @@ function AddSitePage({ on, onBack: back }: { on: boolean; onBack: () => void }) 
   };
   return (
     <div className="add-site-page">
-      <LinkButton type="button" className="add-site-back" onClick={onBack}>
+      <LinkButton type="button" className="add-site-back inline-block m-0 mb-3 [font-size:13.5px]" onClick={onBack}>
         ← {p.back}
       </LinkButton>
       <Head title={p.add} hint={p.addHint} />
       {view && (
-        <div className="cfg-narrow">
+        <div className={narrowClass}>
           <AddSite view={view} onView={setView} onAdded={onBack} onCancel={onBack} />
         </div>
       )}
     </div>
   );
 }
+
+/** The demo sites' column: not as wide as the settings. */
+const narrowClass = 'cfg-narrow max-w-[620px] [&>.hint]:my-1.5 [&>.hint]:mx-0';
 
 /** A site's address as the owner reads it. */
 const siteLabel = (url: string) => url.replace(/^https?:\/\//, '').replace(/\/+$/, '');
@@ -1885,13 +1900,13 @@ function DemoSitesBlock({ on, onAdd }: { on: boolean; /** Opens the page that ad
   }, [urls]);
   if (!view) return null;
   return (
-    <div className="personal-site" ref={box}>
+    <div className="personal-site mt-8" ref={box}>
       <Head title={p.title} hint={p.hint} />
-      <div className="cfg-narrow">
+      <div className={narrowClass}>
         {view.sites.map((x) => (
-          <div key={x.url} className="demo-site">
-            <p className="personal-url">
-              <a href={x.url} target="_blank" rel="noreferrer">
+          <div key={x.url} className="demo-site py-2.5 px-0 border-b border-b-line first-of-type:pt-0 [&>.hint]:my-0.5 [&>.hint]:mx-0">
+            <p className="personal-url text-[15px] m-0 mb-1.5">
+              <a className={K.cfgLinkClass} href={x.url} target="_blank" rel="noreferrer">
                 {siteLabel(x.url)}
               </a>
               <span className="hint">
@@ -1901,7 +1916,7 @@ function DemoSitesBlock({ on, onAdd }: { on: boolean; /** Opens the page that ad
             </p>
             {x.paths.length > 0 && <p className="hint">{p.usedBy(x.paths.map((path) => (path ? `/${path}` : p.root)).join(', '))}</p>}
             {x.needs && <p className="p-error">{p.needs(x.needs)}</p>}
-            <div className="personal-actions">
+            <div className={K.cfgPersonalActionsClass}>
               <Button
                 size="small"
                 title={p.codeHint}
@@ -1943,7 +1958,7 @@ function DemoSitesBlock({ on, onAdd }: { on: boolean; /** Opens the page that ad
           </div>
         ))}
         {!view.sites.length && <p className="hint">{p.none}</p>}
-        <Button onClick={onAdd}>
+        <Button className="[.demo-site+&]:mt-3" onClick={onAdd}>
           {view.job?.running ? p.adding : p.add}
         </Button>
         {status && <p className="p-error">{status}</p>}
@@ -1951,6 +1966,9 @@ function DemoSitesBlock({ on, onAdd }: { on: boolean; /** Opens the page that ad
     </div>
   );
 }
+
+/** A line under the path on the site: whether the site is set up for it. */
+const siteInitHintClass = cn(K.cfgSubHintClass, 'my-1 mx-0');
 
 /** Whether a path is one a project may have on a site: lower-case parts with hyphens, `/` between up to three; '' for the root. */
 const sitePathOk = (path: string) => path === '' || /^[a-z0-9][a-z0-9-]{0,40}(\/[a-z0-9][a-z0-9-]{0,40}){0,2}$/.test(path);
@@ -2000,10 +2018,11 @@ export function ProjectSiteField({ project, value, onChange, homePath, language,
   const failed = init?.url === url && init.path === typed && !init.init?.running ? init.init?.error : undefined;
   const where = site ? `${siteLabel(site.url)}/${typed ? `${typed}/` : ''}` : '';
   const controls = (
-    <div className="cfg-sub project-site">
+    <div className={cn(K.cfgSubClass, 'project-site')}>
       <label className="wide">
-        {!bare && <span className="hint">{l.label}</span>}
+        {!bare && <span className={K.cfgSubHintClass}>{l.label}</span>}
         <Select
+          className="[#project-settings_&]:text-muted-foreground"
           aria-label={l.label}
           value={url}
           disabled={running}
@@ -2027,9 +2046,9 @@ export function ProjectSiteField({ project, value, onChange, homePath, language,
       {url && site && (
         <>
           <label className="wide">
-            <span className="hint">{l.path}</span>
+            <span className={K.cfgSubHintClass}>{l.path}</span>
             <Input
-              className="c-path"
+              className={pathClass}
               aria-label={l.path}
               placeholder={l.pathPlaceholder}
               spellCheck={false}
@@ -2044,16 +2063,16 @@ export function ProjectSiteField({ project, value, onChange, homePath, language,
           {pathOk && (
             <div className="wide site-init">
               {ready ? (
-                <p className="hint">
+                <p className={siteInitHintClass}>
                   {l.ready}{' '}
-                  <a href={`${site.url}/${typed ? `${typed}/` : ''}`} target="_blank" rel="noreferrer">
+                  <a className={K.cfgLinkClass} href={`${site.url}/${typed ? `${typed}/` : ''}`} target="_blank" rel="noreferrer">
                     {where}
                   </a>
                 </p>
               ) : (
                 <>
                   <p className="p-error">{l.needsSetup}</p>
-                  <div className="personal-actions">
+                  <div className="personal-actions flex gap-2 items-center mt-1.5 mx-0 mb-0.5">
                     <Button
                       variant="primary"
                       title={l.initHint(where)}
@@ -2071,7 +2090,7 @@ export function ProjectSiteField({ project, value, onChange, homePath, language,
                       {running ? l.initializing : l.initialize}
                     </Button>
                   </div>
-                  {!project && <p className="hint">{l.saveFirst}</p>}
+                  {!project && <p className={siteInitHintClass}>{l.saveFirst}</p>}
                   {site.needs && <p className="p-error">{t.config.sites.needs(site.needs)}</p>}
                 </>
               )}
@@ -2086,13 +2105,13 @@ export function ProjectSiteField({ project, value, onChange, homePath, language,
           {ready && (
             <>
           <label className="wide">
-            <span className="hint">{c.siteTags}</span>
+            <span className={K.cfgSubHintClass}>{c.siteTags}</span>
             <TagLines tags={value?.tags} placeholder={c.siteTagsPlaceholder} label={c.siteTags} onChange={(tags) => value && onChange(tags ? { ...value, tags } : (({ tags: _, ...rest }) => rest)(value))} />
           </label>
           {homePath && <TagProposal path={homePath} current={value?.tags} language={language} onTags={(tags) => value && onChange(tags ? { ...value, tags } : (({ tags: _, ...rest }) => rest)(value))} />}
           {/* not a label: a click on its words would press the first button */}
           <div className="wide">
-            <span className="hint">{c.sitePublish}</span>
+            <span className={K.cfgSubHintClass}>{c.sitePublish}</span>
             <SegmentedControl
               label={c.sitePublish}
               value={value?.publish ?? 'click'}
@@ -2232,11 +2251,11 @@ function VoiceBlock({ on }: { on: boolean }) {
       <SetupList items={view.items} name={(i) => v.names[i.id]} state={voiceState} action={(i) => i.id === 'recognition' && <RecognitionDetail item={i} busy={running} changed={recheck} />} />
       {view.listen === 'faster' && <p className="hint">{v.faster}</p>}
       {view.job?.running ? (
-        <p className="hint c-install">
+        <p className={installHintClass}>
           <span className="c-step">{v.step[view.job.step]}</span>
         </p>
       ) : view.fetch.mb ? (
-        <div className="c-install">
+        <div className={installClass}>
           <Button size="small" disabled={blocked} onClick={install}>
             {v.install(fileSize(view.fetch.mb * 1e6))}
           </Button>
@@ -2245,7 +2264,7 @@ function VoiceBlock({ on }: { on: boolean }) {
         !blocked && <p className="hint">{v.ready}</p>
       )}
       {view.job?.error && !view.job.running && <p className="p-error">{v.failed(view.job.error.split('\n').at(-1) ?? '')}</p>}
-      {status && <p className="hint c-status">{status}</p>}
+      {status && <p className={`hint ${statusClass}`}>{status}</p>}
       <Button size="small" disabled={checking || running} onClick={recheck}>
         {checking ? s.checking : s.recheck}
       </Button>
@@ -2299,12 +2318,12 @@ function ProjectBlock({ n, project, file, checking, resolved, running, pin, save
   const at = Math.min(tab, project.repos.length - 1);
   const repo = project.repos[at];
   return (
-    <div className="cfg-project">
-      <header className="cfg-head">
-        <div className="cfg-project-head">
-          <h3>{project.name?.trim() || resolved?.name || here}</h3>
+    <div className="cfg-project pb-2">
+      <header className={K.cfgHeadClass()}>
+        <div className="cfg-project-head flex items-baseline gap-3 mr-12 [&_.qmoves]:ml-auto [&_.qmoves]:self-center [&_.qmoves+.c-del]:ml-0 [&>.c-del]:self-center">
+          <h3 className={cn(K.cfgHeadTitleClass, 'm-0 mb-1.5 min-w-0 [overflow-wrap:anywhere]')}>{project.name?.trim() || resolved?.name || here}</h3>
           {resolved && (
-            <span className={fresh ? 'c-id fresh' : 'c-id'}>
+            <span className={idClass(!!fresh)}>
               {projectPath(resolved.id)} · {fresh ? t.config.fresh : t.config.runs}
             </span>
           )}
@@ -2324,13 +2343,13 @@ function ProjectBlock({ n, project, file, checking, resolved, running, pin, save
           )}
           <RemoveButton label={t.config.removeProject} onClick={() => onChange(null)} />
         </div>
-        <p className="hint cfg-file">{file}</p>
-        <p className="hint">{t.config.settings.hint}</p>
+        <p className={K.cfgHeadFileClass}>{file}</p>
+        <p className={K.cfgHeadHintClass}>{t.config.settings.hint}</p>
       </header>
       {checking && <p className="hint">{t.config.checking}</p>}
       <Field label={t.config.name} hint={fresh ? t.config.freshHint : undefined}>
         <Input
-          className="cfg-name"
+          className="cfg-name w-full max-w-[420px]"
           aria-label={t.config.name}
           value={project.name ?? ''}
           placeholder={resolved && !project.name ? t.config.nameAuto(resolved.name) : t.config.name}
@@ -2379,14 +2398,14 @@ function ProjectBlock({ n, project, file, checking, resolved, running, pin, save
       {/* its repositories as tabs, one shown at a time, with the problems of each counted on it */}
       <Tabs value={String(at)} onValueChange={(v) => setAt(Number(v))}>
       <Field label={t.config.repos}>
-        <div className="cfg-repo-tabs">
+        <div className="cfg-repo-tabs flex flex-wrap items-center gap-y-2 gap-x-3">
             <TabsList variant="segmented" aria-label={t.config.repos}>
               {project.repos.map((r, i) => {
                 const k = problems.filter((p) => p.repo === i).length;
                 return (
                   <TabsTrigger key={i} value={String(i)}>
                     {repoName(r, resolved?.repos[i])}
-                    {k > 0 && <Badge variant="count" className="bg-error">{k}</Badge>}
+                    {k > 0 && <Badge variant="count" className="bg-error ml-1.5">{k}</Badge>}
                   </TabsTrigger>
                 );
               })}
@@ -2514,16 +2533,16 @@ function RepoRow({ repo, home, resolved, projectId, problems, focus, where, ask,
   const leaving = resolved?.leaving?.length ? <p className="hint cfg-clone-leaving">{t.config.cloneLeaving(resolved.leaving.map((c) => (c.card ? { ...c, card: plain(c.card) } : c)))}</p> : null;
   const slots = (hint: string, placeholder: string) => (
     <Field className="cfg-slots" label={<>{t.config.slots} <Info text={hint} /></>}>
-      <Input type="number" min={0} max={20} aria-label={t.config.slots} placeholder={placeholder} value={repo.slots ?? ''} onChange={(e) => onChange(without('slots', slotsOf(e.target.value)))} />
+      <Input className="w-20" type="number" min={0} max={20} aria-label={t.config.slots} placeholder={placeholder} value={repo.slots ?? ''} onChange={(e) => onChange(without('slots', slotsOf(e.target.value)))} />
       {leaving}
     </Field>
   );
   // a repository of the project: its path, what is wrong with it, then where its agents work and its settings, each group under a heading
   return (
-    <section className="cfg-repo">
+    <section className="cfg-repo mt-2 pt-2.5 border-t border-t-line [&>.c-row]:mt-1.5 [&>.c-row]:mb-1 [&>.c-row]:max-w-[900px]">
       <Field label={t.config.path} hint={home || folder ? [...(home ? [t.config.home] : []), ...(folder ? [t.config.folderMode] : [])].join(' · ') : undefined}>
-        <div className="cfg-repo-path">
-          <Input className="c-path" aria-label={t.config.path} value={repo.path} placeholder={t.config.path} spellCheck={false} onChange={(e) => {
+        <div className="cfg-repo-path flex items-center gap-3 max-w-[664px] [&>.c-del]:ml-0">
+          <Input className={pathClass} aria-label={t.config.path} value={repo.path} placeholder={t.config.path} spellCheck={false} onChange={(e) => {
               // another folder: whether it goes without git is chosen for it anew
               const { git: _, ...rest } = repo;
               onChange({ ...rest, path: e.target.value });
@@ -2532,7 +2551,7 @@ function RepoRow({ repo, home, resolved, projectId, problems, focus, where, ask,
         </div>
       </Field>
       {problems.map((p, k) => (
-        <div key={k} className="cfg-repo-problem">
+        <div key={k} className="cfg-repo-problem mt-0.5 mx-0 mb-2">
           <Problem problem={p} where={where} ask={ask} retried={ask && onRecheck} />
           {p.code === 'notRepo' && noGit && <GitSetup key={noGit} path={noGit} confirm={t.setup.git.confirm} onDone={onRecheck} onFolder={() => onChange({ path: repo.path, git: false, ...(repo.settings ? { settings: repo.settings } : {}) })} />}
           {p.code === 'untrusted' && resolved?.trust && <TrustCommands path={repo.path} trust={resolved.trust} onDone={onRecheck} />}
@@ -2541,15 +2560,15 @@ function RepoRow({ repo, home, resolved, projectId, problems, focus, where, ask,
       {/* a repository without settings of its own, or with an adapter module that said them: a card on its project writes them, also before the project is saved */}
       {projectId && resolved && !folder && (resolved.adapterGone || !fromRepository(resolved.values)) && <AdapterSetup project={projectId} repo={resolved.id} takeover={takeover} />}
       {!folder && (resolved || clones) && (
-        <div ref={clonesBox} className={flash ? 'cfg-group flash' : 'cfg-group'}>
-          <h5 className="cfg-group-head">{t.config.groups.workstations}</h5>
-          <div className="cfg-field cfg-setting cfg-has-info">
-            <div className="cfg-label">
+        <div ref={clonesBox} className={K.cfgGroupClass(flash)}>
+          <h5 className={K.cfgGroupHeadClass}>{t.config.groups.workstations}</h5>
+          <div className={cn(K.cfgSettingClass, 'cfg-has-info')}>
+            <div className={K.cfgSettingLabelClass}>
               {t.config.settings.workstations}
-              {source && <span className={source === t.config.settings.source.machine ? 'cfg-source here' : 'cfg-source'}>{source}</span>}
+              {source && <span className={K.cfgSourceClass(source === t.config.settings.source.machine)}>{source}</span>}
               <Info text={t.config.settings.workstationsHint} />
             </div>
-            <div className="cfg-control">
+            <div className={K.cfgControlClass}>
               <SegmentedControl
                 label={t.config.settings.workstations}
                 value={workIn}
@@ -2563,7 +2582,7 @@ function RepoRow({ repo, home, resolved, projectId, problems, focus, where, ask,
               <Field label={t.config.workstations}>
                 <Textarea mono
                   ref={existing}
-                  className="cfg-existing"
+                  className="cfg-existing w-full max-w-[640px] resize-none overflow-y-hidden"
                   rows={2}
                   spellCheck={false}
                   aria-label={t.config.workstations}
@@ -2576,7 +2595,7 @@ function RepoRow({ repo, home, resolved, projectId, problems, focus, where, ask,
                 {(repo.workstations ?? []).some(itself) && <p className="hint">{t.config.cloneIsRepo}</p>}
               </Field>
               <Field className="cfg-clone-count" label={<>{t.config.clones} <Info text={t.config.clonesHint} /></>}>
-                <Input type="number" min={0} max={20} aria-label={t.config.clones} placeholder="0" value={repo.clones ?? ''} onChange={(e) => onChange(without('clones', Number(e.target.value) || undefined))} />
+                <Input className="w-20" type="number" min={0} max={20} aria-label={t.config.clones} placeholder="0" value={repo.clones ?? ''} onChange={(e) => onChange(without('clones', Number(e.target.value) || undefined))} />
                 {listed + (repo.clones ?? 0) + (repo.hosts ?? []).reduce((n, h) => n + h.clones, 0) === 0 ? (
                   <p className="hint warn">{t.config.noClones}</p>
                 ) : (
@@ -2584,7 +2603,7 @@ function RepoRow({ repo, home, resolved, projectId, problems, focus, where, ask,
                 )}
               </Field>
               {slots(t.config.slotsHint, t.config.slotsAll)}
-              <Field className="cfg-wide" label={<>{t.config.hosts} <Info text={t.config.hostsHint} /></>}>
+              <Field className="cfg-wide [&>.cfg-control]:max-w-[900px]" label={<>{t.config.hosts} <Info text={t.config.hostsHint} /></>}>
                 <Hosts hosts={repo.hosts ?? []} onChange={(hosts) => onChange(without('hosts', hosts.length ? hosts : undefined))} />
               </Field>
             </>
@@ -2687,17 +2706,17 @@ function RepoSettingsBlock({
   const lines = (k: SettingKey) => value<string[]>(k).join('\n');
   // a setting: its label with where its value comes from (and "Reset" where it is set here), its control and what to know about it
   const field = (key: string, label: string, here: boolean, from: string, reset: () => void, control: ReactNode, hint?: string) => (
-    <div className={shown === key ? 'cfg-field cfg-setting flash' : 'cfg-field cfg-setting'} key={key} data-setting={key}>
-      <div className="cfg-label">
+    <div className={cn(K.cfgSettingClass, shown === key && 'flash')} key={key} data-setting={key}>
+      <div className={K.cfgSettingLabelClass}>
         {label}
-        <span className={here ? 'cfg-source here' : 'cfg-source'}>{here ? c.source.machine : from}</span>
+        <span className={K.cfgSourceClass(here)}>{here ? c.source.machine : from}</span>
         {here && (
-          <button type="button" className="cfg-reset" title={c.resetHint} onClick={reset}>
+          <button type="button" className="cfg-reset p-0 [border:0] bg-transparent text-muted-foreground text-[11.5px] underline cursor-pointer hover:text-ink" title={c.resetHint} onClick={reset}>
             {c.reset}
           </button>
         )}
       </div>
-      <div className="cfg-control">
+      <div className={K.cfgControlClass}>
         {control}
         {hint && <p className="hint">{hint}</p>}
       </div>
@@ -2715,9 +2734,9 @@ function RepoSettingsBlock({
   return (
     <div className="cfg-settings" ref={box}>
       {!folder && (
-        <div className="cfg-group">
-          <h5 className="cfg-group-head">{t.config.groups.landing}</h5>
-          {row('branch', c.branch, <Input className="c-path" aria-label={c.branch} spellCheck={false} value={value<string>('branch')} onChange={(e) => set('branch', e.target.value)} />, c.branchHint)}
+        <div className={K.cfgGroupClass()}>
+          <h5 className={K.cfgGroupHeadClass}>{t.config.groups.landing}</h5>
+          {row('branch', c.branch, <Input className={pathClass} aria-label={c.branch} spellCheck={false} value={value<string>('branch')} onChange={(e) => set('branch', e.target.value)} />, c.branchHint)}
           {row(
             'land',
             c.land,
@@ -2747,23 +2766,23 @@ function RepoSettingsBlock({
           {row('softPaths', c.softPaths, <Textarea mono rows={Math.max(2, value<string[]>('softPaths').length + 1)} spellCheck={false} aria-label={c.softPaths} value={lines('softPaths')} onChange={(e) => set('softPaths', e.target.value.split('\n'))} />, c.softPathsHint)}
         </div>
       )}
-      <div className="cfg-group">
-        <h5 className="cfg-group-head">{t.config.groups.app}</h5>
-        {row('setup', c.setup, <Input className="c-path" aria-label={c.setup} spellCheck={false} value={value<string>('setup')} onChange={(e) => set('setup', e.target.value)} />, c.setupHint)}
+      <div className={K.cfgGroupClass()}>
+        <h5 className={K.cfgGroupHeadClass}>{t.config.groups.app}</h5>
+        {row('setup', c.setup, <Input className={pathClass} aria-label={c.setup} spellCheck={false} value={value<string>('setup')} onChange={(e) => set('setup', e.target.value)} />, c.setupHint)}
         {row('checks', c.checks, <Textarea mono rows={Math.max(2, value<string[]>('checks').length + 1)} spellCheck={false} aria-label={c.checks} value={lines('checks')} onChange={(e) => set('checks', e.target.value.split('\n'))} />, c.checksHint)}
         {row('run', c.run, <Textarea mono rows={Math.max(6, Math.ceil(value<string>('run').length / 70) + 1)} aria-label={c.run} placeholder={c.runPlaceholder} value={value<string>('run')} onChange={(e) => set('run', e.target.value)} />, c.runHint)}
-        {row('stop', c.stop, <Input className="c-path" aria-label={c.stop} placeholder="docker compose down" spellCheck={false} value={value<string>('stop')} onChange={(e) => set('stop', e.target.value)} />, c.stopHint)}
+        {row('stop', c.stop, <Input className={pathClass} aria-label={c.stop} placeholder="docker compose down" spellCheck={false} value={value<string>('stop')} onChange={(e) => set('stop', e.target.value)} />, c.stopHint)}
         {!!value<string>('stop').trim() &&
-          row('keep', c.keep, <Input className="c-path" aria-label={c.keep} placeholder="grep -q PERSIST=1 .env" spellCheck={false} value={value<string>('keep')} onChange={(e) => set('keep', e.target.value)} />, c.keepHint)}
+          row('keep', c.keep, <Input className={pathClass} aria-label={c.keep} placeholder="grep -q PERSIST=1 .env" spellCheck={false} value={value<string>('keep')} onChange={(e) => set('keep', e.target.value)} />, c.keepHint)}
       </div>
-      <div className="cfg-group">
-        <h5 className="cfg-group-head">{t.config.groups.plans}</h5>
+      <div className={K.cfgGroupClass()}>
+        <h5 className={K.cfgGroupHeadClass}>{t.config.groups.plans}</h5>
         {row(
           'planDocs',
           c.planDocs,
-          <div className="cfg-plan">
-            <Input className="c-path" aria-label={c.planDir} placeholder={c.planDir} spellCheck={false} value={planDocs.dir} onChange={(e) => set('planDocs', { ...planDocs, dir: e.target.value })} />
-            <Input className="c-path" aria-label={c.planExclude} placeholder={c.planExclude} spellCheck={false} value={planDocs.exclude.join(', ')} onChange={(e) => set('planDocs', { ...planDocs, exclude: e.target.value.split(/,\s*/) })} />
+          <div className="cfg-plan grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2 max-w-[640px]">
+            <Input className={pathClass} aria-label={c.planDir} placeholder={c.planDir} spellCheck={false} value={planDocs.dir} onChange={(e) => set('planDocs', { ...planDocs, dir: e.target.value })} />
+            <Input className={pathClass} aria-label={c.planExclude} placeholder={c.planExclude} spellCheck={false} value={planDocs.exclude.join(', ')} onChange={(e) => set('planDocs', { ...planDocs, exclude: e.target.value.split(/,\s*/) })} />
           </div>,
           c.planDocsHint,
         )}
@@ -2774,8 +2793,8 @@ function RepoSettingsBlock({
           c.languageHint,
         )}
       </div>
-      <div className="cfg-group">
-        <h5 className="cfg-group-head">{t.config.groups.demos}</h5>
+      <div className={K.cfgGroupClass()}>
+        <h5 className={K.cfgGroupHeadClass}>{t.config.groups.demos}</h5>
         {LANGUAGES.length > 1 && row(
           'demoLanguage',
           c.demoLanguage,
@@ -2858,7 +2877,7 @@ function TagProposal({ path, current, language, onTags }: { path: string; curren
   }, [running, path]);
   if (!available && !running) return null;
   return (
-    <div className="wide tag-propose">
+    <div className="wide tag-propose [.cfg-sub>&]:items-start [.cfg-sub>&]:gap-1.5">
       <Button
         type="button"
         size="small"
@@ -2876,9 +2895,9 @@ function TagProposal({ path, current, language, onTags }: { path: string; curren
       >
         {running ? c.siteTagsProposing : c.siteTagsPropose}
       </Button>
-      {running && <p className="hint">{c.siteTagsProposeHint}</p>}
+      {running && <p className={cn(K.cfgSubHintClass, 'm-0')}>{c.siteTagsProposeHint}</p>}
       {taken && (
-        <p className="hint">
+        <p className={cn(K.cfgSubHintClass, 'm-0')}>
           {c.siteTagsProposed} {taken.why}{' '}
           {taken.before && (
             <LinkButton
@@ -2919,6 +2938,11 @@ export function sharedPreview(repo: RepoConfig, values: RepoValues): Record<stri
   return Object.fromEntries(Object.entries(merged).filter(([, v]) => v !== undefined));
 }
 
+/** What "Take over into the repository for everyone" says: the file as it would be, where it goes, and what came of it. */
+const shareHint = 'text-muted-foreground text-[12.5px] leading-[1.45] max-w-[76ch] mt-1 mx-0 mb-0';
+const shareOk = cn(shareHint, 'text-ink');
+const shareConfirmHint = 'hint mt-1 mx-0 mb-0 max-w-[76ch]';
+
 /**
  * "Take over into the repository for everyone" under a repository's settings: this machine's values (but
  * the main branch) go into its `.obeya/settings.json`, so that everyone who clones it gets them.
@@ -2950,12 +2974,12 @@ function ShareSettings({ repo, values, branch, shareTo, shareDirect, takeover }:
     setBusy(false);
   };
   return (
-    <div className="cfg-field cfg-setting cfg-share-settings">
-      <div className="cfg-label">{c.label}</div>
-      <div className="cfg-control">
-        {done && 'committed' in done && <p className="hint ok">{c.committed(done.branch, done.committed.slice(0, 7))}</p>}
+    <div className={cn(K.cfgSettingClass, 'cfg-share-settings mt-1.5 pt-2 border-t border-t-line')}>
+      <div className={K.cfgSettingLabelClass}>{c.label}</div>
+      <div className={K.cfgControlClass}>
+        {done && 'committed' in done && <p className={shareOk}>{c.committed(done.branch, done.committed.slice(0, 7))}</p>}
         {done && 'pr' in done && (
-          <p className="hint ok">
+          <p className={shareOk}>
             {c.opened}{' '}
             <a href={done.pr} target="_blank" rel="noreferrer">
               {done.pr}
@@ -2963,25 +2987,25 @@ function ShareSettings({ repo, values, branch, shareTo, shareDirect, takeover }:
             {c.openedAfter}
           </p>
         )}
-        {!done && !count && <p className="hint">{c.none}</p>}
+        {!done && !count && <p className={shareHint}>{c.none}</p>}
         {!done && count > 0 && !confirming && (
           <>
             <Button type="button" size="small" disabled={!saved && !prepare} onClick={() => setConfirming(true)}>
               {c.button(count)}
             </Button>
-            <p className="hint">{saved || prepare ? `${c.hint}${repo.settings?.branch ? ` ${c.hintBranch}` : ''}` : c.saveFirst}</p>
+            <p className={shareHint}>{saved || prepare ? `${c.hint}${repo.settings?.branch ? ` ${c.hintBranch}` : ''}` : c.saveFirst}</p>
           </>
         )}
         {confirming && (
-          <div className="cfg-share-confirm">
-            {!saved && <p className="hint">{c.savesFirst}</p>}
-            <p className="hint">{shareTo === 'main' ? c.toMain(branch) : shareDirect ? c.toPrOrDirect(branch) : c.toPr(branch)}</p>
-            <pre className="c-json">
-              <span className="hint">.obeya/settings.json</span>
+          <div className="cfg-share-confirm max-w-[640px]">
+            {!saved && <p className={shareConfirmHint}>{c.savesFirst}</p>}
+            <p className={shareConfirmHint}>{shareTo === 'main' ? c.toMain(branch) : shareDirect ? c.toPrOrDirect(branch) : c.toPr(branch)}</p>
+            <pre className={cn(jsonClass, 'mt-1.5 mb-2 whitespace-pre-wrap')}>
+              <span className={shareConfirmHint}>.obeya/settings.json</span>
               {'\n'}
               {JSON.stringify(sharedPreview(repo, values), null, 2)}
             </pre>
-            <div className="cfg-share-actions">
+            <div className="cfg-share-actions flex gap-2">
               <Button type="button" variant="primary" size="small" disabled={busy} onClick={() => go()}>
                 {shareTo === 'main' ? c.commit : c.openPr}
               </Button>
@@ -2996,7 +3020,7 @@ function ShareSettings({ repo, values, branch, shareTo, shareDirect, takeover }:
             </div>
           </div>
         )}
-        {error && <p className="hint warn">{error}</p>}
+        {error && <p className={cn(shareHint, 'text-warn')}>{error}</p>}
       </div>
     </div>
   );
@@ -3022,9 +3046,9 @@ function OldNames({ names, onDelete }: { names: string[]; onDelete: (name: strin
   const c = t.config;
   const [asking, setAsking] = useState<string | null>(null);
   const rows = (
-    <ul className="cfg-old-names">
+    <ul className="cfg-old-names m-0 p-0 list-none max-w-[420px] [&>li>.c-del]:ml-0">
       {names.map((n) => (
-        <li key={n}>
+        <li key={n} className="flex items-center gap-2.5 min-h-[30px]">
           <span>{n}</span>
           <RemoveButton label={c.deleteOldName(n)} onClick={() => setAsking(n)} />
         </li>
@@ -3048,12 +3072,12 @@ function OldNames({ names, onDelete }: { names: string[]; onDelete: (name: strin
         confirm={{ label: c.deleteOldNameConfirm, variant: 'default', className: 'delete-old-name', onClick: () => asking !== null && onDelete(asking) }}
         cancel={c.deleteOldNameBack}
       >
-        <p className="old-name-warning">{c.deleteOldNameWarning}</p>
-        <ul className="old-name-effects">
+        <p className="old-name-warning py-2 px-3 rounded-[4px] text-error bg-[color-mix(in_srgb,var(--error)_10%,transparent)] font-semibold [[data-slot=confirm-dialog]_&]:mt-0 [[data-slot=confirm-dialog]_&]:mx-0 [[data-slot=confirm-dialog]_&]:mb-3">{c.deleteOldNameWarning}</p>
+        <ul className="old-name-effects mt-0 mx-0 mb-3 pl-5 leading-normal">
           <li>{c.deleteOldNameCards}</li>
           <li>{c.deleteOldNameReuse}</li>
         </ul>
-        <p className="hint">{c.deleteOldNameSave}</p>
+        <p className="hint [[data-slot=confirm-dialog]_&]:mt-0 [[data-slot=confirm-dialog]_&]:mx-0 [[data-slot=confirm-dialog]_&]:mb-[18px]">{c.deleteOldNameSave}</p>
       </ConfirmDialog>
     </Field>
   );
@@ -3061,7 +3085,7 @@ function OldNames({ names, onDelete }: { names: string[]; onDelete: (name: strin
 
 function RemoveButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <IconButton icon={<Trash2 size={15} strokeWidth={1.8} aria-hidden />} label={label} size="small" variant="danger" className="c-del c-remove" onClick={onClick} />
+    <IconButton icon={<Trash2 size={15} strokeWidth={1.8} aria-hidden />} label={label} size="small" variant="danger" className={removeClass} onClick={onClick} />
   );
 }
 
@@ -3071,21 +3095,22 @@ function Hosts({ hosts, onChange }: { hosts: HostConfig[]; onChange: (hosts: Hos
   return (
     <div className="cfg-hosts">
       {hosts.length > 0 && (
-        <div className="cfg-host-rows">
+        <div className="cfg-host-rows grid grid-cols-[minmax(0,.8fr)_minmax(0,1.3fr)_minmax(0,1.5fr)_auto_auto_24px] gap-y-1.5 gap-x-2.5 items-center [&_input]:min-w-0 [&_input:not([type=number])]:w-full">
           {hosts.map((h, i) => (
-            <div key={i} className="cfg-host">
+            <div key={i} className="cfg-host contents">
               <Input aria-label={t.config.hostName} value={h.name} placeholder={t.config.hostName} spellCheck={false} onChange={(e) => set(i, { ...h, name: e.target.value })} />
-              <Input className="c-path" aria-label={t.config.hostSsh} value={h.ssh} placeholder={t.config.hostSsh} spellCheck={false} onChange={(e) => set(i, { ...h, ssh: e.target.value })} />
-              <Input className="c-path" aria-label={t.config.hostRoot} value={h.root} placeholder={t.config.hostRoot} spellCheck={false} onChange={(e) => set(i, { ...h, root: e.target.value })} />
-              <label className="cfg-host-clones">
-                <span className="hint">{t.config.hostClones}</span>
-                <Input type="number" min={0} max={20} value={h.clones} onChange={(e) => set(i, { ...h, clones: Number(e.target.value) || 0 })} />
+              <Input className={pathClass} aria-label={t.config.hostSsh} value={h.ssh} placeholder={t.config.hostSsh} spellCheck={false} onChange={(e) => set(i, { ...h, ssh: e.target.value })} />
+              <Input className={pathClass} aria-label={t.config.hostRoot} value={h.root} placeholder={t.config.hostRoot} spellCheck={false} onChange={(e) => set(i, { ...h, root: e.target.value })} />
+              <label className="cfg-host-clones flex items-center gap-1.5">
+                <span className={K.cfgSubHintClass}>{t.config.hostClones}</span>
+                <Input className="w-16" type="number" min={0} max={20} value={h.clones} onChange={(e) => set(i, { ...h, clones: Number(e.target.value) || 0 })} />
               </label>
-              <label className="cfg-host-clones cfg-has-info">
-                <span className="hint">
+              <label className="cfg-host-clones cfg-has-info flex items-center gap-1.5">
+                <span className={K.cfgSubHintClass}>
                   {t.config.hostSlots} <Info text={t.config.slotsHint} />
                 </span>
                 <Input
+                  className="w-16"
                   type="number"
                   min={0}
                   max={20}
@@ -3104,7 +3129,7 @@ function Hosts({ hosts, onChange }: { hosts: HostConfig[]; onChange: (hosts: Hos
           ))}
         </div>
       )}
-      <Button size="small" onClick={() => onChange([...hosts, { name: '', ssh: '', root: '', clones: 2 }])}>
+      <Button size="small" className="[.cfg-host-rows+&]:mt-1.5" onClick={() => onChange([...hosts, { name: '', ssh: '', root: '', clones: 2 }])}>
         {t.config.addHost}
       </Button>
     </div>
@@ -3139,7 +3164,7 @@ export function Problem({ problem, where, ask, retried, onShow }: { problem: Con
     }
   };
   return (
-    <div className="p-error c-problem">
+    <div className={problemClass}>
       {named ? (
         <>
           {named[0]}
@@ -3204,9 +3229,9 @@ function TrustCommands({ path, trust, onDone }: { path: string; trust: RepoTrust
     }
   };
   return (
-    <div className="c-trust">
+    <div className={trustClass}>
       {trust.held.map((g) => (
-        <div key={g} className="c-trust-group">
+        <div key={g} className={trustGroupClass}>
           <p className="hint">{c[g]}</p>
           <div className="d-lines">
             {lineDiff(commandLines(trust.before, g), commandLines(trust.now, g)).map((d, i) => (
@@ -3257,7 +3282,7 @@ function AdapterSetup({ project, repo, takeover }: { project: string; repo: stri
     }
   };
   return (
-    <div className="c-row">
+    <div className={`${rowClass} [&_.hint]:min-w-0 [&_.hint]:text-[11.5px]!`}>
       <span className="hint">
         {t.config.adapterSetupHint}
         {!saved && <> {prepare ? t.config.adapterSetupSaves : t.config.adapterSetupSaveFirst}</>}

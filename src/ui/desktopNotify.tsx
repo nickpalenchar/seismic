@@ -111,10 +111,15 @@ export function NotifyAsk({ ask, answer }: { ask: boolean; answer: (on: boolean)
   if (!ask) return null;
   const n = t.notifications;
   return (
-    <div className="notify-ask" role="dialog" aria-label={n.title}>
+    // solid, as the rating's prompt it stacks with above the microphone
+    <div
+      className="notify-ask pointer-events-auto w-[min(460px,calc(100vw_-_32px))] py-3.5 px-4 rounded-[14px] border border-solid border-glass-edge bg-panel shadow-[inset_0_1px_0_var(--glass-hi),var(--lift)] text-[14.5px] flex flex-col gap-2"
+      role="dialog"
+      aria-label={n.title}
+    >
       <strong>{n.title}</strong>
       <span>{n.ask}</span>
-      <div className="notify-ask-actions">
+      <div className="flex gap-2 items-center">
         <Button variant="primary" onClick={() => answer(true)}>
           {n.turnOn}
         </Button>

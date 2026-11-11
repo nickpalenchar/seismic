@@ -6,6 +6,7 @@ import { Car, CircleHelp, RotateCw } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { type Item, titleFrom } from '../../core/types';
 import { Inline } from '../markdown';
+import { unreadDotClass } from '../inboxClasses';
 import { ClockMark } from '../snooze';
 import { t } from '../strings';
 import type { CardSummary, StateMark } from './summary';
@@ -81,4 +82,4 @@ export const PinDot = ({ pin }: { pin: NonNullable<CardSummary['pin']> }) => (
 );
 
 /** The orange dot of an inbox entry the owner has not read yet. */
-export const UnreadDot = () => <span className="unread-dot" role="img" aria-label={t.inbox.unread} />;
+export const UnreadDot = () => <span className={unreadDotClass} role="img" aria-label={t.inbox.unread} />;

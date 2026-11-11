@@ -137,6 +137,7 @@
   --color-line: var(--line);
   --color-chip: var(--chip);
   --color-panel: var(--panel);
+  --color-dim: var(--dim);
   --color-error: var(--error);
   --color-warn: var(--warn);
   --color-online: var(--online);
@@ -199,3 +200,13 @@
   background: var(--waiting) no-repeat center / 10px
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1.5 5.2 4 7.5 8.5 2.5' fill='none' stroke='white' stroke-width='1.8'/%3E%3C/svg%3E");
 }
+
+/* the phone view and the toasts (phone.tsx, components/toast.tsx): a conversation's panel comes up from below;
+   a toast on the phone nudges aside and back once, until the owner has swiped one aside */
+@keyframes ph-up { from { transform: translateY(100%); } }
+@keyframes toast-nudge { 30% { transform: translateX(36px); } 55% { transform: translateX(-10px); } 75%, 100% { transform: none; } }
+
+/* Configuration (configClasses.ts): a group of a repository's settings, or one setting, marked a moment when
+   the dialog opens at it (from a card waiting for a clone, from a proposal for the setting) */
+@keyframes cfg-flash { 0%, 45% { background: color-mix(in srgb, var(--working) 12%, transparent); } }
+@keyframes cfg-setting-flash { 0%, 45% { background: color-mix(in srgb, var(--proposal) 14%, transparent); } }

@@ -9,6 +9,10 @@ import { api } from './api';
 import { failText, t } from './strings';
 import { Button } from './components/button';
 
+/** The hint on the phone's list, a frosted box under its bar. */
+const notifyClass =
+  'ph-notify mt-3.5 mx-0 mb-0 py-2.5 px-3 rounded-[8px] border border-solid border-glass-edge bg-card shadow-[inset_0_1px_0_var(--glass-hi),var(--shadow)] backdrop-blur-glass text-[14.5px] flex flex-col items-start gap-2';
+
 type State = 'none' | 'install' | 'ask' | 'on';
 
 const ios = () => /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.userAgent.includes('Macintosh') && navigator.maxTouchPoints > 1);
@@ -55,11 +59,11 @@ export function Notify() {
     if (state === 'on') subscribe().catch((e) => console.warn('push subscription', e));
   }, []);
   const n = t.phone.notify;
-  if (failed) return <p className="ph-notify">{n.failed(failed)}</p>;
-  if (state === 'install') return <p className="ph-notify">{n.install}</p>;
+  if (failed) return <p className={notifyClass}>{n.failed(failed)}</p>;
+  if (state === 'install') return <p className={notifyClass}>{n.install}</p>;
   if (state !== 'ask') return null;
   return (
-    <div className="ph-notify">
+    <div className={notifyClass}>
       <span>{n.why}</span>
       <Button
         variant="primary"

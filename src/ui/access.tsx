@@ -13,6 +13,14 @@ import { Button, CloseButton } from './components/button';
 import { Dialog, DialogContent, DialogTitle } from './components/dialog';
 import { SegmentedControl } from './components/segmented';
 import { Select, SelectItem } from './components/select';
+import { statusClass } from './setupClasses';
+
+/** A line that something is in order, behind a tick in the approved colour. */
+const okClass = "before:content-['✓_'] before:text-approved";
+/** The address to type, a little larger than the code around it. */
+const addressClass = 'acc-address text-[13px]!';
+/** A step that is still missing, close under the line it is about. */
+const stepClass = 'hint acc-step mt-1! mb-0! mx-0!';
 
 /** Text with `code` in backticks, as the strings write commands. */
 function Coded({ text }: { text: string }) {
@@ -98,10 +106,10 @@ function Reach({ view, onView }: { view: AccessView; onView: (v: AccessView) => 
       )}
       {via === 'tailscale' && (
         <Field label={a.network}>
-          <div className={ts.state === 'ready' ? 'acc-state ok' : 'acc-state'}>{ts.state === 'ready' ? a.state.ready(ts.name, ts.account) : a.state[ts.state]}</div>
-          {ts.state === 'ready' && !ts.others && <p className="hint acc-step acc-alone">{a.alone(ts.account)}</p>}
+          <div className={ts.state === 'ready' ? `acc-state ok ${okClass}` : 'acc-state'}>{ts.state === 'ready' ? a.state.ready(ts.name, ts.account) : a.state[ts.state]}</div>
+          {ts.state === 'ready' && !ts.others && <p className={`${stepClass} acc-alone text-warn! font-semibold`}>{a.alone(ts.account)}</p>}
           {step && (
-            <p className="hint acc-step">
+            <p className={stepClass}>
               <Coded text={step} />
             </p>
           )}
@@ -116,7 +124,7 @@ function Reach({ view, onView }: { view: AccessView; onView: (v: AccessView) => 
       )}
       {via && (
         <Field label={a.reach}>
-          {view.address ? <code className="acc-address">{view.address}</code> : <span className="hint">{a.notYet}</span>}
+          {view.address ? <code className={addressClass}>{view.address}</code> : <span className="hint">{a.notYet}</span>}
           {p && (
             <p className="p-error">
               {p.code === 'operator' ? (
@@ -153,7 +161,7 @@ function Reach({ view, onView }: { view: AccessView; onView: (v: AccessView) => 
           </p>
         </Field>
       )}
-      {status && <p className="hint c-status">{status}</p>}
+      {status && <p className={`hint ${statusClass}`}>{status}</p>}
     </>
   );
 }
@@ -164,7 +172,7 @@ function Qr({ text, size = 220 }: { text: string; size?: number }) {
   let d = '';
   data.forEach((row, y) => row.forEach((dark, x) => dark && (d += `M${x} ${y}h1v1h-1z`)));
   return (
-    <svg className="acc-qr" width={size} height={size} viewBox={`0 0 ${n} ${n}`} shapeRendering="crispEdges" role="img" aria-label={text}>
+    <svg className="acc-qr flex-none rounded-[3px] [box-shadow:var(--shadow)]" width={size} height={size} viewBox={`0 0 ${n} ${n}`} shapeRendering="crispEdges" role="img" aria-label={text}>
       <rect width={n} height={n} fill="#fff" />
       <path d={d} fill="#000" />
     </svg>
@@ -192,11 +200,11 @@ export function AccessSection({ on, onConnect }: { on: boolean; onConnect: () =>
       <Reach view={view} onView={setView} />
       <Head sub title={a.devices} hint={a.devicesHint} />
       {view.devices.length ? (
-        <ul className="acc-devices">
+        <ul className="acc-devices list-none m-0 p-0 max-w-[720px]">
           {view.devices.map((d) => (
-            <li key={d.id}>
+            <li key={d.id} className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-[18px] items-center py-2 px-0 border-b border-b-line text-[13.5px]">
               <span>
-                <span className="acc-name">{d.name}</span>
+                <span className="acc-name font-semibold">{d.name}</span>
                 {d.push && <span className="hint"> · {a.pushOn}</span>}
               </span>
               <span className="hint">{a.pairedAt(when(d.pairedAt))}</span>
@@ -211,12 +219,12 @@ export function AccessSection({ on, onConnect }: { on: boolean; onConnect: () =>
         <p className="hint">{a.noDevices}</p>
       )}
       {view.address && (
-        <Button variant="primary" size="small" className="acc-connect" onClick={onConnect}>
+        <Button variant="primary" size="small" className="acc-connect mt-3" onClick={onConnect}>
           {a.connect}
         </Button>
       )}
-      {status && <p className="hint c-status">{status}</p>}
-      <p className="hint acc-note">{a.whileRunning}</p>
+      {status && <p className={`hint ${statusClass}`}>{status}</p>}
+      <p className="hint acc-note mt-[18px] max-w-[76ch]">{a.whileRunning}</p>
     </>
   );
 }
@@ -252,7 +260,7 @@ export function PhoneDialog({ onClose, onSection }: { onClose: () => void; onSec
   else if (pairing?.paired)
     body = (
       <div className="acc-done">
-        <p className="acc-connected">{a.connected(pairing.paired.name)}</p>
+        <p className={`acc-connected text-[18px] font-semibold my-2 mx-0 ${okClass}`}>{a.connected(pairing.paired.name)}</p>
         <Button size="small" onClick={() => void another()}>
           {a.another}
         </Button>
@@ -261,16 +269,16 @@ export function PhoneDialog({ onClose, onSection }: { onClose: () => void; onSec
   else if (pairing) {
     const ts = view.remote?.via === 'tailscale' && view.tailscale.state === 'ready' ? view.tailscale : null;
     body = (
-      <div className="acc-pair">
+      <div className="acc-pair flex gap-[26px] items-start [&_p]:mt-0 [&_p]:mb-2.5 [&_p]:mx-0 [&_p]:leading-[1.45]">
         <Qr text={pairing.url} />
         <div>
-          {ts && !ts.others && <p className="acc-alone">{a.alone(ts.account)}</p>}
+          {ts && !ts.others && <p className="acc-alone text-warn! font-semibold">{a.alone(ts.account)}</p>}
           <p>{ts ? a.scanTailscale(ts.account) : a.scan}</p>
           <p className="hint">{a.orType}</p>
           <p>
-            <code className="acc-address">{view.address}</code>
+            <code className={addressClass}>{view.address}</code>
           </p>
-          <p className="acc-code" aria-label={pairing.code}>
+          <p className="acc-code [font:600_34px/1.1_var(--mono)] tracking-[.08em] mt-1! mb-1.5! mx-0!" aria-label={pairing.code}>
             {pairing.code.slice(0, 3)} {pairing.code.slice(3)}
           </p>
           <p className="hint">{a.validUntil(clock(pairing.expires))}</p>
@@ -280,13 +288,13 @@ export function PhoneDialog({ onClose, onSection }: { onClose: () => void; onSec
   }
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent id="phone" className="box">
-        <CloseButton label={t.close} className="close" onClick={onClose} />
+      <DialogContent id="phone" glass className={`box relative pt-[22px] px-[26px] pb-5 w-[680px] max-w-full max-h-full overflow-auto text-[14px] [&_code]:[font:12px_var(--mono)] [&_code]:[overflow-wrap:anywhere]`}>
+        <CloseButton label={t.close} className="close absolute right-3.5 top-3" onClick={onClose} />
         <DialogTitle asChild>
-          <h2>{a.connect}</h2>
+          <h2 className="mt-0 mb-4 mx-0 text-[23px]">{a.connect}</h2>
         </DialogTitle>
         {body}
-        <div className="acc-foot">
+        <div className="acc-foot mt-[18px] pt-3 border-t border-t-line">
           <Button size="small" onClick={onSection}>
             {a.toSection}
           </Button>

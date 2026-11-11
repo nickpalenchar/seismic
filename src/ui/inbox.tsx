@@ -10,6 +10,7 @@
 // an orange dot and a bold title; the switch above the list shows all of them or only the unread ones
 // (src/ui/inboxRead.ts keeps what was read).
 
+import { cn } from 'cn';
 import { Fragment, type ReactNode } from 'react';
 import type { InboxEntry } from '../core/inbox';
 import type { Item } from '../core/types';
@@ -19,6 +20,7 @@ import type { QuickReply } from './quickReply';
 import { useStoredState } from './stored';
 import { t } from './strings';
 import { CloseButton } from './components/button';
+import { emptyInboxClass, entryListClass, inboxBarClass } from './inboxClasses';
 import { CheckLabel } from './components/check-label';
 import { Switch } from './components/switch';
 import { SegmentedControl } from './components/segmented';
@@ -48,12 +50,12 @@ export function InboxList({ entries: all, current, open, onGo, onReply, onPropos
   const [filter, setFilter] = useStoredState<Filter>('obeya-inbox-filter', 'unread');
   const [everywhere, setEverywhere] = useStoredState<boolean>('obeya-inbox-all-projects', false);
   const entries = current && !everywhere ? all.filter((e) => e.project === current) : all;
-  if (!entries.length && !current) return <p className="empty-inbox">{t.inbox.empty}</p>;
+  if (!entries.length && !current) return <p className={emptyInboxClass}>{t.inbox.empty}</p>;
   // the open card's entry stays while the owner is at it, read or not
   const shown = filter === 'all' ? entries : entries.filter((e) => !isRead(e) || (!!e.card && e.card.id === open));
   return (
     <>
-      <div className="inbox-bar">
+      <div className={inboxBarClass}>
       <SegmentedControl
         className="inbox-filter"
         label={t.inbox.filter}
@@ -68,9 +70,9 @@ export function InboxList({ entries: all, current, open, onGo, onReply, onPropos
           </CheckLabel>
         )}
       </div>
-      {!entries.length && <p className="empty-inbox">{t.inbox.empty}</p>}
-      {!!entries.length && !shown.length && <p className="empty-inbox">{t.inbox.noneUnread}</p>}
-      <ul className="inbox-list">
+      {!entries.length && <p className={emptyInboxClass}>{t.inbox.empty}</p>}
+      {!!entries.length && !shown.length && <p className={emptyInboxClass}>{t.inbox.noneUnread}</p>}
+      <ul className={entryListClass}>
         {shown.map((e) => (
           <Fragment key={e.key}>
             {renderEntry(e, { unread: !isRead(e), here: !!e.card && e.card.id === open, current, subtle: true, onGo, onReply, onRead, onProposalCard, onProposalConfig, els: e.project === current ? els : undefined })}
@@ -91,15 +93,17 @@ export const inboxListWidth = () => Math.round(Math.min(480, Math.max(340, inner
  */
 export function InboxView({ on, held, onClose, ...p }: InboxProps & { on: boolean; held: boolean; onClose: () => void }): ReactNode {
   if (!on) return null;
+  // the list keeps to the left, out of the dim beside an open card (App), so the owner works down it; the
+  // card unfolds in the room beside it (`#inbox-full` in styles.css sets the page's row, over `.full-page`'s column)
   return (
     <FullPage id="inbox-full" title={t.inbox.title}>
-      <div className={held ? 'inbox-col held' : 'inbox-col'}>
-        <h2>{t.inbox.title}</h2>
+      <div className={cn('inbox-col flex-none w-[min(480px,max(340px,36vw))] box-border overflow-auto pt-3 px-3.5 pb-[30px] border-r border-r-line', held && 'held')}>
+        <h2 className="mt-0 mx-2 mb-2.5 text-[18px]">{t.inbox.title}</h2>
         <InboxList {...p} />
       </div>
-      <div className="inbox-room">
+      <div className="inbox-room flex-1 min-w-0 flex flex-col items-end py-3 px-6">
         <CloseButton label={t.close} className="a-full" onClick={onClose} />
-        <p className="hint">{t.inbox.pick}</p>
+        <p className="self-center my-auto mx-0 max-w-[320px] text-center text-[13px] text-muted-foreground">{t.inbox.pick}</p>
       </div>
     </FullPage>
   );

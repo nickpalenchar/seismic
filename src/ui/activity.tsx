@@ -4,6 +4,7 @@
 // as the list is scrolled to its end. The lines come from the server's Activity log, which the page
 // reads again whenever the project changes.
 
+import { cn } from 'cn';
 import { GitBranch } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { ActivityEntry, Item } from '../core/types';
@@ -14,6 +15,7 @@ import { useStoredState } from './stored';
 import { clock, t } from './strings';
 import { CheckLabel } from './components/check-label';
 import { Switch } from './components/switch';
+import { agentsEmptyClass, inboxBarClass } from './inboxClasses';
 
 /** The log of the open project, or with the switch on, of every project; `allProjects` (the phone, which shows every project) always every project's, without the switch. */
 export function ActivityTab({ project, changed, open, onGo, allProjects }: { project: string; changed: unknown; open?: string; onGo: (project: string, i: Item) => void; allProjects?: boolean }) {
@@ -71,7 +73,7 @@ export function ActivityTab({ project, changed, open, onGo, allProjects }: { pro
   return (
     <>
       {!allProjects && (
-        <div className="inbox-bar activity-bar">
+        <div className={cn(inboxBarClass, 'activity-bar mb-1.5 justify-end')}>
           <CheckLabel>
             <Switch checked={everywhere} onCheckedChange={setEverywhere} />
             {t.inbox.allProjects}
@@ -79,25 +81,26 @@ export function ActivityTab({ project, changed, open, onGo, allProjects }: { pro
         </div>
       )}
       {loaded && !entries.length ? (
-        <p className="hint agents-empty">{t.agents.activity.empty}</p>
+        <p className={agentsEmptyClass}>{t.agents.activity.empty}</p>
       ) : (
-        <ul className="activity-list">
+        <ul className="activity-list list-none m-0 pt-0 px-2 pb-2 flex flex-col gap-2.5">
           {entries.map((e) => {
             const d = t.archive.day(new Date(e.at));
             const heading = d !== day && (day = d);
             return (
+              // the card's compact face under the line is a `.card`: `.activity-row .act-card` in styles.css fits it into the row
               <li key={e.id} className="activity-row">
-                {heading && <h3 className="activity-day">{heading}</h3>}
-                <div className="activity-what">
-                  <span className="activity-text">{t.agents.activity.line(e)}</span>
+                {heading && <h3 className="activity-day mt-2 mx-0.5 mb-0 text-[11px] font-semibold tracking-[.04em] uppercase text-muted-foreground">{heading}</h3>}
+                <div className="activity-what flex items-center gap-2 mt-0 mx-0.5 mb-1.5 text-[12px] text-muted-foreground">
+                  <span className="activity-text min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{t.agents.activity.line(e)}</span>
                   {all && (
-                    <span className="activity-where">
+                    <span className="activity-where flex-none inline-flex items-center gap-[3px] max-w-[40%] overflow-hidden text-ellipsis whitespace-nowrap">
                       <GitBranch size={11} aria-hidden />
                       {e.projectName}
                     </span>
                   )}
                   {e.project === project && <OtherCanvas item={e.card} />}
-                  <span className="activity-time">{clock(e.at)}</span>
+                  <span className="activity-time ml-auto flex-none tabular-nums">{clock(e.at)}</span>
                 </div>
                 {e.deleted ? (
                   <div className={`${cardClass(e.card)} act-card gone`}>
@@ -111,7 +114,7 @@ export function ActivityTab({ project, changed, open, onGo, allProjects }: { pro
               </li>
             );
           })}
-          {more && <li ref={end} className="activity-end" aria-hidden />}
+          {more && <li ref={end} className="activity-end h-px" aria-hidden />}
         </ul>
       )}
     </>

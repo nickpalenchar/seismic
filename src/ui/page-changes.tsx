@@ -1,12 +1,13 @@
 // What changed on shared demo pages since some of them were shared (src/core/page-changes.ts):
 // on a card's shared page (or that its repository's theme changed), and in the Koordinator's notice of outdated pages, with how many lack each.
 
+import { cn } from 'cn';
 import { type OutdatedBy, PAGE_CHANGES, THEME_CHANGED } from '../core/page-changes';
 import { shortDay, t } from './strings';
 
-export function PageChangeList({ changes }: { changes: { id: OutdatedBy; pages?: number }[] }) {
+export function PageChangeList({ changes, className }: { changes: { id: OutdatedBy; pages?: number }[]; className?: string }) {
   return (
-    <ul className="page-changes list-none mt-1 mb-0 p-0 grid gap-1 text-xs text-ink">
+    <ul className={cn('page-changes list-none mt-1 mb-0 p-0 grid gap-1 text-xs text-ink', className)}>
       {changes.map(({ id, pages }) => {
         const kinds = PAGE_CHANGES.find((c) => c.id === id)?.kinds ?? [];
         return (

@@ -5,10 +5,27 @@
 
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { toast as sonner } from 'sonner';
+import { cn } from 'cn';
 import { CardLink } from '../cardLink';
 import { Cards } from '../message';
 import { t } from '../strings';
 import { Toaster } from './sonner';
+
+/**
+ * The column the toasts stand in (`#acks`), with what else stands above the microphone (the rating's
+ * stars, the notification prompt): the bottom right corner of the project, left of a docked panel
+ * (`--side`) and above the canvases' tab strip where there is one.
+ */
+export const acksClass =
+  'fixed right-[calc(var(--side,0px)+14px)] [transition:right_.45s_cubic-bezier(.3,.9,.3,1)] resizing:transition-none bottom-[46px] [:root:has(#canvas-tabs)_&]:bottom-[86px] z-90 flex flex-col items-end gap-1.5 pointer-events-none';
+
+/**
+ * On the phone the column is centred above the microphone, as wide as the screen; with the phone
+ * turned it takes the width the microphone's strip leaves, and with a conversation's panel open
+ * (`--ph-field`: the height of its field) it stands above the field.
+ */
+export const phoneAcksClass =
+  'fixed left-1/2 right-auto [transform:translateX(-50%)] transition-none bottom-[calc(91px+env(safe-area-inset-bottom))] w-[calc(100vw-24px)] z-90 flex flex-col items-center gap-1.5 pointer-events-none ph-landscape:bottom-[calc(14px+env(safe-area-inset-bottom))] ph-landscape:w-[calc(100vw-112px-env(safe-area-inset-right)-24px)] ph-landscape:[.ph-panel~&]:bottom-[calc(var(--ph-field,0px)+34px+env(safe-area-inset-bottom))]';
 
 /**
  * What a toast is: a confirmation (dark), what the server is still at (dark, turning), a warning
@@ -188,14 +205,14 @@ export function Toasts({ toasts, open, aside = false }: { toasts: ReturnType<typ
       sonner.dismiss(`${bridge}:${id}`);
     }
   }, [list, open, aside, bridge, store]);
-  return <Toaster swipeDirections={aside ? ['left', 'right'] : []} />;
+  return <Toaster phone={aside} swipeDirections={aside ? ['left', 'right'] : []} />;
 }
 
 /** The card a toast is about, as an inline card where it is on the project, else its title in bold. */
 function ToastCard({ card }: { card: { id: string; title: string } }) {
   const cards = useContext(Cards);
   const item = cards.items.find((i) => i.id === card.id);
-  if (!item || item.archivedAt) return <b>{t.voice.about(card.title)}</b>;
+  if (!item || item.archivedAt) return <b className="font-semibold">{t.voice.about(card.title)}</b>;
   return (
     <>
       <CardLink card={item} title={card.title} />
@@ -204,20 +221,70 @@ function ToastCard({ card }: { card: { id: string; title: string } }) {
   );
 }
 
+/**
+ * A turning ring before the words, in the colours of `ring` (its track, then its turning part). A
+ * color-mix reaches the ring through a custom property (`--track`): Tailwind's fallback for one on a
+ * pseudo-element nests it where it never applies.
+ */
+const spinner = (ring: string) =>
+  cn("before:content-[''] before:flex-none before:rounded-full before:border-2 before:border-solid before:animate-[spin_.8s_linear_infinite]", ring);
+
+/**
+ * A toast's look: dark (a confirmation, a command's line), light with a ring (a warning), muted while
+ * a command is read; at most as wide as half the room the docked panels leave, on the phone as wide as
+ * the screen. Its words wrap above its buttons where there are several (or a warning's, on the phone).
+ */
+function toastClass(x: Toast, { wrap, phone, nudge }: { wrap: boolean; phone: boolean; nudge: boolean }) {
+  const warning = x.kind === 'warning';
+  return cn(
+    'toast flex items-center rounded-[3px] pointer-events-auto',
+    x.kind,
+    phone
+      ? 'max-w-full'
+      : 'max-w-[min(560px,max(300px,calc((100vw-var(--left,0px)-var(--side,0px))/2-110px)),calc(100vw-var(--left,0px)-var(--side,0px)-32px))]',
+    x.reading
+      ? ['reading bg-panel text-muted-foreground shadow-glass py-[7px] px-3.5 text-[13px]', spinner('before:size-2.5 before:border-transparent before:border-t-working')]
+      : warning
+        ? 'bg-[color-mix(in_srgb,var(--warn)_22%,var(--panel))] text-ink shadow-glass outline outline-[color-mix(in_srgb,var(--warn)_45%,transparent)] py-3 px-4 text-[14px]'
+        : 'bg-ink text-background py-3 px-4 text-[14px]',
+    x.kind === 'wait' && ['[--track:color-mix(in_srgb,var(--bg)_25%,transparent)]', spinner('before:size-3 before:[border-color:var(--bg)_var(--track)_var(--track)_var(--track)]')],
+    wrap ? ['flex-wrap gap-x-2 gap-y-2.5 [&>span]:basis-full', phone && warning && 'justify-end'] : 'gap-3.5',
+    // the phone's toasts are swiped aside: a finger dragging one selects nothing
+    phone && 'swipeable select-none',
+    nudge && !x.reading && 'nudge animate-[toast-nudge_.9s_.7s_ease-in-out]',
+  );
+}
+
+/** A toast's button: outlined in the toast's ink, in the warning colour on a warning; cut short where several share a line. */
+const toastButtonClass = (warning: boolean, several: boolean) =>
+  cn(
+    'bg-transparent border border-solid rounded-[2px] py-[3px] px-2.5 cursor-pointer flex-none',
+    warning ? 'border-warn text-warn' : 'border-[color-mix(in_srgb,var(--bg)_40%,transparent)] text-background',
+    several && 'max-w-full overflow-hidden text-ellipsis whitespace-nowrap',
+  );
+
 export function ToastLine({ toast: x, open, aside, onGone }: { toast: Toast; open?: string; aside: boolean; onGone: () => void }) {
   const go = x.undo ? [] : (x.go ?? []).filter((c) => c.id !== open);
+  const several = go.length > 1;
+  const warning = x.kind === 'warning';
   // until the owner has swiped one aside, each nudges aside and back once as a hint
   const nudge = aside && !swipedOnce();
+  const button = toastButtonClass(warning, several);
   return (
-    <div className={`toast ${x.kind}${x.reading ? ' reading' : ''}${go.length > 1 ? ' several' : ''}${aside ? ' swipeable' : ''}${nudge ? ' nudge' : ''}`} role={x.kind === 'warning' ? 'alert' : undefined}>
+    <div className={cn(toastClass(x, { wrap: several || (aside && warning), phone: aside, nudge }), several && 'several')} role={warning ? 'alert' : undefined}>
       <span>
         {x.card && x.card.id !== open && !x.reading && <ToastCard card={x.card} />}
         {x.text}
       </span>
-      {x.undo && <button onClick={() => x.undo?.()}>{t.undo}</button>}
+      {x.undo && (
+        <button className={button} onClick={() => x.undo?.()}>
+          {t.undo}
+        </button>
+      )}
       {go.map((c) => (
         <button
           key={c.id}
+          className={button}
           onClick={() => {
             onGone();
             c.run();
@@ -226,7 +293,11 @@ export function ToastLine({ toast: x, open, aside, onGone }: { toast: Toast; ope
           {c.label}
         </button>
       ))}
-      {x.dismiss && <button onClick={onGone}>{t.voice.dismissWarning}</button>}
+      {x.dismiss && (
+        <button className={button} onClick={onGone}>
+          {t.voice.dismissWarning}
+        </button>
+      )}
     </div>
   );
 }

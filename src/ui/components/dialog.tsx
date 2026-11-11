@@ -22,7 +22,9 @@ import { uiPortal } from './ui';
 
 const layer =
   'fixed inset-0 z-60 flex items-center justify-center bg-dim p-6 backdrop-blur-[3px] data-[state=open]:animate-[fade_.15s_ease-out]';
-const box = 'relative box-border max-h-full max-w-full bg-panel text-ink shadow-lift outline-none';
+const box = 'relative box-border max-h-full max-w-full text-ink outline-none';
+/** The box's surface: solid, or (`glass`) frost's pane, the page blurred behind it. */
+const surface = { solid: 'bg-panel shadow-lift', glass: 'frost-pane' };
 
 export function Dialog(props: ComponentProps<typeof DialogPrimitive.Root>) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />;
@@ -44,8 +46,9 @@ export function DialogContent({
   children,
   onInteractOutside,
   onOpenAutoFocus,
+  glass,
   ...props
-}: ComponentProps<typeof DialogPrimitive.Content> & { layerClassName?: string; keepMounted?: boolean }) {
+}: ComponentProps<typeof DialogPrimitive.Content> & { layerClassName?: string; keepMounted?: boolean; glass?: boolean }) {
   // the parked children: a detached element they render into for good, moved into the box while it is open
   const [parked] = useState(() => {
     const el = document.createElement('div');
@@ -65,7 +68,7 @@ export function DialogContent({
           <DialogPrimitive.Content
             data-slot="dialog-content"
             aria-describedby={undefined}
-            className={cn(box, className)}
+            className={cn(box, glass ? surface.glass : surface.solid, className)}
             {...props}
             onOpenAutoFocus={(e) => {
               onOpenAutoFocus?.(e);
@@ -114,7 +117,7 @@ export function ConfirmDialog({
           <AlertDialogPrimitive.Content
             data-slot="confirm-dialog"
             aria-describedby={undefined}
-            className={cn(box, 'w-[min(440px,100%)] rounded-[4px] p-6 [&_p]:mb-[22px] [&_p]:leading-normal', className)}
+            className={cn(box, surface.solid, 'w-[min(440px,100%)] rounded-[4px] p-6 [&_p]:mb-[22px] [&_p]:leading-normal', className)}
           >
             <AlertDialogPrimitive.Title className="m-0 mb-2.5 text-2xl font-semibold">{title}</AlertDialogPrimitive.Title>
             {children}

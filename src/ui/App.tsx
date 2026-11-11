@@ -56,7 +56,7 @@ import { pastedShots } from './pasteHint';
 import { attachTo, imageFiles } from './shots';
 import { cardDraft, drafted, fieldOn, focusedDraft, keepDrafts, MIC_DRAFT, OBEYA_DRAFT, takesImages } from './draft';
 import { HoldToTalk, PushToTalk, SPACE_SHOWS_MS, TAP_MS, usePushToTalk, useTold } from './voice';
-import { Toasts, useToasts } from './components/toast';
+import { acksClass, Toasts, useToasts } from './components/toast';
 import { layerOpen } from './components/ui';
 import { videoOf } from './spot';
 import { cardClass, shownState } from './card';
@@ -2793,7 +2793,7 @@ function Project({
         </div>
         <DockShell dock={dock} />
         {/* commands on their way and confirmations, stacked above the microphone */}
-        <div id="acks">
+        <div id="acks" className={acksClass}>
           <Cards.Provider value={{ items, open: (i) => void openFresh(i) }}>
             <Toasts toasts={toasts} open={focus?.type === 'card' ? focus.id : undefined} />
           </Cards.Provider>

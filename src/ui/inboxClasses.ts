@@ -1,0 +1,43 @@
+// The shared looks of the lists of cards that wait or work (Tailwind on frost's tokens): the inbox, "Needs
+// you", Agent work, the Parked view and the phone's lists build their entries alike. The class names before
+// the utilities (`inbox-list`, `inbox-entry`, `replies` …) stay as hooks for code and demos that find them.
+
+/** A list of entries, one under the other. */
+export const entryListClass = 'inbox-list list-none m-0 p-0 flex flex-col gap-2.5';
+
+/**
+ * An entry: a pane of glass of its own. A unread or read entry's title is bold or plain through
+ * `.inbox-entry.unread .f-ttl` in styles.css, where the card face sets the title's weight.
+ */
+export const entryClass =
+  'inbox-entry pt-3 px-3.5 pb-3.5 rounded-[14px] bg-card border border-solid border-[color:var(--glass-edge,var(--line))] [box-shadow:inset_0_1px_0_var(--glass-hi,transparent),var(--shadow)]';
+
+/** The entry of the card open now (or flying open): a ring and a tint. */
+export const entryOnClass = 'on bg-[color-mix(in_srgb,var(--working)_10%,var(--card))] [box-shadow:0_0_0_2px_color-mix(in_srgb,var(--working)_55%,transparent),var(--shadow)]';
+
+/** A proposed rule's or setting's entry, tinted as a proposal. */
+export const proposalEntryClass = 'proposal-entry bg-[color-mix(in_srgb,var(--proposal)_9%,var(--chip))] border-transparent';
+
+/** The title of an entry's card as a button that opens it, in the face's own type. */
+export const ttlLinkClass =
+  'ttl-link [all:unset] box-content! cursor-pointer! min-w-0! hover:underline focus-visible:underline focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-working focus-visible:outline-offset-2 focus-visible:rounded-[3px]';
+
+/** An entry's one-click replies and "Go to card"; on the phone sized for a finger. */
+export const repliesClass =
+  'replies flex flex-wrap gap-1.5 mt-2.5 [.ph-section_&]:gap-2 [.ph-section_&>[data-slot=button]]:min-h-10 [.ph-section_&>[data-slot=button]]:text-[14px]';
+
+/** The row of switches above a list. */
+export const inboxBarClass = 'inbox-bar flex items-center justify-between gap-3 mt-0 mx-2 mb-3 [.ph-section_&]:mx-0';
+
+/** What a list says while it is empty. */
+export const emptyInboxClass = 'empty-inbox m-0 p-2 text-muted-foreground text-[13px]';
+
+/** What a list of the Agent work sheet says while it is empty. */
+export const agentsEmptyClass = 'agents-empty text-muted-foreground text-[12px] [#agents_&]:my-3.5 [#agents_&]:mx-2 [#agents_&]:text-[13px] [#agents_&]:leading-[1.45]';
+
+/** What the phone's list says while it is empty. */
+export const phoneNoneClass = 'ph-none mt-[18px] mx-0 mb-0 text-muted-foreground text-[14.5px] leading-[1.45]';
+
+/** An unread entry's dot: orange, centred on the title's first line; inside the subtle face's top-right corner. */
+export const unreadDotClass =
+  'unread-dot flex-none size-2 rounded-[50%] bg-waiting mt-1.5 [.face.subtle>&]:absolute [.face.subtle>&]:top-2 [.face.subtle>&]:right-2 [.face.subtle>&]:m-0';

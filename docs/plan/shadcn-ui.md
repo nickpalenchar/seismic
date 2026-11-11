@@ -80,6 +80,30 @@ in W2.
     is shared with other folds), the plan sheet, and the text primitives `.hint`, `.p-kind`, `.p-error`.
     A trap the comparison found: `[font:inherit]` beside `text-[…]` resets the size whatever their order
     in the class string; buttons inherit the font from the base layer already.
+  - *The sheets, dialogs, phone and toasts* are done (W7's sheets card): the inbox, "Needs you", the
+    Agents sheet with its Activity tab, the Parked list, the rules and proposals list (Preferences, the
+    Koordinator, Needs you), Configuration, Preferences' shell, the project's settings sheet, Setup (first
+    run and over Configuration) and Connect a phone, Performance, the Agent Feedback Log, the star rating
+    and its prompt, the notification ask, the phone view's own controls (bars, back, sections, the
+    conversation's panel with its grip, the plus button, the turned phone) and the toasts (`#acks`, each
+    kind of line, Sonner's stack). Shared looks: `inboxClasses.ts`, `prefsClasses.ts`, `configClasses.ts`,
+    `setupClasses.ts` (the `c-*` parts Configuration and Setup share), `performanceClasses.ts`.
+    `DialogContent`'s `glass` puts frost's pane on the box instead of its solid fill and shadow (a
+    `frost-pane` class beside them lost to them); `bg-dim` is a token again, so dialogs dim the page.
+    Each family was compared element by element (computed styles) against the commit before, light and
+    dark, desktop and phone. Still on `styles.css`, for the families they belong to or because an
+    unlayered rule of another family would win: the rules inside Configuration's dialogs on the text
+    primitives and `code` (`:is(#config, #prefs, #project-settings) code`, `.warn`, `.p-error`,
+    `.cfg-control > .hint`), `.cfg-nav-foot .wish-link`, the project settings' narrow-window rule (it must
+    beat the plan sheet's `.sheet`), `#inbox-full`'s row (`.full-page` sets the column), the inbox's title
+    weights over the face's `.f-ttl`, `.prefs .p-error`, `.activity-row .act-card` (card faces), the
+    phone's `.ph-view ~ #ptt` overrides (the push-to-talk row) and `@keyframes toast-in` (the rating
+    prompt's entrance). Traps the comparisons found: `border-solid` beside a one-sided border gives the
+    other sides the browser's 3px (leave it out, or `border-0` first); tailwind-merge drops a `leading-*`
+    when a text size is merged after it, and does not see `shadow-lift` as a shadow; `rounded-full` and
+    `items-start` compute differently from `50%` and `start`; Sonner's and the old unlayered rules need
+    `!` where they set the same property; a `color-mix()` background on `::before`/`::after` does not
+    apply in the dev server's build (a custom property carries the colour instead).
   - *Esc*: `App.tsx` routes Esc centrally and skips when `.lightbox`, `.demo-zoom` or `.diff-view`
     is in the DOM (and for an open layer); about fifteen components add their own Esc listeners.
 - **Phone.** `phone.tsx` is its own root but reuses the desktop components, so a migrated component
@@ -133,7 +157,12 @@ fails when a class the old stylesheets style is a utility.
 12.49 MB (2.71 → 2.72 MB gzip; the `cn` package and cva), CSS 445 KB → 462 KB (199 → 202 KB gzip).
 Frame rate while panning, 100 cards at the overview zoom, 2560×1353, headless Chromium without a GPU
 (`moving` set, so no blur): 34.5 fps before and after Tailwind, measured by wheel events each frame
-for 4 s, three runs each.
+for 4 s, three runs each. W7 (2026-11-11, after the sheets card), the same measurement twice per build on one
+machine at the same time: main before the card 23.0 and 26.3 fps (runs 20.9–27.1), the card's branch
+24.9 and 25.0 (23.2–26.7): no difference beyond the runs' spread. Both stand below W1's 34.5 because
+the machine was under load (a load average around 20 from other workers' agents and scratch
+servers); the comparison between the two holds, the absolute value does not. The measurement
+is `scripts/pan-fps.ts`.
 
 **AI Elements.** Only the parts with something to show. *Conversation* replaces `stickToEnd` and adds
 scroll-to-latest. *Message* is used as is. *Prompt Input* gets our voice (push-to-talk), screenshots,
@@ -175,7 +204,7 @@ their changes to the controls, not the layout around them.
 - [x] **W4:** Fields, badges and folds. Input and Textarea (one look, not by container: `#config input`, `#wish .w-issue`, `textarea.p-title` and their kin go), Badge for count badges and card pins, chips (filter, label, tag with remove; the raw-DOM card-link pill shares the chip classes), Collapsible and Accordion for folds with a trigger and a region (finding folds, merge toggle, performance rows, config and detail `<details>`), Progress for the usage meter and reshare bar. M–L; Input/Textarea and Badge/chips may land apart. Accordion was not needed (no fold group opens one at a time); the bar pills and the file chip stay for W7.
 - [x] **W5:** Higher-level parts. Sheet for the right-dock sheets (non-modal where the canvas stays usable beside it, keeping the dock's own resize grip), Command for the card finder (taking over its own outside-click close) and merge picker (replaces `Listbox` where the input is a plain field; the composer's skill menu and card-link menu sit in a textarea/contentEditable and keep `Listbox` unless Command fits there), Sonner behind the existing toast store so every toast still goes through it. M–L. The dock sheets are a non-modal Sheet that Esc, outside presses and focus never dismiss (the dock owns those); the finder is Command in a Popover; toasts go to Sonner as custom elements inside `#acks`, above the rate and notification prompts.
 - [x] **W6:** AI Elements in the conversations. The message-item adapter; Conversation replaces `stickToEnd` (with scroll-to-latest and the unsent/unread behaviour intact); Message for turns in cards, chats and the Koordinator; Prompt Input as the one composer with voice, screenshots, skill menu and card links grafted on, working the same on every card kind and on the phone (keyboard open, first tap acts, Space for push-to-talk). Attachments and unsent input keep surviving close and reload. L; split into Conversation and Message, then Prompt Input. Done as one card. The 2026-11-11 styling decision follows stock AI Elements on frost tokens: full-width text above a tools footer with round Send, plain agent turns, quiet owner bubbles, and no tinted conversation panel.
-- [ ] **W7:** The remaining views and the canvas chrome. Every view still on `styles.css` after W2–W6 (card detail, plan cards and card faces' chrome, the top and status bars, the inbox, usage, feedback log, the phone's own controls, toasts) converted to Tailwind on the shared tokens, family by family; the canvas elements that stay our own restyled the same way. Frost's glass checked in dark mode on every part, and the blur-while-moving frame rate against W1's baseline. L; as many cards as there are views (about three). The first card did the bars (see "Today"). The conversation slice migrated message kinds, markdown Body, quotes, question history, steps/background work, notes and answer-file chips; code copying and replying were checked in the browser. The card-detail card did the detail shell, live questions and result/media/attachment viewers (see "Today"). Still to do: card faces, plan cards and the canvas's own elements (rings, lasso, minimap, canvas tabs, the push-to-talk row); the inbox, "Needs you", the Agents sheet, the feedback log, Performance, Configuration and Setup; the queue (on the card and in the bar), the merge view and the plan sheet; the rest of the phone view and the toasts; then the frame rate against W1's baseline.
+- [ ] **W7:** The remaining views and the canvas chrome. Every view still on `styles.css` after W2–W6 (card detail, plan cards and card faces' chrome, the top and status bars, the inbox, usage, feedback log, the phone's own controls, toasts) converted to Tailwind on the shared tokens, family by family; the canvas elements that stay our own restyled the same way. Frost's glass checked in dark mode on every part, and the blur-while-moving frame rate against W1's baseline. L; as many cards as there are views (about three). The first card did the bars (see "Today"). The conversation slice migrated message kinds, markdown Body, quotes, question history, steps/background work, notes and answer-file chips; code copying and replying were checked in the browser. The card-detail card did the detail shell, live questions and result/media/attachment viewers (see "Today"). The sheets card did the inbox, "Needs you", the Agents sheet, the feedback log, Performance, Configuration, Setup, the phone's own controls and the toasts, and measured the frame rate (see "Today" and "Baseline"). Still to do: card faces, plan cards and the canvas's own elements (rings, lasso, minimap, canvas tabs, the push-to-talk row); the queue (on the card and in the bar), the merge view, the plan sheet, the archive and the full-page views, Help, Report a wish, the canvas dialog and the chats.
 - [ ] **W8:** Close-out. Preflight on, `styles.css` gone and `frost.css` reduced to the board and glass recipe; a check that fails on a bespoke control (a test grepping `src/ui` outside `src/ui/components/` for `className="btn`, `role="switch"`, `<select`, `role="dialog"`, `role="menu"`, `useMenuClose`); the docs updated as the next paragraph says; this plan doc and its link in The canvas deleted. S–M.
 
 ## Boundaries
