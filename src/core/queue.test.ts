@@ -11,4 +11,11 @@ describe('waitsOn', () => {
     expect(waitsOn(right, 'left', [left, right])).toBe(false);
     expect(waitsOn(right, 'left', [left, right], true)).toBe(true);
   });
+
+  test('a card snoozed until another waits for it with anyArrow', () => {
+    const b = card('b');
+    const a = card('a', { state: 'working', hold: { reason: 'snoozed', since: '', on: { card: 'b' } } } as unknown as Partial<Item>);
+    expect(waitsOn(a, 'b', [a, b])).toBe(false);
+    expect(waitsOn(a, 'b', [a, b], true)).toBe(true);
+  });
 });

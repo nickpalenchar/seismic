@@ -2,7 +2,7 @@
 // (`since`). The owner moves a waiting card earlier or later, one place or several at once, past
 // cards it has no wait with: the waits fix the order between the cards they join, the owner the rest.
 
-import { finished, type Item } from './types';
+import { finished, type Item, snoozeOf } from './types';
 
 /** Waiting to start: being judged, behind others, or for a workstation. */
 export const inQueue = (i: Pick<Item, 'state' | 'queue'>) => i.state === 'planned' && !!i.queue;
@@ -34,10 +34,10 @@ const behind = (card: Item, items: Item[]) => [...new Set([...(card.queue && 'be
 
 /**
  * The cards `card` relies on whether or not the reliance holds right now: also the owner's arrows
- * of a card at work (started anyway) and the workstreams it builds on, so that a wait the
+ * of a card at work (started anyway) the workstreams it builds on and the card it is snoozed until, so that a wait the
  * Koordinator adds never closes a loop with them.
  */
-const reliesOn = (card: Item) => [...new Set([...(card.queue && 'behind' in card.queue ? card.queue.behind : []), ...(card.plan?.manualDependsOn ?? []), ...(card.plan?.buildsOn ?? [])])];
+const reliesOn = (card: Item) => [...new Set([...(card.queue && 'behind' in card.queue ? card.queue.behind : []), ...(card.plan?.manualDependsOn ?? []), ...(card.plan?.buildsOn ?? []), ...(snoozeOf(card)?.on ? [snoozeOf(card)!.on!.card] : [])])];
 
 /**
  * A card no agent works on until it starts: planned, in the queue or not, a stopped one too. What the
