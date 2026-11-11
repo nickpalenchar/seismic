@@ -5,7 +5,7 @@ import { Docked } from './docked';
 import { type CSSProperties, memo, type MouseEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import { type Bounds, dependencyOrder, shapeOf } from '../core/layout';
 import { clip } from '../core/text';
-import { agentFailed, type AppUpdate, type ProjectInfo, type BlockedClone, type ClonePool, finished, finishedArchivable, type Item, merging, needsYou, pausable, type PendingRestart, halted, type PoolHost, type PoolWorkstation, type PlanHistory, type SourceUpdate, stoppedArchivable, snoozeOf, inParkingLot, isPausing } from '../core/types';
+import { agentFailed, type AppUpdate, type ProjectInfo, type BlockedClone, type ClonePool, finished, finishedArchivable, type Item, merging, needsYou, pausable, type PendingRestart, halted, type PoolHost, type PoolWorkstation, type PlanHistory, type SourceUpdate, stopped, stoppedArchivable, snoozeOf, inParkingLot, isPausing } from '../core/types';
 import { CardMore } from './canvases';
 import { PlanTalk } from './koordinator';
 import { api } from './api';
@@ -770,11 +770,11 @@ function wsDot(w: PoolWorkstation | undefined, host: PoolHost, items: Item[], un
  * then a free slot for each its workers leave (none without slots).
  */
 const hostSpots = (h: PoolHost, items: Item[]): (PoolWorkstation | undefined)[] => {
-  // a card that is queued, snoozed, parked or not on this project does not show: only cards at work or waiting on the owner here
+  // a card that is stopped, queued, snoozed, parked or not on this project does not show: only cards at work or waiting on the owner here
   const shown = (w: PoolWorkstation) => {
     if (!w.card) return true;
     const i = items.find((x) => x.id === w.card);
-    return !!i && !i.queue && !snoozeOf(i) && !inParkingLot(i);
+    return !!i && !stopped(i) && !i.queue && !snoozeOf(i) && !inParkingLot(i);
   };
   const held = h.workstations.filter(shown);
   return h.worktrees

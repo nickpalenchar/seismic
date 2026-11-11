@@ -417,7 +417,7 @@ colour of its card's state as the card on the canvas shows it, derived from the 
 change to the cards' colours changes the dots with it (owner, 2026-11-11): blue while its agent
 works, teal while a code review runs, orange while it needs the owner (a question, a demo ready),
 green while it lands; at work, in review and landing it pulses slowly (no pulse with reduced
-motion). The pool shows only this project's cards that are in progress or wait for the owner: a card that is queued, snoozed, parked, archived or on another project leaves the dots and the list (a clone it holds still counts as taken in the numbers), and the list changes with the project. A free clone is a dark grey ring, a blocked one an orange ring. Hovering or clicking it opens a
+motion). The pool shows only this project's cards that are in progress or wait for the owner: a card that is stopped, queued, snoozed, parked, archived or on another project leaves the dots and the list (a clone it holds still counts as taken in the numbers), and the list changes with the project. A free clone is a dark grey ring, a blocked one an orange ring. Hovering or clicking it opens a
 list above it: per machine its slots at work and clones taken, then each workstation on a line of
 its own in the order of the dots (left to right is top to bottom), free ones included: its dot,
 the card in it as a compact card (title and state line) that opens it, and its path (cut at the
