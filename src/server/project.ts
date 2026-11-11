@@ -349,6 +349,8 @@ export class ProjectRuntime {
           repo: r.ref.id,
           hosts: r.workstations.pool(r.workers.inTurn()).map((h) => ({
             ...h,
+            // a worker finishing after its card's landing is at work too (its card pulses blue)
+            busy: [...h.busy, ...h.cards.filter((c) => !h.busy.includes(c) && !!board.row(c).landed)],
             // what the owner may take from its card for a card waiting for one, and what goes once the undo window is through
             workstations: h.workstations.map((w) =>
               !w.card ? w : this.koordinator?.evicting(w.card) ? { ...w, leaving: true as const } : r.workers.evictable(w.card) ? { ...w, takeable: true as const } : w,
