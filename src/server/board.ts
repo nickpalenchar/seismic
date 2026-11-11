@@ -2159,8 +2159,8 @@ export class Board {
    */
   private withRate(items: Item[], archived = false): Item[] {
     if (!this.asksFeedback()) return items;
-    // archived by hand, a card asks when it goes into the archive; a workstream, which goes with its plan, after its approval
-    const asks = (i: Item) => archived || this.archiving() === 'landed' || i.source === 'plan';
+    // A manually archived card also offers feedback while live, before it is archived.
+    const asks = (i: Item) => archived || i.state === 'live' || this.archiving() === 'landed' || i.source === 'plan';
     const rateable = (i: Item) => i.kind === 'task' && APPROVED.includes(i.state) && !i.review?.contribution && !i.idea?.prototypeOf && asks(i);
     const rated = this.store.feedback.rated(items.filter(rateable).map((i) => i.id));
     if (!rated.size) return items;

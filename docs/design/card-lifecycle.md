@@ -353,7 +353,7 @@ Good, Excellent) and "Skip". A star saves the rating at once; then a comment
 field opens, optional, and "Skip" becomes "Done". The prompt stays until answered or
 skipped, also when the card goes into the archive meanwhile; another approval asks about its own card instead. Skipping records nothing: the card keeps
 asking. Every approved card (`approved`, `in PR`, `live`, `done`, archived too; archiving by hand,
-only once archived) whose latest
+once live or archived) whose latest
 handover has no response shows the same stars and comment under its conversation, and once answered
 shows the answer there to change; an unsent comment is a draft of the card's like any other. Saving
 goes its own way: approval and landing never wait for it, and a refused save shows its reason in the

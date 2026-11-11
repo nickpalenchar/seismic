@@ -205,21 +205,21 @@ test('work that changed nothing asks too once done; a prompt left unanswered sta
   expect(board.item(bare.id)!.review?.rate).toBeUndefined();
 });
 
-test('archiving by hand, a card asks for feedback once the owner archives it; a workstream, which goes with its plan, once approved', () => {
+test('archiving by hand, a live card offers feedback before and after archiving', () => {
   const card = manual();
   board.log(card.id, 'review', 'worker', 'Done.');
   const handover = store.events.handover(card.id)!.id;
   board.work(card.id, { state: 'live', approved_at: new Date().toISOString() });
-  expect(board.item(card.id)!.review?.rate).toBeUndefined();
+  expect(board.item(card.id)!.review?.rate).toEqual({ handover });
   board.archive([card.id]);
   expect(board.card(card.id)!.review?.rate).toEqual({ handover });
   expect(board.archived().find((i) => i.id === card.id)!.review?.rate).toEqual({ handover });
   // and takes the answer there
   board.giveFeedback(card.id, { answer: { rating: 4 }, handover });
   expect(board.card(card.id)!.review?.rate).toEqual({ handover, answer: { rating: 4 } });
-  // back on the project, it waits to be archived again
+  // back on the project, its answer remains available
   board.unarchive(card.id);
-  expect(board.item(card.id)!.review?.rate).toBeUndefined();
+  expect(board.item(card.id)!.review?.rate).toEqual({ handover, answer: { rating: 4 } });
   const w = board.snapshot().items.find((i) => i.plan?.label === 'W1')!;
   board.log(w.id, 'review', 'worker', 'Done.');
   board.work(w.id, { state: 'approved', approved_at: new Date().toISOString() });
