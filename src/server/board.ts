@@ -104,7 +104,7 @@ import type { Friction, FrictionNote } from './models/friction';
 import type { GroupRow } from './models/groups';
 import type { HeldTalk, TalkWaitRow } from './models/talk';
 import type { Wait } from './models/needs-you';
-import { waitsFor } from '../core/inbox';
+import { decidedOn } from '../core/inbox';
 import { kindOf, type NeedsYou } from '../core/waits';
 import type { Mark, Store } from './store';
 import { attribute, checkedFeedback } from './feedback';
@@ -504,8 +504,10 @@ export class Board {
   private itemsCache: Item[] | null = null;
   /** The cards as the last reconcile of "Needs you" saw them, to tell what a card waits for by what it was before (a failed landing was landing). */
   private waited = new Map<string, Item>();
-  /** The Koordinator's answers waiting unread at the last reconcile, with their text and when each came as far as Seismic saw (`latestAnswer`); null before the first. */
-  private answersSeen: Map<number, { text: string; at: number }> | null = null;
+  /** The Koordinator's answers waiting unread at the last reconcile, with their text and the order they came in as far as Seismic saw (`latestAnswer`); null before the first. */
+  private answersSeen: Map<number, { text: string; order: number }> | null = null;
+  /** The order the answer that came last got in `answersSeen`: each one after it gets the next, also within the same millisecond. */
+  private answerOrder = 0;
   /** What `toItems` made of each card's row, for as long as the row stays the same; gone with any change but a write to one card (`work`). */
   private worked: Worked = new Map();
   /** The archive as `archived` built it; gone with `cache`, since it changes with the same writes. */
@@ -2285,7 +2287,7 @@ export class Board {
       const kind = kindOf(i, before.get(i.id));
       // a failed landing stays one, also after a restart, which forgets the card was landing
       const landing = open.get(i.id) === 'landing' && (kind === 'demo' || kind === 'review');
-      return { target: { card: i.id }, kind: landing ? 'landing' : kind, text: waitsFor(i) };
+      return { target: { card: i.id }, kind: landing ? 'landing' : kind, text: decidedOn(i) };
     });
     for (const p of this.store.preferences.of(this.project.id, ['proposed'])) waits.push({ target: { preference: p.id }, kind: 'rule', text: p.text });
     for (const p of this.settingProposals()) if (p.state === 'proposed') waits.push({ target: { setting: p.id }, kind: 'setting', text: p.basis });
@@ -2300,20 +2302,22 @@ export class Board {
    * The Koordinator's unread answer that came last: an exchange counts as come when it is first seen
    * unread, or its answer changes while it is (a slow lookup's answer to an older question comes
    * after a newer exchange's). The exchanges' ids and times say when the owner asked, not when the
-   * answer came. `waiting`: the one the open wait is on, taken as the latest when Seismic starts.
+   * answer came; neither does the clock, which two reconciles can share. `waiting`: the one the open
+   * wait is on, taken as the latest when Seismic starts.
    */
   private latestAnswer(talk: Talk[], waiting?: number): Talk | undefined {
     const unread = talk.filter((x) => x.unread);
     const text = (x: Talk) => x.answer ?? x.reply ?? x.question ?? x.said;
-    const seen = new Map<number, { text: string; at: number }>();
-    let at = Date.now();
+    const first = !this.answersSeen;
+    // on the first reconcile, what was unread already comes in the exchanges' order, the open wait's last
+    if (first) this.answerOrder = Math.max(0, ...unread.map((x) => x.id));
+    const seen = new Map<number, { text: string; order: number }>();
     for (const x of unread) {
       const was = this.answersSeen?.get(x.id);
-      // on the first reconcile, what was unread already comes in the exchanges' order, the open wait's last
-      seen.set(x.id, was && was.text === text(x) ? was : { text: text(x), at: this.answersSeen ? at++ : x.id === waiting ? at : x.id });
+      seen.set(x.id, was && was.text === text(x) ? was : { text: text(x), order: first && x.id !== waiting ? x.id : ++this.answerOrder });
     }
     this.answersSeen = seen;
-    return unread.reduce<Talk | undefined>((best, x) => (!best || seen.get(x.id)!.at >= seen.get(best.id)!.at ? x : best), undefined);
+    return unread.reduce<Talk | undefined>((best, x) => (!best || seen.get(x.id)!.order > seen.get(best.id)!.order ? x : best), undefined);
   }
 
   private read(): PlanDoc[] {

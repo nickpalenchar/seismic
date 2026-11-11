@@ -71,13 +71,17 @@ Persistent (SQLite):
   card, a proposed rule, a setting proposal or the Koordinator's unread answer on a project that came
   last: by when its answer came, so a slow lookup's answer to an older question comes after a newer one's),
   with its kind (the card kinds the pushes name, plus `merge`, `rule`, `setting`, `answer`), a
-  digest of what it waits for (the question, the summary, the rule's text), when it began, when
+  digest of what it waits for (on a card all the owner decides on there: the whole question, the
+  summary, a proposal's text and questions, a merge's comparison, an idea's reply; the rule's text),
+  when it began, when
   what it waits on last changed and when it ended, all three in milliseconds. At most one row per
   target is open; a row stays once its wait ended, and a target that waits again gets a new one.
   The rows are written in one place, the step that builds a project's snapshot, from the same card
   state that decides whether a card needs the owner (`needsYou`): a target that waits and has no
   open row gets one, dated by that reconcile (an answer by when it came, not by when the owner asked); an open row whose kind or digest changed
-  counts as updated; an open row whose target no longer waits ends. A card moved, relabelled or
+  counts as updated; an open row whose target no longer waits ends. Each reconcile that writes
+  takes a time after the one before, and answers are told apart by the order Seismic saw them come
+  in, not by the clock: two changes within one millisecond keep their order. A card moved, relabelled or
   snoozed changes nothing but the last: a snooze ends the wait, as the card leaves the inbox;
 - card events (the conversation log, with the owner's screenshots and agents' mocks, and the
   producing agent's harness and model when known); the Koordinator's replies and looked-up answers

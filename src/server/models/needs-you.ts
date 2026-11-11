@@ -51,7 +51,7 @@ export type NeedsYouTarget = { card: string } | { preference: number } | { setti
 export interface Wait {
   target: NeedsYouTarget;
   kind: NeedsYouKind;
-  /** What it waits for (the question, the summary, the rule's text). */
+  /** What it waits for (all the owner decides on a card, `decidedOn`; the rule's text; the answer): a change to it is an update. */
   text: string;
 }
 
@@ -73,6 +73,9 @@ const view = (r: Row): NeedsYouView => ({
 
 /** The waits' queries (`Store.needsYou`). */
 export class NeedsYou {
+  /** The time the last reconcile wrote; null until the first reads it from the table. */
+  private last: number | null = null;
+
   constructor(private readonly db: Db) {}
 
   /** The project's open waits, the oldest first. */
@@ -94,10 +97,15 @@ export class NeedsYou {
   /**
    * Brings the project's open waits in line with what waits now (`waits`): a target that waits and
    * had no open row gets one; an open row whose kind or text changed counts as updated `at`; an open
-   * row whose target no longer waits ends `at`. Returns the open rows, the oldest first.
+   * row whose target no longer waits ends `at`: now, though always after the reconcile before, so
+   * that two changes in the same millisecond (or after the clock went back) keep their order.
+   * Returns the open rows, the oldest first.
    */
-  reconcile(projectId: string, waits: Wait[], at = Date.now()): NeedsYouView[] {
+  reconcile(projectId: string, waits: Wait[]): NeedsYouView[] {
     return atomic(this.db, () => {
+      this.last ??= this.db.select({ t: sql<number | null>`max(max(${needsYou.lastUpdated}), coalesce(max(${needsYou.resolvedAt}), 0))` }).from(needsYou).get()?.t ?? 0;
+      const at = Math.max(Date.now(), this.last + 1);
+      let wrote = false;
       const open = new Map(this.rows(projectId).map((r) => [rowKey(r), r]));
       const seen = new Set<string>();
       for (const w of waits) {
@@ -106,6 +114,7 @@ export class NeedsYou {
         seen.add(key);
         const d = digest(w.text);
         const r = open.get(key);
+        if (!r || r.kind !== w.kind || r.digest !== d) wrote = true;
         if (!r) {
           const t = w.target;
           this.db
@@ -125,7 +134,12 @@ export class NeedsYou {
         } else if (r.digest === null) this.db.update(needsYou).set({ kind: w.kind, digest: d }).where(eq(needsYou.id, r.id)).run();
         else if (r.kind !== w.kind || r.digest !== d) this.db.update(needsYou).set({ kind: w.kind, digest: d, lastUpdated: at }).where(eq(needsYou.id, r.id)).run();
       }
-      for (const [key, r] of open) if (!seen.has(key)) this.db.update(needsYou).set({ resolvedAt: at }).where(eq(needsYou.id, r.id)).run();
+      for (const [key, r] of open) {
+        if (seen.has(key)) continue;
+        this.db.update(needsYou).set({ resolvedAt: at }).where(eq(needsYou.id, r.id)).run();
+        wrote = true;
+      }
+      if (wrote) this.last = at;
       return this.open(projectId);
     });
   }

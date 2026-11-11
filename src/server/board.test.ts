@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from 'bun:test';
+import { beforeEach, describe, expect, spyOn, test } from 'bun:test';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -960,6 +960,62 @@ describe('needs you', () => {
     board.work(c.id, { need: 'question', detail: JSON.stringify({ question: { text: 'Shipping too?', options: [] } }) });
     expect(rowOf(c.id)).toMatchObject({ kind: 'question', createdAt: 1000 });
     expect(rowOf(c.id)!.lastUpdated).toBeGreaterThan(2000);
+  });
+
+  test('a merge comparison or proposal that is revised counts as an update, also where the line it shows stays the same', () => {
+    const from = board.create({ title: 'Own', x: 0, y: 0 });
+    const p = board.propose(from.id, { title: 'Export', task: 'Add CSV.', questions: [{ text: 'Which format?', options: [] }] });
+    const merge = (m: object) => {
+      store.db.query("UPDATE card_ideas SET proposal = json_set(proposal, '$.merge', json(?)) WHERE card_id = ?").run(JSON.stringify(m), p.id);
+      // a move rereads the card without counting as an update
+      board.patch(p.id, { x: 10, y: 10 });
+    };
+    const updated = () => rowOf(p.id)!.lastUpdated;
+    merge({ with: from.id, task: 'Add CSV.', outcome: 'covered', parts: [{ text: 'Add CSV.', covered: true }] });
+    expect(rowOf(p.id)).toMatchObject({ kind: 'merge' });
+    store.db.run('UPDATE needs_you SET last_updated = 1000');
+    board.patch(p.id, { x: 20, y: 20 });
+    expect(updated()).toBe(1000);
+    merge({ with: from.id, task: 'Add CSV and XLSX.', outcome: 'followUp', followUp: { title: 'XLSX', task: 'Add XLSX.', images: [], questions: [] } });
+    expect(updated()).toBeGreaterThan(1000);
+    // a proposal's revised text, or a question after its first, is a new one to decide on too
+    merge({});
+    store.db.query("UPDATE card_ideas SET proposal = json_remove(proposal, '$.merge') WHERE card_id = ?").run(p.id);
+    board.patch(p.id, { x: 30, y: 30 });
+    expect(rowOf(p.id)).toMatchObject({ kind: 'proposal' });
+    store.db.run('UPDATE needs_you SET last_updated = 2000');
+    store.db.query("UPDATE cards SET body = 'Add CSV with dates.' WHERE id = ?").run(p.id);
+    board.patch(p.id, { x: 40, y: 40 });
+    expect(updated()).toBeGreaterThan(2000);
+    store.db.run('UPDATE needs_you SET last_updated = 3000');
+    store.db.query("UPDATE card_ideas SET proposal = json_set(proposal, '$.questions[1]', json(?)) WHERE card_id = ?").run(JSON.stringify({ text: 'Dates too?', options: [] }), p.id);
+    board.patch(p.id, { x: 50, y: 50 });
+    expect(updated()).toBeGreaterThan(3000);
+  });
+
+  test('changes in the same millisecond keep their order: the later one is the latest', () => {
+    const now = Date.now();
+    const clock = spyOn(Date, 'now').mockReturnValue(now);
+    try {
+      const a = board.create({ title: 'First', x: 0, y: 0 });
+      const b = board.create({ title: 'Second', x: 400, y: 0 });
+      board.work(a.id, { state: 'waiting', need: 'demo', detail: JSON.stringify({ summary: 'A ready' }) });
+      open();
+      board.work(b.id, { state: 'waiting', need: 'demo', detail: JSON.stringify({ summary: 'B ready' }) });
+      open();
+      expect(rowOf(b.id)!.lastUpdated).toBeGreaterThan(rowOf(a.id)!.lastUpdated);
+      board.work(a.id, { detail: JSON.stringify({ summary: 'A revised' }) });
+      expect(rowOf(a.id)!.lastUpdated).toBeGreaterThan(rowOf(b.id)!.lastUpdated);
+      // an older question's answer that comes in the same millisecond as a newer one's, a reconcile later, is the one that waits
+      const slow = board.addTalk('Which tests?', '');
+      const fast = board.addTalk('How long?', 'An hour.', null);
+      board.replyTalk(fast, 'An hour.', undefined, undefined, true);
+      expect(open().find((r) => r.kind === 'answer')!.talk).toBe(fast);
+      board.replyTalk(slow, 'The unit tests.', undefined, undefined, true);
+      expect(open().find((r) => r.kind === 'answer')!.talk).toBe(slow);
+    } finally {
+      clock.mockRestore();
+    }
   });
 
   test('a wait moved over from before the table takes its kind and text at its first reconcile, without counting as an update', () => {

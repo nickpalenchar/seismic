@@ -121,6 +121,14 @@ test('only unread entries count; a card that waits anew and a newer answer are u
     site: w([card('a', '2026-11-05T08:00:00Z', { need: 'question', question: { text: 'Shipping too?', options: [] } }), card('b', '2026-11-05T09:00:00Z')], [talk(1, '2026-11-05T10:00:00Z')], more, [r1]),
   });
   expect(waitingCount(asked, undefined, (m) => read.has(m))).toBe(3);
+  // so does a revised merge comparison or proposal text behind the same line, but not a new status line
+  const merge = { with: 'b', task: 'Add CSV.', outcome: 'covered' as const };
+  const merging = (m: object, over: Partial<Item> = {}) =>
+    inboxEntries([site], { site: w([card('a', '2026-11-05T08:00:00Z', { state: 'proposal', idea: { proposal: { questions: [], merge: { ...merge, ...m } } }, ...over })]) })[0]!;
+  const seen = readMark(merging({}));
+  expect(readMark(merging({}, { agent: { statusLine: 'Comparing' } } as Partial<Item>))).toBe(seen);
+  expect(readMark(merging({ task: 'Add CSV and XLSX.', outcome: 'followUp' }))).not.toBe(seen);
+  expect(readMark(merging({}, { body: 'Add CSV with dates.' }))).not.toBe(seen);
 });
 
 test('"Needs you" counts the cards waiting on every project, read or not, and nothing else', () => {

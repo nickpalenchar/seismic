@@ -41,6 +41,27 @@ export function waitsFor(i: Item): string {
 }
 
 /**
+ * Everything the owner decides on while the card waits, beyond the line `waitsFor` shows: the whole
+ * question with its options, a proposal's text and questions, a merge's comparison, an idea's reply,
+ * a handover's summary beside its question, a withdrawal's reason. A change to any of it is a change
+ * to what waits (`needs_you`'s `last_updated`); its status line or position is not.
+ */
+export function decidedOn(i: Item): string {
+  const p = i.idea?.proposal;
+  const m = p?.merge;
+  const d = i.idea?.discussion;
+  return JSON.stringify([
+    waitsFor(i),
+    i.need === 'question' || handedOver(i) ? (i.question ?? null) : null,
+    handedOver(i) ? (i.review?.summary ?? null) : null,
+    i.state === 'proposal' || m ? [i.title, i.body, p?.reason ?? null, p?.idea ?? null, p?.questions ?? []] : null,
+    m ? [m.with, m.title ?? null, m.task ?? null, m.outcome ?? null, m.titleCovered ?? null, m.parts ?? null, m.followUp ?? null, m.compared?.summary ?? null, m.failed ?? null] : null,
+    i.idea?.superseded ?? null,
+    d && i.state === 'idea' ? [d.questions, d.next ?? null, d.brief] : null,
+  ]);
+}
+
+/**
  * One project's entries, one for each of its open waits (`needs_you`, the snapshot's `needsYou`)
  * whose target this list has: none for a card the owner just acted on (`underway`), nor for an
  * answer read or left out meanwhile.
@@ -88,10 +109,11 @@ export const counted = (e: InboxEntry) => !(e.card && snoozeOf(e.card));
 
 /**
  * What marks the entry read: the entry and the wait it stands for, with what it waits for. A card
- * that waits anew or asks something new while it waits (a new question, a new summary) and a newer
+ * that waits anew or brings something new to decide while it waits (`decidedOn`: a new question, a
+ * new summary, a revised proposal or merge comparison) and a newer
  * answer of Seismic's are unread again; a rule or setting proposal stays one wait until it is decided.
  */
-export const readMark = (e: InboxEntry) => (e.preference || e.setting ? e.key : `${e.key}@${e.since}#${digest(e.text)}`);
+export const readMark = (e: InboxEntry) => (e.preference || e.setting ? e.key : `${e.key}@${e.since}#${digest(e.card ? decidedOn(e.card) : e.text)}`);
 
 /** A short digest of a text, to tell it changed without keeping it. */
 export function digest(s: string): string {
