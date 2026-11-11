@@ -258,7 +258,7 @@ export function NavSheet({ on, onOpenChange, width, maxWidth, onWidthChange, onW
               onWidthChange(value); onWidthEnd(value);
             }
           }}
-        ><span className="block h-1 w-5 rounded-full bg-muted-foreground/70 group-hover/resize:bg-ink group-focus-visible/resize:ring-2 group-focus-visible/resize:ring-working" aria-hidden /></button>}
+        ><span className="block h-5 w-1 rounded-full bg-muted-foreground/70 group-hover/resize:bg-ink group-focus-visible/resize:ring-2 group-focus-visible/resize:ring-working" aria-hidden /></button>}
       </Sidebar>
     </SidebarProvider>
   );
