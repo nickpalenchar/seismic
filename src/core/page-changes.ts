@@ -37,6 +37,7 @@ export const PAGE_CHANGES = [
   { id: '2026-11-06-theme', kinds: ['video', 'html'] },
   { id: '2026-11-07-inter', kinds: ['video', 'html'] },
   { id: '2026-11-11-close-icon', kinds: ['html'] },
+  { id: '2026-11-11-domain', kinds: ['video', 'html'] },
 ] as const satisfies readonly PageChange[];
 
 export type KnownChange = (typeof PAGE_CHANGES)[number];
@@ -52,7 +53,7 @@ export const THEME_CHANGED = 'theme';
 export type OutdatedBy = PageChangeId | typeof THEME_CHANGED;
 
 /** The sample pages' hash (`pagesHash` in site.ts) the changes above account for. */
-export const PAGES_HASH = { video: 'd7df7cf3e4c9', html: '67736a609253', stacked: 'fff4819c3f26' };
+export const PAGES_HASH = { video: 'd9246994a3dd', html: '96b28d234122', stacked: '3467ff29cdff' };
 
 /** The version a page published now gets: the newest change; '' while there is none. */
 export const pagesVersion = (changes: readonly PageChange[] = PAGE_CHANGES): string => changes.at(-1)?.id ?? '';

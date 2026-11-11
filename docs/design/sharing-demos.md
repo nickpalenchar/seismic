@@ -252,7 +252,7 @@ under a big play button; a click anywhere on it but the controls starts it. No a
 play sound only after a click on the page, and the owner did not want it muted.
 
 Every page and every overview ends in "Recorded with Seismic" linking
-https://obeya.si, without a setting to turn it off; `?alone` leaves it out.
+https://seismic.im, without a setting to turn it off; `?alone` leaves it out.
 
 #### Typeface
 

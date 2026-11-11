@@ -104,7 +104,7 @@ describe('an unlisted site', () => {
     expect(html).not.toContain('class="tags"');
     expect(html).not.toContain(' · Demos</title>');
     // the credit line stays, and goes without a referrer
-    expect(html).toContain('href="https://obeya.si"');
+    expect(html).toContain('href="https://seismic.im"');
     const headers = readFileSync(join(siteDir(), '_headers'), 'utf8');
     expect(headers).toContain('/*\n  X-Robots-Tag: noindex, nofollow\n  Referrer-Policy: no-referrer\n');
     expect(headers).toContain('/:token/:slug/artifact/*');

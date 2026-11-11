@@ -108,7 +108,7 @@ export async function encrypt(payload: Uint8Array, sub: Subscription, fixed?: { 
 }
 
 /** Who to write to about Seismic's pushes, for the push services (RFC 8292 asks for a contact). */
-const CONTACT = 'https://obeya.si';
+const CONTACT = 'https://seismic.im';
 
 /** The `Authorization` header for `endpoint`: a JWT for its push service, signed with the VAPID key, valid 12 hours. */
 export async function vapidAuth(endpoint: string, vapid: Vapid, now = Date.now()): Promise<string> {

@@ -321,7 +321,7 @@ export const PAGE_STYLE = `
 export const themeStyle = (css?: string) => (css ? `<style>${css.replace(/<\/(style)/gi, '<\\/$1')}</style>` : '');
 
 /** Seismic's site, which every page and the overview link at their end. */
-export const OBEYA_URL = 'https://obeya.si';
+export const OBEYA_URL = 'https://seismic.im';
 
 /** The line every page and the overview end in: what made them, linking Seismic's site. */
 export const credit = (language: PageLanguage) => `<footer class="credit">${PAGE_WORDS[language].recordedWith} <a href="${OBEYA_URL}">Seismic</a></footer>

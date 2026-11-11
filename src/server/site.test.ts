@@ -125,7 +125,7 @@ const page = (slug: string, extra: Partial<SharePage> = {}): SharePage => ({
 });
 const meta = (slug: string) => JSON.parse(readFileSync(join(siteDir(), slug, 'meta.json'), 'utf8')) as { at: string; first: string; kind?: string; language?: string; tags?: Record<string, string[]> };
 const overview = () => readFileSync(join(siteDir(), 'index.html'), 'utf8');
-const CREDIT_EN = '<footer class="credit">Recorded with <a href="https://obeya.si">Seismic</a></footer>\n';
+const CREDIT_EN = '<footer class="credit">Recorded with <a href="https://seismic.im">Seismic</a></footer>\n';
 
 /** An element of a parsed XML document: its name, attributes, child elements and text. */
 interface XmlNode {
