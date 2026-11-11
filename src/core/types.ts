@@ -1791,6 +1791,8 @@ export interface Talk {
   files?: AnswerFile[];
   /** The thread moved onto a Question card: that card; its answers stand there from then on. */
   movedTo?: string;
+  /** Where its reply or answer, as it was written last, stands in the order words came from the Koordinator (absent on exchanges from before it was kept). */
+  arrived?: number;
   /** The message of the sheet the owner's words reply to, shown above them as a quote. */
   replyTo?: TalkQuote;
   /**

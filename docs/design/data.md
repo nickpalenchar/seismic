@@ -69,7 +69,9 @@ Persistent (SQLite):
   queue and a waiting card's stopped app are kept apart, as they hold beside any of them;
 - what waits for the owner ("Needs you", the inbox): a row per wait, on exactly one target (a
   card, a proposed rule, a setting proposal or the Koordinator's unread answer on a project that came
-  last: by when its answer came, so a slow lookup's answer to an older question comes after a newer one's),
+  last: by when its answer was written, kept on the exchange as a sequence over all exchanges, so a slow
+  lookup's answer to an older question comes after a newer one's, also when both are written before
+  anything looks at them; exchanges from before it was kept come first, by id),
   with its kind (the card kinds the pushes name, plus `merge`, `rule`, `setting`, `answer`), a
   digest of what it waits for (on a card all the owner decides on there: the whole question, the
   summary, a proposal's text and questions, a merge's comparison with what it compared, an idea's
@@ -164,6 +166,9 @@ Decisions:
   wait over with the time it began, its kind guessed from the card's need and its digest left
   empty, which the first reconcile fills in without counting as an update, so the order of waits
   stays as it was; `cards.waiting_since` was dropped. Read and unread stay in the browser.
+  Which answer came last is recorded where the answer is written, not guessed from what snapshots
+  saw: a snapshot sees two replies written between two of them at once and could only order them by
+  when the owner asked.
 - The data layer on Drizzle ORM, one model per table holding its definition and its queries, with
   what spans several tables in one composition layer (2026-11-08): the hand-written store had grown
   to one class over every table with its rows parsed by hand. The migrations stay Seismic's own

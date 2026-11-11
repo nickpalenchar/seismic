@@ -55,11 +55,15 @@ export const talk = sqliteTable(
     answerAgent: text('answer_agent', { mode: 'json' }).$type<AgentIdentity>(),
     thenPlace: text('then_place', { mode: 'json' }).$type<Place>(),
     chat: integer().references(() => chats.id),
+    arrived: integer(),
   },
   (t) => [index('talk_chat').on(t.chat, t.id)],
 );
 
 type TalkRecord = typeof talk.$inferSelect;
+
+/** The next place in the order words came from the Koordinator, over all exchanges: set when a reply or answer is written. */
+const nextArrival = sql`(SELECT COALESCE(MAX(t.arrived), 0) + 1 FROM talk t)`;
 
 const toTalk = (r: TalkRecord): TalkView => ({
   id: r.id,
@@ -90,6 +94,7 @@ const toTalk = (r: TalkRecord): TalkView => ({
   ...(r.thenStep ? { then: r.thenStep } : {}),
   ...(r.afterAnswer ? { answered: r.afterAnswer } : {}),
   ...(r.chat ? { chat: r.chat } : {}),
+  ...(r.arrived ? { arrived: r.arrived } : {}),
 });
 
 /** The exchange a thread's exchange belongs to: the one that started its thread. */
@@ -147,6 +152,7 @@ export class Talk {
         question: lookUp?.question ?? null,
         about: lookUp?.about ?? null,
         wish: wish ?? null,
+        arrived: nextArrival,
         unread: sql`${waits ? 1 : 0} AND ${talk.cardId} IS NULL AND ${talk.card} IS NULL`,
       })
       .where(eq(talk.id, id))
@@ -231,7 +237,7 @@ export class Talk {
     if (arguments.length < 5) agent = currentAgent();
     this.db
       .update(talk)
-      .set({ answer, answerAgent: agent ?? null, answerBy: by, files: files.length ? files : null, unread: sql`${talk.cardId} IS NULL AND ${talk.card} IS NULL` })
+      .set({ answer, answerAgent: agent ?? null, answerBy: by, arrived: nextArrival, files: files.length ? files : null, unread: sql`${talk.cardId} IS NULL AND ${talk.card} IS NULL` })
       .where(eq(talk.id, id))
       .run();
   }

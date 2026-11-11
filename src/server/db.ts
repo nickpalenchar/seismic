@@ -723,6 +723,8 @@ export const MIGRATIONS = [
      FROM cards WHERE waiting_since IS NOT NULL AND julianday(waiting_since) IS NOT NULL ORDER BY waiting_since;
    DROP INDEX \`cards_waiting\`;
    ALTER TABLE cards DROP COLUMN waiting_since;`,
+  // the order the Koordinator's replies and answers were written in, one place for each exchange (null on those from before)
+  'ALTER TABLE talk ADD COLUMN arrived INTEGER;',
 ];
 
 /**

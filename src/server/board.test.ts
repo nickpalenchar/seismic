@@ -1018,6 +1018,32 @@ describe('needs you', () => {
     }
   });
 
+  test('the answer that was written last waits, whichever question was asked first, before any snapshot and after a restart', () => {
+    const fresh = () => new Board(store, { id: 'shop', name: 'Shop', repos: [{ id: 'home', name: 'Home', path: '/r', branch: 'main' }] }, () => ({ docs, dirs }));
+    for (const olderFirst of [false, true]) {
+      const older = board.addTalk('Which tests?', '');
+      const newer = board.addTalk('How long?', '');
+      const [first, second] = olderFirst ? [older, newer] : [newer, older];
+      board.replyTalk(first, `Answer ${first}`, undefined, undefined, true);
+      board.replyTalk(second, `Answer ${second}`, undefined, undefined, true);
+      expect(open().find((r) => r.kind === 'answer')!.talk).toBe(second);
+      board.readTalk([older, newer]);
+      board.replyTalk(first, `Answer ${first}`, undefined, undefined, true);
+      board.replyTalk(second, `Answer ${second}`, undefined, undefined, true);
+      expect(fresh().snapshot().needsYou.find((r) => r.kind === 'answer')!.talk).toBe(second);
+      board.readTalk([older, newer]);
+    }
+  });
+
+  test('exchanges from before arrivals were kept come in the order of their ids', () => {
+    const a = board.addTalk('One?', '');
+    const b = board.addTalk('Two?', '');
+    board.replyTalk(b, 'Two.', undefined, undefined, true);
+    board.replyTalk(a, 'One.', undefined, undefined, true);
+    store.db.run('UPDATE talk SET arrived = NULL');
+    expect(open().find((r) => r.kind === 'answer')!.talk).toBe(b);
+  });
+
   test('a wait moved over from before the table takes its kind and text at its first reconcile, without counting as an update', () => {
     const c = board.create({ title: 'Own', x: 0, y: 0 });
     board.work(c.id, { state: 'waiting', need: 'question', detail: JSON.stringify({ question: { text: 'Which one?', stuck: true, options: [] } }) });

@@ -35,6 +35,7 @@ const MOVED = [
 /** The database as it was before "Needs you" had a table of its own: the cards' `waiting_since` back, `needs_you` gone. */
 function withoutNeedsYou(db: Database) {
   db.run('DROP TABLE IF EXISTS needs_you');
+  if (db.query("SELECT 1 FROM pragma_table_info('talk') WHERE name = 'arrived'").get()) db.run('ALTER TABLE talk DROP COLUMN arrived');
   if (db.query("SELECT 1 FROM pragma_table_info('cards') WHERE name = 'waiting_since'").get()) return;
   db.run('ALTER TABLE cards ADD COLUMN waiting_since TEXT');
   db.run('CREATE INDEX cards_waiting ON cards (project_id) WHERE waiting_since IS NOT NULL');
@@ -366,10 +367,10 @@ test('a chat opened and a new one made in the same millisecond become current in
 test('what was said before chats existed becomes one chat per project', () =>
   withPath((path) => {
     const store = new Store(path);
-    withoutNeedsYou(store.db);
     store.db.run("INSERT INTO projects (id, name, created_at) VALUES ('c', 'Shop', '2026-11-01')");
     store.addTalk('c', 'eins', 'A', null);
     store.addTalk('c', 'zwei', 'B', null);
+    withoutNeedsYou(store.db);
     asCanvases(store.db);
     store.db.run('ALTER TABLE cards RENAME COLUMN becomes_plan TO becomes_project; ALTER TABLE decisions RENAME COLUMN plan_id TO project_id');
     store.db.run('ALTER TABLE workstations RENAME TO workspaces; ALTER TABLE cards RENAME COLUMN workstation TO workspace');
@@ -389,13 +390,13 @@ test('what was said before chats existed becomes one chat per project', () =>
 test('what an Seismic kept while projects were canvases is in today’s names, tables and stored JSON', () =>
   withPath((path) => {
     const s = new Store(path);
-    withoutNeedsYou(s.db);
     s.ensureProject('c', 'Shop');
     const [card] = s.addCards([{ project_id: 'c', kind: 'task', x: 0, y: 0 }]);
     s.settings.set('c', 'paused', '');
     s.addTalk('c', 'eins', 'A', null);
     s.addMoved('c', { card: card!.id, title: 'T', project: 'd', projectName: 'Site' } as never, 'moved');
     const made = s.events.add({ cardId: card!.id, kind: 'say', author: 'worker', text: 'Made.' });
+    withoutNeedsYou(s.db);
     asCanvases(s.db);
     s.db.run(`UPDATE talk SET moved = '{"card":"x","title":"T","canvas":"d","canvasName":"Site"}' WHERE moved IS NOT NULL`);
     s.db.run(`UPDATE cards SET new_repo = '{"path":"/r","canvas":true,"by":"owner"}' WHERE id = '${card!.id}'`);
