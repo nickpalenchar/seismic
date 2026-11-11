@@ -91,7 +91,7 @@ export const ReplyAction = ({ onClick }: { onClick: () => void }) => (
 );
 
 export const DeleteAction = ({ onClick, label }: { onClick: () => void; label?: string }) => (
-  <MessageAction icon={<Trash2 size={15} strokeWidth={1.75} aria-hidden="true" />} label={label ?? t.delete} variant="danger" className="[@media(hover:hover)]:opacity-100" onClick={onClick} />
+  <MessageAction icon={<Trash2 size={15} strokeWidth={1.75} aria-hidden="true" />} label={label ?? t.delete} variant="danger" onClick={onClick} />
 );
 
 /** A state change between turns, shared by card conversations and chats. */
