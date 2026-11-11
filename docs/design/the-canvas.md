@@ -887,7 +887,8 @@ code, a generic one otherwise.
   own, so a shadcn part wears frost without a rule of its own; `dark:` follows the owner's choice of
   light or dark, else the system's. Controls are shadcn parts on Radix Primitives in
   `src/ui/components/`, added through the shadcn CLI and edited freely once copied; AI Elements serve
-  the conversations. Glass on every card was chosen over frost on the chrome alone with solid cards:
+  the conversations. Every icon is a lucide icon (`lucide-react`), or from another icon library already
+  installed; never a typographic character standing in for one (▾, ✕), so icons share stroke and sizing. Glass on every card was chosen over frost on the chrome alone with solid cards:
   the stronger look, at a cost measured with about 100 cards on screen at middle zoom on a 2560×1440
   window, where blurring every card dropped to 49 fps with a GPU and 23 fps without one; dropping the
   blur while the canvas moves brought it to 60 and 55 fps, against 60 without glass. Solid cards

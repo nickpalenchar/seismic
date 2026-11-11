@@ -7,7 +7,7 @@
 // the list itself has a plus button in the microphone's place, which makes a card and opens it (the microphone is back with a panel open);
 // what was typed but not sent survives a reload. It holds one WebSocket per project.
 
-import { ChevronLeft, Plus } from 'lucide-react';
+import { ChevronDown, ChevronLeft, Plus } from 'lucide-react';
 import { useRatePrompt } from './feedback';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { type ProjectInfo, type ProjectSnapshot, type CardPatch, finishedArchivable, inParkingLot, type Item, nameless, needsYou, openQuestions, unreadAnswers, type Usage, snoozeOf } from '../core/types';
@@ -866,7 +866,7 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
       {several && (
         <label className={cn(pillVariants(), phoneControl, 'right-[max(14px,env(safe-area-inset-right))] box-border max-w-[calc(50vw-106px)] cursor-pointer gap-1.5 px-3 text-[15px] ph-landscape:top-[52px] ph-landscape:bottom-auto ph-landscape:max-w-[104px]')}>
           <span className="overflow-hidden font-semibold text-ellipsis">{projects.find((c) => c.id === obeyaId)?.name}</span>
-          <span className="hint">▾</span>
+          <ChevronDown size={12} strokeWidth={1.75} className="hint" aria-hidden="true" />
           <select className="absolute inset-0 h-full w-full cursor-pointer text-base opacity-0" value={obeyaId} aria-label={t.phone.project} onChange={(e) => setObeyaProject(e.target.value)}>
             {projects.map((c) => (
               <option key={c.id} value={c.id}>

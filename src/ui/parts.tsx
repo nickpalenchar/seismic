@@ -687,7 +687,7 @@ export function WorkstationsPill({ pools, project, projects, items, underway, on
             </span>
           );
         })}
-        <span className="hint hidden lg:inline">▾</span>
+        <ChevronDown size={12} strokeWidth={1.75} className="hint hidden lg:inline" aria-hidden="true" />
         </PopoverTrigger>
       </BarPill>
       <PopoverContent

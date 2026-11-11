@@ -5,7 +5,7 @@
 // row's project switcher lists the projects alone, while the menu is not docked. What waits itself is
 // in the inbox (src/ui/inbox.tsx), on every project at once.
 
-import { Archive, ArrowLeft, Bot, Car, ChartLine, ChevronRight, FileCheck, GitBranch, Inbox, ListOrdered, Menu as Menu_, PanelLeft, PanelLeftClose, Plus, ScrollText, Settings, SlidersHorizontal, Users } from 'lucide-react';
+import { Archive, ArrowLeft, Bot, Car, ChartLine, ChevronDown, ChevronRight, FileCheck, GitBranch, Inbox, ListOrdered, Menu as Menu_, PanelLeft, PanelLeftClose, Plus, ScrollText, Settings, SlidersHorizontal, Users } from 'lucide-react';
 import { type ComponentProps, createContext, type ReactNode, type Ref, useContext, useLayoutEffect, useRef, useState } from 'react';
 import type { Canvas, ProjectInfo } from '../core/types';
 import { projectPath, switchTo } from './address';
@@ -88,7 +88,7 @@ export function NavPill(p: ProjectsProps) {
             <ProjectIcon />
             <b>{p.project.name}</b>
             <span className="text-[12px] text-muted-foreground group-data-[fit~='1']/row:hidden">{p.project.repos.length > 1 ? t.repos(p.project.repos.length) : home?.branch}</span>
-            <span className="text-[12px] text-muted-foreground">▾</span>
+            <ChevronDown size={12} strokeWidth={1.75} className="text-muted-foreground" aria-hidden="true" />
           </PillButton>
         </MenuTrigger>
       </div>
