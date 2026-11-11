@@ -64,6 +64,14 @@ import { Textarea } from './components/input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './components/collapsible';
 import { Badge, badgeVariants } from './components/badge';
 import { cn } from 'cn';
+import { actionsClass, bodyClass, conversationBox, conversationList, headClass, questionClass, choiceClass, choicesClass, pickTag, stateClass, statusClass, titleClass, titleFieldClass } from './cardClasses';
+
+/** A prototype whose idea became a plan: the workstream to build on it, on a line of its own above the buttons. */
+const buildOnClass = 'build-on basis-full flex flex-col gap-1 text-xs text-muted-foreground';
+/** The hint that a decision waits for the agent's reply, which the owner has already given. */
+const goWaits = 'go-waits text-xs text-ink font-semibold';
+/** The prototypes the idea's agent planned, one row each, its task in two lines. */
+const prototypeVariants = 'prototype-variants mt-4 max-w-[80ch]';
 
 /**
  * What the panel does after an action: fold the card and confirm (with undo, when it has one), or stay open.
@@ -258,7 +266,7 @@ export function Detail(p: Props) {
           {[repo, cardKind(item)].filter(Boolean).join(' · ')}
           {item.archivedAt ? <LabelMarks item={item} /> : <LabelPicks item={item} />}
         </div>
-        <div className="p-title">
+        <div className={titleClass}>
           <Inline md={item.title} />
         </div>
         <QuestionView item={item} act={act} run={run} onTell={p.onTell} />
@@ -269,7 +277,7 @@ export function Detail(p: Props) {
     return (
       <>
         <KindLine kind={kind} item={item} />
-        {item.archivedAt ? <div className="p-title">{shownTitle(item)}</div> : <ManualTitle item={item} onEdit={p.onEdit} />}
+        {item.archivedAt ? <div className={titleClass}>{shownTitle(item)}</div> : <ManualTitle item={item} onEdit={p.onEdit} />}
         <SupersededBox item={item} all={all} act={act} onDelete={p.onDelete} />
         <RepoDownBox item={item} />
         <IdeaView item={item} act={act} run={run} listener={listener} onDelete={p.onDelete} onTell={p.onTell} prototypes={!inFolder} choice={choice} repos={p.repos} />
@@ -280,10 +288,10 @@ export function Detail(p: Props) {
     return (
       <>
         {kind && <div className="p-kind">{kind}</div>}
-        <div className="p-title">
+        <div className={titleClass}>
           <Inline md={item.title} />
         </div>
-        <div className="p-state">
+        <div className={stateClass}>
           ● {stateLabel(item)}
           {archivedOn(item)}
         </div>
@@ -349,7 +357,7 @@ export function Detail(p: Props) {
     </Button>
   );
   const workstreamPick = plan && named ? (
-    <div className="build-on">
+    <div className={buildOnClass}>
       <span>
         {t.idea.buildsWorkstream(workstreamName(named))}{' '}
         <LinkButton onClick={() => setPicking(true)}>
@@ -358,7 +366,7 @@ export function Detail(p: Props) {
       </span>
     </div>
   ) : plan && (
-    <label className="build-on">
+    <label className={buildOnClass}>
       {t.idea.workstreamOf(plain(plan.title))}
       <Select value={workstream} onValueChange={(picked) => setWorkstream(picked)}>
         <SelectItem value="">{workstreams.length ? t.idea.chooseWorkstream : t.idea.noWorkstream}</SelectItem>
@@ -471,11 +479,11 @@ export function Detail(p: Props) {
   // a stopped task starts again, or goes into the archive with its conversation, from the row below it
   const halted = stopped(item) && !item.queue;
   // on a planned card, queued or not: a suggested card it cannot merge with can still be dismissed
-  const duplicateActions = duplicatePartner && mergeProposed(item) && <ButtonGroup className="duplicate-merge-actions">
-    <Button className="duplicate-attempt" disabled={!mergeableWith(item, duplicatePartner)} onClick={() => act({ action: 'merge', with: duplicatePartner.id }, { close: false })}>{t.duplicate.attempt}</Button>
-    <Button className="duplicate-dismiss" onClick={() => act({ action: 'dismissDuplicate' }, { close: false })}>{t.duplicate.dismiss}</Button>
+  const duplicateActions = duplicatePartner && mergeProposed(item) && <ButtonGroup className="duplicate-merge-actions inline-flex align-middle">
+    <Button className="duplicate-attempt bg-proposal text-on-ink" disabled={!mergeableWith(item, duplicatePartner)} onClick={() => act({ action: 'merge', with: duplicatePartner.id }, { close: false })}>{t.duplicate.attempt}</Button>
+    <Button className="duplicate-dismiss bg-[color-mix(in_srgb,var(--proposal)_12%,var(--chip))] text-ink" onClick={() => act({ action: 'dismissDuplicate' }, { close: false })}>{t.duplicate.dismiss}</Button>
   </ButtonGroup>;
-  const duplicateNotice = duplicatePartner && mergeProposed(item) && <div className="question duplicate-notice">
+  const duplicateNotice = duplicatePartner && mergeProposed(item) && <div className={questionClass('duplicate-notice')}>
     <h4>{t.duplicate.title}</h4>
     <p>{t.duplicate.detail}</p>
     <DuplicateMergePreview item={item} partner={duplicatePartner} />
@@ -485,7 +493,7 @@ export function Detail(p: Props) {
   const readPlan = parent && !parent.archivedAt && p.onReadPlan;
   // a workstream names its plan doc at the top in every state, an agent's work its branch beside it
   const where = (worked || parent?.plan?.file || item.review?.contribution) && (
-    <p className="p-src">
+    <p className="p-src mt-[22px] text-muted-foreground text-[12.5px] [&_code]:text-[12px]">
       {item.review?.contribution && (
         <>
           <a href={item.review?.contribution.url} target="_blank" rel="noreferrer">
@@ -510,11 +518,11 @@ export function Detail(p: Props) {
   );
   // what a card in the queue waits for, with the buttons that start it anyway or take it out of the queue
   const queueBox = item.state === 'planned' && item.queue && (
-    <div className="question queue">
+    <div className={questionClass('queue')}>
       {'checking' in item.queue ? (
         <>
           <div className="q-text">{t.queue.checkingLong}</div>
-          <div className="actions">
+          <div className={actionsClass}>
             <Button title={t.queue.checkingStopHint} onClick={() => act({ action: 'dequeue' }, { close: true, ack: t.queue.checkingStopped })}>
               {t.stop}
             </Button>
@@ -524,7 +532,7 @@ export function Detail(p: Props) {
         <>
           <div className="q-text">{t.queue.restartLong}</div>
           <QueuePlace item={item} items={all} />
-          <div className="actions">
+          <div className={actionsClass}>
             <Button onClick={() => act({ action: 'dequeue' }, { close: false })}>
               {t.queue.dequeue}
             </Button>
@@ -534,7 +542,7 @@ export function Detail(p: Props) {
         <>
           <div className="q-text">{t.queue.pausedLong}</div>
           <QueuePlace item={item} items={all} />
-          <div className="actions">
+          <div className={actionsClass}>
             <Button onClick={() => act({ action: 'dequeue' }, { close: false })}>
               {t.queue.dequeue}
             </Button>
@@ -551,7 +559,7 @@ export function Detail(p: Props) {
             )}
           </div>
           <QueuePlace item={item} items={all} />
-          <div className="actions">
+          <div className={actionsClass}>
             <Button onClick={() => act({ action: 'dequeue' }, { close: false })}>
               {t.queue.dequeue}
             </Button>
@@ -564,7 +572,7 @@ export function Detail(p: Props) {
           </div>
           <QueueChain item={item} all={all} />
           <QueuePlace item={item} items={all} />
-          <div className="actions">
+          <div className={actionsClass}>
             <StartAgent
               draft={cardDraft(item.id)}
               variant="default"
@@ -592,7 +600,7 @@ export function Detail(p: Props) {
   const brief = item.idea?.brief !== undefined && (
     <>
       {item.idea?.brief.trim() && (
-        <div className="question brief">
+        <div className={questionClass('brief')}>
           <h4>{t.idea.brief}</h4>
           <Body md={item.idea?.brief} />
           <Mocks mocks={item.idea?.mocks} />
@@ -623,22 +631,22 @@ export function Detail(p: Props) {
         <p>{t.parking.confirmText}</p>
       </ConfirmDialog>
       <KindLine kind={kind} item={item} />
-      {editable ? <ManualTitle item={item} onEdit={p.onEdit} /> : <div className="p-title">{shownTitle(item)}</div>}
-      <div className={['p-state', finishingUp(item) && 'finishing', (isPaused(item) || snoozeOf(item) || inParkingLot(item)) && 'paused', (item.hold?.reason === 'restart') && 'restart-paused', item.queue && 'restart' in item.queue && 'restart-paused', item.review?.resolvingConflicts && 'resolving-conflicts', item.review?.codeReview?.state === 'running' && 'reviewing', mergeProposed(item) && 'merge-proposed'].filter(Boolean).join(' ')}>
+      {editable ? <ManualTitle item={item} onEdit={p.onEdit} /> : <div className={titleClass}>{shownTitle(item)}</div>}
+      <div className={cn(stateClass, finishingUp(item) && 'finishing', (isPaused(item) || snoozeOf(item) || inParkingLot(item)) && 'paused', (item.hold?.reason === 'restart') && 'restart-paused', item.queue && 'restart' in item.queue && 'restart-paused', item.review?.resolvingConflicts && 'resolving-conflicts', item.review?.codeReview?.state === 'running' && 'reviewing', mergeProposed(item) && 'merge-proposed')}>
         {mergeProposed(item) ? <Lightbulb className="merge-mark" size={13} aria-hidden /> : asksYou(item) ? <QuestionMark /> : (item.hold?.reason === 'restart') ? <RestartMark /> : item.queue && 'restart' in item.queue ? <HourglassMark /> : inParkingLot(item) ? <Car size={13} aria-hidden /> : '●'} {stoppedAtOf(item) ? <StoppedWords stopped={stoppedAtOf(item)!} /> : stateLabel(item)}
         {snoozeOf(item) ? (
-          <span className="p-status"> · {snoozeWho(snoozeOf(item)!)}</span>
+          <span className={statusClass}> · {snoozeWho(snoozeOf(item)!)}</span>
         ) : item.review?.resolvingConflicts ? (
-          <span className="p-status conflict"> · {t.resolvingConflicts}</span>
+          <span className={cn(statusClass, 'conflict')}> · {t.resolvingConflicts}</span>
         ) : (
-          item.agent?.statusLine && (item.state === 'working' || item.state === 'inPr' || item.agent.finishing || answering(item)) && <span className="p-status"> · {item.agent.statusLine}</span>
+          item.agent?.statusLine && (item.state === 'working' || item.state === 'inPr' || item.agent.finishing || answering(item)) && <span className={statusClass}> · {item.agent.statusLine}</span>
         )}
         <Limited item={item} />
         {archivedOn(item)}
       </div>
       {where}
       {extensions.map((e, i) => { const Slot = e.slots?.detail; return Slot ? <Slot key={i} item={item} /> : null; })}
-      {extensions.some((e) => e.slots?.cardActions) && <Collapsible className="extension-actions"><CollapsibleTrigger asChild><Button>{t.extensionActions}</Button></CollapsibleTrigger><CollapsibleContent className="actions">{extensions.map((e, i) => { const Slot = e.slots?.cardActions; return Slot ? <Slot key={i} item={item} /> : null; })}</CollapsibleContent></Collapsible>}
+      {extensions.some((e) => e.slots?.cardActions) && <Collapsible className="extension-actions"><CollapsibleTrigger asChild><Button>{t.extensionActions}</Button></CollapsibleTrigger><CollapsibleContent className={actionsClass}>{extensions.map((e, i) => { const Slot = e.slots?.cardActions; return Slot ? <Slot key={i} item={item} /> : null; })}</CollapsibleContent></Collapsible>}
 
       <SupersededBox item={item} all={all} act={act} onDelete={p.onDelete} />
       <RepoDownBox item={item} />
@@ -676,10 +684,10 @@ export function Detail(p: Props) {
         </p>
       )}
       {item.idea?.buildProposal && (
-        <div className="question proposal">
+        <div className={questionClass('proposal')}>
           <h4>{t.idea.buildProposal}</h4>
           <div className="q-text">{item.idea?.buildProposal}</div>
-          <div className="actions">
+          <div className={actionsClass}>
             {workstreamPick}
             {buildOn(t.idea.acceptBuild)}
           </div>
@@ -740,8 +748,8 @@ export function Detail(p: Props) {
               <>
                 {/* a workstream's text in its plan doc stays in view in every state: the task it is, ahead of what came of it */}
                 {item.source === 'plan' && (
-                  <div className="p-plan">
-                    <h4 className="p-h">{t.talk.opening.plan}</h4>
+                  <div className="p-plan mb-[18px] [&_.p-h+*]:mt-0 [&_.fold>:first-child]:mt-0">
+                    <h4 className={headClass}>{t.talk.opening.plan}</h4>
                     {/* in full, the column scrolls; above a demo or the files it made a few lines, so what came of the work stays in view below */}
                     {item.demo?.latest || item.demo?.files ? (
                       <Fold lines={3}>
@@ -834,11 +842,11 @@ export function Detail(p: Props) {
       {/* approved work asks how the agent did until answered, and keeps the answer to change */}
       {item.review?.rate && <Rate item={item} />}
 
-      {item.state === 'planned' && item.queue && <div className="actions">{duplicateActions || <MergeButton item={item} all={all} act={act} />}</div>}
+      {item.state === 'planned' && item.queue && <div className={actionsClass}>{duplicateActions || <MergeButton item={item} all={all} act={act} />}</div>}
 
       {/* the decisions of a card nobody worked on yet, below what it shows, as on every card */}
       {item.state === 'planned' && !item.idea?.proposal?.merge && !worked && !item.queue && (
-        <div className="actions">
+        <div className={actionsClass}>
           {/* one snoozed to start later starts now with "Wake now" on its line in the conversation */}
           {item.idea?.newRepo?.due ? (
             <Armed label={t.repoPick.making(choice.name)} undo={t.undo} onUndo={() => act({ action: 'stayHere' }, { close: false })} />
@@ -888,7 +896,7 @@ export function Detail(p: Props) {
 
       {/* the decisions go below both columns, as on an idea or a proposal */}
       {worked && (running || archivable || halted || snoozable(item)) && (
-        <div className="actions">
+        <div className={actionsClass}>
           {/* the explanation sticks with the decision it belongs to */}
           {review && item.review?.noChange && !item.idea?.prototypeOf && (
             <p className="wontfix-callout m-0 w-full rounded-md border border-border bg-muted px-3 py-2 text-sm" role="note">{inFolder ? t.folder.noChangeHint : t.noChangeHint}</p>
@@ -921,10 +929,10 @@ export function Detail(p: Props) {
 }
 
 /** Beside the card's state: its agent (not its worker, which says so in its status line) waits for the usage limit, until when. */
-const Limited = ({ item }: { item: Item }) => (item.agent?.limitedUntil ? <span className="p-status"> · {t.limitedUntil(time(item.agent.limitedUntil))}</span> : null);
+const Limited = ({ item }: { item: Item }) => (item.agent?.limitedUntil ? <span className={statusClass}> · {t.limitedUntil(time(item.agent.limitedUntil))}</span> : null);
 
 /** When the card went into the archive, after its state. */
-const archivedOn = (i: Item) => i.archivedAt && <span className="p-status"> · {t.archive.when(new Date(i.archivedAt))}</span>;
+const archivedOn = (i: Item) => i.archivedAt && <span className={statusClass}> · {t.archive.when(new Date(i.archivedAt))}</span>;
 
 /**
  * "Later" in a card's action row, on any card the owner can snooze that is not snoozed yet (a
@@ -980,10 +988,10 @@ function SupersededBox({ item, all, act, onDelete }: { item: Item; all: Item[]; 
   // the replacement under its title now, if it is still on the project
   const replacement = s.by ? all.find((x) => x.id === s.by) : undefined;
   return (
-    <div className="question superseded">
+    <div className={questionClass('superseded')}>
       <h4>{s.by ? <Naming text={t.superseded.by} cards={[{ card: replacement, title: replacement?.title ?? s.title ?? '' }]} /> : t.superseded.withdrawn}</h4>
       {s.why && <div className="q-text">{s.why}</div>}
-      <div className="actions">
+      <div className={actionsClass}>
         <Button variant="danger" title={t.superseded.removeHint} onClick={onDelete}>
           {t.superseded.remove}
         </Button>
@@ -1015,7 +1023,7 @@ function FromElsewhere({ item }: { item: Item }) {
 function RepoDownBox({ item }: { item: Item }) {
   if (!item.repoDown) return null;
   return (
-    <div className="question repo-down">
+    <div className={questionClass('repo-down')}>
       <div className="q-text">{t.repoDown.long(item.repo)}</div>
     </div>
   );
@@ -1075,10 +1083,10 @@ function IdeaView({
   const btn = (step: NextStep['step']) => ({ variant: (next ? next.step === step : step === 'build') ? ('primary' as const) : ('default' as const), suggested: next?.step === step });
   return (
     <>
-      <div className={['p-state', finishingUp(item) && 'finishing', snoozeOf(item) && 'paused'].filter(Boolean).join(' ')}>
+      <div className={cn(stateClass, finishingUp(item) && 'finishing', snoozeOf(item) && 'paused')}>
         ● {stateLabel(item)}
-        {snoozeOf(item) && <span className="p-status"> · {snoozeWho(snoozeOf(item)!)}</span>}
-        {idea.thinking && <span className="p-status"> · {t.author.explorer} {t.idea.thinking}</span>}
+        {snoozeOf(item) && <span className={statusClass}> · {snoozeWho(snoozeOf(item)!)}</span>}
+        {idea.thinking && <span className={statusClass}> · {t.author.explorer} {t.idea.thinking}</span>}
         <Limited item={item} />
         {archivedOn(item)}
       </div>
@@ -1087,7 +1095,7 @@ function IdeaView({
         cite={!item.archivedAt && cardDraft(item.id)}
         main={
           <>
-            <div className="question brief">
+            <div className={questionClass('brief')}>
               <h4>{t.idea.brief}</h4>
               {idea.brief.trim() ? <Body md={idea.brief} /> : <div className="hint">{t.idea.briefEmpty}</div>}
               <Mocks mocks={idea.mocks} />
@@ -1095,7 +1103,7 @@ function IdeaView({
             {/* what "Teilaufgabe abtrennen" would build, as its worker's task */}
             {idea.split && !item.archivedAt && (
               // opened at the bottom of the column, it scrolls into view rather than opening out of sight
-              <Collapsible className="question brief settled" onOpenChange={(open) => open && requestAnimationFrame(() => settledFold.current?.scrollIntoView({ block: 'nearest', behavior: scrollBehavior() }))} ref={settledFold}>
+              <Collapsible className={questionClass('settled')} onOpenChange={(open) => open && requestAnimationFrame(() => settledFold.current?.scrollIntoView({ block: 'nearest', behavior: scrollBehavior() }))} ref={settledFold}>
                 <CollapsibleTrigger>{t.idea.settled(idea.split.title)}</CollapsibleTrigger>
                 <CollapsibleContent>
                   <Body md={idea.split.brief} />
@@ -1125,7 +1133,7 @@ function IdeaView({
       />
       {idea.status !== 'open' && !item.archivedAt && <p className="hint">{t.idea.reopen}</p>}
       {item.archivedAt ? (
-        <div className="actions">
+        <div className={actionsClass}>
           <ArchiveButton item={item} run={run} />
         </div>
       ) : prototyping ? (
@@ -1133,8 +1141,8 @@ function IdeaView({
       ) : (
         <>
           {next && (
-            <div className={`next-step ${next.step}`}>
-              <span className="next-h">{t.idea.next}</span>
+            <div className={`next-step flex flex-col gap-[3px] mt-4 py-0.5 max-w-[80ch] text-[14px] ${next.step}`}>
+              <span className="next-h text-[11px] uppercase tracking-[.08em] font-bold text-idea">{t.idea.next}</span>
               <span>
                 <b>{t.idea.nextStep[next.step](idea.questions.length)}</b>
                 {next.why && <> – {next.why}</>}
@@ -1142,9 +1150,9 @@ function IdeaView({
             </div>
           )}
           {/* planning waits for the reply, which will change the brief the owner decides on; building goes ahead after it unless it asks questions */}
-          {idea.thinking && <p className={idea.buildAfterReply ? 'hint go-waits' : 'hint'}>{idea.buildAfterReply ? t.idea.buildWaitsHint : idea.split ? t.idea.waitForReplySplit : t.idea.waitForReply}</p>}
+          {idea.thinking && <p className={idea.buildAfterReply ? goWaits : 'hint'}>{idea.buildAfterReply ? t.idea.buildWaitsHint : idea.split ? t.idea.waitForReplySplit : t.idea.waitForReply}</p>}
           {idea.status === 'open' && !item.idea?.newRepo?.due && <RepoPick choice={choice} repos={repos} />}
-          <div className="actions">
+          <div className={actionsClass}>
             {/* the settled part as a task of its own; the reply may change the split, so it waits for it */}
             {idea.split && (
               <Button {...btn('splitOff')}
@@ -1219,7 +1227,7 @@ function QuestionView({ item, act, run, onTell }: { item: Item; act: (a: CardAct
   const thread = item.thread!;
   return (
     <>
-      <div className="p-state">
+      <div className={stateClass}>
         ● {t.question.count(thread.answers, thread.files)} · {thread.thinking ? t.question.reading : t.question.ready}
         <Limited item={item} />
         {archivedOn(item)}
@@ -1243,7 +1251,7 @@ function QuestionView({ item, act, run, onTell }: { item: Item; act: (a: CardAct
           )
         }
       />
-      <div className="actions">
+      <div className={actionsClass}>
         {item.archivedAt ? (
           <ArchiveButton item={item} run={run} />
         ) : (
@@ -1344,8 +1352,8 @@ function ProposalView({
           />
         }
       />
-      {revising && <p className={armed ? 'hint go-waits' : 'hint'}>{armed ? t.acceptWaitsHint : t.acceptWaitsFor(idea ? t.acceptIdea : t.accept)}</p>}
-      <div className="actions">
+      {revising && <p className={armed ? goWaits : 'hint'}>{armed ? t.acceptWaitsHint : t.acceptWaitsFor(idea ? t.acceptIdea : t.accept)}</p>}
+      <div className={actionsClass}>
         {armed ? (
           <Armed label={t.acceptWaits(idea || armed === 'idea')} undo={t.unaccept} onUndo={() => act({ action: 'unaccept' }, { close: false })} />
         ) : (
@@ -1382,7 +1390,7 @@ function StartAt({ item, act }: { item: Item; act: (a: CardAction, done: ActDone
   if (!at) return null;
   const set = (to: string | null) => void act({ action: 'startAt', at: to }, { close: false });
   return (
-    <div className="start-at">
+    <div className="start-at flex items-baseline gap-1 flex-wrap mt-2.5 mb-0.5 text-[13px] text-ink [&_.clock-mark]:align-[-1px] [&_.clock-mark]:text-muted-foreground">
       <ClockMark /> {t.startAt.line(snoozeWhen(at))} ·{' '}
       <SnoozeMenu
         label={t.snooze.change}
@@ -1431,9 +1439,9 @@ function PrototypeStart({ item, act }: { item: Item; act: (a: CardAction, done: 
   return (
     <>
       {variants.length > 0 && (
-        <div className="question ask prototype-variants">
+        <div className={questionClass('ask', prototypeVariants)}>
           <h4>{t.idea.variants}</h4>
-          <div className="choices multiple" role="group">
+          <div className={choicesClass('multiple')} role="group">
             {variants.map((v) => {
               const on = chosen.includes(v.approach);
               return (
@@ -1441,14 +1449,14 @@ function PrototypeStart({ item, act }: { item: Item; act: (a: CardAction, done: 
                   key={v.approach}
                   role="checkbox"
                   aria-checked={on}
-                  className={`choice${on ? ' on' : ''}`}
+                  className={choiceClass({ on })}
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => setChosen(variants.map((x) => x.approach).filter((a) => (a === v.approach ? !on : chosen.includes(a))))}
                 >
                   <span>
                     <b>{v.approach}</b>
-                    {running.has(v.approach) && <span className="pick-tag">{t.idea.variantRuns}</span>}
-                    <span className="v-show" title={v.show}>
+                    {running.has(v.approach) && <span className={pickTag}>{t.idea.variantRuns}</span>}
+                    <span className="v-show line-clamp-2 mt-0.5 text-[12.5px] text-muted-foreground" title={v.show}>
                       {v.show}
                     </span>
                   </span>
@@ -1471,7 +1479,8 @@ function PrototypeStart({ item, act }: { item: Item; act: (a: CardAction, done: 
           )
         }
       />
-      <div ref={end} className="prototype-end" />
+      {/* scrolled into view, the start button stays clear of the push-to-talk button below the panel */}
+      <div ref={end} className="prototype-end h-16" />
     </>
   );
 }
@@ -1497,9 +1506,9 @@ function PrototypeDemos({ item }: { item: Item }) {
   const latest = all.filter((p) => p.demo?.latest).at(-1);
   return (
     <>
-      <h4 className="p-h">{t.idea.prototypes}</h4>
+      <h4 className={headClass}>{t.idea.prototypes}</h4>
       {all.map((p) => (
-        <Collapsible key={p.id} className="prototype-demo" defaultOpen={p === latest}>
+        <Collapsible key={p.id} className="prototype-demo mt-2.5 [&>[data-slot=collapsible-trigger]]:font-semibold [&>[data-slot=collapsible-trigger]]:text-[14px] [&>[data-slot=collapsible-trigger]_.hint]:font-normal data-[state=open]:[&>[data-slot=collapsible-trigger]]:mb-2" defaultOpen={p === latest}>
           <CollapsibleTrigger>
             <Inline md={p.title} /> <span className="hint">· {stateLabel(p)}</span>
           </CollapsibleTrigger>
@@ -1667,9 +1676,9 @@ function Conversation({
     );
   return (
     <>
-      <h4 className="p-h">{t.talk.heading}</h4>
+      <h4 className={headClass}>{t.talk.heading}</h4>
       {/* what the agents say and do follows at the end only while the owner stands there, so they can read further up meanwhile */}
-      <Scroll className="conv" contentClassName="talk" boxRef={box} said={events.findLast((e) => e.author === 'owner')?.id} entries={events} start={unseenFrom}>
+      <Scroll className={conversationBox} contentClassName={conversationList} boxRef={box} said={events.findLast((e) => e.author === 'owner')?.id} entries={events} start={unseenFrom}>
         {turns.shown.length === 0 && !turns.unread.length && !working && !turns.asked.length && !seed && <div className="hint">{idea ? t.idea.talkEmpty : question ? t.question.empty : proposal ? t.reviseHint : t.talk.empty}</div>}
         <LimitNotice item={item} />
         {turns.shown.slice(0, seedAt).map(line)}
@@ -1750,7 +1759,7 @@ function Description({ item }: { item: Item }) {
   if (item.source !== 'manual' || item.archivedAt) return <Body md={item.body} />;
   return <div className="description-edit">
     {editing ? <>
-      <LinkField self={item} className="p-body" value={body} placeholder={t.bodyPlaceholder} onChange={(value) => { setBody(value); onEdit({ body: value }); }} />
+      <LinkField self={item} className={bodyClass} value={body} placeholder={t.bodyPlaceholder} onChange={(value) => { setBody(value); onEdit({ body: value }); }} />
       <Button onClick={() => setEditing(false)}>{t.descriptionDone}</Button>
     </> : <>
       <Body md={body} />
@@ -2103,6 +2112,9 @@ type Run = (fn: () => Promise<void>, done: ActDone) => Promise<void>;
  * owner, whose words may be about a place in the video. Once a later handover replaced a demo, the
  * owner may step back to it and forth again; a comment on a place in it takes them there too.
  */
+/** ‹ and › between the card's demos. */
+const versionStep = 'step inline-flex items-center justify-center p-0 size-6 border-0 bg-transparent text-ink rounded-[2px] text-lg leading-none cursor-pointer enabled:hover:bg-chip disabled:opacity-30 disabled:cursor-default';
+
 function DemoView({
   item,
   summary = '',
@@ -2198,14 +2210,14 @@ function DemoView({
   }, [shownN]);
   return (
     <>
-      <div className="demo-view">
+      <div className="demo-view group/demo">
         {/* which of the card's demos is shown, in the line with sharing */}
         {(earlier.length > 0 || top) && (
-          <div className="demo-top">
+          <div className="demo-top flex flex-wrap items-center justify-end gap-x-4 gap-y-2 mb-2.5 [&>.hint]:flex-[1_1_260px] [&>.hint]:m-0">
             {earlier.length > 0 && (
-              <div className={demo === latest ? 'demo-versions' : 'demo-versions earlier'} title={demo === latest ? undefined : t.demo.earlierHint}>
+              <div className={cn('demo-versions flex items-center gap-1 mr-auto min-h-[34px] text-[13px] [&>span]:tabular-nums [&>span]:px-0.5 [&_[data-slot=button]]:ml-2.5', demo !== latest && 'earlier [&>span]:text-waiting [&>span]:font-semibold')} title={demo === latest ? undefined : t.demo.earlierHint}>
                 <Tooltip content={t.demo.older}>
-                  <button className="step" disabled={shownAt === 0} aria-label={t.demo.older} onClick={() => show(all[shownAt - 1]!)}>
+                  <button className={versionStep} disabled={shownAt === 0} aria-label={t.demo.older} onClick={() => show(all[shownAt - 1]!)}>
                     <ChevronLeft size={16} aria-hidden />
                   </button>
                 </Tooltip>
@@ -2214,14 +2226,14 @@ function DemoView({
                   {demo.at && ` · ${handedAt(demo.at)}`}
                   {demo.handover !== undefined && item.demo?.share?.on?.includes(demo.handover) && (
                     <Tooltip content={t.share.onPageMark}>
-                      <span className="on-page" aria-label={t.share.onPageMark}>
+                      <span className="on-page inline-flex align-[-2px] ml-1.5 text-approved [&_svg]:size-[13px] [&_svg]:fill-none [&_svg]:stroke-current [&_svg]:[stroke-width:2.2] [&_svg]:[stroke-linecap:round] [&_svg]:[stroke-linejoin:round]" aria-label={t.share.onPageMark}>
                         <ShareIcon />
                       </span>
                     </Tooltip>
                   )}
                 </span>
                 <Tooltip content={t.demo.newer}>
-                  <button className="step" disabled={demo === latest} aria-label={t.demo.newer} onClick={() => show(all[shownAt + 1]!)}>
+                  <button className={versionStep} disabled={demo === latest} aria-label={t.demo.newer} onClick={() => show(all[shownAt + 1]!)}>
                     <ChevronRight size={16} aria-hidden />
                   </button>
                 </Tooltip>
@@ -2238,13 +2250,23 @@ function DemoView({
         {demo.kind === 'html' ? (
           // the worker's page: scripts run, but in an origin of its own, away from Seismic's API. Once
           // the frame has the page's height, the page stops scrolling up and down by itself
-          // (`withHeightReport`); sideways it still scrolls, where it is wider than the frame
-          <iframe ref={artifact} className="artifact" sandbox="allow-scripts" src={src('index.html')} title={t.demo.artifact} style={{ height: artifactHeight }} />
+          // (`withHeightReport`); sideways it still scrolls, where it is wider than the frame. Low until
+          // then: the column keeps the height of its tallest view, and a frame higher than a short page
+          // kept it scrolling over nothing
+          <iframe ref={artifact} className="artifact w-full h-[150px] border border-line rounded-[3px] bg-white block" sandbox="allow-scripts" src={src('index.html')} title={t.demo.artifact} style={{ height: artifactHeight }} />
         ) : (
-          <div className="player" ref={zoom.player} style={zoom.box ? { height: zoom.box.from.height } : undefined}>
-            {zoom.box && <div className={zoom.box.closing ? 'demo-zoom closing' : 'demo-zoom'} ref={zoom.backdrop} title={t.demo.unzoom} onClick={zoom.toggle} />}
+          <div className="player relative" ref={zoom.player} style={zoom.box ? { height: zoom.box.from.height } : undefined}>
+            {zoom.box && <div className={cn('demo-zoom fixed inset-0 z-3 bg-[rgba(15,12,8,.78)] cursor-zoom-out animate-[fade_.38s_ease-out] transition-opacity duration-[380ms]', zoom.box.closing && 'closing opacity-0')} ref={zoom.backdrop} title={t.demo.unzoom} onClick={zoom.toggle} />}
+            {/* zoomed (useZoom): fixed over the greyed window, above the panel's ✕, the player keeping its height in
+                the card. On a phone full screen comes from Seismic's button (fullscreen.ts) and the video fills the
+                black player as far as its shape allows; `nofullscreen` only greys out the controls' own button in
+                Chrome's newer controls, so it goes */}
             <div
-              className={zoom.box ? 'screen zoomed' : fullscreen.full ? 'screen full' : 'screen'}
+              className={cn(
+                'screen group/screen relative [&_video]:w-full [&_video]:rounded-[3px] [&_video]:bg-black [&_video]:block phone:[&_video::-webkit-media-controls-fullscreen-button]:hidden',
+                zoom.box && 'zoomed fixed z-4 origin-top-left [&_video]:h-full [&_video]:shadow-lift',
+                !zoom.box && fullscreen.full && 'full phone:bg-black phone:flex phone:items-center phone:[&_video]:h-full phone:[&_video]:object-contain phone:[&_video]:rounded-none',
+              )}
               ref={zoom.screen}
               style={zoom.box ? { left: zoom.box.to.left, top: zoom.box.to.top, width: zoom.box.to.width, height: zoom.box.to.height } : undefined}
             >
@@ -2276,13 +2298,13 @@ function DemoView({
                 <track kind="captions" src={src('captions.vtt')} srcLang="en" label="English" />
               </video>
               {seek.hint && (
-                <span className="seek-hint">
+                <span className="seek-hint absolute left-1/2 bottom-16 -translate-x-1/2 z-1 whitespace-nowrap pointer-events-none py-[5px] px-[9px] rounded-[3px] bg-black/75 text-white text-[13px] animate-[fade_.2s_ease-out] [&_kbd]:[font-family:inherit] [&_kbd]:[font-size:inherit] [&_kbd]:font-semibold [&_kbd]:px-1.5 [&_kbd]:rounded-[2px] [&_kbd]:bg-white/20 [&_kbd]:border [&_kbd]:border-white/35 phone:hidden">
                   {t.demo.seekHint} <kbd>←</kbd> <kbd>→</kbd>
                 </span>
               )}
               {!started && (
                 // a click anywhere on the video but its controls starts it, like on a shared page
-                <button className="start" aria-label={t.demo.play} onClick={() => video.current?.play().catch(() => {})}>
+                <button className="start absolute inset-[0_0_56px_0] p-0 border-0 bg-transparent cursor-pointer grid place-items-center group/start [&>span]:mt-14 [&>span]:size-20 [&>span]:rounded-full [&>span]:bg-black/60 [&>span]:grid [&>span]:place-items-center [&>span]:transition-[transform,background] [&>span]:duration-150 hover:[&>span]:bg-black/80 hover:[&>span]:scale-[1.06] [&_svg]:size-8 [&_svg]:ml-[5px] [&_svg]:fill-white [&_svg]:text-white [&_svg]:stroke-white" aria-label={t.demo.play} onClick={() => video.current?.play().catch(() => {})}>
                   <span>
                     <Play fill="currentColor" strokeWidth={2} />
                   </span>
@@ -2290,7 +2312,7 @@ function DemoView({
               )}
               {comments && started && (
                 <button
-                  className="comment-here"
+                  className="comment-here absolute top-2.5 right-14 z-1 h-[38px] px-3.5 border-0 rounded-[19px] bg-black/55 text-white text-[13.5px] cursor-pointer opacity-0 transition-[opacity,background] duration-150 flex items-center gap-2 [&_svg]:size-[18px] [&_svg]:fill-none [&_svg]:stroke-white [&_svg]:[stroke-width:2] [&_svg]:[stroke-linejoin:round] group-hover/screen:opacity-100 focus-visible:opacity-100 hover:bg-black/80 no-hover:opacity-100 phone:right-[60px] phone:h-[42px] phone:rounded-[21px] phone:group-[.full]/screen:top-[max(10px,env(safe-area-inset-top))] phone:group-[.full]/screen:right-[calc(50px+max(10px,env(safe-area-inset-right)))]"
                   title={t.demo.commentHint}
                   onClick={() => {
                     video.current?.pause();
@@ -2307,20 +2329,20 @@ function DemoView({
               )}
               {fullscreen.can && (
                 <Tooltip content={fullscreen.full ? t.demo.fullscreenOff : t.demo.fullscreen}>
-                  <button className="fullscreen" aria-label={fullscreen.full ? t.demo.fullscreenOff : t.demo.fullscreen} onClick={fullscreen.toggle}>
+                  <button className="fullscreen grid absolute top-2.5 right-2.5 z-1 size-[42px] border-0 rounded-full bg-black/55 place-items-center [&_svg]:size-[22px] [&_svg]:fill-none [&_svg]:stroke-white [&_svg]:[stroke-width:2.2] [&_svg]:[stroke-linecap:round] [&_svg]:[stroke-linejoin:round] phone:group-[.full]/screen:top-[max(10px,env(safe-area-inset-top))] phone:group-[.full]/screen:right-[max(10px,env(safe-area-inset-right))]" aria-label={fullscreen.full ? t.demo.fullscreenOff : t.demo.fullscreen} onClick={fullscreen.toggle}>
                     {fullscreen.full ? <Minimize strokeWidth={2} /> : <Maximize strokeWidth={2} />}
                   </button>
                 </Tooltip>
               )}
               <Tooltip content={zoom.keyKnown ? (zoom.box ? t.demo.unzoom : t.demo.zoom) : undefined}>
                 <button
-                  className="zoom"
+                  className="zoom group/zoom absolute top-2.5 right-2.5 z-1 size-[38px] border-0 rounded-full bg-black/55 cursor-pointer grid place-items-center opacity-0 transition-[opacity,background] duration-150 group-hover/screen:opacity-100 focus-visible:opacity-100 hover:bg-black/80 [&>svg]:size-5 [&>svg]:fill-none [&>svg]:stroke-white [&>svg]:[stroke-width:2.2] [&>svg]:[stroke-linecap:round] phone:hidden"
                   aria-label={zoom.box ? t.demo.unzoom : t.demo.zoom}
                   onClick={zoom.toggle}
                 >
                   {/* the key beside the magnifier until the owner first zoomed with it */}
                   {!zoom.keyKnown && (
-                    <span className="zoom-hint">
+                    <span className="zoom-hint absolute right-0 top-[calc(100%+6px)] whitespace-nowrap py-[5px] px-[9px] rounded-[3px] bg-black/75 text-white text-[13px] opacity-0 pointer-events-none transition-opacity duration-150 group-hover/zoom:opacity-100 group-focus-visible/zoom:opacity-100 [&_kbd]:[font-family:inherit] [&_kbd]:[font-size:inherit] [&_kbd]:font-semibold [&_kbd]:px-1.5 [&_kbd]:rounded-[2px] [&_kbd]:bg-white/20 [&_kbd]:border [&_kbd]:border-white/35 [&_kbd]:ml-[3px]">
                       {zoom.box ? t.demo.unzoomHint : t.demo.zoomHint} <kbd>Z</kbd>
                     </span>
                   )}
@@ -2331,7 +2353,7 @@ function DemoView({
           </div>
         )}
         {demo.chapters.length > 0 && (
-          <ol className="chapters">
+          <ol className="chapters list-none mt-2 mb-0 p-1.5 bg-chip rounded-[3px] [&_button]:cursor-pointer [&_button]:flex [&_button]:gap-2.5 [&_button]:w-full [&_button]:py-1.5 [&_button]:px-2 [&_button]:rounded-[2px] [&_button]:text-[13px] [&_button]:box-border [&_button]:border-0 [&_button]:bg-transparent [&_button]:text-left [&_button]:text-[13px] [&_button]:text-ink [&_button]:tracking-[inherit] [&_button:hover]:bg-card [&_button.on]:bg-card [&_.t]:text-muted-foreground [&_.t]:tabular-nums [&_.t]:min-w-8">
             {demo.chapters.map(([at, title], i) => (
               <li key={i}>
                 <button
@@ -2566,7 +2588,7 @@ function Findings({ item, decides, onPush }: { item: Item; decides: boolean; onP
       {c.results && <div className={ok ? 'rr-checks ok' : 'rr-checks bad'}>{t.review.checks(c.results)}</div>}
       {c.clash && !finished(item.state) && <Clash clash={c.clash} {...(decides && onPush ? { onPush } : {})} />}
       {c.findings && (
-        <h4 className="p-h">{!findings.length && c.findings.length ? t.review.allIgnored : t.review.findings(findings.length, open.length, open.filter((f) => f.security).length)}</h4>
+        <h4 className={headClass}>{!findings.length && c.findings.length ? t.review.allIgnored : t.review.findings(findings.length, open.length, open.filter((f) => f.security).length)}</h4>
       )}
       <FindingList item={item} findings={findings} decides={decides} />
     </section>
@@ -2624,7 +2646,7 @@ function FindingList({ item, findings, decides }: { item: Item; findings: Findin
     });
   const choice = (f: Finding, route: FindingPick, label: string, more: { title?: string; disabled?: boolean } = {}) => (
     <button
-      className={`choice${picks[f.id] === route ? ' on' : ''}`}
+      className={choiceClass({ on: picks[f.id] === route })}
       aria-pressed={picks[f.id] === route}
       disabled={more.disabled}
       title={more.title}
@@ -2701,7 +2723,7 @@ function FindingList({ item, findings, decides }: { item: Item; findings: Findin
         ) : (
           decides && (
             <>
-            <div className="choices single f-choices" role="group">
+            <div className={choicesClass('single', 'f-choices')} role="group">
               {c ? (
                 <>
                   {choice(f, 'contributor', t.review.toContributor)}
@@ -2823,7 +2845,7 @@ function ReviewList({ item, act, decides, again, reviewer }: { item: Item; act: 
   ];
   const waiting = r.items.filter(needsOwner);
   const choice = (i: ReviewItem, route: FindingPick, label: string, title: string) => (
-    <button className={`choice${picks[i.number] === route ? ' on' : ''}`} aria-pressed={picks[i.number] === route} title={title} onMouseDown={(e) => e.preventDefault()} onClick={() => pick(i.number, route)}>
+    <button className={choiceClass({ on: picks[i.number] === route })} aria-pressed={picks[i.number] === route} title={title} onMouseDown={(e) => e.preventDefault()} onClick={() => pick(i.number, route)}>
       {label}
     </button>
   );
@@ -2880,7 +2902,7 @@ function ReviewList({ item, act, decides, again, reviewer }: { item: Item; act: 
             {i.status === 'fixing' && <div className="f-status pending">{t.codeReview.goingFix}</div>}
             {waits && decides && (
               <>
-                <div className="choices single f-choices" role="group">
+                <div className={choicesClass('single', 'f-choices')} role="group">
                   {choice(i, 'self', t.codeReview.fix, t.codeReview.fixHint)}
                   {choice(i, 'later', t.review.later, t.codeReview.laterHint)}
                   {choice(i, 'ignore', t.review.ignore, t.review.ignoreHint)}
@@ -2910,7 +2932,7 @@ function ReviewList({ item, act, decides, again, reviewer }: { item: Item; act: 
         </>
       )}
       {r.state === 'failed' && <p className="bad">{t.codeReview.failed(r.error ?? '')}</p>}
-      {(r.state === 'done' || r.items.length > 0) && <h4 className="p-h">{t.codeReview.items(r.items.length, waiting.length)}</h4>}
+      {(r.state === 'done' || r.items.length > 0) && <h4 className={headClass}>{t.codeReview.items(r.items.length, waiting.length)}</h4>}
       {sorted.map(one)}
       {decides && waiting.length > 0 && <p className="hint">{t.codeReview.decideHint}</p>}
       {decides && <ReviewSubmit item={item} />}
@@ -3127,25 +3149,25 @@ function PrBox({ pr, held, author, card, save }: { pr: PullRequest; held?: HeldC
   // a conflict says so on its own line
   const waits = pr.ready ? [] : (pr.waits ?? []).filter((w) => w !== 'conflict' || !pr.conflict);
   return (
-    <div className="question pr">
+    <div className={questionClass('pr')}>
       <h4>
         <a href={pr.url} target="_blank" rel="noreferrer">
           {t.pr.title(pr.number, pr.repo)} ↗
         </a>
       </h4>
       {held && (
-        <div className="pr-held">
+        <div className="pr-held mt-2.5 mb-2 [&_h5]:mt-0 [&_h5]:mb-1 [&_h5]:text-[11px] [&_h5]:tracking-[.08em] [&_h5]:uppercase [&_h5]:text-muted-foreground">
           <h5>
             {t.review.heldHead(pr.number)} · {t.review.heldCommits(held.commits)}
           </h5>
           {card && save ? (
             <HeldText card={card} body={held.body} save={save} />
           ) : (
-            <div className="pr-held-text">
+            <div className="pr-held-text py-1.5 px-2.5 rounded-md bg-card border border-[color-mix(in_srgb,var(--inPr)_25%,transparent)] text-[13px] [&_.p-lead]:my-1">
               <Body md={held.body} />
             </div>
           )}
-          {held.asks.length > 0 && author && <div className="pr-held-asks">{t.review.heldAsks(held.asks, author)}</div>}
+          {held.asks.length > 0 && author && <div className="pr-held-asks mt-1.5 text-[13px] text-waiting">{t.review.heldAsks(held.asks, author)}</div>}
         </div>
       )}
       {pr.merged && <div className="q-text">{t.pr.merged}</div>}
@@ -3154,7 +3176,7 @@ function PrBox({ pr, held, author, card, save }: { pr: PullRequest; held?: HeldC
       {waits.length > 0 && <div className="q-text">{t.pr.waits(waits)}</div>}
       {pr.ready && <div className="q-text">{pr.held ? t.pr.held(pr.held.score, pr.held.by) : pr.manual ? t.pr.manual : t.pr.ready(pr.mergeError ?? '')}</div>}
       {pr.checks.length > 0 ? (
-        <ul className="checks">
+        <ul className="checks list-none p-0 mt-1.5 mb-0 flex flex-wrap gap-x-3.5 gap-y-1.5 text-[13px] [&_li]:before:mr-[5px] [&_li]:before:font-bold [&_li.success]:before:content-['✓'] [&_li.success]:before:text-approved [&_li.failure]:before:content-['✗'] [&_li.failure]:before:text-error [&_li.pending]:before:content-['○'] [&_li.pending]:before:text-muted-foreground [&_a]:text-inherit">
           {pr.checks.map((c) => (
             <li key={c.name} className={c.state}>
               {c.url ? (
@@ -3227,9 +3249,9 @@ function HeldText({ card, body, save }: { card: string; body: string; save: (bod
   };
   if (!editing)
     return (
-      <div className="pr-held-text">
+      <div className="pr-held-text py-1.5 px-2.5 rounded-md bg-card border border-[color-mix(in_srgb,var(--inPr)_25%,transparent)] text-[13px] [&_.p-lead]:my-1">
         <button
-          className="pr-held-edit"
+          className="pr-held-edit float-right -mr-1 mb-1 ml-2.5 mt-0 py-0.5 px-2 border border-line rounded-lg bg-panel text-muted-foreground text-xs cursor-pointer hover:text-ink hover:border-[color-mix(in_srgb,var(--inPr)_50%,transparent)]"
           title={t.review.heldEditHint}
           onClick={() => updateDraft(key, { text: body })}
         >
@@ -3240,15 +3262,15 @@ function HeldText({ card, body, save }: { card: string; body: string; save: (bod
     );
   return (
     <div className="pr-held-editing">
-      <Textarea ref={ref} className="pr-held-field" value={text} maxLength={20000} onChange={(e) => updateDraft(key, { text: e.target.value })} />
-      <div className="pr-held-acts">
+      <Textarea ref={ref} className="pr-held-field block w-full box-border min-h-[6em] border-[color-mix(in_srgb,var(--inPr)_50%,transparent)] text-[14.5px] leading-[1.45] resize-none" value={text} maxLength={20000} onChange={(e) => updateDraft(key, { text: e.target.value })} />
+      <div className="pr-held-acts flex flex-wrap items-center gap-2 mt-1.5">
         <Button variant="primary" size="small" disabled={saving || !text.trim()} onClick={() => void submit()}>
           {t.review.heldSave}
         </Button>
         <Button size="small" disabled={saving} onClick={close}>
           {t.review.heldCancel}
         </Button>
-        {error && <span className="p-error">{error}</span>}
+        {error && <span className="text-error text-[13.5px]">{error}</span>}
       </div>
     </div>
   );
@@ -3262,10 +3284,18 @@ function sharesLater(item: Item, demo: Demo, onApproval: boolean): boolean {
   return onApproval && demo === item.demo?.latest && !here && !busy && !item.review?.landing && (item.state === 'working' || item.state === 'waiting');
 }
 
+/** Sharing's box beside the demo: the button and what is under way on the right, the link taking the line once there is one. */
+const shareClass = (wide: boolean) =>
+  cn('share flex flex-col items-end gap-2 text-[13px] [&_.hint]:m-0', wide ? 'wide flex-[1_1_100%] items-stretch' : '[&>.hint]:text-right');
+/** A line in it: buttons on the right, a hint taking what they leave. */
+const shareRow = 'share-row flex gap-2 items-center justify-end flex-wrap [&>.hint]:flex-[1_1_240px] [&>.page-changes]:basis-full';
+const shareLabel = 'share-label text-[11px] uppercase tracking-[.08em] text-approved font-semibold';
+const shareGo = 'share-go inline-flex items-center gap-[7px] [&_svg]:size-4 [&_svg]:fill-none [&_svg]:stroke-current [&_svg]:[stroke-width:2] [&_svg]:[stroke-linecap:round] [&_svg]:[stroke-linejoin:round]';
+
 /** "Share on approval", under the row of buttons that approves. */
 function ShareOnApproval({ item, act }: { item: Item; act: (a: CardAction, done: ActDone) => Promise<void> }) {
   return (
-    <CheckLabel className="share-check" title={t.share.onApprovalHint}>
+    <CheckLabel className="share-check inline-flex mt-2" title={t.share.onApprovalHint}>
       <Switch checked={!item.demo?.notOnApproval} onCheckedChange={(on) => void act({ action: 'shareOnApproval', on }, { close: false })} />
       {item.review?.contribution ? t.review.onApproval : t.share.onApproval}
     </CheckLabel>
@@ -3310,8 +3340,8 @@ function ShareBox({ item, demo, act, onApproval, vocabulary, unlisted }: { item:
   );
   const link = (
     <>
-      <span className="share-label">{t.share.shared}</span>
-      <a className="share-link" href={s?.url} target="_blank" rel="noreferrer" title={t.share.open}>
+      <span className={shareLabel}>{t.share.shared}</span>
+      <a className="share-link flex-[1_1_200px] min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-ink" href={s?.url} target="_blank" rel="noreferrer" title={t.share.open}>
         {s?.url?.replace(/^https?:\/\//, '')}
       </a>
       <Button onClick={() => copy(s!.url!)}>
@@ -3321,20 +3351,20 @@ function ShareBox({ item, demo, act, onApproval, vocabulary, unlisted }: { item:
   );
   return (
     // the button and what is under way stay on the right, where the button was; the link takes the line
-    <div className={s?.url && !busy ? 'share wide' : 'share'}>
+    <div className={shareClass(!!s?.url && !busy)}>
       {busy ? (
-        <span className="share-busy">{s.state === 'publishing' ? t.share.publishing : t.share.withdrawing}</span>
+        <span className="share-busy text-muted-foreground">{s.state === 'publishing' ? t.share.publishing : t.share.withdrawing}</span>
       ) : !s?.url ? (
-        <div className="share-row">
+        <div className={shareRow}>
           {along.length > 0 && <p className="hint">{t.share.along(t.share.demos(along))}</p>}
-          <Button className="share-go" title={later ? t.share.shareNowHint : unlisted ? t.share.shareHintUnlisted : demo.kind === 'html' ? t.share.shareHintHtml : t.share.shareHint} onClick={() => go({ action: 'share', ...which })}>
+          <Button className={shareGo} title={later ? t.share.shareNowHint : unlisted ? t.share.shareHintUnlisted : demo.kind === 'html' ? t.share.shareHintHtml : t.share.shareHint} onClick={() => go({ action: 'share', ...which })}>
             <ShareIcon />
             {later ? t.share.shareNow : t.share.share}
           </Button>
         </div>
       ) : here ? (
         <>
-          <div className="share-row">
+          <div className={shareRow}>
             {link}
             <Button title={numbers.length > 1 ? t.share.stopOneHint : t.share.stopHint} onClick={() => go({ action: 'unshare', ...which })}>
               {t.share.stop}
@@ -3343,7 +3373,7 @@ function ShareBox({ item, demo, act, onApproval, vocabulary, unlisted }: { item:
           {all.length > 1 && onPage && <p className="hint">{t.share.onPage(onPage)}</p>}
           {s.unlisted && <p className="hint">{t.share.unlisted}</p>}
           {s.outdated && (
-            <div className="share-row">
+            <div className={shareRow}>
               <p className="hint">{t.share.outdated}</p>
               <PageChangeList changes={s.outdated.map((id) => ({ id }))} />
               <Button title={t.share.reshareHint} onClick={() => go({ action: 'share', ...which })}>
@@ -3354,14 +3384,14 @@ function ShareBox({ item, demo, act, onApproval, vocabulary, unlisted }: { item:
         </>
       ) : (
         <>
-          <div className="share-row">{link}</div>
-          <div className="share-row">
+          <div className={shareRow}>{link}</div>
+          <div className={shareRow}>
             <p className="hint">
               {t.share.pageShows(onPage)}
               {latest && demo.follows && all.length > 1 && (
                 <>
                   <br />
-                  <span className="agent-says">{t.share.agentSays(demo.follows, all.length - 1)}</span>
+                  <span className="agent-says text-muted-foreground text-xs">{t.share.agentSays(demo.follows, all.length - 1)}</span>
                 </>
               )}
             </p>
@@ -3389,8 +3419,8 @@ function ShareTags({ tags, vocabulary, set }: { tags: PageTags | undefined; voca
     return left.length ? [[d, left] as const] : [];
   });
   return (
-    <div className="share-row share-tags" title={t.share.tagsHint}>
-      <span className="share-label">{t.share.tags}</span>
+    <div className={cn(shareRow, 'share-tags gap-1.5 [&_.t]:[text-box:trim-both_cap_alphabetic]')} title={t.share.tagsHint}>
+      <span className={cn(shareLabel, 'text-muted-foreground [text-box:trim-both_cap_alphabetic]')}>{t.share.tags}</span>
       {!shown.length && <span className="hint t">{t.share.noTags}</span>}
       {shown.flatMap(([d, values]) =>
         values.map((v) => (
@@ -3406,14 +3436,14 @@ function ShareTags({ tags, vocabulary, set }: { tags: PageTags | undefined; voca
         <Menu open={open} onOpenChange={setOpen}>
           <Tooltip content={t.share.addTag}>
             <MenuTrigger asChild>
-              <button className="tag-add" aria-label={t.share.addTag}>
+              <button className="tag-add cursor-pointer grid place-items-center size-6 p-0 rounded-full border border-dashed border-muted-foreground bg-transparent text-muted-foreground box-border hover:border-solid hover:text-ink data-[state=open]:border-solid data-[state=open]:text-ink [&_svg]:size-2.5" aria-label={t.share.addTag}>
                 <Plus size={10} strokeWidth={1.75} aria-hidden="true" />
               </button>
             </MenuTrigger>
           </Tooltip>
-          <MenuContent className="bar-menu tag-menu" align="end">
+          <MenuContent className="tag-menu w-[min(340px,calc(100vw-28px))] py-2.5 px-3 grid gap-2.5 whitespace-normal border border-glass-edge rounded-xl" align="end">
             {rest.map(([d, values]) => (
-              <div key={d} className="tag-dim">
+              <div key={d} className="tag-dim flex flex-wrap items-center gap-1.5">
                 <MenuLabel className="basis-full p-0 text-xs">{d}</MenuLabel>
                 {values.map((v) => (
                   <MenuItem key={v} className={cn(badgeVariants({ variant: 'chip' }), 'cursor-pointer px-2.5 outline-none data-[highlighted]:bg-line')} onSelect={() => set(d, [...(on.get(d) ?? []), v])}>
@@ -3476,16 +3506,16 @@ function ExportBox({
     void run(() => api.exportDemo(item.id, as, demo === item.demo?.latest ? undefined : demo.handover), { close: false }).finally(() => setBusy(null));
   };
   return (
-    <div className={open ? 'share wide' : 'share'}>
+    <div className={shareClass(open)}>
       {!open ? (
-        <Button className="share-go" title={t.share.exportHint} onClick={() => setOpen(true)}>
+        <Button className={shareGo} title={t.share.exportHint} onClick={() => setOpen(true)}>
           <ShareIcon />
           {t.share.share}
         </Button>
       ) : (
         <>
           {!needs && <p className="hint">{t.share.exportIntro}</p>}
-          <div className="share-row">
+          <div className={shareRow}>
             <Button title={artifact ? t.share.zipHintHtml : t.share.zipHint} disabled={!!busy} onClick={() => go('zip')}>
               {busy === 'zip' ? t.share.preparing : t.share.zip}
             </Button>
@@ -3551,7 +3581,7 @@ function ManualTitle({ item, onEdit }: { item: Item; onEdit: (p: CardPatch) => v
     <Textarea
       bare
       ref={ref}
-      className="p-title"
+      className={titleFieldClass}
       rows={1}
       value={title}
       placeholder={t.titleOptional}
@@ -3588,14 +3618,14 @@ function ManualFields({ item, repos, choice, fresh, onEdit, grow }: { item: Item
     <>
       {!item.idea?.newRepo?.due && <RepoPick choice={choice} repos={repos} fresh={!!fresh} />}
       {/* the task's screenshots: the worker gets them with the task when it starts */}
-      <div className={`p-body-field${shots.dropping ? ' dropping' : ''}`} {...shots.drop}>
+      <div className={cn('p-body-field max-w-[76ch] [.split-main_&]:max-w-none [&_.c-shots]:mt-4 [&_.card-refs-hint]:absolute [&_.card-refs-hint]:top-full [&_.card-refs-hint]:left-0 [&_.card-refs-hint]:mt-1.5 [&_.card-refs-hint]:mx-0 [&_.card-refs-hint]:mb-0 max-[760px]:has-[.card-refs-hint]:pb-[30px]', shots.dropping && 'dropping')} {...shots.drop}>
         <ShotStrip shots={shots} />
         {/* a proposal's text shows in full as far as the screen allows, the panel growing with it */}
-        <div className={grow ? 'c-field expand' : 'c-field'}>
+        <div className={cn('c-field relative', grow && 'expand')}>
           <LinkField
             ref={ref}
             self={item}
-            className="p-body"
+            className={bodyClass}
             value={body}
             placeholder={t.bodyPlaceholder}
             onPaste={shots.onPaste}
@@ -3606,7 +3636,7 @@ function ManualFields({ item, repos, choice, fresh, onEdit, grow }: { item: Item
           />
           <AttachButton shots={shots} />
         </div>
-        {shots.error && <p className="p-error c-error">{shots.error}</p>}
+        {shots.error && <p className="c-error text-error mt-1.5 mb-0 text-[13.5px]">{shots.error}</p>}
       </div>
     </>
   );
@@ -3670,16 +3700,29 @@ function Split({ main, talk, className, cite }: { main: ReactNode; talk: ReactNo
   const closed = foldable && folded;
   const toggle = (
     <Tooltip content={closed ? t.talk.show : t.talk.hide}>
-      <button type="button" className="split-fold" aria-label={closed ? t.talk.show : t.talk.hide} aria-expanded={!closed} onClick={() => fold(!closed)}>
+      <button type="button" className="split-fold self-end inline-flex items-center justify-center size-[26px] p-0 mb-1.5 border-0 bg-transparent text-muted-foreground rounded-[4px] cursor-pointer hover:bg-[color-mix(in_srgb,currentColor_12%,transparent)] [.folded>&]:absolute [.folded>&]:top-0 [.folded>&]:right-0 [.folded>&]:m-0 [.folded>&]:z-1 max-[760px]:hidden" aria-label={closed ? t.talk.show : t.talk.hide} aria-expanded={!closed} onClick={() => fold(!closed)}>
         {closed ? <PanelRightOpen size={16} /> : <PanelRightClose size={16} />}
       </button>
     </Tooltip>
   );
   return (
     <TalkFolded.Provider value={{ folded: closed, show }}>
-    <div className={['split', className, !main && 'alone', closed && 'folded'].filter(Boolean).join(' ')}>
+    {/* as tall as its taller column, up to the room down to the microphone (fitPanel in App.tsx sets that as its
+        max-height); beyond it, the columns scroll. Without anything on the left, or with the conversation folded
+        away (its column stays mounted, as drafts live in it), one column. On the phone the conversation is in the
+        panel (`TalkElsewhere`): what the card is about is the page, which alone scrolls */}
+    <div
+      className={cn(
+        'split relative grid grid-cols-[minmax(0,1fr)_clamp(400px,36%,560px)] grid-rows-[minmax(0,1fr)] gap-6 mt-4 max-h-[min(600px,calc(100vh-370px))] max-[760px]:grid-cols-1 max-[760px]:grid-rows-none max-[760px]:max-h-none phone:grid-cols-[minmax(0,1fr)] phone:grid-rows-none phone:max-h-none phone:gap-[18px] phone:empty:hidden',
+        className,
+        (!main || closed) && 'grid-cols-[minmax(0,1fr)]',
+        !main && 'alone',
+        closed && 'folded [&>.split-talk]:hidden max-[760px]:[&>.split-talk]:flex',
+      )}
+    >
+      {/* its scrollbar's place stays: a bar coming as an artifact's frame grew narrowed the page in it, which grew anew */}
       {main && (
-        <div className="split-main" ref={box}>
+        <div className="split-main overflow-auto min-h-0 pr-1 [scrollbar-gutter:stable] [&>:first-child]:mt-0 phone:overflow-visible phone:pr-0" ref={box}>
           {main}
         </div>
       )}
@@ -3727,7 +3770,7 @@ export const TalkElsewhere = createContext<{ el: HTMLElement | null; open: (focu
 function TalkColumn({ children, bare, foldButton }: { children: ReactNode; bare?: boolean; foldButton?: ReactNode }) {
   const away = useContext(TalkElsewhere);
   if (away) return away.el && createPortal(children, away.el);
-  return bare ? children : <div className="split-talk">{foldButton}{children}</div>;
+  return bare ? children : <div className="split-talk flex flex-col min-h-0 [&_[data-slot=prompt-input]]:mt-2.5 [&_[data-slot=prompt-input]]:max-w-none">{foldButton}{children}</div>;
 }
 
 /** The owner's one field under a conversation: words, and the options picked, go out with one Send. */
@@ -3847,7 +3890,7 @@ function PlaceChip({ cardId, place }: { cardId: string; place: Place }) {
 /** Above the owner's words in the conversation: the place in the demo video they are about; a click plays the video from there. */
 function SpotLink({ cardId, spot }: { cardId: string; spot: Spot }) {
   return (
-    <button className="spot flex items-center gap-2 mt-[5px] mb-1 p-0 border-0 bg-transparent [font:inherit] text-[13px] text-working cursor-pointer text-left [&_img]:w-16 [&_img]:rounded-[2px] [&_img]:block hover:[&_span]:underline" title={t.demo.toPlace} onClick={() => seekTo(cardId, spot.at, spot.demo)}>
+    <button className="spot flex items-center gap-2 mt-[5px] mb-1 p-0 border-0 bg-transparent text-[13px] text-working cursor-pointer text-left [&_img]:w-16 [&_img]:rounded-[2px] [&_img]:block hover:[&_span]:underline" title={t.demo.toPlace} onClick={() => seekTo(cardId, spot.at, spot.demo)}>
       {spot.still && <img src={imageUrl(spot.still)} alt="" loading="lazy" />}
       <span className="inline-flex items-center gap-1">
         <Play size={11} aria-hidden className="fill-current" />
@@ -3896,7 +3939,7 @@ function useOpenQuestions(item: Item, past = false) {
 function Questions(p: { questions: Question[]; picks: string[][]; others: string[]; choose: (i: number, option: string, write?: string) => void }) {
   if (!p.questions.length) return null;
   return (
-    <div className="question ask">
+    <div className={questionClass('ask')}>
       <h4>{p.questions.length > 1 ? t.ask.questions : t.ask.question}</h4>
       {p.questions.map((q, i) => (
         <div key={i} className="ask-q">
@@ -3905,7 +3948,7 @@ function Questions(p: { questions: Question[]; picks: string[][]; others: string
           </div>
           {/* a question without options has the owner's own answer alone */}
           {q.options.length > 0 ? (
-            <div className={`choices ${q.multiple ? 'multiple' : 'single'}`} role={q.multiple ? 'group' : 'radiogroup'}>
+            <div className={choicesClass(q.multiple ? 'multiple' : 'single')} role={q.multiple ? 'group' : 'radiogroup'}>
               {q.multiple && <div className="hint">{t.ask.several}</div>}
               {q.options.map((o) => {
                 const on = (p.picks[i] ?? []).includes(o);
@@ -3914,14 +3957,14 @@ function Questions(p: { questions: Question[]; picks: string[][]; others: string
                     key={o}
                     role={q.multiple ? 'checkbox' : 'radio'}
                     aria-checked={on}
-                    className={`choice${on ? ' on' : ''}${q.pick?.options.includes(o) ? ' picked' : ''}`}
+                    className={choiceClass({ on, picked: q.pick?.options.includes(o) })}
                     // a click must not take the focus: Space would then not reach push-to-talk
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => p.choose(i, o)}
                   >
                     <span>
                       <Inline md={o} />
-                      {q.pick?.options.includes(o) && <span className="pick-tag">{t.ask.pick}</span>}
+                      {q.pick?.options.includes(o) && <span className={pickTag}>{t.ask.pick}</span>}
                     </span>
                   </button>
                 );
@@ -3929,11 +3972,11 @@ function Questions(p: { questions: Question[]; picks: string[][]; others: string
               <OtherChoice multiple={!!q.multiple} on={(p.picks[i] ?? []).includes(OTHER)} text={p.others[i] ?? ''} onToggle={() => p.choose(i, OTHER)} onWrite={(text) => p.choose(i, OTHER, text)} />
             </div>
           ) : (
-            <div className="choices">
+            <div className={choicesClass()}>
               <OtherChoice alone on text={p.others[i] ?? ''} onToggle={() => {}} onWrite={(text) => p.choose(i, OTHER, text)} />
             </div>
           )}
-          {q.pick?.why && <div className="hint pick-why">{t.ask.pickWhy(q.pick.why)}</div>}
+          {q.pick?.why && <div className="pick-why mt-1.5 text-[12.5px] text-muted-foreground">{t.ask.pickWhy(q.pick.why)}</div>}
         </div>
       ))}
     </div>
@@ -3951,7 +3994,7 @@ function OtherChoice({ multiple, alone, on, text, onToggle, onWrite }: { multipl
     <div
       role={alone ? undefined : multiple ? 'checkbox' : 'radio'}
       aria-checked={alone ? undefined : on}
-      className={`choice other${alone ? ' alone' : ''}${on && !alone ? ' on' : ''}`}
+      className={choiceClass({ other: true, alone, on: on && !alone, picked: false })}
       // a tab stop of its own, picked or taken back with Enter as the options are (Space is push-to-talk)
       tabIndex={alone ? undefined : 0}
       onKeyDown={(e) => {
@@ -4048,7 +4091,7 @@ function LastFailure({ item }: { item: Item }) {
   const last = explainedFailure(item, useEvents(item.id));
   if (!last) return null;
   return (
-    <div className="question failed">
+    <div className={questionClass('failed')}>
       <h4>{t.lastFailure(time(last.at))}</h4>
       <div className="q-text" title={last.code ? last.text : undefined}>
         {eventText(last)}
@@ -4069,28 +4112,32 @@ const who = (c: { author: string; mine?: boolean }) => (c.mine ? t.pr.agent : c.
  * folded to its first line with whether its thread is done; unfolded, the comment and the replies.
  * Between the rounds the conversation (the requests for another round, the reviewer's summary).
  */
+const prFirst = 'pr-first flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap';
+const prMeta = 'pr-meta flex-none text-muted-foreground text-xs';
+const prBody = 'pr-body mt-0.5 mb-2 ml-[18px] py-1.5 px-2.5 bg-card rounded-[2px] border border-line [&_:is(.p-lead,.p-list)]:text-[13px] [&_:is(.p-lead,.p-list)]:my-1 [&_a]:text-inherit [&_a]:text-xs';
+
 function PrReview({ entries }: { entries: PrReviewEntry[] }) {
   let round = 0;
   return (
-    <div className="pr-review">
+    <div className="pr-review mt-3 border-t border-[color-mix(in_srgb,var(--inPr)_30%,transparent)] pt-2 text-[13px] [&_h5]:mt-0 [&_h5]:mb-1.5 [&_h5]:text-[11px] [&_h5]:tracking-[.08em] [&_h5]:uppercase [&_h5]:text-muted-foreground">
       <h5>{t.pr.review}</h5>
       {entries.map((e, i) =>
         'threads' in e ? (
-          <div key={i} className="pr-round">
-            <div className="pr-head">
+          <div key={i} className="pr-round my-2">
+            <div className="pr-head text-muted-foreground mb-[3px] [&_b]:text-ink [&_b]:font-semibold">
               <b>{t.pr.round(++round, who(e))}</b> · {time(e.at)} · {t.pr.threads(e.threads.length, e.threads.filter((th) => !th.resolved).length)}
             </div>
             {e.threads.map((th, j) => (
-              <Collapsible key={j} className={`pr-thread ${th.resolved ? 'resolved' : 'open'}`}>
+              <Collapsible key={j} className={cn('pr-thread ml-0.5 [&>[data-slot=collapsible-trigger]]:after:flex-none [&>[data-slot=collapsible-trigger]]:after:-order-1 [&>[data-slot=collapsible-trigger]]:after:font-bold [&>[data-slot=collapsible-trigger]]:before:-order-2', th.resolved ? "resolved [&>[data-slot=collapsible-trigger]]:after:content-['✓'] [&>[data-slot=collapsible-trigger]]:after:text-approved" : "open [&>[data-slot=collapsible-trigger]]:after:content-['○'] [&>[data-slot=collapsible-trigger]]:after:text-muted-foreground")}>
                 <CollapsibleTrigger marker title={th.resolved ? t.pr.resolved : t.pr.open}>
-                  <span className="pr-first">
+                  <span className={prFirst}>
                     <Inline md={firstLine(th.body)} />
                   </span>
-                  {th.replies.length > 0 && <span className="pr-meta">{t.pr.replies(th.replies.length)}</span>}
+                  {th.replies.length > 0 && <span className={prMeta}>{t.pr.replies(th.replies.length)}</span>}
                 </CollapsibleTrigger>
-                <CollapsibleContent className="pr-body">
+                <CollapsibleContent className={prBody}>
                   {th.path && (
-                    <div className="pr-where">
+                    <div className="pr-where [font:11.5px/1.5_var(--mono)] text-muted-foreground">
                       {th.url ? (
                         <a href={th.url} target="_blank" rel="noreferrer">
                           {th.path}
@@ -4110,13 +4157,13 @@ function PrReview({ entries }: { entries: PrReviewEntry[] }) {
             ))}
           </div>
         ) : (
-          <Collapsible key={i} className="pr-comment">
+          <Collapsible key={i} className="pr-comment [&>[data-slot=collapsible-trigger]]:text-muted-foreground [&>[data-slot=collapsible-trigger]_b]:text-ink [&>[data-slot=collapsible-trigger]_b]:font-semibold">
             <CollapsibleTrigger marker>
-              <b>{who(e)}</b> · {e.edited ? t.pr.edited(time(e.at)) : time(e.at)} · <span className="pr-first">
+              <b>{who(e)}</b> · {e.edited ? t.pr.edited(time(e.at)) : time(e.at)} · <span className={prFirst}>
                 <Inline md={firstLine(e.body)} />
               </span>
             </CollapsibleTrigger>
-            <CollapsibleContent className="pr-body">
+            <CollapsibleContent className={prBody}>
               <Body md={e.body} />
               {e.url && (
                 <a href={e.url} target="_blank" rel="noreferrer">
@@ -4133,8 +4180,8 @@ function PrReview({ entries }: { entries: PrReviewEntry[] }) {
 
 function PrReply({ c }: { c: PrComment }) {
   return (
-    <div className={`pr-reply${c.mine ? ' mine' : ''}`}>
-      <div className="pr-meta">
+    <div className={cn('pr-reply mt-2 pl-2.5 border-l-[3px] border-line', c.mine && 'mine')}>
+      <div className={prMeta}>
         <b>{who(c)}</b> · {time(c.at)}
       </div>
       <Body md={c.body} />

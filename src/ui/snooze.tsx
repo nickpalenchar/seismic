@@ -92,7 +92,8 @@ export function SnoozeMenu({
   const more = 'mt-0.5 border-t border-solid border-line';
   return (
     <Popover open={open} onOpenChange={show}>
-      <div className="snooze-box">
+      {/* above the button in a card's action row; on the snooze line over the conversation, placed by script */}
+      <div className="snooze-box inline-flex flex-col items-center">
         <PopoverTrigger asChild>
           <Button variant={variant} size={size} title={hint}>
             {mark && <ClockMark />} {label}
@@ -165,7 +166,7 @@ export function SnoozeLine({ item, e, at }: { item: Item; e: CardEvent; at: stri
       <div>
         <ClockMark /> {at} · {e.text}
       </div>
-      <div className="snooze-acts">
+      <div className="snooze-acts flex gap-2 items-start justify-center flex-wrap [--button-bg:var(--card)] mt-1">
         <Button size="small" title={t.snooze.wakeHint} onClick={() => wake(item.id)}>
           {t.snooze.wake}
         </Button>

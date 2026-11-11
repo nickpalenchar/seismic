@@ -4,6 +4,7 @@
 // folder, or download. Folder and git cards alike.
 
 import { ChevronDown, ChevronUp, Database } from 'lucide-react';
+import { cn } from 'cn';
 import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { type CardDiff, diffSize, shownChanges, splitDiff } from '../core/diff';
 import { type ChangeRow, changeRows, imageAt, type ShownFile } from '../core/files';
@@ -95,7 +96,8 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
   const count = change?.folder ? shownChanges(change.folder.changes).length : (change?.files.length ?? 0);
   return (
     <Tabs value={current ?? ''} onValueChange={onTab} className="results" ref={box} style={tallest ? { minHeight: tallest } : undefined}>
-      <TabsList variant="underline" className="result-tabs">
+      {/* deliverables stay in front; the change list has its own tab */}
+      <TabsList variant="underline" className="result-tabs mb-3.5 phone:[&_[data-slot=tabs-trigger]]:min-h-11">
         {tabs.map((entry) => (
           <TabsTrigger key={entry.path} value={entry.path} title={'title' in entry ? entry.title : undefined}>
             {entry.label}
@@ -139,7 +141,7 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
       )}
       {!inDiff && file && (
         <TabsContent value={file.path}>
-          <p className="hint result-caption">{file.caption}</p>
+          <p className="hint result-caption mt-0">{file.caption}</p>
           <FileView
             key={`${file.path}:${rev}`}
             item={item}
@@ -209,7 +211,7 @@ export function ChangeList({
   // folded completely, the toggle counts the files, and the size beside it need not
   const counted = toggle && !more && !visible.length;
   return (
-    <div className="cl-list">
+    <div className="cl-list mb-3 text-[13px] [&_table]:w-full [&_table]:border-collapse [&_table]:table-fixed [.results_&_table]:border-b [.results_&_table]:border-line [&_td]:py-0.5 [&_td]:px-0 [&_td]:align-top [&_col.cl-mark]:w-[2em] [&_col.cl-n]:w-[4.5em] [&_.f-mark]:pt-0.5 [&_.f-mark]:pr-1 [&_.f-mark]:pb-0.5 [&_.f-mark]:pl-1.5 [&_.f-mark]:text-center [&_.f-mark]:text-muted-foreground [&_td.d-add]:pl-2.5 [&_td.d-del]:pl-2.5 [&_td.d-add]:whitespace-nowrap [&_td.d-del]:whitespace-nowrap [&_td.d-add]:text-right [&_td.d-del]:text-right [&_td.d-del]:pr-1.5 [&_button.cl-lines]:text-inherit [&_button.cl-lines]:[font:inherit] [&_tr:has(.cl-lines:hover)_.cl-lines]:underline [&_[role=tablist]_.cl-row:not(.off)]:cursor-pointer [@media(hover:hover)]:[&_[role=tablist]_.cl-row:not(.off,.on):hover]:bg-chip phone:text-[14.5px] phone:[&_td]:py-2.5 phone:[&_.f-mark]:py-2.5">
       <TableFrame pick={!!pick} current={current}>
       <table>
         <colgroup>
@@ -234,7 +236,7 @@ export function ChangeList({
       </table>
       </TableFrame>
       {(toggle || total) && (
-        <div className="cl-foot">
+        <div className="cl-foot mt-1 ml-1.5 text-[12.5px] phone:text-[14.5px] phone:[&_[data-slot=button]]:py-2 phone:[&_[data-slot=button]]:px-0">
           {toggle && (
             <LinkButton className="cl-more" aria-expanded={more} onClick={() => setMore(!more)}>
               {more ? t.files.less : counted ? t.files.changed(hidden) : t.files.more(hidden)}
@@ -289,7 +291,7 @@ function Line({ row, on, onPick, onDiff, tabs, panel }: { row: ChangeRow; on: bo
     );
   const note = row.caption || row.changed || (row.undo && row.undo !== 'yes');
   return (
-    <tr className={['cl-row', on && 'on', tabs && !onPick && 'off'].filter(Boolean).join(' ')} onClick={onPick && (() => onPick())}>
+    <tr className={cn('cl-row', on && 'on bg-[color-mix(in_srgb,var(--waiting)_12%,transparent)]', tabs && !onPick && 'off text-muted-foreground')} onClick={onPick && (() => onPick())}>
       <td className="f-mark" aria-label={row.kind}>
         {row.kind && MARK[row.kind]}
       </td>
@@ -299,12 +301,12 @@ function Line({ row, on, onPick, onDiff, tabs, panel }: { row: ChangeRow; on: bo
             <bdi>{path}</bdi>
           </NameButton>
         ) : (
-          <span className="cl-name" title={path}>
+          <span className="cl-name block max-w-full border-0 bg-transparent p-0 [font:inherit]! text-working text-left overflow-hidden whitespace-nowrap text-ellipsis [direction:rtl] cursor-pointer [.cl-row.on_&]:text-ink [.cl-row.on_&]:font-semibold! text-inherit cursor-default" title={path}>
             <bdi>{path}</bdi>
           </span>
         )}
         {note && (
-          <div className="cl-note">
+          <div className="cl-note text-xs text-muted-foreground [overflow-wrap:anywhere]">
             {row.caption}
             <ChangeNote c={row} />
           </div>
@@ -316,15 +318,18 @@ function Line({ row, on, onPick, onDiff, tabs, panel }: { row: ChangeRow; on: bo
   );
 }
 
+/** The path takes what the columns of the sign and the lines leave, cut at its front so that the file's name stays. */
+const nameClass = 'cl-name block max-w-full border-0 bg-transparent p-0 [font:inherit]! text-working text-left overflow-hidden whitespace-nowrap text-ellipsis [direction:rtl] cursor-pointer [.cl-row.on_&]:text-ink [.cl-row.on_&]:font-semibold!';
+
 /** A line's name: a tab (of the change list's tabs, valued by `tab`) or a plain button. */
 function NameButton({ tab, panel, title, onClick, children }: { tab?: string; panel?: string; title: string; onClick: () => void; children: ReactNode }) {
   const click = (e: { stopPropagation: () => void }) => (e.stopPropagation(), onClick());
   return tab === undefined ? (
-    <button className="cl-name" title={title} onClick={click}>
+    <button className={nameClass} title={title} onClick={click}>
       {children}
     </button>
   ) : (
-    <TabsTrigger className="cl-name" value={tab} aria-controls={panel} title={title} onClick={click}>
+    <TabsTrigger className={nameClass} value={tab} aria-controls={panel} title={title} onClick={click}>
       {children}
     </TabsTrigger>
   );
@@ -363,7 +368,7 @@ function FileView({ item, file, rev, changes, onChanges }: { item: Item; file: S
   };
   return (
     <div className="r-file">
-      <div className="r-bar">
+      <div className="r-bar flex flex-wrap items-center gap-x-3.5 gap-y-1.5 mb-3 text-[13px]">
         {file.diff && (
           <SegmentedControl
             size="small"
@@ -377,7 +382,7 @@ function FileView({ item, file, rev, changes, onChanges }: { item: Item; file: S
           />
         )}
         {changes && <DiffStyleSwitch />}
-        <span className="r-ways">
+        <span className="r-ways [&_a.link]:text-working [&_a.link]:no-underline">
           <LinkButton title={t.files.openHint} onClick={() => open(false)}>
             {t.files.open}
           </LinkButton>
@@ -408,7 +413,7 @@ function Shown({ item, file, url, rev, onOpen }: { item: Item; file: ShownFile; 
           {(md) => (
             // its images from beside it, as far as the card serves them
             <DocImages.Provider value={(src) => (imageAt(file.path, src) ? `${cardFile(item.id, imageAt(file.path, src)!)}?v=${rev}` : null)}>
-              <div className="r-doc">
+              <div className="r-doc max-w-[760px]">
                 <Doc md={md} />
               </div>
             </DocImages.Provider>
@@ -416,11 +421,11 @@ function Shown({ item, file, url, rev, onOpen }: { item: Item; file: ShownFile; 
         </Text>
       );
     case 'text':
-      return <Text url={url}>{(text) => <pre className="r-text">{text}</pre>}</Text>;
+      return <Text url={url}>{(text) => <pre className="r-text m-0 py-2.5 px-3 bg-chip rounded-[2px] [font:12.5px/1.5_var(--mono)] whitespace-pre-wrap break-words">{text}</pre>}</Text>;
     case 'image':
       return (
         <a href={url} target="_blank" rel="noreferrer">
-          <img className="r-image" src={url} alt={file.caption || file.path} />
+          <img className="r-image block max-w-full border border-line rounded-[2px] bg-white" src={url} alt={file.caption || file.path} />
         </a>
       );
     case 'page':
@@ -429,8 +434,8 @@ function Shown({ item, file, url, rev, onOpen }: { item: Item; file: ShownFile; 
       return <Pdf url={url} title={file.caption || file.path} />;
     case 'other':
       return (
-        <div className="r-tile">
-          <span className="r-tile-name">{base(file.path)}</span>
+        <div className="r-tile flex flex-col items-start gap-2 py-[18px] px-5 border border-line rounded-md max-w-[420px]">
+          <span className="r-tile-name [font:600_15px_var(--font)] [overflow-wrap:anywhere]">{base(file.path)}</span>
           <span className="hint">{t.files.other}</span>
           <Button title={t.files.openHint} onClick={onOpen}>
             {t.files.open}
@@ -470,7 +475,7 @@ function Text({ url, children }: { url: string; children: (text: string) => Reac
 function Page({ url, title }: { url: string; title: string }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const height = useReportedHeight(frame, PAGE_CAP);
-  return <iframe ref={frame} className="r-page" sandbox="allow-scripts" src={url} title={title} style={height ? { height } : undefined} />;
+  return <iframe ref={frame} className="r-page w-full min-h-[120px] h-[min(560px,62vh)] border border-line rounded-[3px] bg-white block" sandbox="allow-scripts" src={url} title={title} style={height ? { height } : undefined} />;
 }
 
 /**
@@ -496,7 +501,7 @@ function PdfFrame({ url, title }: { url: string; title: string }) {
     watch.observe(column);
     return () => watch.disconnect();
   }, []);
-  return <iframe ref={frame} className="r-pdf" src={url} title={title} style={height ? { height } : undefined} />;
+  return <iframe ref={frame} className="r-pdf w-full h-[max(480px,calc(100vh-320px))] border border-line rounded-[3px] bg-white block" src={url} title={title} style={height ? { height } : undefined} />;
 }
 
 /** What the card changed in the file, line by line. */

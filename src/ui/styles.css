@@ -75,7 +75,7 @@ a.link.card-link { color: var(--working); text-decoration: underline 1px current
 .smart-link.gone .sl-title { text-decoration: none; }
 .smart-link.gone .sl-dot { background: transparent; border: 1px solid var(--muted-foreground); width: 5px; height: 5px; }
 /* headings are the same face, a little heavier */
-h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-family: var(--font); font-weight: 650; letter-spacing: -.018em; }
+h1, h2, .cfg-head h3, .plan > .head .ttl { font-family: var(--font); font-weight: 650; letter-spacing: -.018em; }
 
 /* ---------- project ---------- */
 #viewport { position: fixed; inset: 0; cursor: grab; touch-action: none; background-color: transparent;
@@ -249,11 +249,9 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-family: var(--font); f
 .stopped-status.tone-restart { --c: var(--restart); }
 .stopped-status.tone-reviewing { --c: var(--reviewing); }
 .stopped-status.tone-failed { --c: var(--error); }
-.p-state .merge-mark { vertical-align: -1px; }
 /* the worker resolves rebase conflicts: the state text in orange, with the italic note beside it */
 .card.resolving-conflicts .state, .p-state.resolving-conflicts { --c: var(--waiting); }
-.card .state .doing.conflict, .p-state .p-status.conflict { color: var(--waiting); font-style: italic; font-weight: 500; }
-.p-state .restart-mark { vertical-align: -1px; }
+.card .state .doing.conflict { color: var(--waiting); font-style: italic; font-weight: 500; }
 .card .state .clock-mark, .card .state .question-mark, .card .state .restart-mark, .card .state .hourglass-mark { flex: none; margin-right: -2px; }
 /* a question from its agent: the owner's turn in dark yellow, its rule, frame and pin, the pin with "?" */
 .card.asking { --c: var(--asking); }
@@ -265,7 +263,6 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-family: var(--font); f
 .card.s-waiting.reviewing { box-shadow: 0 0 0 2px var(--reviewing), var(--shadow); }
 .card.s-waiting.reviewing:hover { box-shadow: 0 0 0 2px var(--reviewing), var(--lift); }
 .p-state.reviewing { --c: var(--reviewing); }
-.p-state .question-mark { vertical-align: -1px; }
 .ph-card .state :is(.clock-mark, .question-mark, .restart-mark) { margin-right: 5px; vertical-align: -1px; }
 @keyframes flow { from { background-position: 100% 0; } to { background-position: -100% 0; } }
 
@@ -363,7 +360,7 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-family: var(--font); f
 
 /* ---------- chrome ---------- */
 /* panes: the open card, sheets, dialogs, one frosted glass */
-#panel, .cfg-box, .d-sheet, .perf-box, .setup-page, :is(#help, #wish, #phone, #merge-pick, #canvas-dialog) .box {
+.cfg-box, .d-sheet, .perf-box, .setup-page, :is(#help, #wish, #phone, #merge-pick, #canvas-dialog) .box {
   background: var(--glass); border: 1px solid var(--glass-edge); border-radius: 18px; box-shadow: inset 0 1px 0 var(--glass-hi), var(--lift);
   backdrop-filter: blur(28px) saturate(1.6); -webkit-backdrop-filter: blur(28px) saturate(1.6); }
 .prefs { list-style: none; padding: 0; margin: 10px 0 0; }
@@ -527,230 +524,10 @@ h1, h2, .cfg-head h3, .p-title, .plan > .head .ttl { font-family: var(--font); f
 .other-canvas { flex: none; display: inline-flex; align-items: center; gap: 4px; color: var(--muted-foreground); }
 
 /* ---------- focus: dim + panel + plan sheet ---------- */
-#dim { position: fixed; inset: 0; background: var(--dim); opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 30; }
-#dim.on { opacity: 1; pointer-events: auto; backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
-#panel { position: fixed; z-index: 40; overflow: hidden; display: none; }
-/* the open card blurs only while it is open in full: as it unfolds, folds and hides it is a solid pane, and the card it
-   lifted off the canvas keeps no blur either. Safari (an iPad's) can leave a hidden element's blur layer painted
-   where it was, an empty pane over the canvas once the card has folded */
-#panel:not(.ready) { background: var(--panel); backdrop-filter: none; -webkit-backdrop-filter: none; }
-/* --unfold is set by App.tsx (UNFOLD_MS) */
-#panel.anim { --ease: cubic-bezier(.3,.9,.3,1); transition: left var(--unfold) var(--ease), top var(--unfold) var(--ease),
-  width var(--unfold) var(--ease), height var(--unfold) var(--ease); }
-
-/* the inner box keeps the final width while the panel unfolds, so the content can be measured before it shows */
-/* --pb: the room below the content, more where the microphone covers the panel's foot (App.tsx) */
-#panel .inner { --pb: 26px; position: absolute; left: 0; top: 0; bottom: 0; width: 100%; overflow: auto; scrollbar-gutter: stable;
-  padding: 26px 30px var(--pb); opacity: 0; transition: opacity .12s; }
-/* as much room below the last line as above the title */
-#panel .content { display: flow-root; }
-#panel .content > :last-child { margin-bottom: 0; }
-/* the card's decisions at its end stay in view while a long text scrolls under them, filling the
-   room below the content (and above the microphone) as the panel's foot; a line above them while
-   there is more to scroll to */
-#panel .content > .actions:last-child, #panel .merge-actions { position: sticky; bottom: calc(-1 * var(--pb)); z-index: 1; margin-bottom: calc(-1 * var(--pb));
-  margin-top: 6px; margin-left: -30px; margin-right: -30px; padding: 12px 30px var(--pb); background: color-mix(in srgb, var(--panel) 88%, transparent); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
-@supports (animation-timeline: scroll()) {
-  #panel .content > .actions:last-child, #panel .merge-actions { animation: foot-line linear both; animation-timeline: scroll(nearest block); }
-}
-@keyframes foot-line {
-  0%, 99.5% { box-shadow: 0 -1px 0 var(--line); }
-  100% { box-shadow: none; }
-}
-#panel.ready .inner { opacity: 1; }
-#panel .close { position: absolute; right: 14px; top: 12px; z-index: 2; }
-/* the card's rule across the top, as on the card it unfolded from */
-#panel::before { content: ""; position: absolute; left: 30px; width: 80px; top: 0; height: 3px; border-radius: 0 0 3px 3px; background: var(--c); box-shadow: 0 0 12px var(--c); z-index: 1; }
 .p-kind { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
-.p-title { font-size: 31px; margin: 2px 0 6px; line-height: 1.12; }
-textarea.p-title { display: block; width: calc(100% - 40px); resize: none; overflow: hidden; }
-textarea.p-title::placeholder { font-weight: 400; font-style: italic; }
-.p-state { font-size: 13px; font-weight: 600; color: color-mix(in srgb, var(--c), var(--ink) var(--state-text-ink)); }
-
-/* a message's blank line: one empty line, whatever space its context keeps above a paragraph */
-
-.p-src { margin-top: 22px; color: var(--muted-foreground); font-size: 12.5px; }
-.p-src code { font-size: 12px; }
-textarea.p-body, .p-body[contenteditable] { display: block; width: 100%; max-width: 76ch; min-height: 180px; margin-top: 16px; padding: 12px 14px;
-  border: 1px solid var(--line); border-radius: 3px; background: var(--card); resize: vertical; font-size: 15px; outline: none; }
-textarea.p-body:focus, .p-body[contenteditable]:focus { border-color: var(--muted-foreground); }
-/* the task's text with its linked cards as pills in the line: it wraps as a text box does, grows with its text and then scrolls */
-.p-body[contenteditable] { box-sizing: border-box; resize: none; white-space: pre-wrap; overflow-wrap: break-word; line-height: 1.5; max-height: 70vh; overflow-y: auto; cursor: text; }
-.p-body[contenteditable].blank::before { content: attr(data-placeholder); color: var(--muted-foreground); pointer-events: none; position: absolute; }
-.p-body[contenteditable] .smart-link { cursor: default; -webkit-user-select: all; user-select: all; vertical-align: 1px; }
-/* a card's task takes screenshots like a message: thumbnails above, the button in the field's corner */
-.p-body-field { max-width: 76ch; }
-.p-body-field .c-shots { margin-top: 16px; }
-.p-body-field .c-field { position: relative; }
-.p-body-field .c-field .p-body { padding-right: 40px; }
-.p-body-field.dropping .p-body { border-color: var(--working); border-style: dashed; background: color-mix(in srgb, var(--working) 6%, var(--card)); }
-.p-body-field .c-error { margin-top: 6px; }
-.segs { display: flex; gap: 10px; flex-wrap: wrap; }
-/* the repository a card is built in, with a new one's folder and whether it gets a project of its own */
-.repo-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
-.repo-new { display: flex; align-items: center; gap: 14px; margin-top: 12px; flex: 0 1 560px; }
-.repo-path { flex: 1; min-width: 0; font-family: var(--mono); }
-.repo-project { color: var(--muted-foreground); white-space: nowrap; }
-.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; align-items: center; }
-/* deleting stands apart from what moves the card on */
-.actions > [data-slot=button][data-variant=danger] { margin-left: auto; }
-/* a prototype whose idea became a plan: the workstream to build on it, on a line of its own above the buttons */
-.build-on { flex-basis: 100%; display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted-foreground); }
-/* an idea's next step as its agent would take it: a line above the decisions, and the button it means */
-.next-step { display: flex; flex-direction: column; gap: 3px; margin-top: 16px; padding: 2px 0; max-width: 80ch;
-  font-size: 14px; }
-.next-step .next-h { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; color: var(--idea); }
-.next-step + .actions { margin-top: 12px; }
-.hint.go-waits { color: var(--ink); font-weight: 600; }
-
-.p-status { color: var(--muted-foreground); font-weight: 500; }
-.p-h { margin: 22px 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
 .p-error { color: var(--error); margin: 12px 0 0; font-size: 13.5px; }
-.question { margin: 18px 0 0; padding: 14px 18px; border-radius: 3px; border: 1.5px solid var(--waiting); max-width: 80ch;
-  background: color-mix(in srgb, var(--waiting) 9%, transparent); font-size: 15px; }
-.question.duplicate-notice { max-width: none; border-color: var(--proposal); background: color-mix(in srgb, var(--proposal) 7%, var(--card)); }
-.duplicate-notice h4 { margin: 0 0 5px; color: var(--proposal); }
-.duplicate-notice > p { margin: 0; }
-.duplicate-notice .duplicate-preview { margin-top: 14px; }
 .duplicate-preview .merge-side { box-shadow: none; border: 1px solid var(--line); }
 .duplicate-preview .merge-side:first-child { border: 1.5px dashed var(--proposal); }
-.duplicate-merge-actions { display: inline-flex; vertical-align: middle; }
-/* two buttons joined into one */
-.duplicate-merge-actions .duplicate-attempt { background: var(--proposal); color: var(--on-ink); }
-.duplicate-merge-actions .duplicate-dismiss { background: color-mix(in srgb, var(--proposal) 12%, var(--chip)); color: var(--ink); }
-.demo-view video { width: 100%; border-radius: 3px; background: #000; display: block; }
-.demo-view .player, .demo-view .screen { position: relative; }
-/* zoomed (detail.tsx useZoom): fixed over the greyed window, above the panel's ✕; the player keeps its height in the card */
-.demo-view .screen.zoomed { position: fixed; z-index: 4; transform-origin: 0 0; }
-.demo-view .screen.zoomed video { height: 100%; box-shadow: var(--lift); }
-.demo-zoom { position: fixed; inset: 0; z-index: 3; background: rgba(15, 12, 8, .78); cursor: zoom-out; animation: fade .38s ease-out; transition: opacity .38s; }
-.demo-zoom.closing { opacity: 0; }
-.demo-view .zoom { position: absolute; top: 10px; right: 10px; z-index: 1; width: 38px; height: 38px; border: 0; border-radius: 50%;
-  background: rgba(0, 0, 0, .55); cursor: pointer; display: grid; place-items: center; opacity: 0; transition: opacity .15s, background .15s; }
-.demo-view .screen:hover .zoom, .demo-view .zoom:focus-visible { opacity: 1; }
-.demo-view .zoom:hover { background: rgba(0, 0, 0, .8); }
-/* the key, shown beside the magnifier while it is hovered, until the owner first zoomed with it */
-.demo-view .zoom-hint { position: absolute; right: 0; top: calc(100% + 6px); white-space: nowrap;
-  padding: 5px 9px; border-radius: 3px; background: rgba(0, 0, 0, .75); color: #fff; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .15s; }
-.demo-view .zoom:hover .zoom-hint, .demo-view .zoom:focus-visible .zoom-hint { opacity: 1; }
-.demo-view .zoom-hint kbd { font: inherit; font-weight: 600; margin-left: 3px; padding: 0 6px; border-radius: 2px; background: rgba(255, 255, 255, .2); border: 1px solid rgba(255, 255, 255, .35); }
-.demo-view .zoom svg { width: 20px; height: 20px; fill: none; stroke: #fff; stroke-width: 2.2; stroke-linecap: round; }
-/* the arrow keys, over the video's controls for a moment after a click on them, until the owner first jumped with them */
-.demo-view .seek-hint { position: absolute; left: 50%; bottom: 64px; transform: translateX(-50%); z-index: 1; white-space: nowrap; pointer-events: none;
-  padding: 5px 9px; border-radius: 3px; background: rgba(0, 0, 0, .75); color: #fff; font-size: 13px; animation: fade .2s ease-out; }
-.demo-view .seek-hint kbd { font: inherit; font-weight: 600; padding: 0 6px; border-radius: 2px; background: rgba(255, 255, 255, .2); border: 1px solid rgba(255, 255, 255, .35); }
-/* beside the magnifier and like it shown while the mouse is over the video: it pauses the video and puts the cursor into the card's field */
-.demo-view .comment-here { position: absolute; top: 10px; right: 56px; z-index: 1; height: 38px; padding: 0 14px; border: 0; border-radius: 19px;
-  background: rgba(0, 0, 0, .55); color: #fff; font: inherit; font-size: 13.5px; cursor: pointer; opacity: 0; transition: opacity .15s, background .15s;
-  display: flex; align-items: center; gap: 8px; }
-.demo-view .comment-here svg { width: 18px; height: 18px; fill: none; stroke: #fff; stroke-width: 2; stroke-linejoin: round; }
-.demo-view .screen:hover .comment-here, .demo-view .comment-here:focus-visible { opacity: 1; }
-.demo-view .comment-here:hover { background: rgba(0, 0, 0, .8); }
-/* without hover it stands, as the full screen button beside it: one shown by the tap would have taken that tap on an iPhone */
-@media (hover: none) { .demo-view .comment-here { opacity: 1; } }
-.demo-view .start { all: unset; position: absolute; inset: 0 0 56px 0; cursor: pointer; display: grid; place-items: center; }
-.demo-view .start span { margin-top: 56px; width: 80px; height: 80px; border-radius: 50%; background: rgba(0, 0, 0, 0.6); display: grid; place-items: center; transition: transform 0.15s, background 0.15s; }
-.demo-view .start:hover span { background: rgba(0, 0, 0, 0.8); transform: scale(1.06); }
-.demo-view .start svg { width: 32px; height: 32px; margin-left: 5px; fill: #fff; color: #fff; stroke: #fff; }
-/* as high as the artifact says it is (its index.html reports it), so only the column around it scrolls;
-   low until then: the column keeps the height of its tallest view, and a frame higher than a short
-   page kept it scrolling over nothing */
-.demo-view iframe.artifact { width: 100%; height: 150px; border: 1px solid var(--line); border-radius: 3px; background: #fff; display: block; }
-.chapters { list-style: none; margin: 8px 0 0; padding: 6px; background: var(--chip); border-radius: 3px; }
-.chapters button { all: unset; cursor: pointer; display: flex; gap: 10px; width: 100%; padding: 6px 8px; border-radius: 2px; font-size: 13px; box-sizing: border-box; }
-.chapters button:hover, .chapters button.on { background: var(--card); }
-.chapters .t { color: var(--muted-foreground); font-variant-numeric: tabular-nums; min-width: 32px; }
-/* the demo's own line above it: which demo it is, the hint while the agent works again, sharing on the right */
-.demo-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px 16px; margin-bottom: 10px; }
-.demo-top > .hint { flex: 1 1 260px; margin: 0; }
-/* which of the card's demos is shown, on the left of the line with sharing: plain text, an earlier
-   demo's in colour, so it is not taken for the latest; as high as the share button, so the video does
-   not move when an earlier demo leaves sharing out */
-.demo-versions { display: flex; align-items: center; gap: 4px; margin-right: auto; min-height: 34px; font-size: 13px; }
-.demo-versions > span { font-variant-numeric: tabular-nums; padding: 0 2px; }
-.demo-versions.earlier > span { color: var(--waiting); font-weight: 600; }
-.demo-versions .step { display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; background: none; color: var(--ink); width: 24px; height: 24px; border-radius: 2px; font-size: 18px; line-height: 1; cursor: pointer; }
-.demo-versions .step:hover:not(:disabled) { background: var(--chip); }
-.demo-versions .step:disabled { opacity: .3; cursor: default; }
-.demo-versions [data-slot=button] { margin-left: 10px; }
-.demo-versions .on-page { display: inline-flex; vertical-align: -2px; margin-left: 6px; color: var(--approved); }
-.demo-versions .on-page svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-.share .agent-says { color: var(--muted-foreground); font-size: 12px; }
-.share { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; font-size: 13px; }
-.share.wide { flex: 1 1 100%; align-items: stretch; }
-.share-go { display: inline-flex; align-items: center; gap: 7px; }
-.share-check { display: inline-flex; margin-top: 8px; }
-.share-go svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.share-row { display: flex; gap: 8px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
-.share-row > .hint { flex: 1 1 240px; }
-.share-row > .page-changes { flex-basis: 100%; }
-/* what changed on shared pages: the day, then the change */
-.page-changes { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 4px; font-size: 12px; color: var(--ink); }
-.page-changes li { display: flex; gap: 8px; align-items: baseline; }
-.page-changes .when { flex: none; min-width: 48px; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
-.page-changes .count { color: var(--muted-foreground); }
-.share-label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--approved); font-weight: 600; }
-.share-link { flex: 1 1 200px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
-.share-busy { color: var(--muted-foreground); }
-/* the page's tags: chips with their ×, and "+" with the vocabulary's other values in a list under it. Every
-   part is 24px high and centred on its capitals (text-box trims the line to them), × and + are drawn, not glyphs */
-.share-tags { gap: 6px; }
-.share-tags > .share-label { color: var(--muted-foreground); }
-.share-tags > .share-label, .share-tags .t { text-box: trim-both cap alphabetic; }
-.tag-add svg { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; }
-.tag-add { all: unset; cursor: pointer; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; border: 1px dashed var(--muted-foreground); color: var(--muted-foreground); box-sizing: border-box; }
-.tag-add:hover, .tag-add[data-state=open] { border-style: solid; color: var(--ink); }
-.bar-menu.tag-menu { width: min(340px, calc(100vw - 28px)); padding: 10px 12px; display: grid; gap: 10px; }
-.tag-dim { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.share .hint { margin: 0; }
-.share:not(.wide) > .hint { text-align: right; }
-/* a split (an idea, a proposal, a task) is as tall as its taller column, up to the room down to the microphone
-   (panelRect in App.tsx sets that as its max-height); beyond it, the columns scroll */
-.split { display: grid; grid-template-columns: minmax(0, 1fr) clamp(400px, 36%, 560px); grid-template-rows: minmax(0, 1fr);
-  gap: 24px; margin-top: 16px; max-height: min(600px, calc(100vh - 370px)); }
-/* a task without a result yet: the conversation alone, the panel only as wide as it (TALK_W in App.tsx) */
-.split.alone, .split.folded { grid-template-columns: minmax(0, 1fr); }
-/* the conversation folded away: its column stays mounted (drafts live in it) but out of sight, the button to bring it back at the corner */
-.split { position: relative; }
-.split.folded > .split-talk { display: none; }
-.split-fold { align-self: flex-end; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; margin: 0 0 6px; border: 0; background: transparent; color: var(--muted-foreground, inherit); border-radius: 4px; cursor: pointer; }
-.split-fold:hover { background: color-mix(in srgb, currentColor 12%, transparent); }
-.split.folded > .split-fold { position: absolute; top: 0; right: 0; margin: 0; z-index: 1; }
-@media (max-width: 760px) { .split-fold { display: none; } .split.folded { grid-template-columns: 1fr; } .split.folded > .split-talk { display: flex; } }
-.p-state + .p-src { margin-top: 4px; }
-/* its scrollbar's place stays: a bar coming as an artifact's frame grew narrowed the page in it, which grew anew */
-.split-main { overflow: auto; min-height: 0; padding-right: 4px; scrollbar-gutter: stable; }
-.split-main > :first-child { margin-top: 0; }
-.split-main .question, .split-main .p-body-field, .split-main .p-body { max-width: none; }
-.split-talk { display: flex; flex-direction: column; min-height: 0; }
-.split-talk .p-h { margin-top: 0; }
-/* a workstream's text in its plan doc, above what came of it (detail.tsx) */
-.p-plan { margin-bottom: 18px; }
-.split-main .p-plan .p-h { margin-top: 0; }
-.p-plan .p-h + *, .p-plan .fold > :first-child { margin-top: 0; }
-/* the lane of a scrollbar that takes room (WebKit on a Mac set to show them always, Windows, Linux) stays
-   whether the conversation scrolls or not: WebKit kept the height its text had wrapped to beside the scrollbar,
-   which shows while the panel is measured, and every key typed laid it out anew, so the field jumped */
-.split .split-talk .conv { flex: 1; min-height: 0; max-height: none; max-width: none; }
-.split-talk [data-slot=prompt-input] { margin-top: 10px; max-width: none; }
-/* a proposal's text box grows with the text (detail.tsx) and leaves the reason below it in view */
-.proposal-grid .p-body { min-height: min(360px, calc(100vh - 440px)); max-height: calc(100vh - 440px); resize: none; }
-.question.brief { border-color: var(--idea); background: color-mix(in srgb, var(--idea) 6%, transparent); }
-/* the settled part "Teilaufgabe abtrennen" builds, folded under the brief */
-.question.brief.settled { margin-top: 10px; }
-.question.brief.settled > [data-slot=collapsible-trigger] { font-weight: 600; font-size: 14px; }
-.prototype-demo { margin-top: 10px; }
-.prototype-demo > [data-slot=collapsible-trigger] { font-weight: 600; font-size: 14px; }
-.prototype-demo > [data-slot=collapsible-trigger] .hint { font-weight: 400; }
-.prototype-demo[data-state=open] > [data-slot=collapsible-trigger] { margin-bottom: 8px; }
-.question.proposal { border-style: dashed; border-color: var(--proposal); }
-.question.superseded { border-color: var(--proposal); background: color-mix(in srgb, var(--proposal) 6%, transparent); }
-.question.repo-down { border-color: var(--warn); background: color-mix(in srgb, var(--warn) 6%, transparent); }
-.question.brief .p-lead { margin-top: 6px; font-size: 14px; }
-.question.brief .p-list { margin-top: 4px; }
-.talk { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
-/* the box around the messages (Conversation): the column scrolls inside it */
-.conv { background: var(--chip); border-radius: 14px; display: flex; flex-direction: column; }
 
 /* the button at text marked in a conversation, which quotes it in the field (cite.tsx): above the
    end of the marking, or below its last line (on a touch screen clear of the selection handles) */
@@ -765,52 +542,12 @@ textarea.p-body:focus, .p-body[contenteditable]:focus { border-color: var(--mute
 
 /* the owner's words the agent has not read yet: below its work, muted, until it reads them */
 
-.question.ask.flash { animation: msg-flash 2.4s ease-out; }
 @keyframes msg-flash {
   0%, 45% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--working) 60%, transparent), var(--shadow); background: color-mix(in srgb, var(--working) 14%, var(--card)); }
 }
 
 /* a looked-up answer: "Make it a card" in its head, always in view; its files under the text */
 
-/* Deliverables stay in front; the change list has its own tab. */
-.result-tabs { margin-bottom: 14px; }
-.result-caption { margin-top: 0; }
-.ph-view .result-tabs [data-slot=tabs-trigger] { min-height: 44px; }
-.cl-list { margin-bottom: 12px; font-size: 13px; }
-.cl-list table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-.results .cl-list table { border-bottom: 1px solid var(--line); }
-.cl-list td { padding: 2px 0; vertical-align: top; }
-.cl-list col.cl-mark { width: 2em; }
-.cl-list col.cl-n { width: 4.5em; }
-.cl-list .f-mark { padding: 2px 4px 2px 6px; text-align: center; color: var(--muted-foreground); }
-/* the path takes what the columns of the sign and the lines leave, cut at its front so that the file's name stays */
-.cl-name { display: block; max-width: 100%; border: 0; background: none; padding: 0; font: inherit; color: var(--working); text-align: left;
-  overflow: hidden; white-space: nowrap; text-overflow: ellipsis; direction: rtl; cursor: pointer; }
-span.cl-name { color: inherit; cursor: default; }
-.cl-note { font-size: 12px; color: var(--muted-foreground); overflow-wrap: anywhere; }
-.cl-list td.d-add, .cl-list td.d-del { padding-left: 10px; white-space: nowrap; text-align: right; }
-.cl-list td.d-del { padding-right: 6px; }
-.cl-list button.cl-lines { color: inherit; font: inherit; }
-.cl-list tr:has(.cl-lines:hover) .cl-lines { text-decoration: underline; }
-.cl-list [role="tablist"] .cl-row:not(.off) { cursor: pointer; }
-@media (hover: hover) { .cl-list [role="tablist"] .cl-row:not(.off, .on):hover { background: var(--chip); } }
-.cl-row.on { background: color-mix(in srgb, var(--waiting) 12%, transparent); }
-.cl-row.on .cl-name { color: var(--ink); font-weight: 600; }
-.cl-row.off { color: var(--muted-foreground); }
-.cl-foot { margin: 4px 0 0 6px; font-size: 12.5px; }
-.r-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-bottom: 12px; font-size: 13px; }
-.r-ways a.link { color: var(--working); text-decoration: none; }
-.r-doc { max-width: 760px; }
-.doc-img { max-width: 100%; border-radius: 2px; vertical-align: middle; }
-.r-text { margin: 0; padding: 10px 12px; background: var(--chip); border-radius: 2px; font: 12.5px/1.5 var(--mono); white-space: pre-wrap; overflow-wrap: break-word; }
-.r-image { display: block; max-width: 100%; border: 1px solid var(--line); border-radius: 2px; background: #fff; }
-.r-page { width: 100%; min-height: 120px; height: min(560px, 62vh); border: 1px solid var(--line); border-radius: 3px; background: #fff; display: block; }
-.r-pdf-pages { display: flex; flex-direction: column; gap: 8px; }
-.r-pdf-page { width: 100%; border: 1px solid var(--line); border-radius: 2px; background: #fff; overflow: hidden; }
-.r-pdf-page project { display: block; width: 100%; height: 100%; }
-.r-pdf { width: 100%; height: max(480px, calc(100vh - 320px)); border: 1px solid var(--line); border-radius: 3px; background: #fff; display: block; }
-.r-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 18px 20px; border: 1px solid var(--line); border-radius: 6px; max-width: 420px; }
-.r-tile-name { font: 600 15px var(--font); overflow-wrap: anywhere; }
 .r-diff .d-file { margin-top: 0; }
 .r-diff .d-file h3 { top: 0; }
 /* an action of Seismic's (a follow-up card it made), set apart from what is said: no card stock, a dashed
@@ -828,71 +565,6 @@ span.cl-name { color: inherit; cursor: default; }
 :is(.msg.action, .q-chain) .cover.gone:hover { transform: none; }
 :is(.msg.action, .q-chain) .cover:is(.gone, .elsewhere)::before { background: var(--line); }
 
-.reauthenticate { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-top: 10px; }
-.reauthenticate > div { flex-basis: 100%; }
-.reauthenticate code { overflow-wrap: anywhere; white-space: normal; }
-.reauthenticate { --button-bg: var(--card); }
-
-.reauthenticate-token { display: flex; flex-direction: column; gap: 6px; flex-basis: 100%; font-style: normal; }
-.reauthenticate-token .c-row { display: flex; align-items: center; gap: 8px; }
-.reauthenticate-token input { flex: 1; min-width: 0; }
-
-/* the line where the card was snoozed, while it is: with "Wake now" and "Change" under it */
-
-.snooze-acts { display: flex; gap: 8px; align-items: flex-start; justify-content: center; flex-wrap: wrap; }
-.snooze-acts { --button-bg: var(--card); margin-top: 4px; }
-/* "Later" and its menu of times, above the button in a card's action row; on the snooze line over the conversation, placed by script */
-.snooze-box { display: inline-flex; flex-direction: column; align-items: center; }
-/* a proposal its agent wants started later: when, with "Change" */
-.start-at { display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; margin: 10px 0 2px; font-size: 13px; color: var(--ink); }
-.start-at .clock-mark { vertical-align: -1px; color: var(--muted-foreground); }
-/* a task's conversation: under the card's demo and pull request, scrolled to its end */
-.conv { max-height: min(520px, 60vh); max-width: 100ch; }
-
-/* rounded by half a line: a short option is a pill, a long one that wraps a rounded box around all its lines */
-
-.question.pr { border-color: var(--inPr); background: color-mix(in srgb, var(--inPr) 7%, transparent); }
-.question.pr h4 a { color: var(--ink); text-transform: none; letter-spacing: 0; font-size: 14px; }
-/* on a review card: what goes onto the PR with the approval, the agent's text as the contributor will read it */
-.pr-held { margin: 10px 0 8px; }
-.pr-held h5 { margin: 0 0 4px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted-foreground); }
-.pr-held-text { padding: 6px 10px; border-radius: 6px; background: var(--card); border: 1px solid color-mix(in srgb, var(--inPr) 25%, transparent); font-size: 13px; }
-.pr-held-text .p-lead { margin: 4px 0; }
-.pr-held-edit { float: right; margin: 0 -4px 4px 10px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--muted-foreground); font: inherit; font-size: 12px; cursor: pointer; }
-.pr-held-edit:hover { color: var(--ink); border-color: color-mix(in srgb, var(--inPr) 50%, transparent); }
-.pr-held-field { display: block; width: 100%; box-sizing: border-box; min-height: 6em; border-color: color-mix(in srgb, var(--inPr) 50%, transparent); font-size: 14.5px; line-height: 1.45; resize: none; }
-.pr-held-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px; }
-.pr-held-acts .p-error { margin: 0; }
-.pr-held-asks { margin-top: 6px; font-size: 13px; color: var(--waiting); }
-.checks { list-style: none; padding: 0; margin: 6px 0 0; display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; }
-.checks li::before { margin-right: 5px; font-weight: 700; }
-.checks li.success::before { content: "✓"; color: var(--approved); }
-.checks li.failure::before { content: "✗"; color: var(--error); }
-.checks li.pending::before { content: "○"; color: var(--muted-foreground); }
-.checks a { color: inherit; }
-.pr-review { margin-top: 12px; border-top: 1px solid color-mix(in srgb, var(--inPr) 30%, transparent); padding-top: 8px; font-size: 13px; }
-.pr-review h5 { margin: 0 0 6px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted-foreground); }
-.pr-round { margin: 8px 0; }
-.pr-head { color: var(--muted-foreground); margin-bottom: 3px; }
-.pr-head b, .pr-comment [data-slot=collapsible-trigger] b { color: var(--ink); font-weight: 600; }
-.pr-thread > [data-slot=collapsible-trigger]::after { flex: none; order: -1; font-weight: 700; }
-.pr-thread.resolved > [data-slot=collapsible-trigger]::after { content: "✓"; color: var(--approved); }
-.pr-thread.open > [data-slot=collapsible-trigger]::after { content: "○"; color: var(--muted-foreground); }
-
-.pr-thread > [data-slot=collapsible-trigger]::before { order: -2; }
-.pr-thread { margin-left: 2px; }
-.pr-first { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pr-comment > [data-slot=collapsible-trigger] { color: var(--muted-foreground); }
-.pr-meta { flex: none; color: var(--muted-foreground); font-size: 12px; }
-.pr-body { margin: 2px 0 8px 18px; padding: 6px 10px; background: var(--card); border-radius: 2px; border: 1px solid var(--line); }
-.pr-body .p-lead, .pr-body .p-list { font-size: 13px; margin: 4px 0; }
-.pr-body a { color: inherit; font-size: 12px; }
-.pr-where { font: 11.5px/1.5 var(--mono); color: var(--muted-foreground); }
-.pr-reply { margin-top: 8px; padding-left: 10px; border-left: 3px solid var(--line); }
-.question.queue { border-color: var(--planned); background: var(--chip); }
-.question.failed { border-color: var(--error); background: color-mix(in srgb, var(--error) 6%, transparent); }
-.question.queue .actions { margin-top: 10px; }
-.question.queue { --button-bg: var(--card); }
 /* the chain a queued card waits in: the card it waits for, the card itself (its title), a card that waits
    for it, with the tags, rings and arrows of the project while the pointer is on a card; the card itself in green */
 .q-chain { display: flex; flex-direction: column; align-items: flex-start; margin-top: 20px; }
@@ -936,77 +608,14 @@ span.cl-name { color: inherit; cursor: default; }
 .sorting, .sorting * { cursor: grabbing !important; user-select: none; -webkit-user-select: none; }
 .card.queued .state { font-style: italic; }
 .card.queued::before { background: repeating-linear-gradient(90deg, var(--c) 0 8px, transparent 8px 13px); }
-.question h4 { margin: 0 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
-.question .q-text { white-space: pre-wrap; }
-.question .p-lead { margin-top: 6px; font-size: 14.5px; }
 /* an agent's questions: options to pick, as radio buttons or checkboxes */
-.question.ask .ask-q + .ask-q { margin-top: 12px; padding-top: 10px; border-top: 1px solid color-mix(in srgb, var(--waiting) 30%, transparent); }
-.choices { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px; margin-top: 8px; }
-.choices .hint { flex-basis: 100%; }
-.choice { display: flex; align-items: flex-start; gap: 9px; text-align: left; background: var(--card); border: 1px solid var(--line); border-radius: 3px;
-  padding: 5px 11px 5px 9px; font: inherit; font-size: 13.5px; color: var(--ink); cursor: pointer; max-width: 100%; }
-.choice:hover { border-color: var(--muted-foreground); }
-.choice::before { content: ""; flex: none; width: 14px; height: 14px; margin-top: 2px; box-sizing: border-box; border: 1.5px solid var(--muted-foreground); background: var(--card); }
-.single .choice::before { border-radius: 50%; }
-.multiple .choice::before { border-radius: 2px; }
-.choice.on { border-color: var(--waiting); background: color-mix(in srgb, var(--waiting) 8%, var(--card)); }
-.single .choice.on::before { border-color: var(--waiting); background: radial-gradient(var(--waiting) 0 3.5px, var(--card) 4px); }
-.multiple .choice.on::before { border-color: var(--waiting); background: var(--waiting) no-repeat center / 10px
-  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1.5 5.2 4 7.5 8.5 2.5' fill='none' stroke='white' stroke-width='1.8'/%3E%3C/svg%3E"); }
-/* what the asking agent would pick itself, in the colour of ideas: its opinion, to follow or overrule */
-.choice.picked { border-color: color-mix(in srgb, var(--idea) 55%, var(--line)); }
-.pick-tag { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 2px; font-size: 11px; font-weight: 700; line-height: 18px; white-space: nowrap;
-  color: var(--idea); background: color-mix(in srgb, var(--idea) 10%, var(--card)); }
-.hint.pick-why { margin-top: 6px; font-size: 12.5px; }
-/* the last choice: the owner's own answer, written in the choice itself */
-.choice.other { flex-basis: 100%; box-sizing: border-box; cursor: text; }
-.choice.other textarea { flex: 1; min-width: 0; margin: 0; resize: none; font: inherit; color: inherit; line-height: inherit; field-sizing: content; min-height: 1lh; }
-.choice.other.alone::before { content: none; }
-/* the prototypes the idea's agent planned, one row each, its task in two lines */
-.prototype-variants { margin-top: 16px; max-width: 80ch; }
-.prototype-variants .choice { flex-basis: 100%; }
-/* scrolled into view, the start button stays clear of the push-to-talk button below the panel */
-.prototype-end { height: 64px; }
-.prototype-variants .v-show { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: 2px; font-size: 12.5px; color: var(--muted-foreground); }
-.talk .question.ask { margin: 0; max-width: 92%; padding: 10px 12px; font-size: 14px; flex: none; background: color-mix(in srgb, var(--waiting) 9%, var(--card)); }
-.c-shots { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 8px; }
-.c-shot { position: relative; height: 64px; min-width: 64px; border-radius: 2px; border: 1px solid var(--line); background: var(--chip);
-  display: inline-flex; align-items: center; justify-content: center; font-size: 12px; color: var(--muted-foreground); }
-.c-shot img { height: 100%; max-width: 160px; object-fit: cover; border-radius: 2px; display: block; }
-.c-shot .open { all: unset; height: 100%; cursor: zoom-in; }
-.c-shot .remove { position: absolute; top: -7px; right: -7px; --button-bg: var(--card); box-shadow: 0 0 0 1px var(--line); }
-/* after the first screenshot picked from disk: pasting works too, until confirmed */
-.c-paste-hint { flex-basis: 100%; display: flex; align-items: center; gap: 12px; padding: 8px 10px;
-  border-radius: 2px; background: color-mix(in srgb, var(--working) 8%, var(--card)); font-size: 13px; line-height: 1.4; }
-.c-paste-hint p { margin: 0; flex: 1; }
 .ptt-shots .c-shots { flex-wrap: nowrap; align-items: center; }
 .ptt-shots .c-paste-hint { flex: 0 0 auto; width: 320px; }
-/* the marked version is being drawn and uploaded, to take its place */
-.c-shot.marking img { opacity: .5; }
-.c-shot .marking-loader { position: absolute; z-index: 1; pointer-events: none; }
-.c-file-loading { align-self: center; color: var(--muted-foreground); font-size: 12px; }
-.shots { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-.shot { border: 1px solid var(--line); border-radius: 2px; padding: 0; background: var(--card); cursor: zoom-in; line-height: 0; }
-.shot img { height: 88px; max-width: 240px; object-fit: cover; border-radius: 2px; display: block; }
-
 /* where a conversation starts, long ones folded to about eight lines */
 .fold { font-size: 14px; }
 .fold.folded { max-height: calc(var(--fold-lines, 8) * 1lh + 2px); overflow: hidden; }
 .fold.cut { mask-image: linear-gradient(to bottom, #000 75%, transparent); }
 .fold-more { font-size: 12.5px; margin-top: 2px; }
-/* a screenshot shown large (shots.tsx Lightbox): the page greys while it grows out of its thumbnail, and clears as it goes back */
-.lightbox { position: fixed; inset: 0; z-index: 1000; background: rgba(15, 12, 8, .78); display: flex; align-items: center; justify-content: center;
-  padding: 4vh 4vw; cursor: zoom-out; animation: dim .38s ease-out; transition: background-color .38s; }
-.lightbox.closing { background-color: transparent; }
-.lightbox img { max-width: 100%; max-height: 100%; border-radius: 2px; box-shadow: var(--lift); background: #fff; transform-origin: 0 0; }
-/* a screenshot of a field, to mark: the marks over the image move with it, the bar with Undo and Done under it */
-.lightbox.marking { flex-direction: column; gap: 14px; }
-.lightbox.marking img { max-height: calc(100% - 58px); }
-.lb-marks { position: absolute; transform-origin: 0 0; cursor: crosshair; touch-action: none; -webkit-user-select: none; user-select: none; overflow: visible; }
-.lb-bar { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 14px; border-radius: 4px; background: var(--card); box-shadow: var(--lift);
-  cursor: default; animation: fade .38s ease-out; transition: opacity .2s; }
-.lb-hint { font-size: 13px; color: var(--muted-foreground); margin-right: 6px; }
-.lightbox.closing .lb-bar { opacity: 0; }
 @keyframes dim { from { background-color: transparent; } }
 @keyframes fade { from { opacity: 0; } }
 /* a card's change beside its branch, and its whole diff over the page: one sheet as tall as the screen, one scrollbar */
@@ -1523,9 +1132,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 
 /* the card finder in the middle of the bar; its results drop under it while it has focus */
 /* under the task field while it has the cursor, until a card was linked once */
-.p-body-field .card-refs-hint { position: absolute; top: 100%; left: 0; margin: 6px 0 0; }
-@media (max-width: 760px) { .p-body-field:has(.card-refs-hint) { padding-bottom: 30px; } }
-@media (max-width: 760px) { #minimap, #sheet-grip { display: none; } .sheet, .sheet.reading { width: auto; left: 14px; right: 14px; top: 64px; bottom: 158px; } #sheet-close { top: 72px; right: 22px; } #talk-docked.on { top: 74px; right: 22px; } .split { grid-template-columns: 1fr; grid-template-rows: none; max-height: none; } .split .split-talk .conv { min-height: 240px; max-height: min(520px, 60vh); } }
+@media (max-width: 760px) { #minimap, #sheet-grip { display: none; } .sheet, .sheet.reading { width: auto; left: 14px; right: 14px; top: 64px; bottom: 158px; } #sheet-close { top: 72px; right: 22px; } #talk-docked.on { top: 74px; right: 22px; } }
 
 /* the play button on a startable card, shown while the pointer is on the card */
 .card .play { position: absolute; right: 10px; bottom: 8px; width: 26px; height: 26px; border-radius: 8px; border: 0; padding: 0 0 0 2px;
@@ -1852,33 +1459,6 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
   background: linear-gradient(transparent, var(--bg) 65%); pointer-events: none; }
 #ph-card::before { content: ""; position: fixed; left: 0; right: 0; top: 0; height: 4px; background: var(--c); z-index: 6; }
 .ph-sheet { padding-top: 14px; }
-.ph-sheet .p-title { font-size: 26px; }
-/* the conversation is in the panel (`TalkElsewhere`): what the card is about is the page, which alone scrolls */
-.ph-view .split { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; max-height: none; gap: 18px; }
-.ph-view .split:empty { display: none; }
-.ph-view .split-main { overflow: visible; padding-right: 0; }
-.ph-view .proposal-grid .p-body { min-height: 160px; max-height: 50vh; }
-.ph-view .actions [data-slot=button] { min-height: 42px; }
-/* the change list's lines a finger's size */
-.ph-view .cl-list { font-size: 14.5px; }
-.ph-view .cl-list td, .ph-view .cl-list .f-mark { padding-top: 10px; padding-bottom: 10px; }
-.ph-view .cl-foot { font-size: 14.5px; }
-.ph-view .cl-foot [data-slot=button] { padding: 8px 0; }
-/* the video plays full width, and full screen from Seismic's button over it (fullscreen.ts); zooming within the page adds nothing on a phone */
-.ph-view .demo-view .zoom, .ph-view .seek-hint { display: none; }
-.ph-view .demo-view .fullscreen { position: absolute; top: 10px; right: 10px; z-index: 1; width: 42px; height: 42px; border: 0; border-radius: 50%;
-  background: rgba(0, 0, 0, .55); display: grid; place-items: center; }
-.ph-view .demo-view .fullscreen svg { width: 22px; height: 22px; fill: none; stroke: #fff; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-/* in full screen the player is black around the video, which fills it as far as its shape allows */
-.ph-view .demo-view .screen.full { background: #000; display: flex; align-items: center; }
-.ph-view .demo-view .screen.full video { width: 100%; height: 100%; object-fit: contain; border-radius: 0; }
-.ph-view .demo-view .screen.full .fullscreen, .ph-view .demo-view .screen.full .comment-here { top: max(10px, env(safe-area-inset-top)); }
-.ph-view .demo-view .screen.full .fullscreen { right: max(10px, env(safe-area-inset-right)); }
-/* as tall as the full screen button beside it, so the two line up */
-.ph-view .demo-view .comment-here { right: 60px; height: 42px; border-radius: 21px; }
-/* `nofullscreen` only greys out the controls' own full screen button in Chrome's newer controls: it goes, beside Seismic's */
-.ph-view .demo-view video::-webkit-media-controls-fullscreen-button { display: none; }
-.ph-view .demo-view .screen.full .comment-here { right: calc(50px + max(10px, env(safe-area-inset-right))); }
 /* a phone's browser zooms into a text field written smaller than 16 px */
 .ph-view textarea, .ph-view select, .ph-view [data-slot=select-trigger], .ph-view input { font-size: 16px; }
 /* no pointer hovers on a phone: the reply button shows on every message */
@@ -1902,7 +1482,6 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 /* the cursor in a field says where the words go: a line under the microphone would lift it onto the field */
 /* the microphone is held by a finger: no long-press menu, no text selected */
 #mic, [data-slot=prompt-input-button] { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: none; }
-@media (pointer: coarse) { .lb-bar { flex-wrap: wrap; max-width: 100%; } }
 /* while the keyboard is up the field has its own microphone: the big one would stand over the field */
 .ph-kb .ph-view ~ :is(#ptt, .ph-new), .ph-kb .ph-view::after { display: none; }
 /* the phone turned: the height is short, so the microphone moves to the right edge, where the thumb holds the phone,
@@ -2327,7 +1906,6 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 .inbox-col h2 { margin: 0 8px 10px; font-size: 18px; }
 .inbox-room { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-end; padding: 12px 24px; }
 .inbox-room .hint { align-self: center; margin: auto 0; max-width: 320px; text-align: center; font-size: 13px; }
-#dim { transition: opacity .2s, left 0s; }
 /* "Needs you" (src/ui/needsYou.tsx): the shown project's cards, then every other project folded under its header */
 #needs-you { padding: 20px 14px 30px; }
 #needs-you h2 { padding: 0 8px; }
@@ -2390,7 +1968,7 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 /* glass that blurred what lies behind it turns solid, so the canvas does not show through the bars and panes,
    and the cards take the tint they have zoomed out */
 :root[data-motion="reduce"] { --glass: var(--panel); }
-:root[data-motion="reduce"] :is(#panel .content > .actions:last-child, #panel .merge-actions, .cfg-actions, .read-head) { background: var(--panel); }
+:root[data-motion="reduce"] :is(.cfg-actions, .read-head) { background: var(--panel); }
 :root[data-motion="reduce"] .card:not(.s-proposal) { background-image: linear-gradient(var(--unblurred), var(--unblurred)); }
 
 /* the project's settings, a sheet like the inbox (projectSettings.tsx) */
@@ -2427,8 +2005,6 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 /* a narrow window: the project's settings float over the whole page, down to the status bar */
 @media (max-width: 760px) { #project-settings.sheet { bottom: 46px; } body:has(#project-settings.on) .ptt-row { visibility: hidden; } }
 /* beside the two-line Start agent button, the other action buttons take its height */
-.actions:has(> .start-agent) { align-items: stretch; }
-.actions:has(> .start-agent) > .snooze-box > [data-slot=button] { flex: 1; }
 
 .description-edit { position: relative; }
 .description-edit-button { border: 0; background: transparent; color: var(--muted-foreground); cursor: pointer; padding: 6px; opacity: 0; }

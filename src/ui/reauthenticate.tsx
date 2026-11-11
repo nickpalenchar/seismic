@@ -9,6 +9,9 @@ import { Input } from './components/input';
 let local: Promise<boolean> | undefined;
 const onThisMachine = () => (local ??= api.access().then((v) => v.local, () => true));
 
+/** Signing Claude in again, under the error that says it is signed out: hints on lines of their own, the buttons between. */
+const reauthClass = 'reauthenticate flex items-center flex-wrap gap-x-3 gap-y-2 mt-2.5 [--button-bg:var(--card)] [&>div]:basis-full [&_code]:[overflow-wrap:anywhere] [&_code]:whitespace-normal';
+
 /**
  * The same terminal login as Setup, offered where an agent's expired login interrupted a chat. A
  * session that signed in with a token (`token`: on another machine, or on CLAUDE_CODE_OAUTH_TOKEN)
@@ -54,19 +57,19 @@ export function Reauthenticate({ start = false, token = false }: { start?: boole
       setBusy(false);
     }
   };
-  if (!here) return <div className="reauthenticate"><div className="hint">{t.setup.atComputer(token)}</div></div>;
-  if (saved) return <div className="reauthenticate"><div className="hint" role="status">{t.setup.tokenSaved(start)}</div></div>;
+  if (!here) return <div className={reauthClass}><div className="hint">{t.setup.atComputer(token)}</div></div>;
+  if (saved) return <div className={reauthClass}><div className="hint" role="status">{t.setup.tokenSaved(start)}</div></div>;
   return (
-    <div className="reauthenticate">
+    <div className={reauthClass}>
       {token && <div className="hint">{t.setup.tokenWhy}</div>}
       <Button size="small" disabled={busy} onClick={() => void login()}>{token ? t.setup.newToken : t.setup.reauthenticate}</Button>
       {status && <span className="hint" role="status">{status}</span>}
       {command && <div className="hint"><code>{command}</code></div>}
       {command && !token && <div className="hint">{start ? t.setup.startAfterReauthenticate : t.setup.afterReauthenticate}</div>}
       {command && token && (
-        <form className="reauthenticate-token" onSubmit={(e) => (e.preventDefault(), void save())}>
+        <form className="reauthenticate-token flex flex-col gap-1.5 basis-full not-italic [&_input]:flex-1 [&_input]:min-w-0" onSubmit={(e) => (e.preventDefault(), void save())}>
           <label className="hint" htmlFor="reauthenticate-token">{t.setup.pasteToken}</label>
-          <div className="c-row">
+          <div className="flex items-center gap-2 my-1">
             <Input id="reauthenticate-token" type="password" autoComplete="off" spellCheck={false} placeholder={t.setup.tokenPlaceholder} value={pasted} onChange={(e) => setPasted(e.target.value)} />
             <Button size="small" type="submit" disabled={busy || !pasted.trim()}>{t.setup.saveToken}</Button>
           </div>

@@ -3,6 +3,8 @@
 // settings the work retrospective proposes, and the owner's preferences; shared demos to bring
 // up to date at once.
 
+import { cn } from 'cn';
+import { conversationBox, conversationList, headClass } from './cardClasses';
 import { noteClass } from './components/ai/message';
 import { Settings } from 'lucide-react';
 import { Docked } from './docked';
@@ -92,7 +94,7 @@ export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats
   return (
     <>
       {talk.length ? <Conversation talk={talk} fresh={fresh} items={items} onOpen={onOpen} draft={draft} /> : (
-        <div className="talk conv fresh-chat">
+        <div className={cn(conversationList, conversationBox, 'fresh-chat')}>
           {chats.length > 0 && <p className="hint">{t.koordinator.chatFresh}</p>}
         </div>
       )}
@@ -151,7 +153,7 @@ export function PlanTalk({ on, plan, talk, items, onOpen }: { on: boolean; plan:
   }, [waited]);
   return (
     <section className="p-talk" ref={end}>
-      <h4 className="p-h">{t.plan.askHead}</h4>
+      <h4 className={headClass}>{t.plan.askHead}</h4>
       {!talk.length && <p className="hint">{t.plan.askHint}</p>}
       <Conversation talk={talk} fresh={fresh} items={items} onOpen={onOpen} draft={draft} sheetOf={plan.id} />
       {!plan.archivedAt && (
@@ -242,7 +244,7 @@ function Conversation({ talk, fresh, items, onOpen, draft, sheetOf }: { talk: Ta
   // every change on the project brings a new snapshot: only what the owner just said takes the
   // conversation back to its end, so they can read further up in the meantime
   return (
-    <Scroll className="conv" contentClassName="talk" boxRef={box} said={talk.at(-1)?.id} entries={talk} scrolling={!sheetOf}>
+    <Scroll className={conversationBox} contentClassName={conversationList} boxRef={box} said={talk.at(-1)?.id} entries={talk} scrolling={!sheetOf}>
       {talk.map((x) => {
         // the owner replies to one of the exchange's messages
         const reply = (part: TalkRef['part'], by: TalkQuote['by'], text: string) => () => {

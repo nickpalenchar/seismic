@@ -736,7 +736,7 @@ function Project({
     const r = el.getBoundingClientRect();
     flushSync(() => setOpenId(i.id));
     panel.style.setProperty('--c', `var(--${shownState(i)})`);
-    panel.className = '';
+    panel.classList.remove('anim', 'ready');
     panel.style.setProperty('--unfold', `${quick ? 0 : UNFOLD_MS}ms`);
     Object.assign(panel.style, rect(r), { display: 'block', visibility: hold ? 'hidden' : '' });
     panel.getBoundingClientRect();
@@ -851,7 +851,7 @@ function Project({
     setDim(false);
     await sleep(motionMs(UNFOLD_MS));
     panel.style.display = 'none';
-    panel.className = '';
+    panel.classList.remove('anim', 'ready');
     beingWritten.delete(f.id);
     setOpenId(null);
     setFocus(f.plan);
@@ -2700,13 +2700,24 @@ function Project({
         <CanvasTabs project={snapshot.project.id} canvases={canvases} shown={canvasId} waiting={perCanvas.waiting} empty={perCanvas.empty} onShow={(c) => (focusRef.current?.type === 'plan' && closePlan(), setInboxOn(false), showPage(null), showCanvas(c))} />
 
         {/* over the inbox's view, its list stays undimmed beside the card, to work down from there */}
-        <div id="dim" className={dim ? 'on' : undefined} style={inboxOn && !matchMedia(NARROW).matches ? { left: side.left + inboxListWidth() } : undefined} onClick={() => closeCard()} />
+        <div id="dim" className={cn('fixed inset-0 z-30 bg-(--dim) opacity-0 pointer-events-none [transition:opacity_.2s,left_0s]', dim && 'on opacity-100 pointer-events-auto backdrop-blur-[3px]')} style={inboxOn && !matchMedia(NARROW).matches ? { left: side.left + inboxListWidth() } : undefined} onClick={() => closeCard()} />
         {helpOn && <Help note={helpNote} onClose={() => setHelpOn(false)} />}
         <WishDialog />
-        <div id="panel" ref={panelRef}>
-          <CloseButton label={t.close} className="close" onClick={() => closeCard()} />
-          <div className="inner card-sheet" ref={innerRef}>
-            <div className="content">
+        {/* the open card blurs only while it is open in full (`ready`): as it unfolds, folds and hides it is a solid
+            pane, and the card it lifted off the canvas keeps no blur either. Safari (an iPad's) can leave a hidden
+            element's blur layer painted where it was, an empty pane over the canvas once the card has folded.
+            App sets `anim` while it unfolds (over --unfold), and the card's rule across the top, as on the card */}
+        <div
+          id="panel"
+          ref={panelRef}
+          className="group/panel fixed z-40 overflow-hidden hidden frost-pane [&:not(.ready)]:bg-panel [&:not(.ready)]:backdrop-filter-none [&.anim]:[--ease:cubic-bezier(.3,.9,.3,1)] [&.anim]:transition-[left,top,width,height] [&.anim]:duration-(--unfold) [&.anim]:ease-(--ease) before:content-[''] before:absolute before:left-[30px] before:w-20 before:top-0 before:h-[3px] before:rounded-b-[3px] before:bg-(--c) before:shadow-[0_0_12px_var(--c)] before:z-1"
+        >
+          <CloseButton label={t.close} className="close absolute right-3.5 top-3 z-2" onClick={() => closeCard()} />
+          {/* keeps the final width while the panel unfolds, so the content can be measured before it shows; --pb is
+              the room below the content, more where the microphone covers the panel's foot (fitPanel) */}
+          <div className="inner card-sheet [--pb:26px] absolute left-0 top-0 bottom-0 w-full overflow-auto [scrollbar-gutter:stable] pt-[26px] px-[30px] pb-(--pb) opacity-0 transition-opacity duration-[120ms] group-[.ready]/panel:opacity-100" ref={innerRef}>
+            {/* as much room below the last line as above the title */}
+            <div className="content flow-root [&>:last-child]:mb-0">
               {openItem && (
                 <Cards.Provider value={{ items, open: (i) => void openFresh(i) }}>
                 <Detail

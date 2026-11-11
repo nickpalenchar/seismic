@@ -3,6 +3,7 @@
 // those not sent yet take marks (marks.ts). Other files dropped go into the text by their path, for
 // the agent to read them (`fileTo`).
 
+import { cn } from 'cn';
 import { Image as ImageIcon, Undo2 } from 'lucide-react';
 import { type ClipboardEvent, type DragEvent, type MouseEvent, type PointerEvent, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -263,26 +264,27 @@ export function ShotStrip({ shots }: { shots: ShotInput }) {
   if (!shots.images.length && !shots.uploading && !shots.pasteHint) return null;
   const filesUploading = shots.uploading - shots.uploadingImages;
   return (
-    <div className="c-shots">
+    <div className="c-shots basis-full flex flex-wrap gap-2">
       {shots.images.map((id) => (
-        <span key={id} className={shots.marking.includes(id) ? 'c-shot marking' : 'c-shot'}>
-          {shots.marking.includes(id) && <Spinner className="marking-loader size-5" aria-label={t.shots.uploading} />}
+        <span key={id} className={cn('c-shot relative h-16 min-w-16 rounded-[2px] border border-line bg-chip inline-flex items-center justify-center text-xs text-muted-foreground [&_img]:h-full [&_img]:max-w-[160px] [&_img]:object-cover [&_img]:rounded-[2px] [&_img]:block', shots.marking.includes(id) && 'marking [&_img]:opacity-50')}>
+          {shots.marking.includes(id) && <Spinner className="marking-loader size-5 absolute z-1 pointer-events-none" aria-label={t.shots.uploading} />}
           <Tooltip content={t.shots.markUp}>
-            <button className="open" onClick={(e) => enlarge.open(id, e)}>
+            <button className="open h-full p-0 border-0 bg-transparent cursor-zoom-in" onClick={(e) => enlarge.open(id, e)}>
               <img src={imageUrl(id)} alt={t.shots.alt} />
             </button>
           </Tooltip>
-          <CloseButton label={t.shots.remove} size="small" className="remove" onClick={() => shots.remove(id)} />
+          <CloseButton label={t.shots.remove} size="small" className="remove absolute -top-[7px] -right-[7px] [--button-bg:var(--card)] shadow-[0_0_0_1px_var(--line)]" onClick={() => shots.remove(id)} />
         </span>
       ))}
       {Array.from({ length: shots.uploadingImages }, (_, i) => (
-        <span key={`u${i}`} className="c-shot loading">
+        <span key={`u${i}`} className="c-shot relative h-16 min-w-16 rounded-[2px] border border-line bg-chip inline-flex items-center justify-center text-xs text-muted-foreground [&_img]:h-full [&_img]:max-w-[160px] [&_img]:object-cover [&_img]:rounded-[2px] [&_img]:block loading">
           <Spinner className="size-5" aria-label={t.shots.uploading} />
         </span>
       ))}
-      {filesUploading > 0 && <span className="c-file-loading" role="status">{t.shots.uploading}</span>}
+      {filesUploading > 0 && <span className="c-file-loading self-center text-muted-foreground text-xs" role="status">{t.shots.uploading}</span>}
+      {/* after the first screenshot picked from disk: pasting works too, until confirmed */}
       {shots.pasteHint && (
-        <div className="c-paste-hint" role="note">
+        <div className="c-paste-hint basis-full flex items-center gap-3 py-2 px-2.5 rounded-[2px] bg-[color-mix(in_srgb,var(--working)_8%,var(--card))] text-[13px] leading-[1.4] [&_p]:m-0 [&_p]:flex-1" role="note">
           <p>{t.shots.pasteHint(pasteKeys())}</p>
           <Button variant="primary" size="small" onClick={confirmPasteHint}>
             {t.newCardHint.ok}
@@ -353,10 +355,10 @@ export function Shots({ ids }: { ids?: string[] }) {
   const enlarge = useEnlarge();
   if (!ids?.length) return null;
   return (
-    <span className="shots">
+    <span className="shots flex flex-wrap gap-1.5 mt-1.5">
       {ids.map((id) => (
         <Tooltip key={id} content={t.shots.enlarge}>
-          <button className="shot" onClick={(e) => enlarge.open(id, e)}>
+          <button className="shot border border-line rounded-[2px] p-0 bg-card cursor-zoom-in leading-none [&_img]:h-[88px] [&_img]:max-w-[240px] [&_img]:object-cover [&_img]:rounded-[2px] [&_img]:block" onClick={(e) => enlarge.open(id, e)}>
             <img src={imageUrl(id)} alt={t.shots.alt} loading="lazy" />
           </button>
         </Tooltip>
@@ -533,7 +535,11 @@ function Lightbox({ src, thumb, marking, onClose }: { src: string; thumb: HTMLIm
   return createPortal(
     // a click here is not one on the card or field the thumbnail sits in
     <div
-      className={['lightbox', marking && 'marking', closing && 'closing'].filter(Boolean).join(' ')}
+      className={cn(
+        'lightbox group/lb fixed inset-0 z-1000 bg-[rgba(15,12,8,.78)] flex items-center justify-center py-[4vh] px-[4vw] cursor-zoom-out animate-[dim_.38s_ease-out] transition-[background-color] duration-[380ms] [&>img]:max-w-full [&>img]:max-h-full [&>img]:rounded-[2px] [&>img]:shadow-lift [&>img]:bg-white [&>img]:origin-top-left',
+        marking && 'marking flex-col gap-3.5 [&>img]:max-h-[calc(100%-58px)]',
+        closing && 'closing bg-transparent',
+      )}
       title={marking ? undefined : t.shots.close}
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => {
@@ -546,7 +552,7 @@ function Lightbox({ src, thumb, marking, onClose }: { src: string; thumb: HTMLIm
         <>
           <svg
             ref={layer}
-            className="lb-marks"
+            className="lb-marks absolute origin-top-left cursor-crosshair touch-none select-none overflow-visible"
             viewBox={size ? `0 0 ${size.w} ${size.h}` : undefined}
             onClick={(e) => e.stopPropagation()}
             onPointerDown={(e) => {
@@ -569,8 +575,8 @@ function Lightbox({ src, thumb, marking, onClose }: { src: string; thumb: HTMLIm
           >
             {size && <MarkLayer marks={marks} w={size.w} h={size.h} drawing={drawing} />}
           </svg>
-          <div className="lb-bar" onClick={(e) => e.stopPropagation()}>
-            {!marksKnown && <span className="lb-hint">{t.shots.markHint}</span>}
+          <div className="lb-bar flex items-center gap-2 py-1.5 pr-1.5 pl-3.5 rounded-[4px] bg-card shadow-lift cursor-default animate-[fade_.38s_ease-out] transition-opacity duration-200 group-[.closing]/lb:opacity-0 pointer-coarse:flex-wrap pointer-coarse:max-w-full" onClick={(e) => e.stopPropagation()}>
+            {!marksKnown && <span className="lb-hint text-[13px] text-muted-foreground mr-1.5">{t.shots.markHint}</span>}
             <Button title={t.shots.undoTitle} disabled={!marks.length} onClick={undo}>
               <Undo2 size={14} strokeWidth={1.75} aria-hidden="true" />
               {t.shots.undo}

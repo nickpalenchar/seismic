@@ -39,6 +39,10 @@
 @custom-variant resizing (&:where(.resizing, .resizing *));
 /* reduced motion as Seismic decides it (motion.ts sets data-motion from the settings or the system) */
 @custom-variant reduced (&:where(:root[data-motion=reduce] *));
+/* inside the phone's views (phone.tsx `.ph-view`): the card and the list full screen, the conversation's panel */
+@custom-variant phone (&:where(.ph-view *));
+/* a screen without a pointer that hovers (a phone, a tablet): what shows on hover elsewhere stands */
+@custom-variant no-hover (@media (hover: none));
 /* the phone turned: a short height, the microphone at the right edge */
 @custom-variant ph-landscape (@media (orientation: landscape) and (max-height: 599px));
 
@@ -154,4 +158,44 @@
   backdrop-filter: blur(20px) saturate(1.6);
   -webkit-backdrop-filter: blur(20px) saturate(1.6);
   :root[data-motion="reduce"] & { background: var(--bg); }
+}
+
+/* frost's pane: the open card (and, until their views move over, the sheets and dialogs styles.css lists
+   with it) is one frosted glass over the board */
+@utility frost-pane {
+  background: var(--glass);
+  border: 1px solid var(--glass-edge);
+  border-radius: 18px;
+  box-shadow: inset 0 1px 0 var(--glass-hi), var(--lift);
+  backdrop-filter: blur(28px) saturate(1.6);
+  -webkit-backdrop-filter: blur(28px) saturate(1.6);
+}
+
+/* the open card's decisions at its end stay in view while a long text scrolls under them, filling the
+   room below the content (and above the microphone, --pb on the card's scroller) as the panel's foot;
+   a line above them while there is more to scroll to. Solid under reduced motion */
+@utility panel-foot {
+  position: sticky;
+  bottom: calc(-1 * var(--pb, 26px));
+  z-index: 1;
+  margin: 6px -30px calc(-1 * var(--pb, 26px));
+  padding: 12px 30px var(--pb, 26px);
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  @supports (animation-timeline: scroll()) {
+    animation: foot-line linear both;
+    animation-timeline: scroll(nearest block);
+  }
+  :root[data-motion="reduce"] & { background: var(--panel); }
+}
+@keyframes foot-line {
+  0%, 99.5% { box-shadow: 0 -1px 0 var(--line); }
+  100% { box-shadow: none; }
+}
+
+/* a picked checkbox among a question's options (cardClasses.ts `choiceClass`): white tick on the waiting colour */
+@utility choice-checked {
+  background: var(--waiting) no-repeat center / 10px
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1.5 5.2 4 7.5 8.5 2.5' fill='none' stroke='white' stroke-width='1.8'/%3E%3C/svg%3E");
 }

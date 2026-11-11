@@ -47,7 +47,7 @@ export function PdfPages({ url, title }: { url: string; title: string }) {
   if (doc === null) return <p className="hint">{t.files.loading}</p>;
   if (doc === 'failed') return <p className="hint">{t.files.failed}</p>;
   return (
-    <div className="r-pdf-pages" role="document" aria-label={title}>
+    <div className="r-pdf-pages flex flex-col gap-2" role="document" aria-label={title}>
       {Array.from({ length: doc.numPages }, (_, i) => (
         <PdfPage key={i} doc={doc} n={i + 1} />
       ))}
@@ -112,7 +112,7 @@ function PdfPage({ doc, n }: { doc: PDFDocumentProxy; n: number }) {
   }, [doc, n, near, width]);
 
   return (
-    <div ref={box} className="r-pdf-page" style={ratio ? { aspectRatio: String(ratio) } : undefined}>
+    <div ref={box} className="r-pdf-page w-full border border-line rounded-[2px] bg-white overflow-hidden" style={ratio ? { aspectRatio: String(ratio) } : undefined}>
       <canvas ref={canvas} />
     </div>
   );

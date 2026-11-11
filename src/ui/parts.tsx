@@ -1,5 +1,6 @@
 // Presentational pieces of the project. State and camera live in App.tsx.
 
+import { headClass } from './cardClasses';
 import { Archive, ChevronDown, Ellipsis, ChevronLeft, ChevronRight, Columns3, GitMerge, MessageSquare, Pause, Play, Square } from 'lucide-react';
 import { Docked } from './docked';
 import { type CSSProperties, memo, type MouseEvent, type ReactNode, useEffect, useRef, useState } from 'react';
@@ -1427,7 +1428,7 @@ export function Sheet({
             ))}
           </ol>
           <PlanTalk on={on && !reading && talkLoaded} plan={planCard} talk={history?.talk ?? []} items={all} onOpen={onOpen} />
-          <h4 className="p-h">{t.decisions}</h4>
+          <h4 className={headClass}>{t.decisions}</h4>
           {history && history.decisions.length === 0 && <p className="hint">{t.noDecisions}</p>}
           {history && history.decisions.length > 0 && (
             <ul className="decisions">

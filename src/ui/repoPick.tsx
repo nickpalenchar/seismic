@@ -91,8 +91,9 @@ export function RepoPick({ choice, repos, fresh = true }: { choice: RepoChoice; 
   }, [focusPath]);
   const n = choice.fresh;
   if (repos.length < 2 && !n) return null;
+  // the repository a card is built in, with a new one's folder and whether it gets a project of its own
   return (
-    <div className="repo-pick">
+    <div className="repo-pick flex flex-wrap items-center gap-x-3.5 gap-y-1">
       <SegmentedControl
         label={t.repoPick.label}
         value={n ? NEW : (choice.repo ?? '')}
@@ -107,10 +108,10 @@ export function RepoPick({ choice, repos, fresh = true }: { choice: RepoChoice; 
         ]}
       />
       {n && (
-        <div className="repo-new">
+        <div className="repo-new flex items-center gap-3.5 mt-3 flex-[0_1_560px]">
           <Input
             ref={pathRef}
-            className="repo-path"
+            className="repo-path flex-1 min-w-0 font-mono"
             aria-label={t.repoPick.path}
             value={n.path}
             placeholder={t.repoPick.pathPlaceholder}
@@ -118,7 +119,7 @@ export function RepoPick({ choice, repos, fresh = true }: { choice: RepoChoice; 
             maxLength={1000}
             onChange={(e) => choice.setFresh({ ...n, path: e.target.value })}
           />
-          <CheckLabel className="repo-project" title={t.repoPick.ownProjectHint}>
+          <CheckLabel className="repo-project text-muted-foreground whitespace-nowrap" title={t.repoPick.ownProjectHint}>
             <Switch checked={n.project} onCheckedChange={(on) => choice.setFresh({ ...n, project: on })} />
             {t.repoPick.ownProject}
           </CheckLabel>

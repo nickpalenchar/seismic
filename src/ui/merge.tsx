@@ -1,5 +1,7 @@
 // Merge selection and the owner's coverage review (design: Merging cards).
 
+import { actionsClass } from './cardClasses';
+import { cn } from 'cn';
 import { Fragment, useContext, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Collapsible, CollapsibleTrigger } from './components/collapsible';
 import { type CardAction, type Item, merging, mergeableWith, mergeRank, canMergeFrom, withPart } from '../core/types';
@@ -180,7 +182,7 @@ export function MergeView({ item, partner, act }: { item: Item; partner?: Item; 
         </div>
       </>}
       {m.outcome ? <p className={`merge-callout ${m.outcome}`}>{m.outcome === 'covered' ? t.merge.covered : t.merge.extra}</p> : m.task !== undefined && partner && <p className="hint merge-intro">{t.merge.intro(plain(partner.title))}</p>}
-      <div className="actions merge-actions">
+      <div className={cn(actionsClass, 'merge-actions [#panel_&]:panel-foot')}>
         {m.task !== undefined && partner && (
           <Button variant="primary" onClick={() => act({ action: 'approveMerge' }, { close: true, ack: t.merge.approved })}>
             <MergeMark size={13} /> {t.merge.approve}

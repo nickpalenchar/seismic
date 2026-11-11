@@ -62,7 +62,7 @@ function render(md: string, inLink = false, image: Images = null, ref: Refs = nu
     else if (em !== undefined || star !== undefined) out.push(<em key={k++}>{render(em ?? star!, inLink, image, ref)}</em>);
     else if (src !== undefined) {
       const url = image?.(src);
-      out.push(url ? <img key={k++} className="doc-img" src={url} alt={alt} title={alt || undefined} /> : <span key={k++}>{alt}</span>);
+      out.push(url ? <img key={k++} className="doc-img max-w-full rounded-[2px] align-middle" src={url} alt={alt} title={alt || undefined} /> : <span key={k++}>{alt}</span>);
     } else if (bare !== undefined) {
       const url = bareUrl(bare);
       end = m.index + url.length;
