@@ -10,8 +10,9 @@ import { LinkButton } from './components/button';
 import { CodeBlock, CodeBlockContent, CodeBlockLine, CodeBlockSplitRow } from './components/code-block';
 import { contextLines, type DiffLine, endsFile, gap, type Hunk, parseHunks, splitLines, splitRows } from './diff-lines';
 import type { DiffStyle } from './diffStyle';
-import { languageOf, loadTokenizer, type Token } from './highlight';
+import { languageOf, loadTokenizer, paintHunks, type Token } from './highlight';
 import { t } from './strings';
+import { useResolvedTheme } from './theme';
 
 /** The whole old and new file, once the owner expanded: `loading` meanwhile, `failed` when they could not be read. */
 type Whole = { old: string[]; new: string[] } | 'loading' | 'failed' | null;
@@ -89,15 +90,16 @@ export default function CodeDiff({ part, card, style }: { part: DiffPart; card: 
   };
   const files = typeof whole === 'object' ? whole : null;
 
-  // Highlighting: the hunks' lines on each side until the whole files are there, then the files,
+  // Highlighting: contiguous patch runs independently until the whole files are there, then the files,
   // so the unchanged lines shown between hunks are coloured too and the grammar runs through.
+  const theme = useResolvedTheme();
   const [paintedFor, setPaintedFor] = useState<For<Painted>>();
   const painted = paintedFor?.key === key ? paintedFor.value : undefined;
   const paintFailed = !!painted?.failed;
   useEffect(() => {
     let gone = false;
     const setPainted = (value: Painted) => setPaintedFor({ key, value });
-    loadTokenizer(languageOf(file)).then(
+    loadTokenizer(languageOf(file), theme).then(
       (tokenize) => {
         if (gone || !tokenize) return;
         const side = (lines: string[], numbers: number[]) => {
@@ -107,10 +109,7 @@ export default function CodeDiff({ part, card, style }: { part: DiffPart; card: 
         if (files) {
           setPainted({ old: side(files.old, files.old.map((_, i) => i + 1)), new: side(files.new, files.new.map((_, i) => i + 1)) });
         } else {
-          const all = hunks.flatMap((h) => h.lines);
-          const olds = all.filter((l) => l.old !== undefined && l.kind !== 'added');
-          const news = all.filter((l) => l.new !== undefined && l.kind !== 'removed');
-          setPainted({ old: side(olds.map((l) => l.text), olds.map((l) => l.old!)), new: side(news.map((l) => l.text), news.map((l) => l.new!)) });
+          setPainted(paintHunks(hunks, tokenize));
         }
       },
       () => !gone && setPainted({ old: new Map(), new: new Map(), failed: true }),
@@ -118,7 +117,7 @@ export default function CodeDiff({ part, card, style }: { part: DiffPart; card: 
     return () => {
       gone = true;
     };
-  }, [key, file, hunks, files]);
+  }, [key, file, hunks, files, theme]);
 
   if (!hunks.length) return null;
   const tokensOf = (line: DiffLine) => (line.kind === 'removed' ? painted?.old.get(line.old!) : painted?.new.get(line.new!));
@@ -233,7 +232,7 @@ function paint(line: DiffLine, tokens?: Token[]): ReactNode[] {
         <span
           key={`${from}`}
           style={run.style}
-          className={`${run.style ? 'text-(--shiki-light) dark:text-(--shiki-dark)' : ''} ${marked ? (line.kind === 'removed' ? 'rounded-[2px] bg-error/25' : 'rounded-[2px] bg-approved/30') : ''}`}
+          className={`${marked ? (line.kind === 'removed' ? 'rounded-[2px] bg-error/25' : 'rounded-[2px] bg-approved/30') : ''}`}
         >
           {line.text.slice(from, to)}
         </span>,

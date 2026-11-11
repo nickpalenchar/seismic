@@ -4,6 +4,7 @@
 // choice this browser saw last (index.html sets it before the first paint, from `THEME_KEY`), so a
 // board chosen dark on a light system does not first show light.
 
+import { useSyncExternalStore } from 'react';
 import { FALLBACK_LANGUAGE, languageOf } from '../core/locale';
 import type { Theme } from '../core/types';
 import { api, markQuiet } from './api';
@@ -44,4 +45,20 @@ export async function loadLanguageAndTheme() {
     ),
   ]);
   setLanguage(language);
+}
+
+/** The same resolved theme the stylesheets use, including system changes and clearing a choice. */
+export function useResolvedTheme(): Theme {
+  return useSyncExternalStore(watchTheme, resolvedTheme);
+}
+
+function resolvedTheme(): Theme {
+  const { theme, systemTheme } = document.documentElement.dataset;
+  return (theme ?? systemTheme) === 'dark' ? 'dark' : 'light';
+}
+
+function watchTheme(changed: () => void) {
+  const observer = new MutationObserver(changed);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'data-system-theme'] });
+  return () => observer.disconnect();
 }

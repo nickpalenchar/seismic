@@ -235,7 +235,9 @@ export function DiffStyleSwitch() {
 export function FileDiff({ part, card }: { part: DiffPart; card: string }) {
   const { style } = useDiffStyle();
   const lines = part.lines.length;
-  const [folded, setFolded] = useState(lines > FOLD_LINES);
+  const key = `${card}\n${part.file}\n${part.lines.join('\n')}`;
+  const [opened, setOpened] = useState<string>();
+  const folded = lines > FOLD_LINES && opened !== key;
   const empty = !part.lines.some((l) => l.startsWith('@@'));
   return (
     <section className="d-file" id={anchor(part.file)}>
@@ -254,7 +256,7 @@ export function FileDiff({ part, card }: { part: DiffPart; card: string }) {
       ) : folded ? (
         <p className="hint">
           {t.diff.big(lines)}{' '}
-          <LinkButton onClick={() => setFolded(false)}>
+          <LinkButton onClick={() => setOpened(key)}>
             {t.diff.unfold}
           </LinkButton>
         </p>

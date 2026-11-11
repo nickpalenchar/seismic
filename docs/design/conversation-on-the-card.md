@@ -258,7 +258,7 @@ language has loaded; a failed load offers "Reload page" (the browser can cache a
 import for the page's lifetime) and leaves the code plain. A file with more than 1,500 lines starts
 folded. Where the patch leaves out lines around its hunks, a row says how many with the hunk's
 function or heading beside it; "Show N unchanged lines" (and after the last hunk, "Show the rest of
-the file") reveals them, highlighted from the whole file. Only as a changed file
+the file") reveals them, highlighted from the whole file. Before that fetch, syntax state resets at each omitted gap on each side; adjacent hunks retain it. Only as a changed file
 comes near the screen does the page ask the server (`GET …/cards/:id/versions?path=&probe`) whether
 both versions are there to show, which carries no file; the whole old and new text
 (`GET …/versions?path=`) is fetched when the owner expands. A file whose text cannot be shown (too big, binary, no earlier version) keeps its folded lines
@@ -275,7 +275,7 @@ the card's change (the rules of the files Seismic serves, below), has none to fe
 "Unified | Split" on the desktop, remembered across cards and reloads, lays the lines under each
 other or side by side; the phone shows unified only, without the switch. The highlighter and its
 languages load when a diff first opens, never with the page. Each language and theme is fetched
-separately, only when needed; other files reuse what is already loaded.
+separately, only when needed; only the active color theme loads initially. Changing the page theme loads it if needed and recolors open diffs; other files reuse what is already loaded.
 
 #### The files beside the demo
 
