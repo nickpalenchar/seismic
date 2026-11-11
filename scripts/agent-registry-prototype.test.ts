@@ -53,13 +53,28 @@ test.skipIf(process.platform === 'win32')('a killed owner releases its generatio
   const root = mkdtempSync(join(tmpdir(), 'obeya-registry-'));
   const ready = join(root, 'ready');
   const module = join(import.meta.dir, 'agent-registry-prototype.ts');
-  const code = testProcessCode(`import {createGeneration} from ${JSON.stringify(module)};import {writeFileSync} from 'node:fs';const x=createGeneration(${JSON.stringify(root)},{pid:42,boot:'boot-a',namespace:'ns-a',start:'123'});x.publish([{pid:100,boot:'boot-a',namespace:'ns-a',start:'123'}]);writeFileSync(${JSON.stringify(ready)},x.id);setInterval(()=>{},1000);`);
+  const code = testProcessCode(`
+    import { createGeneration } from ${JSON.stringify(module)};
+    import { writeFileSync } from 'node:fs';
+    const owner = createGeneration(${JSON.stringify(root)}, { pid: 42, boot: 'boot-a', namespace: 'ns-a', start: '123' });
+    owner.publish([{ pid: 100, boot: 'boot-a', namespace: 'ns-a', start: '123' }]);
+    // A live process alone is not a live lease: retain the handle until it exits.
+    const id = owner.id;
+    process.on('exit', () => owner.close());
+    setInterval(() => {}, 1000);
+    setImmediate(() => {
+      // Collect after setup returns, before announcing that the lease is ready.
+      Bun.gc(true);
+      writeFileSync(${JSON.stringify(ready)}, id);
+    });
+  `);
   const child = spawn(process.execPath, ['-e', code], { stdio: 'ignore' });
   try {
     const fs = await import('node:fs');
     let id = '';
     await until(() => { try { id = fs.readFileSync(ready, 'utf8'); return !!id; } catch { return false; } });
-    expect(inspectGeneration(root, id, lookup).state).toBe('unknown');
+    expect(child.exitCode).toBeNull();
+    expect(inspectGeneration(root, id, lookup)).toEqual({ state: 'unknown', reason: 'lease busy or unavailable' });
     const exited = new Promise<void>((resolve) => child.once('exit', () => resolve()));
     child.kill('SIGKILL'); await exited;
     expect(inspectGeneration(root, id, lookup)).toMatchObject({ state: 'inspectable', processes: [{ pid: 100, state: 'match' }] });
