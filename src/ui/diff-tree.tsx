@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight, Folder, Files } from 'lucide-react';
 import type { ChangeRow } from '../core/files';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from './components/collapsible';
 import { Button } from './components/button';
+import { diffTreeEntries } from './diff-tree-entries';
 import { scrollBehavior } from './motion';
 import { t } from './strings';
 
@@ -30,24 +31,20 @@ export function DiffTreeLayout({ rows, current, onPick, children }: { rows: Chan
 
 function Tree({ rows, current, onPick, prefix = '' }: { rows: ChangeRow[]; current?: string; onPick: (path: string) => void; prefix?: string }) {
   const [closed, setClosed] = useState<Set<string>>(new Set());
-  const groups = new Map<string, ChangeRow[]>();
-  for (const row of rows) {
-    const name = row.path.slice(prefix.length).split('/')[0]!;
-    groups.set(name, [...(groups.get(name) ?? []), row]);
-  }
-  return <ul>{[...groups].sort(([a], [b]) => a.localeCompare(b)).map(([name, entries]) => {
-    const path = prefix + name;
-    const directory = entries.some(r => r.path !== path);
-    const row = entries[0]!;
+  return <ul>{diffTreeEntries(rows, prefix).map(({ name, path, file, children }) => {
     const expanded = !closed.has(path);
-    return <li key={path}>{directory ? <Collapsible open={expanded} onOpenChange={() => setClosed(was => { const next = new Set(was); next.has(path) ? next.delete(path) : next.add(path); return next; })}>
-      <CollapsibleTrigger asChild>
-      <Button variant="ghost" size="small" aria-expanded={expanded}>
-        {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}<Folder size={14} /><span>{name}</span>
-      </Button></CollapsibleTrigger>
-      <CollapsibleContent forceMount hidden={!expanded}><Tree rows={entries} prefix={`${path}/`} current={current} onPick={onPick} /></CollapsibleContent>
-    </Collapsible> : <Button variant="ghost" size="small" className={current === path ? 'selected' : ''} aria-current={current === path ? 'true' : undefined} title={row.from ? `${row.from} → ${path}` : path} onClick={() => onPick(path)}>
-      <span className={`diff-status ${row.kind}`} title={t.diff.treeStatus[row.kind!]} aria-label={t.diff.treeStatus[row.kind!]}>{({ added: '+', deleted: '−', moved: '↪', modified: 'M' })[row.kind!]}</span><span className="diff-tree-name">{name}</span>
-    </Button>}</li>;
+    return <li key={path}>
+      {file && <Button variant="ghost" size="small" className={current === path ? 'selected' : ''} aria-current={current === path ? 'true' : undefined} title={file.from ? `${file.from} → ${path}` : path} onClick={() => onPick(path)}>
+        <span className={`diff-status ${file.kind}`} title={t.diff.treeStatus[file.kind!]} aria-label={t.diff.treeStatus[file.kind!]}>{({ added: '+', deleted: '−', moved: '↪', modified: 'M' })[file.kind!]}</span><span className="diff-tree-name">{name}</span>
+      </Button>}
+      {children.length > 0 && <Collapsible open={expanded} onOpenChange={() => setClosed(was => { const next = new Set(was); next.has(path) ? next.delete(path) : next.add(path); return next; })}>
+        <CollapsibleTrigger asChild>
+          <Button variant="ghost" size="small" aria-expanded={expanded}>
+            {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}<Folder size={14} /><span>{file ? `${name}/` : name}</span>
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent forceMount hidden={!expanded}><Tree rows={children} prefix={`${path}/`} current={current} onPick={onPick} /></CollapsibleContent>
+      </Collapsible>}
+    </li>;
   })}</ul>;
 }

@@ -299,7 +299,9 @@ rename-only changes. The first changed file opens initially. The tree can be hid
 it starts expanded beside wide diffs (including when the conversation is collapsed). In narrower
 views and on phones the diff comes first, with the expanded tree below it. Choosing a file from
 that lower tree brings its changes back into view. Directory branches fold independently; directory
-change records are not selectable files, while their changed files remain in the tree. Named deliverables without changes stay in their
+change records are not selectable files, while their changed files remain in the tree. When a
+file becomes a directory or a directory becomes a file, the changed file and the directory branch
+both appear, so changes at the shared path and beneath it remain selectable. Named deliverables without changes stay in their
 result tabs and never enter this tree. Markdown shows formatted (with its images), a PDF in the browser's
 viewer (on a phone, and where the browser has none, its pages drawn by pdf.js one under the other
 as wide as the column), an image as is, an HTML page as an HTML artifact, text and code as text; anything else as a
