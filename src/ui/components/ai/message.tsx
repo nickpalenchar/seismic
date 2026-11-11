@@ -25,7 +25,7 @@ export function Message({ className, from, ...props }: ComponentProps<'div'> & {
         // State hooks are shared by the card, chats and Koordinator adapters.
         '[&:is(.held,.unread)]:px-3 [&:is(.held,.unread)]:py-2 [&:is(.held,.unread)]:outline [&:is(.held,.unread)]:outline-dashed [&:is(.held,.unread)]:outline-[color-mix(in_srgb,var(--working)_40%,transparent)] [&:is(.held,.unread)]:-outline-offset-1',
         '[&.unread>:not(.msg-actions):not(.unread-mark)]:opacity-60 [&.paused>:not(.who)]:opacity-70',
-        '[&.fresh]:shadow-[0_0_0_1.5px_color-mix(in_srgb,var(--waiting)_70%,transparent)] [&.flash]:animate-[msg-flash_2.4s_ease-out]',
+        '[&.fresh]:px-3 [&.fresh]:py-2 [&.fresh]:shadow-[0_0_0_1.5px_color-mix(in_srgb,var(--waiting)_70%,transparent)] [&.flash]:animate-[msg-flash_2.4s_ease-out]',
         '[&.undone_:is(.p-lead,.p-list,.p-table)]:line-through [&.undone_:is(.p-lead,.p-list,.p-table)]:decoration-muted-foreground [&.by-owner_.shots]:justify-end',
         '[&.action]:bg-chip [&.action]:shadow-none [&.action]:border [&.action]:border-dashed [&.action]:border-[color-mix(in_srgb,var(--muted-foreground)_55%,transparent)] [&.action]:[font-family:var(--font)] [&.action]:px-2.5 [&.action]:pt-[7px] [&.action]:pb-2.5 [&.action]:self-start',
         className,

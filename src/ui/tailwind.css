@@ -178,7 +178,7 @@
   position: sticky;
   bottom: calc(-1 * var(--pb, 26px));
   z-index: 1;
-  margin: 6px -30px calc(-1 * var(--pb, 26px));
+  margin: 18px -30px calc(-1 * var(--pb, 26px));
   padding: 12px 30px var(--pb, 26px);
   background: color-mix(in srgb, var(--panel) 88%, transparent);
   backdrop-filter: blur(16px);
