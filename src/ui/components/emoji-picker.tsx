@@ -8,9 +8,16 @@
 import { cn } from 'cn';
 import { type EmojiPickerListCategoryHeaderProps, type EmojiPickerListEmojiProps, type EmojiPickerListRowProps, EmojiPicker as EmojiPickerPrimitive } from 'frimousse';
 import { LoaderIcon, SearchIcon } from 'lucide-react';
-import { type ComponentProps, createContext, useContext } from 'react';
+import { type ComponentProps, createContext, useContext, useLayoutEffect, useRef, useState } from 'react';
 import { t } from '../strings';
 import { inputFieldClassName } from './input';
+
+/** An emoji button's width (`size-9`), and the padding of a row (`px-1`). */
+const CELL = 36;
+const ROW_PADDING = 8;
+
+/** How many emoji a row holds in a picker `width` wide: as many as fit, from 5 to 14. */
+export const columnsFor = (width: number) => Math.max(5, Math.min(14, Math.floor((width - ROW_PADDING) / CELL)));
 
 /** Where the picker loads Emojibase's data from: `${EMOJIBASE_URL}/en/data.json`. */
 export const EMOJIBASE_URL = '/emojibase';
@@ -59,10 +66,22 @@ export function EmojiPicker({
   search,
   onSearch,
   ...props
-}: Omit<ComponentProps<typeof EmojiPickerPrimitive.Root>, 'emojibaseUrl'> & { value?: string; search: string; onSearch: (search: string) => void }) {
+}: Omit<ComponentProps<typeof EmojiPickerPrimitive.Root>, 'emojibaseUrl' | 'columns'> & { value?: string; search: string; onSearch: (search: string) => void }) {
+  // the rows hold as many emoji as the picker's width does, so none lie beyond its edge on a narrow screen
+  const root = useRef<HTMLDivElement>(null);
+  const [columns, setColumns] = useState(14);
+  useLayoutEffect(() => {
+    const el = root.current;
+    if (!el) return;
+    const fit = () => setColumns(columnsFor(el.clientWidth));
+    fit();
+    const watch = new ResizeObserver(fit);
+    watch.observe(el);
+    return () => watch.disconnect();
+  }, []);
   return (
     <Chosen.Provider value={value}>
-      <EmojiPickerPrimitive.Root className={cn('isolate flex min-h-0 flex-col', className)} data-slot="emoji-picker" emojibaseUrl={EMOJIBASE_URL} columns={14} {...props}>
+      <EmojiPickerPrimitive.Root ref={root} className={cn('isolate flex min-h-0 flex-col', className)} data-slot="emoji-picker" emojibaseUrl={EMOJIBASE_URL} columns={columns} {...props}>
         <div className={cn(inputFieldClassName, 'flex items-center gap-2 focus-within:border-muted-foreground focus-within:bg-panel')} data-slot="emoji-picker-search-wrapper">
           <SearchIcon className="size-4 shrink-0 opacity-50" aria-hidden />
           <EmojiPickerPrimitive.Search

@@ -4,6 +4,7 @@ import { CANVAS_ICON_COLORS, CANVAS_LUCIDE_ICONS, isCanvasIcon } from '../core/c
 import { type Canvas, canvasNamedBy, canvasOfHash, type Item } from '../core/types';
 import { iconsMatching, nameProblem, stubsOf } from './canvases';
 import { lucideOf } from './canvasIcon';
+import { columnsFor } from './components/emoji-picker';
 
 const canvases: Canvas[] = [
   { id: 'm', name: 'main' },
@@ -40,6 +41,12 @@ test('every icon the picker offers is one a canvas may carry, and each Lucide on
   expect(CANVAS_LUCIDE_ICONS.filter((n) => !lucideOf(`lucide:${n}`))).toEqual([]);
   expect(lucideOf('lucide:rocket:blue')?.color).toBe(CANVAS_ICON_COLORS.blue);
   expect(lucideOf('lucide:rocket')?.color).toBeUndefined();
+});
+
+test('the emoji picker’s rows hold as many emoji as its width does, so none lie beyond its edge', () => {
+  expect(columnsFor(546)).toBe(14);
+  expect(columnsFor(258)).toBe(6);
+  for (const w of [180, 258, 300, 400, 546]) expect(columnsFor(w) * 36 + 8).toBeLessThanOrEqual(Math.max(w, 5 * 36 + 8));
 });
 
 test('the icon search finds the Lucide icons whose name holds every word typed', () => {

@@ -730,8 +730,8 @@ the first and the one it opens on (unless the canvas has an emoji), the curated 
 search by name and a row of colours they are drawn in (picking a colour recolours the icon chosen);
 or "Emoji", a picker of every emoji the browser can draw, by category, with a search by name, skin
 tones and the name of the emoji under the pointer (its data is Emojibase's, which Seismic serves
-itself, so it works offline); "Create canvas" makes it and shows it. The same dialog, from the pencil,
-changes a canvas ("main" keeps its name and changes only its icon). What is typed and picked in it (searches, tab and colour too)
+itself, so it works offline; its rows hold as many emoji as its width does); "Create canvas" makes it and shows it. The same dialog, from the pencil,
+changes a canvas ("main" keeps its name and changes only its icon). On a screen too short for all of it (a phone, its keyboard up) the dialog scrolls, so its buttons stay in reach. What is typed and picked in it (searches, tab and colour too)
 stays until it is saved or cancelled, also across closing it and a reload. While a card is open the
 strip lies under the dimming, so switching never leaves a card's unsent input behind; the drafts of
 the Koordinator and of other cards are the project's and stay as they are across a switch.
