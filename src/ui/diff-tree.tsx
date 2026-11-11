@@ -1,25 +1,30 @@
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { ChevronDown, ChevronRight, Folder, Files } from 'lucide-react';
 import type { ChangeRow } from '../core/files';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from './components/collapsible';
 import { Button } from './components/button';
+import { scrollBehavior } from './motion';
 import { t } from './strings';
 
 /** Only changed paths enter the navigator; directories organize them without hiding status. */
 export function DiffTreeLayout({ rows, current, onPick, children }: { rows: ChangeRow[]; current?: string; onPick: (path: string) => void; children: ReactNode }) {
   const box = useRef<HTMLDivElement>(null);
   const [wide, setWide] = useState(false);
-  const [choice, setChoice] = useState<boolean>();
+  const [open, setOpen] = useState(true);
+  const selection = useRef<HTMLDivElement>(null);
+  const [picked, setPicked] = useState(0);
+  useEffect(() => {
+    if (picked && !wide) selection.current?.scrollIntoView({ block: 'start', behavior: scrollBehavior() });
+  }, [picked]);
   useLayoutEffect(() => {
     const observer = new ResizeObserver(([entry]) => setWide(entry!.contentRect.width >= 900));
     if (box.current) observer.observe(box.current);
     return () => observer.disconnect();
   }, []);
-  const open = choice ?? wide;
-  return <Collapsible open={open} onOpenChange={setChoice}><div ref={box} className="diff-browser" data-wide={wide} data-open={open}>
+  return <Collapsible open={open} onOpenChange={setOpen}><div ref={box} className="diff-browser" data-wide={wide} data-open={open}>
     <div className="diff-tree-toggle"><CollapsibleTrigger asChild><Button size="small" variant="ghost" aria-expanded={open}><Files size={15} />{open ? t.diff.hideTree : t.diff.showTree}</Button></CollapsibleTrigger></div>
-    <CollapsibleContent asChild forceMount hidden={!open}><nav className="diff-tree" aria-label={t.diff.showTree}><Tree rows={rows.filter(r => r.kind)} current={current} onPick={onPick} /></nav></CollapsibleContent>
-    <div className="diff-selection">{children}</div>
+    <CollapsibleContent asChild forceMount hidden={!open}><nav className="diff-tree" aria-label={t.diff.showTree}><Tree rows={rows.filter(r => r.kind && !r.dir)} current={current} onPick={(path) => { onPick(path); setPicked(n => n + 1); }} /></nav></CollapsibleContent>
+    <div className="diff-selection" ref={selection}>{children}</div>
   </div></Collapsible>;
 }
 

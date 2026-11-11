@@ -4,7 +4,7 @@
 
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { type CardDiff, type DiffPart, diffSize, type FolderChange, shownChanges, splitDiff } from '../core/diff';
-import { changeRows } from '../core/files';
+import { diffRows } from '../core/files';
 import { DiffTreeLayout } from './diff-tree';
 import type { Item } from '../core/types';
 import { api } from './api';
@@ -135,17 +135,15 @@ export function DiffView({ item, file, onClose, onRead }: { item: Item; file?: s
   }, [item.id]);
   const got = diff === 'failed' ? null : diff;
   const folder = got?.folder;
-  // in a folder, only text files whose earlier version Seismic kept have lines to show
   // split once per patch text, so a file's diff keeps what the owner expanded across re-renders
   const patch = got?.patch;
   const split = useMemo(() => (patch === undefined ? [] : splitDiff(patch)), [patch]);
-  const all = got ? split.filter((p) => !folder || p.lines.some((l) => l.startsWith('@@'))) : [];
-  // one file's diff while it is there; a file without one (cut off, say) shows the whole
+  const all = got ? split : [];
+  // A selected file never falls back to unrelated changes when its patch was cut off.
   const one = only ? all.find((p) => p.file === only) : undefined;
-  const parts = one ? [one] : all;
+  const parts = only ? (one ? [one] : []) : all;
   // one file's size stands in its own header
   const size = !one && got && diffSize(got.files);
-  const go = (file: string) => document.getElementById(anchor(file))?.scrollIntoView({ block: 'start' });
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="d-sheet" layerClassName="diff-view z-1000 items-stretch justify-center px-[3vw] py-[3vh]">
@@ -163,7 +161,7 @@ export function DiffView({ item, file, onClose, onRead }: { item: Item; file?: s
                 <Lines n={size} />
               </>
             )}
-            {one && (
+            {only && (
               <>
                 {' · '}
                 <LinkButton onClick={() => setOnly(undefined)}>
@@ -178,11 +176,12 @@ export function DiffView({ item, file, onClose, onRead }: { item: Item; file?: s
         <div className="d-body">
           {diff === null && <p className="hint">{t.diff.loading}</p>}
           {diff === 'failed' && <p className="hint">{t.diff.failed}</p>}
-          {folder && !one && folder.undo && <p className="hint">{t.folder.undoHint[folder.undo]}</p>}
-          {folder && !one && <ChangeTable changes={shownChanges(folder.changes)} diffed={(c) => all.some((p) => p.file === c.path)} onFile={go} />}
+          {folder && !only && folder.undo && <p className="hint">{t.folder.undoHint[folder.undo]}</p>}
+          {folder && !only && <ChangeTable changes={shownChanges(folder.changes)} diffed={(c) => all.some((p) => p.file === c.path)} onFile={setOnly} />}
           {got && (
             <>
-              <DiffTreeLayout rows={changeRows(got)} current={one?.file} onPick={(file) => setOnly(file)}>
+              <DiffTreeLayout rows={diffRows(got)} current={only} onPick={(file) => setOnly(file)}>
+              {only && !one && <p className="hint">{t.files.noDiff}</p>}
               {parts.map((p) => (
                 <FileDiff key={p.file} part={p} card={item.id} />
               ))}

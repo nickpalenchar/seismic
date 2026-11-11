@@ -6,8 +6,8 @@
 import { ChevronDown, ChevronUp, Database } from 'lucide-react';
 import { cn } from 'cn';
 import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { type CardDiff, diffSize, shownChanges, splitDiff } from '../core/diff';
-import { type ChangeRow, changeRows, imageAt, type ShownFile } from '../core/files';
+import { type CardDiff, diffSize, splitDiff } from '../core/diff';
+import { type ChangeRow, changeRows, diffRows, imageAt, type ShownFile } from '../core/files';
 import type { Item } from '../core/types';
 import { DiffTreeLayout } from './diff-tree';
 import { api, cardFile } from './api';
@@ -56,6 +56,7 @@ function useChange(item: Item, given: CardDiff | null | undefined): CardDiff | n
 export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: Item; diff?: CardDiff | null; demo: ReactNode; review?: { label: ReactNode; title?: string; panel: ReactNode }; tab: string | null; onTab: (path: string) => void }) {
   const change = useChange(item, diff);
   const rows = changeRows(change, item.demo?.files);
+  const changedRows = diffRows(change);
   const files = rows.flatMap((r) => (r.file ? [r.file] : []));
   const named = files.filter((f) => f.caption !== undefined);
   const schema = (f: ShownFile) => f.kind === 'page' && /(^|\/)[^/]*schema[^/]*\.html?$/i.test(f.path);
@@ -65,7 +66,7 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
     ...named.filter((f) => !schema(f)).map((f) => ({ path: f.path, label: label(f), title: f.caption })),
     ...named.filter(schema).map((f) => ({ path: f.path, label: label(f), title: f.caption })),
     ...(review ? [{ path: REVIEW, label: review.label, ...(review.title ? { title: review.title } : {}) }] : []),
-    ...(rows.some(r => r.kind) ? [{ path: DIFF, label: t.files.tabs.diff }] : []),
+    ...(changedRows.length ? [{ path: DIFF, label: t.files.tabs.diff }] : []),
   ];
   const current = tabs.some((t) => t.path === tab) ? tab : tabs[0]?.path;
   const [wholeDiff, setWholeDiff] = useState(false);
@@ -88,16 +89,15 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
   const [picked, setPicked] = useState(0);
   useEffect(() => {
     if (!picked) return;
-    const view = box.current?.querySelector('.r-file');
+    const view = box.current?.querySelector(`#${FILE_PANEL}`);
     if (view && !seen(view)) view.scrollIntoView({ block: 'start', behavior: scrollBehavior() });
   }, [picked]);
   if (!tabs.length) return item.demo?.files && change ? <p className="hint">{t.files.none}</p> : null;
   const inDiff = current === DIFF;
-  const changedRows = rows.filter(r => r.kind);
   const selected = changedRows.some(r => r.path === pickedFile) ? pickedFile : changedRows[0]?.path;
   const path = inDiff ? selected : current === REVIEW ? null : current;
   const file = files.find((f) => f.path === path);
-  const count = change?.folder ? shownChanges(change.folder.changes).length : (change?.files.length ?? 0);
+  const count = changedRows.length;
   return (
     <Tabs value={current ?? ''} onValueChange={onTab} className="results" ref={box} style={tallest ? { minHeight: tallest } : undefined}>
       {/* deliverables stay in front; the change list has its own tab */}
@@ -128,9 +128,9 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
               <FileView
                 key={`${file.path}:${rev}`}
                 item={item}
-                file={{ ...file, diff: !change?.folder || file.diff }}
+                file={{ ...file, diff: true }}
                 rev={rev}
-                changes={(!change?.folder || file.diff) && (asChanges[file.path] ?? true)}
+                changes={asChanges[file.path] ?? true}
                 onChanges={(c) => setAsChanges({ ...asChanges, [file.path]: c })}
               />
               )}

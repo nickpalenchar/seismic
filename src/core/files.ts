@@ -129,6 +129,13 @@ export function changeRows(diff: CardDiff | null, named: CardFile[] = []): Chang
   return [...shown, ...all.filter((r) => !shown.some((s) => s.path === r.path)).map(strip)];
 }
 
+/** File-only diff navigation, including files beneath a deleted directory summary. */
+export function diffRows(diff: CardDiff | null): ChangeRow[] {
+  return diff?.folder
+    ? diff.folder.changes.filter((row) => !row.dir)
+    : changeRows(diff).filter((row) => row.kind && !row.dir);
+}
+
 /** A path as the change list writes it: relative, with `/`, without `.` and `..` steps; null for one that leaves the root. */
 export function normalPath(path: string): string | null {
   const out: string[] = [];

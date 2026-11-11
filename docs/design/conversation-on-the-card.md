@@ -296,9 +296,10 @@ the change list above them. Named files show their contents first, with the capt
 The Diff tab shows only changed files in an expandable directory tree, with added, deleted,
 modified and moved badges. Selecting a file shows its changes, including deletions and binary or
 rename-only changes. The first changed file opens initially. The tree can be hidden or shown;
-it opens automatically when the diff has enough width (including when the conversation is
-collapsed). In narrower views and on phones the diff comes first, with the expanded tree below
-it. Directory branches fold independently. Named deliverables without changes stay in their
+it starts expanded beside wide diffs (including when the conversation is collapsed). In narrower
+views and on phones the diff comes first, with the expanded tree below it. Choosing a file from
+that lower tree brings its changes back into view. Directory branches fold independently; directory
+change records are not selectable files, while their changed files remain in the tree. Named deliverables without changes stay in their
 result tabs and never enter this tree. Markdown shows formatted (with its images), a PDF in the browser's
 viewer (on a phone, and where the browser has none, its pages drawn by pdf.js one under the other
 as wide as the column), an image as is, an HTML page as an HTML artifact, text and code as text; anything else as a

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { CardDiff } from './diff';
-import { changeRows, docImages, fileKind, imageAt, normalPath, shownFiles } from './files';
+import { changeRows, diffRows, docImages, fileKind, imageAt, normalPath, shownFiles } from './files';
 
 const folder: CardDiff = {
   source: 'folder',
@@ -140,4 +140,17 @@ describe('paths and the images of a Markdown file', () => {
     const md = '# R\n\n![Chart](chart.png) and ![](<sub/two.jpg> "Title")\n\n[a link](other.md) ![web](https://x.org/a.png) ![x](notes.txt)';
     expect(docImages('docs/r.md', md)).toEqual(['docs/chart.png', 'docs/sub/two.jpg']);
   });
+});
+
+test('diff navigation keeps file changes beneath directory summaries, never directories or unchanged deliverables', () => {
+  const change: CardDiff = { source: 'folder', files: [], folder: { undo: null, changes: [
+    { kind: 'deleted', path: 'old', dir: true },
+    { kind: 'deleted', path: 'old/readme.md' },
+    { kind: 'added', path: 'new.txt' },
+    { kind: 'moved', path: 'renamed.txt', from: 'before.txt' },
+    { kind: 'modified', path: 'image.png' },
+  ] } };
+  expect(diffRows(change).map(r => r.path)).toEqual(['old/readme.md', 'new.txt', 'renamed.txt', 'image.png']);
+  expect(diffRows(branch).map(r => r.path)).toEqual(expect.arrayContaining(['docs/old.md', 'docs/new-name.md', 'bin/tool.o']));
+  expect(diffRows(null)).toEqual([]);
 });
