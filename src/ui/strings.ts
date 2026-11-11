@@ -1092,6 +1092,7 @@ const en = {
       '2026-11-06-seismic': 'The app is now called Seismic: new name and logo in the header and footer.',
       '2026-11-06-theme': 'Seismic theme styling for demo sites: Tron colours, glowing titles and sleek layout in light and dark mode.',
       '2026-11-07-inter': 'The Inter font is now built into the page, so it looks the same on every device.',
+      '2026-11-11-close-icon': 'An enlarged image has a drawn X icon on its close button instead of a typed ×.',
       '2026-10-30-steady':
         'The artifact’s frame takes the page’s height at once and keeps it: for a page of images as wide as itself, it jumped between two heights for a second as it opened, and a short page stood in a frame too high for it.',
       theme: 'Theme changed: the repository’s .obeya/theme.css is new, different or removed.',

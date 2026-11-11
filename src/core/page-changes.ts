@@ -36,6 +36,7 @@ export const PAGE_CHANGES = [
   { id: '2026-11-06-seismic', kinds: ['video', 'html'] },
   { id: '2026-11-06-theme', kinds: ['video', 'html'] },
   { id: '2026-11-07-inter', kinds: ['video', 'html'] },
+  { id: '2026-11-11-close-icon', kinds: ['html'] },
 ] as const satisfies readonly PageChange[];
 
 export type KnownChange = (typeof PAGE_CHANGES)[number];
