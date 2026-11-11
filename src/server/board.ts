@@ -61,7 +61,6 @@ import {
   type ProposedSetting,
   type SettingProposal,
   type SettingProposalState,
-  type Talk,
   type PrReviewEntry,
   type PrWait,
   type PullRequest,
