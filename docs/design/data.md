@@ -84,8 +84,8 @@ Persistent (SQLite):
   state that decides whether a card needs the owner (`needsYou`): a target that waits and has no
   open row gets one, dated by that reconcile (an answer by when it came, not by when the owner asked); an open row whose kind or digest changed
   counts as updated; an open row whose target no longer waits ends. Each reconcile that writes
-  takes a time after the one before, and answers are told apart by the order Seismic saw them come
-  in, not by the clock: two changes within one millisecond keep their order. A card moved, relabelled or
+  takes a time after the one before, and the Koordinator's answers are told apart by the order they were written in
+  (their arrival sequence), not by the clock or by what a reconcile saw: two changes within one millisecond keep their order. A card moved, relabelled or
   snoozed changes nothing but the last: a snooze ends the wait, as the card leaves the inbox;
 - card events (the conversation log, with the owner's screenshots and agents' mocks, and the
   producing agent's harness and model when known); the Koordinator's replies and looked-up answers
