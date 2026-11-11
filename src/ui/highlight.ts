@@ -6,6 +6,7 @@
 import { createHighlighterCore, type HighlighterCore } from 'shiki/core';
 import { createJavaScriptRegexEngine } from 'shiki/engine/javascript';
 import { bundledLanguages } from 'shiki/langs';
+import { bundledThemes } from 'shiki/themes';
 
 /** A run of a line's text in one colour: `style` sets `--shiki-light` and `--shiki-dark`. */
 export interface Token {
@@ -31,7 +32,7 @@ let shiki: Promise<HighlighterCore> | undefined;
 
 function highlighter() {
   shiki ??= createHighlighterCore({
-    themes: [import('shiki/themes/github-light.mjs'), import('shiki/themes/github-dark.mjs')],
+    themes: [bundledThemes['github-light'](), bundledThemes['github-dark']()],
     langs: [],
     engine: createJavaScriptRegexEngine({ forgiving: true }),
   });
