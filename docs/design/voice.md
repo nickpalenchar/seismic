@@ -4,9 +4,8 @@ A chapter of the [design doc](../design.md), whose header says how it is written
 
 ### Voice in
 
-Push-to-talk: hold Space in Seismic's window, or on the phone its mic button. A button, link or tab
-focused with the keyboard keeps Space for itself (it presses it, as Enter does); one focused by a click
-does not, so Space still talks right after a click. The browser records
+Push-to-talk: hold Space in Seismic's window, or on the phone its mic button. A button, tab, option or disclosure that has focus, however it got it, keeps Space for itself (it presses it,
+as Enter does); Space talks while nothing like that is focused. The browser records
 and posts the audio with its focus (the open card, the plan in view). The desktop has no microphone
 button at the bottom, where the view switcher stands (see The view switcher in The canvas): the
 while Space is held a microphone with the level shows above the switcher. Screenshots pasted (⌘V) with no field
