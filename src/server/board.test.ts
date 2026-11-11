@@ -1008,6 +1008,31 @@ describe('owner-drawn dependencies', () => {
   });
 });
 
+test('a snooze cannot close a cycle through queued or drawn dependencies', () => {
+  const a = board.create({ title: 'A', x: 0, y: 0 });
+  const b = board.create({ title: 'B', x: 0, y: 0 });
+  const c = board.create({ title: 'C', x: 0, y: 0 });
+  const on = (id: string, title: string) => ({ on: { card: id, title, state: 'done' as const }, by: 'agent' as const });
+  board.work(a.id, { state: 'working' });
+  board.work(b.id, { queue: JSON.stringify({ behind: [a.id], since: new Date().toISOString() }) });
+  board.connect(b.id, c.id);
+
+  expect(refusal(() => board.snooze(a.id, on(b.id, 'B')))).toBe('dependencyCycle');
+  expect(refusal(() => board.snooze(a.id, on(c.id, 'C')))).toBe('dependencyCycle');
+  expect(board.snoozedOf(a.id)).toBeNull();
+  expect(board.events(a.id).some((e) => e.text.includes('Snoozed'))).toBe(false);
+
+  board.snooze(c.id, on(a.id, 'A'));
+  expect(board.snoozedOf(c.id)?.on?.card).toBe(a.id);
+  expect(refusal(() => board.snooze(c.id, { by: 'agent', until: new Date(Date.now() + 86_400_000).toISOString() }))).toBeUndefined();
+
+  const d = board.create({ title: 'D', x: 0, y: 0 });
+  const e = board.create({ title: 'E', x: 0, y: 0 });
+  board.snooze(d.id, on(e.id, 'E'));
+  expect(refusal(() => board.snooze(e.id, on(d.id, 'D')))).toBe('dependencyCycle');
+  expect(refusal(() => board.snooze(e.id, on(e.id, 'E')))).toBe('dependencyCycle');
+});
+
 test("a deleted card's arrows count for nothing until it is restored, and come back without closing a cycle", () => {
   const a = board.create({ title: 'A', x: 0, y: 0 });
   const x = board.create({ title: 'X', x: 0, y: 0 });

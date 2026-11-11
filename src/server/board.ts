@@ -2235,6 +2235,8 @@ export class Board {
    * paused worker's card the owner snoozes while it waits for them, which is paused again once it wakes.
    */
   snooze(cardId: string, s: Snooze & { held?: HeldMessage[] }, by: 'agent' | 'owner' = s.by) {
+    if (s.on && closesCycle(s.on.card, cardId, this.manualDependencies().map(([from, to]): [string, string] => [from, to]), this.snapshot().items))
+      throw new BadRequest('dependencyCycle', 'dependency cycle');
     const before = this.holdOf(cardId);
     const held = s.held ?? (before?.reason === 'snoozed' ? before.held : before?.reason === 'paused' || before?.reason === 'limit' ? (before.held ?? []) : undefined);
     const hold: Hold = { ...s, reason: 'snoozed', since: before?.reason === 'snoozed' ? before.since : new Date().toISOString(), ...(held ? { held } : {}) };

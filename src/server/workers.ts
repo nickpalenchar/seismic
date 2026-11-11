@@ -5286,10 +5286,15 @@ export class Workers {
             if (now) return `Not snoozed: the card “${found.title}” cannot get there now (${now}).`;
             on = { card: found.id, title: found.title, state: awaits };
           } else if (!named) return 'Not snoozed: give until, card, or both.';
+          const s: Snooze = { ...(named ? { until: new Date(at).toISOString() } : {}), ...(on ? { on } : {}), by: 'agent', ...(String(why).trim() ? { why: clip(String(why).trim(), 200) } : {}) };
+          try {
+            this.o.board.snooze(cardId, s);
+          } catch (e) {
+            if (e instanceof BadRequest && e.code === 'dependencyCycle') return 'Not snoozed: that card already waits for this one, directly or through another card.';
+            throw e;
+          }
           live.snoozed = true;
           live.nudged = false;
-          const s: Snooze = { ...(named ? { until: new Date(at).toISOString() } : {}), ...(on ? { on } : {}), by: 'agent', ...(String(why).trim() ? { why: clip(String(why).trim(), 200) } : {}) };
-          this.o.board.snooze(cardId, s);
           return ending(
             `Snoozed until ${snoozedUntil(s)}. End your turn now; Seismic resumes this session then.`,
             `Snoozed until ${snoozedUntil(s)}: Seismic resumes this session then.`,

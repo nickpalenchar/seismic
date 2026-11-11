@@ -182,6 +182,8 @@ in three days), the card leaves the count of what waits for the owner as one the
 and can be approved meanwhile, which ends the snooze; woken, the worker is at work on it again. Its instructions send waits longer than a background command's two hours, and waits for
 another card, to `snooze`; checkpoints are one snooze after another. Idea and Question cards' agents
 have no such tool.
+Waiting on another card is refused when that card already depends on the snoozing card, through the
+queue, a drawn arrow, another snooze, or a chain of these. The worker can choose another time or card.
 
 The owner snoozes with "Later" (a visible button with a clock in the action row; by voice "snooze
 this until tomorrow morning"): this evening 18:00 (while more than half an hour off), tomorrow 08:00,

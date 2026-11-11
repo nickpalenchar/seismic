@@ -1855,6 +1855,18 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
     expect(board.item(c.id)?.hold?.reason).not.toBe('snoozed');
   });
 
+  test('a worker is told when snoozing would trap a queued card behind it', async () => {
+    const a = await atWork();
+    const b = board.create({ title: 'Next task', x: 0, y: 0 });
+    board.work(b.id, { queue: JSON.stringify({ behind: [a.id], since: new Date().toISOString() }) });
+    const answer = await runtime.last.call('snooze', { card: 'Next task', why: 'wait for it' });
+    expect(answer).toContain('Not snoozed: that card already waits for this one');
+    expect(board.snoozedOf(a.id)).toBeNull();
+    const next = await runtime.last.call('snooze', { until: new Date(Date.now() + 86_400_000).toISOString(), why: 'check later' });
+    expect(next).toContain('Snoozed until');
+    expect(board.snoozedOf(a.id)?.until).toBeDefined();
+  });
+
   test('a worker about to pause when Seismic restarts stays paused after it', async () => {
     const c = await atWork();
     workers.pauseAtSafePoint(c.id);
