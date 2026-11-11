@@ -40,19 +40,23 @@ function copyLines(e: ClipboardEvent<HTMLPreElement>) {
   const selection = getSelection();
   if (!selection || selection.isCollapsed || !selection.rangeCount) return;
   const range = selection.getRangeAt(0);
-  const side = (content: Element) => {
-    const line = content.closest('[data-slot=code-block-line]');
-    const row = line?.parentElement;
-    return row?.dataset.slot === 'code-block-split-row' ? [...row.children].indexOf(line!) : -1;
+  /** Which side of a split row a node is on (0 old, 1 new); -1 outside a split row, null outside any line. */
+  const side = (node: Node | null) => {
+    const line = (node instanceof Element ? node : node?.parentElement)?.closest('[data-slot=code-block-line]');
+    if (!line) return null;
+    const row = line.parentElement;
+    return row?.dataset.slot === 'code-block-split-row' ? [...row.children].indexOf(line) : -1;
   };
   // the empty side of a split row is no line of that file
   const picked = [...e.currentTarget.querySelectorAll('[data-slot=code-block-line]:not([data-variant=absent]) > [data-slot=code-block-line-content]')].filter((c) =>
     range.intersectsNode(c),
   );
   if (!picked.length) return;
-  const first = side(picked[0]!);
+  // the side the owner started dragging on, whichever way they dragged (a range always runs forward,
+  // so its first line can lie on the other side of a row above); from between two hunks, the first line's
+  const from = side(selection.anchorNode) ?? side(picked[0]!);
   const text = picked
-    .filter((c) => side(c) === first)
+    .filter((c) => side(c) === from)
     .map((content) => {
       const part = document.createRange();
       part.selectNodeContents(content);

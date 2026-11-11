@@ -16,12 +16,20 @@ import { t } from './strings';
 /** The whole old and new file, once the owner expanded: `loading` meanwhile, `failed` when they could not be read. */
 type Whole = { old: string[]; new: string[] } | 'loading' | 'failed' | null;
 
-/** A line's tokens by its number, on each side. */
+/** A line's tokens by its number, on each side; empty where the highlighting failed. */
 interface Painted {
-  of: Whole;
   old: Map<number, Token[]>;
   new: Map<number, Token[]>;
+  failed?: true;
 }
+
+/** A value an answer brought for one file's diff: `key` names that diff, so an answer that arrives once another is shown is never taken for it. */
+interface For<T> {
+  key: string;
+  value: T;
+}
+
+const NONE: ReadonlySet<number> = new Set();
 
 export default function CodeDiff({ part, card, style }: { part: DiffPart; card: string; style: DiffStyle }) {
   // Everything below follows the patch's text, not the object carrying it: a parent that splits the
@@ -32,10 +40,14 @@ export default function CodeDiff({ part, card, style }: { part: DiffPart; card: 
   const hunks = useMemo(() => parseHunks(text.split('\n')), [text]);
   const ends = useMemo(() => endsFile(hunks), [hunks]);
   const changed = part.status === 'modified' || part.status === 'renamed';
+  // Every answer below (the probe, the whole files, the highlighting) is kept with the diff it was
+  // asked for; one that comes back after the card, the file or its patch changed is never shown.
+  const key = `${card}\n${file}\n${text}`;
   // A file is offered its unchanged lines once its whole text is known to be there: a probe, as the
   // file comes near the screen, carries no file; the files themselves are fetched when the owner
   // expands. A file whose text cannot be shown keeps its folded lines as a count.
-  const [expandable, setExpandable] = useState(false);
+  const [probe, setProbe] = useState<For<boolean>>();
+  const expandable = probe?.key === key && probe.value;
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = box.current;
@@ -45,8 +57,8 @@ export default function CodeDiff({ part, card, style }: { part: DiffPart; card: 
       ([e]) => {
         if (!e?.isIntersecting) return;
         look.disconnect();
-        api.hasVersions(card, part.file).then(
-          (ok) => !gone && setExpandable(ok),
+        api.hasVersions(card, file).then(
+          (ok) => !gone && setProbe({ key, value: ok }),
           () => {},
         );
       },
@@ -57,32 +69,35 @@ export default function CodeDiff({ part, card, style }: { part: DiffPart; card: 
       gone = true;
       look.disconnect();
     };
-  }, [text, file, card, changed]);
+  }, [key, card, file, changed]);
 
-  const [whole, setWhole] = useState<Whole>(null);
-  const [shown, setShown] = useState<ReadonlySet<number>>(new Set());
-  useEffect(() => {
-    setWhole(null);
-    setShown(new Set());
-  }, [text, file]);
+  const [wholeFor, setWholeFor] = useState<For<Whole>>();
+  const whole = wholeFor?.key === key ? wholeFor.value : null;
+  const [shownFor, setShownFor] = useState<For<ReadonlySet<number>>>();
+  const shown = shownFor?.key === key ? shownFor.value : NONE;
   const expand = (i: number) => {
-    setShown((s) => new Set(s).add(i));
+    const asked = key;
+    setShownFor((s) => ({ key: asked, value: new Set(s?.key === asked ? s.value : NONE).add(i) }));
     if (whole !== null && whole !== 'failed') return;
-    setWhole('loading');
-    api.versions(card, part.file).then(
-      (v) => setWhole(v && v.old !== null && v.new !== null ? { old: splitLines(v.old), new: splitLines(v.new) } : 'failed'),
-      () => setWhole('failed'),
+    setWholeFor({ key: asked, value: 'loading' });
+    // the answer goes only where the same diff still waits for it
+    const settle = (value: Whole) => setWholeFor((w) => (w?.key === asked ? { key: asked, value } : w));
+    api.versions(card, file).then(
+      (v) => settle(v && v.old !== null && v.new !== null ? { old: splitLines(v.old), new: splitLines(v.new) } : 'failed'),
+      () => settle('failed'),
     );
   };
   const files = typeof whole === 'object' ? whole : null;
 
   // Highlighting: the hunks' lines on each side until the whole files are there, then the files,
   // so the unchanged lines shown between hunks are coloured too and the grammar runs through.
-  const [painted, setPainted] = useState<Painted>();
-  const [paintFailed, setPaintFailed] = useState(false);
+  const [paintedFor, setPaintedFor] = useState<For<Painted>>();
+  const painted = paintedFor?.key === key ? paintedFor.value : undefined;
+  const paintFailed = !!painted?.failed;
   useEffect(() => {
     let gone = false;
-    loadTokenizer(languageOf(part.file)).then(
+    const setPainted = (value: Painted) => setPaintedFor({ key, value });
+    loadTokenizer(languageOf(file)).then(
       (tokenize) => {
         if (gone || !tokenize) return;
         const side = (lines: string[], numbers: number[]) => {
@@ -90,20 +105,20 @@ export default function CodeDiff({ part, card, style }: { part: DiffPart; card: 
           return new Map(numbers.map((n, i) => [n, tokens[i] ?? []]));
         };
         if (files) {
-          setPainted({ of: files, old: side(files.old, files.old.map((_, i) => i + 1)), new: side(files.new, files.new.map((_, i) => i + 1)) });
+          setPainted({ old: side(files.old, files.old.map((_, i) => i + 1)), new: side(files.new, files.new.map((_, i) => i + 1)) });
         } else {
           const all = hunks.flatMap((h) => h.lines);
           const olds = all.filter((l) => l.old !== undefined && l.kind !== 'added');
           const news = all.filter((l) => l.new !== undefined && l.kind !== 'removed');
-          setPainted({ of: null, old: side(olds.map((l) => l.text), olds.map((l) => l.old!)), new: side(news.map((l) => l.text), news.map((l) => l.new!)) });
+          setPainted({ old: side(olds.map((l) => l.text), olds.map((l) => l.old!)), new: side(news.map((l) => l.text), news.map((l) => l.new!)) });
         }
       },
-      () => !gone && setPaintFailed(true),
+      () => !gone && setPainted({ old: new Map(), new: new Map(), failed: true }),
     );
     return () => {
       gone = true;
     };
-  }, [file, hunks, files]);
+  }, [key, file, hunks, files]);
 
   if (!hunks.length) return null;
   const tokensOf = (line: DiffLine) => (line.kind === 'removed' ? painted?.old.get(line.old!) : painted?.new.get(line.new!));
