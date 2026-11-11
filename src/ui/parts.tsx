@@ -656,6 +656,8 @@ export function WorkstationsPill({ pools, project, projects, items, underway, on
   const full = pools.every((p) => !uncapped(p) && free(p) === 0);
   // the machines a pool names: those with clones, worktrees without a cap or a clone's folder kept, and every other machine than this one
   const named = (p: ClonePool) => p.hosts.filter((h) => h.total > 0 || h.uncapped || !h.here || h.kept?.length);
+  const hasDots = pools.some((p) => named(p).some((h) => hostDots(h, items, underway).length > 0));
+  const summary = pools.map((p) => uncapped(p) ? t.workstations.uncapped(p.hosts.reduce((n, h) => n + h.busy.length, 0)) : t.workstations.free(free(p), total(p), blockedIn(p))).join(', ');
   const opened = (go: () => void) => {
     pop.close({ restoreFocus: false });
     go();
@@ -663,16 +665,16 @@ export function WorkstationsPill({ pools, project, projects, items, underway, on
   return (
     <Popover {...pop.root}>
       <BarPill variant="flat" className="relative p-0" id="workstations">
-        <PopoverTrigger className={statusFace} {...pop.hover} {...pop.trigger}>
-        <span>{t.workstations.label}</span>
+        <PopoverTrigger aria-label={`${t.workstations.label}: ${summary}`} className={statusFace} {...pop.hover} {...pop.trigger}>
+        <span className={cn(hasDots && 'hidden lg:inline')}>{t.workstations.label}</span>
         {pools.map((p) => {
           const hosts = named(p);
           return (
             <span key={p.repo} className="flex items-center gap-1.5">
-              {several && <span className="hint">{name(p.repo)}</span>}
+              {several && <span className="hint hidden lg:inline">{name(p.repo)}</span>}
               {hosts.map((h) => (
                 <span key={h.name} className="flex items-center gap-[5px]">
-                  {hosts.length > 1 && <span className="hint">{h.name}</span>}
+                  {hosts.length > 1 && <span className="hint hidden lg:inline">{h.name}</span>}
                   <span className="flex gap-[3px]" aria-hidden>
                     {hostDots(h, items, underway).map((d, i) => (
                       <WorkstationMark key={i} dot={d} />
@@ -680,12 +682,12 @@ export function WorkstationsPill({ pools, project, projects, items, underway, on
                   </span>
                 </span>
               ))}
-              <b className={cn(full && 'text-waiting')}>{uncapped(p) ? t.workstations.uncapped(p.hosts.reduce((n, h) => n + h.busy.length, 0)) : t.workstations.free(free(p), total(p), blockedIn(p))}</b>
-              {blockedIn(p) > 0 && <b className="text-waiting">{t.workstations.blockedCount(blockedIn(p))}</b>}
+              <b className={cn('hidden lg:inline', full && 'text-waiting')}>{uncapped(p) ? t.workstations.uncapped(p.hosts.reduce((n, h) => n + h.busy.length, 0)) : t.workstations.free(free(p), total(p), blockedIn(p))}</b>
+              {blockedIn(p) > 0 && <b className="text-waiting hidden lg:inline">{t.workstations.blockedCount(blockedIn(p))}</b>}
             </span>
           );
         })}
-        <span className="hint">▾</span>
+        <span className="hint hidden lg:inline">▾</span>
         </PopoverTrigger>
       </BarPill>
       <PopoverContent
@@ -696,6 +698,7 @@ export function WorkstationsPill({ pools, project, projects, items, underway, on
         {...pop.hover}
         {...pop.content}
       >
+        <p className="lg:hidden"><b>{t.workstations.label}</b> · {summary}</p>
         {pools.map((p) => (
           <div key={p.repo} className="flex flex-col gap-1.5">
             {several && (
@@ -769,7 +772,7 @@ function wsDot(w: PoolWorkstation | undefined, host: PoolHost, items: Item[], un
   if (item?.hold?.reason === 'restart') return { className: 'block text-[var(--restart)]', paused: true };
   if (!tone) return { className: cn(dot, 'bg-[color-mix(in_srgb,var(--working)_35%,transparent)]') };
   return {
-    className: cn(dot, 'bg-[var(--c)]', PULSING.has(tone) && 'animate-[ws-pulse_2.4s_ease-in-out_infinite] motion-reduce:animate-none'),
+    className: cn(dot, 'bg-[var(--c)]', PULSING.has(tone) && 'animate-[ws-pulse_3.6s_ease-in-out_infinite] motion-reduce:animate-none'),
     style: { '--c': `var(--${tone})` } as CSSProperties,
   };
 }

@@ -2463,3 +2463,16 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 /* Dock views that remain usable beside an unfolded card. */
 .sheet.beside-card { z-index: 31; }
 :is(#sheet-close, #sheet-grip).beside-card { z-index: 32; }
+
+/* a workstation's dot while its card is at work, in review or landing */
+@keyframes ws-pulse {
+  0%, 100% {
+    background-color: color-mix(in srgb, var(--c) 60%, var(--background));
+    box-shadow: 0 0 1px color-mix(in srgb, var(--c) 10%, transparent);
+  }
+  50% {
+    background-color: var(--c);
+    box-shadow: 0 0 5px color-mix(in srgb, var(--c) 40%, transparent);
+  }
+}
+
