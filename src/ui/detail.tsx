@@ -52,6 +52,7 @@ import { claudeLoginFailed } from '../core/login';
 import { Reauthenticate } from './reauthenticate';
 import { describeAgent, StartAgent } from './start-agent';
 import type { AgentSetting } from '../core/types';
+import { ButtonGroup } from './components/button-group';
 import { Button, type ButtonVariant, CloseButton, LinkButton } from './components/button';
 import { ConfirmDialog } from './components/dialog';
 import { Select, SelectItem } from './components/select';
@@ -848,10 +849,10 @@ export function Detail(p: Props) {
             )
           )}
           {/* a suggested card it cannot merge with can still be dismissed */}
-          {duplicatePartner && <span className="duplicate-merge-actions">
-            {mergeableWith(item, duplicatePartner) && <Button className="duplicate-attempt rounded-none first:rounded-l-[3px] last:rounded-r-[3px]" onClick={() => act({ action: 'merge', with: duplicatePartner.id }, { close: false })}>{t.duplicate.attempt}</Button>}
-            <Button className="duplicate-dismiss rounded-none first:rounded-l-[3px] last:rounded-r-[3px]" onClick={() => act({ action: 'dismissDuplicate' }, { close: false })}>{t.duplicate.dismiss}</Button>
-          </span>}
+          {duplicatePartner && <ButtonGroup className="duplicate-merge-actions">
+            <Button className="duplicate-attempt" disabled={!mergeableWith(item, duplicatePartner)} onClick={() => act({ action: 'merge', with: duplicatePartner.id }, { close: false })}>{t.duplicate.attempt}</Button>
+            <Button className="duplicate-dismiss" onClick={() => act({ action: 'dismissDuplicate' }, { close: false })}>{t.duplicate.dismiss}</Button>
+          </ButtonGroup>}
           <Later item={item} act={act} />
           {prototypeActions}
           {item.source === 'manual' && !item.idea?.prototypeOf && (
