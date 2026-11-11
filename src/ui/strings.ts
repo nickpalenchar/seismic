@@ -2122,7 +2122,7 @@ const en = {
       const you = owner.length === 2 ? 'your video and dictation' : owner[0] === 'video' ? 'your video' : 'your dictation';
       return `${reason === 'stop' ? 'Shutdown' : reason === 'update' ? 'Update' : 'Restart'} waits for ${!owner.length ? agents : n ? `${agents} and ${you}` : you}`;
     },
-    until: (time: string) => `at the latest ${time}`,
+    until: (time: string) => `deadline: ${time}`,
     reason: {
       code: 'There is new code on main that Seismic restarts with.',
       config: 'The configuration was saved; Seismic restarts with it.',
