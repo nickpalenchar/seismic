@@ -760,7 +760,7 @@ const PULSING = new Set(['working', 'reviewing', 'approved']);
 type WorkstationDot = { className: string; style?: CSSProperties; paused?: boolean };
 
 function WorkstationMark({ dot, className }: { dot: WorkstationDot; className?: string }) {
-  const props = { className: cn('size-2 shrink-0', className, dot.className), style: dot.style, 'aria-hidden': true } as const;
+  const props = { className: cn('shrink-0', dot.paused ? 'size-2' : 'size-2.5', className, dot.className), style: dot.style, 'aria-hidden': true } as const;
   return dot.paused ? <Pause {...props} size={8} fill="currentColor" strokeWidth={2} /> : <i {...props} />;
 }
 

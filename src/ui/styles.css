@@ -2466,15 +2466,17 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 
 /* Keep a dot's outline steady while its fill and glow pulse. */
 .ws-dot { box-sizing: border-box; border: 1px solid #6b7280; }
-.ws-active { position: relative; animation: ws-pulse 3.6s ease-in-out infinite; }
+.ws-active { position: relative; animation: ws-pulse 3.6s linear infinite; }
 @keyframes ws-pulse {
-  0%, 100% {
-    background-color: color-mix(in srgb, var(--c) 30%, var(--background));
-    box-shadow: 0 0 1px color-mix(in srgb, var(--c) 10%, transparent);
-  }
-  50% {
+  0%, 35%, 100% {
     background-color: var(--c);
     box-shadow: 0 0 6px color-mix(in srgb, var(--c) 60%, transparent);
+    animation-timing-function: cubic-bezier(.65, 0, 1, 1);
+  }
+  85% {
+    background-color: color-mix(in srgb, var(--c) 30%, var(--background));
+    box-shadow: 0 0 1px color-mix(in srgb, var(--c) 10%, transparent);
+    animation-timing-function: cubic-bezier(.1, .8, .2, 1);
   }
 }
 @media (prefers-reduced-motion: reduce) {
