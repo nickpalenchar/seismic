@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { keep, type Kept, leaveSheet, takeKept, takeSheetLeft } from './keep';
+import { keep, type Kept, leaveSheet, settleUntil, takeKept, takeSheetLeft } from './keep';
 
 const store = () => {
   const m = new Map<string, string>();
@@ -30,4 +30,11 @@ test("Seismic's sheet left open over a draft opens again on its project, closed 
   leaveSheet(s, 'obeya', true);
   leaveSheet(s, 'obeya', false);
   expect(takeSheetLeft(s, 'obeya')).toBe(false);
+});
+
+test('a box whose content is still too short is put back for longer, but not for ever', () => {
+  expect(settleUntil(0, 2500, 100, false)).toBe(2500);
+  expect(settleUntil(0, 2500, 4000, true)).toBe(6500);
+  expect(settleUntil(0, 6500, 19_000, true)).toBe(20_000);
+  expect(settleUntil(0, 6500, 5000, false)).toBe(6500);
 });

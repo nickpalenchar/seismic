@@ -89,14 +89,24 @@ export function collect(): Pick<Kept, 'scroll' | 'drafts' | 'video'> {
 
 /** How long content arriving after the reload may still move the boxes. */
 const SETTLE_MS = 2500;
+/** How long a box may wait for content tall enough to scroll as far as it was: a server just restarted answers slowly. */
+const WAIT_MS = 20_000;
+
+/**
+ * Until when the positions are put back: `SETTLE_MS` past the last moment a box was not back
+ * where it was (not there yet, or its content too short to scroll that far), within `WAIT_MS` of
+ * the start.
+ */
+export const settleUntil = (start: number, until: number, now: number, short: boolean) => (short ? Math.min(start + WAIT_MS, Math.max(until, now + SETTLE_MS)) : until);
 
 /**
  * Puts back what `collect` found, in the page as it loads: content that arrives later (a log, a
- * plan doc) moves boxes, so the positions are put back again until the content has settled, unless
- * the owner scrolls or types first.
+ * plan doc, the configuration's sections) moves boxes and makes them tall enough, so the positions
+ * are put back again until the content has settled, unless the owner scrolls or types first.
  */
 export function restore(k: Pick<Kept, 'scroll' | 'drafts' | 'video'>): () => void {
-  const until = performance.now() + SETTLE_MS;
+  const start = performance.now();
+  let until = start + SETTLE_MS;
   const drafts = new Map(k.drafts);
   let stop = false;
   const owner = () => void (stop = true);
@@ -105,10 +115,14 @@ export function restore(k: Pick<Kept, 'scroll' | 'drafts' | 'video'>): () => voi
   let video = k.video;
   const tick = () => {
     if (stop || performance.now() > until) return void events.forEach((e) => removeEventListener(e, owner, { capture: true }));
+    let short = false;
     for (const [name, top] of k.scroll) {
       const el = find(name);
       if (el && el.scrollTop !== top) el.scrollTop = top;
+      // a pixel off (scrolling in fractions of one) counts as back
+      if (!el || Math.abs(el.scrollTop - top) > 1) short = true;
     }
+    until = settleUntil(start, until, performance.now(), short);
     // a controlled field takes the draft through the input event React listens to
     for (const [name, text] of drafts) {
       const el = find(name);
