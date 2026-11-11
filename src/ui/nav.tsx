@@ -5,7 +5,7 @@
 // row's project switcher lists the projects alone, while the menu is not docked. What waits itself is
 // in the inbox (src/ui/inbox.tsx), on every project at once.
 
-import { Archive, ArrowLeft, Bot, Car, ChartLine, ChevronRight, FileCheck, GitBranch, Inbox, ListOrdered, Menu as Menu_, PanelLeft, PanelLeftClose, Plus, ScrollText, Settings, SlidersHorizontal, Users } from 'lucide-react';
+import { Archive, ArrowLeft, Bot, Car, ChartLine, ChevronRight, FileCheck, GitBranch, GripVertical, Inbox, ListOrdered, Menu as Menu_, PanelLeft, PanelLeftClose, Plus, ScrollText, Settings, SlidersHorizontal, Users } from 'lucide-react';
 import { type ComponentProps, createContext, type ReactNode, type Ref, useContext, useLayoutEffect, useRef, useState } from 'react';
 import type { Canvas, ProjectInfo } from '../core/types';
 import { projectPath, switchTo } from './address';
@@ -28,10 +28,13 @@ const rowButton = 'flex w-full cursor-pointer items-center gap-[7px] rounded-[6p
 /** the dropdown's panel: under ☰, or the floating row's project switcher */
 const menuPanel = 'w-[min(360px,calc(100vw-28px))] rounded-[12px] border border-glass-edge px-3.5 pt-3.5 pb-4';
 
-/** How wide the menu is, docked as a sidebar. */
-export const NAV_W = 340;
+/** Default and limits for the docked menu's remembered width. */
+export const NAV_W = 310;
+export const NAV_MIN_W = 240;
+export const NAV_MAX_W = 460;
 /** The least room the project keeps beside the docked menu and a sheet on the right; with less, it folds back under ☰. */
 export const NAV_PROJECT_MIN = 480;
+const WIDTH_KEY = 'obeya-nav-width';
 const PIN_KEY = 'obeya-nav-pinned';
 // docked, ☰ hides the menu and shows it again; it stays docked meanwhile
 const HIDDEN_KEY = 'obeya-nav-hidden';
@@ -53,6 +56,17 @@ export const loadPinned = loadFlag(PIN_KEY);
 export const savePinned = saveFlag(PIN_KEY);
 export const loadNavHidden = loadFlag(HIDDEN_KEY);
 export const saveNavHidden = saveFlag(HIDDEN_KEY);
+export const loadNavWidth = () => {
+  try {
+    const value = Number(localStorage.getItem(WIDTH_KEY));
+    return value >= NAV_MIN_W && value <= NAV_MAX_W ? value : NAV_W;
+  } catch {
+    return NAV_W;
+  }
+};
+export const saveNavWidth = (width: number) => {
+  try { localStorage.setItem(WIDTH_KEY, String(width)); } catch {}
+};
 
 interface ProjectsProps {
   project: ProjectInfo;
@@ -164,7 +178,7 @@ export function MenuButton({ docked, dockedOn, onDocked, ...p }: MenuProps & { d
         {/* docked, the button toggles the sidebar: a trigger would swallow Enter and Space to open a menu that is not there */}
         <Tooltip content={t.leftMenu.button}>{docked ? logo : <MenuTrigger asChild>{logo}</MenuTrigger>}</Tooltip>
       </div>
-      <MenuContent className={cn(menuPanel, 'w-[min(340px,calc(100vw-28px))] overflow-x-hidden')}>
+      <MenuContent className={cn(menuPanel, 'w-[min(310px,calc(100vw-28px))] overflow-x-hidden')}>
         <MenuBody {...p} floating />
       </MenuContent>
     </Menu>
@@ -172,19 +186,30 @@ export function MenuButton({ docked, dockedOn, onDocked, ...p }: MenuProps & { d
 }
 
 /** The menu docked as a sidebar on the left, sliding in and out. */
-export function NavSheet({ on, onOpenChange, ...p }: MenuProps & { on: boolean; onOpenChange: (open: boolean) => void }) {
+export function NavSheet({ on, onOpenChange, width, maxWidth, onWidthChange, onWidthEnd, onResizing, ...p }: MenuProps & { on: boolean; onOpenChange: (open: boolean) => void; width: number; maxWidth: number; onWidthChange: (width: number) => void; onWidthEnd: (width: number) => void; onResizing: (active: boolean) => void }) {
   // in the app on a Mac it reaches up to the window's top: the traffic lights sit in its head, which moves the window as the bar does
   const titlebar = window.obeyaApp?.platform === 'macos';
+  const grip = useRef<{ x: number; width: number } | null>(null);
+  const nextWidth = (width: number) => Math.max(NAV_MIN_W, Math.min(width, NAV_MAX_W, maxWidth));
+  const release = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const drag = grip.current;
+    if (!drag) return;
+    grip.current = null;
+    onResizing(false);
+    const value = nextWidth(drag.width + e.clientX - drag.x);
+    onWidthChange(value);
+    onWidthEnd(value);
+  };
   return (
     // pinned: a sidebar docked to the window's left edge, from top to bottom, as the sheets are on the
     // right; above the dim of an open card (#dim), so it stays in view and switches project from there
-    <SidebarProvider open={on} onOpenChange={onOpenChange} className="contents" style={{ '--sidebar-width': `${NAV_W}px` } as React.CSSProperties}>
+    <SidebarProvider open={on} onOpenChange={onOpenChange} className="contents" style={{ '--sidebar-width': `${width}px` } as React.CSSProperties}>
       <Sidebar
         id="nav"
         aria-hidden={!on}
         inert={!on}
         className={cn(
-          'z-31 box-border w-[340px] border border-l-0 border-glass-edge bg-glass shadow-[inset_0_1px_0_var(--glass-hi),var(--lift)] backdrop-blur-[28px] backdrop-saturate-[1.6] [&>[data-sidebar=sidebar-inner]]:bg-transparent',
+          'z-31 box-border border border-l-0 border-glass-edge bg-glass shadow-[inset_0_1px_0_var(--glass-hi),var(--lift)] backdrop-blur-[28px] backdrop-saturate-[1.6] [&>[data-sidebar=sidebar-inner]]:bg-transparent',
           'transition-[left,visibility] duration-450 ease-[cubic-bezier(.3,.9,.3,1)]',
           on ? 'visible' : 'invisible [transition-delay:0s,.45s]',
         )}
@@ -194,6 +219,38 @@ export function NavSheet({ on, onOpenChange, ...p }: MenuProps & { on: boolean; 
             <MenuBody {...p} titlebar={titlebar} />
           </SidebarGroup>
         </SidebarContent>
+        {on && <button
+          type="button"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label={t.leftMenu.resize}
+          aria-valuemin={NAV_MIN_W}
+          aria-valuemax={Math.min(NAV_MAX_W, maxWidth)}
+          aria-valuenow={width}
+          title={t.leftMenu.resizeHint}
+          className="group/resize absolute inset-y-0 -right-1.5 z-40 flex w-3 cursor-ew-resize touch-none items-center justify-center border-0 bg-transparent p-0 text-muted-foreground hover:text-ink focus-visible:text-ink focus-visible:outline-none"
+          onPointerDown={(e) => {
+            if (e.button !== 0) return;
+            e.preventDefault();
+            e.currentTarget.focus();
+            e.currentTarget.setPointerCapture(e.pointerId);
+            grip.current = { x: e.clientX, width };
+            onResizing(true);
+          }}
+          onPointerMove={(e) => {
+            if (grip.current) onWidthChange(nextWidth(grip.current.width + e.clientX - grip.current.x));
+          }}
+          onPointerUp={release}
+          onPointerCancel={release}
+          onDoubleClick={() => { onWidthChange(NAV_W); onWidthEnd(NAV_W); }}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+              e.preventDefault();
+              const value = nextWidth(width + (e.key === 'ArrowRight' ? 16 : -16));
+              onWidthChange(value); onWidthEnd(value);
+            }
+          }}
+        ><span className="rounded-sm group-focus-visible/resize:ring-2 group-focus-visible/resize:ring-working"><GripVertical size={16} strokeWidth={2} aria-hidden /></span></button>}
       </Sidebar>
     </SidebarProvider>
   );

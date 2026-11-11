@@ -202,7 +202,10 @@ it and shows it again (both remembered per browser, as the docking is, on every 
 floating row's project switcher is gone, since the menu switches projects. Unlike a sheet it is not
 dimmed while a card is open. A narrow window, or one that would leave the project less than about a
 column of cards beside it and an open sheet, folds it back under ☰ until there is room again: the
-two sidebars never stack, neither over each other nor side by side on one edge. In the app on a Mac
+two sidebars never stack, neither over each other nor side by side on one edge.
+the docked menu's width can be dragged from its right edge, or adjusted with the arrow keys when
+that edge has focus; double-click restores its default width. The chosen width is remembered per
+browser, and resizing never takes away the minimum room for the project. In the app on a Mac
 the docked menu reaches up to the window's top, so the traffic lights move from the bar into its
 head, which stays in place as the menu scrolls and drags the window as the bar does; the bar beside
 it then starts at its own edge. The phone view has no such menu.

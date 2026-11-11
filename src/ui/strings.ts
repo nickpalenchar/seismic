@@ -2259,6 +2259,8 @@ const en = {
     help: 'Controls: mouse and keys',
     pin: 'Dock the menu on the left',
     unpin: 'Undock the menu',
+    resize: 'Resize menu',
+    resizeHint: 'Drag to resize · Double-click: default width',
   },
   projectSettings: {
     button: 'Settings of this project',

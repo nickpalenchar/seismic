@@ -62,7 +62,7 @@ import { videoOf } from './spot';
 import { cardClass, shownState } from './card';
 import { CardView, DepLinks, depHead, depWidth, linkPath, linkSpot, Edges, Links, Minimap, minimapArea, OldBunPill, PlanView, RestartPill, Sheet, SourcePill, TalkIcon, UpdatePill, WorkstationsPill } from './parts';
 import { clock, failText, t } from './strings';
-import { loadNavHidden, loadPinned, MenuButton, NAV_PROJECT_MIN, NAV_W, NavPill, NavSheet, saveNavHidden, savePinned } from './nav';
+import { loadNavHidden, loadNavWidth, loadPinned, MenuButton, NAV_PROJECT_MIN, NavPill, NavSheet, saveNavHidden, saveNavWidth, savePinned } from './nav';
 import { projectPath, cardPath, feedbackLogPath, followedPath, goTo, named, knowProjects, projectNamed, queryWithout, readAddress } from './address';
 import { type QuickReply, sendReply } from './quickReply';
 import { InboxView, inboxListWidth } from './inbox';
@@ -564,6 +564,7 @@ function Project({
   // the left menu docked as a sidebar (src/ui/nav.tsx), and hidden there with ☰
   const [pinned, setPinned, pinnedRef] = useLive(loadPinned);
   const [, setNavHidden, navHiddenRef] = useLive(loadNavHidden);
+  const [navWidth, setNavWidth, navWidthRef] = useLive(loadNavWidth);
   const showDocked = (on: boolean) => {
     setNavHidden(!on);
     saveNavHidden(!on);
@@ -582,7 +583,8 @@ function Project({
   const sideNow = (): Sides => {
     const narrow = matchMedia(NARROW).matches;
     const right = narrow ? 0 : dock.width();
-    return { left: !narrow && pinnedRef.current && !navHiddenRef.current && innerWidth - NAV_W - right >= NAV_PROJECT_MIN ? NAV_W : 0, right };
+    const left = navWidthRef.current;
+    return { left: !narrow && pinnedRef.current && !navHiddenRef.current && innerWidth - left - right >= NAV_PROJECT_MIN ? left : 0, right };
   };
   /** Opens Seismic's sheet or closes it; an open plan closes. */
   const toggleKoordinator = () => {
@@ -2107,7 +2109,7 @@ function Project({
     project: snapshot.project,
     projects,
     pinned,
-    pinnable: !matchMedia(NARROW).matches && innerWidth - NAV_W - side.right >= NAV_PROJECT_MIN,
+    pinnable: !matchMedia(NARROW).matches && innerWidth - navWidth - side.right >= NAV_PROJECT_MIN,
     onPin: pin,
     onNew: () => (showNewProject(), setPrefsOn(false), setCOn(true)),
   };
@@ -2584,7 +2586,7 @@ function Project({
         >
           <div className="left flex items-center gap-2.5">
             {extensions.map((e, i) => { const Slot = e.slots?.topBar; return Slot ? <Slot key={i} /> : null; })}
-            <MenuButton {...menu} docked={pinned && nav.pinnable && !matchMedia(NARROW).matches && innerWidth - NAV_W - side.right >= NAV_PROJECT_MIN} dockedOn={side.left > 0} onDocked={showDocked} />
+            <MenuButton {...menu} docked={pinned && nav.pinnable} dockedOn={side.left > 0} onDocked={showDocked} />
           </div>
           <CardSearch items={items} field={searchField} hidden={!!focus} onOpen={(item) => void openFresh(item)} />
           <div className="right flex items-center justify-end gap-2.5">
@@ -2685,7 +2687,7 @@ function Project({
             {online && usage.map((u) => <UsagePill key={u.harness} usage={u} />)}
           </div>
         </footer>
-        <NavSheet on={side.left > 0} onOpenChange={showDocked} {...menu} />
+        <NavSheet on={side.left > 0} onOpenChange={showDocked} width={navWidth} maxWidth={innerWidth - side.right - NAV_PROJECT_MIN} onWidthChange={setNavWidth} onWidthEnd={saveNavWidth} onResizing={dock.setResizing} {...menu} />
         <Minimap
           cam={cam}
           side={side}
