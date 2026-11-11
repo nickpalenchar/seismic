@@ -328,7 +328,7 @@ describe('plan docs', () => {
     expect(board.archived().find((i) => i.id === w2.id)).toMatchObject({ state: 'live' });
     expect(board.events(w2.id).map((e) => e.text)).toEqual(['Part landed; the plan doc keeps the workstream open. The rest continues on a new card.']);
     const rest = board.snapshot().items.find((i) => i.plan?.label === 'W2')!;
-    expect(rest).toMatchObject({ state: 'planned', origin: w2.id });
+    expect(rest).toMatchObject({ state: 'planned', from: w2.id });
     expect(rest.id).not.toBe(w2.id);
     expect(board.item(w3.id)!.state).toBe('done');
     // reading again changes nothing more

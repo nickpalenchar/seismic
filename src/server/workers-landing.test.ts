@@ -763,7 +763,7 @@ describe('a workstream whose plan doc keeps it open after its work landed', () =
 
     const rest = w1();
     expect(rest.id).not.toBe(w.id);
-    expect(rest).toMatchObject({ state: 'planned', origin: w.id });
+    expect(rest).toMatchObject({ state: 'planned', from: w.id });
     await workers.start(rest.id);
     expect(state(rest.id)).toBe('working');
     // a fresh branch from main, not the landed one
@@ -813,7 +813,7 @@ describe('a workstream merged as a pull request, its box still empty', () => {
     expect(board.archived().find((i) => i.id === w.id)).toMatchObject({ state: 'live' });
     // the pull request is history now: the new card for the rest opens a new one
     const rest = w1();
-    expect(rest).toMatchObject({ state: 'planned', origin: w.id });
+    expect(rest).toMatchObject({ state: 'planned', from: w.id });
     expect(rest.review?.pr).toBeUndefined();
     await workers.start(rest.id);
     expect(runtime.last.inbox[0]).toContain('pull request #821 (https://github.com/acme/app/pull/821)');
@@ -827,7 +827,7 @@ describe('a workstream merged as a pull request, its box still empty', () => {
     expect(state(w.id)).toBe('live');
     board.lesestandMoved('home', git(main, 'rev-parse', 'HEAD'));
     expect(board.archived().find((i) => i.id === w.id)).toMatchObject({ state: 'live' });
-    expect(w1()).toMatchObject({ state: 'planned', origin: w.id });
+    expect(w1()).toMatchObject({ state: 'planned', from: w.id });
   });
 });
 
