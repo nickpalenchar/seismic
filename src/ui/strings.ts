@@ -503,6 +503,7 @@ const en = {
     unchanged: (n: number) => (n === 1 ? '1 unchanged line' : `${n} unchanged lines`),
     showUnchanged: (n: number) => (n === 1 ? 'Show 1 unchanged line' : `Show ${n} unchanged lines`),
     showRest: 'Show the rest of the file',
+    noNewline: 'no newline at end of file',
     loadingWhole: 'Loading the file …',
     wholeFailed: 'The whole file could not be read, so its unchanged lines stay folded.',
     failed: 'The diff could not be read.',

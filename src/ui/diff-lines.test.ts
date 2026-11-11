@@ -38,7 +38,9 @@ test('a patch reads as hunks, each line numbered on its sides, a blank context l
     ['context', 'x();'],
     ['added', '--y();'],
     ['context', 'z();'],
-  ]);
+  ]);  // the marker after the last line says no newline follows it
+  expect(hunks[1]!.lines.at(-1)!.noEol).toBe(true);
+  expect(hunks[1]!.lines.filter((l) => l.noEol)).toHaveLength(1);
 });
 
 test('a changed line marks the words that differ from the line it replaces', () => {

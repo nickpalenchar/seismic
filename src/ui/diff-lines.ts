@@ -14,6 +14,8 @@ export interface DiffLine {
   new?: number;
   /** Where the line differs from the one it replaces or is replaced by: `[from, to)` in `text`. */
   marks?: [number, number][];
+  /** The file ends with this line, without a newline after it. */
+  noEol?: true;
 }
 
 export interface Hunk {
@@ -45,6 +47,12 @@ export function parseHunks(patch: string[]): Hunk[] {
       old = oldCount ? oldStart : oldStart + 1;
       neu = newCount ? newStart : newStart + 1;
       left = { old: oldCount, new: newCount };
+      continue;
+    }
+    if (hunk && line.startsWith('\\')) {
+      // `\ No newline at end of file`, about the line before it
+      const last = hunk.lines.at(-1);
+      if (last) last.noEol = true;
       continue;
     }
     if (!hunk || (left.old <= 0 && left.new <= 0)) continue;

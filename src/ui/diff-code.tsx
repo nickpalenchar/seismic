@@ -116,6 +116,7 @@ export default function CodeDiff({ part, card, style }: { part: DiffPart; card: 
               line ? (
                 <CodeBlockLine key={side} variant={variant(line)} gutter={number(side ? line.new : line.old)}>
                   {paint(line, tokensOf(line))}
+                  {line.noEol && <NoEol />}
                 </CodeBlockLine>
               ) : (
                 <CodeBlockLine key={side} variant="absent" />
@@ -135,6 +136,7 @@ export default function CodeDiff({ part, card, style }: { part: DiffPart; card: 
             }
           >
             {paint(line, tokensOf(line))}
+                  {line.noEol && <NoEol />}
           </CodeBlockLine>
         ));
 
@@ -142,7 +144,7 @@ export default function CodeDiff({ part, card, style }: { part: DiffPart; card: 
   for (let i = 0; i <= hunks.length; i++) {
     const hunk: Hunk | undefined = hunks[i];
     const g = gap(hunks, i, files?.new.length);
-    if (shown.has(i) && files) rows.push(...drawLines(contextLines(files.new, g.from, g.to ?? Infinity, g.shift), `g${i}`));
+    if (shown.has(i) && files) for (const row of drawLines(contextLines(files.new, g.from, g.to ?? Infinity, g.shift), `g${i}`)) rows.push(row);
     else {
       const count = g.to === null ? null : g.to - g.from;
       const offer = expandable && whole !== 'failed';
@@ -160,7 +162,7 @@ export default function CodeDiff({ part, card, style }: { part: DiffPart; card: 
           </span>,
         );
     }
-    if (hunk) rows.push(...drawLines(hunk.lines, `h${i}`));
+    if (hunk) for (const row of drawLines(hunk.lines, `h${i}`)) rows.push(row);
   }
 
   return (
@@ -182,6 +184,11 @@ export default function CodeDiff({ part, card, style }: { part: DiffPart; card: 
       </CodeBlock>
     </div>
   );
+}
+
+/** Said after a file's last line where no newline follows it. */
+function NoEol() {
+  return <span className="ms-3 select-none font-sans text-muted-foreground">{t.diff.noNewline}</span>;
 }
 
 const variant = (line: DiffLine) => (line.kind === 'context' ? 'default' : line.kind);
