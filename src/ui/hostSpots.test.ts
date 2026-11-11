@@ -7,7 +7,7 @@ const host = (more: Partial<PoolHost>): PoolHost => ({ name: 'here', worktrees: 
 
 test('a waiting card keeps its worktree dot, and its released slot shows as an empty circle', () => {
   const h = host({ cards: ['a'], busy: [], workstations: [{ path: '/w/a', card: 'a' }] });
-  const spots = hostSpots(h, [card('a', { state: 'asking' })]);
+  const spots = hostSpots(h, [card('a', { state: 'waiting' })]);
   expect(spots.map((s) => s?.card)).toEqual(['a', undefined]);
 });
 
