@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
 import { Input } from './components/input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './components/collapsible';
 import { Select, SelectItem } from './components/select';
+import { Dialog, DialogContent, DialogTitle } from './components/dialog';
 
 const PLATFORMS: Record<string, string> = { darwin: 'macOS', win32: 'Windows', linux: 'Linux' };
 /** The machine's system and processor, as the owner knows them: "macOS (arm64)". */
@@ -251,12 +252,6 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
     const timer = setInterval(() => api.setup().then(setView, console.error), 1500);
     return () => clearInterval(timer);
   }, [running]);
-  useEffect(() => {
-    if (!onClose) return;
-    const key = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', key);
-    return () => window.removeEventListener('keydown', key);
-  }, [onClose]);
 
   const s = t.setup;
   const act = async (section: MachineSection, i: MachineItem) => {
@@ -325,13 +320,12 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
   const recommended = view?.sections.some((x) => RECOMMENDED_SECTIONS.includes(x.id)) ?? false;
   const shownPage = recommended ? page : 'required';
   return (
-    <div className={first ? 'setup first' : 'setup over'} onClick={(e) => e.target === e.currentTarget && onClose?.()}>
-      <div className="setup-page">
+    <SetupShell first={first} onClose={onClose}>
         <header className="setup-head">
           {first && <Sign size={34} />}
           <div>
             <div className="p-kind">{s.kind}</div>
-            <h2>{first ? s.titleFirst : s.title}</h2>
+            {first ? <h2>{s.titleFirst}</h2> : <DialogTitle asChild><h2>{s.title}</h2></DialogTitle>}
           </div>
           {first && <LanguagePick />}
           {onClose && (
@@ -384,9 +378,19 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
             </>
           )}
         </div>
-      </div>
-    </div>
+    </SetupShell>
   );
+}
+
+function SetupShell({ first, onClose, children }: { first?: boolean; onClose?: () => void; children: ReactNode }) {
+  const [opener] = useState(() => document.activeElement instanceof HTMLElement ? document.activeElement : null);
+  if (first) return <div className="setup first"><div className="setup-page">{children}</div></div>;
+  return <Dialog open onOpenChange={(open) => !open && onClose?.()}>
+    <DialogContent layerClassName="setup over" className="setup-page" onCloseAutoFocus={(e) => {
+      e.preventDefault();
+      opener?.focus();
+    }}>{children}</DialogContent>
+  </Dialog>;
 }
 
 /** git's name and e-mail for the agents' commits, set globally. */

@@ -367,8 +367,11 @@ last (see Projects), Project defaults (see Project defaults), Agents and models,
 (notifications on this computer, the usage limits in the bar, feedback after approval), Other
 devices (see Other devices), Advanced (the data export above) and Developer (see Restarting
 by hand in Running Seismic). Languages, light or dark, motion and the server are in "Preferences"
-under Settings in the left menu (see The left menu in The canvas). Below the sections "Check setup" and "Report a wish or a bug"
-(see Wishes for Seismic's makers). Each project in the list marks its unsaved changes and
+under Settings in the left menu (see The left menu in The canvas). Below the sections are "Check setup"
+and "Report a wish or a bug"
+(see Wishes for Seismic's makers). Setup opens as a modal over Configuration: keyboard and pointer
+input go to Setup, and closing it returns focus to "Check setup" without losing Configuration's edits.
+Each project in the list marks its unsaved changes and
 counts its problems in red; the heading counts the problems of no one project (none at all, say). Each section names the file it is saved in; settings are rows of label and control, no boxes in
 boxes. What to know about a field sits behind an info icon at its label, shown only while the pointer
 or focus is on the field, its text appearing at once.

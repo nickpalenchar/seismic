@@ -19,7 +19,7 @@ import { type AddSiteInput, api, reload, type SiteHow } from './api';
 import { keepConfigDraft, keptConfigDraft } from './configDraft';
 import { keep } from './keep';
 import { plain } from './markdown';
-import { demoState, GitSetup, platformName, RecognitionDetail, SetupList, useFolderWithoutGit, voiceState } from './setup';
+import { demoState, GitSetup, platformName, RecognitionDetail, Setup, SetupList, useFolderWithoutGit, voiceState } from './setup';
 import { useFitHeight } from './fitHeight';
 import { useCopy } from './copy';
 import { failText, fileSize, snoozeWhen, t } from './strings';
@@ -171,7 +171,8 @@ function checkedMoved(c: Checked, n: number, from: number, to: number): Checked 
   };
 }
 
-export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProblems, onConnect, revs }: { on: boolean; /** The project the page shows: the one Projects shows first. */ page?: string; onClose: () => void; onSetup: () => void; onAsk: Ask; onTalk: () => void; onProblems: (n: number) => void; onConnect: () => void; revs: string }) {
+export function ConfigDialog({ on, page, onClose, onAsk, onTalk, onProblems, onConnect, revs }: { on: boolean; /** The project the page shows: the one Projects shows first. */ page?: string; onClose: () => void; onAsk: Ask; onTalk: () => void; onProblems: (n: number) => void; onConnect: () => void; revs: string }) {
+  const [setupOn, setSetupOn] = useState(false);
   const [view, setView] = useState<ConfigView | null>(null);
   const [draft, setDraft] = useState<ProjectConfig[]>([]);
   const [checked, setChecked] = useState<Checked | null>(null);
@@ -453,7 +454,7 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
           </ul>
           </TabsList>
           <div className="cfg-nav-foot">
-            <Button size="small" onClick={onSetup}>
+            <Button size="small" onClick={() => setSetupOn(true)}>
               {t.setup.check}
             </Button>
             <WishLink onOpen={onClose} />
@@ -549,6 +550,7 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
             <DeveloperBlock on={on && section === 'developer'} />
           </section>
         </div>
+        {setupOn && <Setup onClose={() => setSetupOn(false)} />}
       </DialogContent>
       </Tabs>
     </Dialog>

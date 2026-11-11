@@ -627,7 +627,6 @@ function Project({
   const [helpNote, setHelpNote] = useState<'button' | 'gone'>();
   // the "Needs you" button says so until the owner has clicked it once; then the bell and the count do
   const [needsYouKnown, setNeedsYouKnown] = useState(() => known(NEEDS_YOU_KNOWN));
-  const [setupOn, setSetupOn] = useState(false);
   // what is wrong in the configuration as saved, marked on its button; read when the page loads,
   // after a save in the dialog, when a repository's settings change on its default branch, which
   // the project counts in its repositories (`configRev`), and when a project or repository does not
@@ -2731,7 +2730,6 @@ function Project({
           on={cOn}
           page={snapshot.project.id}
           onClose={() => setCOn(false)}
-          onSetup={() => setSetupOn(true)}
           onTalk={talkFromConfig}
           onProblems={setConfigProblems}
           revs={configRevs}
@@ -2747,7 +2745,6 @@ function Project({
             setCOn(true);
           }}
         />
-        {setupOn && <Setup onClose={() => setSetupOn(false)} />}
         {phoneOn && (
           <PhoneDialog
             onClose={() => setPhoneOn(false)}
