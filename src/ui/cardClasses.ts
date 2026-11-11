@@ -91,14 +91,15 @@ export const choicesClass = (mode?: 'single' | 'multiple', className?: string) =
 
 /**
  * One option, its mark drawn before it. `picked`: what the asking agent would pick itself, in the colour
- * of ideas, its opinion to follow or overrule. `other`: the owner's own answer, written in the option itself.
+ * of ideas, its opinion to follow or overrule. `other`: the owner's own answer, written in the option itself, its field in the option's font (on the
+ * phone the 16px of every field there wins, so focusing it does not zoom the page).
  */
 export const choiceClass = ({ on, picked, other, alone }: { on?: boolean; picked?: boolean; other?: boolean; alone?: boolean }) =>
   cn(
     "choice flex items-start gap-[9px] text-left bg-card border border-line rounded-[3px] py-[5px] pr-[11px] pl-[9px] text-[13.5px] text-ink cursor-pointer max-w-full hover:border-muted-foreground before:content-[''] before:flex-none before:size-[14px] before:mt-0.5 before:box-border before:border-[1.5px] before:border-solid before:border-muted-foreground before:bg-card group-[.single]/choices:before:rounded-full group-[.multiple]/choices:before:rounded-[2px] [.prototype-variants_&]:basis-full",
     on && 'on border-waiting hover:border-waiting bg-[color-mix(in_srgb,var(--waiting)_8%,var(--card))] before:border-waiting group-[.single]/choices:before:bg-[radial-gradient(var(--waiting)_0_3.5px,var(--card)_4px)] group-[.multiple]/choices:before:choice-checked',
     picked && 'picked border-[color-mix(in_srgb,var(--idea)_55%,var(--line))]',
-    other && 'other basis-full box-border cursor-text [&_textarea]:flex-1 [&_textarea]:min-w-0 [&_textarea]:m-0 [&_textarea]:resize-none [&_textarea]:[font:inherit]! [&_textarea]:text-inherit [&_textarea]:leading-[inherit] [&_textarea]:[field-sizing:content] [&_textarea]:min-h-lh',
+    other && 'other basis-full box-border cursor-text [&_textarea]:flex-1 [&_textarea]:min-w-0 [&_textarea]:m-0 [&_textarea]:resize-none [&_textarea]:[font:inherit] [&_textarea]:text-inherit [&_textarea]:leading-[inherit] [&_textarea]:[field-sizing:content] [&_textarea]:min-h-lh',
     alone && 'alone before:content-none',
   );
 
