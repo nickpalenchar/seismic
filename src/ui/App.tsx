@@ -2278,6 +2278,13 @@ function Project({
     }
     // hold Space anywhere but in a text field to speak; the demo pauses while the owner talks, and a tap plays or pauses it
     if (e.code === 'Space' && !typing) {
+      // Browsers activate links with Enter, but Space scrolls. Give a focused link the same action as Enter.
+      const link = e.target instanceof Element ? e.target.closest('a[href]') : null;
+      if (link instanceof HTMLAnchorElement && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        if (!e.repeat) link.click();
+        return;
+      }
       // Space on a focused switch, checkbox, radio, menu item, the button of a menu or the docked logo does that control's own thing
       if (e.target instanceof Element && e.target.closest('[role=switch], [role=checkbox], [role=radio], [role=menu], [aria-haspopup=menu], .app-logo')) return;
       // so does any button, tab, option or disclosure that has focus, however it got it (Tab or a click): Space presses it, as Enter does
