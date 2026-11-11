@@ -131,11 +131,19 @@ test('Escape still closes an open list with no options', () => {
 
 test('keys are left alone while the IME composes or reports keyCode 229', () => {
   let escaped = 0;
+  let navigated = 0;
   const picked: number[] = [];
-  const box = render(base({ onPick: (i) => picked.push(i), onEscape: () => escaped++ }));
-  for (const key of ['Enter', 'ArrowDown', 'Escape']) {
-    expect(press(box, { key, composing: true })).toEqual({ took: false, prevented: false });
-    expect(press(box, { key, keyCode: 229 })).toEqual({ took: false, prevented: false });
+  const opts = base({ onPick: (i) => picked.push(i), onEscape: () => escaped++, onNavigate: () => navigated++ });
+  let box = render(opts);
+  box.setActive(1);
+  box = render(opts);
+  for (const key of ['Enter', 'ArrowDown', 'ArrowUp', 'Escape']) {
+    for (const ime of [{ composing: true }, { keyCode: 229 }]) {
+      expect(press(box, { key, ...ime })).toEqual({ took: false, prevented: false });
+      box = render(opts);
+      expect(box.active).toBe(1);
+      expect(navigated).toBe(0);
+    }
   }
   expect(picked).toEqual([]);
   expect(escaped).toBe(0);
