@@ -293,17 +293,13 @@ for the underlying change list. Other named result files have tabs named after t
 available results have tabs; the first opens by default. The demo and named results show without
 the change list above them. Named files show their contents first, with the caption above the view.
 
-The Diff tab contains the change list: a line per file with its sign (＋ added, ✎ changed, ↪ moved
-or renamed, ✕ deleted), its path cut at the front so the name stays, its lines added and removed,
-and on a folder card what discarding would leave. The files named at handover come first, then
-other changed files that can be shown, documents first; last, greyed and not to be picked, deleted
-files, directories and files that are neither documents nor text (their line counts still open
-their diff). A click on a line shows its file below, a click on its line counts its changes there.
-Where that view lies out of sight, the click scrolls it into view. Past eight lines "and N more ▾"
-unfolds the rest. The file picked stays in view when folded. Beside the toggle stands the size of
-the whole change ("+120 −30"), which shows the whole diff over the page. On a git card the lines
-are the branch's files, on a folder card its change list. The phone has the same tabs and list,
-with controls tall enough to tap. Markdown shows formatted (with its images), a PDF in the browser's
+The Diff tab shows only changed files in an expandable directory tree, with added, deleted,
+modified and moved badges. Selecting a file shows its changes, including deletions and binary or
+rename-only changes. The first changed file opens initially. The tree can be hidden or shown;
+it opens automatically when the diff has enough width (including when the conversation is
+collapsed). In narrower views and on phones the diff comes first, with the expanded tree below
+it. Directory branches fold independently. Named deliverables without changes stay in their
+result tabs and never enter this tree. Markdown shows formatted (with its images), a PDF in the browser's
 viewer (on a phone, and where the browser has none, its pages drawn by pdf.js one under the other
 as wide as the column), an image as is, an HTML page as an HTML artifact, text and code as text; anything else as a
 tile with "Open on the computer". In Diff, a changed file first shows "Changes", with "Formatted" or

@@ -4,6 +4,8 @@
 
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { type CardDiff, type DiffPart, diffSize, type FolderChange, shownChanges, splitDiff } from '../core/diff';
+import { changeRows } from '../core/files';
+import { DiffTreeLayout } from './diff-tree';
 import type { Item } from '../core/types';
 import { api } from './api';
 import { useCopy } from './copy';
@@ -180,25 +182,11 @@ export function DiffView({ item, file, onClose, onRead }: { item: Item; file?: s
           {folder && !one && <ChangeTable changes={shownChanges(folder.changes)} diffed={(c) => all.some((p) => p.file === c.path)} onFile={go} />}
           {got && (
             <>
-              {!folder && !one && <table className="d-files">
-                <tbody>
-                  {got.files.map((f) => (
-                    <tr key={f.file}>
-                      <td>
-                        <LinkButton className="[font:12.5px_var(--mono)]" onClick={() => go(f.file)}>
-                          {f.file}
-                        </LinkButton>{' '}
-                        <span className="hint">{t.diff.status[f.status]}</span>
-                      </td>
-                      <td className="d-add">{f.binary ? '' : `+${f.added}`}</td>
-                      <td className="d-del">{f.binary ? '' : `−${f.removed}`}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>}
+              <DiffTreeLayout rows={changeRows(got)} current={one?.file} onPick={(file) => setOnly(file)}>
               {parts.map((p) => (
                 <FileDiff key={p.file} part={p} card={item.id} />
               ))}
+              </DiffTreeLayout>
               {got.truncated && <p className="hint d-cut">{t.diff.truncated}</p>}
             </>
           )}

@@ -9,6 +9,7 @@ import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState }
 import { type CardDiff, diffSize, shownChanges, splitDiff } from '../core/diff';
 import { type ChangeRow, changeRows, imageAt, type ShownFile } from '../core/files';
 import type { Item } from '../core/types';
+import { DiffTreeLayout } from './diff-tree';
 import { api, cardFile } from './api';
 import { ChangeNote, DiffStyleSwitch, DiffView, FileDiff, Lines, MARK } from './diff';
 import { Doc, DocImages } from './markdown';
@@ -64,9 +65,10 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
     ...named.filter((f) => !schema(f)).map((f) => ({ path: f.path, label: label(f), title: f.caption })),
     ...named.filter(schema).map((f) => ({ path: f.path, label: label(f), title: f.caption })),
     ...(review ? [{ path: REVIEW, label: review.label, ...(review.title ? { title: review.title } : {}) }] : []),
-    ...(rows.length ? [{ path: DIFF, label: t.files.tabs.diff }] : []),
+    ...(rows.some(r => r.kind) ? [{ path: DIFF, label: t.files.tabs.diff }] : []),
   ];
   const current = tabs.some((t) => t.path === tab) ? tab : tabs[0]?.path;
+  const [wholeDiff, setWholeDiff] = useState(false);
   const [pickedFile, setPickedFile] = useState<string | null>(null);
   const [asChanges, setAsChanges] = useState<Record<string, boolean>>({});
   const demoBox = useRef<HTMLDivElement>(null);
@@ -91,7 +93,9 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
   }, [picked]);
   if (!tabs.length) return item.demo?.files && change ? <p className="hint">{t.files.none}</p> : null;
   const inDiff = current === DIFF;
-  const path = inDiff ? pickedFile : current === REVIEW ? null : current;
+  const changedRows = rows.filter(r => r.kind);
+  const selected = changedRows.some(r => r.path === pickedFile) ? pickedFile : changedRows[0]?.path;
+  const path = inDiff ? selected : current === REVIEW ? null : current;
   const file = files.find((f) => f.path === path);
   const count = change?.folder ? shownChanges(change.folder.changes).length : (change?.files.length ?? 0);
   return (
@@ -113,30 +117,26 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
       {review && current === REVIEW && <TabsContent value={REVIEW}>{review.panel}</TabsContent>}
       {inDiff && (
         <TabsContent value={DIFF}>
-          <ChangeList
-            item={item}
-            rows={rows}
-            total={count ? { ...diffSize(change!.files), files: count } : undefined}
-            current={pickedFile ?? undefined}
-            panel={FILE_PANEL}
-            onPick={(path, changes) => {
-              setPickedFile(path);
-              setPicked(picked + 1);
-              if (changes !== undefined) setAsChanges({ ...asChanges, [path]: changes });
-            }}
-          />
-          {file && (
+          <DiffTreeLayout rows={changedRows} current={selected ?? undefined} onPick={(path) => { setPickedFile(path); setAsChanges({ ...asChanges, [path]: true }); }}>
+          <p className="hint"><LinkButton title={t.diff.show} onClick={() => setWholeDiff(true)}><Lines n={diffSize(change?.files ?? [])} /> · {t.diff.size(count)}</LinkButton></p>
+          {wholeDiff && <DiffView item={item} onClose={() => setWholeDiff(false)} onRead={() => {}} />}
+          {selected && change?.folder && <ChangeNote c={changedRows.find(r => r.path === selected)!} />}
+          {selected && (
             <div id={FILE_PANEL}>
+              {!file && <Changes key={`${selected}:${rev}`} item={item} path={selected} />}
+              {file && (
               <FileView
                 key={`${file.path}:${rev}`}
                 item={item}
-                file={file}
+                file={{ ...file, diff: !change?.folder || file.diff }}
                 rev={rev}
-                changes={file.diff && (asChanges[file.path] ?? true)}
+                changes={(!change?.folder || file.diff) && (asChanges[file.path] ?? true)}
                 onChanges={(c) => setAsChanges({ ...asChanges, [file.path]: c })}
               />
+              )}
             </div>
           )}
+          </DiffTreeLayout>
         </TabsContent>
       )}
       {!inDiff && file && (

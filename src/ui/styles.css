@@ -1419,3 +1419,22 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
   border-radius: 50%;
   background: var(--c);
 }
+
+/* A single scrolling diff surface: navigation beside wide diffs, below narrow ones. */
+.diff-browser { display: grid; grid-template-columns: minmax(0,1fr); gap: 12px; }
+.diff-tree-toggle { grid-row: 1; }
+.diff-selection { min-width: 0; grid-row: 2; }
+.diff-tree { grid-row: 3; border: 1px solid var(--line); border-radius: 8px; padding: 8px; min-width: 0; }
+.diff-tree ul { list-style: none; margin: 0; padding: 0; }
+.diff-tree ul ul { padding-left: 14px; }
+.diff-tree button { width: 100%; justify-content: flex-start; min-height: 32px; padding: 5px 6px; }
+.diff-tree button.selected { background: var(--chip); color: var(--ink); }
+.diff-tree button svg { flex-shrink: 0; }
+.diff-tree-name { overflow: hidden; text-overflow: ellipsis; }
+.diff-status { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 4px; background: var(--chip); font: 12px var(--mono); }
+.diff-status.added { color: var(--approved); }
+.diff-status.deleted { color: var(--destructive); }
+.diff-browser[data-wide=true][data-open=true] { grid-template-columns: 240px minmax(0,1fr); }
+.diff-browser[data-wide=true][data-open=true] .diff-tree { grid-column: 1; grid-row: 2; align-self: start; }
+.diff-browser[data-wide=true][data-open=true] .diff-selection { grid-column: 2; }
+@media (max-width: 760px) { .diff-tree button { min-height: 44px; } }

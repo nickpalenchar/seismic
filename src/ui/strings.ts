@@ -491,6 +491,9 @@ const en = {
   author: { worker: 'Agent', owner: 'You', plan: 'Plan agent', koordinator: 'Seismic', obeya: 'Seismic', explorer: 'Exploration agent' },
   branch: 'Branch',
   diff: {
+    showTree: 'Changed files',
+    hideTree: 'Hide file tree',
+    treeStatus: { added: 'Added', deleted: 'Deleted', moved: 'Moved', modified: 'Modified' },
     size: (files: number) => (files === 1 ? 'in 1 file' : `in ${files} files`),
     show: 'See the whole diff',
     showFile: 'See the diff of this file',
