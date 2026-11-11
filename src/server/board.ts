@@ -504,6 +504,8 @@ export class Board {
   private itemsCache: Item[] | null = null;
   /** The cards as the last reconcile of "Needs you" saw them, to tell what a card waits for by what it was before (a failed landing was landing). */
   private waited = new Map<string, Item>();
+  /** The Koordinator's answers waiting unread at the last reconcile, with their text and when each came as far as Seismic saw (`latestAnswer`); null before the first. */
+  private answersSeen: Map<number, { text: string; at: number }> | null = null;
   /** What `toItems` made of each card's row, for as long as the row stays the same; gone with any change but a write to one card (`work`). */
   private worked: Worked = new Map();
   /** The archive as `archived` built it; gone with `cache`, since it changes with the same writes. */
@@ -2277,7 +2279,8 @@ export class Board {
    */
   private reconcileNeedsYou(items: Item[], talk: Talk[]): NeedsYou[] {
     const before = this.waited;
-    const open = new Map(this.store.needsYou.open(this.project.id).flatMap((r) => (r.card ? [[r.card, r.kind] as const] : [])));
+    const rows = this.store.needsYou.open(this.project.id);
+    const open = new Map(rows.flatMap((r) => (r.card ? [[r.card, r.kind] as const] : [])));
     const waits: Wait[] = items.filter(needsYou).map((i) => {
       const kind = kindOf(i, before.get(i.id));
       // a failed landing stays one, also after a restart, which forgets the card was landing
@@ -2286,11 +2289,31 @@ export class Board {
     });
     for (const p of this.store.preferences.of(this.project.id, ['proposed'])) waits.push({ target: { preference: p.id }, kind: 'rule', text: p.text });
     for (const p of this.settingProposals()) if (p.state === 'proposed') waits.push({ target: { setting: p.id }, kind: 'setting', text: p.basis });
-    const answer = talk.filter((x) => x.unread).at(-1);
+    const answer = this.latestAnswer(talk, rows.find((r) => r.talk != null)?.talk);
     // dated by the reconcile that first sees it unread: the exchange's own time is when the owner asked, not when the answer came
     if (answer) waits.push({ target: { talk: answer.id }, kind: 'answer', text: answer.answer ?? answer.reply ?? answer.question ?? answer.said });
     this.waited = new Map(items.map((i) => [i.id, i]));
     return this.store.needsYou.reconcile(this.project.id, waits);
+  }
+
+  /**
+   * The Koordinator's unread answer that came last: an exchange counts as come when it is first seen
+   * unread, or its answer changes while it is (a slow lookup's answer to an older question comes
+   * after a newer exchange's). The exchanges' ids and times say when the owner asked, not when the
+   * answer came. `waiting`: the one the open wait is on, taken as the latest when Seismic starts.
+   */
+  private latestAnswer(talk: Talk[], waiting?: number): Talk | undefined {
+    const unread = talk.filter((x) => x.unread);
+    const text = (x: Talk) => x.answer ?? x.reply ?? x.question ?? x.said;
+    const seen = new Map<number, { text: string; at: number }>();
+    let at = Date.now();
+    for (const x of unread) {
+      const was = this.answersSeen?.get(x.id);
+      // on the first reconcile, what was unread already comes in the exchanges' order, the open wait's last
+      seen.set(x.id, was && was.text === text(x) ? was : { text: text(x), at: this.answersSeen ? at++ : x.id === waiting ? at : x.id });
+    }
+    this.answersSeen = seen;
+    return unread.reduce<Talk | undefined>((best, x) => (!best || seen.get(x.id)!.at >= seen.get(best.id)!.at ? x : best), undefined);
   }
 
   private read(): PlanDoc[] {

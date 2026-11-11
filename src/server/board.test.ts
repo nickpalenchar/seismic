@@ -985,6 +985,17 @@ describe('needs you', () => {
     board.replyTalk(third, 'Nothing else.', undefined, undefined, true);
     expect(Date.now() - open().find((r) => r.kind === 'answer')!.createdAt).toBeLessThan(5000);
     board.readTalk([third]);
+    // an older question's slow answer that comes after a newer exchange's is the one that waits
+    const slow = board.addTalk('Which tests?', '');
+    const fast = board.addTalk('How long?', 'An hour.', null);
+    board.replyTalk(fast, 'An hour.', undefined, undefined, true);
+    expect(open().find((r) => r.kind === 'answer')!.talk).toBe(fast);
+    board.replyTalk(slow, 'The unit tests.', undefined, undefined, true);
+    expect(open().find((r) => r.kind === 'answer')!.talk).toBe(slow);
+    // and after a restart, the answer the open wait is on stays the latest
+    const again = new Board(store, { id: 'shop', name: 'Shop', repos: [{ id: 'home', name: 'Home', path: '/r', branch: 'main' }] }, () => ({ docs, dirs }));
+    expect(again.snapshot().needsYou.find((r) => r.kind === 'answer')!.talk).toBe(slow);
+    board.readTalk([slow, fast]);
     expect(open().map((r) => [r.kind, r.preference ?? r.setting ?? r.talk])).toEqual([
       ['rule', rule],
       ['setting', setting],

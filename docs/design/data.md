@@ -68,7 +68,8 @@ Persistent (SQLite):
   together: setting one replaces the one before, a snooze keeping what a pause held. The Koordinator's
   queue and a waiting card's stopped app are kept apart, as they hold beside any of them;
 - what waits for the owner ("Needs you", the inbox): a row per wait, on exactly one target (a
-  card, a proposed rule, a setting proposal or the Koordinator's latest unread answer on a project),
+  card, a proposed rule, a setting proposal or the Koordinator's unread answer on a project that came
+  last: by when its answer came, so a slow lookup's answer to an older question comes after a newer one's),
   with its kind (the card kinds the pushes name, plus `merge`, `rule`, `setting`, `answer`), a
   digest of what it waits for (the question, the summary, the rule's text), when it began, when
   what it waits on last changed and when it ended, all three in milliseconds. At most one row per
