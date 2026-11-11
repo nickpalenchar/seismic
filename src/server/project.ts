@@ -347,7 +347,7 @@ export class ProjectRuntime {
         .filter((r) => r.workstations.mode !== 'folder')
         .map((r) => ({
           repo: r.ref.id,
-          hosts: r.workstations.pool(r.workers.inTurn(), (c) => r.workers.turnHost(c)).map((h) => ({
+          hosts: r.workstations.pool(r.workers.inTurn(), (c) => r.workers.turnAt(c)).map((h) => ({
             ...h,
             // what the owner may take from its card for a card waiting for one, and what goes once the undo window is through
             workstations: h.workstations.map((w) =>

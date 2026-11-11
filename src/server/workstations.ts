@@ -524,7 +524,7 @@ export interface CardWorkstations {
   leasedBy(cardId: string): string | null;
   lease(cardId: string, branch: string, o?: { overSlots?: boolean; from?: string | null }): Lease;
   leasable(overSlots?: boolean, near?: string | null): boolean;
-  pool(busy: string[], turnHost?: (cardId: string) => string | null | undefined): PoolHost[];
+  pool(busy: string[], turnAt?: (cardId: string) => { host: string | null; path: string | null } | undefined): PoolHost[];
   hasWork(cardId: string): Promise<boolean>;
   release(cardId: string): void;
   evict(cardId: string): Promise<string | null>;
@@ -1114,21 +1114,30 @@ export class Workstations implements CardWorkstations {
   /**
    * The pool by machine for the Workstations pill, `busy` the cards whose worker is in a turn, each at
    * work on the machine of its workstation or, without one in the pool (a follow-up in a temporary
-   * worktree), on the one `turnHost` names, where it holds a slot all the same. Worktrees
+   * worktree), where `turnAt` names, holding a slot there all the same and listed by that workstation
+   * after the pool's own. Worktrees
    * are never short, so their pool is this machine's slots, each taken while a worker is at work, or,
    * without slots, `uncapped`: only the worktrees the cards hold.
    * `kept`: the folders of clones Seismic made that left the pool and stay since something in them would be lost.
    * `blocked`: the free clones no new card gets now, and why. `workstations`: each clone or worktree
    * by its path there, with the card that holds it.
    */
-  pool(busy: string[], turnHost?: (cardId: string) => string | null | undefined): PoolHost[] {
+  pool(busy: string[], turnAt?: (cardId: string) => { host: string | null; path: string | null } | undefined): PoolHost[] {
     const all = this.list();
-    // in the order of the workstations, then those without one here
+    // the busy cards that work outside the pool, by their machine
+    const outside = busy.flatMap((c) => {
+      const at = all.some((w) => w.card_id === c) ? undefined : turnAt?.(c);
+      return at ? [{ card: c, ...at }] : [];
+    });
+    // in the order of the workstations, then those outside the pool
     const busyOn = (host: string | null) => [
       ...all.flatMap((w) => (w.card_id && busy.includes(w.card_id) && hostName(w.path) === host ? [w.card_id] : [])),
-      ...busy.filter((c) => !all.some((w) => w.card_id === c) && turnHost?.(c) === host),
+      ...outside.filter((o) => o.host === host).map((o) => o.card),
     ];
-    const held = (ws: { path: string; card_id: string | null }[]) => ws.map((w) => ({ path: pathThere(w.path), ...(w.card_id ? { card: w.card_id } : {}) }));
+    const held = (ws: { path: string; card_id: string | null }[], host: string | null) => [
+      ...ws.map((w) => ({ path: pathThere(w.path), ...(w.card_id ? { card: w.card_id } : {}) })),
+      ...outside.flatMap((o) => (o.host === host && o.path ? [{ path: pathThere(o.path), card: o.card }] : [])),
+    ];
     const keptOn = (host: string | null) => {
       const paths = [...kept.keys()].filter((p) => hostName(p) === host && this.made(p)).map(pathThere);
       return paths.length ? { kept: paths } : {};
@@ -1138,8 +1147,8 @@ export class Workstations implements CardWorkstations {
       const cards = all.flatMap((w) => (w.card_id && busy.includes(w.card_id) ? [w.card_id] : []));
       const at = busyOn(null);
       // without slots nothing caps them: the pill shows the cards in worktrees alone
-      if (!Number.isFinite(slots)) return [{ name: HERE, here: true, worktrees: true, uncapped: true, slots: 0, total: 0, cards, busy: at, workstations: held(all), ...keptOn(null) }];
-      return [{ name: HERE, here: true, worktrees: true, slots, total: slots, cards, busy: at, workstations: held(all), ...keptOn(null) }];
+      if (!Number.isFinite(slots)) return [{ name: HERE, here: true, worktrees: true, uncapped: true, slots: 0, total: 0, cards, busy: at, workstations: held(all, null), ...keptOn(null) }];
+      return [{ name: HERE, here: true, worktrees: true, slots, total: slots, cards, busy: at, workstations: held(all, null), ...keptOn(null) }];
     }
     return this.machines().map((host) => {
       const ws = all.filter((w) => hostName(w.path) === host);
@@ -1153,7 +1162,7 @@ export class Workstations implements CardWorkstations {
         total: ws.length,
         cards,
         busy: busyOn(host),
-        workstations: held(ws),
+        workstations: held(ws, host),
         ...keptOn(host),
         ...(blocked.length ? { blocked } : {}),
       };

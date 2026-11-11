@@ -1026,13 +1026,13 @@ describe('Koordinator waits for a free workstation', () => {
     await workers.approve(f.id);
     // finishing after the landing, in its clone
     expect(item(f.id).agent?.finishing).toBe(true);
-    expect(workstations.pool(workers.inTurn(), (c) => workers.turnHost(c))[0]).toMatchObject({ cards: [f.id], busy: [f.id] });
+    expect(workstations.pool(workers.inTurn(), (c) => workers.turnAt(c))[0]).toMatchObject({ cards: [f.id], busy: [f.id] });
     // it asks the owner: its clone stays its own, its slot is free
     await workerOf(f.id).call('ask', { question: 'Stack stoppen?' });
     workerOf(f.id).emit({ type: 'idle' });
     await settle();
     expect(item(f.id).agent?.finishing).toBe(true);
-    expect(workstations.pool(workers.inTurn(), (c) => workers.turnHost(c))[0]).toMatchObject({ cards: [f.id], busy: [] });
+    expect(workstations.pool(workers.inTurn(), (c) => workers.turnAt(c))[0]).toMatchObject({ cards: [f.id], busy: [] });
     workers.answer(f.id, 'Ja.');
     workerOf(f.id).emit({ type: 'idle' });
     await settle();
@@ -1048,7 +1048,13 @@ describe('Koordinator waits for a free workstation', () => {
     await settle();
     expect(board.row(f.id).workstation).not.toBe(clones[0]!);
     expect(workers.inTurn()).toContain(f.id);
-    expect(workstations.pool(workers.inTurn(), (c) => workers.turnHost(c))[0]).toMatchObject({ cards: [a.id], busy: [a.id, f.id] });
+    expect(workstations.pool(workers.inTurn(), (c) => workers.turnAt(c))[0]).toMatchObject({
+      cards: [a.id],
+      busy: [a.id, f.id],
+      total: 1,
+      // its temporary worktree shows in the pool after the clones, its dot and row there
+      workstations: [{ path: clones[0]!, card: a.id }, { path: board.row(f.id).workstation!, card: f.id }],
+    });
     expect(workers.busyOn(null)).toBe(2);
   });
 
@@ -1109,7 +1115,7 @@ describe('Koordinator waits for a free workstation', () => {
     expect(workstations.pool(workers.inTurn())[0]).toMatchObject({ cards: [], busy: [] });
     await workers.approve(b.id);
     expect(item(b.id).agent?.finishing).toBe(true);
-    expect(workstations.pool(workers.inTurn(), (c) => workers.turnHost(c))[0]).toMatchObject({ cards: [b.id], busy: [b.id] });
+    expect(workstations.pool(workers.inTurn(), (c) => workers.turnAt(c))[0]).toMatchObject({ cards: [b.id], busy: [b.id] });
   });
 
   test('in worktrees without slots, any number of cards work at once', async () => {

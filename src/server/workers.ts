@@ -3566,6 +3566,19 @@ export class Workers {
     return at ? hostName(at) : preparing!.host;
   }
 
+  /** Where a card's worker in a turn works: the machine it holds a slot on, and its workstation (null while git makes one ready elsewhere); undefined for one not in a turn. */
+  turnAt(id: string): { host: string | null; path: string | null } | undefined {
+    const host = this.turnHost(id);
+    if (host === undefined) return undefined;
+    let path: string | null = null;
+    try {
+      path = this.o.board.row(id).workstation;
+    } catch {
+      // a card that left the board while the pool is read
+    }
+    return { host, path };
+  }
+
   /** How many of these workers are in a turn on a machine (null: the one Seismic runs on). */
   busyOn(host: string | null): number {
     return this.inTurn().filter((id) => this.turnHost(id) === host).length;

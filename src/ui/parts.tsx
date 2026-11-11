@@ -655,8 +655,8 @@ export function WorkstationsPill({ pools, project, projects, items, underway, on
   const blockedIn = (p: ClonePool) => p.hosts.reduce((n, h) => n + blocked(h), 0);
   const uncapped = (p: ClonePool) => p.hosts.some((h) => h.uncapped);
   const full = pools.every((p) => !uncapped(p) && free(p) === 0);
-  // the machines a pool names: those with clones, worktrees without a cap or a clone's folder kept, and every other machine than this one
-  const named = (p: ClonePool) => p.hosts.filter((h) => h.total > 0 || h.uncapped || !h.here || h.kept?.length);
+  // the machines a pool names: those with clones, worktrees without a cap, a clone's folder kept or a follow-up's temporary worktree, and every other machine than this one
+  const named = (p: ClonePool) => p.hosts.filter((h) => h.total > 0 || h.uncapped || !h.here || h.kept?.length || h.workstations.length);
   const hasDots = pools.some((p) => named(p).some((h) => hostDots(h, items, underway).length > 0));
   const summary = pools.map((p) => uncapped(p) ? t.workstations.uncapped(p.hosts.reduce((n, h) => n + h.busy.length, 0)) : t.workstations.free(free(p), total(p), blockedIn(p))).join(', ');
   const opened = (go: () => void) => {
