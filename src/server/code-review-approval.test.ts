@@ -1,5 +1,6 @@
 // Exercise the real detail buttons and portal dialogs, then the PR card's approval API.
 import { afterAll, beforeAll, expect, test } from 'bun:test';
+import tailwind from 'bun-plugin-tailwind';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Browser, BrowserContext } from 'playwright-core';
@@ -14,10 +15,12 @@ import { board, dir, eachTest, main, manual, runtime, setWorkers, spaces, state,
 eachTest();
 let browser: Browser;
 let script: string;
+let css: string;
 beforeAll(async () => {
-  const bundle = await Bun.build({ entrypoints: [join(import.meta.dir, '../ui/testing/approval.tsx')], target: 'browser' });
+  const bundle = await Bun.build({ entrypoints: [join(import.meta.dir, '../ui/testing/approval.tsx'), join(import.meta.dir, '../ui/tailwind.css')], target: 'browser', plugins: [tailwind] });
   if (!bundle.success) throw new AggregateError(bundle.logs, 'Building the card detail browser fixture');
-  script = await bundle.outputs[0]!.text();
+  script = await bundle.outputs.find((o) => o.path.endsWith('.js'))!.text();
+  css = await bundle.outputs.find((o) => o.path.endsWith('.css'))!.text();
   browser = await launchChromium();
 }, 60_000);
 afterAll(async () => { await browser?.close(); }, 30_000);
@@ -67,8 +70,9 @@ for (const scenario of ['running', 'fixing', 'verifying', 'unsent', 'unsentDurin
       const actions: CardAction[] = [];
       const server = Bun.serve({ port: 0, async fetch(req) {
         const path = new URL(req.url).pathname;
-        if (path === '/') return new Response('<!doctype html><link rel="stylesheet" href="/style.css"><div id="panel" style="display:block;position:relative;width:1100px;margin:20px"></div><script type="module" src="/fixture.js"></script>', { headers: { 'content-type': 'text/html' } });
+        if (path === '/') return new Response('<!doctype html><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/tailwind.css"><div id="panel" style="display:block;position:relative;width:1100px;margin:20px"></div><script type="module" src="/fixture.js"></script>', { headers: { 'content-type': 'text/html' } });
         if (path === '/fixture.js') return new Response(script, { headers: { 'content-type': 'text/javascript' } });
+        if (path === '/tailwind.css') return new Response(css, { headers: { 'content-type': 'text/css' } });
         if (path === '/style.css') return new Response(Bun.file(join(import.meta.dir, '../ui/styles.css')));
         if (path === '/fixture') return Response.json({ item: board.item(id), repo: { id: 'home', name: 'Home', path: main, branch: 'main', pullRequests: true, direct: true } });
         if (path.endsWith('/act')) {
@@ -95,11 +99,11 @@ for (const scenario of ['running', 'fixing', 'verifying', 'unsent', 'unsentDurin
           await page.getByRole('tab', { name: /Review/ }).click();
           await page.getByRole('button', { name: 'Fix it', exact: true }).click();
         } else {
-          expect(await approval.getAttribute('class')).toContain('review-warning');
+          expect(await approval.getAttribute('data-variant')).toBe('review-warning');
           expect(await approval.innerText()).toContain(scenario === 'fixing' ? 'Fixing in progress' : 'Review in progress');
         }
         await approval.click();
-        const dialog = page.getByRole('dialog', { name: unsent ? 'Choices not sent yet' : 'Approve without Review?' });
+        const dialog = page.getByRole('alertdialog', { name: unsent ? 'Choices not sent yet' : 'Approve without Review?' });
         await dialog.waitFor();
         expect(actions).toEqual([]);
         await dialog.getByRole('button', { name: unsent ? 'Go back' : 'Continue review', exact: true }).click();
