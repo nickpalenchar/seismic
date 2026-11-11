@@ -36,7 +36,7 @@ export function useAgentsTab(first: Tab): [Tab, (t: Tab) => void] {
 /** The switch between the four tabs, the queue's count on "Queue" and the parked cards' on "Parked"; `children` is the panel of the tab shown. */
 export function AgentsTabs({ tab, onTab, queued, parked, children }: { tab: Tab; onTab: (t: Tab) => void; queued: number; parked: number; children?: ReactNode }) {
   return (
-    <Tabs value={tab} onValueChange={(k) => onTab(k as Tab)} className="contents">
+    <Tabs value={tab} onValueChange={(k) => onTab(k as Tab)}>
       <TabsList variant="segmented" className="agents-tabs" aria-label={t.agents.title}>
         {(['queue', 'all', 'parked', 'activity'] as const).map((k) => (
           <TabsTrigger key={k} value={k}>
@@ -46,7 +46,7 @@ export function AgentsTabs({ tab, onTab, queued, parked, children }: { tab: Tab;
           </TabsTrigger>
         ))}
       </TabsList>
-      <TabsContent value={tab} className="contents">
+      <TabsContent value={tab}>
         {children}
       </TabsContent>
     </Tabs>
@@ -97,7 +97,7 @@ export function AgentsSheet({ on, items, open, underway, onOpen, project, change
   return (
     <Docked id="agents" ref={box} on={on} label={t.agents.work.title}>
       <h2>{t.agents.work.title}</h2>
-      <Tabs value={tab} onValueChange={(k) => setTab(k as WorkTab)} className="contents">
+      <Tabs value={tab} onValueChange={(k) => setTab(k as WorkTab)}>
         <TabsList variant="segmented" className="agents-tabs" aria-label={t.agents.work.title}>
           {(['work', 'activity'] as const).map((k) => (
             <TabsTrigger key={k} value={k}>
@@ -105,7 +105,7 @@ export function AgentsSheet({ on, items, open, underway, onOpen, project, change
             </TabsTrigger>
           ))}
         </TabsList>
-      <TabsContent value={tab} className="contents">
+      <TabsContent value={tab}>
       {tab === 'activity' ? (
         <ActivityTab project={project} changed={changed} open={open} onGo={onGo} />
       ) : (

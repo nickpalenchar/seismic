@@ -44,8 +44,8 @@ export function PrefsDialog({ on, onClose, onConfig, preferences, repos }: { on:
   const p = t.prefs;
   return (
     <Dialog open={on} onOpenChange={(open) => !open && onClose()}>
+      <Tabs asChild orientation="vertical" value={section} onValueChange={(s) => setSection(s as PrefsSection)}>
       <DialogContent id="prefs" keepMounted className="cfg-box" layerClassName="z-55 items-stretch p-7">
-        <Tabs orientation="vertical" value={section} onValueChange={(s) => setSection(s as PrefsSection)} className="contents">
         <nav className="cfg-nav">
           <div className="p-kind">{p.kind}</div>
           <DialogTitle asChild>
@@ -95,8 +95,8 @@ export function PrefsDialog({ on, onClose, onConfig, preferences, repos }: { on:
           </section>
           </TabsContent>
         </div>
-        </Tabs>
       </DialogContent>
+      </Tabs>
     </Dialog>
   );
 }

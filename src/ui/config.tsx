@@ -387,8 +387,8 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
   return (
     // a press on the dim around the dialog closes it; a press that starts inside does not
     <Dialog open={on} onOpenChange={(open) => !open && onClose()}>
+      <Tabs asChild orientation="vertical" value={tabOf} onValueChange={(v) => (v.startsWith(PROJECT_TAB) ? showProject(Number(v.slice(PROJECT_TAB.length))) : setSection(v as Section))}>
       <DialogContent id="config" keepMounted className="cfg-box" layerClassName="z-55 items-stretch p-7">
-        <Tabs orientation="vertical" value={tabOf} onValueChange={(v) => (v.startsWith(PROJECT_TAB) ? showProject(Number(v.slice(PROJECT_TAB.length))) : setSection(v as Section))} className="contents">
         <nav className="cfg-nav">
           <div className="p-kind">{c.kind}</div>
           <DialogTitle asChild>
@@ -549,8 +549,8 @@ export function ConfigDialog({ on, page, onClose, onSetup, onAsk, onTalk, onProb
             <DeveloperBlock on={on && section === 'developer'} />
           </section>
         </div>
-        </Tabs>
       </DialogContent>
+      </Tabs>
     </Dialog>
   );
 }
@@ -2375,7 +2375,7 @@ function ProjectBlock({ n, project, file, checking, resolved, running, pin, save
           <Problem key={k} problem={p} where={here} ask={askHere} retried={askHere && onRecheck} />
         ))}
       {/* its repositories as tabs, one shown at a time, with the problems of each counted on it */}
-      <Tabs value={String(at)} onValueChange={(v) => setAt(Number(v))} className="contents">
+      <Tabs value={String(at)} onValueChange={(v) => setAt(Number(v))}>
       <Field label={t.config.repos}>
         <div className="cfg-repo-tabs">
             <TabsList variant="segmented" aria-label={t.config.repos}>
@@ -2401,7 +2401,7 @@ function ProjectBlock({ n, project, file, checking, resolved, running, pin, save
         </div>
       </Field>
       {repo && (
-        <TabsContent value={String(at)} className="contents">
+        <TabsContent value={String(at)}>
         <RepoRow
           key={at}
           repo={repo}
