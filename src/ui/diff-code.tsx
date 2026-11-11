@@ -1,81 +1,47 @@
-// A file's diff drawn by @pierre/diffs: syntax highlighting, word-level marks, split or unified, and
-// the unchanged lines around the hunks expandable. It comes from the patch, so a diff opens as fast as
-// patch and its highlighting are ready; the whole old and new file are fetched only when the
-// owner expands. The viewer, highlighting languages and active theme load only when needed.
+// A file's diff in shadcn/ui's code block: syntax highlighting, the words that changed marked within a
+// line, split or unified, and the unchanged lines around the hunks expandable. It comes from the
+// patch, so a diff opens as fast as the patch is there; highlighting follows once its language has
+// loaded, and the whole old and new file are fetched only when the owner expands.
 
-import { type FileDiffMetadata, getFiletypeFromFileName, getSharedHighlighter, parsePatchFiles } from '@pierre/diffs';
-import { FileDiff as PierreDiff } from '@pierre/diffs/react';
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import type { DiffPart } from '../core/diff';
 import { api } from './api';
-import type { DiffStyle } from './diffStyle';
-import { t } from './strings';
 import { LinkButton } from './components/button';
+import { CodeBlock, CodeBlockContent, CodeBlockLine, CodeBlockSplitRow } from './components/code-block';
+import { contextLines, type DiffLine, gap, type Hunk, parseHunks, splitLines, splitRows } from './diff-lines';
+import type { DiffStyle } from './diffStyle';
+import { languageOf, loadTokenizer, type Token } from './highlight';
+import { t } from './strings';
 
-/** `light` or `dark` as the page shows it now: the owner's choice on the page's root, else the system's. */
-function useLook(): 'light' | 'dark' {
-  return useSyncExternalStore(
-    (notify) => {
-      const watch = new MutationObserver(notify);
-      watch.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-      const system = matchMedia('(prefers-color-scheme: dark)');
-      system.addEventListener('change', notify);
-      return () => {
-        watch.disconnect();
-        system.removeEventListener('change', notify);
-      };
-    },
-    () => {
-      const chosen = document.documentElement.dataset.theme;
-      return chosen === 'dark' || chosen === 'light' ? chosen : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    },
-  );
+/** The whole old and new file, once the owner expanded: `loading` meanwhile, `failed` when they could not be read. */
+type Whole = { old: string[]; new: string[] } | 'loading' | 'failed' | null;
+
+/** A line's tokens by its number, on each side. */
+interface Painted {
+  of: Whole;
+  old: Map<number, Token[]>;
+  new: Map<number, Token[]>;
 }
 
-const THEMES = { light: 'github-light', dark: 'github-dark' } as const;
-
-/** Whether a file's whole text can be shown: `null` until asked. */
-type Whole = boolean | null;
-
 export default function CodeDiff({ part, card, style }: { part: DiffPart; card: string; style: DiffStyle }) {
-  const look = useLook();
-  // the same object across renders: expanding fills it in with the whole file
-  const fileDiff = useMemo<FileDiffMetadata | undefined>(() => parsePatchFiles(part.lines.join('\n')).flatMap((p) => p.files)[0], [part]);
-  const [highlight, setHighlight] = useState<{ diff: FileDiffMetadata; look: string; error?: boolean }>();
-  useEffect(() => {
-    if (!fileDiff) return;
-    let gone = false;
-    const langs = fileDiff.lang
-      ? [fileDiff.lang]
-      : [getFiletypeFromFileName(fileDiff.prevName ?? fileDiff.name), getFiletypeFromFileName(fileDiff.name)];
-    // Mount only once the renderer can highlight synchronously, with just this file's languages
-    // and the active theme. A new patch or theme waits too; stale loads cannot reveal it.
-    getSharedHighlighter({ langs, themes: [THEMES[look]] }).then(
-      () => !gone && setHighlight({ diff: fileDiff, look }),
-      () => !gone && setHighlight({ diff: fileDiff, look, error: true }),
-    );
-    return () => {
-      gone = true;
-    };
-  }, [fileDiff, look]);
-  const changed = fileDiff?.type === 'change' || fileDiff?.type === 'rename-changed';
-  // The library offers to expand only with a loader, so a file is offered it once its whole text is
-  // known to be there: a probe, as the file comes near the screen, carries no file; the files
-  // themselves are fetched when the owner expands. A file whose text cannot be shown keeps its folded
-  // lines as plain text.
-  const [whole, setWhole] = useState<Whole>(null);
+  const hunks = useMemo(() => parseHunks(part.lines), [part]);
+  const changed = part.status === 'modified' || part.status === 'renamed';
+  // A file is offered its unchanged lines once its whole text is known to be there: a probe, as the
+  // file comes near the screen, carries no file; the files themselves are fetched when the owner
+  // expands. A file whose text cannot be shown keeps its folded lines as a count.
+  const [expandable, setExpandable] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = box.current;
-    if (!el || !fileDiff || !changed) return;
+    if (!el || !changed) return;
     let gone = false;
     const look = new IntersectionObserver(
       ([e]) => {
         if (!e?.isIntersecting) return;
         look.disconnect();
-        api.hasVersions(card, fileDiff.name).then(
-          (ok) => !gone && setWhole(ok),
-          () => !gone && setWhole(false),
+        api.hasVersions(card, part.file).then(
+          (ok) => !gone && setExpandable(ok),
+          () => {},
         );
       },
       { rootMargin: '600px' },
@@ -85,44 +51,165 @@ export default function CodeDiff({ part, card, style }: { part: DiffPart; card: 
       gone = true;
       look.disconnect();
     };
-  }, [fileDiff, card, changed]);
-  const options = useMemo(
-    () => ({
-      theme: THEMES[look],
-      themeType: look,
-      diffStyle: style,
-      disableFileHeader: true,
-      // signs, not coloured bars down the side
-      diffIndicators: 'classic' as const,
-      hunkSeparators: 'line-info' as const,
-      overflow: 'wrap' as const,
-      lineDiffType: 'word-alt' as const,
-      ...(whole
-        ? {
-            loadDiffFiles: async (f: FileDiffMetadata) => {
-              const v = await api.versions(card, f.name);
-              if (!v || v.old === null || v.new === null) throw new Error('no whole file to show');
-              return { oldFile: { name: f.prevName ?? f.name, contents: v.old }, newFile: { name: f.name, contents: v.new } };
-            },
-          }
-        : {}),
-    }),
-    [look, style, card, whole],
+  }, [part, card, changed]);
+
+  const [whole, setWhole] = useState<Whole>(null);
+  const [shown, setShown] = useState<ReadonlySet<number>>(new Set());
+  useEffect(() => {
+    setWhole(null);
+    setShown(new Set());
+  }, [part]);
+  const expand = (i: number) => {
+    setShown((s) => new Set(s).add(i));
+    if (whole !== null && whole !== 'failed') return;
+    setWhole('loading');
+    api.versions(card, part.file).then(
+      (v) => setWhole(v && v.old !== null && v.new !== null ? { old: splitLines(v.old), new: splitLines(v.new) } : 'failed'),
+      () => setWhole('failed'),
+    );
+  };
+  const files = typeof whole === 'object' ? whole : null;
+
+  // Highlighting: the hunks' lines on each side until the whole files are there, then the files,
+  // so the unchanged lines shown between hunks are coloured too and the grammar runs through.
+  const [painted, setPainted] = useState<Painted>();
+  const [paintFailed, setPaintFailed] = useState(false);
+  useEffect(() => {
+    let gone = false;
+    loadTokenizer(languageOf(part.file)).then(
+      (tokenize) => {
+        if (gone || !tokenize) return;
+        const side = (lines: string[], numbers: number[]) => {
+          const tokens = tokenize(lines.join('\n'));
+          return new Map(numbers.map((n, i) => [n, tokens[i] ?? []]));
+        };
+        if (files) {
+          setPainted({ of: files, old: side(files.old, files.old.map((_, i) => i + 1)), new: side(files.new, files.new.map((_, i) => i + 1)) });
+        } else {
+          const all = hunks.flatMap((h) => h.lines);
+          const olds = all.filter((l) => l.old !== undefined && l.kind !== 'added');
+          const news = all.filter((l) => l.new !== undefined && l.kind !== 'removed');
+          setPainted({ of: null, old: side(olds.map((l) => l.text), olds.map((l) => l.old!)), new: side(news.map((l) => l.text), news.map((l) => l.new!)) });
+        }
+      },
+      () => !gone && setPaintFailed(true),
+    );
+    return () => {
+      gone = true;
+    };
+  }, [part, hunks, files]);
+
+  if (!hunks.length) return null;
+  const tokensOf = (line: DiffLine) => (line.kind === 'removed' ? painted?.old.get(line.old!) : painted?.new.get(line.new!));
+  const digits = String(Math.max(...hunks.map((h) => Math.max(h.oldStart + h.oldCount, h.newStart + h.newCount)), files ? files.new.length : 0)).length;
+  const number = (n?: number) => (
+    <span className="inline-block align-top text-end tabular-nums" style={{ width: `${digits}ch` }}>
+      {n ?? ''}
+    </span>
   );
-  if (!fileDiff) return null;
-  const ready = highlight?.diff === fileDiff && highlight.look === look;
+
+  const drawLines = (lines: DiffLine[], key: string): ReactNode[] =>
+    style === 'split'
+      ? splitRows(lines).map((row, i) => (
+          <CodeBlockSplitRow key={`${key}-${i}`}>
+            {[row.left, row.right].map((line, side) =>
+              line ? (
+                <CodeBlockLine key={side} variant={variant(line)} gutter={number(side ? line.new : line.old)}>
+                  {paint(line, tokensOf(line))}
+                </CodeBlockLine>
+              ) : (
+                <CodeBlockLine key={side} variant="absent" />
+              ),
+            )}
+          </CodeBlockSplitRow>
+        ))
+      : lines.map((line, i) => (
+          <CodeBlockLine
+            key={`${key}-${i}`}
+            variant={variant(line)}
+            gutter={
+              <span className="flex gap-x-2">
+                {number(line.old)}
+                {number(line.new)}
+              </span>
+            }
+          >
+            {paint(line, tokensOf(line))}
+          </CodeBlockLine>
+        ));
+
+  const rows: ReactNode[] = [];
+  for (let i = 0; i <= hunks.length; i++) {
+    const hunk: Hunk | undefined = hunks[i];
+    const g = gap(hunks, i, files?.new.length);
+    if (shown.has(i) && files) rows.push(...drawLines(contextLines(files.new, g.from, g.to ?? Infinity, g.shift), `g${i}`));
+    else {
+      const count = g.to === null ? null : g.to - g.from;
+      const offer = expandable && whole !== 'failed';
+      if (count !== 0 && (count !== null || offer))
+        rows.push(
+          <span key={`s${i}`} data-slot="code-block-separator" className="-mx-2.5 flex select-none items-baseline gap-3 bg-muted px-2.5 py-0.5 font-sans text-muted-foreground">
+            {offer ? (
+              <LinkButton disabled={whole === 'loading'} onClick={() => expand(i)}>
+                {whole === 'loading' && shown.has(i) ? t.diff.loadingWhole : count === null ? t.diff.showRest : t.diff.showUnchanged(count)}
+              </LinkButton>
+            ) : (
+              <span>{t.diff.unchanged(count!)}</span>
+            )}
+            {hunk?.section && <span className="min-w-0 truncate font-mono">{hunk.section}</span>}
+          </span>,
+        );
+    }
+    if (hunk) rows.push(...drawLines(hunk.lines, `h${i}`));
+  }
+
   return (
     <div ref={box}>
-      {!ready ? (
-        <p className="hint" role="status">{t.diff.loading}</p>
-      ) : highlight.error ? (
+      {paintFailed && (
         <p className="hint" role="alert">
-          {t.diff.highlightFailed}{' '}
-          <LinkButton onClick={() => location.reload()}>{t.diff.reloadHighlight}</LinkButton>
+          {t.diff.highlightFailed} <LinkButton onClick={() => location.reload()}>{t.diff.reloadHighlight}</LinkButton>
         </p>
-      ) : (
-        <PierreDiff fileDiff={fileDiff} options={options} disableWorkerPool />
       )}
+      {whole === 'failed' && (
+        <p className="hint" role="alert">
+          {t.diff.wholeFailed}
+        </p>
+      )}
+      <CodeBlock size="sm" className="rounded-t-none rounded-b-[2px] border-t-0 border-line bg-panel">
+        <CodeBlockContent wrap aria-label={part.file} className="group-data-[size=sm]/code-block:py-0">
+          {rows}
+        </CodeBlockContent>
+      </CodeBlock>
     </div>
   );
+}
+
+const variant = (line: DiffLine) => (line.kind === 'context' ? 'default' : line.kind);
+
+/** A line's text in its tokens' colours, the words that changed in it marked. */
+function paint(line: DiffLine, tokens?: Token[]): ReactNode[] {
+  const runs = tokens && tokens.map((t) => t.content).join('') === line.text ? tokens : [{ content: line.text }];
+  const marks = line.marks ?? [];
+  const out: ReactNode[] = [];
+  let at = 0;
+  for (const run of runs) {
+    const end = at + run.content.length;
+    // cut the run where a mark starts or ends inside it
+    const cuts = [at, ...marks.flatMap((m) => m).filter((c) => c > at && c < end), end];
+    for (let k = 0; k < cuts.length - 1; k++) {
+      const [from, to] = [cuts[k]!, cuts[k + 1]!];
+      const marked = marks.some(([a, b]) => from >= a && to <= b);
+      out.push(
+        <span
+          key={`${from}`}
+          style={run.style}
+          className={`${run.style ? 'text-(--shiki-light) dark:text-(--shiki-dark)' : ''} ${marked ? (line.kind === 'removed' ? 'rounded-[2px] bg-error/25' : 'rounded-[2px] bg-approved/30') : ''}`}
+        >
+          {line.text.slice(from, to)}
+        </span>,
+      );
+    }
+    at = end;
+  }
+  return out;
 }

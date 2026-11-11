@@ -51,9 +51,11 @@ html, body { margin: 0; height: 100%; overflow: hidden; background-color: var(--
    and what is fixed to the screen with it, the body being their containing block (its transform) */
 .kb-pin body { transform: translateY(var(--kb-top)); height: var(--kb-h); }
 /* in the base layer, so the components' utilities set their own colour and size over it */
-@layer base { button, input, textarea { font: inherit; color: inherit; } a { color: inherit; } }
+@layer base {
+  button, input, textarea { font: inherit; color: inherit; } a { color: inherit; }
+  code { font: .92em var(--mono); background: var(--chip); border-radius: 5px; padding: 0 .25em; }
+}
 svg.lucide { flex: none; }
-code { font: .92em var(--mono); background: var(--chip); border-radius: 5px; padding: 0 .25em; }
 /* a link in text, written by an agent or in a plan doc: in the text's ink with a faint pencil line under it,
    which the pointer marks like a highlighter */
 a.link { text-decoration: underline 1px color-mix(in srgb, currentColor 28%, transparent); text-underline-offset: .22em;
@@ -1198,14 +1200,10 @@ button.q-end:hover { color: var(--ink); text-decoration: underline; }
 .d-files td { padding: 1px 14px 1px 0; vertical-align: baseline; }
 .d-file { margin-top: 18px; }
 .d-file h3 { position: sticky; top: -8px; z-index: 1; display: flex; gap: 12px; align-items: baseline; margin: 0; padding: 7px 10px;
-  background: var(--chip); border: 1px solid var(--line); border-radius: 2px 2px 0 0; font: 500 13px var(--font); }
+  /* the chip's tint over the panel: opaque, so the code scrolling under the sticky header stays hidden */
+  background: linear-gradient(var(--chip), var(--chip)), var(--panel); border: 1px solid var(--line); border-radius: 2px 2px 0 0; font: 500 13px var(--font); }
 .d-name { font: 12.5px var(--mono); }
 .d-file > .hint { margin: 6px 10px; }
-.d-file diffs-container { display: block; isolation: isolate; border: 1px solid var(--line); border-top: 0; border-radius: 0 0 2px 2px; overflow: hidden;
-  /* the library's colours from Seismic's palette, light and dark with the page */
-  --diffs-light-bg: var(--panel); --diffs-dark-bg: var(--panel); --diffs-light: var(--ink); --diffs-dark: var(--ink);
-  --diffs-addition-color: var(--approved); --diffs-deletion-color: var(--error); --diffs-modified-color: var(--working);
-  --diffs-font-family: var(--mono); --diffs-font-size: 12px; --diffs-line-height: 1.5; }
 .d-cut { margin-top: 18px; }
 /* above plans (z-index 0), below cards (2): a line from a workstream stays visible over its plan */
 #links { position: absolute; left: 0; top: 0; z-index: 1; overflow: visible; pointer-events: none; }

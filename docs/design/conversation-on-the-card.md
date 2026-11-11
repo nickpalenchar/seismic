@@ -250,16 +250,19 @@ shows the whole diff over the page; "Copy path" copies the workstation's directo
 another machine). The owner rarely reads code, so it stays a quiet line.
 
 The diff (over the page, and in the Diff tab's "Changes") is one component with the same look in both
-places: highlighted by language (Shiki), with changed words marked inside a changed line, in
-Seismic's palette and the page's light or dark. It renders from the patch and waits until its
-language and theme are ready before showing code; while they load it shows "Loading the diff …",
-and a failed load offers "Reload page" (the browser can cache a failed module import for the page's
-lifetime). A file with more than 1,500 lines starts folded. Where the patch leaves out
-lines around its hunks, "N unmodified lines" expands them. Only as a changed file
+places: shadcn/ui's code block, a line per row with both line numbers, `+` and `−` signs and green
+and red tints, highlighted by language (Shiki, GitHub's light and dark themes following the page),
+with changed words marked inside a changed line. It renders from the patch: the code shows at once,
+"Loading the diff …" only while the viewer itself loads, and the colours follow once the file's
+language has loaded; a failed load offers "Reload page" (the browser can cache a failed module
+import for the page's lifetime) and leaves the code plain. A file with more than 1,500 lines starts
+folded. Where the patch leaves out lines around its hunks, a row says how many with the hunk's
+function or heading beside it; "Show N unchanged lines" (and after the last hunk, "Show the rest of
+the file") reveals them, highlighted from the whole file. Only as a changed file
 comes near the screen does the page ask the server (`GET …/cards/:id/versions?path=&probe`) whether
 both versions are there to show, which carries no file; the whole old and new text
 (`GET …/versions?path=`) is fetched when the owner expands. A file whose text cannot be shown (too big, binary, no earlier version) keeps its folded lines
-as plain text, without the expand control. Which two versions: on an
+as a count, without the expand control. Which two versions: on an
 open branch, where the workstation's branch started against the workstation now (uncommitted changes
 included); on a landed card, the commit before the landing against what it landed; on a folder
 card, the copy Seismic kept against the file now. A file with no old version or no text, or outside
@@ -556,7 +559,10 @@ image.
   and an app away, unlike every other kind of file) and drawing pages on the server (no tool that
   runs on every platform). The desktop keeps the browser's viewer, which searches and selects text.
 - **The diff renders from the patch; whole files come only when unchanged lines are expanded**
-  (owner, 2026-11-09), with `@pierre/diffs` instead of hand-built lines. Rejected: the patch alone
+  (owner, 2026-11-09). Drawn with shadcn/ui's code block and Shiki (owner, 2026-11-11), so the
+  diff looks like the rest of the shadcn UI; the patch parsing, split pairing, word marks and
+  expanding are Seismic's own. Rejected: `@pierre/diffs`, the earlier renderer (its own look in a
+  shadow DOM, styled from outside through variables). Rejected: the patch alone
   (context stays at git's 3 lines) and whole old and new files for every file (slow for large
   changes, and at odds with the 2 MB cut-off of the patch). Inline code-review items on diff lines are
   a separate step.
