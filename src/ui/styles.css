@@ -495,7 +495,7 @@ h1, h2, .cfg-head h3, .plan > .head .ttl { font-family: var(--font); font-weight
 .canvas-icon.emoji { line-height: 1; }
 .canvas-icon.letter { display: inline-grid; place-items: center; border-radius: 50%; background: var(--chip); color: var(--ink); font-weight: 700; line-height: 1; padding: 2px; }
 @keyframes drawer-out { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-#canvas-dialog .box { position: relative; display: flex; flex-direction: column; width: 560px; max-width: 100%; max-height: 100%; box-sizing: border-box; padding: 22px 26px 20px; }
+#canvas-dialog .box { position: relative; display: flex; flex-direction: column; width: 600px; max-width: 100%; max-height: 100%; box-sizing: border-box; padding: 22px 26px 20px; }
 #canvas-dialog h2 { display: flex; align-items: center; gap: 12px; margin: 0 44px 16px 0; font-size: 21px; }
 #canvas-dialog .close { position: absolute; right: 14px; top: 14px; }
 .cd-preview { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: var(--chip); }
@@ -503,15 +503,26 @@ h1, h2, .cfg-head h3, .plan > .head .ttl { font-family: var(--font); font-weight
 .cd-field { width: 100%; box-sizing: border-box; }
 .cd-problem { min-height: 18px; margin: 4px 0 12px; font-size: 12px; color: var(--muted-foreground); }
 .cd-problem.on { color: var(--error); }
-.cd-icons { min-height: 0; overflow: auto; margin: 0 -4px; padding: 0 4px; }
-.cd-icons h3 { margin: 12px 0 6px; font-size: 12px; font-weight: 600; color: var(--muted-foreground); }
-.cd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); gap: 4px; }
-.cicon { display: grid; place-items: center; height: 38px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--ink); cursor: pointer; padding: 0; }
-.cicon .emoji { font-size: 21px; line-height: 1; }
+.cd-icons { display: flex; flex-direction: column; min-height: 0; }
+.cd-icon-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.cd-icon-bar .cd-label { margin: 0 4px 0 0; }
+.cd-icon-bar .cd-none { margin-left: auto; color: var(--muted-foreground); }
+.cd-icon-bar .cd-none[aria-pressed=true] { opacity: 1; color: var(--ink); background: var(--chip); }
+/* both panels as tall as the screen allows, the same height so switching does not jump */
+.cd-panel { display: flex; flex-direction: column; height: clamp(240px, calc(100vh - 400px), 520px); min-height: 0; }
+.cd-panel[hidden] { display: none; }
+.cd-search { margin-bottom: 8px; }
+.cd-colors { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.cd-color { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid transparent; border-radius: 50%; background: none; cursor: pointer; padding: 0; }
+.cd-color:hover { background: var(--chip); }
+.cd-color[data-state=checked] { border-color: var(--ink); }
+.cd-swatch { display: block; width: 18px; height: 18px; border-radius: 50%; }
+.cd-swatch.text { background: var(--ink); }
+.cd-grid { flex: 1; min-height: 0; overflow: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); grid-auto-rows: 40px; gap: 4px; align-content: start; margin: 0 -4px; padding: 0 4px; }
+.cicon { display: grid; place-items: center; height: 40px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--ink); cursor: pointer; padding: 0; }
 .cicon:hover { background: var(--chip); }
 .cicon[data-state=checked] { border-color: var(--ink); background: var(--chip); }
-.cd-icons > .cicon { height: 32px; padding: 0 12px; }
-.cd-none { font-size: 13px; color: var(--muted-foreground); }
+.cd-empty { margin: 24px 0; text-align: center; font-size: 13px; color: var(--muted-foreground); }
 .cd-actions { display: flex; gap: 8px; margin-top: 18px; }
 /* the open card's "⋯", and the canvases it offers to move the card to */
 .card-more .prio-btn { display: inline-grid; place-items: center; height: 20px; padding: 0 5px; color: var(--muted-foreground); }

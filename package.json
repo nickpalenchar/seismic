@@ -33,6 +33,8 @@
     "d3-contour": "^4.0.2",
     "diff": "^9.0.0",
     "drizzle-orm": "^0.45.4",
+    "emojibase-data": "^18.0.0",
+    "frimousse": "^0.4.0",
     "lucide-react": "^1.69.0",
     "pdfjs-dist": "^6.4.299",
     "playwright-core": "1.61.1",

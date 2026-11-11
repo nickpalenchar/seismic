@@ -6,7 +6,7 @@
 // into the archive with it, and comes back to its place when the doc returns. A workstream that
 // leaves its doc stays stored but is not shown.
 
-import { CANVAS_LUCIDE_ICONS, isCanvasIcon } from '../core/canvas-icons';
+import { CANVAS_ICON_COLORS, CANVAS_LUCIDE_ICONS, isCanvasIcon } from '../core/canvas-icons';
 import { isLabelValue, type Label, LABELS, LABEL_VALUES, type Labels } from '../core/labels';
 import { createHash } from 'node:crypto';
 import { type ActivityCode, type ActivityEntry, type ActivityWho, type AgentAt, type AgentIdentity, type Harness, type Canvas, CANVAS_NAME_MAX, canvasNameProblem, type CodeReview, type CodeReviewMode, type CardArchiving, type Feedback, MAIN_CANVAS, type ReviewItem, type WorkConfig, type StoppedAt } from '../core/types';
@@ -2857,10 +2857,10 @@ export class Board {
     return n;
   }
 
-  /** An icon as given, checked: one emoji, or `lucide:<name>` of the curated set (`CANVAS_LUCIDE_ICONS`). */
+  /** An icon as given, checked: one emoji, or `lucide:<name>` of the curated set (`CANVAS_LUCIDE_ICONS`), with `:<colour>` of the palette or without. */
   private canvasIcon(icon: unknown): string {
     const i = typeof icon === 'string' ? icon.trim() : '';
-    if (!isCanvasIcon(i)) throw new BadRequest('invalid', `icon must be one emoji or lucide:<name>, one of ${CANVAS_LUCIDE_ICONS.join(', ')}`);
+    if (!isCanvasIcon(i)) throw new BadRequest('invalid', `icon must be one emoji, or lucide:<name> or lucide:<name>:<colour>; name one of ${CANVAS_LUCIDE_ICONS.join(', ')}; colour one of ${Object.keys(CANVAS_ICON_COLORS).join(', ')}`);
     return i;
   }
 

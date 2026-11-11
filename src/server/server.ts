@@ -33,6 +33,8 @@ import { Push, startedWaiting } from './push';
 import { worker } from '../ui/sw';
 import icon180 from '../ui/logo/apple-touch-icon.png' with { type: 'file' };
 import icon512 from '../ui/logo/icon-512.png' with { type: 'file' };
+import emojiDataFile from 'emojibase-data/en/data.json' with { type: 'file' };
+import emojiMessagesFile from 'emojibase-data/en/messages.json' with { type: 'file' };
 import { servePdfjs } from './pdfjs';
 import { Tailscale } from './tailscale';
 import { codexModels } from './codex-runtime';
@@ -46,6 +48,10 @@ import { VERSION } from './resources';
 import { footerOf } from './wish';
 import { serving } from './owner';
 import { pageStall, type Stalls } from './stalls';
+
+// with `type: 'file'` a JSON import is the file's path (embedded in a compiled binary), which TypeScript types as its content
+const emojiData = emojiDataFile as unknown as string;
+const emojiMessages = emojiMessagesFile as unknown as string;
 
 type Req = Request & { params: Record<string, string> };
 
@@ -473,6 +479,9 @@ export function serve(
       // Seismic has one for this device); pushes go only to paired devices
       '/icons/180.png': { GET: () => new Response(Bun.file(icon180), { headers: { 'cache-control': 'max-age=86400' } }) },
       '/icons/512.png': { GET: () => new Response(Bun.file(icon512), { headers: { 'cache-control': 'max-age=86400' } }) },
+      // Emojibase's data for the canvas dialog's emoji picker (src/ui/components/emoji-picker.tsx), so it needs no network
+      '/emojibase/en/data.json': { GET: () => new Response(Bun.file(emojiData), { headers: { 'content-type': 'application/json', 'cache-control': 'max-age=86400' } }) },
+      '/emojibase/en/messages.json': { GET: () => new Response(Bun.file(emojiMessages), { headers: { 'content-type': 'application/json', 'cache-control': 'max-age=86400' } }) },
       // pdf.js's worker, fonts and decoders, where the page draws a PDF itself (src/ui/pdf.tsx)
       '/pdfjs/*': { GET: (req) => servePdfjs(req) },
       '/sw.js': { GET: () => new Response(`(${worker.toString()})();\n`, { headers: { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'no-cache' } }) },

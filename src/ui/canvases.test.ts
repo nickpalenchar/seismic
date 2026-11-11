@@ -1,9 +1,9 @@
 import { expect, test } from 'bun:test';
-import { isCanvasIcon } from '../core/canvas-icons';
-import { CANVAS_LUCIDE_ICONS } from '../core/canvas-icons';
+import emojis from 'emojibase-data/en/data.json';
+import { CANVAS_ICON_COLORS, CANVAS_LUCIDE_ICONS, isCanvasIcon } from '../core/canvas-icons';
 import { type Canvas, canvasNamedBy, canvasOfHash, type Item } from '../core/types';
-import { nameProblem, stubsOf } from './canvases';
-import { CANVAS_EMOJIS, lucideOf } from './canvasIcon';
+import { iconsMatching, nameProblem, stubsOf } from './canvases';
+import { lucideOf } from './canvasIcon';
 
 const canvases: Canvas[] = [
   { id: 'm', name: 'main' },
@@ -32,9 +32,21 @@ test('the dialog holds a name to the rule: not empty, not too long, no number fr
   expect(nameProblem('Design', canvases)).toBeUndefined();
 });
 
-test('every icon the picker offers is one a canvas may carry, and each Lucide one draws', () => {
-  expect(CANVAS_EMOJIS.filter((e) => !isCanvasIcon(e))).toEqual([]);
+test('every icon the picker offers is one a canvas may carry, and each Lucide one draws, in each colour', () => {
+  // the emoji picker offers Emojibase's emojis but the components (skin tones, hair styles), with their skin tones
+  const offered = emojis.filter((e) => e.group !== undefined && e.group !== 2).flatMap((e) => [e.emoji, ...(e.skins ?? []).map((s) => s.emoji)]);
+  expect(offered.length).toBeGreaterThan(3000);
+  expect(offered.filter((e) => !isCanvasIcon(e))).toEqual([]);
   expect(CANVAS_LUCIDE_ICONS.filter((n) => !lucideOf(`lucide:${n}`))).toEqual([]);
+  expect(lucideOf('lucide:rocket:blue')?.color).toBe(CANVAS_ICON_COLORS.blue);
+  expect(lucideOf('lucide:rocket')?.color).toBeUndefined();
+});
+
+test('the icon search finds the Lucide icons whose name holds every word typed', () => {
+  expect(iconsMatching('')).toHaveLength(CANVAS_LUCIDE_ICONS.length);
+  expect(iconsMatching('chart')).toEqual(['chart-bar', 'chart-line', 'chart-pie']);
+  expect(iconsMatching('Git pull')).toEqual(['git-pull-request']);
+  expect(iconsMatching('no such')).toEqual([]);
 });
 
 test('a wait to a card on another canvas ends in a stub on the side of the card shown', () => {

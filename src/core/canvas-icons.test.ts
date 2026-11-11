@@ -4,8 +4,9 @@ import { join } from 'node:path';
 import { CANVAS_LUCIDE_ICONS, isCanvasIcon } from './canvas-icons';
 
 test('a canvas icon is one emoji or a curated Lucide icon', () => {
-  for (const ok of ['💡', '💶', '👩🏽‍💻', '🇩🇪', '❤️', '⭐', 'lucide:lightbulb', 'lucide:rocket']) expect([ok, isCanvasIcon(ok)]).toEqual([ok, true]);
-  for (const bad of ['billing', 'lucide:no-such-icon', 'lucide:', '💡💡', 'a💡', '1', '#', '💡 ', 'lucide:Lightbulb']) expect([bad, isCanvasIcon(bad)]).toEqual([bad, false]);
+  for (const ok of ['💡', '💶', '👩🏽‍💻', '🇩🇪', '❤️', '⭐', '#️⃣', '1️⃣', 'lucide:lightbulb', 'lucide:rocket', 'lucide:rocket:blue', 'lucide:chart-pie:gray']) expect([ok, isCanvasIcon(ok)]).toEqual([ok, true]);
+  for (const bad of ['billing', 'lucide:no-such-icon', 'lucide:', '💡💡', 'a💡', '1', '#', '💡 ', 'lucide:Lightbulb', 'lucide:rocket:', 'lucide:rocket:chartreuse', 'lucide:rocket:blue:red', 'lucide:rocket:constructor', 'lucide::blue'])
+    expect([bad, isCanvasIcon(bad)]).toEqual([bad, false]);
 });
 
 test('every curated Lucide icon exists in lucide-react', () => {
