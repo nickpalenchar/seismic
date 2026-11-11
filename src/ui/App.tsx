@@ -537,7 +537,7 @@ function Project({
   const [nyOn, setNyOn, nyOnRef] = dock.view('needs-you');
   // what of the inbox the owner has read (src/ui/inboxRead.ts)
   const inboxRead = useInboxRead();
-  // the project's settings, a docked sheet like the inbox, from the gear in the bar (projectSettings.tsx)
+  // the project's settings, a docked sheet like the inbox, from the sliders in the bar (projectSettings.tsx)
   const [csOn, setCsOn, csOnRef] = dock.view('settings');
   // the agents, a docked sheet like the inbox, from the robot in the bar: the queue and the cards at work (agents.tsx)
   const [agentsOn, setAgentsOn, agentsOnRef] = dock.view('agents');
