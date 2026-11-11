@@ -2079,22 +2079,21 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
     box-shadow: 0 0 1px color-mix(in srgb, var(--c) 10%, transparent);
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .ws-active {
-    animation: none;
-    background: transparent;
-    border: 2px solid var(--c);
-    box-shadow: none;
-  }
-  .ws-active::after {
-    content: '';
-    position: absolute;
-    width: 4px;
-    height: 4px;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    border-radius: 50%;
-    background: var(--c);
-  }
+/* Follows the resolved preference (data-motion), not the OS query. */
+:root[data-motion="reduce"] .ws-active {
+  animation: none;
+  background: transparent;
+  border: 2px solid var(--c);
+  box-shadow: none;
+}
+:root[data-motion="reduce"] .ws-active::after {
+  content: '';
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: var(--c);
 }
