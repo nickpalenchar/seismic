@@ -2584,7 +2584,7 @@ function Project({
         >
           <div className="left flex items-center gap-2.5">
             {extensions.map((e, i) => { const Slot = e.slots?.topBar; return Slot ? <Slot key={i} /> : null; })}
-            <MenuButton {...menu} docked={pinned && nav.pinnable} dockedOn={side.left > 0} onDocked={showDocked} />
+            <MenuButton {...menu} docked={pinned && nav.pinnable && !matchMedia(NARROW).matches && innerWidth - NAV_W - side.right >= NAV_PROJECT_MIN} dockedOn={side.left > 0} onDocked={showDocked} />
           </div>
           <CardSearch items={items} field={searchField} hidden={!!focus} onOpen={(item) => void openFresh(item)} />
           <div className="right flex items-center justify-end gap-2.5">
@@ -2685,7 +2685,7 @@ function Project({
             {online && usage.map((u) => <UsagePill key={u.harness} usage={u} />)}
           </div>
         </footer>
-        <NavSheet on={side.left > 0} {...menu} />
+        <NavSheet on={side.left > 0} onOpenChange={showDocked} {...menu} />
         <Minimap
           cam={cam}
           side={side}

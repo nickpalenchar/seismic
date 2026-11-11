@@ -63,6 +63,14 @@
   --input: var(--line);
   --ring: var(--working);
   --radius: 10px;
+  --sidebar: var(--glass);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--working);
+  --sidebar-primary-foreground: var(--on-ink);
+  --sidebar-accent: var(--chip);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--line);
+  --sidebar-ring: var(--working);
 }
 
 /* Tailwind's scale counts in rem, made for a 16px root; frost's root is 14.5px, which would shrink every
@@ -129,6 +137,14 @@
   --color-warn: var(--warn);
   --color-online: var(--online);
   --color-ice: var(--ice);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
 }
 
 /* frost's frosted strip along a window edge (the top bar, the status bar): the board shows through,

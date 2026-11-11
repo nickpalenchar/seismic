@@ -18,6 +18,7 @@ import { openWish } from './wish';
 import { Tooltip } from './components/tooltip';
 import { PillButton } from './components/pill';
 import { cn } from 'cn';
+import { Sidebar, SidebarContent, SidebarGroup, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from './components/sidebar';
 
 // the looks the menu's pieces share, docked or dropped down
 const list = 'm-0 list-none p-0';
@@ -79,12 +80,12 @@ export function NavPill(p: ProjectsProps) {
       </div>
       <MenuContent className={menuPanel}>
         <InMenu.Provider value={ACTIVE}>
-          <ul className={list}>
+          <NavList className={list}>
             {p.projects.map((c) => (
               <ProjectRow key={c.id} project={c} here={c.id === p.project.id} repos />
             ))}
             <NewProject onNew={p.onNew} />
-          </ul>
+          </NavList>
         </InMenu.Provider>
       </MenuContent>
     </Menu>
@@ -98,6 +99,10 @@ export function NavPill(p: ProjectsProps) {
 const InMenu = createContext<{ active: boolean } | null>(null);
 const ACTIVE = { active: true };
 const INACTIVE = { active: false };
+
+function NavList(props: ComponentProps<'ul'>) {
+  return useContext(InMenu) ? <ul {...props} /> : <SidebarMenu {...props} className={cn('gap-0', props.className)} />;
+}
 
 /** What the menu's entries open; a floating menu closes first. */
 export interface MenuActions {
@@ -167,22 +172,30 @@ export function MenuButton({ docked, dockedOn, onDocked, ...p }: MenuProps & { d
 }
 
 /** The menu docked as a sidebar on the left, sliding in and out. */
-export function NavSheet({ on, ...p }: MenuProps & { on: boolean }) {
+export function NavSheet({ on, onOpenChange, ...p }: MenuProps & { on: boolean; onOpenChange: (open: boolean) => void }) {
   // in the app on a Mac it reaches up to the window's top: the traffic lights sit in its head, which moves the window as the bar does
   const titlebar = window.obeyaApp?.platform === 'macos';
   return (
     // pinned: a sidebar docked to the window's left edge, from top to bottom, as the sheets are on the
     // right; above the dim of an open card (#dim), so it stays in view and switches project from there
-    <aside
-      id="nav"
-      className={cn(
-        'fixed top-0 bottom-0 left-0 z-31 box-border w-[340px] overflow-auto border border-l-0 border-glass-edge bg-glass px-3.5 pt-3.5 pb-[30px] shadow-[inset_0_1px_0_var(--glass-hi),var(--lift)] backdrop-blur-[28px] backdrop-saturate-[1.6]',
-        on ? 'visible translate-x-0 [transition:translate_.45s_cubic-bezier(.3,.9,.3,1)]' : 'invisible -translate-x-[calc(100%+1px)] [transition:translate_.45s_cubic-bezier(.3,.9,.3,1),visibility_0s_.45s]',
-      )}
-      aria-hidden={!on}
-    >
-      <MenuBody {...p} titlebar={titlebar} />
-    </aside>
+    <SidebarProvider open={on} onOpenChange={onOpenChange} className="contents" style={{ '--sidebar-width': `${NAV_W}px` } as React.CSSProperties}>
+      <Sidebar
+        id="nav"
+        aria-hidden={!on}
+        inert={!on}
+        className={cn(
+          'z-31 box-border w-[340px] border border-l-0 border-glass-edge bg-glass shadow-[inset_0_1px_0_var(--glass-hi),var(--lift)] backdrop-blur-[28px] backdrop-saturate-[1.6] [&>[data-sidebar=sidebar-inner]]:bg-transparent',
+          'transition-[left,visibility] duration-450 ease-[cubic-bezier(.3,.9,.3,1)]',
+          on ? 'visible' : 'invisible [transition-delay:0s,.45s]',
+        )}
+      >
+        <SidebarContent className="px-3.5 pt-3.5 pb-[30px]">
+          <SidebarGroup className="p-0">
+            <MenuBody {...p} titlebar={titlebar} />
+          </SidebarGroup>
+        </SidebarContent>
+      </Sidebar>
+    </SidebarProvider>
   );
 }
 
@@ -207,7 +220,7 @@ function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean
   // an entry's action: in the dropdown the menu closes with the choice
   const run = (f: () => void) => f;
   const pin = (p.pinnable || p.pinned) && (
-    <Act className={cn('ml-auto grid size-[30px] cursor-pointer place-items-center rounded-[3px] border-0 bg-chip p-0 text-muted-foreground hover:text-ink', p.pinned && 'text-ink')} tip={p.pinned ? m.unpin : m.pin} aria-label={p.pinned ? m.unpin : m.pin} aria-pressed={p.pinned} onAct={() => p.onPin(!p.pinned)}>
+    <Act sidebarItem={false} className={cn('ml-auto grid size-[30px] cursor-pointer place-items-center rounded-[3px] border-0 bg-chip p-0 text-muted-foreground hover:text-ink', p.pinned && 'text-ink')} tip={p.pinned ? m.unpin : m.pin} aria-label={p.pinned ? m.unpin : m.pin} aria-pressed={p.pinned} onAct={() => p.onPin(!p.pinned)}>
       {p.pinned ? <PanelLeftClose size={16} strokeWidth={2} aria-hidden /> : <PanelLeft size={16} strokeWidth={2} aria-hidden />}
     </Act>
   );
@@ -222,22 +235,22 @@ function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean
       <div className={pageClass(page !== 'main')} inert={page !== 'main'}>
         {/* in the app on a Mac the traffic lights take the head; the inbox's entry follows under it */}
         <div className={head(titlebar)} {...drag}>
-          {!titlebar && <ul className={cn(list, 'min-w-0 flex-1')}>{inbox}</ul>}
+          {!titlebar && <NavList className={cn(list, 'min-w-0 flex-1')}>{inbox}</NavList>}
           {pin}
         </div>
-        <ul className={list}>
+        <NavList className={list}>
           {titlebar && inbox}
           <Entry icon={<Bot size={16} strokeWidth={2} aria-hidden />} label={m.configureAgents} focusRef={configureButton} keep onClick={() => setPage('agents')} end={<ChevronRight size={16} strokeWidth={2} className="ml-auto flex-none text-muted-foreground" aria-hidden />} />
-        </ul>
+        </NavList>
         <h3 className="mx-2.5 mt-4 mb-1.5 text-[12px] font-semibold tracking-[.04em] text-muted-foreground uppercase">{m.projects}</h3>
-        <ul className={list}>
+        <NavList className={list}>
           {p.projects.map((c) =>
             c.id === p.project.id ? (
               <li key={c.id}>
-                <ul className={list}>
+                <NavList className={list}>
                   <ProjectRow project={c} here bold />
-                </ul>
-                <ul className={tree}>
+                </NavList>
+                <NavList className={tree}>
                   {p.canvases.map((v) => (
                     <Entry key={v.id} icon={<CanvasIcon canvas={v} size={15} />} label={v.name} sub on={!p.showing && v.id === p.canvas} onClick={run(() => p.onCanvas(v))} />
                   ))}
@@ -245,46 +258,46 @@ function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean
                   <Entry icon={<Car size={16} strokeWidth={2} aria-hidden />} label={m.parked} sub on={p.showing === 'parked'} onClick={run(p.onParked)} />
                   <Entry icon={<Archive size={16} strokeWidth={2} aria-hidden />} label={m.archived} sub on={p.showing === 'archived'} onClick={run(p.onArchived)} />
                   <Entry icon={<Settings size={16} strokeWidth={2} aria-hidden />} label={m.projectSettings} sub on={p.showing === 'settings'} onClick={run(p.onProjectSettings)} end={<ChevronRight size={16} strokeWidth={2} className="ml-auto flex-none text-muted-foreground" aria-hidden />} />
-                </ul>
+                </NavList>
               </li>
             ) : (
               <ProjectRow key={c.id} project={c} here={false} />
             ),
           )}
           <NewProject onNew={run(p.onNew)} />
-        </ul>
-        <ul className={cn(list, 'mt-0.5 border-t border-line pt-2.5')}>
+        </NavList>
+        <NavList className={cn(list, 'mt-0.5 border-t border-line pt-2.5')}>
           <Entry icon={<SlidersHorizontal size={16} strokeWidth={2} aria-hidden />} label={m.settings} onClick={run(p.onConfig)} />
           <li>
-            <ul className={tree}>
+            <NavList className={tree}>
               <Entry label={m.prefs} sub onClick={run(p.onPrefs)} />
               <Entry label={m.help} sub onClick={run(p.onHelp)} />
               <Entry label={t.wish.link} sub onClick={run(() => openWish())} />
-            </ul>
+            </NavList>
           </li>
-        </ul>
+        </NavList>
       </div>
       </InMenu.Provider>
       <InMenu.Provider value={!floating ? null : page === 'agents' ? ACTIVE : INACTIVE}>
       <div className={pageClass(page !== 'agents')} inert={page !== 'agents'}>
         <div className={head(titlebar)} {...drag}>
-          <Act className="-ml-0.5 flex h-8 cursor-pointer items-center gap-2 rounded-[6px] border-0 bg-transparent px-2.5 text-[14px] text-ink hover:bg-chip" ref={backButton} keep onAct={() => setPage('main')} tip={m.back} aria-label={m.back}>
+          <Act sidebarItem={false} className="-ml-0.5 flex h-8 cursor-pointer items-center gap-2 rounded-[6px] border-0 bg-transparent px-2.5 text-[14px] text-ink hover:bg-chip" ref={backButton} keep onAct={() => setPage('main')} tip={m.back} aria-label={m.back}>
             <ArrowLeft size={16} strokeWidth={2} aria-hidden />
             <b>{m.configureAgents}</b>
           </Act>
           {pin}
         </div>
-        <ul className={list}>
+        <NavList className={list}>
           <Entry icon={<Users size={16} strokeWidth={2} aria-hidden />} label={m.agents} soon />
           <Entry icon={<ScrollText size={16} strokeWidth={2} aria-hidden />} label={m.rules} soon />
           <Entry icon={<FileCheck size={16} strokeWidth={2} aria-hidden />} label={m.reviewRules} soon />
           <Entry icon={<ChartLine size={16} strokeWidth={2} aria-hidden />} label={m.performance} onClick={run(p.onPerformance)} />
           <li>
-            <ul className={tree}>
+            <NavList className={tree}>
               <Entry label={m.feedbackLog} sub onClick={run(p.onFeedbackLog)} />
-            </ul>
+            </NavList>
           </li>
-        </ul>
+        </NavList>
       </div>
       </InMenu.Provider>
     </div>
@@ -306,12 +319,12 @@ const head = (titlebar?: boolean) =>
   );
 
 /** A button of the menu: an item of the open dropdown, else a plain button. `keep` leaves the dropdown open. */
-function Act({ onAct, keep, disabled, tip, children, ...props }: { onAct?: (() => void) | undefined; keep?: boolean; disabled?: boolean; tip?: string } & Omit<ComponentProps<'button'>, 'onClick'>) {
+function Act({ onAct, keep, disabled, tip, sidebarItem = true, children, ...props }: { onAct?: (() => void) | undefined; keep?: boolean; disabled?: boolean; tip?: string; sidebarItem?: boolean } & Omit<ComponentProps<'button'>, 'onClick'>) {
   const menu = useContext(InMenu);
   if (!menu) {
     return (
       <Tooltip content={tip}>
-        <button {...props} disabled={disabled} onClick={onAct}>{children}</button>
+        {sidebarItem ? <SidebarMenuButton asChild><button {...props} disabled={disabled} onClick={onAct}>{children}</button></SidebarMenuButton> : <button {...props} disabled={disabled} onClick={onAct}>{children}</button>}
       </Tooltip>
     );
   }
@@ -334,8 +347,10 @@ function Act({ onAct, keep, disabled, tip, children, ...props }: { onAct?: (() =
 
 /** One of the menu's entries: an icon, its label and what stands at its end; greyed out with "Coming soon" while it opens nothing yet. */
 function Entry({ icon, label, end, on, soon, sub, keep, onClick, focusRef }: { icon?: ReactNode; label: string; end?: ReactNode; on?: boolean; soon?: boolean; sub?: boolean; keep?: boolean; onClick?: () => void; focusRef?: Ref<HTMLButtonElement> }) {
+  const menu = useContext(InMenu);
+  const Item = menu ? 'li' : SidebarMenuItem;
   return (
-    <li>
+    <Item>
       <Act
         ref={focusRef}
         className={cn(
@@ -353,7 +368,7 @@ function Entry({ icon, label, end, on, soon, sub, keep, onClick, focusRef }: { i
         <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{label}</span>
         {soon ? <span className="ml-auto flex-none text-[12px]">{t.leftMenu.comingSoon}</span> : end}
       </Act>
-    </li>
+    </Item>
   );
 }
 
@@ -383,21 +398,22 @@ function ProjectRow({ project: c, here, repos, bold, onGo }: { project: ProjectI
     </a>
   );
   return (
-    <li data-row className="group/project relative [[data-row]+&]:mt-0.5">
-      {menu ? <MenuItem asChild disabled={!menu.active} onSelect={leaveMenu}>{link}</MenuItem> : link}
+    <SidebarMenuItem data-row className="group/project relative [[data-row]+&]:mt-0.5">
+      {menu ? <MenuItem asChild disabled={!menu.active} onSelect={leaveMenu}>{link}</MenuItem> : <SidebarMenuButton asChild>{link}</SidebarMenuButton>}
       <ProjectAgents project={c} item={menu} />
-    </li>
+    </SidebarMenuItem>
   );
 }
 
 function NewProject({ onNew }: { onNew: () => void }) {
+  const Item = useContext(InMenu) ? 'li' : SidebarMenuItem;
   return (
-    <li data-row className="[[data-row]+&]:mt-0.5">
+    <Item data-row className="[[data-row]+&]:mt-0.5">
       <Act className={cn(rowButton, 'hover:text-ink data-highlighted:text-ink')} onAct={onNew}>
         <Plus size={15} strokeWidth={2} aria-hidden />
         <b>{t.nav.newProject}</b>
       </Act>
-    </li>
+    </Item>
   );
 }
 
