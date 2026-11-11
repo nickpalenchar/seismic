@@ -495,8 +495,8 @@ h1, h2, .cfg-head h3, .plan > .head .ttl { font-family: var(--font); font-weight
 .canvas-icon.emoji { line-height: 1; }
 .canvas-icon.letter { display: inline-grid; place-items: center; border-radius: 50%; background: var(--chip); color: var(--ink); font-weight: 700; line-height: 1; padding: 2px; }
 @keyframes drawer-out { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-/* on a screen too short for all of it (a phone, its keyboard up) the box scrolls, so its actions stay in reach; its parts keep their height */
-#canvas-dialog .box { position: relative; display: flex; flex-direction: column; width: 600px; max-width: 100%; max-height: 100%; overflow-y: auto; box-sizing: border-box; padding: 22px 26px 20px; }
+/* The picker owns scrolling while the form fits. On short screens the whole form owns it. */
+#canvas-dialog .box { position: relative; display: flex; flex-direction: column; width: 600px; max-width: 100%; max-height: 100%; overflow: hidden; box-sizing: border-box; padding: 22px 26px 20px; }
 #canvas-dialog .box > * { flex-shrink: 0; }
 #canvas-dialog h2 { display: flex; align-items: center; gap: 12px; margin: 0 44px 16px 0; font-size: 21px; }
 #canvas-dialog .close { position: absolute; right: 14px; top: 14px; }
@@ -506,7 +506,9 @@ h1, h2, .cfg-head h3, .plan > .head .ttl { font-family: var(--font); font-weight
 .cd-problem { min-height: 18px; margin: 4px 0 12px; font-size: 12px; color: var(--muted-foreground); }
 .cd-problem.on { color: var(--error); }
 .cd-icons { display: flex; flex-direction: column; min-height: 0; }
+#canvas-dialog .cd-icons { flex-shrink: 1; }
 .cd-icon-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.cd-icon-bar, .cd-search, .cd-colors { flex-shrink: 0; }
 .cd-icon-bar .cd-label { margin: 0 4px 0 0; }
 .cd-icon-bar .cd-none { margin-left: auto; color: var(--muted-foreground); }
 .cd-icon-bar .cd-none[aria-pressed=true] { opacity: 1; color: var(--ink); background: var(--chip); }
@@ -526,6 +528,17 @@ h1, h2, .cfg-head h3, .plan > .head .ttl { font-family: var(--font); font-weight
 .cicon[data-state=checked] { border-color: var(--ink); background: var(--chip); }
 .cd-empty { margin: 24px 0; text-align: center; font-size: 13px; color: var(--muted-foreground); }
 .cd-actions { display: flex; gap: 8px; margin-top: 18px; }
+@media (max-height: 650px) {
+  #canvas-dialog .box { overflow-y: auto; }
+  #canvas-dialog .cd-icons { flex-shrink: 0; }
+  #canvas-dialog .cd-panel { height: auto; }
+  #canvas-dialog .cd-grid { flex: none; overflow: visible; }
+  /* Let the virtual list's sizer give the viewport its full natural height. There is then
+     only one scroll owner, including when searching or switching tabs with the keyboard up. */
+  #canvas-dialog [data-slot=emoji-picker-viewport] { flex: none; overflow: visible !important; contain: none !important; }
+  #canvas-dialog .cd-actions { position: sticky; bottom: -20px; z-index: 1; margin-bottom: -20px; padding: 12px 0 20px; background: var(--panel); }
+  #canvas-dialog :is(.cicon, [data-slot=emoji-picker-emoji]) { scroll-margin-block: 8px 80px; }
+}
 /* the open card's "⋯", and the canvases it offers to move the card to */
 .card-more .prio-btn { display: inline-grid; place-items: center; height: 20px; padding: 0 5px; color: var(--muted-foreground); }
 .card-more-menu { min-width: 200px; }

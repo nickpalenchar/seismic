@@ -34,8 +34,19 @@ function EmojiPickerRow({ children, ...props }: EmojiPickerListRowProps) {
 
 function EmojiPickerEmoji({ emoji, className, ...props }: EmojiPickerListEmojiProps) {
   const chosen = useContext(Chosen) === emoji.emoji;
+  const button = useRef<HTMLButtonElement>(null);
+  useLayoutEffect(() => {
+    const el = button.current;
+    const viewport = el?.closest('[data-slot=emoji-picker-viewport]');
+    // In the short dialog the form scrolls instead of Frimousse's viewport. Keep arrow-key
+    // navigation visible there too; Frimousse normally scrolls only its own viewport.
+    if (emoji.isActive && el && viewport && getComputedStyle(viewport).overflowY === 'visible') {
+      el.scrollIntoView({ block: 'nearest' });
+    }
+  }, [emoji.isActive]);
   return (
     <button
+      ref={button}
       type="button"
       {...props}
       aria-pressed={chosen}
