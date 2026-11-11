@@ -57,8 +57,8 @@ const readOnButton = (ev: MouseEvent, read: () => void) => {
   if (hit?.tagName === 'BUTTON') read();
 };
 
-/** A card's entry: its face at size S with what it waits for, its one-click replies and "Go to card"; the open card's is ringed. */
-export function CardEntry({ e, unread, here, current, onGo, onReply, onRead, els }: { e: InboxEntry & { card: Item }; unread: boolean; here: boolean; current?: string; onGo: (e: InboxEntry) => void; onReply: InboxProps['onReply']; onRead: (e: InboxEntry) => void; els?: Map<string, HTMLElement> }) {
+/** A card's entry: its face at size S (subtle in the inbox, regular in "Needs you") with what it waits for, its one-click replies and "Go to card"; the open card's is ringed. */
+export function CardEntry({ e, unread, here, current, onGo, onReply, onRead, els, subtle = true }: { e: InboxEntry & { card: Item }; subtle?: boolean; unread: boolean; here: boolean; current?: string; onGo: (e: InboxEntry) => void; onReply: InboxProps['onReply']; onRead: (e: InboxEntry) => void; els?: Map<string, HTMLElement> }) {
   const i = e.card;
   return (
     <li
@@ -70,7 +70,7 @@ export function CardEntry({ e, unread, here, current, onGo, onReply, onRead, els
       <CardFace
         item={i}
         size="s"
-        subtle
+        subtle={subtle}
         unread={unread}
         where={
           <>

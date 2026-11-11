@@ -29,7 +29,7 @@ how a first-time owner learns what the bell is. The camera keeps content below t
 below the bar.
 
 "Needs you" is a sheet (see Sheets) of the cards that wait for the owner: the shown project's
-first, in the inbox's order and with the inbox's entries (see the inbox below: the card at size S,
+first, in the inbox's order and with the inbox's entries, drawn regular rather than subtle (see the inbox below: the card at size S,
 its one-click replies, "Go to card", the unread dot), then every other project with cards waiting
 as one header with its name and its count in orange, folded until clicked open (open again on a
 reload, as every fold of it starts closed). A switch "Hide other projects" leaves those headers

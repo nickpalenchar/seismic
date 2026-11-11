@@ -27,7 +27,7 @@ export function NeedsYouSheet({ on, entries, current, open, onGo, onReply, isRea
   const here = cards.filter((e) => e.project === current);
   const others = [...new Set(cards.filter((e) => e.project !== current).map((e) => e.project))].map((project) => ({ project, entries: cards.filter((e) => e.project === project) }));
   const entry = (e: CardOnly) => (
-    <CardEntry key={e.key} e={e} unread={!isRead(e)} here={e.project === current && e.card.id === open} current={current} onGo={onGo} onReply={onReply} onRead={onRead} />
+    <CardEntry key={e.key} e={e} subtle={false} unread={!isRead(e)} here={e.project === current && e.card.id === open} current={current} onGo={onGo} onReply={onReply} onRead={onRead} />
   );
   return (
     <Docked id="needs-you" on={on} label={t.needsYou.title}>
