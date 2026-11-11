@@ -208,3 +208,71 @@ test('uses the same comparison and entity components for columnar schemas, inclu
   expect(diff[0]).toMatchObject({ status: 'changed', kind: 'document', beforeKind: 'columnar' });
   expect(changeList(diff)[0]?.html).toContain('columnar → document');
 });
+
+function pageRelations(input: SchemaChange) {
+  const html = renderSchemaPage(input);
+  return JSON.parse(/<script type="application\/json" id="relations">([\s\S]*?)<\/script>/.exec(html)![1]!);
+}
+
+describe('reference changes across both schema versions', () => {
+  const a: Entity = { name: 'a', fields: [{ name: 'id', pk: true }] };
+  const b: Entity = { name: 'b', fields: [{ name: 'id', pk: true }] };
+  const source = (ref?: string): Entity => ({ name: 'source', fields: [{ name: 'target', ref }] });
+  test('retargeting shows both the removed edge and the added edge, with both neighbours in the next column', () => {
+    const input: SchemaChange = { sources: [], before: { entities: [source('a.id'), a, b] }, after: { entities: [source('b.id'), a, b] } };
+    expect(pageRelations(input)).toEqual([
+      { from: ['source', 'target'], to: ['a', 'id'], status: 'removed' },
+      { from: ['source', 'target'], to: ['b', 'id'], status: 'added' },
+    ]);
+    expect(columns(cut(diffModels(input.before, input.after))).map(c => c.map(s => s.entity.name))).toEqual([['source'], ['b', 'a']]);
+  });
+  for (const [label, after] of [
+    ['reference removed', [source(), a]],
+    ['field removed', [{ name: 'source', fields: [] }, a]],
+    ['target dropped', [source('a.id')]],
+    ['source dropped', [a]],
+  ] as [string, Entity[]][]) test(label + ' retains its removed edge', () => {
+    expect(pageRelations({ sources: [], before: { entities: [source('a.id'), a] }, after: { entities: [...after] } })).toEqual([
+      { from: ['source', 'target'], to: ['a', 'id'], status: 'removed' },
+    ]);
+  });
+  test('references to renamed entities resolve onto the displayed box, including unchanged source fields', () => {
+    for (const updated of [false, true]) {
+      const input: SchemaChange = { sources: [], before: { entities: [source('a.id'), a] }, after: { entities: [source(updated ? 'renamed.id' : 'a.id'), { ...a, name: 'renamed', was: 'a' }] } };
+      expect(pageRelations(input)).toEqual([{ from: ['source', 'target'], to: ['renamed', 'id'], status: updated ? 'same' : 'removed' }]);
+      expect(renderSchemaPage(input)).toContain('data-entity="source" data-field="target"');
+    }
+  });
+  test('renamed nested target properties retain old-path edges and keep non-key endpoints visible in wide entities', () => {
+    const target: Entity = { name: 'a', kind: 'document', fields: [
+      { name: 'profile', fields: [{ name: 'id' }] }, ...Array.from({ length: 12 }, (_, i) => ({ name: `extra${i}` })),
+    ] };
+    const renamed: Entity = { ...target, fields: [{ name: 'details', was: 'profile', fields: [{ name: 'key', was: 'id' }] }, ...target.fields.slice(1)] };
+    for (const updated of [false, true]) {
+      const input: SchemaChange = { sources: [], before: { entities: [source('a.profile.id'), target] }, after: { entities: [source(updated ? 'a.details.key' : 'a.profile.id'), renamed] } };
+      expect(pageRelations(input)).toEqual([{ from: ['source', 'target'], to: ['a', 'details.key'], status: updated ? 'same' : 'removed' }]);
+      const html = renderSchemaPage(input);
+      expect(html).toContain('data-entity="source" data-field="target"');
+      expect(html).toContain('data-entity="a" data-field="details.key"');
+    }
+  });
+  test('removed target properties bring unchanged referring entities into the diagram', () => {
+    const input: SchemaChange = { sources: [], before: { entities: [source('a.id'), a] }, after: { entities: [source('a.id'), { ...a, fields: [] }] } };
+    expect(pageRelations(input)).toEqual([{ from: ['source', 'target'], to: ['a', 'id'], status: 'removed' }]);
+    expect(renderSchemaPage(input)).toContain('data-entity="source" data-field="target"');
+  });
+  test('unchanged references stay neutral when their source field is renamed or its type changes', () => {
+    const input: SchemaChange = { sources: [], before: { entities: [source('a.id'), a] }, after: { entities: [{ name: 'source', fields: [{ name: 'owner', was: 'target', type: 'UUID', ref: 'a.id' }] }, a] } };
+    expect(pageRelations(input)).toEqual([{ from: ['source', 'owner'], to: ['a', 'id'], status: 'same' }]);
+  });
+});
+
+test('entity-only and self references preserve both versions without duplicating stable edges', () => {
+  const a: Entity = { name: 'a', fields: [{ name: 'id', pk: true }, { name: 'parent', ref: 'a.id' }] };
+  const b: Entity = { name: 'b', fields: [] };
+  expect(pageRelations({ sources: [], before: { entities: [a, b] }, after: { entities: [{ ...a, fields: [a.fields[0]!, { name: 'parent', ref: 'b' }] }, b] } })).toEqual([
+    { from: ['a', 'parent'], to: ['a', 'id'], status: 'removed' },
+    { from: ['a', 'parent'], to: ['b', null], status: 'added' },
+  ]);
+  expect(pageRelations({ sources: [], before: { entities: [a] }, after: { entities: [{ ...a, fields: [...a.fields, { name: 'extra' }] }] } })).toEqual([]);
+});

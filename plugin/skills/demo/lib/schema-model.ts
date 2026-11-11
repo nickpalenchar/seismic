@@ -47,6 +47,8 @@ export interface SchemaChange {
 export type Status = 'added' | 'changed' | 'removed' | 'same';
 
 export interface FieldDiff {
+  /** Full property path before the change, including renamed parents. */
+  beforeName?: string;
   name: string;
   was?: string;
   status: Status;
@@ -112,7 +114,7 @@ function diffFields(before: Field[], after: Field[], oldPath = '', newPath = '')
     const previous = oldPath + (a ?? b)!.name;
     const changes = a && b ? fieldChanges(a, b) : [];
     const field: FieldDiff = {
-      name, field: (b ?? a)!, ...(a ? { before: a } : {}),
+      name, field: (b ?? a)!, ...(a ? { before: a, beforeName: previous } : {}),
       ...(a && b && a.name !== b.name ? { was: previous } : {}),
       status: !a ? 'added' : !b ? 'removed' : changes.length ? 'changed' : 'same', changes,
     };
@@ -163,9 +165,13 @@ export function cut(diffs: EntityDiff[]): { entity: EntityDiff; neighbour: boole
     if (!placed.has(d.name)) (placed.add(d.name), out.push({ entity: d, neighbour: false }));
     const whole = d.status === 'added' || d.status === 'removed';
     const gone = d.status === 'removed' || !!d.was;
+    const changedTargets = new Set(d.fields.filter(f => f.status === 'removed' || f.beforeName && f.beforeName !== f.name)
+      .map(f => `${d.was ?? d.name}.${f.beforeName ?? f.name}`));
     const near = [
       ...targets(whole ? d.fields : d.fields.filter((f) => f.status !== 'same')),
-      ...(gone ? diffs.filter((x) => targets(x.fields).some((t) => t === d.name || t === d.was)).map((x) => x.name) : []),
+      ...(gone || changedTargets.size ? diffs.filter(x => x.fields.some(f => [f.field.ref, f.before?.ref].some(ref => ref &&
+        (gone && (refEntity(ref) === d.name || refEntity(ref) === d.was) || changedTargets.has(ref)))))
+        .map(x => x.name) : []),
     ];
     for (const n of near) {
       const e = byName.get(n);
@@ -224,48 +230,74 @@ export function esc(s: unknown): string {
  * none of the others shown stands rightmost, one that refers to it left of it, and so on. A cycle
  * of references is broken where it closes.
  */
-export function columns<T extends { entity: EntityDiff; neighbour: boolean }>(shown: T[]): T[][] {
-  const names = new Set(shown.map((s) => s.entity.name));
-  // a neighbour draws only its references to the entities the change touches
-  const focus = new Set(shown.filter((s) => !s.neighbour).map((s) => s.entity.name));
-  const refs = new Map(
-    shown.map((s) => [
-      s.entity.name,
-      [...new Set(s.entity.fields.map((f) => f.field.ref && refEntity(f.field.ref)).filter((r): r is string => !!r && r !== s.entity.name && names.has(r) && (!s.neighbour || focus.has(r))))],
-    ]),
-  );
+export function columns<T extends { entity: EntityDiff; neighbour: boolean }>(shown: T[], edges = relations(shown.map(s => s.entity))): T[][] {
+  const focus = new Set(shown.filter(s => !s.neighbour).map(s => s.entity.name));
+  const refs = new Map(shown.map(s => [s.entity.name, new Set<string>()]));
+  const neighbours = new Set(shown.filter(s => s.neighbour).map(s => s.entity.name));
+  for (const r of edges) if (r.from[0] !== r.to[0] && (!neighbours.has(r.from[0]) || focus.has(r.to[0])))
+    refs.get(r.from[0])!.add(r.to[0]);
   const level = new Map<string, number>();
   const of = (name: string, path: Set<string>): number => {
     if (level.has(name)) return level.get(name)!;
     if (path.has(name)) return 0;
     path.add(name);
-    const l = Math.max(-1, ...refs.get(name)!.map((r) => of(r, path))) + 1;
+    const l = Math.max(-1, ...[...refs.get(name)!].map((r) => of(r, path))) + 1;
     path.delete(name);
     level.set(name, l);
     return l;
   };
-  for (const n of names) of(n, new Set());
+  for (const n of refs.keys()) of(n, new Set());
   const top = Math.max(0, ...level.values());
   const out: T[][] = Array.from({ length: top + 1 }, () => []);
   for (const s of shown) out[top - level.get(s.entity.name)!]!.push(s);
   return out.filter((c) => c.length);
 }
 
-/** The relations to draw between the boxes shown: from a field to the entity (and field) it refers to. */
-export function relations(shown: EntityDiff[]): { from: [string, string]; to: [string, string | null]; status: Status }[] {
-  const names = new Set(shown.map((e) => e.name));
-  const out: { from: [string, string]; to: [string, string | null]; status: Status }[] = [];
-  for (const e of shown)
-    for (const f of e.fields) {
-      const ref = f.field.ref;
-      if (!ref) continue;
-      const [target, field] = [refEntity(ref), ref.includes('.') ? ref.slice(ref.indexOf('.') + 1) : null];
-      if (!names.has(target)) continue;
-      // a reference of the entity to itself that the change leaves alone says nothing about it
-      if (target === e.name && f.status === 'same' && f.before?.ref === ref) continue;
-      const status: Status = f.status === 'added' || f.status === 'removed' ? f.status : f.before?.ref !== ref ? 'added' : e.status === 'removed' ? 'removed' : 'same';
-      out.push({ from: [e.name, f.name], to: [target, field], status });
-    }
-  return out;
+export interface Relation {
+  from: [string, string];
+  to: [string, string | null];
+  status: Status;
 }
 
+/** Resolve each version separately, then map both onto the displayed entity and property names. */
+export function relations(shown: EntityDiff[]): Relation[] {
+  type Endpoint = [string, string | null];
+  const versions = (side: 'before' | 'after') => {
+    const entities = new Map<string, EntityDiff>();
+    const fields = new Map<string, string>();
+    for (const e of shown) {
+      if (e.status === (side === 'before' ? 'added' : 'removed')) continue;
+      const name = side === 'before' ? e.was ?? e.name : e.name;
+      entities.set(name, e);
+      for (const f of e.fields) {
+        if (side === 'before' ? !f.before : f.status === 'removed') continue;
+        fields.set(JSON.stringify([name, side === 'before' ? f.beforeName ?? f.was ?? f.name : f.name]), f.name);
+      }
+    }
+    return (ref?: string): Endpoint | undefined => {
+      if (!ref) return;
+      const name = refEntity(ref), entity = entities.get(name);
+      if (!entity) return;
+      if (!ref.includes('.')) return [entity.name, null];
+      const field = fields.get(JSON.stringify([name, ref.slice(ref.indexOf('.') + 1)]));
+      if (field !== undefined) return [entity.name, field];
+    };
+  };
+  const before = versions('before'), after = versions('after');
+  const out: Relation[] = [];
+  for (const e of shown) for (const f of e.fields) {
+    const oldTarget = before(f.before?.ref);
+    const newTarget = f.status === 'removed' ? undefined : after(f.field.ref);
+    const emit = (to: Endpoint | undefined, status: Status) => {
+      if (to) out.push({ from: [e.name, f.name], to, status });
+    };
+    if (oldTarget && newTarget && oldTarget[0] === newTarget[0] && oldTarget[1] === newTarget[1]) {
+      // Unchanged self references add no context to the change.
+      if (newTarget[0] !== e.name || f.status !== 'same') emit(newTarget, 'same');
+    } else {
+      emit(oldTarget, 'removed');
+      emit(newTarget, 'added');
+    }
+  }
+  return out;
+}

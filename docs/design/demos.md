@@ -567,7 +567,9 @@ plain Node like the rest of the skill, without installing UI dependencies. Entit
 item properties, rendered as full property paths; `optional` is distinct from `nullable`. Existing
 flat inputs remain compatible. The page draws the touched entities as boxes with lines for
 their references, added green, changed amber, removed red, in columns so that references run left
-to right. Beside them, dashed, stand their direct neighbours along the relations the change makes,
+to right. A retargeted reference shows both the removed connection and the added connection;
+a dropped or broken reference keeps its removed connection. Renamed entities and properties
+remain the endpoints of their earlier connections in the diagram. Beside them, dashed, stand their direct neighbours along the relations the change makes,
 drops or breaks (what a new entity or a changed field refers to, what refers to a dropped or renamed
 one): a column added to a central table does not bring every table around it. A large schema is cut
 to those, an entity's unchanged fields beyond a handful to its keys and references, the rest
