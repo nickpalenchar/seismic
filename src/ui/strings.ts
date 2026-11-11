@@ -2658,9 +2658,9 @@ const number = (n: number, digits = 0) => n.toLocaleString(locale, { maximumFrac
 /** English ordinal: 2nd, 3rd, 11th. */
 const ordinal = (n: number) => `${n}${['th', 'st', 'nd', 'rd'][n % 100 >= 11 && n % 100 <= 13 ? 0 : n % 10 < 4 ? n % 10 : 0]}`;
 
-/** A planned card the start check found possible duplicates of, until dismissed or work starts. */
-export const mergeProposed = (i: { state: CardState; queue?: unknown; possibleDuplicates?: string[]; idea?: { proposal?: { merge?: unknown } } }) =>
-  i.state === 'planned' && !i.queue && !!i.possibleDuplicates?.length && !i.idea?.proposal?.merge;
+/** A planned card the start check found possible duplicates of, queued or not, until dismissed or work starts. */
+export const mergeProposed = (i: { state: CardState; possibleDuplicates?: string[]; idea?: { proposal?: { merge?: unknown } } }) =>
+  i.state === 'planned' && !!i.possibleDuplicates?.length && !i.idea?.proposal?.merge;
 
 /** A card's state as its state line says it; `short`, in a word or two, as the smallest card face says it (`stateShort`). */
 export const stateLabel = (i: { kind?: string; thread?: { thinking?: boolean }; state: CardState; need?: Need; queue?: Queue; question?: { stuck?: true }; hold?: ItemHold; possibleDuplicates?: string[]; agent?: { finishing?: boolean; followUp?: boolean; branch?: string; stoppedAt?: StoppedAt }; review?: { landing?: true; landingPosition?: number; pr?: unknown; contribution?: unknown; answering?: true; answered?: true; codeReview?: { state?: string } }; demo?: { earlier?: { asked?: true }[] }; idea?: { discussion?: Idea; prototypeEnd?: 'discarded' | 'built'; retro?: string; proposal?: { setup?: true; merge?: { task?: string; failed?: string } } } }, short = false): string => {

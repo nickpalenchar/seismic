@@ -41,6 +41,14 @@ test('a card whose agent answered the owner without a new demo says so instead o
   expect(stateLabel({ state: 'waiting', need: 'review', review: { answered: true } })).toBe('Agent answered, waiting for you');
 });
 
+test('a planned card with a merge proposal reads "Merge proposed", in the queue too', () => {
+  setLanguage('en', []);
+  const queue = { behind: ['b'], reason: 'Waits for B', since: '2026-11-11T08:00:00Z' };
+  expect(stateLabel({ state: 'planned', possibleDuplicates: ['b'] })).toBe('Merge proposed');
+  expect(stateLabel({ state: 'planned', possibleDuplicates: ['b'], queue })).toBe('Merge proposed');
+  expect(stateLabel({ state: 'planned', queue })).toBe('In the queue');
+});
+
 test('a card whose agent paused for a restart says so in place of being at work', () => {
   setLanguage('en', []);
   expect(stateLabel({ state: 'working', hold: { reason: 'restart' } })).toBe('Paused, pending restart');

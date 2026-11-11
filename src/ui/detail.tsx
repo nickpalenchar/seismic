@@ -470,11 +470,11 @@ export function Detail(p: Props) {
   // a stopped task starts again, or goes into the archive with its conversation, from the row below it
   const halted = stopped(item) && !item.queue;
   // on a planned card, queued or not: a suggested card it cannot merge with can still be dismissed
-  const duplicateActions = duplicatePartner && item.state === 'planned' && !item.idea?.proposal?.merge && <ButtonGroup className="duplicate-merge-actions">
+  const duplicateActions = duplicatePartner && mergeProposed(item) && <ButtonGroup className="duplicate-merge-actions">
     <Button className="duplicate-attempt" disabled={!mergeableWith(item, duplicatePartner)} onClick={() => act({ action: 'merge', with: duplicatePartner.id }, { close: false })}>{t.duplicate.attempt}</Button>
     <Button className="duplicate-dismiss" onClick={() => act({ action: 'dismissDuplicate' }, { close: false })}>{t.duplicate.dismiss}</Button>
   </ButtonGroup>;
-  const duplicateNotice = duplicatePartner && item.state === 'planned' && !item.queue && !item.idea?.proposal?.merge && <div className="question duplicate-notice">
+  const duplicateNotice = duplicatePartner && mergeProposed(item) && <div className="question duplicate-notice">
     <h4>{t.duplicate.title}</h4>
     <p>{t.duplicate.detail}</p>
     <DuplicateMergePreview item={item} partner={duplicatePartner} />
