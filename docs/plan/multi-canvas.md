@@ -24,7 +24,7 @@ Workstreams keep their name. The workspace level is only reserved as a word; not
 
 **+ Create** sits top right, before the sliders, and replaces the teaching-only "New task". Card creates and unfolds a card at the centre of the view; Canvas opens a dialog asking for a name and an icon; Project does what "New project" does today (a new project with its repositories).
 
-**Icon picker:** a grid of common emojis plus a curated set of Lucide icons; the exact set is the worker's call. A canvas name may not be a number from 1 to 999.
+**Icon picker:** a full emoji picker plus a curated set of Lucide icons in a colour of a palette; the exact set is the worker's call. A canvas name may not be a number from 1 to 999.
 
 **Addresses:** the canvas is a hash, not part of the path. `/p/<project>#main` names it, `/p/<project>#2` is the second canvas in the drawer's order (`#1` is the first). `/p/<project>` without a hash opens the first canvas. A card's address `/p/<project>/c/<code>` needs no hash, since every card knows its canvas; a hash naming another canvas is dropped. Switching canvas updates the hash.
 

@@ -689,7 +689,7 @@ to are each canvas's own; repositories, settings, the demo site, the inbox count
 the project's. Every project has the canvas "main", which holds what the project had before it had
 several (the database migration put every card and group there); it cannot be renamed or deleted.
 Other canvases have a name unique in the project (in any case), never a number from 1 to 999,
-since `#2` names a canvas by its place, an optional icon (one emoji, or `lucide:<name>` of a curated set of Lucide icons; anything else is refused), and a place
+since `#2` names a canvas by its place, an optional icon (one emoji, any of Unicode's; or `lucide:<name>` of a curated set of a few hundred Lucide icons, optionally drawn in a colour of a fixed palette of ten as `lucide:<name>:<colour>`, `lucide:rocket:blue`, else in the text's colour; anything else is refused) (the colour rides in the icon rather than a field of its own, 2026-11-11: it belongs to a Lucide icon only, and the API, the agents' tools and stored canvases keep one value), and a place
 in the owner's order. Only a canvas without cards can be deleted; its archived cards go to "main",
 where they come back from the archive. Its groups go to "main" too; one whose name "main" already
 has (in any case) is merged into that group, so "main" never holds two groups of a name.
@@ -725,9 +725,12 @@ place in the order, and a trash on a canvas without cards (never "main"); the dr
 "+ New canvas". Tab and Shift+Tab can leave the drawer and keep focus at their destination;
 Escape or choosing a canvas from the keyboard returns focus to the selected tab. Opening the
 new-canvas or edit dialog leaves focus in that dialog. The "+" and "+ New canvas" open the canvas dialog: a name, checked against the
-naming rule as it is typed, and an icon picked from a grid of common emojis and a curated set of
-Lucide icons, or none; "Create canvas" makes it and shows it. The same dialog, from the pencil,
-changes a canvas ("main" keeps its name and changes only its icon). What is typed and picked in it
+naming rule as it is typed, and an icon, or none ("No icon"), from one of two tabs: "Emoji", a
+picker of every emoji the browser can draw, by category, with a search by name, skin tones and the
+name of the emoji under the pointer (its data is Emojibase's, which Seismic serves itself, so it works
+offline); or "Icons", the curated Lucide icons with a search by name and a row of colours they are
+drawn in (picking a colour recolours the icon chosen); "Create canvas" makes it and shows it. The same dialog, from the pencil,
+changes a canvas ("main" keeps its name and changes only its icon). What is typed and picked in it (searches, tab and colour too)
 stays until it is saved or cancelled, also across closing it and a reload. While a card is open the
 strip lies under the dimming, so switching never leaves a card's unsent input behind; the drafts of
 the Koordinator and of other cards are the project's and stay as they are across a switch.
