@@ -15,7 +15,7 @@ export function PromptInput({ className, dropping, ...props }: ComponentProps<'d
     <div
       data-slot="prompt-input"
       data-dropping={dropping || undefined}
-      className={cn('composer group/pi relative mt-4 flex max-w-[80ch] flex-wrap items-end gap-x-2.5 gap-y-2', className)}
+      className={cn('composer group/pi relative mt-4 flex max-w-[80ch] phone:max-w-none phone:shrink-0 flex-wrap items-end gap-x-2.5 gap-y-2', className)}
       {...props}
     />
   );

@@ -2,8 +2,8 @@
 // frame with the text, the screenshot button, the microphone and Send (an arrow, as in chat apps) in
 // a footer row, as wide as the conversation above it. The text grows with what is written (or
 // with its placeholder, which shows in full), up to a part of the window.
-// Screenshot and microphone stand at the left of the footer, Send at the right. A replied-to message stands above the text as a
-// quote. With the cursor in the field, speaking dictates into it: hold its microphone, the one at
+// Screenshot and microphone stand at the left of the footer, Send at the right. A replied-to
+// message stands above the text as a quote. With the cursor in the field, speaking dictates into it: hold its microphone, the one at
 // the bottom, or Space. Under a card's conversation, `/` at the start of a word opens the menu of the
 // skills of the card's agent (`skills.ts`).
 
