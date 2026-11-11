@@ -3,7 +3,7 @@
 // HTML artifact, text as it is, anything else as a tile; each to open on the computer, show in its
 // folder, or download. Folder and git cards alike.
 
-import { Database } from 'lucide-react';
+import { ChevronDown, ChevronUp, Database } from 'lucide-react';
 import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { type CardDiff, diffSize, shownChanges, splitDiff } from '../core/diff';
 import { type ChangeRow, changeRows, imageAt, type ShownFile } from '../core/files';
@@ -21,7 +21,7 @@ import { SegmentedControl } from './components/segmented';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
 import { Tooltip } from './components/tooltip';
 
-/** How many lines the change list shows before "and N more ▾" where it is not folded to the result; the file picked shows too. */
+/** How many lines the change list shows before "and N more" and a chevron where it is not folded to the result; the file picked shows too. */
 const FOLD = 8;
 /** How much of a text file the view shows; the rest is a click on "Open on the computer" or ↓ away. */
 const TEXT_CAP = 400_000;
@@ -237,7 +237,8 @@ export function ChangeList({
         <div className="cl-foot">
           {toggle && (
             <LinkButton className="cl-more" aria-expanded={more} onClick={() => setMore(!more)}>
-              {more ? `${t.files.less} ▴` : `${counted ? t.files.changed(hidden) : t.files.more(hidden)} ▾`}
+              {more ? t.files.less : counted ? t.files.changed(hidden) : t.files.more(hidden)}
+              {more ? <ChevronUp className="ml-0.5 inline size-3 align-[-1px]" aria-hidden /> : <ChevronDown className="ml-0.5 inline size-3 align-[-1px]" aria-hidden />}
             </LinkButton>
           )}
           {toggle && total && ' · '}

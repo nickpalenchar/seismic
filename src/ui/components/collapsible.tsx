@@ -1,11 +1,12 @@
 // Collapsible: a fold with a trigger and a region (shadcn/ui's, ours from then on), in place of a native
 // `<details>`. The trigger is a button with `aria-expanded` and `aria-controls`; the region leaves the
-// page while closed. `marker` puts the disclosure triangle (▸ closed, ▾ open) before the trigger's
+// page while closed. `marker` puts the disclosure chevron (lucide ChevronRight closed, turned down open) before the trigger's
 // text, as the finding folds and the pull request threads show it. Spacing belongs to the container,
 // which reaches the parts through their `data-slot`.
 
 import { cn } from 'cn';
 import { Collapsible as CollapsiblePrimitive } from 'radix-ui';
+import { ChevronRight } from 'lucide-react';
 import type { ComponentProps } from 'react';
 
 function Collapsible(props: ComponentProps<typeof CollapsiblePrimitive.Root>) {
@@ -18,11 +19,14 @@ function CollapsibleTrigger({ className, marker, ...props }: ComponentProps<type
       data-slot="collapsible-trigger"
       className={cn(
         'cursor-pointer border-0 bg-transparent p-0 text-left font-[inherit] text-[length:inherit] text-inherit focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-        marker && 'flex min-w-0 items-baseline gap-1.5 py-0.5 before:flex-none before:text-[11px] before:text-muted-foreground before:content-["▸"] data-[state=open]:before:content-["▾"]',
+        marker && 'group/marker flex min-w-0 items-baseline gap-1.5 py-0.5',
         className,
       )}
       {...props}
-    />
+    >
+      {marker && <ChevronRight aria-hidden className="size-3 flex-none translate-y-0.5 self-start text-muted-foreground transition-transform group-data-[state=open]/marker:rotate-90" />}
+      {props.children}
+    </CollapsiblePrimitive.Trigger>
   );
 }
 

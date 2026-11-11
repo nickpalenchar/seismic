@@ -666,8 +666,9 @@ calm and modern without looking like a stock component kit.
   that show something live (the microphone's level) and following the pointer while dragging.
 - *Type*: Inter for titles, headings and text alike (SIL OFL, self-hosted, no Google Fonts), code in
   the system monospace. The logo keeps its own wordmark.
-- *Icons*: Lucide's stroke icons, one per meaning, throughout the UI; the logo, the group colour
-  mark and the complexity bars stay drawings of their own.
+- *Icons*: Lucide's stroke icons, one per meaning, for every control in the UI; the exceptions are the
+  logo, the group colour mark and the complexity bars (drawings of their own) and the emoji an owner
+  picks as a canvas icon.
 - *Carried through*: the top bar, the open card, sheets and dialogs are frosted glass too, with what
   lies under an open card or a dialog softly blurred; bars that stay put while a pane scrolls are
   frosted over the pane's content. The open card is frosted only while open in full: unfolding,
@@ -893,8 +894,8 @@ code, a generic one otherwise.
   own, so a shadcn part wears frost without a rule of its own; `dark:` follows the owner's choice of
   light or dark, else the system's. Controls are shadcn parts on Radix Primitives in
   `src/ui/components/`, added through the shadcn CLI and edited freely once copied; AI Elements serve
-  the conversations. Every icon is a lucide icon (`lucide-react`), or from another icon library already
-  installed; never a typographic character standing in for one (▾, ✕), so icons share stroke and sizing. Glass on every card was chosen over frost on the chrome alone with solid cards:
+  the conversations. Controls take their icons from lucide (`lucide-react`), never a typographic
+  character standing in for one (▾, ✕), so they share stroke and sizing; the exceptions are in Visual identity's icon rule. Glass on every card was chosen over frost on the chrome alone with solid cards:
   the stronger look, at a cost measured with about 100 cards on screen at middle zoom on a 2560×1440
   window, where blurring every card dropped to 49 fps with a GPU and 23 fps without one; dropping the
   blur while the canvas moves brought it to 60 and 55 fps, against 60 without glass. Solid cards

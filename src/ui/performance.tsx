@@ -4,6 +4,7 @@
 // what it is, not how well it did; with too few ratings in all, the responses stand alone, without
 // averages. A row opens to its responses, each linking back to its card.
 
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { createContext, useEffect, useMemo, useRef, useState } from 'react';
 import { logQuery, type LogFilter, type Period } from '../core/feedback-log';
 import { ageStep, FEW, filterChoices, filterFeedback, performance, type PerformanceFilter, type PerformanceRow, scatter, stars, trend } from '../core/performance';
@@ -161,7 +162,7 @@ export function PerformanceDialog({ on, onClose, projects, here, onOpenCard, ini
                     <th scope="row">
                       <CollapsibleTrigger className="perf-expand">
                         <span className="perf-caret" aria-hidden>
-                          {expanded ? '▾' : '▸'}
+                          {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                         </span>
                         <RowName r={r} />
                       </CollapsibleTrigger>

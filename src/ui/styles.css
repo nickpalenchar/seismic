@@ -2160,7 +2160,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .perf-row.few td, .perf-row.few .perf-expand { color: var(--muted-foreground); }
 .perf-expand { display: inline-flex; align-items: center; gap: 6px; padding: 2px 0; color: var(--ink); }
 .perf-expand:hover { text-decoration: underline; text-underline-offset: 3px; }
-.perf-caret { width: 10px; color: var(--muted-foreground); font-size: 11px; }
+.perf-caret { display: inline-flex; vertical-align: middle; width: 12px; color: var(--muted-foreground); font-size: 11px; }
 .perf-model { font: 13px var(--mono); }
 .perf-special { font-style: italic; }
 .perf-tag { display: inline-block; margin-left: 8px; padding: 0 7px; border: 1px solid var(--muted-foreground); border-radius: 9px; font-size: 11px; color: var(--muted-foreground); line-height: 16px; vertical-align: 1px; }
