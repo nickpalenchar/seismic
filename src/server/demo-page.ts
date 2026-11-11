@@ -7,6 +7,7 @@
 import { type Dirent, existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pagePolicy, sealed, withHeightReport, withImageViewer } from '../core/frame';
+import { X_ICON_SVG } from '../core/icons';
 import interFont from '../ui/fonts/inter-latin-wght-normal.woff2' with { type: 'file' };
 import interLicense from '../ui/fonts/LICENSE-Inter.txt' with { type: 'file' };
 import { demoFile } from './demo-file';
@@ -433,8 +434,8 @@ const imageFrame = (f, open) => {
     activeImageFrame = f;
     imagePlaceholder = document.createElement('div'); imagePlaceholder.style.cssText = 'height:' + f.offsetHeight + 'px;width:' + f.offsetWidth + 'px'; f.before(imagePlaceholder);
     f.dataset.obeyaPreviousStyle = f.getAttribute('style') || ''; f.style.cssText += ';position:fixed;inset:0;width:100vw;height:100vh;z-index:2147483646;border:0';
-    imageClose = document.createElement('button'); imageClose.textContent = '×'; imageClose.setAttribute('aria-label', 'Close');
-    imageClose.style.cssText = 'position:fixed;right:16px;top:12px;z-index:2147483647;color:white;background:#222;border:0;font:36px sans-serif;cursor:pointer'; imageClose.onclick = closeImage; document.body.append(imageClose); imageClose.focus();
+    imageClose = document.createElement('button'); imageClose.innerHTML = ${JSON.stringify(X_ICON_SVG)}; imageClose.setAttribute('aria-label', 'Close');
+    imageClose.style.cssText = 'position:fixed;right:16px;top:12px;z-index:2147483647;color:white;background:#222;border:0;display:flex;padding:6px;cursor:pointer'; imageClose.onclick = closeImage; document.body.append(imageClose); imageClose.focus();
   } else if (!open && f === activeImageFrame) closeImage();
 };
 addEventListener('keydown', (e) => { if (!imageClose) return; if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); closeImage(); } else if (e.key === 'Tab') { e.preventDefault(); imageClose.focus(); } }, true);

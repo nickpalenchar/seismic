@@ -3,6 +3,7 @@
 // above its words, as chat apps do.
 
 import { Copy } from 'lucide-react';
+import { X_ICON_SVG } from '../core/icons';
 import { createContext, type ReactNode, type RefObject, useContext, useEffect, useRef, useState } from 'react';
 import type { AgentIdentity, AnswerFile, CardEvent, Item } from '../core/types';
 import { answerFile, api } from './api';
@@ -229,8 +230,8 @@ export function useReportedHeight(frame: RefObject<HTMLIFrameElement | null>, ca
         if (e.data.obeyaImage && !closeButton) {
           placeholder = document.createElement('div'); placeholder.style.cssText = `height:${f.offsetHeight}px;width:${f.offsetWidth}px;`; f.before(placeholder);
           f.dataset.obeyaPreviousStyle = f.getAttribute('style') || ''; f.style.cssText += ';position:fixed;inset:0;width:100vw;height:100vh;z-index:2147483646;border:0';
-          closeButton = document.createElement('button'); closeButton.textContent = '×'; closeButton.setAttribute('aria-label', t.close);
-          closeButton.style.cssText = 'position:fixed;right:16px;top:12px;z-index:2147483647;color:white;background:#222;border:0;font:36px sans-serif;cursor:pointer';
+          closeButton = document.createElement('button'); closeButton.innerHTML = X_ICON_SVG; closeButton.setAttribute('aria-label', t.close);
+          closeButton.style.cssText = 'position:fixed;right:16px;top:12px;z-index:2147483647;color:white;background:#222;border:0;display:flex;padding:6px;cursor:pointer';
           closeButton.className = 'artifact-image-close'; closeButton.onclick = closeImage; document.body.append(closeButton); closeButton.focus();
         } else if (!e.data.obeyaImage) closeImage();
         return;

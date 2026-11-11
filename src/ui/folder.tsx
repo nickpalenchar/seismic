@@ -12,6 +12,7 @@ import type { ActDone } from './detail';
 import { DiffView, Lines } from './diff';
 import { atWork, ChangeList } from './files';
 import { t } from './strings';
+import { X } from 'lucide-react';
 import { Button, LinkButton } from './components/button';
 
 /** How often an open card at work reads its change list again: its agent changes the folder as it goes. */
@@ -142,9 +143,7 @@ export function DiscardChanges({ diff, act, onDone }: { diff: CardDiff | null; a
         {counting && (
           <>
             <span className="f-count">{t.folder.seconds(left)}</span>
-            <span className="f-cancel" aria-label={t.folder.cancel}>
-              ×
-            </span>
+            <X className="f-cancel" size={14} aria-label={t.folder.cancel} />
           </>
         )}
       </Button>

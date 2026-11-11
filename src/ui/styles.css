@@ -669,7 +669,7 @@ textarea.p-body:focus, .p-body[contenteditable]:focus { border-color: var(--mute
 .demo-versions { display: flex; align-items: center; gap: 4px; margin-right: auto; min-height: 34px; font-size: 13px; }
 .demo-versions > span { font-variant-numeric: tabular-nums; padding: 0 2px; }
 .demo-versions.earlier > span { color: var(--waiting); font-weight: 600; }
-.demo-versions .step { border: 0; background: none; color: var(--ink); width: 24px; height: 24px; border-radius: 2px; font-size: 18px; line-height: 1; cursor: pointer; }
+.demo-versions .step { display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; background: none; color: var(--ink); width: 24px; height: 24px; border-radius: 2px; font-size: 18px; line-height: 1; cursor: pointer; }
 .demo-versions .step:hover:not(:disabled) { background: var(--chip); }
 .demo-versions .step:disabled { opacity: .3; cursor: default; }
 .demo-versions [data-slot=button] { margin-left: 10px; }
@@ -1028,7 +1028,7 @@ span.cl-name { color: inherit; cursor: default; }
 .f-discarding { align-self: center; font-size: 12.5px; color: var(--muted-foreground); }
 .f-discard.counting { border: 1px solid var(--error); }
 .f-count { margin-left: 8px; font-variant-numeric: tabular-nums; font-weight: 600; }
-.f-cancel { margin-left: 6px; color: var(--error); font-weight: 700; }
+.f-cancel { margin-left: 6px; color: var(--error); stroke-width: 3; }
 .d-sheet { display: flex; flex-direction: column; width: min(100%, 1500px); min-height: 0; }
 .d-head { display: flex; align-items: baseline; gap: 14px; padding: 16px 22px 12px; border-bottom: 1px solid var(--line); }
 .d-head h2 { margin: 0; font-size: 21px; }
@@ -1339,7 +1339,7 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .sheet.reading { width: var(--read-w); padding: 0 30px 40px; }
 .read-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 12px; margin: 0 -30px; padding: 14px 58px 12px 30px;
   background: color-mix(in srgb, var(--panel) 88%, transparent); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid var(--line); }
-.read-head .back { border: 0; background: var(--chip); border-radius: 2px; padding: 4px 12px; cursor: pointer; font-weight: 600; font-size: 13px; }
+.read-head .back { display: inline-flex; align-items: center; gap: 4px; border: 0; background: var(--chip); border-radius: 2px; padding: 4px 12px; cursor: pointer; font-weight: 600; font-size: 13px; }
 .read-head .src { margin: 0 0 0 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* a plan doc is read like a document: in the serif */
 .doc { font-family: var(--font); font-size: 16px; line-height: 1.55; overflow-wrap: anywhere; }

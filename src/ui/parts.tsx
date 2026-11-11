@@ -1,6 +1,6 @@
 // Presentational pieces of the project. State and camera live in App.tsx.
 
-import { Archive, ChevronDown, ChevronRight, Columns3, GitMerge, MessageSquare, Pause, Play, Square } from 'lucide-react';
+import { Archive, ChevronDown, Ellipsis, ChevronLeft, ChevronRight, Columns3, GitMerge, MessageSquare, Pause, Play, Square } from 'lucide-react';
 import { Docked } from './docked';
 import { type CSSProperties, memo, type MouseEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import { type Bounds, dependencyOrder, shapeOf } from '../core/layout';
@@ -871,12 +871,12 @@ function WorkstationRows({ host, items, underway, projects, onOpen, onElsewhere,
               {item && w.takeable && onTake && (
                 <Tooltip content={t.workstations.more}>
                   <button
-                    className="ml-1.5 cursor-pointer rounded-[3px] border-0 bg-transparent px-[5px] text-[13px] leading-[1.2] text-muted-foreground opacity-55 hover:bg-chip hover:opacity-100 aria-expanded:bg-chip aria-expanded:opacity-100"
+                    className="ml-1.5 inline-flex cursor-pointer items-center rounded-[3px] border-0 bg-transparent px-[3px] py-px align-middle text-muted-foreground opacity-55 hover:bg-chip hover:opacity-100 aria-expanded:bg-chip aria-expanded:opacity-100"
                     aria-label={t.workstations.more}
                     aria-expanded={more === w.path}
                     onClick={() => setMore(more === w.path ? null : w.path)}
                   >
-                    ⋯
+                    <Ellipsis size={14} aria-hidden />
                   </button>
                 </Tooltip>
               )}
@@ -1352,7 +1352,8 @@ export function Sheet({
         <>
           <div className="read-head">
             <button className="back" onClick={() => onRead(null)}>
-              ‹ {t.plan.back}
+              <ChevronLeft size={14} aria-hidden />
+              {t.plan.back}
             </button>
             <span className="src">{planCard.plan.file}</span>
           </div>

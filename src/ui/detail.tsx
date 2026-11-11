@@ -1,5 +1,5 @@
 import { noteClass } from './components/ai/message';
-import { Car, Check, Lightbulb, ChevronDown, ChevronRight, Pencil, Maximize, MessageSquare, Minimize, PanelRightClose, PanelRightOpen, Play, Plus, Share, SquarePlus, ZoomIn, ZoomOut } from 'lucide-react';
+import { Car, Check, Lightbulb, ChevronDown, ChevronLeft, ChevronRight, Pencil, Maximize, MessageSquare, Minimize, PanelRightClose, PanelRightOpen, Play, Plus, Share, SquarePlus, ZoomIn, ZoomOut } from 'lucide-react';
 import { clientExtensions as extensions } from '../extensions/client';
 // The unfolded card: what it is, what its worker does, and what the owner decides.
 
@@ -2206,7 +2206,7 @@ function DemoView({
               <div className={demo === latest ? 'demo-versions' : 'demo-versions earlier'} title={demo === latest ? undefined : t.demo.earlierHint}>
                 <Tooltip content={t.demo.older}>
                   <button className="step" disabled={shownAt === 0} aria-label={t.demo.older} onClick={() => show(all[shownAt - 1]!)}>
-                    ‹
+                    <ChevronLeft size={16} aria-hidden />
                   </button>
                 </Tooltip>
                 <span>
@@ -2222,7 +2222,7 @@ function DemoView({
                 </span>
                 <Tooltip content={t.demo.newer}>
                   <button className="step" disabled={demo === latest} aria-label={t.demo.newer} onClick={() => show(all[shownAt + 1]!)}>
-                    ›
+                    <ChevronRight size={16} aria-hidden />
                   </button>
                 </Tooltip>
                 {shownAt < all.length - 2 && (
@@ -3849,8 +3849,9 @@ function SpotLink({ cardId, spot }: { cardId: string; spot: Spot }) {
   return (
     <button className="spot flex items-center gap-2 mt-[5px] mb-1 p-0 border-0 bg-transparent [font:inherit] text-[13px] text-working cursor-pointer text-left [&_img]:w-16 [&_img]:rounded-[2px] [&_img]:block hover:[&_span]:underline" title={t.demo.toPlace} onClick={() => seekTo(cardId, spot.at, spot.demo)}>
       {spot.still && <img src={imageUrl(spot.still)} alt="" loading="lazy" />}
-      <span>
-        ▶ {mmss(spot.at)}
+      <span className="inline-flex items-center gap-1">
+        <Play size={11} aria-hidden className="fill-current" />
+        {mmss(spot.at)}
         {spot.chapter && ` · ${spot.chapter}`}
       </span>
     </button>
