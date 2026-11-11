@@ -15,7 +15,7 @@
 
 import { cn } from 'cn';
 import { AlertDialog as AlertDialogPrimitive, Dialog as DialogPrimitive } from 'radix-ui';
-import { type ComponentProps, type ReactNode, useState } from 'react';
+import { type ComponentProps, type ReactNode, useCallback, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Button, type ButtonVariant } from './button';
 import { uiPortal } from './ui';
@@ -52,6 +52,12 @@ export function DialogContent({
     el.style.display = 'contents';
     return el;
   });
+  // Reattaching an already mounted subtree makes the browser reset its scroll and focus.
+  // Keep the ref stable across updates (including late API responses); only a newly opened
+  // dialog needs to move the parked children into its new host.
+  const mountParked = useCallback((el: HTMLDivElement | null) => {
+    if (el && parked.parentNode !== el) el.appendChild(parked);
+  }, [parked]);
   return (
     <>
       <DialogPrimitive.Portal container={uiPortal()}>
@@ -74,9 +80,7 @@ export function DialogContent({
               if (e.target instanceof Element && e.target.closest('.toast, .notify-ask')) e.preventDefault();
             }}
           >
-            {keepMounted ? <div ref={(el) => {
-              if (el) el.appendChild(parked);
-            }} className="contents" /> : children}
+            {keepMounted ? <div ref={mountParked} className="contents" /> : children}
           </DialogPrimitive.Content>
         </DialogPrimitive.Overlay>
       </DialogPrimitive.Portal>

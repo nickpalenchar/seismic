@@ -361,7 +361,8 @@ the section scrolls, so a click meant to close never lands on what scrolled unde
 an entry (a project, a repository, a machine) is a waste bin, not a cross that passes for a close
 button, and shows only while the pointer or the focus is on its entry (a project: its title line; a repository: its path),
 always where nothing hovers (touch). An unsaved draft survives per tab, also a reload or
-restart. Its sections, listed on the left and shown one at a time (the last one chosen per tab):
+restart. Background checks and late responses leave the open dialog's scroll position and
+focused field in place, in Preferences too. Its sections, listed on the left and shown one at a time (the last one chosen per tab):
 Projects, a heading with each project indented under it as a section of its own and "+ Project"
 last (see Projects), Project defaults (see Project defaults), Agents and models, Voice input, Demos, Notifications and limits
 (notifications on this computer, the usage limits in the bar, feedback after approval), Other
