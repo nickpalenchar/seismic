@@ -417,7 +417,9 @@ colour of its card's state as the card on the canvas shows it, derived from the 
 change to the cards' colours changes the dots with it (owner, 2026-11-11): blue while its agent
 works, teal while a code review runs, orange while it needs the owner (a question, a demo ready),
 green while it lands; at work, in review and landing it glows in a slow pulse between a softer
-and a more saturated colour (no pulse with reduced motion). The pool shows only this project's cards that are in progress or wait for the owner: a card that is stopped, queued, snoozed, parked, archived or on another project leaves the dots and the list (a clone it holds still counts as taken in the numbers), and the list changes with the project. A workstation paused pending restart shows a small pause symbol in both the bar and its list. A free clone is a dark grey ring, a blocked one an orange ring. Hovering or clicking it opens a
+and a more saturated colour. Each circular dot has a steady thin dark grey outline, which
+does not fade with the pulse. With reduced motion, active dots instead show a thick state-coloured
+ring, a transparent gap and a small centre dot, within the same outer size. The pool shows only this project's cards that are in progress or wait for the owner: a card that is stopped, queued, snoozed, parked, archived or on another project leaves the dots and the list (a clone it holds still counts as taken in the numbers), and the list changes with the project. A workstation paused pending restart shows a small pause symbol in both the bar and its list. A free clone is a dark grey ring, a blocked one an orange ring. Hovering or clicking it opens a
 list above it. On medium and smaller screens the pill shows only the dots, with the name and
 availability in the list opened by hover, tap or keyboard; an empty pool keeps its label so it
 still has a visible trigger. The list shows per machine its slots at work and clones taken, then

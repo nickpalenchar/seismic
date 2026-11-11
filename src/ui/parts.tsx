@@ -765,14 +765,14 @@ function WorkstationMark({ dot, className }: { dot: WorkstationDot; className?: 
 }
 
 function wsDot(w: PoolWorkstation | undefined, host: PoolHost, items: Item[], underway: Record<string, string>): WorkstationDot {
-  const dot = 'block rounded-full';
-  if (!w?.card) return { className: cn(dot, w && host.blocked?.some((b) => b.path === w.path) ? 'shadow-[inset_0_0_0_1.5px_var(--waiting)]' : 'shadow-[inset_0_0_0_1.5px_var(--muted-foreground)]') };
+  const dot = 'ws-dot block rounded-full';
+  if (!w?.card) return { className: cn(dot, w && host.blocked?.some((b) => b.path === w.path) ? 'shadow-[inset_0_0_0_1.5px_var(--waiting)]' : undefined) };
   const item = w.project ? undefined : items.find((i) => i.id === w.card);
   const tone = item ? cardTone(item, underway[item.id]) : host.busy.includes(w.card) ? 'working' : null;
   if (item?.hold?.reason === 'restart') return { className: 'block text-[var(--restart)]', paused: true };
   if (!tone) return { className: cn(dot, 'bg-[color-mix(in_srgb,var(--working)_35%,transparent)]') };
   return {
-    className: cn(dot, 'bg-[var(--c)]', PULSING.has(tone) && 'animate-[ws-pulse_3.6s_ease-in-out_infinite] motion-reduce:animate-none'),
+    className: cn(dot, 'bg-[var(--c)]', PULSING.has(tone) && 'ws-active'),
     style: { '--c': `var(--${tone})` } as CSSProperties,
   };
 }

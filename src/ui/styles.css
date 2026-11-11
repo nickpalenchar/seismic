@@ -2464,15 +2464,35 @@ a.link.perf-to-log, a.link.flog-back { color: var(--working); text-decoration: u
 .sheet.beside-card { z-index: 31; }
 :is(#sheet-close, #sheet-grip).beside-card { z-index: 32; }
 
-/* a workstation's dot while its card is at work, in review or landing */
+/* Keep a dot's outline steady while its fill and glow pulse. */
+.ws-dot { box-sizing: border-box; border: 1px solid #6b7280; }
+.ws-active { position: relative; animation: ws-pulse 3.6s ease-in-out infinite; }
 @keyframes ws-pulse {
   0%, 100% {
-    background-color: color-mix(in srgb, var(--c) 60%, var(--background));
+    background-color: color-mix(in srgb, var(--c) 30%, var(--background));
     box-shadow: 0 0 1px color-mix(in srgb, var(--c) 10%, transparent);
   }
   50% {
     background-color: var(--c);
-    box-shadow: 0 0 5px color-mix(in srgb, var(--c) 40%, transparent);
+    box-shadow: 0 0 6px color-mix(in srgb, var(--c) 60%, transparent);
   }
 }
-
+@media (prefers-reduced-motion: reduce) {
+  .ws-active {
+    animation: none;
+    background: transparent;
+    border: 2px solid var(--c);
+    box-shadow: none;
+  }
+  .ws-active::after {
+    content: '';
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: var(--c);
+  }
+}
