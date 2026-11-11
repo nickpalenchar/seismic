@@ -391,7 +391,8 @@ export function Detail(p: Props) {
   // the agent fixing items the owner sent it, and items waiting for the next review, count as part of the review: Approve warns the same way
   const fixing = !!cr?.items.some((r) => r.status === 'fixing');
   const verifying = !!cr?.items.some((r) => r.status === 'underReview');
-  const reviewRunning = cr?.state === 'running' || fixing || verifying;
+  // work that changed nothing has nothing to land, so a review still at work does not change what approving does
+  const reviewRunning = !item.review?.noChange && (cr?.state === 'running' || fixing || verifying);
   const approvalWarningClass = 'start-agent-main';
   const approvalWarning = reviewRunning && <span className="start-agent-model">{cr?.state === 'running' || (verifying && !fixing) ? t.approveDuringReview.reviewing : t.approveDuringReview.fixing}</span>;
   // choices on items picked but not sent yet: approving would drop them
@@ -886,11 +887,12 @@ export function Detail(p: Props) {
       )}
 
       {/* the decisions go below both columns, as on an idea or a proposal */}
-      {worked && review && item.review?.noChange && !item.idea?.prototypeOf && (
-        <p className="wontfix-callout rounded-md border border-border bg-muted px-3 py-2 text-sm" role="note">{inFolder ? t.folder.noChangeHint : t.noChangeHint}</p>
-      )}
       {worked && (running || archivable || halted || snoozable(item)) && (
         <div className="actions">
+          {/* the explanation sticks with the decision it belongs to */}
+          {review && item.review?.noChange && !item.idea?.prototypeOf && (
+            <p className="wontfix-callout m-0 w-full rounded-md border border-border bg-muted px-3 py-2 text-sm" role="note">{inFolder ? t.folder.noChangeHint : t.noChangeHint}</p>
+          )}
           {halted && !item.archivedAt && (
             <StartAgent draft={cardDraft(item.id)} label={t.startAgain} title={t.startAgainHint} codexAllowed={!inFolder && !item.review?.contribution} onStart={(agent) => act({ action: 'start', ...(agent ? { agent } : {}) }, { close: false })} />
           )}
