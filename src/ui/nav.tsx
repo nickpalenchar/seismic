@@ -5,7 +5,7 @@
 // row's project switcher lists the projects alone, while the menu is not docked. What waits itself is
 // in the inbox (src/ui/inbox.tsx), on every project at once.
 
-import { Archive, ArrowLeft, Bot, Car, ChartLine, ChevronRight, FileCheck, GitBranch, GripVertical, Inbox, ListOrdered, Menu as Menu_, PanelLeft, PanelLeftClose, Plus, ScrollText, Settings, SlidersHorizontal, Users } from 'lucide-react';
+import { Archive, ArrowLeft, Bot, Car, ChartLine, ChevronRight, FileCheck, GitBranch, Inbox, ListOrdered, Menu as Menu_, PanelLeft, PanelLeftClose, Plus, ScrollText, Settings, SlidersHorizontal, Users } from 'lucide-react';
 import { type ComponentProps, createContext, type ReactNode, type Ref, useContext, useLayoutEffect, useRef, useState } from 'react';
 import type { Canvas, ProjectInfo } from '../core/types';
 import { projectPath, switchTo } from './address';
@@ -258,7 +258,7 @@ export function NavSheet({ on, onOpenChange, width, maxWidth, onWidthChange, onW
               onWidthChange(value); onWidthEnd(value);
             }
           }}
-        ><span className="rounded-sm group-focus-visible/resize:ring-2 group-focus-visible/resize:ring-working"><GripVertical size={16} strokeWidth={2} aria-hidden /></span></button>}
+        ><span className="block h-1 w-5 rounded-full bg-muted-foreground/70 group-hover/resize:bg-ink group-focus-visible/resize:ring-2 group-focus-visible/resize:ring-working" aria-hidden /></button>}
       </Sidebar>
     </SidebarProvider>
   );
