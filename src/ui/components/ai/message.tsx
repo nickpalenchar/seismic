@@ -1,4 +1,4 @@
-// AI Elements' Message, ours from here on: one turn of a conversation as a bubble, on a card, in a chat
+// AI Elements' Message, ours from here on: one turn of a conversation, on a card, in a chat
 // and in the Koordinator's sheet alike. `from` places it (the owner's, `user`, on the right) and
 // `MessageHead` heads it with who said it; `MessageActions` hold the buttons in its corner (reply,
 // take back), which show while the pointer is on the message and always on a touch screen. What a kind
@@ -19,14 +19,15 @@ export function Message({ className, from, ...props }: ComponentProps<'div'> & {
     <div
       data-slot="message"
       className={cn(
-        'group/message group relative flex-none max-w-[92%] rounded-xl border border-glass-edge bg-card px-3 py-2 shadow-[var(--shadow)]',
-        from === 'user' ? 'is-user self-end bg-[color-mix(in_srgb,var(--working)_9%,var(--card))]' : 'is-assistant',
+        'group/message group relative flex-none min-w-0 rounded-xl',
+        from === 'user' ? 'is-user self-end max-w-[92%] bg-secondary px-3 py-2' : 'is-assistant w-full self-stretch py-1',
+        '[&.q]:bg-[color-mix(in_srgb,var(--waiting)_9%,var(--card))] [&.q]:px-3 [&.q]:py-2',
         // State hooks are shared by the card, chats and Koordinator adapters.
-        '[&:is(.held,.unread)]:outline [&:is(.held,.unread)]:outline-dashed [&:is(.held,.unread)]:outline-[color-mix(in_srgb,var(--working)_40%,transparent)] [&:is(.held,.unread)]:-outline-offset-1',
+        '[&:is(.held,.unread)]:px-3 [&:is(.held,.unread)]:py-2 [&:is(.held,.unread)]:outline [&:is(.held,.unread)]:outline-dashed [&:is(.held,.unread)]:outline-[color-mix(in_srgb,var(--working)_40%,transparent)] [&:is(.held,.unread)]:-outline-offset-1',
         '[&.unread>:not(.msg-actions):not(.unread-mark)]:opacity-60 [&.paused>:not(.who)]:opacity-70',
-        '[&.fresh]:shadow-[0_0_0_1.5px_color-mix(in_srgb,var(--waiting)_70%,transparent),var(--shadow)] [&.flash]:animate-[msg-flash_2.4s_ease-out]',
+        '[&.fresh]:shadow-[0_0_0_1.5px_color-mix(in_srgb,var(--waiting)_70%,transparent)] [&.flash]:animate-[msg-flash_2.4s_ease-out]',
         '[&.undone_:is(.p-lead,.p-list,.p-table)]:line-through [&.undone_:is(.p-lead,.p-list,.p-table)]:decoration-muted-foreground [&.by-owner_.shots]:justify-end',
-        '[&.action]:bg-chip [&.action]:shadow-none [&.action]:border-dashed [&.action]:border-[color-mix(in_srgb,var(--muted-foreground)_55%,transparent)] [&.action]:[font-family:var(--font)] [&.action]:px-2.5 [&.action]:pt-[7px] [&.action]:pb-2.5 [&.action]:self-start',
+        '[&.action]:bg-chip [&.action]:shadow-none [&.action]:border [&.action]:border-dashed [&.action]:border-[color-mix(in_srgb,var(--muted-foreground)_55%,transparent)] [&.action]:[font-family:var(--font)] [&.action]:px-2.5 [&.action]:pt-[7px] [&.action]:pb-2.5 [&.action]:self-start',
         className,
       )}
       {...props}

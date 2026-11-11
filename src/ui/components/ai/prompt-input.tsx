@@ -31,7 +31,7 @@ export function PromptInputBody({ className, dictating, ...props }: ComponentPro
       data-slot="prompt-input-body"
       data-dictating={dictating || undefined}
       className={cn(
-        'flex min-w-0 flex-[1_1_100%] flex-wrap items-end gap-1 rounded-[3px] border border-line bg-card p-1 focus-within:border-muted-foreground',
+        'flex min-w-0 flex-[1_1_100%] flex-col gap-1 rounded-xl border border-line bg-card p-2 shadow-sm focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50',
         'group-data-[dropping]/pi:border-dashed group-data-[dropping]/pi:border-working group-data-[dropping]/pi:bg-[color-mix(in_srgb,var(--working)_6%,var(--card))]',
         'data-[dictating]:border-working data-[dictating]:shadow-[0_0_0_1px_var(--working)] data-[dictating]:focus-within:border-working',
         className,
@@ -48,18 +48,15 @@ export function PromptInputTextarea({ className, ref, ...props }: ComponentProps
       data-slot="prompt-input-textarea"
       ref={ref}
       rows={1}
-      className={cn('min-h-0 max-h-[30vh] min-w-0 flex-1 resize-none border-0 bg-transparent px-2 py-1.5 text-[14px] leading-[1.45] text-ink outline-none placeholder:text-muted-foreground/80', className)}
+      className={cn('min-h-0 max-h-[30vh] min-w-0 w-full box-border resize-none border-0 bg-transparent px-1 py-1.5 text-[14px] leading-[1.45] text-ink outline-none placeholder:text-muted-foreground/80', className)}
       {...props}
     />
   );
 }
 
-/**
- * The buttons in the frame's bottom corner, beside the text's scrollbar rather than over it: side by
- * side beside a short text, on top of each other (`stacked`, set by `fitField`) beside a tall one.
- */
+/** The footer: attachment and microphone at the left, Send at the right. */
 export function PromptInputTools({ className, ref, ...props }: ComponentProps<'div'> & { ref?: Ref<HTMLDivElement> }) {
-  return <div data-slot="prompt-input-tools" ref={ref} className={cn('flex flex-none items-center gap-0.5 data-[stacked]:flex-col', className)} {...props} />;
+  return <div data-slot="prompt-input-tools" ref={ref} className={cn('flex w-full flex-none items-center gap-1', className)} {...props} />;
 }
 
 /** A button of the tools that is not Send: the icon alone, the cursor stays in the field. */
@@ -86,7 +83,7 @@ export function PromptInputSubmit({ className, arrow, ...props }: ButtonProps & 
     <Button
       data-slot="prompt-input-submit"
       variant="primary"
-      className={cn(arrow ? 'size-[30px] rounded-[3px] p-0' : 'rounded-[2px] px-3 py-1.5 text-[13px]', className)}
+      className={cn(arrow ? 'size-[30px] rounded-full p-0' : 'rounded-full px-3 py-1.5 text-[13px]', className)}
       {...props}
     />
   );

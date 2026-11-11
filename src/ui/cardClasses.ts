@@ -80,10 +80,10 @@ export const headClass =
  * anew with each key typed, and the field jumped.
  */
 export const conversationBox =
-  'conv bg-chip rounded-[14px] flex flex-col max-h-[min(520px,60vh)] max-w-[100ch] [.split-talk_&]:flex-1 [.split-talk_&]:min-h-0 [.split-talk_&]:max-h-none [.split-talk_&]:max-w-none max-[760px]:[.split-talk_&]:min-h-[240px] max-[760px]:[.split-talk_&]:max-h-[min(520px,60vh)]';
+  'conv flex flex-col max-h-[min(520px,60vh)] max-w-[100ch] [.split-talk_&]:flex-1 [.split-talk_&]:min-h-0 [.split-talk_&]:max-h-none [.split-talk_&]:max-w-none max-[760px]:[.split-talk_&]:min-h-[240px] max-[760px]:[.split-talk_&]:max-h-[min(520px,60vh)]';
 
 /** The messages in it, one under the other. */
-export const conversationList = 'talk py-3 px-3.5 flex flex-col gap-2';
+export const conversationList = 'talk py-1 px-1 flex flex-col gap-2';
 
 /** The options an agent's question offers (`single` as radio buttons, `multiple` as checkboxes), the owner's own answer last. */
 export const choicesClass = (mode?: 'single' | 'multiple', className?: string) =>

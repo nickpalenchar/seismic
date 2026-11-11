@@ -69,7 +69,7 @@ The speaker's role is followed by the harness and model that produced the messag
 This holds for card replies and open questions as well as the Koordinator's reply and a looked-up
 answer, which can come from different models. Attribution is recorded when the agent speaks and
 survives a restart or a later change of defaults; old messages with no known identity stay unlabelled
-rather than taking today's model. The bubbles of an agent at work (a card's worker, an idea's or a
+rather than taking today's model. The turns of an agent at work (a card's worker, an idea's or a
 Question card's agent, the reviser of a proposal, the Koordinator reading, an answer being looked
 up) name the harness and model of the session that runs there now, read from that session, never
 from the defaults: its harness and chosen model from its start, the model it resolved once it says
@@ -230,14 +230,19 @@ when it starts, by the owner's click, at the time it was snoozed to, or out of t
 card's worker gets them with the message it resumes with. Made into a plan, the card's worker
 gets them with its task; discussed as an idea, its exploration agent opens the discussion with them.
 
-The field is the same on every card and in Seismic's sheet: one frame, the text growing up to 30 % of
-the window (no scrollbar below that), the screenshot button, the microphone (see Voice in) and Send
-in its bottom corner. Beside a short text the three stand side by side; once the text is about as
-high as the three stacked (three lines on the phone), they stack in a narrow column and the text
-gets the width; the switch is judged at the stacked width, so it does not flip back and forth. The
-placeholder shows in full, on two lines where needed, since it often says what the agent does with a
-message (the owner, 2026-10-17). Send is an arrow in a dark circle, as in chat apps; a button that
-starts something rather than sends keeps its words ("Start prototype").
+The field is the same on every card and in Seismic's sheet: a rounded frame with a soft shadow and
+blue focus ring. The text uses its full width and grows up to 30 % of the window (no scrollbar below
+that). A footer row holds the screenshot button and microphone (see Voice in) on the left, and Send
+on the right. Send is an arrow in a round blue button; a button that starts something keeps its words
+("Start prototype"). The placeholder shows in full, wrapping where needed, since it often says what
+the agent does with a message (the owner, 2026-10-17).
+
+Agent, Seismic and plan turns are plain text on the card or sheet's own background, full width,
+with a small author, model and time heading. Only the owner's turns are quiet, right-aligned bubbles
+without borders or shadows. Questions keep a rounded waiting tint, actions a dashed frame, and unread
+or held turns a padded dashed outline. An agent at work keeps the animated bar in its heading.
+Notes between turns stay centred small print. Reply and delete actions occupy the turn's top-right
+corner on hover, and stay visible on touch screens.
 
 A review card's findings (see Review cards) stand above its demo, each with its choice; the items
 of a code review (see Code reviews in Card lifecycle) stand in the card's Review tab, in the same
@@ -590,3 +595,6 @@ image.
   Rejected: a token of the card's id (`#ab12`), which says nothing to the agent or in plain text;
   the raw markdown in a plain text box with the pills listed under it, which the owner found hard
   to read.
+
+- **Stock AI Elements conversation styling on frost tokens** (owner, 2026-11-11): chosen over the custom
+  bubble and tinted-panel look, with text above a footer row of tools, to follow familiar chat layouts.
