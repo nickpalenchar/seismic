@@ -274,8 +274,7 @@ export function ShotStrip({ shots }: { shots: ShotInput }) {
       ))}
       {Array.from({ length: shots.uploading }, (_, i) => (
         <span key={`u${i}`} className="c-shot loading">
-          <Spinner className="size-5" />
-          <span className="sr-only" role="status">{t.shots.uploading}</span>
+          <Spinner className="size-5" aria-label={t.shots.uploading} />
         </span>
       ))}
       {shots.pasteHint && (

@@ -1,6 +1,6 @@
-import { LoaderIcon } from 'lucide-react';
 import { cn } from '../lib/utils';
 
-export function Spinner({ className, ...props }: React.ComponentProps<'svg'>) {
-  return <LoaderIcon aria-hidden="true" className={cn('size-4 animate-spin', className)} {...props} />;
+/** The shadcn Spinner interface, with a CSS ring instead of its default Lucide icon. */
+export function Spinner({ className, ...props }: React.ComponentProps<'span'>) {
+  return <span role="status" className={cn('inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent', className)} {...props} />;
 }
