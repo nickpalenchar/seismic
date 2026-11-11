@@ -192,7 +192,7 @@ migrations, ORM models), the owner also gets a schema-change page beside the dem
 models the change touches, before and after, out of whatever the project uses (the migration, the
 model files and their diff), into `<demo dir>/schema-models.json` (its shape is in the header of
 `${CLAUDE_SKILL_DIR}/lib/schema.ts`): every entity the change touches, with all its fields, keys,
-indexes and references, and the entities those refer to or that refer to them; `was` on an
+indexes and references, and the entities those refer to or that refer to them. Use `kind: "table"` (the default) for SQL tables, `"columnar"` for column-oriented stores, or `"document"` for document collections. Embedded objects and array item properties use nested `fields` arrays; `optional` distinguishes a missing property from a nullable value. The shared components render these from the JSON with the same styling; the worker supplies data rather than writing page markup. Use `was` on an
 entity or field that was renamed; `sources`: the migrations and model files you read. Then:
 
 ```bash

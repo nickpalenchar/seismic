@@ -561,7 +561,7 @@ of the files beside the demo. The worker makes it: it reads the touched models b
 of whatever the project uses into a small JSON (entities with their fields, types, keys, indexes and
 references; a `was` for a rename; the source files it read), and the demo skill's renderer turns
 that into one self-contained HTML page. The renderer knows no SQL dialect or ORM, and runs under
-plain Node like the rest of the skill. The page draws the touched entities as boxes with lines for
+plain Node like the rest of the skill, without installing UI dependencies. Shared page, diagram, entity, field and change-list components render the data with one look. Entities support SQL tables (the default), columnar stores and document collections through an optional `kind` (`table`, `columnar`, `document`). Document fields may contain nested `fields` for embedded objects and array item properties, rendered as full property paths; `optional` is distinct from `nullable`. Existing flat inputs remain compatible. Relation endpoints are indexed once and redraws batched per animation frame, so drawing relations does not repeatedly search every field. The page draws the touched entities as boxes with lines for
 their references, added green, changed amber, removed red, in columns so that references run left
 to right. Beside them, dashed, stand their direct neighbours along the relations the change makes,
 drops or breaks (what a new entity or a changed field refers to, what refers to a dropped or renamed

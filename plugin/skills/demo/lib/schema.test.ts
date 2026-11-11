@@ -172,3 +172,39 @@ describe('the schema-change page', () => {
     }
   });
 });
+
+ test('compares embedded document and array properties, optional fields, renames and indexes', () => {
+  const before: Entity = { kind: 'document', name: 'customers', fields: [
+    { name: '_id', type: 'ObjectId', pk: true },
+    { name: 'profile', type: 'object', fields: [{ name: 'email', type: 'string' }, { name: 'fax', type: 'string' }] },
+    { name: 'addresses', type: 'array<object>', fields: [{ name: 'zip', type: 'string' }] },
+  ] };
+  const after: Entity = { ...before, fields: [before.fields[0]!,
+    { name: 'profile', type: 'object', fields: [{ name: 'email', type: 'string', optional: true }, { name: 'name', type: 'string' }] },
+    { name: 'addresses', type: 'array<object>', fields: [{ name: 'postalCode', was: 'zip', type: 'number' }] },
+  ], indexes: [{ name: 'email_unique', columns: ['profile.email'], unique: true }] };
+  const input: SchemaChange = { sources: ['models/customer.ts'], before: { entities: [before] }, after: { entities: [after] } };
+  const diff = diffModels(input.before, input.after)[0]!;
+  expect(diff.kind).toBe('document');
+  expect(diff.fields.find(f => f.name === 'profile.email')).toMatchObject({ status: 'changed', changes: ['now optional'] });
+  expect(diff.fields.find(f => f.name === 'profile.fax')?.status).toBe('removed');
+  expect(diff.fields.find(f => f.name === 'profile.name')?.status).toBe('added');
+  expect(diff.fields.find(f => f.name === 'addresses.postalCode')).toMatchObject({ was: 'addresses.zip', status: 'changed' });
+  const html = renderSchemaPage(checkInput(input));
+  expect(html).toContain('<span class="badge">document</span>');
+  expect(html).toContain('data-field="profile.email"');
+  expect(html).toContain('<span class="badge">optional</span>');
+  expect(html).toContain('profile.email)');
+  expect(() => checkInput({ ...input, after: { entities: [{ ...after, fields: [{ name: 'profile', fields: {} }] }] } })).toThrow('after" field customers.profile');
+});
+
+test('uses the same comparison and entity components for columnar schemas, including kind changes', () => {
+  const before: Entity = { kind: 'columnar', name: 'events', fields: [{ name: 'id', type: 'UInt64' }, { name: 'duration', type: 'UInt32' }] };
+  const after: Entity = { ...before, fields: [before.fields[0]!, { name: 'duration', type: 'UInt64' }] };
+  const html = renderSchemaPage({ sources: ['events.sql'], before: { entities: [before] }, after: { entities: [after] } });
+  expect(html).toContain('<span class="badge">columnar</span>');
+  expect(html).toContain('<s>UInt32</s> → UInt64');
+  const diff = diffModels({ entities: [before] }, { entities: [{ ...before, kind: 'document' }] });
+  expect(diff[0]).toMatchObject({ status: 'changed', kind: 'document', beforeKind: 'columnar' });
+  expect(changeList(diff)[0]?.html).toContain('columnar → document');
+});
