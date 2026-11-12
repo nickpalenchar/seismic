@@ -761,8 +761,8 @@ const PULSING = new Set(['working', 'reviewing', 'approved']);
 type WorkstationDot = { className: string; style?: CSSProperties; paused?: boolean };
 
 function WorkstationMark({ dot, className }: { dot: WorkstationDot; className?: string }) {
-  const props = { className: cn('shrink-0', dot.paused ? 'size-2' : 'size-3', className, dot.className), style: dot.style, 'aria-hidden': true } as const;
-  return dot.paused ? <Pause {...props} size={8} fill="currentColor" strokeWidth={2} /> : <i {...props} />;
+  const props = { className: cn('shrink-0', 'size-3', className, dot.className), style: dot.style, 'aria-hidden': true } as const;
+  return dot.paused ? <Pause {...props} size={12} fill="currentColor" strokeWidth={2} /> : <i {...props} />;
 }
 
 function wsDot(w: PoolWorkstation | undefined, host: PoolHost, items: Item[], underway: Record<string, string>): WorkstationDot {
