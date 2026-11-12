@@ -2,6 +2,7 @@
 // page. Where the branch is checked out is copied with another click, and the app running there
 // opens with a third. All stay quiet: the owner rarely reads the code or tries the app by hand.
 
+import { cn } from 'cn';
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { type CardDiff, type DiffPart, diffSize, type FolderChange, shownChanges, splitDiff } from '../core/diff';
 import { diffRows } from '../core/files';
@@ -15,6 +16,16 @@ import { t } from './strings';
 import { CloseButton, LinkButton } from './components/button';
 import { Dialog, DialogContent, DialogTitle } from './components/dialog';
 import { SegmentedControl } from './components/segmented';
+
+/** Lines added and removed, in green and red, their digits in columns. */
+export const addedClass = 'd-add text-approved tabular-nums';
+export const removedClass = 'd-del text-error tabular-nums';
+
+/** A count of lines as a link in a line of text: in the text's size. */
+export const diffSizeClass = 'diff-size text-[length:inherit]';
+
+/** A file's note on what discarding would leave of it, quieter. */
+const leftClass = 'f-left text-muted-foreground italic';
 
 /** A file with more lines than this starts folded, so a generated file does not bury the rest. */
 const FOLD_LINES = 1500;
@@ -42,7 +53,7 @@ export function Branch({ item, sizeBelow }: { item: Item; sizeBelow?: boolean })
         <>
           {' · '}
           {diff.files.length ? (
-            <LinkButton className="diff-size" title={t.diff.show} onClick={() => setOpen(true)}>
+            <LinkButton className={diffSizeClass} title={t.diff.show} onClick={() => setOpen(true)}>
               <Lines n={size} /> {t.diff.size(diff.files.length)}
             </LinkButton>
           ) : (
@@ -95,7 +106,7 @@ function AppLink({ item }: { item: Item }) {
   return (
     <>
       {' · '}
-      <a className="app-link" href={api.appOpen(item.id)} target="_blank" rel="noreferrer" title={t.app.hint(where)}>
+      <a className="app-link text-working no-underline hover:underline" href={api.appOpen(item.id)} target="_blank" rel="noreferrer" title={t.app.hint(where)}>
         {t.app.open} ↗
       </a>
     </>
@@ -146,8 +157,8 @@ export function DiffView({ item, file, onClose, onRead }: { item: Item; file?: s
   const size = !one && got && diffSize(got.files);
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="d-sheet" layerClassName="diff-view z-1000 items-stretch justify-center px-[3vw] py-[3vh]">
-        <div className="d-head">
+      <DialogContent glass className="d-sheet flex flex-col w-[min(100%,1500px)] min-h-0" layerClassName="diff-view z-1000 items-stretch justify-center px-[3vw] py-[3vh]">
+        <div className="d-head flex items-baseline gap-3.5 pt-4 px-[22px] pb-3 border-b border-line [&_h2]:m-0 [&_h2]:text-[21px] [&>.hint]:flex-1">
           <DialogTitle asChild>
             <h2>{t.diff.title(plain(item.title))}</h2>
           </DialogTitle>
@@ -173,7 +184,7 @@ export function DiffView({ item, file, onClose, onRead }: { item: Item; file?: s
           <DiffStyleSwitch />
           <CloseButton label={t.diff.close} variant="ghost" className="d-close" onClick={onClose} />
         </div>
-        <div className="d-body">
+        <div className="d-body overflow-auto pt-2 px-[22px] pb-7 min-h-0">
           {diff === null && <p className="hint">{t.diff.loading}</p>}
           {diff === 'failed' && <p className="hint">{t.diff.failed}</p>}
           {folder && !only && folder.undo && <p className="hint">{t.folder.undoHint[folder.undo]}</p>}
@@ -186,7 +197,7 @@ export function DiffView({ item, file, onClose, onRead }: { item: Item; file?: s
                 <FileDiff key={p.file} part={p} card={item.id} />
               ))}
               </DiffTreeLayout>
-              {got.truncated && <p className="hint d-cut">{t.diff.truncated}</p>}
+              {got.truncated && <p className="hint d-cut mt-[18px]">{t.diff.truncated}</p>}
             </>
           )}
         </div>
@@ -201,7 +212,7 @@ const anchor = (file: string) => `diff-${file}`;
 export function Lines({ n }: { n: { added: number; removed: number } }) {
   return (
     <>
-      <span className="d-add">+{n.added}</span> <span className="d-del">−{n.removed}</span>
+      <span className={addedClass}>+{n.added}</span> <span className={removedClass}>−{n.removed}</span>
     </>
   );
 }
@@ -227,9 +238,9 @@ export function FileDiff({ part, card }: { part: DiffPart; card: string }) {
   const folded = lines > FOLD_LINES && opened !== key;
   const empty = !part.lines.some((l) => l.startsWith('@@'));
   return (
-    <section className="d-file" id={anchor(part.file)}>
-      <h3>
-        <span className="d-name">{part.file}</span>
+    <section className="d-file mt-[18px] [.r-diff_&]:mt-0 [&>.hint]:my-1.5 [&>.hint]:mx-2.5" id={anchor(part.file)}>
+      <h3 className="sticky top-[-8px] [.r-diff_&]:top-0 z-1 flex gap-3 items-baseline m-0 py-[7px] px-2.5 [background:linear-gradient(var(--chip),var(--chip)),var(--panel)] border border-line rounded-t-[2px] [font:500_13px_var(--font)]">
+        <span className="d-name [font:12.5px_var(--mono)]">{part.file}</span>
         {part.from && <span className="hint">{t.diff.renamedFrom(part.from)}</span>}
         <span className="hint">{t.diff.status[part.status]}</span>
         {!part.binary && (
@@ -265,7 +276,7 @@ export function ChangeNote({ c }: { c: Pick<FolderChange, 'changed' | 'undo'> })
     <>
       {c.changed && <span className="hint"> {t.folder.alsoChanged}</span>}
       {c.undo && c.undo !== 'yes' && (
-        <span className="f-left" title={c.undo === 'lost' ? t.folder.lostHint : c.undo === 'shared' ? t.folder.sharedHint : t.folder.changedSinceHint}>
+        <span className={leftClass} title={c.undo === 'lost' ? t.folder.lostHint : c.undo === 'shared' ? t.folder.sharedHint : t.folder.changedSinceHint}>
           {' '}
           · {t.folder.state[c.undo]}
         </span>
@@ -274,10 +285,13 @@ export function ChangeNote({ c }: { c: Pick<FolderChange, 'changed' | 'undo'> })
   );
 }
 
+/** A column of the change table's line counts, apart from the path. */
+const changeCount = 'pl-2.5! whitespace-nowrap text-right';
+
 /** The folder's changes over its whole diff: what happened to which path, the lines in columns of their own; a path `diffed` names goes to its diff. */
 function ChangeTable({ changes, diffed, onFile }: { changes: FolderChange[]; diffed: (c: FolderChange) => boolean; onFile: (path: string) => void }) {
   return (
-    <table className="f-list">
+    <table className="f-list border-collapse mt-1.5 mb-2.5 text-[13px] [&_td]:py-px [&_td]:px-0 [&_td]:align-top">
       <tbody>
         {changes.map((c) => {
           const name = (p: string) => (c.dir ? `${p}/` : p);
@@ -285,10 +299,10 @@ function ChangeTable({ changes, diffed, onFile }: { changes: FolderChange[]; dif
           const lines = c.added !== undefined && (c.added > 0 || c.removed! > 0);
           return (
             <tr key={`${c.kind}:${c.from ?? ''}:${c.path}`}>
-              <td className="f-mark" aria-label={c.kind}>
+              <td className="f-mark w-[1.2em] pr-1! text-center text-muted-foreground" aria-label={c.kind}>
                 {MARK[c.kind]}
               </td>
-              <td className="f-path">
+              <td className="f-path [overflow-wrap:anywhere]">
                 {diffed(c) ? (
                   <LinkButton title={t.diff.showFile} onClick={() => onFile(c.path)}>
                     {path}
@@ -298,8 +312,8 @@ function ChangeTable({ changes, diffed, onFile }: { changes: FolderChange[]; dif
                 )}
                 <ChangeNote c={c} />
               </td>
-              <td className="d-add">{lines && `+${c.added}`}</td>
-              <td className="d-del">{lines && `−${c.removed}`}</td>
+              <td className={cn(addedClass, changeCount)}>{lines && `+${c.added}`}</td>
+              <td className={cn(removedClass, changeCount)}>{lines && `−${c.removed}`}</td>
             </tr>
           );
         })}

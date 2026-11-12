@@ -44,6 +44,7 @@ import { Input, Textarea } from './components/input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './components/collapsible';
 import { Select, SelectGroup, SelectItem, SelectLabel } from './components/select';
 import { cn } from 'cn';
+import { addedClass, removedClass } from './diff';
 import * as K from './configClasses';
 
 declare global {
@@ -3235,7 +3236,7 @@ function TrustCommands({ path, trust, onDone }: { path: string; trust: RepoTrust
           <p className="hint">{c[g]}</p>
           <div className="d-lines">
             {lineDiff(commandLines(trust.before, g), commandLines(trust.now, g)).map((d, i) => (
-              <div key={i} className={d.kind === '+' ? 'd-add' : d.kind === '-' ? 'd-del' : undefined}>
+              <div key={i} className={d.kind === '+' ? addedClass : d.kind === '-' ? removedClass : undefined}>
                 <span className="d-no">{d.kind === ' ' ? '' : d.kind === '+' ? '+' : '−'}</span>
                 <span className="d-text">{d.line}</span>
               </div>

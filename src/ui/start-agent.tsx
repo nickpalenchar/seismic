@@ -1,3 +1,4 @@
+import { cn } from 'cn';
 import { ChevronDown, CircleAlert } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { AGENT_EFFORTS, AGENT_MODELS, projectAgentSetting, type AgentEffort, type AgentModel, type AgentSetting, type CodexModel, type Harness } from '../core/types';
@@ -8,6 +9,10 @@ import { Button, type ButtonVariant, LinkButton } from './components/button';
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from './components/popover';
 import { Tooltip } from './components/tooltip';
 import { Select, SelectItem } from './components/select';
+
+/** The start button's two lines, its label over the agent it starts with; Approve takes them while a review is at work. */
+export const startAgentMain = 'start-agent-main flex flex-col items-center justify-center gap-0 py-1 leading-[1.15]';
+export const startAgentModel = 'start-agent-model text-[9.5px] font-normal opacity-85 whitespace-nowrap';
 
 /** What a worker on the shown project starts with: its own models over Configuration's. */
 const workerDefault = () => api.shownProjectSettings().then((v) => projectAgentSetting('worker', v.agents.worker, v.settings.agents));
@@ -158,14 +163,14 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
   // only a choice that can start is kept, so the main button never starts one the menu would refuse
   useEffect(() => { if (touched.current && setting && valid && (!codex || !loading)) setPicked(setting); }, [setting, valid, loading]);
 
-  const main = <Button variant={selectionOnly ? 'code-review' : variant} className={selectionOnly ? undefined : 'start-agent-main'} disabled={disabled || starting || (!selectionOnly && (checking || gone))} title={gone ? a.unavailableChoice : title} onClick={selectionOnly ? undefined : () => void startPicked()}>
+  const main = <Button variant={selectionOnly ? 'code-review' : variant} className={selectionOnly ? undefined : cn(startAgentMain, 'rounded-l-[6px] rounded-r-none')} disabled={disabled || starting || (!selectionOnly && (checking || gone))} title={gone ? a.unavailableChoice : title} onClick={selectionOnly ? undefined : () => void startPicked()}>
     <span>{label}</span>
-    {!selectionOnly && (picked ?? currentDefault) && <span className="start-agent-model">{describeAgent((picked ?? currentDefault)!, true)}</span>}
+    {!selectionOnly && (picked ?? currentDefault) && <span className={startAgentModel}>{describeAgent((picked ?? currentDefault)!, true)}</span>}
   </Button>;
   return <Popover open={open} onOpenChange={setOpen}><div className="start-agent">
-    <PopoverAnchor asChild><div className={suggested ? 'start-agent-buttons suggested' : 'start-agent-buttons'}>
+    <PopoverAnchor asChild><div className={cn('start-agent-buttons flex items-stretch', suggested && 'suggested rounded-[6px] shadow-[0_0_0_2px_var(--bg),0_0_0_4px_var(--idea)]')}>
       {selectionOnly ? <PopoverTrigger asChild>{main}</PopoverTrigger> : main}
-      {!selectionOnly && <Tooltip content={a.chooseStart}><PopoverTrigger asChild><Button type="button" variant={variant} className="start-agent-chevron" disabled={disabled || starting} aria-label={a.chooseStart}>
+      {!selectionOnly && <Tooltip content={a.chooseStart}><PopoverTrigger asChild><Button type="button" variant={variant} className="start-agent-chevron rounded-l-none rounded-r-[6px] border-l border-l-[var(--bg)] min-w-9" disabled={disabled || starting} aria-label={a.chooseStart}>
         <ChevronDown size={14} strokeWidth={2.5} aria-hidden />
       </Button></PopoverTrigger></Tooltip>}
     </div></PopoverAnchor>
@@ -194,7 +199,7 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
       </>}
       {(error || loading) && <p className="p-error" role="status">{loading ? a.loadingModels : error} {error && (setting ? codex && <LinkButton onClick={loadModels}>{a.reloadModels}</LinkButton> : <LinkButton onClick={() => setAttempt(attempt + 1)}>{a.reloadModels}</LinkButton>)}</p>}
       {codex && current && !loading && !valid && <p className="p-error" role="status">{a.unavailableChoice}</p>}
-      {hint && <p className="hint start-agent-warning"><CircleAlert size={15} aria-hidden /> {hint}</p>}
+      {hint && <p className="hint start-agent-warning flex items-start gap-1.5 [&_svg]:flex-none [&_svg]:mt-0.5"><CircleAlert size={15} aria-hidden /> {hint}</p>}
       <Button variant={selectionOnly ? 'code-review' : 'primary'} disabled={!valid || loading || starting || disabled} onClick={() => { if (setting) void start(setting, null); }}>{a.startWith}</Button>
     </PopoverContent>
   </div></Popover>;

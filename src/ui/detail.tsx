@@ -51,7 +51,7 @@ import { MadeCover } from './made';
 import { WishReplyLink } from './wish';
 import { claudeLoginFailed } from '../core/login';
 import { Reauthenticate } from './reauthenticate';
-import { describeAgent, StartAgent } from './start-agent';
+import { describeAgent, StartAgent, startAgentMain, startAgentModel } from './start-agent';
 import type { AgentSetting } from '../core/types';
 import { ButtonGroup } from './components/button-group';
 import { Button, type ButtonVariant, CloseButton, LinkButton } from './components/button';
@@ -66,6 +66,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './component
 import { Badge, badgeVariants } from './components/badge';
 import { cn } from 'cn';
 import { actionsClass, bodyClass, conversationBox, conversationList, headClass, questionClass, choiceClass, choicesClass, pickTag, stateClass, statusClass, titleClass, titleFieldClass } from './cardClasses';
+import { badClass, blockedFiles, bundleClass, bundleHead, checksClass, clashClass, clashPush, clashWhat, decidedLines, decidedTasks, findingChevron, findingChoices, findingClass, findingContext, findingContextButton, findingFold, findingHead, findingLog, findingNo, findingNote, findingReopen, findingRow, findingsClass, findingsHead, findingStatus, findingTag, findingText, findingWhere, fixingBadge, reviewBusy, reviewClean, reviewCount, reviewOutdated, reviewRunningDot, reviewSubmit, severityBadge, statusPill } from './reviewClasses';
 
 /** A prototype whose idea became a plan: the workstream to build on it, on a line of its own above the buttons. */
 const buildOnClass = 'build-on basis-full flex flex-col gap-1 text-xs text-muted-foreground';
@@ -402,8 +403,8 @@ export function Detail(p: Props) {
   const verifying = !!cr?.items.some((r) => r.status === 'underReview');
   // work that changed nothing has nothing to land, so a review still at work does not change what approving does
   const reviewRunning = !item.review?.noChange && (cr?.state === 'running' || fixing || verifying);
-  const approvalWarningClass = 'start-agent-main';
-  const approvalWarning = reviewRunning && <span className="start-agent-model">{cr?.state === 'running' || (verifying && !fixing) ? t.approveDuringReview.reviewing : t.approveDuringReview.fixing}</span>;
+  const approvalWarningClass = startAgentMain;
+  const approvalWarning = reviewRunning && <span className={startAgentModel}>{cr?.state === 'running' || (verifying && !fixing) ? t.approveDuringReview.reviewing : t.approveDuringReview.fixing}</span>;
   // choices on items picked but not sent yet: approving would drop them
   const unsent = Object.keys(unsentPicks ?? {}).filter((id) => cr?.items.some((r) => r.number === Number(id) && needsOwner(r))).length;
   const reviewed = cr?.state === 'done' && !cr.stale;
@@ -1758,13 +1759,13 @@ function Description({ item }: { item: Item }) {
   const [body, setBody] = useState(item.body);
   useEffect(() => { if (!editing) setBody(item.body); }, [item.body]);
   if (item.source !== 'manual' || item.archivedAt) return <Body md={item.body} />;
-  return <div className="description-edit">
+  return <div className="description-edit group/desc relative [&_.card-refs-hint]:my-1.5">
     {editing ? <>
       <LinkField self={item} className={bodyClass} value={body} placeholder={t.bodyPlaceholder} onChange={(value) => { setBody(value); onEdit({ body: value }); }} />
       <Button onClick={() => setEditing(false)}>{t.descriptionDone}</Button>
     </> : <>
       <Body md={body} />
-      <Tooltip content={t.descriptionEdit}><button className="description-edit-button" aria-label={t.descriptionEdit} onClick={() => setEditing(true)}><Pencil size={16} /></button></Tooltip>
+      <Tooltip content={t.descriptionEdit}><button className="description-edit-button border-0 bg-transparent text-muted-foreground cursor-pointer p-1.5 opacity-0 group-hover/desc:opacity-100 focus-visible:opacity-100 no-hover:opacity-100" aria-label={t.descriptionEdit} onClick={() => setEditing(true)}><Pencil size={16} /></button></Tooltip>
     </>}
   </div>;
 }
@@ -1789,7 +1790,7 @@ function Fold({ children, lines }: { children: ReactNode; lines?: number }) {
         {children}
       </div>
       {(long || open) && (
-        <LinkButton className="fold-more" onClick={() => setOpen(!open)}>
+        <LinkButton className="fold-more text-[12.5px] leading-[1.25] mt-0.5" onClick={() => setOpen(!open)}>
           {open ? t.talk.less : t.talk.more}
         </LinkButton>
       )}
@@ -2541,11 +2542,11 @@ function Findings({ item, decides, onPush }: { item: Item; decides: boolean; onP
   const open = findings.filter((f) => f.status === 'open');
   const ok = !!c.results && c.results.mergeable && c.results.checks.every((x) => x.passed);
   return (
-    <section className="findings">
-      {c.results && <div className={ok ? 'rr-checks ok' : 'rr-checks bad'}>{t.review.checks(c.results)}</div>}
+    <section className={findingsClass()}>
+      {c.results && <div className={checksClass(ok)}>{t.review.checks(c.results)}</div>}
       {c.clash && !finished(item.state) && <Clash clash={c.clash} {...(decides && onPush ? { onPush } : {})} />}
       {c.findings && (
-        <h4 className={headClass}>{!findings.length && c.findings.length ? t.review.allIgnored : t.review.findings(findings.length, open.length, open.filter((f) => f.security).length)}</h4>
+        <h4 className={cn(headClass, findingsHead)}>{!findings.length && c.findings.length ? t.review.allIgnored : t.review.findings(findings.length, open.length, open.filter((f) => f.security).length)}</h4>
       )}
       <FindingList item={item} findings={findings} decides={decides} />
     </section>
@@ -2619,27 +2620,27 @@ function FindingList({ item, findings, decides }: { item: Item; findings: Findin
     const folded = fixing && !unfolded.has(f.id);
     const head = (
       <>
-        <span className="f-no">{f.id}</span>
-        {fixing && <span className="f-fixing">{t.codeReview.fixing}</span>}
-        {f.severity && <span className={`f-sev ${f.severity}`}>{t.codeReview.severity[f.severity]}</span>}
+        <span className={findingNo}>{f.id}</span>
+        {fixing && <span className={fixingBadge}>{t.codeReview.fixing}</span>}
+        {f.severity && <span className={severityBadge(f.severity)}>{t.codeReview.severity[f.severity]}</span>}
         <b>{f.title}</b>
-        {f.security && <span className="f-tag">{t.review.security}</span>}
+        {f.security && <span className={findingTag}>{t.review.security}</span>}
       </>
     );
-    const cls = ['finding', f.security && 'security', f.severity, f.status !== 'open' && 'settled', folded && 'folded'].filter(Boolean).join(' ');
+    const cls = findingClass({ security: f.security, settled: f.status !== 'open', folded, extra: [f.severity] });
     if (fixing)
       return (
         <Collapsible key={f.id} className={cls} open={!folded} onOpenChange={() => unfold(f.id)}>
-          <CollapsibleTrigger className="f-head f-fold" title={folded ? t.codeReview.unfold : t.codeReview.fold}>
+          <CollapsibleTrigger className={findingFold} title={folded ? t.codeReview.unfold : t.codeReview.fold}>
             {head}
-            <span className="f-chevron">{folded ? <ChevronRight size={14} strokeWidth={1.75} aria-hidden="true" /> : <ChevronDown size={14} strokeWidth={1.75} aria-hidden="true" />}</span>
+            <span className={findingChevron}>{folded ? <ChevronRight size={14} strokeWidth={1.75} aria-hidden="true" /> : <ChevronDown size={14} strokeWidth={1.75} aria-hidden="true" />}</span>
           </CollapsibleTrigger>
           <CollapsibleContent>{body(f, task)}</CollapsibleContent>
         </Collapsible>
       );
     return (
       <div key={f.id} className={cls}>
-        <div className="f-head">{head}</div>
+        <div className={findingHead}>{head}</div>
         {body(f, task)}
       </div>
     );
@@ -2647,16 +2648,16 @@ function FindingList({ item, findings, decides }: { item: Item; findings: Findin
   const body = (f: Finding, task: Item | undefined) => {
     return (
       <>
-        <div className="f-text">
+        <div className={findingText}>
           <Inline md={f.text} />
         </div>
         {f.file && (
-          <div className="f-where">
+          <div className={findingWhere}>
             <code>{f.line ? `${f.file}:${f.line}` : f.file}</code>
           </div>
         )}
         {f.status !== 'open' ? (
-          <div className="f-status">
+          <div className={findingStatus()}>
             {task ? (
               <a href="#" onClick={(e) => (e.preventDefault(), cards.open(task))}>
                 {t.review.laterCard(plain(task.title))} →
@@ -2674,13 +2675,13 @@ function FindingList({ item, findings, decides }: { item: Item; findings: Findin
             )}
           </div>
         ) : f.decided ? (
-          <div className="f-status pending">
+          <div className={findingStatus(true)}>
             {f.decided === 'self' ? (c ? t.review.goingSelf : t.codeReview.goingFix) : f.decided === 'later' ? t.review.goingLater : f.withChanges ? t.review.goingWithChanges(c!.author) : t.review.goingTo(c!.author)}
           </div>
         ) : (
           decides && (
             <>
-            <div className={choicesClass('single', 'f-choices')} role="group">
+            <div className={choicesClass('single', findingChoices)} role="group">
               {c ? (
                 <>
                   {choice(f, 'contributor', t.review.toContributor)}
@@ -2711,8 +2712,8 @@ function FindingList({ item, findings, decides }: { item: Item; findings: Findin
     if (!bundled(f) || bundle.length < 2) return [one(f)];
     for (const o of bundle) shown.add(o.id);
     return [
-      <div key={`b${f.id}`} className="f-bundle">
-        <div className="f-bundle-head">{t.review.bundle(bundle.map((o) => o.id))}</div>
+      <div key={`b${f.id}`} className={bundleClass}>
+        <div className={bundleHead}>{t.review.bundle(bundle.map((o) => o.id))}</div>
         {bundle.map(one)}
       </div>,
     ];
@@ -2740,10 +2741,10 @@ function reviewTab(item: Item, act: (a: CardAction, done: ActDone) => void): { l
   const label = (
     <>
       {t.codeReview.tab}
-      {r.state === 'running' && <span className="rv-running" aria-label={t.codeReview.running(reviewer)} />}
-      {r.state === 'done' && !r.stale && !r.items.some((i) => needsOwner(i) || i.status === 'fixing' || i.status === 'underReview') && <Check className="rv-clean" aria-label={t.codeReview.items(r.items.length, 0)} />}
-      {counts.map(([s, n]) => <span key={s} className={`rv-count ${s}`}>●{n}</span>)}
-      {r.stale && r.state !== 'running' && <span className="rv-outdated">{t.codeReview.outdated}</span>}
+      {r.state === 'running' && <span className={reviewRunningDot} aria-label={t.codeReview.running(reviewer)} />}
+      {r.state === 'done' && !r.stale && !r.items.some((i) => needsOwner(i) || i.status === 'fixing' || i.status === 'underReview') && <Check className={reviewClean} aria-label={t.codeReview.items(r.items.length, 0)} />}
+      {counts.map(([s, n]) => <span key={s} className={reviewCount(s)}>●{n}</span>)}
+      {r.stale && r.state !== 'running' && <span className={reviewOutdated}>{t.codeReview.outdated}</span>}
     </>
   );
   const decides = !!ownerField(item) && !finished(item.state);
@@ -2811,42 +2812,42 @@ function ReviewList({ item, act, decides, again, reviewer }: { item: Item; act: 
     const open = waits !== flipped.has(i.number);
     const task = i.status === 'followUp' && i.card ? cards.items.find((x) => x.id === i.card) : undefined;
     const pill = (
-      <span className={`f-pill ${i.status === 'fixed' ? 'done-fix' : i.status}`} title={t.codeReview.statusHint[i.status]}>
+      <span className={statusPill(i.status)} title={t.codeReview.statusHint[i.status]}>
         {i.status === 'fixed' && <Check size={11} strokeWidth={2.5} aria-hidden="true" />}
         {t.codeReview.status[i.status]}
       </span>
     );
-    const cls = ['finding', 'ritem', i.security && 'security', i.severity, !waits && 'settled', !open && 'folded'].filter(Boolean).join(' ');
+    const cls = findingClass({ security: i.security, settled: !waits, folded: !open, extra: ['ritem', i.severity] });
     return (
       <Collapsible key={i.number} className={cls} open={open} onOpenChange={() => flip(i.number)}>
-        <div className="f-row">
-          <CollapsibleTrigger className="f-head f-fold" title={open ? t.codeReview.fold : t.codeReview.unfold}>
-            <span className="f-no">#{i.number}</span>
-            <span className={`f-sev ${i.severity}`}>{t.codeReview.severity[i.severity]}</span>
+        <div className={findingRow}>
+          <CollapsibleTrigger className={findingFold} title={open ? t.codeReview.fold : t.codeReview.unfold}>
+            <span className={findingNo}>#{i.number}</span>
+            <span className={severityBadge(i.severity)}>{t.codeReview.severity[i.severity]}</span>
             <b>{i.title}</b>
-            {i.security && <span className="f-tag">{t.review.security}</span>}
+            {i.security && <span className={findingTag}>{t.review.security}</span>}
             {!open && pill}
-            <span className="f-chevron">{open ? <ChevronDown size={14} strokeWidth={1.75} aria-hidden="true" /> : <ChevronRight size={14} strokeWidth={1.75} aria-hidden="true" />}</span>
+            <span className={findingChevron}>{open ? <ChevronDown size={14} strokeWidth={1.75} aria-hidden="true" /> : <ChevronRight size={14} strokeWidth={1.75} aria-hidden="true" />}</span>
           </CollapsibleTrigger>
           {(i.status === 'closed' || i.status === 'fixed') && !finished(item.state) && !!ownerField(item) && (
-            <LinkButton className="f-reopen" title={t.codeReview.reopenHint} onClick={() => act({ action: 'reopenReviewItem', number: i.number }, { close: false })}>
+            <LinkButton className={findingReopen} title={t.codeReview.reopenHint} onClick={() => act({ action: 'reopenReviewItem', number: i.number }, { close: false })}>
               {t.codeReview.reopen}
             </LinkButton>
           )}
         </div>
         <CollapsibleContent>
           <>
-            <div className="f-text">
+            <div className={findingText}>
               <Inline md={i.text} /> {pill}
             </div>
             {i.file && (
-              <div className="f-where">
+              <div className={findingWhere}>
                 <code>{i.line ? `${i.file}:${i.line}` : i.file}</code>
               </div>
             )}
-            {!!i.with?.length && <div className="f-where">{t.codeReview.with(i.with)}</div>}
+            {!!i.with?.length && <div className={findingWhere}>{t.codeReview.with(i.with)}</div>}
             {i.status === 'followUp' && (
-              <div className="f-status">
+              <div className={findingStatus()}>
                 {task ? (
                   <a href="#" onClick={(e) => (e.preventDefault(), cards.open(task))}>
                     {t.review.laterCard(plain(task.title))} →
@@ -2856,10 +2857,10 @@ function ReviewList({ item, act, decides, again, reviewer }: { item: Item; act: 
                 )}
               </div>
             )}
-            {i.status === 'fixing' && <div className="f-status pending">{t.codeReview.goingFix}</div>}
+            {i.status === 'fixing' && <div className={findingStatus(true)}>{t.codeReview.goingFix}</div>}
             {waits && decides && (
               <>
-                <div className={choicesClass('single', 'f-choices')} role="group">
+                <div className={choicesClass('single', findingChoices)} role="group">
                   {choice(i, 'self', t.codeReview.fix, t.codeReview.fixHint)}
                   {choice(i, 'later', t.review.later, t.codeReview.laterHint)}
                   {choice(i, 'ignore', t.review.ignore, t.review.ignoreHint)}
@@ -2867,8 +2868,8 @@ function ReviewList({ item, act, decides, again, reviewer }: { item: Item; act: 
                 <FindingContext item={item} id={i.number} {...(i.context ? { kept: i.context } : {})} />
               </>
             )}
-            {!!i.context && !waits && <p className="f-note">{i.context}</p>}
-            <ol className="f-log">
+            {!!i.context && !waits && <p className={findingNote}>{i.context}</p>}
+            <ol className={findingLog}>
               {i.log.map((e, k) => (
                 <li key={k}>{logLine(e)}</li>
               ))}
@@ -2879,17 +2880,17 @@ function ReviewList({ item, act, decides, again, reviewer }: { item: Item; act: 
     );
   };
   return (
-    <section className="findings code-review">
+    <section className={findingsClass(true)}>
       {r.stale && r.state !== 'running' && <p className="hint">{t.codeReview.staleHint}</p>}
       {r.state === 'running' && (
         <>
-          <p className="rv-busy">{t.codeReview.running(reviewer)}</p>
+          <p className={reviewBusy}>{t.codeReview.running(reviewer)}</p>
           <p className="hint">{t.codeReview.runningHint}</p>
           <Button onClick={() => act({ action: 'stopCodeReview' }, { close: false })}>{t.codeReview.stop}</Button>
         </>
       )}
-      {r.state === 'failed' && <p className="bad">{t.codeReview.failed(r.error ?? '')}</p>}
-      {(r.state === 'done' || r.items.length > 0) && <h4 className={headClass}>{t.codeReview.items(r.items.length, waiting.length)}</h4>}
+      {r.state === 'failed' && <p className={badClass}>{t.codeReview.failed(r.error ?? '')}</p>}
+      {(r.state === 'done' || r.items.length > 0) && <h4 className={cn(headClass, findingsHead)}>{t.codeReview.items(r.items.length, waiting.length)}</h4>}
       {sorted.map(one)}
       {decides && waiting.length > 0 && <p className="hint">{t.codeReview.decideHint}</p>}
       {decides && <ReviewSubmit item={item} />}
@@ -2929,8 +2930,8 @@ function ReviewSubmit({ item }: { item: Item }) {
     }
   };
   return (
-    <div className="review-submit">
-      <Button type="button" variant="primary" className="start-agent-main" disabled={sending} onClick={() => submit()}><span>{t.codeReview.submitAnswers}</span>{item.agent?.workerSetting && <span className="start-agent-model">{describeAgent(item.agent.workerSetting, true)}</span>}</Button>
+    <div className={reviewSubmit}>
+      <Button type="button" variant="primary" className={startAgentMain} disabled={sending} onClick={() => submit()}><span>{t.codeReview.submitAnswers}</span>{item.agent?.workerSetting && <span className={startAgentModel}>{describeAgent(item.agent.workerSetting, true)}</span>}</Button>
       <StartAgent label={t.codeReview.submitNewAgent} selectionOnly hint={t.codeReview.newAgentHint} disabled={sending} onStart={(agent) => { if (agent) void submit(agent); }} />
       {error && <p className="p-error">{error}</p>}
     </div>
@@ -2956,7 +2957,7 @@ function Clash({ clash, onPush }: { clash: ClashFound; onPush?: () => void }) {
   const same = !!clash.card && plain(clash.card.title).trim().toLowerCase() === clash.subject.trim().toLowerCase();
   const named = clash.card && (same ? t.review.clashCommit(clash.subject) : t.review.clashCard(plain(clash.card.title)));
   return (
-    <div className="rr-clash">
+    <div className={clashClass}>
       <b>{t.review.clashHead(clash.unpushed)}</b>
       <div>
         {!same && <>{t.review.clashCommit(clash.subject)} </>}
@@ -2971,14 +2972,14 @@ function Clash({ clash, onPush }: { clash: ClashFound; onPush?: () => void }) {
         {t.review.clashFiles(clash.files)}
       </div>
       {onPush && (
-        <div className="rr-clash-push">
+        <div className={clashPush}>
           <Button onClick={onPush}>
             {t.review.pushMain}
           </Button>
           <span>{t.review.pushHint}</span>
         </div>
       )}
-      <div className="rr-clash-what">{t.review.mergeInstead(clash.card ? plain(clash.card.title) : null)}</div>
+      <div className={clashWhat}>{t.review.mergeInstead(clash.card ? plain(clash.card.title) : null)}</div>
     </div>
   );
 }
@@ -2990,10 +2991,10 @@ function Clash({ clash, onPush }: { clash: ClashFound; onPush?: () => void }) {
 function Blocked({ item, act }: { item: Item; act: (a: CardAction, done: ActDone) => void }) {
   const files = item.review!.blocked!.files;
   return (
-    <section className="findings">
-      <div className="rr-clash">
+    <section className={findingsClass()}>
+      <div className={clashClass}>
         <b>{t.blocked.head(files.length)}</b>
-        <ul className="blocked-files">
+        <ul className={blockedFiles}>
           {files.slice(0, 8).map((f) => (
             <li key={f}>
               <code>{f}</code>
@@ -3001,8 +3002,8 @@ function Blocked({ item, act }: { item: Item; act: (a: CardAction, done: ActDone
           ))}
           {files.length > 8 && <li>+ {files.length - 8}</li>}
         </ul>
-        <div className="rr-clash-what">{t.blocked.what}</div>
-        <div className="rr-clash-push">
+        <div className={clashWhat}>{t.blocked.what}</div>
+        <div className={clashPush}>
           <Button variant="primary" title={t.blocked.landHint} onClick={() => act({ action: 'fold', land: true }, { close: true, ack: t.blocked.landed, pending: t.blocked.folding })}>
             {t.blocked.land}
           </Button>
@@ -3042,13 +3043,13 @@ function FindingContext({ item, id, kept }: { item: Item; id: number; kept?: str
     type(undefined);
   };
   return (
-    <div className="f-context">
+    <div className={findingContext}>
       {editing ? (
         <Textarea autoFocus rows={3} value={edit} placeholder={t.review.contextPlaceholder} onChange={(e) => type(e.target.value)} />
       ) : (
-        saved && <p className="f-note">{saved}</p>
+        saved && <p className={findingNote}>{saved}</p>
       )}
-      <button type="button" className="f-context-btn" onMouseDown={(e) => e.preventDefault()} onClick={() => (editing ? save() : type(saved))}>
+      <button type="button" className={findingContextButton} onMouseDown={(e) => e.preventDefault()} onClick={() => (editing ? save() : type(saved))}>
         {editing ? t.review.saveContext : saved ? t.review.editContext : t.review.addContext}
       </button>
     </div>
@@ -3084,13 +3085,13 @@ function DecidedChip({ item, decided }: { item: Item; decided: Record<string, Fi
   const tasks = new Set(later.map((f) => [f.id, ...(f.with ?? []).filter((w) => later.some((l) => l.id === w))].sort((a, b) => a - b).join())).size;
   return (
     <div className={`${quoteClass} decided`}>
-      <div className="decided-lines">
+      <div className={decidedLines}>
         {named.map(([id, route]) => (
-          <span key={id} className="quote-text text-[12.5px] leading-[1.4] text-muted-foreground [overflow-wrap:anywhere] line-clamp-3 [[data-slot=prompt-input-body]_&]:line-clamp-2">
+          <span key={id} className="quote-text text-[12.5px] leading-[1.4] text-ink [overflow-wrap:anywhere] line-clamp-3 [[data-slot=prompt-input-body]_&]:line-clamp-2">
             {t.review.decidedLine(Number(id), route === 'self' ? (code ? t.codeReview.fix : t.review.self) : route === 'later' ? t.review.later : route === 'ignore' ? t.review.ignore : t.review.toContributor)}
           </span>
         ))}
-        {later.length > 1 && <span className="decided-tasks">{t.review.tasks(tasks)}</span>}
+        {later.length > 1 && <span className={decidedTasks}>{t.review.tasks(tasks)}</span>}
       </div>
       <CloseButton label={t.review.undecide} size="small" className="quote-clear mt-[3px] mr-[3px]" onMouseDown={(m) => m.preventDefault()} onClick={() => updateDraft(cardDraft(item.id), { findings: undefined })} />
     </div>

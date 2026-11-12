@@ -11,7 +11,7 @@ import { type ChangeRow, changeRows, diffRows, imageAt, type ShownFile } from '.
 import type { Item } from '../core/types';
 import { DiffTreeLayout } from './diff-tree';
 import { api, cardFile } from './api';
-import { ChangeNote, DiffStyleSwitch, DiffView, FileDiff, Lines, MARK } from './diff';
+import { addedClass, ChangeNote, DiffStyleSwitch, DiffView, diffSizeClass, FileDiff, Lines, MARK, removedClass } from './diff';
 import { Doc, DocImages } from './markdown';
 import { useReportedHeight } from './message';
 import { scrollBehavior } from './motion';
@@ -245,7 +245,7 @@ export function ChangeList({
           )}
           {toggle && total && ' · '}
           {total && (
-            <LinkButton className="diff-size" title={t.diff.show} onClick={() => setWhole(true)}>
+            <LinkButton className={diffSizeClass} title={t.diff.show} onClick={() => setWhole(true)}>
               <Lines n={total} />
               {!counted && ` ${t.diff.size(total.files)}`}
             </LinkButton>
@@ -312,8 +312,8 @@ function Line({ row, on, onPick, onDiff, tabs, panel }: { row: ChangeRow; on: bo
           </div>
         )}
       </td>
-      <td className="d-add">{lines && count(`+${row.added}`)}</td>
-      <td className="d-del">{lines && count(`−${row.removed}`)}</td>
+      <td className={addedClass}>{lines && count(`+${row.added}`)}</td>
+      <td className={removedClass}>{lines && count(`−${row.removed}`)}</td>
     </tr>
   );
 }

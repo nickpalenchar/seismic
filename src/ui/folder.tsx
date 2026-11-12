@@ -9,7 +9,8 @@ import type { CardAction, Item } from '../core/types';
 import { api } from './api';
 import { useCopy } from './copy';
 import type { ActDone } from './detail';
-import { DiffView, Lines } from './diff';
+import { cn } from 'cn';
+import { DiffView, diffSizeClass, Lines } from './diff';
 import { atWork, ChangeList } from './files';
 import { t } from './strings';
 import { X } from 'lucide-react';
@@ -41,7 +42,7 @@ export function useFolderDiff(item: Item, on: boolean): { diff: CardDiff | null;
 /** Which undo the card has, with what it means on hover. */
 function UndoKind({ undo }: { undo: 'full' | 'partial' }) {
   return (
-    <span className={`f-undo ${undo}`} title={t.folder.undoHint[undo]}>
+    <span className={cn('f-undo', undo, undo === 'partial' && 'text-muted-foreground')} title={t.folder.undoHint[undo]}>
       {t.folder.undo[undo]}
     </span>
   );
@@ -64,7 +65,7 @@ export function FolderLine({ item, diff, sizeBelow }: { item: Item; diff: CardDi
         <>
           {below ? null : ': '}
           {below ? null : changes.length ? (
-            <LinkButton className="diff-size" title={t.diff.show} onClick={() => setOpen(true)}>
+            <LinkButton className={diffSizeClass} title={t.diff.show} onClick={() => setOpen(true)}>
               {t.folder.files(shownChanges(changes).length)}
               {size && (size.added || size.removed) ? (
                 <>
@@ -105,7 +106,7 @@ export function FolderBox({ item, diff }: { item: Item; diff: CardDiff | null })
   const rows = changeRows(diff);
   if (!rows.length) return null;
   return (
-    <div className="f-box">
+    <div className="f-box mt-2.5 mb-1 py-2.5 px-3 border border-line rounded-[8px] max-w-[760px] text-[12.5px] [&_p]:mt-1.5 [&_p]:mb-0 [&_.cl-list]:mt-1.5 [&_.cl-list]:mb-0">
       <b>{t.folder.changed}</b>
       <ChangeList item={item} rows={rows} fold={atWork(item)} />
     </div>
@@ -135,19 +136,19 @@ export function DiscardChanges({ diff, act, onDone }: { diff: CardDiff | null; a
   return (
     <>
       <Button
-        className={counting ? 'f-discard counting' : 'f-discard'}
+        className={cn('f-discard', counting && 'counting border border-error')}
         title={counting ? t.folder.cancelHint : t.folder.discardHint(undoable)}
         onClick={() => setLeft(counting ? null : DISCARD_WAIT_S)}
       >
         {t.folder.discard}
         {counting && (
           <>
-            <span className="f-count">{t.folder.seconds(left)}</span>
-            <X className="f-cancel" size={14} aria-label={t.folder.cancel} />
+            <span className="f-count ml-2 tabular-nums font-semibold">{t.folder.seconds(left)}</span>
+            <X className="f-cancel ml-1.5 text-error stroke-3" size={14} aria-label={t.folder.cancel} />
           </>
         )}
       </Button>
-      {counting && <span className="f-discarding">{t.folder.clickToCancel}</span>}
+      {counting && <span className="f-discarding self-center text-[12.5px] text-muted-foreground">{t.folder.clickToCancel}</span>}
     </>
   );
 }
