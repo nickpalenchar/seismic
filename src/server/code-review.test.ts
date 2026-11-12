@@ -257,11 +257,14 @@ describe('code reviews', () => {
     const first = reviewers()[0]!;
     first.emit({ type: 'session', id: 'review-1' });
     expect(workers.busyCards()).toContain(id);
+    expect(workers.reviews.busy()).toEqual([id]);
     workers.restartDue({ reason: 'code', deadline: Date.now() + 15 * 60_000 });
     expect(first.inbox.at(-1)).toContain('Pause it now');
-    // it ends its turn without findings: paused, not failed, and the restart no longer waits for it
+    // it ends its turn without findings: paused, not failed, and the restart no longer waits for it,
+    // nor does the Workstations pill count its agent at work, though the card still shows the review running
     first.emit({ type: 'idle' });
     expect(workers.busyCards()).not.toContain(id);
+    expect(workers.reviews.busy()).toEqual([]);
     expect(board.item(id)!.review?.codeReview!.state).toBe('running');
     // Seismic restarts: the review goes on in its session
     workers.shutdown();

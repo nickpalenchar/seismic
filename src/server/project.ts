@@ -20,7 +20,7 @@ import { AGENT_DEFAULTS, agentListens, type AgentRole, awaited, type Awaited, ty
 import { appliedProjectSettings, projectAgentSetting, startAgentSetting } from './settings';
 import { asksAhead, holdsNotes } from '../core/queue';
 import { BadRequest, Board, withQuestions, pathOfRef, repoOfRef, replyNote, type StoredContribution } from './board';
-import type { FindingPick } from '../core/types';
+import type { FindingPick, PoolHost } from '../core/types';
 import { type Command, Commander } from './commands';
 import type { Config } from './config';
 import type { Store } from './store';
@@ -349,6 +349,7 @@ export class ProjectRuntime {
           repo: r.ref.id,
           hosts: r.workstations.pool(r.workers.inTurn(), (c) => r.workers.turnAt(c)).map((h) => ({
             ...h,
+            ...reviewingOn(h, r.workers.reviews.busy()),
             // what the owner may take from its card for a card waiting for one, and what goes once the undo window is through
             workstations: h.workstations.map((w) =>
               !w.card ? w : this.koordinator?.evicting(w.card) ? { ...w, leaving: true as const } : r.workers.evictable(w.card) ? { ...w, takeable: true as const } : w,
@@ -3282,3 +3283,9 @@ function sameDir(a: string, b: string): boolean {
 
 /** A workstation as a directory on this machine, for a program that runs here (gh on a pull request's URL); none for one on another machine. */
 const localDir = (workstation: string | null) => (workstation && !hostName(workstation) ? workstation : null);
+
+/** The cards held on a machine whose code review's agent is at work and whose worker is not in a turn (`PoolHost.reviewing`). */
+const reviewingOn = (h: PoolHost, reviews: string[]): Pick<PoolHost, 'reviewing'> => {
+  const cards = h.workstations.flatMap((w) => (w.card && !w.project && reviews.includes(w.card) && !h.busy.includes(w.card) ? [w.card] : []));
+  return cards.length ? { reviewing: cards } : {};
+};

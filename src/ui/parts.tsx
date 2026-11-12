@@ -658,7 +658,7 @@ export function WorkstationsPill({ pools, project, projects, items, underway, on
   // the machines a pool names: those with clones, worktrees without a cap, a clone's folder kept or a follow-up's temporary worktree, and every other machine than this one
   const named = (p: ClonePool) => p.hosts.filter((h) => h.total > 0 || h.uncapped || !h.here || h.kept?.length || h.workstations.length);
   const hasDots = pools.some((p) => named(p).some((h) => hostDots(h, items, underway).length > 0));
-  const summary = pools.map((p) => uncapped(p) ? t.workstations.uncapped(p.hosts.reduce((n, h) => n + atWorkOn(h, items), 0)) : t.workstations.free(free(p), total(p), blockedIn(p))).join(', ');
+  const summary = pools.map((p) => uncapped(p) ? t.workstations.uncapped(p.hosts.reduce((n, h) => n + atWorkOn(h), 0)) : t.workstations.free(free(p), total(p), blockedIn(p))).join(', ');
   const opened = (go: () => void) => {
     pop.close({ restoreFocus: false });
     go();
@@ -683,7 +683,7 @@ export function WorkstationsPill({ pools, project, projects, items, underway, on
                   </span>
                 </span>
               ))}
-              <b className={cn('hidden lg:inline', full && 'text-waiting')}>{uncapped(p) ? t.workstations.uncapped(p.hosts.reduce((n, h) => n + atWorkOn(h, items), 0)) : t.workstations.free(free(p), total(p), blockedIn(p))}</b>
+              <b className={cn('hidden lg:inline', full && 'text-waiting')}>{uncapped(p) ? t.workstations.uncapped(p.hosts.reduce((n, h) => n + atWorkOn(h), 0)) : t.workstations.free(free(p), total(p), blockedIn(p))}</b>
               {blockedIn(p) > 0 && <b className="text-waiting hidden lg:inline">{t.workstations.blockedCount(blockedIn(p))}</b>}
             </span>
           );
@@ -711,7 +711,7 @@ export function WorkstationsPill({ pools, project, projects, items, underway, on
               <div key={h.name} className="flex flex-col gap-1.5">
                 <p>
                   {h.uncapped
-                    ? t.workstations.worktreesUncapped(h.name, atWorkOn(h, items), hostDots(h, items, underway).length > 0)
+                    ? t.workstations.worktreesUncapped(h.name, atWorkOn(h), hostDots(h, items, underway).length > 0)
                     : h.worktrees
                     ? t.workstations.worktreeSlots(h.name, h.busy.length, h.slots, hostDots(h, items, underway).length > 0)
                     : t.workstations.host(h.name, h.busy.length, h.slots, h.cards.length, h.total)}
@@ -780,10 +780,10 @@ function wsDot(w: PoolWorkstation | undefined, host: PoolHost, items: Item[], un
 
 /**
  * How many of a machine's cards have an agent at work: workers in a turn, and the code reviews
- * running on cards held there. A review holds no slot, so the slot counts leave it out.
+ * whose agent is at work on cards held there (one paused for a restart is not). A review holds no
+ * slot, so the slot counts leave it out.
  */
-export const atWorkOn = (h: PoolHost, items: Item[]): number =>
-  h.busy.length + h.workstations.filter((w) => w.card && !w.project && !h.busy.includes(w.card) && items.find((i) => i.id === w.card)?.review?.codeReview?.state === 'running').length;
+export const atWorkOn = (h: PoolHost): number => h.busy.length + (h.reviewing?.length ?? 0);
 
 /**
  * A machine's workstations in the order of its dots: each clone; in worktrees each card's worktree,

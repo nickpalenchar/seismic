@@ -17,8 +17,7 @@ test('a hidden card whose worker is busy takes a slot: no empty circle', () => {
   expect(spots).toEqual([]);
 });
 
-test('a card whose code review runs counts at work beside the workers in a turn', () => {
-  const h = host({ cards: ['a', 'b', 'c'], busy: ['a'], workstations: [{ path: '/w/a', card: 'a' }, { path: '/w/b', card: 'b' }, { path: '/w/c', card: 'c' }] });
-  const reviewing = { codeReview: { state: 'running' } } as Item['review'];
-  expect(atWorkOn(h, [card('a'), card('b', { state: 'waiting', review: reviewing }), card('c', { state: 'waiting' })])).toBe(2);
+test('a card whose code review agent is at work counts at work beside the workers in a turn', () => {
+  expect(atWorkOn(host({ busy: ['a'], reviewing: ['b'] }))).toBe(2);
+  expect(atWorkOn(host({ busy: ['a'] }))).toBe(1);
 });

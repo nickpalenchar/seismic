@@ -432,7 +432,7 @@ cards wait for a workstation or a slot. While none is free and a card waits, "â‹
 whose clone may go to it (see Taking a card's workstation). A click on a card closes the list,
 flies to the card and opens it; A repository in
 worktrees shows a dot per card holding a worktree, then an empty ring for each slot up to the configured maximum ("Max workstations") in which no worker is busy (a waiting card keeps its worktree but has released its slot; a hidden card's busy worker still takes one);
-without slots nothing caps it, and it shows the cards' dots alone ("2 at work", "none at work"; at work counts the workers in a turn and the cards whose code review runs, since the owner sees a reviewing agent as at work too; a review holds no slot, so the slot counts of a capped pool leave it out).
+without slots nothing caps it, and it shows the cards' dots alone ("2 at work", "none at work"; at work counts the workers in a turn and the cards whose code review's agent is at work (not one paused for a restart, though its card still shows the review running), since the owner sees a reviewing agent as at work too; a review holds no slot, so the slot counts of a capped pool leave it out).
 Its list names the cards' worktrees, and a line per free slot.
 
 A free clone is blocked when the last look at it (see Workstations) says no new card gets it: it has

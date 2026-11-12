@@ -353,6 +353,8 @@ export class CodeReviews {
   private launch(cardId: string, setting: AgentSetting | undefined, resume?: string): void {
     const run = {};
     this.running.set(cardId, { run });
+    // the Workstations pill counts its agent at work
+    this.o.board.changed();
     void this.run(cardId, run, setting, resume).catch((e) => this.finish(cardId, run, undefined, messageOf(e)));
   }
 
@@ -368,6 +370,8 @@ export class CodeReviews {
     if (this.running.get(cardId)?.run !== run) return;
     this.running.delete(cardId);
     this.paused.add(cardId);
+    // the Workstations pill no longer counts its agent at work
+    this.o.board.changed();
     // the restart was called off meanwhile: it goes on at once
     if (!this.restart) this.resume(cardId);
   }
@@ -484,6 +488,7 @@ export class CodeReviews {
     if (run) {
       if (this.running.get(cardId)?.run !== run) return;
       this.running.delete(cardId);
+      this.o.board.changed();
     }
     if (!this.o.board.item(cardId)) return;
     const stored = codeReviewOf(this.o.board.row(cardId));
@@ -564,6 +569,7 @@ export class CodeReviews {
     this.paused.delete(cardId);
     const r = this.running.get(cardId);
     this.running.delete(cardId);
+    if (r) this.o.board.changed();
     r?.session?.close();
   }
 

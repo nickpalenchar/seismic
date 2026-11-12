@@ -1623,6 +1623,8 @@ export interface PoolHost {
   cards: string[];
   /** The cards whose worker is in a turn there now. */
   busy: string[];
+  /** The cards held there whose code review's agent is at work now (not paused for a restart), and whose worker is not in a turn: the pill counts them at work, though they hold no slot. */
+  reviewing?: string[];
   /** The folders (paths there) of clones Seismic made that left the pool and stay, since something in them would be lost. */
   kept?: string[];
   /** Its free clones no new card gets now, by their last look; none when every free clone can be taken. */
