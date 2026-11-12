@@ -71,8 +71,9 @@ continue working during comparison.
 
 The pair shows together on the canvas as two cards joined by a solid purple line with an arrowhead
 at each end, a spinner on it while the agent plans the merge. Both cards carry the merge icon
-before their state line in purple; while the agent plans, both read "Planning merge". Once the
-merged card is ready it needs the owner (the left card reads "Merged · review"). Its panel shows both originals above the merged card. Long originals start as
+before their state line in purple, which names the card's own state and then how the merge stands:
+"Planned · Planning merge" while the agent plans, "Planned · Merged · review" once the merged card
+is ready and needs the owner. The joint on the line is a solid purple circle. Its panel shows both originals above the merged card. Long originals start as
 previews; "Show all" expands them together. Only the panel scrolls; the result is complete
 and "Approve merge" and "Separate" stay reachable on desktop and phone.
 

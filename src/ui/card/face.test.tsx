@@ -89,3 +89,13 @@ test('subtle: the pin is a small dot in the corner, the state line is plain, and
   expect(m).not.toContain('data-variant="pin"');
   expect(face({ item: card({ state: 'working' }), subtle: true })).not.toContain('pin-dot');
 });
+
+test('both cards of a merge say their own state, then how the merge stands, behind the merge mark', () => {
+  const merging = card({ idea: { proposal: { questions: [], merge: { with: 'p', attempt: 'a', origin: { x: 0, y: 0 } } } } } as unknown as Partial<Item>);
+  const html = face({ item: merging });
+  expect(html).toContain('merge-mark');
+  expect(html).toContain('Planned · Planning merge');
+  const partner = face({ item: card({ id: 'p' }), mergePartner: 'Planning merge' });
+  expect(partner).toContain('merge-mark');
+  expect(partner).toContain('Planned · Planning merge');
+});

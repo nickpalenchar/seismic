@@ -92,6 +92,9 @@ export const cardKind = (item: Item) =>
                 ? t.kind.plan
                 : '';
 
+/** How a merge stands, as the state line of both its cards says it after their own state. */
+export const mergeStatus = (merge: { task?: string; failed?: string }) => (merge.failed !== undefined ? t.merge.failedShort : merge.task === undefined ? t.merge.planning : t.merge.mergedShort);
+
 /** A card's pull requests still open as far as Seismic knows: its own and those in other repositories. */
 const openPrs = (item: Item): PullRequest[] => [...(item.review?.pr ? [item.review.pr] : []), ...(item.review?.morePrs ?? [])].filter((p) => !p.merged && !p.closed);
 
@@ -189,7 +192,11 @@ export function cardSummary(item: Item, underway?: string): CardSummary {
         ...((asksYou(item) && !revising && !proposal?.merge ? ['question'] : []) as StateMark[]),
         ...((proposal?.merge ? ['merge'] : []) as StateMark[]),
       ];
+  // a card being merged says its own state, and then how the merge stands
+  const merge = proposal?.merge;
+  const ownState = merge ? { ...item, idea: { ...item.idea, proposal: { ...proposal, merge: undefined } } } : item;
   const notes = [
+    merge && mergeStatus(merge),
     item.idea?.buildProposal && t.idea.proposesBuild,
     proposal?.acceptAfterRevision && t.acceptsAfterRevision,
     item.state === 'proposal' && proposal?.startAt && !proposal.idea && t.startAt.short(snoozeWhen(proposal.startAt)),
@@ -206,8 +213,8 @@ export function cardSummary(item: Item, underway?: string): CardSummary {
     kind: item.plan?.label ?? cardKind(item),
     meta,
     state: {
-      label: underway ?? (revising ? t.revisingShort : stateLabel(item)),
-      short: underway ?? (revising ? t.revisingShort : stateLabel(item, true)),
+      label: underway ?? (revising ? t.revisingShort : stateLabel(ownState)),
+      short: underway ?? (revising ? t.revisingShort : stateLabel(ownState, true)),
       stopped: underway ? undefined : stoppedAtOf(item),
       marks,
       notes,

@@ -217,7 +217,7 @@ h1, h2, .plan > .head .ttl { font-family: var(--font); font-weight: 650; letter-
 .merge-half .state { --c: var(--proposal); }
 .card .state .merge-mark { flex: none; margin-right: -2px; }
 .merge-knot { position: relative; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%;
-  background: var(--card); border: 1.5px solid var(--proposal); box-shadow: var(--shadow); }
+  background: var(--proposal); color: #fff; box-shadow: var(--shadow); }
 .merge-knot svg { display: block; }
 .spinner { display: block; width: 16px; height: 16px; border-radius: 50%; border: 2.5px solid color-mix(in srgb, currentColor 22%, transparent);
   border-top-color: currentColor; animation: spin .9s linear infinite; }

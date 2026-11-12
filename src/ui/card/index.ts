@@ -3,4 +3,4 @@
 export { CardFace, type CardFaceProps, type CardSize } from './face';
 export { hasLabels, LabelMarks, LabelPicks, PriorityMark } from './labels';
 export { HourglassMark, Pin, QuestionMark, RestartMark, shownTitle, StateMarks, StateText, StoppedWords, Title, UnreadDot } from './pieces';
-export { asksYou, cardClass, cardKind, cardSummary, type CardSummary, cardTone, shownState, type StateMark } from './summary';
+export { asksYou, cardClass, cardKind, cardSummary, type CardSummary, cardTone, mergeStatus, shownState, type StateMark } from './summary';

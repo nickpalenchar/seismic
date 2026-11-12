@@ -16,7 +16,7 @@ import { Doc, Inline, plain } from './markdown';
 import { Body } from './message';
 import { Naming } from './cardLink';
 import { Waiting } from './queue';
-import { asksYou, CardFace, cardClass, cardTone, hasLabels, HourglassMark, LabelMarks, LabelPicks, shownState } from './card';
+import { asksYou, CardFace, cardClass, cardTone, hasLabels, HourglassMark, LabelMarks, LabelPicks, mergeStatus, shownState } from './card';
 import { scrollBehavior } from './motion';
 import { clock, shortDay, stateLabel, t } from './strings';
 import { edgeChipPositions } from './edgeChips';
@@ -164,7 +164,7 @@ function MergedPair({ item, partner, showRepo }: { item: Item; partner?: Item; s
         <span className="merge-knot">{merging(item) ? <span className="spinner" /> : <MergeMark />}</span>
         <span className="merge-head right" aria-hidden />
       </div>
-      <div className={`merge-half partner s-${partner?.state ?? 'planned'}`}>{partner ? <CardFace item={partner} mergePartner={merging(item) ? 'planning' : 'planned'} where={showRepo ? partner.repo : undefined} /> : <div className="ttl untitled">{t.merge.gone}</div>}</div>
+      <div className={`merge-half partner s-${partner?.state ?? 'planned'}`}>{partner ? <CardFace item={partner} mergePartner={mergeStatus(item.idea!.proposal!.merge!)} where={showRepo ? partner.repo : undefined} /> : <div className="ttl untitled">{t.merge.gone}</div>}</div>
       {needsYou(item) && <Badge variant="pin" pulse>✦</Badge>}
     </div>
   );
