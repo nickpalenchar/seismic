@@ -8,7 +8,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { flushSync } from 'react-dom';
 import { Bot, CircleUserRound, ConciergeBell, MessageSquare, FileText, Columns3, type LucideIcon, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { type Bounds, boundsOf, CARD_SIZE, centre, onProject, type Place, PLAN_HEAD, PLAN_PAD, unionBounds } from '../core/layout';
-import { type RightClick, type Canvas, canvasNamedBy, MAIN_CANVAS, type ProjectInfo, type ProjectSnapshot, type CardPatch, type ConfigProblem, finished, type Group, type Item, nameless, withPart, needsYou, openPerGroup, type PendingRestart, type PlanDir, EVICT_HOLD_MS, START_ALL_HOLD_MS, titleFrom, type AppUpdate, type SourceUpdate, unreadAnswers, unreadPerPlan, type Usage, type Waiting, waitingIn, inParkingLot } from '../core/types';
+import { type RightClick, type Canvas, canvasNamedBy, MAIN_CANVAS, type ProjectInfo, type ProjectSnapshot, type CardPatch, type ConfigProblem, finished, type Group, type Item, nameless, withPart, needsYou, openPerGroup, type PendingRestart, type PlanDir, EVICT_HOLD_MS, START_ALL_HOLD_MS, titleFrom, type AppUpdate, type SourceUpdate, unreadAnswers, unreadPerPlan, type Usage, type Waiting, waitingIn, inParkingLot, offCanvas } from '../core/types';
 import { NotifyAsk, useDesktopNotifications } from './desktopNotify';
 import { api, ApiError, beforeReload, cardsOn, onNotice, quietAtStart, reportFocus, setProject, useProject } from './api';
 import { GroupNames, growFrom, hintBubbleClass, inside, Lasso, MarkHint, Marked, Ring, TerritoryLayer, useTerritories } from './groups';
@@ -423,7 +423,7 @@ function Project({
   /** Whether the card is on the canvas shown (one the server has not placed on any yet counts as on the first). */
   const onShown = useCallback((i: Item) => !canvasId || (i.canvas ?? canvases[0]?.id) === canvasId, [canvasId, canvases]);
   // the workstreams of a collapsed plan are not on the project: its marks stand for them
-  const placed = useMemo(() => onProject(items.filter((i) => onShown(i) && !inParkingLot(i))).map((item) => ({ item, b: boundsOf(item, items) })), [items, onShown]);
+  const placed = useMemo(() => onProject(items.filter((i) => onShown(i) && !offCanvas(i))).map((item) => ({ item, b: boundsOf(item, items) })), [items, onShown]);
   const itemById = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
   // the groups of the canvas shown: a group holds the cards of its own canvas only
   const groups = useMemo(() => snapshot.groups.filter((g) => !canvasId || (g.canvas ?? canvases[0]?.id) === canvasId), [snapshot.groups, canvasId, canvases]);
@@ -727,7 +727,7 @@ function Project({
     const f = focusRef.current;
     if (f?.type === 'card') return;
     // a card on another canvas opens there
-    if (i.canvas && i.canvas !== canvasRef.current && !i.archivedAt && !inParkingLot(i)) showCanvas(i.canvas);
+    if (i.canvas && i.canvas !== canvasRef.current && !i.archivedAt && !offCanvas(i)) showCanvas(i.canvas);
     if (i.kind === 'plan') return openPlan(i);
     cardsOn(snapshot.project.id, [i.id]);
     setFocus({ type: 'card', id: i.id, prevCam: camRef.current, prevSide: camSide.current, plan: f });
@@ -736,7 +736,12 @@ function Project({
     // bring the card to the middle at a readable scale first, so the unfold starts where the eye is;
     // an archived card is not on the project and unfolds from its row in the archive
     // (a full-page view hides the project: the camera stays)
-    if (!i.archivedAt && !inParkingLot(i) && !fullPage.ref.current) await flyOrJump(centreOnPoint(bounds(i), Math.max(camRef.current.s, 0.85), sideNow()), FLY_MS, quick);
+    if (!i.archivedAt && !offCanvas(i) && !fullPage.ref.current) await flyOrJump(centreOnPoint(bounds(i), Math.max(camRef.current.s, 0.85), sideNow()), FLY_MS, quick);
+    // a card off the canvas unfolds from its row in the Parked view: shown first when no view holds the card
+    if (!i.archivedAt && offCanvas(i) && !fromEl(i.id, !!f)) {
+      showPage('parked');
+      await soon(() => parkedEls.get(i.id));
+    }
     const el = fromEl(i.id, !!f);
     const panel = panelRef.current;
     // nothing to unfold from: the project stays as it was, open for the next card
@@ -2412,7 +2417,7 @@ function Project({
   const at = new Map(placed.map((p) => [p.item.id, p.b]));
   const edgeTargets = items.flatMap((item) => {
     const b = at.get(standsFor(item).id);
-    return b && yours(item) && (focus?.type !== 'plan' || item.parent === focus.id) ? [{ item, b }] : [];
+    return b && !offCanvas(item) && yours(item) && (focus?.type !== 'plan' || item.parent === focus.id) ? [{ item, b }] : [];
   });
 
   // the button for the conversation with Seismic: the rightmost in the bar; while its sidebar is open it

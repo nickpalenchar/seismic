@@ -7,7 +7,7 @@ import { Docked, sheetTitleClass } from './docked';
 import { memo, type MouseEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import { type Bounds, dependencyOrder, shapeOf } from '../core/layout';
 import { clip } from '../core/text';
-import { agentFailed, type AppUpdate, type ProjectInfo, type ClonePool, finished, finishedArchivable, type Item, merging, needsYou, pausable, type PendingRestart, halted, type PoolHost, type PlanHistory, type SourceUpdate, stoppedArchivable, snoozeOf, isPausing } from '../core/types';
+import { agentFailed, type AppUpdate, type ProjectInfo, type ClonePool, finished, finishedArchivable, type Item, merging, needsYou, pausable, type PendingRestart, halted, type PoolHost, type PlanHistory, type SourceUpdate, stoppedArchivable, snoozeOf, isPausing, offCanvas } from '../core/types';
 import { CardMore } from './canvases';
 import { PlanTalk } from './koordinator';
 import { api } from './api';
@@ -906,7 +906,7 @@ export const PlanView = memo(
         {/* a collapsed plan's workstreams, a mark each in its state's colour: a click opens one, unfolding from its mark */}
         {collapsed && (
           <div className={`marks absolute left-[22px] right-[22px] ${labelled ? 'top-[63px]' : 'top-[54px]'} flex h-3.5 flex-wrap gap-1 overflow-hidden`}>
-            {kids.map((k) => (
+            {kids.filter((k) => !offCanvas(k)).map((k) => (
               <Tooltip key={k.id} content={plain(k.title)}>
                 <button
                   ref={(el) => void (el ? els.set(k.id, el) : els.delete(k.id))}

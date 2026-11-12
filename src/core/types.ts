@@ -296,7 +296,7 @@ const workerAtWork = (i: Item) => i.kind === 'task' && (i.state === 'working' ||
 export const plannedToStart = (i: Pick<Item, 'kind' | 'state' | 'queue' | 'archivedAt' | 'hold'>) => i.kind === 'task' && i.state === 'planned' && !i.queue && !i.archivedAt && !inParkingLot(i);
 
 /** A card off the canvas and listed under "Parked": in the parking lot, or snoozed. */
-export const offCanvas = (i: Pick<Item, 'parkingLot' | 'snoozed'>) => !!i.parkingLot || !!i.snoozed;
+export const offCanvas = (i: Pick<Item, 'hold'>) => inParkingLot(i) || !!snoozeOf(i);
 
 /** A task of the owner's that nothing runs for (planned or stopped, not queued) can go into the parking lot. */
 export const parkable = (i: Pick<Item, 'kind' | 'state' | 'queue' | 'archivedAt' | 'hold' | 'parent' | 'idea'>) =>

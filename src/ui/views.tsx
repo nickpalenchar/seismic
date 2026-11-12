@@ -7,7 +7,7 @@
 import { cn } from 'cn';
 import { Table2, Car, Map as MapIcon } from 'lucide-react';
 import { type ReactNode, useEffect, useRef } from 'react';
-import { inParkingLot, type Item } from '../core/types';
+import { type Item, offCanvas } from '../core/types';
 import { AgentEntry } from './agents';
 import { CloseButton } from './components/button';
 import { FullPage, fullBodyClass, fullCloseClass, fullHeadClass, fullTitleClass } from './fullPage';
@@ -49,7 +49,7 @@ function Head({ title, n, onClose }: { title: string; n: number; onClose: () => 
 /** The parked cards as a full-page view, from the switcher or the menu's Parked. */
 export function ParkedView({ on, items, open, underway, onOpen, onClose, els }: ListProps) {
   if (!on) return null;
-  const parked = items.filter((i) => inParkingLot(i) && !i.archivedAt);
+  const parked = items.filter((i) => offCanvas(i) && !i.archivedAt);
   return (
     <FullPage id="parked-full" title={t.views.parked}>
       <Head title={t.views.parked} n={parked.length} onClose={onClose} />
