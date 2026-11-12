@@ -120,7 +120,7 @@
 // POST /api/c/<project>/cards) unless it names a plan doc's `plan` or `workstream` (label; with
 // several plan docs "docs/plan/x.md#W1"), which exist already. Then its fields are written straight
 // into the database:
-// state, need, statusLine, summary, question (with `permission`, `{ name, input, extra? }`: the tool call it asks
+// state, need, statusLine, summary, blocked (files: its approval could not land, since main's checkout has uncommitted changes to them), question (with `permission`, `{ name, input, extra? }`: the tool call it asks
 // to allow, as a worker's permission question has it, `extra` the options extensions added), demo (`kind` defaults to video), queue (`behind` by key; `since` defaults to
 // now), snoozed (`{ on, state?, why? }`: its agent snoozed it until the card with key `on` gets to `state`, done by default), limitPaused (`{ until? }`: paused after three usage-limit refusals, until that ISO time or a manual retry), hold (any other hold as stored, `Hold` in core/types.ts: `{ reason: 'paused' }`, `{ reason: 'snoozed', by: 'owner', until }`, `{ reason: 'parkingLot' }`; `since` defaults to now), scope (files), branch (a working or waiting card without one gets the branch a start would
 // have given it, which every started card has), createdAgo, archivedAgo, events ([{ kind, author, text, ago?, mocks?, spot?, token? }]; an idea's reply with `mocks` needs code that has them, an error's `token` (its session signed in with a token) too;
@@ -221,6 +221,8 @@ interface StageCard {
   need?: string | null;
   statusLine?: string;
   summary?: string;
+  /** The files whose uncommitted changes in main's checkout kept its approval from landing. */
+  blocked?: string[];
   question?: { text: string; options?: string[]; multiple?: boolean };
   /** The tool call `question` asks the owner to allow (`extra`: the options extensions added, as `AskedPermission` in workers.ts has them). */
   permission?: { name: string; input: Record<string, unknown>; extra?: { extension: number; label: Record<Language, string>; data?: unknown }[] };
@@ -796,7 +798,7 @@ for (const [i, c] of stage.cards.entries()) {
   if (c.state !== undefined) row.state = c.state;
   if (c.need !== undefined) row.need = c.need;
   if (c.statusLine !== undefined) row.status_line = c.statusLine;
-  if (c.summary !== undefined) row.detail = { summary: c.summary };
+  if (c.summary !== undefined) row.detail = { summary: c.summary, ...(c.blocked ? { blocked: { files: c.blocked } } : {}) };
   if (c.question !== undefined) row.detail = { question: { options: [], ...c.question }, ...(c.permission ? { permission: c.permission } : {}) };
   // an HTML artifact is shown from a copy in <dir>, which --artifact may rewrite
   const demo = c.demo && (c.demo.kind === 'html' ? { ...c.demo, dir: copyArtifact(String(c.demo.dir), artifactDir(dir, c.key ?? String(i))) } : c.demo);

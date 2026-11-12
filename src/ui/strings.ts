@@ -59,9 +59,12 @@ const en = {
     reviewing: 'Reviewing',
     finishing: 'Finishing',
     landing: 'Landing',
+    notLanded: 'Not landed',
   },
   need: { demo: 'Demo ready', question: 'Question for you', review: 'Ready for review' },
   demoWithQuestion: 'Demo ready, with a question',
+  /** Approved work that could not land, since main's checkout has uncommitted changes to files the card changes too: the card offers to fold them in. */
+  notLandedConflict: 'Not landed (file conflict)',
   /** The ready line of the `n`th demo of a card (the second on). */
   demoNth: (n: number, withQuestion: boolean) => `${ordinal(n)} demo ready${withQuestion ? ', with a question' : ''}`,
   answering: 'Agent working',
@@ -2681,7 +2684,7 @@ export const mergeProposed = (i: { state: CardState; possibleDuplicates?: string
   i.state === 'planned' && !!i.possibleDuplicates?.length && !i.idea?.proposal?.merge;
 
 /** A card's state as its state line says it; `short`, in a word or two, as the smallest card face says it (`stateShort`). */
-export const stateLabel = (i: { kind?: string; thread?: { thinking?: boolean }; state: CardState; need?: Need; queue?: Queue; question?: { stuck?: true }; hold?: ItemHold; possibleDuplicates?: string[]; agent?: { finishing?: boolean; followUp?: boolean; branch?: string; stoppedAt?: StoppedAt }; review?: { landing?: true; landingPosition?: number; pr?: unknown; contribution?: unknown; answering?: true; answered?: true; codeReview?: { state?: string } }; demo?: { earlier?: { asked?: true }[] }; idea?: { discussion?: Idea; prototypeEnd?: 'discarded' | 'built'; retro?: string; proposal?: { setup?: true; merge?: { task?: string; failed?: string } } } }, short = false): string => {
+export const stateLabel = (i: { kind?: string; thread?: { thinking?: boolean }; state: CardState; need?: Need; queue?: Queue; question?: { stuck?: true }; hold?: ItemHold; possibleDuplicates?: string[]; agent?: { finishing?: boolean; followUp?: boolean; branch?: string; stoppedAt?: StoppedAt }; review?: { landing?: true; landingPosition?: number; pr?: unknown; contribution?: unknown; answering?: true; answered?: true; blocked?: unknown; codeReview?: { state?: string } }; demo?: { earlier?: { asked?: true }[] }; idea?: { discussion?: Idea; prototypeEnd?: 'discarded' | 'built'; retro?: string; proposal?: { setup?: true; merge?: { task?: string; failed?: string } } } }, short = false): string => {
   const { agent, review, idea: ideaPart } = i;
   const idea = ideaPart?.discussion;
   const merge = ideaPart?.proposal?.merge;
@@ -2746,6 +2749,8 @@ export const stateLabel = (i: { kind?: string; thread?: { thinking?: boolean }; 
     : i.state === 'waiting' && i.need
       ? review?.answering
         ? word(t.answering, 'working')
+        : review?.blocked
+          ? word(t.notLandedConflict, 'notLanded')
         : i.need === 'demo' && !i.question && !review?.answered && earlier?.some((d) => !d.asked)
           ? word(t.demoNth(earlier.filter((d) => !d.asked).length + 1, false), 'demo')
         : i.need === 'demo' && i.question

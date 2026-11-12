@@ -28,9 +28,9 @@ export interface NeedsYou {
   lastUpdated: number;
 }
 
-/** What a card that needs the owner waits for; `before`: the card as it was before it did (a failed landing was landing). */
+/** What a card that needs the owner waits for; `before`: the card as it was before it did (a failed landing was landing, or its approval could not land for the checkout's changes). */
 export function kindOf(i: Item, before?: Item): PushKind {
-  if (before?.review?.landing) return 'landing';
+  if (before?.review?.landing || i.review?.blocked) return 'landing';
   if (i.idea?.proposal?.merge && !merging(i)) return 'merge';
   if (i.state === 'proposal') return 'proposal';
   if (i.idea?.superseded) return 'superseded';

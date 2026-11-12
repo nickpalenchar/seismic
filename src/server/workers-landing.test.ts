@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { generic } from '../adapters/generic';
 import type { PlanDoc } from '../core/plan-doc';
 import { needsYou, stopped } from '../core/types';
+import { kindOf } from '../core/waits';
 import { artifact, identify, until } from './testing';
 import { Board } from './board';
 import { Workers } from './workers';
@@ -175,6 +176,11 @@ describe('landing on main from a clone of the remote', () => {
     await runtime.last.call('ready_for_review', { summary: 'S', demo: artifact() });
     runtime.last.emit({ type: 'idle' });
     expect(await workers.approve(c.id).catch((e) => e)).toMatchObject({ code: 'landMerge' });
+    // the card waits for the owner again, as a landing that failed
+    const blocked = board.item(c.id)!;
+    expect(blocked.review?.blocked).toEqual({ files: ['k.ts'] });
+    expect(needsYou(blocked)).toBe(true);
+    expect(kindOf(blocked)).toBe('landing');
     await workers.fold(c.id, true);
     // the same new file on both sides: the pick is the worker's to finish
     expect(runtime.last.inbox.at(-1)).toContain('git cherry-pick --continue');

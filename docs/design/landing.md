@@ -37,7 +37,8 @@ not answer the owner as if the approval had not happened.
 
 Uncommitted changes in the checkout to files the card changes too (staged or not, and new files git
 does not ignore) are named on the card with an offer to fold them into it: "Fold in and land"
-or "Fold in, new demo". Either makes those changes one commit on the checkout's `main` (kept
+or "Fold in, new demo". Until then the card needs the owner (in "Needs you" as a landing that
+failed) and its state reads "Not landed (file conflict)" in place of its demo's. Either button makes those changes one commit on the checkout's `main` (kept
 under `refs/obeya/folded/<card>`, the checkout's index beside it under `…-index`), picks it onto the
 card's branch in its workstation, and sets those files back in the checkout; its other uncommitted
 changes stay, and so do those files where they were edited again while git picked. A pick that conflicts stays under
