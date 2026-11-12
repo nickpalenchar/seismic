@@ -19,7 +19,7 @@ in W2.
 
 ## Today
 
-- **Components.** `src/ui/components/` holds the toast, `Listbox`, `Badge` (with the card pin and tag chip), `Input` and `Textarea`, `Collapsible`, `Progress` and the basic parts regenerated
+- **Components.** `src/ui/components/` holds the toast, `Listbox`, `Badge` (with the card pin and tag chip), `Input` and `Textarea`, `Collapsible`, `Progress`, `Alert` with `Callout` on it (tinted by kind: `info` plain, `warn` yellow, `error` red, `note` purple, `bold-info` blue, after shadcn's custom-colour alerts) and the basic parts regenerated
   from shadcn in W2: `Button` (with `armed` and `suggested`; `IconButton` and `CloseButton` compose it
   with `Tooltip`), `Switch`, `Checkbox` and its label, `SegmentedControl` on `ToggleGroup`,
   `RadioGroup`, `Tabs`, `Tooltip` and `Menu` (shadcn's DropdownMenu). They are styled by Tailwind
