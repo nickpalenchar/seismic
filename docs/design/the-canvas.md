@@ -68,7 +68,7 @@ turn, dragged to their place as in "Todo", a row opening its card.
 
 #### The view switcher
 
-At the bottom centre of the main area, a small rounded group "Canvas | Parked | Table" switches what
+At the bottom centre of the main area (on screens up to 1100px wide at the left, one row above the bottom row of minimap and canvas tabs, so it never meets the tabs whatever their width), a small rounded group "Canvas | Parked | Table" switches what
 the main area shows; "Table" is greyed out with "Coming soon". The view showing is marked (none
 while the inbox, the archive or the queue shows; "Canvas" goes back from them too). Switching keeps
 the canvas's camera where it was, and an open card stays open over whichever view comes. A click on

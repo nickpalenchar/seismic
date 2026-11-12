@@ -762,9 +762,9 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 #ptt.dropping .view-switch { outline: 2px dashed var(--working); outline-offset: 5px; }
 #ptt.switching .c-shot { height: 38px; min-width: 38px; }
 #ptt.switching .c-file { height: 38px; }
-/* medium screens: the switcher would run into the canvas tabs at the bottom right, so it moves to the left (past the minimap, which shows from 761px) */
-@media (min-width: 761px) and (max-width: 1100px) { #ptt.switching { left: calc(var(--left, 0px) + 238px); transform: none; align-items: flex-start; } }
-@media (max-width: 760px) { #ptt.switching { left: 14px; transform: none; align-items: flex-start; } }
+/* medium screens: centred, the switcher would run into the canvas tabs at the bottom right, whose width grows with the canvases and which a right dock pushes inward. It moves to the left and one row up, above the tab row (and above the minimap, which shows from 761px), so no width of either can make them meet; below the tabs' drawer in z-order */
+@media (max-width: 1100px) { #ptt.switching { left: calc(var(--left, 0px) + 14px); bottom: 98px; transform: none; align-items: flex-start; z-index: 20; } }
+@media (min-width: 761px) and (max-width: 1100px) { #ptt.switching { bottom: 188px; } }
 #mic.listen { width: 46px; height: 46px; cursor: default; }
 #mic.listen svg { width: 20px; height: 20px; }
 /* Parked and Queue, full-page views (src/ui/views.tsx) */
