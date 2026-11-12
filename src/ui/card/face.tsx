@@ -26,6 +26,8 @@ export interface CardFaceProps {
   since?: ReactNode;
   /** M: a delivered workstream, shown by its label and title only. */
   chip?: boolean;
+  /** M: the card another card is being merged with: the merge mark before its state, and while an agent plans the merge (`planning`) its state line says so. */
+  mergePartner?: 'planning' | 'planned';
   /** S: whether the owner has read the entry; an unread one shows the dot in the pin's place. */
   unread?: boolean;
   /** S and XS: in place of the title (a button that opens the card, the search words marked in it). */
@@ -101,8 +103,11 @@ function FaceInline({ item, title, href, onOpen }: CardFaceProps) {
  * line in its state's colour (`since` after it) and the pin while it needs the owner. A `chip`, a
  * delivered workstream, shows only its title, after its label, so it still reads as its workstream.
  */
-function FaceM({ item, where, underway, since, chip, subtle }: CardFaceProps) {
-  const s = cardSummary(item, underway);
+function FaceM({ item, where, underway, since, chip, subtle, mergePartner }: CardFaceProps) {
+  const summary = cardSummary(item, underway);
+  const s = mergePartner
+    ? { ...summary, state: { ...summary.state, ...(mergePartner === 'planning' ? { label: t.merge.planning, short: t.merge.planning } : {}), marks: ['merge' as const] } }
+    : summary;
   // a plain task says nothing of its kind: that it is one shows
   const label = [item.state === 'proposal' && t.proposalMark, where, s.kind].filter(Boolean);
   return (

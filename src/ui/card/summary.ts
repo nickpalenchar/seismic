@@ -15,7 +15,7 @@ export const asksYou = (i: Item) => i.state === 'waiting' && i.need === 'questio
  * The colour a card's state gives its unfolded sheet: a snoozed card's is pencil grey, as on the
  * project; a demo whose worker takes in the owner's answer is at work.
  */
-export const shownState = (i: Item) => (snoozeOf(i) ? 'muted' : i.kind === 'question' ? 'question' : answering(i) ? 'working' : agentFailed(i) ? 'error' : asksYou(i) ? 'asking' : mergeProposed(i) ? 'proposal' : i.state);
+export const shownState = (i: Item) => (snoozeOf(i) ? 'muted' : i.kind === 'question' ? 'question' : answering(i) ? 'working' : agentFailed(i) ? 'error' : asksYou(i) ? 'asking' : mergeProposed(i) || i.idea?.proposal?.merge ? 'proposal' : i.state);
 
 /**
  * The colour of a card's state in a list (S and XS), as its card on the project shows it: paused grey,
@@ -36,7 +36,7 @@ export const cardTone = (i: Item, underway?: string): string =>
               ? 'error'
               : asksYou(i)
                 ? 'asking'
-                : mergeProposed(i)
+                : mergeProposed(i) || i.idea?.proposal?.merge
                   ? 'proposal'
                   : i.review?.codeReview?.state === 'running'
                   ? 'reviewing'
@@ -114,7 +114,7 @@ const firstLine = (md: string) =>
 const doingNow = (item: Item) => (item.agent?.inTurn && !isPaused(item) ? item.agent.doing : undefined);
 
 /** A mark before the state: parked off the canvas, a usage limit waited out, a snooze, a restart due, a start waiting for a restart, a question for the owner. */
-export type StateMark = 'parked' | 'limit' | 'snooze' | 'restart' | 'restartQueue' | 'question';
+export type StateMark = 'parked' | 'limit' | 'snooze' | 'restart' | 'restartQueue' | 'question' | 'merge';
 
 export interface CardSummary {
   /** The kind line's word: a workstream's label, else the card's kind (`cardKind`). */
@@ -187,6 +187,7 @@ export function cardSummary(item: Item, underway?: string): CardSummary {
         ...(((item.hold?.reason === 'restart') ? ['restart'] : []) as StateMark[]),
         ...((item.queue && 'restart' in item.queue ? ['restartQueue'] : []) as StateMark[]),
         ...((asksYou(item) && !revising && !proposal?.merge ? ['question'] : []) as StateMark[]),
+        ...((proposal?.merge ? ['merge'] : []) as StateMark[]),
       ];
   const notes = [
     item.idea?.buildProposal && t.idea.proposesBuild,

@@ -69,8 +69,10 @@ text and its handover summary, where present. It reads no branch diff or reposit
 The survivor's text, branch, worker, demo, state and place stay untouched, while its worker can
 continue working during comparison.
 
-The pair shows together on the canvas, with a spinner while the comparison runs. Once ready it
-needs the owner. Its panel shows both originals above the merged card. Long originals start as
+The pair shows together on the canvas as two cards joined by a solid purple line with an arrowhead
+at each end, a spinner on it while the agent plans the merge. Both cards carry the merge icon
+before their state line in purple; while the agent plans, both read "Planning merge". Once the
+merged card is ready it needs the owner (the left card reads "Merged · review"). Its panel shows both originals above the merged card. Long originals start as
 previews; "Show all" expands them together. Only the panel scrolls; the result is complete
 and "Approve merge" and "Separate" stay reachable on desktop and phone.
 

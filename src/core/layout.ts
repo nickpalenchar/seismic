@@ -42,8 +42,8 @@ export function planSize(children: Pick<Item, 'kind' | 'state' | 'parent' | 'age
   return [w, h];
 }
 
-/** An unworked card merged with another card: both cards side by side, glued by the mark between them. */
-export const MERGED_SIZE: readonly [number, number] = [2 * CARD_SIZE.task[0] + 56, CARD_SIZE.task[1]];
+/** An unworked card merged with another card: both cards side by side, joined by the arrow with the merge mark on it. */
+export const MERGED_SIZE: readonly [number, number] = [2 * CARD_SIZE.task[0] + 88, CARD_SIZE.task[1]];
 
 export function sizeOf(i: Item, all: Item[]): [number, number] {
   const shape = shapeOf(i);

@@ -396,7 +396,7 @@ see Scheduling.
 A card has one face, which every place that shows a card draws in one of four sizes, so that no
 list says a card's title, state or labels in a way of its own:
 
-- **M** is the card on the canvas, also two merged cards side by side, the phone's Agents view (its queue aside) and a follow-up made in a conversation. Its top line holds the label
+- **M** is the card on the canvas, also two cards being merged, side by side and joined by an arrow, the phone's Agents view (its queue aside) and a follow-up made in a conversation. Its top line holds the label
   chips (the priority's flag and name, then category, sub-category and complexity; one Seismic
   suggested is framed dashed in purple), followed by where it is (its repository on a project with
   several, its project on the phone) and its kind ("Idea", "Plan", a workstream's label, a review

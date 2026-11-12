@@ -2,7 +2,7 @@
 // the line under it, the state line with its marks, the pin and the unread dot. The label chips are
 // in labels.tsx.
 
-import { Car, CircleHelp, RotateCw } from 'lucide-react';
+import { Car, CircleHelp, GitMerge, RotateCw } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { type Item, titleFrom } from '../../core/types';
 import { Inline } from '../markdown';
@@ -32,7 +32,10 @@ export const RestartMark = () => <RotateCw className="restart-mark" size={11} st
 /** A car: the mark of a card parked off the canvas. */
 const ParkedMark = () => <Car className="parked-mark" size={13} aria-hidden />;
 
-const MARKS: Record<StateMark, () => ReactNode> = { parked: ParkedMark, limit: HourglassMark, snooze: ClockMark, restart: RestartMark, restartQueue: HourglassMark, question: QuestionMark };
+/** Two lines joining into one: the mark of a card being merged with another. */
+const MergeStateMark = () => <GitMerge className="merge-mark" size={12} strokeWidth={1.75} aria-hidden />;
+
+const MARKS: Record<StateMark, () => ReactNode> = { merge: MergeStateMark, parked: ParkedMark, limit: HourglassMark, snooze: ClockMark, restart: RestartMark, restartQueue: HourglassMark, question: QuestionMark };
 
 /** The marks before a state, in their order. */
 export const StateMarks = ({ marks }: { marks: StateMark[] }) => (

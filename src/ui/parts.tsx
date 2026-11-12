@@ -150,7 +150,8 @@ const sameBounds = (a: Bounds, b: Bounds) => a.x === b.x && a.y === b.y && a.w =
 
 /**
  * An unworked card merged with another card (`partner`), on the project: both cards side by side, glued by
- * a spinner while an agent merges them, and by the merge mark once the merged card waits for the owner.
+ * a solid purple line with an arrowhead at each end, its knot a spinner while an agent plans the merge, and the merge mark
+ * once the merged card waits for the owner. Both cards carry the merge mark before their state.
  */
 function MergedPair({ item, partner, showRepo }: { item: Item; partner?: Item; showRepo: boolean }) {
   return (
@@ -159,9 +160,11 @@ function MergedPair({ item, partner, showRepo }: { item: Item; partner?: Item; s
         <CardFace item={item} where={showRepo ? item.repo : undefined} />
       </div>
       <div className="merge-glue" title={stateLabel(item)}>
+        <span className="merge-head left" aria-hidden />
         <span className="merge-knot">{merging(item) ? <span className="spinner" /> : <MergeMark />}</span>
+        <span className="merge-head right" aria-hidden />
       </div>
-      <div className={`merge-half partner s-${partner?.state ?? 'planned'}`}>{partner ? <CardFace item={partner} where={showRepo ? partner.repo : undefined} /> : <div className="ttl untitled">{t.merge.gone}</div>}</div>
+      <div className={`merge-half partner s-${partner?.state ?? 'planned'}`}>{partner ? <CardFace item={partner} mergePartner={merging(item) ? 'planning' : 'planned'} where={showRepo ? partner.repo : undefined} /> : <div className="ttl untitled">{t.merge.gone}</div>}</div>
       {needsYou(item) && <Badge variant="pin" pulse>✦</Badge>}
     </div>
   );

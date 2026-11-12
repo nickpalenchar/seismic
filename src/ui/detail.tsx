@@ -1,5 +1,5 @@
 import { noteClass } from './components/ai/message';
-import { Car, Check, Lightbulb, ChevronDown, ChevronLeft, ChevronRight, Pencil, Maximize, MessageSquare, Minimize, PanelRightClose, PanelRightOpen, Play, Plus, Share, ZoomIn, ZoomOut } from 'lucide-react';
+import { Car, Check, GitMerge, Lightbulb, ChevronDown, ChevronLeft, ChevronRight, Pencil, Maximize, MessageSquare, Minimize, PanelRightClose, PanelRightOpen, Play, Plus, Share, ZoomIn, ZoomOut } from 'lucide-react';
 import { clientExtensions as extensions } from '../extensions/client';
 // The unfolded card: what it is, what its worker does, and what the owner decides.
 
@@ -634,8 +634,8 @@ export function Detail(p: Props) {
       </ConfirmDialog>
       <KindLine kind={kind} item={item} />
       {editable ? <ManualTitle item={item} onEdit={p.onEdit} /> : <div className={titleClass}>{shownTitle(item)}</div>}
-      <div className={cn(stateClass, finishingUp(item) && 'finishing', (isPaused(item) || snoozeOf(item) || inParkingLot(item)) && 'paused', (item.hold?.reason === 'restart') && 'restart-paused', item.queue && 'restart' in item.queue && 'restart-paused', item.review?.resolvingConflicts && 'resolving-conflicts', item.review?.codeReview?.state === 'running' && 'reviewing', mergeProposed(item) && 'merge-proposed')}>
-        {mergeProposed(item) ? <Lightbulb className="merge-mark" size={13} aria-hidden /> : asksYou(item) ? <QuestionMark /> : (item.hold?.reason === 'restart') ? <RestartMark /> : item.queue && 'restart' in item.queue ? <HourglassMark /> : inParkingLot(item) ? <Car size={13} aria-hidden /> : '●'} {stoppedAtOf(item) ? <StoppedWords stopped={stoppedAtOf(item)!} /> : stateLabel(item)}
+      <div className={cn(stateClass, finishingUp(item) && 'finishing', (isPaused(item) || snoozeOf(item) || inParkingLot(item)) && 'paused', (item.hold?.reason === 'restart') && 'restart-paused', item.queue && 'restart' in item.queue && 'restart-paused', item.review?.resolvingConflicts && 'resolving-conflicts', item.review?.codeReview?.state === 'running' && 'reviewing', mergeProposed(item) && 'merge-proposed', item.idea?.proposal?.merge && 'merging')}>
+        {mergeProposed(item) ? <Lightbulb className="merge-mark" size={13} aria-hidden /> : item.idea?.proposal?.merge ? <GitMerge className="merge-mark" size={13} strokeWidth={1.75} aria-hidden /> : asksYou(item) ? <QuestionMark /> : (item.hold?.reason === 'restart') ? <RestartMark /> : item.queue && 'restart' in item.queue ? <HourglassMark /> : inParkingLot(item) ? <Car size={13} aria-hidden /> : '●'} {stoppedAtOf(item) ? <StoppedWords stopped={stoppedAtOf(item)!} /> : stateLabel(item)}
         {snoozeOf(item) ? (
           <span className={statusClass}> · {snoozeWho(snoozeOf(item)!)}</span>
         ) : item.review?.resolvingConflicts ? (

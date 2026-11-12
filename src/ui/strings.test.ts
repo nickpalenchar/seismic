@@ -49,6 +49,12 @@ test('a planned card with a merge proposal reads "Merge proposed", in the queue 
   expect(stateLabel({ state: 'planned', queue })).toBe('In the queue');
 });
 
+test('a card being merged reads "Planning merge" until the merged card is ready', () => {
+  setLanguage('en', []);
+  expect(stateLabel({ state: 'planned', idea: { proposal: { merge: {} } } })).toBe('Planning merge');
+  expect(stateLabel({ state: 'planned', idea: { proposal: { merge: { task: 'Both' } } } })).toBe('Merged · review');
+});
+
 test('a card whose agent paused for a restart says so in place of being at work', () => {
   setLanguage('en', []);
   expect(stateLabel({ state: 'working', hold: { reason: 'restart' } })).toBe('Paused, pending restart');

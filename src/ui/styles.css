@@ -209,7 +209,13 @@ h1, h2, .plan > .head .ttl { font-family: var(--font); font-weight: 650; letter-
 .merge-half.partner::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; border-radius: 2px; background: var(--c); }
 .merge-half.partner .state::after, .merge-half [data-slot=badge][data-variant=pin] { display: none; }
 .merge-glue { position: relative; flex: 1; display: flex; align-items: center; justify-content: center; color: var(--proposal); }
-.merge-glue::before { content: ""; position: absolute; left: 0; right: 0; top: calc(50% - 1.5px); height: 3px; background: var(--proposal); opacity: .55; }
+.merge-glue::before { content: ""; position: absolute; left: 4px; right: 4px; top: calc(50% - 1.5px); height: 3px; background: var(--proposal); }
+.merge-head { position: absolute; top: calc(50% - 7px); border-top: 7px solid transparent; border-bottom: 7px solid transparent; }
+.merge-head.left { left: 0; border-right: 12px solid var(--proposal); }
+.merge-head.right { right: 0; border-left: 12px solid var(--proposal); }
+/* both cards of a merge in the proposal purple: their state line and its merge mark */
+.merge-half .state { --c: var(--proposal); }
+.card .state .merge-mark { flex: none; margin-right: -2px; }
 .merge-knot { position: relative; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%;
   background: var(--card); border: 1.5px solid var(--proposal); box-shadow: var(--shadow); }
 .merge-knot svg { display: block; }
@@ -240,7 +246,7 @@ h1, h2, .plan > .head .ttl { font-family: var(--font); font-weight: 650; letter-
 .card.restart-queued .state::after { display: none; }
 .p-state.restart-paused { --c: var(--restart); }
 /* a possible duplicate was found: the state in the proposal purple, behind a lightbulb */
-.card.merge-proposed, .card.merge-proposed .state, .p-state.merge-proposed { --c: var(--proposal); }
+.card.merge-proposed, .card.merge-proposed .state, .p-state.merge-proposed, .p-state.merging { --c: var(--proposal); }
 .stopped-prefix { color: var(--muted-foreground); }
 .stopped-status { color: var(--c); }
 .stopped-status.s-asking { --c: var(--asking); }
