@@ -194,7 +194,7 @@ export function cardSummary(item: Item, underway?: string): CardSummary {
       ];
   // a card being merged says its own state, and then how the merge stands
   const merge = proposal?.merge;
-  const ownState = merge ? { ...item, idea: { ...item.idea, proposal: { ...proposal, merge: undefined } } } : item;
+  const ownState = merge ? { ...item, possibleDuplicates: undefined, idea: { ...item.idea, proposal: { ...proposal, merge: undefined } } } : item;
   const notes = [
     merge && mergeStatus(merge),
     item.idea?.buildProposal && t.idea.proposesBuild,
