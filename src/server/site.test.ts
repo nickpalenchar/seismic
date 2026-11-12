@@ -10,7 +10,7 @@ import { Store } from './store';
 import { writeSites } from './demo-sites';
 import type { SharePage, ShareTarget } from './share';
 import { Sharing } from './share';
-import { MANIFEST, parseEnv, siteKey, siteMissing, pagesHash, siteName, siteTarget } from './site';
+import { MANIFEST, parseEnv, siteKey, siteMissing, pagesHash, siteName, siteTarget, withinSite } from './site';
 import { PAGES_HASH } from '../core/page-changes';
 import { FakeRuntime, gitRepo, noForge } from './testing';
 
@@ -593,12 +593,23 @@ describe('several machines publishing to one site', () => {
     delete host.down;
     // behind a login: read with the site's headers, their values from the env file
     host.token = 'secret-1';
-    expect(await target.publish(page('a-111111'))).toMatchObject({ why: expect.stringContaining('HTTP 302, a redirect to a login') });
+    expect(await target.publish(page('a-111111'))).toMatchObject({ why: expect.stringContaining('HTTP 302, a redirect to login.example.dev: a login there means the site’s headers are missing or wrong; if the site moved there') });
     expect(await make(SITE({ headers: { 'X-Token': '${NOPE}' } })).publish(page('a-111111'))).toMatchObject({ why: 'The site’s header X-Token needs NOPE, which the site’s env file lacks.' });
     const behind = make(SITE({ headers: { 'X-Token': '${TOKEN}' } }));
     expect(await behind.publish(page('a-111111'))).toMatchObject({ url: `${URL_}a-111111/` });
     expect(await behind.withdraw('a-111111', [])).toMatchObject({ said: 'Uploaded 4 entries' });
     expect(live().pages['a-111111']).toMatchObject({ withdrawn: true });
+  });
+
+  test('a read follows a redirect within the site, or to https on its host; one to another host stays where it is', () => {
+    const at = (u: string) => new URL(u);
+    expect(withinSite(at('https://demos.example.dev/a/index.html'), at('https://demos.example.dev/a/'))).toBe(true);
+    // a site entered as http, once its host serves https (GitHub Pages on a domain of its own)
+    expect(withinSite(at('http://demos.example.dev/obeya-site.json'), at('https://demos.example.dev/obeya-site.json'))).toBe(true);
+    expect(withinSite(at('https://demos.example.dev/x'), at('http://demos.example.dev/x'))).toBe(false);
+    // a site moved to a domain of its own, or a login, is somewhere else
+    expect(withinSite(at('https://ada.github.io/demos/obeya-site.json'), at('http://demos.example.dev/obeya-site.json'))).toBe(false);
+    expect(withinSite(at('http://demos.example.dev/x'), at('https://login.example.dev/x'))).toBe(false);
   });
 
   test('a host that answers a missing file with its overview: a site without a manifest yet, not an unreadable one', async () => {

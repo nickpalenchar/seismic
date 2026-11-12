@@ -412,6 +412,7 @@ const en = {
           ? 'Added to the page with the approval: the page gets the latest demo as an addendum.'
           : 'Replaced on the page with the approval: the page now shows the latest demo instead of the shared ones.',
     notOnApproval: 'Not shared with the approval: “Share on approval” was unticked.',
+    siteGone: (site: string) => `Not shared with the approval: the page is on ${site}, a demo site this machine no longer has. Was it renamed or moved?`,
     notAgain: 'Not shared again',
     notLinked: 'The link to the pull request or commit did not get onto the page',
     notShared: 'Not shared',
@@ -443,7 +444,8 @@ const en = {
     notWithdrawn: (why: string) => `Not withdrawn: ${why}`,
     manifestUnreadable: (url: string, why: string) =>
       `The site’s manifest could not be read (${url}: ${why}). Without it a deploy might take pages other machines shared offline.`,
-    loginWall: (status: number) => `HTTP ${status}, a redirect to a login; the site’s headers are missing or wrong`,
+    redirected: (status: number, host: string) =>
+      `HTTP ${status}, a redirect to ${host || 'another address'}: a login there means the site’s headers are missing or wrong; if the site moved there, the address Seismic has for it is out of date`,
     notManifest: 'not a manifest',
     headerKey: (key: string, header: string) => `The site’s header ${header} needs ${key}, which the site’s env file lacks.`,
     pulling: (pages: number, mib: string) => `Downloading ${pages === 1 ? 'a page' : `${pages} pages`} other machines shared from the site (${mib} MiB) …`,

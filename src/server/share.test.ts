@@ -80,9 +80,12 @@ let publish: DemoSite['publish'];
 let vocabulary: DemoSite['tags'];
 /** The repository's theme (`.obeya/theme.css`); none without. */
 let theme: Theme | null;
-const site = (): DemoSite => ({ title: 'Demos', url: SITE_URL, deploy: `${join(dir, 'deploy.ts')} {dir} ${dir}`, ...(publish ? { publish } : {}), ...(vocabulary ? { tags: vocabulary } : {}) });
+/** The site's address as the project names it: another host for the same server, once a test moves it. */
+let siteUrl: string;
+const site = (): DemoSite => ({ title: 'Demos', url: siteUrl, deploy: `${join(dir, 'deploy.ts')} {dir} ${dir}`, ...(publish ? { publish } : {}), ...(vocabulary ? { tags: vocabulary } : {}) });
 
 beforeEach(() => {
+  siteUrl = SITE_URL;
   publish = undefined;
   vocabulary = undefined;
   theme = null;
@@ -1042,6 +1045,27 @@ describe('publishing on approval', () => {
     sharing.approved(c.id);
     await until(() => share(c.id)?.state === 'shared');
     expect(on(c.id)).toEqual([2]);
+  });
+
+  test('a site that moved: a page that never went out follows it; one out on the old address says why it is not shared', async () => {
+    const moved = `http://127.0.0.1:${server.port}`;
+    // a first attempt that failed named the site at its old address
+    const c = card();
+    writeFileSync(join(dir, 'fail'), '');
+    sharing.share(c.id);
+    await until(() => !share(c.id)?.state);
+    rmSync(join(dir, 'fail'));
+    const d = card('Filter bleiben');
+    sharing.approved(d.id);
+    await until(() => share(d.id)?.state === 'shared');
+    siteUrl = `${moved}/`;
+    expect(sharing.approved(c.id)).toBe(`Demo-Video: ${moved}/${slug(c.id)}/`);
+    await until(() => share(c.id)?.state === 'shared');
+    expect(share(c.id)!.url).toBe(`${moved}/${slug(c.id)}/`);
+    // the page out on the old address: no site of this machine's has it now, and its card says so
+    later(d.id, 2);
+    expect(sharing.approved(d.id)).toBe(`Demo-Video: ${SITE_URL}${slug(d.id)}/`);
+    expect(log(d.id).at(-1)).toBe(`Not shared with the approval: the page is on ${SITE_URL.replace(/\/$/, '')}, a demo site this machine no longer has. Was it renamed or moved?`);
   });
 
   test('a site that publishes only on "Share" puts nothing out; a page shared before still goes into the trailer', async () => {

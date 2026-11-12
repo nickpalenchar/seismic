@@ -250,6 +250,11 @@ export class Sharing {
         });
       }
       else this.onPage(cardId);
+    } else if (!target && this.publishesOnApproval(card)) {
+      // a page on a site this machine no longer has (renamed, or moved to another address) says so
+      const s = this.stored(cardId);
+      const on = s?.site ?? s?.url;
+      if (on) this.o.board.log(cardId, 'error', 'obeya', this.o.board.t.share.siteGone(on));
     }
     // the page as it is about to be, or as it is
     const page = this.stored(cardId);
@@ -942,12 +947,13 @@ export class Sharing {
   /**
    * Where the card's page goes: where it is, once it is out or going out (where this machine still
    * has that site); else its project's site, once its path is initialized and this machine can deploy
-   * there. Null where none takes it: its demos are exported.
+   * there. Null where none takes it: its demos are exported. A page that never went out follows its
+   * project's site, though an earlier attempt named a site that has since moved.
    */
   private target(card: Item): ShareTarget | null {
     const s = this.stored(card.id);
     // one going out since before pages named their site (until 2026-11-06) goes to the project's
-    if (s?.url || s?.site) return this.storedTarget(card, s);
+    if (s?.url || (s?.site && s.state)) return this.storedTarget(card, s);
     return this.ownTarget(card);
   }
 

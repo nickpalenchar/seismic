@@ -216,6 +216,9 @@ versions on one page), else in their place, after any share
 still going out; a log line says so. It goes through the queue, so landing does not wait; a failed
 deploy is logged and the card keeps "Share". The same holds for approved PR work, work closed
 without a change, and a held approval landed by the worker's next handover (the newer demo goes).
+A page out on a site this machine no longer has (renamed, or moved to another address) is not
+shared, and the card's log says so, naming that site; a page that never went out follows the
+project's site to its new address.
 
 Where a repository lands on `main` directly, the landing commit of a card with a page names it in a
 git trailer, `Demo-Video: <url>` (`Demo-Page:` for an artifact), beside the closing trailers. The URL
@@ -470,7 +473,9 @@ GitHub Pages takes no directory upload, so Seismic builds its deploy in: a deplo
 history and force-pushes it to the repository's `main`, so videos do not pile up in it. git runs with
 gh's token in its environment (an `http.extraheader`), never on the command line; in a repository
 made afresh for each deploy, with nothing of the machine's git configuration that could leave files
-out or stop the commit (ignores, hooks, signing); `.nojekyll` keeps Jekyll from dropping files. It
+out or stop the commit (ignores, hooks, signing); `.nojekyll` keeps Jekyll from dropping files. A
+site whose address is not under `github.io` is on a domain of its own: every push carries its
+`CNAME`, since a push without it takes the domain off the repository's Pages. It
 runs as programs with their arguments, so it works on Windows and Linux. GitHub takes files up to 100
 MiB and sites up to about 1 GB; its build takes a minute or so, so the check after a deploy waits
 about two minutes.
@@ -485,7 +490,10 @@ machine whose card a page is changes it.
 Before every publish or withdrawal Seismic reads the live manifest (with `headers`), downloads missing
 or newer pages (a new machine's first share fetches all, logging every 25 pages), drops withdrawn
 ones, keeps pages the live site lacks, writes, and deploys. Redirects within the site are followed
-(Cloudflare Pages redirects `…/index.html` to `…/`); one elsewhere is a login. Just before deploying
+(Cloudflare Pages redirects `…/index.html` to `…/`), as is an upgrade from http to https on the
+same host, so a site may be entered as http. One elsewhere refuses the deploy, naming the host it
+points to: a login there, or the site moved (GitHub Pages redirects `<owner>.github.io/<repo>` to a
+domain set on the repository). Just before deploying
 it rereads the manifest and starts over if another machine deployed. After deploying it polls for
 about 30 s (if the site never shows it, the deploy counts, with a log line saying so); another
 deployment that dropped the change makes it redo once, a second fails the share.

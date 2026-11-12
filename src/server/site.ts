@@ -254,6 +254,15 @@ const PAGES_CHECK_WAITS = [0, 5000, 10000, 15000, 20000, 30000, 40000];
 const FETCH_TIMEOUT = 30_000;
 const DOWNLOAD_TIMEOUT = 5 * 60_000;
 
+/**
+ * Whether a redirect from `from` to `to` stays on the site, so a read of it follows: the same
+ * origin, or the same host upgraded from http to https (a site entered as http, once its host
+ * enforces https: GitHub Pages on a domain of its own does).
+ */
+export function withinSite(from: URL, to: URL): boolean {
+  return to.origin === from.origin || (to.hostname === from.hostname && from.protocol === 'http:' && to.protocol === 'https:');
+}
+
 /** The site as a share target, keyed by its directory, so every repository naming it shares its pages' version and guard. */
 export function siteTarget(site: DemoSite, repo: string, home: string, t: Messages['share'], opts: SiteOptions = {}): ShareTarget {
   const base = siteBase(home, site);
@@ -300,7 +309,8 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
   /**
    * A file of the live site. A redirect within the site is followed: Cloudflare Pages answers
    * `…/index.html` with a 308 to `…/`, which made a page another machine shared impossible to pull
-   * (2026-10-09). A redirect elsewhere is a login, and comes back as it is.
+   * (2026-10-09); so is an upgrade to https on the same host (`withinSite`). A redirect elsewhere
+   * (a login, or a site moved to another address) comes back as it is.
    */
   const get = async (path: string, env: Record<string, string>, timeout = FETCH_TIMEOUT) => {
     const signal = AbortSignal.timeout(timeout);
@@ -309,7 +319,7 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
       const r = await fetch(url, { headers: { ...headers(env), 'Cache-Control': 'no-cache' }, redirect: 'manual', signal });
       const to = r.status >= 300 && r.status < 400 ? r.headers.get('location') : null;
       const next = to ? new URL(to, url) : null;
-      if (!next || next.origin !== new URL(url).origin || hop >= 3) return r;
+      if (!next || !withinSite(new URL(url), next) || hop >= 3) return r;
       url = next.href;
     }
   };
@@ -326,7 +336,11 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
         throw unreadable(messageOf(e));
       }
     };
-    const status = (r: Response) => (r.status >= 300 && r.status < 400 ? t.loginWall(r.status) : `HTTP ${r.status}`);
+    const status = (r: Response) => {
+      if (r.status < 300 || r.status >= 400) return `HTTP ${r.status}`;
+      const to = r.headers.get('location');
+      return t.redirected(r.status, to ? new URL(to, r.url || at).host : '');
+    };
     const r = await answer(`${manifestAt}?at=${Date.now()}`);
     if (r.ok) {
       const body = await r.text();
@@ -506,7 +520,9 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
     // the deploy Seismic builds in for GitHub Pages
     if (words[0] === GITHUB_PAGES) {
       try {
-        return tail(await githubPagesDeploy(dir, words[1] ?? '', join(base, 'git'), undefined, { private: unlisted }));
+        const host = new URL(site.url).hostname;
+        const domain = host.endsWith('.github.io') ? {} : { domain: host };
+        return tail(await githubPagesDeploy(dir, words[1] ?? '', join(base, 'git'), undefined, { private: unlisted, ...domain }));
       } catch (e) {
         throw new Refused(t.deployFailed(1), { cause: messageOf(e) });
       }

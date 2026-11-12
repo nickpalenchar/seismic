@@ -394,6 +394,10 @@ test('the deploy to GitHub Pages pushes one commit without history, with gh’s 
   expect(push!.env.GIT_CONFIG_VALUE_0).toBe(`AUTHORIZATION: basic ${Buffer.from('x-access-token:gho_secret').toString('base64')}`);
   // its repository is made afresh each time and goes afterwards
   expect(existsSync(join(dir, 'git'))).toBe(false);
+  // a site on a domain of its own keeps it: its CNAME goes with every push, and goes once the domain does
+  expect(await githubPagesDeploy(site, 'ada/obeya-demos', join(dir, 'git'), x, { domain: 'demos.example.dev' })).toContain('CNAME');
+  expect(readFileSync(join(site, 'CNAME'), 'utf8')).toBe('demos.example.dev\n');
+  expect(await githubPagesDeploy(site, 'ada/obeya-demos', join(dir, 'git'), x)).not.toContain('CNAME');
   await expect(githubPagesDeploy(site, 'not a repository', join(dir, 'git'), x)).rejects.toThrow('expected <owner>/<repository>');
 });
 

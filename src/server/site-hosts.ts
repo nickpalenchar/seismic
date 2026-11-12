@@ -221,9 +221,11 @@ export const BLANK_PAGE = `<!doctype html>
  * with force, so videos do not pile up in the repository. git runs with gh's token in its
  * environment (never on the command line, where other users of the machine could read it), in a
  * repository of its own made afresh each time (`gitDir`), with nothing of the machine's git
- * configuration that could leave files out or stop the commit (ignores, hooks, signing).
+ * configuration that could leave files out or stop the commit (ignores, hooks, signing). A site on
+ * a domain of its own (`domain`) gets its `CNAME` file with every push: one without it takes the
+ * domain off the repository's Pages.
  */
-export async function githubPagesDeploy(dir: string, repo: string, gitDir: string, x: Exec = exec, o: { private?: boolean } = {}): Promise<string> {
+export async function githubPagesDeploy(dir: string, repo: string, gitDir: string, x: Exec = exec, o: { private?: boolean; domain?: string } = {}): Promise<string> {
   if (!/^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/.test(repo)) throw new Error(`${GITHUB_PAGES}: expected <owner>/<repository>, got ${repo || 'nothing'}`);
   // an unlisted site goes only into a private repository: a public one lists every page's address
   if (o.private) {
@@ -235,6 +237,8 @@ export async function githubPagesDeploy(dir: string, repo: string, gitDir: strin
   if (token.code !== 0 || !token.out.trim()) throw new Error(`gh is not logged in to GitHub (gh auth login): ${lastLine(token)}`);
   // served as it is, without Jekyll (which leaves out files starting with _)
   writeFileSync(join(dir, '.nojekyll'), '');
+  if (o.domain) writeFileSync(join(dir, 'CNAME'), `${o.domain}\n`);
+  else rmSync(join(dir, 'CNAME'), { force: true });
   rmSync(gitDir, { recursive: true, force: true });
   const env = {
     GIT_TERMINAL_PROMPT: '0',
