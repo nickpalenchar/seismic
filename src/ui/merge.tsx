@@ -4,6 +4,8 @@ import { actionsClass } from './cardClasses';
 import { cn } from 'cn';
 import { Fragment, useContext, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Collapsible, CollapsibleTrigger } from './components/collapsible';
+import { Callout, CalloutDescription } from './components/callout';
+import { TriangleAlert } from 'lucide-react';
 import { type CardAction, type Item, merging, mergeableWith, mergeRank, canMergeFrom, withPart } from '../core/types';
 import { Inline, plain } from './markdown';
 import { Body, Cards } from './message';
@@ -181,7 +183,10 @@ export function MergeView({ item, partner, act }: { item: Item; partner?: Item; 
           {m.followUp.questions.map((n) => <p className="hint" key={n}>{item.idea?.proposal?.questions[n]?.text}</p>)}
         </div>
       </>}
-      {m.outcome ? <p className={`merge-callout ${m.outcome}`}>{m.outcome === 'covered' ? t.merge.covered : t.merge.extra}</p> : m.task !== undefined && partner && <p className="hint merge-intro">{t.merge.intro(plain(partner.title))}</p>}
+      {m.outcome === 'followUp' ? <Callout kind="warn" className="mt-3 max-w-[720px] box-border">
+        <TriangleAlert />
+        <CalloutDescription>{t.merge.extra}</CalloutDescription>
+      </Callout> : m.outcome === 'covered' ? <p className="merge-callout covered">{t.merge.covered}</p> : m.task !== undefined && partner && <p className="hint merge-intro">{t.merge.intro(plain(partner.title))}</p>}
       <div className={cn(actionsClass, 'merge-actions [#panel_&]:panel-foot')}>
         {m.task !== undefined && partner && (
           <Button variant="primary" onClick={() => act({ action: 'approveMerge' }, { close: true, ack: t.merge.approved })}>

@@ -1186,7 +1186,6 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 .merge-follow-up { box-shadow: 0 0 0 1.5px #3b7dd8, var(--shadow); }
 .merge-callout { width: min(720px, 100%); box-sizing: border-box; padding: 12px 16px; border-radius: 3px; line-height: 1.45; }
 .merge-callout.covered { background: color-mix(in srgb, #41a05a 14%, var(--card)); color: var(--ink); }
-.merge-callout.followUp { background: color-mix(in srgb, #d9a732 15%, var(--card)); color: var(--ink); }
 
 /* the inbox (src/ui/inbox.tsx, inboxClasses.ts): its full-page view lays its list and the room beside it in a
    row, over .full-page's column; an entry's title is bold while unread, over the card face's weight */

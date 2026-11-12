@@ -79,7 +79,7 @@ left completely, all of the left task is crossed out, with a green notice explai
 right card covers it and is preserved. Otherwise only covered parts of the left task are crossed
 out. Below the unchanged merged card an arrow leads to a preview of a new planned follow-up,
 containing only uncovered work, with the relevant screenshots and questions from the left card.
-A notice explains that extra work becomes a fast follow. The coverage map reproduces the original
+A warning callout explains that extra work becomes a fast follow. The coverage map reproduces the original
 task exactly, so omissions or rewriting cannot hide a requirement from the owner.
 
 Only approval removes the left card and creates the follow-up, as one transaction. Its arrows and
