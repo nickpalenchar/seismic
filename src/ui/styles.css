@@ -762,8 +762,12 @@ ol.timeline { list-style: none; padding: 0; margin: 0 0 4px; }
 #ptt.dropping .view-switch { outline: 2px dashed var(--working); outline-offset: 5px; }
 #ptt.switching .c-shot { height: 38px; min-width: 38px; }
 #ptt.switching .c-file { height: 38px; }
-/* medium screens: centred, the switcher would run into the canvas tabs at the bottom right, whose width grows with the canvases and which a right dock pushes inward. It moves to the left and one row up, above the tab row (and above the minimap, which shows from 761px), so no width of either can make them meet; below the tabs' drawer in z-order */
-@media (max-width: 1100px) { #ptt.switching { left: calc(var(--left, 0px) + 14px); bottom: 98px; transform: none; align-items: flex-start; z-index: 20; } }
+/* medium screens: centred, the switcher would run into the canvas tabs at the bottom right, whose width grows with the canvases and which a right dock pushes inward. It moves to the left and one row up, above the tab row (and above the minimap, which shows from 761px), so no width of either can make them meet. It stays above the full-page views (z 23), so Canvas always leads back, and shrinks to fit the main area left of a dock: the views that are not showing keep only their icon */
+@media (max-width: 1100px) {
+  #ptt.switching { left: calc(var(--left, 0px) + 14px); bottom: 98px; transform: none; align-items: flex-start; z-index: 24; max-width: calc(100vw - var(--left, 0px) - var(--side, 0px) - 28px); }
+  .view-switch button:not(.on) .view-label { display: none; }
+  .view-switch button:not(.on) { padding: 0 10px; }
+}
 @media (min-width: 761px) and (max-width: 1100px) { #ptt.switching { bottom: 188px; } }
 #mic.listen { width: 46px; height: 46px; cursor: default; }
 #mic.listen svg { width: 20px; height: 20px; }

@@ -86,9 +86,9 @@ function QueuePage({ items, onOpen, onClose }: { items: Item[]; onOpen: (i: Item
 /** Canvas | Parked | Table at the bottom centre; Table is still to come. */
 export function ViewSwitcher({ shown, onShow }: { shown: SwitchedView | null; onShow: (v: SwitchedView) => void }) {
   const button = (v: SwitchedView, label: string, icon: ReactNode) => (
-    <button type="button" className={shown === v ? 'on' : undefined} aria-pressed={shown === v} onClick={() => onShow(v)}>
+    <button type="button" className={shown === v ? 'on' : undefined} aria-pressed={shown === v} aria-label={label} onClick={() => onShow(v)}>
       {icon}
-      {label}
+      <span className="view-label">{label}</span>
     </button>
   );
   return (
@@ -100,7 +100,7 @@ export function ViewSwitcher({ shown, onShow }: { shown: SwitchedView | null; on
       <Tooltip content={t.views.comingSoon}>
         <button type="button" className="soon" aria-disabled="true" aria-label={`${t.views.table} (${t.views.comingSoon})`}>
           <Table2 size={15} strokeWidth={2} aria-hidden />
-          {t.views.table}
+          <span className="view-label">{t.views.table}</span>
         </button>
       </Tooltip>
     </div>
