@@ -217,8 +217,10 @@ still going out; a log line says so. It goes through the queue, so landing does 
 deploy is logged and the card keeps "Share". The same holds for approved PR work, work closed
 without a change, and a held approval landed by the worker's next handover (the newer demo goes).
 A page out on a site this machine no longer has (renamed, or moved to another address) is not
-shared, and the card's log says so, naming that site; a page that never went out follows the
-project's site to its new address.
+shared, and the card's log says so, naming that site; so does a new page whose project names a site
+this machine lacks (the project's choice to publish on approval still holds then). Sharing again and
+withdrawing such a page say the same. A page that never went out follows the project's site to its
+new address.
 
 Where a repository lands on `main` directly, the landing commit of a card with a page names it in a
 git trailer, `Demo-Video: <url>` (`Demo-Page:` for an artifact), beside the closing trailers. The URL

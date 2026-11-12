@@ -412,7 +412,8 @@ const en = {
           ? 'Added to the page with the approval: the page gets the latest demo as an addendum.'
           : 'Replaced on the page with the approval: the page now shows the latest demo instead of the shared ones.',
     notOnApproval: 'Not shared with the approval: “Share on approval” was unticked.',
-    siteGone: (site: string) => `Not shared with the approval: the page is on ${site}, a demo site this machine no longer has. Was it renamed or moved?`,
+    siteGone: (site: string) => `the page is on ${site}, a demo site this machine no longer has. Was it renamed or moved?`,
+    projectSiteGone: (site: string) => `the project’s demo site ${site} is not among this machine’s demo sites. Was it renamed or moved?`,
     notAgain: 'Not shared again',
     notLinked: 'The link to the pull request or commit did not get onto the page',
     notShared: 'Not shared',

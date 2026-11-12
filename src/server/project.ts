@@ -465,7 +465,8 @@ export class ProjectRuntime {
         const r = this.runs(card) ? this.repoOf(card) : undefined;
         if (!r) return null;
         const path = r.info.path;
-        return { site: this.shareSite(), repo: path, title: this.board.project.name, theme: () => this.themeOf(path) };
+        const chosen = this.config.demoSite;
+        return { site: this.shareSite(), repo: path, title: this.board.project.name, theme: () => this.themeOf(path), ...(chosen ? { chosen: { url: chosen.url, ...(chosen.publish ? { publish: chosen.publish } : {}) } } : {}) };
       },
       languageFor: (card) => (this.runs(card) ? this.repoOf(card).adapter.demo?.language : undefined),
       onPage: (cardId, r) => {

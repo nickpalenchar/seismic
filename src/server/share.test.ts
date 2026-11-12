@@ -82,10 +82,13 @@ let vocabulary: DemoSite['tags'];
 let theme: Theme | null;
 /** The site's address as the project names it: another host for the same server, once a test moves it. */
 let siteUrl: string;
+/** Whether this machine lost the project's site (its entry renamed or removed), so the project resolves none. */
+let siteGone: boolean;
 const site = (): DemoSite => ({ title: 'Demos', url: siteUrl, deploy: `${join(dir, 'deploy.ts')} {dir} ${dir}`, ...(publish ? { publish } : {}), ...(vocabulary ? { tags: vocabulary } : {}) });
 
 beforeEach(() => {
   siteUrl = SITE_URL;
+  siteGone = false;
   publish = undefined;
   vocabulary = undefined;
   theme = null;
@@ -112,7 +115,15 @@ function make(repo = dir) {
     home: join(dir, 'home'),
     forge,
     // a repository with a theme and without a site still has its theme for the export
-    sourceFor: (card) => (card.title.startsWith('Without') ? (theme ? { site: null, repo, title: 'Laden', theme: () => theme } : null) : { site: { site: site(), path: '' }, repo, title: 'Laden', theme: () => theme }),
+    sourceFor: (card) =>
+      card.title.startsWith('Without')
+        ? theme
+          ? { site: null, repo, title: 'Laden', theme: () => theme }
+          : null
+        : // a site the project names that this machine no longer has: only the project's settings name it
+          siteGone
+          ? { site: null, repo, title: 'Laden', theme: () => theme, chosen: { url: siteUrl, ...(publish ? { publish } : {}) } }
+          : { site: { site: site(), path: '' }, repo, title: 'Laden', theme: () => theme },
     // the repository names English for its demos (`demo.language`) on cards so titled
     languageFor: (card) => (card.title.startsWith('In English') ? 'en' : undefined),
     onPage: (id, r) => void settled.push([id, r]),
@@ -1065,7 +1076,26 @@ describe('publishing on approval', () => {
     // the page out on the old address: no site of this machine's has it now, and its card says so
     later(d.id, 2);
     expect(sharing.approved(d.id)).toBe(`Demo-Video: ${SITE_URL}${slug(d.id)}/`);
-    expect(log(d.id).at(-1)).toBe(`Not shared with the approval: the page is on ${SITE_URL.replace(/\/$/, '')}, a demo site this machine no longer has. Was it renamed or moved?`);
+    expect(log(d.id).at(-1)).toBe(`Not shared: the page is on ${SITE_URL.replace(/\/$/, '')}, a demo site this machine no longer has. Was it renamed or moved?`);
+  });
+
+  test('a site this machine lost, so the project resolves none: approving says so, for a page out and a new one alike', async () => {
+    const c = card();
+    sharing.approved(c.id);
+    await until(() => share(c.id)?.state === 'shared');
+    later(c.id, 2);
+    const fresh = card('Filter bleiben');
+    siteGone = true;
+    siteUrl = `http://127.0.0.1:${server.port}/`;
+    expect(sharing.approved(c.id)).toBe(`Demo-Video: ${SITE_URL}${slug(c.id)}/`);
+    expect(log(c.id).at(-1)).toBe(`Not shared: the page is on ${SITE_URL.replace(/\/$/, '')}, a demo site this machine no longer has. Was it renamed or moved?`);
+    expect(sharing.approved(fresh.id)).toBeNull();
+    expect(log(fresh.id).at(-1)).toBe(`Not shared: the project’s demo site http://127.0.0.1:${server.port} is not among this machine’s demo sites. Was it renamed or moved?`);
+    // withdrawing the page out there says why too
+    sharing.unshare(c.id);
+    await until(() => share(c.id)?.state === 'shared');
+    expect(log(c.id).at(-1)).toBe(`Not withdrawn: the page is on ${SITE_URL.replace(/\/$/, '')}, a demo site this machine no longer has. Was it renamed or moved?`);
+    expect(calls()).toHaveLength(1);
   });
 
   test('a site that publishes only on "Share" puts nothing out; a page shared before still goes into the trailer', async () => {

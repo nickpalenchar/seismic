@@ -94,6 +94,11 @@ export interface ShareSource {
   title: string;
   /** Its theme for the pages (`.obeya/theme.css`, theme.ts), asked for once a page goes out; none where it has none. */
   theme?: () => Theme | null;
+  /**
+   * The demo site the project names, as its settings say, though this machine no longer has it
+   * (`site` is null then): its address, and when its demos go out.
+   */
+  chosen?: { url: string; publish?: DemoSite['publish'] };
 }
 
 /**
@@ -251,10 +256,8 @@ export class Sharing {
       }
       else this.onPage(cardId);
     } else if (!target && this.publishesOnApproval(card)) {
-      // a page on a site this machine no longer has (renamed, or moved to another address) says so
-      const s = this.stored(cardId);
-      const on = s?.site ?? s?.url;
-      if (on) this.o.board.log(cardId, 'error', 'obeya', this.o.board.t.share.siteGone(on));
+      const gone = this.siteGone(card);
+      if (gone) this.o.board.log(cardId, 'error', 'obeya', `${this.o.board.t.share.notShared}: ${gone}`);
     }
     // the page as it is about to be, or as it is
     const page = this.stored(cardId);
@@ -601,6 +604,8 @@ export class Sharing {
       // the page as it is: a newer demo on the card waits for "Replace on the page" or "Add to the page"
       demos = sharedDemos(s);
       if (!demos.length || !target) {
+        const gone = target ? null : this.siteGone(card);
+        if (gone) return back(gone);
         if (s.again) return back(t.demoGone);
         this.set(cardId, atRest(s));
         this.o.board.log(cardId, 'activity', 'obeya', t.linkLater);
@@ -611,7 +616,7 @@ export class Sharing {
       // the versions the owner chose; a share from before them (until 2026-10-16) meant the latest demo
       const latest = this.demo(cardId);
       const want = s.next ?? (latest ? [refOf(latest)] : []);
-      if (!want.length || !target) return back(t.noDemo);
+      if (!want.length || !target) return back((!target && this.siteGone(card)) || t.noDemo);
       demos = [];
       for (const ref of want) {
         const kept = s.url ? sharedDemos(s).find((d) => sameDemo(d, ref)) : undefined;
@@ -710,7 +715,10 @@ export class Sharing {
     };
     const target = this.target(card);
     const t = this.o.board.t.share;
-    if (!target) return back(t.notWithdrawnNoShare);
+    if (!target) {
+      const gone = this.siteGone(card);
+      return back(gone ? t.notWithdrawn(gone) : t.notWithdrawnNoShare);
+    }
     const r = await target.withdraw(pathOf(s), this.others(cardId, target.key), (text) => this.o.board.log(cardId, 'activity', 'obeya', text));
     this.lost(target.key, r.gone);
     if (r.why) return back(r.why, r.said);
@@ -993,9 +1001,31 @@ export class Sharing {
     });
   }
 
-  /** Whether approving the card puts its latest demo on its page: its project's site publishes on approval. */
+  /**
+   * Whether approving the card puts its latest demo on its page: its project's site publishes on
+   * approval, as the project's settings say, also where this machine no longer has that site.
+   */
   private publishesOnApproval(card: Item): boolean {
-    return this.o.sourceFor(card)?.site?.site.publish === 'approved';
+    const src = this.o.sourceFor(card);
+    return (src?.site?.site.publish ?? src?.chosen?.publish) === 'approved';
+  }
+
+  /**
+   * Why the card's page has no site to go to, where that site is gone from this machine (renamed,
+   * or moved to another address): the page's, once it is out or going out, else the project's.
+   * Null where it has one, or lacks it for another reason (no site chosen, the env file missing).
+   */
+  private siteGone(card: Item): string | null {
+    const s = this.stored(card.id);
+    const sites = this.o.sites?.() ?? readSites(this.o.home);
+    const t = this.o.board.t.share;
+    if (s?.url || (s?.site && s.state)) {
+      const known = s.site ? sites.some((x) => x.url === s.site) : sites.some((x) => s.url!.startsWith(`${x.url}/`));
+      return known ? null : t.siteGone(s.site ?? s.url!);
+    }
+    const src = this.o.sourceFor(card);
+    const url = src?.chosen?.url.replace(/\/+$/, '');
+    return !src?.site && url && !sites.some((x) => x.url === url) ? t.projectSiteGone(url) : null;
   }
 
   /**
