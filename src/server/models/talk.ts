@@ -2,7 +2,7 @@ import { and, asc, desc, eq, getTableColumns, inArray, isNotNull, isNull, sql } 
 import { alias, index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { currentAgent } from '../agent-identity';
 import type { Place } from '../../core/layout';
-import type { AgentIdentity, AnswerFile, Talk as TalkView, TalkAfter, TalkMoved, TalkQuote, TalkRef, TalkWait } from '../../core/types';
+import type { AgentIdentity, AnswerFile, Talk as TalkView, TalkAfter, TalkMade, TalkMoved, TalkQuote, TalkRef, TalkWait } from '../../core/types';
 import type { Wish } from '../../core/wish';
 import { cards } from './cards/cards';
 import { chats } from './chats';
@@ -56,6 +56,7 @@ export const talk = sqliteTable(
     thenPlace: text('then_place', { mode: 'json' }).$type<Place>(),
     chat: integer().references(() => chats.id),
     arrived: integer(),
+    made: text({ mode: 'json' }).$type<TalkMade[]>(),
   },
   (t) => [index('talk_chat').on(t.chat, t.id)],
 );
@@ -95,6 +96,7 @@ const toTalk = (r: TalkRecord): TalkView => ({
   ...(r.afterAnswer ? { answered: r.afterAnswer } : {}),
   ...(r.chat ? { chat: r.chat } : {}),
   ...(r.arrived ? { arrived: r.arrived } : {}),
+  ...(r.made ? { made: r.made } : {}),
 });
 
 /** The exchange a thread's exchange belongs to: the one that started its thread. */
@@ -184,6 +186,11 @@ export class Talk {
       .orderBy(talk.id)
       .all()
       .map((r) => ({ ...toTalk(r), held: r.held! }));
+  }
+
+  /** The cards the exchange's actions created, once they ran. */
+  made(id: number, made: TalkMade[]) {
+    this.db.update(talk).set({ made: made.length ? made : null }).where(eq(talk.id, id)).run();
   }
 
   /** The cards the Koordinator waits on after the exchange's reply; none once it no longer waits on any. */

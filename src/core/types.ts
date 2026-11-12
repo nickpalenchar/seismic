@@ -1823,6 +1823,15 @@ export interface Talk {
    * (`question` is the words), so Seismic has no reply of its own to them.
    */
   askedIn?: string;
+  /** The cards its actions created, once they ran: the conversation shows each as an action with its cover. */
+  made?: TalkMade[];
+}
+
+/** A card an exchange's actions created, with its title then (`project`, when it went onto another project). */
+export interface TalkMade {
+  card: string;
+  title: string;
+  project?: string;
 }
 
 /** A card that moved to another project: its id and title, and that project. */

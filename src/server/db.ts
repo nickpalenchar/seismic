@@ -725,6 +725,8 @@ export const MIGRATIONS = [
    ALTER TABLE cards DROP COLUMN waiting_since;`,
   // the order the Koordinator's replies and answers were written in, one place for each exchange (null on those from before)
   'ALTER TABLE talk ADD COLUMN arrived INTEGER;',
+  // the cards an exchange's actions created, which the conversation shows each with its cover
+  'ALTER TABLE talk ADD COLUMN made TEXT;',
 ];
 
 /**

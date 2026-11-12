@@ -1152,6 +1152,9 @@ const en = {
     doneHint: 'Puts the card into the archive; it can come back from there.',
   },
   koordinator: {
+    /** Above the cover of a card Seismic's actions created, in its chat. */
+    madeTask: 'Created a task',
+    madeIdea: 'Created an idea',
     button: 'Seismic',
     buttonTitle: 'Seismic (C)',
     title: 'Seismic',

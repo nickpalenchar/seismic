@@ -146,10 +146,10 @@ describe('the Koordinator remembers', () => {
     ]);
   });
 
-  test('once the commands ran, the page hears which cards they made, so the confirmation offers to go to them', async () => {
+  test('once the commands ran, the page hears which cards they made, so the confirmation offers to go to them, and the conversation shows them', async () => {
     const notices: Notice[] = [];
     board.onNotice((n) => void notices.push(n));
-    const k = new Commander({ board, runtime, cwd: '/r', execute: (c) => (c.do === 'newCard' ? `id-${c.title}` : undefined), delayMs: 20 });
+    const k = new Commander({ board, runtime, cwd: '/r', execute: (c) => (c.do === 'newCard' || c.do === 'newIdea' ? `id-${c.title}` : undefined), delayMs: 20 });
     const { heard } = await say(k, 'new tasks login and dates elsewhere', 'act', {
       actions: [
         { do: 'new_card', title: 'Login', body: 'Login.' },
@@ -160,7 +160,9 @@ describe('the Koordinator remembers', () => {
     k.arm(heard.token!);
     expect(notices).toEqual([]);
     await new Promise((r) => setTimeout(r, 40));
-    expect(notices).toEqual([{ text: heard.confirm, token: heard.token!, made: [{ id: 'id-Login', title: 'Login' }] }]);
+    const made = [{ id: 'id-Login', title: 'Login' }, { id: 'id-Logout', title: 'Logout' }];
+    expect(notices).toEqual([{ text: heard.confirm, token: heard.token!, made }]);
+    expect(board.snapshot().talk.at(-1)?.made).toEqual([{ card: 'id-Login', title: 'Login' }, { card: 'id-Logout', title: 'Logout' }]);
   });
 
   test('a command in its undo window outlives a restart: the next server runs it once the window is over', async () => {

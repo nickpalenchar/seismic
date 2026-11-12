@@ -2607,7 +2607,7 @@ export class ProjectRuntime {
     return card;
   }
 
-  /** A voice (or typed) command, once its undo window has passed; a new card's id, for a wait on it in the same command. */
+  /** A voice (or typed) command, once its undo window has passed; a new card's or idea's id, for a wait on it in the same command. */
   run(c: Command) {
     switch (c.do) {
       case 'newCard':
@@ -2646,7 +2646,7 @@ export class ProjectRuntime {
         this.board.log(card.id, 'state', 'owner', this.board.t.voice.created);
         // the agent opens the discussion with what the owner said
         this.explorers.discuss(card.id, c.body.trim() || c.title, true, this.images.resolve(c.images));
-        return;
+        return card.id;
       }
       case 'discuss':
         return this.act(c.card, { action: 'discuss', text: c.text, spoken: c.spoken ?? true, ...(c.images ? { images: c.images } : {}) });

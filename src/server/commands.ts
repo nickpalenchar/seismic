@@ -556,12 +556,14 @@ export class Commander {
       const cards: NonNullable<Notice['made']> = [];
       for (const command of w.commands) {
         const id = await this.run(command, w.talk, made);
-        if (id && command.do === 'newCard') {
+        if (id && (command.do === 'newCard' || command.do === 'newIdea')) {
           made.set(command.title, id);
           cards.push({ id, title: command.title, ...(command.project ? { project: command.project } : {}) });
         }
       }
       this.waiting.delete(token);
+      // the conversation shows each card they made, apart from Seismic's words
+      if (cards.length) this.o.board.madeTalk(w.talk, cards.map(({ id, ...c }) => ({ card: id, ...c })));
       // the confirmation's line offers to go to the cards it made, now that they are there
       if (cards.length) this.o.board.notify({ text: w.confirm, token, made: cards, ...(w.card ? { cardId: w.card } : {}) });
     }, Math.max(0, due - Date.now()));
@@ -582,7 +584,7 @@ export class Commander {
 
   /**
    * Runs one command; what it throws is logged on its card. Returns the id of the card a new card
-   * command created, for a wait in the same command (`made`, by title) to name; `talk` is the
+   * or idea command created, for a wait in the same command (`made`, by title) to name; `talk` is the
    * exchange the command came from.
    */
   private async run(command: Command, talk?: number, made = new Map<string, string>()): Promise<string | undefined> {
@@ -590,7 +592,7 @@ export class Commander {
       if (command.do === 'waitFor') return void this.waitFor(command, talk, made);
       if (command.do === 'stopWaiting') return void this.stopWaiting(command.card);
       const r = await this.o.execute(command);
-      return command.do === 'newCard' && typeof r === 'string' ? r : undefined;
+      return (command.do === 'newCard' || command.do === 'newIdea') && typeof r === 'string' ? r : undefined;
     } catch (e) {
       const card = 'card' in command ? command.card : undefined;
       if (card) this.o.board.log(card, 'error', 'obeya', messageOf(e), { code: e instanceof BadRequest ? e.code : undefined });

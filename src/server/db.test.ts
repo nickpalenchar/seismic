@@ -36,6 +36,7 @@ const MOVED = [
 function withoutNeedsYou(db: Database) {
   db.run('DROP TABLE IF EXISTS needs_you');
   if (db.query("SELECT 1 FROM pragma_table_info('talk') WHERE name = 'arrived'").get()) db.run('ALTER TABLE talk DROP COLUMN arrived');
+  if (db.query("SELECT 1 FROM pragma_table_info('talk') WHERE name = 'made'").get()) db.run('ALTER TABLE talk DROP COLUMN made');
   if (db.query("SELECT 1 FROM pragma_table_info('cards') WHERE name = 'waiting_since'").get()) return;
   db.run('ALTER TABLE cards ADD COLUMN waiting_since TEXT');
   db.run('CREATE INDEX cards_waiting ON cards (project_id) WHERE waiting_since IS NOT NULL');

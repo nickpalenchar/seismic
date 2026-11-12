@@ -246,6 +246,12 @@ paragraph, each blank line an empty line as typed, lists, tables, code, nested q
 docs' parser), a taken-back reply struck through, bare web addresses as links without `https://`
 and without the sentence's punctuation after them.
 
+A task or idea the Koordinator's actions created stands under its reply as an action of its own, set
+apart from what is said as a card's follow-up is (see Conversation on the card): "Seismic · Created a
+task" (or "an idea") above the new card's live cover, one for each card, which opens it in place (on
+another project, there); a card gone from the project shows the title it had. It appears once the
+undo window is over and the card exists, so a command taken back leaves none.
+
 ### Work retrospective
 
 Seismic looks back at how the workers worked, to make future runs cheaper: detours where a worker went
@@ -531,6 +537,11 @@ passed the words on through `to_seismic` hears that the owner finds the link und
   exists because 10 cards made the first improvements late.
 - **The sheet's conversation looks like a card's** (2026-10-09): one look and one field for every
   conversation.
+- **Cards the chat created stand as actions with their cover** (owner, 2026-11-12): the confirmation
+  alone read as one more message, and the card had to be found on the project. The same action as a
+  card's follow-up, so both conversations show a made card one way. Rejected: replacing the
+  confirmation with the cover, since it also says what else happened (the agent starts, a card was
+  approved).
 - **A look-up is a thread with files** (2026-10-14). Rejected: one-shot look-ups whose follow-ups
   started over, and markdown-only answers written in the read checkout, where files would be left as
   uncommitted changes.

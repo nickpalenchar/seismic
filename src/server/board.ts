@@ -91,6 +91,7 @@ import {
   plannedToStart,
   snoozeOf,
   type Notice,
+  type TalkMade,
   type WorkerTurn,
 } from '../core/types';
 import type { ActivityRow } from './models/activity';
@@ -1395,6 +1396,12 @@ export class Board {
   /** The words the usage limit holds, oldest first: after a restart, the Koordinator reads them once it lifts. */
   heldTalk() {
     return this.store.talk.held(this.project.id);
+  }
+
+  /** The cards the exchange's actions created, for its conversation to show. */
+  madeTalk(id: number, made: TalkMade[]) {
+    this.store.talk.made(id, made);
+    this.changed();
   }
 
   /** The cards the Koordinator waits on after the exchange's reply, to take a step once each gets there. */

@@ -102,7 +102,8 @@ Persistent (SQLite):
 - the Koordinator's conversation with the owner, split into chats (each exchange in one; the
   chat opened last per project is where new words go), and the threads of looked-up questions (the
   question, its answer and files, the card it moved onto, the step to take once the answer is in),
-  and the cards that left the project for another;
+  the cards each exchange's actions created (id, title then, other project), and the cards that
+  left the project for another;
 - confirmed commands waiting out their undo window;
 - shared demo pages (slug, link, what the page shows, the change it was published after, whether it
   is publishing or withdrawing) and a running re-share of outdated pages;

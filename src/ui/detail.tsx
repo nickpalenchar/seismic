@@ -1,5 +1,5 @@
 import { noteClass } from './components/ai/message';
-import { Car, Check, Lightbulb, ChevronDown, ChevronLeft, ChevronRight, Pencil, Maximize, MessageSquare, Minimize, PanelRightClose, PanelRightOpen, Play, Plus, Share, SquarePlus, ZoomIn, ZoomOut } from 'lucide-react';
+import { Car, Check, Lightbulb, ChevronDown, ChevronLeft, ChevronRight, Pencil, Maximize, MessageSquare, Minimize, PanelRightClose, PanelRightOpen, Play, Plus, Share, ZoomIn, ZoomOut } from 'lucide-react';
 import { clientExtensions as extensions } from '../extensions/client';
 // The unfolded card: what it is, what its worker does, and what the owner decides.
 
@@ -47,6 +47,7 @@ import { ClockMark, SnoozeLine, SnoozeMenu, snoozeWho } from './snooze';
 import { clock as time, errorText, failText, mergeProposed, shortDay, snoozeWhen, stateLabel, stoppedAtOf, t } from './strings';
 import { agentWorks, cardTalk, demoHandover, talkState, koordinatorReads, ownerField, parseQuestion, snoozeLine, talkAlone, type Turn, unseenTurns, waitsFirstStart, worked as isWorked } from './talk';
 import { PageChangeList } from './page-changes';
+import { MadeCover } from './made';
 import { WishReplyLink } from './wish';
 import { claudeLoginFailed } from '../core/login';
 import { Reauthenticate } from './reauthenticate';
@@ -1812,66 +1813,22 @@ function Line({ turn, snoozed, explained, ...rest }: { turn: Turn; snoozed?: Ite
   );
 }
 
-/**
- * A card made from this conversation, set apart from what is said: a proposal or follow-up,
- * as a compact cover that opens it by its address (in place, as a card named in a text
- * does). A card on another project opens there; one gone from the project shows its title, not a link.
- */
+/** A card made from this conversation: a proposal of its agent's, or a follow-up Seismic made. */
 function Made({ e, fresh }: { e: CardEvent; fresh?: boolean }) {
   const cards = useContext(Cards);
-  const made = e.made!;
   const proposed = e.author === 'worker';
-  const [elsewhere, setElsewhere] = useState<Item | null>();
-  // A proposal can be accepted or withdrawn on its other project. Refresh when this conversation
-  // changes (the proposing agent retracts it), and when returning from another tab's decision.
-  useEffect(() => {
-    if (!made.project) return;
-    let active = true;
-    let latest = 0;
-    const refresh = () => {
-      const request = ++latest;
-      return api.project(made.project!).then(
-        (snapshot) => { if (active && request === latest) setElsewhere(snapshot.items.find((i) => i.id === made.card) ?? null); },
-        () => { if (active && request === latest) setElsewhere(null); },
-      );
-    };
-    void refresh();
-    const events = onCardEvent((event) => { if (event.cardId === e.cardId) void refresh(); });
-    const reconnect = onReconnect(refresh);
-    window.addEventListener('focus', refresh);
-    return () => { active = false; events(); reconnect(); window.removeEventListener('focus', refresh); };
-  }, [made.project, made.card, e.cardId]);
-  const card = made.project ? elsewhere : cards.items.find((i) => i.id === made.card);
-  const who = (
-    <>
-      <SquarePlus className="action-mark" size={13} strokeWidth={1.75} aria-hidden="true" />
-      {t.author[e.author]} · {proposed ? t.talk.proposedNewCard : t.talk.madeFollowUp}
-    </>
-  );
-  const bare = (note: string) => (
-    <>
-      <div className="ttl">{plain(made.title)}</div>
-      <div className="meta">{note}</div>
-    </>
-  );
   return (
-    <Msg by="obeya" className={['action', fresh && 'fresh'].filter(Boolean).join(' ')} who={who} at={e.at} ev={e.id}>
-      {card && !card.archivedAt ? (
-        <a
-          className={`${cardClass(card)} cover`}
-          href={cardPath(made.project ?? projectOf(card.id), card)}
-          onClick={(m) => {
-            if (made.project || m.button || m.metaKey || m.ctrlKey || m.shiftKey || m.altKey) return;
-            m.preventDefault();
-            cards.open(card);
-          }}
-        >
-          <CardFace item={card} />
-        </a>
-      ) : (
-        <div className="card cover gone">{bare(made.project && elsewhere === undefined ? t.talk.madeElsewhere : t.talk.madeGone)}</div>
-      )}
-    </Msg>
+    <MadeCover
+      made={e.made!}
+      who={t.author[e.author]}
+      what={() => (proposed ? t.talk.proposedNewCard : t.talk.madeFollowUp)}
+      at={e.at}
+      ev={e.id}
+      fresh={fresh}
+      items={cards.items}
+      open={cards.open}
+      watch={e.cardId}
+    />
   );
 }
 

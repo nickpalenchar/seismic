@@ -30,6 +30,7 @@ import { ClockMark } from './snooze';
 import { know, known } from './known';
 import { cardPath, switchTo } from './address';
 import { CardLink, Naming } from './cardLink';
+import { MadeCover } from './made';
 import { scrollBehavior } from './motion';
 import { Button, CloseButton } from './components/button';
 import { Textarea } from './components/input';
@@ -305,6 +306,10 @@ function Conversation({ talk, fresh, items, onOpen, draft, sheetOf }: { talk: Ta
                 {x.waits?.map((w) => <WaitLine key={w.card} talk={x.id} wait={w} card={items.find((i) => i.id === w.card)} onOpen={onOpen} />)}
               </Msg>
             )}
+            {/* the cards its actions created, each an action of its own with the card's cover, apart from what is said */}
+            {!x.undone && x.made?.map((m) => (
+              <MadeCover key={m.card} made={m} who={t.author.koordinator} what={(c) => (c?.state === 'idea' ? t.koordinator.madeIdea : t.koordinator.madeTask)} items={items} open={onOpen} />
+            ))}
             {/* a line leads to the Question card the thread goes on at */}
             {card ? (
               <div className="moved mt-0.5 mb-2">
