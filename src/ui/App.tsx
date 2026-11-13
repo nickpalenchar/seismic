@@ -1628,9 +1628,18 @@ function Project({
   function removeDependency(from: string, to: Item) {
     const key = `${from}:${to.id}`;
     if (!(to.queue && 'behind' in to.queue && to.queue.behind.includes(from))) {
+      // gone from the canvas at once, not when the snapshot comes back
+      setRemoving((r) => [...r, { key, sent: true }]);
       api.dependency(from, to.id, true).then(
-        () => showAck(t.deps.removed, () => api.dependency(from, to.id).catch(fail)),
-        fail,
+        () =>
+          showAck(t.deps.removed, () => {
+            setRemoving((r) => r.filter((x) => x.key !== key));
+            api.dependency(from, to.id).catch(fail);
+          }),
+        (e) => {
+          setRemoving((r) => r.filter((x) => x.key !== key));
+          fail(e);
+        },
       );
       return;
     }
@@ -2347,7 +2356,9 @@ function Project({
   const sheetKids = !sheetPlan ? [] : sheetPlan.archivedAt ? archived.filter((i) => i.parent === sheetPlan.id) : (kidsOf.get(sheetPlan.id) ?? []);
   // on touch nothing hovers: the card picked up and let go stands in for the one under the pointer
   const hovered = touchy ? touchFocus : hoverId;
-  const deps = useMemo(() => (hovered && !panning && !dragId ? depsOf(hovered, items) : undefined), [hovered, panning, dragId, items]);
+  const hoveredDeps = useMemo(() => (hovered && !panning && !dragId ? depsOf(hovered, items) : undefined), [hovered, panning, dragId, items]);
+  // the lines lit around the hovered card leave with an arrow the owner removed, too
+  const deps = useMemo(() => (hoveredDeps && removing.length ? { ...hoveredDeps, edges: hoveredDeps.edges.filter(([from, to]) => !removing.some((x) => x.key === `${from}:${to}`)) } : hoveredDeps), [hoveredDeps, removing]);
   const waits = useMemo(() => waitsAmong(items), [items]);
   const settled = useMemo(() => settledAmong(items), [items]);
   const waitKeys = useMemo(() => new Set([...waits, ...settled.map((d): [string, string] => [d.from, d.to])].map(([from, to]) => `${from}:${to}`)), [waits, settled]);
