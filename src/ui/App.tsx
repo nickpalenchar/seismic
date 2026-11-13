@@ -2356,16 +2356,30 @@ function Project({
   const sheetKids = !sheetPlan ? [] : sheetPlan.archivedAt ? archived.filter((i) => i.parent === sheetPlan.id) : (kidsOf.get(sheetPlan.id) ?? []);
   // on touch nothing hovers: the card picked up and let go stands in for the one under the pointer
   const hovered = touchy ? touchFocus : hoverId;
-  const hoveredDeps = useMemo(() => (hovered && !panning && !dragId ? depsOf(hovered, items) : undefined), [hovered, panning, dragId, items]);
-  // the lines lit around the hovered card leave with an arrow the owner removed, too
-  const deps = useMemo(() => (hoveredDeps && removing.length ? { ...hoveredDeps, edges: hoveredDeps.edges.filter(([from, to]) => !removing.some((x) => x.key === `${from}:${to}`)) } : hoveredDeps), [hoveredDeps, removing]);
-  const waits = useMemo(() => waitsAmong(items), [items]);
-  const settled = useMemo(() => settledAmong(items), [items]);
+  // what the cards wait for with the arrows the owner is removing taken out at once: only the arrow
+  // goes, a wait of another kind between the same cards stays, and every line derives from this
+  const effective = useMemo(() => {
+    if (!removing.length) return items;
+    const gone = new Set(removing.map((x) => x.key));
+    return items.map((i) => {
+      const drawn = i.plan?.manualDependsOn?.filter((from) => !gone.has(`${from}:${i.id}`));
+      const q = i.queue;
+      const held = q && 'behind' in q ? q.behind.filter((from) => !(q.manualWait?.includes(from) && gone.has(`${from}:${i.id}`))) : undefined;
+      const same = drawn?.length === i.plan?.manualDependsOn?.length && (!q || !('behind' in q) || held!.length === q.behind.length);
+      if (same) return i;
+      return {
+        ...i,
+        ...(i.plan && drawn && { plan: { ...i.plan, manualDependsOn: drawn } }),
+        ...(q && 'behind' in q && { queue: { ...q, behind: held! } }),
+      };
+    });
+  }, [items, removing]);
+  const deps = useMemo(() => (hovered && !panning && !dragId ? depsOf(hovered, effective) : undefined), [hovered, panning, dragId, effective]);
+  const waits = useMemo(() => waitsAmong(effective), [effective]);
+  const settled = useMemo(() => settledAmong(effective), [effective]);
   const waitKeys = useMemo(() => new Set([...waits, ...settled.map((d): [string, string] => [d.from, d.to])].map(([from, to]) => `${from}:${to}`)), [waits, settled]);
-  // the waits shown as lines: those the owner is removing go at once
-  const notRemoving = ([from, to]: [string, string]) => !removing.some((x) => x.key === `${from}:${to}`);
-  const shownSettled = settled.filter((d) => notRemoving([d.from, d.to]));
-  const shownWaits = waits.filter(([from, to]) => !removing.some((x) => x.key === `${from}:${to}`));
+  const shownSettled = settled;
+  const shownWaits = waits;
   // a line only for the waits no chain of others already implies, finished ones taken together with open ones
   const lineKeys = useMemo(
     () => new Set(withoutImplied([...shownWaits, ...shownSettled.map((d): [string, string] => [d.from, d.to])]).map(([from, to]) => `${from}:${to}`)),
