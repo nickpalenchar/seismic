@@ -87,7 +87,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background-color: var(--
    and the cards take the tint they have zoomed out (card/faceClasses.ts) */
 :root[data-motion="reduce"] { --glass: var(--panel); }
 
-/* a workstation's dot whose card is at work, in review or landing (parts.tsx `wsDot`, the dot's colour in
+/* a workstation's dot whose card is at work, in review or landing (workstations.tsx `wsDot`, the dot's colour in
    --c): its fill and glow pulse slowly while the outline stays. Here rather than in tailwind.css, whose
    build empties keyframes that mix a per-element colour */
 @keyframes ws-pulse {

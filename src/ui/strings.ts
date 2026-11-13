@@ -1414,6 +1414,23 @@ const en = {
     notAnswering: (since: string) => `Seismic is not answering · since ${since}`,
     notAnsweringWhy: 'The computer may be asleep, or Seismic is not running there. The page connects again as soon as it answers.',
     gone: 'This card no longer exists.',
+    /** The phone view that shows one project at a time (`?view=phone-next`). */
+    next: {
+      menu: 'Menu',
+      switchProject: 'Switch project',
+      working: (n: number) => (n ? `${n} working` : 'No agent working'),
+      showWorking: 'Show the cards agents are on',
+      hideWorking: 'Hide the cards agents are on',
+      sections: { queued: 'Queued', planned: 'Planned', parked: 'Parked', done: 'Done' },
+      loadMore: (n: number) => `Load more (${n})`,
+      none: 'Nothing queued or planned in this project.',
+      chat: 'Chat with Seismic',
+      search: 'Search cards',
+      needsYou: 'Needs you',
+      needsYouCount: (n: number) => (n === 1 ? '1 thing waits for you' : `${n} things wait for you`),
+      soon: 'Coming soon',
+      close: 'Close card',
+    },
     notify: {
       install: 'For Seismic to tell you when something waits for you: tap “Share” below, then “Add to Home Screen”, and open Seismic from there.',
       why: 'Seismic tells you when something waits for you and you are away from the computer.',

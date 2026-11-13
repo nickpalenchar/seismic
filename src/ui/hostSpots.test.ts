@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import type { Item, PoolHost } from '../core/types';
-import { atWorkOn, hostSpots } from './parts';
+import { atWorkOn, hostSpots } from './workstations';
 
 const card = (id: string, more: Partial<Item> = {}) => ({ id, short: id, title: id, body: '', state: 'working', ...more }) as Item;
 const host = (more: Partial<PoolHost>): PoolHost => ({ name: 'here', worktrees: true, slots: 1, total: 1, cards: [], busy: [], workstations: [], ...more });

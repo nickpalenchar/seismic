@@ -22,7 +22,7 @@ Replace the phone view's four tabs with a layout built for one project at a time
 - Search: a full-screen search over the project's cards, the phone's version of the desktop's `/`.
 - Needs you: what waits across all projects, each entry naming its project, with the inbox's quick replies. The bell carries the count across all projects.
 
-**Open card.** Full screen with an X at the top (Back still works), no floating bar, the microphone as today. Its conversation stays the panel it is today; it may become a full page later, once the chat page exists.
+**Open card.** Below the top bar, which stays, with an X in it in place of the usage pills (Back still works), no floating bar, the microphone as today. Its conversation stays the panel it is today; it may become a full page later, once the chat page exists.
 
 **Decisions (owner, 2026-11-12).** Push-to-talk lives only in the chat page and on an open card; the list and the floating bar have no microphone. Parked and Done become folded sections at the end of the list; the queue's drag-to-reorder and the Activity log are not carried over and stay on the desktop (read from the owner's answer; they say so if either should stay). The view shows one project at a time; Needs you still covers every project.
 
@@ -35,7 +35,7 @@ Replace the phone view's four tabs with a layout built for one project at a time
 ## Workstreams
 
 - [x] **W1:** Move shared behaviour out of `phone.tsx`. Keyboard detection, the "first tap acts" handling, one WebSocket per project, the connection banner, the push-notification prompt, the landscape strip, video full screen and swipe-away toasts move into modules both views use. No visible change; the existing phone checks still pass.
-- [ ] **W2:** The new shell under `?view=phone-next`. Top bar with project switcher (remembered per browser) and scrolling usage pills; the working box with its rows taken out of `WorkstationsPill` into a shared part; the sections with "Load more"; the floating bar (Menu, Chat, Search and Needs you may still be inert); an open card with X; New card works here. Lands after W1.
+- [x] **W2:** The new shell under `?view=phone-next`. Top bar with project switcher (remembered per browser) and scrolling usage pills; the working box with its rows taken out of `WorkstationsPill` into a shared part; the sections with "Load more"; the floating bar (Menu, Chat, Search and Needs you may still be inert); an open card with X; New card works here. Lands after W1.
 - [ ] **W3:** Menu sheet and Needs you page. The menu as a full-height sheet with the desktop menu's content trimmed for the phone (including the project switcher), and the Needs you page across projects with project names, quick replies and the bell count; opening a card from another project switches the top bar's project. Lands after W2, can run beside W4.
 - [ ] **W4:** Chat page and search page. The full-screen Seismic chat with chat history and microphone for the project in view, replacing the draggable panel for Seismic's chat; the full-screen search over the project's cards. Lands after W2, can run beside W3.
 - [ ] **W5:** Switch the default. `?view=phone` shows the new view, the old one stays at `?view=phone-old`; rewrite "The phone view" in `docs/design/running-obeya.md` to describe the new view, and check the README and the phone screenshots of the release. Lands after W3 and W4.
@@ -55,3 +55,18 @@ video, and `Toasts` with `aside` for swipe dismissal; those already live outside
 Seismic conversations. It owns the keyboard/landscape panel layout, drag/glide/close handling,
 late composer focus, and `--ph-field`/`--ph-panel` measurement and cleanup. Open-card shells use
 `usePhoneCardPanel` with their page ref for the initial half panel and video scroll adjustment.
+
+## The new shell (W2)
+
+`phoneShell.tsx` holds the controller both views run (`usePhoneShell`): the project feeds, what is
+open as history steps, edits of the open card, a new card, push-to-talk, confirmations, and the
+open card full screen (`cardScreen(header, above)`: the old view passes its Back bar, the new one
+its top bar, which stays over the card with an X in place of the usage pills, the card starting
+right below it). `follow: true` (the new view) makes the project of an opened card the one in view
+and writes the project in view into the address, so a reload stays on it; the project in view is
+remembered under the key the old view used for its Seismic conversation. `phoneNext.tsx` is the
+new view under `?view=phone-next`; its Menu (the sign and the bar's first button), Chat, Search and
+Needs you buttons are still disabled for W3 and W4, the bell already counts across projects. The
+working box's rows are `WorkingRows`/`WorkstationRow` in `workstations.tsx`, the status bar's pill
+uses the same parts. A section's "Load more" count starts again at 20 when the project changes;
+folded sections and the box's fold are remembered per browser.

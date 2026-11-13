@@ -1,0 +1,291 @@
+// The phone view for one project at a time (`?view=phone-next`, beside the phone view it is to
+// replace): a slim top bar with Seismic's sign, the project in view and its switcher, and the usage
+// pills scrolling under it; a box "N working" with the workstation dots, which unfolds to the cards
+// agents are on; the project's other cards in sections (Queued, Planned, then Parked and Done
+// folded), twenty at a time; and a floating bar along the foot with Menu, Chat, New card, Search and
+// Needs you. A card opens full screen with an X at the top and no floating bar; its conversation is
+// the panel both phone views share (`phoneShell.tsx`).
+
+import { Bell, ChevronDown, Menu, Plus, Search, X } from 'lucide-react';
+import { useState } from 'react';
+import { finishedArchivable, halted, inParkingLot, type Item, needsYou, type ProjectInfo, snoozeOf, type Usage } from '../core/types';
+import { agentStage, agentWork } from '../core/agents';
+import { queueOrder } from '../core/queue';
+import { useStoredState } from './stored';
+import { Sign } from './logo';
+import { Notify } from './notify';
+import { failText, t } from './strings';
+import { UsagePill } from './usage';
+import { runs } from './talk';
+import { Badge } from './components/badge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './components/collapsible';
+import { TalkIcon } from './parts';
+import { WorkingRows, WorkstationDots } from './workstations';
+import { api, ApiError } from './api';
+import { needsYouCount } from '../core/inbox';
+import { plain } from './markdown';
+import { cn } from 'cn';
+import { pageBarClass, pageClass, viewClass } from './phoneEnvironment';
+import { CardList, sectionClass, usePhoneShell } from './phoneShell';
+import { HoldToTalk } from './voice';
+
+/** The sections of the list, in their order; those folded until the owner unfolds them. */
+const SECTIONS = ['queued', 'planned', 'parked', 'done'] as const;
+type Section = (typeof SECTIONS)[number];
+const FOLDED: Section[] = ['parked', 'done'];
+/** How many cards a section shows before "Load more", and how many more each tap brings. */
+const PAGE = 20;
+
+export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
+  const s = usePhoneShell(loaded, { follow: true });
+  const { projects, snaps, usage, feeds, banner, open, openCard, obeyaId, setObeyaProject, entries, isUnderway, homeRef, newCard, making, made, press, acks, back, showAck } = s;
+  const [workingOpen, setWorkingOpen] = useStoredState('obeya-phone-working-open', true);
+  const [folded, setFolded] = useStoredState<Section[]>('obeya-phone-folded', FOLDED);
+  // how many cards each section shows; back to the first twenty with another project
+  const [shown, setShown] = useState<{ project: string; n: Partial<Record<Section, number>> }>({ project: obeyaId, n: {} });
+  const shownOf = (x: Section) => (shown.project === obeyaId ? shown.n[x] : undefined) ?? PAGE;
+
+  // an open card goes right up to the bottom of the top bar, which stays, with the X in place of the usage pills
+  if (open)
+    return s.cardScreen(
+      null,
+      <div className={cn(viewClass, 'inset-x-0 top-0 z-30')} ref={measureTop}>
+        <TopBar projects={projects} project={obeyaId} usage={usage} onClose={back} />
+      </div>,
+    );
+
+  const snap = snaps[obeyaId];
+  const project = projects.find((c) => c.id === obeyaId)!;
+  const items = snap?.items ?? [];
+  const entriesOf = (i: Item) => ({ item: i, project });
+  // what needs the owner waits under the bell, not in the list
+  const inInbox = new Set(entries.flatMap((e) => (e.card ? [e.card.id] : [])));
+  const listed = (i: Item) => !inInbox.has(i.id) && !i.archivedAt;
+  // the cards agents are on; one whose agent is paused or snoozed stands in the box after them, but no agent works on it
+  const onIt = [...agentWork(items, isUnderway).working, ...items.filter((i) => i.kind !== 'task' && !i.queue && !needsYou(i) && !i.archivedAt && runs(i))].filter(listed);
+  const idle = (i: Item) => halted(i) || !!snoozeOf(i);
+  const working = [...onIt.filter((i) => !idle(i)), ...onIt.filter(idle)];
+  const atWork = onIt.filter((i) => !idle(i)).length;
+  /** Gives a card its workstation back during the undo window after it was taken, with what came of it, as the status bar does. */
+  const keepWorkstation = async (i: Item) => {
+    try {
+      await api.act(i.id, { action: 'keepWorkstation' });
+      showAck(t.workstations.keptBack(plain(i.title)));
+    } catch (e) {
+      showAck(e instanceof ApiError && e.code === 'notEvictable' ? t.voice.tooLate : failText(e));
+    }
+  };
+  const sections: Record<Section, Item[]> = {
+    queued: queueOrder(items).filter(listed),
+    planned: items.filter((i) => listed(i) && agentStage(i, isUnderway(i.id)) === 'planned'),
+    parked: items.filter((i) => listed(i) && inParkingLot(i)),
+    done: items.filter((i) => listed(i) && !inParkingLot(i) && !agentStage(i, isUnderway(i.id)) && finishedArchivable(i) && !needsYou(i) && !snoozeOf(i)?.waiting && !runs(i) && !isUnderway(i.id)),
+  };
+  const full = SECTIONS.filter((x) => sections[x].length);
+  const fold = (x: Section, open: boolean) => setFolded(open ? folded.filter((f) => f !== x) : [...folded, x]);
+
+  return (
+    <HoldToTalk.Provider value={press}>
+      {feeds}
+      <div id="ph-home" className={pageClass} ref={homeRef}>
+        <TopBar projects={projects} project={obeyaId} onProject={setObeyaProject} usage={usage} />
+        {banner}
+        <Notify />
+        {snap && (
+          <>
+            <WorkingBox
+              open={workingOpen}
+              onOpen={setWorkingOpen}
+              cards={working}
+              atWork={atWork}
+              onKeep={(i) => void keepWorkstation(i)}
+              snap={snap}
+              projects={projects}
+              onCard={openCard}
+              onElsewhere={(c, card) => {
+                setObeyaProject(c);
+                s.openId(card);
+              }}
+            />
+            {!full.length && <p className="hint mt-6 text-center">{t.phone.next.none}</p>}
+            {full.map((x) => {
+              const cards = sections[x];
+              const n = shownOf(x);
+              return (
+                <Collapsible key={x} open={!folded.includes(x)} onOpenChange={(o) => fold(x, o)} className={cn(sectionClass, `ph-next-${x}`)}>
+                  <CollapsibleTrigger className="group mb-2 flex w-full items-center gap-2.5 py-1">
+                    <span className="text-[21px] leading-[1.15] font-semibold">{t.phone.next.sections[x]}</span>
+                    <Badge variant="count" className="rounded-lg bg-chip px-2 py-1.5 text-[13px] font-semibold text-muted-foreground [text-box:trim-both_cap_alphabetic]">
+                      {cards.length}
+                    </Badge>
+                    <ChevronDown size={18} strokeWidth={2} className="ml-auto text-muted-foreground transition-transform group-data-[state=closed]:-rotate-90" aria-hidden="true" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <CardList entries={cards.slice(0, n).map(entriesOf)} several={false} onOpen={openCard} />
+                    {cards.length > n && (
+                      <button
+                        className="mt-3 w-full rounded-[10px] border border-line bg-transparent py-2.5 text-[15px] text-ink cursor-pointer"
+                        onClick={() => setShown({ project: obeyaId, n: { ...(shown.project === obeyaId ? shown.n : {}), [x]: n + PAGE } })}
+                      >
+                        {t.phone.next.loadMore(cards.length - n)}
+                      </button>
+                    )}
+                  </CollapsibleContent>
+                </Collapsible>
+              );
+            })}
+          </>
+        )}
+      </div>
+      {acks}
+      <FloatingBar needsYou={needsYouCount(entries)} making={making || !!made} onNew={() => void newCard()} />
+    </HoldToTalk.Provider>
+  );
+}
+
+/**
+ * The top bar: Seismic's sign (the menu, to come), the project in view with the phone's own picker
+ * to switch it (`onProject`), and at the right the usage pills, or over an open card its X (`onClose`).
+ */
+function TopBar({ projects, project, onProject, usage, onClose }: { projects: ProjectInfo[]; project: string; onProject?: (id: string) => void; usage: Usage[]; onClose?: () => void }) {
+  const name = projects.find((c) => c.id === project)?.name;
+  return (
+    <header className={cn(pageBarClass, 'gap-2', onClose ? 'ph-card-top' : 'ph-home ph-landscape:static')}>
+      {/* the sign opens the menu (to come) */}
+      <button className="-ml-1 inline-grid size-10 shrink-0 place-items-center rounded-full border-0 bg-transparent p-0 disabled:cursor-default" aria-label={t.phone.next.menu} disabled>
+        <Sign size={26} />
+      </button>
+      {/* the project in view; the phone's own picker switches it, remembered in this browser */}
+      <label className="relative z-1 flex min-w-0 shrink items-center gap-1 rounded-[6px] py-1 pr-1 cursor-pointer bg-background">
+        <span className="overflow-hidden text-[19px] font-semibold text-ellipsis whitespace-nowrap">{name}</span>
+        {onProject && projects.length > 1 && <ChevronDown size={16} strokeWidth={2} className="shrink-0 text-muted-foreground" aria-hidden="true" />}
+        {onProject && projects.length > 1 && (
+          <select className="absolute inset-0 h-full w-full cursor-pointer text-base opacity-0" value={project} aria-label={t.phone.next.switchProject} onChange={(e) => onProject(e.target.value)}>
+            {projects.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        )}
+      </label>
+      {/* the usage pills at the right, scrolling sideways and fading out under the project's name
+          (right to left, so they start at the right end; the pills inside read left to right) */}
+      {onClose ? (
+        <button className="ph-close ml-auto inline-grid size-10 shrink-0 place-items-center rounded-full border-0 bg-chip text-ink cursor-pointer ph-landscape:size-9" aria-label={t.phone.next.close} onClick={onClose}>
+          <X size={20} strokeWidth={2.25} aria-hidden="true" />
+        </button>
+      ) : usage.length > 0 && (
+        <div className="min-w-0 flex-1 overflow-x-auto [direction:rtl] [scrollbar-width:none] [mask-image:linear-gradient(to_right,transparent,black_18px)] [&::-webkit-scrollbar]:hidden">
+          <div className="flex w-max items-center gap-1.5 pl-[18px] [direction:ltr]">
+            {usage.map((u) => (
+              <UsagePill key={u.harness} usage={u} phone compact={usage.length > 1} />
+            ))}
+          </div>
+        </div>
+      )}
+    </header>
+  );
+}
+
+/** The fixed top bar's height for the open card below it (`--ph-top`), while it stands. */
+function measureTop(el: HTMLElement | null) {
+  if (!el) return;
+  const root = document.documentElement.style;
+  const size = new ResizeObserver(() => root.setProperty('--ph-top', `${el.getBoundingClientRect().height}px`));
+  size.observe(el);
+  return () => {
+    size.disconnect();
+    root.removeProperty('--ph-top');
+  };
+}
+
+/**
+ * "● ● ○ ○ 4 working": the workstation dots of the desktop's status bar and how many cards agents
+ * are on; unfolded, a line per card as the status bar's workstation list has it, a tap opening it.
+ */
+function WorkingBox({ open, onOpen, cards, atWork, snap, projects, onCard, onElsewhere, onKeep }: {
+  open: boolean;
+  onOpen: (open: boolean) => void;
+  /** The cards agents are on, those whose agent is paused or snoozed last; `atWork` of them have an agent at work. */
+  cards: Item[];
+  atWork: number;
+  onKeep: (i: Item) => void;
+  snap: NonNullable<ReturnType<typeof usePhoneShell>['snaps'][string]>;
+  projects: ProjectInfo[];
+  onCard: (i: Item) => void;
+  onElsewhere: (project: string, card: string) => void;
+}) {
+  const pools = snap.workstations ?? [];
+  const head = (
+    <>
+      <WorkstationDots pools={pools} items={snap.items} underway={{}} />
+      <span className="shrink-0 font-semibold whitespace-nowrap">{t.phone.next.working(atWork)}</span>
+    </>
+  );
+  if (!cards.length) return <div className="ph-working mt-3 flex min-h-12 items-center gap-2.5 rounded-[12px] bg-chip px-3.5 py-2 text-[15px]">{head}</div>;
+  return (
+    <Collapsible open={open} onOpenChange={onOpen} className="ph-working mt-3 rounded-[12px] bg-chip">
+      <CollapsibleTrigger className="group flex min-h-12 w-full items-center gap-2.5 px-3.5 py-2 text-[15px]" aria-label={`${t.phone.next.working(atWork)}: ${open ? t.phone.next.hideWorking : t.phone.next.showWorking}`}>
+        {head}
+        <ChevronDown size={18} strokeWidth={2} className="ml-auto shrink-0 text-muted-foreground transition-transform group-data-[state=closed]:-rotate-90" aria-hidden="true" />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="px-3.5 pb-2.5 text-[14px]">
+        <WorkingRows
+          cards={cards}
+          pools={pools}
+          items={snap.items}
+          underway={{}}
+          projects={projects}
+          onOpen={onCard}
+          onElsewhere={onElsewhere}
+          onKeep={onKeep}
+        />
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+/** A button of the floating bar, a finger's size. */
+const barButton = 'relative inline-grid size-11 place-items-center rounded-full border-0 bg-transparent p-0 text-ink cursor-pointer disabled:cursor-default disabled:text-muted-foreground [&_svg]:size-[22px]';
+
+/**
+ * The floating bar along the foot: a glass pill with Menu, Chat, New card (larger, standing out of
+ * the bar above and below without making it taller), Search
+ * and Needs you, whose bell counts what waits across every project. Hidden while the keyboard is up;
+ * with the phone turned it stands upright in the microphone's strip at the right.
+ */
+function FloatingBar({ needsYou, making, onNew }: { needsYou: number; making: boolean; onNew: () => void }) {
+  return (
+    <nav
+      className="ph-float fixed z-50 left-1/2 bottom-[calc(14px+env(safe-area-inset-bottom))] -translate-x-1/2 flex items-center gap-1 rounded-full bg-glass px-2 py-1 shadow-lift backdrop-blur-xl [.ph-kb_.ph-view~&]:hidden ph-landscape:left-auto ph-landscape:right-[calc(10px+env(safe-area-inset-right))] ph-landscape:top-1/2 ph-landscape:bottom-auto ph-landscape:-translate-y-1/2 ph-landscape:translate-x-0 ph-landscape:flex-col ph-landscape:px-1 ph-landscape:py-2"
+      aria-label={t.phone.next.menu}
+    >
+      <button className={barButton} aria-label={t.phone.next.menu} title={t.phone.next.soon} disabled>
+        <Menu aria-hidden="true" />
+      </button>
+      <button className={barButton} aria-label={t.phone.next.chat} title={t.phone.next.soon} disabled>
+        <TalkIcon />
+      </button>
+      <button
+        className="ph-new mx-1.5 -my-4 ph-landscape:-mx-4 ph-landscape:my-1.5 inline-grid size-[60px] place-items-center rounded-full border-0 bg-ink p-0 text-background shadow-lift cursor-pointer [-webkit-touch-callout:none] select-none active:translate-y-px disabled:opacity-60 disabled:cursor-default"
+        aria-label={t.newCard}
+        disabled={making}
+        onClick={onNew}
+      >
+        <Plus size={28} strokeWidth={2.25} aria-hidden="true" />
+      </button>
+      <button className={barButton} aria-label={t.phone.next.search} title={t.phone.next.soon} disabled>
+        <Search aria-hidden="true" />
+      </button>
+      <button className={barButton} aria-label={needsYou ? `${t.phone.next.needsYou}: ${t.phone.next.needsYouCount(needsYou)}` : t.phone.next.needsYou} title={t.phone.next.soon} disabled>
+        <Bell aria-hidden="true" />
+        {needsYou > 0 && (
+          <Badge variant="count" className="absolute top-0.5 right-0.5 bg-waiting text-white">
+            {needsYou}
+          </Badge>
+        )}
+      </button>
+    </nav>
+  );
+}

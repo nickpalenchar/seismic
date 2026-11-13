@@ -2,12 +2,12 @@
 
 import { headClass } from './cardClasses';
 import { depHeadClass, depLayerClass, depLineClass, type DepKind } from './depsClasses';
-import { Archive, ChevronDown, Ellipsis, ChevronLeft, ChevronRight, Columns3, GitMerge, MessageSquare, Pause, Play, Square } from 'lucide-react';
+import { Archive, ChevronDown, ChevronLeft, ChevronRight, Columns3, GitMerge, MessageSquare, Pause, Play, Square } from 'lucide-react';
 import { Docked, sheetTitleClass } from './docked';
-import { type CSSProperties, memo, type MouseEvent, type ReactNode, useEffect, useRef, useState } from 'react';
+import { memo, type MouseEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import { type Bounds, dependencyOrder, shapeOf } from '../core/layout';
 import { clip } from '../core/text';
-import { agentFailed, type AppUpdate, type ProjectInfo, type BlockedClone, type ClonePool, finished, finishedArchivable, type Item, merging, needsYou, pausable, type PendingRestart, halted, type PoolHost, type PoolWorkstation, type PlanHistory, type SourceUpdate, stopped, stoppedArchivable, snoozeOf, inParkingLot, isPausing } from '../core/types';
+import { agentFailed, type AppUpdate, type ProjectInfo, type ClonePool, finished, finishedArchivable, type Item, merging, needsYou, pausable, type PendingRestart, halted, type PoolHost, type PlanHistory, type SourceUpdate, stoppedArchivable, snoozeOf, isPausing } from '../core/types';
 import { CardMore } from './canvases';
 import { PlanTalk } from './koordinator';
 import { api } from './api';
@@ -17,18 +17,19 @@ import { Doc, Inline, plain } from './markdown';
 import { Body } from './message';
 import { Naming } from './cardLink';
 import { Waiting } from './queue';
-import { asksYou, CardFace, cardFlags, cardLook, cardTone, depTagClass, ttlClass, hasLabels, HourglassMark, LabelMarks, LabelPicks, mergeStatus, shownState } from './card';
+import { asksYou, CardFace, cardFlags, cardLook, depTagClass, ttlClass, hasLabels, HourglassMark, LabelMarks, LabelPicks, mergeStatus, shownState } from './card';
 import { scrollBehavior } from './motion';
 import { clock, shortDay, stateLabel, t } from './strings';
 import { edgeChipPositions } from './edgeChips';
 import { cardPath, switchTo } from './address';
 import { cn } from 'cn';
 import { Pill as BarPill } from './components/pill';
-import { Button, LinkButton } from './components/button';
+import { Button } from './components/button';
 import { Badge } from './components/badge';
 import { Popover, PopoverContent, PopoverTrigger, useHoverOpen } from './components/popover';
 import { MenuItem } from './components/menu';
 import { Tooltip } from './components/tooltip';
+import { atWorkOn, BlockedClones, hostDots, WorkstationMark, WorkstationRows } from './workstations';
 
 /** The button for the conversation with Seismic (the project's top bar, the phone view's): a speech bubble. */
 export function TalkIcon() {
@@ -794,204 +795,6 @@ export function WorkstationsPill({ pools, project, projects, items, underway, on
 
 /** The face of a status bar's pill that opens a list, the pill's whole height. */
 export const statusFace = 'flex h-full cursor-pointer flex-row items-center gap-2 rounded-[3px] border-0 bg-transparent px-2 text-inherit';
-
-/** The colours of a card's state that pulse on its workstation's dot: at work, in review, landing. */
-const PULSING = new Set(['working', 'reviewing', 'approved']);
-/** The pulse of a dot at work (`ws-pulse` in frost.css); under reduced motion a ring in its colour around a dot that stands still. */
-const pulse =
-  "relative animate-[ws-pulse_3.6s_ease-in-out_infinite] reduced:animate-none reduced:border-2 reduced:border-[var(--c)] reduced:bg-transparent reduced:shadow-none reduced:after:absolute reduced:after:top-1/2 reduced:after:left-1/2 reduced:after:size-1 reduced:after:[transform:translate(-50%,-50%)] reduced:after:rounded-[50%] reduced:after:bg-[var(--c)] reduced:after:content-['']";
-
-/**
- * A workstation's dot, the same on the pill and in its list: in the colour of its card's state as
- * the card shows it (`cardTone`), so it follows the cards' colours, pulsing slowly where the card is
- * at work, in review or landing; a card on another project solid while its worker is at work, else
- * pale; a pause symbol while held for restart; a ring while free, orange while blocked.
- * `w` is undefined for a free slot of worktrees.
- */
-type WorkstationDot = { className: string; style?: CSSProperties; paused?: boolean };
-
-function WorkstationMark({ dot, className }: { dot: WorkstationDot; className?: string }) {
-  const props = { className: cn('shrink-0', 'size-3', className, dot.className), style: dot.style, 'aria-hidden': true } as const;
-  return dot.paused ? <Pause {...props} size={12} fill="currentColor" strokeWidth={2} /> : <i {...props} />;
-}
-
-function wsDot(w: PoolWorkstation | undefined, host: PoolHost, items: Item[], underway: Record<string, string>): WorkstationDot {
-  const dot = 'ws-dot box-border block rounded-full border border-[#6b7280]';
-  if (!w?.card) return { className: cn(dot, w && host.blocked?.some((b) => b.path === w.path) ? 'shadow-[inset_0_0_0_1.5px_var(--waiting)]' : undefined) };
-  const item = w.project ? undefined : items.find((i) => i.id === w.card);
-  const tone = item ? cardTone(item, underway[item.id]) : host.busy.includes(w.card) ? 'working' : null;
-  if (item?.hold?.reason === 'restart') return { className: 'block text-[var(--restart)]', paused: true };
-  if (!tone) return { className: cn(dot, 'bg-[color-mix(in_srgb,var(--working)_35%,transparent)]') };
-  return {
-    className: cn(dot, 'bg-[var(--c)]', PULSING.has(tone) && pulse),
-    style: { '--c': `var(--${tone})` } as CSSProperties,
-  };
-}
-
-/**
- * How many of a machine's cards have an agent at work: workers in a turn, and the code reviews
- * whose agent is at work on cards held there (one paused for a restart is not). A review holds no
- * slot, so the slot counts leave it out.
- */
-export const atWorkOn = (h: PoolHost): number => h.busy.length + (h.reviewing?.length ?? 0);
-
-/**
- * A machine's workstations in the order of its dots: each clone; in worktrees each card's worktree,
- * then an empty circle for each slot no worker is busy in, up to the maximum (none without slots).
- * A waiting card keeps its worktree but its worker has released the slot; a hidden card's worker
- * can still occupy one.
- */
-export const hostSpots = (h: PoolHost, items: Item[]): (PoolWorkstation | undefined)[] => {
-  // a card that is stopped, queued, snoozed, parked or not on this project does not show: only cards at work or waiting on the owner here
-  const shown = (w: PoolWorkstation) => {
-    if (!w.card) return true;
-    const i = items.find((x) => x.id === w.card);
-    return !!i && !stopped(i) && !i.queue && !snoozeOf(i) && !inParkingLot(i);
-  };
-  const held = h.workstations.filter(shown);
-  if (!h.worktrees) return held;
-  const cards = held.filter((w) => w.card);
-  // an empty circle for each slot without a busy worker, the pool's count (hidden cards included), as in the pill's summary
-  return [...cards, ...Array.from({ length: h.uncapped ? 0 : Math.max(0, h.slots - h.busy.length) }, () => undefined)];
-};
-
-const hostDots = (h: PoolHost, items: Item[], underway: Record<string, string>) => hostSpots(h, items).map((w) => wsDot(w, h, items, underway));
-
-/**
- * A machine's workstations, one per line in the order of the pill's dots: the dot, the card in it
- * as a compact card that opens on a click, and its path (cut at the front where it is too long, so
- * its end stays); or that it is free, or blocked. With `onTake` (a card waits, none is free), a
- * faint "⋯" beside each card that may give its clone up, which opens the one action and what it
- * does; a card giving it up has "Undo" (`onKeep`) instead.
- */
-function WorkstationRows({ host, items, underway, projects, onOpen, onElsewhere, onTake, onKeep }: {
-  host: PoolHost;
-  items: Item[];
-  underway: Record<string, string>;
-  projects: ProjectInfo[];
-  onOpen: (i: Item) => void;
-  onElsewhere: (project: string, card: string) => void;
-  onTake?: (i: Item) => void;
-  onKeep: (i: Item) => void;
-}) {
-  const blocked = new Set(host.blocked?.map((b) => b.path));
-  // the row whose "⋯" is open
-  const [more, setMore] = useState<string | null>(null);
-  return (
-    <ul className="m-0 mb-0.5 list-none p-0">
-      {hostSpots(host, items).map((w, n) => {
-        const dot = wsDot(w, host, items, underway);
-        if (!w)
-          return (
-            <li key={`slot-${n}`} className="grid grid-cols-[12px_minmax(0,1fr)] items-center gap-x-2 py-[3px]">
-              <WorkstationMark dot={dot} />
-              <span className="hint col-start-2">{t.workstations.freeSlot}</span>
-            </li>
-          );
-        const item = w.card && !w.project ? items.find((i) => i.id === w.card) : undefined;
-        const busy = !!w.card && host.busy.includes(w.card);
-        const state = w.card ? 'held' : blocked.has(w.path) ? 'blocked' : 'free';
-        const there = w.project && projects.find((c) => c.id === w.project);
-        const path = (
-          <span className="col-start-2 overflow-hidden font-mono text-xs text-ellipsis whitespace-nowrap text-muted-foreground [direction:rtl] text-left" title={w.path}>
-            {/* the mark keeps the path's leading slash at its start in the right-to-left box that cuts it at the front */}
-            {'\u200e' + w.path}
-          </span>
-        );
-        return (
-          <li key={w.path} className={cn('grid grid-cols-[12px_minmax(0,1fr)] gap-x-2', item ? 'items-start py-1' : 'items-center py-[3px]')}>
-            <WorkstationMark dot={dot} className={cn('row-start-1', item && (dot.paused ? 'mt-[7px]' : 'mt-[5px]'))} />
-            {!item && path}
-            <span className={cn('col-start-2 [overflow-wrap:anywhere]', item ? 'row-start-1 flex min-w-0 items-start gap-1' : 'row-start-2')}>
-              {item ? (
-                <button type="button" className="-mx-1.5 -my-0.5 block min-w-0 flex-1 cursor-pointer rounded-[6px] border-0 bg-transparent px-1.5 py-0.5 text-left text-inherit hover:bg-chip focus-visible:bg-chip [&_.f-dot]:hidden" onClick={() => onOpen(item)}>
-                  <CardFace item={item} size="xs" underway={underway[item.id]} />
-                </button>
-              ) : w.card && there ? (
-                <>
-                  <LinkButton onClick={() => onElsewhere(there.id, w.card!)}>{plain(w.title ?? '')}</LinkButton>
-                  <span className="hint"> · {t.workstations.onProject(there.name)}</span>
-                </>
-              ) : w.card ? (
-                <span className="hint">{w.title ? t.workstations.notOnProject(plain(w.title)) : t.workstations.offProject}</span>
-              ) : (
-                <span className={state === 'blocked' ? 'text-warn' : 'hint'}>{state === 'blocked' ? t.workstations.blockedRow : t.workstations.freeRow}</span>
-              )}
-              {busy && !w.leaving && !item && <span className="hint"> · {t.workstations.atWork}</span>}
-              {item && w.leaving && (
-                <>
-                  <span className="hint"> · {t.workstations.leaving}</span>
-                  <Button size="small" className="ml-2" onClick={() => onKeep(item)}>
-                    {t.undo}
-                  </Button>
-                </>
-              )}
-              {item && w.takeable && onTake && (
-                <Tooltip content={t.workstations.more}>
-                  <button
-                    className="ml-1.5 inline-flex cursor-pointer items-center rounded-[3px] border-0 bg-transparent px-[3px] py-px align-middle text-muted-foreground opacity-55 hover:bg-chip hover:opacity-100 aria-expanded:bg-chip aria-expanded:opacity-100"
-                    aria-label={t.workstations.more}
-                    aria-expanded={more === w.path}
-                    onClick={() => setMore(more === w.path ? null : w.path)}
-                  >
-                    <Ellipsis size={14} aria-hidden />
-                  </button>
-                </Tooltip>
-              )}
-            </span>
-            {item && path}
-            {item && w.takeable && onTake && more === w.path && (
-              <div className="col-start-2 mt-1 mb-0.5 flex flex-col items-start gap-1 rounded-[3px] bg-chip px-2.5 py-2 [--button-bg:var(--panel)]">
-                <Button
-                  size="small"
-                  onClick={() => {
-                    setMore(null);
-                    onTake(item);
-                  }}
-                >
-                  {t.workstations.take}
-                </Button>
-                <span className="hint leading-[1.4]">{t.workstations.takeWhat}</span>
-              </div>
-            )}
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-/** Why each of a machine's blocked clones goes to no card, and what the owner can do: a line per clone, one for all of an unreachable machine's. */
-function BlockedClones({ host }: { host: PoolHost }) {
-  const all = host.blocked ?? [];
-  const away = all.filter((b) => b.why === 'unreachable').map((b) => b.path);
-  const line = (b: BlockedClone) => {
-    const tb = t.workstations.blocked;
-    switch (b.why) {
-      case 'dirty':
-        return tb.dirty(b.path, b.files ?? [], b.more ?? 0);
-      case 'broken':
-        return tb.broken(b.path, b.error ?? '', !!b.made);
-      case 'missing':
-        return tb.missing(b.path, !!b.made);
-      case 'failed':
-        return tb.failed(b.path, b.error ?? '');
-      case 'unreachable':
-        return tb.unreachable(host.name, away);
-    }
-  };
-  return (
-    <>
-      {all
-        .filter((b, i) => b.why !== 'unreachable' || all.findIndex((x) => x.why === 'unreachable') === i)
-        .map((b) => (
-          <p key={b.path} className="text-warn [overflow-wrap:anywhere]">
-            {line(b)}
-          </p>
-        ))}
-    </>
-  );
-}
 
 /**
  * A plan on the project: a quiet frosted container its workstreams stand in, its head along the top.
