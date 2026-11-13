@@ -43,11 +43,17 @@
   .p-error { color: var(--error); margin: 12px 0 0; font-size: 13.5px; }
 }
 /* what preflight leaves: code and headings in frost's face; an icon within a line of text stays inline with it
-   (preflight makes every svg a block, which a state line's mark would stand over its words) */
+   (preflight makes every svg a block, which a state line's mark would stand over its words). Headings keep the
+   browser's sizes and weight, and lists their markers and indent, as the views (the splash, an agent's markdown,
+   a plan doc) were written against them; margins stay preflight's, which shadcn's titles and descriptions assume */
 @layer base {
   svg { display: inline; vertical-align: baseline; }
   code { font: .92em var(--mono); background: var(--chip); border-radius: 5px; padding: 0 .25em; }
+  h1 { font-size: 2em; } h2 { font-size: 1.5em; } h3 { font-size: 1.17em; } h4 { font-size: 1em; } h5 { font-size: .83em; } h6 { font-size: .67em; }
+  h3, h4, h5, h6 { font-weight: bold; }
   h1, h2 { font-family: var(--font); font-weight: 650; letter-spacing: -.018em; }
+  ul, ol { padding-inline-start: 40px; }
+  ul { list-style: disc; } ol { list-style: decimal; } :is(ul, ol) ul { list-style: circle; } :is(ul, ol) :is(ul, ol) ul { list-style: square; }
 }
 /* shared by several views and by raw DOM (cardMenu.tsx): text links and the card-link pill, the state colours as `--c`, the merge knot, the spinner */
 @layer components {

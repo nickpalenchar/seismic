@@ -915,7 +915,8 @@ code, a generic one otherwise.
   the stronger look, at a cost measured with about 100 cards on screen at middle zoom on a 2560×1440
   window, where blurring every card dropped to 49 fps with a GPU and 23 fps without one; dropping the
   blur while the canvas moves brought it to 60 and 55 fps, against 60 without glass. Solid cards
-  remain the fallback. Everything is Tailwind, preflight included; the one stylesheet of its own, `frost.css`,
+  remain the fallback. Everything is Tailwind, preflight included (headings keep the browser's sizes and weight, lists
+  their markers and indent, as the views and rendered markdown expect them); the one stylesheet of its own, `frost.css`,
   holds frost's token values, the board and its font and keyframes, and sits outside the cascade layers.
   No class in it may share a name with a Tailwind utility (`hidden`, `fixed`, `ring`), since the utility
   would apply to it as well, and a test fails on a control written by hand outside `src/ui/components/`
