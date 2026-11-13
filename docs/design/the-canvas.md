@@ -625,12 +625,17 @@ calm and modern without looking like a stock component kit.
   moving line). The state line at the card's foot stays one line, cut short
   with an ellipsis when it is longer, so it never runs into the text above it. Under the pointer a
   card lifts; dragged, it lifts a little further. "At work" is a stroke drawn again and again.
-- *Controls*: every control is a part of one set (shadcn/ui on Radix Primitives), so they behave alike.
-  Menus, popovers, selects, dialogs, sheets and tooltips open over the page and close on Esc, a click
-  outside or a pick; Esc closes only the topmost open layer, so a menu in an open card closes before the
-  card does. Space and Enter activate a focused control (Space never starts push-to-talk on one), arrow
-  keys move within a menu, list or tab row, and closing a layer returns focus to what opened it. A
-  switch is one on/off setting; checkboxes are for picking several of a set.
+- *Controls*: the controls are parts of one set (shadcn/ui on Radix Primitives), so they behave alike.
+  Menus, popovers, selects, dialogs and tooltips open over the page and close on Esc, a click outside
+  or a pick; Esc closes only the topmost open layer, so a menu in an open card closes before the card
+  does. The sheets are the exception: docked beside a canvas that stays in use, they ignore a click
+  outside, and Esc and their ✕ close them by the dock's rules (see Sheets). Space and Enter activate a
+  focused control (Space never starts push-to-talk on one), arrow keys move within a menu, list or tab
+  row, and closing a layer returns focus to what opened it. A switch is one on/off setting; checkboxes
+  are for picking several of a set. A few controls stay outside the set where a part cannot do the
+  job: the phone's project switcher is a native select (a finger gets the system picker), the full
+  pages, the phone's sheets, the chats drawer and the desktop notification's ask are regions
+  of their own rather than modal dialogs, and the two `/` menus keep their own listbox (see below).
 - *Lists that fill from a field*: the card finder, the composer's `/` skill menu, the card-link menu
   in the task field and the merge picker's search all behave alike. Focus stays in the field, which is
   exposed as a combobox over a listbox; the arrow keys move the highlighted option (wrapping, except in
