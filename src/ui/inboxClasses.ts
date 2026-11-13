@@ -7,7 +7,7 @@ export const entryListClass = 'inbox-list list-none m-0 p-0 flex flex-col gap-2.
 
 /**
  * An entry: a pane of glass of its own. A unread or read entry's title is bold or plain through
- * `.inbox-entry.unread .f-ttl` in styles.css, where the card face sets the title's weight.
+ * the `[.inbox-entry.unread_&]` variants of the face's title (card/faceClasses.ts), which sets its weight.
  */
 export const entryClass =
   'inbox-entry pt-3 px-3.5 pb-3.5 rounded-[14px] bg-card border border-solid border-[color:var(--glass-edge,var(--line))] [box-shadow:inset_0_1px_0_var(--glass-hi,transparent),var(--shadow)]';

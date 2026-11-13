@@ -797,7 +797,7 @@ export const statusFace = 'flex h-full cursor-pointer flex-row items-center gap-
 
 /** The colours of a card's state that pulse on its workstation's dot: at work, in review, landing. */
 const PULSING = new Set(['working', 'reviewing', 'approved']);
-/** The pulse of a dot at work (`ws-pulse` in styles.css); under reduced motion a ring in its colour around a dot that stands still. */
+/** The pulse of a dot at work (`ws-pulse` in frost.css); under reduced motion a ring in its colour around a dot that stands still. */
 const pulse =
   "relative animate-[ws-pulse_3.6s_ease-in-out_infinite] reduced:animate-none reduced:border-2 reduced:border-[var(--c)] reduced:bg-transparent reduced:shadow-none reduced:after:absolute reduced:after:top-1/2 reduced:after:left-1/2 reduced:after:size-1 reduced:after:[transform:translate(-50%,-50%)] reduced:after:rounded-[50%] reduced:after:bg-[var(--c)] reduced:after:content-['']";
 

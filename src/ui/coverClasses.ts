@@ -1,7 +1,7 @@
 // A card's compact cover outside the project (Tailwind on frost's tokens): in a conversation, the card an
 // action of Seismic's made (made.tsx), and on a queued card, the chain it waits in (detail.tsx). The cover is
-// a card face (`cardClass`), whose unlayered rules in styles.css set the same properties: what the cover
-// changes of them carries `!` until the card faces move over. `cover` stays as a hook before the utilities.
+// a card face (`cardClass`, card/faceClasses.ts), whose utilities set the same properties on the same elements:
+// what the cover changes of them carries `!` so it wins over them. `cover` stays as a hook before the utilities.
 
 import { cn } from 'cn';
 

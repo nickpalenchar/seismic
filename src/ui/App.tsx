@@ -584,7 +584,7 @@ function Project({
   /**
    * What the panels docked at the window's edges take of it, as just set: the sheet on the right and
    * the docked menu on the left; the project is what remains between them. A narrow window lays
-   * the sheet over the project instead (styles.css), and the menu drops down under ☰, as it
+   * the sheet over the project instead (docked.tsx), and the menu drops down under ☰, as it
    * does where it would leave the project too little room beside the sheet: the two never stack.
    */
   const sideNow = (): Sides => {
@@ -2938,7 +2938,7 @@ function panelRect(i: Item, inner: HTMLElement, side: Sides, keep = 0) {
   let H = Math.min(Math.ceil(need), max);
   H = Math.min(Math.ceil(need + under(H)), max);
   const extra = under(H);
-  // through --pb, which the card's sticky row of decisions reaches down over too (styles.css)
+  // through --pb, which the card's sticky row of decisions reaches down over too (tailwind.css)
   if (extra) inner.style.setProperty('--pb', `${base + extra}px`);
   // in the middle of the project where it fits there, else as near to it as the window allows, but never
   // over the pinned navigation or the inbox's list on the left
@@ -2946,9 +2946,9 @@ function panelRect(i: Item, inner: HTMLElement, side: Sides, keep = 0) {
   return { left: `${Math.max(lo, Math.min(midX(side) - W / 2, innerWidth - keep - W - 40))}px`, top: `${top(H)}px`, width: `${W}px`, height: `${H}px` };
 }
 
-/** A panel holding a conversation alone: its column at its widest (560 px, styles.css) and the panel's padding. */
+/** A panel holding a conversation alone: its column at its widest (560 px, the split's grid in detail.tsx) and the panel's padding. */
 const TALK_W = 640;
-/** Below this the split's columns stack (styles.css) and the panel scrolls as a whole. */
+/** Below this the split's columns stack (its `max-[760px]` variants in detail.tsx) and the panel scrolls as a whole. */
 const NARROW = '(max-width: 760px)';
 
 /** Where a panel starts at the top: below the bar. */

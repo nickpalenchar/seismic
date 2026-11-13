@@ -122,7 +122,7 @@ const rowClass = (onCard: boolean, own: boolean) =>
     onCard ? 'cursor-default' : 'cursor-pointer hover:bg-chip',
     own && 'own bg-card! [box-shadow:inset_0_0_0_1px_var(--line)] cursor-grab! data-[sorting=dragged]:[box-shadow:var(--lift)]!',
     '[#ph-home_&]:gap-3 [#ph-home_&]:py-3 [#ph-home_&]:px-2.5 [#ph-home_&]:mb-2 [#ph-home_&]:rounded-[3px] [#ph-home_&]:bg-card [#ph-home_&]:[box-shadow:inset_0_0_0_1px_var(--line)] [#ph-home_&]:text-[14.5px]',
-    // the face's own sizes (`.face-xs`, unlayered in styles.css) give way to the finger's
+    // the XS face's own sizes (its utilities in card/faceClasses.ts) give way to the finger's
     '[#ph-home_&_.face-xs_.f-ttl]:text-[16.5px]! [#ph-home_&_.face-xs_.f-line]:text-[13.5px]! [#ph-home_&_.face-xs_.f-words]:whitespace-normal!',
   );
 

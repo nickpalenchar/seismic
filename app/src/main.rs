@@ -698,7 +698,7 @@ fn window(app: &AppHandle, obeya: Arc<Seismic>, placed: Option<&Placed>) -> taur
     None => builder,
   };
   // on a Mac the window has no title bar of its own: the project's bar is it, with the traffic lights in it,
-  // centred on the bar's height (58 px, #bar in src/ui/styles.css). tao makes the title bar the buttons'
+  // centred on the bar's height (58 px, #bar in src/ui/App.tsx). tao makes the title bar the buttons'
   // height plus y and leaves them 9 px above its bottom: the 14 px buttons' centre is y - 2 from the top
   #[cfg(target_os = "macos")]
   let builder = builder

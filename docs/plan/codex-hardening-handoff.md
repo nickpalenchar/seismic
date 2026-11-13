@@ -63,7 +63,7 @@ containment is solved.
 
 The backend remains independent of Codex and was **not changed**. An idle Claude SDK usage fetch
 succeeded; the scratch UI also displayed real Claude session/week percentages. No Codex usage was
-added. Crowded toolbar CSS was hiding usage: `src/ui/styles.css` now keeps compact percentages at
+added. Crowded toolbar CSS was hiding usage: the top bar's fit steps (`barFit.ts`) now keep compact percentages at
 fit stage 5 and only hides usage at the smallest stage 6. This behavior is documented.
 
 ### Docs

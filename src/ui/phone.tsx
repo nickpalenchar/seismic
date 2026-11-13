@@ -64,9 +64,9 @@ const talkInAddress = () => new URLSearchParams(location.search).has('talk');
 /** What a step in the browser's history opened: a card, or the conversation of what is in view. */
 type Step = 'card' | 'talk';
 
-/** A group of the list (a stage, a project's queue …), and its heading with its count beside it (`!` over the `h1, h2` rule styles.css still has). */
+/** A group of the list (a stage, a project's queue …), and its heading with its count beside it (its utilities win over the `h1, h2` base rule of tailwind.css). */
 const sectionClass = 'ph-section mt-[22px] ph-landscape:mt-3.5';
-const sectionHeadClass = 'flex items-center gap-2.5 mt-0 mx-0 mb-2 font-semibold! text-[21px] leading-[1.15] [font-family:var(--font)]';
+const sectionHeadClass = 'flex items-center gap-2.5 mt-0 mx-0 mb-2 font-semibold text-[21px] leading-[1.15] [font-family:var(--font)]';
 
 /**
  * The list's plus button, in the microphone's place and of its size: a new card. Held by a finger, it
