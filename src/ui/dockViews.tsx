@@ -69,8 +69,8 @@ export function DockShell({ dock }: { dock: ReturnType<typeof useDock> }) {
       const shown = v.slot ? views.find((x) => x.slot === v.slot && x.id === active) ?? v : v;
       return <DockPolicy.Provider key={v.slot ?? v.id} value={!!shown.besideCard}>{shown.component()}</DockPolicy.Provider>;
     })}
-    {view && !view.buttonCloses && <CloseButton id="sheet-close" label={t.close} className={cn(closeClass, view.besideCard && 'beside-card z-32')} onClick={close} />}
-    <div id="sheet-grip" className={cn(gripClass, view && 'on opacity-100 pointer-events-auto [transition:opacity_.2s_.3s,right_.45s_cubic-bezier(.3,.9,.3,1)]', view?.besideCard && 'beside-card z-32')} style={{ right: widths[kind] - 6 }} title={t.sheetGrip}
+    {view && !view.buttonCloses && <CloseButton id="sheet-close" label={t.close} className={cn(closeClass, view.besideCard && 'beside-card z-42')} onClick={close} />}
+    <div id="sheet-grip" className={cn(gripClass, view && 'on opacity-100 pointer-events-auto [transition:opacity_.2s_.3s,right_.45s_cubic-bezier(.3,.9,.3,1)]', view?.besideCard && 'beside-card z-42')} style={{ right: widths[kind] - 6 }} title={t.sheetGrip}
       onPointerDown={(e) => {
         if (e.button !== 0) return;
         e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId);

@@ -985,13 +985,13 @@ code, a generic one otherwise.
 - **An unfolded card is as large as its content, up to the room it has** (2026-10-08, 2026-10-21).
   Rejected: filling the room (empty space, stray scrollbars), a fixed size (small on a large
   screen), and a proposal sized by its text alone (a long conversation scrolled in a small box). The
-  card keeps below the top bar, which stays undimmed and usable (owner, 2026-11-12; reaching over it,
-  as it did from 2026-10-09, was rejected: it hid the bar's controls). It reaches over a plan's
-  docked sheet (owner, 2026-11-02), which is dimmed and out of use while a card is open, since keeping
-  beside it squeezed a split into the canvas's width. It keeps clear of the docked left menu, the
-  inbox's list and the sheets that stay usable beside a card (the Chat, "Needs you", Agent work, the
-  project settings; owner, 2026-11-12), and only a window too narrow for a conversation's width
-  beside them lays such a sheet over the card.
+  card keeps below the top bar, which stays undimmed and usable (owner, 2026-11-12). Rejected:
+  reaching over the bar, which hid its controls. The card reaches over a plan's docked sheet (owner,
+  2026-11-02), which is dimmed and out of use while a card is open, since keeping beside it squeezed a
+  split into the canvas's width. It keeps clear of the docked left menu, the inbox's list and the
+  sheets that stay usable beside a card (the Chat, "Needs you", Agent work, the project settings;
+  owner, 2026-11-12), and only a window too narrow for a conversation's width beside them lays such a
+  sheet over the card.
 - **On touch, one finger pans and a long press picks up a card** (owner, 2026-11-05). Rejected: a
   finger on a card dragging it, as the mouse does, which on a full tablet canvas moved cards on
   nearly every attempt to pan. The touch gestures live apart from the mouse handling and only

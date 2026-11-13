@@ -26,7 +26,7 @@ export const Docked = forwardRef<HTMLElement, { id: string; on: boolean; classNa
         docked
         id={id}
         ref={ref as React.Ref<HTMLDivElement>}
-        className={['sheet', besideCard && 'beside-card z-31', on && 'on', sheetClass, className].filter(Boolean).join(' ')}
+        className={['sheet', besideCard && 'beside-card z-41', on && 'on', sheetClass, className].filter(Boolean).join(' ')}
         aria-label={label}
       >
         {children}
