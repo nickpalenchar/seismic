@@ -121,9 +121,6 @@ const rowClass = (onCard: boolean, own: boolean) =>
     'data-[sorting=other]:[transition:transform_.15s_ease] data-[sorting=dragged]:bg-card data-[sorting=dragged]:[box-shadow:var(--lift)] data-[sorting=dragged]:cursor-grabbing',
     onCard ? 'cursor-default' : 'cursor-pointer hover:bg-muted',
     own && 'own bg-card! [box-shadow:inset_0_0_0_1px_var(--border)] cursor-grab! data-[sorting=dragged]:[box-shadow:var(--lift)]!',
-    '[#ph-home_&]:gap-3 [#ph-home_&]:py-3 [#ph-home_&]:px-2.5 [#ph-home_&]:mb-2 [#ph-home_&]:rounded-[3px] [#ph-home_&]:bg-card [#ph-home_&]:[box-shadow:inset_0_0_0_1px_var(--border)] [#ph-home_&]:text-[14.5px]',
-    // the XS face's own sizes (its utilities in card/faceClasses.ts) give way to the finger's
-    '[#ph-home_&_.face-xs_.f-ttl]:text-[16.5px]! [#ph-home_&_.face-xs_.f-line]:text-[13.5px]! [#ph-home_&_.face-xs_.f-words]:whitespace-normal!',
   );
 
 /** A row's grip: dragged to put the row elsewhere; a finger on it does not scroll the list, and is given more room. */

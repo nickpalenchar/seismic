@@ -42,17 +42,16 @@ const talkInAddress = () => new URLSearchParams(location.search).has('talk');
 /** What a step in the browser's history opened: a card, or the conversation of what is in view. */
 type Step = 'card' | 'talk';
 
-/** A group of the list (a stage, a project's queue …), and its heading with its count beside it (its utilities win over the `h1, h2` base rule of tailwind.css). */
+/** A group of the list (a stage, a project's queue …). */
 export const sectionClass = 'ph-section mt-[22px] ph-landscape:mt-3.5';
-export const sectionHeadClass = 'flex items-center gap-2.5 mt-0 mx-0 mb-2 font-semibold text-[21px] leading-[1.15] [font-family:var(--font)]';
 
 export type PhoneShell = ReturnType<typeof usePhoneShell>;
 
 /**
- * The shared controller of a phone view. `follow`: opening a card of another project makes that
- * project the one in view (the view that shows one project at a time).
+ * The controller of the phone view, which shows one project at a time: opening a card of another
+ * project makes that project the one in view.
  */
-export function usePhoneShell(loaded: ProjectInfo[], { follow = false }: { follow?: boolean } = {}) {
+export function usePhoneShell(loaded: ProjectInfo[]) {
   keepDrafts(sessionStorage, DRAFTS);
   usePhoneEnvironment();
   const { projects, snaps, usage, feeds, banner } = usePhoneProjects(loaded);
@@ -156,7 +155,7 @@ export function usePhoneShell(loaded: ProjectInfo[], { follow = false }: { follo
       }
       // the view of one project at a time: Back from a card of another project lands on that
       // project's list (the one in view since the card opened), not on the list the entry recorded
-      if (follow && !cardInAddress()) history.replaceState(history.state, '', addressWith({ card: null, talk: talkInAddress() }));
+      if (!cardInAddress()) history.replaceState(history.state, '', addressWith({ card: null, talk: talkInAddress() }));
       setOpenState(resolve(cardInAddress()));
       setTalk(talkInAddress());
     };
@@ -223,7 +222,7 @@ export function usePhoneShell(loaded: ProjectInfo[], { follow = false }: { follo
       localStorage.setItem(OBEYA_PROJECT, id);
     } catch {}
     // the view of one project at a time names it in the address, so a reload stays on it
-    if (follow && !openRef.current) history.replaceState(history.state, '', addressWith({ card: null, talk: talkRef.current }));
+    if (!openRef.current) history.replaceState(history.state, '', addressWith({ card: null, talk: talkRef.current }));
   };
   // every call goes to the API of the project in view: the open card's, else Seismic's
   setProject(opened?.project.id ?? obeyaId);
@@ -411,7 +410,6 @@ export function usePhoneShell(loaded: ProjectInfo[], { follow = false }: { follo
     }
   }
 
-  const several = projects.length > 1;
   const acks = (
       <div id="acks" className={phoneAcksClass}>
         <Cards.Provider value={{ items: Object.values(snaps).flatMap((x) => x.items), open: openCard }}>
@@ -471,8 +469,8 @@ export function usePhoneShell(loaded: ProjectInfo[], { follow = false }: { follo
 
   // the view that shows one project at a time: a card of another project opened makes it the one in view
   useEffect(() => {
-    if (follow && opened && opened.project.id !== obeyaRef.current) setObeyaProject(opened.project.id);
-  }, [follow, opened?.project.id]);
+    if (opened && opened.project.id !== obeyaRef.current) setObeyaProject(opened.project.id);
+  }, [opened?.project.id]);
 
   /**
    * The open card full screen, under its view's own top bar (`header`, scrolling with it), with its
@@ -545,7 +543,7 @@ export function usePhoneShell(loaded: ProjectInfo[], { follow = false }: { follo
   };
 
   return {
-    projects, snaps, usage, feeds, banner, all, ordered, several,
+    projects, snaps, usage, feeds, banner, all, ordered,
     open, opened, openCard, openId, back, home,
     talk, openTalk, closeTalk, closing, setClosing, leaveTalk,
     obeyaId, setObeyaProject,
@@ -555,15 +553,15 @@ export function usePhoneShell(loaded: ProjectInfo[], { follow = false }: { follo
   };
 }
 
-/** Cards as the project shows them, as wide as the screen, each opening at a tap; led by its project's name where there are several. */
-export function CardList({ entries, several, onOpen }: { entries: { item: Item; project: ProjectInfo }[]; several: boolean; onOpen: (i: Item) => void }) {
+/** Cards as the project shows them, as wide as the screen, each opening at a tap; the list is of one project, so its faces name none. */
+export function CardList({ entries, onOpen }: { entries: { item: Item; project: ProjectInfo }[]; onOpen: (i: Item) => void }) {
   return (
     // one column held upright, two (or more) side by side once the screen is wide enough, the phone turned, say
     <ul className="ph-list list-none m-0 p-0 grid grid-cols-[repeat(auto-fill,minmax(min(100%,340px),1fr))] gap-3.5">
-      {entries.map(({ item: i, project: c }) => (
+      {entries.map(({ item: i }) => (
         <li key={i.id} className="flex">
           <PhoneCard item={i} onOpen={() => onOpen(i)}>
-            <CardFace item={i} where={several ? c.name : undefined} place="phone" />
+            <CardFace item={i} place="phone" />
           </PhoneCard>
         </li>
       ))}

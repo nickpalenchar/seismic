@@ -47,7 +47,7 @@ const FOLDED: Section[] = ['parked', 'done'];
 const PAGE = 20;
 
 export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
-  const s = usePhoneShell(loaded, { follow: true });
+  const s = usePhoneShell(loaded);
   const { projects, snaps, usage, feeds, banner, open, openCard, obeyaId, setObeyaProject, entries, isUnderway, homeRef, newCard, making, made, press, acks, back, showAck } = s;
   const [menuOpen, setMenuOpen] = useState(false);
   const [needsOn, openNeeds, closeNeeds] = useNeedsPage();
@@ -150,7 +150,7 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
                     <ChevronDown size={18} strokeWidth={2} className="ml-auto text-muted-foreground transition-transform group-data-[state=closed]:-rotate-90" aria-hidden="true" />
                   </CollapsibleTrigger>
                   <CollapsibleContent>
-                    <CardList entries={cards.slice(0, n).map(entriesOf)} several={false} onOpen={openCard} />
+                    <CardList entries={cards.slice(0, n).map(entriesOf)} onOpen={openCard} />
                     {cards.length > n && (
                       <button
                         className="mt-3 w-full rounded-[10px] border border-border bg-transparent py-2.5 text-[15px] text-foreground cursor-pointer"

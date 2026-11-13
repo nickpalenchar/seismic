@@ -1340,12 +1340,8 @@ const en = {
   agents: {
     title: 'Agents',
     button: (n: number) => (n === 0 ? 'Agents: no task in the queue' : n === 1 ? 'Agents: one task in the queue' : `Agents: ${n} tasks in the queue`),
-    tabs: { queue: 'Queue', all: 'All', parked: 'Parked', activity: 'Activity' },
     noneParked: 'No parked cards.',
     stages: { needsYou: 'Needs you', working: 'Working', reviewing: 'Code reviewing', fixing: 'Review fixing', landing: 'Landing', planned: 'Planned', done: 'Done' },
-    none: 'No cards.',
-    filter: 'Show groups',
-    allHidden: 'All groups are hidden. Tap one above to show it.',
     work: {
       title: 'Agent work',
       tabs: { work: 'Work', activity: 'Activity' },
