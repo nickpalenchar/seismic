@@ -592,7 +592,7 @@ export function Detail(p: Props) {
                   setManualStart({ agent, names: waiting.map((card) => plain(card.title)).join(', ') });
                   return;
                 }
-                return act({ action: 'force', ...(agent ? { agent } : {}) }, { close: true, ack: forcedText(item.queue) });
+                return act({ action: 'force', ...(agent ? { agent } : {}) }, { close: true, ack: forcedText(item.queue), pending: t.queue.checking });
               }}
             />
             <Button onClick={() => act({ action: 'dequeue' }, { close: false })}>
@@ -859,13 +859,13 @@ export function Detail(p: Props) {
             <Armed label={t.repoPick.making(choice.name)} undo={t.undo} onUndo={() => act({ action: 'stayHere' }, { close: false })} />
           ) : (
             !snoozeOf(item) && (
-              item.idea?.newRepo ? <Button variant="primary" disabled={!!fresh && !fresh.ready} title={fresh?.hint} onClick={() => act({ action: 'start' }, { close: false })}>{fresh?.button ?? t.start}</Button> : <StartAgent
+              item.idea?.newRepo ? <Button variant="primary" disabled={!!fresh && !fresh.ready} title={fresh?.hint} onClick={() => act({ action: 'start' }, { close: true, pending: t.queue.checking })}>{fresh?.button ?? t.start}</Button> : <StartAgent
                 draft={cardDraft(item.id)}
                 label={fresh?.button ?? t.start}
                 disabled={!!fresh && !fresh.ready}
                 title={fresh?.hint ?? (inFolder ? t.folder.startHint : t.startHint)}
                 codexAllowed={!inFolder && !item.review?.contribution}
-                onStart={(agent) => act({ action: 'start', ...(agent ? { agent } : {}) }, { close: true, pending: t.starting })}
+                onStart={(agent) => act({ action: 'start', ...(agent ? { agent } : {}) }, { close: true, pending: t.queue.checking })}
               />
             )
           )}
@@ -909,7 +909,7 @@ export function Detail(p: Props) {
             <p className="wontfix-callout m-0 w-full rounded-md border border-border bg-muted px-3 py-2 text-sm" role="note">{inFolder ? t.folder.noChangeHint : t.noChangeHint}</p>
           )}
           {halted && !item.archivedAt && (
-            <StartAgent draft={cardDraft(item.id)} label={t.startAgain} title={t.startAgainHint} codexAllowed={!inFolder && !item.review?.contribution} onStart={(agent) => act({ action: 'start', ...(agent ? { agent } : {}) }, { close: true, pending: t.starting })} />
+            <StartAgent draft={cardDraft(item.id)} label={t.startAgain} title={t.startAgainHint} codexAllowed={!inFolder && !item.review?.contribution} onStart={(agent) => act({ action: 'start', ...(agent ? { agent } : {}) }, { close: true, pending: t.queue.checking })} />
           )}
           {review ? prototypeActions || approveButton : (running || (halted && !item.archivedAt)) && prototypeActions}
           <Later item={item} act={act} />
@@ -1187,7 +1187,7 @@ function IdeaView({
                   label={t.idea.build}
                   {...btn('build')}
                   codexAllowed={prototypes && !item.review?.contribution}
-                  onStart={(agent) => guard(() => void act({ action: 'build', ...(agent ? { agent } : {}) }, idea.thinking ? { close: false } : { close: true }))}
+                  onStart={(agent) => guard(() => void act({ action: 'build', ...(agent ? { agent } : {}) }, idea.thinking ? { close: false } : { close: true, pending: t.queue.checking }))}
                 />
               )
             )}
@@ -1315,7 +1315,7 @@ function ProposalView({
     act(
       { action: 'accept', ...(start ? {} : { start: false }), ...(asIdea ? { idea: true } : {}), ...(agent ? { agent } : {}), ...(answer.picked ? { picks: answer.answers } : {}) },
       (start || asIdea) && !revising
-        ? { close: true, ack: idea || asIdea ? t.acceptedIdea : later && Date.parse(item.idea!.proposal!.startAt!) > Date.now() ? t.acceptedLater(snoozeWhen(item.idea!.proposal!.startAt!)) : t.accepted }
+        ? { close: true, pending: t.queue.checking, ack: idea || asIdea ? t.acceptedIdea : later && Date.parse(item.idea!.proposal!.startAt!) > Date.now() ? t.acceptedLater(snoozeWhen(item.idea!.proposal!.startAt!)) : t.accepted }
         : { close: false },
     );
   return (

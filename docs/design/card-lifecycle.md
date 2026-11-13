@@ -347,6 +347,11 @@ a spinner stands in the toast stack, which the answer turns into the confirmatio
 landing is refused, into the reason, with the card waiting for review again; a restart that cut the
 landing off gives the card back the same way.
 
+Starting works the same way: "Start agent" (also "Start again", "Build it like this", "Accept and
+start" and a queued card's force-start) folds the card at once; the canvas card reads "Seismic
+checking" until the server's state takes over, and a refused start puts the card back with the
+reason in a toast.
+
 #### Feedback after approval
 
 The owner is asked how the agent did when the card goes into the archive by the owner's hand, as the
