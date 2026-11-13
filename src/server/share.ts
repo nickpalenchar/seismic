@@ -273,6 +273,16 @@ export class Sharing {
   }
 
   /**
+   * The share as a task took it up, with the owner's "Share on approval" choice as it is now: the
+   * owner may have changed it while the task ran, and what it writes back must not undo that.
+   */
+  private currentChoice(cardId: string, s: StoredShare): StoredShare {
+    const { notOnApproval: _, onApproval: __, ...rest } = s;
+    const now = this.stored(cardId);
+    return { ...rest, ...(now?.notOnApproval ? { notOnApproval: true as const } : {}), ...(now?.onApproval ? { onApproval: true as const } : {}) };
+  }
+
+  /**
    * "Share on approval", where approving shares (see `approved`): whether approving the
    * card puts its latest demo on its page. It stays with the card across handovers.
    */
@@ -596,7 +606,7 @@ export class Sharing {
     const t = this.o.board.t.share;
     const failed = s.again ? t.notAgain : s.retag ? t.notShared : s.refresh ? t.notLinked : t.notShared;
     const back = (why: string, out = '') => {
-      this.set(cardId, atRest(s));
+      this.set(cardId, atRest(this.currentChoice(cardId, s)));
       this.o.board.log(cardId, 'error', 'obeya', [`${failed}: ${why}`, out].filter(Boolean).join('\n\n'));
       this.settled(cardId, { why });
       return false;
@@ -610,7 +620,7 @@ export class Sharing {
         const gone = target ? null : this.siteGone(card);
         if (gone) return back(gone);
         if (s.again) return back(t.demoGone);
-        this.set(cardId, atRest(s));
+        this.set(cardId, atRest(this.currentChoice(cardId, s)));
         this.o.board.log(cardId, 'activity', 'obeya', t.linkLater);
         this.settled(cardId, s.url ? { url: s.url } : { why: t.noDemo });
         return null;
@@ -658,7 +668,7 @@ export class Sharing {
     this.lost(target.key, r.gone);
     if ('why' in r) return back(r.why, r.said);
     const { url } = r;
-    this.set(cardId, { slug: s.slug, url, demos, ...(pr ? { pr } : {}), ...(commit ? { commit: commit.url } : {}), version: pagesVersion(), ...(theme ? { theme: theme.hash } : {}), ...kept(s), ...placeOf(s) });
+    this.set(cardId, { slug: s.slug, url, demos, ...(pr ? { pr } : {}), ...(commit ? { commit: commit.url } : {}), version: pagesVersion(), ...(theme ? { theme: theme.hash } : {}), ...kept(this.currentChoice(cardId, s)), ...placeOf(s) });
     if (r.said) this.o.board.log(cardId, 'activity', 'obeya', r.said);
     this.o.board.log(cardId, 'state', 'obeya', s.again ? t.sharedAgain(url) : s.retag ? t.retagged(url) : s.refresh ? (pr ? t.linksPr(url) : t.linksCommit(url)) : t.shared(url));
     this.settled(cardId, { url });
@@ -713,7 +723,7 @@ export class Sharing {
     const card = this.find(cardId);
     if (s?.state !== 'withdrawing' || !card) return;
     const back = (why: string, out = '') => {
-      this.set(cardId, atRest(s));
+      this.set(cardId, atRest(this.currentChoice(cardId, s)));
       this.o.board.log(cardId, 'error', 'obeya', [why, out].filter(Boolean).join('\n\n'));
     };
     const target = this.target(card);
@@ -725,7 +735,7 @@ export class Sharing {
     const r = await target.withdraw(pathOf(s), this.others(cardId, target.key), (text) => this.o.board.log(cardId, 'activity', 'obeya', text));
     this.lost(target.key, r.gone);
     if (r.why) return back(r.why, r.said);
-    this.set(cardId, { slug: s.slug, ...kept(s) });
+    this.set(cardId, { slug: s.slug, ...kept(this.currentChoice(cardId, s)) });
     if (r.said) this.o.board.log(cardId, 'activity', 'obeya', r.said);
     this.o.board.log(cardId, 'state', 'obeya', t.withdrawn);
   }
