@@ -91,7 +91,9 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
   const inInbox = new Set(entries.flatMap((e) => (e.card ? [e.card.id] : [])));
   const listed = (i: Item) => !inInbox.has(i.id) && !i.archivedAt;
   // the cards agents are on; one whose agent is paused or snoozed stands in the box after them, but no agent works on it
-  const onIt = [...agentWork(items, isUnderway).working, ...items.filter((i) => i.kind !== 'task' && !i.queue && !needsYou(i) && !i.archivedAt && runs(i))].filter(listed);
+  // a card waiting for the owner still holds its workstation (an orange dot), so it stands in the box as the desktop's list has it
+  const held = new Set((snap?.workstations ?? []).flatMap((p) => p.hosts.flatMap((h) => h.workstations.filter((w) => w.card && !w.project).map((w) => w.card!))));
+  const onIt = [...new Set([...agentWork(items, isUnderway).working, ...items.filter((i) => i.kind !== 'task' && !i.queue && !needsYou(i) && !i.archivedAt && runs(i))].filter(listed).concat(items.filter((i) => held.has(i.id) && !i.archivedAt)))];
   const idle = (i: Item) => halted(i) || !!snoozeOf(i);
   const working = [...onIt.filter((i) => !idle(i)), ...onIt.filter(idle)];
   const atWork = onIt.filter((i) => !idle(i)).length;
