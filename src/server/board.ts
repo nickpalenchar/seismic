@@ -1680,14 +1680,14 @@ export class Board {
   }
 
   /** The merged card as the agent wrote it, or why there is none; false when the proposal is not being merged (any more). */
-  merged(id: string, r: Omit<Merge, 'with' | 'failed'> & { title: string; task: string } | { failed: string }, attempt?: string): boolean {
+  merged(id: string, r: Omit<Merge, 'with' | 'failed'> & { title: string; task: string } | { failed: string; compared?: Merge['compared'] }, attempt?: string): boolean {
     const row = this.store.cards.get(id);
     if (!row || row.project_id !== this.project.id || row.deleted_at) return false;
     const proposal = storedProposal(row);
     const was = proposal?.merge;
     if (!was || (attempt !== undefined && was.attempt !== attempt) || was.task !== undefined || was.failed !== undefined) return false;
     const { previous: _, ...base } = was;
-    const merge = 'failed' in r ? { ...base, failed: r.failed.slice(0, 2000) } : { ...base, ...r, title: r.outcome ? r.title : r.title.trim().slice(0, 200), task: r.outcome ? r.task : r.task.trim().slice(0, 20000) };
+    const merge = 'failed' in r ? { ...base, failed: r.failed.slice(0, 2000), ...(r.compared ? { compared: r.compared } : {}) } : { ...base, ...r, title: r.outcome ? r.title : r.title.trim().slice(0, 200), task: r.outcome ? r.task : r.task.trim().slice(0, 20000) };
     this.store.updateCard(id, { idea: { proposal: { ...proposal, merge } satisfies Proposal } });
     if ('failed' in r) this.log(id, 'error', 'koordinator', this.t.koordinator.mergeFailed(r.failed));
     this.changed();
@@ -1696,9 +1696,11 @@ export class Board {
 
   /** What a comparison of merging card `p` with `other` reads of them; the survivor's stage decides which comparison it is. */
   mergeReads(p: Item, other: Item): NonNullable<Merge['compared']> {
+    // all the comparison's brief tells of each card (merges.ts `message`), its state words but whether the survivor has started aside
+    const of = (i: Item) => [i.title, i.body, i.images ?? [], i.idea?.proposal?.questions ?? [], i.idea?.proposal?.reason ?? ''];
     return {
-      left: JSON.stringify([p.title, p.body, p.images, p.idea?.proposal?.questions ?? []]),
-      right: JSON.stringify([other.title, other.body, mergeRank(other) > 1]),
+      left: JSON.stringify(of(p)),
+      right: JSON.stringify([...of(other), mergeRank(other) > 1]),
       summary: this.summary(other.id) ?? '',
     };
   }

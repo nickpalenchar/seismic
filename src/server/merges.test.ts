@@ -483,6 +483,39 @@ describe('a merged pair whose cards change compares again', () => {
     expect(lines(p.id)).toContain('Separated from “Fix the CSV export” again: the two can no longer be merged.');
   });
 
+  test('a change to the survivor\'s screenshots, questions or reason compares again', async () => {
+    const { p } = cards();
+    const from = board().create({ title: 'Import', x: 0, y: 300 });
+    const q = board().propose(from.id, { title: 'CSV import', task: 'Import CSV too.', questions: [{ text: 'Which separator?', options: [';', ','] }] });
+    project.act(p.id, { action: 'merge', with: q.id });
+    await finishMerge({ title: 'CSV in and out', task: 'Export and import CSV correctly.' });
+    const first = merger();
+    const image = project.images.save(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a0foAAAAASUVORK5CYII=', 'base64'), 'image/png');
+    board().work(q.id, { images: JSON.stringify([image]) });
+    await settle(40);
+    expect(merger()).not.toBe(first);
+    expect(merger()!.inbox[0]).toContain(image);
+    expect(lines(p.id)).toContain('Compared again: “CSV import” changed.');
+  });
+
+  test('a card that changes while its comparison fails is compared again rather than left on the failure', async () => {
+    const { p, planned } = cards();
+    project.act(p.id, { action: 'merge', with: planned.id });
+    const first = merger()!;
+    board().work(planned.id, { body: 'Dates are off by two days.' });
+    first.emit({ type: 'idle' });
+    await settle(40);
+    expect(merger()).not.toBe(first);
+    expect(merger()!.inbox[0]).toContain('Dates are off by two days.');
+    expect(merge(p.id).failed).toBeUndefined();
+    // a failure of unchanged cards waits for "Try again"
+    const second = merger()!;
+    second.emit({ type: 'idle' });
+    await settle(40);
+    expect(merge(p.id).failed).toBeDefined();
+    expect(merger()).toBe(second);
+  });
+
   test('a restart after the partner of an unfinished comparison was deleted separates the pair instead of failing', () => {
     const { p, planned } = cards();
     board().mergeStart(p.id, planned.id);

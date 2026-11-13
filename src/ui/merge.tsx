@@ -129,7 +129,7 @@ export function DuplicateMergePreview({ item, partner }: { item: Item; partner: 
  * card under them, centred, with the spinner while an agent writes it; then "Approve merge"
  * and "Separate".
  */
-export function MergeView({ item, partner, act }: { item: Item; partner?: Item; act: Act }) {
+export function MergeView({ item, partner, act, error }: { item: Item; partner?: Item; act: Act; error?: string | null }) {
   const now = item.idea!.proposal!.merge!;
   // compared again after a card changed: the result before stays, dimmed, until the new one is in
   const updating = merging(item) && !!now.previous;
@@ -215,6 +215,7 @@ export function MergeView({ item, partner, act }: { item: Item; partner?: Item; 
         <TriangleAlert />
         <CalloutDescription>{t.merge.extra}</CalloutDescription>
       </Callout> : m.outcome === 'covered' ? <p className={cn(updating && 'stale opacity-45', "merge-callout covered w-[min(720px,100%)] box-border py-3 px-4 rounded-[3px] leading-[1.45] bg-[color-mix(in_srgb,#41a05a_14%,var(--card))] text-ink")}>{t.merge.covered}</p> : m.task !== undefined && partner && <p className={cn("hint merge-intro text-center max-w-[720px]", updating && 'stale opacity-45')}>{t.merge.intro(plain(partner.title))}</p>}
+      {error && <p className="p-error" role="alert">{error}</p>}
       {/* on the phone the decisions stay in view at the page's foot, leaving 87px for the microphone below them (the page reserves 157px under its content) */}
       <div className={cn(actionsClass, "merge-actions justify-center w-full [#panel_&]:panel-foot phone:sticky phone:-bottom-[70px] phone:z-5 phone:py-3 phone:px-0 phone:bg-background phone:border-t phone:border-t-line phone:after:content-[''] phone:after:absolute phone:after:top-full phone:after:left-0 phone:after:right-0 phone:after:h-[calc(87px+env(safe-area-inset-bottom))] phone:after:bg-background phone:after:pointer-events-none")}>
         {m.task !== undefined && partner && (

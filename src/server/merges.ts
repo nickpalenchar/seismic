@@ -75,8 +75,8 @@ export class Merges {
 
   /**
    * A comparison whose cards changed since it read them is made again; a pair that can no longer
-   * become one is separated, whether its comparison runs, is in or failed. A failed comparison
-   * otherwise waits for the owner's "Try again".
+   * become one is separated, whether its comparison runs, is in or failed. A failed comparison of
+   * unchanged cards waits for the owner's "Try again".
    */
   private check() {
     const { board } = this.o;
@@ -89,10 +89,11 @@ export class Merges {
           board.separate(i.id, other ? 'unmergeable' : 'gone');
           continue;
         }
-        if (merge.failed !== undefined) continue;
-        const read = merge.task !== undefined ? merge.compared : this.reading.get(i.id);
-        // a comparison that has not read the cards yet reads them as they are now
-        if (merge.task === undefined && !read) continue;
+        // a comparison that is in (a result or a failure) is checked against what it read, one running against what it is reading
+        const read = merge.task !== undefined || merge.failed !== undefined ? merge.compared : this.reading.get(i.id);
+        // one that has not read the cards yet reads them as they are now; a failure from before the reads were kept waits for
+        // "Try again", while a result from then is made again, as nothing tells what it read
+        if (!read && merge.task === undefined) continue;
         const changed = board.mergeChanges(i, other, read);
         if (!changed.length) continue;
         board.mergeAgain(i.id, changed);
@@ -115,7 +116,8 @@ export class Merges {
     this.ask(card, other)
       .then(
         (r) => void this.o.board.merged(cardId, r, attempt),
-        (e) => void this.o.board.merged(cardId, { failed: messageOf(e) }, attempt),
+        // what the failed attempt read: a change since then makes it again, as for a result
+        (e) => void this.o.board.merged(cardId, { failed: messageOf(e), compared: this.reading.get(cardId) }, attempt),
       )
       .catch((e) => console.error('merge:', e))
       .finally(() => { if (this.busy.get(cardId) === attempt) { this.busy.delete(cardId); this.reading.delete(cardId); } });
