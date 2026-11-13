@@ -3,6 +3,7 @@ import { confirmShownMs, type Heard, undoShownMs } from '../api';
 import { t } from '../strings';
 import { type Clock, toastStore } from './toast';
 import { MADE_SHOWN_MS, toldLines } from './told';
+import { useAck } from '../tell';
 
 /** A clock the test moves on by hand. */
 function fakeClock() {
@@ -47,6 +48,19 @@ describe('the toast store', () => {
     expect(texts()).toEqual(['Reading', 'Queued', 'Approved']);
     s.show({ kind: 'warning', text: 'Queued too', dismiss: true });
     expect(texts()).toEqual(['Reading', 'Queued', 'Approved', 'Queued too']);
+  });
+
+  test('a wait toast the server answers without a confirmation goes when the answer comes', () => {
+    const { s, texts } = store();
+    const { showWait } = useAck(s);
+    const done = showWait('Seismic checking');
+    expect(texts()).toEqual(['Seismic checking']);
+    done();
+    expect(texts()).toEqual([]);
+    const late = showWait('Seismic checking');
+    s.show({ slot: 'ack', kind: 'confirm', text: 'Started' });
+    late();
+    expect(texts()).toEqual(['Started']);
   });
 
   test('a toast goes after its time; one without stays until dismissed', () => {

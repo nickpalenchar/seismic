@@ -310,7 +310,8 @@ four kinds, the same on both:
 - a *confirmation* of what the owner did on the page (archived, approved, a failure), dark, with
   "Undo" while the action still waits; it goes after seven seconds;
 - *still at it*, dark with a spinner, for what the server has not answered yet (an approval
-  landing); it stays until its confirmation takes its place;
+  landing, a start being checked); it stays until its confirmation takes its place, or goes with the
+  answer where there is nothing to confirm;
 - a *warning* about something that went another way than the owner expects (a card the check
   queued instead of starting), light with a coloured ring, with "Go to card" where it is about a
   card and "Dismiss"; it stays until the owner acts on it;

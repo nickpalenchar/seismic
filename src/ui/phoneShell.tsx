@@ -383,11 +383,12 @@ export function usePhoneShell(loaded: ProjectInfo[], { follow = false }: { follo
     }
     const card = p.card;
     setUnderway((u) => [...u, card]);
-    showWait(`${d.pending.charAt(0).toUpperCase()}${d.pending.slice(1)}`);
+    const done = showWait(`${d.pending.charAt(0).toUpperCase()}${d.pending.slice(1)}`);
     p.answered.then(
       () => {
         if (d.rate) ratePrompt.ask(d.rate);
         if (d.ack) showAck(d.ack, d.undo);
+        else done();
       },
       (e) => {
         setUnderway((u) => u.filter((id) => id !== card));

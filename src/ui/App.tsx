@@ -831,11 +831,12 @@ function Project({
     // the card says it is under way until the snapshot moves it on; a refusal puts it back as it was
     const what = d.pending;
     setUnderway((u) => ({ ...u, [p.card]: what }));
-    showWait(`${what.charAt(0).toUpperCase()}${what.slice(1)}`);
+    const done = showWait(`${what.charAt(0).toUpperCase()}${what.slice(1)}`);
     p.answered.then(
       () => {
         if (d.rate) ratePrompt.ask(d.rate);
         if (d.ack) showAck(d.ack, d.undo);
+        else done();
       },
       (e) => {
         if (!(e instanceof ApiError)) console.error(e);

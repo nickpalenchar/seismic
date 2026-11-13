@@ -46,8 +46,11 @@ export function useAck(toasts: ToastStore) {
     if (!(e instanceof ApiError)) console.error(e);
     showAck(failText(e));
   }
-  /** What the server is still at: stays, turning, until a confirmation takes its place. */
-  const showWait = (text: string) => void toasts.show({ slot: 'ack', kind: 'wait', text });
+  /** What the server is still at: stays, turning, until a confirmation takes its place or `done` is called (an answer with nothing to confirm). */
+  function showWait(text: string) {
+    const id: number = toasts.show({ slot: 'ack', kind: 'wait', text });
+    return () => toasts.remove(id);
+  }
   return { showAck, showWait, fail };
 }
 
