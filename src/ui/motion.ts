@@ -1,6 +1,6 @@
 // Full or reduced motion as the owner chose in the settings, else as the system's reduce-motion
 // setting: reduced, `data-motion="reduce"` on the page's root takes the animations and blurs out of
-// the stylesheet (styles.css), and the code that moves things itself (camera flights,
+// the stylesheet (frost.css), and the code that moves things itself (camera flights,
 // zooms, smooth scrolling) asks `reducedMotion` and goes there at once.
 
 import type { Motion } from '../core/types';

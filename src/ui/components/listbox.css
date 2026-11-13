@@ -1,5 +1,0 @@
-/* Listbox (listbox.tsx): the list and its active option. Where the list stands and how an option looks inside is the container's. */
-
-.listbox { list-style: none; margin: 0; padding: 0; }
-.listbox li { cursor: pointer; }
-.listbox li[data-active] { background: var(--chip); }

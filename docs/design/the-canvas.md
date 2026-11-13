@@ -1,6 +1,6 @@
 ## The canvas
 
-A chapter of the [design doc](../design.md), whose header says how it is written. Several canvases per project, switched by tabs, are planned in [Several canvases per project](../plan/multi-canvas.md). Moving the UI onto shadcn/ui with Tailwind in frost's look is planned in [shadcn/ui with Tailwind, in frost](../plan/shadcn-ui.md). Bringing its styling onto shadcn's scales and Tailwind's palette is planned in [Frost on shadcn's scales and Tailwind's palette](../plan/shadcn-scales.md).
+A chapter of the [design doc](../design.md), whose header says how it is written. Several canvases per project, switched by tabs, are planned in [Several canvases per project](../plan/multi-canvas.md). Bringing its styling onto shadcn's scales and Tailwind's palette is planned in [Frost on shadcn's scales and Tailwind's palette](../plan/shadcn-scales.md).
 
 The UI is a browser app with a custom canvas: camera with fly-to, unfold-in-place, semantic zoom,
 edge indicators, minimap, a frosted top bar the canvas slides under, and a status bar along the bottom.
@@ -625,6 +625,12 @@ calm and modern without looking like a stock component kit.
   moving line). The state line at the card's foot stays one line, cut short
   with an ellipsis when it is longer, so it never runs into the text above it. Under the pointer a
   card lifts; dragged, it lifts a little further. "At work" is a stroke drawn again and again.
+- *Controls*: every control is a part of one set (shadcn/ui on Radix Primitives), so they behave alike.
+  Menus, popovers, selects, dialogs, sheets and tooltips open over the page and close on Esc, a click
+  outside or a pick; Esc closes only the topmost open layer, so a menu in an open card closes before the
+  card does. Space and Enter activate a focused control (Space never starts push-to-talk on one), arrow
+  keys move within a menu, list or tab row, and closing a layer returns focus to what opened it. A
+  switch is one on/off setting; checkboxes are for picking several of a set.
 - *Lists that fill from a field*: the card finder, the composer's `/` skill menu, the card-link menu
   in the task field and the merge picker's search all behave alike. Focus stays in the field, which is
   exposed as a combobox over a listbox; the arrow keys move the highlighted option (wrapping, except in
@@ -893,7 +899,7 @@ code, a generic one otherwise.
   like a dialog, and the phone already closed cards that way. Rejected: closing as a step of its own,
   after which Back opened the card that was just closed.
 - **The look is frost, on shadcn/ui with Tailwind** (owner, 2026-11-05, 2026-11-10): frost is
-  one stylesheet with one token set (board, glass, inks; light, dark by system, dark by choice), and
+  one token set (board, glass, inks; light, dark by system, dark by choice), and
   its tokens are the values behind shadcn/ui's variables
   (`--background`, `--card`, `--primary` …), and the state inks and glass are Tailwind tokens of their
   own, so a shadcn part wears frost without a rule of its own; `dark:` follows the owner's choice of
@@ -904,10 +910,11 @@ code, a generic one otherwise.
   the stronger look, at a cost measured with about 100 cards on screen at middle zoom on a 2560×1440
   window, where blurring every card dropped to 49 fps with a GPU and 23 fps without one; dropping the
   blur while the canvas moves brought it to 60 and 55 fps, against 60 without glass. Solid cards
-  remain the fallback. While the hand-written stylesheet is still being replaced, Tailwind runs without
-  its reset and its utilities sit in a cascade layer under the old stylesheet, which therefore wins
-  where both style a property; no class of the old stylesheet may share a name with a Tailwind utility
-  (`hidden`, `fixed`, `ring`), since the utility would apply to it as well. Rejected: our own
+  remain the fallback. Everything is Tailwind, preflight included; the one stylesheet of its own, `frost.css`,
+  holds frost's token values, the board and its font and keyframes, and sits outside the cascade layers.
+  No class in it may share a name with a Tailwind utility (`hidden`, `fixed`, `ring`), since the utility
+  would apply to it as well, and a test fails on a control written by hand outside `src/ui/components/`
+  (a switch, select, dialog or menu of a view's own). Rejected: our own
   stylesheet on Radix Primitives (2026-11-09, reversed 2026-11-10: every control, popover and dialog
   was being rebuilt by hand, and the ready-made higher-level parts and conversation components were
   out of reach); shadcn's neutral look; porting shadcn's behaviour into our CSS; Tailwind only in the

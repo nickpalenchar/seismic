@@ -1003,7 +1003,7 @@ const planClass =
 const planHeadClass = 'absolute inset-x-0 top-0 flex cursor-pointer items-center gap-2.5 py-4 pr-[22px] pl-3 has-[.card-more]:pr-2.5';
 /** Folds the plan to its head and back; always in sight, so it is found. */
 const planFoldClass =
-  'grid h-6 w-6 flex-none cursor-pointer place-items-center rounded-[3px] [border:0] bg-transparent p-0 -mr-1 text-muted-foreground hover:bg-card hover:text-ink [&_path]:[fill:none] [&_path]:[stroke:currentColor] [&_path]:[stroke-width:1.6] [&_path]:[stroke-linecap:round] [&_path]:[stroke-linejoin:round]';
+  'text-[14px] grid h-6 w-6 flex-none cursor-pointer place-items-center rounded-[3px] [border:0] bg-transparent p-0 -mr-1 text-muted-foreground hover:bg-card hover:text-ink [&_path]:[fill:none] [&_path]:[stroke:currentColor] [&_path]:[stroke-width:1.6] [&_path]:[stroke-linecap:round] [&_path]:[stroke-linejoin:round]';
 /** Arranges the workstreams by their dependencies, or starts all planned ones; quiet until the pointer is on one; gone from afar. */
 const planHeadButtonClass =
   'flex flex-none cursor-pointer items-center gap-1.5 rounded-[3px] border border-solid border-line bg-card py-1 pr-[11px] pl-[9px] text-[12px] font-medium [transition:background_.15s,color_.15s,border-color_.15s] hover:enabled:border-working hover:enabled:bg-working hover:enabled:text-on-ink [.z-far_&]:hidden';
@@ -1047,7 +1047,7 @@ export const PlanView = memo(
         <div className={`head ${planHeadClass} ${collapsed ? (labelled ? 'h-[46px]' : 'h-[54px]') : 'h-[58px]'}`}>
           <Tooltip content={collapsed ? t.plan.expand : t.plan.collapse}>
             <button
-                className={`fold ${planFoldClass}`} aria-label={collapsed ? t.plan.expand : t.plan.collapse}
+                className={planFoldClass} aria-label={collapsed ? t.plan.expand : t.plan.collapse}
                 aria-expanded={!collapsed}
                 onPointerDown={own}
                 onClick={(e) => {

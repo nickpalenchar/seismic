@@ -1,4 +1,4 @@
-// The looks of the waits on the canvas (docs/plan/shadcn-ui.md, W7), which several files draw: the lines
+// The looks of the waits on the canvas, which several files draw: the lines
 // and heads of `DepLinks` (parts.tsx) and the stubs to other canvases (canvases.tsx) in their layer, the
 // arrows the owner draws with their handles (App.tsx), and the colour each card's handles take.
 

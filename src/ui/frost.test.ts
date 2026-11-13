@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 
-// The contrast of the frost look's text, measured from the tokens in styles.css: each state's ink as the
+// The contrast of the frost look's text, measured from the tokens in frost.css: each state's ink as the
 // state line at a card's foot (12 px semibold, so WCAG's 4.5:1 for small text), on the glass of a card
 // of that state, over the lightest and the darkest of the board, at rest and with the tint (--unblurred) a
 // card takes for its blur zoomed far out or moving. Finished cards are pushed back on purpose (faded): their line keeps 3:1.
@@ -8,12 +8,12 @@ import { expect, test } from 'bun:test';
 
 type RGBA = [number, number, number, number];
 
-const css = await Bun.file(new URL('./styles.css', import.meta.url)).text();
+const css = await Bun.file(new URL('./frost.css', import.meta.url)).text();
 
 /** The custom properties of the first rule whose selector is `selector`. */
 function tokens(selector: string): Record<string, string> {
   const at = css.indexOf(`${selector} {`);
-  if (at < 0) throw new Error(`no ${selector} in styles.css`);
+  if (at < 0) throw new Error(`no ${selector} in frost.css`);
   const body = css.slice(at + selector.length + 2, css.indexOf('\n}', at));
   return Object.fromEntries([...body.matchAll(/--([\w-]+):\s*([^;]+);/g)].map((m) => [m[1]!, m[2]!.trim()]));
 }

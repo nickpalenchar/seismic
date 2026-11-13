@@ -1,4 +1,4 @@
-// The looks of the ring a right click opens on the canvas (docs/plan/shadcn-ui.md, W7), which the colour
+// The looks of the ring a right click opens on the canvas, which the colour
 // ring of the groups (groups.tsx `Ring`) and the ring of the canvases (canvases.tsx `CanvasRing`) share:
 // the backdrop that catches the pointer, the frosted halo, the balls around the middle, their names, the
 // caption in the middle and the field for a new group's name. `open` is the ring once it has come out (a

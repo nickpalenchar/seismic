@@ -73,7 +73,7 @@ for (const scenario of ['running', 'fixing', 'verifying', 'unsent', 'unsentDurin
         if (path === '/') return new Response('<!doctype html><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/tailwind.css"><div id="panel" style="display:block;position:relative;width:1100px;margin:20px"></div><script type="module" src="/fixture.js"></script>', { headers: { 'content-type': 'text/html' } });
         if (path === '/fixture.js') return new Response(script, { headers: { 'content-type': 'text/javascript' } });
         if (path === '/tailwind.css') return new Response(css, { headers: { 'content-type': 'text/css' } });
-        if (path === '/style.css') return new Response(Bun.file(join(import.meta.dir, '../ui/styles.css')));
+        if (path === '/style.css') return new Response(Bun.file(join(import.meta.dir, '../ui/frost.css')));
         if (path === '/fixture') return Response.json({ item: board.item(id), repo: { id: 'home', name: 'Home', path: main, branch: 'main', pullRequests: true, direct: true } });
         if (path.endsWith('/act')) {
           const action = await req.json() as CardAction;

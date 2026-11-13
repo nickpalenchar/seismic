@@ -14,24 +14,30 @@ const level: Record<Priority, string> = {
   medium: 'text-in-pr font-semibold',
   high: 'text-waiting font-semibold',
   veryHigh: 'text-error font-semibold',
-  critical: 'text-on-ink bg-error font-semibold rounded-[3px] pt-0 pb-0 pr-[5px] pl-1',
+  critical: 'text-on-ink bg-error font-semibold rounded-[3px]',
 };
 
 /**
  * A card's priority: a flag and its name, in its colour. `suggested` (Seismic's, not the owner's yet)
  * frames it in the dashed purple of a proposal; `bare`, the flag alone, as the smallest face shows it.
  */
-export const prioClass = (priority: Priority, { suggested, bare }: { suggested?: boolean; bare?: boolean } = {}) =>
-  [
+export const prioClass = (priority: Priority, { suggested, bare }: { suggested?: boolean; bare?: boolean } = {}) => {
+  const framed = priority === 'critical' || suggested;
+  return [
     `prio prio-${priority}`,
     suggested && 'sugg',
     bare && 'bare',
     'inline-flex items-center gap-[3px] flex-none normal-case tracking-[.01em] [&_svg]:block [&_svg]:flex-none',
     level[priority],
-    suggested && 'border border-dashed border-proposal rounded-[3px] pt-0 pb-0 pr-[5px] pl-1 leading-[15px]',
+    suggested && 'border border-dashed border-proposal rounded-[3px]',
+    // the padding of a filled or framed mark; the flag alone is tighter
+    framed && (bare ? 'p-[1px_3px] leading-none' : 'pt-0 pb-0 pr-[5px] pl-1'),
+    suggested && !bare && 'leading-[15px]',
+    bare && !framed && 'px-px',
   ]
     .filter(Boolean)
     .join(' ');
+};
 
 /** Where a picker stands: its button, the menu anchored to it. */
 export const prioPickClass = 'prio-pick relative inline-flex text-[12px]';

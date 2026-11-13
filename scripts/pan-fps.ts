@@ -1,5 +1,4 @@
-// The frame rate while the canvas pans, the measurement docs/plan/shadcn-ui.md compares against
-// (its "Baseline"): a scratch Seismic's canvas in headless Chrome without a GPU at 2560×1353, a wheel
+// The frame rate while the canvas pans, the measurement for the look's cost: a scratch Seismic's canvas in headless Chrome without a GPU at 2560×1353, a wheel
 // event dispatched in the page each animation frame for 4 s, three runs; prints the runs and their mean.
 // The canvas sets `moving` while it pans, so the cards drop their blur as they do for the owner.
 //

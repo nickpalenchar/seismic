@@ -1,4 +1,4 @@
-// The frost look's one piece of behaviour (styles.css has its rules): while the canvas moves (a pan, a zoom, a camera
+// The frost look's one piece of behaviour (frost.css has its rules): while the canvas moves (a pan, a zoom, a camera
 // flight), `moving` on the page's root takes the blur from behind the cards, which would otherwise
 // re-sample the board under every card on every frame. It watches the world's transform rather than
 // hooking into the camera, so the canvas code stays as it is.

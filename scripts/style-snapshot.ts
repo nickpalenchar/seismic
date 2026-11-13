@@ -1,5 +1,5 @@
-// Computed styles of a part of the UI, for comparing a view before and after its CSS moves (docs/plan/shadcn-ui.md,
-// W7/W8: each family is compared element by element against the commit before it).
+// Computed styles of a part of the UI, for comparing a view before and after its CSS moves (each family is
+// compared element by element against the commit before it).
 //
 //   bun scripts/style-snapshot.ts js <root selector> [--pseudo]   prints a JS expression for the browser skill's `eval`
 //   bun scripts/style-snapshot.ts diff <before.json> <after.json>  prints the elements and properties that differ

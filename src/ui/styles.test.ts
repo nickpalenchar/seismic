@@ -3,11 +3,11 @@ import tailwind from 'bun-plugin-tailwind';
 
 // The app's webview is WebKit (macOS, WebKitGTK on Linux), which knows `user-select` only by its
 // prefix: without it, dragging a card selects some of its text there. The rules that set it are
-// Tailwind's utilities (`select-none`, arbitrary `[user-select:…]`) and what is left of styles.css.
+// Tailwind's utilities (`select-none`, arbitrary `[user-select:…]`) and what is left of frost.css.
 test('every user-select in the stylesheets also carries its -webkit- prefix', async () => {
   const dir = new URL('.', import.meta.url).pathname;
   const built = await Bun.build({ entrypoints: [`${dir}tailwind.css`], plugins: [tailwind] });
-  const css = (await built.outputs[0]!.text()) + (await Bun.file(`${dir}styles.css`).text());
+  const css = (await built.outputs[0]!.text()) + (await Bun.file(`${dir}frost.css`).text());
   const rules = css.split('}').filter((r) => /(^|[^-])user-select:/.test(r));
   expect(rules.length).toBeGreaterThan(0);
   for (const r of rules) {
