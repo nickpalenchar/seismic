@@ -331,7 +331,7 @@ export function WorkingRows({ cards, pools, items, underway, projects, onOpen, o
           <li key={i.id} className="grid grid-cols-[12px_minmax(0,1fr)] items-start gap-x-2 py-1">
             <WorkstationMark dot={{ className: cn('ws-dot box-border block rounded-full border border-slate-500 bg-c', PULSING.has(tone) && pulse), style: stateVars(tone) as CSSProperties }} className="mt-[5px]" />
             <button type="button" className="-mx-1.5 -my-0.5 block min-w-0 cursor-pointer rounded-[6px] border-0 bg-transparent px-1.5 py-0.5 text-left text-inherit hover:bg-muted focus-visible:bg-muted [&_.f-dot]:hidden" onClick={() => onOpen(i)}>
-              <CardFace item={i} size="xs" underway={underway[i.id]} />
+              <CardFace item={i} size="xs" workstation underway={underway[i.id]} />
             </button>
           </li>
         );
