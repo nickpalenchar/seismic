@@ -1,5 +1,6 @@
 // Merge selection and the owner's coverage review (design: Merging cards).
 
+import { mergeQuestionTexts } from '../core/merge';
 import { actionsClass } from './cardClasses';
 import { cn } from 'cn';
 import { Fragment, useContext, useEffect, useId, useMemo, useRef, useState } from 'react';
@@ -134,7 +135,8 @@ export function MergeView({ item, partner, act, error }: { item: Item; partner?:
   // compared again after a card changed: the result before stays, dimmed, until the new one is in
   const stale = now.task === undefined && !!now.previous;
   const updating = merging(item) && stale;
-  const m = stale ? { ...now, ...now.previous } : now;
+  const m = stale ? { ...now, ...now.previous, compared: undefined } : now;
+  const questionTexts = mergeQuestionTexts(m);
   const [archivedPartner, setArchivedPartner] = useState<Item>();
   useEffect(() => { if (partner) return; let live = true; api.archived().then((a) => { if (live) setArchivedPartner(a.find((i) => i.id === m.with)); }, console.error); return () => { live = false; }; }, [partner, m.with]);
   partner ??= archivedPartner;
@@ -208,7 +210,7 @@ export function MergeView({ item, partner, act, error }: { item: Item; partner?:
           <h3 className={titleClass}><Inline md={m.followUp.title} /></h3>
           <Body md={m.followUp.task} />
           <Shots ids={m.followUp.images} />
-          {m.followUp.questions.map((n) => <p className="hint" key={n}>{item.idea?.proposal?.questions[n]?.text}</p>)}
+          {questionTexts ? questionTexts.map((text, n) => <p className="hint" key={n}>{text}</p>) : <p className="hint">{t.merge.questionsUnavailable}</p>}
         </div>
       </>}
       {m.outcome === 'followUp' ? <Callout kind="warn" className={cn('mt-3 max-w-[720px] box-border', stale && 'stale opacity-45')}>

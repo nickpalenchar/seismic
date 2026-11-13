@@ -22,7 +22,8 @@ Persistent (SQLite):
   scope; an approval held until the work can land; landed work whose worker still finishes; a
   waiting card's stopped app; the clone that keeps a card's branch since its workstation was taken
   from it; a merge draft on an unworked proposal or planned task (partner, original place, combined
-  text or exact coverage parts, optional follow-up with its screenshots and question references, and
+  text or exact coverage parts, optional follow-up with its screenshots, question references and the selected question text
+  saved with that comparison, and
   the texts and handover compared so stale approval can be refused); its short code for addresses
   (see Addresses in The canvas), unique across the database;
 - what belongs to one feature of a card lives in a table of its own beside the card, keyed by the

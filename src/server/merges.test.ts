@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { MERGED_SIZE, onProject, sizeOf } from '../core/layout';
 import { type Item, mergeableWith, mergeRank, needsYou, openQuestions } from '../core/types';
+import { mergeQuestionTexts } from '../core/merge';
 import { mergeCandidates } from '../ui/merge';
 import { ProjectRuntime } from './project';
 import { Store } from './store';
@@ -465,6 +466,60 @@ describe('a merged pair whose cards change compares again', () => {
     expect(merge(p.id).previous).toEqual(previous);
     project.act(p.id, { action: 'separate' });
     expect(board().item(p.id)?.idea?.proposal?.merge).toBeUndefined();
+  });
+
+  for (const change of ['edit', 'remove', 'reorder'] as const) {
+    test(`follow-up questions stay with their comparison through ${change}, failure, restart and retry`, async () => {
+      const { p, planned } = cards();
+      const original = [{ text: 'Which encoding?', options: ['UTF-8', 'Latin-1'] }, { text: 'Which separator?', options: [',', ';'] }];
+      const setQuestions = (questions: typeof original) => {
+        const proposal = store.cards.get(p.id)!.idea!.proposal!;
+        store.updateCard(p.id, { idea: { proposal: { ...proposal, questions } } });
+        board().work(p.id, { status_line: 'Questions updated' });
+      };
+      setQuestions(original);
+      board().work(planned.id, { state: 'working', branch: 'csv' });
+      project.act(p.id, { action: 'merge', with: planned.id });
+      const answer = () => ({ outcome: 'followUp', titleCovered: false, parts: [{ text: p.body, covered: false }],
+        followUp: { title: 'Encoding', task: 'Fix encoding.', images: [], questions: [0] } });
+      await finishMerge(answer());
+      expect(mergeQuestionTexts(merge(p.id))).toEqual(['Which encoding?']);
+      // Also exercise saved results from before question text was stored explicitly.
+      if (change === 'reorder') {
+        const proposal = store.cards.get(p.id)!.idea!.proposal!;
+        const saved = proposal.merge!;
+        store.updateCard(p.id, { idea: { proposal: { ...proposal, merge: { ...saved, followUp: { ...saved.followUp!, questionTexts: undefined } } } } });
+      }
+      const first = merger();
+      const questions = change === 'edit' ? [{ ...original[0]!, text: 'Which file format?' }, original[1]!]
+        : change === 'remove' ? [original[1]!] : [original[1]!, original[0]!];
+      setQuestions(questions);
+      await until(() => merger() !== first);
+      expect(mergeQuestionTexts(merge(p.id).previous!)).toEqual(['Which encoding?']);
+      merger()!.emit({ type: 'idle' });
+      await until(() => merge(p.id).failed !== undefined);
+      expect(mergeQuestionTexts(merge(p.id).previous!)).toEqual(['Which encoding?']);
+      project.shutdown();
+      project = new ProjectRuntime({ repos: [{ path: main, clones: 1 }] }, { store, home: dir, runtime, forge: noForge, mergeSettleMs: 10 });
+      expect(mergeQuestionTexts(merge(p.id).previous!)).toEqual(['Which encoding?']);
+      project.act(p.id, { action: 'merge', with: planned.id });
+      expect(mergeQuestionTexts(merge(p.id).previous!)).toEqual(['Which encoding?']);
+      await finishMerge(answer());
+      expect(merge(p.id).previous).toBeUndefined();
+      expect(mergeQuestionTexts(merge(p.id))).toEqual([questions[0]!.text]);
+      project.act(p.id, { action: 'approveMerge' });
+      const followUp = board().items().find((i) => i.title === 'Encoding')!;
+      expect(followUp.body).toContain(questions[0]!.text);
+    });
+  }
+
+  test('legacy follow-up questions require their own valid inputs, never the current card', () => {
+    const followUp = { title: 'Extra', task: 'Extra work', images: [], questions: [0] };
+    expect(mergeQuestionTexts({ followUp })).toBeUndefined();
+    for (const left of ['invalid', '{}', '["title","body"]', '["title","body",[],[]]']) {
+      expect(mergeQuestionTexts({ followUp, compared: { left, right: '', summary: '' } })).toBeUndefined();
+    }
+    expect(mergeQuestionTexts({ followUp: { ...followUp, questions: [] } })).toEqual([]);
   });
 
   test('the survivor\'s handover changes its summary: compared again against the new one', async () => {

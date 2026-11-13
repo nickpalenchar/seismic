@@ -385,6 +385,7 @@ const en = {
     cancel: 'Cancel',
     merging: 'An agent is merging the two cards …',
     updating: 'Updating: a card changed',
+    questionsUnavailable: 'Question text was not saved with this comparison.',
     mergingShort: 'Planning merge',
     planning: 'Planning merge',
     mergedShort: 'Merged · review',

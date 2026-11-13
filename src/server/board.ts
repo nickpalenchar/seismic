@@ -6,6 +6,7 @@
 // into the archive with it, and comes back to its place when the doc returns. A workstream that
 // leaves its doc stays stored but is not shown.
 
+import { mergeQuestionTexts } from '../core/merge';
 import { CANVAS_ICON_COLORS, CANVAS_LUCIDE_ICONS, isCanvasIcon } from '../core/canvas-icons';
 import { isLabelValue, type Label, LABELS, LABEL_VALUES, type Labels } from '../core/labels';
 import { createHash } from 'node:crypto';
@@ -1688,6 +1689,7 @@ export class Board {
     if (!was || (attempt !== undefined && was.attempt !== attempt) || was.task !== undefined || was.failed !== undefined) return false;
     const { previous: _, ...base } = was;
     const merge = 'failed' in r ? { ...was, failed: r.failed.slice(0, 2000), ...(r.compared ? { compared: r.compared } : {}) } : { ...base, ...r, title: r.outcome ? r.title : r.title.trim().slice(0, 200), task: r.outcome ? r.task : r.task.trim().slice(0, 20000) };
+    if (!('failed' in r) && merge.followUp) merge.followUp = { ...merge.followUp, questionTexts: mergeQuestionTexts(r) };
     this.store.updateCard(id, { idea: { proposal: { ...proposal, merge } satisfies Proposal } });
     if ('failed' in r) this.log(id, 'error', 'koordinator', this.t.koordinator.mergeFailed(r.failed));
     this.changed();
@@ -1727,7 +1729,7 @@ export class Board {
     const was = proposal?.merge;
     if (!proposal || !was) throw new BadRequest('notProposal', 'the proposal is not merged with another card');
     const { title, task, outcome, titleCovered, parts, followUp, compared: _, failed: __, previous, ...keep } = was;
-    const before = task !== undefined ? { title, task, outcome, titleCovered, parts, followUp } : previous;
+    const before = task !== undefined ? { title, task, outcome, titleCovered, parts, followUp: followUp && { ...followUp, questionTexts: mergeQuestionTexts(was) } } : previous;
     this.store.updateCard(id, { idea: { proposal: { ...proposal, merge: { ...keep, attempt: crypto.randomUUID(), ...(before ? { previous: before } : {}) } } satisfies Proposal } });
     this.log(id, 'state', 'koordinator', this.t.koordinator.mergeAgain(titles));
     this.changed();

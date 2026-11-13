@@ -892,7 +892,11 @@ export interface Merge {
   titleCovered?: boolean;
   /** Exact consecutive pieces of the dissolving task, for checking coverage without rewriting it. */
   parts?: { text: string; covered: boolean }[];
-  followUp?: { title: string; task: string; images: string[]; questions: number[] };
+  followUp?: {
+    title: string; task: string; images: string[]; questions: number[];
+    /** Selected question text as read by this comparison, in the same order as the indexes. */
+    questionTexts?: string[];
+  };
   /** What the comparison read of both cards: when either changes, it is compared again. */
   compared?: { left: string; right: string; summary: string };
   /** The result of the comparison before, shown dimmed while the cards are compared again after a change. */
