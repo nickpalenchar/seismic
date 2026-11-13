@@ -2675,11 +2675,12 @@ function Project({
             </Tooltip>
           </div>
         </header>
-        {/* under the bar, floating over the main area: the project switcher at the left; the project's settings, its agents and what needs the owner at the right */}
+        {/* The floating controls stay above both the dim and an open card, including a tall card
+            that reaches this row. Empty space in the row still passes clicks to the dim. */}
         <div
           id="floating-row"
           ref={rowRef}
-          className="group/row pointer-events-none fixed top-[66px] right-[calc(var(--side,0px)+14px)] left-[calc(var(--left,0px)+48px)] z-24 flex items-center gap-2.5 transition-[right,left] duration-450 ease-[cubic-bezier(.3,.9,.3,1)] resizing:transition-none [&>*]:pointer-events-auto"
+          className={cn('group/row pointer-events-none fixed top-[66px] right-[calc(var(--side,0px)+14px)] left-[calc(var(--left,0px)+48px)] z-24 flex items-center gap-2.5 transition-[right,left] duration-450 ease-[cubic-bezier(.3,.9,.3,1)] resizing:transition-none [&>*]:pointer-events-auto', dim && 'z-41')}
         >
           {!side.left && <NavPill {...nav} />}
           <div className="right ml-auto flex flex-none items-center gap-2.5 [&>*]:pointer-events-auto">
