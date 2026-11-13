@@ -2263,7 +2263,8 @@ export class Workers {
         unheard: JSON.stringify([...this.unheardBut(cardId, NOT_LANDED), { said: [], text, images: [] }] satisfies Unheard[]),
         ...(blocked ? { detail: JSON.stringify({ ...this.detailOf(cardId), blocked }) } : {}),
       });
-      throw new BadRequest(result.code, result.detail);
+      // only where the card names the files in the way does it offer to fold them in
+      throw new BadRequest(result.code === 'landMerge' && !blocked ? 'landLocal' : result.code, result.detail);
     }
     if (by === 'owner') this.o.board.record(cardId, 'approved', 'owner');
     if ('code' in result) {

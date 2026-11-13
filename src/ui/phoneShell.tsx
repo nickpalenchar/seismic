@@ -392,7 +392,9 @@ export function usePhoneShell(loaded: ProjectInfo[]) {
       },
       (e) => {
         setUnderway((u) => u.filter((id) => id !== card));
-        showAck(t.cardError(p.title, failText(e)));
+        // the card is closed by now: a warning that stays, with the way back to it, in place of the wait
+        done();
+        warnings.show(t.cardError(p.title, failText(e)), p.card);
       },
     );
   }

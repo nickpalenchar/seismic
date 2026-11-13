@@ -2357,6 +2357,8 @@ export type ErrorCode =
   | 'landEmpty'
   | 'landCheckout'
   | 'landMerge'
+  /** As `landMerge`, where Seismic could not tell which of the checkout's changes are in the way: git's own words come with it. */
+  | 'landLocal'
   /** Pushing approved work directly onto `origin`'s default branch was turned away (a protected branch, say). */
   | 'landPush'
   | 'land'

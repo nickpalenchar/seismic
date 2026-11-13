@@ -336,6 +336,26 @@ describe('a worktree per card', () => {
     expect(git(main, 'status', '--porcelain')).toBe('?? other.ts');
   });
 
+  test('a change only staged in the checkout, its file on disk as in main: the card names it and folds the staged version in', async () => {
+    writeFileSync(join(main, 'mine.ts'), 'a\nb\nc\n');
+    git(main, 'add', '.');
+    git(main, 'commit', '--quiet', '-m', 'mine');
+    const c = manual();
+    await workers.start(c.id);
+    commitIn(board.row(c.id).workstation!, 'mine.ts', 'card\nb\nc\n');
+    writeFileSync(join(main, 'mine.ts'), 'a\nb\nowner\n');
+    git(main, 'add', 'mine.ts');
+    writeFileSync(join(main, 'mine.ts'), 'a\nb\nc\n');
+    const sc = runtime.sessions.find((s) => s.spec.cwd === board.row(c.id).workstation)!;
+    await sc.call('ready_for_review', { summary: 'S', demo: artifact() });
+    sc.emit({ type: 'idle' });
+    expect(await workers.approve(c.id).catch((e) => e)).toMatchObject({ code: 'landMerge' });
+    expect(board.item(c.id)!.review?.blocked).toEqual({ files: ['mine.ts'] });
+    await workers.fold(c.id, true);
+    expect(git(board.row(c.id).workstation!, 'show', 'HEAD:mine.ts')).toBe('card\nb\nowner');
+    expect(git(main, 'status', '--porcelain')).toBe('');
+  });
+
   test('folded in for a new demo, a conflict stays under way for the worker, and the owner approves anew', async () => {
     const c = manual();
     await workers.start(c.id);

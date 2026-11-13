@@ -259,20 +259,27 @@ async function rebased(ws: string, base: string, upstream: () => Promise<string>
  */
 async function inTheWay(repo: string, head: string, tip: string): Promise<string[]> {
   const list = (out: string) => out.split('\0').filter(Boolean);
-  const [changed, tracked, untracked] = await Promise.all([
+  const [changed, tracked, staged, untracked] = await Promise.all([
     gitAsync(repo, 'diff', '--name-only', '-z', '--no-renames', `${head}...${tip}`),
     gitAsync(repo, 'diff', '--name-only', '-z', '--no-renames', 'HEAD'),
+    // staged, also where the file on disk is back as it was in HEAD: git still refuses to overwrite the index
+    gitAsync(repo, 'diff', '--name-only', '-z', '--no-renames', '--cached', 'HEAD'),
     gitAsync(repo, 'ls-files', '-z', '--others', '--exclude-standard'),
   ]);
   const ours = new Set(list(changed));
-  return [...new Set([...list(tracked), ...list(untracked)])].filter((f) => ours.has(f)).sort();
+  return [...new Set([...list(tracked), ...list(staged), ...list(untracked)])].filter((f) => ours.has(f)).sort();
 }
 
 /**
  * A commit on `parent` holding the checkout's `files` as they are on disk (deleted ones deleted),
- * made in an index of its own: the checkout's index and branch stay as they are.
+ * or as staged where the file on disk is as in `parent` and only the index changed it, made in an
+ * index of its own: the checkout's index and branch stay as they are.
  */
 async function commitOf(repo: string, parent: string, files: string[], message: string): Promise<string> {
+  const onDisk = new Set((await gitAsync(repo, '--literal-pathspecs', 'diff', '--name-only', '-z', '--no-renames', parent, '--', ...files)).split('\0').filter(Boolean));
+  const untracked = new Set((await gitAsync(repo, '--literal-pathspecs', 'ls-files', '-z', '--others', '--exclude-standard', '--', ...files)).split('\0').filter(Boolean));
+  const stagedOnly = files.filter((f) => !onDisk.has(f) && !untracked.has(f));
+  const entries = stagedOnly.length ? await gitAsync(repo, '--literal-pathspecs', 'ls-files', '-s', '-z', '--', ...stagedOnly) : '';
   const path = resolve(repo, await gitAsync(repo, 'rev-parse', '--git-path', `obeya-fold-${process.pid}-${Date.now()}`));
   const git = async (...args: string[]) => {
     const r = await spawnOutput([GIT, '-C', repo, '--literal-pathspecs', ...args], { env: { ...process.env, GIT_INDEX_FILE: path } });
@@ -281,7 +288,15 @@ async function commitOf(repo: string, parent: string, files: string[], message: 
   };
   try {
     await git('read-tree', parent);
-    await git('add', '-A', '--', ...files);
+    const onTheirDisk = files.filter((f) => !stagedOnly.includes(f));
+    if (onTheirDisk.length) await git('add', '-A', '--', ...onTheirDisk);
+    // a staged file comes as the checkout's index has it (`<mode> <object> <stage>\t<path>`), one staged for deletion goes
+    const staged = new Map(entries.split('\0').filter(Boolean).map((e) => [e.slice(e.indexOf('\t') + 1), e.split(/\s/)] as const));
+    for (const f of stagedOnly) {
+      const at = staged.get(f);
+      if (at) await git('update-index', '--add', '--cacheinfo', `${at[0]},${at[1]},${f}`);
+      else await git('rm', '-q', '--cached', '--ignore-unmatch', '--', f);
+    }
     const tree = await git('write-tree');
     return await git('commit-tree', tree, '-p', parent, '-m', message);
   } finally {
