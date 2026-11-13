@@ -22,12 +22,12 @@ export const proposalEntryClass = 'proposal-entry bg-[color-mix(in_srgb,var(--pr
 export const ttlLinkClass =
   'ttl-link [all:unset] box-content! cursor-pointer! min-w-0! hover:underline focus-visible:underline focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-working focus-visible:outline-offset-2 focus-visible:rounded-[3px]';
 
-/** An entry's one-click replies and "Go to card"; on the phone sized for a finger. */
+/** An entry's one-click replies and "Go to card"; under any phone page (`.ph-view`) sized for a finger. */
 export const repliesClass =
-  'replies flex flex-wrap gap-1.5 mt-2.5 [.ph-section_&]:gap-2 [.ph-section_&>[data-slot=button]]:min-h-10 [.ph-section_&>[data-slot=button]]:text-[14px]';
+  'replies flex flex-wrap gap-1.5 mt-2.5 [.ph-view_&]:gap-2 [.ph-view_&>[data-slot=button]]:min-h-10 [.ph-view_&>[data-slot=button]]:text-[14px]';
 
 /** The row of switches above a list. */
-export const inboxBarClass = 'inbox-bar flex items-center justify-between gap-3 mt-0 mx-2 mb-3 [.ph-section_&]:mx-0';
+export const inboxBarClass = 'inbox-bar flex items-center justify-between gap-3 mt-0 mx-2 mb-3 [.ph-view_&]:mx-0';
 
 /** What a list says while it is empty. */
 export const emptyInboxClass = 'empty-inbox m-0 p-2 text-muted-foreground text-[13px]';
