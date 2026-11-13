@@ -238,7 +238,9 @@ a mouse only, or stands on a touch screen from the start. Back from the iPhone's
 player, Safari placed taps beside their target until the page scrolled (Approve under the video
 took none): the views around the video scroll by a pixel and back as that player closes. What the
 owner may still tap does not move while something above it comes or goes: the rating prompt stands
-nearest the microphone, the confirmations above it. Texts that name the space bar name the microphone. Enter breaks the line and only Send sends
+nearest the microphone, the confirmations above it. On every touch screen an on/off switch is
+sized for a finger and its row with its words is a finger tall, all of it taking the tap: at a
+mouse's size, taps on "Share on approval" under Approve often missed it. Texts that name the space bar name the microphone. Enter breaks the line and only Send sends
 (a phone's Enter is its line break, and a half-written message cannot be taken back). The screenshot
 button offers photo library and camera, and marking a screenshot works with a finger. Drafts are kept
 per tab apart from the project's, the field of Seismic's conversation one per project.
