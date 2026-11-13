@@ -3,13 +3,14 @@
 // HTML artifact, text as it is, anything else as a tile; each to open on the computer, show in its
 // folder, or download. Folder and git cards alike.
 
-import { ChevronDown, ChevronUp, Database } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronUp, Database } from 'lucide-react';
 import { cn } from 'cn';
 import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { type CardDiff, diffSize, splitDiff } from '../core/diff';
 import { type ChangeRow, changeRows, diffRows, imageAt, type ShownFile } from '../core/files';
 import type { Item } from '../core/types';
-import { DiffTreeLayout } from './diff-tree';
+import { barTrigger, DiffTreeLayout, StatusBadge } from './diff-tree';
+import { treeOrder } from './diff-tree-entries';
 import { api, cardFile } from './api';
 import { addedClass, ChangeNote, DiffStyleSwitch, DiffView, diffSizeClass, FileDiff, Lines, MARK, removedClass } from './diff';
 import { Doc, DocImages } from './markdown';
@@ -19,6 +20,7 @@ import { PdfPages } from './pdf';
 import { phoneView } from './phoneEnvironment';
 import { t } from './strings';
 import { Button, LinkButton } from './components/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './components/collapsible';
 import { SegmentedControl } from './components/segmented';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
 import { Tooltip } from './components/tooltip';
@@ -92,6 +94,42 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
     const view = box.current?.querySelector(`#${FILE_PANEL}`);
     if (view && !seen(view)) view.scrollIntoView({ block: 'start', behavior: scrollBehavior() });
   }, [picked]);
+  // stacked under the tree, every changed file is a bar of its own; the first starts open
+  const [openBars, setOpenBars] = useState<Set<string> | null>(null);
+  const shownBars = openBars ?? new Set(changedRows[0] ? [changedRows[0].path] : []);
+  const openBar = (path: string, open: boolean) => {
+    const next = new Set(shownBars);
+    if (open) next.add(path);
+    else next.delete(path);
+    setOpenBars(next);
+  };
+  const bars = useRef<HTMLDivElement>(null);
+  const [barPicked, setBarPicked] = useState<{ path: string }>();
+  useEffect(() => {
+    if (!barPicked) return;
+    const bar = [...(bars.current?.children ?? [])].find((b) => (b as HTMLElement).dataset.path === barPicked.path);
+    bar?.scrollIntoView({ block: 'start', behavior: scrollBehavior() });
+  }, [barPicked]);
+  /** A changed file's note, and its changes or the file as it is. */
+  const changedFile = (path: string) => {
+    const shown = files.find((f) => f.path === path);
+    return (
+      <>
+        {change?.folder && <ChangeNote c={changedRows.find(r => r.path === path)!} />}
+        {!shown && <Changes key={`${path}:${rev}`} item={item} path={path} />}
+        {shown && (
+          <FileView
+            key={`${shown.path}:${rev}`}
+            item={item}
+            file={{ ...shown, diff: true }}
+            rev={rev}
+            changes={asChanges[shown.path] ?? true}
+            onChanges={(c) => setAsChanges({ ...asChanges, [shown.path]: c })}
+          />
+        )}
+      </>
+    );
+  };
   if (!tabs.length) return item.demo?.files && change ? <p className="hint">{t.files.none}</p> : null;
   const inDiff = current === DIFF;
   const selected = changedRows.some(r => r.path === pickedFile) ? pickedFile : changedRows[0]?.path;
@@ -117,24 +155,23 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
       {review && current === REVIEW && <TabsContent value={REVIEW}>{review.panel}</TabsContent>}
       {inDiff && (
         <TabsContent value={DIFF}>
-          <DiffTreeLayout rows={changedRows} current={selected ?? undefined} onPick={(path) => { setPickedFile(path); setAsChanges({ ...asChanges, [path]: true }); }}>
-          <p className="hint"><LinkButton title={t.diff.show} onClick={() => setWholeDiff(true)}><Lines n={diffSize(change?.files ?? [])} /> · {t.diff.size(count)}</LinkButton></p>
-          {wholeDiff && <DiffView item={item} onClose={() => setWholeDiff(false)} onRead={() => {}} />}
-          {selected && change?.folder && <ChangeNote c={changedRows.find(r => r.path === selected)!} />}
-          {selected && (
-            <div id={FILE_PANEL}>
-              {!file && <Changes key={`${selected}:${rev}`} item={item} path={selected} />}
-              {file && (
-              <FileView
-                key={`${file.path}:${rev}`}
-                item={item}
-                file={{ ...file, diff: true }}
-                rev={rev}
-                changes={asChanges[file.path] ?? true}
-                onChanges={(c) => setAsChanges({ ...asChanges, [file.path]: c })}
-              />
+          <DiffTreeLayout rows={changedRows} current={selected ?? undefined} onPick={(path) => { setPickedFile(path); setAsChanges({ ...asChanges, [path]: true }); openBar(path, true); setBarPicked({ path }); }}>
+          {(stacked) => (
+            <>
+              <p className="hint"><LinkButton title={t.diff.show} onClick={() => setWholeDiff(true)}><Lines n={diffSize(change?.files ?? [])} /> · {t.diff.size(count)}</LinkButton></p>
+              {wholeDiff && <DiffView item={item} onClose={() => setWholeDiff(false)} onRead={() => {}} />}
+              {stacked ? (
+                <div className="diff-bars flex flex-col gap-2" ref={bars}>
+                  {treeOrder(changedRows).map((row) => (
+                    <FileBar key={row.path} row={row} open={shownBars.has(row.path)} onOpenChange={(o) => openBar(row.path, o)}>
+                      {changedFile(row.path)}
+                    </FileBar>
+                  ))}
+                </div>
+              ) : (
+                selected && <div id={FILE_PANEL}>{changedFile(selected)}</div>
               )}
-            </div>
+            </>
           )}
           </DiffTreeLayout>
         </TabsContent>
@@ -349,6 +386,22 @@ function revision(s: string): string {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (Math.imul(h, 31) + s.charCodeAt(i)) | 0;
   return (h >>> 0).toString(36);
+}
+
+/** A changed file as a bar of its own, its path and size, that folds its changes open below it. */
+function FileBar({ row, open, onOpenChange, children }: { row: ChangeRow; open: boolean; onOpenChange: (open: boolean) => void; children: ReactNode }) {
+  return (
+    <Collapsible open={open} onOpenChange={onOpenChange} className="diff-bar border border-line rounded-[8px] scroll-mt-2" data-path={row.path}>
+      <CollapsibleTrigger className={barTrigger} title={row.from ? `${row.from} → ${row.path}` : row.path}>
+        <ChevronRight aria-hidden className={cn('size-3.5 transition-transform', open && 'rotate-90')} />
+        {row.kind && <StatusBadge kind={row.kind} />}
+        <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap [direction:rtl] text-left [font:12.5px_var(--mono)]"><bdi>{row.path}</bdi></span>
+        {row.from && <span className="hint min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{t.diff.renamedFrom(row.from)}</span>}
+        {(row.added !== undefined && (row.added > 0 || row.removed! > 0)) && <span className="flex-none text-[12.5px]"><Lines n={{ added: row.added, removed: row.removed! }} /></span>}
+      </CollapsibleTrigger>
+      <CollapsibleContent className="px-2.5 pb-2.5 pt-1 border-t border-line">{open && children}</CollapsibleContent>
+    </Collapsible>
+  );
 }
 
 /**

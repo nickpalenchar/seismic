@@ -239,7 +239,7 @@ export function FileDiff({ part, card }: { part: DiffPart; card: string }) {
   const empty = !part.lines.some((l) => l.startsWith('@@'));
   return (
     <section className="d-file mt-[18px] [.r-diff_&]:mt-0 [&>.hint]:my-1.5 [&>.hint]:mx-2.5" id={anchor(part.file)}>
-      <h3 className="sticky top-[-8px] [.r-diff_&]:top-0 z-1 flex gap-3 items-baseline m-0 py-[7px] px-2.5 [background:linear-gradient(var(--chip),var(--chip)),var(--panel)] border border-line rounded-t-[2px] [font:500_13px_var(--font)]">
+      <h3 className="[.diff-bar_&]:hidden sticky top-[-8px] [.r-diff_&]:top-0 z-1 flex gap-3 items-baseline m-0 py-[7px] px-2.5 [background:linear-gradient(var(--chip),var(--chip)),var(--panel)] border border-line rounded-t-[2px] [font:500_13px_var(--font)]">
         <span className="d-name [font:12.5px_var(--mono)]">{part.file}</span>
         {part.from && <span className="hint">{t.diff.renamedFrom(part.from)}</span>}
         <span className="hint">{t.diff.status[part.status]}</span>

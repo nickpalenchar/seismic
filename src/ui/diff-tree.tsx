@@ -8,28 +8,46 @@ import { diffTreeEntries } from './diff-tree-entries';
 import { scrollBehavior } from './motion';
 import { t } from './strings';
 
-/** Only changed paths enter the navigator; directories organize them without hiding status. */
-export function DiffTreeLayout({ rows, current, onPick, children }: { rows: ChangeRow[]; current?: string; onPick: (path: string) => void; children: ReactNode }) {
+/**
+ * Only changed paths enter the navigator; directories organize them without hiding status. Wide
+ * enough, the tree stands beside the diff; else it is a bar above it that folds. `children` given
+ * as a function lays out the diff itself for either case (`stacked`) and brings a picked file into
+ * view on its own; else a pick in the stacked tree scrolls to the top of the diff.
+ */
+export function DiffTreeLayout({ rows, current, onPick, children }: { rows: ChangeRow[]; current?: string; onPick: (path: string) => void; children: ReactNode | ((stacked: boolean) => ReactNode) }) {
   const box = useRef<HTMLDivElement>(null);
   const [wide, setWide] = useState(false);
   const [open, setOpen] = useState(true);
   const selection = useRef<HTMLDivElement>(null);
   const [picked, setPicked] = useState(0);
+  const ownScroll = typeof children === 'function';
   useEffect(() => {
-    if (picked && !wide) selection.current?.scrollIntoView({ block: 'start', behavior: scrollBehavior() });
+    if (picked && !wide && !ownScroll) selection.current?.scrollIntoView({ block: 'start', behavior: scrollBehavior() });
   }, [picked]);
   useLayoutEffect(() => {
     const observer = new ResizeObserver(([entry]) => setWide(entry!.contentRect.width >= 900));
     if (box.current) observer.observe(box.current);
     return () => observer.disconnect();
   }, []);
-  // wide enough, the tree stands beside the diff; else below it
   const beside = wide && open;
+  const files = rows.filter(r => r.kind && !r.dir);
   return <Collapsible open={open} onOpenChange={setOpen}><div ref={box} className={cn('diff-browser grid grid-cols-[minmax(0,1fr)] gap-3', beside && 'grid-cols-[240px_minmax(0,1fr)]')} data-wide={wide} data-open={open}>
-    <div className="diff-tree-toggle row-start-1"><CollapsibleTrigger asChild><Button size="small" variant="ghost" aria-expanded={open}><Files size={15} />{open ? t.diff.hideTree : t.diff.showTree}</Button></CollapsibleTrigger></div>
-    <CollapsibleContent asChild forceMount hidden={!open}><nav className={cn('diff-tree min-w-0 border border-line rounded-[8px] p-2', beside ? 'col-start-1 row-start-2 [align-self:start]' : 'row-start-3')} aria-label={t.diff.showTree}><Tree rows={rows.filter(r => r.kind && !r.dir)} current={current} onPick={(path) => { onPick(path); setPicked(n => n + 1); }} /></nav></CollapsibleContent>
-    <div className={cn('diff-selection min-w-0 row-start-2', beside && 'col-start-2')} ref={selection}>{children}</div>
+    <div className="diff-tree-toggle row-start-1">
+      {wide
+        ? <CollapsibleTrigger asChild><Button size="small" variant="ghost" aria-expanded={open}><Files size={15} />{open ? t.diff.hideTree : t.diff.showTree}</Button></CollapsibleTrigger>
+        : <CollapsibleTrigger className={cn(barTrigger, 'border border-line bg-chip font-medium')}>{open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}<Files size={15} /><span className="flex-1">{t.diff.showTree}</span><span className="hint">{files.length}</span></CollapsibleTrigger>}
+    </div>
+    <CollapsibleContent asChild forceMount hidden={!open}><nav className={cn('diff-tree min-w-0 border border-line rounded-[8px] p-2 row-start-2', beside && 'col-start-1 [align-self:start]', !wide && 'max-h-[40vh] overflow-auto')} aria-label={t.diff.showTree}><Tree rows={files} current={current} onPick={(path) => { onPick(path); setPicked(n => n + 1); }} /></nav></CollapsibleContent>
+    <div className={cn('diff-selection min-w-0', beside ? 'col-start-2 row-start-2' : wide ? 'row-start-2' : 'row-start-3')} ref={selection}>{typeof children === 'function' ? children(!wide) : children}</div>
   </div></Collapsible>;
+}
+
+/** A bar of the stacked Diff tab that folds what is below it: the tree, or a file's changes. */
+export const barTrigger = 'flex w-full min-w-0 items-center gap-2 py-1.5 px-2.5 rounded-[8px] text-[13px] hover:bg-chip [&_svg]:shrink-0 [&_svg]:text-muted-foreground phone:min-h-11';
+
+/** What happened to a file, as a coloured letter. */
+export function StatusBadge({ kind }: { kind: NonNullable<ChangeRow['kind']> }) {
+  return <span className={cn('diff-status shrink-0 inline-flex items-center justify-center size-4 rounded-[3px] text-[color-mix(in_srgb,var(--diff-status)_75%,var(--ink))] bg-[color-mix(in_srgb,var(--diff-status)_22%,transparent)] [font:700_11px/1_var(--mono)]', kind, statusColour[kind])} title={t.diff.treeStatus[kind]} aria-label={t.diff.treeStatus[kind]}>{({ added: '+', deleted: '−', moved: '↪', modified: 'M' })[kind]}</span>;
 }
 
 /** A file or folder of the tree: the row's width, its name from the left; a fingertip's height on a narrow screen. */
@@ -49,7 +67,7 @@ function Tree({ rows, current, onPick, prefix = '' }: { rows: ChangeRow[]; curre
     const expanded = !closed.has(path);
     return <li key={path}>
       {file && <Button variant="ghost" size="small" className={cn(treeButton, current === path && 'selected bg-chip text-ink')} aria-current={current === path ? 'true' : undefined} title={file.from ? `${file.from} → ${path}` : path} onClick={() => onPick(path)}>
-        <span className={cn('diff-status shrink-0 inline-flex items-center justify-center size-4 rounded-[3px] text-[color-mix(in_srgb,var(--diff-status)_75%,var(--ink))] bg-[color-mix(in_srgb,var(--diff-status)_22%,transparent)] [font:700_11px/1_var(--mono)]', file.kind, statusColour[file.kind!])} title={t.diff.treeStatus[file.kind!]} aria-label={t.diff.treeStatus[file.kind!]}>{({ added: '+', deleted: '−', moved: '↪', modified: 'M' })[file.kind!]}</span><span className="diff-tree-name overflow-hidden text-ellipsis">{name}</span>
+        <StatusBadge kind={file.kind!} /><span className="diff-tree-name overflow-hidden text-ellipsis">{name}</span>
       </Button>}
       {children.length > 0 && <Collapsible open={expanded} onOpenChange={() => setClosed(was => { const next = new Set(was); next.has(path) ? next.delete(path) : next.add(path); return next; })}>
         <CollapsibleTrigger asChild>

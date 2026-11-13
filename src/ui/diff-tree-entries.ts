@@ -20,3 +20,11 @@ export function diffTreeEntries(rows: ChangeRow[], prefix = ''): DiffTreeEntry[]
   }
   return [...groups.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
+
+/** The files in the order the tree shows them, a file before what lies beneath its path. */
+export function treeOrder(rows: ChangeRow[], prefix = ''): ChangeRow[] {
+  return diffTreeEntries(rows, prefix).flatMap(entry => [
+    ...(entry.file ? [entry.file] : []),
+    ...treeOrder(entry.children, `${entry.path}/`),
+  ]);
+}

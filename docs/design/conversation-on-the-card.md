@@ -297,8 +297,10 @@ The Diff tab shows only changed files in an expandable directory tree, with adde
 modified and moved badges. Selecting a file shows its changes, including deletions and binary or
 rename-only changes. The first changed file opens initially. The tree can be hidden or shown;
 it starts expanded beside wide diffs (including when the conversation is collapsed). In narrower
-views and on phones the diff comes first, with the expanded tree below it. Choosing a file from
-that lower tree brings its changes back into view. Directory branches fold independently; directory
+views and on phones the two stack: "Changed files" is a bar above the diffs that folds the tree
+away, and below it every changed file is a bar of its own (status badge, path, a moved file's old
+path, lines added and removed), in the tree's order, that folds its changes open or shut. Several
+can be open at once. Choosing a file in the tree opens its bar and scrolls it into view. Directory branches fold independently; directory
 change records are not selectable files, while their changed files remain in the tree. When a
 file becomes a directory or a directory becomes a file, the changed file and the directory branch
 both appear, so changes at the shared path and beneath it remain selectable. Named deliverables without changes stay in their
