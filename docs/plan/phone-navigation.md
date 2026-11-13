@@ -50,3 +50,8 @@ where needed. The environment module exports the shared view, page and bar class
 `usePhonePush` (`phonePush.ts`) routes notification taps through shell callbacks. Reuse `Notify`
 for the permission prompt, `Composer` for first-tap focus handling, `Demo`/`useFullscreen` for
 video, and `Toasts` with `aside` for swipe dismissal; those already live outside either shell.
+
+`phoneTalkPanel.tsx` exports `TalkPanel` and its conversation/title classes for both card and
+Seismic conversations. It owns the keyboard/landscape panel layout, drag/glide/close handling,
+late composer focus, and `--ph-field`/`--ph-panel` measurement and cleanup. Open-card shells use
+`usePhoneCardPanel` with their page ref for the initial half panel and video scroll adjustment.
