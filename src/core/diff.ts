@@ -9,6 +9,8 @@ export interface CardDiff {
    * (`folder` holds the list, `patch` the text files' diffs).
    */
   source: 'branch' | 'landed' | 'folder';
+  /** A fingerprint of the whole diff: it differs whenever any line of the change does, also where the files and their counts stay the same. */
+  version?: string;
   files: DiffFile[];
   folder?: FolderChanges;
   /** The whole diff, when it was asked for; cut off at `PATCH_LIMIT` characters (`truncated`). */
@@ -123,10 +125,18 @@ export function diffSize(files: DiffFile[]): { added: number; removed: number } 
 /** A card's change from its whole diff: the files, and the diff itself when asked for (cut off at a file's end past `PATCH_LIMIT`). */
 export function cardDiff(source: CardDiff['source'], patch: string, full: boolean): CardDiff {
   const files = diffFiles(patch);
-  if (!full) return { source, files };
-  if (patch.length <= PATCH_LIMIT) return { source, files, patch };
+  const version = fingerprint(patch);
+  if (!full) return { source, version, files };
+  if (patch.length <= PATCH_LIMIT) return { source, version, files, patch };
   const cut = patch.lastIndexOf('\ndiff --git ', PATCH_LIMIT);
-  return { source, files, patch: patch.slice(0, cut > 0 ? cut : PATCH_LIMIT), truncated: true };
+  return { source, version, files, patch: patch.slice(0, cut > 0 ? cut : PATCH_LIMIT), truncated: true };
+}
+
+/** A short fingerprint of a text (FNV-1a over its UTF-16 units). */
+function fingerprint(text: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193);
+  return `${(h >>> 0).toString(36)}.${text.length.toString(36)}`;
 }
 
 /** The lines of `before` and `after` as a diff: each kept (` `), gone (`-`) or new (`+`), in order (longest common subsequence). */

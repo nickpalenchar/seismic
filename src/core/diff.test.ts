@@ -48,12 +48,20 @@ describe('a card’s diff', () => {
     expect(splitDiff(patch)[0]!.lines).toHaveLength(10);
   });
 
+  test('the version differs whenever a line does, also where the files and their counts stay the same', () => {
+    const one = 'diff --git a/a.ts b/a.ts\n--- a/a.ts\n+++ b/a.ts\n@@ -1 +1 @@\n-old\n+new\n';
+    const other = one.replace('+new', '+wen');
+    expect(cardDiff('branch', one, false).files).toEqual(cardDiff('branch', other, false).files);
+    expect(cardDiff('branch', one, false).version).not.toBe(cardDiff('branch', other, false).version);
+    expect(cardDiff('branch', one, false).version).toBe(cardDiff('landed', one, true).version);
+  });
+
   test('an empty diff has no files', () => {
     expect(diffFiles('')).toEqual([]);
   });
 
   test('the whole diff only when asked for, cut off at a file’s end past the limit', () => {
-    expect(cardDiff('branch', patch, false)).toEqual({ source: 'branch', files: diffFiles(patch) });
+    expect(cardDiff('branch', patch, false)).toEqual({ source: 'branch', version: cardDiff('branch', patch, true).version!, files: diffFiles(patch) });
     expect(cardDiff('landed', patch, true).patch).toBe(patch);
     const big = `${patch}\n${`diff --git a/big.txt b/big.txt\n@@ -0,0 +1 @@\n+${'x'.repeat(PATCH_LIMIT)}`}`;
     const cut = cardDiff('branch', big, true);

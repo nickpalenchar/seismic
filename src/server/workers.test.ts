@@ -1126,7 +1126,7 @@ describe('workers', () => {
     const c = manual();
     expect(await workers.diff(c.id, false)).toBeNull();
     await workers.start(c.id);
-    expect(await workers.diff(c.id, false)).toEqual({ source: 'branch', files: [] });
+    expect(await workers.diff(c.id, false)).toMatchObject({ source: 'branch', files: [] });
     const clone = board.row(c.id).workstation!;
     writeFileSync(join(clone, 'export.ts'), 'export {}\n');
     git(clone, 'add', '.');

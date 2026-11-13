@@ -76,7 +76,7 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
   const [pickedFile, setPickedFile] = useState<string | null>(null);
   const [asChanges, setAsChanges] = useState<Record<string, boolean>>({});
   const demoBox = useRef<HTMLDivElement>(null);
-  const rev = revision(`${item.state}:${item.need ?? ''}:${item.review?.summary ?? ''}:${JSON.stringify(change?.files ?? [])}:${JSON.stringify(change?.folder?.changes ?? [])}`);
+  const rev = revision(`${item.state}:${item.need ?? ''}:${item.review?.summary ?? ''}:${change?.version ?? ''}:${JSON.stringify(change?.files ?? [])}:${JSON.stringify(change?.folder?.changes ?? [])}`);
   // one read of the whole change for every file view below, again once the change moves on
   const readChange = useMemo(() => {
     let read: Promise<DiffPart[] | 'failed'> | undefined;
