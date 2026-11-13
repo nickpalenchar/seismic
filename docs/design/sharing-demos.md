@@ -208,7 +208,8 @@ A project's demo site may publish every approved demo by itself ("A demo goes on
 the approval", `publish: "approved"` of its `demoSite`). There, until approval, the
 latest demo not on the page has a switch "Share on approval" (on) below the row of buttons that approves,
 which then reads "Share now". Off, approving shares nothing and the log says so. The choice
-stays with the card and takes effect at once.
+stays with the card and takes effect at once. It starts on, except on a plan's cards (the plan and
+its workstreams), where it starts off: the owner ticks it where one is to be shared.
 
 On approval, before landing, the latest demo goes on the page as the owner's click would: a new page,
 or beside the versions where its worker said it supplements (with what it supplements, see Several
@@ -539,6 +540,8 @@ another machine withdrew loses its link here, with a line naming the machine.
 - **On approval, sharing only when "Share on approval" stays ticked** (2026-10-20), with
   "Share now" beside it, so a demo can go to colleagues for review before approval. Rejected:
   approval always sharing.
+- **A plan's cards do not share on approval by default** (owner, 2026-11-12): the switch starts off
+  there and the owner ticks it per card.
 - **Deploys run at the root of the card's repository, wrangler's cache excluded from git there**
   (owner, 2026-11-06): a deploy line written for the repository finds its scripts and configuration
   as from a terminal there. Rejected (2026-10-05 to 2026-11-06): `share/` under Seismic's home, chosen

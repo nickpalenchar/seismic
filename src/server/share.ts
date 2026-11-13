@@ -243,7 +243,7 @@ export class Sharing {
     const target = this.target(card);
     if (target && this.publishesOnApproval(card)) {
       const s = this.stored(cardId);
-      if (s?.notOnApproval) this.notOnPage(cardId);
+      if (declinesApproval(card, s)) this.notOnPage(cardId);
       // a share under way (one the owner chose) goes out first; the latest demo after it
       else if (s?.state === 'publishing') {
         this.after.add(cardId);
@@ -277,8 +277,9 @@ export class Sharing {
   onApproval(cardId: string, on: boolean) {
     const card = this.card(cardId);
     if (card.idea?.prototypeOf) throw new BadRequest('noShare', 'prototypes are not shared');
-    const { notOnApproval: _, ...s } = this.stored(cardId) ?? { slug: slugOf(card) };
-    this.set(cardId, on ? s : { ...s, notOnApproval: true });
+    const { notOnApproval: _, onApproval: __, ...s } = this.stored(cardId) ?? { slug: slugOf(card) };
+    // a plan's card shares only when asked to: the default is the other way round
+    this.set(cardId, planned(card) ? (on ? { ...s, onApproval: true } : s) : on ? s : { ...s, notOnApproval: true });
   }
 
   /**
@@ -1172,13 +1173,18 @@ function picked(given: unknown, lacking: PageTags): PageTags {
   return Object.fromEntries(dimensions(lacking).map(([d, values]) => [d, values.filter((v) => Array.isArray(g[d]) && (g[d] as unknown[]).includes(v))]));
 }
 
+/** A card of a plan (the plan itself or one of its workstreams): approving shares its demo only where the owner ticked "Share on approval". */
+const planned = (card: Item) => card.source === 'plan';
+/** Whether approving the card shares nothing: the owner unticked "Share on approval", or never ticked it on a plan's card. */
+export const declinesApproval = (card: Item, s: StoredShare | null | undefined) => (planned(card) ? !s?.onApproval : !!s?.notOnApproval);
+
 /** A share at rest: neither held, nor publishing, nor withdrawing. */
 function atRest({ state: _, refresh: __, again: ___, next: ____, retag: _____, ...s }: StoredShare): StoredShare {
   return s;
 }
 
 /** What a share keeps when its page is made anew or withdrawn: the owner's choices, and the random part of its address on an unlisted site. */
-const kept = (s: StoredShare): Pick<StoredShare, 'notOnApproval' | 'token'> => ({ ...(s.notOnApproval ? { notOnApproval: true as const } : {}), ...(s.token ? { token: s.token } : {}) });
+const kept = (s: StoredShare): Pick<StoredShare, 'notOnApproval' | 'onApproval' | 'token'> => ({ ...(s.notOnApproval ? { notOnApproval: true as const } : {}), ...(s.onApproval ? { onApproval: true as const } : {}), ...(s.token ? { token: s.token } : {}) });
 
 /** The page's place on its site: its slug, under its project's path, on an unlisted site behind the random part of its address. */
 const pathOf = (s: StoredShare) => [s.path, (s.unlisted || s.personal) && s.token, s.slug].filter(Boolean).join('/');

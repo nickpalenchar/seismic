@@ -8,7 +8,7 @@ import { Store } from './store';
 import { EXPORT_HTML_MAX } from '../core/types';
 import type { Forge } from './forge';
 import { demoPageHtml } from './demo-page';
-import { DEMO_MARKER, Sharing, withDemoLink } from './share';
+import { DEMO_MARKER, Sharing, declinesApproval, withDemoLink } from './share';
 import { siteKey } from './site';
 import { missedChanges, PAGE_CHANGES, pagesVersion } from '../core/page-changes';
 import type { Theme } from './theme';
@@ -1030,6 +1030,15 @@ describe('publishing on approval', () => {
     writeFileSync(join(board.row(c.id).demo!.latest!.dir, 'index.html'), '<!doctype html><html lang="de"><p>Variants</p></html>');
     expect(sharing.approved(c.id)).toBe(`Demo-Page: ${SITE_URL}${slug(c.id)}/`);
     await until(() => share(c.id)?.state === 'shared');
+  });
+
+  test('a plan’s card shares with the approval only once “Share on approval” is ticked', () => {
+    const c = board.item(card().id)!;
+    const plan = { ...c, source: 'plan' as const };
+    expect(declinesApproval(c, undefined)).toBe(false);
+    expect(declinesApproval(plan, undefined)).toBe(true);
+    expect(declinesApproval(plan, { slug: 'x', onApproval: true })).toBe(false);
+    expect(declinesApproval(c, { slug: 'x', notOnApproval: true })).toBe(true);
   });
 
   test('unticked “Share on approval” keeps the approval from sharing, through sharing now and withdrawing', async () => {

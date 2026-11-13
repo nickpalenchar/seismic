@@ -299,6 +299,8 @@ export interface StoredShare {
   retag?: true;
   /** The owner unticked "Share on approval": where the site publishes on approval, approving the card shares nothing. */
   notOnApproval?: true;
+  /** The owner ticked "Share on approval" on a plan's card, which does not share with the approval by default. */
+  onApproval?: true;
   /** The page's tags the owner set by hand, by dimension: neither a worker nor the reading session changes them. */
   tags?: PageTags;
   /** The page's tags the reading session chose, by dimension, where neither the owner nor a worker had (`pageTagsOf`). */
@@ -3879,7 +3881,7 @@ function work(r: CardRow, themeNow?: ThemeNow): Partial<Item> {
   const contribution = contributionOf(r);
   const codeReview = codeReviewOf(r);
   const share = shareOf(r, themeNow);
-  const notOnApproval = r.demo?.share?.notOnApproval;
+  const notOnApproval = r.plan_ref ? !r.demo?.share?.onApproval : r.demo?.share?.notOnApproval;
   const tags = demo && !r.idea?.prototypeOf ? pageTagsOf(r) : {};
   const landed = r.landed ? (JSON.parse(r.landed) as { followUp?: boolean; needsClone?: boolean; resolve?: object }) : null;
   return {
@@ -3927,7 +3929,7 @@ function work(r: CardRow, themeNow?: ThemeNow): Partial<Item> {
         ...(earlier.length ? { earlier } : {}),
         ...(r.demo?.files ? { files: r.demo.files } : {}),
         ...(share ? { share } : {}),
-        ...(notOnApproval ? { notOnApproval } : {}),
+        ...(notOnApproval ? { notOnApproval: true as const } : {}),
         ...(Object.keys(tags).length ? { tags } : {}),
       },
     }),
