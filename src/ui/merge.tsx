@@ -183,9 +183,9 @@ export function MergeView({ item, partner, act }: { item: Item; partner?: Item; 
         </CollapsibleTrigger>
       )}
       <div className={arrowClass} aria-hidden />
-      {updating && <p className="merge-wait merge-updating flex items-center gap-2.5 mt-0 mb-2.5 text-proposal font-semibold"><span className="spinner" /> {t.merge.updating}</p>}
-      <div className={cn(resultClass, updating && 'stale opacity-45', (busy || updating) && 'busy [box-shadow:0_0_0_1.5px_color-mix(in_srgb,var(--proposal)_45%,transparent),var(--shadow)]')}>
-        <div className={kindClass}>{t.merge.result}</div>
+      <div className={cn(resultClass, (busy || updating) && 'busy [box-shadow:0_0_0_1.5px_color-mix(in_srgb,var(--proposal)_45%,transparent),var(--shadow)]')}>
+      {updating && <p className="merge-wait merge-updating flex items-center gap-2.5 mt-0 mb-3 text-proposal font-semibold"><span className="spinner" /> {t.merge.updating}</p>}
+        <div className={cn(kindClass, updating && 'stale opacity-45')}>{t.merge.result}</div>
         {busy ? (
           <p className="merge-wait flex items-center gap-2.5 mt-2.5 mx-0 mb-1 text-proposal">
             <span className="spinner" /> {t.merge.merging}
@@ -193,12 +193,12 @@ export function MergeView({ item, partner, act }: { item: Item; partner?: Item; 
         ) : m.failed !== undefined ? (
           <p className="p-error">{m.failed}</p>
         ) : (
-          <>
+          <div className={updating ? 'stale opacity-45' : undefined}>
             <h3 className={titleClass}>
               <Inline md={m.title ?? ''} />
             </h3>
             <Body md={m.task ?? ''} />
-          </>
+          </div>
         )}
       </div>
       {m.followUp && <>
