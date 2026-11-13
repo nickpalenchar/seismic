@@ -24,6 +24,7 @@ import { type Gone, siteBase, siteMissing, siteTarget } from './site';
 import { demoSite, newToken, readSites } from './demo-sites';
 import { artifactCopy } from './artifact-copy';
 import { GITHUB_PAGES } from './site-hosts';
+import { GITHUB_FOLDER } from './github-folder';
 import { rereadChapters } from './demo';
 import { ARTIFACT_DIR, artifactFiles, artifactPageHtml, type DemoPageParts, day, demoPageHtml, ON_DISK, PAGE_WORDS, type PageCommit, type PageLanguage } from './demo-page';
 import { demoFile } from './demo-file';
@@ -117,8 +118,14 @@ export interface ShareTarget {
    * log, and what it says while it goes on (`log`). `gone`: pages another machine withdrew, found
    * on the way.
    */
-  publish(page: SharePage, log?: (text: string) => void): Promise<({ url: string; said: string } | { why: string; said: string }) & { gone?: Gone[] }>;
-  withdraw(slug: string, shared: string[], log?: (text: string) => void): Promise<{ why?: string; said: string; gone?: Gone[] }>;
+  publish(page: SharePage, log?: (text: string) => void): Promise<({ url: string; said: string } | { why: string; said: string }) & { gone?: Gone[]; merge?: string }>;
+  withdraw(slug: string, shared: string[], log?: (text: string) => void): Promise<{ why?: string; said: string; gone?: Gone[]; merge?: string }>;
+  /** The site collects its changes in a rolling pull request: a page is online once it is merged (`merge` of what a publish returns). */
+  prMode?: true;
+  /** A pull request's state, for a page waiting for its merge. */
+  prState?(url: string): Promise<'open' | 'merged' | 'closed' | null>;
+  /** The site's rolling pull request open now, if any. */
+  openPr?(): Promise<string | null>;
   /**
    * The pages another machine withdrew (their cards here lose their link), and the pages shared
    * from here (`shared`) that the live site lacks or has older, taken offline by another machine's
@@ -534,8 +541,51 @@ export class Sharing {
   }
 
   /**
+   * The pages of a site waiting for its rolling pull request, after a change there: they wait for the
+   * one it went into (`pr`, the pull request may have been opened afresh), or none any more where the
+   * change went straight to the branch, which carries them all.
+   */
+  private pendingIn(key: string, pr: string | null, except: string) {
+    for (const { r, s } of this.shares()) {
+      if (r.id === except || !s.merge || s.state || s.merge === pr) continue;
+      const card = this.find(r.id);
+      if (!card || this.target(card)?.key !== key) continue;
+      const { merge: _, ...rest } = s;
+      this.set(r.id, pr ? { ...rest, merge: pr } : rest);
+      if (!pr && s.url) this.o.board.log(r.id, 'state', 'obeya', this.o.board.t.share.mergedOnline(s.url));
+    }
+  }
+
+  /**
+   * Pages waiting for their site's rolling pull request: once it is merged they are online, and
+   * their link shows; one closed without a merge waits for the one open now, where there is one.
+   */
+  private async merges(targets: Map<string, ShareTarget>) {
+    const asked = new Map<string, Promise<'open' | 'merged' | 'closed' | null>>();
+    for (const { r, s } of this.shares()) {
+      const card = this.find(r.id);
+      const target = card && s.merge && s.url && !s.state ? this.target(card) : null;
+      if (!target?.prState) continue;
+      targets.set(target.key, target);
+      const pr = s.merge!;
+      if (!asked.has(pr)) asked.set(pr, target.prState(pr));
+      const state = await asked.get(pr)!;
+      const now = this.stored(r.id);
+      if (!now?.merge || now.merge !== pr || now.state) continue;
+      const { merge: _, ...rest } = now;
+      if (state === 'merged') {
+        this.set(r.id, rest);
+        this.o.board.log(r.id, 'state', 'obeya', this.o.board.t.share.mergedOnline(now.url!));
+      } else if (state === 'closed') {
+        const open = await target.openPr?.();
+        if (open && open !== pr) this.set(r.id, { ...rest, merge: open });
+      }
+    }
+  }
+
+  /**
    * Asks each site with pages out which of them another machine withdrew (their cards lose their
-   * link), or took offline (deployed again).
+   * link), or took offline (deployed again); and whether the pull request pages wait for is merged.
    */
   async checkSites() {
     const targets = new Map<string, ShareTarget>();
@@ -544,6 +594,7 @@ export class Sharing {
       const target = card && s.url ? this.target(card) : null;
       if (target) targets.set(target.key, target);
     }
+    await this.merges(new Map());
     for (const target of targets.values()) {
       const shared = this.others('', target.key);
       const { gone, missing } = await target.audit(shared);
@@ -668,9 +719,11 @@ export class Sharing {
     this.lost(target.key, r.gone);
     if ('why' in r) return back(r.why, r.said);
     const { url } = r;
-    this.set(cardId, { slug: s.slug, url, demos, ...(pr ? { pr } : {}), ...(commit ? { commit: commit.url } : {}), version: pagesVersion(), ...(theme ? { theme: theme.hash } : {}), ...kept(this.currentChoice(cardId, s)), ...placeOf(s) });
+    this.set(cardId, { slug: s.slug, url, demos, ...(pr ? { pr } : {}), ...(commit ? { commit: commit.url } : {}), version: pagesVersion(), ...(theme ? { theme: theme.hash } : {}), ...kept(this.currentChoice(cardId, s)), ...placeOf(s), ...(r.merge ? { merge: r.merge } : {}) });
     if (r.said) this.o.board.log(cardId, 'activity', 'obeya', r.said);
     this.o.board.log(cardId, 'state', 'obeya', s.again ? t.sharedAgain(url) : s.retag ? t.retagged(url) : s.refresh ? (pr ? t.linksPr(url) : t.linksCommit(url)) : t.shared(url));
+    if (r.merge) this.o.board.log(cardId, 'state', 'obeya', t.waitingForMerge(r.merge));
+    this.pendingIn(target.key, r.merge ?? null, cardId);
     this.settled(cardId, { url });
     if (pr) await this.linkPr(cardId, pr, url, target.repo, first.shown.kind);
     // the pull request was opened or the work landed while the page went out, or the owner changed its tags: once more, with them
@@ -735,6 +788,7 @@ export class Sharing {
     const r = await target.withdraw(pathOf(s), this.others(cardId, target.key), (text) => this.o.board.log(cardId, 'activity', 'obeya', text));
     this.lost(target.key, r.gone);
     if (r.why) return back(r.why, r.said);
+    this.pendingIn(target.key, r.merge ?? null, cardId);
     this.set(cardId, { slug: s.slug, ...kept(this.currentChoice(cardId, s)) });
     if (r.said) this.o.board.log(cardId, 'activity', 'obeya', r.said);
     this.o.board.log(cardId, 'state', 'obeya', t.withdrawn);
@@ -1278,9 +1332,10 @@ export function siteProblem(site: DemoSite, home: string): string | null {
   if (incomplete) return incomplete;
   const words = commandWords(site.deploy);
   // the deploy Seismic builds in: a GitHub repository, pushed to with gh's login
-  if (words[0] === GITHUB_PAGES) {
-    if (!/^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/.test(words[1] ?? '')) return `deploy command: ${GITHUB_PAGES} expects <owner>/<repository>`;
-    return Bun.which('gh') ? null : `deploy command: ${GITHUB_PAGES} needs gh, which is not on the PATH`;
+  if (words[0] === GITHUB_PAGES || words[0] === GITHUB_FOLDER) {
+    if (!/^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/.test(words[1] ?? '')) return `deploy command: ${words[0]} expects <owner>/<repository>`;
+    if (words[0] === GITHUB_FOLDER && !site.git) return `deploy command: ${GITHUB_FOLDER} needs the site's folder and branch`;
+    return Bun.which('gh') ? null : `deploy command: ${words[0]} needs gh, which is not on the PATH`;
   }
   // bunx runs as Seismic's own Bun
   if (words[0] === 'bunx') return words.length > 1 ? null : 'deploy command: bunx without a package';

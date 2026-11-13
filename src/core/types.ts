@@ -1395,6 +1395,8 @@ export interface Share {
   /** The page shows the card's demo, but pages changed since it was published ("Erneut teilen"): those changes, oldest first. */
   outdated?: OutdatedBy[];  /** The page is on an unlisted demo site (behind a random part of its address). */
   unlisted?: true;
+  /** The page went into the site's rolling pull request: online once it is merged (its URL). */
+  merge?: string;
 }
 
 /** One line in a card's log. */
@@ -2450,6 +2452,59 @@ export interface DemoSiteEntry {
   project?: string;
   /** An unlisted site's directory the manifest is in: only the owner's machines know it. Without it the site is listed. */
   secret?: string;
+  /** A site in a folder of a GitHub repository the owner has (`project`), published by commits to it. */
+  git?: GitFolder;
+}
+
+/**
+ * A demo site in a folder of an existing GitHub repository: the branch Pages serves the folder from
+ * (the default branch), the folder, and how a change goes in: `direct`, pushed to the branch, or
+ * `pr`, collected in one rolling pull request until it is merged.
+ */
+export interface GitFolder {
+  branch: string;
+  folder: string;
+  mode: 'direct' | 'pr';
+}
+
+/** A GitHub repository gh's login can push to, as the setup's list shows it. */
+export interface GithubRepo {
+  /** `owner/name`. */
+  repo: string;
+  owner: string;
+  private: boolean;
+}
+
+/** The repositories gh's login can push to: the login first, then its organizations, each with its repositories. */
+export interface GithubRepoList {
+  login: string;
+  repos: GithubRepo[];
+}
+
+/** Whether a push straight to the default branch goes through, and where at GitHub it is allowed where it does not. */
+export interface PushCheck {
+  /** A push to the branch goes through. */
+  allowed: boolean;
+  /** The login is an admin of the repository: it may change the rules itself. */
+  admin: boolean;
+  /** Where to allow it: the blocking ruleset's page, else the branch protection's. */
+  settings?: string;
+}
+
+/** An existing repository as the setup reads it for a folder: its Pages, the folder's address there, the push check, its size. */
+export interface GithubRepoView {
+  repo: string;
+  private: boolean;
+  branch: string;
+  /** The repository's size, in bytes. */
+  size: number;
+  /** Its Pages as GitHub has them; null while Pages is off (Initialize turns it on, from the default branch's root). */
+  pages: { url: string; branch?: string; path?: string; workflow: boolean } | null;
+  /** Where the folder's demos are served; null where the folder lies outside what Pages serves. */
+  address: string | null;
+  /** Why the folder lies outside what Pages serves, in the owner's words. */
+  outside?: string;
+  push: PushCheck;
 }
 
 /** The demo sites of this machine, as Configuration → Demos lists them. */
@@ -2465,6 +2520,8 @@ export interface DemoSitesView {
     needs?: string;
     /** The paths projects have initialized on it ('' for its root), as this machine last saw it. */
     paths: string[];
+    /** A site in a folder of an existing GitHub repository. */
+    git?: GitFolder;
   }[];
   /** The site being added, as far as it got. */
   job?: SiteSetupJob;
@@ -2529,6 +2586,8 @@ export interface DemoSite {
    * shows them. Workers and Seismic's reading session choose from it and add nothing to it.
    */
   tags?: PageTags;
+  /** A site in a folder of an existing GitHub repository (`DemoSiteEntry.git`). */
+  git?: GitFolder;
 }
 
 /**

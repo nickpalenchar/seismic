@@ -44,6 +44,7 @@ import { qmovesClass } from './queue';
 import { Input, Textarea } from './components/input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './components/collapsible';
 import { Select, SelectGroup, SelectItem, SelectLabel } from './components/select';
+import { type GithubAdd, GithubSetup, PublishMode } from './githubSite';
 import { cn } from 'cn';
 import { addedClass, removedClass } from './diff';
 import * as K from './configClasses';
@@ -1653,11 +1654,11 @@ function CloudflareAccount({ accounts, way, onChange, disabled }: { accounts: st
 /** A mebibyte, the unit the largest file is entered in. */
 const MIB = 1024 * 1024;
 
-/** How a new site is added, in the switcher's order: a public GitHub repository works with any account; another host is entered by hand. */
-type AddHost = 'github-public' | 'github' | 'cloudflare' | 'manual';
+/** How a new site is added, in the switcher's order: GitHub (a repository of the owner's, or one just for demos); another host is entered by hand. */
+type AddHost = 'github' | 'cloudflare' | 'manual';
 /** The option of an appearance choice that follows the system, in place of `null`. */
 const SYSTEM = 'system';
-const ADD_HOSTS: AddHost[] = ['github-public', 'github', 'cloudflare', 'manual'];
+const ADD_HOSTS: AddHost[] = ['github', 'cloudflare', 'manual'];
 
 /** The way chosen for a new site, a site entered by hand and a connection code not sent yet: they survive closing the dialog. */
 const ADD_HOST_KEY = 'seismic-site-host';
@@ -1713,6 +1714,8 @@ function AddSite({ view, onView, onAdded, onCancel }: { view: DemoSitesView; onV
   const [status, setStatus] = useState('');
   // the job this form started: its site is handed on once it is on the list
   const [mine, setMine] = useState(false);
+  // a site in a repository's folder, just added: how its demos go in is asked before it is handed on
+  const [modeFor, setModeFor] = useState<string | null>(null);
   useEffect(() => sessionStorage.setItem(ADD_HOST_KEY, host), [host]);
   useEffect(() => sessionStorage.setItem(ADD_MANUAL_KEY, JSON.stringify(manual)), [manual]);
   useEffect(() => (code ? sessionStorage.setItem(ADD_CODE_KEY, code) : sessionStorage.removeItem(ADD_CODE_KEY)), [code]);
@@ -1722,7 +1725,8 @@ function AddSite({ view, onView, onAdded, onCancel }: { view: DemoSitesView; onV
     if (!mine || !job || job.running) return;
     setMine(false);
     if (job.site) {
-      onAdded?.(job.site);
+      if (view.sites.find((x) => x.url === job.site)?.git) setModeFor(job.site);
+      else onAdded?.(job.site);
       sessionStorage.removeItem(ADD_MANUAL_KEY);
       void api.demoSitesSeen().then(onView, console.error);
     }
@@ -1746,9 +1750,34 @@ function AddSite({ view, onView, onAdded, onCancel }: { view: DemoSitesView; onV
         ? { manual: { url: manual.url.trim(), deploy: manual.deploy.trim(), ...(manual.env.trim() ? { env: manual.env.trim() } : {}), ...(Number(manual.maxFile) > 0 ? { maxFile: Math.round(Number(manual.maxFile) * MIB) } : {}) } }
         : h === 'cloudflare'
           ? { host: 'cloudflare', ...cloudflareHow(chosen), ...(unlisted ? {} : { unlisted: false }) }
-          : { host: 'github', ...(h === 'github-public' ? { public: true } : {}) };
+          : { host: 'github', public: true };
     if (await act(() => api.addDemoSite(how))) setMine(true);
   };
+  const addGithub = async (how: GithubAdd) => {
+    const input: AddSiteInput = 'create' in how ? { host: 'github', name: how.create.name, ...(how.create.private ? {} : { public: true as const }) } : { host: 'github', ...how };
+    if (await act(() => api.addDemoSite(input))) setMine(true);
+  };
+  const added = modeFor ? view.sites.find((x) => x.url === modeFor) : undefined;
+  if (added?.git && added.project) {
+    const g = p.github;
+    return (
+      <div className="add-site flex flex-col items-stretch gap-2 mt-2.5">
+        <p className="m-0">
+          {p.at(p.hostNames.github, g.folderOf(added.project, added.git.folder))}:{' '}
+          <a className="text-primary underline underline-offset-[.18em]" href={`${added.url}/`} target="_blank" rel="noreferrer">
+            {siteLabel(added.url)}
+          </a>
+        </p>
+        <p className="hint m-0">{g.modeHint}</p>
+        <PublishMode url={added.url} repo={added.project} git={added.git} onChanged={onView} />
+        <div className={K.cfgPersonalActionsClass}>
+          <Button variant="primary" onClick={() => onAdded?.(added.url)}>
+            {g.done}
+          </Button>
+        </div>
+      </div>
+    );
+  }
   const ready = host !== 'manual' ? !(host === 'cloudflare' && chosen.account === 'token' && !chosen.token.trim()) : !!(manual.url.trim() && manual.deploy.trim());
   // a part of the hand-entered site: its label above it
   const sub = (label: string, control: ReactNode) => (
@@ -1761,6 +1790,19 @@ function AddSite({ view, onView, onAdded, onCancel }: { view: DemoSitesView; onV
     <div className="add-site flex flex-col items-stretch gap-2 mt-2.5 [&>[data-slot=toggle-group]]:self-start [&>.hint]:m-0 [&>.c-install]:m-0 [&>[data-slot=check-label]]:text-[13.5px]">
       <SegmentedControl label={p.add} value={host} disabled={running} onValueChange={setHost} options={ADD_HOSTS.map((h) => ({ value: h, label: p.hosts[h] }))} />
       <p className="hint">{p.notes[host]}</p>
+      {host === 'github' && (
+        <GithubSetup
+          running={running}
+          onAdd={(how) => void addGithub(how)}
+          cancel={
+            onCancel && !running ? (
+              <Button onClick={onCancel}>
+                {p.cancel}
+              </Button>
+            ) : undefined
+          }
+        />
+      )}
       {host === 'cloudflare' && (
         <>
           <CloudflareAccount accounts={view.cloudflareAccounts} way={chosen} onChange={setWay} disabled={running} />
@@ -1778,18 +1820,22 @@ function AddSite({ view, onView, onAdded, onCancel }: { view: DemoSitesView; onV
           {sub(c.siteMaxFile, <Input className={pathClass} type="number" min={1} aria-label={c.siteMaxFile} placeholder="25" value={manual.maxFile} disabled={running} onChange={(e) => setManual({ ...manual, maxFile: e.target.value })} />)}
         </div>
       )}
-      {(host === 'github' || (host === 'cloudflare' && unlisted)) && <p className="hint">{p.unlistedNote}</p>}
-      <p className="hint">{p.checkNote}</p>
-      <div className={K.cfgPersonalActionsClass}>
-        <Button variant="primary" disabled={running || !ready} onClick={() => void add(host)}>
-          {running ? p.adding : p.addGo}
-        </Button>
-        {onCancel && !running && (
-          <Button onClick={onCancel}>
-            {p.cancel}
-          </Button>
-        )}
-      </div>
+      {host === 'cloudflare' && unlisted && <p className="hint">{p.unlistedNote}</p>}
+      {host !== 'github' && (
+        <>
+          <p className="hint">{p.checkNote}</p>
+          <div className={K.cfgPersonalActionsClass}>
+            <Button variant="primary" disabled={running || !ready} onClick={() => void add(host)}>
+              {running ? p.adding : p.addGo}
+            </Button>
+            {onCancel && !running && (
+              <Button onClick={onCancel}>
+                {p.cancel}
+              </Button>
+            )}
+          </div>
+        </>
+      )}
       {job && job.running && job.lines.length > 0 && <p className={installHintClass}>{job.lines.at(-1)}</p>}
       {job?.error && !job.running && (
         <p className="p-error">
@@ -1913,9 +1959,10 @@ function DemoSitesBlock({ on, onAdd }: { on: boolean; /** Opens the page that ad
               </a>
               <span className="hint">
                 {' '}
-                · {x.host && x.project ? p.at(p.hostNames[x.host], x.project) : p.byHand} · {x.listed ? p.listed : p.unlistedShort}
+                · {x.host && x.project ? p.at(p.hostNames[x.host], x.git ? p.github.folderOf(x.project, x.git.folder) : x.project) : p.byHand} · {x.listed ? p.listed : p.unlistedShort}
               </span>
             </p>
+            {x.git && x.project && <PublishMode url={x.url} repo={x.project} git={x.git} onChanged={setView} />}
             {x.paths.length > 0 && <p className="hint">{p.usedBy(x.paths.map((path) => (path ? `/${path}` : p.root)).join(', '))}</p>}
             {x.needs && <p className="p-error">{p.needs(x.needs)}</p>}
             <div className={K.cfgPersonalActionsClass}>

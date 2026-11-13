@@ -431,6 +431,8 @@ const en = {
     tagging: 'Tagging pages without tags: the page gets tags and is shared again.',
     tagsChosen: (tags: string) => `Tags chosen: ${tags}`,
     shared: (url: string) => `Shared: ${url}`,
+    waitingForMerge: (pr: string) => `In the demo site’s pull request; the page goes online once it is merged: ${pr}`,
+    mergedOnline: (url: string) => `The demo site’s pull request is merged: the page is online at ${url}`,
     prLinked: (n: number | undefined, pr: string) => `Added the demo’s link to the description of pull request #${n}. ${pr}`,
     prNotLinked: (n: number | undefined, why: string) => `Did not add the demo’s link to pull request #${n}: ${why}`,
     prCommented: (n: number | undefined, url: string) => `Commented the demo’s link on PR #${n}. ${url}`,

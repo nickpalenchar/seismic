@@ -324,7 +324,8 @@ export interface StoredShare {
   /** The random part of the page's address on an unlisted site (`<path>/<token>/<slug>`): drawn once for the card, so its link stays. */
   token?: string;
   /** The hash of its repository's theme (theme.ts) the published page carries; none where it carries none. */
-  theme?: string;
+  theme?: string;  /** The page went into its site's rolling pull request (its URL): online once that is merged. */
+  merge?: string;
 }
 
 /**
@@ -4022,6 +4023,7 @@ function shareOf(r: CardRow, themeNow?: ThemeNow): ItemDemo['share'] {
     // shown with each version on the page; the latest, not on it, brings the changes with "Replace on the page" or "Add to the page"
     ...(outdated.length ? { outdated } : {}),
     ...((s.unlisted || s.personal) && s.token ? { unlisted: true as const } : {}),
+    ...(s.url && s.merge ? { merge: s.merge } : {}),
   };
 }
 

@@ -659,6 +659,16 @@ export function serve(
       '/api/demo-sites/seen': { POST: needs(sites, (x) => (x.seen(), x.view())) },
       '/api/demo-sites/connect': { POST: needs(sites, async (x, req) => x.connect(await req.json())) },
       '/api/demo-sites/code': { GET: needs(sites, (x, req) => x.code(new URL(req.url).searchParams.get('url') ?? '')) },
+      // GitHub for a site in a repository's folder: the repositories gh's login can push to, one read
+      // for a folder (its Pages, the address, the push check, its size), and how a site's changes go in
+      '/api/demo-sites/github/repos': { GET: needs(sites, (x) => x.repos()) },
+      '/api/demo-sites/github/repo': {
+        GET: needs(sites, (x, req) => {
+          const q = new URL(req.url).searchParams;
+          return x.repo(q.get('repo') ?? '', q.get('folder') ?? '');
+        }),
+      },
+      '/api/demo-sites/mode': { POST: needs(sites, async (x, req) => x.mode(await req.json())) },
       // "Suggest tags" at a demo site's tags: started, followed, and taken into the field
       '/api/tag-proposal': {
         GET: needs(config, (_, req) => {

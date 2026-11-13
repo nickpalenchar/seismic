@@ -43,6 +43,12 @@
 // A host that reads a `_headers` file (Cloudflare Pages, Netlify) sends an artifact's files with the
 // headers that keep it from the internet beyond what its CSP covers (`artifactHeaders`).
 //
+// A site in a folder of an existing GitHub repository (`site.git`, github-folder.ts) reads and
+// writes through a clone of that folder instead: its manifest and pages come from the branch the
+// change goes on, the change is a commit there, and a push rejected because another machine pushed
+// meanwhile makes the change once more. In pull-request mode the change is pending until the rolling
+// pull request is merged (`merge` in what a publish returns).
+//
 // An unlisted site (demo-sites.ts) has `unlisted`: a page lies at `<path>/<token>/<slug>/`, the
 // token drawn per card; the manifest lies in a secret directory; the root and
 // the answer to a missing address are blank; there is no feed; pages and headers keep search engines
@@ -66,7 +72,8 @@ import { DEMO_FILES, OWN_CONNECTIONS } from './demo';
 import { BUN_ENV } from './resources';
 import { spawnOutput } from './spawn';
 import { HERE } from './workstations';
-import { BLANK_PAGE, GITHUB_PAGES, githubPagesDeploy } from './site-hosts';
+import { BLANK_PAGE, type Exec, GITHUB_PAGES, githubPagesDeploy } from './site-hosts';
+import { folderStore } from './github-folder';
 import { COMMAND_TIMEOUT, commandWords, SHARE_CWD, type SharePage, type ShareTarget, scriptArgv, tail } from './share';
 import { messageOf } from '../core/text';
 
@@ -234,6 +241,10 @@ export interface SiteOptions {
   unlisted?: { secret: string };
   /** The theme of the repository publishing (theme.ts), for the overview: a listed site's overview of the path carries the theme of the repository that published there last. */
   theme?: () => Theme | null;
+  /** Runs gh and git for a site in a repository's folder; a stand-in in tests. */
+  x?: Exec;
+  /** The repository a folder site's clone fetches from and pushes to, in place of GitHub's; tests name a local one. */
+  gitRemote?: string;
 }
 
 /** git's name in the repository (its own `user.name`, else the global one); undefined where it has none. */
@@ -279,6 +290,14 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
   };
   /** Where the manifest is on the site: at its root, or in the unlisted site's secret directory. */
   const manifestAt = opts.unlisted ? `${opts.unlisted.secret}/${MANIFEST}` : MANIFEST;
+  /** A site in a folder of an existing repository: git holds its pages. */
+  const store = site.git
+    ? folderStore({ repo: commandWords(site.deploy)[1] ?? '', git: site.git, clone: join(base, 'repo'), manifestAt, pageUrl: (place) => pageUrl(site, place), unlisted, ...(opts.x ? { x: opts.x } : {}), ...(opts.gitRemote ? { remote: opts.gitRemote } : {}) })
+    : null;
+  /** A GitHub Pages site: no `_headers` file, which only Cloudflare and Netlify read. */
+  const github = !!store || commandWords(site.deploy)[0] === GITHUB_PAGES;
+  /** The rolling pull request the last change went into, in pull-request mode. */
+  let pending: string | undefined;
 
   /** The site lives only in its directory: one that lost pages Seismic has as shared would drop them with the next deployment. */
   const checkSite = (shared: string[], self: string) => {
@@ -326,6 +345,18 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
 
   /** The live site's manifest; refused when it cannot be read, since deploying blind could take other machines' pages offline. */
   const readLive = async (env: Record<string, string>): Promise<Live> => {
+    if (store) {
+      let text: string | null;
+      try {
+        text = await store.sync();
+      } catch (e) {
+        throw new Refused(messageOf(e));
+      }
+      if (text === null) return { deploy: null, pages: {}, paths: {} };
+      const m = manifestOf(text);
+      if (!m) throw new Refused(t.manifestUnreadable(`${site.git!.folder}/${manifestAt}`, t.notManifest));
+      return { deploy: m.deploy, pages: m.pages, paths: m.paths ?? {} };
+    }
     const at = `${root}/${manifestAt}`;
     const unreadable = (why: string) => new Refused(t.manifestUnreadable(at, why));
     const answer = async (path: string) => {
@@ -436,9 +467,16 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
         // read whole (a file is at most the site's limit), so the timeout covers the body too
         let bytes: Uint8Array;
         try {
+          if (store) {
+            // the clone checked the folder out
+            const at = join(store.root, slug, f);
+            if (!existsSync(at)) throw new Error('not in the repository');
+            bytes = new Uint8Array(readFileSync(at));
+          } else {
           const r = await get(`${slug}/${f.split('/').map(encodeURIComponent).join('/')}`, env, DOWNLOAD_TIMEOUT);
           if (!r.ok) throw new Error(`HTTP ${r.status}`);
           bytes = new Uint8Array(await r.arrayBuffer());
+          }
         } catch (err) {
           throw new Refused(t.downloadFailed(name, messageOf(err)));
         }
@@ -493,7 +531,8 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
         mkdirSync(join(dir, p), { recursive: true });
         writeFileSync(join(dir, p, 'index.html'), BLANK_PAGE);
       }
-      writeFileSync(join(dir, HEADERS), unlistedHeaders() + artifactHeaders(site, true, at));
+      if (github) rmSync(join(dir, HEADERS), { force: true });
+      else writeFileSync(join(dir, HEADERS), unlistedHeaders() + artifactHeaders(site, true, at));
       rmSync(join(dir, FEED), { force: true });
       return;
     }
@@ -510,7 +549,8 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
       writeFileSync(join(under, 'index.html'), overviewHtml(view, pages, info.language, info.theme));
       writeFileSync(join(under, FEED), feedXml(view, pages, info.language));
     }
-    writeFileSync(join(dir, HEADERS), artifactHeaders(site, false, at));
+    if (github) rmSync(join(dir, HEADERS), { force: true });
+    else writeFileSync(join(dir, HEADERS), artifactHeaders(site, false, at));
   };
 
   /** Runs the deploy line on the directory; what it said, for the card's log. */
@@ -566,9 +606,11 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
     apply: ((rev: number, before: Entry | undefined) => Entry) | null,
     log: (text: string) => void,
     gone: Gone[],
+    message: string,
     register = false,
   ): Promise<string> => {
     const env = deployEnv();
+    pending = undefined;
     for (let round = 1; ; round++) {
       const live = await readLive(env);
       const local = readLocal();
@@ -603,12 +645,23 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
           : kept.flatMap((s) => (local.pages[s] && !local.pages[s]!.withdrawn ? [[s, local.pages[s]!.rev] as [string, number]] : []));
         const id = writeLocal(local);
         writeOverview(local);
+        if (store) {
+          // git says whether another machine came in between: the push is rejected
+          const pushed = await store.push(dir, message);
+          if (pushed === 'rejected') seen = false;
+          else {
+            said = pushed.said;
+            pending = pushed.pr;
+            seen = true;
+          }
+        } else {
         // another machine deployed since the pull: its deployment would be lost, so pull again
         const now = await readLive(env);
         if (now.deploy !== live.deploy) seen = false;
         else {
           said = await deploy(env);
           seen = await check(expect, id, live.deploy, env);
+        }
         }
       } catch (e) {
         undo();
@@ -634,11 +687,12 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
     return backup;
   };
 
-  /** Runs a change of the site, its reason in Seismic's words where it was refused, with the pages another machine withdrew. */
-  const attempt = async <T>(fn: (gone: Gone[]) => Promise<T>): Promise<(T | { why: string; said: string }) & { gone: Gone[] }> => {
+  /** Runs a change of the site, its reason in Seismic's words where it was refused, with the pages another machine withdrew, and the pull request it is pending in. */
+  const attempt = async <T>(fn: (gone: Gone[]) => Promise<T>): Promise<(T | { why: string; said: string }) & { gone: Gone[]; merge?: string }> => {
     const gone: Gone[] = [];
     try {
-      return { ...(await fn(gone)), gone };
+      const r = await fn(gone);
+      return { ...r, gone, ...(pending ? { merge: pending } : {}) };
     } catch (e) {
       if (e instanceof Refused) return { why: e.message, said: typeof e.cause === 'string' ? tail(e.cause) : '', gone };
       return { why: messageOf(e), said: '', gone };
@@ -649,6 +703,8 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
     key: `site:${siteKey(site.url)}`,
     repo,
     ...(unlisted ? { unlisted: true as const } : {}),
+    ...(store && site.git?.mode === 'pr' ? { prMode: true as const } : {}),
+    ...(store ? { prState: (url: string) => store.prState(url), openPr: () => store.openPr() } : {}),
     publish: (p: SharePage, log = () => {}) =>
       attempt(async (gone) => {
         const slug = checkSlug(p.slug);
@@ -727,13 +783,15 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
           },
           log,
           gone,
+          `Demos: ${p.title.trim()}`,
         );
         return { url: pageUrl(site, slug), said };
       }),
     withdraw: async (slugArg, shared, log = () => {}) => {
       const r = await attempt(async (gone) => {
         const slug = checkSlug(slugArg);
-        const said = await change(slug, shared, (rev) => ({ rev, machine, at: new Date().toISOString(), withdrawn: true }), log, gone);
+        const title = readLocal().pages[slug]?.meta?.title ?? slug;
+        const said = await change(slug, shared, (rev) => ({ rev, machine, at: new Date().toISOString(), withdrawn: true }), log, gone, `Demos: withdraw ${title}`);
         return { said };
       });
       return 'why' in r ? { ...r, why: t.notWithdrawn(r.why) } : r;
@@ -757,8 +815,8 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
         return { gone: [], missing: [] };
       }
     },
-    repair: async (shared, log = () => {}) => attempt(async (gone) => ({ said: await change(null, shared, null, log, gone) })),
-    init: async (shared, log = () => {}) => attempt(async (gone) => ({ said: await change(null, shared, null, log, gone, true) })),
+    repair: async (shared, log = () => {}) => attempt(async (gone) => ({ said: await change(null, shared, null, log, gone, 'Demos: publish the site') })),
+    init: async (shared, log = () => {}) => attempt(async (gone) => ({ said: await change(null, shared, null, log, gone, `Demos: add ${own ? `/${own}` : 'the overview'}`, true) })),
   };
 }
 

@@ -17,6 +17,7 @@ import { dirname, join } from 'node:path';
 import { z } from 'zod';
 import type { DemoSite, DemoSiteEntry } from '../core/types';
 import { GITHUB_PAGES, GITHUB_PAGES_MAX } from './site-hosts';
+import { GITHUB_FOLDER, isFolder } from './github-folder';
 import { parseEnv, SITES_DIR, siteKey } from './site';
 
 export const SITES_FILE = 'demo-sites.json';
@@ -45,6 +46,14 @@ const entryShape = z
     /** The host's project: a Cloudflare Pages project's name, or the GitHub repository (`owner/name`). */
     project: z.string().regex(/^[A-Za-z0-9-]+(\/[A-Za-z0-9._-]+)?$/).optional(),
     secret: z.string().regex(/^[a-z0-9]{16,64}$/).optional(),
+    git: z
+      .object({
+        branch: z.string().regex(/^[A-Za-z0-9._\/-]{1,200}$/),
+        folder: z.string().refine(isFolder, 'a folder of plain path parts, none starting with . or _'),
+        mode: z.enum(['direct', 'pr']),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 
@@ -64,6 +73,9 @@ export const siteUrl = (url: string) => url.trim().replace(/\/+$/, '');
 
 /** The deploy line of a site Seismic set up at a host. */
 export const hostDeploy = (host: SiteHost, project: string) => (host === 'cloudflare' ? cloudflareDeploy(project) : `${GITHUB_PAGES} ${project}`);
+
+/** The deploy line of a site in a folder of an existing GitHub repository (the folder and branch are the entry's `git`). */
+export const folderDeploy = (repo: string) => `${GITHUB_FOLDER} ${repo}`;
 
 /** The deploy line of a Cloudflare Pages project, as Seismic's own site has it. */
 export const cloudflareDeploy = (project: string) => `bunx wrangler@4 pages deploy {dir} --project-name ${project} --branch main --commit-dirty=true`;
@@ -129,6 +141,14 @@ export function addSite(home: string, site: DemoSiteEntry) {
   writeSites(home, [...readSites(home).filter((s) => s.url !== site.url), site]);
 }
 
+/** Sets how changes go into a folder site's repository: pushed to its branch, or collected in the rolling pull request. */
+export function setMode(home: string, url: string, mode: 'direct' | 'pr') {
+  writeSites(
+    home,
+    readSites(home).map((s) => (s.url === siteUrl(url) && s.git ? { ...s, git: { ...s.git, mode } } : s)),
+  );
+}
+
 /** Takes a site off the list: this machine no longer publishes there; its pages stay online. */
 export function removeSite(home: string, url: string) {
   writeSites(
@@ -152,6 +172,7 @@ export function demoSite(entry: DemoSiteEntry, title: string, extra: Pick<DemoSi
     ...(entry.env ? { env: entry.env } : {}),
     ...(entry.headers ? { headers: entry.headers } : {}),
     ...(entry.maxFile ? { maxFile: entry.maxFile } : {}),
+    ...(entry.git ? { git: entry.git } : {}),
     ...extra,
   };
 }

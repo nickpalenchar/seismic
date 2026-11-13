@@ -3308,7 +3308,13 @@ function ShareBox({ item, demo, act, onApproval, vocabulary, unlisted }: { item:
   );
   const link = (
     <>
-      <span className={shareLabel}>{t.share.shared}</span>
+      {s?.merge ? (
+        <a className={cn(shareLabel, 'share-merge text-primary underline underline-offset-[.18em]')} href={s.merge} target="_blank" rel="noreferrer" title={t.share.waitingMergeHint}>
+          {t.share.waitingMerge}
+        </a>
+      ) : (
+        <span className={shareLabel}>{t.share.shared}</span>
+      )}
       <a className="share-link flex-[1_1_200px] min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-foreground" href={s?.url} target="_blank" rel="noreferrer" title={t.share.open}>
         {s?.url?.replace(/^https?:\/\//, '')}
       </a>

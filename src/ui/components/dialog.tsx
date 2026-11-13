@@ -99,13 +99,17 @@ export function DialogContent({
   );
 }
 
-/** A confirm: `confirm` runs and closes it, the way back (`cancel`, with the focus) only closes it. Closing by Esc or by `cancel` is `onOpenChange(false)`. */
+/**
+ * A confirm: `confirm` runs and closes it, the way back (`cancel`, with the focus) only closes it. Closing by Esc or by `cancel` is `onOpenChange(false)`.
+ * `also`: a second way to go on beside `confirm` (another way to do it); `disabled` keeps either from being chosen.
+ */
 export function ConfirmDialog({
   open,
   onOpenChange,
   title,
   children,
   confirm,
+  also,
   cancel,
   className,
 }: {
@@ -113,7 +117,8 @@ export function ConfirmDialog({
   onOpenChange: (open: boolean) => void;
   title: ReactNode;
   children?: ReactNode;
-  confirm: { label: ReactNode; onClick: () => void; variant?: ButtonVariant; className?: string };
+  confirm: { label: ReactNode; onClick: () => void; variant?: ButtonVariant; className?: string; disabled?: boolean };
+  also?: { label: ReactNode; onClick: () => void; variant?: ButtonVariant; className?: string; disabled?: boolean };
   cancel: ReactNode;
   className?: string;
 }) {
@@ -132,10 +137,17 @@ export function ConfirmDialog({
             {children}
             <div className="flex flex-wrap gap-2">
               <AlertDialogPrimitive.Action asChild>
-                <Button variant={confirm.variant ?? 'primary'} className={confirm.className} onClick={confirm.onClick}>
+                <Button variant={confirm.variant ?? 'primary'} className={confirm.className} disabled={confirm.disabled} onClick={confirm.onClick}>
                   {confirm.label}
                 </Button>
               </AlertDialogPrimitive.Action>
+              {also && (
+                <AlertDialogPrimitive.Action asChild>
+                  <Button variant={also.variant ?? 'default'} className={also.className} disabled={also.disabled} onClick={also.onClick}>
+                    {also.label}
+                  </Button>
+                </AlertDialogPrimitive.Action>
+              )}
               <AlertDialogPrimitive.Cancel asChild>
                 <Button>{cancel}</Button>
               </AlertDialogPrimitive.Cancel>

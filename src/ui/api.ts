@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { CardDiff } from '../core/diff';
 import { type Place, placeParam } from '../core/layout';
-import type { AccessView, ActivityPage, Pairing, RemoteSetting, CodexModel, AgentRole, AgentSetting, CloudPreset, AgentsView, ProjectConfig, ProjectInfo, ProjectSnapshot, ChatElsewhere, ClientMessage, ConfigSaved, ConfigView, CardAction, ConfigChecked, DemoSettings, Group, DemoSettingsView, DemoVoiceCheck, ProjectDemoSiteState, DemoSitesView, TagProposalJob, PageTags, NarrationLanguage, FirstProject, GitSetupPreview, MachineItem, MachineSectionId, MachineView, SetupCheck, SetupFolder, VoiceSetupView, CardEvent, CardPatch, Item, Language, LanguageView, NewCard, Notice, OwnerHold, PendingRestart, PlanHistory, RepoTrust, ServerMessage, SettingsShared, Skill, SourceUpdate, SpotInput, TalkRef, AppUpdate, Theme, ThemeView, Motion, MotionView, Usage, UsageMeterView, Waiting, Feedback, FeedbackAnswer, FeedbackPromptView,
+import type { AccessView, ActivityPage, Pairing, RemoteSetting, CodexModel, AgentRole, AgentSetting, CloudPreset, AgentsView, ProjectConfig, ProjectInfo, ProjectSnapshot, ChatElsewhere, ClientMessage, ConfigSaved, ConfigView, CardAction, ConfigChecked, DemoSettings, Group, DemoSettingsView, DemoVoiceCheck, ProjectDemoSiteState, DemoSitesView, GithubRepoList, GithubRepoView, TagProposalJob, PageTags, NarrationLanguage, FirstProject, GitSetupPreview, MachineItem, MachineSectionId, MachineView, SetupCheck, SetupFolder, VoiceSetupView, CardEvent, CardPatch, Item, Language, LanguageView, NewCard, Notice, OwnerHold, PendingRestart, PlanHistory, RepoTrust, ServerMessage, SettingsShared, Skill, SourceUpdate, SpotInput, TalkRef, AppUpdate, Theme, ThemeView, Motion, MotionView, Usage, UsageMeterView, Waiting, Feedback, FeedbackAnswer, FeedbackPromptView,
   ProjectDefaultsView,
   ProjectSettings, ProjectSettingsView, DeveloperView, NotificationsView, Canvas } from '../core/types';
 import type { Wish } from '../core/wish';
@@ -141,7 +141,10 @@ export interface SiteHow {
 }
 
 /** "Add a demo site": at a host Seismic sets it up at (unlisted on Cloudflare unless `unlisted: false`), or entered by hand. */
-export type AddSiteInput = ({ host: 'cloudflare' | 'github'; unlisted?: false } & SiteHow) | { manual: { url: string; deploy: string; env?: string; maxFile?: number } };
+export type AddSiteInput =
+  | ({ host: 'cloudflare' | 'github'; unlisted?: false; name?: string } & SiteHow)
+  | { host: 'github'; repo: string; folder: string; via: 'pr' | 'push' }
+  | { manual: { url: string; deploy: string; env?: string; maxFile?: number } };
 
 export const api = {
   exportProjects: (ids: string[], as: 'csv' | 'json') => download(`/api/projects/export?as=${as}${ids.map((id) => `&project=${encodeURIComponent(id)}`).join('')}`, `seismic-projects.${as}`),
@@ -234,6 +237,9 @@ export const api = {
   connectDemoSite: (code: string) => call<DemoSitesView>('POST', '/api/demo-sites/connect', { code }),
   demoSiteCode: (url: string) => call<{ code: string }>('GET', `/api/demo-sites/code?url=${encodeURIComponent(url)}`),
   removeDemoSite: (url: string) => call<DemoSitesView>('DELETE', `/api/demo-sites?url=${encodeURIComponent(url)}`),
+  githubRepos: () => call<GithubRepoList>('GET', '/api/demo-sites/github/repos'),
+  githubRepo: (repo: string, folder: string) => call<GithubRepoView>('GET', `/api/demo-sites/github/repo?repo=${encodeURIComponent(repo)}&folder=${encodeURIComponent(folder)}`),
+  demoSiteMode: (url: string, mode: 'direct' | 'pr') => call<DemoSitesView>('POST', '/api/demo-sites/mode', { url, mode }),
   /** A project's demo site as it stands, and "Initialize": its path on the site, with the empty overview, deployed. */
   projectSite: (project: string) => call<ProjectDemoSiteState | null>('GET', `/api/c/${encodeURIComponent(project)}/demo-site`),
   initProjectSite: (project: string, url: string, path: string) => call<ProjectDemoSiteState | null>('POST', `/api/c/${encodeURIComponent(project)}/demo-site/init`, { url, path }),
