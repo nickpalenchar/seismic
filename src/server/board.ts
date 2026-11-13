@@ -1735,7 +1735,19 @@ export class Board {
 
   /** Separate restores both original cards, including their places; `why` when Seismic separates them because they can no longer merge. */
   separate(id: string, why?: 'gone' | 'unmergeable') {
-    const row = this.own(id);
+    this.separateRow(this.own(id), why);
+  }
+
+  /** Repair persisted pairs too, even when the deleted card is absent from the canvas. */
+  separateDeletedMerges() {
+    for (const row of this.store.cards.merging(this.project.id)) {
+      const other = this.store.cards.get(storedProposal(row)!.merge!.with);
+      if (row.deleted_at || !other || other.deleted_at) this.separateRow(row, row.deleted_at ? 'unmergeable' : 'gone');
+    }
+  }
+
+  private separateRow(row: CardRow, why?: 'gone' | 'unmergeable') {
+    const id = row.id;
     const { merge, ...proposal } = storedProposal(row) ?? { questions: [] };
     if (!merge) throw new BadRequest('notProposal', 'the proposal is not merged with another card');
     const other = this.store.cards.get(merge.with);
@@ -3130,6 +3142,7 @@ export class Board {
     const row = this.own(id);
     if (row.plan_ref) throw new BadRequest('planCard', 'plan cards are removed in the plan doc');
     this.store.cards.update(id, { deleted_at: new Date().toISOString() });
+    this.separateDeletedMerges();
     this.record(id, 'deleted', 'owner', { title: row.title ?? '' });
     this.changed();
   }
@@ -3137,6 +3150,7 @@ export class Board {
   restore(id: string) {
     const row = this.store.cards.get(id);
     if (!row || row.project_id !== this.project.id) throw new BadRequest('unknownCard', 'unknown card');
+    this.separateDeletedMerges();
     this.store.cards.update(id, { deleted_at: null });
     this.changed();
     this.backOnProject(id);

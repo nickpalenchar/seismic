@@ -67,7 +67,7 @@ export class Merges {
 
   private soon() {
     // the cards are looked at once the changes have settled, not at each one: a landing changes its card dozens of times
-    if (this.timer) return;
+    clearTimeout(this.timer);
     this.timer = setTimeout(() => {
       this.timer = undefined;
       this.check();
@@ -82,6 +82,7 @@ export class Merges {
    */
   private check() {
     const { board } = this.o;
+    board.separateDeletedMerges();
     for (const i of board.items()) {
       const merge = i.idea?.proposal?.merge;
       if (!merge) continue;

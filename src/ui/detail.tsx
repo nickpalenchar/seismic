@@ -207,7 +207,10 @@ function QueuePlace({ item, items }: { item: Item; items: Item[] }) {
 export function Detail(p: Props) {
   const { item, parent } = p;
   useReviewReset(item);
-  const [error, setError] = useState('');
+  // Bind a refusal to the merge revision submitted, including late HTTP responses after an update.
+  const mergeRevision = JSON.stringify([item.id, item.idea?.proposal?.merge]);
+  const [actionError, setActionError] = useState<{ text: string; mergeRevision?: string }>();
+  const error = actionError && (!actionError.mergeRevision || actionError.mergeRevision === mergeRevision) ? actionError.text : '';
   // a prototype whose idea has become a plan: the workstream to build on it
   const [workstream, setWorkstream] = useState('');
   const [picking, setPicking] = useState(false);
@@ -220,7 +223,7 @@ export function Detail(p: Props) {
   const duplicateMatches = (item.possibleDuplicates ?? []).map((id) => all.find((other) => other.id === id)).filter((other): other is Item => !!other);
   const duplicatePartner = duplicateMatches.find((other) => mergeableWith(item, other)) ?? duplicateMatches[0];
   const run = async (fn: () => Promise<void>, done: ActDone) => {
-    setError('');
+    setActionError(undefined);
     const answered = p.flush().then(fn);
     // what takes the server a while (a push onto main) does not hold the card open: the project shows it under way
     if (done.close && done.pending) return p.onDone(done, { card: item.id, title: plain(item.title), answered });
@@ -229,7 +232,7 @@ export function Detail(p: Props) {
       p.onDone(done);
     } catch (e) {
       if (!(e instanceof ApiError)) console.error(e);
-      setError(failText(e));
+      setActionError({ text: failText(e), mergeRevision: item.idea?.proposal?.merge ? mergeRevision : undefined });
     }
   };
   // an approval that posts the text for the PR takes the owner's edit of it as it stands, saved or not

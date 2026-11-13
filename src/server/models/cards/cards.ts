@@ -335,6 +335,11 @@ export class Cards {
     return this.rows(inArray(cards.id, sql`(SELECT value FROM json_each(${JSON.stringify(ids)}))`));
   }
 
+  /** Pending merge owners, including deleted and archived cards so deletion cannot hide a pair. */
+  merging(projectId: string): CardRow[] {
+    return this.rows(and(eq(cards.projectId, projectId), sql`EXISTS (SELECT 1 FROM card_ideas i WHERE i.card_id = ${cards.id} AND json_extract(i.proposal, '$.merge') IS NOT NULL)`));
+  }
+
   /** Every card on the project: not deleted, not archived. */
   onProject(projectId: string): CardRow[] {
     return this.complete(this.open.all({ project: projectId }));

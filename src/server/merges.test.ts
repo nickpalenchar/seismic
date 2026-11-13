@@ -527,3 +527,65 @@ describe('a merged pair whose cards change compares again', () => {
     expect(lines(p.id)).toContain('Separated again: the other card is gone.');
   });
 });
+
+
+describe('merge deletion and settling regressions', () => {
+  for (const state of ['pending', 'ready', 'failed'] as const) {
+    test(`deleting and immediately restoring the dissolving card separates a ${state} merge`, async () => {
+      const { p, planned } = cards();
+      project.act(p.id, { action: 'merge', with: planned.id });
+      const old = merger()!;
+      if (state === 'ready') await finishMerge({ title: 'Combined', task: 'Both requirements.' });
+      if (state === 'failed') { old.emit({ type: 'idle' }); await settle(); }
+      board().remove(p.id);
+      board().restore(p.id);
+      expect(board().item(p.id)!.idea?.proposal?.merge).toBeUndefined();
+      expect(board().item(planned.id)!.idea?.mergingInto).toBeUndefined();
+      expect(board().item(p.id)!.body).toBe(p.body);
+      if (state === 'pending') {
+        old.call('merge_cards', { title: 'Late', task: 'Late result.' });
+        old.emit({ type: 'idle' });
+        await settle();
+        expect(board().item(p.id)!.idea?.proposal?.merge).toBeUndefined();
+      }
+    });
+  }
+
+  test('restart repairs a persisted deleted merge owner and restores its original place', () => {
+    const { planned } = cards();
+    const other = board().create({ title: 'Other', x: 2000, y: 2000 });
+    board().mergeStart(planned.id, other.id);
+    // Simulate deletion saved by another path or an older version before shutdown.
+    store.cards.update(planned.id, { deleted_at: new Date().toISOString() });
+    const resumed = new Merges({ board: board(), runtime, pathFor: () => main });
+    const before = runtime.sessions.length;
+    resumed.resume();
+    resumed.shutdown();
+    expect(runtime.sessions.length).toBe(before);
+    expect(store.cards.get(planned.id)!.idea?.proposal?.merge).toBeUndefined();
+    board().restore(planned.id);
+    expect(board().item(planned.id)).toMatchObject({ x: planned.x, y: planned.y, title: planned.title });
+    expect(board().item(planned.id)!.idea?.proposal).toBeUndefined();
+  });
+
+  test('the settle window starts again after each edit, even across the first deadline', async () => {
+    const { p, planned } = cards();
+    project.shutdown();
+    const watcher = new Merges({ board: board(), runtime, pathFor: () => main, settleMs: 150 });
+    try {
+      watcher.merge(p.id, planned.id);
+      const before = runtime.sessions.length;
+      board().work(planned.id, { body: 'First edit.' });
+      await settle(100);
+      board().work(planned.id, { body: 'Second edit.' });
+      await settle(100);
+      expect(runtime.sessions.length).toBe(before);
+      board().work(planned.id, { body: 'Final edit.' });
+      await settle(100);
+      expect(runtime.sessions.length).toBe(before);
+      await settle(100);
+      expect(runtime.sessions.length).toBe(before + 1);
+      expect(merger()!.inbox[0]).toContain('Final edit.');
+    } finally { watcher.shutdown(); }
+  });
+});
