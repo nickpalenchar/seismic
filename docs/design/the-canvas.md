@@ -526,8 +526,8 @@ Opening a card takes about 300 ms (a flight to the middle, then the unfold), clo
 without moving the view, so the card is seen among the rest it sits with: fast enough not to wait on,
 long enough to keep the context.
 
-An unfolded card is as large as its content, up to the room between the window's top (over the
-dimmed bar) and the view switcher; beyond that it scrolls. Only a window too low for a usable panel lets
+An unfolded card is as large as its content, up to the room between the top bar and the view switcher; beyond that it scrolls. The bar stays
+undimmed and usable while a card is open, and the card never reaches over it. Only a window too low for a usable panel lets
 it reach under the switcher, with room for the last row to scroll past it. A card's row of
 decisions stays in view at its foot while a long text scrolls, so a planned workstream shows "Start agent" without scrolling.
 
