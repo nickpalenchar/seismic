@@ -241,9 +241,11 @@ export class Sharing {
     const card = this.find(cardId);
     if (!card || card.idea?.prototypeOf) return null;
     const target = this.target(card);
+    const declined = declinesApproval(card, this.stored(cardId));
     if (target && this.publishesOnApproval(card)) {
       const s = this.stored(cardId);
-      if (declinesApproval(card, s)) this.notOnPage(cardId);
+      // only a switch the owner unticked is said in the log; a plan's card never had it ticked
+      if (declined) { if (s?.notOnApproval) this.notOnPage(cardId); }
       // a share under way (one the owner chose) goes out first; the latest demo after it
       else if (s?.state === 'publishing') {
         this.after.add(cardId);
@@ -255,7 +257,7 @@ export class Sharing {
         });
       }
       else this.onPage(cardId);
-    } else if (!target && this.publishesOnApproval(card)) {
+    } else if (!target && !declined && this.publishesOnApproval(card)) {
       const gone = this.siteGone(card);
       if (gone) this.o.board.log(cardId, 'error', 'obeya', `${this.o.board.t.share.notShared}: ${gone}`);
     }
