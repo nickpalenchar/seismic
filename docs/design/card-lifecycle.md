@@ -101,7 +101,9 @@ comparison shows its reason and "Try again"; unfinished comparisons resume after
 The comparison keeps what it read of both cards (texts, screenshots, questions, the survivor's
 handover summary and whether it has started). When either card differs from that, while the agent
 compares or after its result is in, the comparison is made again by itself a few seconds after the last change, so
-a burst of edits makes one new comparison; a survivor that started since is then compared as a
+a burst of edits makes one new comparison. Each pair settles independently: changes elsewhere on
+the board, including other merges and worker status messages, cannot extend its delay. A survivor
+that started since is then compared as a
 progressed one. Meanwhile the state line reads "Planning merge" again, the panel keeps the result
 before visible but dimmed under "Updating: a card changed" with the spinner, "Approve merge" is
 disabled until the new result is in and "Separate" stays available; the card's log names the change

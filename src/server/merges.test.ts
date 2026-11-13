@@ -589,3 +589,66 @@ describe('merge deletion and settling regressions', () => {
     } finally { watcher.shutdown(); }
   });
 });
+
+for (const state of ['pending', 'ready', 'failed'] as const) {
+  test(`unrelated worker activity cannot starve a changed ${state} merge`, async () => {
+    const { p, planned } = cards();
+    const unrelated = board().create({ title: 'Another worker', x: 3000, y: 0 });
+    project.shutdown();
+    const watcher = new Merges({ board: board(), runtime, pathFor: () => main, settleMs: 100 });
+    try {
+      watcher.merge(p.id, planned.id);
+      if (state === 'ready') await finishMerge({ title: 'Combined', task: 'Both requirements.' });
+      if (state === 'failed') { merger()!.emit({ type: 'idle' }); await settle(); }
+      const before = runtime.sessions.length;
+      board().work(planned.id, { body: 'Changed requirement.' });
+      for (let n = 0; n < 8; n++) {
+        board().work(unrelated.id, { body: `Progress ${n}` });
+        // Status updates on the pair itself are not comparison inputs either.
+        board().work(planned.id, { status_line: `Progress ${n}` });
+        await settle(30);
+      }
+      expect(runtime.sessions.length).toBe(before + 1);
+      expect(merger()!.inbox[0]).toContain('Changed requirement.');
+    } finally { watcher.shutdown(); }
+  });
+}
+
+test('two merging pairs settle independently and separation cancels a pending comparison', async () => {
+  const { p, planned } = cards();
+  const a = board().create({ title: 'Other left', x: 3000, y: 0 });
+  const b = board().create({ title: 'Other right', x: 4000, y: 0 });
+  project.shutdown();
+  const watcher = new Merges({ board: board(), runtime, pathFor: () => main, settleMs: 100 });
+  try {
+    watcher.merge(p.id, planned.id);
+    watcher.merge(a.id, b.id);
+    const before = runtime.sessions.length;
+    board().work(planned.id, { body: 'Settled pair.' });
+    for (let n = 0; n < 8; n++) {
+      board().work(b.id, { body: `Still editing ${n}` });
+      await settle(30);
+    }
+    expect(runtime.sessions.length).toBe(before + 1);
+    expect(merger()!.inbox[0]).toContain('Settled pair.');
+    board().separate(a.id);
+    await settle(150);
+    expect(runtime.sessions.length).toBe(before + 1);
+  } finally { watcher.shutdown(); }
+});
+
+test('unrelated activity cannot postpone automatic separation either', async () => {
+  const { p, planned } = cards();
+  const unrelated = board().create({ title: 'Another worker', x: 3000, y: 0 });
+  project.shutdown();
+  const watcher = new Merges({ board: board(), runtime, pathFor: () => main, settleMs: 100 });
+  try {
+    watcher.merge(p.id, planned.id);
+    board().snooze(planned.id, { until: '2099-01-01T00:00:00.000Z', why: 'later', by: 'owner' });
+    for (let n = 0; n < 8; n++) {
+      board().work(unrelated.id, { body: `Progress ${n}` });
+      await settle(30);
+    }
+    expect(board().item(p.id)!.idea?.proposal?.merge).toBeUndefined();
+  } finally { watcher.shutdown(); }
+});

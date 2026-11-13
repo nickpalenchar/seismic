@@ -36,7 +36,7 @@ export class Merges {
   private busy = new Map<string, string | undefined>();
   /** What the comparison running for a card read of the pair, by card. */
   private reading = new Map<string, NonNullable<Merge['compared']>>();
-  private timer: ReturnType<typeof setTimeout> | undefined;
+  private watched = new Map<string, { fingerprint: string; timer?: ReturnType<typeof setTimeout> }>();
   private unwatch: () => void;
   constructor(private o: MergeOptions) {
     this.unwatch = o.board.onChange(() => this.soon());
@@ -62,17 +62,38 @@ export class Merges {
 
   shutdown() {
     this.unwatch();
-    clearTimeout(this.timer);
+    for (const pair of this.watched.values()) clearTimeout(pair.timer);
+    this.watched.clear();
   }
 
   private soon() {
-    // the cards are looked at once the changes have settled, not at each one: a landing changes its card dozens of times
-    clearTimeout(this.timer);
-    this.timer = setTimeout(() => {
-      this.timer = undefined;
-      this.check();
-    }, this.o.settleMs ?? 3000);
-    this.timer.unref?.();
+    const { board } = this.o;
+    board.separateDeletedMerges();
+    const live = new Set<string>();
+    for (const card of board.items()) {
+      const merge = card.idea?.proposal?.merge;
+      if (!merge) continue;
+      live.add(card.id);
+      const other = this.partner(merge);
+      // Only inputs to this comparison (or its eligibility/attempt) extend its deadline.
+      // Results, status messages, and edits to other pairs must not postpone it.
+      const fingerprint = JSON.stringify([merge.with, merge.attempt, other && board.mergeReads(card, other), !!other && board.stillMergeable(card, other)]);
+      const was = this.watched.get(card.id);
+      if (was?.fingerprint === fingerprint) continue;
+      clearTimeout(was?.timer);
+      const pair: { fingerprint: string; timer?: ReturnType<typeof setTimeout> } = { fingerprint };
+      pair.timer = setTimeout(() => {
+        pair.timer = undefined;
+        this.check(card.id);
+      }, this.o.settleMs ?? 3000);
+      pair.timer.unref?.();
+      this.watched.set(card.id, pair);
+    }
+    for (const [id, pair] of this.watched) {
+      if (live.has(id)) continue;
+      clearTimeout(pair.timer);
+      this.watched.delete(id);
+    }
   }
 
   /**
@@ -80,10 +101,11 @@ export class Merges {
    * become one is separated, whether its comparison runs, is in or failed. A failed comparison of
    * unchanged cards waits for the owner's "Try again".
    */
-  private check() {
+  private check(only?: string) {
     const { board } = this.o;
     board.separateDeletedMerges();
     for (const i of board.items()) {
+      if (only !== undefined && i.id !== only) continue;
       const merge = i.idea?.proposal?.merge;
       if (!merge) continue;
       try {
