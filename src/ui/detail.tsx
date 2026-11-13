@@ -623,7 +623,7 @@ export function Detail(p: Props) {
         open={!!manualStart}
         onOpenChange={(open) => !open && setManualStart(null)}
         title={t.queue.confirmManualStartTitle}
-        confirm={{ label: t.queue.force, onClick: () => { const choice = manualStart; if (choice) void act({ action: 'force', ...(choice.agent ? { agent: choice.agent } : {}) }, { close: true, ack: forcedText(item.queue!) }); } }}
+        confirm={{ label: t.queue.force, onClick: () => { const choice = manualStart; if (choice) void act({ action: 'force', ...(choice.agent ? { agent: choice.agent } : {}) }, { close: true, ack: forcedText(item.queue!), pending: t.queue.checking }); } }}
         cancel={t.queue.confirmManualStartBack}
       >
         <p>{manualStart && t.queue.confirmManualStart(manualStart.names)}</p>
