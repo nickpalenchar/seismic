@@ -184,7 +184,7 @@ export function MergeView({ item, partner, act, error }: { item: Item; partner?:
       )}
       <div className={arrowClass} aria-hidden />
       <div className={cn(resultClass, (busy || updating) && 'busy [box-shadow:0_0_0_1.5px_color-mix(in_srgb,var(--proposal)_45%,transparent),var(--shadow)]')}>
-      {updating && <p className="merge-wait merge-updating flex items-center gap-2.5 mt-0 mb-3 text-proposal font-semibold"><span className="spinner" /> {t.merge.updating}</p>}
+        {updating && <p className="merge-wait merge-updating flex items-center gap-2.5 mt-0 mb-3 text-proposal font-semibold"><span className="spinner" /> {t.merge.updating}</p>}
         <div className={cn(kindClass, updating && 'stale opacity-45')}>{t.merge.result}</div>
         {busy ? (
           <p className="merge-wait flex items-center gap-2.5 mt-2.5 mx-0 mb-1 text-proposal">
