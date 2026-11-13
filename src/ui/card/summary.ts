@@ -138,7 +138,7 @@ export function cardSummary(item: Item, underway?: string): CardSummary {
   const open = findings.filter((f) => f.status === 'open');
   const status = results
     ? [t.review.checks(results), ...(contribution?.clash ? [t.review.clashShort] : []), t.review.findings(findings.length, open.length, open.filter((f) => f.security).length)].join(' · ')
-    : item.state === 'working' || item.agent?.finishing || answering(item) || (item.state === 'inPr' && (!openPrs(item).length || contribution))
+    : item.state === 'working' || item.state === 'approved' || item.review?.landing || item.agent?.finishing || answering(item) || (item.state === 'inPr' && (!openPrs(item).length || contribution))
       ? item.agent?.statusLine && excerpt(item.agent.statusLine)
       : item.state === 'inPr'
         ? openPrs(item).map(prShort).join(' | ')

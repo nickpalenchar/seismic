@@ -74,6 +74,23 @@ test("the smallest face says a card's state in a word or two, from one table", (
   expect(face({ item: card({ state: 'working' }) })).toContain('Agent at work');
 });
 
+test('landing reports replace the task body at every card size', () => {
+  for (const more of [
+    { state: 'approved' as const },
+    { state: 'waiting' as const, need: 'demo' as const, review: { landing: true as const } },
+  ]) {
+    const item = card({ ...more, agent: { statusLine: 'Landing on main' } });
+    for (const size of ['m', 's', 'xs'] as const) {
+      const html = face({ item, size });
+      expect(html).toContain('Landing on main');
+      expect(html).not.toContain(item.body);
+    }
+    expect(face({ item, size: 'xs', workstation: true })).toContain('Landing on main');
+    // A card without a report still has its body as the fallback description.
+    expect(face({ item: { ...item, agent: undefined }, size: 'xs', workstation: true })).toContain(item.body);
+  }
+});
+
 test("a card's kind word, the same on its face, its open card and the archive", () => {
   expect(cardKind(card())).toBe('');
   expect(cardKind(card({ parent: 'p' }))).toBe('Workstream');

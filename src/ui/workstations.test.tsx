@@ -21,7 +21,8 @@ test('working rows keep their activity and separate description after releasing 
     const face = (html: string) => html.slice(html.indexOf('<span class="face '), html.indexOf('</button>'));
     const assigned = face(render(pools));
     expect(assigned).toContain('doing');
-    expect(assigned).toContain('block truncate text-muted-foreground');
+    expect(assigned).toContain('block truncate text-muted-foreground">Checking the checkout.</span>');
+    expect(assigned).not.toContain(item.body);
     // No pool snapshot, an empty pool, and a released clone all use the same face.
     expect(face(render([]))).toBe(assigned);
     expect(face(render([{ repo: 'shop', hosts: [] }]))).toBe(assigned);
