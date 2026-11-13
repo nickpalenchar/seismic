@@ -60,7 +60,6 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
   const rows = changeRows(change, item.demo?.files);
   const changedRows = diffRows(change);
   const ordered = treeOrder(changedRows);
-  const changedFiles = ordered.map((r) => r.path).join('\n');
   const files = rows.flatMap((r) => (r.file ? [r.file] : []));
   const named = files.filter((f) => f.caption !== undefined);
   const schema = (f: ShownFile) => f.kind === 'page' && /(^|\/)[^/]*schema[^/]*\.html?$/i.test(f.path);
@@ -82,8 +81,17 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
   const readChange = useMemo(() => {
     let read: Promise<DiffPart[] | 'failed'> | undefined;
     return (card: string) => {
-      read ??= readWholeChange(card);
-      read.catch(() => (read = undefined));
+      // a read that failed is not kept: the next view to open asks again
+      read ??= readWholeChange(card).then(
+        (parts) => {
+          if (parts === 'failed') read = undefined;
+          return parts;
+        },
+        (error) => {
+          read = undefined;
+          throw error;
+        },
+      );
       return read;
     };
   }, [item.id, rev]);
@@ -106,14 +114,14 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
     if (view && !seen(view)) view.scrollIntoView({ block: 'start', behavior: scrollBehavior() });
   }, [picked]);
   // stacked under the tree, every changed file is a bar of its own; the first starts open, again
-  // whenever the change comes to hold other files (a new handover, the work moving on)
-  const [openBars, setOpenBars] = useState<{ files: string; open: Set<string> } | null>(null);
-  const shownBars = openBars?.files === changedFiles ? openBars.open : new Set(ordered[0] ? [ordered[0].path] : []);
+  // whenever the change moves on (a new handover, the work changing its files or their lines)
+  const [openBars, setOpenBars] = useState<{ rev: string; open: Set<string> } | null>(null);
+  const shownBars = openBars?.rev === rev ? openBars.open : new Set(ordered[0] ? [ordered[0].path] : []);
   const openBar = (path: string, open: boolean) => {
     const next = new Set(shownBars);
     if (open) next.add(path);
     else next.delete(path);
-    setOpenBars({ files: changedFiles, open: next });
+    setOpenBars({ rev, open: next });
   };
   const bars = useRef<HTMLDivElement>(null);
   const [barPicked, setBarPicked] = useState<{ path: string }>();
