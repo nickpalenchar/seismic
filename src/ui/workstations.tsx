@@ -114,7 +114,7 @@ export function WorkstationRows({ host, items, underway, projects, onOpen, onEls
 
 /**
  * A workstation's line: the dot, the card in it as a compact card that opens on a click, and its
- * path (cut at the front where it is too long, so its end stays); or that it is free, or blocked.
+ * status and description; or that it is free, or blocked.
  * With `onTake`, a faint "⋯" beside a card that may give its clone up, which opens the one action
  * and what it does (`more`: the row whose "⋯" is open); a card giving it up has "Undo" (`onKeep`)
  * instead. Without a workstation (`w` undefined) a free slot of worktrees.
@@ -145,20 +145,13 @@ export function WorkstationRow({ w, host, items, underway, projects, onOpen, onE
   const busy = !!w.card && host.busy.includes(w.card);
   const state = w.card ? 'held' : blocked.has(w.path) ? 'blocked' : 'free';
   const there = w.project && projects.find((c) => c.id === w.project);
-  const path = (
-    <span className="col-start-2 overflow-hidden font-mono text-xs text-ellipsis whitespace-nowrap text-muted-foreground [direction:rtl] text-left" title={w.path}>
-      {/* the mark keeps the path's leading slash at its start in the right-to-left box that cuts it at the front */}
-      {'\u200e' + w.path}
-    </span>
-  );
   return (
     <li className={cn('grid grid-cols-[12px_minmax(0,1fr)] gap-x-2', item ? 'items-start py-1' : 'items-center py-[3px]')}>
       <WorkstationMark dot={dot} className={cn('row-start-1', item && (dot.paused ? 'mt-[7px]' : 'mt-[5px]'))} />
-      {!item && path}
-      <span className={cn('col-start-2 [overflow-wrap:anywhere]', item ? 'row-start-1 flex min-w-0 items-start gap-1' : 'row-start-2')}>
+      <span className={cn('col-start-2 [overflow-wrap:anywhere]', item ? 'row-start-1 flex min-w-0 items-start gap-1' : 'row-start-1')}>
         {item ? (
           <button type="button" className="-mx-1.5 -my-0.5 block min-w-0 flex-1 cursor-pointer rounded-[6px] border-0 bg-transparent px-1.5 py-0.5 text-left text-inherit hover:bg-muted focus-visible:bg-muted [&_.f-dot]:hidden" onClick={() => onOpen(item)}>
-            <CardFace item={item} size="xs" underway={underway[item.id]} />
+            <CardFace item={item} size="xs" workstation underway={underway[item.id]} />
           </button>
         ) : w.card && there ? (
           <>
@@ -192,7 +185,6 @@ export function WorkstationRow({ w, host, items, underway, projects, onOpen, onE
           </Tooltip>
         )}
       </span>
-      {item && path}
       {item && w.takeable && onTake && more === w.path && (
         <div className="col-start-2 mt-1 mb-0.5 flex flex-col items-start gap-1 rounded-[3px] bg-muted px-2.5 py-2 [--button-bg:var(--surface)]">
           <Button

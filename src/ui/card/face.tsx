@@ -44,6 +44,8 @@ export interface CardFaceProps {
   tail?: ReactNode;
   /** Less visual noise (the inbox): the pin is a small dot in the top-right corner, the state line is muted and plain, no moving line. What the size does not show anyway stays as it is. */
   subtle?: boolean;
+  /** XS: show the full state and its description on separate lines. */
+  workstation?: boolean;
   /** Inline: the pill is a link to this address, opening the card through `onOpen`. */
   href?: string;
   onOpen?: () => void;
@@ -191,7 +193,7 @@ function FaceS({ item, where, underway, since, unread, subtle, title, text, chil
  * short word of its state, its kind, the other canvas it is on, the list's `tail`, and as much of the
  * line under its title as fits.
  */
-function FaceXS({ item, underway, subtle, title, text, tail }: CardFaceProps) {
+function FaceXS({ item, underway, subtle, title, text, tail, workstation }: CardFaceProps) {
   const s = cardSummary(item, underway);
   const other = useOtherCanvas(item);
   // a workstream's label before its title says what it is; an idea's state says it already
@@ -210,14 +212,16 @@ function FaceXS({ item, underway, subtle, title, text, tail }: CardFaceProps) {
         <span className={dotClass(item.state === 'proposal', subtle)} />
         <span className={wordsClass}>
           {dotted([
-            <span className={shortStateClass(subtle)}>{s.state.stopped ? <StoppedWords stopped={s.state.stopped} /> : s.state.short}</span>,
-            kind !== s.state.short && kind,
+            <span className={shortStateClass(subtle)}>{s.state.stopped ? <StoppedWords stopped={s.state.stopped} /> : workstation ? s.state.label : s.state.short}</span>,
+            workstation && s.state.doing && <span className="text-[var(--approved)]">{s.state.doing.text}</span>,
+            !workstation && kind !== s.state.short && kind,
             other && <OtherCanvas item={item} named />,
             tail,
-            under,
+            !workstation && under,
           ])}
         </span>
       </span>
+      {workstation && under && <span className="block truncate text-muted-foreground">{under}</span>}
     </span>
   );
 }
