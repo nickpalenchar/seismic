@@ -98,6 +98,9 @@ as merged rather than dismissed for retrospective.
 
 "Separate" restores both original cards, including their places, without creating work. A failed
 comparison shows its reason and "Try again"; unfinished comparisons resume after restart.
+If an update fails, the earlier result stays dimmed beside the failure and through further retries,
+until a successful comparison replaces it. It cannot be approved while stale; the spinner and
+updating message stop on failure and return on retry.
 The comparison keeps what it read of both cards (texts, screenshots, questions, the survivor's
 handover summary and whether it has started). When either card differs from that, while the agent
 compares or after its result is in, the result is out of date the moment the change is noticed,

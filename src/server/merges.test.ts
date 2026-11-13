@@ -8,7 +8,7 @@ import { mergeCandidates } from '../ui/merge';
 import { ProjectRuntime } from './project';
 import { Store } from './store';
 import { Merges } from './merges';
-import { FakeRuntime, gitRepo, noForge } from './testing';
+import { FakeRuntime, gitRepo, noForge, until } from './testing';
 
 let dir: string;
 let main: string;
@@ -409,6 +409,62 @@ describe('a merged pair whose cards change compares again', () => {
     expect(merge(p.id).previous).toBeUndefined();
     project.act(p.id, { action: 'approveMerge' });
     expect(board().item(planned.id)!.body).toStartWith('Umlauts, quotes and dates.');
+  });
+
+  test('failed updates retain the last result through manual retry, automatic retry and restart', async () => {
+    const { p, planned } = cards();
+    project.act(p.id, { action: 'merge', with: planned.id });
+    await finishMerge({ title: 'Combined', task: 'Both requirements.' });
+    const previous = { title: 'Combined', task: 'Both requirements.' };
+    board().work(p.id, { body: 'Updated requirements.' });
+    await settle(40);
+    merger()!.emit({ type: 'idle' });
+    await settle(40);
+    expect(merge(p.id).failed).toBeDefined();
+    expect(merge(p.id).previous).toMatchObject(previous);
+    expect(() => project.act(p.id, { action: 'approveMerge' })).toThrow();
+
+    project.act(p.id, { action: 'merge', with: planned.id });
+    expect(merge(p.id).failed).toBeUndefined();
+    expect(merge(p.id).previous).toMatchObject(previous);
+    merger()!.emit({ type: 'idle' });
+    await settle(40);
+    expect(merge(p.id).previous).toMatchObject(previous);
+
+    // Restart keeps the failed state, including its last usable comparison.
+    project.shutdown();
+    project = new ProjectRuntime({ repos: [{ path: main, clones: 1 }] }, { store, home: dir, runtime, forge: noForge, commandDelayMs: 10, mergeSettleMs: 10 });
+    expect(merge(p.id).failed).toBeDefined();
+    expect(merge(p.id).previous).toMatchObject(previous);
+    board().work(planned.id, { body: 'Another change triggers automatic retry.' });
+    await settle(40);
+    expect(merge(p.id).failed).toBeUndefined();
+    expect(merge(p.id).previous).toMatchObject(previous);
+    await finishMerge({ title: 'New comparison', task: 'All updated requirements.' });
+    expect(merge(p.id).previous).toBeUndefined();
+    expect(merge(p.id).failed).toBeUndefined();
+  });
+
+  test('a failed update keeps the full follow-up preview and a late result cannot replace it', async () => {
+    const { p, planned } = cards();
+    board().work(planned.id, { state: 'working', branch: 'csv' });
+    project.act(p.id, { action: 'merge', with: planned.id });
+    await finishMerge({ outcome: 'followUp', titleCovered: false, parts: [{ text: p.body, covered: false }],
+      followUp: { title: 'Encoding', task: 'Fix encoding.', images: [], questions: [0] } });
+    board().work(p.id, { body: 'Fix encoding and quoting.' });
+    await settle(40);
+    const attempt = merge(p.id).attempt;
+    const previous = merge(p.id).previous;
+    merger()!.emit({ type: 'idle' });
+    await settle(40);
+    await until(() => merge(p.id).failed !== undefined);
+    expect(merge(p.id).previous).toEqual(previous);
+    expect(previous?.followUp?.questions).toEqual([0]);
+    project.act(p.id, { action: 'merge', with: planned.id });
+    expect(board().merged(p.id, { title: 'Late', task: 'Old attempt.' }, attempt)).toBe(false);
+    expect(merge(p.id).previous).toEqual(previous);
+    project.act(p.id, { action: 'separate' });
+    expect(board().item(p.id)?.idea?.proposal?.merge).toBeUndefined();
   });
 
   test('the survivor\'s handover changes its summary: compared again against the new one', async () => {

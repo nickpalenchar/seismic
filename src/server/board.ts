@@ -1673,7 +1673,7 @@ export class Board {
     const taken = items.filter((i) => !i.parent && i.id !== id && i.id !== withId && !i.idea?.mergingInto).map((i) => boundsOf(i, items));
     const at = was ? {} : freeSpotNear({ x: other.x, y: other.y }, MERGED_SIZE, taken);
     const proposal = storedProposal(row) ?? { questions: [] };
-    this.store.updateCard(id, { ...at, idea: { proposal: { ...proposal, merge: { with: withId, attempt: crypto.randomUUID(), origin: was?.origin ?? { x: row.x, y: row.y }, ...((was?.temporaryProposal || !row.idea?.proposal) ? { temporaryProposal: true as const } : {}) } } satisfies Proposal } });
+    this.store.updateCard(id, { ...at, idea: { proposal: { ...proposal, merge: { with: withId, ...(was?.previous ? { previous: was.previous } : {}), attempt: crypto.randomUUID(), origin: was?.origin ?? { x: row.x, y: row.y }, ...((was?.temporaryProposal || !row.idea?.proposal) ? { temporaryProposal: true as const } : {}) } } satisfies Proposal } });
     this.log(id, 'state', 'koordinator', this.t.koordinator.mergeStarted(other.title));
     this.changed();
     return id;
@@ -1687,7 +1687,7 @@ export class Board {
     const was = proposal?.merge;
     if (!was || (attempt !== undefined && was.attempt !== attempt) || was.task !== undefined || was.failed !== undefined) return false;
     const { previous: _, ...base } = was;
-    const merge = 'failed' in r ? { ...base, failed: r.failed.slice(0, 2000), ...(r.compared ? { compared: r.compared } : {}) } : { ...base, ...r, title: r.outcome ? r.title : r.title.trim().slice(0, 200), task: r.outcome ? r.task : r.task.trim().slice(0, 20000) };
+    const merge = 'failed' in r ? { ...was, failed: r.failed.slice(0, 2000), ...(r.compared ? { compared: r.compared } : {}) } : { ...base, ...r, title: r.outcome ? r.title : r.title.trim().slice(0, 200), task: r.outcome ? r.task : r.task.trim().slice(0, 20000) };
     this.store.updateCard(id, { idea: { proposal: { ...proposal, merge } satisfies Proposal } });
     if ('failed' in r) this.log(id, 'error', 'koordinator', this.t.koordinator.mergeFailed(r.failed));
     this.changed();
