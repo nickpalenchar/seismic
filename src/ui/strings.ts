@@ -558,6 +558,7 @@ const en = {
   approved: 'Approved.',
   approvedDirect: 'Approved; goes straight to main.',
   approving: 'being approved …',
+  starting: 'starting the agent …',
   landingPosition: (n: number) => {
     const suffix = n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[n % 10] ?? 'th';
     return n === 0 ? 'Landing on main' : `Waiting to land · ${n}${suffix} in line`;

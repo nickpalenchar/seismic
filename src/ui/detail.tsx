@@ -865,7 +865,7 @@ export function Detail(p: Props) {
                 disabled={!!fresh && !fresh.ready}
                 title={fresh?.hint ?? (inFolder ? t.folder.startHint : t.startHint)}
                 codexAllowed={!inFolder && !item.review?.contribution}
-                onStart={(agent) => act({ action: 'start', ...(agent ? { agent } : {}) }, { close: false })}
+                onStart={(agent) => act({ action: 'start', ...(agent ? { agent } : {}) }, { close: true, pending: t.starting })}
               />
             )
           )}
@@ -909,7 +909,7 @@ export function Detail(p: Props) {
             <p className="wontfix-callout m-0 w-full rounded-md border border-border bg-muted px-3 py-2 text-sm" role="note">{inFolder ? t.folder.noChangeHint : t.noChangeHint}</p>
           )}
           {halted && !item.archivedAt && (
-            <StartAgent draft={cardDraft(item.id)} label={t.startAgain} title={t.startAgainHint} codexAllowed={!inFolder && !item.review?.contribution} onStart={(agent) => act({ action: 'start', ...(agent ? { agent } : {}) }, { close: false })} />
+            <StartAgent draft={cardDraft(item.id)} label={t.startAgain} title={t.startAgainHint} codexAllowed={!inFolder && !item.review?.contribution} onStart={(agent) => act({ action: 'start', ...(agent ? { agent } : {}) }, { close: true, pending: t.starting })} />
           )}
           {review ? prototypeActions || approveButton : (running || (halted && !item.archivedAt)) && prototypeActions}
           <Later item={item} act={act} />
