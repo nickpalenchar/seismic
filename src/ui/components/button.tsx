@@ -24,7 +24,7 @@ const buttonVariants = cva(
         /** starting a code review: second to Approve, in purple */
         'code-review': 'bg-proposal text-on-ink',
         /** confirming a wontfix: closing the card without a change, in green */
-        success: 'bg-[#2f9e5b] text-white',
+        success: 'bg-approved text-on-ink',
         'review-warning': 'bg-[#f5c247] text-[#34270b] shadow-[inset_0_0_0_1px_#c48f21]',
         /** the icon alone until hovered */
         ghost: 'bg-transparent text-muted-foreground hover:not-disabled:bg-chip hover:not-disabled:text-ink hover:not-disabled:brightness-100',
