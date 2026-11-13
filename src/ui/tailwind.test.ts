@@ -70,10 +70,8 @@ test('no bespoke control outside src/ui/components/', async () => {
   const bespoke = [/className="btn[ "]/g, /className="btn-(?!mark)/g, /role="switch"/g, /<select/g, /role="dialog"/g, /role="menu"/g, /useMenuClose/g];
   // the few places a part cannot do it, each counted with its reason: a further one in the same file still fails
   const allowed: Record<string, { needle: string; count: number; reason: string }[]> = {
-    'phone.tsx': [
-      { needle: '<select', count: 1, reason: 'the project switcher is a native select laid invisibly over its button, so a finger gets the system picker' },
-      { needle: 'role="dialog"', count: 1, reason: 'the phone\'s sheets (half or full height, dragged by their grip) are a dialog of their own' },
-    ],
+    'phone.tsx': [{ needle: '<select', count: 1, reason: 'the project switcher is a native select laid invisibly over its button, so a finger gets the system picker' }],
+    'phoneTalkPanel.tsx': [{ needle: 'role="dialog"', count: 1, reason: 'the phone\'s sheets (half or full height, dragged by their grip) are a dialog of their own' }],
     'fullPage.tsx': [{ needle: 'role="dialog"', count: 1, reason: 'a full page is a dialog landmark over the project, not a modal part' }],
     'chats.tsx': [{ needle: 'role="dialog"', count: 1, reason: 'the chats drawer is a docked panel that keeps the canvas usable' }],
     'desktopNotify.tsx': [{ needle: 'role="dialog"', count: 1, reason: 'the ask of the desktop notification is a card in the corner' }],
