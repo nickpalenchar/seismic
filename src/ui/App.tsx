@@ -812,11 +812,6 @@ function Project({
     const i = openId && itemOrArchived(openId);
     if (i && unfolded.current) fitPanel(i);
   }, [tick]);
-  // and so does a sheet that opens, closes or changes its width beside it
-  useEffect(() => {
-    const i = openId && itemOrArchived(openId);
-    if (i && unfolded.current) fitPanel(i);
-  }, [dock.active, dock.widths.sheet, dock.widths.read]);
 
   // the open card went away on the server (cut into packages, deleted elsewhere): fold the panel
   useEffect(() => {
@@ -1726,6 +1721,12 @@ function Project({
       setCam(to);
     } else fly(to, 450);
   }, [side.left, side.right]);
+  // the open card keeps clear of what is docked beside it: it refits when a sheet opens, closes or changes its
+  // width, or the menu is pinned, shown, hidden or resized
+  useEffect(() => {
+    const i = openId && itemOrArchived(openId);
+    if (i && unfolded.current) fitPanel(i);
+  }, [side.left, side.right, dock.active]);
 
   /** `c`, moved just far enough that the view outside the sheet shows some content. */
   const kept = (c: Cam) => keepInView(c, contentRef.current, viewNow());
