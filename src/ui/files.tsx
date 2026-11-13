@@ -5,8 +5,8 @@
 
 import { ChevronDown, ChevronRight, ChevronUp, Database } from 'lucide-react';
 import { cn } from 'cn';
-import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { type CardDiff, diffSize, splitDiff } from '../core/diff';
+import { createContext, type ReactNode, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { type CardDiff, type DiffPart, diffSize, splitDiff } from '../core/diff';
 import { type ChangeRow, changeRows, diffRows, imageAt, type ShownFile } from '../core/files';
 import type { Item } from '../core/types';
 import { barTrigger, DiffTreeLayout, StatusBadge } from './diff-tree';
@@ -59,6 +59,8 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
   const change = useChange(item, diff);
   const rows = changeRows(change, item.demo?.files);
   const changedRows = diffRows(change);
+  const ordered = treeOrder(changedRows);
+  const changedFiles = ordered.map((r) => r.path).join('\n');
   const files = rows.flatMap((r) => (r.file ? [r.file] : []));
   const named = files.filter((f) => f.caption !== undefined);
   const schema = (f: ShownFile) => f.kind === 'page' && /(^|\/)[^/]*schema[^/]*\.html?$/i.test(f.path);
@@ -76,6 +78,15 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
   const [asChanges, setAsChanges] = useState<Record<string, boolean>>({});
   const demoBox = useRef<HTMLDivElement>(null);
   const rev = revision(`${item.state}:${item.need ?? ''}:${item.review?.summary ?? ''}:${JSON.stringify(change?.files ?? [])}:${JSON.stringify(change?.folder?.changes ?? [])}`);
+  // one read of the whole change for every file view below, again once the change moves on
+  const readChange = useMemo(() => {
+    let read: Promise<DiffPart[] | 'failed'> | undefined;
+    return (card: string) => {
+      read ??= readWholeChange(card);
+      read.catch(() => (read = undefined));
+      return read;
+    };
+  }, [item.id, rev]);
   const box = useRef<HTMLDivElement>(null);
   const [tallest, setTallest] = useState(0);
   useLayoutEffect(() => {
@@ -94,14 +105,15 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
     const view = box.current?.querySelector(`#${FILE_PANEL}`);
     if (view && !seen(view)) view.scrollIntoView({ block: 'start', behavior: scrollBehavior() });
   }, [picked]);
-  // stacked under the tree, every changed file is a bar of its own; the first starts open
-  const [openBars, setOpenBars] = useState<Set<string> | null>(null);
-  const shownBars = openBars ?? new Set(changedRows[0] ? [changedRows[0].path] : []);
+  // stacked under the tree, every changed file is a bar of its own; the first starts open, again
+  // whenever the change comes to hold other files (a new handover, the work moving on)
+  const [openBars, setOpenBars] = useState<{ files: string; open: Set<string> } | null>(null);
+  const shownBars = openBars?.files === changedFiles ? openBars.open : new Set(ordered[0] ? [ordered[0].path] : []);
   const openBar = (path: string, open: boolean) => {
     const next = new Set(shownBars);
     if (open) next.add(path);
     else next.delete(path);
-    setOpenBars(next);
+    setOpenBars({ files: changedFiles, open: next });
   };
   const bars = useRef<HTMLDivElement>(null);
   const [barPicked, setBarPicked] = useState<{ path: string }>();
@@ -132,11 +144,12 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
   };
   if (!tabs.length) return item.demo?.files && change ? <p className="hint">{t.files.none}</p> : null;
   const inDiff = current === DIFF;
-  const selected = changedRows.some(r => r.path === pickedFile) ? pickedFile : changedRows[0]?.path;
+  const selected = changedRows.some(r => r.path === pickedFile) ? pickedFile : ordered[0]?.path;
   const path = inDiff ? selected : current === REVIEW ? null : current;
   const file = files.find((f) => f.path === path);
   const count = changedRows.length;
   return (
+    <WholeChange.Provider value={readChange}>
     <Tabs value={current ?? ''} onValueChange={onTab} className="results" ref={box} style={tallest ? { minHeight: tallest } : undefined}>
       {/* deliverables stay in front; the change list has its own tab */}
       <TabsList variant="underline" className="result-tabs mb-3.5 phone:[&_[data-slot=tabs-trigger]]:min-h-11">
@@ -162,7 +175,7 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
               {wholeDiff && <DiffView item={item} onClose={() => setWholeDiff(false)} onRead={() => {}} />}
               {stacked ? (
                 <div className="diff-bars flex flex-col gap-2" ref={bars}>
-                  {treeOrder(changedRows).map((row) => (
+                  {ordered.map((row) => (
                     <FileBar key={row.path} row={row} open={shownBars.has(row.path)} onOpenChange={(o) => openBar(row.path, o)}>
                       {changedFile(row.path)}
                     </FileBar>
@@ -196,6 +209,7 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
         </TabsContent>
       )}
     </Tabs>
+    </WholeChange.Provider>
   );
 }
 
@@ -557,22 +571,34 @@ function PdfFrame({ url, title }: { url: string; title: string }) {
   return <iframe ref={frame} className="r-pdf w-full h-[max(480px,calc(100vh-320px))] border border-line rounded-[3px] bg-white block" src={url} title={title} style={height ? { height } : undefined} />;
 }
 
+/** The card's whole change, file by file: read from the server and split once. */
+async function readWholeChange(card: string): Promise<DiffPart[] | 'failed'> {
+  const d = await api.diff(card, true);
+  return d ? splitDiff(d.patch ?? '') : 'failed';
+}
+
+/**
+ * The whole change, read once for all the file views of a card's result (each open bar of the
+ * Diff tab, a result's "Changes") until the change moves on; without it, each view reads its own.
+ */
+const WholeChange = createContext<((card: string) => Promise<DiffPart[] | 'failed'>) | null>(null);
+
 /** What the card changed in the file, line by line. */
 function Changes({ item, path }: { item: Item; path: string }) {
-  const [diff, setDiff] = useState<CardDiff | null | 'failed'>(null);
+  const read = useContext(WholeChange);
+  const [parts, setParts] = useState<DiffPart[] | null | 'failed'>(null);
   useEffect(() => {
     let gone = false;
-    api.diff(item.id, true).then(
-      (d) => !gone && setDiff(d ?? 'failed'),
-      () => !gone && setDiff('failed'),
+    (read ?? readWholeChange)(item.id).then(
+      (p) => !gone && setParts(p),
+      () => !gone && setParts('failed'),
     );
     return () => {
       gone = true;
     };
-  }, [item.id]);
-  const patch = diff === null || diff === 'failed' ? undefined : (diff.patch ?? '');
-  const part = useMemo(() => (patch === undefined ? undefined : splitDiff(patch).find((p) => p.file === path)), [patch, path]);
-  if (diff === null) return <p className="hint">{t.files.loading}</p>;
+  }, [item.id, read]);
+  const part = parts === null || parts === 'failed' ? undefined : parts.find((p) => p.file === path);
+  if (parts === null) return <p className="hint">{t.files.loading}</p>;
   return part ? (
     <div className="r-diff">
       <FileDiff part={part} card={item.id} />
