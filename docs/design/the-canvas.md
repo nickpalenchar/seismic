@@ -1,6 +1,6 @@
 ## The canvas
 
-A chapter of the [design doc](../design.md), whose header says how it is written. Several canvases per project, switched by tabs, are planned in [Several canvases per project](../plan/multi-canvas.md). Moving the UI onto shadcn/ui with Tailwind in frost's look is planned in [shadcn/ui with Tailwind, in frost](../plan/shadcn-ui.md).
+A chapter of the [design doc](../design.md), whose header says how it is written. Several canvases per project, switched by tabs, are planned in [Several canvases per project](../plan/multi-canvas.md). Moving the UI onto shadcn/ui with Tailwind in frost's look is planned in [shadcn/ui with Tailwind, in frost](../plan/shadcn-ui.md). Bringing its styling onto shadcn's scales and Tailwind's palette is planned in [Frost on shadcn's scales and Tailwind's palette](../plan/shadcn-scales.md).
 
 The UI is a browser app with a custom canvas: camera with fly-to, unfold-in-place, semantic zoom,
 edge indicators, minimap, a frosted top bar the canvas slides under, and a status bar along the bottom.
