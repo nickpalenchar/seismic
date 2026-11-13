@@ -1430,6 +1430,9 @@ const en = {
       needsYouCount: (n: number) => (n === 1 ? '1 thing waits for you' : `${n} things wait for you`),
       soon: 'Coming soon',
       close: 'Close card',
+      closeSearch: 'Close search',
+      noMatch: 'No card matches.',
+      searchEmpty: 'Type a title or a card code.',
     },
     notify: {
       install: 'For Seismic to tell you when something waits for you: tap “Share” below, then “Add to Home Screen”, and open Seismic from there.',

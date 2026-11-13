@@ -3,12 +3,13 @@
 // pills scrolling under it; a box "N working" with the workstation dots, which unfolds to the cards
 // agents are on; the project's other cards in sections (Queued, Planned, then Parked and Done
 // folded), twenty at a time; and a floating bar along the foot with Menu, Chat, New card, Search and
-// Needs you. A card opens full screen with an X at the top and no floating bar; its conversation is
-// the panel both phone views share (`phoneShell.tsx`).
+// Needs you. Chat opens Seismic's conversation as a full page and Search a page over the project's
+// cards (`phoneSearch.tsx`), each without the bar. A card opens full screen with an X at the top and
+// no floating bar; its conversation is the panel both phone views share (`phoneShell.tsx`).
 
 import { Bell, ChevronDown, Menu, Plus, Search, X } from 'lucide-react';
-import { useState } from 'react';
-import { finishedArchivable, halted, inParkingLot, type Item, needsYou, type ProjectInfo, snoozeOf, type Usage } from '../core/types';
+import { useEffect, useState } from 'react';
+import { finishedArchivable, halted, inParkingLot, type Item, needsYou, type ProjectInfo, snoozeOf, type Usage, unreadAnswers } from '../core/types';
 import { agentStage, agentWork } from '../core/agents';
 import { queueOrder } from '../core/queue';
 import { useStoredState } from './stored';
@@ -16,7 +17,7 @@ import { Sign } from './logo';
 import { Notify } from './notify';
 import { failText, t } from './strings';
 import { UsagePill } from './usage';
-import { runs } from './talk';
+import { obeyaWorks, runs } from './talk';
 import { Badge } from './components/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './components/collapsible';
 import { TalkIcon } from './parts';
@@ -28,6 +29,12 @@ import { cn } from 'cn';
 import { pageBarClass, pageClass, viewClass } from './phoneEnvironment';
 import { CardList, sectionClass, usePhoneShell } from './phoneShell';
 import { HoldToTalk } from './voice';
+import { ChatsHead } from './chats';
+import { KoordinatorTalk } from './koordinator';
+import { KoordinatorAgent } from './message';
+import { obeyaDraft } from './draft';
+import { PhoneSearch } from './phoneSearch';
+import { gripWordClass, TalkPanel, talkClass } from './phoneTalkPanel';
 
 /** The sections of the list, in their order; those folded until the owner unfolds them. */
 const SECTIONS = ['queued', 'planned', 'parked', 'done'] as const;
@@ -44,6 +51,22 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
   // how many cards each section shows; back to the first twenty with another project
   const [shown, setShown] = useState<{ project: string; n: Partial<Record<Section, number>> }>({ project: obeyaId, n: {} });
   const shownOf = (x: Section) => (shown.project === obeyaId ? shown.n[x] : undefined) ?? PAGE;
+  // the search page is a step in the browser's history too, so Back from a card found there returns to it
+  const [searching, setSearching] = useState(() => !!(history.state as { search?: boolean } | null)?.search);
+  const [query, setQuery] = useState('');
+  useEffect(() => {
+    const pop = () => setSearching(!!(history.state as { search?: boolean } | null)?.search);
+    addEventListener('popstate', pop);
+    return () => removeEventListener('popstate', pop);
+  }, []);
+  const openSearch = () => {
+    history.pushState({ ...history.state, search: true }, '', location.href);
+    setSearching(true);
+  };
+  const closeSearch = () => {
+    if ((history.state as { search?: boolean } | null)?.search) history.back();
+    else setSearching(false);
+  };
 
   // an open card goes right up to the bottom of the top bar, which stays, with the X in place of the usage pills
   if (open)
@@ -138,7 +161,51 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
         )}
       </div>
       {acks}
-      <FloatingBar needsYou={needsYouCount(entries)} making={making || !!made} onNew={() => void newCard()} />
+      {searching && <PhoneSearch items={items.filter((i) => !i.archivedAt)} query={query} onQuery={setQuery} onOpen={openCard} onClose={closeSearch} />}
+      {s.talk && (
+        <TalkPanel
+          page
+          title={t.koordinator.title}
+          head={snap && <ChatsHead title={<span className={gripWordClass}>{t.koordinator.title}</span>} project={obeyaId} projectName={snap.project.name} chat={snap.chat} chats={snap.chats} talk={snap.talk} onProject={setObeyaProject} onClose={s.closeTalk} />}
+          label={t.phone.talkTitle}
+          banner={banner}
+          onClose={s.closeTalk}
+          leave={s.leaveTalk}
+          onLeave={() => s.setClosing(true)}
+        >
+          {snap && (
+            <div className={talkClass} key={obeyaId}>
+              <KoordinatorAgent.Provider value={snap.koordinatorAgent}>
+                <KoordinatorTalk
+                  on
+                  project={obeyaId}
+                  talk={snap.talk}
+                  chat={snap.chat}
+                  chatModel={snap.chatModel}
+                  chats={snap.chats}
+                  items={snap.items}
+                  repos={snap.project.repos}
+                  onOpen={openCard}
+                  onTell={(text, images, replyTo) => void s.tellTyped(text, images, null, undefined, replyTo)}
+                  draft={obeyaDraft(obeyaId)}
+                />
+              </KoordinatorAgent.Provider>
+            </div>
+          )}
+        </TalkPanel>
+      )}
+      {s.talk && s.mic}
+      {!s.talk && !searching && (
+        <FloatingBar
+          needsYou={needsYouCount(entries)}
+          making={making || !!made}
+          chat={snap ? unreadAnswers(snap.talk) : 0}
+          chatWorking={!!snap && obeyaWorks(snap.talk)}
+          onNew={() => void newCard()}
+          onChat={s.openTalk}
+          onSearch={openSearch}
+        />
+      )}
     </HoldToTalk.Provider>
   );
 }
@@ -255,7 +322,7 @@ const barButton = 'relative inline-grid size-11 place-items-center rounded-full 
  * and Needs you, whose bell counts what waits across every project. Hidden while the keyboard is up;
  * with the phone turned it stands upright in the microphone's strip at the right.
  */
-function FloatingBar({ needsYou, making, onNew }: { needsYou: number; making: boolean; onNew: () => void }) {
+function FloatingBar({ needsYou, making, chat, chatWorking, onNew, onChat, onSearch }: { needsYou: number; making: boolean; chat: number; chatWorking: boolean; onNew: () => void; onChat: () => void; onSearch: () => void }) {
   return (
     <nav
       className="ph-float fixed z-50 left-1/2 bottom-[calc(14px+env(safe-area-inset-bottom))] -translate-x-1/2 flex items-center gap-1 rounded-full bg-glass px-2 py-1 shadow-lift backdrop-blur-xl [.ph-kb_.ph-view~&]:hidden ph-landscape:left-auto ph-landscape:right-[calc(10px+env(safe-area-inset-right))] ph-landscape:top-1/2 ph-landscape:bottom-auto ph-landscape:-translate-y-1/2 ph-landscape:translate-x-0 ph-landscape:flex-col ph-landscape:px-1 ph-landscape:py-2"
@@ -264,8 +331,13 @@ function FloatingBar({ needsYou, making, onNew }: { needsYou: number; making: bo
       <button className={barButton} aria-label={t.phone.next.menu} title={t.phone.next.soon} disabled>
         <Menu aria-hidden="true" />
       </button>
-      <button className={barButton} aria-label={t.phone.next.chat} title={t.phone.next.soon} disabled>
+      <button className={cn(barButton, chatWorking && "after:absolute after:inset-x-2.5 after:bottom-1 after:h-0.5 after:animate-[draw_1.6s_cubic-bezier(.5,0,.3,1)_infinite] after:content-[''] after:[background:linear-gradient(90deg,var(--working)_0_50%,transparent_50%)_0_0/200%_100%_no-repeat,color-mix(in_srgb,var(--working)_22%,transparent)]")} aria-label={t.phone.next.chat} title={chat ? t.koordinator.unreadCount(chat) : undefined} onClick={onChat}>
         <TalkIcon />
+        {chat > 0 && (
+          <Badge variant="count" className="absolute top-0.5 right-0.5 bg-waiting text-white">
+            {chat}
+          </Badge>
+        )}
       </button>
       <button
         className="ph-new mx-1.5 -my-4 ph-landscape:-mx-4 ph-landscape:my-1.5 inline-grid size-[60px] place-items-center rounded-full border-0 bg-ink p-0 text-background shadow-lift cursor-pointer [-webkit-touch-callout:none] select-none active:translate-y-px disabled:opacity-60 disabled:cursor-default"
@@ -275,7 +347,7 @@ function FloatingBar({ needsYou, making, onNew }: { needsYou: number; making: bo
       >
         <Plus size={28} strokeWidth={2.25} aria-hidden="true" />
       </button>
-      <button className={barButton} aria-label={t.phone.next.search} title={t.phone.next.soon} disabled>
+      <button className={barButton} aria-label={t.phone.next.search} onClick={onSearch}>
         <Search aria-hidden="true" />
       </button>
       <button className={barButton} aria-label={needsYou ? `${t.phone.next.needsYou}: ${t.phone.next.needsYouCount(needsYou)}` : t.phone.next.needsYou} title={t.phone.next.soon} disabled>

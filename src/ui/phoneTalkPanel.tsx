@@ -80,6 +80,7 @@ export function TalkPanel({
   leave: leaveRef,
   onLeave,
   focus,
+  page = false,
   children,
 }: {
   title: string;
@@ -95,6 +96,8 @@ export function TalkPanel({
   onLeave: () => void;
   /** Set: the cursor goes into the field once it is there. */
   focus?: React.RefObject<boolean>;
+  /** A page of its own rather than a panel: always the full height, its head no grip to drag. */
+  page?: boolean;
   children: React.ReactNode;
 }) {
   const panel = useRef<HTMLDivElement>(null);
@@ -234,6 +237,7 @@ export function TalkPanel({
       className={cn(
         panelClass,
         half ? 'half [--ph-h:.52] ph-landscape:[--ph-h:1]' : '[--ph-h:1]',
+        page && 'page',
         (half || (height ?? 1) < 1) && 'border-t border-line',
         (height ?? 1) < 1 && 'part',
         leaving && 'leaving [transform:translateY(100%)]',
@@ -244,9 +248,13 @@ export function TalkPanel({
       role="dialog"
       aria-label={label}
     >
-      <header className={gripClass} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
-        {head ?? <span className={gripWordClass}>{title}</span>}
-      </header>
+      {page ? (
+        <header className={cn(barClass, 'ph-grip py-1.5 ph-landscape:py-[3px]')}>{head ?? <span className={gripWordClass}>{title}</span>}</header>
+      ) : (
+        <header className={gripClass} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
+          {head ?? <span className={gripWordClass}>{title}</span>}
+        </header>
+      )}
       {banner}
       {children}
     </div>
