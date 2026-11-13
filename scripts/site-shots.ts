@@ -200,8 +200,9 @@ async function phoneShots(url: string) {
   await page.screenshot({ path: join(IMG, 'phone.png') });
   console.log('phone.png');
 
-  await page.getByRole('button', { name: /^Needs you/ }).last().tap();
-  await page.locator('.ph-card', { hasText: 'Split the bill' }).tap();
+  // what waits for the owner is on Needs you (the bell in the bar) and nowhere in the project's lists; its title opens the card
+  await page.locator('.ph-float').getByRole('button', { name: /^Needs you/ }).tap();
+  await page.locator('#ph-needs .inbox-entry', { hasText: 'Split the bill' }).locator('.ttl-link').tap();
   await page.locator('#ph-card video').waitFor();
   await page.waitForTimeout(1500);
   await still(page, '#ph-card video');

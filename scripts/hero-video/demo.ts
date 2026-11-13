@@ -284,7 +284,7 @@ async function phone(d: Director) {
     veil.innerHTML = `<div class="frame"><div class="screen"><div class="status"><span>9:41</span><span class="island"></span><span class="bars"><i></i></span></div><iframe src="${src}"></iframe></div></div>`;
     document.body.append(style, veil);
   }, '/p/tipjar?view=phone');
-  await d.page.frameLocator('#hero-phone iframe').locator('.ph-card', { hasText: 'Settle up after a trip' }).waitFor({ timeout: 30_000 });
+  await d.page.frameLocator('#hero-phone iframe').locator('.ph-float').waitFor({ timeout: 30_000 });
 }
 
 const scenes: Scene[] = [
@@ -627,9 +627,12 @@ const scenes: Scene[] = [
       await phone(d);
       await saying(d, say, 'And it comes with you');
       await d.page.evaluate(() => document.querySelector('#hero-phone')!.classList.add('on'));
-      // what waits for the owner, and one of it opened on the phone, with its decisions
+      // what waits for the owner (Needs you, the bell in the bar), and one of it opened on the phone, with its decisions
+      const screen = d.page.frameLocator('#hero-phone iframe');
+      await saying(d, say, 'Seismic lets you know');
+      await d.click(screen.locator('.ph-float').getByRole('button', { name: /^Needs you/ }));
       await saying(d, say, 'You watch the demo');
-      await d.click(d.page.frameLocator('#hero-phone iframe').locator('.ph-card', { hasText: 'Settle up after a trip' }));
+      await d.click(screen.locator('#ph-needs .inbox-entry', { hasText: 'Settle up after a trip' }).locator('.ttl-link'));
       await saying(d, say, 'Of course');
       await d.page.evaluate(() => document.querySelector('#hero-phone')!.classList.remove('on'));
       await d.untilSpoken(1);
