@@ -79,3 +79,34 @@ test('a wait to a card on another canvas ends in a stub on the side of the card 
     ['a', 'd', 'after', 'Billing'],
   ]);
 });
+
+test('a wait to or from a card off the canvas (snoozed, parked, or a workstream of a parked plan) ends in no stub', () => {
+  const card = (id: string, canvas: string, more: Partial<Item> = {}) => ({ id, canvas, title: id, ...more }) as Item;
+  const items = [
+    card('a', 'm'),
+    card('p', 'm'),
+    card('s', 'm', { parent: 'p', hold: { reason: 'snoozed', since: '2026-11-01', until: '2026-12-01' } as Item['hold'] }),
+    card('z', 'b', { hold: { reason: 'snoozed', since: '2026-11-01', until: '2026-12-01' } as Item['hold'] }),
+    card('k', 'b', { hold: { reason: 'parkingLot', since: '2026-11-01' } }),
+    card('q', 'b', { hold: { reason: 'parkingLot', since: '2026-11-01' } }),
+    card('w', 'b', { parent: 'q' }),
+    card('d', 'b'),
+  ];
+  const byId = (id: string) => items.find((i) => i.id === id);
+  // expanded plans: every card stands for itself
+  const stubs = stubsOf(
+    [
+      ['z', 'a'],
+      ['a', 'k'],
+      ['w', 'a'],
+      ['s', 'd'],
+      ['d', 'a'],
+    ],
+    new Set(['a', 'p', 's']),
+    byId,
+    (id) => id,
+    canvases,
+    'm',
+  );
+  expect(stubs.map((s) => [s.here, s.other.id, s.dir])).toEqual([['a', 'd', 'before']]);
+});

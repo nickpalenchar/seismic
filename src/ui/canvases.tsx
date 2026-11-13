@@ -8,7 +8,7 @@ import { cn } from 'cn';
 import { Car, GripVertical, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
 import { CANVAS_ICON_COLORS, CANVAS_LUCIDE_ICONS, type CanvasIconColor, lucideIcon, lucideIconValue } from '../core/canvas-icons';
 import type { Bounds } from '../core/layout';
-import { type Canvas, CANVAS_NAME_MAX, canvasNameProblem, type Item, MAIN_CANVAS, parkable, parkableStopping, inParkingLot } from '../core/types';
+import { type Canvas, CANVAS_NAME_MAX, canvasNameProblem, type Item, MAIN_CANVAS, parkable, parkableStopping, inParkingLot, offCanvas } from '../core/types';
 import { api } from './api';
 import { CanvasIcon, canvasText, lucideOf } from './canvasIcon';
 import { depLineClass } from './depsClasses';
@@ -605,7 +605,12 @@ export function stubsOf(waits: [string, string][], placed: Set<string>, byId: (i
     const [a, b] = [standsFor(from), standsFor(to)];
     const end = placed.has(b) && !placed.has(a) ? { here: b, away: from, dir: 'before' as const } : placed.has(a) && !placed.has(b) ? { here: a, away: to, dir: 'after' as const } : undefined;
     const other = end && byId(end.away);
-    if (!end || !other || other.archivedAt) return [];
+    // a card off the canvas (snoozed, in the parking lot, or a workstream of a plan there) is listed under "Parked", on no canvas
+    const hidden = (id: string) => {
+      const i = byId(id);
+      return [i, i?.parent && byId(i.parent), byId(standsFor(id))].some((x) => !!x && offCanvas(x));
+    };
+    if (!end || !other || other.archivedAt || hidden(from) || hidden(to)) return [];
     const canvas = canvasOf(canvases, other);
     if (!canvas || canvas.id === shown) return [];
     const key = `${end.here} ${other.id} ${end.dir}`;
