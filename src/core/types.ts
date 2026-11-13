@@ -1767,6 +1767,8 @@ export interface ChatElsewhere extends Chat {
 
 /** One exchange between the owner and the Koordinator. */
 export interface Talk {
+  /** Identifies the individual optimistic send that created this exchange. */
+  requestId?: string;
   /** The chat it was said in. */
   chat?: number;
   replyAgent?: AgentIdentity;

@@ -157,6 +157,7 @@ export const isField = (f: unknown): f is Field => typeof f === 'string' && f in
 export interface Input {
   /** The chat captured when the owner sent the words. */
   chat?: number;
+  requestId?: string;
   typed?: boolean;
   field?: Field;
   forwarded?: string;
@@ -375,7 +376,7 @@ export class Commander {
     const replyTo = card ? this.o.board.quoted(card, input.replyTo)?.id : undefined;
     const quoted = card ? undefined : this.o.board.quotedTalk(input.replyTo);
     // the owner's words stand in the conversation at once, the Koordinator's reply follows once it has read them
-    const talk = this.o.board.addTalk(transcript, '', card ?? null, undefined, images, quoted, undefined, undefined, undefined, input.chat);
+    const talk = this.o.board.addTalk(transcript, '', card ?? null, undefined, images, quoted, undefined, undefined, undefined, input.chat, input.requestId);
     if (card && said) this.o.board.log(card, 'say', 'owner', said, { images, replyTo });
     const held: Held = { transcript, images, focus, input: { ...input, chat: input.chat ?? this.o.board.chat() }, at: new Date().toISOString() };
     // what the usage limit held is read first, in the order it was said; while the limit holds, these words wait with it

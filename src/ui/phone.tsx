@@ -51,7 +51,7 @@ const newClass =
 
 export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
   const s = usePhoneShell(loaded);
-  const { projects, snaps, usage, feeds, banner, all, ordered, several, open, openCard, talk, openTalk, closeTalk, closing, setClosing, leaveTalk, obeyaId, setObeyaProject, entries, inboxRead, isUnderway, setUnderway, homeRef, newCard, making, made, showAck, tellTyped, press, acks, mic, back } = s;
+  const { projects, snaps, usage, feeds, banner, all, ordered, several, open, openCard, talk, openTalk, closeTalk, closing, setClosing, leaveTalk, obeyaId, setObeyaProject, entries, inboxRead, isUnderway, setUnderway, homeRef, newCard, making, made, showAck, tellChat, press, acks, mic, back } = s;
   // the tab and the groups shown, as the owner left them; "Done" hidden until its chip is tapped
   const [tab, setTab] = useAgentsTab('all');
   const [hidden, setHidden] = useStoredState<PhoneStage[]>('obeya-phone-hidden', ['done']);
@@ -206,7 +206,7 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
                 items={obeyaSnap.items}
                 repos={obeyaSnap.project.repos}
                 onOpen={openCard}
-                onTell={(text, images, replyTo, destination) => void tellTyped(text, images, null, undefined, replyTo, destination)}
+                onTell={tellChat}
                 draft={obeyaDraft(obeyaId)}
               />
               </KoordinatorAgent.Provider>

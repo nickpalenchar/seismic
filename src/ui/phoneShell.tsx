@@ -316,7 +316,7 @@ export function usePhoneShell(loaded: ProjectInfo[], { follow = false }: { follo
   const ratePrompt = useRatePrompt(useMemo(() => all.map((x) => x.item), [all]));
   // the reply stands in Seismic's conversation, open in front of the owner: no line above the microphone
   const told = useTold(toasts.store, () => {}, (h) => talkRef.current && (h.inCard ? openRef.current === h.inCard : !!snapsRef.current[obeyaRef.current]?.talk.some((x) => x.id === h.talk)), (c) => openId(c.id));
-  const { tellAbout, tellTyped } = tellers(byId, told, fail, () => undefined);
+  const { tellAbout, tellTyped, tellChat } = tellers(byId, told, fail, () => undefined);
   const where = (): Where => (openRef.current ? { card: openRef.current } : null);
   /** The draft of the field that speaks to `target`: the open card's, or the one under Seismic's conversation. */
   const draftFor = (target: Where) => (target && 'card' in target ? cardDraft(target.card) : obeyaDraft(obeyaRef.current));
@@ -551,7 +551,7 @@ export function usePhoneShell(loaded: ProjectInfo[], { follow = false }: { follo
     obeyaId, setObeyaProject,
     entries, inboxRead, isUnderway, setUnderway,
     homeRef, newCard, making, made,
-    showAck, tellTyped, press, acks, mic, cardScreen,
+    showAck, tellTyped, tellChat, press, acks, mic, cardScreen,
   };
 }
 

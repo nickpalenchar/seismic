@@ -244,7 +244,7 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
                   items={snap.items}
                   repos={snap.project.repos}
                   onOpen={openCard}
-                  onTell={(text, images, replyTo, destination) => void s.tellTyped(text, images, null, undefined, replyTo, destination)}
+                  onTell={s.tellChat}
                   draft={obeyaDraft(obeyaId)}
                 />
               </KoordinatorAgent.Provider>

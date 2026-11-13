@@ -118,7 +118,21 @@ export function tellers(byId: (id: string) => Item | undefined, told: ReturnType
       void told.tell(null, toldCard(target), () => api.command(text, target, { images, field, replyTo, destination, ...(at ? { place: at } : {}) }));
     }
   };
-  return { listening, tellAbout, tellTyped };
+  /** A chat send also needs the request's result so its optimistic bubble can settle or recover. */
+  const tellChat = async (text: string, images?: string[], replyTo?: number | TalkRef, destination?: { project: string; chat: number; requestId?: string }) => {
+    const at = place();
+    let refused: unknown;
+    await told.tell(null, undefined, async () => {
+      try {
+        return await api.command(text, null, { images, replyTo, destination, ...(at ? { place: at } : {}) });
+      } catch (e) {
+        refused = e;
+        throw e;
+      }
+    });
+    if (refused) throw refused;
+  };
+  return { listening, tellAbout, tellTyped, tellChat };
 }
 
 /** Whom the microphone speaks to: the open card (its agent, where one listens), the open plan, or the Koordinator. */

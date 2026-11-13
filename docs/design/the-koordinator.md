@@ -231,6 +231,11 @@ the sheet alike. “Project setting” follows the configured Seismic model; a c
 overrides that setting for this chat. Changing the choice starts a fresh agent session for the next
 message while keeping this chat's conversation. A new chat starts with the project setting, and
 returning to an earlier chat restores its choice.
+The choice updates in the selector as soon as it is picked. A message sent while that choice is
+being saved appears in the conversation with a sending spinner and is handed to Seismic after the
+choice is saved, so it uses the selected model. A rejected choice returns to the previous selection;
+a rejected message returns to the text field with its screenshots and an error dialog explains what
+happened.
 
 An exchange the Koordinator takes up by itself (a wait met, a looked-up answer's step) goes into the
 chat of the exchange it follows, and a looked-up answer comes in the chat it was asked in. One that

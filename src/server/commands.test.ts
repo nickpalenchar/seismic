@@ -669,6 +669,20 @@ describe('the Koordinator remembers', () => {
     expect(brief).not.toContain('Read src/app.ts');
   });
 
+  test('identical chat sends retain their separate request ids in server echoes', async () => {
+    const c = commander();
+    const ids = [crypto.randomUUID(), crypto.randomUUID()];
+    for (const requestId of ids) {
+      const heard = c.hear('same', {}, [], { chat: board.chat(), requestId });
+      await settle();
+      expect(board.snapshot().talk.at(-1)?.requestId).toBe(requestId);
+      runtime.last.call('reply', { confirm: 'Ok.' });
+      runtime.last.emit({ type: 'idle' });
+      await heard;
+    }
+    expect(board.snapshot().talk.map((entry) => entry.requestId)).toEqual(ids);
+  });
+
   test('a delayed send uses its captured chat model and memory without changing the open chat', async () => {
     const c = commander();
     board.setChatModel('sonnet');

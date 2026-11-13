@@ -676,11 +676,13 @@ describe('voice', () => {
     const chat = project.board.chat();
     const heard: unknown[] = [];
     project.commander.hear = async (_text, _focus, _images, input = {}) => {
-      heard.push(input.chat);
+      heard.push({ chat: input.chat, requestId: input.requestId });
       return { confirm: 'Ok.' };
     };
-    await post(api('/command'), JSON.stringify({ text: 'here', chat }));
-    expect(heard).toEqual([chat]);
+    const requestId = crypto.randomUUID();
+    await post(api('/command'), JSON.stringify({ text: 'here', chat, requestId }));
+    expect(heard).toEqual([{ chat, requestId }]);
+    expect(await codeOf(post(api('/command'), JSON.stringify({ text: 'bad id', chat, requestId: 123 })))).toBe('invalid');
     expect(await codeOf(post(api('/command'), JSON.stringify({ text: 'wrong', chat: -1 })))).toBe('invalid');
     expect(heard).toHaveLength(1);
   });

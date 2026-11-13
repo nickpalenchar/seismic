@@ -59,6 +59,7 @@ export function Composer({
   allowEmpty = false,
   noImages = false,
   obeya,
+  optimistic,
   onText,
   className,
   draft,
@@ -74,6 +75,8 @@ export function Composer({
   noImages?: boolean;
   /** Seismic reads what is typed: it gets ready while the owner types; a text here says so under the field. */
   obeya?: true | string;
+  /** Clear on Send while the caller completes delivery and restores the draft on failure. */
+  optimistic?: boolean;
   /** Hears the text as it is typed. */
   onText?: (text: string) => void;
   className?: string;
@@ -162,6 +165,17 @@ export function Composer({
   const send = async () => {
     if (!ready) return;
     setBusy(true);
+    if (optimistic) {
+      const words = text.trim();
+      const attached = images.length ? images : undefined;
+      const to = reply?.to;
+      setText('');
+      shots.clear();
+      if (reply && replyOn(key) === reply) setReply(key, null);
+      setBusy(false);
+      void onSend(words, attached, to);
+      return;
+    }
     await onSend(text.trim(), images.length ? images : undefined, reply?.to);
     setBusy(false);
     setText('');

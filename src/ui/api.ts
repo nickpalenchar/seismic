@@ -388,8 +388,8 @@ export const api = {
   /** The owner started speaking (or typing a command): Seismic gets ready to read it. */
   warmVoice: () => fetch(at('/voice/warm'), { method: 'POST' }).catch(() => {}),
   /** The same, typed; `field`: the field of the open card it was typed into. */
-  command: (text: string, where: Where, { images, field, replyTo, spot, place, destination }: { images?: string[]; field?: Field; replyTo?: number | TalkRef; spot?: SpotInput; place?: Place; destination?: { project: string; chat: number } } = {}) =>
-    call<Heard>('POST', whereAt(where, `/command${query(where)}${place ? `${where ? '&' : '?'}place=${placeParam(place)}` : ''}`, destination?.project), { text, ...(destination ? { chat: destination.chat } : {}), ...(images?.length ? { images } : {}), ...(field ? { field } : {}), ...(replyTo ? { replyTo } : {}), ...(spot ? { spot } : {}) }),
+  command: (text: string, where: Where, { images, field, replyTo, spot, place, destination }: { images?: string[]; field?: Field; replyTo?: number | TalkRef; spot?: SpotInput; place?: Place; destination?: { project: string; chat: number; requestId?: string } } = {}) =>
+    call<Heard>('POST', whereAt(where, `/command${query(where)}${place ? `${where ? '&' : '?'}place=${placeParam(place)}` : ''}`, destination?.project), { text, ...(destination ? { chat: destination.chat, ...(destination.requestId ? { requestId: destination.requestId } : {}) } : {}), ...(images?.length ? { images } : {}), ...(field ? { field } : {}), ...(replyTo ? { replyTo } : {}), ...(spot ? { spot } : {}) }),
   /** A typed request to the Koordinator of another project, about nothing in view there. */
   commandOn: (project: string, text: string) => call<Heard>('POST', `/api/c/${encodeURIComponent(project)}/command`, { text }),
   undo: (token: string) => call<{ undone: boolean }>('POST', at('/command/undo'), { token }),

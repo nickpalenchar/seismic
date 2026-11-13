@@ -74,11 +74,11 @@ test('a delayed chat command keeps the project and chat captured at Send', async
     return new Response(null, { status: 204 });
   }) as typeof fetch;
   setProject('original');
-  const destination = { project: 'original', chat: 12 };
+  const destination = { project: 'original', chat: 12, requestId: crypto.randomUUID() };
   setProject('elsewhere');
   await api.command('keep this here', null, { destination });
   expect(fetched).toEqual(['/api/c/original/command']);
-  expect(body).toEqual({ text: 'keep this here', chat: 12 });
+  expect(body).toEqual({ text: 'keep this here', chat: 12, requestId: destination.requestId });
 });
 
 

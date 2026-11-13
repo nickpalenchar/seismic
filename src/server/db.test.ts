@@ -35,6 +35,7 @@ const MOVED = [
 /** The database as it was before "Needs you" had a table of its own: the cards' `waiting_since` back, `needs_you` gone. */
 function withoutNeedsYou(db: Database) {
   db.run('DROP TABLE IF EXISTS needs_you');
+  if (db.query("SELECT 1 FROM pragma_table_info('talk') WHERE name = 'request_id'").get()) db.run('ALTER TABLE talk DROP COLUMN request_id');
   if (db.query("SELECT 1 FROM pragma_table_info('talk') WHERE name = 'arrived'").get()) db.run('ALTER TABLE talk DROP COLUMN arrived');
   if (db.query("SELECT 1 FROM pragma_table_info('talk') WHERE name = 'made'").get()) db.run('ALTER TABLE talk DROP COLUMN made');
   if (db.query("SELECT 1 FROM pragma_table_info('cards') WHERE name = 'waiting_since'").get()) return;

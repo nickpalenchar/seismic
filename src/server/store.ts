@@ -220,10 +220,10 @@ export class Store {
   }
 
   /** An exchange in the specified or current chat; one the Koordinator takes up by itself (`after`, `answered`) goes into the chat of the exchange it takes up. */
-  addTalk(projectId: string, said: string, reply: string, cardId: string | null, lookUp?: { question: string; about: string | null }, images: string[] = [], replyTo?: TalkRef, after?: TalkAfter, askedIn?: string, answered?: number, chat?: number): number {
+  addTalk(projectId: string, said: string, reply: string, cardId: string | null, lookUp?: { question: string; about: string | null }, images: string[] = [], replyTo?: TalkRef, after?: TalkAfter, askedIn?: string, answered?: number, chat?: number, requestId?: string): number {
     const from = after?.from ?? answered;
     const earlier = from === undefined ? undefined : this.talk.chatOf(from);
-    return this.talk.add(projectId, earlier ?? chat ?? this.chats.current(projectId), said, reply, cardId, lookUp, images, replyTo, after, askedIn, answered);
+    return this.talk.add(projectId, earlier ?? chat ?? this.chats.current(projectId), said, reply, cardId, lookUp, images, replyTo, after, askedIn, answered, requestId);
   }
 
   /** An exchange of no one's in the project's sheet, `reply` saying the card moved to another project. */

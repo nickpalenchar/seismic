@@ -1367,8 +1367,8 @@ export class Board {
    * Records an exchange with the Koordinator, without its reply (`''`) while it reads the words;
    * returns its id. `replyTo`: the message of the sheet the words reply to.
    */
-  addTalk(said: string, reply: string, cardId: string | null = null, lookUp?: { question: string; about: string | null }, images: string[] = [], replyTo?: TalkRef, after?: TalkAfter, askedIn?: string, answered?: number, chat?: number): number {
-    const id = this.store.addTalk(this.project.id, said, reply, cardId, lookUp, images, replyTo, after, askedIn, answered, chat);
+  addTalk(said: string, reply: string, cardId: string | null = null, lookUp?: { question: string; about: string | null }, images: string[] = [], replyTo?: TalkRef, after?: TalkAfter, askedIn?: string, answered?: number, chat?: number, requestId?: string): number {
+    const id = this.store.addTalk(this.project.id, said, reply, cardId, lookUp, images, replyTo, after, askedIn, answered, chat, requestId);
     this.changed();
     return id;
   }

@@ -1056,8 +1056,9 @@ export function serve(
           // `field`: typed into that field of the open card rather than into the Koordinator's sheet
           // `replyTo`: typed in reply to that message of the open card's conversation, or with no card open of the sheet (`TalkRef`)
           // `spot`: typed about that place in the open card's demo video
-          const { text, images, field, replyTo, spot, chat } = (await req.json()) as { text: string; images?: string[]; field?: unknown; replyTo?: unknown; spot?: SpotInput; chat?: number };
+          const { text, images, field, replyTo, spot, chat, requestId } = (await req.json()) as { text: string; images?: string[]; field?: unknown; replyTo?: unknown; spot?: SpotInput; chat?: number; requestId?: unknown };
           if (chat !== undefined && (!Number.isSafeInteger(chat) || !c.board.hasChat(chat))) throw new BadRequest('invalid', 'chat must belong to this project');
+          if (requestId !== undefined && (typeof requestId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId))) throw new BadRequest('invalid', 'invalid request id');
           // a screenshot alone may speak for itself to the open card's agent
           const card = focusOf(req).card;
           const open = card ? c.board.item(card) : undefined;
@@ -1065,7 +1066,7 @@ export function serve(
           if (typeof text !== 'string' || (!text.trim() && !(toAgent && images?.length))) throw new BadRequest('emptyText', 'text must be a non-empty string');
           // screenshots pasted into the typed command go to the cards it creates or concerns
           c.images.resolve(images);
-          return heard(c, text.trim(), focusOf(req, c), images ?? [], { typed: true, ...(chat !== undefined ? { chat } : {}), ...(isField(field) ? { field } : {}), ...(typeof replyTo === 'number' || isTalkRef(replyTo) ? { replyTo } : {}), ...(spot ? { spot } : {}) });
+          return heard(c, text.trim(), focusOf(req, c), images ?? [], { typed: true, ...(typeof requestId === 'string' ? { requestId } : {}), ...(chat !== undefined ? { chat } : {}), ...(isField(field) ? { field } : {}), ...(typeof replyTo === 'number' || isTalkRef(replyTo) ? { replyTo } : {}), ...(spot ? { spot } : {}) });
         }),
       },
       // a wish or a bug for Seismic's makers: the issue's text as a small job writes it, for the owner to check and open on GitHub

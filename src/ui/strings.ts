@@ -1191,6 +1191,7 @@ const en = {
     unreadCount: (n: number) => (n === 1 ? 'An answer waits for you' : `${n} answers wait for you`),
     chats: 'Chats',
     chatModel: 'Model',
+    sendFailed: 'Chat could not update',
     projectModel: 'Project setting',
     defaultModel: 'Claude default',
     chatsOpen: 'Earlier chats',

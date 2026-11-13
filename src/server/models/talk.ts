@@ -57,6 +57,7 @@ export const talk = sqliteTable(
     chat: integer().references(() => chats.id),
     arrived: integer(),
     made: text({ mode: 'json' }).$type<TalkMade[]>(),
+    requestId: text('request_id'),
   },
   (t) => [index('talk_chat').on(t.chat, t.id)],
 );
@@ -70,6 +71,7 @@ const toTalk = (r: TalkRecord): TalkView => ({
   id: r.id,
   at: r.at,
   said: r.said,
+  ...(r.requestId ? { requestId: r.requestId } : {}),
   ...(r.replyAgent ? { replyAgent: r.replyAgent } : {}),
   ...(r.answerAgent ? { answerAgent: r.answerAgent } : {}),
   // empty while the Koordinator reads the words
@@ -107,11 +109,12 @@ export class Talk {
   constructor(private readonly db: Db) {}
 
   /** An exchange in chat `chat`; the Koordinator takes up one by itself after waiting on a card (`after`) or once a looked-up answer is in (`answered`). */
-  add(projectId: string, chat: number, said: string, reply: string, cardId: string | null, lookUp?: { question: string; about: string | null }, images: string[] = [], replyTo?: TalkRef, after?: TalkAfter, askedIn?: string, answered?: number): number {
+  add(projectId: string, chat: number, said: string, reply: string, cardId: string | null, lookUp?: { question: string; about: string | null }, images: string[] = [], replyTo?: TalkRef, after?: TalkAfter, askedIn?: string, answered?: number, requestId?: string): number {
     return this.db
       .insert(talk)
       .values({
         projectId,
+        requestId,
         chat,
         at: now(),
         said,

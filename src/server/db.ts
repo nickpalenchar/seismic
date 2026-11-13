@@ -727,6 +727,7 @@ export const MIGRATIONS = [
   'ALTER TABLE talk ADD COLUMN arrived INTEGER;',
   // the cards an exchange's actions created, which the conversation shows each with its cover
   'ALTER TABLE talk ADD COLUMN made TEXT;',
+  'ALTER TABLE talk ADD COLUMN request_id TEXT;',
 ];
 
 /**

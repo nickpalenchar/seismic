@@ -6,7 +6,7 @@
 import { cn } from 'cn';
 import { conversationBox, conversationList, headClass } from './cardClasses';
 import { noteClass } from './components/ai/message';
-import { Settings } from 'lucide-react';
+import { LoaderCircle, Settings } from 'lucide-react';
 import { Docked, sheetTitleClass } from './docked';
 import { ChatsHead } from './chats';
 import { Fragment, useEffect, useRef, useState } from 'react';
@@ -18,7 +18,7 @@ import { type Reply, setReply, talkEv, talkQuote } from './reply';
 import { clock, failText, t } from './strings';
 import { CiteButton } from './cite';
 import { Composer } from './composer';
-import { cardDraft, OBEYA_DRAFT } from './draft';
+import { cardDraft, OBEYA_DRAFT, updateDraft } from './draft';
 import { Shots } from './shots';
 import { usePageVisible } from './seen';
 import { Conversation as Scroll } from './components/ai/conversation';
@@ -36,6 +36,8 @@ import { Button, CloseButton } from './components/button';
 import { Textarea } from './components/input';
 import { Progress } from './components/progress';
 import { Select, SelectItem } from './components/select';
+import { echoed } from './pendingChat';
+import { Dialog, DialogContent, DialogTitle } from './components/dialog';
 
 interface Props {
   on: boolean;
@@ -43,7 +45,7 @@ interface Props {
   project: string;
   projectName: string;
   /** A command typed in the sheet, maybe in reply to a message of it: read like a spoken one; the conversation shows it at once. */
-  onTell: (text: string, images?: string[], replyTo?: Reply['to'], destination?: { project: string; chat: number }) => void;
+  onTell: (text: string, images?: string[], replyTo?: Reply['to'], destination?: { project: string; chat: number; requestId?: string }) => Promise<unknown>;
   items: Item[];
   preferences: Preference[];
   /** Values for repositories' settings the work retrospective proposes. */
@@ -94,6 +96,41 @@ export function KoordinatorSheet({ on, project, projectName, items, repos, talk,
 export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats, items, repos, onOpen, onTell, draft = OBEYA_DRAFT }: Pick<Props, 'on' | 'project' | 'talk' | 'chat' | 'chatModel' | 'chats' | 'items' | 'repos' | 'onOpen' | 'onTell'> & { draft?: string }) {
   const talk = all.filter((x) => x.chat === undefined || x.chat === chat);
   const fresh = useRead(on, talk, (ids) => api.readTalk(ids));
+  const [choice, setChoice] = useState<{ chat: number; model?: AgentModel } | null>(null);
+  const [pending, setPending] = useState<{ id: string; project: string; chat: number; text: string; images?: string[] }[]>([]);
+  const [error, setError] = useState('');
+  const modelTask = useRef<Promise<void>>(Promise.resolve());
+  const choiceRef = useRef(choice);
+  choiceRef.current = choice;
+  // The websocket may echo the choice before the request finishes.
+  useEffect(() => {
+    if (choice?.chat === chat && choice.model === chatModel) setChoice(null);
+  }, [chat, chatModel, choice]);
+  const chooseModel = (picked: string) => {
+    const model = (picked || undefined) as AgentModel | undefined;
+    const before = choiceRef.current?.chat === chat ? choiceRef.current.model : chatModel;
+    setChoice({ chat, model });
+    const task = modelTask.current.catch(() => {}).then(() => api.setChatModel(project, chat, model));
+    modelTask.current = task;
+    void task.catch((e) => {
+      setChoice((current) => current?.chat === chat && current.model === model ? { chat, model: before } : current);
+      setError(failText(e));
+    });
+  };
+  const send = (text: string, images?: string[], replyTo?: Reply['to']) => {
+    const id = crypto.randomUUID();
+    setPending((current) => [...current, { id, project, chat, text, images }]);
+    const task = modelTask.current.then(() => onTell(text, images, replyTo, { project, chat, requestId: id }));
+    void task.catch((e) => {
+      updateDraft(draft, (current) => ({ text: current.text ? `${text}\n${current.text}` : text, images: [...new Set([...images ?? [], ...current.images])] }));
+      setError(failText(e));
+      setPending((current) => current.filter((entry) => entry.id !== id));
+    });
+  };
+  const waiting = pending.filter((entry) => entry.project === project && entry.chat === chat && !echoed(entry.id, talk));
+  useEffect(() => {
+    setPending((current) => current.filter((entry) => entry.project !== project || !echoed(entry.id, all)));
+  }, [all, project]);
   useEffect(() => {
     // opened for an answer that waits in another chat, with none in this one: that chat opens
     const waits = all.findLast((x) => x.unread && x.chat !== undefined && x.chat !== chat);
@@ -101,22 +138,31 @@ export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats
   }, [on]);
   return (
     <>
-      {talk.length ? <Conversation talk={talk} fresh={fresh} items={items} onOpen={onOpen} draft={draft} /> : (
+      {talk.length ? <Conversation talk={talk} fresh={fresh} items={items} onOpen={onOpen} draft={draft} pending={waiting} /> : waiting.length ? <div className={cn(conversationList, conversationBox, 'overflow-auto')}>
+        {waiting.map((entry) => <PendingMessage key={entry.id} text={entry.text} images={entry.images} />)}
+      </div> : (
         <div className={cn(conversationList, conversationBox, 'fresh-chat items-center justify-center text-center [&_.hint]:max-w-[280px] [&_.hint]:m-0')}>
           {chats.length > 0 && <p className="hint">{t.koordinator.chatFresh}</p>}
         </div>
       )}
       {/* a command in writing, for when speaking is not possible; its screenshots go to the cards it creates or concerns */}
-      <Composer className={tellClass} draft={draft} placeholder={t.voice.typePlaceholder} obeya onSend={(text, images, replyTo) => onTell(text, images, replyTo, { project, chat })} />
+      <Composer className={tellClass} draft={draft} placeholder={t.voice.typePlaceholder} obeya optimistic onSend={send} />
       <label className="chat-model flex items-center gap-2 mt-0 mx-0 mb-1.5 text-muted-foreground text-[12px]">{t.koordinator.chatModel}
-        <Select value={chatModel ?? ''} onValueChange={(picked) => void api.setChatModel(project, chat, picked || undefined).catch(console.error)}>
+        <Select value={(choice?.chat === chat ? choice.model : chatModel) ?? ''} onValueChange={chooseModel}>
           <SelectItem value="">{t.koordinator.projectModel}</SelectItem>
           {AGENT_MODELS.map((model) => <SelectItem key={model} value={model}>{model === 'default' ? t.koordinator.defaultModel : model[0]!.toUpperCase() + model.slice(1)}</SelectItem>)}
         </Select>
       </label>
+      <Dialog open={!!error} onOpenChange={(open) => { if (!open) setError(''); }}>
+        <DialogContent className="w-[min(440px,100%)] rounded-lg p-6"><DialogTitle>{t.koordinator.sendFailed}</DialogTitle><p>{error}</p><Button onClick={() => setError('')}>{t.close}</Button></DialogContent>
+      </Dialog>
       <ReviewHint items={items} repos={repos} />
     </>
   );
+}
+
+function PendingMessage({ text, images }: { text: string; images?: string[] }) {
+  return <Msg by="owner" who={t.author.owner} className="opacity-75"><Body md={text} /><Shots ids={images} /><LoaderCircle className="size-4 animate-spin" aria-label="Sending" /></Msg>;
 }
 
 /** Where the project has seen a review card: the hint on "Review PR #5" is no longer shown. */
@@ -246,7 +292,7 @@ function useRead(on: boolean, talk: Talk[], read: (ids: number[]) => Promise<unk
  * that reply to it. Words written in a plan's sheet went straight to its plan agent, with no
  * reply of Seismic's; outside that sheet (`sheetOf`) a line names the plan.
  */
-function Conversation({ talk, fresh, items, onOpen, draft, sheetOf }: { talk: Talk[]; fresh: number[]; items: Item[]; onOpen: (i: Item) => void; draft: string; sheetOf?: string }) {
+function Conversation({ talk, fresh, items, onOpen, draft, sheetOf, pending = [] }: { talk: Talk[]; fresh: number[]; items: Item[]; onOpen: (i: Item) => void; draft: string; sheetOf?: string; pending?: { id: string; text: string; images?: string[] }[] }) {
   const box = useRef<HTMLDivElement>(null);
   if (!talk.length) return null;
   // every change on the project brings a new snapshot: only what the owner just said takes the
@@ -349,6 +395,7 @@ function Conversation({ talk, fresh, items, onOpen, draft, sheetOf }: { talk: Ta
           </Fragment>
         );
       })}
+      {pending.map((entry) => <PendingMessage key={`pending-${entry.id}`} text={entry.text} images={entry.images} />)}
       <CiteButton box={box} draft={draft} />
     </Scroll>
   );
