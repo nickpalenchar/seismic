@@ -5,6 +5,7 @@
 import { Menu, SquarePen, X } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { cn } from 'cn';
 import type { Chat, ChatElsewhere, Talk } from '../core/types';
 import { api } from './api';
 import { plain } from './markdown';
@@ -82,10 +83,10 @@ export function ChatsHead({ title, project, projectName, chat, chats, talk, onPr
 
   return (
     // on the phone the head is the panel's grip: a press on it drags the panel, one on its buttons does not
-    <div className="chats-head" ref={head}>
+    <div className={headClass} ref={head}>
       <Tooltip content={waiting ? `${t.koordinator.chatsOpen} · ${t.koordinator.unreadCount(waiting)}` : t.koordinator.chatsOpen}>
         <button
-            className={['chats-btn', waiting> 0 && 'waits'].filter(Boolean).join(' ')} aria-label={t.koordinator.chatsOpen}
+            className={cn(btnClass, waiting > 0 && "waits after:content-[''] after:absolute after:top-[5px] after:right-[5px] after:size-2 after:rounded-[50%] after:bg-waiting")} aria-label={t.koordinator.chatsOpen}
             aria-expanded={open}
             onClick={() => setOpen(!open)}
         >
@@ -94,13 +95,13 @@ export function ChatsHead({ title, project, projectName, chat, chats, talk, onPr
       </Tooltip>
       {title}
       <Tooltip content={t.koordinator.newChatHint}>
-        <button className="chats-btn chats-new" aria-label={t.koordinator.newChat} disabled={fresh} onClick={start}>
+        <button className={cn(btnClass, 'chats-new')} aria-label={t.koordinator.newChat} disabled={fresh} onClick={start}>
           <SquarePen size={17} />
         </button>
       </Tooltip>
       {onClose && (
         <Tooltip content={t.koordinator.chatsClose}>
-          <button className="chats-btn" aria-label={t.koordinator.chatsClose} onClick={onClose}>
+          <button className={btnClass} aria-label={t.koordinator.chatsClose} onClick={onClose}>
             <X size={17} />
           </button>
         </Tooltip>
@@ -109,20 +110,20 @@ export function ChatsHead({ title, project, projectName, chat, chats, talk, onPr
         head.current?.closest('.sheet, .ph-panel') &&
         createPortal(
           // a portal's events bubble through the head to the panel's grip: a press in the list is no drag
-          <div className="chats-layer" onPointerDown={(e) => e.stopPropagation()}>
-            <div className="chats-scrim" onClick={() => setOpen(false)} />
-            <div className="chats-drawer" ref={drawer} role="dialog" aria-label={t.koordinator.chats}>
-              <div className="chats-top">
+          <div className="chats-layer contents" onPointerDown={(e) => e.stopPropagation()}>
+            <div className="chats-scrim absolute inset-0 z-30 bg-dim animate-[fade_.2s_ease-out]" onClick={() => setOpen(false)} />
+            <div className={drawerClass} ref={drawer} role="dialog" aria-label={t.koordinator.chats}>
+              <div className="chats-top flex items-center justify-between pl-1.5 text-[16px]">
                 <b>{t.koordinator.chats}</b>
                 <Tooltip content={t.koordinator.chatsClose}>
-                  <button className="chats-btn" aria-label={t.koordinator.chatsClose} onClick={() => setOpen(false)}>
+                  <button className={btnClass} aria-label={t.koordinator.chatsClose} onClick={() => setOpen(false)}>
                     <X size={17} />
                   </button>
                 </Tooltip>
               </div>
               <SegmentedControl
-                className="chats-scope"
-                itemClassName="chats-scope-item"
+                className="chats-scope flex p-0.5 rounded-[4px] [&_small]:text-[10px] [&_small]:font-normal [&_small]:text-muted-foreground"
+                itemClassName="chats-scope-item flex-1 py-1.5 px-2 rounded-[3px] flex flex-col items-center justify-center min-w-0 data-[state=on]:font-semibold"
                 label={t.koordinator.chats}
                 value={all ? 'all' : 'here'}
                 onValueChange={(x) => setAll(x === 'all')}
@@ -131,7 +132,7 @@ export function ChatsHead({ title, project, projectName, chat, chats, talk, onPr
                     value: 'here',
                     label: (
                       <>
-                        <span className="chats-scope-name">{projectName}</span>
+                        <span className="chats-scope-name max-w-full overflow-hidden text-ellipsis whitespace-nowrap">{projectName}</span>
                         <small>{t.koordinator.chatsHere}</small>
                       </>
                     ),
@@ -139,24 +140,24 @@ export function ChatsHead({ title, project, projectName, chat, chats, talk, onPr
                   { value: 'all', label: t.koordinator.chatsAll },
                 ]}
               />
-              <ul className="chats-list">
+              <ul className="chats-list list-none m-0 p-0 flex flex-col gap-0.5">
                 {fresh && !all && (
                   <li>
-                    <button className="chat-row on" onClick={() => setOpen(false)}>
-                      <span className="chat-title">{t.koordinator.newChat}</span>
-                      <span className="chat-meta">{t.koordinator.chatNow}</span>
+                    <button className={cn(rowClass, onClass)} onClick={() => setOpen(false)}>
+                      <span className={titleClass}>{t.koordinator.newChat}</span>
+                      <span className={metaClass}>{t.koordinator.chatNow}</span>
                     </button>
                   </li>
                 )}
                 {shown.map((c) => (
                   <li key={c.id}>
-                    <button className={['chat-row', c.id === chat && c.project === project && 'on'].filter(Boolean).join(' ')} onClick={() => go(c)}>
-                      <span className={c.title ? 'chat-title' : 'chat-title by-obeya'}>{c.title ? plain(c.title) : t.koordinator.chatByObeya}</span>
-                      <span className="chat-meta">
+                    <button className={cn(rowClass, c.id === chat && c.project === project && onClass)} onClick={() => go(c)}>
+                      <span className={cn(titleClass, !c.title && 'by-obeya text-muted-foreground italic')}>{c.title ? plain(c.title) : t.koordinator.chatByObeya}</span>
+                      <span className={metaClass}>
                         {when(c.at)}
                         {c.projectName && ` · ${c.projectName}`}
                         {c.unread ? (
-                          <span className="chat-unread" title={t.koordinator.unreadCount(c.unread)}>
+                          <span className="chat-unread ml-auto min-w-[18px] py-px px-1.5 rounded-[9px] bg-waiting text-on-ink text-[11px] font-semibold text-center" title={t.koordinator.unreadCount(c.unread)}>
                             {c.unread}
                           </span>
                         ) : null}
@@ -174,6 +175,24 @@ export function ChatsHead({ title, project, projectName, chat, chats, talk, onPr
     </div>
   );
 }
+
+/**
+ * The head: in the sheet over the conversation, with the sheet's title between the buttons; on the phone the
+ * panel's bar, with the word between them and larger buttons for a finger.
+ */
+const headClass =
+  'chats-head flex items-center gap-1.5 [.sheet>&]:mt-0 [.sheet>&]:mx-0 [.sheet>&]:mb-2 [.sheet>&_h2]:m-0 [.sheet>&_h2]:flex-1 [.sheet>&_h2]:min-w-0 [.ph-bar_&]:flex-1 [.ph-bar_&]:min-w-0 [.ph-bar_&]:gap-2 [.ph-bar_&_.ph-word]:flex-1 [.ph-bar_&_.ph-word]:min-w-0';
+/** Its buttons, the icon alone; with a dot while an answer waits in another chat. */
+const btnClass =
+  'chats-btn inline-flex items-center justify-center relative size-8 flex-none p-0 [border:0] rounded-[3px] bg-transparent text-muted-foreground cursor-pointer hover:not-disabled:bg-chip hover:not-disabled:text-ink disabled:opacity-40 disabled:cursor-default [.ph-bar_&]:size-10';
+/** The earlier chats, slid out from the left over the sheet or the panel. */
+const drawerClass =
+  'chats-drawer absolute top-0 bottom-0 left-0 z-31 w-[min(320px,86%)] flex flex-col gap-2.5 pt-4 px-3 pb-[calc(16px+env(safe-area-inset-bottom))] bg-panel border-r border-r-line [box-shadow:var(--lift)] overflow-y-auto overscroll-contain animate-[chats-in_.25s_cubic-bezier(.3,.9,.3,1)] text-[14px] [&_.hint]:[margin:4px_6px]';
+/** A chat in the list; the one open now tinted. */
+const rowClass = 'chat-row flex flex-col items-stretch gap-[3px] w-full py-2 px-2.5 [border:0] rounded-[4px] bg-transparent text-ink text-left cursor-pointer hover:bg-chip';
+const onClass = 'on bg-[color-mix(in_srgb,var(--working)_14%,transparent)]!';
+const titleClass = 'chat-title overflow-hidden text-ellipsis whitespace-nowrap';
+const metaClass = 'chat-meta flex items-center gap-1.5 text-[12px] text-muted-foreground';
 
 /** When a chat was last talked in: the time today, else the day. */
 const when = (at: string) => (new Date(at).toDateString() === new Date().toDateString() ? clock(at) : shortDay(at));

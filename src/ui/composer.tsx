@@ -18,6 +18,8 @@ import { Listbox, type ListboxState, useListbox } from './components/listbox';
 import { knowsSkills, matching, type Slash, skillWord, slashAt, useSkills, usedSkills } from './skills';
 import { AttachButton, ShotStrip, useShotInput } from './shots';
 import { t } from './strings';
+import { cn } from 'cn';
+import { menuClass } from './cardClasses';
 import type { Skill } from '../core/types';
 import { HoldToTalk, MicIcon, TAP_MS, useHeldByTouch } from './voice';
 import { PromptInput, PromptInputBody, PromptInputButton, PromptInputHint, PromptInputSubmit, PromptInputTextarea, PromptInputTools } from './components/ai/prompt-input';
@@ -286,21 +288,21 @@ export function Composer({
  */
 function SkillMenu({ skills, box }: { skills: Skill[] | undefined; box: ListboxState }) {
   return (
-    <div className="skill-menu">
+    <div className={cn(menuClass, 'bottom-full mb-1')}>
       {skills ? (
-        <Listbox box={box} items={skills} label={t.skills.menu} itemKey={(s) => s.name}>
+        <Listbox box={box} items={skills} label={t.skills.menu} itemKey={(s) => s.name} className="p-1!">
           {(s) => (
             <>
-              <span className="sk-name">
+              <span className="sk-name flex-none max-w-[55%] overflow-hidden text-ellipsis whitespace-nowrap [font-family:var(--mono)] text-[12.5px] text-ink">
                 /{s.name}
-                {s.hint && <span className="sk-hint"> {s.hint}</span>}
+                {s.hint && <span className="sk-hint text-muted-foreground"> {s.hint}</span>}
               </span>
-              <span className="sk-desc">{s.description}</span>
+              <span className="sk-desc flex-1 min-w-0 text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis">{s.description}</span>
             </>
           )}
         </Listbox>
       ) : (
-        <p className="sk-loading">{t.skills.loading}</p>
+        <p className="sk-loading m-0 py-2.5 px-3 text-muted-foreground">{t.skills.loading}</p>
       )}
     </div>
   );

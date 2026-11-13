@@ -1,4 +1,5 @@
 // Registered views keep their contents mounted; the shared shell owns dock controls.
+import { cn } from 'cn';
 import { useEffect, useRef, useState, type ReactNode, type ComponentType } from 'react';
 import { clampWidth, loadWidths, saveWidths, widthsIn, SHEET_W, type SheetWidths } from './sheetWidth';
 import { t } from './strings';
@@ -47,6 +48,13 @@ export function useDock(initial: DockId | null) {
   return { active, ref, select, view, widths, setWidths, resizing, setResizing, registry, register, close, escape, width };
 }
 
+/** Closes the open sheet, where the button that opened it was; in a narrow window, inside the floating sheet's corner. */
+const closeClass = 'fixed top-[14px] right-[14px] z-27 animate-[fade_.3s_ease-out_.2s_backwards] [@media(max-width:760px)]:top-[72px] [@media(max-width:760px)]:right-[22px]';
+
+/** The grip on the open sheet's left edge: drag to widen or narrow it, double-click for the default. None in a narrow window. */
+const gripClass =
+  "fixed top-0 bottom-0 w-3 z-26 cursor-ew-resize touch-none opacity-0 pointer-events-none [transition:opacity_.2s,right_.45s_cubic-bezier(.3,.9,.3,1)] resizing:[transition:none] [@media(max-width:760px)]:hidden after:content-[''] after:absolute after:left-1 after:top-1/2 after:w-1 after:h-11 after:-mt-[22px] after:rounded-[2px] after:bg-planned after:opacity-55 after:[transition:background_.15s,opacity_.15s,height_.15s,margin-top_.15s] hover:after:bg-muted-foreground hover:after:opacity-100 hover:after:h-16 hover:after:-mt-8 resizing:after:bg-muted-foreground resizing:after:opacity-100 resizing:after:h-16 resizing:after:-mt-8";
+
 export function DockShell({ dock }: { dock: ReturnType<typeof useDock> }) {
   const { active, widths, setWidths, setResizing, close } = dock;
   const views = dock.registry.current;
@@ -59,8 +67,8 @@ export function DockShell({ dock }: { dock: ReturnType<typeof useDock> }) {
       const shown = v.slot ? views.find((x) => x.slot === v.slot && x.id === active) ?? v : v;
       return <DockPolicy.Provider key={v.slot ?? v.id} value={!!shown.besideCard}>{shown.component()}</DockPolicy.Provider>;
     })}
-    {view && !view.buttonCloses && <CloseButton id="sheet-close" label={t.close} className={view.besideCard ? 'beside-card' : undefined} onClick={close} />}
-    <div id="sheet-grip" className={[view && 'on', view?.besideCard && 'beside-card'].filter(Boolean).join(' ')} style={{ right: widths[kind] - 6 }} title={t.sheetGrip}
+    {view && !view.buttonCloses && <CloseButton id="sheet-close" label={t.close} className={cn(closeClass, view.besideCard && 'beside-card z-32')} onClick={close} />}
+    <div id="sheet-grip" className={cn(gripClass, view && 'on opacity-100 pointer-events-auto [transition:opacity_.2s_.3s,right_.45s_cubic-bezier(.3,.9,.3,1)]', view?.besideCard && 'beside-card z-32')} style={{ right: widths[kind] - 6 }} title={t.sheetGrip}
       onPointerDown={(e) => {
         if (e.button !== 0) return;
         e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId);

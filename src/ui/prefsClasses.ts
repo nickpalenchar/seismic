@@ -2,12 +2,12 @@
 // owner's rules in Preferences, the proposed rules and settings in the inbox, and the shared demos to share
 // again in the Koordinator's sheet are rows of the same list. The class names before the utilities
 // (`prefs`, `pref-text`, `occasion` …) stay as hooks. An error under a row takes the row's width without
-// the primitive's margin through `.prefs .p-error` in styles.css, where `.p-error` sets the margin.
+// the primitive's margin (in Configuration's dialogs, theirs).
 
 import { cn } from 'cn';
 
 /** The list of the owner's rules. */
-export const prefsClass = 'prefs list-none p-0 mt-2.5 mx-0 mb-0';
+export const prefsClass = 'prefs list-none p-0 mt-2.5 mx-0 mb-0 [&_.p-error]:basis-full [&_.p-error]:m-0';
 
 /** A list of proposals (rules, settings, demos to share again). */
 export const proposalsClass = cn(prefsClass, 'proposals');

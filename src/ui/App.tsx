@@ -11,7 +11,8 @@ import { type Bounds, boundsOf, CARD_SIZE, centre, onProject, type Place, PLAN_H
 import { type RightClick, type Canvas, canvasNamedBy, MAIN_CANVAS, type ProjectInfo, type ProjectSnapshot, type CardPatch, type ConfigProblem, finished, type Group, type Item, nameless, withPart, needsYou, openPerGroup, type PendingRestart, type PlanDir, EVICT_HOLD_MS, START_ALL_HOLD_MS, titleFrom, type AppUpdate, type SourceUpdate, unreadAnswers, unreadPerPlan, type Usage, type Waiting, waitingIn, inParkingLot } from '../core/types';
 import { NotifyAsk, useDesktopNotifications } from './desktopNotify';
 import { api, ApiError, beforeReload, cardsOn, onNotice, quietAtStart, reportFocus, setProject, useProject } from './api';
-import { GroupNames, growFrom, inside, Lasso, MarkHint, Marked, Ring, TerritoryLayer, useTerritories } from './groups';
+import { GroupNames, growFrom, hintBubbleClass, inside, Lasso, MarkHint, Marked, Ring, TerritoryLayer, useTerritories } from './groups';
+import { connectionDotClass, depLayerClass, dotSide, handleColour, manualRemoveClass } from './depsClasses';
 import { buzz, pinchCam, TOUCH_HOLD_KNOWN, Touches } from './touch';
 import { besideSheet, BOTTOM, type Cam, camFor, camKey, centreOn, chase, dragLimit, edgeScroll, FAR, flying, flyTo, keepInView, MAX_ZOOM, midX, MIN_ZOOM, NO_SIDES, overviewCam, placeIn, shows, type Sides, stopFlight, TOP, toWorld } from './camera';
 import { plain } from './markdown';
@@ -59,7 +60,7 @@ import { HoldToTalk, PushToTalk, SPACE_SHOWS_MS, TAP_MS, usePushToTalk, useTold 
 import { acksClass, Toasts, useToasts } from './components/toast';
 import { layerOpen } from './components/ui';
 import { videoOf } from './spot';
-import { cardClass, shownState } from './card';
+import { cardHooks, shownState } from './card';
 import { CardView, DepLinks, depHead, depWidth, linkPath, linkSpot, Edges, Links, Minimap, minimapArea, OldBunPill, PlanView, RestartPill, Sheet, SourcePill, TalkIcon, UpdatePill, WorkstationsPill } from './parts';
 import { clock, failText, t } from './strings';
 import { loadNavHidden, loadNavWidth, loadPinned, MenuButton, NAV_PROJECT_MIN, NavPill, NavSheet, saveNavHidden, saveNavWidth, savePinned } from './nav';
@@ -138,16 +139,21 @@ function Shown({ id, projects, onProjects }: { id: string; projects: ProjectInfo
   return <Live key={id} projects={projects} onProjects={onProjects} />;
 }
 
+/** The page while nothing else can show: the sign in the middle, a word or the projects under it. */
+const splash = 'fixed inset-0 flex flex-col items-center justify-center gap-3.5 text-muted-foreground animate-[fade_.3s_ease-out]';
+/** No project runs, or the address names none: what to do, in the text's ink. */
+const splashNoneRuns = 'p-6 text-ink [&_.c-problem]:max-w-[640px]';
+
 /** An address names a project that does not exist (a renamed one's old address, a typo): the projects there are, as links. */
 function NoSuchProject({ name, projects }: { name: string; projects: ProjectInfo[] }) {
   return (
-    <div id="splash" className="none-runs">
+    <div id="splash" className={cn(splash, splashNoneRuns)}>
       <Sign size={56} />
-      <h2>{t.noSuchProject(name)}</h2>
+      <h2 className="m-0">{t.noSuchProject(name)}</h2>
       <ul>
         {projects.map((c) => (
           <li key={c.id}>
-            <a className="link" href={projectPath(c.id)}>
+            <a className="link card-link" href={projectPath(c.id)}>
               {c.name}
             </a>
           </li>
@@ -174,9 +180,9 @@ function NoProject() {
       else void read();
     }, console.error);
   return (
-    <div id="splash" className="none-runs">
+    <div id="splash" className={cn(splash, splashNoneRuns)}>
       <Sign size={56} />
-      <h2>{t.noneRuns}</h2>
+      <h2 className="m-0">{t.noneRuns}</h2>
       {down.map((p, k) => (
         <Problem key={k} problem={p} where="" retried={retried} />
       ))}
@@ -224,7 +230,7 @@ function ConnectionLost({ since, frozen }: { since: number | null; frozen: boole
 
 function Splash({ offline }: { offline: boolean }) {
   return (
-    <div id="splash">
+    <div id="splash" className={splash}>
       <Sign size={56} />
       {offline && <div>{t.offline}</div>}
     </div>
@@ -2458,7 +2464,8 @@ function Project({
     <KoordinatorAgent.Provider value={snapshot.koordinatorAgent}>
     <Canvases.Provider value={canvasView}>
       <FullPageHost
-        className={[cam.s < FAR && 'z-far', resizing && 'resizing'].filter(Boolean).join(' ') || undefined}
+        // while a docked panel's edge is dragged, the pointer is the grip's everywhere and nothing gets selected
+        className={[cam.s < FAR && 'z-far', resizing && 'resizing cursor-ew-resize! select-none [&_*]:cursor-ew-resize! [&_*]:select-none'].filter(Boolean).join(' ') || undefined}
         style={
           {
             '--sheet-w': `${sheetW.sheet}px`,
@@ -2471,7 +2478,18 @@ function Project({
         <div
           id="viewport"
           ref={viewportRef}
-          className={[panning && 'panning', ring && 'still', touchy && 'touch'].filter(Boolean).join(' ') || undefined}
+          className={[
+            'fixed inset-0 touch-none bg-transparent bg-[radial-gradient(var(--dot)_1px,transparent_1px)]',
+            panning ? 'panning cursor-grabbing' : 'cursor-grab',
+            // while a ring is open the project behind it holds still: under the blur every frame of an endless
+            // animation there (the selection's drifting dashes, a working card's line) would re-render the whole halo,
+            // and Chrome's screen capture (a screencast, a shared tab) skips about 0.27 s once that stops
+            ring && '[&_*]:[animation-play-state:paused]! [&_*::before]:[animation-play-state:paused]! [&_*::after]:[animation-play-state:paused]!',
+            // under fingers a long press picks up a card: no text selection or callout competes with it
+            touchy && 'touch select-none [-webkit-touch-callout:none]',
+          ]
+            .filter(Boolean)
+            .join(' ')}
           style={{ backgroundSize: `${22 * cam.s}px ${22 * cam.s}px`, backgroundPosition: `${cam.x}px ${cam.y}px` }}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -2480,7 +2498,7 @@ function Project({
           onDoubleClick={onDoubleClick}
           onContextMenu={onContextMenu}
         >
-          <div id="world" style={{ transform: `translate(${cam.x}px,${cam.y}px) scale(${cam.s})` }}>
+          <div id="world" className="absolute top-0 left-0 origin-top-left will-change-transform" style={{ transform: `translate(${cam.x}px,${cam.y}px) scale(${cam.s})` }}>
             <TerritoryLayer {...territories} selected={placed.filter((p) => (ring ? ring.ids : marked).includes(p.item.id)).map((p) => p.b)} />
             <Links placed={placed} waits={[...shownWaits, ...shownSettled.map((d): [string, string] => [d.from, d.to])]} standsFor={standsForId} />
             <DepLinks placed={placed} waits={lineWaits} lit={deps?.edges ?? []} first={deps?.first} settled={lineSettled} standsFor={standsForId} routeOf={routeOf} s={cam.s}>
@@ -2496,16 +2514,16 @@ function Project({
                 const { x, y } = routed ? routed.mid : linkSpot(a, b, depHead(cam.s), cardBoxes, r);
                 // on touch, the trash button shows on the arrows of the card picked up and let go
                 const shown = touchy && (touchFocus === from || touchFocus === item.id);
-                return [<g className={shown ? 'manual-edge shown' : 'manual-edge'} key={`${from}:${item.id}`}>
-                  <path className="manual-hit" d={routed ? routed.path : linkPath(a, b, depHead(cam.s))} strokeWidth={22 / cam.s} />
-                  <foreignObject x={x - r} y={y - r} width={2 * r} height={2 * r}><Tooltip content={t.deps.remove}><button aria-label={t.deps.remove} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); removeDependency(from, item); }}><Trash2 strokeWidth={2} /></button></Tooltip></foreignObject>
+                return [<g className="group/edge" key={`${from}:${item.id}`}>
+                  <path className="fill-none stroke-transparent [pointer-events:stroke]" d={routed ? routed.path : linkPath(a, b, depHead(cam.s))} strokeWidth={22 / cam.s} />
+                  <foreignObject x={x - r} y={y - r} width={2 * r} height={2 * r} className={cn('overflow-visible', shown ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none group-hover/edge:opacity-100 group-hover/edge:pointer-events-auto group-focus-within/edge:opacity-100 group-focus-within/edge:pointer-events-auto')}><Tooltip content={t.deps.remove}><button className={manualRemoveClass} aria-label={t.deps.remove} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); removeDependency(from, item); }}><Trash2 strokeWidth={2} /></button></Tooltip></foreignObject>
                 </g>];
               }))}
               <CanvasStubs stubs={stubs} boundsOf={(id) => placedAt.get(id)} s={cam.s} onOpen={(i) => void openFresh(i)} />
             </DepLinks>
-            <svg className="manual-deps" width="1" height="1">
+            <svg className={cn(depLayerClass, 'z-3 [&_marker_path]:fill-waiting')} width="1" height="1">
               <defs><marker id="manual-arrow" viewBox="0 0 9 8" refX="0.3" refY="4" markerWidth={6} markerHeight={(6 * 8) / 9} markerUnits="strokeWidth" orient="auto"><path d="M0,0 L9,4 L0,8 z" /></marker><marker id="ghost-arrow" viewBox="0 0 9 8" refX="9" refY="4" markerWidth={6} markerHeight={(6 * 8) / 9} markerUnits="strokeWidth" orient="auto"><path d="M0,0 L9,4 L0,8 z" /></marker></defs>
-              {connection && (() => { const a = placed.find((p) => p.item.id === connection.from)?.b; if (!a) return null; const start = handleAt(a, connection.side); const b = placed.find((p) => p.item.id === connection.target)?.b; const path = b ? (connection.anchor ? anchoredPath(a, b, connection.anchor, depHead(cam.s)).path : linkPath({ ...start, w: 0, h: 0 }, b, depHead(cam.s))) : `M${start.x},${start.y} L${connection.x},${connection.y}`; return <path className="manual-ghost" d={path} strokeWidth={depWidth(cam.s)} markerEnd={b ? "url(#manual-arrow)" : "url(#ghost-arrow)"} />; })()}
+              {connection && (() => { const a = placed.find((p) => p.item.id === connection.from)?.b; if (!a) return null; const start = handleAt(a, connection.side); const b = placed.find((p) => p.item.id === connection.target)?.b; const path = b ? (connection.anchor ? anchoredPath(a, b, connection.anchor, depHead(cam.s)).path : linkPath({ ...start, w: 0, h: 0 }, b, depHead(cam.s))) : `M${start.x},${start.y} L${connection.x},${connection.y}`; return <path className="fill-none stroke-waiting opacity-55 [stroke-dasharray:7_5]" d={path} strokeWidth={depWidth(cam.s)} markerEnd={b ? "url(#manual-arrow)" : "url(#ghost-arrow)"} />; })()}
             </svg>
             {placed.map(({ item, b }) =>
               item.kind === 'plan' ? (
@@ -2530,9 +2548,13 @@ function Project({
                 />
               ),
             )}
-            {placed.filter(({ item }) => connectable(item)).map(({ item, b }) => <div key={`handles:${item.id}`} data-id={item.id} className={`connection-handles ${cardClass(item, underway[item.id]).replace(/^card\s*/, '')}${depOf(item.id) ? ' dep-highlight' : ''}${connection?.target === item.id ? ' target' : ''}`} style={{ left: b.x, top: b.y, width: b.w, height: b.h }}>
-              {SIDES.map((side) => <Tooltip key={side} content={t.deps.connect}><button className={`connection-dot ${side}${!connection && (handle?.id === item.id && handle.side === side || touchDots(item.id)) ? ' lit' : ''}`} aria-label={t.deps.connect} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); const p = toWorld(camRef.current, e.clientX, e.clientY); setConnection({ from: item.id, side, ...p }); }} /></Tooltip>)}
-            </div>)}
+            {placed.filter(({ item }) => connectable(item)).map(({ item, b }) => {
+              const states = cardHooks(item, underway[item.id]).replace(/^card\s*/, '');
+              const target = connection?.target === item.id;
+              const colour = handleColour(states, !!depOf(item.id));
+              return <div key={`handles:${item.id}`} data-id={item.id} className={cn('connection-handles absolute z-4', states, target ? 'pointer-events-auto outline-3 outline-solid outline-waiting outline-offset-3 rounded-[4px]' : 'pointer-events-none')} style={{ left: b.x, top: b.y, width: b.w, height: b.h, ...(colour ? { '--c': colour } : {}) } as React.CSSProperties}>
+              {SIDES.map((side) => { const lit = !connection && (handle?.id === item.id && handle.side === side || touchDots(item.id)); return <Tooltip key={side} content={t.deps.connect}><button className={cn(connectionDotClass, dotSide[side], lit ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none focus-visible:opacity-100 focus-visible:pointer-events-auto')} aria-label={t.deps.connect} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); const p = toWorld(camRef.current, e.clientX, e.clientY); setConnection({ from: item.id, side, ...p }); }} /></Tooltip>; })}
+            </div>; })}
             {planDirs?.map((d, n) => (
               <PlanDirNote
                 key={d.repo}
@@ -2557,11 +2579,16 @@ function Project({
         </div>
         {/* on an empty project the camera centres the notes on the plan directories: the hint stands above them, with space between */}
         {!placed.length && (
-          <div className={notes.length ? 'empty above-note' : 'empty'} {...(notes.length ? { style: { top: cam.y + Math.min(...notes.map((b) => b.y)) * cam.s - 48 } } : {})}>
-            <p className="none">{t.empty.none}</p>
-            <p>{t.empty.speak}</p>
-            <p className="where">{t.empty.where}</p>
-            <p>{coarse || touchy ? t.touch.emptyTap : t.empty.click}</p>
+          <div
+            className={cn(
+              'empty pointer-events-none fixed top-1/2 left-[calc(50%+(var(--left,0px)-var(--side,0px))/2)] text-center whitespace-nowrap text-muted-foreground',
+              notes.length ? '[transform:translate(-50%,-100%)]' : '[transform:translate(-50%,-50%)]',
+            )}
+            {...(notes.length ? { style: { top: cam.y + Math.min(...notes.map((b) => b.y)) * cam.s - 48 } } : {})}>
+            <p className="m-0 mb-2">{t.empty.none}</p>
+            <p className="m-0 mt-1">{t.empty.speak}</p>
+            <p className="m-0 mt-0.5 mb-2.5 text-[13px]">{t.empty.where}</p>
+            <p className="m-0 mt-1">{coarse || touchy ? t.touch.emptyTap : t.empty.click}</p>
           </div>
         )}
         {!ring && <Lasso pts={lasso} />}
@@ -2575,13 +2602,13 @@ function Project({
         )}
         {markHint && <MarkHint key={markHint.key} at={markHint.at} text={touchy ? t.touch.markHowTo : t.marked.howTo} />}
         {(coarse || touchy) && !holdKnown && !!items.length && !focus && (
-          <p id="touchhint">
+          <p id="touchhint" className="fixed z-30 top-[82px] left-[calc(var(--left)_+_(100vw_-_var(--left)_-_var(--side))_/_2)] [transform:translateX(-50%)] flex items-center gap-3 max-w-[min(520px,calc(100vw_-_40px))] m-0 py-2 pr-2 pl-3.5 rounded-[3px] bg-ink text-background [font:14px/1.35_var(--font)] [box-shadow:var(--lift)]">
             {t.touch.hold}
-            <button onClick={learnHold}>{t.touch.ok}</button>
+            <button className="flex-none py-1.5 px-3 border border-solid border-[color:color-mix(in_srgb,var(--bg)_40%,transparent)] rounded-[3px] bg-transparent text-inherit [font:inherit] cursor-pointer" onClick={learnHold}>{t.touch.ok}</button>
           </p>
         )}
         {connection && !depKnown && (
-          <p id="dephint" style={{ left: cam.x + connection.x * cam.s, top: cam.y + connection.y * cam.s }}>
+          <p id="dephint" className={cn(hintBubbleClass, 'fixed z-40 pointer-events-none [transform:translate(16px,16px)] animate-[fade_.15s_ease-out]')} style={{ left: cam.x + connection.x * cam.s, top: cam.y + connection.y * cam.s }}>
             {connection.target ? t.deps.waits(titleOf(connection.from), titleOf(connection.target)) : (touchy ? t.touch.pick : t.deps.pick)(titleOf(connection.from))}
           </p>
         )}
@@ -2813,7 +2840,9 @@ function Project({
           instead={<ViewSwitcher shown={switched} onShow={switchTo} />}
         />
 
-        <div id="talk-docked" className={kOn ? 'on' : undefined}>
+        {/* the button for Seismic's sidebar, over the room the bar keeps for it: left of the avatar (34px and the
+            gap), going left with the bar's end beside another sheet; while the sidebar is open its corner has it */}
+        <div id="talk-docked" className={cn('fixed top-[11.5px] right-[calc(var(--side,0px)+14px+34px+10px)] z-27 [transition:right_.45s_cubic-bezier(.3,.9,.3,1)] resizing:[transition:none]', kOn && 'on right-[14px] hidden [@media(max-width:760px)]:top-[74px] [@media(max-width:760px)]:right-[22px]')}>
           {talkButton}
         </div>
         <DockShell dock={dock} />

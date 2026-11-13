@@ -1,8 +1,9 @@
 // Presentational pieces of the project. State and camera live in App.tsx.
 
 import { headClass } from './cardClasses';
+import { depHeadClass, depLayerClass, depLineClass, type DepKind } from './depsClasses';
 import { Archive, ChevronDown, Ellipsis, ChevronLeft, ChevronRight, Columns3, GitMerge, MessageSquare, Pause, Play, Square } from 'lucide-react';
-import { Docked } from './docked';
+import { Docked, sheetTitleClass } from './docked';
 import { type CSSProperties, memo, type MouseEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import { type Bounds, dependencyOrder, shapeOf } from '../core/layout';
 import { clip } from '../core/text';
@@ -16,7 +17,7 @@ import { Doc, Inline, plain } from './markdown';
 import { Body } from './message';
 import { Naming } from './cardLink';
 import { Waiting } from './queue';
-import { asksYou, CardFace, cardClass, cardTone, hasLabels, HourglassMark, LabelMarks, LabelPicks, mergeStatus, shownState } from './card';
+import { asksYou, CardFace, cardFlags, cardLook, cardTone, depTagClass, ttlClass, hasLabels, HourglassMark, LabelMarks, LabelPicks, mergeStatus, shownState } from './card';
 import { scrollBehavior } from './motion';
 import { clock, shortDay, stateLabel, t } from './strings';
 import { edgeChipPositions } from './edgeChips';
@@ -73,13 +74,41 @@ export const PlayMark = () => (
 export function LimitNotice({ item }: { item: Item }) {
   const limitedUntil = item.agent?.limitedUntil;
   if (!(item.hold?.reason === 'limit') && !limitedUntil) return null;
-  return <div className="limit-notice">
+  // a light blue of its own, the colour of a card paused at the limit (`.card.limit-paused`); wrapping on a narrow screen
+  return <div className="limit-notice flex items-center gap-3 py-3 px-4 my-3 mx-0 text-[#28536a] bg-[#dceff8] border border-[#a9d8ec] rounded-[3px] [font:15px/1.4_var(--sans)] [@media(max-width:600px)]:flex-wrap">
     <HourglassMark />
-    <div>{(item.hold?.reason === 'limit') ? t.limitPaused : t.limitedUntil(clock(limitedUntil!))}
-      {(item.hold?.reason === 'limit') && limitedUntil && <div className="limit-reset">{t.limitedUntil(clock(limitedUntil))}</div>}
+    <div className="flex-1">{(item.hold?.reason === 'limit') ? t.limitPaused : t.limitedUntil(clock(limitedUntil!))}
+      {(item.hold?.reason === 'limit') && limitedUntil && <div className="limit-reset mt-[3px] text-[13px]">{t.limitedUntil(clock(limitedUntil))}</div>}
     </div>
-    <button onClick={() => void api.act(item.id, { action: 'resume' }).catch(console.error)}><PlayMark /> {t.limitTryAgain}</button>
+    <button className="flex-[0_0_auto] text-[#28536a] border border-[#a2c8da] rounded-[3px] bg-[#f3faff] py-1.5 px-2.5 cursor-pointer [font:inherit] hover:bg-white [@media(max-width:600px)]:ml-[26px]" onClick={() => void api.act(item.id, { action: 'resume' }).catch(console.error)}><PlayMark /> {t.limitTryAgain}</button>
   </div>;
+}
+
+/** Where a card's buttons stand: a chip's lower, none while the card is picked up (`held`). */
+type PlayOn = { chip: boolean; held: boolean };
+
+/**
+ * A button at a card's foot, shown while the pointer is on the card (where nothing hovers, always):
+ * `play` starts it, `archive` takes it off the project (`beside` the play), `turn` pauses or resumes
+ * its agent, faint like the pause on the bubble in its conversation.
+ */
+function playClass(kind: 'play' | 'archive' | 'turn', on: PlayOn, extra?: string) {
+  return [
+    'play',
+    kind !== 'play' && kind,
+    extra,
+    "absolute right-2.5 size-[26px] rounded-[8px] grid place-items-center cursor-pointer opacity-0 pointer-events-none [transition:opacity_.15s,transform_.15s] [transform:scale(max(1,calc(.9/var(--s))))] origin-[100%_100%]",
+    on.chip ? 'bottom-[19px]' : 'bottom-2',
+    kind === 'play' && '[border:0] pl-0.5 pr-0 py-0 bg-working text-on-ink [box-shadow:var(--shadow)] hover:[filter:brightness(1.1)]',
+    kind === 'archive' && '[border:1px_solid_var(--glass-edge)] p-0 bg-panel text-ink [box-shadow:var(--shadow)] hover:[filter:brightness(1.1)]',
+    kind === 'archive' && extra === 'beside' && 'right-[42px]',
+    kind === 'turn' && '[border:1px_solid_var(--line)] p-0 bg-transparent text-muted-foreground [box-shadow:none] [&_.btn-mark]:m-0',
+    kind === 'turn'
+      ? !on.held && 'group-hover/card:opacity-55 group-hover/card:pointer-events-auto hover:opacity-100 hover:pointer-events-auto hover:text-ink hover:border-muted-foreground focus-visible:opacity-100 focus-visible:pointer-events-auto focus-visible:text-ink focus-visible:border-muted-foreground no-hover:opacity-55 no-hover:pointer-events-auto'
+      : [!on.held && 'group-hover/card:opacity-100 group-hover/card:pointer-events-auto', 'no-hover:opacity-100 no-hover:pointer-events-auto'].filter(Boolean).join(' '),
+  ]
+    .filter(Boolean)
+    .join(' ');
 }
 
 /**
@@ -87,13 +116,13 @@ export function LimitNotice({ item }: { item: Item }) {
  * paused one (or of one about to pause, which then works on): where a card's play and archive
  * buttons stand, faint, while the pointer is on the card.
  */
-function CardTurn({ item }: { item: Item }) {
+function CardTurn({ item, on }: { item: Item; on: PlayOn }) {
   const paused = halted(item);
   if (!paused && !pausable(item)) return null;
   return (
     <Tooltip content={isPausing(item) ? t.pause.takeBackHint : paused ? t.pause.resumeHint : t.pause.safeHint}>
       <button
-          className={paused ? 'play turn resume' : 'play turn'} aria-label={paused ? t.pause.resume : t.pause.button}
+          className={playClass('turn', on, paused ? 'resume' : undefined)} aria-label={paused ? t.pause.resume : t.pause.button}
           // the project would take the press as the start of a drag or a click that opens the card
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => {
@@ -111,12 +140,12 @@ function CardTurn({ item }: { item: Item }) {
  * On a card on the project that Seismic is checking before its start, the Stop that calls the start
  * off: where its play stood, faint like the pause of an agent at work.
  */
-function CardCheckStop({ item }: { item: Item }) {
+function CardCheckStop({ item, on }: { item: Item; on: PlayOn }) {
   if (item.state !== 'planned' || !item.queue || !('checking' in item.queue)) return null;
   return (
     <Tooltip content={t.queue.checkingStopHint}>
       <button
-          className="play turn" aria-label={t.stop}
+          className={playClass('turn', on)} aria-label={t.stop}
           // the project would take the press as the start of a drag or a click that opens the card
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => {
@@ -148,6 +177,9 @@ const ColumnsIcon = ({ size }: { size: number }) => (
 
 const sameBounds = (a: Bounds, b: Bounds) => a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
 
+/** Each card of a merged pair: a card's size and padding. */
+const HALF = 'relative flex-[0_0_300px] box-border pt-[13px] px-[14px] pb-[12px] rounded-[14px]';
+
 /**
  * An unworked card merged with another card (`partner`), on the project: both cards side by side, glued by
  * a solid purple line with an arrowhead at each end, its knot a spinner while an agent plans the merge, and the merge mark
@@ -155,16 +187,26 @@ const sameBounds = (a: Bounds, b: Bounds) => a.x === b.x && a.y === b.y && a.w =
  */
 function MergedPair({ item, partner, showRepo }: { item: Item; partner?: Item; showRepo: boolean }) {
   return (
-    <div className="merge-pair">
-      <div className="merge-half">
-        <CardFace item={item} where={showRepo ? item.repo : undefined} />
+    <div className="merge-pair flex items-stretch h-full">
+      {/* the card itself, pencilled in like a proposal */}
+      <div className={`merge-half ${HALF} [border:1.5px_dashed_var(--proposal)] bg-[color-mix(in_srgb,var(--proposal)_4%,var(--card))]`}>
+        <CardFace item={item} where={showRepo ? item.repo : undefined} half="first" />
       </div>
-      <div className="merge-glue" title={stateLabel(item)}>
-        <span className="merge-head left" aria-hidden />
+      <div className="merge-glue relative flex-1 flex items-center justify-center text-proposal before:content-[''] before:absolute before:left-1 before:right-1 before:top-[calc(50%-1.5px)] before:h-[3px] before:bg-proposal" title={stateLabel(item)}>
+        <span className="merge-head left absolute top-[calc(50%-7px)] border-y-[7px] border-y-transparent left-0 border-r-[12px] border-r-proposal" aria-hidden />
         <span className="merge-knot">{merging(item) ? <span className="spinner" /> : <MergeMark />}</span>
-        <span className="merge-head right" aria-hidden />
+        <span className="merge-head right absolute top-[calc(50%-7px)] border-y-[7px] border-y-transparent right-0 border-l-[12px] border-l-proposal" aria-hidden />
       </div>
-      <div className={`merge-half partner s-${partner?.state ?? 'planned'}`}>{partner ? <CardFace item={partner} mergePartner={mergeStatus(item.idea!.proposal!.merge!)} where={showRepo ? partner.repo : undefined} /> : <div className="ttl untitled">{t.merge.gone}</div>}</div>
+      {/* the card it merges with: glass, its state a rule across its top */}
+      <div
+        className={`merge-half partner s-${partner?.state ?? 'planned'} ${HALF} [border:1px_solid_var(--glass-edge)] bg-card [box-shadow:var(--shadow)] backdrop-blur-glass backdrop-saturate-150 moving:backdrop-filter-none before:content-[''] before:absolute before:inset-x-0 before:top-0 before:h-1 before:rounded-[2px] before:bg-(--c)`}
+      >
+        {partner ? (
+          <CardFace item={partner} mergePartner={mergeStatus(item.idea!.proposal!.merge!)} where={showRepo ? partner.repo : undefined} half="partner" pairOf={item} />
+        ) : (
+          <div className={ttlClass(cardFlags(item), { place: 'canvas', half: 'partner', untitled: true })}>{t.merge.gone}</div>
+        )}
+      </div>
       {needsYou(item) && <Badge variant="pin" pulse>✦</Badge>}
     </div>
   );
@@ -185,33 +227,35 @@ export const CardView = memo(
     const archivable =
       !item.archivedAt &&
       (finishedArchivable(item) || stoppedArchivable(item) || (!!item.idea?.discussion && item.idea.discussion.status !== 'open' && !prototyped));
+    const look = cardLook(item, { underway, place: 'canvas', shape, dep, lifted, dragging, pop });
     const cls = [
-      'item',
-      cardClass(item, underway),
+      'item absolute',
+      look.className,
       shape,
       item.idea?.proposal?.merge && 'merged-pair',
       dep && `dep-${dep}`, lifted && 'lifted', dragging && 'dragging', pop && 'pop'].filter(Boolean).join(' ');
+    const on: PlayOn = { chip: shape === 'chip', held: lifted || dragging };
     return (
       <div
         className={cls}
         data-id={item.id}
         ref={(el) => void (el ? els.set(item.id, el) : els.delete(item.id))}
-        style={{ left: b.x, top: b.y, width: b.w, height: b.h, zIndex: 2 }}
+        style={{ ...look.style, left: b.x, top: b.y, width: b.w, height: b.h, zIndex: 2 }}
         onPointerEnter={() => onHover(item.id)}
         onPointerLeave={() => onHover(null)}
       >
-        {(dep === 'before' || dep === 'after') && <div className="dep-tag">{t.deps[dep]}</div>}
+        {(dep === 'before' || dep === 'after') && <div className={depTagClass}>{t.deps[dep]}</div>}
         {item.idea?.proposal?.merge ? (
           <MergedPair item={item} partner={partner} showRepo={showRepo} />
         ) : (
-          <CardFace item={item} where={showRepo ? item.repo : undefined} underway={underway} chip={shape === 'chip'} />
+          <CardFace item={item} where={showRepo ? item.repo : undefined} underway={underway} chip={shape === 'chip'} place="canvas" />
         )}
-        {!underway && <CardTurn item={item} />}
-        {!underway && <CardCheckStop item={item} />}
+        {!underway && <CardTurn item={item} on={on} />}
+        {!underway && <CardCheckStop item={item} on={on} />}
         {startable && (
           <Tooltip content={item.queue ? t.queue.force : t.start}>
             <button
-                className="play" aria-label={item.queue ? t.queue.force : t.start}
+                className={playClass('play', on)} aria-label={item.queue ? t.queue.force : t.start}
                 // the project would take the press as the start of a drag or a click that opens the card
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
@@ -226,7 +270,7 @@ export const CardView = memo(
         {archivable && (
           <Tooltip content={t.archive.archive}>
             <button
-                className={startable ? 'play archive beside' : 'play archive'} aria-label={t.archive.archive}
+                className={playClass('archive', on, startable ? 'beside' : undefined)} aria-label={t.archive.archive}
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -753,6 +797,9 @@ export const statusFace = 'flex h-full cursor-pointer flex-row items-center gap-
 
 /** The colours of a card's state that pulse on its workstation's dot: at work, in review, landing. */
 const PULSING = new Set(['working', 'reviewing', 'approved']);
+/** The pulse of a dot at work (`ws-pulse` in styles.css); under reduced motion a ring in its colour around a dot that stands still. */
+const pulse =
+  "relative animate-[ws-pulse_3.6s_ease-in-out_infinite] reduced:animate-none reduced:border-2 reduced:border-[var(--c)] reduced:bg-transparent reduced:shadow-none reduced:after:absolute reduced:after:top-1/2 reduced:after:left-1/2 reduced:after:size-1 reduced:after:[transform:translate(-50%,-50%)] reduced:after:rounded-[50%] reduced:after:bg-[var(--c)] reduced:after:content-['']";
 
 /**
  * A workstation's dot, the same on the pill and in its list: in the colour of its card's state as
@@ -769,14 +816,14 @@ function WorkstationMark({ dot, className }: { dot: WorkstationDot; className?: 
 }
 
 function wsDot(w: PoolWorkstation | undefined, host: PoolHost, items: Item[], underway: Record<string, string>): WorkstationDot {
-  const dot = 'ws-dot block rounded-full';
+  const dot = 'ws-dot box-border block rounded-full border border-[#6b7280]';
   if (!w?.card) return { className: cn(dot, w && host.blocked?.some((b) => b.path === w.path) ? 'shadow-[inset_0_0_0_1.5px_var(--waiting)]' : undefined) };
   const item = w.project ? undefined : items.find((i) => i.id === w.card);
   const tone = item ? cardTone(item, underway[item.id]) : host.busy.includes(w.card) ? 'working' : null;
   if (item?.hold?.reason === 'restart') return { className: 'block text-[var(--restart)]', paused: true };
   if (!tone) return { className: cn(dot, 'bg-[color-mix(in_srgb,var(--working)_35%,transparent)]') };
   return {
-    className: cn(dot, 'bg-[var(--c)]', PULSING.has(tone) && 'ws-active'),
+    className: cn(dot, 'bg-[var(--c)]', PULSING.has(tone) && pulse),
     style: { '--c': `var(--${tone})` } as CSSProperties,
   };
 }
@@ -946,6 +993,21 @@ function BlockedClones({ host }: { host: PoolHost }) {
   );
 }
 
+/**
+ * A plan on the project: a quiet frosted container its workstreams stand in, its head along the top.
+ * Its blur goes while the canvas is far out or moves (frost.ts), as the cards' does.
+ */
+const planClass =
+  'group/plan absolute rounded-[22px] border border-solid border-(--container-line) bg-(--container) backdrop-blur-[6px] backdrop-saturate-[1.2] [:is(.z-far,.moving)_&]:backdrop-filter-none';
+/** The plan's head: fold, title, labels, progress and its buttons in a row; a click opens the plan. */
+const planHeadClass = 'absolute inset-x-0 top-0 flex cursor-pointer items-center gap-2.5 py-4 pr-[22px] pl-3 has-[.card-more]:pr-2.5';
+/** Folds the plan to its head and back; always in sight, so it is found. */
+const planFoldClass =
+  'grid h-6 w-6 flex-none cursor-pointer place-items-center rounded-[3px] [border:0] bg-transparent p-0 -mr-1 text-muted-foreground hover:bg-card hover:text-ink [&_path]:[fill:none] [&_path]:[stroke:currentColor] [&_path]:[stroke-width:1.6] [&_path]:[stroke-linecap:round] [&_path]:[stroke-linejoin:round]';
+/** Arranges the workstreams by their dependencies, or starts all planned ones; quiet until the pointer is on one; gone from afar. */
+const planHeadButtonClass =
+  'flex flex-none cursor-pointer items-center gap-1.5 rounded-[3px] border border-solid border-line bg-card py-1 pr-[11px] pl-[9px] text-[12px] font-medium [transition:background_.15s,color_.15s,border-color_.15s] hover:enabled:border-working hover:enabled:bg-working hover:enabled:text-on-ink [.z-far_&]:hidden';
+
 export const PlanView = memo(
   function PlanView({
     item,
@@ -975,12 +1037,17 @@ export const PlanView = memo(
     const collapsed = !!item.plan?.collapsed;
     // the project would take the press as the start of a drag or a click that opens the plan
     const own = (e: React.PointerEvent) => e.stopPropagation();
+    const labelled = hasLabels(item);
     return (
-      <div className={`item plan s-${item.state}${collapsed ? ' collapsed' : ''}`} data-id={item.id} style={{ left: b.x, top: b.y, width: b.w, height: b.h, zIndex: 0 }}>
-        <div className="head">
+      <div
+        className={`item plan s-${item.state}${collapsed ? ' collapsed' : ''} ${planClass}`}
+        data-id={item.id}
+        style={{ left: b.x, top: b.y, width: b.w, height: b.h, zIndex: 0 }}
+      >
+        <div className={`head ${planHeadClass} ${collapsed ? (labelled ? 'h-[46px]' : 'h-[54px]') : 'h-[58px]'}`}>
           <Tooltip content={collapsed ? t.plan.expand : t.plan.collapse}>
             <button
-                className="fold" aria-label={collapsed ? t.plan.expand : t.plan.collapse}
+                className={`fold ${planFoldClass}`} aria-label={collapsed ? t.plan.expand : t.plan.collapse}
                 aria-expanded={!collapsed}
                 onPointerDown={own}
                 onClick={(e) => {
@@ -991,14 +1058,18 @@ export const PlanView = memo(
               {collapsed ? <ChevronRight size={12} strokeWidth={1.75} aria-hidden="true" /> : <ChevronDown size={12} strokeWidth={1.75} aria-hidden="true" />}
             </button>
           </Tooltip>
-          <span className="ttl">{plain(item.title)}</span>
-          <span className="kind">{t.kind.plan}</span>
-          {hasLabels(item) && <span className="head-labels"><LabelMarks item={item} /></span>}
-          <span className="progress">{t.progress(live, kids.length)}</span>
+          <span className="ttl min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[21px] leading-[1.15] [font-family:var(--font)] font-[650] tracking-[-.018em]">{plain(item.title)}</span>
+          <span className={`kind text-[11px] uppercase tracking-[.08em] text-muted-foreground${labelled ? ' hidden' : ''}`}>{t.kind.plan}</span>
+          {labelled && (
+            <span className={`head-labels absolute left-11 right-[22px] ${collapsed ? 'top-[40px]' : 'top-[47px]'} flex items-center gap-1.5 overflow-hidden [&_.prio]:text-[11px] [&_.lchip]:text-[11px]`}>
+              <LabelMarks item={item} />
+            </span>
+          )}
+          <span className="progress ml-auto whitespace-nowrap text-[12px] text-muted-foreground [.z-far_&]:hidden">{t.progress(live, kids.length)}</span>
           {/* collapsed, its workstreams are not on the project to arrange; its sheet still has the button */}
           {!collapsed && (item.plan?.arranging || arrangeable(kids)) && (
             <button
-              className="head-btn arrange"
+              className={`head-btn arrange ${planHeadButtonClass} text-muted-foreground disabled:cursor-default disabled:animate-[arranging_1.4s_ease-in-out_infinite]`}
               disabled={item.plan?.arranging}
               title={`${t.plan.arrangeLong}. ${t.plan.arrangeHint}`}
               onPointerDown={(e) => e.stopPropagation()}
@@ -1013,7 +1084,7 @@ export const PlanView = memo(
           )}
           {startable > 0 && (
             <button
-              className="head-btn start-all"
+              className={`head-btn start-all ${planHeadButtonClass} text-working`}
               title={`${t.plan.startAll(startable)}. ${t.plan.startAllHint}`}
               onPointerDown={own}
               onClick={(e) => {
@@ -1026,18 +1097,20 @@ export const PlanView = memo(
             </button>
           )}
           {/* "Move to canvas", with its workstreams; its clicks stay its own */}
-          <span className="plan-more" onPointerDown={own} onClick={(e) => e.stopPropagation()}>
+          <span
+            className="plan-more flex flex-none opacity-0 [transition:opacity_.15s] group-hover/plan:opacity-100 has-[[aria-expanded=true]]:opacity-100 no-hover:opacity-100"
+            onPointerDown={own} onClick={(e) => e.stopPropagation()}>
             <CardMore item={item} floating />
           </span>
         </div>
         {/* a collapsed plan's workstreams, a mark each in its state's colour: a click opens one, unfolding from its mark */}
         {collapsed && (
-          <div className="marks">
+          <div className={`marks absolute left-[22px] right-[22px] ${labelled ? 'top-[63px]' : 'top-[54px]'} flex h-3.5 flex-wrap gap-1 overflow-hidden`}>
             {kids.map((k) => (
               <Tooltip key={k.id} content={plain(k.title)}>
                 <button
                   ref={(el) => void (el ? els.set(k.id, el) : els.delete(k.id))}
-                  className={needsYou(k) ? 'mark yours' : 'mark'}
+                  className={`${needsYou(k) ? 'mark yours opacity-100' : 'mark opacity-55'} mt-0.5 h-2.5 w-[18px] flex-none cursor-pointer rounded-[2px] [border:0] p-0 hover:opacity-100`}
                   aria-label={plain(k.title)}
                   style={{ background: `var(--${shownState(k)})` }}
                   onPointerDown={own}
@@ -1051,7 +1124,8 @@ export const PlanView = memo(
           </div>
         )}
         {(replies > 0 || waiting > 0) && (
-          <div className="badges">
+          // side by side at the plan's corner, counter-scaled so they stay readable zoomed out
+          <div className="badges absolute top-[-10px] right-[-8px] flex gap-1.5 [transform:scale(max(1,calc(.9/var(--s))))] origin-[90%_30%]">
             {/* its plan agent's answers: a speech bubble, unlike the count of workstreams that need the owner */}
             {replies > 0 && (
               <Tooltip content={t.plan.replied(replies)}>
@@ -1164,7 +1238,8 @@ export function Links({ placed, waits, standsFor }: { placed: { item: Item; b: B
     return [<path key={item.id} d={linkPath(src.b, b)} />];
   });
   return (
-    <svg id="links" width="1" height="1">
+    // above plans (z-index 0), below cards (2): a line from a workstream stays visible over its plan
+    <svg id="links" width="1" height="1" className="absolute left-0 top-0 z-1 overflow-visible pointer-events-none [&_path]:fill-none [&_path]:stroke-proposal [&_path]:stroke-2 [&_path]:[stroke-dasharray:5_6] [&_path]:opacity-70">
       {paths}
     </svg>
   );
@@ -1181,14 +1256,15 @@ const DEP_HEAD = 'M0,0 L9,4 L0,8 z';
  * A wait's arrow outside the project, straight down from the card waited for to the card waiting, drawn
  * as on the project while the pointer is on a card: `lit-first` towards the card it is about, `lit` away from it.
  */
-export function DepArrow({ cls, length = 30 }: { cls: 'lit' | 'lit-first'; length?: number }) {
+export function DepArrow({ cls, length = 30, className }: { cls: 'lit' | 'lit-first'; length?: number; className?: string }) {
   const w = depWidth(1);
   const head = depHead(1);
   const x = (head * 8) / 9 / 2 + 1;
+  const ink = cls === 'lit' ? 'stroke-proposal' : 'stroke-waiting';
   return (
-    <svg className="dep-arrow" width={2 * x} height={length} aria-hidden>
-      <line className={cls} x1={x} y1={0} x2={x} y2={length - head + (0.3 * head) / 9} strokeWidth={w} />
-      <path className={`${cls} head`} d={DEP_HEAD} transform={`translate(${x + (head * 8) / 9 / 2} ${length - head}) rotate(90) scale(${head / 9})`} />
+    <svg className={cn('dep-arrow', className)} width={2 * x} height={length} aria-hidden>
+      <line className={`${cls} fill-none ${ink}`} x1={x} y1={0} x2={x} y2={length - head + (0.3 * head) / 9} strokeWidth={w} />
+      <path className={`${cls} head stroke-none ${cls === 'lit' ? 'fill-proposal' : 'fill-waiting'}`} d={DEP_HEAD} transform={`translate(${x + (head * 8) / 9 / 2} ${length - head}) rotate(90) scale(${head / 9})`} />
     </svg>
   );
 }
@@ -1240,16 +1316,16 @@ export function DepLinks({
   const faint = [...shown(waits)].filter(([k]) => !hot.has(k));
   const taken = new Set([...hot.keys(), ...faint.map(([k]) => k)]);
   const done = [...shown(settled.map((d) => [d.from, d.to]))].filter(([k]) => !taken.has(k));
-  const path = (cls: string) => ([k, [from, to]]: [string, [string, string]]) => (
-    <path key={`${cls} ${k}`} className={cls} d={routeOf?.(from, to, byId.get(from)!, byId.get(to)!, depHead(s)) ?? linkPath(byId.get(from)!, byId.get(to)!, depHead(s))} strokeWidth={depWidth(s)} markerEnd={`url(#${cls}-arrow)`} />
+  const path = (cls: DepKind) => ([k, [from, to]]: [string, [string, string]]) => (
+    <path key={`${cls} ${k}`} className={depLineClass[cls]} d={routeOf?.(from, to, byId.get(from)!, byId.get(to)!, depHead(s)) ?? linkPath(byId.get(from)!, byId.get(to)!, depHead(s))} strokeWidth={depWidth(s)} markerEnd={`url(#${cls}-arrow)`} />
   );
   return (
-    <svg id="deps" width="1" height="1">
+    <svg id="deps" className={cn(depLayerClass, 'z-1')} width="1" height="1">
       <defs>
         {/* The line stops at the head's base (refX 0, a hair inside so no seam shows) and the head points
             on to the card; measured in the line's width, as `depHead` is. */}
-        {['lit', 'lit-first', 'faint', 'done-dep'].map((cls) => (
-          <marker key={cls} id={`${cls}-arrow`} className={cls} viewBox="0 0 9 8" refX="0.3" refY="4" markerUnits="strokeWidth" markerWidth={6} markerHeight={(6 * 8) / 9} orient="auto">
+        {(['lit', 'lit-first', 'faint', 'done-dep'] as const).map((cls) => (
+          <marker key={cls} id={`${cls}-arrow`} className={cn(depLineClass[cls], depHeadClass[cls])} viewBox="0 0 9 8" refX="0.3" refY="4" markerUnits="strokeWidth" markerWidth={6} markerHeight={(6 * 8) / 9} orient="auto">
             <path d={DEP_HEAD} />
           </marker>
         ))}
@@ -1358,15 +1434,15 @@ export function Sheet({
     return () => clearTimeout(h);
   }, [shown?.id, reading, !!shown]);
   return (
-    <Docked id="sheet" ref={box} on={!!on} className={reading ? 'reading' : undefined}>
+    <Docked id="sheet" ref={box} on={!!on} className={reading ? 'reading w-(--read-w) pt-0 px-[30px] pb-10' : undefined}>
       {planCard?.plan?.file && reading && (
         <>
-          <div className="read-head">
-            <button className="back" onClick={() => onRead(null)}>
+          <div className="read-head sticky top-0 z-1 flex items-center gap-3 my-0 -mx-[30px] pt-3.5 pr-[58px] pb-3 pl-[30px] bg-[color-mix(in_srgb,var(--panel)_88%,transparent)] backdrop-blur-[16px] border-b border-b-line reduced:bg-panel">
+            <button className="back inline-flex items-center gap-1 [border:0] bg-chip rounded-[2px] py-1 px-3 cursor-pointer font-semibold text-[13px]" onClick={() => onRead(null)}>
               <ChevronLeft size={14} aria-hidden />
               {t.plan.back}
             </button>
-            <span className="src">{planCard.plan.file}</span>
+            <span className="src [font:12px_var(--mono)] text-muted-foreground m-0 ml-auto overflow-hidden text-ellipsis whitespace-nowrap">{planCard.plan.file}</span>
           </div>
           {shown ? (
             <Doc md={shown.markdown} mark={reading.mark} markRef={(el) => void (markEl.current = el)} />
@@ -1381,43 +1457,43 @@ export function Sheet({
             {planCard.archivedAt ? t.archivedPlan : t.planSheet}
             {planCard.archivedAt ? <LabelMarks item={planCard} /> : <LabelPicks item={planCard} />}
           </div>
-          <h2>{plain(planCard.title)}</h2>
+          <h2 className={sheetTitleClass}>{plain(planCard.title)}</h2>
           {planCard.archivedAt && <p className="hint">{t.archive.planGone(new Date(planCard.archivedAt))}</p>}
-          <div className="goal">
+          <div className="goal text-[13.5px] opacity-90">
             <Inline md={planCard.plan.goal ?? ''} />
           </div>
-          <div className="src">{planCard.plan.file}</div>
+          <div className="src [font:12px_var(--mono)] text-muted-foreground mt-2">{planCard.plan.file}</div>
           {!planCard.archivedAt && (
-            <Button className="read" onClick={() => onRead({})}>
+            <Button className="read mt-3.5" onClick={() => onRead({})}>
               {t.plan.read}
             </Button>
           )}
           {!planCard.archivedAt && startable > 0 && (
-            <div className="start-all">
+            <div className="start-all mt-2.5">
               <Button variant="primary" onClick={() => onStartAll(planCard, startable)}>
                 {t.plan.startAll(startable)}
               </Button>
-              <p className="hint">{t.plan.startAllHint}</p>
+              <p className="hint mt-1.5 mx-0 mb-0">{t.plan.startAllHint}</p>
             </div>
           )}
           {!planCard.archivedAt && (planCard.plan.arranging || arrangeable(kids)) && (
-            <div className="arrange">
+            <div className="arrange mt-2.5">
               <Button disabled={planCard.plan.arranging} onClick={() => onArrange(planCard)}>
                 <ColumnsIcon size={12} />
                 {planCard.plan.arranging ? t.plan.arranging : t.plan.arrangeLong}
               </Button>
-              <p className="hint">{t.plan.arrangeHint}</p>
+              <p className="hint mt-1.5 mx-0 mb-0">{t.plan.arrangeHint}</p>
             </div>
           )}
           {history?.origin && (
-            <button className="origin" ref={ref(history.origin.id)} onClick={() => onOpen(history.origin!)}>
-              <span className="hint">{t.fromIdea}</span>
+            <button className="origin flex flex-col items-start gap-0.5 w-full mt-3.5 py-[9px] px-3 border border-dashed border-idea rounded-[3px] bg-transparent text-ink text-[13px] text-left cursor-pointer hover:bg-chip" ref={ref(history.origin.id)} onClick={() => onOpen(history.origin!)}>
+              <span className="hint text-[11px]">{t.fromIdea}</span>
               <span>{plain(history.origin.title.replace(/^Plan-Doc:\s*/, ''))}</span>
             </button>
           )}
-          <ol>
+          <ol className="list-none p-0 mt-4 mx-0 mb-0">
             {inOrder.map((k) => (
-              <li key={k.id} ref={ref(k.id)} onClick={() => onOpen(k)}>
+              <li key={k.id} className="py-2 px-2.5 rounded-[3px] cursor-pointer text-[13px] hover:bg-chip" ref={ref(k.id)} onClick={() => onOpen(k)}>
                 <CardFace
                   item={k}
                   size="xs"
@@ -1430,7 +1506,7 @@ export function Sheet({
                   }
                 />
                 {k.body.trim() && (
-                  <div className="ws-text">
+                  <div className="ws-text mt-1 text-muted-foreground text-[12.5px] leading-[1.4] [&_.p-lead]:text-[length:inherit] [&_.p-lead]:m-0 [&_.p-lead]:max-w-none [&_.p-lead+.p-lead]:mt-[3px] [&_.p-list]:mt-[3px] [&_.p-list]:text-[length:inherit] [&_.p-list]:max-w-none [&_.p-list_li]:my-px">
                     <Body md={k.body} />
                   </div>
                 )}
@@ -1441,12 +1517,12 @@ export function Sheet({
           <h4 className={headClass}>{t.decisions}</h4>
           {history && history.decisions.length === 0 && <p className="hint">{t.noDecisions}</p>}
           {history && history.decisions.length > 0 && (
-            <ul className="decisions">
+            <ul className="decisions list-none p-0 m-0">
               {history.decisions.map((d) => (
-                <li key={d.id}>
-                  <div className="q">{d.question}</div>
-                  <div className="a">{d.answer}</div>
-                  <div className="hint">
+                <li key={d.id} className="block cursor-default py-[7px] px-2.5 border [border-color:var(--container-line)] rounded-[6px] mb-1.5">
+                  <div className="q text-muted-foreground text-[12.5px]">{d.question}</div>
+                  <div className="a my-0.5">{d.answer}</div>
+                  <div className="hint text-[11px]">
                     {t.decidedBy[d.by]} · {shortDay(d.at)}
                   </div>
                 </li>
@@ -1465,14 +1541,14 @@ export function Sheet({
 export function Edges({ cam, targets, side, onOpen }: { cam: Cam; targets: { item: Item; b: Bounds }[]; side: Sides; onOpen: (i: Item) => void }) {
   const positions = new Map(edgeChipPositions(targets.map(({ item, b }) => ({ id: item.id, b })), cam, side, innerWidth, innerHeight).map((p) => [p.id, p]));
   return (
-    <div id="edges">
+    <div id="edges" className="pointer-events-none fixed inset-0 z-15">
       {targets.map(({ item }) => {
         const position = positions.get(item.id);
         if (!position) return null;
         const title = plain(item.title);
         return (
-          <button key={item.id} className={`edge s-${item.state}`} style={{ left: position.x, top: position.y, transform: 'translateY(-50%)' }} onClick={() => onOpen(item)}>
-            <span className="arr" style={{ transform: `rotate(${position.angle}deg)` }}>
+          <button key={item.id} className={`edge s-${item.state} pointer-events-auto absolute box-border flex h-[30px] w-[min(300px,calc(100vw-var(--left,0px)-var(--side,0px)-60px))] cursor-pointer items-center gap-1.5 overflow-hidden rounded-none border-0 bg-card py-[5px] pr-[11px] pl-[7px] text-[13px] font-medium text-ellipsis whitespace-nowrap shadow-glass`} style={{ left: position.x, top: position.y, transform: 'translateY(-50%)' }} onClick={() => onOpen(item)}>
+            <span className="grid size-5 flex-none place-items-center rounded-[50%] bg-[var(--c)] text-[12px] text-on-ink" style={{ transform: `rotate(${position.angle}deg)` }}>
               ➜
             </span>
             {clip(title, 30)}
@@ -1526,6 +1602,7 @@ export function Minimap({
   return (
     <div
       id="minimap"
+      className="fixed bottom-[46px] left-[calc(var(--left,0px)+14px)] z-20 h-[130px] w-[210px] cursor-pointer overflow-hidden rounded-[14px] border border-glass-edge bg-card shadow-glass backdrop-blur-[16px] [transition:left_.45s_cubic-bezier(.3,.9,.3,1)] [@media(max-width:760px)]:hidden"
       onPointerDown={(e) => {
         if (e.button !== 0) return;
         e.currentTarget.setPointerCapture(e.pointerId);
@@ -1545,10 +1622,10 @@ export function Minimap({
       }}
       onPointerCancel={() => (press.current = null)}
     >
-      <svg viewBox={`0 0 ${W} ${H}`}>
+      <svg className="block size-full" viewBox={`0 0 ${W} ${H}`}>
         <g transform={`translate(${ox} ${oy}) scale(${k})`}>
           {territories.map(({ g, t: x }) => (
-            <path key={g.id} className="mterr" d={x.main} fillRule="evenodd" style={{ '--h': g.hue } as React.CSSProperties} />
+            <path key={g.id} className="fill-[hsl(var(--h)_80%_var(--tl)/calc(var(--ta)*3.5))]" d={x.main} fillRule="evenodd" style={{ '--h': g.hue } as React.CSSProperties} />
           ))}
         </g>
         {placed.map(({ item, b }) => (

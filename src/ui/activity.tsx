@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ActivityEntry, Item } from '../core/types';
 import { api } from './api';
 import { OtherCanvas } from './canvases';
-import { CardFace, cardClass } from './card';
+import { CardFace, cardLook } from './card';
 import { useStoredState } from './stored';
 import { clock, t } from './strings';
 import { CheckLabel } from './components/check-label';
@@ -88,7 +88,7 @@ export function ActivityTab({ project, changed, open, onGo, allProjects }: { pro
             const d = t.archive.day(new Date(e.at));
             const heading = d !== day && (day = d);
             return (
-              // the card's compact face under the line is a `.card`: `.activity-row .act-card` in styles.css fits it into the row
+              // the card's compact face under the line, fitted into the row (`actCard`)
               <li key={e.id} className="activity-row">
                 {heading && <h3 className="activity-day mt-2 mx-0.5 mb-0 text-[11px] font-semibold tracking-[.04em] uppercase text-muted-foreground">{heading}</h3>}
                 <div className="activity-what flex items-center gap-2 mt-0 mx-0.5 mb-1.5 text-[12px] text-muted-foreground">
@@ -103,12 +103,12 @@ export function ActivityTab({ project, changed, open, onGo, allProjects }: { pro
                   <span className="activity-time ml-auto flex-none tabular-nums">{clock(e.at)}</span>
                 </div>
                 {e.deleted ? (
-                  <div className={`${cardClass(e.card)} act-card gone`}>
-                    <CardFace item={e.card} />
+                  <div {...actCard(e.card, { gone: true })}>
+                    <CardFace item={e.card} place="activity" />
                   </div>
                 ) : (
-                  <button type="button" className={`${cardClass(e.card)} act-card${e.card.id === open ? ' on' : ''}`} aria-current={e.card.id === open || undefined} onClick={() => onGo(e.project, e.card)}>
-                    <CardFace item={e.card} />
+                  <button type="button" {...actCard(e.card, { on: e.card.id === open })} aria-current={e.card.id === open || undefined} onClick={() => onGo(e.project, e.card)}>
+                    <CardFace item={e.card} place="activity" />
                   </button>
                 )}
               </li>
@@ -119,4 +119,10 @@ export function ActivityTab({ project, changed, open, onGo, allProjects }: { pro
       )}
     </>
   );
+}
+
+/** The card's compact face under an entry's line: its card as the project shows it, fitted into the row (`on`: the card open beside the list; `gone`: deleted since). */
+function actCard(card: Item, o: { on?: boolean; gone?: boolean }) {
+  const look = cardLook(card, { place: 'activity', ...o });
+  return { className: [look.className, 'act-card', o.on && 'on', o.gone && 'gone'].filter(Boolean).join(' '), style: look.style };
 }

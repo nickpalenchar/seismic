@@ -2,12 +2,14 @@
 // when cards change group (here, by voice or in another page alike), and the lasso and colour ring
 // that assign a group.
 
+import { cn } from 'cn';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { type Bounds, centre } from '../core/layout';
 import type { Group, Item } from '../core/types';
 import { t } from './strings';
 import { type Claim, type Territory, Territories } from './territory';
 import { CloseButton } from './components/button';
+import { ballClass, captionClass, countClass, haloClass, nameFieldClass, radialClass, ringBackClass, tagClass, tagDeleteClass } from './ringClasses';
 
 type Placed = { item: Item; b: Bounds }[];
 type Pt = { x: number; y: number };
@@ -153,28 +155,36 @@ export function useTerritories(placed: Placed, groups: Group[]): { shapes: Shape
 
 const hue = (h: number) => ({ '--h': h }) as React.CSSProperties;
 
+/** A layer of the world (the territories, the groups' names): at its origin, drawing outside its box, letting the pointer through. */
+const worldLayerClass = 'absolute left-0 top-0 overflow-visible pointer-events-none';
+
+/** A line beside the pointer or the marked cards that says how something works: ink on the board's colour. */
+export const hintBubbleClass = 'max-w-[300px] m-0 py-1.5 px-2.5 rounded-[3px] bg-ink text-background [font:13px/1.35_var(--font)] text-left';
+
 /** The territories, in world coordinates under the cards; `selected`: the cards the colour ring is for. */
 export function TerritoryLayer({ shapes, waves, streaks, selected }: { shapes: Shape[]; waves: Wave[]; streaks: Streak[]; selected: Bounds[] }) {
   return (
-    <svg id="territories" width="1" height="1">
+    <svg id="territories" className={cn(worldLayerClass, 'z-0')} width="1" height="1">
       {shapes.map(({ g, t: x }) => (
-        <g key={g.id} className="terr" style={hue(g.hue)}>
-          <path className="area" d={x.main} fillRule="evenodd" />
-          <path className="glow" d={x.main} />
-          <path className="edge" d={x.main} />
-          <path className="inner" d={x.inner} />
+        // colours only as area and edge, never on the card, so they do not compete with the states' colours;
+        // the area deepens zoomed far out
+        <g key={g.id} style={hue(g.hue)}>
+          <path className="[fill:hsl(var(--h)_80%_var(--tl)_/_var(--ta))] [transition:fill_.4s] far:[fill:hsl(var(--h)_80%_var(--tl)_/_calc(var(--ta)*1.7))]" d={x.main} fillRule="evenodd" />
+          <path className="fill-none [stroke:hsl(var(--h)_90%_var(--tl)_/_var(--tga))] [stroke-width:calc(10px/var(--s))] [stroke-linejoin:round]" d={x.main} />
+          <path className="fill-none [stroke:hsl(var(--h)_75%_var(--tel)_/_var(--tea))] [stroke-width:calc(1.8px/var(--s))] [stroke-linejoin:round]" d={x.main} />
+          <path className="fill-none [stroke:hsl(var(--h)_70%_var(--tel)_/_.45)] [stroke-width:calc(1.2px/var(--s))] [stroke-dasharray:1_9] [stroke-linecap:round]" d={x.inner} />
           {streaks
             .filter((s) => s.group === g.id)
             .map((s) => (
-              <path key={s.key} className="streak" d={x.main} pathLength={100} style={{ animationDelay: `${s.delay}ms` }} />
+              <path key={s.key} className="fill-none [stroke:hsl(var(--h)_95%_72%)] [stroke-width:calc(3px/var(--s))] [stroke-linecap:round] [stroke-dasharray:9_91] [filter:drop-shadow(0_0_4px_hsl(var(--h)_95%_60%))] opacity-0 animate-[streak_1.4s_ease-in-out_both] reduced:hidden" d={x.main} pathLength={100} style={{ animationDelay: `${s.delay}ms` }} />
             ))}
         </g>
       ))}
       {waves.map((w) => (
-        <circle key={w.key} className="wave" cx={w.x} cy={w.y} style={{ ...hue(w.hue), animationDelay: `${w.delay}ms` }} />
+        <circle key={w.key} className="fill-none [stroke:hsl(var(--h)_85%_var(--tl))] [stroke-width:3] opacity-0 [r:0] animate-[wave_.9s_cubic-bezier(.2,.7,.3,1)_both] reduced:hidden" cx={w.x} cy={w.y} style={{ ...hue(w.hue), animationDelay: `${w.delay}ms` }} />
       ))}
       {selected.map((b, n) => (
-        <rect key={n} className="sel" x={b.x - 7} y={b.y - 7} width={b.w + 14} height={b.h + 14} rx={4} />
+        <rect key={n} className="fill-none [stroke:var(--ink)] [stroke-width:calc(2px/var(--s))] [stroke-dasharray:6_5] opacity-55 animate-[halo-drift_4s_linear_infinite]" x={b.x - 7} y={b.y - 7} width={b.w + 14} height={b.h + 14} rx={4} />
       ))}
     </svg>
   );
@@ -183,11 +193,11 @@ export function TerritoryLayer({ shapes, waves, streaks, selected }: { shapes: S
 /** The groups' names over their territories, shown when zoomed far out. */
 export function GroupNames({ shapes }: { shapes: Shape[] }) {
   return (
-    <svg id="gnames" width="1" height="1">
+    <svg id="gnames" className={cn(worldLayerClass, 'z-5')} width="1" height="1">
       {shapes.map(
         ({ g, t: x }) =>
           x.label && (
-            <text key={g.id} className="gname" x={x.label.x} y={x.label.y} style={{ ...hue(g.hue), fontSize: `calc(${x.labelSize}px / var(--s))` }}>
+            <text key={g.id} className="font-extrabold tracking-[.14em] uppercase [text-anchor:middle] [dominant-baseline:central] [fill:hsl(var(--h)_60%_var(--tel)_/_var(--tna))] opacity-0 [transition:opacity_.5s] far:opacity-100" x={x.label.x} y={x.label.y} style={{ ...hue(g.hue), fontSize: `calc(${x.labelSize}px / var(--s))` }}>
               {g.name}
             </text>
           ),
@@ -204,11 +214,11 @@ export function Lasso({ pts }: { pts: Pt[] }) {
   const d = `M${pts.map((p) => `${p.x},${p.y}`).join('L')}Z`;
   const head = pts[pts.length - 1]!;
   return (
-    <svg id="lasso">
-      <path className="lfill" d={d} />
-      <path className="lglow" d={d} />
-      <path className="lline" d={d} />
-      <circle className="lhead" cx={head.x} cy={head.y} r={5} />
+    <svg id="lasso" className="fixed inset-0 w-full h-full z-40 pointer-events-none">
+      <path className="[fill:color-mix(in_srgb,var(--working)_8%,transparent)]" d={d} />
+      <path className="fill-none [stroke:color-mix(in_srgb,var(--working)_25%,transparent)] [stroke-width:9] [stroke-linejoin:round]" d={d} />
+      <path className="fill-none stroke-working [stroke-width:2] [stroke-dasharray:7_6] [stroke-linejoin:round] animate-[halo-drift_3s_linear_infinite]" d={d} />
+      <circle className="fill-working" cx={head.x} cy={head.y} r={5} />
     </svg>
   );
 }
@@ -217,7 +227,7 @@ export function Lasso({ pts }: { pts: Pt[] }) {
 
 /** Three colour balls, as in the ring. */
 const RingIcon = () => (
-  <svg className="ricon" width="16" height="16" viewBox="0 0 16 16" aria-hidden>
+  <svg className="[&_circle]:[fill:hsl(var(--h)_75%_55%)]" width="16" height="16" viewBox="0 0 16 16" aria-hidden>
     {[200, 30, 140].map((h, n) => (
       <circle key={h} cx={8 + 4.6 * Math.sin((n * 2 * Math.PI) / 3)} cy={8.6 - 4.6 * Math.cos((n * 2 * Math.PI) / 3)} r={3} style={hue(h)} />
     ))}
@@ -230,11 +240,15 @@ const RingIcon = () => (
  */
 export function Marked({ at, below, count, hint, onGroup }: { at: Pt; below: boolean; count: number; hint?: string; onGroup: (at: Pt) => void }) {
   return (
-    <div id="marked" className={below ? 'below' : undefined} style={{ left: at.x, top: at.y }}>
-      <div className="mrow">
-        <span className="mcount">{t.marked.count(count)}</span>
+    <div
+      id="marked"
+      className={cn('fixed z-40 flex flex-col items-end gap-1.5', below ? '[transform:translate(-100%,12px)]' : '[transform:translate(-100%,calc(-100%_-_12px))]')}
+      style={{ left: at.x, top: at.y }}
+    >
+      <div className="flex items-center gap-2 py-[3px] pr-[3px] pl-2.5 rounded-[3px] bg-card [box-shadow:var(--shadow)] whitespace-nowrap">
+        <span className="[font:500_13px/1_var(--font)] text-muted-foreground">{t.marked.count(count)}</span>
         <button
-          className="mgroup"
+          className="mgroup flex items-center gap-1.5 py-1 pr-2.5 pl-[7px] [border:0] rounded-[3px] bg-transparent text-ink [font:600_13px/1_var(--font)] cursor-pointer hover:bg-[color-mix(in_srgb,var(--ink)_8%,transparent)]"
           title={t.marked.groupTip}
           onClick={(e) => {
             const r = e.currentTarget.getBoundingClientRect();
@@ -245,7 +259,7 @@ export function Marked({ at, below, count, hint, onGroup }: { at: Pt; below: boo
           {t.marked.group}
         </button>
       </div>
-      {hint && <p className="mhint">{hint}</p>}
+      {hint && <p className={hintBubbleClass}>{hint}</p>}
     </div>
   );
 }
@@ -253,7 +267,7 @@ export function Marked({ at, below, count, hint, onGroup }: { at: Pt; below: boo
 /** After the owner moved a single card, until they have once marked cards: how to move several at once, at `at` (screen). */
 export function MarkHint({ at, text }: { at: Pt; text: string }) {
   return (
-    <p id="markhint" style={{ left: at.x, top: at.y }}>
+    <p id="markhint" className={cn(hintBubbleClass, 'fixed z-40 pointer-events-none [transform:translate(14px,14px)] animate-[markhint_7s_both] reduced:animate-none!')} style={{ left: at.x, top: at.y }}>
       {text}
     </p>
   );
@@ -353,13 +367,13 @@ export function Ring({
   const hb = balls[hot];
   const caption = naming ? '' : !hb ? t.groups.cards(count) : hb.kind === 'group' ? hb.g.name : hb.kind === 'new' ? t.groups.create : t.groups.none;
   return (
-    <div id="ringback" onPointerMove={(e) => naming || setHot(aimed(e))} onPointerDown={(e) => (e.preventDefault(), naming ? onClose() : pick(aimed(e)))} onContextMenu={(e) => e.preventDefault()}>
-      <div className={`radial${open ? ' open' : ''}`} style={{ left: at.x, top: at.y }}>
-        <div className="rhalo" />
+    <div id="ringback" className={ringBackClass} onPointerMove={(e) => naming || setHot(aimed(e))} onPointerDown={(e) => (e.preventDefault(), naming ? onClose() : pick(aimed(e)))} onContextMenu={(e) => e.preventDefault()}>
+      <div className={radialClass} style={{ left: at.x, top: at.y }}>
+        <div className={haloClass(open)} />
         {balls.map((b, k) => (
           <div
             key={b.kind === 'group' ? b.g.id : b.kind}
-            className={`ball ${b.kind}${k === hot ? ' hot' : ''}`}
+            className={ballClass(b.kind, { open, hot: k === hot })}
             aria-label={b.kind === 'group' ? b.g.name : b.kind === 'new' ? t.groups.create : t.groups.none}
             style={
               {
@@ -379,7 +393,7 @@ export function Ring({
               // the name stands outside its ball, turned away from the middle
               <div
                 key={`n-${b.g.id}`}
-                className={`gtag${k === hot ? ' hot' : ''}${openCards.get(b.g.id) ? '' : ' vacant'}`}
+                className={tagClass({ open, hot: k === hot, vacant: !openCards.get(b.g.id) })}
                 title={b.g.name}
                 style={
                   {
@@ -396,19 +410,19 @@ export function Ring({
               >
                 <span>{b.g.name}</span>
                 {k === hot && !naming && (
-                  <CloseButton label={t.groups.remove} size="small" className="gdel" onPointerDown={(e) => (e.preventDefault(), e.stopPropagation(), onDelete(b.g))} />
+                  <CloseButton label={t.groups.remove} size="small" className={tagDeleteClass} onPointerDown={(e) => (e.preventDefault(), e.stopPropagation(), onDelete(b.g))} />
                 )}
-                <b className="gcount" title={t.groups.open(openCards.get(b.g.id) ?? 0)}>
+                <b className={countClass(!openCards.get(b.g.id))} title={t.groups.open(openCards.get(b.g.id) ?? 0)}>
                   {openCards.get(b.g.id) ?? 0}
                 </b>
               </div>
             ),
         )}
-        <div className="rcap">{caption}</div>
+        <div className={captionClass}>{caption}</div>
         {naming && (
           <input
             ref={input}
-            className="rname"
+            className={nameFieldClass}
             placeholder={t.groups.name}
             maxLength={60}
             onPointerDown={(e) => e.stopPropagation()}

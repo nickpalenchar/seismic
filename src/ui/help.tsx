@@ -34,27 +34,27 @@ export function HelpButton({ on, onClick }: { on: boolean; onClick: () => void }
 export function Help({ onClose, note }: { onClose: () => void; note?: 'button' | 'gone' }) {
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent id="help" className="box">
-        <CloseButton label={t.close} className="close" onClick={onClose} />
+      <DialogContent id="help" glass className="w-[860px] overflow-auto px-[26px] pt-[22px] pb-6">
+        <CloseButton label={t.close} className="close absolute top-3 right-3.5" onClick={onClose} />
         <DialogTitle asChild>
-          <h2>{t.help.title}</h2>
+          <h2 className="m-0 mb-3.5 text-[23px]">{t.help.title}</h2>
         </DialogTitle>
-        <div className="sections">
+        <div className="[columns:2_340px] gap-x-9">
           {t.help.sections.map((s) => (
-            <section key={s.title}>
-              <h3>{s.title}</h3>
-              <ul>
+            <section key={s.title} className="mb-[18px] break-inside-avoid last:mb-0">
+              <h3 className="m-0 mb-1 text-[12px] font-semibold tracking-[.05em] text-muted-foreground uppercase">{s.title}</h3>
+              <ul className="m-0 list-none p-0 text-[13px]">
                 {s.rows.map((r) => (
-                  <li key={r.text}>
+                  <li key={r.text} className="flex items-center justify-between gap-3.5 border-b border-b-line py-1.5 last:border-b-0">
                     <span>{r.text}</span>
-                    <span className="keys">
+                    <span className="flex flex-wrap items-center justify-end gap-1">
                       {r.keys.map((combo, i) => (
                         <Fragment key={i}>
-                          {i > 0 && <span className="or">{t.help.or}</span>}
+                          {i > 0 && <span className={quiet}>{t.help.or}</span>}
                           {combo.map((k, j) => (
                             <Fragment key={j}>
-                              {j > 0 && <span className="plus">+</span>}
-                              <kbd>{k}</kbd>
+                              {j > 0 && <span className={quiet}>+</span>}
+                              <kbd className="rounded-[2px] border border-line bg-chip px-[7px] py-0.5 [font-family:inherit] text-[12px] font-medium whitespace-nowrap shadow-[0_1px_0_var(--line)]">{k}</kbd>
                             </Fragment>
                           ))}
                         </Fragment>
@@ -67,15 +67,18 @@ export function Help({ onClose, note }: { onClose: () => void; note?: 'button' |
           ))}
         </div>
         {/* what the owner misses goes to Seismic's makers; the legend closes for the draft */}
-        <p className="wish-line">
-          <WishLink onOpen={onClose} />
-          <span className="w-legend">{t.wish.legend}</span>
+        <p className="m-0 mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-t border-t-line pt-3">
+          <WishLink className="text-[13px]" onOpen={onClose} />
+          <span className="text-[12px] text-muted-foreground">{t.wish.legend}</span>
         </p>
-        {note && <p className="key-note">{note === 'button' ? t.help.keyNote.button : t.help.keyNote.gone}</p>}
+        {note && <p className="m-0 mt-4 border-t border-t-line pt-3 text-[13px] text-muted-foreground">{note === 'button' ? t.help.keyNote.button : t.help.keyNote.gone}</p>}
       </DialogContent>
     </Dialog>
   );
 }
+
+/** The legend's quiet words between keys ("or", "+"). */
+const quiet = 'text-[12px] text-muted-foreground';
 
 /** Set once the owner opened the legend with `?`: the bar's `?` button goes. */
 export const HELP_KEY_KNOWN = 'obeya-help-key-known';

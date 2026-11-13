@@ -16,6 +16,7 @@ import { type Drag, useSortable } from './sortable';
 import { failText, t } from './strings';
 import { Tooltip } from './components/tooltip';
 import { Button } from './components/button';
+import { cn } from 'cn';
 
 /**
  * The queue's order to drag in: in the Agents sheet every card that may move, on a waiting card
@@ -53,7 +54,7 @@ export function useQueueSort(items: Item[], scroller: RefObject<HTMLElement | nu
 export function QueueList({ items, q, onOpen }: { items: Item[]; q: ReturnType<typeof useQueueSort>; onOpen?: (i: Item) => void }) {
   const { queued, sort, fixed, own, failed, setFailed } = q;
   return (
-    <ol className={own ? 'qlist on-card' : 'qlist'}>
+    <ol className={cn('qlist list-none p-0 m-0', own && 'on-card')}>
       {sort.order.map((id) => {
         const i = queued.find((q) => q.id === id)!;
         return (
@@ -62,6 +63,7 @@ export function QueueList({ items, q, onOpen }: { items: Item[]; q: ReturnType<t
             item={i}
             items={items}
             own={id === own}
+            onCard={!!own}
             row={sort.row(id)}
             grip={fixed(id) ? undefined : sort.grip(id)}
             drag={sort.drag?.key === id ? sort.drag : undefined}
@@ -108,11 +110,36 @@ export function waitText(q: Behind, items: Item[], name?: (id: string) => string
 
 type Sort = ReturnType<typeof useSortable>;
 
+/**
+ * A row of the queue: in the Agents sheet and the Queue view it opens its card on a click; on a waiting
+ * card the others only show where it stands, the card's own framed and dragged (`own`). The dragged row
+ * lifts, the others make way; on the phone each row is a card of its own, sized for a finger.
+ */
+const rowClass = (onCard: boolean, own: boolean) =>
+  cn(
+    'group/qrow relative flex gap-2.5 items-start py-[7px] px-2 rounded-[2px] text-[13px]',
+    'data-[sorting=other]:[transition:transform_.15s_ease] data-[sorting=dragged]:bg-card data-[sorting=dragged]:[box-shadow:var(--lift)] data-[sorting=dragged]:cursor-grabbing',
+    onCard ? 'cursor-default' : 'cursor-pointer hover:bg-chip',
+    own && 'own bg-card! [box-shadow:inset_0_0_0_1px_var(--line)] cursor-grab! data-[sorting=dragged]:[box-shadow:var(--lift)]!',
+    '[#ph-home_&]:gap-3 [#ph-home_&]:py-3 [#ph-home_&]:px-2.5 [#ph-home_&]:mb-2 [#ph-home_&]:rounded-[3px] [#ph-home_&]:bg-card [#ph-home_&]:[box-shadow:inset_0_0_0_1px_var(--line)] [#ph-home_&]:text-[14.5px]',
+    // the face's own sizes (`.face-xs`, unlayered in styles.css) give way to the finger's
+    '[#ph-home_&_.face-xs_.f-ttl]:text-[16.5px]! [#ph-home_&_.face-xs_.f-line]:text-[13.5px]! [#ph-home_&_.face-xs_.f-words]:whitespace-normal!',
+  );
+
+/** A row's grip: dragged to put the row elsewhere; a finger on it does not scroll the list, and is given more room. */
+const gripClass =
+  'grip flex-none flex justify-center w-3 m-[2px_-4px_0_-2px] text-muted-foreground touch-none opacity-70 group-hover/qrow:opacity-100 pointer-coarse:w-7 pointer-coarse:m-[-4px_-8px_-4px_-8px] pointer-coarse:pt-1.5';
+
+/** The buttons that move a card one place earlier or later (Configuration's project order has them too). */
+export const qmovesClass = 'qmoves inline-flex gap-1 flex-none';
+
 /** A card in the queue, with its grip and what it waits for. */
 function QueueRow(p: {
   item: Item;
   items: Item[];
   own: boolean;
+  /** On a waiting card: the other rows only show where it stands. */
+  onCard: boolean;
   row: ReturnType<Sort['row']>;
   grip?: ReturnType<Sort['grip']>;
   drag?: Drag;
@@ -125,19 +152,23 @@ function QueueRow(p: {
   const stop = p.drag?.held && reach(item.id, p.drag.held === 'earlier', items);
   const held = stop && stop.stop && stop.why ? t.queue.stuck[stop.why](plain(stop.stop.title)) : '';
   return (
-    <li className={p.own ? 'own' : undefined} {...p.row} onClick={onOpen && (() => onOpen(item))}>
+    <li className={rowClass(p.onCard, p.own)} {...p.row} onClick={onOpen && (() => onOpen(item))}>
       {p.grip ? (
-        <span className="grip" title={t.queue.drag} aria-hidden {...p.grip}>
+        <span className={cn(gripClass, 'cursor-grab')} title={t.queue.drag} aria-hidden {...p.grip}>
           <GripVertical size={16} strokeWidth={2} />
         </span>
       ) : (
-        <span className="grip none" />
+        <span className={cn(gripClass, 'none cursor-[inherit]')} />
       )}
-      <span className="q-what">
+      <span className="q-what flex-1 min-w-0">
         <CardFace item={item} size="xs" tail={item.queue && 'behind' in item.queue && <Waiting ids={item.queue.behind} items={items} onOpen={onOpen} />} />
-        {p.failed && <span className="hint why">{p.failed}</span>}
+        {p.failed && <span className="hint why block mt-0.5">{p.failed}</span>}
       </span>
-      {held && <span className="q-held">{held}</span>}
+      {held && (
+        <span className="q-held absolute left-[30px] right-2 top-[calc(100%+4px)] py-1.5 px-[9px] bg-panel border border-glass-edge rounded-[12px] [box-shadow:var(--shadow)] text-[12.5px] text-ink">
+          {held}
+        </span>
+      )}
     </li>
   );
 }
@@ -168,7 +199,7 @@ export function useQueueMove(item: Item, items: Item[]): { buttons: ReactNode; p
       <Tooltip key={label} content={blocked || label}>
         <Button
           size="small"
-          className={blocked ? 'qmove stuck' : 'qmove'}
+          className={blocked ? 'qmove stuck text-muted-foreground cursor-help' : 'qmove'}
           disabled={!past}
           aria-label={label}
           onClick={(e) => {
@@ -186,7 +217,7 @@ export function useQueueMove(item: Item, items: Item[]): { buttons: ReactNode; p
   };
   const shown = why?.id === item.id && (why.error || ways.some((w) => w.blocked === why.text)) ? why.text : '';
   return {
-    buttons: <span className="qmoves">{ways.map(button)}</span>,
+    buttons: <span className={qmovesClass}>{ways.map(button)}</span>,
     place: t.queue.place(order.findIndex((i) => i.id === item.id) + 1, order.length),
     why: shown,
   };

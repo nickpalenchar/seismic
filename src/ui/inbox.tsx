@@ -14,7 +14,7 @@ import { cn } from 'cn';
 import { Fragment, type ReactNode } from 'react';
 import type { InboxEntry } from '../core/inbox';
 import type { Item } from '../core/types';
-import { FullPage } from './fullPage';
+import { FullPage, fullCloseClass } from './fullPage';
 import { renderEntry } from './needsYou/renderers';
 import type { QuickReply } from './quickReply';
 import { useStoredState } from './stored';
@@ -94,15 +94,15 @@ export const inboxListWidth = () => Math.round(Math.min(480, Math.max(340, inner
 export function InboxView({ on, held, onClose, ...p }: InboxProps & { on: boolean; held: boolean; onClose: () => void }): ReactNode {
   if (!on) return null;
   // the list keeps to the left, out of the dim beside an open card (App), so the owner works down it; the
-  // card unfolds in the room beside it (`#inbox-full` in styles.css sets the page's row, over `.full-page`'s column)
+  // card unfolds in the room beside it (a row, over the full page's column)
   return (
-    <FullPage id="inbox-full" title={t.inbox.title}>
+    <FullPage id="inbox-full" title={t.inbox.title} className="flex-row">
       <div className={cn('inbox-col flex-none w-[min(480px,max(340px,36vw))] box-border overflow-auto pt-3 px-3.5 pb-[30px] border-r border-r-line', held && 'held')}>
         <h2 className="mt-0 mx-2 mb-2.5 text-[18px]">{t.inbox.title}</h2>
         <InboxList {...p} />
       </div>
       <div className="inbox-room flex-1 min-w-0 flex flex-col items-end py-3 px-6">
-        <CloseButton label={t.close} className="a-full" onClick={onClose} />
+        <CloseButton label={t.close} className={fullCloseClass} onClick={onClose} />
         <p className="self-center my-auto mx-0 max-w-[320px] text-center text-[13px] text-muted-foreground">{t.inbox.pick}</p>
       </div>
     </FullPage>

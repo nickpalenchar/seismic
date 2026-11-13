@@ -33,6 +33,16 @@
 
 @layer theme, base, components, utilities;
 @import "tailwindcss/theme.css" layer(theme);
+/* the text primitives all over the UI: a hint's quiet small line, the small capitals that say what a card or
+   a sheet is (with what stands beside them in a row), an error under what failed. Classes rather than
+   utilities, since styles.css still reaches them from the views not converted yet (`.bar-menu > .hint`);
+   in the components layer, so a utility on the same element (a margin, a size) wins over them */
+@layer components {
+  .hint { color: var(--muted-foreground); font-size: 12px; }
+  .p-kind { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-height: 22px; font-size: 11px; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--muted-foreground); }
+  .p-error { color: var(--error); margin: 12px 0 0; font-size: 13.5px; }
+}
 @import "tailwindcss/utilities.css" layer(utilities) source("./");
 
 /* the window or a docked panel being resized (App.tsx sets `.resizing`): what follows its edges jumps, no transition */
@@ -45,6 +55,17 @@
 @custom-variant no-hover (@media (hover: none));
 /* the phone turned: a short height, the microphone at the right edge */
 @custom-variant ph-landscape (@media (orientation: landscape) and (max-height: 599px));
+/* a short window (the canvas dialog): what scrolls inside a dialog scrolls with the dialog instead */
+@custom-variant short (@media (max-height: 650px));
+/* the push-to-talk row on the phone (voice.tsx): `#ptt` comes after the phone's views as their sibling, so the
+   phone's look reaches it, and what it holds, from them */
+@custom-variant ph-ptt (&:where(.ph-view ~ #ptt, .ph-view ~ #ptt *));
+/* the canvas zoomed far out (App.tsx sets `.z-far` around the page): a card's title and state line drawn large,
+   the territories deepen, the groups' names show.
+   `:is`, not `:where`: it weighs a class, so with its place after `hover:` it wins over a hover's utility */
+@custom-variant far (&:is(.z-far *));
+/* zoomed far out or moving (frost.ts sets `.moving` on the root): no blur behind the cards */
+@custom-variant moving (&:where(.z-far *, .moving *));
 
 /* `dark:` follows frost: data-theme=dark, or the system's dark where the owner chose neither */
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *, :not([data-theme])[data-system-theme=dark], :not([data-theme])[data-system-theme=dark] *));
@@ -195,6 +216,12 @@
   100% { box-shadow: none; }
 }
 
+/* a row of a list being dragged to its place (sortable.ts sets `sorting` on the root while it moves): the
+   grabbing hand wherever the pointer goes, and no text selected on the way */
+@utility sorting {
+  &, & * { cursor: grabbing !important; user-select: none; -webkit-user-select: none; }
+}
+
 /* a picked checkbox among a question's options (cardClasses.ts `choiceClass`): white tick on the waiting colour */
 @utility choice-checked {
   background: var(--waiting) no-repeat center / 10px
@@ -210,3 +237,27 @@
    the dialog opens at it (from a card waiting for a clone, from a proposal for the setting) */
 @keyframes cfg-flash { 0%, 45% { background: color-mix(in srgb, var(--working) 12%, transparent); } }
 @keyframes cfg-setting-flash { 0%, 45% { background: color-mix(in srgb, var(--proposal) 14%, transparent); } }
+
+/* the canvases' drawer (canvases.tsx) rises out of the tab strip */
+@keyframes drawer-out { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* a plan's "Arrange" while its workstreams are being arranged (parts.tsx): it breathes until done */
+@keyframes arranging { 50% { opacity: .45; } }
+/* the groups' territories (groups.tsx): the lightness and alpha of their area, edge, glow and names, deeper in
+   the dark; the minimap (`.mterr`) reads them too */
+:root { --tl: 54%; --ta: .10; --tel: 44%; --tea: .7; --tga: .09; --tna: .17; }
+:root:where([data-theme="dark"], :not([data-theme])[data-system-theme="dark"]) { --tl: 60%; --ta: .13; --tel: 66%; --tea: .85; --tga: .20; --tna: .22; }
+/* a light running once along a territory's edge; the dashes drifting along the selection and the lasso; the
+   wave a change sends out (under a second: a large area that changes every frame for longer makes Chrome's
+   screen capture skip about 0.27 s once it stops) */
+@keyframes streak { 0% { stroke-dashoffset: 0; opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } 100% { stroke-dashoffset: -100; opacity: 0; } }
+@keyframes halo-drift { to { stroke-dashoffset: -100; } }
+@keyframes wave { 0% { r: 20px; opacity: .9; stroke-width: 10px; } 100% { r: 420px; opacity: 0; stroke-width: 1px; } }
+/* the hint for marking cards (groups.tsx `MarkHint`) comes, stays a while, and goes */
+@keyframes markhint { 0% { opacity: 0; } 6% { opacity: 1; } 88% { opacity: 1; } 100% { opacity: 0; } }
+
+/* a card put on the canvas (card/faceClasses.ts): it pops up from a point */
+@keyframes pop { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+/* Seismic's earlier chats (chats.tsx) slide out from the left over the sheet or the phone's panel */
+@keyframes chats-in { from { transform: translateX(-100%); } }

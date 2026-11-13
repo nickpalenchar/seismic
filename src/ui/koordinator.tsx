@@ -7,7 +7,7 @@ import { cn } from 'cn';
 import { conversationBox, conversationList, headClass } from './cardClasses';
 import { noteClass } from './components/ai/message';
 import { Settings } from 'lucide-react';
-import { Docked } from './docked';
+import { Docked, sheetTitleClass } from './docked';
 import { ChatsHead } from './chats';
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { AGENT_MODELS, type AgentModel, type Chat, type Item, type Preference, type RepoRef, type Reshare, type SettingProposal, type Talk, type TalkQuote, type TalkRef, type TalkWait } from '../core/types';
@@ -65,13 +65,19 @@ interface Props {
   onClose: () => void;
 }
 
+/** The field to write in under a conversation of the sheets. */
+const tellClass = 'tell mt-1 mx-0 mb-1.5';
+
 export function KoordinatorSheet({ on, project, projectName, items, repos, talk, chat, chatModel, chats, reshare, onOpen, onTell, onProject, onClose }: Props) {
   return (
-    <Docked id="ksheet" on={on}>
-      <ChatsHead title={<h2>{t.koordinator.title}</h2>} project={project} projectName={projectName} chat={chat} chats={chats} talk={talk} onProject={onProject} onClose={onClose} />
+    // a column: the conversation takes the height the sheet has, the field to write in under it, then the
+    // sections that open and close; an open section takes from the conversation down to 200px, below that
+    // the sheet scrolls
+    <Docked id="ksheet" on={on} className="flex flex-col [&>*]:flex-none [&>:is(.conv,.talk.fresh-chat)]:flex-[1_1_0] [&>:is(.conv,.talk.fresh-chat)]:min-h-[200px] [&>:is(.conv,.talk.fresh-chat)]:max-h-none [&>:is(.conv,.talk.fresh-chat)]:max-w-none [&>:is(.conv,.talk.fresh-chat)]:[margin:0_0_4px]">
+      <ChatsHead title={<h2 className={sheetTitleClass}>{t.koordinator.title}</h2>} project={project} projectName={projectName} chat={chat} chats={chats} talk={talk} onProject={onProject} onClose={onClose} />
       <KoordinatorTalk on={on} project={project} talk={talk} chat={chat} chatModel={chatModel} chats={chats} items={items} repos={repos} onOpen={onOpen} onTell={onTell} />
 
-      <div className="k-rest">
+      <div className="k-rest border-t border-t-line mt-1 pt-1">
         {reshare && <ReshareBox r={reshare} items={items} onOpen={onOpen} />}
 
 
@@ -96,13 +102,13 @@ export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats
   return (
     <>
       {talk.length ? <Conversation talk={talk} fresh={fresh} items={items} onOpen={onOpen} draft={draft} /> : (
-        <div className={cn(conversationList, conversationBox, 'fresh-chat')}>
+        <div className={cn(conversationList, conversationBox, 'fresh-chat items-center justify-center text-center [&_.hint]:max-w-[280px] [&_.hint]:m-0')}>
           {chats.length > 0 && <p className="hint">{t.koordinator.chatFresh}</p>}
         </div>
       )}
       {/* a command in writing, for when speaking is not possible; its screenshots go to the cards it creates or concerns */}
-      <Composer className="tell" draft={draft} placeholder={t.voice.typePlaceholder} obeya onSend={onTell} />
-      <label className="chat-model">{t.koordinator.chatModel}
+      <Composer className={tellClass} draft={draft} placeholder={t.voice.typePlaceholder} obeya onSend={onTell} />
+      <label className="chat-model flex items-center gap-2 mt-0 mx-0 mb-1.5 text-muted-foreground text-[12px]">{t.koordinator.chatModel}
         <Select value={chatModel ?? ''} onValueChange={(picked) => void api.setChatModel(project, picked || undefined).catch(console.error)}>
           <SelectItem value="">{t.koordinator.projectModel}</SelectItem>
           {AGENT_MODELS.map((model) => <SelectItem key={model} value={model}>{model === 'default' ? t.koordinator.defaultModel : model[0]!.toUpperCase() + model.slice(1)}</SelectItem>)}
@@ -128,7 +134,7 @@ function ReviewHint({ items, repos }: { items: Item[]; repos: RepoRef[] }) {
   }, [used]);
   if (used || closed || !repos.some((r) => r.forge)) return null;
   return (
-    <p className="tell-hint">
+    <p className="tell-hint flex items-center gap-1 -mt-0.5 mx-0 mb-2 text-[11px] text-muted-foreground [&_span]:flex-1 [&_span]:min-w-0">
       <span>{t.review.hint}</span>
       <CloseButton label={t.review.hideHint} size="small" onClick={() => {
           know(REVIEW_KNOWN);
@@ -160,7 +166,7 @@ export function PlanTalk({ on, plan, talk, items, onOpen }: { on: boolean; plan:
       <Conversation talk={talk} fresh={fresh} items={items} onOpen={onOpen} draft={draft} sheetOf={plan.id} />
       {!plan.archivedAt && (
         <Composer
-          className="tell"
+          className={tellClass}
           draft={draft}
           placeholder={t.plan.askPlaceholder}
           label={t.plan.askSend}
@@ -246,7 +252,8 @@ function Conversation({ talk, fresh, items, onOpen, draft, sheetOf }: { talk: Ta
   // every change on the project brings a new snapshot: only what the owner just said takes the
   // conversation back to its end, so they can read further up in the meantime
   return (
-    <Scroll className={conversationBox} contentClassName={conversationList} boxRef={box} said={talk.at(-1)?.id} entries={talk} scrolling={!sheetOf}>
+    // a plan's conversation grows in its sheet, which scrolls: no scrollbar of its own
+    <Scroll className={cn(conversationBox, sheetOf && 'max-h-none overflow-visible mb-1')} contentClassName={conversationList} boxRef={box} said={talk.at(-1)?.id} entries={talk} scrolling={!sheetOf}>
       {talk.map((x) => {
         // the owner replies to one of the exchange's messages
         const reply = (part: TalkRef['part'], by: TalkQuote['by'], text: string) => () => {

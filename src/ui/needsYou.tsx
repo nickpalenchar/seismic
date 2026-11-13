@@ -11,7 +11,7 @@ import { ChevronRight } from 'lucide-react';
 import { Fragment, useState } from 'react';
 import { counted, type InboxEntry } from '../core/inbox';
 import type { Item } from '../core/types';
-import { Docked } from './docked';
+import { Docked, sheetTitleClass } from './docked';
 import type { InboxProps } from './inbox';
 import { renderEntry } from './needsYou/renderers';
 import { useStoredState } from './stored';
@@ -35,7 +35,7 @@ export function NeedsYouSheet({ on, entries, current, open, onGo, onReply, isRea
   );
   return (
     <Docked id="needs-you" className="pt-5 px-3.5 pb-[30px]" on={on} label={t.needsYou.title}>
-      <h2 className="px-2">{t.needsYou.title}</h2>
+      <h2 className={`${sheetTitleClass} px-2`}>{t.needsYou.title}</h2>
       <div className={cn(inboxBarClass, 'justify-end')}>
         <CheckLabel>
           <Switch checked={hideOthers} onCheckedChange={setHideOthers} />

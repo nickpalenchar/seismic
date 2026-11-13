@@ -20,7 +20,7 @@ export const QuestionMark = () => (
 );
 
 export const HourglassMark = () => (
-  <svg className="hourglass-mark" viewBox="0 0 16 20" width="14" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+  <svg className="hourglass-mark flex-[0_0_auto] align-middle" viewBox="0 0 16 20" width="14" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
     <path d="M2 1h12M2 19h12M3 1v4c0 2 3 3 5 5-2 2-5 3-5 5v4M13 1v4c0 2-3 3-5 5 2 2 5 3 5 5v4" />
     <path d="m5 5 3 3 3-3M5 16l3-3 3 3" fill="currentColor" stroke="none" />
   </svg>
@@ -47,10 +47,20 @@ export const StateMarks = ({ marks }: { marks: StateMark[] }) => (
   </>
 );
 
+/** The colours of the states a stopped card remembers that no state class (`s-…`) gives. */
+const TONES: Record<string, string> = {
+  's-asking': '[--c:var(--asking)]',
+  'tone-paused': '[--c:var(--muted-foreground)]',
+  'tone-limit': '[--c:#56859d]',
+  'tone-restart': '[--c:var(--restart)]',
+  'tone-reviewing': '[--c:var(--reviewing)]',
+  'tone-failed': '[--c:var(--error)]',
+};
+
 /** "Stopped at" in grey, then the state the card was in, in that state's colour. */
 export const StoppedWords = ({ stopped }: { stopped: NonNullable<CardSummary['state']['stopped']> }) => (
   <>
-    <span className="stopped-prefix">{stopped.prefix}</span> <span className={`stopped-status ${stopped.tone}`}>{stopped.status}</span>
+    <span className="stopped-prefix text-muted-foreground">{stopped.prefix}</span> <span className={`stopped-status ${stopped.tone} text-(--c) ${TONES[stopped.tone] ?? ''}`}>{stopped.status}</span>
   </>
 );
 
@@ -72,16 +82,20 @@ export function Title({ item, className, inline, children }: { item: Item; class
   return inline ? <span className={cls}>{children ?? shownTitle(item)}</span> : <div className={cls}>{children ?? shownTitle(item)}</div>;
 }
 
+/** A pin's fill, in the colour of what the owner is asked (`--pin`). */
+const PIN = 'bg-(--pin)';
+const pinInk = (pin: NonNullable<CardSummary['pin']>) => (pin.failed ? '[--pin:var(--error)]' : pin.asking ? '[--pin:var(--asking)]' : '[--pin:var(--waiting)]');
+
 /** The pin while a card needs the owner, inline after a list's title: "!", "?" for a question, "!!" for a failed agent, "✦" for a proposal. */
 export const Pin = ({ pin }: { pin: NonNullable<CardSummary['pin']> }) => (
-  <span className={['f-pin', pin.failed && 'failed', pin.asking && 'asking'].filter(Boolean).join(' ')} title={t.phone.forYou}>
+  <span className={['f-pin', pin.failed && 'failed', pin.asking && 'asking', PIN, pinInk(pin), 'flex-none inline-grid place-items-center min-w-[17px] h-[17px] px-[5px] box-border rounded-[9px] text-on-ink [font:700_11px/1_var(--font)] not-italic'].filter(Boolean).join(' ')} title={t.phone.forYou}>
     {pin.mark}
   </span>
 );
 
 /** The pin of a subtle card: a small dot in the card's top-right corner, in the pin's colour, saying only that the card wants the owner. */
 export const PinDot = ({ pin }: { pin: NonNullable<CardSummary['pin']> }) => (
-  <span className={['pin-dot', pin.failed && 'failed', pin.asking && 'asking'].filter(Boolean).join(' ')} role="img" aria-label={t.phone.forYou} title={t.phone.forYou} />
+  <span className={['pin-dot', pin.failed && 'failed', pin.asking && 'asking', PIN, pinInk(pin), 'absolute top-2 right-2 size-2 rounded-[50%]'].filter(Boolean).join(' ')} role="img" aria-label={t.phone.forYou} title={t.phone.forYou} />
 );
 
 /** The orange dot of an inbox entry the owner has not read yet. */

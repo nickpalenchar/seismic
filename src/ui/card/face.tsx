@@ -7,7 +7,8 @@ import { Fragment, type CSSProperties, type ReactNode } from 'react';
 import type { Item } from '../../core/types';
 import { OtherCanvas, useOtherCanvas } from '../canvases';
 import { stateLabel, t } from '../strings';
-import { hasLabels, LabelMarks, PriorityMark } from './labels';
+import { hasChips, hasLabels, LabelMarks, PriorityMark } from './labels';
+import { cardFlags, type CardPlace, chipLabelClass, dotClass, faceClass, kindClass, lineClass, listStateClass, listStateTextClass, listTextClass, listTitleClass, listTitleTextClass, metaClass, pinClass, shortStateClass, stateClass, stateTextClass, topClass, ttlClass, whereClass, wordsClass, wsLabelClass } from './faceClasses';
 import { Pin, PinDot, shownTitle, StateMarks, StateText, StoppedWords, Title, UnreadDot } from './pieces';
 import { cardKind, cardSummary, cardTone } from './summary';
 import { Badge } from '../components/badge';
@@ -26,6 +27,11 @@ export interface CardFaceProps {
   since?: ReactNode;
   /** M: a delivered workstream, shown by its label and title only. */
   chip?: boolean;
+  /** M: where the card shows (on the project, a row of the phone's lists, a line of the Activity tab), which sizes its parts. */
+  place?: CardPlace;
+  /** M: one of the two cards of a merge on the project; the partner's parts wear the look of the pair (`pairOf`). */
+  half?: 'first' | 'partner';
+  pairOf?: Item;
   /** M: the card another card is being merged with: the merge mark before its state, and after it how the merge stands (`mergeStatus`). */
   mergePartner?: string;
   /** S: whether the owner has read the entry; an unread one shows the dot in the pin's place. */
@@ -103,38 +109,43 @@ function FaceInline({ item, title, href, onOpen }: CardFaceProps) {
  * line in its state's colour (`since` after it) and the pin while it needs the owner. A `chip`, a
  * delivered workstream, shows only its title, after its label, so it still reads as its workstream.
  */
-function FaceM({ item, where, underway, since, chip, subtle, mergePartner }: CardFaceProps) {
+function FaceM({ item, where, underway, since, chip, subtle, mergePartner, place, half, pairOf }: CardFaceProps) {
   const summary = cardSummary(item, underway);
   const s = mergePartner
     ? { ...summary, state: { ...summary.state, notes: [mergePartner, ...summary.state.notes], marks: ['merge' as const] } }
     : summary;
+  // the parts wear the look of the card they are on: a merge's partner that of the pair
+  const f = cardFlags(pairOf ?? item, pairOf ? undefined : underway);
+  const at = { place: half ? ('canvas' as const) : place, chip, half, subtle };
   // a plain task says nothing of its kind: that it is one shows
   const label = [item.state === 'proposal' && t.proposalMark, where, s.kind].filter(Boolean);
+  const labelled = hasLabels(item);
   return (
     <>
-      {(label.length > 0 || hasLabels(item)) && (
-        <div className="kind">
+      {(label.length > 0 || labelled) && (
+        <div className={kindClass(f, at, { any: labelled, chips: hasChips(item) })}>
           <LabelMarks item={item} />
-          {label.length > 0 && <span>{dotted(label)}</span>}
+          {/* zoomed out, the labels stay without the words */}
+          {label.length > 0 && <span className="far:hidden">{dotted(label)}</span>}
         </div>
       )}
-      <Title item={item} className="ttl">
+      <Title item={item} className={ttlClass(f, { ...at, untitled: !item.title, labels: labelled })}>
         {chip && item.plan?.label ? (
           <>
-            <span className="ws-no">{item.plan.label}</span>
+            <span className={chipLabelClass}>{item.plan.label}</span>
             {shownTitle(item)}
           </>
         ) : undefined}
       </Title>
-      {s.meta && <div className="meta">{s.meta}</div>}
-      <div className={['state', s.state.live && 'doing-now', subtle && 'subtle'].filter(Boolean).join(' ')}>
+      {s.meta && <div className={metaClass(at)}>{s.meta}</div>}
+      <div className={[stateClass(f, { ...at, doingNow: s.state.live }), s.state.live && 'doing-now', subtle && 'subtle'].filter(Boolean).join(' ')}>
         <StateMarks marks={s.state.marks} />
         {/* one line on the card, cut short rather than running into the text above it */}
-        <span className="state-text">
+        <span className={stateTextClass(at)}>
           <StateText state={s.state} since={since} />
         </span>
       </div>
-      {s.pin && (subtle ? <PinDot pin={s.pin} /> : <Badge variant="pin" pulse className={s.pin.failed ? '[--pin:var(--error)]' : undefined}>{s.pin.mark}</Badge>)}
+      {s.pin && (subtle ? <PinDot pin={s.pin} /> : <Badge variant="pin" pulse className={pinClass(f, at)}>{s.pin.mark}</Badge>)}
     </>
   );
 }
@@ -149,25 +160,25 @@ function FaceS({ item, where, underway, since, unread, subtle, title, text, chil
   const top = [where, item.state === 'proposal' && t.proposalMark, s.kind, since];
   const under = text ?? s.meta;
   return (
-    <div className={subtle ? 'face face-s subtle' : 'face face-s'} style={tone(item, underway)}>
+    <div className={faceClass('s', subtle)} style={tone(item, underway)}>
       {(hasLabels(item) || top.some(Boolean)) && (
-        <div className="f-top">
+        <div className={topClass(subtle)}>
           <LabelMarks item={item} />
-          <span className="f-where">{dotted(top)}</span>
+          <span className={whereClass}>{dotted(top)}</span>
         </div>
       )}
-      <Title item={item} className="f-ttl">
+      <Title item={item} className={listTitleClass('s', subtle)}>
         {unread && !subtle && <UnreadDot />}
-        <span className="f-ttl-text">{title ?? shownTitle(item)}</span>
+        <span className={listTitleTextClass('s', !item.title)}>{title ?? shownTitle(item)}</span>
         {!unread && s.pin && !subtle && <Pin pin={s.pin} />}
       </Title>
-      <div className="f-state">
+      <div className={listStateClass(subtle)}>
         <StateMarks marks={s.state.marks} />
-        <span className="state-text">
+        <span className={listStateTextClass}>
           <StateText state={s.state} />
         </span>
       </div>
-      {under && <div className="f-text">{under}</div>}
+      {under && <div className={listTextClass}>{under}</div>}
       {subtle && (unread ? <UnreadDot /> : s.pin && <PinDot pin={s.pin} />)}
       {children}
     </div>
@@ -187,19 +198,19 @@ function FaceXS({ item, underway, subtle, title, text, tail }: CardFaceProps) {
   const kind = item.parent ? '' : cardKind(item);
   const under = text ?? s.meta;
   return (
-    <span className={subtle ? 'face face-xs subtle' : 'face face-xs'} style={tone(item, underway)}>
-      <Title item={item} className="f-ttl" inline>
+    <span className={faceClass('xs', subtle)} style={tone(item, underway)}>
+      <Title item={item} className={listTitleClass('xs', subtle)} inline>
         {item.labels?.priority && <PriorityMark priority={item.labels.priority} suggested={!!item.labels.suggested?.includes('priority')} bare />}
-        {item.parent && item.plan?.label && <span className="ws-no">{item.plan.label}</span>}
-        <span className="f-ttl-text">{title ?? shownTitle(item)}</span>
+        {item.parent && item.plan?.label && <span className={wsLabelClass}>{item.plan.label}</span>}
+        <span className={listTitleTextClass('xs', !item.title)}>{title ?? shownTitle(item)}</span>
         {s.pin && !subtle && <Pin pin={s.pin} />}
       </Title>
       {subtle && s.pin && <PinDot pin={s.pin} />}
-      <span className="f-line">
-        <span className={item.state === 'proposal' ? 'f-dot proposal' : 'f-dot'} />
-        <span className="f-words">
+      <span className={lineClass}>
+        <span className={dotClass(item.state === 'proposal', subtle)} />
+        <span className={wordsClass}>
           {dotted([
-            <span className="f-state">{s.state.stopped ? <StoppedWords stopped={s.state.stopped} /> : s.state.short}</span>,
+            <span className={shortStateClass(subtle)}>{s.state.stopped ? <StoppedWords stopped={s.state.stopped} /> : s.state.short}</span>,
             kind !== s.state.short && kind,
             other && <OtherCanvas item={item} named />,
             tail,

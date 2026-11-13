@@ -11,7 +11,10 @@ import type { Bounds } from '../core/layout';
 import { type Canvas, CANVAS_NAME_MAX, canvasNameProblem, type Item, MAIN_CANVAS, parkable, parkableStopping, inParkingLot } from '../core/types';
 import { api } from './api';
 import { CanvasIcon, canvasText, lucideOf } from './canvasIcon';
+import { depLineClass } from './depsClasses';
+import { ballClass, captionClass, haloClass, radialClass, ringBackClass, tagClass } from './ringClasses';
 import { know, known } from './known';
+import { loptClass, prioBtnClass, prioMenuClass, prioPickClass } from './labelClasses';
 import { plain } from './markdown';
 import { useSortable } from './sortable';
 import { useStoredState } from './stored';
@@ -115,7 +118,7 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow }:
         <div
           id="canvas-tabs"
           ref={box}
-          className={drawer ? 'out' : undefined}
+          className={cn('fixed right-[calc(var(--side,0px)+14px)] bottom-11 z-22 flex flex-col items-end gap-1.5 [transition:right_.45s_cubic-bezier(.3,.9,.3,1)]', drawer && 'out')}
           {...hover}
           // keyboard focus on the strip shows the drawer as the pointer does; ↑ moves into it
           onFocus={(e) => {
@@ -137,14 +140,14 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow }:
         >
           {/* a tab picks its canvas by its own click, which tells a finger's first tap from the rest; Enter and Space click, the arrow keys move focus */}
           <Tabs value={shown ?? ''} onValueChange={() => {}} activationMode="manual" className="contents">
-            <TabsList className="canvas-strip" aria-label={t.canvases.strip}>
+            <TabsList className="flex items-center gap-0.5 rounded-[999px] border border-glass-edge bg-card p-[3px] shadow-[inset_0_1px_0_var(--glass-hi),var(--shadow)] backdrop-blur-[12px] backdrop-saturate-[1.4]" aria-label={t.canvases.strip}>
               {several &&
                 canvases.map((c) => (
                   <TabsTrigger
                     key={c.id}
                     value={c.id}
                     aria-controls="world"
-                    className={c.id === shown ? 'ctab on' : 'ctab'}
+                    className={ctabClass(c.id === shown ? 'on' : 'off')}
                     title={c.name}
                     onClick={(e) => {
                       // a finger has no hover: its first tap brings the drawer, where the canvas is picked by name
@@ -153,14 +156,14 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow }:
                     }}
                   >
                     <CanvasIcon canvas={c} />
-                    {c.id === shown && <span className="ctab-name">{c.name}</span>}
-                    {c.id !== shown && !!waiting[c.id] && <span className="ctab-n" title={t.canvases.waiting(waiting[c.id]!)}>{waiting[c.id]}</span>}
+                    {c.id === shown && <span className={ctabName}>{c.name}</span>}
+                    {c.id !== shown && !!waiting[c.id] && <span className="absolute -top-[5px] -right-[5px] box-border h-4 min-w-4 rounded-[999px] bg-waiting px-1 text-center text-[10px] leading-4 font-bold text-on-ink" title={t.canvases.waiting(waiting[c.id]!)}>{waiting[c.id]}</span>}
                   </TabsTrigger>
                 ))}
               <Tooltip content={t.canvases.newCanvas}>
-                <button className={isKnown || several ? 'ctab new' : 'ctab new named'} aria-label={t.canvases.newCanvas} onClick={startNew}>
+                <button className={ctabClass(isKnown || several ? 'off' : 'named')} aria-label={t.canvases.newCanvas} onClick={startNew}>
                   <Plus size={14} strokeWidth={2.4} aria-hidden />
-                  {!isKnown && !several && <span className="ctab-name">{t.canvases.newCanvas}</span>}
+                  {!isKnown && !several && <span className={ctabName}>{t.canvases.newCanvas}</span>}
                 </button>
               </Tooltip>
             </TabsList>
@@ -214,6 +217,18 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow }:
     </Popover>
   );
 }
+
+/** A tab of the strip: the canvas shown (`on`, with its name), another one, or "+" (`named` while it still says "New canvas"). */
+const ctabClass = (kind: 'on' | 'off' | 'named') =>
+  cn(
+    'ctab relative box-border inline-flex h-7 min-w-7 cursor-pointer items-center justify-center gap-1.5 rounded-[999px] border-0 bg-transparent px-[7px] py-0 text-[13px] text-muted-foreground hover:bg-chip',
+    kind === 'on'
+      ? 'on bg-ink pr-[11px] pl-[9px] font-semibold text-background hover:bg-ink [&_.letter]:bg-[color-mix(in_srgb,var(--bg)_22%,transparent)] [&_.letter]:text-background'
+      : kind === 'named'
+        ? 'pr-[11px] pl-2 text-ink'
+        : 'hover:text-ink',
+  );
+const ctabName = 'max-w-[180px] overflow-hidden leading-7 text-ellipsis whitespace-nowrap';
 
 /** The drawer: the canvases in order, each with its waiting count, rename and icon, a grip to reorder, delete where it is empty; then "+ New canvas". */
 function Drawer({ canvases, shown, waiting, empty, onPick, onEdit, onNew }: { canvases: Canvas[]; shown?: string; waiting: Record<string, number>; empty: Set<string>; onPick: (c: Canvas) => void; onEdit: (c: Canvas) => void; onNew: () => void }) {
@@ -295,6 +310,14 @@ function Drawer({ canvases, shown, waiting, empty, onPick, onEdit, onNew }: { ca
 /** A canvas's rename and delete in the drawer. */
 const tool = 'grid size-[26px] cursor-pointer place-items-center rounded-[4px] border-0 bg-transparent text-muted-foreground hover:bg-panel hover:text-ink focus-visible:bg-panel focus-visible:text-ink outline-none';
 
+/** The canvas dialog's parts. */
+const cdLabel = 'text-[12px] font-semibold text-muted-foreground';
+const cdProblem = (on: boolean) => cn('mx-0 mt-1 mb-3 min-h-[18px] text-[12px]', on ? 'text-error' : 'text-muted-foreground');
+const cdPanel = 'flex h-[clamp(240px,calc(100dvh-400px),520px)] min-h-0 flex-col short:h-auto [&[hidden]]:hidden';
+const colorChoice = 'grid size-7 cursor-pointer place-items-center rounded-[50%] border border-transparent bg-transparent p-0 hover:bg-chip data-[state=checked]:border-ink';
+const swatch = 'block size-[18px] rounded-[50%]';
+const iconChoice = 'grid h-10 cursor-pointer place-items-center rounded-[8px] border border-transparent bg-transparent p-0 text-ink hover:bg-chip data-[state=checked]:border-ink data-[state=checked]:bg-chip short:scroll-mt-2 short:scroll-mb-20';
+
 /** Why the name can't be taken; none when it can. */
 export function nameProblem(name: string, canvases: Canvas[], self?: string): string | undefined {
   const p = canvasNameProblem(name.replace(/\s+/g, ' '));
@@ -371,7 +394,7 @@ export function CanvasDialog({ project, canvases, canvas, onClose, onDone }: { p
     setDraft(null);
     onClose();
   };
-  const choice = (value: string, label: string, mark: ReactNode, className = 'cicon') => (
+  const choice = (value: string, label: string, mark: ReactNode, className = iconChoice) => (
     <Tooltip key={value} content={label}>
       <Radio value={value} className={className} aria-label={label}>
         {mark}
@@ -383,7 +406,12 @@ export function CanvasDialog({ project, canvases, canvas, onClose, onDone }: { p
       <DialogContent
         asChild
         id="canvas-dialog"
-        className="box"
+        glass
+        className={cn(
+          'box-border flex w-[600px] flex-col overflow-hidden px-[26px] pt-[22px] pb-5 short:overflow-y-auto [&>:not(.cd-icons)]:shrink-0',
+          // a short window: the emoji picker's list grows to its full height, so the dialog is the one thing that scrolls (also when searching or switching tabs with the keyboard up)
+          'short:[&_[data-slot=emoji-picker-viewport]]:flex-none short:[&_[data-slot=emoji-picker-viewport]]:!overflow-visible short:[&_[data-slot=emoji-picker-viewport]]:![contain:none] short:[&_[data-slot=emoji-picker-emoji]]:scroll-mt-2 short:[&_[data-slot=emoji-picker-emoji]]:scroll-mb-20',
+        )}
         layerClassName="items-start pt-[8vh]"
         onOpenAutoFocus={(e) => {
           if (isMain) return;
@@ -397,22 +425,22 @@ export function CanvasDialog({ project, canvases, canvas, onClose, onDone }: { p
           void save();
         }}
       >
-        <CloseButton label={t.canvases.cancel} className="close" onClick={onClose} />
+        <CloseButton label={t.canvases.cancel} className="close absolute top-3.5 right-3.5" onClick={onClose} />
         <DialogTitle asChild>
-        <h2>
-          <span className="cd-preview">
+        <h2 className="m-0 mr-11 mb-4 flex items-center gap-3 text-[21px]">
+          <span className="inline-grid size-10 place-items-center rounded-[10px] bg-chip">
             <CanvasIcon canvas={{ name: name.trim() || '?', ...(icon ? { icon } : {}) }} size={22} />
           </span>
           {canvas ? t.canvases.dialogEdit : t.canvases.dialogNew}
         </h2>
         </DialogTitle>
-        <label className="cd-label" htmlFor="canvas-name">
+        <label className={cn(cdLabel, 'mb-1.5')} htmlFor="canvas-name">
           {t.canvases.name}
         </label>
         <Input
           id="canvas-name"
           ref={field}
-          className="cd-field text-[15px] px-3 py-[9px]"
+          className="box-border w-full px-3 py-[9px] text-[15px]"
           value={name}
           maxLength={CANVAS_NAME_MAX + 10}
           placeholder={t.canvases.namePlaceholder}
@@ -423,20 +451,20 @@ export function CanvasDialog({ project, canvases, canvas, onClose, onDone }: { p
             if (e.target.value.trim()) setTouched(true);
           }}
         />
-        <p className={touched && problem ? 'cd-problem on' : 'cd-problem'}>{isMain ? t.canvases.mainKeeps : touched && problem ? problem : ' '}</p>
-        <Tabs className="cd-icons" value={tab} onValueChange={(v) => set({ tab: v as CanvasDraft['tab'] })}>
-          <div className="cd-icon-bar">
-            <span className="cd-label">{t.canvases.icon}</span>
+        <p className={cdProblem(!!(touched && problem))}>{isMain ? t.canvases.mainKeeps : touched && problem ? problem : ' '}</p>
+        <Tabs className="cd-icons flex min-h-0 flex-col short:shrink-0" value={tab} onValueChange={(v) => set({ tab: v as CanvasDraft['tab'] })}>
+          <div className="mb-2 flex shrink-0 items-center gap-2.5">
+            <span className={cn(cdLabel, 'mr-1')}>{t.canvases.icon}</span>
             <TabsList variant="segmented" aria-label={t.canvases.icon}>
               <TabsTrigger value="icons">{t.canvases.icons}</TabsTrigger>
               <TabsTrigger value="emoji">{t.canvases.emojis}</TabsTrigger>
             </TabsList>
-            <Button type="button" size="small" variant="ghost" className="cd-none" aria-pressed={!icon} disabled={!icon} onClick={() => set({ icon: null })}>
+            <Button type="button" size="small" variant="ghost" className="ml-auto text-muted-foreground aria-pressed:bg-chip aria-pressed:text-ink aria-pressed:opacity-100" aria-pressed={!icon} disabled={!icon} onClick={() => set({ icon: null })}>
               {t.canvases.noIcon}
             </Button>
           </div>
-          <TabsContent value="icons" className="cd-panel">
-            <div className="cd-search">
+          <TabsContent value="icons" className={cdPanel}>
+            <div className="mb-2 shrink-0">
               <Input
                 className="w-full"
                 value={draft?.iconSearch ?? ''}
@@ -445,21 +473,21 @@ export function CanvasDialog({ project, canvases, canvas, onClose, onDone }: { p
                 onChange={(e) => set({ iconSearch: e.target.value })}
               />
             </div>
-            <RadioGroup className="cd-colors" label={t.canvases.color} value={color ?? TEXT_COLOR} onValueChange={(v) => pickColor(v === TEXT_COLOR ? null : (v as CanvasIconColor))}>
-              {choice(TEXT_COLOR, t.canvases.defaultColor, <span className="cd-swatch text" />, 'cd-color')}
+            <RadioGroup className="mb-2 flex shrink-0 flex-wrap gap-1" label={t.canvases.color} value={color ?? TEXT_COLOR} onValueChange={(v) => pickColor(v === TEXT_COLOR ? null : (v as CanvasIconColor))}>
+              {choice(TEXT_COLOR, t.canvases.defaultColor, <span className={cn(swatch, 'bg-ink')} />, colorChoice)}
               {(Object.keys(CANVAS_ICON_COLORS) as CanvasIconColor[]).map((c) =>
-                choice(c, t.canvases.colors[c], <span className="cd-swatch" style={{ background: CANVAS_ICON_COLORS[c] }} />, 'cd-color'),
+                choice(c, t.canvases.colors[c], <span className={swatch} style={{ background: CANVAS_ICON_COLORS[c] }} />, colorChoice),
               )}
             </RadioGroup>
-            <RadioGroup className="cd-grid" label={t.canvases.icons} value={lucide?.name ?? ''} onValueChange={(n) => set({ icon: lucideIconValue(n, color) })}>
+            <RadioGroup className="-mx-1 grid min-h-0 flex-1 auto-rows-[40px] grid-cols-[repeat(auto-fill,minmax(40px,1fr))] content-start gap-1 overflow-auto px-1 short:flex-none short:overflow-visible" label={t.canvases.icons} value={lucide?.name ?? ''} onValueChange={(n) => set({ icon: lucideIconValue(n, color) })}>
               {matching.map((n) => {
                 const L = lucideOf(`lucide:${n}`)!.Icon;
                 return choice(n, n.replace(/-/g, ' '), <L size={20} strokeWidth={2} style={color ? { color: CANVAS_ICON_COLORS[color] } : undefined} aria-hidden />);
               })}
             </RadioGroup>
-            {!matching.length && <p className="cd-empty">{t.canvases.noIconFound}</p>}
+            {!matching.length && <p className="mx-0 my-6 text-center text-[13px] text-muted-foreground">{t.canvases.noIconFound}</p>}
           </TabsContent>
-          <TabsContent value="emoji" className="cd-panel">
+          <TabsContent value="emoji" className={cdPanel}>
             <EmojiPicker
               className="h-full"
               value={icon && !lucide ? icon : undefined}
@@ -469,8 +497,8 @@ export function CanvasDialog({ project, canvases, canvas, onClose, onDone }: { p
             />
           </TabsContent>
         </Tabs>
-        {failed && <p className="cd-problem on">{failed}</p>}
-        <div className="cd-actions">
+        {failed && <p className={cdProblem(true)}>{failed}</p>}
+        <div className="mt-[18px] flex gap-2 short:sticky short:-bottom-5 short:z-1 short:-mb-5 short:bg-panel short:px-0 short:pt-3 short:pb-5">
           <Button type="submit" variant="primary" disabled={busy || !!problem}>
             {canvas ? t.canvases.save : t.canvases.create}
           </Button>
@@ -516,19 +544,19 @@ export function CardMore({ item, floating }: { item: Item; floating?: boolean })
     void api.act(item.id, { action }).catch(console.error);
   };
   return (
-    <span className="prio-pick card-more">
+    <span className={`${prioPickClass} card-more`}>
       <Menu open={open} onOpenChange={setOpen}>
         <Tooltip content={canPark || parked ? t.parking.menu : t.canvases.more}>
           <MenuTrigger asChild>
-            <button ref={button} className="prio-btn" aria-label={canPark || parked ? t.parking.menu : t.canvases.more}>
+            <button ref={button} className={cn(prioBtnClass(), 'inline-grid h-5 place-items-center px-[5px] py-0 text-muted-foreground')} aria-label={canPark || parked ? t.parking.menu : t.canvases.more}>
               <MoreHorizontal size={14} aria-hidden />
             </button>
           </MenuTrigger>
         </Tooltip>
-        <MenuContent className="prio-menu card-more-menu">
+        <MenuContent className={prioMenuClass}>
           {(canPark || parked) && (
             <MenuItem title={canPark ? t.parking.parkHint : undefined} onSelect={() => (stopsToPark ? (leaveMenu(), setConfirm(true)) : parking(canPark ? 'park' : 'unpark'))}>
-              <span className="lopt">
+              <span className={loptClass}>
                 <Car size={14} aria-hidden />
                 {canPark ? t.parking.park : t.parking.unpark}
               </span>
@@ -537,7 +565,7 @@ export function CardMore({ item, floating }: { item: Item; floating?: boolean })
           {others.length > 0 && !parked && <MenuLabel>{t.canvases.moveTo}</MenuLabel>}
           {!parked && others.map((c) => (
             <MenuItem key={c.id} onSelect={() => (leaveMenu(), move(item, c))}>
-              <span className="lopt">
+              <span className={loptClass}>
                 <CanvasIcon canvas={c} />
                 {c.name}
               </span>
@@ -612,10 +640,10 @@ export function CanvasStubs({ stubs, boundsOf, s, onOpen }: { stubs: Stub[]; bou
           const title = (x.dir === 'before' ? t.canvases.stubBefore : t.canvases.stubAfter)(plain(x.other.title), canvasText(x.canvas));
           return (
             <g key={`${x.here} ${x.other.id} ${x.dir}`} className="canvas-stub">
-              <path className="faint" d={`M${x0},${y} L${x1},${y}`} strokeWidth={Math.max(2, 1.6 / s)} strokeDasharray={`${4 / s} ${4 / s}`} markerEnd="url(#faint-arrow)" />
-              <foreignObject x={chip - r} y={y - r} width={2 * r} height={2 * r}>
+              <path className={depLineClass.faint} d={`M${x0},${y} L${x1},${y}`} strokeWidth={Math.max(2, 1.6 / s)} strokeDasharray={`${4 / s} ${4 / s}`} markerEnd="url(#faint-arrow)" />
+              <foreignObject className="overflow-visible" x={chip - r} y={y - r} width={2 * r} height={2 * r}>
                 <Tooltip content={title}>
-                  <button aria-label={title} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => (e.stopPropagation(), onOpen(x.other))}>
+                  <button className="pointer-events-auto box-border grid size-full cursor-pointer place-items-center rounded-[50%] border border-[var(--dep-line)] bg-card p-0 text-ink hover:border-proposal" aria-label={title} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => (e.stopPropagation(), onOpen(x.other))}>
                     <CanvasIcon canvas={x.canvas} size={14 / s} />
                   </button>
                 </Tooltip>
@@ -640,7 +668,7 @@ export function OtherCanvas({ item, named = false }: { item: Item; named?: boole
   const c = useOtherCanvas(item);
   if (!c) return null;
   return (
-    <span className="other-canvas" title={t.canvases.onCanvas(c.name)}>
+    <span className="other-canvas inline-flex flex-none items-center gap-1 text-muted-foreground" title={t.canvases.onCanvas(c.name)}>
       <CanvasIcon canvas={c} size={12} />
       {named && <span className="oc-name">{c.name}</span>}
     </span>
@@ -698,13 +726,13 @@ export function CanvasRing({ at: pointer, count, canvases, shown, onPick, onClos
   const hc = canvases[hot];
   const caption = hc ? (hc.id === shown ? t.canvases.ringHere : hc.name) : t.canvases.ringCaption(count);
   return (
-    <div id="ringback" onPointerMove={(e) => setHot(aimed(e))} onPointerDown={(e) => (e.preventDefault(), pick(aimed(e)))} onContextMenu={(e) => e.preventDefault()}>
-      <div className={`radial${open ? ' open' : ''}`} style={{ left: at.x, top: at.y }}>
-        <div className="rhalo" />
+    <div id="ringback" className={ringBackClass} onPointerMove={(e) => setHot(aimed(e))} onPointerDown={(e) => (e.preventDefault(), pick(aimed(e)))} onContextMenu={(e) => e.preventDefault()}>
+      <div className={radialClass} style={{ left: at.x, top: at.y }}>
+        <div className={haloClass(open)} />
         {canvases.map((c, k) => (
           <div
             key={c.id}
-            className={`ball canvas${k === hot ? ' hot' : ''}${c.id === shown ? ' here' : ''}`}
+            className={ballClass('canvas', { open, hot: k === hot, here: c.id === shown })}
             aria-label={c.name}
             style={{ '--h': 215, '--bx': `${Math.cos(angle(k)) * RING_RADIUS}px`, '--by': `${Math.sin(angle(k)) * RING_RADIUS}px`, transitionDelay: `${k * 28}ms` } as React.CSSProperties}
           >
@@ -714,7 +742,7 @@ export function CanvasRing({ at: pointer, count, canvases, shown, onPick, onClos
         {canvases.map((c, k) => (
           <div
             key={`n-${c.id}`}
-            className={`gtag${k === hot ? ' hot' : ''}${c.id === shown ? ' vacant' : ''}`}
+            className={tagClass({ open, hot: k === hot, vacant: c.id === shown })}
             title={c.name}
             style={{
               '--h': 215,
@@ -730,7 +758,7 @@ export function CanvasRing({ at: pointer, count, canvases, shown, onPick, onClos
             <span>{c.name}</span>
           </div>
         ))}
-        <div className="rcap">{caption}</div>
+        <div className={captionClass}>{caption}</div>
       </div>
     </div>
   );

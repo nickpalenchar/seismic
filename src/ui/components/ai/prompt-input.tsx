@@ -66,7 +66,8 @@ export function PromptInputButton({ className, active, onMouseDown, ...props }: 
       data-slot="prompt-input-button"
       data-active={active || undefined}
       variant="ghost"
-      className={cn('size-[26px] rounded-lg text-muted-foreground hover:not-disabled:text-ink data-[active]:bg-working data-[active]:text-on-ink data-[active]:hover:not-disabled:bg-working data-[active]:hover:not-disabled:text-on-ink', className)}
+      // held by a finger (the phone's microphone in a field): no long-press menu, no text selected
+      className={cn('size-[26px] rounded-lg text-muted-foreground [-webkit-touch-callout:none] select-none touch-none hover:not-disabled:text-ink data-[active]:bg-working data-[active]:text-on-ink data-[active]:hover:not-disabled:bg-working data-[active]:hover:not-disabled:text-on-ink', className)}
       {...props}
       onMouseDown={(e) => {
         // Keep the keyboard and layout steady until click opens the picker (or another tool).

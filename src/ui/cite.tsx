@@ -5,6 +5,7 @@
 // cursor behind it (`cite` in `draft.ts` says where). Until the owner has used it once the button
 // names what it does beside its icon, so it is found.
 
+import { cn } from 'cn';
 import { Quote } from 'lucide-react';
 import { type RefObject, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -189,7 +190,12 @@ export function CiteButton({ box, draft, anywhere, onCite }: { box: RefObject<HT
   return createPortal(
     <Tooltip content={t.talk.citeHint}>
       <button
-          className={['cite', marked.below && 'below', marked.left && 'left', named && 'named'].filter(Boolean).join(' ')}
+          className={cn(
+            'fixed z-50 flex h-7 min-w-7 cursor-pointer items-center justify-center gap-[5px] rounded-[3px] border-0 bg-ink px-1.5 py-0 text-[12.5px] text-background shadow-glass select-none hover:bg-[color-mix(in_srgb,var(--ink)_85%,var(--bg))] pointer-coarse:h-9 pointer-coarse:min-w-9',
+            // above the end of the marking, or below its last line, on a touch screen clear of the selection handles
+            !marked.below ? '[transform:translate(-50%,calc(-100%-6px))]' : marked.left ? '[transform:translate(calc(-100%+2px),6px)]' : '[transform:translate(-50%,6px)] pointer-coarse:[transform:translate(-50%,30px)]',
+            named && 'pr-[9px] pl-[7px]',
+          )}
           style={{ left: marked.x, top: marked.y }} aria-label={t.talk.citeHint}
           // the marking stays while the button is pressed, and so does the focus where it is
           onPointerDown={(e) => e.preventDefault()}

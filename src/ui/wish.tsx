@@ -5,6 +5,7 @@
 // body stand editable as they go out, and "Open on GitHub" opens the prefilled issue for the
 // owner to submit under their own account. The draft is kept per tab and project, like every input.
 
+import { cn } from 'cn';
 import { MessageCircle } from 'lucide-react';
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { issueUrl, type Wish, withoutFooter } from '../core/wish';
@@ -231,7 +232,8 @@ export function WishDialog() {
     <Dialog open onOpenChange={(open) => !open && closeWish()}>
       <DialogContent
         id="wish"
-        className="box"
+        glass
+        className="flex w-[760px] flex-col gap-3 overflow-auto px-[26px] py-[22px]"
         onOpenAutoFocus={(e) => {
           // the words go into the composer, not onto the close button that comes first
           const field = (e.currentTarget as HTMLElement).querySelector<HTMLElement>('textarea, [contenteditable]');
@@ -240,36 +242,38 @@ export function WishDialog() {
           field.focus();
         }}
       >
-        <CloseButton label={t.close} className="close" onClick={closeWish} />
+        <CloseButton label={t.close} className="close absolute top-3 right-3.5" onClick={closeWish} />
         <DialogTitle asChild>
-          <h2>{t.wish.title}</h2>
+          <h2 className="m-0 mb-0.5 text-[21px]">{t.wish.title}</h2>
         </DialogTitle>
         {w.sent ? (
-          <div className="w-sent">
+          <div className="flex flex-col items-start gap-1.5">
             {w.sent.map((line) => (
-              <p key={line}>{line}</p>
+              <p key={line} className="m-0 text-[15px] leading-[1.45]">
+                {line}
+              </p>
             ))}
-            <Button variant="primary" autoFocus onClick={closeWish}>
+            <Button variant="primary" className="mt-2.5 self-end" autoFocus onClick={closeWish}>
               {t.newCardHint.ok}
             </Button>
           </div>
         ) : (
           <>
             {w.pending && (
-              <div className="w-pending">
-                <p>{t.wish.pending}</p>
-                <blockquote>{short(w.pending.said)}</blockquote>
-                <p>{t.wish.pendingThen}</p>
+              <div className="mx-0 mt-2.5 mb-3.5 flex flex-col items-start gap-2 rounded-[3px] bg-chip px-3 py-2.5 text-[14px] [--button-bg:var(--panel)]">
+                <p className="m-0 leading-[1.45]">{t.wish.pending}</p>
+                <blockquote className="m-0 border-l-2 border-l-muted-foreground pl-2.5 leading-[1.45]">{short(w.pending.said)}</blockquote>
+                <p className="m-0 leading-[1.45]">{t.wish.pendingThen}</p>
                 <Button size="small" disabled={w.writing} onClick={discard}>
                   {t.wish.replace}
                 </Button>
               </div>
             )}
             {issue && <IssueFields issue={issue} disabled={w.writing} />}
-            {w.writing && <p className="hint w-writing">{t.wish.writing}</p>}
+            {w.writing && <p className="hint m-0 !text-[14px]">{t.wish.writing}</p>}
             {w.error && <p className="p-error">{w.error}</p>}
             <Composer
-              className="w-compose"
+              className="mt-0 max-w-none"
               draft={WISH_DRAFT}
               placeholder={issue ? t.wish.add : t.wish.placeholder}
               {...(issue ? { label: t.wish.rework } : { action: t.wish.write })}
@@ -277,13 +281,13 @@ export function WishDialog() {
             />
             {issue && (
               <>
-                <p className="w-public">
+                <p className="m-0 text-[12px] text-muted-foreground">
                   {t.wish.public}
                   {issue.images.length > 0 && ` ${t.wish.shots(issue.images.length)}`}
                   {issueUrl(issue.title, issue.body, t.wish.cut).trimmed && ` ${t.wish.long(issue.images.length > 0)}`}
                 </p>
-                <div className="w-actions">
-                  <button className="w-discard" onClick={discard}>
+                <div className="flex items-center justify-between gap-3">
+                  <button className="cursor-pointer border-0 border-b border-b-line bg-transparent p-0 text-[12px] text-muted-foreground hover:text-ink" onClick={discard}>
                     {t.wish.discard}
                   </button>
                   <Button variant="primary" disabled={w.writing || !issue.title.trim() || !issue.body.trim()} onClick={() => void send(issue)}>
@@ -318,34 +322,41 @@ function IssueFields({ issue, disabled }: { issue: Issue; disabled: boolean }) {
   const title = useRef<HTMLInputElement>(null);
   useEffect(() => title.current?.focus(), [disabled]);
   return (
-    <div className="w-issue">
-      <label>
+    <div className="flex flex-col gap-2.5">
+      <label className={issueLabel}>
         <span>{t.wish.issueTitle}</span>
         <Input className="text-sm font-semibold" ref={title} value={issue.title} disabled={disabled} spellCheck onChange={(e) => edit({ title: e.target.value })} />
       </label>
-      <label>
+      <label className={issueLabel}>
         <span>{t.wish.issueBody}</span>
-        <Textarea className="text-sm" ref={body} value={issue.body} disabled={disabled} spellCheck rows={4} onChange={(e) => edit({ body: e.target.value })} />
+        <Textarea className="min-h-[90px] resize-none overflow-hidden text-sm" ref={body} value={issue.body} disabled={disabled} spellCheck rows={4} onChange={(e) => edit({ body: e.target.value })} />
       </label>
-      {issue.again ? <p className="hint">{t.wish.limited(clock(issue.again.until))}</p> : issue.raw && <p className="hint">{t.wish.raw}</p>}
+      {issue.again ? <p className="hint m-0">{t.wish.limited(clock(issue.again.until))}</p> : issue.raw && <p className="hint m-0">{t.wish.raw}</p>}
       <Shots ids={issue.images} />
     </div>
   );
 }
+
+/** A label over one of the draft's fields. */
+const issueLabel = 'flex flex-col gap-1 text-[12px] text-muted-foreground';
+
+/** The quiet link to the draft, its words underlined faintly until hovered. */
+const wishLinkClass = 'group/wish inline-flex cursor-pointer items-baseline gap-1.5 border-0 bg-transparent p-0 text-left text-[12px] text-muted-foreground hover:text-ink';
+const wishTextClass = 'border-b border-b-line group-hover/wish:border-muted-foreground';
 
 /** The quiet link that opens the dialog: under "Check setup" in the Konfiguration dialog, and in the legend (`onOpen` closes either). */
 export function WishLink({ className, onOpen }: { className?: string; onOpen?: () => void }) {
   const draft = useWishDraft();
   return (
     <button
-      className={['wish-link', className].filter(Boolean).join(' ')}
+      className={cn(wishLinkClass, className)}
       onClick={() => {
         onOpen?.();
         openWish();
       }}
     >
       <BubbleIcon />
-      <span className="w-text">{t.wish.link}</span>
+      <span className={wishTextClass}>{t.wish.link}</span>
       {draft && <span className="w-draft"> · {t.wish.draftOpen}</span>}
     </button>
   );
@@ -354,14 +365,14 @@ export function WishLink({ className, onOpen }: { className?: string; onOpen?: (
 /** Under a reply that says Seismic cannot do what the owner asked, or that opened a draft for the makers. */
 export function WishReplyLink({ wish }: { wish: Wish }) {
   return (
-    <button className="wish-link on-reply" onClick={() => openWish(wish)}>
-      ↗ <span className="w-text">{wish.answer ? t.wish.report : t.wish.reopen}</span>
+    <button className={cn(wishLinkClass, 'mt-1.5 flex')} onClick={() => openWish(wish)}>
+      ↗ <span className={wishTextClass}>{wish.answer ? t.wish.report : t.wish.reopen}</span>
     </button>
   );
 }
 
 function BubbleIcon() {
   return (
-    <MessageCircle size={13} strokeWidth={2} aria-hidden="true" />
+    <MessageCircle className="self-center" size={13} strokeWidth={2} aria-hidden="true" />
   );
 }

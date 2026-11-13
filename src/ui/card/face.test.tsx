@@ -6,7 +6,14 @@ import { CardFace, type CardFaceProps } from './face';
 import { cardKind } from './summary';
 
 const card = (more: Partial<Item> = {}): Item => ({ id: 'c', kind: 'task', state: 'planned', title: 'Cart model', body: 'One cart per customer.', x: 0, y: 0, source: 'manual', repo: 'shop', ...more });
-const face = (p: CardFaceProps) => renderToStaticMarkup(createElement(CardFace, p)).replace(/<!-- -->/g, '');
+/** The class names that name a face's parts and states, without the utilities that give them their look (faceClasses.ts). */
+const HOOK = /^(face|face-s|face-xs|kind|ttl|meta|state|state-text|doing-now|subtle|untitled|ws-no|f-[a-z-]+|pin-dot|asking|failed|proposal|prio|prio-[a-z]+|sugg|bare|lchip|lchip-[a-z]+|unread-dot|[a-z]+-mark)$/;
+const hooks = (html: string) =>
+  html.replace(/ class="([^"]*)"/g, (_, cls: string) => {
+    const kept = cls.split(/\s+/).filter((c) => HOOK.test(c)).join(' ');
+    return kept ? ` class="${kept}"` : '';
+  });
+const face = (p: CardFaceProps) => hooks(renderToStaticMarkup(createElement(CardFace, p)).replace(/<!-- -->/g, ''));
 const labelled: Partial<Item> = { labels: { priority: 'high', category: 'frontend', subcategory: 'newFeature', complexity: 3, suggested: ['category'] } };
 const asking = card({ ...labelled, state: 'waiting', need: 'question', question: { text: 'Serif or sans?', options: ['Serif', 'Sans'] } } as unknown as Partial<Item>);
 
@@ -20,7 +27,7 @@ test('a delivered workstream keeps its label before its title as a chip', () => 
 
 test('M shows the label chips before where and kind, then title, meta line, state line and pin', () => {
   const html = face({ item: { ...asking, idea: undefined }, where: 'shop' });
-  expect(html).toMatch(/<div class="kind"><span class="prio prio-high">.*High<\/span><span [^>]*class="[^"]*lchip lchip-category sugg".*<span [^>]*class="[^"]*lchip lchip-complexity".*<span>shop<\/span><\/div><div class="ttl">Cart model<\/div><div class="meta">Serif or sans\?<\/div><div class="state">.*Question for you.*<span data-slot="badge" data-variant="pin" class="[^"]*">\?<\/span>$/s);
+  expect(html).toMatch(/<div class="kind"><span class="prio prio-high[^"]*">.*High<\/span><span [^>]*class="[^"]*lchip lchip-category sugg".*<span [^>]*class="[^"]*lchip lchip-complexity".*<span>shop<\/span><\/div><div class="ttl">Cart model<\/div><div class="meta">Serif or sans\?<\/div><div class="state">.*Question for you.*<span data-slot="badge" data-variant="pin"(?: class="[^"]*")?>\?<\/span>$/s);
 });
 
 test('S shows chips, where, kind and since on top, the pin or the unread dot, the state, then the text in place of the meta line', () => {
@@ -31,7 +38,7 @@ test('S shows chips, where, kind and since on top, the pin or the unread dot, th
   expect(html).toContain('<div class="f-text">Serif or sans?</div>');
   // an inbox entry: its unread dot in the pin's place, what it waits for in the meta line's
   const entry = face({ item: asking, size: 's', unread: true, text: 'Pick one' });
-  expect(entry).toContain('class="unread-dot ');
+  expect(entry).toContain('class="unread-dot');
   expect(entry).not.toContain('f-pin');
   expect(entry).toContain('<div class="f-text">Pick one</div>');
   // once read, it shows the pin again
@@ -43,7 +50,7 @@ test('S shows chips, where, kind and since on top, the pin or the unread dot, th
 test('XS keeps to two lines: the priority flag, title and pin, then the short state, kind, tail and as much of the meta line as fits', () => {
   const html = face({ item: { ...asking, kind: 'plan' }, size: 'xs', tail: 'Waits for “Export”.' });
   expect(html).not.toContain('lchip');
-  expect(html).toMatch(/^<span class="face face-xs"[^>]*><span class="f-ttl"><span class="prio prio-high bare" title="High">/);
+  expect(html).toMatch(/^<span class="face face-xs"[^>]*><span class="f-ttl"><span class="prio prio-high bare[^"]*" title="High">/);
   expect(html).not.toContain('>High<');
   expect(html).toContain('<span class="f-pin asking" title="Needs you">?</span></span>');
   expect(html).toContain('<span class="f-state">Question</span> · Plan · Waits for “Export”. · Serif or sans?</span>');
@@ -81,7 +88,7 @@ test('subtle: the pin is a small dot in the corner, the state line is plain, and
   expect(s).toContain('class="face face-s subtle"');
   expect(s).toContain('class="pin-dot asking"');
   expect(s).not.toContain('f-pin');
-  expect(face({ item: asking, size: 's', subtle: true, unread: true })).toContain('class="unread-dot ');
+  expect(face({ item: asking, size: 's', subtle: true, unread: true })).toContain('class="unread-dot');
   expect(face({ item: asking, size: 'xs', subtle: true })).toContain('pin-dot');
   const m = face({ item: asking, subtle: true });
   expect(m).toContain('state subtle');

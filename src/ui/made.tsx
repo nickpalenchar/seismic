@@ -7,7 +7,8 @@ import { type ReactNode, useEffect, useState } from 'react';
 import type { Item } from '../core/types';
 import { api, onCardEvent, onReconnect, projectOf } from './api';
 import { cardPath } from './address';
-import { CardFace, cardClass } from './card';
+import { coverClass } from './coverClasses';
+import { CardFace, cardLook, metaClass, NO_FLAGS, ttlClass } from './card';
 import { plain } from './markdown';
 import { Msg } from './message';
 import { t } from './strings';
@@ -68,7 +69,8 @@ export function MadeCover({ made, who, what, at, ev, fresh, items, open, watch }
     <Msg by="obeya" className={['action', fresh && 'fresh'].filter(Boolean).join(' ')} who={head} at={at} ev={ev}>
       {card && !card.archivedAt ? (
         <a
-          className={`${cardClass(card)} cover`}
+          className={coverClass(cardLook(card).className)}
+          style={cardLook(card).style}
           href={cardPath(made.project ?? projectOf(card.id), card)}
           onClick={(m) => {
             if (made.project || m.button || m.metaKey || m.ctrlKey || m.shiftKey || m.altKey) return;
@@ -79,9 +81,9 @@ export function MadeCover({ made, who, what, at, ev, fresh, items, open, watch }
           <CardFace item={card} />
         </a>
       ) : (
-        <div className="card cover gone">
-          <div className="ttl">{plain(made.title)}</div>
-          <div className="meta">{made.project && elsewhere === undefined ? t.talk.madeElsewhere : t.talk.madeGone}</div>
+        <div className={coverClass(cardLook(null).className, { gone: true })} style={cardLook(null).style}>
+          <div className={ttlClass(NO_FLAGS, {})}>{plain(made.title)}</div>
+          <div className={metaClass({})}>{made.project && elsewhere === undefined ? t.talk.madeElsewhere : t.talk.madeGone}</div>
         </div>
       )}
     </Msg>

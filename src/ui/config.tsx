@@ -40,6 +40,7 @@ import { RadioGroup, RadioOption } from './components/radio';
 import { SegmentedControl } from './components/segmented';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
 import { Tooltip } from './components/tooltip';
+import { qmovesClass } from './queue';
 import { Input, Textarea } from './components/input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './components/collapsible';
 import { Select, SelectGroup, SelectItem, SelectLabel } from './components/select';
@@ -464,7 +465,7 @@ export function ConfigDialog({ on, page, onClose, onAsk, onTalk, onProblems, onC
             <Button size="small" onClick={() => setSetupOn(true)}>
               {t.setup.check}
             </Button>
-            <WishLink onOpen={onClose} />
+            <WishLink className="mt-3.5 flex" onOpen={onClose} />
           </div>
         </nav>
         {/* on the box, not in the scrolling column, so it stays in view however far that scrolls */}
@@ -2329,7 +2330,7 @@ function ProjectBlock({ n, project, file, checking, resolved, running, pin, save
             </span>
           )}
           {onMove && (
-            <span className="qmoves">
+            <span className={qmovesClass}>
               {[true, false].map((earlier) => {
                 const label = earlier ? t.config.moveUp : t.config.moveDown;
                 return (

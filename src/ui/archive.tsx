@@ -4,7 +4,7 @@
 // the owner types.
 
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { FullPage } from './fullPage';
+import { FullPage, fullBodyClass, fullCloseClass, fullHeadClass, fullTitleClass } from './fullPage';
 import type { Item } from '../core/types';
 import { CardFace, cardKind } from './card';
 import { plain } from './markdown';
@@ -36,11 +36,12 @@ export function ArchiveView({ on, onClose, held, archived, done, onOpen, onArchi
   const words = searchWords(query);
   return (
     <FullPage id="archive-full" title={t.archive.button} onClickBeside={() => held || onClose()}>
-      <div className="a-full-head">
-        <h2>{t.archive.button}</h2>
-        <div className="a-search">
+      <div className={fullHeadClass}>
+        <h2 className={fullTitleClass}>{t.archive.button}</h2>
+        <div className="a-search relative mt-0.5 mx-0 mb-2 flex-1 min-w-0 max-w-[640px]">
           <input
             ref={field}
+            className="w-full box-border py-2 pr-[30px] pl-[11px] text-[14px] bg-card border border-line rounded-[3px] [outline:none] focus:border-muted-foreground"
             type="text"
             autoFocus
             value={query}
@@ -50,12 +51,12 @@ export function ArchiveView({ on, onClose, held, archived, done, onOpen, onArchi
             onChange={(e) => setQuery(e.target.value)}
           />
           {query && (
-            <CloseButton label={t.archive.clearSearch} size="small" className="x" onClick={() => (setQuery(''), field.current?.focus())} />
+            <CloseButton label={t.archive.clearSearch} size="small" className="x absolute right-1.5 top-1/2 [transform:translateY(-50%)]" onClick={() => (setQuery(''), field.current?.focus())} />
           )}
         </div>
-        <CloseButton label={t.close} className="a-full" onClick={onClose} />
+        <CloseButton label={t.close} className={fullCloseClass} onClick={onClose} />
       </div>
-      <div className="a-full-body">
+      <div className={fullBodyClass}>
         {done > 0 && (
           <Button onClick={onArchiveDone}>
             {t.archive.archiveDone(done)}
@@ -66,6 +67,14 @@ export function ArchiveView({ on, onClose, held, archived, done, onOpen, onArchi
     </FullPage>
   );
 }
+
+/** A day's timeline: per card the time, a tick on the line through the day, and the card; the line starts and ends at the first and last tick. */
+const timelineRowClass =
+  "relative grid grid-cols-[38px_12px_1fr] gap-x-2 [align-items:start] pb-2 before:content-[''] before:absolute before:left-[51px] before:top-0 before:bottom-0 before:w-0.5 before:bg-line first:before:top-[15px] last:before:bottom-auto last:before:h-[15px] only:before:hidden";
+
+/** An archived card as a small card, the words of the search marked in its title. */
+const archiveCardClass =
+  'a-card flex flex-col min-w-0 py-2 px-3 text-left [font:inherit] text-ink bg-card border border-line rounded-[3px] [box-shadow:var(--shadow)] cursor-pointer [transition:transform_.15s,box-shadow_.15s] hover:[transform:translateY(-1px)] hover:[box-shadow:var(--lift)] focus-visible:[outline:2px_solid_var(--working)] focus-visible:outline-offset-2 [&_mark]:bg-chip [&_mark]:text-inherit [&_mark]:rounded-[2px] [&_mark]:[box-shadow:0_0_0_1px_var(--chip)]';
 
 /** The archive's entries, one heading per day in the server's order, filtered by the search; the drop-down and the full-screen view share it. */
 function ArchiveEntries({ archived, words, query, onOpen, els }: { archived: Item[]; words: string[]; query: string; onOpen: (i: Item) => void; els: Map<string, HTMLElement> }) {
@@ -82,13 +91,13 @@ function ArchiveEntries({ archived, words, query, onOpen, els }: { archived: Ite
     <>
       {days.map(({ day, items }) => (
         <section key={day}>
-          <h4>{day}</h4>
-          <ol className="timeline">
+          <h4 className="mt-2.5 mx-0 mb-1.5 text-[11px] uppercase tracking-[.08em] text-muted-foreground">{day}</h4>
+          <ol className="timeline list-none p-0 m-[0_0_4px]">
             {items.map((i) => (
-              <li key={i.id}>
-                <time>{t.archive.time(new Date(i.archivedAt!))}</time>
-                <span className="tick" />
-                <button className="a-card" ref={(el) => void (el ? els.set(i.id, el) : els.delete(i.id))} onClick={() => onOpen(i)}>
+              <li key={i.id} className={timelineRowClass}>
+                <time className="pt-[9px] text-[11.5px] text-muted-foreground tabular-nums text-right">{t.archive.time(new Date(i.archivedAt!))}</time>
+                <span className="tick relative w-3 h-3 mt-2.5 rounded-[50%] bg-panel border-2 border-live box-border" />
+                <button className={archiveCardClass} ref={(el) => void (el ? els.set(i.id, el) : els.delete(i.id))} onClick={() => onOpen(i)}>
                   <CardFace
                     item={i}
                     size="xs"

@@ -28,7 +28,7 @@ const badgeVariants = cva(
         chip: 'h-6 gap-1 bg-chip py-0 pr-[3px] pl-2.5 text-[12.5px] leading-none font-normal',
         // the pin at a card's corner: a count or mark on a glossy dot in the colour of --pin, which the
         // card's state sets; counter-scaled so it stays readable when the canvas is zoomed out
-        pin: 'absolute isolate top-[-10px] right-[-8px] grid h-6 min-w-6 origin-[70%_30%] scale-[max(1,calc(.9/var(--s)))] place-items-center overflow-visible rounded-xl px-[7px] text-[13px] leading-none font-bold text-on-ink [--pin:var(--waiting)] before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:[background:radial-gradient(circle_at_35%_30%,rgba(255,255,255,.45),transparent_45%),var(--pin)] before:shadow-[0_0_0_2px_var(--glass-edge),0_4px_10px_-2px_rgba(0,0,0,.25)] before:content-[\'\']',
+        pin: '[&_svg]:block [&_svg]:flex-none [&_svg]:size-[14px] [&>svg]:size-[14px] absolute isolate top-[-10px] right-[-8px] grid h-6 min-w-6 origin-[70%_30%] scale-[max(1,calc(.9/var(--s)))] place-items-center overflow-visible rounded-xl px-[7px] text-[13px] leading-none font-bold text-on-ink [--pin:var(--waiting)] before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:[background:radial-gradient(circle_at_35%_30%,rgba(255,255,255,.45),transparent_45%),var(--pin)] before:shadow-[0_0_0_2px_var(--glass-edge),0_4px_10px_-2px_rgba(0,0,0,.25)] before:content-[\'\']',
       },
     },
     defaultVariants: { variant: 'default' },

@@ -312,9 +312,9 @@ export function lucideOf(icon: string | undefined): { Icon: LucideIcon; color?: 
 /** A canvas's mark: its icon, else its name's first letter. */
 export function CanvasIcon({ canvas, size = 14 }: { canvas: Pick<Canvas, 'name' | 'icon'>; size?: number }) {
   const l = lucideOf(canvas.icon);
-  if (l) return <l.Icon className="canvas-icon" size={size} strokeWidth={2} style={l.color ? { color: l.color } : undefined} aria-hidden />;
-  if (canvas.icon) return <span className="canvas-icon emoji" style={{ fontSize: size }} aria-hidden>{canvas.icon}</span>;
-  return <span className="canvas-icon letter" style={{ fontSize: size * 0.8, width: size, height: size }} aria-hidden>{[...canvas.name][0]?.toUpperCase()}</span>;
+  if (l) return <l.Icon className="canvas-icon inline-block flex-none" size={size} strokeWidth={2} style={l.color ? { color: l.color } : undefined} aria-hidden />;
+  if (canvas.icon) return <span className="canvas-icon inline-block flex-none leading-none" style={{ fontSize: size }} aria-hidden>{canvas.icon}</span>;
+  return <span className="canvas-icon letter inline-grid flex-none place-items-center rounded-[50%] bg-chip p-0.5 leading-none font-bold text-ink" style={{ fontSize: size * 0.8, width: size, height: size }} aria-hidden>{[...canvas.name][0]?.toUpperCase()}</span>;
 }
 
 /** A canvas as text in a sentence: its emoji and name (a Lucide icon has no text). */

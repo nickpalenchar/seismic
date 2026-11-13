@@ -9,7 +9,7 @@ import { AGENT_EFFORTS, AGENT_MODELS, AGENT_ROLES, choosesHarness, harnessChoice
 import { api } from './api';
 import { agentClass, ProjectSiteField, CardArchiveField, RightClickField, CodeReviewField, Head, PlanBaselineField, SuggestField } from './config';
 import { settingsSheetClass } from './configClasses';
-import { Docked } from './docked';
+import { Docked, sheetTitleClass } from './docked';
 import { failText, t } from './strings';
 import { LinkButton } from './components/button';
 import { Badge } from './components/badge';
@@ -64,7 +64,7 @@ export function ProjectSettingsSheet({ project, name, homePath, on, covered, pro
   return (
     <Docked id="project-settings" on={on} label={l.title} className={settingsSheetClass}>
       <p className="cs-project mt-0 mr-10 mb-0.5 ml-0 text-[12px] text-muted-foreground">{name}</p>
-      <h2>{l.title}</h2>
+      <h2 className={sheetTitleClass}>{l.title}</h2>
       <p className="text-muted-foreground text-[12.5px] leading-[1.45] mt-0 mx-0 mb-1.5">{l.hint}</p>
       {view && (
         <>

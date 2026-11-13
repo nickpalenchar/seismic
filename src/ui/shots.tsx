@@ -297,7 +297,7 @@ export function ShotStrip({ shots }: { shots: ShotInput }) {
 }
 
 /** The button in the text field's corner that picks screenshots from disk. */
-export function AttachButton({ shots, title = t.shots.attach }: { shots: ShotInput; title?: string }) {
+export function AttachButton({ shots, title = t.shots.attach, className }: { shots: ShotInput; title?: string; className?: string }) {
   // the field the cursor stood in when the picker opened
   const typing = useRef<HTMLElement | null>(null);
   /**
@@ -326,6 +326,7 @@ export function AttachButton({ shots, title = t.shots.attach }: { shots: ShotInp
       <PromptInputButton
         icon={<ImageIcon size={18} strokeWidth={1.75} aria-hidden="true" />}
         label={title}
+        className={className}
         // the cursor stays in the field: on a phone the keyboard stays up, and the field does not jump away from under the finger
         onClick={() => {
           const el = document.activeElement;

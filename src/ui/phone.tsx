@@ -33,7 +33,7 @@ import { Notify, registerWorker } from './notify';
 import { plain } from './markdown';
 import { Cards, KoordinatorAgent } from './message';
 import { glide, type Mark, settle, speed, THROWN, thrown } from './panelHeight';
-import { CardFace, cardClass, shownState } from './card';
+import { CardFace, cardLook, shownState } from './card';
 import { TalkIcon } from './parts';
 import { videoOf } from './spot';
 import { failText, forTouch, t } from './strings';
@@ -984,12 +984,22 @@ function CardList({ entries, several, onOpen }: { entries: { item: Item; project
     <ul className="ph-list list-none m-0 p-0 grid grid-cols-[repeat(auto-fill,minmax(min(100%,340px),1fr))] gap-3.5">
       {entries.map(({ item: i, project: c }) => (
         <li key={i.id} className="flex">
-          <button className={`${cardClass(i)} ph-card`} onClick={() => onOpen(i)}>
-            <CardFace item={i} where={several ? c.name : undefined} />
-          </button>
+          <PhoneCard item={i} onOpen={() => onOpen(i)}>
+            <CardFace item={i} where={several ? c.name : undefined} place="phone" />
+          </PhoneCard>
         </li>
       ))}
     </ul>
+  );
+}
+
+/** A row of the lists: the card as the project shows it, as wide as the screen, opening at a tap. */
+function PhoneCard({ item, onOpen, children }: { item: Item; onOpen: () => void; children: React.ReactNode }) {
+  const look = cardLook(item, { place: 'phone' });
+  return (
+    <button className={`${look.className} ph-card`} style={look.style} onClick={onOpen}>
+      {children}
+    </button>
   );
 }
 

@@ -352,6 +352,7 @@ export function PushToTalk({ phase, level, flat, target, field, onDown, instead 
         <Tooltip content={t.voice.hold}>
           <button
             id="mic"
+            className={micClass}
             ref={mic}
             style={{ ['--lvl' as string]: 1 + level * 0.45 }}
             onPointerDown={(e) => {
@@ -362,30 +363,31 @@ export function PushToTalk({ phase, level, flat, target, field, onDown, instead 
             // held by a finger, it shows no menu
             onContextMenu={(e) => e.preventDefault()}
           >
-            <span className="mic-ring" />
+            <span className={micRingClass} />
             <MicIcon />
           </button>
         </Tooltip>
   );
   return (
-    <div id="ptt" className={`${phase}${shots.dropping ? ' dropping' : ''}${instead ? ' switching' : ''}`} {...shots.drop}>
+    <div id="ptt" className={cn(phase, shots.dropping && 'dropping', instead && 'switching', pttClass, instead && pttSwitchingClass)} {...shots.drop}>
       {instead && phase === 'listening' && (
-        <div id="mic" className="listen" style={{ ['--lvl' as string]: 1 + level * 0.45 }} aria-hidden="true">
-          <span className="mic-ring" />
+        <div id="mic" className={cn(micClass, 'w-[46px] h-[46px] cursor-default [&_svg]:w-5 [&_svg]:h-5')} style={{ ['--lvl' as string]: 1 + level * 0.45 }} aria-hidden="true">
+          <span className={micRingClass} />
           <MicIcon />
         </div>
       )}
-      <div className="ptt-row">
+      {/* the screenshots stand beside it; in a narrow window the project's settings, floating over the page, hide it */}
+      <div className="ptt-row relative [@media(max-width:760px)]:[body:has(#project-settings.on)_&]:invisible">
         {instead ?? micButton}
         {key === MIC_DRAFT && (
-          <div className="ptt-shots">
-            {!instead && <AttachButton shots={shots} title={t.voice.attach} />}
+          <div className={shotsClass}>
+            {!instead && <AttachButton shots={shots} title={t.voice.attach} className={attachClass} />}
             <ShotStrip shots={shots} />
             <FileChips />
           </div>
         )}
       </div>
-      {shots.error && key === MIC_DRAFT && <div className="ptt-error">{shots.error}</div>}
+      {shots.error && key === MIC_DRAFT && <div className="text-[12px] text-error bg-card [box-shadow:var(--shadow)] rounded-[2px] py-1 px-2.5 max-w-[calc((100vw_-_var(--left,0px)_-_var(--side,0px))_*_.6)] ph-ptt:ph-landscape:max-w-[104px]">{shots.error}</div>}
       {!instead && line}
     </div>
   );
@@ -396,16 +398,67 @@ function FileChips() {
   const words = wordsOf(useDraft(MIC_DRAFT).text);
   if (!words.length) return null;
   return (
-    <div className="ptt-files">
+    <div className="flex flex-wrap gap-2 max-w-[calc(50vw_-_160px)] ph-ptt:ph-landscape:flex-col-reverse ph-ptt:ph-landscape:flex-nowrap ph-ptt:ph-landscape:max-w-[104px]">
       {words.map((w, i) => (
-        <span key={i} className="c-file" title={w}>
-          <span className="name">{w.replace(/"/g, '').split(/[\\/]/).at(-1)}</span>
-          <CloseButton label={t.shots.remove} size="small" className="remove" onClick={() => updateDraft(MIC_DRAFT, { text: words.filter((_, j) => j !== i).join(' ') })} />
+        <span key={i} className="relative h-[46px] inline-flex items-center py-0 px-3 max-w-[180px] rounded-[2px] border border-solid border-line bg-card [box-shadow:var(--shadow)] text-[12px] text-ink whitespace-nowrap group-[.switching]/ptt:h-[38px] ph-ptt:ph-landscape:max-w-[104px]" title={w}>
+          <span className="overflow-hidden text-ellipsis">{w.replace(/"/g, '').split(/[\\/]/).at(-1)}</span>
+          <CloseButton label={t.shots.remove} size="small" className="remove absolute -top-[7px] -right-[7px] [--button-bg:var(--card)] [box-shadow:0_0_0_1px_var(--line)]" onClick={() => updateDraft(MIC_DRAFT, { text: words.filter((_, j) => j !== i).join(' ') })} />
         </span>
       ))}
     </div>
   );
 }
+
+/**
+ * The push-to-talk row: in the middle of the project, left of a sheet docked on the right; on the phone
+ * centred under its views, and turned, at the right edge where the thumb holds the phone, in a strip of
+ * its own beside the cards. While the keyboard is up the field has its own microphone, so the big one goes.
+ */
+const pttClass = cn(
+  'group/ptt fixed left-[calc(50%_+_(var(--left,0px)_-_var(--side,0px))_/_2)] bottom-[46px] [transform:translateX(-50%)] z-50 flex flex-col items-center gap-2',
+  '[transition:left_.45s_cubic-bezier(.3,.9,.3,1)] resizing:[transition:none]',
+  'ph-ptt:left-1/2 ph-ptt:bottom-[calc(18px_+_env(safe-area-inset-bottom))] [.ph-kb_.ph-view~&]:hidden',
+  'ph-ptt:ph-landscape:left-auto ph-ptt:ph-landscape:right-[env(safe-area-inset-right)] ph-ptt:ph-landscape:w-[112px] ph-ptt:ph-landscape:top-[calc(50%_-_34px)] ph-ptt:ph-landscape:bottom-auto ph-ptt:ph-landscape:[transform:none]',
+);
+
+/**
+ * With the desktop's view switcher where the microphone was, on medium screens: centred, the switcher would
+ * run into the canvas tabs at the bottom right, whose width grows with the canvases and which a right dock
+ * pushes inward. It moves to the left and one row up, above the tab row (and above the minimap, which shows
+ * from 761px), so no width of either can make them meet. It stays above the full-page views (z 23), so
+ * Canvas always leads back, and shrinks to fit the main area left of a dock.
+ */
+const pttSwitchingClass =
+  '[@media(max-width:1100px)]:left-[calc(var(--left,0px)_+_14px)] [@media(max-width:760px)]:bottom-[98px] [@media(min-width:761px)_and_(max-width:1100px)]:bottom-[188px] [@media(max-width:1100px)]:[transform:none] [@media(max-width:1100px)]:items-start [@media(max-width:1100px)]:z-24 [@media(max-width:1100px)]:max-w-[calc(100vw_-_var(--left,0px)_-_var(--side,0px)_-_28px)]';
+
+/** The microphone: a round glass button, filled with the waiting colour while it listens; outlined while files are dragged over the row. */
+const micClass = cn(
+  'w-[58px] h-[58px] rounded-[50%] border border-solid border-glass-edge bg-glass backdrop-blur-glass [box-shadow:var(--lift)] cursor-pointer grid place-items-center relative [&_svg]:w-6 [&_svg]:h-6',
+  // held by a finger: no long-press menu, no text selected
+  '[-webkit-touch-callout:none] select-none touch-none',
+  'group-[.listening]/ptt:bg-waiting group-[.listening]/ptt:text-on-ink',
+  'group-[.dropping]/ptt:outline-2 group-[.dropping]/ptt:outline-dashed group-[.dropping]/ptt:outline-working group-[.dropping]/ptt:outline-offset-[5px]',
+  'ph-ptt:w-[68px] ph-ptt:h-[68px]',
+);
+
+/** The ring around the microphone that swells with the voice's level (`--lvl`) while it listens. */
+const micRingClass =
+  'absolute -inset-1.5 rounded-[50%] border-3 border-solid border-waiting opacity-0 [transform:scale(var(--lvl,1))] [transition:transform_.08s_linear,opacity_.2s] group-[.listening]/ptt:opacity-80';
+
+/**
+ * Screenshots for the next recording: a small button and thumbnails to the right of the microphone, which
+ * stays centred (smaller beside the view switcher); turned, above the microphone instead of beside it.
+ */
+const shotsClass = cn(
+  'absolute left-[calc(100%_+_12px)] top-1/2 [transform:translateY(-50%)] flex items-center gap-2.5',
+  '[&_.c-shots]:flex-nowrap [&_.c-shots]:items-center [&_.c-shots]:basis-auto [&_.c-paste-hint]:flex-[0_0_auto] [&_.c-paste-hint]:w-[320px]',
+  '[&_.c-shot]:h-[46px] [&_.c-shot]:min-w-[46px] [&_.c-shot]:[box-shadow:var(--shadow)] [&_.c-shot_img]:max-w-[82px] group-[.switching]/ptt:[&_.c-shot]:h-[38px] group-[.switching]/ptt:[&_.c-shot]:min-w-[38px]',
+  'ph-ptt:ph-landscape:left-1/2 ph-ptt:ph-landscape:top-auto ph-ptt:ph-landscape:bottom-[calc(100%_+_12px)] ph-ptt:ph-landscape:[transform:translateX(-50%)] ph-ptt:ph-landscape:flex-col-reverse ph-ptt:ph-landscape:[&_.c-shots]:flex-col-reverse',
+);
+
+/** The screenshot button beside the microphone: a small glass tile. */
+const attachClass =
+  'static size-[34px] rounded-[12px] grid place-items-center p-0 bg-glass hover:not-disabled:bg-glass border border-solid border-glass-edge [box-shadow:var(--shadow)] backdrop-blur-glass hover:text-ink hover:[box-shadow:var(--lift)]';
 
 export function MicIcon({ size }: { size?: number }) {
   return (

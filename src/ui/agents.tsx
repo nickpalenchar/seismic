@@ -13,7 +13,7 @@ import { waitsFor } from '../core/inbox';
 import type { Item } from '../core/types';
 import { ActivityTab } from './activity';
 import { CardFace, shownTitle } from './card';
-import { Docked } from './docked';
+import { Docked, sheetTitleClass } from './docked';
 import { Inline, plain } from './markdown';
 import { QueueList, useQueueSort } from './queue';
 import { useStoredState } from './stored';
@@ -109,7 +109,7 @@ export function AgentsSheet({ on, items, open, underway, onOpen, project, change
   const entry = (i: Item) => <AgentEntry key={i.id} item={i} here={i.id === open} underway={underway(i.id)} onOpen={onOpen} />;
   return (
     <Docked id="agents" ref={box} className="pt-5 px-3.5 pb-[30px]" on={on} label={t.agents.work.title}>
-      <h2 className="px-2">{t.agents.work.title}</h2>
+      <h2 className={`${sheetTitleClass} px-2`}>{t.agents.work.title}</h2>
       <Tabs value={tab} onValueChange={(k) => setTab(k as WorkTab)}>
         <TabsList variant="segmented" className="agents-tabs mt-0 mx-2 mb-1" aria-label={t.agents.work.title}>
           {(['work', 'activity'] as const).map((k) => (

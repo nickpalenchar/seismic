@@ -23,7 +23,7 @@ import { know, known } from './known';
 import { Branch } from './diff';
 import { ResultFiles, REVIEW } from './files';
 import { DiscardChanges, FolderBox, FolderLine, useFolderDiff } from './folder';
-import { asksYou, CardFace, cardClass, cardKind, HourglassMark, LabelMarks, LabelPicks, QuestionMark, RestartMark, shownTitle, StoppedWords, Title } from './card';
+import { asksYou, CardFace, cardKind, cardLook, depTagClass, faceClass, listTitleClass, listTitleTextClass, HourglassMark, LabelMarks, LabelPicks, QuestionMark, RestartMark, shownTitle, StoppedWords, Title } from './card';
 import { DepArrow, LimitNotice, PauseMark, PlayMark } from './parts';
 import { asksAhead, holdsNotes, queueOrder } from '../core/queue';
 import { forcedText, QueueList, scrollerOf, useQueueMove, useQueueSort, waitText, type Behind } from './queue';
@@ -65,6 +65,7 @@ import { Textarea } from './components/input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './components/collapsible';
 import { Badge, badgeVariants } from './components/badge';
 import { cn } from 'cn';
+import { coverClass } from './coverClasses';
 import { actionsClass, bodyClass, conversationBox, conversationList, headClass, questionClass, choiceClass, choicesClass, pickTag, stateClass, statusClass, titleClass, titleFieldClass } from './cardClasses';
 import { badClass, blockedFiles, bundleClass, bundleHead, checksClass, clashClass, clashPush, clashWhat, decidedLines, decidedTasks, findingChevron, findingChoices, findingClass, findingContext, findingContextButton, findingFold, findingHead, findingLog, findingNo, findingNote, findingReopen, findingRow, findingsClass, findingsHead, findingStatus, findingTag, findingText, findingWhere, fixingBadge, reviewBusy, reviewClean, reviewCount, reviewOutdated, reviewRunningDot, reviewSubmit, severityBadge, statusPill } from './reviewClasses';
 
@@ -118,6 +119,9 @@ function WaitsFor({ queue, all }: { queue: Behind; all: Item[] }) {
   return <Naming text={(...names) => waitText(queue, all, (id) => names[queue.behind.indexOf(id)]!)} cards={cards} />;
 }
 
+/** The arrow between two covers of the chain, under the middle of the card above it. */
+const chainArrowClass = 'block m-[2.5px_0_2.5px_134px]';
+
 /**
  * The chain a queued card waits in, top to bottom as its waits run on the project: the card it waits
  * for (the first where it waits for several), the card itself (its title only), and a card that waits
@@ -132,7 +136,8 @@ function QueueChain({ item, all }: { item: Item; all: Item[] }) {
   if (!first && !after) return null;
   const cover = (card: Item, dep: 'before' | 'after') => (
     <a
-      className={`${cardClass(card)} cover dep-${dep}`}
+      className={coverClass(`${cardLook(card, { dep }).className} dep-${dep}`)}
+      style={cardLook(card, { dep }).style}
       href={cardPath(projectOf(card.id), card)}
       onClick={(m) => {
         if (m.button || m.metaKey || m.ctrlKey || m.shiftKey || m.altKey) return;
@@ -140,29 +145,29 @@ function QueueChain({ item, all }: { item: Item; all: Item[] }) {
         cards.open(card);
       }}
     >
-      <div className="dep-tag">{t.deps[dep]}</div>
+      <div className={depTagClass}>{t.deps[dep]}</div>
       <CardFace item={card} size="xs" />
     </a>
   );
   return (
-    <div className="q-chain" role="group" aria-label={t.queue.chain}>
+    <div className="q-chain flex flex-col items-start mt-5" role="group" aria-label={t.queue.chain}>
       {first && (
         <>
           {cover(first, 'before')}
-          <DepArrow cls="lit-first" length={36} />
+          <DepArrow cls="lit-first" length={36} className={chainArrowClass} />
         </>
       )}
-      <div className={`${cardClass(item)} cover own`}>
-        <div className="dep-tag">{t.queue.thisCard}</div>
-        <span className="face face-xs">
-          <Title item={item} className="f-ttl" inline>
-            <span className="f-ttl-text">{shownTitle(item)}</span>
+      <div className={coverClass(cardLook(item).className, { own: true })} style={cardLook(item).style}>
+        <div className={depTagClass}>{t.queue.thisCard}</div>
+        <span className={faceClass('xs')}>
+          <Title item={item} className={listTitleClass('xs')} inline>
+            <span className={listTitleTextClass('xs', !item.title)}>{shownTitle(item)}</span>
           </Title>
         </span>
       </div>
       {after && (
         <>
-          <DepArrow cls="lit" length={36} />
+          <DepArrow cls="lit" length={36} className={chainArrowClass} />
           {cover(after, 'after')}
         </>
       )}
@@ -182,17 +187,17 @@ function QueuePlace({ item, items }: { item: Item; items: Item[] }) {
   }, [open]);
   if (!m) return null;
   return (
-    <div className="q-place" ref={box}>
-      <span className="hint">{m.place}</span>
+    <div className="q-place flex flex-wrap items-center gap-x-2.5 gap-y-1.5 mt-2.5 [&_.why]:basis-full" ref={box}>
+      <span className="hint m-0">{m.place}</span>
       {!open && m.buttons}
       <LinkButton aria-expanded={open} onClick={() => setOpen(!open)}>
         {open ? t.queue.hide : t.queue.show}
       </LinkButton>
       {!open && m.why && <div className="hint why">{m.why}</div>}
       {open && (
-        <div className="q-around">
+        <div className="q-around basis-full">
           <QueueList items={items} q={q} />
-          <p className="hint">{t.queue.dragOwn}</p>
+          <p className="hint mt-1.5 mx-0 mb-0">{t.queue.dragOwn}</p>
         </div>
       )}
     </div>

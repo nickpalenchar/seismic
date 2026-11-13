@@ -7,8 +7,13 @@
 
 import { cn } from 'cn';
 
-/** Inside the configuration's dialogs and the settings sheet: text fields as wide as their place, a switch or checkbox a little below what is above it. */
-const inside = '[&_textarea]:w-full [&_[data-slot=check-label]]:[margin:8px_0_0]';
+/**
+ * Inside the configuration's dialogs and the settings sheet: text fields as wide as their place, a switch or
+ * checkbox a little below what is above it; code small in the monospace, cautions and errors in their
+ * colours, an error close under what it is about (over what the parts in them set themselves).
+ */
+const inside =
+  '[&_textarea]:w-full [&_[data-slot=check-label]]:[margin:8px_0_0] [&_code]:[font:12px_var(--mono)]! [&_code]:[overflow-wrap:anywhere]! [&_.warn]:text-warn! [&_.p-error]:[margin:6px_0_0]! [&_.p-error]:text-[13px]!';
 
 /** The dim around Configuration and Preferences, which places the box. */
 export const cfgLayerClass = 'z-55 items-stretch p-7 max-[900px]:p-2.5';
@@ -20,7 +25,8 @@ export const cfgBoxClass = cn(
 );
 
 /** The settings sheet of a project (a docked sheet), with the same fields as the dialog. */
-export const settingsSheetClass = inside;
+/** The project's settings sheet; in a narrow window it floats over the whole page, down to the status bar. */
+export const settingsSheetClass = cn(inside, '[@media(max-width:760px)]:bottom-[46px]');
 
 /** The navigation down the left; in a narrow window a wrapping row over the section. */
 export const cfgNavClass =
@@ -99,7 +105,7 @@ export const cfgFieldClass =
   'cfg-field grid grid-cols-[200px_minmax(0,1fr)] gap-x-6 items-baseline py-[7px] px-0 text-[13.5px] max-[900px]:grid-cols-[1fr] max-[900px]:gap-y-1 [#phone_&]:grid-cols-[150px_minmax(0,1fr)] [#project-settings_&]:grid-cols-[1fr] [#project-settings_&]:gap-y-0.5 [.cfg-project_&]:[align-items:start]';
 export const cfgLabelClass = 'cfg-label text-muted-foreground text-[13px] [.cfg-project_.cfg-field>&]:pt-[7px]';
 export const cfgControlClass =
-  'cfg-control min-w-0 max-w-[640px] [&>.c-path]:w-full [&>.c-path]:max-w-[420px] [&>[data-slot=select-trigger]]:w-full [&>[data-slot=select-trigger]]:max-w-[420px] [&>[data-slot=button]]:mt-1.5';
+  'cfg-control min-w-0 max-w-[640px] [&>.hint]:[margin:5px_0_0] [&>.hint]:text-[12.5px] [&>.hint]:leading-[1.45] [&>.c-path]:w-full [&>.c-path]:max-w-[420px] [&>[data-slot=select-trigger]]:w-full [&>[data-slot=select-trigger]]:max-w-[420px] [&>[data-slot=button]]:mt-1.5';
 
 /** A repository's setting: where its value comes from beside its name, "Reset" where it is set here; marked a moment when the dialog was opened at it. */
 export const cfgSettingClass = cn(cfgFieldClass, 'cfg-setting [align-items:start] [&_textarea]:max-w-[640px] [&.flash]:animate-[cfg-setting-flash_2.4s_ease-out]');

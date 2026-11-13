@@ -8,6 +8,7 @@ import { COMPLEXITIES, type Complexity, type Label, type Labels, LABEL_VALUES, P
 import type { Item } from '../../core/types';
 import { api } from '../api';
 import { Badge } from '../components/badge';
+import { loptClass, prioBtnClass, prioClass, prioMenuClass, prioPickClass } from '../labelClasses';
 import { Menu, MenuContent, MenuRadioGroup, MenuRadioItem, MenuTrigger } from '../components/menu';
 import { t } from '../strings';
 
@@ -36,7 +37,7 @@ const suggestedOf = (item: Item, label: Label) => !!item.labels?.suggested?.incl
  */
 export const PriorityMark = ({ priority, suggested, bare }: { priority: Priority; suggested?: boolean; bare?: boolean }) => (
   <span
-    className={`prio prio-${priority}${suggested ? ' sugg' : ''}${bare ? ' bare' : ''}`}
+    className={prioClass(priority, { suggested, bare })}
     title={bare ? [t.priority.names[priority], suggested && t.labels.suggested].filter(Boolean).join('\n') : suggested ? t.labels.suggested : undefined}
   >
     <Flag />
@@ -73,6 +74,9 @@ const CHIPPED = ['category', 'subcategory', 'complexity'] as const;
 /** Whether a card has any label to show. */
 export const hasLabels = (item: Item) => !!item.labels?.priority || CHIPPED.some((l) => item.labels?.[l] !== undefined);
 
+/** Whether a card's labels on its face include a chip, or a priority Seismic suggested (both stand a little higher). */
+export const hasChips = (item: Item) => CHIPPED.some((l) => item.labels?.[l] !== undefined) || (!!item.labels?.priority && suggestedOf(item, 'priority'));
+
 /** A card's labels on its face: its priority's flag, then a chip for each label it has. */
 export function LabelMarks({ item }: { item: Item }) {
   const shown = CHIPPED.filter((l) => item.labels?.[l] !== undefined).map((l) => <Chip key={l} label={l} value={item.labels![l]!} suggested={suggestedOf(item, l)} />);
@@ -106,14 +110,14 @@ function LabelPick<L extends Label>({ item, label, values, shown, empty, option,
     api.patch(item.id, { [label]: chosen }).catch(console.error);
   };
   return (
-    <span className="prio-pick">
+    <span className={prioPickClass}>
       <Menu open={open} onOpenChange={setOpen}>
         <MenuTrigger asChild>
-          <button className={now !== undefined ? 'prio-btn set' : 'prio-btn'} title={label === 'priority' ? t.priority.label : t.labels[label as Exclude<Label, 'priority'>].label}>
+          <button className={prioBtnClass(now !== undefined)} title={label === 'priority' ? t.priority.label : t.labels[label as Exclude<Label, 'priority'>].label}>
             {now !== undefined ? shown(now as NonNullable<Labels[L]>) : empty}
           </button>
         </MenuTrigger>
-        <MenuContent className={`prio-menu lmenu-${label}`}>
+        <MenuContent className={`${prioMenuClass} lmenu-${label}`}>
           <MenuRadioGroup value={now === undefined ? NONE : String(now)} onValueChange={pick}>
             {values.map((v) => (
               <MenuRadioItem key={String(v)} value={String(v)} title={optionTitle?.(v)}>
@@ -135,13 +139,13 @@ export function LabelPicks({ item }: { item: Item }) {
   const [open, setOpen] = useState<Label>();
   const at = (l: Label) => ({ open: open === l, setOpen: (on: boolean) => setOpen((now) => (on ? l : now === l ? undefined : now)) });
   const empty = (text: string, icon?: ReactNode) => (
-    <span className="lchip-none">
+    <span className="lchip-none inline-flex items-center gap-[3px] font-medium text-muted-foreground normal-case tracking-[.01em] [&_svg]:block [&_svg]:flex-none [&_svg]:opacity-70">
       {icon}
       {text}
     </span>
   );
   return (
-    <span className="label-picks">
+    <span className="label-picks inline-flex flex-wrap items-center gap-x-1.5 gap-y-1">
       <LabelPick
         item={item}
         label="priority"
@@ -161,7 +165,7 @@ export function LabelPicks({ item }: { item: Item }) {
           empty={empty(t.labels[l].label, l === 'complexity' ? <Bars complexity={1} /> : undefined)}
           option={(v) =>
             l === 'complexity' ? (
-              <span className="lopt">
+              <span className={loptClass}>
                 <Bars complexity={v as Complexity} />
                 <b>{v}</b>
               </span>

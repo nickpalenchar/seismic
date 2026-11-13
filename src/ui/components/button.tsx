@@ -29,7 +29,8 @@ const buttonVariants = cva(
         /** blue and underlined, inline in text */
         link: 'inline rounded-none bg-transparent p-0 leading-[1.25] text-primary whitespace-normal [text-align:inherit] underline decoration-1 underline-offset-[.18em] hover:not-disabled:decoration-2 hover:not-disabled:brightness-100',
       },
-      size: { default: '', small: '', icon: 'size-8 shrink-0 rounded-lg p-0', 'icon-small': 'size-5 shrink-0 rounded-[3px] p-0' },
+      /** `small`: a little apart from the text it stands under */
+      size: { default: '', small: '[:is(p,ul,ol,.c-install)+&]:mt-2', icon: 'size-8 shrink-0 rounded-lg p-0', 'icon-small': 'size-5 shrink-0 rounded-[3px] p-0' },
       /** a ring around it: the step the agent suggests */
       suggested: { true: 'shadow-[0_0_0_2px_var(--bg),0_0_0_4px_var(--idea)]' },
       /** disabled while it waits, yet not faded, with a bar running under its label */

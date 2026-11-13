@@ -2,7 +2,7 @@
 // Card sizes): its kind, the line under its title, its state line with its marks, the pin while it
 // needs the owner, and the classes and colour of its state.
 
-import { agentFailed, answering, demoStage, finishingUp, handedOver, type Item, merging, needsYou, openQuestions, type PullRequest, snoozeOf, isPaused, isPausing, inParkingLot } from '../../core/types';
+import { agentFailed, answering, demoStage, finishingUp, handedOver, type Item, needsYou, openQuestions, type PullRequest, snoozeOf, isPaused, isPausing, inParkingLot } from '../../core/types';
 import { excerpt, plain } from '../markdown';
 import { waitReason } from '../queue';
 import { snoozeWho } from '../snooze';
@@ -43,33 +43,6 @@ export const cardTone = (i: Item, underway?: string): string =>
                   : i.state === 'live' || i.state === 'done'
                     ? 'approved'
                     : i.state;
-
-/** The classes that give a card its look: its state's colour, an idea's stock, the owner's turn, an agent at it. */
-export const cardClass = (item: Item, underway?: string) =>
-  [
-    'card',
-    `s-${item.state}`,
-    item.review?.codeReview?.state === 'running' && 'reviewing',
-    item.idea?.discussion && `idea-${item.idea.discussion.status}`,
-    item.kind === 'question' && 'q-card',
-    (item.idea?.discussion?.thinking || item.idea?.proposal?.revising || item.thread?.thinking || merging(item)) && 'thinking',
-    item.idea?.discussion && needsYou(item) && 'your-turn',
-    agentFailed(item) && 'failed',
-    underway && 'underway',
-    answering(item) && 'answering',
-    asksYou(item) && 'asking',
-    finishingUp(item) && 'finishing',
-    isPaused(item) && 'paused',
-    (item.hold?.reason === 'restart') && 'restart-paused',
-    item.review?.resolvingConflicts && 'resolving-conflicts',
-    ((item.hold?.reason === 'limit') || item.agent?.limitedUntil) && 'limit-paused',
-    snoozeOf(item) && 'snoozed',
-    mergeProposed(item) && 'merge-proposed',
-    item.queue && 'queued',
-    item.queue && 'restart' in item.queue && 'restart-queued',
-  ]
-    .filter(Boolean)
-    .join(' ');
 
 /**
  * The word for what kind of card it is: a contributor's pull request, a workstream, a Question, an
