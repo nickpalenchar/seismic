@@ -120,3 +120,15 @@ test('no bespoke control outside src/ui/components/', async () => {
   }
   expect(found).toEqual([]);
 });
+
+// `c-waiting`, `c-working` … each set the same `--c` properties, so two on one element are decided by the stylesheet's
+// order, not by the class list: a part in components/ leaves the state colour to its caller instead of defaulting to one.
+test('no component sets a state colour of its own', async () => {
+  const found: string[] = [];
+  for (const file of new Glob('components/**/*.tsx').scanSync(dir)) {
+    if (file.includes('.test.')) continue;
+    const text = await read(file);
+    if (/(?<![\w-])c-(?:planned|working|reviewing|waiting|approved|inPr|live|proposal|idea|question|asking|restart|destructive|success|warning|info|muted)(?![\w-])/.test(text)) found.push(file);
+  }
+  expect(found).toEqual([]);
+});

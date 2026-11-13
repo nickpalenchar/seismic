@@ -22,9 +22,9 @@ const buttonVariants = cva(
         primary: 'bg-primary text-primary-foreground',
         danger: 'bg-[var(--button-bg,var(--muted))] text-destructive',
         /** starting a code review: second to Approve, in purple */
+        'code-review': 'bg-proposal text-proposal-foreground',
         /** confirming a wontfix: closing the card without a change, in green */
         success: 'bg-approved text-approved-foreground',
-        'code-review': 'bg-proposal text-proposal-foreground',
         'review-warning': 'bg-amber-300 text-amber-950 shadow-[inset_0_0_0_1px_var(--color-amber-600)]',
         /** the icon alone until hovered */
         ghost: 'bg-transparent text-muted-foreground hover:not-disabled:bg-muted hover:not-disabled:text-foreground hover:not-disabled:brightness-100',

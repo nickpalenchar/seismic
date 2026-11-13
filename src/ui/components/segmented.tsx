@@ -23,9 +23,9 @@ const itemVariants = cva('', {
   variants: {
     variant: {
       none: '',
-      // a filter chip: outlined while off, tinted in its colour (`--c`, set by the caller) while on
+      // a filter chip: outlined while off, tinted in its colour (`--c`, from a `c-*` class the caller sets) while on
       chips:
-        'inline-flex cursor-pointer items-center gap-[5px] rounded-full border border-border bg-transparent px-2.5 py-1 text-[12.5px] text-muted-foreground outline-none c-working data-[state=on]:border-[color:--alpha(var(--c)/55%)] data-[state=on]:bg-[color:--alpha(var(--c)/16%)] data-[state=on]:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50',
+        'inline-flex cursor-pointer items-center gap-[5px] rounded-full border border-border bg-transparent px-2.5 py-1 text-[12.5px] text-muted-foreground outline-none data-[state=on]:border-[color:--alpha(var(--c)/55%)] data-[state=on]:bg-[color:--alpha(var(--c)/16%)] data-[state=on]:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50',
       segmented:
         'cursor-pointer rounded-[2px] border-0 bg-transparent px-3 py-1 text-[13px] text-muted-foreground outline-none data-[state=on]:bg-card data-[state=on]:text-foreground data-[state=on]:shadow-glass focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-default disabled:opacity-45',
     },
