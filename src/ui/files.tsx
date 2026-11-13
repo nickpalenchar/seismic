@@ -130,6 +130,14 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
     const bar = [...(bars.current?.children ?? [])].find((b) => (b as HTMLElement).dataset.path === barPicked.path);
     bar?.scrollIntoView({ block: 'start', behavior: scrollBehavior() });
   }, [barPicked]);
+  /** A changed file's changes picked, wherever from (the tree, a result's "Changes"): its bar opens, and it comes into view in either layout. */
+  const showChanges = (path: string) => {
+    setPickedFile(path);
+    setAsChanges({ ...asChanges, [path]: true });
+    openBar(path, true);
+    setBarPicked({ path });
+    setPicked(picked + 1);
+  };
   /** A changed file's note, and its changes or the file as it is. */
   const changedFile = (path: string) => {
     const shown = files.find((f) => f.path === path);
@@ -176,7 +184,7 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
       {review && current === REVIEW && <TabsContent value={REVIEW}>{review.panel}</TabsContent>}
       {inDiff && (
         <TabsContent value={DIFF}>
-          <DiffTreeLayout rows={changedRows} current={selected ?? undefined} onPick={(path) => { setPickedFile(path); setAsChanges({ ...asChanges, [path]: true }); openBar(path, true); setBarPicked({ path }); }}>
+          <DiffTreeLayout rows={changedRows} current={selected ?? undefined} onPick={showChanges}>
           {(stacked) => (
             <>
               <p className="hint"><LinkButton title={t.diff.show} onClick={() => setWholeDiff(true)}><Lines n={diffSize(change?.files ?? [])} /> · {t.diff.size(count)}</LinkButton></p>
@@ -208,9 +216,7 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
             changes={false}
             onChanges={(c) => {
               if (!c) return;
-              setPickedFile(file.path);
-              setAsChanges({ ...asChanges, [file.path]: true });
-              setPicked(picked + 1);
+              showChanges(file.path);
               onTab(DIFF);
             }}
           />
