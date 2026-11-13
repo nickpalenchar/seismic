@@ -588,7 +588,7 @@ them: the top bar, the floating row, the view switcher and the confirmations, th
 unfolding card all keep to it. Opening, closing or resizing a sheet, or docking the left menu,
 shifts the view so its middle stays in the middle of the rest. A card opened beside a sheet
 returns beside whatever sheet is open when it closes; a plan's sheet stays, dimmed, while one of
-its cards is open, and "Needs you", Agent work and the project settings stay undimmed beside any card. A narrow window lays the sheet over the canvas.
+its cards is open, and the Chat, "Needs you", Agent work and the project settings stay undimmed beside any card (the Chat opens from the bar over the dim, and is usable, while a card is open). A narrow window lays the sheet over the canvas.
 
 Seismic's button, a speech bubble with its counts, stays where it is when its sheet opens and becomes
 the sidebar's top corner that closes it; the sheet is headed "Seismic". Other sheets have a ✕.
