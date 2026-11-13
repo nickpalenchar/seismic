@@ -614,6 +614,41 @@ for (const state of ['pending', 'ready', 'failed'] as const) {
   });
 }
 
+test('a change marks the result out of date at once; only the new comparison waits for the edits to settle', async () => {
+  const { p, planned } = cards();
+  project.shutdown();
+  const watcher = new Merges({ board: board(), runtime, pathFor: () => main, settleMs: 200 });
+  const merge = () => board().item(p.id)!.idea!.proposal!.merge!;
+  try {
+    watcher.merge(p.id, planned.id);
+    // a change while the first comparison runs: its result will not count
+    const first = merge().attempt;
+    board().work(planned.id, { body: 'Changed during the comparison.' });
+    await settle();
+    expect(merge().attempt).not.toBe(first);
+    await finishMerge({ title: 'Stale', task: 'From the old text.' });
+    expect(merge().task).toBeUndefined();
+    await settle(250);
+    await finishMerge({ title: 'Combined', task: 'Both requirements.' });
+    expect(merge().task).toBe('Both requirements.');
+    const before = runtime.sessions.length;
+    board().work(p.id, { body: 'The CSV export writes umlauts and quotes wrongly.' });
+    await settle();
+    // within the settle window: updating, not approvable, and no agent yet
+    expect(merge().task).toBeUndefined();
+    expect(merge().previous).toMatchObject({ title: 'Combined', task: 'Both requirements.' });
+    expect(() => board().approveMerge(p.id)).toThrow('not there yet');
+    expect(runtime.sessions.length).toBe(before);
+    board().work(p.id, { body: 'The CSV export writes umlauts, quotes and dates wrongly.' });
+    await settle(100);
+    expect(runtime.sessions.length).toBe(before);
+    await settle(200);
+    expect(runtime.sessions.length).toBe(before + 1);
+    expect(merger()!.inbox[0]).toContain('quotes and dates');
+    expect(board().events(p.id).filter((e) => e.text.startsWith('Compared again')).length).toBe(2);
+  } finally { watcher.shutdown(); }
+});
+
 test('two merging pairs settle independently and separation cancels a pending comparison', async () => {
   const { p, planned } = cards();
   const a = board().create({ title: 'Other left', x: 3000, y: 0 });

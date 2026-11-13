@@ -66,10 +66,15 @@ export class Merges {
     this.watched.clear();
   }
 
+  /**
+   * A change to a merging pair makes its comparison out of date at once, so the result before shows as
+   * updating and cannot be approved; only the agent's new comparison waits for the edits to settle.
+   */
   private soon() {
     const { board } = this.o;
     board.separateDeletedMerges();
     const live = new Set<string>();
+    const outdated: [string, string[]][] = [];
     for (const card of board.items()) {
       const merge = card.idea?.proposal?.merge;
       if (!merge) continue;
@@ -80,6 +85,8 @@ export class Merges {
       const fingerprint = JSON.stringify([merge.with, merge.attempt, other && board.mergeReads(card, other), !!other && board.stillMergeable(card, other)]);
       const was = this.watched.get(card.id);
       if (was?.fingerprint === fingerprint) continue;
+      const changed = other && board.stillMergeable(card, other) ? this.changes(card, other, merge) : [];
+      if (changed.length) outdated.push([card.id, changed]);
       clearTimeout(was?.timer);
       const pair: { fingerprint: string; timer?: ReturnType<typeof setTimeout> } = { fingerprint };
       pair.timer = setTimeout(() => {
@@ -94,12 +101,26 @@ export class Merges {
       clearTimeout(pair.timer);
       this.watched.delete(id);
     }
+    for (const [id, changed] of outdated) {
+      try { board.mergeAgain(id, changed); } catch (e) { console.error('merge:', e); }
+    }
+  }
+
+  /** The cards of merging card `card` that changed since its comparison read them; none for one that has yet to read them. */
+  private changes(card: Item, other: Item, merge: Merge): string[] {
+    // a comparison that is in (a result or a failure) is checked against what it read, one running against what it is reading
+    const running = this.busy.has(card.id) && this.busy.get(card.id) === merge.attempt;
+    const read = merge.task !== undefined || merge.failed !== undefined ? merge.compared : running ? this.reading.get(card.id) : undefined;
+    // one that has not read the cards yet reads them as they are now; a failure from before the reads were kept waits for
+    // "Try again", while a result from then is made again, as nothing tells what it read
+    if (!read && merge.task === undefined) return [];
+    return this.o.board.mergeChanges(card, other, read);
   }
 
   /**
-   * A comparison whose cards changed since it read them is made again; a pair that can no longer
-   * become one is separated, whether its comparison runs, is in or failed. A failed comparison of
-   * unchanged cards waits for the owner's "Try again".
+   * A comparison whose cards changed since it read them is made again, and one marked out of date
+   * when the change came in runs now; a pair that can no longer become one is separated, whether its
+   * comparison runs, is in or failed. A failed comparison of unchanged cards waits for the owner's "Try again".
    */
   private check(only?: string) {
     const { board } = this.o;
@@ -114,15 +135,11 @@ export class Merges {
           board.separate(i.id, other ? 'unmergeable' : 'gone');
           continue;
         }
-        // a comparison that is in (a result or a failure) is checked against what it read, one running against what it is reading
-        const read = merge.task !== undefined || merge.failed !== undefined ? merge.compared : this.reading.get(i.id);
-        // one that has not read the cards yet reads them as they are now; a failure from before the reads were kept waits for
-        // "Try again", while a result from then is made again, as nothing tells what it read
-        if (!read && merge.task === undefined) continue;
-        const changed = board.mergeChanges(i, other, read);
-        if (!changed.length) continue;
-        board.mergeAgain(i.id, changed);
-        this.run(i.id);
+        const changed = this.changes(i, other, merge);
+        if (changed.length) board.mergeAgain(i.id, changed);
+        const now = board.item(i.id)?.idea?.proposal?.merge;
+        // run does nothing for an attempt that runs already
+        if (now && now.task === undefined && now.failed === undefined) this.run(i.id);
       } catch (e) {
         console.error('merge:', e);
       }
