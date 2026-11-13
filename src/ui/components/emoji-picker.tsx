@@ -51,7 +51,7 @@ function EmojiPickerEmoji({ emoji, className, ...props }: EmojiPickerListEmojiPr
       {...props}
       aria-pressed={chosen}
       className={cn(
-        'flex size-9 cursor-pointer items-center justify-center rounded-lg border border-solid border-transparent bg-transparent p-0 text-lg leading-none data-[active]:bg-muted',
+        'flex size-9 cursor-pointer items-center justify-center rounded-lg border border-solid border-transparent bg-transparent p-0 text-xl leading-none data-[active]:bg-muted',
         chosen && 'border-foreground bg-muted',
         className,
       )}

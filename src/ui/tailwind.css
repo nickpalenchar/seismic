@@ -277,6 +277,9 @@ a.link.card-link { color: var(--working); text-decoration: underline 1px current
   --text-base--line-height: 22px;
   --text-lg: 18px;
   --text-lg--line-height: 28px;
+  /* Emoji glyphs stay within one pixel of their original 21px, in a 36px cell. */
+  --text-xl: 20px;
+  --text-xl--line-height: 28px;
   --text-display: 30px;
   --text-display--line-height: 36px;
 }

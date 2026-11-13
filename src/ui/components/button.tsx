@@ -13,27 +13,29 @@ import { Slot } from 'radix-ui';
 import type { ComponentProps, ReactNode } from 'react';
 import { Tooltip } from './tooltip';
 
+// Disabled controls retain pointer movement for tooltips and native title hints; only enabled
+// controls take hover styling. The native disabled attribute still prevents activation.
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none cursor-pointer focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none cursor-pointer focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-default disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
         // Existing callers use default for shadcn's secondary and primary for its default.
-        default: 'bg-[var(--button-bg,var(--secondary))] text-secondary-foreground hover:bg-secondary/80',
-        outline: 'border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50',
-        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-        destructive: 'bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40',
-        primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
-        danger: 'bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40',
+        default: 'bg-[var(--button-bg,var(--secondary))] text-secondary-foreground hover:not-disabled:bg-[color:--alpha(var(--button-bg,var(--secondary))/80%)]',
+        outline: 'border bg-background shadow-xs hover:not-disabled:bg-accent hover:not-disabled:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:not-disabled:bg-input/50',
+        secondary: 'bg-secondary text-secondary-foreground hover:not-disabled:bg-secondary/80',
+        destructive: 'bg-destructive text-white hover:not-disabled:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40',
+        primary: 'bg-primary text-primary-foreground hover:not-disabled:bg-primary/90',
+        danger: 'bg-destructive text-white hover:not-disabled:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40',
         /** starting a code review: second to Approve, in purple */
         'code-review': 'bg-proposal text-proposal-foreground',
         /** confirming a wontfix: closing the card without a change, in green */
         success: 'bg-approved text-approved-foreground',
         'review-warning': 'bg-amber-300 text-amber-950 shadow-[inset_0_0_0_1px_var(--color-amber-600)]',
         /** the icon alone until hovered */
-        ghost: 'hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50',
+        ghost: 'hover:not-disabled:bg-accent hover:not-disabled:text-accent-foreground dark:hover:not-disabled:bg-accent/50',
         /** blue and underlined, inline in text */
-        link: 'inline rounded-none bg-transparent leading-[1.25] text-primary whitespace-normal [text-align:inherit] underline underline-offset-4 hover:underline',
+        link: 'inline rounded-none bg-transparent leading-[1.25] text-primary whitespace-normal [text-align:inherit] underline underline-offset-4 hover:not-disabled:underline',
       },
       /** `small`: a little apart from the text it stands under */
       size: {
