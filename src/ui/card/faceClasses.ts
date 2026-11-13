@@ -471,7 +471,7 @@ export const listTitleClass = (size: 's' | 'xs', subtle?: boolean) =>
 export const listTitleTextClass = (size: 's' | 'xs', untitled: boolean) =>
   ['f-ttl-text min-w-0', size === 'xs' && 'overflow-hidden text-ellipsis whitespace-nowrap', untitled && 'text-muted-foreground font-normal italic'].filter(Boolean).join(' ');
 
-const LIST_DOING = '[&_.doing]:italic [&_.doing]:font-medium [&_.doing]:text-muted-foreground [&_.doing.demo]:text-approved [&_.doing.demo]:font-semibold [&_.doing.conflict]:text-waiting-strong';
+export const LIST_DOING = '[&_.doing]:italic [&_.doing]:font-medium [&_.doing]:text-muted-foreground [&_.doing.demo]:text-approved [&_.doing.demo]:font-semibold [&_.doing.conflict]:text-waiting-strong';
 const LIST_DOING_SUBTLE = '[&_.doing]:text-muted-foreground [&_.doing]:not-italic [&_.doing]:font-normal';
 
 /** S: the state line, in the state's colour (subtle: plain and muted). */

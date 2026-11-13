@@ -8,7 +8,7 @@ import type { Item } from '../../core/types';
 import { OtherCanvas, useOtherCanvas } from '../canvases';
 import { stateLabel, t } from '../strings';
 import { hasChips, hasLabels, LabelMarks, PriorityMark } from './labels';
-import { cardFlags, type CardPlace, chipLabelClass, dotClass, faceClass, kindClass, lineClass, listStateClass, listStateTextClass, listTextClass, listTitleClass, listTitleTextClass, metaClass, pinClass, shortStateClass, stateClass, stateTextClass, topClass, ttlClass, whereClass, wordsClass, wsLabelClass } from './faceClasses';
+import { LIST_DOING, cardFlags, type CardPlace, chipLabelClass, dotClass, faceClass, kindClass, lineClass, listStateClass, listStateTextClass, listTextClass, listTitleClass, listTitleTextClass, metaClass, pinClass, shortStateClass, stateClass, stateTextClass, topClass, ttlClass, whereClass, wordsClass, wsLabelClass } from './faceClasses';
 import { Pin, PinDot, shownTitle, StateMarks, StateText, StoppedWords, Title, UnreadDot } from './pieces';
 import { cardKind, cardSummary, cardTone, stateVars } from './summary';
 import { Badge } from '../components/badge';
@@ -210,10 +210,10 @@ function FaceXS({ item, underway, subtle, title, text, tail, workstation }: Card
       {subtle && s.pin && <PinDot pin={s.pin} />}
       <span className={lineClass}>
         <span className={dotClass(item.state === 'proposal', subtle)} />
-        <span className={wordsClass}>
+        <span className={`${wordsClass} ${workstation ? LIST_DOING : ""}`}>
           {dotted([
             <span className={shortStateClass(subtle)}>{s.state.stopped ? <StoppedWords stopped={s.state.stopped} /> : workstation ? s.state.label : s.state.short}</span>,
-            workstation && s.state.doing && <span className="text-[var(--approved)]">{s.state.doing.text}</span>,
+            workstation && s.state.doing && <span className={s.state.doing.conflict ? "doing conflict" : s.state.doing.demo ? "doing demo" : "doing"}>{s.state.doing.text}</span>,
             !workstation && kind !== s.state.short && kind,
             other && <OtherCanvas item={item} named />,
             tail,
