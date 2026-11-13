@@ -893,8 +893,10 @@ export interface Merge {
   /** Exact consecutive pieces of the dissolving task, for checking coverage without rewriting it. */
   parts?: { text: string; covered: boolean }[];
   followUp?: { title: string; task: string; images: string[]; questions: number[] };
-  /** Texts compared by the agent, for rejecting a stale approval. */
+  /** What the comparison read of both cards: when either changes, it is compared again. */
   compared?: { left: string; right: string; summary: string };
+  /** The result of the comparison before, shown dimmed while the cards are compared again after a change. */
+  previous?: Pick<Merge, 'title' | 'task' | 'outcome' | 'titleCovered' | 'parts' | 'followUp'>;
   /** The agent ended without a merged text: why. */
   failed?: string;
 }

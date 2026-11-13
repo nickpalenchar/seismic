@@ -98,8 +98,21 @@ as merged rather than dismissed for retrospective.
 
 "Separate" restores both original cards, including their places, without creating work. A failed
 comparison shows its reason and "Try again"; unfinished comparisons resume after restart.
-If the compared text or handover changes before approval, a new comparison is required. A combined
-unworked draft cannot overwrite a survivor that has since started.
+The comparison keeps what it read of both cards (texts, screenshots, questions, the survivor's
+handover summary and whether it has started). When either card differs from that, while the agent
+compares or after its result is in, the comparison is made again by itself a few seconds later, so
+a burst of edits makes one new comparison; a survivor that started since is then compared as a
+progressed one. Meanwhile the state line reads "Planning merge" again, the panel keeps the result
+before visible but dimmed under "Updating: a card changed" with the spinner, "Approve merge" is
+disabled until the new result is in and "Separate" stays available; the card's log names the change
+("Compared again: “…” changed."). A pair that can no longer become one (a card deleted, snoozed, or
+otherwise no longer mergeable) separates by itself, the log saying why. An approval in the instant
+before a change is noticed is refused with "A card just changed; comparing again."
+
+Decision (2026-11-12): compare again automatically on every change rather than when the owner
+approves a stale result, which would leave the owner waiting and reading again after clicking, and
+rather than refusing and asking to separate and merge again by hand, a dead end. Changes to a pair
+are rare (an edit, a start, a handover), so the extra read-only runs cost little.
 
 Decision (2026-11-04): started, finished and archived tasks may be survivors, but only an unworked
 card can dissolve. This preserves the task under its worker while allowing covered requests to

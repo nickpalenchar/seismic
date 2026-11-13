@@ -22,7 +22,7 @@ beforeEach(() => {
   gitRepo(main);
   store = new Store(':memory:');
   runtime = new FakeRuntime();
-  project = new ProjectRuntime({ repos: [{ path: main, clones: 1 }] }, { store, home: dir, runtime, forge: noForge, commandDelayMs: 10, limitMargin: 10 });
+  project = new ProjectRuntime({ repos: [{ path: main, clones: 1 }] }, { store, home: dir, runtime, forge: noForge, commandDelayMs: 10, mergeSettleMs: 10, limitMargin: 10 });
 });
 afterEach(() => {
   project.shutdown();
@@ -268,25 +268,12 @@ describe('folding into a progressed survivor', () => {
     expect(board().decisionsOn(b.id).map((d) => d.answer)).toEqual(['As a plan']);
   });
 
-  test('an incomplete coverage map is refused, and changed survivor text requires a new comparison', async () => {
+  test('an incomplete coverage map is refused', async () => {
     const { p, planned } = cards();
     board().work(planned.id, { state: 'working', branch: 'csv' });
     project.act(p.id, { action: 'merge', with: planned.id });
     expect(merger()!.call('merge_cards', { outcome: 'covered', titleCovered: true, parts: [{ text: 'Only a fragment', covered: true }] })).toContain('entire left task exactly');
     expect(board().item(p.id)!.idea!.proposal!.merge!.task).toBeUndefined();
-    await finishMerge(covered(p));
-    board().work(planned.id, { body: 'Changed requirements.' });
-    expect(() => project.act(p.id, { action: 'approveMerge' })).toThrow('changed since the comparison');
-    expect(board().item(p.id)).toBeDefined();
-  });
-
-  test('a combined draft cannot overwrite a card that started while waiting for approval', async () => {
-    const { p, planned } = cards();
-    project.act(p.id, { action: 'merge', with: planned.id });
-    await finishMerge({ title: 'Combined', task: 'Both requirements.' });
-    board().work(planned.id, { state: 'working', branch: 'csv' });
-    expect(() => project.act(p.id, { action: 'approveMerge' })).toThrow('progressed');
-    expect(board().item(planned.id)!.body).toBe(planned.body);
   });
 
   test('picker orders planned, in progress, done and archived, newest within each; eligibility applies to both sides', () => {
@@ -395,4 +382,92 @@ test('an archived stopped survivor holds its new follow-up until its work lands'
   board().work(planned.id, { state: 'done' });
   await settle(40);
   expect(board().item(next.id)!.plan?.manualArchived).toBeUndefined();
+});
+
+
+describe('a merged pair whose cards change compares again', () => {
+  const merge = (id: string) => board().item(id)!.idea!.proposal!.merge!;
+  const lines = (id: string) => board().events(id).map((e) => e.text);
+
+  test('an edit to the left card after the combined text: the result before stays until the new one is in', async () => {
+    const { p, planned } = cards();
+    project.act(p.id, { action: 'merge', with: planned.id });
+    await finishMerge({ title: 'Combined', task: 'Both requirements.' });
+    const first = merger();
+    expect(merge(p.id).compared).toBeDefined();
+    board().work(p.id, { body: 'The CSV export writes umlauts and quotes wrongly.' });
+    // the race guard: approved before the watcher noticed
+    expect(() => project.act(p.id, { action: 'approveMerge' })).toThrow('comparing again');
+    await settle(40);
+    expect(merger()).not.toBe(first);
+    expect(merger()!.inbox[0]).toContain('umlauts and quotes');
+    expect(merge(p.id).task).toBeUndefined();
+    expect(merge(p.id).previous).toMatchObject({ title: 'Combined', task: 'Both requirements.' });
+    expect(lines(p.id)).toContain('Compared again: “Check CSV umlauts” changed.');
+    expect(() => project.act(p.id, { action: 'approveMerge' })).toThrow('not there yet');
+    await finishMerge({ title: 'Combined again', task: 'Umlauts, quotes and dates.' });
+    expect(merge(p.id).previous).toBeUndefined();
+    project.act(p.id, { action: 'approveMerge' });
+    expect(board().item(planned.id)!.body).toStartWith('Umlauts, quotes and dates.');
+  });
+
+  test('the survivor\'s handover changes its summary: compared again against the new one', async () => {
+    const { p, planned } = cards();
+    board().work(planned.id, { state: 'working', branch: 'csv' });
+    project.act(p.id, { action: 'merge', with: planned.id });
+    await finishMerge(covered(p));
+    board().work(planned.id, { state: 'waiting', detail: JSON.stringify({ summary: 'Umlauts are written as UTF-8 now.' }) });
+    await settle(40);
+    expect(merger()!.inbox[0]).toContain('Umlauts are written as UTF-8 now.');
+    expect(merge(p.id).previous?.outcome).toBe('covered');
+    expect(lines(p.id)).toContain('Compared again: “Fix the CSV export” changed.');
+    await finishMerge(covered(p));
+    project.act(p.id, { action: 'approveMerge' });
+    expect(board().item(p.id)).toBeUndefined();
+  });
+
+  test('an unworked survivor that starts is compared as a progressed one, and its text stays', async () => {
+    const { p, planned } = cards();
+    project.act(p.id, { action: 'merge', with: planned.id });
+    await finishMerge({ title: 'Combined', task: 'Both requirements.' });
+    board().work(planned.id, { state: 'working', branch: 'csv' });
+    await settle(40);
+    expect(merger()!.inbox[0]).toContain('The right card has progressed');
+    await finishMerge({ outcome: 'followUp', titleCovered: false, parts: [{ text: p.body, covered: false }], followUp: { title: 'Fix CSV encoding', task: 'Fix the encoding.', images: [], questions: [] } });
+    project.act(p.id, { action: 'approveMerge' });
+    expect(board().item(planned.id)!.body).toBe(planned.body);
+    expect(board().items().some((i) => i.title === 'Fix CSV encoding')).toBe(true);
+  });
+
+  test('a change during the first comparison starts it again; a burst of edits makes one comparison', async () => {
+    const { p, planned } = cards();
+    project.act(p.id, { action: 'merge', with: planned.id });
+    const before = runtime.sessions.length;
+    board().work(planned.id, { body: 'Dates are off.' });
+    board().work(planned.id, { body: 'Dates are off by one day.' });
+    board().work(planned.id, { body: 'Dates are off by one day in CSV.' });
+    await settle(40);
+    expect(runtime.sessions.length).toBe(before + 1);
+    expect(merger()!.inbox[0]).toContain('Dates are off by one day in CSV.');
+    expect(merge(p.id).previous).toBeUndefined();
+    await settle(40);
+    expect(runtime.sessions.length).toBe(before + 1);
+  });
+
+  test('a partner that can no longer be merged with separates the pair, saying why', async () => {
+    const { p, planned } = cards();
+    project.act(p.id, { action: 'merge', with: planned.id });
+    await finishMerge({ title: 'Combined', task: 'Both requirements.' });
+    board().snooze(planned.id, { until: '2099-01-01T00:00:00.000Z', why: 'later', by: 'owner' });
+    await settle(40);
+    expect(board().item(p.id)!.idea?.proposal?.merge).toBeUndefined();
+    expect(lines(p.id)).toContain('Separated from “Fix the CSV export” again: the two can no longer be merged.');
+
+    const other = board().create({ title: 'Other', body: 'Other task.', x: 0, y: 2000 });
+    project.act(p.id, { action: 'merge', with: other.id });
+    board().remove(other.id);
+    await settle(40);
+    expect(board().item(p.id)!.idea?.proposal?.merge).toBeUndefined();
+    expect(lines(p.id)).toContain('Separated again: the other card is gone.');
+  });
 });

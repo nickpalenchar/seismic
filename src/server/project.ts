@@ -85,6 +85,8 @@ export interface ProjectDeps {
   setupProposals?: boolean;
   /** How long a voice command waits for undo. */
   commandDelayMs?: number;
+  /** How long after a change to a merging card its comparison waits before it is made again. */
+  mergeSettleMs?: number;
   /** How long building or starting a card in a new repository waits for undo; NEW_REPO_HOLD_MS when left out. */
   newRepoHoldMs?: number;
   /** The checkout this Seismic runs from, when it starts again for new code there (self-update.ts). */
@@ -454,7 +456,7 @@ export class ProjectRuntime {
       onRevised: (cardId, revised) => this.revised(cardId, revised),
     });
     this.revisions.resume();
-    this.merges = new Merges({ board, runtime: deps.runtime, imageFiles: this.imageFiles, preferences: this.preferences, pathFor: (card) => this.repoOf(card).read.path });
+    this.merges = new Merges({ board, runtime: deps.runtime, imageFiles: this.imageFiles, preferences: this.preferences, pathFor: (card) => this.repoOf(card).read.path, ...(deps.mergeSettleMs !== undefined ? { settleMs: deps.mergeSettleMs } : {}) });
     this.merges.resume();
     this.sharing = new Sharing({
       board,
@@ -2937,6 +2939,7 @@ export class ProjectRuntime {
     for (const r of this.repos) this.stopRepo(r);
     this.koordinator.shutdown();
     this.explorers.shutdown();
+    this.merges.shutdown();
   }
 }
 

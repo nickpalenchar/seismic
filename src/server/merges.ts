@@ -14,6 +14,8 @@ export interface MergeOptions {
   pathFor: (card: Item) => string;
   preferences?: () => string;
   imageFiles?: (ids: string[]) => string[];
+  /** How long after a change to a merging card the watcher looks, so a burst of edits makes one comparison. */
+  settleMs?: number;
 }
 type Result = Omit<Merge, 'with' | 'failed'> & { title: string; task: string };
 
@@ -32,7 +34,13 @@ const comparison = z.object({
 
 export class Merges {
   private busy = new Map<string, string | undefined>();
-  constructor(private o: MergeOptions) {}
+  /** What the comparison running for a card read of the pair, by card. */
+  private reading = new Map<string, NonNullable<Merge['compared']>>();
+  private timer: ReturnType<typeof setTimeout> | undefined;
+  private unwatch: () => void;
+  constructor(private o: MergeOptions) {
+    this.unwatch = o.board.onChange(() => this.soon());
+  }
 
   merge(cardId: string, withId: string) {
     this.run(this.o.board.mergeStart(cardId, withId));
@@ -43,6 +51,46 @@ export class Merges {
       const merge = i.idea?.proposal?.merge;
       if (merge && merge.task === undefined && merge.failed === undefined) this.run(i.id);
     }
+    // what changed while Seismic was not running
+    this.check();
+  }
+
+  shutdown() {
+    this.unwatch();
+    clearTimeout(this.timer);
+  }
+
+  private soon() {
+    if (this.timer || !this.o.board.items().some((i) => i.idea?.proposal?.merge)) return;
+    this.timer = setTimeout(() => {
+      this.timer = undefined;
+      try { this.check(); } catch (e) { console.error('merge:', e); }
+    }, this.o.settleMs ?? 3000);
+  }
+
+  /**
+   * A comparison whose cards changed since it read them is made again; a pair that can no longer
+   * become one is separated. A failed comparison waits for the owner's "Try again".
+   */
+  private check() {
+    const { board } = this.o;
+    for (const i of board.items()) {
+      const merge = i.idea?.proposal?.merge;
+      if (!merge || merge.failed !== undefined) continue;
+      const read = merge.task !== undefined ? merge.compared : this.reading.get(i.id);
+      // a comparison that has not read the cards yet reads them as they are now
+      if (merge.task === undefined && !read) continue;
+      let other: Item | undefined;
+      try { other = board.card(merge.with); } catch { /* deleted */ }
+      if (!other || !board.stillMergeable(i, other)) {
+        board.separate(i.id, other ? 'unmergeable' : 'gone');
+        continue;
+      }
+      const changed = board.mergeChanges(i, other, read);
+      if (!changed.length) continue;
+      board.mergeAgain(i.id, changed);
+      this.run(i.id);
+    }
   }
 
   private run(cardId: string) {
@@ -52,20 +100,21 @@ export class Merges {
     const attempt = card.idea?.proposal?.merge?.attempt;
     if (this.busy.has(cardId) && this.busy.get(cardId) === attempt) return;
     this.busy.set(cardId, attempt);
+    this.reading.set(cardId, this.o.board.mergeReads(card, other));
     this.ask(card, other)
       .then(
         (r) => void this.o.board.merged(cardId, r, attempt),
         (e) => void this.o.board.merged(cardId, { failed: messageOf(e) }, attempt),
       )
       .catch((e) => console.error('merge:', e))
-      .finally(() => { if (this.busy.get(cardId) === attempt) this.busy.delete(cardId); });
+      .finally(() => { if (this.busy.get(cardId) === attempt) { this.busy.delete(cardId); this.reading.delete(cardId); } });
   }
 
   private async ask(card: Item, other: Item): Promise<Result> {
     let merged: Result | undefined;
     const preserve = mergeRank(other) > 1;
-    const summary = this.o.board.summary(other.id) ?? '';
-    const compared = { left: JSON.stringify([card.title, card.body, card.images, card.idea?.proposal?.questions ?? []]), right: JSON.stringify([other.title, other.body]), summary };
+    const compared = this.o.board.mergeReads(card, other);
+    const summary = compared.summary;
     const error = await readSession(this.o.runtime, {
       cwd: this.o.pathFor(other),
       role: 'koordinator',
@@ -95,7 +144,7 @@ export class Merges {
           } else {
             const parsed = combined.safeParse(r);
             if (!parsed.success) return 'Not recorded: provide a non-empty title (up to 200 characters) and task (up to 20000).';
-            merged = parsed.data;
+            merged = { ...parsed.data, compared };
           }
           return finish('Recorded. End your turn now.');
         },

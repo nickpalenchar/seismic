@@ -1686,15 +1686,53 @@ export class Board {
     const proposal = storedProposal(row);
     const was = proposal?.merge;
     if (!was || (attempt !== undefined && was.attempt !== attempt) || was.task !== undefined || was.failed !== undefined) return false;
-    const merge = 'failed' in r ? { ...was, failed: r.failed.slice(0, 2000) } : { ...was, ...r, title: r.outcome ? r.title : r.title.trim().slice(0, 200), task: r.outcome ? r.task : r.task.trim().slice(0, 20000) };
+    const { previous: _, ...base } = was;
+    const merge = 'failed' in r ? { ...base, failed: r.failed.slice(0, 2000) } : { ...base, ...r, title: r.outcome ? r.title : r.title.trim().slice(0, 200), task: r.outcome ? r.task : r.task.trim().slice(0, 20000) };
     this.store.updateCard(id, { idea: { proposal: { ...proposal, merge } satisfies Proposal } });
     if ('failed' in r) this.log(id, 'error', 'koordinator', this.t.koordinator.mergeFailed(r.failed));
     this.changed();
     return true;
   }
 
-  /** Separate restores both original cards, including their places. */
-  separate(id: string) {
+  /** What a comparison of merging card `p` with `other` reads of them; the survivor's stage decides which comparison it is. */
+  mergeReads(p: Item, other: Item): NonNullable<Merge['compared']> {
+    return {
+      left: JSON.stringify([p.title, p.body, p.images, p.idea?.proposal?.questions ?? []]),
+      right: JSON.stringify([other.title, other.body, mergeRank(other) > 1]),
+      summary: this.summary(other.id) ?? '',
+    };
+  }
+
+  /** The titles of the cards that changed since the comparison read them as `read`: all of the pair when it is not known. */
+  mergeChanges(p: Item, other: Item, read: Merge['compared']): string[] {
+    const now = this.mergeReads(p, other);
+    return [...(read?.left !== now.left ? [p.title] : []), ...(read?.right !== now.right || read?.summary !== now.summary ? [other.title] : [])];
+  }
+
+  /** Whether merging card `p` and `other` may still become one. */
+  stillMergeable(p: Item, other: Item): boolean {
+    const proposal = p.idea?.proposal;
+    return !!proposal && mergeableWith(withPart(p, 'idea', { proposal: { ...proposal, merge: undefined } }), withPart(other, 'idea', { mergingInto: undefined }));
+  }
+
+  /**
+   * A card of merging pair `id` changed (`titles`) since the comparison read it: it is compared again,
+   * as a new attempt, with the result before kept to show dimmed until the new one is in.
+   */
+  mergeAgain(id: string, titles: string[]) {
+    const row = this.own(id);
+    const proposal = storedProposal(row);
+    const was = proposal?.merge;
+    if (!proposal || !was) throw new BadRequest('notProposal', 'the proposal is not merged with another card');
+    const { title, task, outcome, titleCovered, parts, followUp, compared: _, failed: __, previous, ...keep } = was;
+    const before = task !== undefined ? { title, task, outcome, titleCovered, parts, followUp } : previous;
+    this.store.updateCard(id, { idea: { proposal: { ...proposal, merge: { ...keep, attempt: crypto.randomUUID(), ...(before ? { previous: before } : {}) } } satisfies Proposal } });
+    this.log(id, 'state', 'koordinator', this.t.koordinator.mergeAgain(titles));
+    this.changed();
+  }
+
+  /** Separate restores both original cards, including their places; `why` when Seismic separates them because they can no longer merge. */
+  separate(id: string, why?: 'gone' | 'unmergeable') {
     const row = this.own(id);
     const { merge, ...proposal } = storedProposal(row) ?? { questions: [] };
     if (!merge) throw new BadRequest('notProposal', 'the proposal is not merged with another card');
@@ -1702,7 +1740,8 @@ export class Board {
     const there = other && other.project_id === this.project.id && !other.deleted_at && !other.archived_at;
     this.store.updateCard(id, { ...merge.origin ?? {}, idea: { proposal: merge.temporaryProposal ? null : (proposal satisfies Proposal) } });
     // Both originals keep their exact place when separated.
-    this.log(id, 'state', 'koordinator', this.t.koordinator.mergeSeparated(there ? (other.title ?? '') : ''));
+    const k = this.t.koordinator;
+    this.log(id, 'state', 'koordinator', why === 'gone' ? k.mergeGone : why ? k.mergeUnmergeable(other?.title ?? '') : k.mergeSeparated(there ? (other.title ?? '') : ''));
     this.changed();
   }
 
@@ -1727,11 +1766,10 @@ export class Board {
     const mergedTask = merge.task;
     const other = this.card(merge.with);
     if (!p || !other) throw new BadRequest('unknownCard', 'the card it was merged with is gone');
-    if (!mergeableWith(withPart(p, 'idea', { proposal: { ...proposal, merge: undefined } }), withPart(other, 'idea', { mergingInto: undefined }))) throw new BadRequest('notMergeable', `“${other.title}” can no longer be merged with`);
+    if (!this.stillMergeable(p, other)) throw new BadRequest('notMergeable', `“${other.title}” can no longer be merged with`);
     const keep = this.own(other.id);
-    if (merge.compared && (merge.compared.left !== JSON.stringify([p.title, p.body, p.images, proposal.questions]) || merge.compared.right !== JSON.stringify([other.title, other.body]) || merge.compared.summary !== (this.summary(other.id) ?? '')))
-      throw new BadRequest('mergeChanged', 'The cards changed since the comparison. Separate and compare them again.');
-    if (mergeRank(other) > 1 && !merge.outcome) throw new BadRequest('mergeChanged', 'The survivor has progressed. Separate and compare them again.');
+    // the watcher in merges.ts compares again after a change; this only catches an approval in the instant before it notices
+    if (this.mergeChanges(p, other, merge.compared).length) throw new BadRequest('mergeChanged', 'A card just changed; comparing again.');
     this.store.transaction(() => {
       if (merge.outcome) {
         if (merge.followUp) {
