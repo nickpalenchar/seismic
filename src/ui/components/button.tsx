@@ -23,6 +23,8 @@ const buttonVariants = cva(
         danger: 'bg-[var(--button-bg,var(--chip))] text-destructive',
         /** starting a code review: second to Approve, in purple */
         'code-review': 'bg-proposal text-on-ink',
+        /** confirming a wontfix: closing the card without a change, in green */
+        success: 'bg-[#2f9e5b] text-white',
         'review-warning': 'bg-[#f5c247] text-[#34270b] shadow-[inset_0_0_0_1px_#c48f21]',
         /** the icon alone until hovered */
         ghost: 'bg-transparent text-muted-foreground hover:not-disabled:bg-chip hover:not-disabled:text-ink hover:not-disabled:brightness-100',
@@ -40,8 +42,8 @@ const buttonVariants = cva(
     },
     compoundVariants: [
       // a link takes the weight of the text it stands in; `small` only makes it smaller
-      { variant: ['default', 'primary', 'danger', 'code-review', 'review-warning', 'ghost'], size: 'default', className: 'rounded-lg px-[13px] py-[7px] font-semibold leading-[1.25]' },
-      { variant: ['default', 'primary', 'danger', 'code-review', 'review-warning', 'ghost'], size: 'small', className: 'rounded-lg px-[11px] py-[5px] text-[12.5px] font-medium leading-[1.25]' },
+      { variant: ['default', 'primary', 'danger', 'code-review', 'review-warning', 'success', 'ghost'], size: 'default', className: 'rounded-lg px-[13px] py-[7px] font-semibold leading-[1.25]' },
+      { variant: ['default', 'primary', 'danger', 'code-review', 'review-warning', 'success', 'ghost'], size: 'small', className: 'rounded-lg px-[11px] py-[5px] text-[12.5px] font-medium leading-[1.25]' },
       { variant: 'link', size: 'small', className: 'text-[12.5px]' },
     ],
     defaultVariants: { variant: 'default', size: 'default' },

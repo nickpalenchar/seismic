@@ -431,7 +431,7 @@ export function Detail(p: Props) {
     <ApproveReview c={item.review?.contribution} act={act} />
   ) : inFolder ? (
     <>
-      <Button variant="primary" title={item.review?.noChange ? undefined : t.folder.approveHint} onClick={() => act({ action: 'approve' }, item.review?.noChange ? { close: true, ack: t.approvedNoChange, rate: item.id } : { close: true, ack: t.folder.approved, rate: item.id })}>
+      <Button variant={item.review?.noChange ? 'success' : 'primary'} title={item.review?.noChange ? undefined : t.folder.approveHint} onClick={() => act({ action: 'approve' }, item.review?.noChange ? { close: true, ack: t.approvedNoChange, rate: item.id } : { close: true, ack: t.folder.approved, rate: item.id })}>
         {item.review?.noChange ? t.approveNoChange : t.approve}
       </Button>
       <DiscardChanges diff={changes.diff} act={act} onDone={changes.reload} />
@@ -439,7 +439,7 @@ export function Detail(p: Props) {
   ) : (
     <>
       {/* while yellow, a second line inside it says why, as on the start buttons */}
-      <Button variant={reviewRunning ? 'review-warning' : 'primary'} className={reviewRunning ? approvalWarningClass : undefined} onClick={() => approve(false)}>
+      <Button variant={reviewRunning ? 'review-warning' : item.review?.noChange ? 'success' : 'primary'} className={reviewRunning ? approvalWarningClass : undefined} onClick={() => approve(false)}>
         <span>{item.review?.noChange ? t.approveNoChange : pr ? t.approvePr : t.approve}</span>
         {approvalWarning}
       </Button>
