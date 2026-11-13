@@ -943,7 +943,7 @@ code, a generic one otherwise.
   asking yellow, restart sky, planned and live slate, destructive red, warning amber. Light takes the -600
   step where it reaches 3:1 for marks and 4.5:1 for text on glass over the board (`frost.test.ts` measures
   it from the tokens), else -700 (approved, asking, question, success, info); a state's line is the strong step
-  (about 6:1 light, 10:1 dark). Reviewing and in-PR were two nearly identical teals and are now teal and
+  (about 6:1 light, 10:1 dark). Text on a solid fill (a count, a pin, a button) is that colour's own foreground (`text-waiting-foreground`), white or black as contrast needs, not a shared one; the test measures each. Reviewing and in-PR were two nearly identical teals and are now teal and
   cyan. A subtle tint is the palette's step, not a mix of the state colour into the glass, so it is a little
   stronger than the old hand-mixed one. Chosen over the stock shadcn neutrals so that frost keeps its glass
   and its meaning of colour, and over a scale of frost's own hues so that new parts fit without picking
