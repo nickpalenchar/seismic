@@ -2897,7 +2897,7 @@ function panelRect(i: Item, inner: HTMLElement, side: Sides, keep = 0) {
   // pinned navigation and a sheet usable beside the card (`keep`) limit it unless the window leaves less
   // than a conversation's width beside them, where the card lies under that sheet
   const room = innerWidth - side.left - keep - 80;
-  const W = Math.min(want, Math.max(room, Math.min(TALK_W, innerWidth - 80)));
+  const W = Math.min(want, Math.max(room, Math.min(TALK_W, innerWidth - side.left - 80)));
   inner.style.width = `${W}px`;
   inner.style.removeProperty('--pb');
   inner.style.overflowY = '';
@@ -2937,8 +2937,9 @@ function panelRect(i: Item, inner: HTMLElement, side: Sides, keep = 0) {
   const extra = under(H);
   // through --pb, which the card's sticky row of decisions reaches down over too (styles.css)
   if (extra) inner.style.setProperty('--pb', `${base + extra}px`);
-  // in the middle of the project where it fits there, else as near to it as the window allows
-  const lo = W <= room ? side.left + 40 : 40;
+  // in the middle of the project where it fits there, else as near to it as the window allows, but never
+  // over the pinned navigation or the inbox's list on the left
+  const lo = side.left + 40;
   return { left: `${Math.max(lo, Math.min(midX(side) - W / 2, innerWidth - keep - W - 40))}px`, top: `${top(H)}px`, width: `${W}px`, height: `${H}px` };
 }
 
