@@ -159,3 +159,11 @@ test('the dark palette has one definition shared by system and choice', () => {
 });
 
 if (process.env.FROST_CONTRAST) for (const dark of [false, true]) console.table(measure(look(dark)));
+
+// The installed app's launch screen and browser chrome (manifest.webmanifest, which holds no CSS variables) show the light board's colour.
+test('the web manifest\'s colours are the light background', async () => {
+  const manifest = (await Bun.file(new URL('./manifest.webmanifest', import.meta.url)).json()) as { background_color: string; theme_color: string };
+  const [r, g, b] = look(false).background!;
+  const hex = `#${[r, g, b].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`;
+  expect([manifest.background_color, manifest.theme_color]).toEqual([hex, hex]);
+});
