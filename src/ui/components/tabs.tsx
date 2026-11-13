@@ -1,48 +1,51 @@
-// Tabs (shadcn/ui's Tabs, on Radix Tabs): a row (or, vertical, a column) of triggers where one is on,
-// and the arrow keys move between them. `Tabs` holds the value, `TabsList` the triggers, `TabsContent`
-// a panel. The look is the list's `variant` (`segmented`, `underline`, `pill`), or none for a list
-// whose triggers the container styles (the canvas strip, the diff change list, the Configuration and
-// Preferences navs). The canvas strip and the change list open a tab only on Enter or a click
-// (`activationMode="manual"`), not as the arrow keys pass it. A panel whose state must survive being hidden
-// (unsent input) takes `forceMount` and `hidden` itself. A `Tabs` that only holds its list takes
-// `className="contents"`, so the list is laid out by the container.
-
+// Tabs on Radix: arrow keys select a tab, or only focus it with activationMode="manual".
+// Lists opt into a look; an omitted variant leaves the canvas strip and view navigation to their containers.
+// forceMount + hidden keeps a panel's unsent input mounted when another tab is selected.
+import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from 'cn';
 import { Tabs as TabsPrimitive } from 'radix-ui';
-import type { ComponentProps } from 'react';
+import { createContext, useContext, type ComponentProps } from 'react';
 
-export function Tabs(props: ComponentProps<typeof TabsPrimitive.Root>) {
-  return <TabsPrimitive.Root data-slot="tabs" {...props} />;
+export function Tabs({ className, orientation = 'horizontal', asChild, ...props }: ComponentProps<typeof TabsPrimitive.Root>) {
+  return <TabsPrimitive.Root data-slot="tabs" data-orientation={orientation} orientation={orientation} asChild={asChild} className={cn(!asChild && 'group/tabs flex gap-2 data-[orientation=horizontal]:flex-col', className)} {...props} />;
 }
 
-export type TabsVariant = 'segmented' | 'underline' | 'pill';
-
-const lists: Record<TabsVariant, string> = {
-  segmented: 'inline-flex gap-0.5 rounded-[3px] bg-muted p-[3px]',
-  underline: 'flex flex-wrap gap-x-4 gap-y-1 border-0 border-b border-solid border-border',
-  pill: 'flex gap-1.5',
-};
+const listVariants = cva('', {
+  variants: {
+    variant: {
+      none: '',
+      segmented: 'inline-flex h-9 w-fit items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground data-[orientation=vertical]:h-auto data-[orientation=vertical]:flex-col',
+      underline: 'flex flex-wrap gap-x-4 gap-y-1 border-b border-border',
+      pill: 'flex gap-1.5',
+    },
+  },
+});
+const triggerVariants = cva('outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50', {
+  variants: {
+    variant: {
+      none: '',
+      segmented: "inline-flex items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-all focus-visible:border-ring data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm dark:data-[state=active]:border-input dark:data-[state=active]:bg-input/30 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+      underline: 'cursor-pointer border-b-2 border-transparent bg-transparent px-0.5 py-2 text-sm text-muted-foreground [overflow-wrap:anywhere] hover:text-foreground data-[state=active]:border-waiting data-[state=active]:font-semibold data-[state=active]:text-foreground',
+      pill: 'cursor-pointer rounded-xl border border-border bg-transparent px-3.5 py-1 text-sm text-muted-foreground data-[state=active]:border-foreground data-[state=active]:bg-foreground data-[state=active]:text-background',
+    },
+  },
+});
+export type TabsVariant = Exclude<NonNullable<VariantProps<typeof listVariants>['variant']>, 'none'>;
+const ListVariant = createContext<TabsVariant | 'none'>('none');
 
 export function TabsList({ variant, className, ...props }: ComponentProps<typeof TabsPrimitive.List> & { variant?: TabsVariant }) {
-  return <TabsPrimitive.List data-slot="tabs-list" data-variant={variant} className={cn('group/tabs-list', variant && lists[variant], className)} {...props} />;
-}
-
-export function TabsTrigger({ className, ...props }: ComponentProps<typeof TabsPrimitive.Trigger>) {
   return (
-    <TabsPrimitive.Trigger
-      data-slot="tabs-trigger"
-      className={cn(
-        'outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
-        'group-data-[variant=segmented]/tabs-list:cursor-pointer group-data-[variant=segmented]/tabs-list:rounded-[2px] group-data-[variant=segmented]/tabs-list:border-0 group-data-[variant=segmented]/tabs-list:bg-transparent group-data-[variant=segmented]/tabs-list:px-3 group-data-[variant=segmented]/tabs-list:py-1 group-data-[variant=segmented]/tabs-list:text-[13px] group-data-[variant=segmented]/tabs-list:text-muted-foreground group-data-[variant=segmented]/tabs-list:data-[state=active]:bg-card group-data-[variant=segmented]/tabs-list:data-[state=active]:text-foreground group-data-[variant=segmented]/tabs-list:data-[state=active]:shadow-glass',
-        'group-data-[variant=underline]/tabs-list:cursor-pointer group-data-[variant=underline]/tabs-list:border-0 group-data-[variant=underline]/tabs-list:border-b-2 group-data-[variant=underline]/tabs-list:border-solid group-data-[variant=underline]/tabs-list:border-transparent group-data-[variant=underline]/tabs-list:bg-transparent group-data-[variant=underline]/tabs-list:px-0.5 group-data-[variant=underline]/tabs-list:py-2 group-data-[variant=underline]/tabs-list:text-sm group-data-[variant=underline]/tabs-list:text-muted-foreground group-data-[variant=underline]/tabs-list:[overflow-wrap:anywhere] group-data-[variant=underline]/tabs-list:hover:text-foreground group-data-[variant=underline]/tabs-list:data-[state=active]:border-waiting group-data-[variant=underline]/tabs-list:data-[state=active]:font-semibold group-data-[variant=underline]/tabs-list:data-[state=active]:text-foreground',
-        'group-data-[variant=pill]/tabs-list:cursor-pointer group-data-[variant=pill]/tabs-list:rounded-[14px] group-data-[variant=pill]/tabs-list:border group-data-[variant=pill]/tabs-list:border-solid group-data-[variant=pill]/tabs-list:border-border group-data-[variant=pill]/tabs-list:bg-transparent group-data-[variant=pill]/tabs-list:px-3.5 group-data-[variant=pill]/tabs-list:py-1 group-data-[variant=pill]/tabs-list:text-[13px] group-data-[variant=pill]/tabs-list:text-muted-foreground group-data-[variant=pill]/tabs-list:data-[state=active]:border-foreground group-data-[variant=pill]/tabs-list:data-[state=active]:bg-foreground group-data-[variant=pill]/tabs-list:data-[state=active]:text-background',
-        className,
-      )}
-      {...props}
-    />
+    <ListVariant value={variant ?? 'none'}>
+      <TabsPrimitive.List data-slot="tabs-list" data-variant={variant} className={cn(listVariants({ variant: variant ?? 'none' }), className)} {...props} />
+    </ListVariant>
   );
 }
 
-export function TabsContent(props: ComponentProps<typeof TabsPrimitive.Content>) {
-  return <TabsPrimitive.Content data-slot="tabs-content" {...props} />;
+export function TabsTrigger({ className, ...props }: ComponentProps<typeof TabsPrimitive.Trigger>) {
+  const variant = useContext(ListVariant);
+  return <TabsPrimitive.Trigger data-slot="tabs-trigger" className={cn(triggerVariants({ variant }), className)} {...props} />;
+}
+
+export function TabsContent({ className, ...props }: ComponentProps<typeof TabsPrimitive.Content>) {
+  return <TabsPrimitive.Content data-slot="tabs-content" className={cn('flex-1 outline-none', className)} {...props} />;
 }

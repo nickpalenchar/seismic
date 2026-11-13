@@ -51,7 +51,7 @@ function EmojiPickerEmoji({ emoji, className, ...props }: EmojiPickerListEmojiPr
       {...props}
       aria-pressed={chosen}
       className={cn(
-        'flex size-9 cursor-pointer items-center justify-center rounded-lg border border-solid border-transparent bg-transparent p-0 text-[21px] leading-none data-[active]:bg-muted',
+        'flex size-9 cursor-pointer items-center justify-center rounded-lg border border-solid border-transparent bg-transparent p-0 text-lg leading-none data-[active]:bg-muted',
         chosen && 'border-foreground bg-muted',
         className,
       )}
@@ -96,7 +96,7 @@ export function EmojiPicker({
         <div className={cn(inputFieldClassName, 'flex items-center gap-2 focus-within:border-muted-foreground focus-within:bg-surface')} data-slot="emoji-picker-search-wrapper">
           <SearchIcon className="size-4 shrink-0 opacity-50" aria-hidden />
           <EmojiPickerPrimitive.Search
-            className="m-0 w-full border-0 bg-transparent p-0 text-[13px] text-foreground outline-none placeholder:text-muted-foreground/80"
+            className="m-0 w-full border-0 bg-transparent p-0 text-sm text-foreground outline-none placeholder:text-muted-foreground/80"
             data-slot="emoji-picker-search"
             placeholder={t.canvases.searchEmojis}
             aria-label={t.canvases.searchEmojis}

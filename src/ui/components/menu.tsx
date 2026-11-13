@@ -57,7 +57,7 @@ export function MenuContent({ className, children, onCloseAutoFocus, ...props }:
       <DropdownMenu.Content
         data-slot="dropdown-menu-content"
         className={cn(
-          'z-60 max-h-[min(var(--radix-dropdown-menu-content-available-height),calc(100vh-16px))] overflow-auto rounded-[3px] bg-surface text-foreground shadow-lift outline-none',
+          'z-60 max-h-[min(var(--radix-dropdown-menu-content-available-height),calc(100vh-16px))] overflow-auto rounded-sm bg-surface text-foreground shadow-lift outline-none',
           className,
         )}
         sideOffset={6}
@@ -78,7 +78,7 @@ export function MenuContent({ className, children, onCloseAutoFocus, ...props }:
 }
 
 const item =
-  'flex w-full cursor-pointer items-center rounded-[3px] border-0 bg-transparent px-2 py-[5px] text-left text-[13px] text-foreground normal-case tracking-normal outline-none data-highlighted:bg-muted data-disabled:cursor-default data-disabled:opacity-50';
+  'flex w-full cursor-pointer items-center rounded-sm border-0 bg-transparent px-2 py-1.5 text-left text-sm text-foreground normal-case tracking-normal outline-none data-highlighted:bg-muted data-disabled:cursor-default data-disabled:opacity-50';
 
 export function MenuItem({ asChild, className, children, ...props }: ComponentProps<typeof DropdownMenu.Item>) {
   return (
@@ -103,5 +103,5 @@ export function MenuRadioItem({ className, children, ...props }: ComponentProps<
 }
 
 export function MenuLabel({ className, ...props }: ComponentProps<typeof DropdownMenu.Label>) {
-  return <DropdownMenu.Label data-slot="dropdown-menu-label" className={cn('px-2 pt-[5px] pb-[3px] text-[11px] text-muted-foreground', className)} {...props} />;
+  return <DropdownMenu.Label data-slot="dropdown-menu-label" className={cn('px-2 pt-1.5 pb-1 text-2xs text-muted-foreground', className)} {...props} />;
 }

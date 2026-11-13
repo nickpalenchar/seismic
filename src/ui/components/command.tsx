@@ -61,7 +61,7 @@ function CommandItem({ className, ...props }: ComponentProps<typeof CommandPrimi
       data-slot="command-item"
       // a press keeps the focus in the field
       onMouseDown={(e) => e.preventDefault()}
-      className={cn('relative flex cursor-pointer items-center gap-2 rounded-[3px] outline-none select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-muted [&_svg]:pointer-events-none [&_svg]:shrink-0', className)}
+      className={cn('relative flex cursor-pointer items-center gap-2 rounded-sm outline-none select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-muted [&_svg]:pointer-events-none [&_svg]:shrink-0', className)}
       {...props}
     />
   );

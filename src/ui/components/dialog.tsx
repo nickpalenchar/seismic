@@ -126,7 +126,7 @@ export function ConfirmDialog({
             data-slot="confirm-dialog"
             {...opener}
             aria-describedby={undefined}
-            className={cn(box, surface.solid, 'w-[min(440px,100%)] rounded-[4px] p-6 [&_p]:mb-[22px] [&_p]:leading-normal', className)}
+            className={cn(box, surface.solid, 'w-[min(440px,100%)] rounded-sm p-6 [&_p]:mb-5.5 [&_p]:leading-normal', className)}
           >
             <AlertDialogPrimitive.Title className="m-0 mb-2.5 text-2xl font-semibold">{title}</AlertDialogPrimitive.Title>
             {children}

@@ -79,7 +79,7 @@ function SheetContent({
         onEscapeKeyDown={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
         className={cn(
-          "fixed inset-y-0 right-0 z-25 w-(--sheet-w,380px) overflow-auto rounded-none border border-r-0 border-glass-edge bg-glass px-[22px] pt-5 pb-[30px] shadow-[inset_0_1px_0_var(--glass-hi),var(--lift)] backdrop-blur-[28px] backdrop-saturate-[1.6]",
+          "fixed inset-y-0 right-0 z-25 w-(--sheet-w,380px) overflow-auto rounded-none border border-r-0 border-glass-edge bg-glass px-5.5 pt-5 pb-7.5 shadow-[inset_0_1px_0_var(--glass-hi),var(--lift)] backdrop-blur-[28px] backdrop-saturate-[1.6]",
           "transition-[transform,width,visibility] duration-[450ms] ease-[cubic-bezier(.3,.9,.3,1)] [transition-property:transform,width,visibility] [transition-delay:0s,0s,.45s]",
           "data-[state=closed]:invisible data-[state=closed]:translate-x-[calc(100%+1px)] data-[state=open]:[transition-delay:0s]",
           className

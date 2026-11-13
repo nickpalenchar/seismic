@@ -14,37 +14,44 @@ import type { ComponentProps, ReactNode } from 'react';
 import { Tooltip } from './tooltip';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-1.5 border-0 text-center whitespace-nowrap cursor-pointer outline-none hover:not-disabled:brightness-105 disabled:cursor-default disabled:opacity-45 focus-visible:ring-[3px] focus-visible:ring-ring/50',
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none cursor-pointer focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
-        default: 'bg-[var(--button-bg,var(--muted))] text-foreground',
-        primary: 'bg-primary text-primary-foreground',
-        danger: 'bg-[var(--button-bg,var(--muted))] text-destructive',
+        // Existing callers use default for shadcn's secondary and primary for its default.
+        default: 'bg-[var(--button-bg,var(--secondary))] text-secondary-foreground hover:bg-secondary/80',
+        outline: 'border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50',
+        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
+        destructive: 'bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40',
+        primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
+        danger: 'bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40',
         /** starting a code review: second to Approve, in purple */
         'code-review': 'bg-proposal text-proposal-foreground',
         /** confirming a wontfix: closing the card without a change, in green */
         success: 'bg-approved text-approved-foreground',
         'review-warning': 'bg-amber-300 text-amber-950 shadow-[inset_0_0_0_1px_var(--color-amber-600)]',
         /** the icon alone until hovered */
-        ghost: 'bg-transparent text-muted-foreground hover:not-disabled:bg-muted hover:not-disabled:text-foreground hover:not-disabled:brightness-100',
+        ghost: 'hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50',
         /** blue and underlined, inline in text */
-        link: 'inline rounded-none bg-transparent p-0 leading-[1.25] text-primary whitespace-normal [text-align:inherit] underline decoration-1 underline-offset-[.18em] hover:not-disabled:decoration-2 hover:not-disabled:brightness-100',
+        link: 'inline rounded-none bg-transparent leading-[1.25] text-primary whitespace-normal [text-align:inherit] underline underline-offset-4 hover:underline',
       },
       /** `small`: a little apart from the text it stands under */
-      size: { default: '', small: '[:is(p,ul,ol,.c-install)+&]:mt-2', icon: 'size-8 shrink-0 rounded-lg p-0', 'icon-small': 'size-5 shrink-0 rounded-[3px] p-0' },
+      size: {
+        default: 'h-9 px-4 py-2 has-[>svg]:px-3',
+        small: 'h-8 gap-1.5 rounded-md px-3 has-[>svg]:px-2.5 [:is(p,ul,ol,.c-install)+&]:mt-2',
+        icon: 'size-9',
+        'icon-small': 'size-6 rounded-md [&_svg:not([class*="size-"])]:size-3',
+      },
       /** a ring around it: the step the agent suggests */
       suggested: { true: 'shadow-[0_0_0_2px_var(--background),0_0_0_4px_var(--idea)]' },
       /** disabled while it waits, yet not faded, with a bar running under its label */
       armed: {
-        true: "relative overflow-hidden disabled:opacity-100 after:absolute after:inset-x-0 after:bottom-0 after:h-[3px] after:bg-[linear-gradient(90deg,transparent,var(--idea),transparent)] after:bg-[length:200%_100%] after:animate-[flow_1.4s_linear_infinite] after:content-['']",
+        true: "relative overflow-hidden disabled:opacity-100 after:absolute after:inset-x-0 after:bottom-0 after:h-1 after:bg-[linear-gradient(90deg,transparent,var(--idea),transparent)] after:bg-[length:200%_100%] after:animate-[flow_1.4s_linear_infinite] after:content-['']",
       },
     },
     compoundVariants: [
-      // a link takes the weight of the text it stands in; `small` only makes it smaller
-      { variant: ['default', 'primary', 'danger', 'code-review', 'review-warning', 'success', 'ghost'], size: 'default', className: 'rounded-lg px-[13px] py-[7px] font-semibold leading-[1.25]' },
-      { variant: ['default', 'primary', 'danger', 'code-review', 'review-warning', 'success', 'ghost'], size: 'small', className: 'rounded-lg px-[11px] py-[5px] text-[12.5px] font-medium leading-[1.25]' },
-      { variant: 'link', size: 'small', className: 'text-[12.5px]' },
+      // Inline links keep their surrounding text's size and wrap within a sentence.
+      { variant: 'link', size: ['default', 'small'], className: 'h-auto px-0 py-0 text-[length:inherit] font-[inherit]' },
     ],
     defaultVariants: { variant: 'default', size: 'default' },
   },

@@ -9,7 +9,7 @@ import { cn } from 'cn';
 import type { ComponentProps } from 'react';
 
 export const inputFieldClassName =
-  'rounded-lg border border-foreground/16 bg-foreground/5 px-[9px] py-1.5 text-[13px] text-foreground shadow-[inset_0_1px_2px_--alpha(var(--foreground)/7%)] outline-none transition-[color,box-shadow] placeholder:text-muted-foreground/80 hover:border-foreground/28 focus:border-muted-foreground focus:bg-surface disabled:opacity-55 aria-invalid:border-destructive';
+  'rounded-lg border border-foreground/16 bg-foreground/5 px-2.5 py-1.5 text-sm text-foreground shadow-[inset_0_1px_2px_--alpha(var(--foreground)/7%)] outline-none transition-[color,box-shadow] placeholder:text-muted-foreground/80 hover:border-foreground/28 focus:border-muted-foreground focus:bg-surface disabled:opacity-55 aria-invalid:border-destructive';
 export const field = inputFieldClassName;
 const bare = 'rounded-none border-0 bg-transparent p-0 shadow-none hover:border-0 focus:bg-transparent';
 

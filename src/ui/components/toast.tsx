@@ -17,7 +17,7 @@ import { Toaster } from './sonner';
  * (`--side`) and above the canvases' tab strip where there is one.
  */
 export const acksClass =
-  'fixed right-[calc(var(--side,0px)+14px)] [transition:right_.45s_cubic-bezier(.3,.9,.3,1)] resizing:transition-none bottom-[46px] [:root:has(#canvas-tabs)_&]:bottom-[86px] z-90 flex flex-col items-end gap-1.5 pointer-events-none';
+  'fixed right-[calc(var(--side,0px)+var(--spacing)*3.5)] [transition:right_.45s_cubic-bezier(.3,.9,.3,1)] resizing:transition-none bottom-11.5 [:root:has(#canvas-tabs)_&]:bottom-21.5 z-90 flex flex-col items-end gap-1.5 pointer-events-none';
 
 /**
  * On the phone the column is centred above the microphone, as wide as the screen; with the phone
@@ -238,16 +238,16 @@ const spinner = (ring: string) =>
 function toastClass(x: Toast, { wrap, phone, nudge }: { wrap: boolean; phone: boolean; nudge: boolean }) {
   const warning = x.kind === 'warning';
   return cn(
-    'toast flex items-center rounded-[3px] pointer-events-auto',
+    'toast flex items-center rounded-sm pointer-events-auto',
     x.kind,
     phone
       ? 'max-w-full'
       : 'max-w-[min(560px,max(300px,calc((100vw-var(--left,0px)-var(--side,0px))/2-110px)),calc(100vw-var(--left,0px)-var(--side,0px)-32px))]',
     x.reading
-      ? ['reading bg-surface text-muted-foreground shadow-glass py-[7px] px-3.5 text-[13px]', spinner('before:size-2.5 before:border-transparent before:border-t-working')]
+      ? ['reading bg-surface text-muted-foreground shadow-glass py-2 px-3.5 text-sm', spinner('before:size-2.5 before:border-transparent before:border-t-working')]
       : warning
-        ? 'border border-solid border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-50 rounded-lg shadow-glass py-3 px-4 text-[14px]'
-        : 'bg-foreground text-background py-3 px-4 text-[14px]',
+        ? 'border border-solid border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-50 rounded-lg shadow-glass py-3 px-4 text-base'
+        : 'bg-foreground text-background py-3 px-4 text-base',
     x.kind === 'wait' && ['[--track:--alpha(var(--background)/25%)]', spinner('before:size-3 before:[border-color:var(--background)_var(--track)_var(--track)_var(--track)]')],
     wrap ? ['flex-wrap gap-x-2 gap-y-2.5 [&>span]:basis-full', warning && 'justify-end'] : 'gap-3.5',
     // the phone's toasts are swiped aside: a finger dragging one selects nothing
@@ -259,7 +259,7 @@ function toastClass(x: Toast, { wrap, phone, nudge }: { wrap: boolean; phone: bo
 /** A toast's button: outlined in the toast's ink, in the warning callout's amber on a warning; cut short where several share a line. */
 const toastButtonClass = (warning: boolean, several: boolean) =>
   cn(
-    'bg-transparent border border-solid rounded-[2px] py-[3px] px-2.5 cursor-pointer flex-none',
+    'bg-transparent border border-solid rounded-sm py-1 px-2.5 cursor-pointer flex-none',
     warning
       ? 'rounded-md border-amber-300 bg-white/60 text-amber-900 hover:bg-amber-100 dark:border-amber-800 dark:bg-transparent dark:text-amber-50 dark:hover:bg-amber-900'
       : 'border-background/40 text-background',

@@ -19,16 +19,16 @@ const badgeVariants = cva(
         ghost: '[a&]:hover:bg-accent [a&]:hover:text-accent-foreground',
         link: 'text-primary underline-offset-4 [a&]:hover:underline',
         // a count beside a button or tab label; its `tone` gives fill and text together
-        count: 'rounded-[3px] px-1.5 py-0 text-[11.5px] leading-[inherit] font-bold',
+        count: 'rounded-sm px-1.5 py-0 text-xs leading-[inherit] font-bold',
         // a card's label (category, sub-category, complexity); a dashed purple edge while Seismic suggested it
-        label: 'gap-[3px] border-border bg-muted px-[5px] py-0 text-[.92em] leading-[15px] font-medium tracking-[.01em] text-muted-foreground normal-case [&>svg]:size-auto! data-[suggested=true]:border-dashed data-[suggested=true]:border-proposal',
+        label: 'gap-1 border-border bg-muted px-1.5 py-0 text-sm leading-4 font-medium tracking-[.01em] text-muted-foreground normal-case [&>svg]:size-auto! data-[suggested=true]:border-dashed data-[suggested=true]:border-proposal',
         // the pill of a card a text links to (a link, or a span once the card is gone), also built as raw DOM in the composer: see `pillClass`
-        pill: 'max-w-full gap-1.5 overflow-visible border-glass-edge bg-muted py-px pr-2 pl-[7px] align-baseline text-[.92em] leading-[1.45] font-normal text-working no-underline focus-visible:border-working focus-visible:ring-0 [a&]:hover:border-working [a&]:hover:bg-working/8',
+        pill: 'max-w-full gap-1.5 overflow-visible border-glass-edge bg-muted py-px pr-2 pl-2 align-baseline text-sm leading-[1.45] font-normal text-working no-underline focus-visible:border-working focus-visible:ring-0 [a&]:hover:border-working [a&]:hover:bg-working/8',
         // a chip: a tag or label that may carry a remove button after its text
-        chip: 'h-6 gap-1 bg-muted py-0 pr-[3px] pl-2.5 text-[12.5px] leading-none font-normal',
+        chip: 'h-6 gap-1 bg-muted py-0 pr-1 pl-2.5 text-sm leading-none font-normal',
         // the pin at a card's corner: a count or mark on a glossy dot in the colour of --pin, which the
         // card's state sets; counter-scaled so it stays readable when the canvas is zoomed out
-        pin: '[&_svg]:block [&_svg]:flex-none [&_svg]:size-[14px] [&>svg]:size-[14px] absolute isolate top-[-10px] right-[-8px] grid h-6 min-w-6 origin-[70%_30%] scale-[max(1,calc(.9/var(--s)))] place-items-center overflow-visible rounded-xl px-[7px] text-[13px] leading-none font-bold text-(--pin-fg) [--pin:var(--waiting)] [--pin-fg:var(--waiting-foreground)] before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:[background:radial-gradient(circle_at_35%_30%,--alpha(white/45%),transparent_45%),var(--pin)] before:shadow-[0_0_0_2px_var(--glass-edge),0_4px_10px_-2px_--alpha(black/25%)] before:content-[\'\']',
+        pin: '[&_svg]:block [&_svg]:flex-none [&_svg]:size-3.5 [&>svg]:size-3.5 absolute isolate -top-2.5 -right-2 grid h-6 min-w-6 origin-[70%_30%] scale-[max(1,calc(.9/var(--s)))] place-items-center overflow-visible rounded-xl px-2 text-sm leading-none font-bold text-(--pin-fg) [--pin:var(--waiting)] [--pin-fg:var(--waiting-foreground)] before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:[background:radial-gradient(circle_at_35%_30%,--alpha(white/45%),transparent_45%),var(--pin)] before:shadow-[0_0_0_2px_var(--glass-edge),0_4px_10px_-2px_--alpha(black/25%)] before:content-[\'\']',
       },
     },
     defaultVariants: { variant: 'default' },

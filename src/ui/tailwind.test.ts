@@ -131,3 +131,22 @@ test('no component sets a state colour of its own', async () => {
   }
   expect(found).toEqual([]);
 });
+
+// W2 starts the size guard in the shared library; W3 extends it to the views. Inherited
+// sizes/radii are composition, not a new size. Rings, borders, shadows and viewport calculations
+// are effects or layout constraints rather than the type, radius and spacing scales.
+test('shared components use the type, radius and spacing scales', async () => {
+  const forbidden = [
+    /\btext-\[(?:length:)?-?[\d.]+(?:px|rem|em|%|pt)\]/,
+    /\brounded(?:-[trblse]{1,2})?-\[(?!inherit\])[^\]]+\]/,
+    /\b(?:p[xytrblse]?|m[xytrblse]?|gap(?:-[xy])?|size|[wh]|top|right|bottom|left|translate-[xy])-\[-?[\d.]+px\]/,
+  ];
+  const found: string[] = [];
+  for (const file of new Glob('components/**/*.{ts,tsx}').scanSync(dir)) {
+    if (file.includes('.test.')) continue;
+    (await read(file)).split('\n').forEach((line, i) => {
+      if (forbidden.some((re) => re.test(line))) found.push(`${file}:${i + 1}`);
+    });
+  }
+  expect(found).toEqual([]);
+});
