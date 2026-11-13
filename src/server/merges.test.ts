@@ -470,4 +470,27 @@ describe('a merged pair whose cards change compares again', () => {
     expect(board().item(p.id)!.idea?.proposal?.merge).toBeUndefined();
     expect(lines(p.id)).toContain('Separated again: the other card is gone.');
   });
+
+  test('a failed comparison separates too once its partner can no longer be merged with', async () => {
+    const { p, planned } = cards();
+    project.act(p.id, { action: 'merge', with: planned.id });
+    merger()!.emit({ type: 'idle' });
+    await settle();
+    expect(merge(p.id).failed).toBeDefined();
+    board().snooze(planned.id, { until: '2099-01-01T00:00:00.000Z', why: 'later', by: 'owner' });
+    await settle(40);
+    expect(board().item(p.id)!.idea?.proposal?.merge).toBeUndefined();
+    expect(lines(p.id)).toContain('Separated from “Fix the CSV export” again: the two can no longer be merged.');
+  });
+
+  test('a restart after the partner of an unfinished comparison was deleted separates the pair instead of failing', () => {
+    const { p, planned } = cards();
+    board().mergeStart(p.id, planned.id);
+    board().remove(planned.id);
+    const before = runtime.sessions.length;
+    expect(() => new Merges({ board: board(), runtime, pathFor: () => main }).resume()).not.toThrow();
+    expect(runtime.sessions.length).toBe(before);
+    expect(board().item(p.id)!.idea?.proposal?.merge).toBeUndefined();
+    expect(lines(p.id)).toContain('Separated again: the other card is gone.');
+  });
 });

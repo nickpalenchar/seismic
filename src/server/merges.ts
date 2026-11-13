@@ -47,12 +47,17 @@ export class Merges {
   }
 
   resume() {
+    // what changed while Seismic was not running: a pair that can no longer merge separates before anything runs
+    this.check();
     for (const i of this.o.board.items()) {
       const merge = i.idea?.proposal?.merge;
       if (merge && merge.task === undefined && merge.failed === undefined) this.run(i.id);
     }
-    // what changed while Seismic was not running
-    this.check();
+  }
+
+  /** The card merging card `id` is merged with, wherever it is; none once it is deleted. */
+  private partner(merge: Merge): Item | undefined {
+    try { return this.o.board.card(merge.with); } catch { return undefined; }
   }
 
   shutdown() {
@@ -64,38 +69,44 @@ export class Merges {
     if (this.timer || !this.o.board.items().some((i) => i.idea?.proposal?.merge)) return;
     this.timer = setTimeout(() => {
       this.timer = undefined;
-      try { this.check(); } catch (e) { console.error('merge:', e); }
+      this.check();
     }, this.o.settleMs ?? 3000);
   }
 
   /**
    * A comparison whose cards changed since it read them is made again; a pair that can no longer
-   * become one is separated. A failed comparison waits for the owner's "Try again".
+   * become one is separated, whether its comparison runs, is in or failed. A failed comparison
+   * otherwise waits for the owner's "Try again".
    */
   private check() {
     const { board } = this.o;
     for (const i of board.items()) {
       const merge = i.idea?.proposal?.merge;
-      if (!merge || merge.failed !== undefined) continue;
-      const read = merge.task !== undefined ? merge.compared : this.reading.get(i.id);
-      // a comparison that has not read the cards yet reads them as they are now
-      if (merge.task === undefined && !read) continue;
-      let other: Item | undefined;
-      try { other = board.card(merge.with); } catch { /* deleted */ }
-      if (!other || !board.stillMergeable(i, other)) {
-        board.separate(i.id, other ? 'unmergeable' : 'gone');
-        continue;
+      if (!merge) continue;
+      try {
+        const other = this.partner(merge);
+        if (!other || !board.stillMergeable(i, other)) {
+          board.separate(i.id, other ? 'unmergeable' : 'gone');
+          continue;
+        }
+        if (merge.failed !== undefined) continue;
+        const read = merge.task !== undefined ? merge.compared : this.reading.get(i.id);
+        // a comparison that has not read the cards yet reads them as they are now
+        if (merge.task === undefined && !read) continue;
+        const changed = board.mergeChanges(i, other, read);
+        if (!changed.length) continue;
+        board.mergeAgain(i.id, changed);
+        this.run(i.id);
+      } catch (e) {
+        console.error('merge:', e);
       }
-      const changed = board.mergeChanges(i, other, read);
-      if (!changed.length) continue;
-      board.mergeAgain(i.id, changed);
-      this.run(i.id);
     }
   }
 
   private run(cardId: string) {
     const card = this.o.board.item(cardId);
-    const other = card?.idea?.proposal?.merge && this.o.board.card(card.idea.proposal.merge.with);
+    const merge = card?.idea?.proposal?.merge;
+    const other = merge && this.partner(merge);
     if (!card || !other) return;
     const attempt = card.idea?.proposal?.merge?.attempt;
     if (this.busy.has(cardId) && this.busy.get(cardId) === attempt) return;
