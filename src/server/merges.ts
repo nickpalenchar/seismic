@@ -66,11 +66,13 @@ export class Merges {
   }
 
   private soon() {
-    if (this.timer || !this.o.board.items().some((i) => i.idea?.proposal?.merge)) return;
+    // the cards are looked at once the changes have settled, not at each one: a landing changes its card dozens of times
+    if (this.timer) return;
     this.timer = setTimeout(() => {
       this.timer = undefined;
       this.check();
     }, this.o.settleMs ?? 3000);
+    this.timer.unref?.();
   }
 
   /**
