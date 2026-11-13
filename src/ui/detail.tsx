@@ -1315,7 +1315,7 @@ function ProposalView({
     act(
       { action: 'accept', ...(start ? {} : { start: false }), ...(asIdea ? { idea: true } : {}), ...(agent ? { agent } : {}), ...(answer.picked ? { picks: answer.answers } : {}) },
       (start || asIdea) && !revising
-        ? { close: true, pending: t.queue.checking, ack: idea || asIdea ? t.acceptedIdea : later && Date.parse(item.idea!.proposal!.startAt!) > Date.now() ? t.acceptedLater(snoozeWhen(item.idea!.proposal!.startAt!)) : t.accepted }
+        ? { close: true, ...(start && !asIdea && !idea && !later ? { pending: t.queue.checking } : {}), ack: idea || asIdea ? t.acceptedIdea : later && Date.parse(item.idea!.proposal!.startAt!) > Date.now() ? t.acceptedLater(snoozeWhen(item.idea!.proposal!.startAt!)) : t.accepted }
         : { close: false },
     );
   return (
