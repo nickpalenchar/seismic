@@ -62,3 +62,33 @@ function watchTheme(changed: () => void) {
   observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'data-system-theme'] });
   return () => observer.disconnect();
 }
+
+/**
+ * The browser's own chrome (the address bar, an installed app's title bar) takes the board's colour of the look
+ * on show: manifest.webmanifest holds one light colour, so a `theme-color` meta follows `data-theme` and
+ * `data-system-theme` on the root, which index.html and `applyTheme` set. The board's colour is read from the
+ * page (the tokens in tailwind.css) and drawn through a canvas, which gives the browser a colour it reads in sRGB.
+ */
+export function syncBrowserChrome() {
+  const probe = document.createElement('canvas');
+  probe.width = probe.height = 1;
+  const draw = probe.getContext('2d', { willReadFrequently: true });
+  if (!draw) return;
+  draw.fillStyle = getComputedStyle(document.documentElement).backgroundColor;
+  draw.fillRect(0, 0, 1, 1);
+  const [r, g, b] = draw.getImageData(0, 0, 1, 1).data;
+  let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+  if (!meta) {
+    meta = document.createElement('meta');
+    meta.name = 'theme-color';
+    document.head.append(meta);
+  }
+  meta.content = `#${[r, g, b].map((v) => v!.toString(16).padStart(2, '0')).join('')}`;
+}
+
+if (typeof document !== 'undefined' && typeof MutationObserver !== 'undefined') {
+  const sync = () => requestAnimationFrame(syncBrowserChrome);
+  new MutationObserver(sync).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'data-system-theme'] });
+  if (document.readyState === 'complete') sync();
+  else addEventListener('load', sync);
+}

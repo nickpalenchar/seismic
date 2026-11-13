@@ -949,7 +949,7 @@ code, a generic one otherwise.
   and its meaning of colour, and over a scale of frost's own hues so that new parts fit without picking
   values. Rejected: Radix Colors (it replaces the 2026-11-09 "Radix's hues as they are" choice), frost's
   own hues put on a scale, a CSS-in-JS library. Colours not reached by CSS (a mark drawn into a canvas) are
-  named with their reason in the guard.
+  named with their reason in the guard. The browser's own chrome follows the look on show: the manifest holds one light colour, and a `theme-color` meta tracks the board's colour as `data-theme` or the system's look changes.
 
 - **The inbox opens a list instead of jumping to the next card** (owner, 2026-11-01): with
   several things waiting, a jump hides what the others are and cannot answer anything. Entries
