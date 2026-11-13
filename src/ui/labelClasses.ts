@@ -9,10 +9,10 @@ import type { Priority } from '../core/labels';
 
 /** A priority's colour, rising from pencil grey to red; critical is white on red. */
 const level: Record<Priority, string> = {
-  trivial: 'text-planned font-medium',
+  trivial: 'text-planned-strong font-medium',
   low: 'text-question font-semibold',
-  medium: 'text-in-pr font-semibold',
-  high: 'text-waiting font-semibold',
+  medium: 'text-in-pr-strong font-semibold',
+  high: 'text-waiting-strong font-semibold',
   veryHigh: 'text-destructive font-semibold',
   critical: 'text-destructive-foreground bg-destructive font-semibold rounded-[3px]',
 };

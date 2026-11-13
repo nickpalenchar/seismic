@@ -126,7 +126,7 @@ export const reviewCount = (s: Severity) => cn('rv-count ml-1.5 inline-flex item
 
 /** The review running, a dot that breathes beside the tab's label; in the panel, the line that says so. */
 export const reviewRunningDot = 'rv-running inline-block size-[7px] ml-[7px] align-middle rounded-[50%] bg-reviewing animate-[arranging_1.2s_ease-in-out_infinite]';
-export const reviewBusy = 'rv-busy my-1 font-semibold text-reviewing animate-[arranging_1.6s_ease-in-out_infinite]';
+export const reviewBusy = 'rv-busy my-1 font-semibold text-reviewing-strong animate-[arranging_1.6s_ease-in-out_infinite]';
 
 /** Nothing open: a check beside the tab's label. */
 export const reviewClean = 'rv-clean size-4 ml-1.5 align-middle text-approved stroke-3';

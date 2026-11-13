@@ -1153,7 +1153,7 @@ function IdeaView({
         <>
           {next && (
             <div className={`next-step flex flex-col gap-[3px] mt-4 py-0.5 max-w-[80ch] text-[14px] ${next.step}`}>
-              <span className="next-h text-[11px] uppercase tracking-[.08em] font-bold text-idea">{t.idea.next}</span>
+              <span className="next-h text-[11px] uppercase tracking-[.08em] font-bold text-idea-strong">{t.idea.next}</span>
               <span>
                 <b>{t.idea.nextStep[next.step](idea.questions.length)}</b>
                 {next.why && <> – {next.why}</>}
@@ -1939,7 +1939,7 @@ function Message({
         </div>
       )}
       {demoQuestion?.question && (
-        <div className={`demo-q mt-1.5 pt-1.5 border-t border-dashed border-border text-[13.5px] [&_b]:text-waiting [&_b]:font-semibold [&.answered_b]:text-muted-foreground${demoQuestion.answer === undefined ? '' : ' answered'}`}>
+        <div className={`demo-q mt-1.5 pt-1.5 border-t border-dashed border-border text-[13.5px] [&_b]:text-waiting-strong [&_b]:font-semibold [&.answered_b]:text-muted-foreground${demoQuestion.answer === undefined ? '' : ' answered'}`}>
           <b>{t.talk.demoQuestion}</b> {demoQuestion.question}
           {!!(demoQuestion.options?.length || demoQuestion.picks?.length) && (
             <ul className={questionOptionsClass}>
@@ -2013,7 +2013,7 @@ const ARTIFACT_CAP = 30000;
 function Steps({ steps }: { steps: CardEvent[] }) {
   if (!steps.length) return null;
   return (
-    <Collapsible className="steps mt-1.5 text-xs text-muted-foreground [&_ol]:mt-1.5 [&_ol]:mb-0.5 [&_ol]:py-2 [&_ol]:px-2.5 [&_ol]:list-none [&_ol]:bg-muted [&_ol]:rounded-[2px] [&_ol]:flex [&_ol]:flex-col [&_ol]:gap-[3px] [&_li]:[overflow-wrap:anywhere] [&_.step-activity]:[font:11.5px/1.5_var(--mono)] [&_:is(.step-say,.step-closing)]:text-foreground [&_:is(.step-say,.step-closing)_:is(.p-lead,.p-list,.p-table_table)]:m-0 [&_:is(.step-say,.step-closing)_:is(.p-lead,.p-list,.p-table_table)]:text-[12.5px] [&_.step-state]:text-idea">
+    <Collapsible className="steps mt-1.5 text-xs text-muted-foreground [&_ol]:mt-1.5 [&_ol]:mb-0.5 [&_ol]:py-2 [&_ol]:px-2.5 [&_ol]:list-none [&_ol]:bg-muted [&_ol]:rounded-[2px] [&_ol]:flex [&_ol]:flex-col [&_ol]:gap-[3px] [&_li]:[overflow-wrap:anywhere] [&_.step-activity]:[font:11.5px/1.5_var(--mono)] [&_:is(.step-say,.step-closing)]:text-foreground [&_:is(.step-say,.step-closing)_:is(.p-lead,.p-list,.p-table_table)]:m-0 [&_:is(.step-say,.step-closing)_:is(.p-lead,.p-list,.p-table_table)]:text-[12.5px] [&_.step-state]:text-idea-strong">
       <CollapsibleTrigger>{t.talk.steps(steps.length)}</CollapsibleTrigger>
       <CollapsibleContent>
       <ol>
@@ -2182,7 +2182,7 @@ function DemoView({
         {(earlier.length > 0 || top) && (
           <div className="demo-top flex flex-wrap items-center justify-end gap-x-4 gap-y-2 mb-2.5 [&>.hint]:flex-[1_1_260px] [&>.hint]:m-0">
             {earlier.length > 0 && (
-              <div className={cn('demo-versions flex items-center gap-1 mr-auto min-h-[34px] text-[13px] [&>span]:tabular-nums [&>span]:px-0.5 [&_[data-slot=button]]:ml-2.5', demo !== latest && 'earlier [&>span]:text-waiting [&>span]:font-semibold')} title={demo === latest ? undefined : t.demo.earlierHint}>
+              <div className={cn('demo-versions flex items-center gap-1 mr-auto min-h-[34px] text-[13px] [&>span]:tabular-nums [&>span]:px-0.5 [&_[data-slot=button]]:ml-2.5', demo !== latest && 'earlier [&>span]:text-waiting-strong [&>span]:font-semibold')} title={demo === latest ? undefined : t.demo.earlierHint}>
                 <Tooltip content={t.demo.older}>
                   <button className={versionStep} disabled={shownAt === 0} aria-label={t.demo.older} onClick={() => show(all[shownAt - 1]!)}>
                     <ChevronLeft size={16} aria-hidden />
@@ -3134,7 +3134,7 @@ function PrBox({ pr, held, author, card, save }: { pr: PullRequest; held?: HeldC
               <Body md={held.body} />
             </div>
           )}
-          {held.asks.length > 0 && author && <div className="pr-held-asks mt-1.5 text-[13px] text-waiting">{t.review.heldAsks(held.asks, author)}</div>}
+          {held.asks.length > 0 && author && <div className="pr-held-asks mt-1.5 text-[13px] text-waiting-strong">{t.review.heldAsks(held.asks, author)}</div>}
         </div>
       )}
       {pr.merged && <div className="q-text">{t.pr.merged}</div>}

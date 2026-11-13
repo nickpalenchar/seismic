@@ -75,6 +75,8 @@ test('colours come from the token file', async () => {
     ['rgb()/rgba()', /\brgba?\(/],
     ['color-mix()', /color-mix\(/],
     ['frost alias class', /(?<![\w-])(?:bg|text|border(?:-[trblxy])?|ring|fill|stroke|shadow|outline|divide)-(?:ink|chip|line|panel|error|warn|on-ink|dim|online|ice)(?![\w-])/],
+    // text in a state's colour takes its strong step: these fills fall short of 4.5:1 as small text on light glass (frost.test.ts measures them)
+    ['state fill as text', /(?<![\w-])text-(?:planned|reviewing|waiting|in-pr|idea|asking|restart|\(--c\)|\[var\(--c\)\])(?![\w-])/],
     ['frost alias variable', /var\(--(?:ink|chip|line|panel|error|warn|on-ink|dim|online|ice|bg)\)/],
   ];
   const found: string[] = [];

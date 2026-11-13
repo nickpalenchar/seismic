@@ -51,11 +51,11 @@ const author: Record<string, string> = {
 export function MessageHead({ by, actions = 0, children }: { by: string; actions?: number; children?: ReactNode }) {
   return (
     <div className={cn('who text-[11px] font-semibold has-[>.msg-card]:flow-root',
-      'group-[.q]/message:text-waiting group-[.q.ended]/message:text-muted-foreground group-[.paused]/message:text-muted-foreground',
+      'group-[.q]/message:text-waiting-strong group-[.q.ended]/message:text-muted-foreground group-[.paused]/message:text-muted-foreground',
       'group-[:is(.thinking,.paused)]/message:flex group-[:is(.thinking,.paused)]/message:items-center group-[:is(.thinking,.paused)]/message:gap-x-2 group-[:is(.thinking,.paused)]/message:min-h-5 group-[:is(.thinking,.paused)]/message:whitespace-nowrap',
       "group-[.thinking]/message:after:content-[''] group-[.thinking]/message:after:inline-block group-[.thinking]/message:after:align-middle group-[.thinking]/message:after:w-[34px] group-[.thinking]/message:after:h-[3px] group-[.thinking]/message:after:rounded-[2px] group-[.thinking]/message:after:bg-[linear-gradient(90deg,transparent,var(--idea),transparent)] group-[.thinking]/message:after:bg-[length:200%_100%] group-[.thinking]/message:after:animate-[flow_1.4s_linear_infinite]",
       'group-[.by-koordinator.thinking]/message:after:[background-image:linear-gradient(90deg,transparent,var(--proposal),transparent)] group-[.by-worker.thinking]/message:after:[background-image:linear-gradient(90deg,transparent,var(--working),transparent)]',
-      'group-[.action]/message:flex group-[.action]/message:items-center group-[.action]/message:gap-1.5 group-[.action]/message:text-muted-foreground group-[.action]/message:uppercase group-[.action]/message:tracking-[.06em] group-[.action]/message:text-[10.5px] group-[.action]/message:[&_.t]:normal-case group-[.action]/message:[&_.t]:tracking-normal group-[.action]/message:[&_.action-mark]:flex-none', author[by] ?? 'text-idea', actions === 1 && 'pr-6', actions > 1 && 'pr-[52px]')}>
+      'group-[.action]/message:flex group-[.action]/message:items-center group-[.action]/message:gap-1.5 group-[.action]/message:text-muted-foreground group-[.action]/message:uppercase group-[.action]/message:tracking-[.06em] group-[.action]/message:text-[10.5px] group-[.action]/message:[&_.t]:normal-case group-[.action]/message:[&_.t]:tracking-normal group-[.action]/message:[&_.action-mark]:flex-none', author[by] ?? 'text-idea-strong', actions === 1 && 'pr-6', actions > 1 && 'pr-[52px]')}>
       {children}
     </div>
   );

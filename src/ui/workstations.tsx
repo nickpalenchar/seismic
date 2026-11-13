@@ -274,7 +274,7 @@ export function DotsFace({ dots }: { dots: WorkstationDot[] }) {
       else shares.push({ dot: d, n: 1 });
     }
     return (
-      <span className="ws-bar box-border flex h-2.5 w-20 shrink-0 overflow-hidden rounded-full border border-[#6b7280]" aria-hidden>
+      <span className="ws-bar box-border flex h-2.5 w-20 shrink-0 overflow-hidden rounded-full border border-slate-500" aria-hidden>
         {shares.map(({ dot, n }, i) => (
           <i
             key={i}

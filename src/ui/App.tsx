@@ -227,7 +227,7 @@ function ConnectionLost({ since, frozen }: { since: number | null; frozen: boole
   const text = frozen
     ? long ? t.unresponsiveSince(clock(since!)) : t.notResponding
     : long ? t.noConnectionSince(clock(since!)) : t.reconnecting;
-  return <span className={cn(statusWord, 'text-waiting')}>{text}</span>;
+  return <span className={cn(statusWord, 'text-waiting-strong')}>{text}</span>;
 }
 
 function Splash({ offline }: { offline: boolean }) {

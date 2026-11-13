@@ -22,4 +22,4 @@ export const pageLinkClass = 'link text-[13.5px] text-working decoration-current
 /** A table of responses: full width, a line under each row. */
 export const tableClass = 'w-full border-collapse text-[14px]';
 /** A rating as five stars, those not given faint. */
-export const starsClass = 'text-waiting tracking-[1px] whitespace-nowrap text-[15px]';
+export const starsClass = 'text-waiting-strong tracking-[1px] whitespace-nowrap text-[15px]';

@@ -630,7 +630,7 @@ export function SourcePill({ source }: { source: SourceUpdate }) {
         ))}
       </ul>
       {more > 0 && <p className="hint">{t.source.more(more)}</p>}
-      {source.error && <p className="text-waiting">{t.source.failed(source.error)}</p>}
+      {source.error && <p className="text-waiting-strong">{t.source.failed(source.error)}</p>}
       <p className="hint">
         <Inline md={how} />
       </p>
@@ -648,7 +648,7 @@ export function OldBunPill({ version }: { version: string }) {
       id="old-bun"
       label={
         <>
-          <span className="font-bold text-waiting">⚠</span>
+          <span className="font-bold text-waiting-strong">⚠</span>
           <span className="overflow-hidden text-ellipsis">{t.oldBun.pill(version)}</span>
         </>
       }
@@ -728,8 +728,8 @@ export function WorkstationsPill({ pools, project, projects, items, underway, on
                   <DotsFace dots={hostDots(h, items, underway)} />
                 </span>
               ))}
-              <b className={cn('hidden lg:inline', full && 'text-waiting')}>{uncapped(p) ? t.workstations.uncapped(p.hosts.reduce((n, h) => n + atWorkOn(h), 0)) : t.workstations.free(free(p), total(p), blockedIn(p))}</b>
-              {blockedIn(p) > 0 && <b className="text-waiting hidden lg:inline">{t.workstations.blockedCount(blockedIn(p))}</b>}
+              <b className={cn('hidden lg:inline', full && 'text-waiting-strong')}>{uncapped(p) ? t.workstations.uncapped(p.hosts.reduce((n, h) => n + atWorkOn(h), 0)) : t.workstations.free(free(p), total(p), blockedIn(p))}</b>
+              {blockedIn(p) > 0 && <b className="text-waiting-strong hidden lg:inline">{t.workstations.blockedCount(blockedIn(p))}</b>}
             </span>
           );
         })}

@@ -60,7 +60,7 @@ export const stateClass =
   'p-state text-[13px] font-semibold text-c-strong [&_:is(.merge-mark,.restart-mark,.question-mark)]:align-[-1px] [&+.p-src]:mt-1';
 
 /** What the state line adds after it (who snoozed it, the agent's status line), quieter. */
-export const statusClass = 'p-status text-muted-foreground font-medium [&.conflict]:text-waiting [&.conflict]:italic';
+export const statusClass = 'p-status text-muted-foreground font-medium [&.conflict]:text-waiting-strong [&.conflict]:italic';
 
 /**
  * The task's text with its linked cards as pills in the line: it wraps as a text box does, grows with its
@@ -104,7 +104,7 @@ export const choiceClass = ({ on, picked, other, alone }: { on?: boolean; picked
   );
 
 /** The tag on the option the asking agent would pick. */
-export const pickTag = 'pick-tag inline-block ml-1.5 px-[7px] rounded-[2px] text-[11px] font-bold leading-[18px] whitespace-nowrap text-idea bg-idea/10';
+export const pickTag = 'pick-tag inline-block ml-1.5 px-[7px] rounded-[2px] text-[11px] font-bold leading-[18px] whitespace-nowrap text-idea-strong bg-idea/10';
 
 /**
  * A menu over the field (the skills, the cards to link): a list on the card's glass, its options a row each.

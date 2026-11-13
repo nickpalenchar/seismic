@@ -431,7 +431,7 @@ export function stateClass(f: CardFlags, p: FaceMPlace & { doingNow?: boolean })
     // what its worker is doing, in italics (a stage of its demo in green)
     p.subtle
       ? '[&_.doing]:text-muted-foreground [&_.doing]:not-italic [&_.doing]:font-normal'
-      : '[&_.doing]:italic [&_.doing]:font-medium [&_.doing]:text-muted-foreground [&_.doing.demo]:text-approved [&_.doing.demo]:font-semibold [&_.doing.conflict]:text-waiting',
+      : '[&_.doing]:italic [&_.doing]:font-medium [&_.doing]:text-muted-foreground [&_.doing.demo]:text-approved [&_.doing.demo]:font-semibold [&_.doing.conflict]:text-waiting-strong',
     '[&_:is(.clock-mark,.question-mark,.restart-mark,.hourglass-mark,.merge-mark)]:flex-none [&_.hourglass-mark]:w-[9px] [&_.hourglass-mark]:h-3',
     phone
       ? '[&_:is(.hourglass-mark,.merge-mark)]:-mr-0.5 [&_:is(.clock-mark,.question-mark,.restart-mark)]:mr-[5px] [&_:is(.clock-mark,.question-mark,.restart-mark)]:align-[-1px] [&_.doing]:whitespace-pre [&_.since]:text-muted-foreground [&_.since]:font-medium [&_.since]:whitespace-pre'
@@ -471,14 +471,14 @@ export const listTitleClass = (size: 's' | 'xs', subtle?: boolean) =>
 export const listTitleTextClass = (size: 's' | 'xs', untitled: boolean) =>
   ['f-ttl-text min-w-0', size === 'xs' && 'overflow-hidden text-ellipsis whitespace-nowrap', untitled && 'text-muted-foreground font-normal italic'].filter(Boolean).join(' ');
 
-const LIST_DOING = '[&_.doing]:italic [&_.doing]:font-medium [&_.doing]:text-muted-foreground [&_.doing.demo]:text-approved [&_.doing.demo]:font-semibold [&_.doing.conflict]:text-waiting';
+const LIST_DOING = '[&_.doing]:italic [&_.doing]:font-medium [&_.doing]:text-muted-foreground [&_.doing.demo]:text-approved [&_.doing.demo]:font-semibold [&_.doing.conflict]:text-waiting-strong';
 const LIST_DOING_SUBTLE = '[&_.doing]:text-muted-foreground [&_.doing]:not-italic [&_.doing]:font-normal';
 
 /** S: the state line, in the state's colour (subtle: plain and muted). */
 export const listStateClass = (subtle?: boolean) =>
   [
     `f-state flex flex-nowrap items-center gap-1 min-w-0 mt-[3px] text-[12px] leading-[1.3] [&>*:not(.state-text)]:flex-none [&_:is(.clock-mark,.question-mark,.restart-mark,.hourglass-mark,.merge-mark,.parked-mark)]:flex-none`,
-    subtle ? `text-muted-foreground font-normal ${LIST_DOING_SUBTLE}` : `text-(--c) font-semibold ${LIST_DOING}`,
+    subtle ? `text-muted-foreground font-normal ${LIST_DOING_SUBTLE}` : `text-c-strong font-semibold ${LIST_DOING}`,
   ].join(' ');
 export const listStateTextClass = 'state-text flex-[0_1_auto] min-w-0 overflow-hidden text-ellipsis whitespace-nowrap';
 /** S: the line under the title, in at most two lines. */
@@ -495,4 +495,4 @@ export const dotClass = (proposal: boolean, subtle?: boolean) =>
     : `f-dot flex-none size-2 rounded-[50%] ${subtle ? 'bg-muted-foreground' : 'bg-(--c)'}`;
 export const wordsClass = 'f-words min-w-0 overflow-hidden text-ellipsis whitespace-nowrap [&_.other-canvas]:inline-flex [&_.other-canvas]:align-[-2px]';
 /** XS: the state's short word, in its colour (subtle: as the line). */
-export const shortStateClass = (subtle?: boolean) => (subtle ? 'f-state text-inherit font-normal' : 'f-state text-(--c) font-semibold');
+export const shortStateClass = (subtle?: boolean) => (subtle ? 'f-state text-inherit font-normal' : 'f-state text-c-strong font-semibold');
