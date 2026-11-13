@@ -10,11 +10,12 @@ export function Tabs({ className, orientation = 'horizontal', asChild, ...props 
   return <TabsPrimitive.Root data-slot="tabs" data-orientation={orientation} orientation={orientation} asChild={asChild} className={cn(!asChild && 'group/tabs flex gap-2 data-[orientation=horizontal]:flex-col', className)} {...props} />;
 }
 
+// A minimum keeps stock proportions while growing around larger touch targets or stacked tabs.
 const listVariants = cva('', {
   variants: {
     variant: {
       none: '',
-      segmented: 'inline-flex h-9 w-fit items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground data-[orientation=vertical]:h-auto data-[orientation=vertical]:flex-col',
+      segmented: 'inline-flex min-h-9 w-fit items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground data-[orientation=vertical]:flex-col',
       underline: 'flex flex-wrap gap-x-4 gap-y-1 border-b border-border',
       pill: 'flex gap-1.5',
     },
