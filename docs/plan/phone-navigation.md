@@ -36,7 +36,7 @@ Replace the phone view's four tabs with a layout built for one project at a time
 
 - [x] **W1:** Move shared behaviour out of `phone.tsx`. Keyboard detection, the "first tap acts" handling, one WebSocket per project, the connection banner, the push-notification prompt, the landscape strip, video full screen and swipe-away toasts move into modules both views use. No visible change; the existing phone checks still pass.
 - [x] **W2:** The new shell under `?view=phone-next`. Top bar with project switcher (remembered per browser) and scrolling usage pills; the working box with its rows taken out of `WorkstationsPill` into a shared part; the sections with "Load more"; the floating bar (Menu, Chat, Search and Needs you may still be inert); an open card with X; New card works here. Lands after W1.
-- [ ] **W3:** Menu sheet and Needs you page. The menu as a full-height sheet with the desktop menu's content trimmed for the phone (including the project switcher), and the Needs you page across projects with project names, quick replies and the bell count; opening a card from another project switches the top bar's project. Lands after W2, can run beside W4.
+- [x] **W3:** Menu sheet and Needs you page. The menu as a full-height sheet with the desktop menu's content trimmed for the phone (including the project switcher), and the Needs you page across projects with project names, quick replies and the bell count; opening a card from another project switches the top bar's project. Lands after W2, can run beside W4.
 - [x] **W4:** Chat page and search page. The full-screen Seismic chat with chat history and microphone for the project in view, replacing the draggable panel for Seismic's chat; the full-screen search over the project's cards. Lands after W2, can run beside W3.
 - [ ] **W5:** Switch the default. `?view=phone` shows the new view, the old one stays at `?view=phone-old`; rewrite "The phone view" in `docs/design/running-obeya.md` to describe the new view, and check the README and the phone screenshots of the release. Lands after W3 and W4.
 - [ ] **W6:** Remove the old view. Delete `phone.tsx`, `?view=phone-old` and what only it used, once the owner has compared them. Delete this plan doc; what passes the rebuild test is already in the design chapter.
@@ -65,8 +65,7 @@ its top bar, which stays over the card with an X in place of the usage pills, th
 right below it). `follow: true` (the new view) makes the project of an opened card the one in view
 and writes the project in view into the address, so a reload stays on it; the project in view is
 remembered under the key the old view used for its Seismic conversation. `phoneNext.tsx` is the
-new view under `?view=phone-next`; its Menu (the sign and the bar's first button) and Needs you buttons are still disabled for W3, the
-bell already counts across projects. The
+new view under `?view=phone-next`; its Menu and Needs you work (see W3 below). The
 working box's rows are `WorkingRows`/`WorkstationRow` in `workstations.tsx`, the status bar's pill
 uses the same parts. A section's "Load more" count starts again at 20 when the project changes;
 folded sections and the box's fold are remembered per browser.
@@ -81,3 +80,15 @@ at work, as the old view's talk button. Search is `phoneSearch.tsx`: a field ove
 cards matched as the desktop's finder does (`finderResults`), twenty at a time with "Load more", a
 card per tap; it is a history step of its own (`history.state.search`), so Back from a card found
 there lands on the results with the query kept. Both pages hide the floating bar.
+
+## Menu and Needs you (W3)
+
+`phoneMenu.tsx` is the menu sheet (the sign in the top bar and the bar's Menu button open it): full
+height and width, over the floating bar. Of the desktop menu it keeps Needs you (with the count
+across projects) and the projects, a tap switching the view to one, each with its agents' pause; the
+canvases, queue, archive, settings, configuration and help stay on the desktop. The Needs you page
+(the menu entry or the bell) is `InboxList` over every project's entries, each naming its project,
+with the quick replies; it is a step in the browser's history marked `?needs` in the address, so Back
+and a reload hold it. A card opened from it makes its project the one in view; Back from the card
+returns to the page, its X to that project's list. An entry that is not a card (Seismic's answer) brings
+its project into view; it opens Seismic's chat once W4 has the page.

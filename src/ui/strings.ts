@@ -1433,6 +1433,10 @@ const en = {
       closeSearch: 'Close search',
       noMatch: 'No card matches.',
       searchEmpty: 'Type a title or a card code.',
+      menuTitle: 'Menu',
+      closeMenu: 'Close menu',
+      projects: 'Projects',
+      closeNeedsYou: 'Close Needs you',
     },
     notify: {
       install: 'For Seismic to tell you when something waits for you: tap “Share” below, then “Add to Home Screen”, and open Seismic from there.',

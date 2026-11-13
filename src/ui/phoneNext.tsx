@@ -35,6 +35,9 @@ import { KoordinatorAgent } from './message';
 import { obeyaDraft } from './draft';
 import { PhoneSearch } from './phoneSearch';
 import { gripWordClass, TalkPanel, talkClass } from './phoneTalkPanel';
+import { InboxList } from './inbox';
+import { sendReply } from './quickReply';
+import { PhoneMenu } from './phoneMenu';
 
 /** The sections of the list, in their order; those folded until the owner unfolds them. */
 const SECTIONS = ['queued', 'planned', 'parked', 'done'] as const;
@@ -46,6 +49,8 @@ const PAGE = 20;
 export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
   const s = usePhoneShell(loaded, { follow: true });
   const { projects, snaps, usage, feeds, banner, open, openCard, obeyaId, setObeyaProject, entries, isUnderway, homeRef, newCard, making, made, press, acks, back, showAck } = s;
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [needsOn, openNeeds, closeNeeds] = useNeedsPage();
   const [workingOpen, setWorkingOpen] = useStoredState('obeya-phone-working-open', true);
   const [folded, setFolded] = useStoredState<Section[]>('obeya-phone-folded', FOLDED);
   // how many cards each section shows; back to the first twenty with another project
@@ -73,9 +78,10 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
     return s.cardScreen(
       null,
       <div className={cn(viewClass, 'inset-x-0 top-0 z-30')} ref={measureTop}>
-        <TopBar projects={projects} project={obeyaId} usage={usage} onClose={back} />
+        <TopBar projects={projects} project={obeyaId} usage={usage} onClose={() => leaveCard(back, needsOn, closeNeeds)} />
       </div>,
     );
+
 
   const snap = snaps[obeyaId];
   const project = projects.find((c) => c.id === obeyaId)!;
@@ -110,8 +116,8 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
   return (
     <HoldToTalk.Provider value={press}>
       {feeds}
-      <div id="ph-home" className={pageClass} ref={homeRef}>
-        <TopBar projects={projects} project={obeyaId} onProject={setObeyaProject} usage={usage} />
+      <div id="ph-home" className={pageClass} ref={homeRef} inert={needsOn}>
+        <TopBar projects={projects} project={obeyaId} onProject={setObeyaProject} usage={usage} onMenu={() => setMenuOpen(true)} />
         {banner}
         <Notify />
         {snap && (
@@ -160,7 +166,58 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
           </>
         )}
       </div>
+      {needsOn && !searching && (
+        <div id="ph-needs" className={cn(pageClass, 'z-20 bg-background')}>
+          <header className={cn(pageBarClass, 'gap-2')}>
+            <button className="-ml-1 inline-grid size-10 shrink-0 place-items-center rounded-full border-0 bg-transparent p-0" aria-label={t.phone.next.menu} onClick={() => setMenuOpen(true)}>
+              <Sign size={26} />
+            </button>
+            <h1 className="m-0 min-w-0 flex-1 overflow-hidden text-[19px] font-semibold text-ellipsis whitespace-nowrap">{t.phone.next.needsYou}</h1>
+            <button className="ph-close inline-grid size-10 shrink-0 place-items-center rounded-full border-0 bg-chip text-ink cursor-pointer ph-landscape:size-9" aria-label={t.phone.next.closeNeedsYou} onClick={closeNeeds}>
+              <X size={20} strokeWidth={2.25} aria-hidden="true" />
+            </button>
+          </header>
+          {banner}
+          {/* every project's entries, each naming its project; Seismic's own entries bring its project into view */}
+          <div className="mt-3">
+            <InboxList
+              entries={entries}
+              isRead={s.inboxRead.isRead}
+              onRead={s.inboxRead.markRead}
+              onGo={(e) => {
+                if (e.card) return openCard(e.card);
+                // Seismic's own entry: its chat page opens over this one, in its project; Back returns here
+                setObeyaProject(e.project);
+                s.openTalk();
+              }}
+              onProposalCard={(_project, i) => openCard(i)}
+              onReply={(c, i, r) =>
+                sendReply(c, i, r, {
+                  mark: (id, what) => s.setUnderway((u) => (what === null ? u.filter((x) => x !== id) : [...u.filter((x) => x !== id), id])),
+                  showAck,
+                })
+              }
+            />
+          </div>
+        </div>
+      )}
       {acks}
+      <PhoneMenu
+        open={menuOpen}
+        onOpenChange={setMenuOpen}
+        projects={projects}
+        project={obeyaId}
+        needsYou={needsYouCount(entries)}
+        onProject={(id) => {
+          setObeyaProject(id);
+          closeNeeds();
+          setMenuOpen(false);
+        }}
+        onNeedsYou={() => {
+          setMenuOpen(false);
+          openNeeds();
+        }}
+      />
       {searching && <PhoneSearch items={items.filter((i) => !i.archivedAt)} query={query} onQuery={setQuery} onOpen={openCard} onClose={closeSearch} />}
       {s.talk && (
         <TalkPanel
@@ -204,6 +261,9 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
           onNew={() => void newCard()}
           onChat={s.openTalk}
           onSearch={openSearch}
+          onMenu={() => setMenuOpen(true)}
+          needsOn={needsOn}
+          onNeedsYou={needsOn ? closeNeeds : openNeeds}
         />
       )}
     </HoldToTalk.Provider>
@@ -211,15 +271,15 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
 }
 
 /**
- * The top bar: Seismic's sign (the menu, to come), the project in view with the phone's own picker
+ * The top bar: Seismic's sign (the menu), the project in view with the phone's own picker
  * to switch it (`onProject`), and at the right the usage pills, or over an open card its X (`onClose`).
  */
-function TopBar({ projects, project, onProject, usage, onClose }: { projects: ProjectInfo[]; project: string; onProject?: (id: string) => void; usage: Usage[]; onClose?: () => void }) {
+function TopBar({ projects, project, onProject, usage, onClose, onMenu }: { projects: ProjectInfo[]; project: string; onProject?: (id: string) => void; usage: Usage[]; onClose?: () => void; onMenu?: () => void }) {
   const name = projects.find((c) => c.id === project)?.name;
   return (
     <header className={cn(pageBarClass, 'gap-2', onClose ? 'ph-card-top' : 'ph-home ph-landscape:static')}>
-      {/* the sign opens the menu (to come) */}
-      <button className="-ml-1 inline-grid size-10 shrink-0 place-items-center rounded-full border-0 bg-transparent p-0 disabled:cursor-default" aria-label={t.phone.next.menu} disabled>
+      {/* the sign opens the menu */}
+      <button className="-ml-1 inline-grid size-10 shrink-0 place-items-center rounded-full border-0 bg-transparent p-0 disabled:cursor-default" aria-label={t.phone.next.menu} disabled={!onMenu} onClick={onMenu}>
         <Sign size={26} />
       </button>
       {/* the project in view; the phone's own picker switches it, remembered in this browser */}
@@ -253,6 +313,21 @@ function TopBar({ projects, project, onProject, usage, onClose }: { projects: Pr
       )}
     </header>
   );
+}
+
+/**
+ * The X of an open card: back to its project's list. A card opened from the Needs you page has that
+ * page's step before it, which browser Back returns to; the X goes on past it (`closeNeeds`) once the
+ * card's own steps are undone, so the list shows and not Needs you again.
+ */
+function leaveCard(back: () => void, needsOn: boolean, closeNeeds: () => void) {
+  if (!needsOn) return back();
+  // the steps the page pushed (the card, its conversation) are traversed, which ends in a popstate; a card
+  // the address named on loading is left without one
+  const steps = (history.state as { steps?: string[] } | null)?.steps ?? [];
+  if (steps.at(-1) === 'card' || steps.at(-1) === 'talk') addEventListener('popstate', () => closeNeeds(), { once: true });
+  back();
+  if (!(steps.at(-1) === 'card' || steps.at(-1) === 'talk')) closeNeeds();
 }
 
 /** The fixed top bar's height for the open card below it (`--ph-top`), while it stands. */
@@ -322,13 +397,13 @@ const barButton = 'relative inline-grid size-11 place-items-center rounded-full 
  * and Needs you, whose bell counts what waits across every project. Hidden while the keyboard is up;
  * with the phone turned it stands upright in the microphone's strip at the right.
  */
-function FloatingBar({ needsYou, making, chat, chatWorking, onNew, onChat, onSearch }: { needsYou: number; making: boolean; chat: number; chatWorking: boolean; onNew: () => void; onChat: () => void; onSearch: () => void }) {
+function FloatingBar({ needsYou, making, chat, chatWorking, onNew, onChat, onSearch, onMenu, needsOn, onNeedsYou }: { needsYou: number; making: boolean; chat: number; chatWorking: boolean; onNew: () => void; onChat: () => void; onSearch: () => void; onMenu: () => void; needsOn: boolean; onNeedsYou: () => void }) {
   return (
     <nav
       className="ph-float fixed z-50 left-1/2 bottom-[calc(14px+env(safe-area-inset-bottom))] -translate-x-1/2 flex items-center gap-1 rounded-full bg-glass px-2 py-1 shadow-lift backdrop-blur-xl [.ph-kb_.ph-view~&]:hidden ph-landscape:left-auto ph-landscape:right-[calc(10px+env(safe-area-inset-right))] ph-landscape:top-1/2 ph-landscape:bottom-auto ph-landscape:-translate-y-1/2 ph-landscape:translate-x-0 ph-landscape:flex-col ph-landscape:px-1 ph-landscape:py-2"
       aria-label={t.phone.next.menu}
     >
-      <button className={barButton} aria-label={t.phone.next.menu} title={t.phone.next.soon} disabled>
+      <button className={barButton} aria-label={t.phone.next.menu} onClick={onMenu}>
         <Menu aria-hidden="true" />
       </button>
       <button className={cn(barButton, chatWorking && "after:absolute after:inset-x-2.5 after:bottom-1 after:h-0.5 after:animate-[draw_1.6s_cubic-bezier(.5,0,.3,1)_infinite] after:content-[''] after:[background:linear-gradient(90deg,var(--working)_0_50%,transparent_50%)_0_0/200%_100%_no-repeat,color-mix(in_srgb,var(--working)_22%,transparent)]")} aria-label={t.phone.next.chat} title={chat ? t.koordinator.unreadCount(chat) : undefined} onClick={onChat}>
@@ -350,7 +425,7 @@ function FloatingBar({ needsYou, making, chat, chatWorking, onNew, onChat, onSea
       <button className={barButton} aria-label={t.phone.next.search} onClick={onSearch}>
         <Search aria-hidden="true" />
       </button>
-      <button className={barButton} aria-label={needsYou ? `${t.phone.next.needsYou}: ${t.phone.next.needsYouCount(needsYou)}` : t.phone.next.needsYou} title={t.phone.next.soon} disabled>
+      <button className={cn(barButton, needsOn && 'bg-chip')} aria-pressed={needsOn} aria-label={needsYou ? `${t.phone.next.needsYou}: ${t.phone.next.needsYouCount(needsYou)}` : t.phone.next.needsYou} onClick={onNeedsYou}>
         <Bell aria-hidden="true" />
         {needsYou > 0 && (
           <Badge variant="count" className="absolute top-0.5 right-0.5 bg-waiting text-white">
@@ -360,4 +435,39 @@ function FloatingBar({ needsYou, making, chat, chatWorking, onNew, onChat, onSea
       </button>
     </nav>
   );
+}
+
+/**
+ * Whether the Needs you page is open, kept in the address (`?needs`) so Back and a reload hold it;
+ * opening is a step in the browser's history, closing takes it back (or drops it from the address
+ * where the page was loaded on it).
+ */
+function useNeedsPage(): [boolean, () => void, () => void] {
+  const [on, setOn] = useState(() => new URLSearchParams(location.search).has('needs'));
+  useEffect(() => {
+    const pop = () => setOn(new URLSearchParams(location.search).has('needs'));
+    addEventListener('popstate', pop);
+    return () => removeEventListener('popstate', pop);
+  }, []);
+  const address = (needs: boolean) => {
+    const q = new URLSearchParams(location.search);
+    if (needs) q.set('needs', '');
+    else q.delete('needs');
+    const text = q.toString().replace(/=(&|$)/g, '$1');
+    return `${location.pathname}${text ? `?${text}` : ''}`;
+  };
+  return [
+    on,
+    () => {
+      if (on) return;
+      history.pushState({ ...history.state, needs: true }, '', address(true));
+      setOn(true);
+    },
+    () => {
+      if (!on) return;
+      if ((history.state as { needs?: boolean } | null)?.needs) history.back();
+      else history.replaceState(history.state, '', address(false));
+      setOn(false);
+    },
+  ];
 }
