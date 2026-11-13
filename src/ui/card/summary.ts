@@ -15,13 +15,16 @@ export const asksYou = (i: Item) => i.state === 'waiting' && i.need === 'questio
  * The colour a card's state gives its unfolded sheet: a snoozed card's is pencil grey, as on the
  * project; a demo whose worker takes in the owner's answer is at work.
  */
-export const shownState = (i: Item) => (snoozeOf(i) ? 'muted' : i.kind === 'question' ? 'question' : answering(i) ? 'working' : agentFailed(i) ? 'destructive' : asksYou(i) ? 'asking' : mergeProposed(i) || i.idea?.proposal?.merge ? 'proposal' : i.state);
+export const shownState = (i: Item) => (snoozeOf(i) ? 'muted' : i.kind === 'question' ? 'question' : answering(i) ? 'working' : agentFailed(i) ? 'destructive' : asksYou(i) ? 'asking' : mergeProposed(i) || i.idea?.proposal?.merge ? 'proposal' : i.state === 'done' ? 'live' : i.state);
+
+/** The colour token of a tone: a finished card (`done`) is `live`, the one palette entry for both; every other tone names its own. */
+export const toneToken = (tone: string): string => (tone === 'done' ? 'live' : tone);
 
 /** A state's colour as the three custom properties an element in it carries: `--c`, its subtle tint and the text on the tint (tailwind.css). `muted` (a snoozed card) and `muted-foreground` are the quiet one. */
 export const stateVars = (tone: string): Record<'--c' | '--c-subtle' | '--c-strong', string> =>
   tone === 'muted' || tone === 'muted-foreground'
     ? { '--c': 'var(--muted-foreground)', '--c-subtle': 'var(--muted)', '--c-strong': 'var(--foreground)' }
-    : { '--c': `var(--${tone})`, '--c-subtle': `var(--${tone}-subtle)`, '--c-strong': `var(--${tone}-strong)` };
+    : { '--c': `var(--${toneToken(tone)})`, '--c-subtle': `var(--${toneToken(tone)}-subtle)`, '--c-strong': `var(--${toneToken(tone)}-strong)` };
 
 /**
  * The colour of a card's state in a list (S and XS), as its card on the project shows it: paused grey,

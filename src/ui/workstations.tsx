@@ -53,7 +53,7 @@ export function wsDot(w: PoolWorkstation | undefined, host: PoolHost, items: Ite
   return {
     className: cn(dot, 'bg-c', PULSING.has(tone) && pulse),
     style: stateVars(tone) as CSSProperties,
-    fill: `var(--${tone})`,
+    fill: stateVars(tone)['--c'],
     pulsing: PULSING.has(tone),
   };
 }
