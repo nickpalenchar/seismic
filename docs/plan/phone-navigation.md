@@ -12,7 +12,7 @@ Replace the phone view's four tabs with a layout built for one project at a time
 
 **Working box.** "● ● ○ ○ 4 working": the dots are the workstation marks of the desktop's status bar, and the word "workstations" never appears. A chevron folds and unfolds the box; the state is remembered per browser. Unfolded, it lists the cards agents are on (working, code reviewing, review fixing, landing) with the rows of the status bar's workstation popover; a tap opens the card.
 
-**Card sections.** Queued (grey badge), then Planned, then Parked and Done, folded, at the end. A section without cards is left out. Each shows 20 cards, then "Load more". Cards use `CardFace`, as wide as the screen. Needs-you cards are not repeated here.
+**Card sections.** Queued (grey badge), then Planned (most recently created first), then Parked and Done, folded, at the end. A section without cards is left out. Each shows 20 cards, then "Load more". Cards use `CardFace`, as wide as the screen. Needs-you cards are not repeated here.
 
 **Floating bar.** A glass pill, the + slightly larger.
 

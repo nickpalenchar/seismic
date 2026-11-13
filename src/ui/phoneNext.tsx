@@ -106,7 +106,7 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
   };
   const sections: Record<Section, Item[]> = {
     queued: queueOrder(items).filter(listed),
-    planned: items.filter((i) => listed(i) && agentStage(i, isUnderway(i.id)) === 'planned'),
+    planned: items.filter((i) => listed(i) && agentStage(i, isUnderway(i.id)) === 'planned').sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? '')),
     parked: items.filter((i) => listed(i) && inParkingLot(i)),
     done: items.filter((i) => listed(i) && !inParkingLot(i) && !agentStage(i, isUnderway(i.id)) && finishedArchivable(i) && !needsYou(i) && !snoozeOf(i)?.waiting && !runs(i) && !isUnderway(i.id)),
   };
