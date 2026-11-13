@@ -171,13 +171,18 @@ async function shots(page: Page, cards: Record<string, string>) {
   await page.waitForTimeout(500);
   await page.screenshot({ path: join(IMG, 'demo.png'), clip: around([await boxOf(page, '#panel')], 0) });
   console.log('demo.png');
-  await page.keyboard.press('Escape');
+  // Opening the card focuses Close; its tooltip takes the first Escape, leaving the card open.
+  // Use the visible close control and wait for the fold before clicking the next card.
+  await page.locator('#panel').getByRole('button', { name: 'Close (Esc)', exact: true }).click();
+  await page.locator('#panel').waitFor({ state: 'hidden' });
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.waitForTimeout(1200);
 
   // voice: an agent's question, answered by holding Space
   await page.click(card(cards.I));
   await page.waitForTimeout(1500);
+  // Leave the focused Close button before holding Space, so it records rather than presses Close.
+  await page.locator('#panel .inner').click({ position: { x: 10, y: 10 } });
   await page.mouse.move(5, 500);
   await page.keyboard.down('Space');
   await page.waitForTimeout(1500);
