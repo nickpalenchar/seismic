@@ -230,9 +230,10 @@ const spinner = (ring: string) =>
   cn("before:content-[''] before:flex-none before:rounded-full before:border-2 before:border-solid before:animate-[spin_.8s_linear_infinite]", ring);
 
 /**
- * A toast's look: dark (a confirmation, a command's line), light with a ring (a warning), muted while
- * a command is read; at most as wide as half the room the docked panels leave, on the phone as wide as
- * the screen. Its words wrap above its buttons where there are several (or a warning's, on the phone).
+ * A toast's look: dark (a confirmation, a command's line), yellow like a warning callout (a warning),
+ * muted while a command is read; at most as wide as half the room the docked panels leave, on the
+ * phone as wide as the screen. Its words wrap above its buttons where there are several, and always
+ * on a warning: its words take the toast's full width, its buttons stand below them on the right.
  */
 function toastClass(x: Toast, { wrap, phone, nudge }: { wrap: boolean; phone: boolean; nudge: boolean }) {
   const warning = x.kind === 'warning';
@@ -245,21 +246,23 @@ function toastClass(x: Toast, { wrap, phone, nudge }: { wrap: boolean; phone: bo
     x.reading
       ? ['reading bg-surface text-muted-foreground shadow-glass py-[7px] px-3.5 text-[13px]', spinner('before:size-2.5 before:border-transparent before:border-t-working')]
       : warning
-        ? 'bg-warning/22 text-foreground shadow-glass outline outline-warning/45 py-3 px-4 text-[14px]'
+        ? 'border border-solid border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-50 rounded-lg shadow-glass py-3 px-4 text-[14px]'
         : 'bg-foreground text-background py-3 px-4 text-[14px]',
     x.kind === 'wait' && ['[--track:--alpha(var(--background)/25%)]', spinner('before:size-3 before:[border-color:var(--background)_var(--track)_var(--track)_var(--track)]')],
-    wrap ? ['flex-wrap gap-x-2 gap-y-2.5 [&>span]:basis-full', phone && warning && 'justify-end'] : 'gap-3.5',
+    wrap ? ['flex-wrap gap-x-2 gap-y-2.5 [&>span]:basis-full', warning && 'justify-end'] : 'gap-3.5',
     // the phone's toasts are swiped aside: a finger dragging one selects nothing
     phone && 'swipeable select-none',
     nudge && !x.reading && 'nudge animate-[toast-nudge_.9s_.7s_ease-in-out]',
   );
 }
 
-/** A toast's button: outlined in the toast's ink, in the warning colour on a warning; cut short where several share a line. */
+/** A toast's button: outlined in the toast's ink, in the warning callout's amber on a warning; cut short where several share a line. */
 const toastButtonClass = (warning: boolean, several: boolean) =>
   cn(
     'bg-transparent border border-solid rounded-[2px] py-[3px] px-2.5 cursor-pointer flex-none',
-    warning ? 'border-warning text-warning' : 'border-background/40 text-background',
+    warning
+      ? 'rounded-md border-amber-300 bg-white/60 text-amber-900 hover:bg-amber-100 dark:border-amber-800 dark:bg-transparent dark:text-amber-50 dark:hover:bg-amber-900'
+      : 'border-background/40 text-background',
     several && 'max-w-full overflow-hidden text-ellipsis whitespace-nowrap',
   );
 
@@ -271,7 +274,7 @@ export function ToastLine({ toast: x, open, aside, onGone }: { toast: Toast; ope
   const nudge = aside && !swipedOnce();
   const button = toastButtonClass(warning, several);
   return (
-    <div className={cn(toastClass(x, { wrap: several || (aside && warning), phone: aside, nudge }), several && 'several')} role={warning ? 'alert' : undefined}>
+    <div className={cn(toastClass(x, { wrap: several || warning, phone: aside, nudge }), several && 'several')} role={warning ? 'alert' : undefined}>
       <span>
         {x.card && x.card.id !== open && !x.reading && <ToastCard card={x.card} />}
         {x.text}
