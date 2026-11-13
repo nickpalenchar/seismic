@@ -1209,6 +1209,8 @@ export const needsOwner = (i: Pick<ReviewItem, 'status'>) => i.status === 'raise
  */
 export interface CodeReview {
   mode: CodeReviewMode;
+  /** Number of review runs started for this card. */
+  runs?: number;
   /** The agent running this review, as selected at start or resolved by its session. */
   agent?: AgentIdentity;
   /** None while no review ran for the card's work. */

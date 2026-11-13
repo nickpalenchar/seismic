@@ -135,7 +135,7 @@ export class CodeReviews {
     const unverified = this.items(cardId).some((i) => i.status === 'underReview' && !(review?.state === 'running' && review.scope?.includes(i.number)));
     const same = !!review && !!head && review.head === head && !resubmitted.length && !unverified;
     if (review && same) review = { ...review, handover };
-    this.save(cardId, { mode, handover, ...(review ? { review } : {}) });
+    this.save(cardId, { mode, handover, ...(now?.runs ? { runs: now.runs } : {}), ...(review ? { review } : {}) });
     if (mode === 'auto' && !same) this.begin(cardId, head);
   }
 
@@ -333,7 +333,7 @@ export class CodeReviews {
     const setting = this.o.agentSetting?.();
     const choice = setting && harnessChoice(setting);
     const agent: AgentIdentity | undefined = setting && { harness: setting.harness ?? 'claude', ...(choice?.model && choice.model !== 'default' ? { model: choice.model } : {}) };
-    this.save(cardId, { ...c, review: { handover: c.handover, ...(head ? { head } : {}), state: 'running', at: new Date().toISOString(), ...(agent ? { agent } : {}) } });
+    this.save(cardId, { ...c, runs: (c.runs ?? (c.review ? 1 : 0)) + 1, review: { handover: c.handover, ...(head ? { head } : {}), state: 'running', at: new Date().toISOString(), ...(agent ? { agent } : {}) } });
     // a restart that is due would cut it off: it starts once Seismic runs again
     if (this.restart) return void this.paused.add(cardId);
     this.launch(cardId, setting);
@@ -517,8 +517,14 @@ export class CodeReviews {
     void (ws ? gitAsync(ws, 'rev-parse', 'HEAD').catch(() => undefined) : Promise.resolve(undefined)).then((head) => {
       if (!this.o.board.item(cardId)) return;
       const now = codeReviewOf(this.o.board.row(cardId));
-      if (now?.mode === 'auto' && !now.pending && now.review?.state === 'done' && now.review.at === at) this.begin(cardId, head);
+      if (now?.mode === 'auto' && !now.pending && (now.review?.state === 'done' || now.review?.state === 'failed') && now.review.at === at) this.begin(cardId, head);
     });
+  }
+
+  /** A worker may resubmit an item and finish with a reply instead of a handover. */
+  workerFinished(cardId: string): void {
+    const c = codeReviewOf(this.o.board.row(cardId));
+    if ((c?.review?.state === 'done' || c?.review?.state === 'failed') && !c.pending) this.verifyLeft(cardId, c.review.at);
   }
 
   /**

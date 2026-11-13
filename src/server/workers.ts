@@ -4356,6 +4356,7 @@ export class Workers {
     void this.codeReviewsChanged();
     const answered = spoke || !!before;
     this.o.board.work(cardId, { detail: JSON.stringify({ ...rest, ...(answered ? { answered: true } : {}) }) });
+    this.reviews.workerFinished(cardId);
     if (!answered) this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.worker.unanswered);
   }
 

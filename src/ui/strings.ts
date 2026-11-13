@@ -71,6 +71,7 @@ const en = {
   agentAnswered: 'Agent answered, waiting for you',
   agentFailed: 'Agent stopped with an error',
   agentReviewing: 'Agent reviewing',
+  reviewCheck: (n: number) => `${ordinal(n)} review check`,
   startWithQuestions: { title: 'The agent still has questions', body: (n: number) => n === 1 ? 'The agent still has 1 open question. If you start now, the agent decides it itself as best it can, usually with the default.' : `The agent still has ${n} open questions. If you start now, the agent decides them itself as best it can, usually with the defaults.`, anyway: 'Start anyway', back: 'Go back' },
   unsentChoices: { title: 'Choices not sent yet', body: (n: number) => n === 1 ? 'You picked a choice for 1 review finding but have not sent it. Approving drops it.' : `You picked choices for ${n} review findings but have not sent them. Approving drops them.`, approve: 'Approve and close items', back: 'Go back' },
   approveDuringReview: { title: 'Approve without Review?', body: 'This will stop the in-progress review and move straight to landing.', land: 'Stop Review & land', continue: 'Continue review', reviewing: 'Review in progress', fixing: 'Fixing in progress' },
@@ -2709,7 +2710,7 @@ export const mergeProposed = (i: { state: CardState; possibleDuplicates?: string
   i.state === 'planned' && !!i.possibleDuplicates?.length && !i.idea?.proposal?.merge;
 
 /** A card's state as its state line says it; `short`, in a word or two, as the smallest card face says it (`stateShort`). */
-export const stateLabel = (i: { kind?: string; thread?: { thinking?: boolean }; state: CardState; need?: Need; queue?: Queue; question?: { stuck?: true }; hold?: ItemHold; possibleDuplicates?: string[]; agent?: { finishing?: boolean; followUp?: boolean; branch?: string; stoppedAt?: StoppedAt }; review?: { landing?: true; landingPosition?: number; pr?: unknown; contribution?: unknown; answering?: true; answered?: true; blocked?: unknown; codeReview?: { state?: string } }; demo?: { earlier?: { asked?: true }[] }; idea?: { discussion?: Idea; prototypeEnd?: 'discarded' | 'built'; retro?: string; proposal?: { setup?: true; merge?: { task?: string; failed?: string } } } }, short = false): string => {
+export const stateLabel = (i: { kind?: string; thread?: { thinking?: boolean }; state: CardState; need?: Need; queue?: Queue; question?: { stuck?: true }; hold?: ItemHold; possibleDuplicates?: string[]; agent?: { finishing?: boolean; followUp?: boolean; branch?: string; stoppedAt?: StoppedAt }; review?: { landing?: true; landingPosition?: number; pr?: unknown; contribution?: unknown; answering?: true; answered?: true; blocked?: unknown; codeReview?: { state?: string; runs?: number } }; demo?: { earlier?: { asked?: true }[] }; idea?: { discussion?: Idea; prototypeEnd?: 'discarded' | 'built'; retro?: string; proposal?: { setup?: true; merge?: { task?: string; failed?: string } } } }, short = false): string => {
   const { agent, review, idea: ideaPart } = i;
   const idea = ideaPart?.discussion;
   const merge = ideaPart?.proposal?.merge;
@@ -2741,7 +2742,7 @@ export const stateLabel = (i: { kind?: string; thread?: { thinking?: boolean }; 
     : ideaPart?.prototypeEnd
     ? t.idea.ended[ideaPart.prototypeEnd]
     : review?.codeReview?.state === 'running'
-    ? word(t.agentReviewing, 'reviewing')
+    ? word(review.codeReview.runs && review.codeReview.runs > 1 ? t.reviewCheck(review.codeReview.runs) : t.agentReviewing, 'reviewing')
     : isPaused(i)
     ? word(
         idea

@@ -142,7 +142,7 @@ describe('code reviews', () => {
     await handOver(id, 'export.ts');
     expect(state(id)).toBe('waiting:demo');
     await until(() => reviewers().length === 1);
-    expect(board.item(id)!.review?.codeReview).toEqual({ mode: 'auto', state: 'running', items: [] });
+    expect(board.item(id)!.review?.codeReview).toEqual({ mode: 'auto', state: 'running', runs: 1, items: [] });
   });
 
   test('work that goes through a pull request gets "Start code review" in manual mode', async () => {
@@ -188,7 +188,7 @@ describe('code reviews', () => {
     await handOver(id, 'export.ts');
     expect(state(id)).toBe('waiting:demo');
     await until(() => reviewers().length === 1);
-    expect(board.item(id)!.review?.codeReview).toEqual({ mode: 'auto', state: 'running', items: [] });
+    expect(board.item(id)!.review?.codeReview).toEqual({ mode: 'auto', state: 'running', runs: 1, items: [] });
     const r = reviewers()[0]!;
     expect(r.spec.system).toContain('- Agents speak and write to me in English only.');
     expect(r.spec.tools.find((t) => t.name === 'review')!.description).toContain('unless an explicit standing preference names another language');
@@ -505,6 +505,40 @@ describe('code reviews', () => {
     expect(statuses(id)).toEqual(['underReview', 'reopened', 'underReview']);
     await until(() => reviewers().length === 2);
     expect(reviewers()[1]!.inbox[0]).toContain('The worker wrote: Also covered by a test.');
+  });
+
+  test('a resubmission followed by a reply starts the next automatic review', async () => {
+    reviewing('auto');
+    const id = await started();
+    await handOver(id, 'export.ts');
+    await until(() => reviewers().length === 1);
+    await review(id, reviewers()[0]!);
+    workers.message(id, 'Please check this too.', [], false, undefined, undefined, { 3: 'ignore' });
+    await worker().call('resubmit_review_item', { items: [{ number: 3, note: 'Fixed.' }] });
+    await worker().call('reply', { text: 'Fixed.' });
+    worker().emit({ type: 'text', text: 'Fixed.' });
+    worker().emit({ type: 'idle' });
+    await until(() => reviewers().length === 2);
+    expect(board.item(id)!.review?.codeReview).toMatchObject({ state: 'running', runs: 2 });
+  });
+
+  test('a resubmission after a failed review is checked on reply', async () => {
+    reviewing('auto');
+    const id = await started();
+    await handOver(id, 'export.ts');
+    await until(() => reviewers().length === 1);
+    await review(id, reviewers()[0]!);
+    workers.message(id, 'Please revise it.');
+    await handOver(id, 'revision.ts');
+    await until(() => reviewers().length === 2);
+    reviewers()[1]!.emit({ type: 'idle' });
+    await until(() => board.item(id)!.review?.codeReview?.state === 'failed');
+    workers.message(id, 'Please check this too.', [], false, undefined, undefined, { 3: 'ignore' });
+    await worker().call('resubmit_review_item', { items: [{ number: 3, note: 'Fixed.' }] });
+    await worker().call('reply', { text: 'Fixed.' });
+    worker().emit({ type: 'text', text: 'Fixed.' });
+    worker().emit({ type: 'idle' });
+    await until(() => reviewers().length === 3);
   });
 
   test('a review gives verdicts on the items under review when it started; one resubmitted meanwhile waits for the next review', async () => {
