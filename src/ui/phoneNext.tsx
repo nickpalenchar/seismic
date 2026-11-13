@@ -1,5 +1,4 @@
-// The phone view for one project at a time (`?view=phone`; the earlier one with four tabs
-// is `?view=phone-old`): a slim top bar with Seismic's sign, the project in view and its switcher, and the usage
+// The phone view for one project at a time (`?view=phone`): a slim top bar with Seismic's sign, the project in view and its switcher, and the usage
 // pills scrolling under it; a box "N working" with the workstation dots, which unfolds to the cards
 // agents are on; the project's other cards in sections (Queued, Planned, then Parked and Done
 // folded), twenty at a time; and a floating bar along the foot with Menu, Chat, New card, Search and

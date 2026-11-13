@@ -35,9 +35,6 @@ export const emptyInboxClass = 'empty-inbox m-0 p-2 text-muted-foreground text-[
 /** What a list of the Agent work sheet says while it is empty. */
 export const agentsEmptyClass = 'agents-empty text-muted-foreground text-[12px] [#agents_&]:my-3.5 [#agents_&]:mx-2 [#agents_&]:text-[13px] [#agents_&]:leading-[1.45]';
 
-/** What the phone's list says while it is empty. */
-export const phoneNoneClass = 'ph-none mt-[18px] mx-0 mb-0 text-muted-foreground text-[14.5px] leading-[1.45]';
-
 /** An unread entry's dot: orange, centred on the title's first line; inside the subtle face's top-right corner. */
 export const unreadDotClass =
   'unread-dot flex-none size-2 rounded-[50%] bg-waiting mt-1.5 [.face.subtle>&]:absolute [.face.subtle>&]:top-2 [.face.subtle>&]:right-2 [.face.subtle>&]:m-0';

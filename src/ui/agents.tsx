@@ -7,7 +7,7 @@
 // The phone keeps its own lists with the tabs and stage chips below.
 
 import { cn } from 'cn';
-import { type ReactNode, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { agentStage, agentWork } from '../core/agents';
 import { waitsFor } from '../core/inbox';
 import type { Item } from '../core/types';
@@ -19,77 +19,13 @@ import { QueueList, useQueueSort } from './queue';
 import { useStoredState } from './stored';
 import { t } from './strings';
 import { Button } from './components/button';
-import { ToggleGroup, ToggleGroupItem } from './components/segmented';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
 import { Badge } from './components/badge';
 import { agentsEmptyClass, entryClass, entryListClass, entryOnClass, repliesClass, ttlLinkClass } from './inboxClasses';
 
-/** The phone's tabs across the screen, sized for a finger (`#ph-home`: only the phone shows these tabs). */
-const phoneTabClass = '[#ph-home_&]:flex-1 [#ph-home_&]:inline-flex [#ph-home_&]:items-center [#ph-home_&]:justify-center [#ph-home_&]:min-h-10 [#ph-home_&]:py-0 [#ph-home_&]:px-1 [#ph-home_&]:text-[15px]';
-
 /** A stage's heading in Agent work, and the smaller one of a part of it. */
 const stageHeadClass = 'mt-[18px] mx-2 mb-2 text-[12px] font-semibold uppercase tracking-[.04em] text-muted-foreground';
 const stageSubheadClass = 'mt-2.5 mx-2 mb-1.5 text-[12px] font-semibold text-muted-foreground';
-
-export type AgentsTab = 'queue' | 'all' | 'parked' | 'activity';
-type Tab = AgentsTab;
-
-/** The tab chosen last in this browser, the desktop's sheet and the phone's list alike; `first` until one was chosen. */
-export function useAgentsTab(first: Tab): [Tab, (t: Tab) => void] {
-  const [kept, setTab] = useStoredState<Tab | null>('obeya-agents-tab', null);
-  const tab: Tab = kept === 'queue' || kept === 'parked' || kept === 'activity' || kept === 'all' ? kept : first;
-  return [tab, setTab];
-}
-
-/** The switch between the four tabs, the queue's count on "Queue" and the parked cards' on "Parked"; `children` is the panel of the tab shown. */
-export function AgentsTabs({ tab, onTab, queued, parked, children }: { tab: Tab; onTab: (t: Tab) => void; queued: number; parked: number; children?: ReactNode }) {
-  return (
-    <Tabs value={tab} onValueChange={(k) => onTab(k as Tab)}>
-      <TabsList variant="segmented" className="agents-tabs [#ph-home_&]:flex [#ph-home_&]:w-full [#ph-home_&]:mt-3.5" aria-label={t.agents.title}>
-        {(['queue', 'all', 'parked', 'activity'] as const).map((k) => (
-          <TabsTrigger key={k} value={k} className={phoneTabClass}>
-            {t.agents.tabs[k]}
-            {k === 'queue' && queued > 0 && <Badge variant="count" className="ml-1.5">{queued}</Badge>}
-            {k === 'parked' && parked > 0 && <span className="count ml-1.5 font-semibold text-[12px] text-muted-foreground">{parked}</span>}
-          </TabsTrigger>
-        ))}
-      </TabsList>
-      <TabsContent value={tab}>
-        {children}
-      </TabsContent>
-    </Tabs>
-  );
-}
-
-/**
- * The chips above "All": one per stage with its count, tinted while its group shows; a tap shows or
- * hides the group. With `onlyFull` (the phone, where the row has room for few) a stage without cards has none.
- */
-/** The colour a stage chip tints with while its group shows. */
-const STAGE_TINT: Record<string, string> = {
-  needsYou: 'c-waiting',
-  reviewing: 'c-reviewing',
-  landing: 'c-approved',
-  planned: 'c-planned',
-  done: 'c-approved',
-};
-
-export function StageChips<S extends string>({ stages, count, hidden, onHidden, onlyFull }: { stages: readonly S[]; count: (s: S) => number; hidden: S[]; onHidden: (h: S[]) => void; onlyFull?: boolean }) {
-  return (
-    // on the phone in one row that scrolls sideways, sized for a finger
-    <ToggleGroup
-      type="multiple"
-      variant="chips"
-      className="agents-filter mt-3 mx-2 mb-0 [#ph-home_&]:flex-nowrap [#ph-home_&]:overflow-x-auto [#ph-home_&]:-mx-3.5 [#ph-home_&]:pt-0 [#ph-home_&]:px-3.5 [#ph-home_&]:pb-0.5 [#ph-home_&]:[scrollbar-width:none] [#ph-home_&]:[&::-webkit-scrollbar]:hidden"
-      aria-label={t.agents.filter} value={stages.filter((s) => !hidden.includes(s))} onValueChange={(shown) => onHidden(stages.filter((s) => !shown.includes(s)))}>
-      {stages.filter((s) => !onlyFull || count(s) > 0).map((s) => (
-        <ToggleGroupItem key={s} value={s} className={cn(STAGE_TINT[s], !count(s) && 'opacity-55', '[#ph-home_&]:flex-none [#ph-home_&]:min-h-9 [#ph-home_&]:py-0 [#ph-home_&]:px-3.5 [#ph-home_&]:text-[14px]')}>
-          {(t.agents.stages as Record<string, string>)[s]} <span className="text-[11.5px] font-bold [#ph-home_&]:text-[13px]">{count(s)}</span>
-        </ToggleGroupItem>
-      ))}
-    </ToggleGroup>
-  );
-}
 
 /** The desktop's Agent work tabs: the cards at work and to do, and the log. */
 type WorkTab = 'work' | 'activity';

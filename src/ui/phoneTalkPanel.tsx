@@ -8,7 +8,7 @@ import { glide, type Mark, settle, speed, THROWN, thrown } from './panelHeight';
 import { scrollBehavior } from './motion';
 
 /** The word a bar leads with, in frost's own font. */
-export const wordClass = 'ph-word font-semibold leading-none [font-family:var(--font)]';
+const wordClass = 'ph-word font-semibold leading-none [font-family:var(--font)]';
 /** A panel's title in its grip, cut short; a card's (its title) smaller than Seismic's. */
 export const gripWordClass = `${wordClass} text-[21px] overflow-hidden text-ellipsis whitespace-nowrap min-w-0 [.ph-panel:has(#ph-card-talk)_&]:text-[18px]`;
 

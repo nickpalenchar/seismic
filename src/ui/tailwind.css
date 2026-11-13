@@ -115,7 +115,7 @@ a.link.card-link { color: var(--working); text-decoration: underline 1px current
 @custom-variant resizing (&:where(.resizing, .resizing *));
 /* reduced motion as Seismic decides it (motion.ts sets data-motion from the settings or the system) */
 @custom-variant reduced (&:where(:root[data-motion=reduce] *));
-/* inside the phone's views (phone.tsx `.ph-view`): the card and the list full screen, the conversation's panel */
+/* inside the phone's views (phoneEnvironment.ts `.ph-view`): the card and the list full screen, the conversation's panel */
 @custom-variant phone (&:where(.ph-view *));
 /* a screen without a pointer that hovers (a phone, a tablet): what shows on hover elsewhere stands */
 @custom-variant no-hover (@media (hover: none));
@@ -385,7 +385,7 @@ a.link.card-link { color: var(--working); text-decoration: underline 1px current
   }
 }
 
-/* the phone view and the toasts (phone.tsx, components/toast.tsx): a conversation's panel comes up from below;
+/* the phone view and the toasts (phoneNext.tsx, components/toast.tsx): a conversation's panel comes up from below;
    a toast on the phone nudges aside and back once, until the owner has swiped one aside */
 @keyframes ph-up { from { transform: translateY(100%); } }
 @keyframes toast-nudge { 30% { transform: translateX(36px); } 55% { transform: translateX(-10px); } 75%, 100% { transform: none; } }

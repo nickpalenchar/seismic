@@ -35,8 +35,7 @@ import { OpenPerformance, PerformanceDialog } from './performance';
 import { FeedbackLog } from './feedbackLog';
 import { LOG_KEYS, readLogQuery } from '../core/feedback-log';
 import { Setup } from './setup';
-import { Phone } from './phone';
-import { phoneOldView, phoneView } from './phoneEnvironment';
+import { phoneView } from './phoneEnvironment';
 import { PhoneNext } from './phoneNext';
 import { KoordinatorSheet } from './koordinator';
 import { closeBarMenus } from './components/menu';
@@ -118,7 +117,7 @@ export function App() {
   if (!projects.length) return <NoProject />;
   if (!current) return <NoSuchProject name={wanted!} projects={projects} />;
   // a phone gets every project's waits and work, and the cards full screen, instead of the project
-  if (phone) return phoneOldView() ? <Phone projects={projects} /> : <PhoneNext projects={projects} />;
+  if (phone) return <PhoneNext projects={projects} />;
   // the Agent Feedback Log, a page of its own in place of the project it was opened from
   if (page === 'feedback') return <FeedbackLog projects={projects} here={current.id} />;
   return <Shown id={current.id} projects={projects} onProjects={setProjects} />;
