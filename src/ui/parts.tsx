@@ -312,7 +312,7 @@ export function ProjectAgents({ project, item }: { project: ProjectInfo; item?: 
     // faint like the pause on a card and on the bubble in its conversation, full under the pointer
     <button
       type="button"
-      className="grid h-5 w-[26px] cursor-pointer place-items-center rounded-[3px] border border-line bg-transparent p-0 text-muted-foreground opacity-0 transition-opacity duration-120 group-focus-within/project:opacity-55 group-hover/project:opacity-55 hover:border-muted-foreground! hover:text-ink! hover:opacity-100! focus-visible:border-muted-foreground! focus-visible:text-ink! focus-visible:opacity-100! data-highlighted:border-muted-foreground! data-highlighted:text-ink! data-highlighted:opacity-100! [@media(hover:none)]:opacity-55"
+      className="grid h-5 w-[26px] cursor-pointer place-items-center rounded-[3px] border after:absolute after:inset-0 after:content-[''] border-line bg-transparent p-0 text-muted-foreground opacity-0 transition-opacity duration-120 group-focus-within/project:opacity-55 group-hover/project:opacity-55 hover:border-muted-foreground! hover:text-ink! hover:opacity-100! focus-visible:border-muted-foreground! focus-visible:text-ink! focus-visible:opacity-100! data-highlighted:border-muted-foreground! data-highlighted:text-ink! data-highlighted:opacity-100! [@media(hover:none)]:opacity-55"
       aria-label={`${label}: ${project.name}`} disabled={asked} onClick={click}>
       {pause ? <PauseMark /> : <PlayMark />}
     </button>
@@ -321,7 +321,8 @@ export function ProjectAgents({ project, item }: { project: ProjectInfo; item?: 
     // on its project's row: the moving line while one works there, which turns into the pause while the pointer is on the row
     <span
       className={cn(
-        'absolute top-1/2 right-2.5 flex h-5 w-[26px] -translate-y-1/2 items-center justify-center',
+        // where a finger taps, the button's reach (its ::after) is the row's whole height and the end of the row the row leaves free, not the small mark
+        'absolute top-1/2 right-2.5 flex h-5 w-[26px] -translate-y-1/2 items-center justify-center [@media(hover:none)]:inset-y-0 [@media(hover:none)]:right-0 [@media(hover:none)]:h-auto [@media(hover:none)]:w-11 [@media(hover:none)]:translate-y-0',
         pause &&
           "before:h-0.5 before:w-[26px] before:animate-[draw_1.6s_cubic-bezier(.5,0,.3,1)_infinite] before:content-[''] before:[background:linear-gradient(90deg,var(--working)_0_50%,transparent_50%)_0_0/200%_100%_no-repeat,color-mix(in_srgb,var(--working)_22%,transparent)] group-focus-within/project:before:hidden group-hover/project:before:hidden [@media(hover:none)]:before:hidden",
       )}

@@ -19,7 +19,7 @@
 //   handler leaves an open layer alone (see `layerOpen`).
 
 import { VisuallyHidden } from 'radix-ui';
-import { type ReactNode, useCallback, useState } from 'react';
+import { type ReactNode, useCallback, useRef, useState } from 'react';
 import { TooltipProvider } from './tooltip';
 
 /** The id of the element portals go into, inside the app root. */
@@ -41,6 +41,31 @@ export const layerOpen = (): boolean =>
   !!document.querySelector(
     `#${PORTAL_ID} :is([role=dialog], [role=alertdialog], [role=menu], [role=listbox], [role=tooltip])[data-state$=open], [data-radix-popper-content-wrapper] > [data-state$=open]`,
   );
+
+/**
+ * Focus back to whatever opened a modal layer. Radix hands it back only to a `Trigger`; a dialog or
+ * sheet opened by a button of its own (`open` set from outside, often from several places) would leave
+ * it on the page's body. `onOpenAutoFocus` notes the element with the focus as the layer mounts (still
+ * the opener then), `onCloseAutoFocus` returns there while it is still on the page and not inert (a
+ * page the layer's choice covered); otherwise Radix's own handling stands. A handler of the caller
+ * that prevents the default keeps its say.
+ */
+export function useOpenerFocus() {
+  const opener = useRef<HTMLElement | null>(null);
+  return {
+    onOpenAutoFocus: () => {
+      const el = document.activeElement;
+      opener.current = el instanceof HTMLElement && el !== document.body ? el : null;
+    },
+    onCloseAutoFocus: (e: Event) => {
+      const el = opener.current;
+      opener.current = null;
+      if (e.defaultPrevented || !el?.isConnected || el.closest('[inert]')) return;
+      e.preventDefault();
+      el.focus({ preventScroll: true });
+    },
+  };
+}
 
 /** The app and the portal container beside it, both inside the root element; the app mounts once the container exists. */
 export function UiRoot({ children }: { children: ReactNode }) {

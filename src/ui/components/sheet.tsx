@@ -11,7 +11,7 @@ import * as React from "react"
 import { cn } from "cn"
 import { XIcon } from "lucide-react"
 import { Dialog as SheetPrimitive } from "radix-ui"
-import { uiPortal } from "./ui"
+import { uiPortal, useOpenerFocus } from "./ui"
 import { t } from "../strings"
 
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
@@ -58,12 +58,15 @@ function SheetContent({
   side = "right",
   showCloseButton = true,
   docked = false,
+  onOpenAutoFocus,
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: "top" | "right" | "bottom" | "left"
   showCloseButton?: boolean
   docked?: boolean
 }) {
+  const opener = useOpenerFocus()
   if (docked) {
     return (
       <SheetPrimitive.Content
@@ -71,8 +74,8 @@ function SheetContent({
         role="complementary"
         forceMount
         aria-describedby={undefined}
-        onOpenAutoFocus={(e) => e.preventDefault()}
-        onCloseAutoFocus={(e) => e.preventDefault()}
+        onOpenAutoFocus={onOpenAutoFocus ?? ((e) => e.preventDefault())}
+        onCloseAutoFocus={onCloseAutoFocus ?? ((e) => e.preventDefault())}
         onEscapeKeyDown={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
         className={cn(
@@ -92,6 +95,14 @@ function SheetContent({
       <SheetOverlay />
       <SheetPrimitive.Content
         data-slot="sheet-content"
+        onOpenAutoFocus={(e) => {
+          opener.onOpenAutoFocus()
+          onOpenAutoFocus?.(e)
+        }}
+        onCloseAutoFocus={(e) => {
+          onCloseAutoFocus?.(e)
+          opener.onCloseAutoFocus(e)
+        }}
         className={cn(
           "fixed z-50 flex flex-col gap-4 bg-background shadow-lg transition ease-in-out data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:animate-in data-[state=open]:duration-500",
           side === "right" &&

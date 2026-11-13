@@ -18,7 +18,7 @@ import { AlertDialog as AlertDialogPrimitive, Dialog as DialogPrimitive } from '
 import { type ComponentProps, type ReactNode, useCallback, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Button, type ButtonVariant } from './button';
-import { uiPortal } from './ui';
+import { uiPortal, useOpenerFocus } from './ui';
 
 const layer =
   'fixed inset-0 z-60 flex items-center justify-center bg-dim p-6 backdrop-blur-[3px] data-[state=open]:animate-[fade_.15s_ease-out]';
@@ -46,9 +46,11 @@ export function DialogContent({
   children,
   onInteractOutside,
   onOpenAutoFocus,
+  onCloseAutoFocus,
   glass,
   ...props
 }: ComponentProps<typeof DialogPrimitive.Content> & { layerClassName?: string; keepMounted?: boolean; glass?: boolean }) {
+  const opener = useOpenerFocus();
   // the parked children: a detached element they render into for good, moved into the box while it is open
   const [parked] = useState(() => {
     const el = document.createElement('div');
@@ -71,11 +73,16 @@ export function DialogContent({
             className={cn(box, glass ? surface.glass : surface.solid, className)}
             {...props}
             onOpenAutoFocus={(e) => {
+              opener.onOpenAutoFocus();
               onOpenAutoFocus?.(e);
               // the box itself takes the focus, not its first button: that one would open its tooltip, which would take the first Esc
               if (e.defaultPrevented) return;
               e.preventDefault();
               (e.currentTarget as HTMLElement).focus();
+            }}
+            onCloseAutoFocus={(e) => {
+              onCloseAutoFocus?.(e);
+              opener.onCloseAutoFocus(e);
             }}
             onInteractOutside={(e) => {
               onInteractOutside?.(e);
@@ -110,12 +117,14 @@ export function ConfirmDialog({
   cancel: ReactNode;
   className?: string;
 }) {
+  const opener = useOpenerFocus();
   return (
     <AlertDialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <AlertDialogPrimitive.Portal container={uiPortal()}>
         <AlertDialogPrimitive.Overlay data-slot="confirm-layer" className={cn(layer, 'z-70 p-6')}>
           <AlertDialogPrimitive.Content
             data-slot="confirm-dialog"
+            {...opener}
             aria-describedby={undefined}
             className={cn(box, surface.solid, 'w-[min(440px,100%)] rounded-[4px] p-6 [&_p]:mb-[22px] [&_p]:leading-normal', className)}
           >
