@@ -669,6 +669,29 @@ describe('the Koordinator remembers', () => {
     expect(brief).not.toContain('Read src/app.ts');
   });
 
+  test('a delayed send uses its captured chat model and memory without changing the open chat', async () => {
+    const c = commander();
+    board.setChatModel('sonnet');
+    await say(c, 'original topic', 'reply', { confirm: 'Original answer.' });
+    const original = board.chat();
+    const current = board.newChat();
+    board.setChatModel('opus');
+    await say(c, 'other topic', 'reply', { confirm: 'Other answer.' });
+    const heard = c.hear('delayed message', {}, [], { chat: original });
+    await settle();
+    const session = runtime.last;
+    expect(session.spec.setting?.model).toBe('sonnet');
+    expect(session.inbox.at(-1)).toContain('original topic');
+    expect(session.inbox.at(-1)).not.toContain('other topic');
+    session.call('reply', { confirm: 'Delayed answer.' });
+    session.emit({ type: 'idle' });
+    await heard;
+    expect(board.chat()).toBe(current);
+    const entry = board.snapshot().talk.find((t) => t.said === 'delayed message');
+    expect(entry?.chat).toBe(original);
+    expect(entry?.reply).toBe('Delayed answer.');
+  });
+
   test('a new chat takes a new session that remembers only that chat; going back to the earlier one remembers it again', async () => {
     const c = commander();
     board.setChatModel('sonnet');

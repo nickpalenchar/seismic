@@ -653,6 +653,38 @@ describe('voice', () => {
     expect(told).toEqual([7, 8, undefined]);
   });
 
+  test('a delayed model save changes its captured chat after another chat opens', async () => {
+    const original = board.chat();
+    board.addTalk('original topic', 'answer');
+    const current = board.newChat();
+    board.setChatModel('opus');
+    const save = (body: unknown) => post(api('/chat/model'), JSON.stringify(body));
+    expect((await save({ chat: original, model: 'sonnet' })).ok).toBe(true);
+    expect(board.chatModel(original)).toBe('sonnet');
+    expect(board.chatModel(current)).toBe('opus');
+    expect(board.chat()).toBe(current);
+    expect((await save({ chat: original, model: null })).ok).toBe(true);
+    expect(board.chatModel(original)).toBeUndefined();
+    expect(board.chatModel(current)).toBe('opus');
+    for (const chat of [undefined, -1, '1', 1.5]) {
+      expect(await codeOf(save({ chat, model: 'haiku' }))).toBe('invalid');
+    }
+    expect(board.chatModel(current)).toBe('opus');
+  });
+
+  test('typed chat commands validate and forward their captured chat', async () => {
+    const chat = project.board.chat();
+    const heard: unknown[] = [];
+    project.commander.hear = async (_text, _focus, _images, input = {}) => {
+      heard.push(input.chat);
+      return { confirm: 'Ok.' };
+    };
+    await post(api('/command'), JSON.stringify({ text: 'here', chat }));
+    expect(heard).toEqual([chat]);
+    expect(await codeOf(post(api('/command'), JSON.stringify({ text: 'wrong', chat: -1 })))).toBe('invalid');
+    expect(heard).toHaveLength(1);
+  });
+
   test('words typed or spoken in reply to a message of the sheet go to the Koordinator with it', async () => {
     const heard: unknown[] = [];
     project.commander.hear = async (_text, _focus, _images, input = {}) => {

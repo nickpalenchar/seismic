@@ -64,3 +64,33 @@ test('before the app starts again, the page hands what a reload keeps to the ser
     globalThis.sessionStorage = real;
   }
 });
+
+
+test('a delayed chat command keeps the project and chat captured at Send', async () => {
+  let body: unknown;
+  globalThis.fetch = (async (url: string, init?: RequestInit) => {
+    fetched.push(url);
+    body = JSON.parse(String(init?.body));
+    return new Response(null, { status: 204 });
+  }) as typeof fetch;
+  setProject('original');
+  const destination = { project: 'original', chat: 12 };
+  setProject('elsewhere');
+  await api.command('keep this here', null, { destination });
+  expect(fetched).toEqual(['/api/c/original/command']);
+  expect(body).toEqual({ text: 'keep this here', chat: 12 });
+});
+
+
+test('a model save carries the selected chat and project after navigation', async () => {
+  let body: unknown;
+  globalThis.fetch = (async (url: string, init?: RequestInit) => {
+    fetched.push(url);
+    body = JSON.parse(String(init?.body));
+    return new Response(null, { status: 204 });
+  }) as typeof fetch;
+  setProject('elsewhere');
+  await api.setChatModel('original', 12, 'sonnet');
+  expect(fetched).toEqual(['/api/c/original/chat/model']);
+  expect(body).toEqual({ chat: 12, model: 'sonnet' });
+});

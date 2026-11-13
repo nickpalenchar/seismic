@@ -1367,8 +1367,8 @@ export class Board {
    * Records an exchange with the Koordinator, without its reply (`''`) while it reads the words;
    * returns its id. `replyTo`: the message of the sheet the words reply to.
    */
-  addTalk(said: string, reply: string, cardId: string | null = null, lookUp?: { question: string; about: string | null }, images: string[] = [], replyTo?: TalkRef, after?: TalkAfter, askedIn?: string, answered?: number): number {
-    const id = this.store.addTalk(this.project.id, said, reply, cardId, lookUp, images, replyTo, after, askedIn, answered);
+  addTalk(said: string, reply: string, cardId: string | null = null, lookUp?: { question: string; about: string | null }, images: string[] = [], replyTo?: TalkRef, after?: TalkAfter, askedIn?: string, answered?: number, chat?: number): number {
+    const id = this.store.addTalk(this.project.id, said, reply, cardId, lookUp, images, replyTo, after, askedIn, answered, chat);
     this.changed();
     return id;
   }
@@ -1451,8 +1451,8 @@ export class Board {
   }
 
   /** The latest exchanges of the chat the owner talks in now, oldest first: the Koordinator's memory. */
-  chatTalk(limit: number) {
-    return this.store.talk.latest(this.project.id, limit, false, this.store.chats.current(this.project.id));
+  chatTalk(limit: number, chat = this.chat()) {
+    return this.store.talk.latest(this.project.id, limit, false, chat);
   }
 
   /** The chat the owner talks in now. */
@@ -1460,10 +1460,12 @@ export class Board {
     return this.store.chats.current(this.project.id);
   }
 
-  chatModel() { return this.store.chats.model(this.project.id); }
+  hasChat(chat: number) { return this.store.chats.belongs(this.project.id, chat); }
 
-  setChatModel(model?: import('../core/types').AgentModel) {
-    this.store.chats.setModel(this.project.id, model);
+  chatModel(chat?: number) { return this.store.chats.model(this.project.id, chat); }
+
+  setChatModel(model?: import('../core/types').AgentModel, chat = this.chat()) {
+    this.store.chats.setModel(this.project.id, model, chat);
     this.changed();
   }
 

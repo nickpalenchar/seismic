@@ -206,7 +206,7 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
                 items={obeyaSnap.items}
                 repos={obeyaSnap.project.repos}
                 onOpen={openCard}
-                onTell={(text, images, replyTo) => void tellTyped(text, images, null, undefined, replyTo)}
+                onTell={(text, images, replyTo, destination) => void tellTyped(text, images, null, undefined, replyTo, destination)}
                 draft={obeyaDraft(obeyaId)}
               />
               </KoordinatorAgent.Provider>

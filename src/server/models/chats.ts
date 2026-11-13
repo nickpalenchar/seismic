@@ -30,16 +30,21 @@ export class Chats {
     return this.db.insert(chats).values({ projectId, at, opened: at }).returning({ id: chats.id }).get().id;
   }
 
-  /** The model of the chat new words go into, where the owner chose one. */
-  model(projectId: string): AgentModel | undefined {
-    return (this.db.select({ model: chats.model }).from(chats).where(eq(chats.id, this.current(projectId))).get()!.model as AgentModel | null) ?? undefined;
+  /** Whether the chat belongs to the project. */
+  belongs(projectId: string, id: number): boolean {
+    return !!this.db.select({ id: chats.id }).from(chats).where(and(eq(chats.projectId, projectId), eq(chats.id, id))).get();
   }
 
-  setModel(projectId: string, model?: AgentModel): void {
+  /** The model chosen for the specified or current chat. */
+  model(projectId: string, chat = this.current(projectId)): AgentModel | undefined {
+    return (this.db.select({ model: chats.model }).from(chats).where(eq(chats.id, chat)).get()!.model as AgentModel | null) ?? undefined;
+  }
+
+  setModel(projectId: string, model?: AgentModel, chat = this.current(projectId)): void {
     this.db
       .update(chats)
       .set({ model: model ?? null })
-      .where(and(eq(chats.id, this.current(projectId)), eq(chats.projectId, projectId)))
+      .where(and(eq(chats.id, chat), eq(chats.projectId, projectId)))
       .run();
   }
 

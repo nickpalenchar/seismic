@@ -388,8 +388,8 @@ export const api = {
   /** The owner started speaking (or typing a command): Seismic gets ready to read it. */
   warmVoice: () => fetch(at('/voice/warm'), { method: 'POST' }).catch(() => {}),
   /** The same, typed; `field`: the field of the open card it was typed into. */
-  command: (text: string, where: Where, { images, field, replyTo, spot, place }: { images?: string[]; field?: Field; replyTo?: number | TalkRef; spot?: SpotInput; place?: Place } = {}) =>
-    call<Heard>('POST', whereAt(where, `/command${query(where)}${place ? `${where ? '&' : '?'}place=${placeParam(place)}` : ''}`), { text, ...(images?.length ? { images } : {}), ...(field ? { field } : {}), ...(replyTo ? { replyTo } : {}), ...(spot ? { spot } : {}) }),
+  command: (text: string, where: Where, { images, field, replyTo, spot, place, destination }: { images?: string[]; field?: Field; replyTo?: number | TalkRef; spot?: SpotInput; place?: Place; destination?: { project: string; chat: number } } = {}) =>
+    call<Heard>('POST', whereAt(where, `/command${query(where)}${place ? `${where ? '&' : '?'}place=${placeParam(place)}` : ''}`, destination?.project), { text, ...(destination ? { chat: destination.chat } : {}), ...(images?.length ? { images } : {}), ...(field ? { field } : {}), ...(replyTo ? { replyTo } : {}), ...(spot ? { spot } : {}) }),
   /** A typed request to the Koordinator of another project, about nothing in view there. */
   commandOn: (project: string, text: string) => call<Heard>('POST', `/api/c/${encodeURIComponent(project)}/command`, { text }),
   undo: (token: string) => call<{ undone: boolean }>('POST', at('/command/undo'), { token }),
@@ -419,7 +419,7 @@ export const api = {
   /** A new chat with Seismic on the shown project, or (`id`) an earlier one, of `project` where it is another. */
   newChat: () => call<{ chat: number }>('POST', at('/chat'), {}),
   openChat: (id: number, project?: string) => call<{ chat: number }>('POST', project ? `/api/c/${encodeURIComponent(project)}/chat` : at('/chat'), { id }),
-  setChatModel: (project: string, model?: string) => call<void>('POST', `/api/c/${encodeURIComponent(project)}/chat/model`, { model: model ?? null }),
+  setChatModel: (project: string, chat: number, model?: string) => call<void>('POST', `/api/c/${encodeURIComponent(project)}/chat/model`, { chat, model: model ?? null }),
   /** The chats with Seismic on every project that runs, the latest first. */
   everyChat: () => call<ChatElsewhere[]>('GET', '/api/chats'),
   /** Seismic no longer waits on the card after that exchange, to take the step it said it would. */

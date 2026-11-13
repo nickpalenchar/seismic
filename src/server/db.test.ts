@@ -858,3 +858,24 @@ test('the cards’ open waits move into needs_you, with when they began; waiting
     after.db.query("INSERT INTO needs_you (project_id, kind, card_id, created_at, last_updated) VALUES ('c', 'demo', ?, 2, 2)").run(asks!.id);
     after.db.close();
   }));
+
+
+test('a delayed command stays in its captured chat after another chat opens', () => {
+  const store = new Store(':memory:');
+  try {
+    store.db.run("INSERT INTO projects (id, name, created_at) VALUES ('c', 'Shop', '2026-11-01'), ('d', 'Site', '2026-11-01')");
+    const first = store.chats.current('c');
+    store.chats.setModel('c', 'sonnet');
+    store.addTalk('c', 'earlier', 'answer', null);
+    const second = store.chats.start('c');
+    store.chats.setModel('c', 'opus');
+    const delayed = store.addTalk('c', 'delayed', '', null, undefined, [], undefined, undefined, undefined, undefined, first);
+    expect(store.talk.chatOf(delayed)).toBe(first);
+    expect(store.chats.current('c')).toBe(second);
+    expect(store.chats.model('c', first)).toBe('sonnet');
+    expect(store.chats.belongs('c', first)).toBe(true);
+    expect(store.chats.belongs('d', first)).toBe(false);
+  } finally {
+    store.db.close();
+  }
+});

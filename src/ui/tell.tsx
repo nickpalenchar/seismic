@@ -103,7 +103,7 @@ export function tellers(byId: (id: string) => Item | undefined, told: ReturnType
    * they go straight to it, else the Koordinator reads them like spoken ones. The conversation shows
    * them at once either way; above the mic only the Koordinator's confirmation shows, with "Undo".
    */
-  const tellTyped = async (text: string, images: string[] | undefined, target: Where, field?: Field, replyTo?: number | TalkRef) => {
+  const tellTyped = async (text: string, images: string[] | undefined, target: Where, field?: Field, replyTo?: number | TalkRef, destination?: { project: string; chat: number }) => {
     if (listening(target))
       try {
         // typed while the card's demo video stands at a place: about that place, and the video plays on
@@ -115,7 +115,7 @@ export function tellers(byId: (id: string) => Item | undefined, told: ReturnType
       }
     else {
       const at = place();
-      void told.tell(null, toldCard(target), () => api.command(text, target, { images, field, replyTo, ...(at ? { place: at } : {}) }));
+      void told.tell(null, toldCard(target), () => api.command(text, target, { images, field, replyTo, destination, ...(at ? { place: at } : {}) }));
     }
   };
   return { listening, tellAbout, tellTyped };

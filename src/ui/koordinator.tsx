@@ -43,7 +43,7 @@ interface Props {
   project: string;
   projectName: string;
   /** A command typed in the sheet, maybe in reply to a message of it: read like a spoken one; the conversation shows it at once. */
-  onTell: (text: string, images?: string[], replyTo?: Reply['to']) => void;
+  onTell: (text: string, images?: string[], replyTo?: Reply['to'], destination?: { project: string; chat: number }) => void;
   items: Item[];
   preferences: Preference[];
   /** Values for repositories' settings the work retrospective proposes. */
@@ -107,9 +107,9 @@ export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats
         </div>
       )}
       {/* a command in writing, for when speaking is not possible; its screenshots go to the cards it creates or concerns */}
-      <Composer className={tellClass} draft={draft} placeholder={t.voice.typePlaceholder} obeya onSend={onTell} />
+      <Composer className={tellClass} draft={draft} placeholder={t.voice.typePlaceholder} obeya onSend={(text, images, replyTo) => onTell(text, images, replyTo, { project, chat })} />
       <label className="chat-model flex items-center gap-2 mt-0 mx-0 mb-1.5 text-muted-foreground text-[12px]">{t.koordinator.chatModel}
-        <Select value={chatModel ?? ''} onValueChange={(picked) => void api.setChatModel(project, picked || undefined).catch(console.error)}>
+        <Select value={chatModel ?? ''} onValueChange={(picked) => void api.setChatModel(project, chat, picked || undefined).catch(console.error)}>
           <SelectItem value="">{t.koordinator.projectModel}</SelectItem>
           {AGENT_MODELS.map((model) => <SelectItem key={model} value={model}>{model === 'default' ? t.koordinator.defaultModel : model[0]!.toUpperCase() + model.slice(1)}</SelectItem>)}
         </Select>

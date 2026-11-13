@@ -155,6 +155,8 @@ export const isField = (f: unknown): f is Field => typeof f === 'string' && f in
  * card; `forwarded`: the request the open card's agent passed on from the owner's words to it.
  */
 export interface Input {
+  /** The chat captured when the owner sent the words. */
+  chat?: number;
   typed?: boolean;
   field?: Field;
   forwarded?: string;
@@ -373,9 +375,9 @@ export class Commander {
     const replyTo = card ? this.o.board.quoted(card, input.replyTo)?.id : undefined;
     const quoted = card ? undefined : this.o.board.quotedTalk(input.replyTo);
     // the owner's words stand in the conversation at once, the Koordinator's reply follows once it has read them
-    const talk = this.o.board.addTalk(transcript, '', card ?? null, undefined, images, quoted);
+    const talk = this.o.board.addTalk(transcript, '', card ?? null, undefined, images, quoted, undefined, undefined, undefined, input.chat);
     if (card && said) this.o.board.log(card, 'say', 'owner', said, { images, replyTo });
-    const held: Held = { transcript, images, focus, input, at: new Date().toISOString() };
+    const held: Held = { transcript, images, focus, input: { ...input, chat: input.chat ?? this.o.board.chat() }, at: new Date().toISOString() };
     // what the usage limit held is read first, in the order it was said; while the limit holds, these words wait with it
     await this.drain();
     const h = this.held.size ? this.hold(talk, held) : ((await this.answer(talk, held)) ?? this.hold(talk, held));
@@ -769,20 +771,20 @@ export class Commander {
     if (!this.live()) this.session = this.open();
   }
 
-  private setting = () => {
+  private setting = (chat?: number) => {
     const base = this.o.agentSetting?.();
-    const model = this.o.board.chatModel();
+    const model = this.o.board.chatModel(chat);
     return model ? { ...(base ?? AGENT_DEFAULTS.koordinator), model } : base;
   };
 
-  private choice = () => JSON.stringify(this.setting() ?? {});
+  private choice = (chat?: number) => JSON.stringify(this.setting(chat) ?? {});
 
   private languages = () => `${this.o.board.language()}/${this.o.board.conversation()}`;
 
   /** The session that reads the next command, if it is still up, speaks the owner's languages and runs as they chose. */
-  private live(): Session | null {
+  private live(chat = this.o.board.chat()): Session | null {
     const s = this.session;
-    if (s && !s.ended && !s.reading && (s.languages !== this.languages() || s.choice !== this.choice() || s.chat !== this.o.board.chat())) {
+    if (s && !s.ended && !s.reading && (s.languages !== this.languages() || s.choice !== this.choice(chat) || s.chat !== chat)) {
       s.ended = true;
       s.agent.close();
       this.session = null;
@@ -791,13 +793,13 @@ export class Commander {
   }
 
   /** A session whose tools act on whatever command it is reading. */
-  private open(): Session {
+  private open(chat = this.o.board.chat()): Session {
     // the examples in the owner's conversation language, the names of Seismic's own cards in the interface's
     const language = this.o.board.conversation();
     const ui = this.o.board.language();
     const t = MESSAGES[ui];
     const say = CONFIRM[language];
-    const s: Session = { agent: null as unknown as AgentSession, ended: false, languages: this.languages(), choice: this.choice(), chat: this.o.board.chat(), tags: new Map(), tagOf: new Map(), read: 0, rules: [] };
+    const s: Session = { agent: null as unknown as AgentSession, ended: false, languages: this.languages(), choice: this.choice(chat), chat, tags: new Map(), tagOf: new Map(), read: 0, rules: [] };
     const finish = (commands: Command[], confirm: string, lookUp?: LookUp, more?: More) => (s.reading ? s.reading.finish(commands, confirm, lookUp, more) : 'No command to read.');
     const repos = this.o.board.project.repos;
     const config = this.o.config;
@@ -805,7 +807,7 @@ export class Commander {
       cwd: this.o.cwd,
       readOnly: true,
       role: 'koordinator',
-      ...(this.setting() ? { setting: this.setting() } : {}),
+      ...(this.setting(chat) ? { setting: this.setting(chat) } : {}),
       at: { koordinator: true },
       system: system(language, ui),
       tools: [
@@ -1261,8 +1263,8 @@ export class Commander {
 
   /** Reads one command; settles when the turn has ended, while the decision goes out as soon as it is taken. */
   private async read(transcript: string, focus: Focus, images: string[], input: Input, decide: (d: Decision) => void, retry = true): Promise<void> {
-    const warmed = this.live();
-    const s = warmed ?? (this.session = this.open());
+    const warmed = this.live(input.chat);
+    const s = warmed ?? (this.session = this.open(input.chat));
     let decided = false;
     const ended = new Promise<Error | undefined>((end) => {
       s.reading = {
@@ -1444,7 +1446,7 @@ export class Commander {
     let history: string[];
     if (first) {
       // without the words being read now
-      const talk = this.o.board.chatTalk(REMEMBERED_EXCHANGES).filter((t) => t.reply !== undefined);
+      const talk = this.o.board.chatTalk(REMEMBERED_EXCHANGES, s.chat).filter((t) => t.reply !== undefined);
       const full = new Set(talk.filter((t) => t.answer !== undefined).slice(-FULL_ANSWERS));
       const steps = this.o.board.timeline(new Date(Date.now() - HISTORY_DAYS * 86_400_000).toISOString(), HISTORY_STEPS);
       history = [
