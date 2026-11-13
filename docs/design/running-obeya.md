@@ -135,62 +135,76 @@ On a phone the page shows the phone view instead of the project, at the same add
 same bundle. A phone is a device with a coarse pointer whose screen's shorter side is under 600 px;
 a tablet and a narrow window at the desk keep the project. `?view=phone` or `?view=project` decides
 instead. The view is settled at load; turning the phone does not switch it. It uses each project's
-own WebSocket. Under its top bar it shows the Agents view across every
-project, with four tabs as a switch across the screen ("Queue", "All", "Parked", "Activity"; the
-desktop's Agent work, see The bar in The canvas, groups the same cards as "Working" and "Todo" and
-lists those that need the owner in its "Needs you" sheet instead), the one chosen last
-remembered per browser ("All" until one was chosen):
+own WebSocket. It shows one project at a time, the one named in the top bar: the last project picked,
+remembered per browser (the first project until one is picked), and written into the address so a
+reload stays on it. The working box, the sections, Seismic's chat, new cards and search all belong
+to that project; only Needs you spans every project. Opening a card from another project (from
+Needs you or a push) switches the top bar to that project, so Back lands on that project's list.
 
-- **"All"**: the cards by stage, under a row of chips (one per stage that has cards, with its
-  count, scrolling sideways) that show or hide each group. "Needs you" comes first
-  and is the inbox (see The bar): what waits for the owner across every project in one list, in the inbox's
-  order (the wait that last changed first), Seismic's unread answers among them. A new demo or a new
-  question moves that card to the top; moving it on the canvas does not. Each entry names its project, says what it waits for (its state line:
-  "Demo ready", "Question for you" …) and since when (the server keeps that across restarts), with
-  the same one-click replies and "Go to card". Snoozed cards stand at the end (see Snoozing a card).
-  The desktop's inbox shows the same entries with the latest wait first; both share the entry
-  layout and actions, the unread dot and the "Unread | All" switch. Then "Working", "Code reviewing",
-  "Review fixing", "Landing" and "Planned" ("Working" also holding the ideas and
-  questions an agent is at, which the desktop finds on the canvas), snoozed cards at the end of each, and
-  last, on the phone only, "Done": the finished cards not archived yet (those the archive's "Archive
-  … done tasks" would take), hidden until its chip is tapped. A planned card opened offers what it
-  does on the canvas ("Start agent", "Later"), so a task can be started from the phone.
-- **"Queue"**: each project's queue (under the project's name where there are several), its rows
-  as large as a finger needs and dragged to their place by their grip.
-- **"Parked"**: the parking lot of every project.
-- **"Activity"**: the log of every project's cards, without the desktop's "All projects" switch.
+*The top bar*: Seismic's sign, which opens the menu; next to it the project's name with a chevron,
+which opens the project switcher (also in the menu); on the right the usage pills, scrolling sideways
+and sliding under the name with a fade.
 
-The cards look as on the canvas, as wide as the screen and without the pin, their kind line led by
-the project's name where there are several; where two of at least
-340 px fit (the phone turned) they stand side by side.
+*The working box* under it reads "● ● ○ ○ 4 working": the dots are the marks of the desktop status
+bar's workstations (the word "workstations" never appears). A chevron folds and unfolds it, remembered per browser.
+Unfolded it lists the cards agents are on (working, code reviewing, review fixing, landing) with the
+rows of the status bar's workstation popover; a tap opens the card.
 
-*Seismic's conversation* is a panel over the list, opened by the project's speech-bubble button with its
-unread count across projects, left of the microphone at a finger's size, or by the card "Seismic answered". With several projects a picker right of the microphone names whose Seismic it is, which
-is also whom the microphone speaks to with no card open (none with one project or a card open). The
-button opens the conversation an answer waits in when the picked one has none, and the picker
-follows. The panel holds the conversation, its field and below it room for the microphone, which
-never stands over the field; only the conversation scrolls. Its address is `?talk`; its answers count
-as read once it is open. A card opened from it opens over it; Back returns.
+*The cards* follow in sections: "Queued" (a grey badge), "Planned", and at the end, folded, "Parked" and
+"Done" (the finished cards not archived yet, those the archive's "Archive … done tasks" would take).
+A section without cards is left out; each shows 20 cards, then "Load more" (20 again after a switch of
+project); folded sections are remembered per browser. The cards look as on the canvas, as wide as the
+screen and without the pin; a card that needs the owner is not repeated here but waits under Needs you.
+Snoozed cards stand at the end of their section (see Snoozing a card). A planned card opened offers what it does on the canvas
+("Start agent", "Later"), so a task can be started from the phone. The queue's drag-to-reorder and the
+Activity log stay on the desktop (owner, 2026-11-12).
 
-The panel takes the part of the screen the keyboard leaves, its field right above the keyboard, as
-the whole page does (see The canvas, The on-screen keyboard). The panel's top is a grip, its whole row with the title (its buttons aside): the panel follows the finger and stays where let
+*The floating bar* is a glass pill along the foot, the plus slightly larger, with five entries:
+
+- **Menu**: the desktop's left menu as a full-height sheet over everything, the bar included. Of it the phone
+  keeps Needs you (with the count across projects) and the projects, a tap switching the view to one,
+  each with its agents' pause; canvases, queue, archive, settings, configuration and help stay on the desktop.
+- **Chat**: the project's Seismic conversation as a full page with its chat history (see below). The button
+  carries the project's unread answers and, while Seismic is at work, its moving line.
+- **New card**: see below.
+- **Search**: a full-screen search over the project's cards, matched as the desktop's `/` finder does,
+  twenty at a time with "Load more", a card per tap. It is a step in the browser's history, so Back from a
+  card found there lands on the results with the query kept.
+- **Needs you**: what waits across every project, in the inbox's order (the wait that last changed
+  first; see The bar), Seismic's unread answers among them. Each entry names its project, says what it waits
+  for (its state line: "Demo ready", "Question for you" …) and since when (the server keeps that across
+  restarts), with the same one-click replies and "Go to card"; the desktop's inbox shows the same entries
+  with the latest wait first, both share the entry layout and actions, the unread dot and the "Unread | All"
+  switch. It is a step in the browser's history (`?needs` in the address), so Back and a reload hold it; a card
+  opened from it returns to it on Back and to its project's list on X. The bell carries the count across
+  all projects. An entry that is not a card (Seismic's answer) brings its project into view and opens its chat.
+
+The full pages (chat, search, Needs you, an open card) hide the floating bar.
+
+*Seismic's chat* is a full-screen page, a step of its own in the browser's history (`?talk`), always
+at full height with no grip. Its head is the chats history with an X, and below it the conversation, its field
+and the microphone, which never stands over the field; only the conversation scrolls. Its answers count as read
+once it is open. A card opened from it opens over it; Back returns.
+
+A conversation (the chat page, an open card's panel) takes the part of the screen the keyboard leaves, its field right above the keyboard, as
+the whole page does (see The canvas, The on-screen keyboard). An open card's panel has a grip at its top, its whole row with the title (its buttons aside): the panel follows the finger and stays where let
 go, the page under it scrolling on until all of it can stand above the panel; within 15 % of the screen's top it takes the full height, within 15 % of the bottom it closes;
 let go while moving it glides on, slowing evenly, so a short swipe up fills the screen and one down
 closes it, while a finger still for 50 ms before lifting leaves it where it is. It opens at the full
-height (half beside a demo video). The button, Back and Esc close it.
+height (half beside a demo video). The button, Back and Esc close it. (The chat page has no grip and fills the screen.)
 
-The toasts above the microphone (see The toast stack: Seismic's reply, a confirmation with "Undo",
+The toasts above the floating bar (see The toast stack: Seismic's reply, a confirmation with "Undo",
 a command still being read, a warning, which stays there until dismissed as on the project) are swiped aside to either side: pulled a short way or flicked they fly out, else
 spring back. Swiping takes nothing back: "Undo" goes unused, a command being read is carried out
 without its confirmation. Until the owner has swiped one in this browser, each line nudges aside once
 as a hint. The project has no such gesture.
 
-*A card* opens full screen at a tap, at its address `/p/<project>/c/<code>` (see Addresses in
+*A card* opens full screen at a tap, below the top bar, which stays with an X in place of the usage pills,
+without the floating bar, at its address `/p/<project>/c/<code>` (see Addresses in
 The project; a reload or restart opens it again); Back (the
-button, the browser's, Esc) returns to the list where it was scrolled. It is the project's detail view
+X, the browser's, Esc) returns to the list where it was scrolled. It is the project's detail view
 with the same answer options, demo, approve buttons and undo, its page the only thing that scrolls;
-plan docs and the configuration are not opened from there. Its conversation is in the same panel as
-Seismic's, at the card's address with `?talk`, opened by the button left of the microphone, whose number counts the
+plan docs and the configuration are not opened from there. Its conversation is in a panel over it, at the card's address with `?talk`, opened by the button beside the microphone, whose number counts the
 messages the conversation shows (not the agent's folded words between steps; a reply and the handover
 under it in the same message count once) since the owner last had it open or wrote there, plus one for the open questions, however many stand in their block (until
 2026-10-22 each question counted). Every card kind gets there the same way, through the
@@ -204,21 +218,19 @@ panel up with the cursor in the field) is written with the video in view, as on 
 sideways the panel opens at the full height there too.
 
 Calls go to the API of the project in view; a call or words about a card go to its own project's API,
-whichever is in view as they leave (closing a card puts Seismic's project in view before its last calls
+whichever is in view as they leave (closing a card puts the project in view before its last calls
 go).
 
-*A new card* comes from the plus button that stands in the microphone's place on the list (the
-microphone is back there while Seismic's conversation is open, and on an open card): it makes a task
-in the project whose Seismic the list speaks to, where there is room on it (the server places a card
-created without a position), and opens it with the cursor in its text. Left without a title, Seismic
-names it from its text; left empty, it goes, as on the canvas. Turned sideways it stands where the
-microphone does. The list gave up its microphone for it (owner, 2026-11-06): voice stays in the
-conversation and on cards. Rejected: a plus button beside the microphone.
+*A new card* comes from the plus in the floating bar: it makes a task in the project in view, where there
+is room on it (the server places a card created without a position), and opens it full screen with the
+cursor in its text, the bar hidden; X returns to the list. Left without a title, Seismic names it from its text; left empty, it goes, as on the canvas.
+The list has no microphone (owner, 2026-11-06): push-to-talk lives only in the chat page and on an open card.
+Rejected: a plus button beside the microphone.
 
-*The microphone* at the bottom is held by a finger (pointer events, no long-press menu, no text
+*The microphone* at the bottom of the chat page and of an open card is held by a finger (pointer events, no long-press menu, no text
 selection; lifting or the browser taking the gesture ends it) and speaks to the open card's agent,
-else to Seismic. No line names whom (what is in view fills the screen), nor shows "→ into the field" or "send with Enter"; the line under it says when it hears only silence. While the
-keyboard is up it hides, with the conversation button and the picker, and the field's own microphone
+or on the chat page to the project's Seismic. No line names whom (what is in view fills the screen), nor shows "→ into the field" or "send with Enter"; the line under it says when it hears only silence. While the
+keyboard is up it hides, with the conversation button, and the field's own microphone
 dictates. The keyboard counts as up while a text field has the focus and the page is more than 150
 px shorter than the tallest it had at that width (the phone's own button closes the keyboard but
 leaves the focus). Shown again with the cursor in a field, the microphone dictates into the field.
@@ -246,8 +258,7 @@ button offers photo library and camera, and marking a screenshot works with a fi
 per tab apart from the project's, the field of Seismic's conversation one per project.
 
 *Turned sideways* (the screen under 600 px high) the microphone stands at the right edge, halfway up
-under the thumb, in a strip of its own beside the content, with the screenshot button above it, the
-picker at the strip's top and Seismic's conversation button at its bottom. The fade goes, the bar is
+under the thumb, in a strip of its own beside the content, with the screenshot button above it and the conversation button at its bottom. The fade goes, the bar is
 slimmer and scrolls away on the list. The panel leaves no room under its field, and with the keyboard
 up the field takes the strip's width too. Confirmations stand at the bottom of the content (in the
 panel, above the field). Upright nothing changes.
@@ -555,13 +566,13 @@ workers are busy.
   It reuses the project's detail view, conversation, drafts and confirmations rather than copies. One
   WebSocket per project rather than one stream for all: the server's messages stay as they are, and an owner has a
   handful of projects.
-- **The phone's home is the Agents view** (2026-11-08, the owner): one way of looking at the cards
-  on the desk and the phone, instead of the phone's own lists ("Needs you", "Running", folded
-  "Planned" and "Done"). "Needs you" keeps the inbox's one-click replies, since answering is what the
-  phone is mostly for; chips of stages without cards are left out (the row has room for few); an
-  idea or question whose agent is at work stands under "Working", since the phone has no canvas to
-  find it on. Done cards stay reachable as a stage of their own, hidden by default (owner, 2026-10-28:
-  what is done but not archived, without pushing what waits and runs further down).
+- **The phone shows one project at a time** (2026-11-13, the owner; replaced the Agents view of
+  2026-11-08 with its four tabs across every project): a top bar with the project in view, a box of
+  the cards agents are on, the project's cards in sections, and a floating bar with Menu, Chat, New
+  card, Search and Needs you. Needs you stays across all projects, with the inbox's one-click replies,
+  since answering is what the phone is mostly for. Parked and Done are folded sections at the end; the
+  queue's reordering and the Activity log stayed on the desktop. Rejected: the four tabs ("Queue",
+  "All", "Parked", "Activity"), which mixed every project in one list and hid what agents were doing.
 - **Phone conversations are a panel from below, sized with a grip** (2026-10-17). Rejected: the
   conversation as a box in the scrolling page (a scroll area inside another, and the page scrolled
   past the field to make room for the microphone); a grip that only closes or springs back. Cards

@@ -1414,7 +1414,7 @@ const en = {
     notAnswering: (since: string) => `Seismic is not answering · since ${since}`,
     notAnsweringWhy: 'The computer may be asleep, or Seismic is not running there. The page connects again as soon as it answers.',
     gone: 'This card no longer exists.',
-    /** The phone view that shows one project at a time (`?view=phone-next`). */
+    /** The phone view that shows one project at a time (`?view=phone`). */
     next: {
       menu: 'Menu',
       switchProject: 'Switch project',

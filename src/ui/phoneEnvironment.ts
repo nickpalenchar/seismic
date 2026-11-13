@@ -10,12 +10,12 @@ import { forTouch } from './strings';
 /**
  * Whether the page shows the phone view: on a phone, which has a coarse pointer and a short side
  * under 600 px whichever way it is held (a tablet and a narrow window at the desk keep the project).
- * `?view=phone` or `?view=project` in the address decides instead; `?view=phone-next` shows the phone
- * view for one project at a time (`phoneNext.tsx`), which is to replace it.
+ * `?view=phone` or `?view=project` in the address decides instead; `?view=phone-old` shows the earlier phone
+ * view (`phone.tsx`), kept for comparison until it is removed.
  */
 export function phoneView(): boolean {
   const asked = new URLSearchParams(location.search).get('view');
-  if (asked === 'phone' || asked === 'phone-next' || asked === 'project') return asked !== 'project';
+  if (asked === 'phone' || asked === 'phone-old' || asked === 'project') return asked !== 'project';
   return matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600;
 }
 
@@ -137,5 +137,5 @@ export const barClass =
 export const pageBarClass = `${barClass} py-1.5 ph-landscape:py-[3px]`;
 
 
-/** Whether the address asks for the phone view for one project at a time. */
-export const phoneNextView = (): boolean => new URLSearchParams(location.search).get('view') === 'phone-next';
+/** Whether the address asks for the earlier phone view with its four tabs. */
+export const phoneOldView = (): boolean => new URLSearchParams(location.search).get('view') === 'phone-old';

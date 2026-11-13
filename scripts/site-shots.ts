@@ -1,7 +1,7 @@
 // The screenshots on obeya.si (`site/img/`), taken again from a scratch Seismic in English: the Tipjar
 // app of the hero video as the repository, cards in the states the page talks about, and a demo of
 // a Tipjar change on the card whose demo the page shows, so that the picture is of a demo and not of
-// Seismic itself. The same wall on a phone (`phone.png`, `phone-demo.png`) shows the phone view.
+// Seismic itself. The same wall on a phone (`phone.png`, `phone-demo.png`) shows the phone view: the project with its agents at work, and a demo opened from Needs you.
 //
 //   bun scripts/site-shots.ts [--demo <dir>] [--keep | --stage-only]
 //
@@ -186,7 +186,7 @@ async function shots(page: Page, cards: Record<string, string>) {
   console.log('voice.png');
 }
 
-// the phone view, at an iPhone's size: what waits for the owner, and the demo opened from there
+// the phone view, at an iPhone's size: the project with the agents at work, and the demo opened from what waits for the owner
 async function phoneShots(url: string) {
   const phone = await browser.newContext({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   // granted, so the offer to turn notifications on stays off the list
@@ -194,10 +194,13 @@ async function phoneShots(url: string) {
   const page = await phone.newPage();
   await page.goto(url);
   await page.locator('.ph-card').first().waitFor();
+  const working = page.locator('[aria-expanded]', { hasText: 'working' }).first();
+  if ((await working.getAttribute('aria-expanded')) === 'false') await working.tap();
   await page.waitForTimeout(1500);
   await page.screenshot({ path: join(IMG, 'phone.png') });
   console.log('phone.png');
 
+  await page.getByRole('button', { name: /^Needs you/ }).last().tap();
   await page.locator('.ph-card', { hasText: 'Split the bill' }).tap();
   await page.locator('#ph-card video').waitFor();
   await page.waitForTimeout(1500);
