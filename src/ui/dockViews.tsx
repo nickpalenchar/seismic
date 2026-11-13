@@ -44,8 +44,10 @@ export function useDock(initial: DockId | null) {
   const close = () => { const v = selected(); if (v?.close) v.close(); else select(null); };
   const escape = () => { const v = selected(); if (v?.escape) v.escape(); else close(); };
   const width = () => ref.current ? widthRef.current[selected()?.width ?? 'sheet'] : 0;
+  /** Whether the open view stays usable beside an open card, which then keeps clear of it. */
+  const besideCard = () => !!selected()?.besideCard;
   const register = (views: DockView[]) => { registry.current = views; };
-  return { active, ref, select, view, widths, setWidths, resizing, setResizing, registry, register, close, escape, width };
+  return { active, ref, select, view, widths, setWidths, resizing, setResizing, registry, register, close, escape, width, besideCard };
 }
 
 /** Closes the open sheet, where the button that opened it was; in a narrow window, inside the floating sheet's corner. */

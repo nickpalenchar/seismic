@@ -685,7 +685,9 @@ function Project({
     // over the inbox's view, beside its list
     const side = sideNow();
     const list = fullPage.ref.current === 'inbox' && !matchMedia(NARROW).matches ? inboxListWidth() : 0;
-    Object.assign(panel.style, panelRect(i, inner, { ...side, left: side.left + list }));
+    // a sheet that stays usable beside a card keeps clear of it (a plan's, dimmed, lies under it)
+    const keep = dock.besideCard() ? side.right : 0;
+    Object.assign(panel.style, panelRect(i, inner, { ...side, left: side.left + list }, keep));
   };
 
   // edits of the open card, saved shortly after typing stops
@@ -810,6 +812,11 @@ function Project({
     const i = openId && itemOrArchived(openId);
     if (i && unfolded.current) fitPanel(i);
   }, [tick]);
+  // and so does a sheet that opens, closes or changes its width beside it
+  useEffect(() => {
+    const i = openId && itemOrArchived(openId);
+    if (i && unfolded.current) fitPanel(i);
+  }, [dock.active, dock.widths.sheet, dock.widths.read]);
 
   // the open card went away on the server (cut into packages, deleted elsewhere): fold the panel
   useEffect(() => {
@@ -2875,20 +2882,21 @@ function Project({
 
 /**
  * Where the unfolded card sits: in the middle of the project between the panels `side`, reaching over
- * the sheet where the project is too narrow for it, as tall as its content needs up to a limit, beyond
- * which it scrolls. Lays the content out at the final width
- * to measure it, so call it with the content rendered.
+ * the sheet where the project is too narrow for it, except the `keep` px at the right edge that a
+ * sheet usable beside the card holds (the card lies under that sheet where even those do not fit),
+ * as tall as its content needs up to a limit, beyond which it scrolls. Lays the content out at the
+ * final width to measure it, so call it with the content rendered.
  */
-function panelRect(i: Item, inner: HTMLElement, side: Sides) {
+function panelRect(i: Item, inner: HTMLElement, side: Sides, keep = 0) {
   const tall = i.state !== 'planned' && i.state !== 'proposal';
   // a card with a conversation beside what it is about (an idea, a proposal, a task an agent worked on) gets the room of the mock's demo panel
   const wide = split(i);
   // a task an agent works on without a result yet is its conversation alone, and only as wide
   const want = wide ? 1600 : talkAlone(i) ? TALK_W : tall ? 980 : 900;
-  // the sheet lies dimmed under an open card, so a card wider than the project reaches over it; the
-  // pinned navigation, which stays usable beside it, limits it unless the window leaves less than a
-  // conversation's width beside the navigation
-  const room = innerWidth - side.left - 80;
+  // a plan's sheet lies dimmed under an open card, so a card wider than the project reaches over it; the
+  // pinned navigation and a sheet usable beside the card (`keep`) limit it unless the window leaves less
+  // than a conversation's width beside them, where the card lies under that sheet
+  const room = innerWidth - side.left - keep - 80;
   const W = Math.min(want, Math.max(room, Math.min(TALK_W, innerWidth - 80)));
   inner.style.width = `${W}px`;
   inner.style.removeProperty('--pb');
@@ -2931,7 +2939,7 @@ function panelRect(i: Item, inner: HTMLElement, side: Sides) {
   if (extra) inner.style.setProperty('--pb', `${base + extra}px`);
   // in the middle of the project where it fits there, else as near to it as the window allows
   const lo = W <= room ? side.left + 40 : 40;
-  return { left: `${Math.max(lo, Math.min(midX(side) - W / 2, innerWidth - W - 40))}px`, top: `${top(H)}px`, width: `${W}px`, height: `${H}px` };
+  return { left: `${Math.max(lo, Math.min(midX(side) - W / 2, innerWidth - keep - W - 40))}px`, top: `${top(H)}px`, width: `${W}px`, height: `${H}px` };
 }
 
 /** A panel holding a conversation alone: its column at its widest (560 px, styles.css) and the panel's padding. */

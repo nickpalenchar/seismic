@@ -534,8 +534,9 @@ decisions stays in view at its foot while a long text scrolls, so a planned work
 A card whose conversation stands alone is a conversation wide. A card with a conversation beside
 what it is about (an idea, a proposal, a task with a result) is a wide split, the conversation a
 third, as tall as its taller column. An open card sits in the middle of the canvas; where the canvas
-is too narrow for it, it reaches over the docked sheet, which lies dimmed under it anyway, but not
-over the docked left menu, which stays usable beside it. Each
+is too narrow for it, it reaches over a plan's docked sheet, which lies dimmed under it anyway, but
+not over the docked left menu or the sheets that stay usable beside a card (see Sheets), which it keeps
+clear of; where the window leaves less than a conversation's width beside them, the card lies under such a sheet. Each
 column scrolls on its own, the panel never. A Question card is its conversation alone at a card's
 width, growing with it up to the room above the view switcher before it scrolls, like a split's column:
 a looked-up answer is long, and a box of fixed height left most of the window unused. A proposal's
@@ -588,7 +589,7 @@ them: the top bar, the floating row, the view switcher and the confirmations, th
 unfolding card all keep to it. Opening, closing or resizing a sheet, or docking the left menu,
 shifts the view so its middle stays in the middle of the rest. A card opened beside a sheet
 returns beside whatever sheet is open when it closes; a plan's sheet stays, dimmed, while one of
-its cards is open, and the Chat, "Needs you", Agent work and the project settings stay undimmed beside any card (the Chat opens from the bar over the dim, and is usable, while a card is open). A narrow window lays the sheet over the canvas.
+its cards is open, and the Chat, "Needs you", Agent work and the project settings stay undimmed and usable beside any card: the card keeps clear of them, and where the window is too narrow for both they lie over it (the Chat opens from the bar over the dim while a card is open). A narrow window lays the sheet over the canvas.
 
 Seismic's button, a speech bubble with its counts, stays where it is when its sheet opens and becomes
 the sidebar's top corner that closes it; the sheet is headed "Seismic". Other sheets have a ✕.
@@ -983,9 +984,12 @@ code, a generic one otherwise.
   let a long branch or a large pool push buttons under the sheet.
 - **An unfolded card is as large as its content, up to the room it has** (2026-10-08, 2026-10-21).
   Rejected: filling the room (empty space, stray scrollbars), a fixed size (small on a large
-  screen), and a proposal sized by its text alone (a long conversation scrolled in a small box). It may reach over the bar (2026-10-09), as keeping the bar free cost moderate windows much
-  room, and over a docked sheet (owner, 2026-11-02): the sheet is dimmed and out of use while a card
-  is open, and keeping beside it squeezed a split into the canvas's width.
+  screen), and a proposal sized by its text alone (a long conversation scrolled in a small box). It
+  may reach over the bar (2026-10-09; since 2026-11-12 it keeps below it, the bar undimmed), as keeping the bar
+  free cost moderate windows much room, and over a plan's docked sheet (owner, 2026-11-02): that
+  sheet is dimmed and out of use while a card is open, and keeping beside it squeezed a split into
+  the canvas's width. The Chat, "Needs you", Agent work and the project settings are not dimmed
+  (owner, 2026-11-12): the card keeps clear of them, and on a window too narrow for that they lie over the card.
 - **On touch, one finger pans and a long press picks up a card** (owner, 2026-11-05). Rejected: a
   finger on a card dragging it, as the mouse does, which on a full tablet canvas moved cards on
   nearly every attempt to pan. The touch gestures live apart from the mouse handling and only
