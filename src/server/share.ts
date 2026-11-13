@@ -280,8 +280,8 @@ export class Sharing {
     const card = this.card(cardId);
     if (card.idea?.prototypeOf) throw new BadRequest('noShare', 'prototypes are not shared');
     const { notOnApproval: _, onApproval: __, ...s } = this.stored(cardId) ?? { slug: slugOf(card) };
-    // a plan's card shares only when asked to: the default is the other way round
-    this.set(cardId, planned(card) ? (on ? { ...s, onApproval: true } : s) : on ? s : { ...s, notOnApproval: true });
+    // a plan's card shares only when asked to: ticking is remembered, and so is unticking afterwards, which the log then says
+    this.set(cardId, on ? (planned(card) ? { ...s, onApproval: true } : s) : { ...s, notOnApproval: true });
   }
 
   /**

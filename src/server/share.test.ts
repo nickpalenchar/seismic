@@ -1039,6 +1039,7 @@ describe('publishing on approval', () => {
     expect(declinesApproval(plan, undefined)).toBe(true);
     expect(declinesApproval(plan, { slug: 'x', onApproval: true })).toBe(false);
     expect(declinesApproval(c, { slug: 'x', notOnApproval: true })).toBe(true);
+    expect(declinesApproval(plan, { slug: 'x', notOnApproval: true })).toBe(true);
   });
 
   test('unticked “Share on approval” keeps the approval from sharing, through sharing now and withdrawing', async () => {
