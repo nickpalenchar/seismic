@@ -38,6 +38,7 @@ import { gripWordClass, TalkPanel, talkClass } from './phoneTalkPanel';
 import { InboxList } from './inbox';
 import { sendReply } from './quickReply';
 import { PhoneMenu } from './phoneMenu';
+import { plannedOrder } from './phoneOrder';
 
 /** The sections of the list, in their order; those folded until the owner unfolds them. */
 const SECTIONS = ['queued', 'planned', 'parked', 'done'] as const;
@@ -106,7 +107,7 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
   };
   const sections: Record<Section, Item[]> = {
     queued: queueOrder(items).filter(listed),
-    planned: items.filter((i) => listed(i) && agentStage(i, isUnderway(i.id)) === 'planned').sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? '')),
+    planned: items.filter((i) => listed(i) && agentStage(i, isUnderway(i.id)) === 'planned').sort(plannedOrder),
     parked: items.filter((i) => listed(i) && inParkingLot(i)),
     done: items.filter((i) => listed(i) && !inParkingLot(i) && !agentStage(i, isUnderway(i.id)) && finishedArchivable(i) && !needsYou(i) && !snoozeOf(i)?.waiting && !runs(i) && !isUnderway(i.id)),
   };

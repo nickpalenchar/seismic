@@ -152,7 +152,7 @@ rows of the status bar's workstation popover; a tap opens the card.
 
 *The cards* follow in sections: "Queued" (a grey badge), "Planned", and at the end, folded, "Parked" and
 "Done" (the finished cards not archived yet, those the archive's "Archive … done tasks" would take).
-Planned cards run from most recently created to least recently created. A section without cards is left out; each shows 20 cards, then "Load more" (20 again after a switch of
+Planned cards run from most recently created to least recently created within the active and snoozed groups, with snoozed cards last, before pagination. A section without cards is left out; each shows 20 cards, then "Load more" (20 again after a switch of
 project); folded sections are remembered per browser. The cards look as on the canvas, as wide as the
 screen and without the pin; a card that needs the owner is not repeated here but waits under Needs you.
 Snoozed cards stand at the end of their section (see Snoozing a card). A planned card opened offers what it does on the canvas
