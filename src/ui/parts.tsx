@@ -29,7 +29,7 @@ import { Badge } from './components/badge';
 import { Popover, PopoverContent, PopoverTrigger, useHoverOpen } from './components/popover';
 import { MenuItem } from './components/menu';
 import { Tooltip } from './components/tooltip';
-import { atWorkOn, BlockedClones, hostDots, WorkstationMark, WorkstationRows } from './workstations';
+import { atWorkOn, BlockedClones, hostDots, DotsFace, WorkstationRows } from './workstations';
 
 /** The button for the conversation with Seismic (the project's top bar, the phone view's): a speech bubble. */
 export function TalkIcon() {
@@ -725,11 +725,7 @@ export function WorkstationsPill({ pools, project, projects, items, underway, on
               {hosts.map((h) => (
                 <span key={h.name} className="flex items-center gap-[5px]">
                   {hosts.length > 1 && <span className="hint hidden lg:inline">{h.name}</span>}
-                  <span className="flex gap-[3px]" aria-hidden>
-                    {hostDots(h, items, underway).map((d, i) => (
-                      <WorkstationMark key={i} dot={d} />
-                    ))}
-                  </span>
+                  <DotsFace dots={hostDots(h, items, underway)} />
                 </span>
               ))}
               <b className={cn('hidden lg:inline', full && 'text-waiting')}>{uncapped(p) ? t.workstations.uncapped(p.hosts.reduce((n, h) => n + atWorkOn(h), 0)) : t.workstations.free(free(p), total(p), blockedIn(p))}</b>

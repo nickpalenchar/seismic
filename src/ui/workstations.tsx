@@ -26,7 +26,14 @@ const pulse =
  * pale; a pause symbol while held for restart; a ring while free, orange while blocked.
  * `w` is undefined for a free slot of worktrees.
  */
-type WorkstationDot = { className: string; style?: CSSProperties; paused?: boolean };
+type WorkstationDot = {
+  className: string;
+  style?: CSSProperties;
+  paused?: boolean;
+  /** its colour as a share of the bar many workstations become (`DotsFace`); none while free */
+  fill?: string;
+  pulsing?: boolean;
+};
 
 export function WorkstationMark({ dot, className }: { dot: WorkstationDot; className?: string }) {
   const props = { className: cn('shrink-0', 'size-3', className, dot.className), style: dot.style, 'aria-hidden': true } as const;
@@ -35,14 +42,19 @@ export function WorkstationMark({ dot, className }: { dot: WorkstationDot; class
 
 export function wsDot(w: PoolWorkstation | undefined, host: PoolHost, items: Item[], underway: Record<string, string>): WorkstationDot {
   const dot = 'ws-dot box-border block rounded-full border border-[#6b7280]';
-  if (!w?.card) return { className: cn(dot, w && host.blocked?.some((b) => b.path === w.path) ? 'shadow-[inset_0_0_0_1.5px_var(--waiting)]' : undefined) };
+  if (!w?.card) {
+    const blocked = !!w && !!host.blocked?.some((b) => b.path === w.path);
+    return { className: cn(dot, blocked && 'shadow-[inset_0_0_0_1.5px_var(--waiting)]'), fill: blocked ? 'color-mix(in srgb, var(--waiting) 40%, transparent)' : undefined };
+  }
   const item = w.project ? undefined : items.find((i) => i.id === w.card);
   const tone = item ? cardTone(item, underway[item.id]) : host.busy.includes(w.card) ? 'working' : null;
-  if (item?.hold?.reason === 'restart') return { className: 'block text-[var(--restart)]', paused: true };
-  if (!tone) return { className: cn(dot, 'bg-[color-mix(in_srgb,var(--working)_35%,transparent)]') };
+  if (item?.hold?.reason === 'restart') return { className: 'block text-[var(--restart)]', paused: true, fill: 'var(--restart)' };
+  if (!tone) return { className: cn(dot, 'bg-[color-mix(in_srgb,var(--working)_35%,transparent)]'), fill: 'color-mix(in srgb, var(--working) 35%, transparent)' };
   return {
     className: cn(dot, 'bg-[var(--c)]', PULSING.has(tone) && pulse),
     style: { '--c': `var(--${tone})` } as CSSProperties,
+    fill: `var(--${tone})`,
+    pulsing: PULSING.has(tone),
   };
 }
 
@@ -232,13 +244,66 @@ export function BlockedClones({ host }: { host: PoolHost }) {
 }
 
 
-/** Every pool's dots in one row, as the status bar's pill shows them. */
+/**
+ * How a machine's dots fit the status bar's height: up to 5 in a row, 6 to 12 in two rows, 13 to 18
+ * in three, smaller the more rows; from 19 on a bar whose coloured shares are its workstations.
+ */
+export const dotsLayout = (n: number): { rows: 1 | 2 | 3; cols: number } | 'bar' =>
+  n <= 5 ? { rows: 1, cols: n } : n <= 12 ? { rows: 2, cols: Math.ceil(n / 2) } : n <= 18 ? { rows: 3, cols: Math.ceil(n / 3) } : 'bar';
+
+/** The dots' size and spacing by rows, so two and three rows still fit the status bar's pill. */
+const ROWS = { 1: { size: 'size-3', gap: 'gap-[3px]' }, 2: { size: 'size-2.5', gap: 'gap-[2px]' }, 3: { size: 'size-[7px]', gap: 'gap-[1.5px]' } } as const;
+
+/** Where each kind of workstation stands in the bar: at work first, free last, so its shares read as a ratio. */
+const barOrder = (d: WorkstationDot) => (!d.fill ? 3 : d.pulsing ? 0 : d.paused ? 2 : 1);
+
+/**
+ * A machine's dots as the status bar shows them (`dotsLayout`): in a row, in two or three rows read
+ * left to right, then top to bottom, as the list orders them; or, for many, one bar with a share per
+ * colour as wide as its workstations are many (those at work first, the free ones an empty stretch at the end).
+ */
+export function DotsFace({ dots }: { dots: WorkstationDot[] }) {
+  const layout = dotsLayout(dots.length);
+  if (!dots.length) return null;
+  if (layout === 'bar') {
+    // one share per colour, as wide as its workstations are many
+    const shares: { dot: WorkstationDot; n: number }[] = [];
+    for (const d of [...dots].sort((a, b) => barOrder(a) - barOrder(b))) {
+      const last = shares.at(-1);
+      if (last && last.dot.fill === d.fill) last.n++;
+      else shares.push({ dot: d, n: 1 });
+    }
+    return (
+      <span className="ws-bar box-border flex h-2.5 w-20 shrink-0 overflow-hidden rounded-full border border-[#6b7280]" aria-hidden>
+        {shares.map(({ dot, n }, i) => (
+          <i
+            key={i}
+            className={cn('block h-full', dot.pulsing && 'animate-[ws-pulse_3.6s_ease-in-out_infinite] reduced:animate-none')}
+            style={{ flexGrow: n, flexBasis: 0, ...(dot.fill && ({ '--c': dot.fill, background: dot.fill } as CSSProperties)) }}
+          />
+        ))}
+      </span>
+    );
+  }
+  const { size, gap } = ROWS[layout.rows];
+  return (
+    <span className={cn('ws-dots grid shrink-0', gap)} style={{ gridTemplateColumns: `repeat(${layout.cols}, max-content)` }} aria-hidden>
+      {dots.map((d, i) => (
+        <WorkstationMark key={i} dot={d} className={size} />
+      ))}
+    </span>
+  );
+}
+
+/** Every pool's dots, a machine at a time as the status bar's pill shows them (`DotsFace`). */
 export function WorkstationDots({ pools, items, underway }: { pools: ClonePool[]; items: Item[]; underway: Record<string, string> }) {
-  const dots = pools.flatMap((p) => p.hosts.flatMap((h) => hostDots(h, items, underway).map((d, n) => <WorkstationMark key={`${p.repo}/${h.name}/${n}`} dot={d} />)));
-  // many workstations wrap onto further lines rather than push what stands beside the dots off a narrow screen
-  return dots.length ? (
-    <span className="flex min-w-0 flex-wrap items-center gap-[3px]" aria-hidden>
-      {dots}
+  const hosts = pools.flatMap((p) => p.hosts.map((h) => ({ key: `${p.repo}/${h.name}`, dots: hostDots(h, items, underway) }))).filter((h) => h.dots.length);
+  // several machines wrap onto further lines rather than push what stands beside the dots off a narrow screen
+  return hosts.length ? (
+    <span className="flex min-w-0 flex-wrap items-center gap-2" aria-hidden>
+      {hosts.map((h) => (
+        <DotsFace key={h.key} dots={h.dots} />
+      ))}
     </span>
   ) : null;
 }
