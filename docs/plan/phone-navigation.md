@@ -34,9 +34,19 @@ Replace the phone view's four tabs with a layout built for one project at a time
 
 ## Workstreams
 
-- [ ] **W1:** Move shared behaviour out of `phone.tsx`. Keyboard detection, the "first tap acts" handling, one WebSocket per project, the connection banner, the push-notification prompt, the landscape strip, video full screen and swipe-away toasts move into modules both views use. No visible change; the existing phone checks still pass.
+- [x] **W1:** Move shared behaviour out of `phone.tsx`. Keyboard detection, the "first tap acts" handling, one WebSocket per project, the connection banner, the push-notification prompt, the landscape strip, video full screen and swipe-away toasts move into modules both views use. No visible change; the existing phone checks still pass.
 - [ ] **W2:** The new shell under `?view=phone-next`. Top bar with project switcher (remembered per browser) and scrolling usage pills; the working box with its rows taken out of `WorkstationsPill` into a shared part; the sections with "Load more"; the floating bar (Menu, Chat, Search and Needs you may still be inert); an open card with X; New card works here. Lands after W1.
 - [ ] **W3:** Menu sheet and Needs you page. The menu as a full-height sheet with the desktop menu's content trimmed for the phone (including the project switcher), and the Needs you page across projects with project names, quick replies and the bell count; opening a card from another project switches the top bar's project. Lands after W2, can run beside W4.
 - [ ] **W4:** Chat page and search page. The full-screen Seismic chat with chat history and microphone for the project in view, replacing the draggable panel for Seismic's chat; the full-screen search over the project's cards. Lands after W2, can run beside W3.
 - [ ] **W5:** Switch the default. `?view=phone` shows the new view, the old one stays at `?view=phone-old`; rewrite "The phone view" in `docs/design/running-obeya.md` to describe the new view, and check the README and the phone screenshots of the release. Lands after W3 and W4.
 - [ ] **W6:** Remove the old view. Delete `phone.tsx`, `?view=phone-old` and what only it used, once the owner has compared them. Delete this plan doc; what passes the rebuild test is already in the design chapter.
+
+## Shared phone behaviour (W1)
+
+Both shells mount `usePhoneEnvironment` (`phoneEnvironment.ts`) and `usePhoneProjects`
+(`phoneProjects.tsx`), rendering its `feeds` once across list/card navigation and its `banner`
+where needed. The environment module exports the shared view, page and bar classes; preserve
+`ph-view`, `ph-panel` and the sibling microphone/toast structure for keyboard and landscape CSS.
+`usePhonePush` (`phonePush.ts`) routes notification taps through shell callbacks. Reuse `Notify`
+for the permission prompt, `Composer` for first-tap focus handling, `Demo`/`useFullscreen` for
+video, and `Toasts` with `aside` for swipe dismissal; those already live outside either shell.

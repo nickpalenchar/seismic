@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from './api';
-import { phoneView } from './phone';
+import { phoneView } from './phoneEnvironment';
 import { failText, t } from './strings';
 import { Button } from './components/button';
 import { Input } from './components/input';

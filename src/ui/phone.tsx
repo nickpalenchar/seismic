@@ -10,18 +10,16 @@
 import { ChevronDown, ChevronLeft, Plus } from 'lucide-react';
 import { useRatePrompt } from './feedback';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { type ProjectInfo, type ProjectSnapshot, type CardPatch, finishedArchivable, inParkingLot, type Item, nameless, needsYou, openQuestions, unreadAnswers, type Usage, snoozeOf } from '../core/types';
+import { type ProjectInfo, type CardPatch, finishedArchivable, inParkingLot, type Item, nameless, needsYou, openQuestions, unreadAnswers, snoozeOf } from '../core/types';
 import { AGENT_STAGES, agentStage } from '../core/agents';
 import { AgentsTabs, StageChips, useAgentsTab } from './agents';
 import { ActivityTab } from './activity';
 import { QueueList, useQueueSort } from './queue';
 import { useStoredState } from './stored';
 import { ChatsHead } from './chats';
-import { api, beforeReload, cardsOn, onNotice, phoneInUse, setProject, useProject, type Where } from './api';
-import { enterBreaksLines } from './composer';
+import { api, beforeReload, cardsOn, onNotice, setProject, type Where } from './api';
 import { InboxList } from './inbox';
 import { phoneNoneClass } from './inboxClasses';
-import { when } from './needsYou/renderers';
 import { inboxEntries, readMark } from '../core/inbox';
 import { useInboxRead } from './inboxRead';
 import { sendReply } from './quickReply';
@@ -29,38 +27,30 @@ import { type ActDone, Detail, type Pending, TalkElsewhere, useEvents } from './
 import { cardDraft, fieldOn, focusedDraft, keepDrafts, MIC_DRAFT, obeyaDraft } from './draft';
 import { KoordinatorTalk } from './koordinator';
 import { Sign } from './logo';
-import { Notify, registerWorker } from './notify';
+import { Notify } from './notify';
 import { plain } from './markdown';
 import { Cards, KoordinatorAgent } from './message';
 import { glide, type Mark, settle, speed, THROWN, thrown } from './panelHeight';
 import { CardFace, cardLook, shownState } from './card';
 import { TalkIcon } from './parts';
 import { videoOf } from './spot';
-import { failText, forTouch, t } from './strings';
+import { failText, t } from './strings';
 import { UsagePill } from './usage';
 import { agentWorks, beingWritten, cardTalk, koordinatorReads, obeyaWorks, opensWithTalk, runs, unseen } from './talk';
 import { seenOf } from './seen';
 import { noticeLine, tellers, useAck, useWarnings } from './tell';
 import { phoneAcksClass, Toasts, useToasts } from './components/toast';
 import { HoldToTalk, PushToTalk, usePushToTalk, useTold } from './voice';
-import { projectPath, cardPath, named, knowProjects, projectNamed, queryWithout, readAddress } from './address';
+import { projectPath, cardPath, named, projectNamed, queryWithout, readAddress } from './address';
 import { scrollBehavior } from './motion';
 import { Tooltip } from './components/tooltip';
 import { layerOpen } from './components/ui';
 import { Badge } from './components/badge';
 import { PillButton, pillVariants } from './components/pill';
 import { cn } from 'cn';
-
-/**
- * Whether the page shows the phone view: on a phone, which has a coarse pointer and a short side
- * under 600 px whichever way it is held (a tablet and a narrow window at the desk keep the project).
- * `?view=phone` or `?view=project` in the address decides instead.
- */
-export function phoneView(): boolean {
-  const asked = new URLSearchParams(location.search).get('view');
-  if (asked === 'phone' || asked === 'project') return asked === 'phone';
-  return matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600;
-}
+import { usePhoneEnvironment, viewClass, pageClass, barClass, pageBarClass } from './phoneEnvironment';
+import { usePhoneProjects } from './phoneProjects';
+import { usePhonePush } from './phonePush';
 
 /** The phone view keeps its drafts apart from any project's: it shows every project. */
 const DRAFTS = '@phone';
@@ -69,11 +59,6 @@ const OBEYA_PROJECT = 'obeya-phone-project';
 /** The stages "All" groups the cards by on the phone: the desktop's, then the finished cards not archived yet. */
 const PHONE_STAGES = [...AGENT_STAGES, 'done'] as const;
 type PhoneStage = (typeof PHONE_STAGES)[number];
-/** How long the server may not answer before the view says so: a phone back from its lock screen reconnects within this. */
-const QUIET_MS = 3000;
-/** How long a frozen server may stay silent before the banner names the time it went quiet. */
-const UNRESPONSIVE_MS = 150_000;
-
 /** The card the address names, by its code or its id. */
 const cardInAddress = () => readAddress().card ?? null;
 const talkInAddress = () => new URLSearchParams(location.search).has('talk');
@@ -81,31 +66,6 @@ const talkInAddress = () => new URLSearchParams(location.search).has('talk');
 type Step = 'card' | 'talk';
 /** The open card's demo video, on its page. */
 const pageVideo = () => document.querySelector<HTMLVideoElement>('#ph-card .demo-view video');
-
-/**
- * A view of the phone's (the list, an open card, a conversation's panel), fixed over the screen, clear of
- * its notch and rounded corners. Turned, the microphone has a strip of its own at the right (`--ph-side`).
- * A phone's browser zooms into a text field written smaller than 16 px: every field in it is 16 px.
- */
-const viewClass =
-  'ph-view fixed overscroll-contain [-webkit-overflow-scrolling:touch] pt-[env(safe-area-inset-top)] pr-[max(14px,env(safe-area-inset-right))] pl-[max(14px,env(safe-area-inset-left))] ph-landscape:[--ph-side:calc(112px+env(safe-area-inset-right))] ph-landscape:pr-(--ph-side) [&_:is(textarea,select,input,[data-slot=select-trigger])]:text-[16px]';
-
-/**
- * The list and an open card: the page scrolls, with the microphone's room under its end, and fades
- * out under the microphone (not with the phone turned, nor while the keyboard is up: the field has its
- * own microphone then). Under a panel lower than the screen it scrolls on until all of it can stand
- * above the panel (`--ph-panel`: the panel's height).
- */
-const pageClass = `${viewClass} inset-0 overflow-y-auto pb-[calc(157px+env(safe-area-inset-bottom))] ph-landscape:pb-[calc(24px+env(safe-area-inset-bottom))] [&:has(~.ph-panel)]:pb-[max(calc(157px+env(safe-area-inset-bottom)),calc(var(--ph-panel,0px)+20px))] ph-landscape:[&:has(~.ph-panel)]:pb-[max(calc(24px+env(safe-area-inset-bottom)),calc(var(--ph-panel,0px)+20px))] after:content-[''] after:fixed after:inset-x-0 after:bottom-0 after:h-[calc(87px+env(safe-area-inset-bottom))] after:z-4 after:bg-[linear-gradient(transparent,var(--bg)_65%)] after:pointer-events-none ph-landscape:after:hidden [.ph-kb_&]:after:hidden`;
-
-/**
- * The bar at a view's top, across the screen and sticking while the page scrolls under it; with the
- * phone turned slimmer and reaching across the microphone's strip. `ph-bar` stays for the chats' head in it.
- */
-const barClass =
-  'ph-bar sticky top-0 z-5 flex items-center gap-2.5 min-h-[52px] -mx-3.5 px-3.5 bg-background border-b border-line ph-landscape:min-h-[42px] ph-landscape:mr-[calc(-1*var(--ph-side))] ph-landscape:pr-[max(14px,env(safe-area-inset-right))]';
-/** The list's and the card's bar; the list's scrolls away with the phone turned. */
-const pageBarClass = `${barClass} py-1.5 ph-landscape:py-[3px]`;
 
 /** The word a bar leads with, in frost's own font. */
 const wordClass = 'ph-word font-semibold leading-none [font-family:var(--font)]';
@@ -151,121 +111,14 @@ const gripClass = `${barClass} ph-grip pt-3.5 pb-1.5 ph-landscape:pt-2.5 ph-land
 const newClass =
   'ph-new fixed z-50 left-1/2 bottom-[calc(18px+env(safe-area-inset-bottom))] [transform:translateX(-50%)] w-[68px] h-[68px] rounded-full border-0 p-0 grid place-items-center cursor-pointer bg-card text-ink shadow-lift [-webkit-touch-callout:none] select-none active:shadow-glass active:[transform:translateX(-50%)_translateY(1px)] disabled:text-muted-foreground disabled:cursor-default [.ph-kb_.ph-view~&]:hidden ph-landscape:left-auto ph-landscape:right-[calc(56px+env(safe-area-inset-right))] ph-landscape:[translate:50%_0] ph-landscape:top-[calc(50%-34px)] ph-landscape:bottom-auto ph-landscape:[transform:none] ph-landscape:active:[transform:none]';
 
-/** The kinds of input the keyboard comes up for; a date or a time opens the phone's own picker instead. */
-const TYPED = new Set(['text', 'search', 'email', 'url', 'tel', 'password', 'number']);
-
-/** Whether the element is a text field: one the keyboard comes up for. */
-const typesText = (el: unknown): el is HTMLTextAreaElement | HTMLInputElement =>
-  el instanceof HTMLTextAreaElement || (el instanceof HTMLInputElement && TYPED.has(el.type));
-
-/** How much shorter than the tallest seen the screen gets while the keyboard is up; a browser's bars sliding in and out take less. */
-const KEYBOARD_PX = 150;
-
-/**
- * Marks the page while the keyboard is up (`ph-kb` on the root): a text field has the focus and the
- * height the page has is well below the tallest it had at this width. The keyboard closed with the
- * phone's own button leaves the focus in the field, so the focus alone does not tell (until
- * 2026-10-17 it did, and the microphone stayed hidden after that).
- */
-function watchKeyboard() {
-  const vv = window.visualViewport;
-  const tallest = new Map<number, number>();
-  const check = () => {
-    const h = vv?.height ?? innerHeight;
-    const w = Math.round(innerWidth);
-    const top = Math.max(tallest.get(w) ?? 0, h);
-    tallest.set(w, top);
-    document.documentElement.classList.toggle('ph-kb', typesText(document.activeElement) && h < top - KEYBOARD_PX);
-  };
-  check();
-  vv?.addEventListener('resize', check);
-  addEventListener('resize', check);
-  addEventListener('focusin', check);
-  addEventListener('focusout', check);
-  return () => {
-    vv?.removeEventListener('resize', check);
-    removeEventListener('resize', check);
-    removeEventListener('focusin', check);
-    removeEventListener('focusout', check);
-    document.documentElement.classList.remove('ph-kb');
-  };
-}
-
-/** Longer than this, or moved further, a touch is no tap: a long press selects, a swipe scrolls. */
-const TAP_MS = 400;
-const TAP_PX = 10;
-
-/**
- * A tap into a text field while the keyboard is down only puts the cursor where the finger was and
- * brings the keyboard up. Left to Chrome, a tap on a word marked misspelled also opened its menu of
- * suggestions, and on the phone that closed the keyboard it had just begun to open. With the
- * keyboard up the tap is Chrome's again, and the suggestions open above it.
- */
-function tapOpensKeyboard() {
-  let down: { x: number; y: number; at: number; field: HTMLTextAreaElement | HTMLInputElement } | null = null;
-  const start = (e: TouchEvent) => {
-    const field = e.target instanceof Element ? e.target.closest('textarea, input') : null;
-    const finger = e.touches[0];
-    down =
-      finger && e.touches.length === 1 && typesText(field) && !field.readOnly && !field.disabled && !document.documentElement.classList.contains('ph-kb')
-        ? { x: finger.clientX, y: finger.clientY, at: e.timeStamp, field }
-        : null;
-  };
-  const end = (e: TouchEvent) => {
-    const tap = down;
-    down = null;
-    const finger = e.changedTouches[0];
-    if (!tap || !finger || e.touches.length || e.timeStamp - tap.at > TAP_MS) return;
-    if (Math.hypot(finger.clientX - tap.x, finger.clientY - tap.y) > TAP_PX) return;
-    e.preventDefault();
-    const { field } = tap;
-    const at = document.caretPositionFromPoint?.(finger.clientX, finger.clientY);
-    // the keyboard closed with the phone's own button left the focus in the field: focusing it anew brings the keyboard up
-    if (document.activeElement === field) field.blur();
-    field.focus();
-    if (at?.offsetNode === field) field.setSelectionRange(at.offset, at.offset);
-  };
-  addEventListener('touchstart', start, { capture: true, passive: true });
-  addEventListener('touchend', end, { capture: true, passive: false });
-  return () => {
-    removeEventListener('touchstart', start, { capture: true });
-    removeEventListener('touchend', end, { capture: true });
-  };
-}
-
 /** When something began: the time today, else the day. */
 
 export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
   keepDrafts(sessionStorage, DRAFTS);
-  useState(() => {
-    forTouch();
-    enterBreaksLines();
-    phoneInUse();
-  });
-  useEffect(watchKeyboard, []);
-  useEffect(tapOpensKeyboard, []);
-  const [projects, setProjects] = useState(loaded);
-  // the projects it last had, while the server did not answer: the list the server sends once it does
-  useEffect(() => setProjects(loaded), [loaded]);
-  knowProjects(projects);
-  const [snaps, setSnaps] = useState<Record<string, ProjectSnapshot>>({});
+  usePhoneEnvironment();
+  const { projects, snaps, usage, feeds, banner } = usePhoneProjects(loaded);
   const snapsRef = useRef(snaps);
   snapsRef.current = snaps;
-  const [offline, setOffline] = useState<Record<string, number | null>>({});
-  // the projects whose connection is open but answers nothing
-  const [frozen, setFrozen] = useState<Record<string, boolean>>({});
-  // the plans' usage limits, the same over every project's connection
-  const [usage, setUsage] = useState<Usage[]>([]);
-  const feed = (id: string, live: ReturnType<typeof useProject>) => {
-    setUsage(live.usage);
-    if (live.snapshot) setSnaps((s) => (s[id] === live.snapshot ? s : { ...s, [id]: live.snapshot! }));
-    // a socket that is open but answers nothing (frozen) counts as not answering, like a lost one
-    const down = live.offlineSince ?? live.frozenSince;
-    setOffline((o) => (o[id] === down ? o : { ...o, [id]: down }));
-    const isFrozen = live.offlineSince === null && live.frozenSince !== null;
-    setFrozen((f) => (f[id] === isFrozen ? f : { ...f, [id]: isFrozen }));
-    if (live.projects) setProjects(live.projects);
-  };
 
   // ---------------------------------------------------------------- what is open
   const [open, setOpenState] = useState<string | null>(cardInAddress);
@@ -353,20 +206,7 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
     setOpenState(null);
     setTalk(false);
   };
-  // a tapped push: its card (or "Needs you" for several) in the app that is open already
-  useEffect(() => {
-    registerWorker();
-    const sw = navigator.serviceWorker;
-    if (!sw) return;
-    const tapped = (e: MessageEvent) => {
-      if (e.data?.type !== 'open' || typeof e.data.url !== 'string') return;
-      const card = readAddress(new URL(e.data.url, location.href)).card;
-      if (card) openId(resolve(card)!);
-      else home();
-    };
-    sw.addEventListener('message', tapped);
-    return () => sw.removeEventListener('message', tapped);
-  }, []);
+  usePhonePush((code) => openId(resolve(code)!), home);
   useEffect(() => {
     const pop = () => {
       flushEdit().catch(console.error);
@@ -629,28 +469,7 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
     }
   }
 
-  // ---------------------------------------------------------------- the machine not answering
-  const quietSince = Object.values(offline).reduce<number | null>((min, x) => (x === null ? min : min === null ? x : Math.min(min, x)), null);
-  const isFrozen = quietSince !== null && Object.keys(offline).some((id) => offline[id] === quietSince && frozen[id]);
-  const [, tick] = useState(0);
-  useEffect(() => {
-    if (quietSince === null) return;
-    const h = setTimeout(() => tick((n) => n + 1), Math.max(0, quietSince + (isFrozen ? UNRESPONSIVE_MS : QUIET_MS) - Date.now()) + 50);
-    return () => clearTimeout(h);
-  }, [quietSince, isFrozen]);
-  // a frozen server is named at once (its silence was already 10 s); a lost connection after 3 s
-  const quiet = quietSince !== null && (isFrozen || Date.now() - quietSince >= QUIET_MS);
-  const unresponsive = isFrozen && Date.now() - quietSince! >= UNRESPONSIVE_MS;
-
-  const feeds = projects.map((c) => <Feed key={c.id} id={c.id} onChange={feed} />);
   const several = projects.length > 1;
-  // stays in view under the bar while the page scrolls; with the phone turned the list's bar scrolls away, so there it sticks at the top
-  const banner = quiet && (
-    <div className="ph-quiet sticky top-[60px] z-5 mt-3 py-2.5 px-3 rounded-[8px] bg-ink text-background flex flex-col gap-0.5 text-[13.5px] ph-landscape:top-[50px] ph-landscape:[#ph-home_&]:top-2" role="status">
-      <b className="font-semibold text-[14.5px]">{isFrozen ? (unresponsive ? t.unresponsiveSince(when(quietSince!)) : t.notResponding) : t.phone.notAnswering(when(quietSince!))}</b>
-      <span>{t.phone.notAnsweringWhy}</span>
-    </div>
-  );
   const acks = (
       <div id="acks" className={phoneAcksClass}>
         <Cards.Provider value={{ items: Object.values(snaps).flatMap((x) => x.items), open: openCard }}>
@@ -968,13 +787,6 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
       )}
     </HoldToTalk.Provider>
   );
-}
-
-/** One project's live snapshot, handed up as it changes. */
-function Feed({ id, onChange }: { id: string; onChange: (id: string, live: ReturnType<typeof useProject>) => void }) {
-  const live = useProject(id);
-  useEffect(() => onChange(id, live), [live.snapshot, live.offlineSince, live.frozenSince, live.projects, live.usage]);
-  return null;
 }
 
 /** Cards as the project shows them, as wide as the screen, each opening at a tap; led by its project's name where there are several. */

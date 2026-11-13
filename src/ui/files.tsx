@@ -16,7 +16,7 @@ import { Doc, DocImages } from './markdown';
 import { useReportedHeight } from './message';
 import { scrollBehavior } from './motion';
 import { PdfPages } from './pdf';
-import { phoneView } from './phone';
+import { phoneView } from './phoneEnvironment';
 import { t } from './strings';
 import { Button, LinkButton } from './components/button';
 import { SegmentedControl } from './components/segmented';

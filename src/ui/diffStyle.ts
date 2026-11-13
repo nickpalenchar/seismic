@@ -2,7 +2,7 @@
 // owner's choice is kept in this browser for every card; the phone view shows unified only.
 
 import { useSyncExternalStore } from 'react';
-import { phoneView } from './phone';
+import { phoneView } from './phoneEnvironment';
 
 export type DiffStyle = 'split' | 'unified';
 
