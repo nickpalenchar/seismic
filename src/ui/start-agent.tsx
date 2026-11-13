@@ -195,7 +195,7 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
           {codex && !efforts.includes(choice.effort) && <SelectItem value={choice.effort}>{a.efforts[choice.effort]} ({a.unavailable})</SelectItem>}
           {(codex ? efforts : AGENT_EFFORTS).map((e) => <SelectItem key={e} value={e}>{a.efforts[e]}</SelectItem>)}
         </Select></label>
-        {codex && <p className="hint">{other === 'agy' ? a.agyScope : a.codexScope}</p>}
+        {other === 'agy' && <p className="hint">{a.agyScope}</p>}
       </>}
       {(error || loading) && <p className="p-error" role="status">{loading ? a.loadingModels : error} {error && (setting ? codex && <LinkButton onClick={loadModels}>{a.reloadModels}</LinkButton> : <LinkButton onClick={() => setAttempt(attempt + 1)}>{a.reloadModels}</LinkButton>)}</p>}
       {codex && current && !loading && !valid && <p className="p-error" role="status">{a.unavailableChoice}</p>}
