@@ -1,3 +1,4 @@
+import { ReviewSeverityIcon } from './components/review-severity-icon';
 import { noteClass } from './components/ai/message';
 import { Car, Check, GitMerge, Lightbulb, ChevronDown, ChevronLeft, ChevronRight, Pencil, Maximize, MessageSquare, Minimize, PanelRightClose, PanelRightOpen, Play, Plus, Share, ZoomIn, ZoomOut } from 'lucide-react';
 import { clientExtensions as extensions } from '../extensions/client';
@@ -2751,7 +2752,7 @@ function reviewTab(item: Item, act: (a: CardAction, done: ActDone) => void): { l
       {t.codeReview.tab}
       {r.state === 'running' && <span className={reviewRunningDot} aria-label={t.codeReview.running(reviewer)} />}
       {r.state === 'done' && !r.stale && !r.items.some((i) => needsOwner(i) || i.status === 'fixing' || i.status === 'underReview') && <Check className={reviewClean} aria-label={t.codeReview.items(r.items.length, 0)} />}
-      {counts.map(([s, n]) => <span key={s} className={reviewCount(s)}>●{n}</span>)}
+      {counts.map(([s, n]) => <span key={s} className={reviewCount(s)}><ReviewSeverityIcon severity={s} />{n}</span>)}
       {r.stale && r.state !== 'running' && <span className={reviewOutdated}>{t.codeReview.outdated}</span>}
     </>
   );

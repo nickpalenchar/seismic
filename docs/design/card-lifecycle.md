@@ -292,7 +292,9 @@ only the latest.
   A completed, current review with nothing open (no item raised, reopened, fixing or under review) shows a green checkmark beside the title.
   Blocker has a dark purple badge,
   critical a saturated red badge with white text, major a lighter red, minor orange, low yellow,
-  and info grey. The conversation notes what a review did when it is done (the new items by severity, how many it
+  and info grey. Severity counts also differ by shape: info is a light bulb, low a circle,
+  minor a square, major a diamond, critical two vertically overlapping diamonds, and blocker the
+  same double diamond with a white exclamation mark. The conversation notes what a review did when it is done (the new items by severity, how many it
   verified fixed or reopened), or says why it failed.
 - "Manually, at handover": nothing runs by itself. "Approve" stays first and primary; beside it
   "Start code review", in purple, until the latest handover is reviewed. The click runs exactly the

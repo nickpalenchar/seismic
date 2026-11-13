@@ -122,7 +122,7 @@ const counts: Record<Severity, string> = {
   low: '[--sev:var(--asking)]',
   info: '[--sev:var(--muted-foreground)]',
 };
-export const reviewCount = (s: Severity) => cn('rv-count ml-1.5 text-[var(--sev)] font-semibold tabular-nums', s, counts[s]);
+export const reviewCount = (s: Severity) => cn('rv-count ml-1.5 inline-flex items-center gap-0.5 text-[var(--sev)] font-semibold tabular-nums', s, counts[s]);
 
 /** The review running, a dot that breathes beside the tab's label; in the panel, the line that says so. */
 export const reviewRunningDot = 'rv-running inline-block size-[7px] ml-[7px] align-middle rounded-[50%] bg-reviewing animate-[arranging_1.2s_ease-in-out_infinite]';
