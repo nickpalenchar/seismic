@@ -177,7 +177,7 @@ Activity log stay on the desktop (owner, 2026-11-12).
   with the latest wait first, both share the entry layout and actions, the unread dot and the "Unread | All"
   switch. It is a step in the browser's history (`?needs` in the address), so Back and a reload hold it; a card
   opened from it returns to it on Back and to its project's list on X. The bell carries the count across
-  all projects. An entry that is not a card (Seismic's answer) brings its project into view and opens its chat.
+  all projects and opens the page, which has no bell to toggle it: its X and Back close it, and the floating bar returns. An entry that is not a card (Seismic's answer) brings its project into view and opens its chat.
 
 The full pages (chat, search, Needs you, an open card) hide the floating bar.
 

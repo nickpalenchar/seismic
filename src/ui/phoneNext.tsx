@@ -252,7 +252,7 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
         </TalkPanel>
       )}
       {s.talk && s.mic}
-      {!s.talk && !searching && (
+      {!s.talk && !searching && !needsOn && (
         <FloatingBar
           needsYou={needsYouCount(entries)}
           making={making || !!made}
@@ -262,8 +262,7 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
           onChat={s.openTalk}
           onSearch={openSearch}
           onMenu={() => setMenuOpen(true)}
-          needsOn={needsOn}
-          onNeedsYou={needsOn ? closeNeeds : openNeeds}
+          onNeedsYou={openNeeds}
         />
       )}
     </HoldToTalk.Provider>
@@ -397,7 +396,7 @@ const barButton = 'relative inline-grid size-11 place-items-center rounded-full 
  * and Needs you, whose bell counts what waits across every project. Hidden while the keyboard is up;
  * with the phone turned it stands upright in the microphone's strip at the right.
  */
-function FloatingBar({ needsYou, making, chat, chatWorking, onNew, onChat, onSearch, onMenu, needsOn, onNeedsYou }: { needsYou: number; making: boolean; chat: number; chatWorking: boolean; onNew: () => void; onChat: () => void; onSearch: () => void; onMenu: () => void; needsOn: boolean; onNeedsYou: () => void }) {
+function FloatingBar({ needsYou, making, chat, chatWorking, onNew, onChat, onSearch, onMenu, onNeedsYou }: { needsYou: number; making: boolean; chat: number; chatWorking: boolean; onNew: () => void; onChat: () => void; onSearch: () => void; onMenu: () => void; onNeedsYou: () => void }) {
   return (
     <nav
       className="ph-float fixed z-50 left-1/2 bottom-[calc(14px+env(safe-area-inset-bottom))] -translate-x-1/2 flex items-center gap-1 rounded-full bg-glass px-2 py-1 shadow-lift backdrop-blur-xl [.ph-kb_.ph-view~&]:hidden ph-landscape:left-auto ph-landscape:right-[calc(10px+env(safe-area-inset-right))] ph-landscape:top-1/2 ph-landscape:bottom-auto ph-landscape:-translate-y-1/2 ph-landscape:translate-x-0 ph-landscape:flex-col ph-landscape:px-1 ph-landscape:py-2"
@@ -425,7 +424,7 @@ function FloatingBar({ needsYou, making, chat, chatWorking, onNew, onChat, onSea
       <button className={barButton} aria-label={t.phone.next.search} onClick={onSearch}>
         <Search aria-hidden="true" />
       </button>
-      <button className={cn(barButton, needsOn && 'bg-chip')} aria-pressed={needsOn} aria-label={needsYou ? `${t.phone.next.needsYou}: ${t.phone.next.needsYouCount(needsYou)}` : t.phone.next.needsYou} onClick={onNeedsYou}>
+      <button className={barButton} aria-label={needsYou ? `${t.phone.next.needsYou}: ${t.phone.next.needsYouCount(needsYou)}` : t.phone.next.needsYou} onClick={onNeedsYou}>
         <Bell aria-hidden="true" />
         {needsYou > 0 && (
           <Badge variant="count" className="absolute top-0.5 right-0.5 bg-waiting text-white">
