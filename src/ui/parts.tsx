@@ -17,7 +17,7 @@ import { Doc, Inline, plain } from './markdown';
 import { Body } from './message';
 import { Naming } from './cardLink';
 import { Waiting } from './queue';
-import { asksYou, CardFace, cardFlags, cardLook, depTagClass, ttlClass, hasLabels, HourglassMark, LabelMarks, LabelPicks, mergeStatus, shownState } from './card';
+import { asksYou, CardFace, cardFlags, cardLook, depTagClass, ttlClass, hasLabels, HourglassMark, LabelMarks, LabelPicks, mergeStatus, shownState, stateVars } from './card';
 import { scrollBehavior } from './motion';
 import { clock, shortDay, stateLabel, t } from './strings';
 import { edgeChipPositions } from './edgeChips';
@@ -76,12 +76,12 @@ export function LimitNotice({ item }: { item: Item }) {
   const limitedUntil = item.agent?.limitedUntil;
   if (!(item.hold?.reason === 'limit') && !limitedUntil) return null;
   // a light blue of its own, the colour of a card paused at the limit (`.card.limit-paused`); wrapping on a narrow screen
-  return <div className="limit-notice flex items-center gap-3 py-3 px-4 my-3 mx-0 text-[#28536a] bg-[#dceff8] border border-[#a9d8ec] rounded-[3px] [font:15px/1.4_var(--sans)] [@media(max-width:600px)]:flex-wrap">
+  return <div className="limit-notice flex items-center gap-3 py-3 px-4 my-3 mx-0 text-info-strong bg-info-subtle border border-info/30 rounded-[3px] [font:15px/1.4_var(--sans)] [@media(max-width:600px)]:flex-wrap">
     <HourglassMark />
     <div className="flex-1">{(item.hold?.reason === 'limit') ? t.limitPaused : t.limitedUntil(clock(limitedUntil!))}
       {(item.hold?.reason === 'limit') && limitedUntil && <div className="limit-reset mt-[3px] text-[13px]">{t.limitedUntil(clock(limitedUntil))}</div>}
     </div>
-    <button className="flex-[0_0_auto] text-[#28536a] border border-[#a2c8da] rounded-[3px] bg-[#f3faff] py-1.5 px-2.5 cursor-pointer [font:inherit] hover:bg-white [@media(max-width:600px)]:ml-[26px]" onClick={() => void api.act(item.id, { action: 'resume' }).catch(console.error)}><PlayMark /> {t.limitTryAgain}</button>
+    <button className="flex-[0_0_auto] text-info-strong border border-info/40 rounded-[3px] bg-surface py-1.5 px-2.5 cursor-pointer [font:inherit] hover:bg-card [@media(max-width:600px)]:ml-[26px]" onClick={() => void api.act(item.id, { action: 'resume' }).catch(console.error)}><PlayMark /> {t.limitTryAgain}</button>
   </div>;
 }
 
@@ -100,12 +100,12 @@ function playClass(kind: 'play' | 'archive' | 'turn', on: PlayOn, extra?: string
     extra,
     "absolute right-2.5 size-[26px] rounded-[8px] grid place-items-center cursor-pointer opacity-0 pointer-events-none [transition:opacity_.15s,transform_.15s] [transform:scale(max(1,calc(.9/var(--s))))] origin-[100%_100%]",
     on.chip ? 'bottom-[19px]' : 'bottom-2',
-    kind === 'play' && '[border:0] pl-0.5 pr-0 py-0 bg-working text-on-ink [box-shadow:var(--shadow)] hover:[filter:brightness(1.1)]',
-    kind === 'archive' && '[border:1px_solid_var(--glass-edge)] p-0 bg-panel text-ink [box-shadow:var(--shadow)] hover:[filter:brightness(1.1)]',
+    kind === 'play' && '[border:0] pl-0.5 pr-0 py-0 bg-working text-primary-foreground [box-shadow:var(--shadow)] hover:[filter:brightness(1.1)]',
+    kind === 'archive' && '[border:1px_solid_var(--glass-edge)] p-0 bg-surface text-foreground [box-shadow:var(--shadow)] hover:[filter:brightness(1.1)]',
     kind === 'archive' && extra === 'beside' && 'right-[42px]',
-    kind === 'turn' && '[border:1px_solid_var(--line)] p-0 bg-transparent text-muted-foreground [box-shadow:none] [&_.btn-mark]:m-0',
+    kind === 'turn' && '[border:1px_solid_var(--border)] p-0 bg-transparent text-muted-foreground [box-shadow:none] [&_.btn-mark]:m-0',
     kind === 'turn'
-      ? !on.held && 'group-hover/card:opacity-55 group-hover/card:pointer-events-auto hover:opacity-100 hover:pointer-events-auto hover:text-ink hover:border-muted-foreground focus-visible:opacity-100 focus-visible:pointer-events-auto focus-visible:text-ink focus-visible:border-muted-foreground no-hover:opacity-55 no-hover:pointer-events-auto'
+      ? !on.held && 'group-hover/card:opacity-55 group-hover/card:pointer-events-auto hover:opacity-100 hover:pointer-events-auto hover:text-foreground hover:border-muted-foreground focus-visible:opacity-100 focus-visible:pointer-events-auto focus-visible:text-foreground focus-visible:border-muted-foreground no-hover:opacity-55 no-hover:pointer-events-auto'
       : [!on.held && 'group-hover/card:opacity-100 group-hover/card:pointer-events-auto', 'no-hover:opacity-100 no-hover:pointer-events-auto'].filter(Boolean).join(' '),
   ]
     .filter(Boolean)
@@ -190,7 +190,7 @@ function MergedPair({ item, partner, showRepo }: { item: Item; partner?: Item; s
   return (
     <div className="merge-pair flex items-stretch h-full">
       {/* the card itself, pencilled in like a proposal */}
-      <div className={`merge-half ${HALF} [border:1.5px_dashed_var(--proposal)] bg-[color-mix(in_srgb,var(--proposal)_4%,var(--card))]`}>
+      <div className={`merge-half ${HALF} [border:1.5px_dashed_var(--proposal)] bg-proposal/4`}>
         <CardFace item={item} where={showRepo ? item.repo : undefined} half="first" />
       </div>
       <div className="merge-glue relative flex-1 flex items-center justify-center text-proposal before:content-[''] before:absolute before:left-1 before:right-1 before:top-[calc(50%-1.5px)] before:h-[3px] before:bg-proposal" title={stateLabel(item)}>
@@ -312,7 +312,7 @@ export function ProjectAgents({ project, item }: { project: ProjectInfo; item?: 
     // faint like the pause on a card and on the bubble in its conversation, full under the pointer
     <button
       type="button"
-      className="grid h-5 w-[26px] cursor-pointer place-items-center rounded-[3px] border after:absolute after:inset-0 after:content-[''] border-line bg-transparent p-0 text-muted-foreground opacity-0 transition-opacity duration-120 group-focus-within/project:opacity-55 group-hover/project:opacity-55 hover:border-muted-foreground! hover:text-ink! hover:opacity-100! focus-visible:border-muted-foreground! focus-visible:text-ink! focus-visible:opacity-100! data-highlighted:border-muted-foreground! data-highlighted:text-ink! data-highlighted:opacity-100! [@media(hover:none)]:opacity-55"
+      className="grid h-5 w-[26px] cursor-pointer place-items-center rounded-[3px] border after:absolute after:inset-0 after:content-[''] border-border bg-transparent p-0 text-muted-foreground opacity-0 transition-opacity duration-120 group-focus-within/project:opacity-55 group-hover/project:opacity-55 hover:border-muted-foreground! hover:text-foreground! hover:opacity-100! focus-visible:border-muted-foreground! focus-visible:text-foreground! focus-visible:opacity-100! data-highlighted:border-muted-foreground! data-highlighted:text-foreground! data-highlighted:opacity-100! [@media(hover:none)]:opacity-55"
       aria-label={`${label}: ${project.name}`} disabled={asked} onClick={click}>
       {pause ? <PauseMark /> : <PlayMark />}
     </button>
@@ -324,7 +324,7 @@ export function ProjectAgents({ project, item }: { project: ProjectInfo; item?: 
         // where a finger taps, the button's reach (its ::after) is the row's whole height and the end of the row the row leaves free, not the small mark
         'absolute top-1/2 right-2.5 flex h-5 w-[26px] -translate-y-1/2 items-center justify-center [@media(hover:none)]:inset-y-0 [@media(hover:none)]:right-0 [@media(hover:none)]:h-auto [@media(hover:none)]:w-11 [@media(hover:none)]:translate-y-0',
         pause &&
-          "before:h-0.5 before:w-[26px] before:animate-[draw_1.6s_cubic-bezier(.5,0,.3,1)_infinite] before:content-[''] before:[background:linear-gradient(90deg,var(--working)_0_50%,transparent_50%)_0_0/200%_100%_no-repeat,color-mix(in_srgb,var(--working)_22%,transparent)] group-focus-within/project:before:hidden group-hover/project:before:hidden [@media(hover:none)]:before:hidden",
+          "before:h-0.5 before:w-[26px] before:animate-[draw_1.6s_cubic-bezier(.5,0,.3,1)_infinite] before:content-[''] before:[background:linear-gradient(90deg,var(--working)_0_50%,transparent_50%)_0_0/200%_100%_no-repeat,--alpha(var(--working)/22%)] group-focus-within/project:before:hidden group-hover/project:before:hidden [@media(hover:none)]:before:hidden",
       )}
     >
       <Tooltip content={label} side="right">
@@ -453,7 +453,7 @@ function Pill({ restart, items, project, onOpen, elsewhere = [], go, going, say,
         <>
           <Spin flat />
           <span className="overflow-hidden text-ellipsis">{say}</span>
-          {until && <span className="text-[12px] font-normal text-ice opacity-80">{t.restart.until(clock(restart.deadline))}</span>}
+          {until && <span className="text-[12px] font-normal text-info opacity-80">{t.restart.until(clock(restart.deadline))}</span>}
         </>
       }
       action={
@@ -510,14 +510,14 @@ function Pill({ restart, items, project, onOpen, elsewhere = [], go, going, say,
 
 /** A pill with a tip, in the top bar or `flat` in the status bar (in the ice blue of a restart there); tighter at the right where a button ends it. */
 const tipPill = (flat: boolean, action: boolean) =>
-  cn('relative cursor-default', flat ? 'min-w-0 gap-2 pl-2.5 font-semibold text-ice' : 'pl-3.5', action ? 'pr-1' : 'pr-3.5');
+  cn('relative cursor-default', flat ? 'min-w-0 gap-2 pl-2.5 font-semibold text-info' : 'pl-3.5', action ? 'pr-1' : 'pr-3.5');
 
 /** The button that ends a pill with a tip: go ahead now, install, pull. */
 const goButton = (flat: boolean) =>
-  cn('cursor-pointer rounded-[3px] border-0 bg-chip px-[11px] py-1 text-[12px] font-semibold text-ink hover:bg-ink hover:text-background', flat && 'rounded-full px-2.5 py-[3px]');
+  cn('cursor-pointer rounded-[3px] border-0 bg-muted px-[11px] py-1 text-[12px] font-semibold text-foreground hover:bg-foreground hover:text-background', flat && 'rounded-full px-2.5 py-[3px]');
 
 /** The turning arrow of a restart that waits or goes. */
-const Spin = ({ flat }: { flat?: boolean }) => <span className={cn('inline-block animate-[spin_2.4s_linear_infinite] font-bold', flat ? 'text-ice' : 'text-working')}>↻</span>;
+const Spin = ({ flat }: { flat?: boolean }) => <span className={cn('inline-block animate-[spin_2.4s_linear_infinite] font-bold', flat ? 'text-info' : 'text-working')}>↻</span>;
 
 /**
  * A pill with a tip, in the top bar or `flat` in the status bar: its `label` shows the tip (`children`) while the pointer
@@ -803,10 +803,10 @@ const planClass =
 const planHeadClass = 'absolute inset-x-0 top-0 flex cursor-pointer items-center gap-2.5 py-4 pr-[22px] pl-3 has-[.card-more]:pr-2.5';
 /** Folds the plan to its head and back; always in sight, so it is found. */
 const planFoldClass =
-  'text-[14px] grid h-6 w-6 flex-none cursor-pointer place-items-center rounded-[3px] [border:0] bg-transparent p-0 -mr-1 text-muted-foreground hover:bg-card hover:text-ink [&_path]:[fill:none] [&_path]:[stroke:currentColor] [&_path]:[stroke-width:1.6] [&_path]:[stroke-linecap:round] [&_path]:[stroke-linejoin:round]';
+  'text-[14px] grid h-6 w-6 flex-none cursor-pointer place-items-center rounded-[3px] [border:0] bg-transparent p-0 -mr-1 text-muted-foreground hover:bg-card hover:text-foreground [&_path]:[fill:none] [&_path]:[stroke:currentColor] [&_path]:[stroke-width:1.6] [&_path]:[stroke-linecap:round] [&_path]:[stroke-linejoin:round]';
 /** Arranges the workstreams by their dependencies, or starts all planned ones; quiet until the pointer is on one; gone from afar. */
 const planHeadButtonClass =
-  'flex flex-none cursor-pointer items-center gap-1.5 rounded-[3px] border border-solid border-line bg-card py-1 pr-[11px] pl-[9px] text-[12px] font-medium [transition:background_.15s,color_.15s,border-color_.15s] hover:enabled:border-working hover:enabled:bg-working hover:enabled:text-on-ink [.z-far_&]:hidden';
+  'flex flex-none cursor-pointer items-center gap-1.5 rounded-[3px] border border-solid border-border bg-card py-1 pr-[11px] pl-[9px] text-[12px] font-medium [transition:background_.15s,color_.15s,border-color_.15s] hover:enabled:border-working hover:enabled:bg-working hover:enabled:text-primary-foreground [.z-far_&]:hidden';
 
 export const PlanView = memo(
   function PlanView({
@@ -912,7 +912,7 @@ export const PlanView = memo(
                   ref={(el) => void (el ? els.set(k.id, el) : els.delete(k.id))}
                   className={`${needsYou(k) ? 'mark yours opacity-100' : 'mark opacity-55'} mt-0.5 h-2.5 w-[18px] flex-none cursor-pointer rounded-[2px] [border:0] p-0 hover:opacity-100`}
                   aria-label={plain(k.title)}
-                  style={{ background: `var(--${shownState(k)})` }}
+                  style={{ background: stateVars(shownState(k))['--c'] }}
                   onPointerDown={own}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -1237,8 +1237,8 @@ export function Sheet({
     <Docked id="sheet" ref={box} on={!!on} className={reading ? 'reading w-(--read-w) pt-0 px-[30px] pb-10' : undefined}>
       {planCard?.plan?.file && reading && (
         <>
-          <div className="read-head sticky top-0 z-1 flex items-center gap-3 my-0 -mx-[30px] pt-3.5 pr-[58px] pb-3 pl-[30px] bg-[color-mix(in_srgb,var(--panel)_88%,transparent)] backdrop-blur-[16px] border-b border-b-line reduced:bg-panel">
-            <button className="back inline-flex items-center gap-1 [border:0] bg-chip rounded-[2px] py-1 px-3 cursor-pointer font-semibold text-[13px]" onClick={() => onRead(null)}>
+          <div className="read-head sticky top-0 z-1 flex items-center gap-3 my-0 -mx-[30px] pt-3.5 pr-[58px] pb-3 pl-[30px] bg-surface/88 backdrop-blur-[16px] border-b border-b-border reduced:bg-surface">
+            <button className="back inline-flex items-center gap-1 [border:0] bg-muted rounded-[2px] py-1 px-3 cursor-pointer font-semibold text-[13px]" onClick={() => onRead(null)}>
               <ChevronLeft size={14} aria-hidden />
               {t.plan.back}
             </button>
@@ -1286,14 +1286,14 @@ export function Sheet({
             </div>
           )}
           {history?.origin && (
-            <button className="origin flex flex-col items-start gap-0.5 w-full mt-3.5 py-[9px] px-3 border border-dashed border-idea rounded-[3px] bg-transparent text-ink text-[13px] text-left cursor-pointer hover:bg-chip" ref={ref(history.origin.id)} onClick={() => onOpen(history.origin!)}>
+            <button className="origin flex flex-col items-start gap-0.5 w-full mt-3.5 py-[9px] px-3 border border-dashed border-idea rounded-[3px] bg-transparent text-foreground text-[13px] text-left cursor-pointer hover:bg-muted" ref={ref(history.origin.id)} onClick={() => onOpen(history.origin!)}>
               <span className="hint text-[11px]">{t.fromIdea}</span>
               <span>{plain(history.origin.title.replace(/^Plan-Doc:\s*/, ''))}</span>
             </button>
           )}
           <ol className="list-none p-0 mt-4 mx-0 mb-0">
             {inOrder.map((k) => (
-              <li key={k.id} className="py-2 px-2.5 rounded-[3px] cursor-pointer text-[13px] hover:bg-chip" ref={ref(k.id)} onClick={() => onOpen(k)}>
+              <li key={k.id} className="py-2 px-2.5 rounded-[3px] cursor-pointer text-[13px] hover:bg-muted" ref={ref(k.id)} onClick={() => onOpen(k)}>
                 <CardFace
                   item={k}
                   size="xs"
@@ -1348,7 +1348,7 @@ export function Edges({ cam, targets, side, onOpen }: { cam: Cam; targets: { ite
         const title = plain(item.title);
         return (
           <button key={item.id} className={`edge s-${item.state} pointer-events-auto absolute box-border flex h-[30px] w-[min(300px,calc(100vw-var(--left,0px)-var(--side,0px)-60px))] cursor-pointer items-center gap-1.5 overflow-hidden rounded-none border-0 bg-card py-[5px] pr-[11px] pl-[7px] text-[13px] font-medium text-ellipsis whitespace-nowrap shadow-glass`} style={{ left: position.x, top: position.y, transform: 'translateY(-50%)' }} onClick={() => onOpen(item)}>
-            <span className="grid size-5 flex-none place-items-center rounded-[50%] bg-[var(--c)] text-[12px] text-on-ink" style={{ transform: `rotate(${position.angle}deg)` }}>
+            <span className="grid size-5 flex-none place-items-center rounded-[50%] bg-[var(--c)] text-[12px] text-primary-foreground" style={{ transform: `rotate(${position.angle}deg)` }}>
               ➜
             </span>
             {clip(title, 30)}
@@ -1436,7 +1436,7 @@ export function Minimap({
             width={b.w * k}
             height={b.h * k}
             rx={item.kind === 'plan' ? 1.5 : 0.5}
-            style={{ fill: item.kind === 'plan' ? 'var(--container-line)' : `var(--${snoozeOf(item) ? 'muted' : agentFailed(item) ? 'error' : asksYou(item) ? 'asking' : item.state})` }}
+            style={{ fill: item.kind === 'plan' ? 'var(--container-line)' : stateVars(snoozeOf(item) ? 'muted' : agentFailed(item) ? 'destructive' : asksYou(item) ? 'asking' : item.state)['--c'] }}
             opacity={item.kind === 'plan' || needsYou(item) ? 1 : 0.55}
           />
         ))}
@@ -1446,7 +1446,7 @@ export function Minimap({
           width={((innerWidth - side.left - side.right) / cam.s) * k}
           height={(innerHeight / cam.s) * k}
           fill="none"
-          style={{ stroke: 'var(--ink)' }}
+          style={{ stroke: 'var(--foreground)' }}
           strokeWidth={1.2}
           rx={1}
           opacity={0.5}

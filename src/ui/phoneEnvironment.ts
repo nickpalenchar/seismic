@@ -125,14 +125,14 @@ export const viewClass =
  * own microphone then). Under a panel lower than the screen it scrolls on until all of it can stand
  * above the panel (`--ph-panel`: the panel's height).
  */
-export const pageClass = `${viewClass} inset-0 overflow-y-auto pb-[calc(157px+env(safe-area-inset-bottom))] ph-landscape:pb-[calc(24px+env(safe-area-inset-bottom))] [&:has(~.ph-panel)]:pb-[max(calc(157px+env(safe-area-inset-bottom)),calc(var(--ph-panel,0px)+20px))] ph-landscape:[&:has(~.ph-panel)]:pb-[max(calc(24px+env(safe-area-inset-bottom)),calc(var(--ph-panel,0px)+20px))] after:content-[''] after:fixed after:inset-x-0 after:bottom-0 after:h-[calc(87px+env(safe-area-inset-bottom))] after:z-4 after:bg-[linear-gradient(transparent,var(--bg)_65%)] after:pointer-events-none ph-landscape:after:hidden [.ph-kb_&]:after:hidden`;
+export const pageClass = `${viewClass} inset-0 overflow-y-auto pb-[calc(157px+env(safe-area-inset-bottom))] ph-landscape:pb-[calc(24px+env(safe-area-inset-bottom))] [&:has(~.ph-panel)]:pb-[max(calc(157px+env(safe-area-inset-bottom)),calc(var(--ph-panel,0px)+20px))] ph-landscape:[&:has(~.ph-panel)]:pb-[max(calc(24px+env(safe-area-inset-bottom)),calc(var(--ph-panel,0px)+20px))] after:content-[''] after:fixed after:inset-x-0 after:bottom-0 after:h-[calc(87px+env(safe-area-inset-bottom))] after:z-4 after:bg-[linear-gradient(transparent,var(--background)_65%)] after:pointer-events-none ph-landscape:after:hidden [.ph-kb_&]:after:hidden`;
 
 /**
  * The bar at a view's top, across the screen and sticking while the page scrolls under it; with the
  * phone turned slimmer and reaching across the microphone's strip. `ph-bar` stays for the chats' head in it.
  */
 export const barClass =
-  'ph-bar sticky top-0 z-5 flex items-center gap-2.5 min-h-[52px] -mx-3.5 px-3.5 bg-background border-b border-line ph-landscape:min-h-[42px] ph-landscape:mr-[calc(-1*var(--ph-side))] ph-landscape:pr-[max(14px,env(safe-area-inset-right))]';
+  'ph-bar sticky top-0 z-5 flex items-center gap-2.5 min-h-[52px] -mx-3.5 px-3.5 bg-background border-b border-border ph-landscape:min-h-[42px] ph-landscape:mr-[calc(-1*var(--ph-side))] ph-landscape:pr-[max(14px,env(safe-area-inset-right))]';
 /** The list's and the card's bar; the list's scrolls away with the phone turned. */
 export const pageBarClass = `${barClass} py-1.5 ph-landscape:py-[3px]`;
 

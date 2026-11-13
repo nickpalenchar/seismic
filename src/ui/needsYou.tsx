@@ -52,7 +52,7 @@ export function NeedsYouSheet({ on, entries, current, open, onGo, onReply, isRea
               <button
                 type="button"
                 className={cn(
-                  'ny-head flex items-center gap-2 w-full p-2 [border:0] rounded-[6px] bg-transparent text-[14px] font-semibold text-ink cursor-pointer text-left hover:bg-chip [&>svg]:flex-none [&>svg]:text-muted-foreground [&>svg]:[transition:transform_.15s]',
+                  'ny-head flex items-center gap-2 w-full p-2 [border:0] rounded-[6px] bg-transparent text-[14px] font-semibold text-foreground cursor-pointer text-left hover:bg-muted [&>svg]:flex-none [&>svg]:text-muted-foreground [&>svg]:[transition:transform_.15s]',
                   open && 'open [&>svg]:[transform:rotate(90deg)]',
                 )}
                 aria-expanded={open}

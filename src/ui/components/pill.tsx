@@ -28,8 +28,8 @@ function Pill({ variant, size, className, ...props }: ComponentProps<'div'> & Pi
 }
 
 const onTones = {
-  chip: 'data-[on]:bg-chip data-[on]:text-ink',
-  ink: 'data-[on]:bg-ink data-[on]:text-background',
+  chip: 'data-[on]:bg-muted data-[on]:text-foreground',
+  ink: 'data-[on]:bg-foreground data-[on]:text-background',
 };
 
 function PillButton({ variant, size, on, tone = 'chip', className, ...props }: ComponentProps<'button'> & PillProps & { on?: boolean; tone?: keyof typeof onTones }) {

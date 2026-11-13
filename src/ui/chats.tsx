@@ -111,7 +111,7 @@ export function ChatsHead({ title, project, projectName, chat, chats, talk, onPr
         createPortal(
           // a portal's events bubble through the head to the panel's grip: a press in the list is no drag
           <div className="chats-layer contents" onPointerDown={(e) => e.stopPropagation()}>
-            <div className="chats-scrim absolute inset-0 z-30 bg-dim animate-[fade_.2s_ease-out]" onClick={() => setOpen(false)} />
+            <div className="chats-scrim absolute inset-0 z-30 bg-scrim animate-[fade_.2s_ease-out]" onClick={() => setOpen(false)} />
             <div className={drawerClass} ref={drawer} role="dialog" aria-label={t.koordinator.chats}>
               <div className="chats-top flex items-center justify-between pl-1.5 text-[16px]">
                 <b>{t.koordinator.chats}</b>
@@ -157,7 +157,7 @@ export function ChatsHead({ title, project, projectName, chat, chats, talk, onPr
                         {when(c.at)}
                         {c.projectName && ` · ${c.projectName}`}
                         {c.unread ? (
-                          <span className="chat-unread ml-auto min-w-[18px] py-px px-1.5 rounded-[9px] bg-waiting text-on-ink text-[11px] font-semibold text-center" title={t.koordinator.unreadCount(c.unread)}>
+                          <span className="chat-unread ml-auto min-w-[18px] py-px px-1.5 rounded-[9px] bg-waiting text-primary-foreground text-[11px] font-semibold text-center" title={t.koordinator.unreadCount(c.unread)}>
                             {c.unread}
                           </span>
                         ) : null}
@@ -184,13 +184,13 @@ const headClass =
   'chats-head flex items-center gap-1.5 [.sheet>&]:mt-0 [.sheet>&]:mx-0 [.sheet>&]:mb-2 [.sheet>&_h2]:m-0 [.sheet>&_h2]:flex-1 [.sheet>&_h2]:min-w-0 [.ph-bar_&]:flex-1 [.ph-bar_&]:min-w-0 [.ph-bar_&]:gap-2 [.ph-bar_&_.ph-word]:flex-1 [.ph-bar_&_.ph-word]:min-w-0';
 /** Its buttons, the icon alone; with a dot while an answer waits in another chat. */
 const btnClass =
-  'chats-btn inline-flex items-center justify-center relative size-8 flex-none p-0 [border:0] rounded-[3px] bg-transparent text-muted-foreground cursor-pointer hover:not-disabled:bg-chip hover:not-disabled:text-ink disabled:opacity-40 disabled:cursor-default [.ph-bar_&]:size-10';
+  'chats-btn inline-flex items-center justify-center relative size-8 flex-none p-0 [border:0] rounded-[3px] bg-transparent text-muted-foreground cursor-pointer hover:not-disabled:bg-muted hover:not-disabled:text-foreground disabled:opacity-40 disabled:cursor-default [.ph-bar_&]:size-10';
 /** The earlier chats, slid out from the left over the sheet or the panel. */
 const drawerClass =
-  'chats-drawer absolute top-0 bottom-0 left-0 z-31 w-[min(320px,86%)] flex flex-col gap-2.5 pt-4 px-3 pb-[calc(16px+env(safe-area-inset-bottom))] bg-panel border-r border-r-line [box-shadow:var(--lift)] overflow-y-auto overscroll-contain animate-[chats-in_.25s_cubic-bezier(.3,.9,.3,1)] text-[14px] [&_.hint]:[margin:4px_6px]';
+  'chats-drawer absolute top-0 bottom-0 left-0 z-31 w-[min(320px,86%)] flex flex-col gap-2.5 pt-4 px-3 pb-[calc(16px+env(safe-area-inset-bottom))] bg-surface border-r border-r-border [box-shadow:var(--lift)] overflow-y-auto overscroll-contain animate-[chats-in_.25s_cubic-bezier(.3,.9,.3,1)] text-[14px] [&_.hint]:[margin:4px_6px]';
 /** A chat in the list; the one open now tinted. */
-const rowClass = 'chat-row flex flex-col items-stretch gap-[3px] w-full py-2 px-2.5 [border:0] rounded-[4px] bg-transparent text-ink text-left cursor-pointer hover:bg-chip';
-const onClass = 'on bg-[color-mix(in_srgb,var(--working)_14%,transparent)]!';
+const rowClass = 'chat-row flex flex-col items-stretch gap-[3px] w-full py-2 px-2.5 [border:0] rounded-[4px] bg-transparent text-foreground text-left cursor-pointer hover:bg-muted';
+const onClass = 'on bg-working/14!';
 const titleClass = 'chat-title overflow-hidden text-ellipsis whitespace-nowrap';
 const metaClass = 'chat-meta flex items-center gap-1.5 text-[12px] text-muted-foreground';
 

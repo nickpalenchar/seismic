@@ -153,8 +153,8 @@ export interface CardLookOptions {
 const GLASS = 'inset 0 1px 0 var(--glass-hi), var(--shadow)';
 const GLASS_LIFT = 'inset 0 1px 0 var(--glass-hi), var(--lift)';
 const frame = (ink: string, width: string, shadow: string) => `0 0 0 ${width} var(--${ink}), var(--${shadow})`;
-const TURN = '0 0 0 2px var(--waiting), 0 0 22px -4px rgba(var(--waiting-rgb), .55), var(--shadow)';
-const TURN_LIFT = '0 0 0 2px var(--waiting), 0 0 26px -4px rgba(var(--waiting-rgb), .65), var(--lift)';
+const TURN = '0 0 0 2px var(--waiting), 0 0 22px -4px var(--waiting-glow), var(--shadow)';
+const TURN_LIFT = '0 0 0 2px var(--waiting), 0 0 26px -4px var(--waiting-glow), var(--lift)';
 
 function shadows(f: CardFlags, o: CardLookOptions): Rule<string>[] {
   const turn = f.idea && f.yourTurn;
@@ -169,8 +169,8 @@ function shadows(f: CardFlags, o: CardLookOptions): Rule<string>[] {
     // approved and landing, or its worker taking in the owner's answer: no longer the owner's turn
     [3, f.waiting && f.underway, GLASS],
     [3, f.waiting && f.answering, GLASS],
-    [3, f.waiting && f.failed, frame('error', '2px', 'shadow')],
-    [4, (at) => at.hover && f.waiting && f.failed, frame('error', '2px', 'lift')],
+    [3, f.waiting && f.failed, frame('destructive', '2px', 'shadow')],
+    [4, (at) => at.hover && f.waiting && f.failed, frame('destructive', '2px', 'lift')],
     // snoozed: pushed back, no frame of the owner's turn
     [2, f.snoozed, GLASS],
     [3, f.snoozed && f.waiting, 'var(--shadow)'],
@@ -187,54 +187,54 @@ function shadows(f: CardFlags, o: CardLookOptions): Rule<string>[] {
     // zoomed out, the owner's turn framed wider
     [5, (at) => at.far && f.waiting && !f.underway && !f.answering, frame('waiting', '5px', 'shadow')],
     [4, (at) => at.far && turn, frame('waiting', '5px', 'shadow')],
-    [4, (at) => at.far && f.waiting && f.failed, frame('error', '5px', 'shadow')],
+    [4, (at) => at.far && f.waiting && f.failed, frame('destructive', '5px', 'shadow')],
     // the cards around the one under the pointer, over every state but the frames of the owner's turn
     [2, !!o.dep, '0 0 0 2.5px var(--proposal), var(--lift)'],
     [5, f.snoozed && !!o.dep, '0 0 0 2.5px var(--proposal), var(--lift)'],
     [2, o.dep === 'before', '0 0 0 2.5px var(--waiting), var(--lift)'],
     [5, f.snoozed && o.dep === 'before', '0 0 0 2.5px var(--waiting), var(--lift)'],
-    [3, o.place === 'activity' && !!o.on, '0 0 0 2px color-mix(in srgb, var(--working) 55%, transparent), var(--shadow)'],
+    [3, o.place === 'activity' && !!o.on, '0 0 0 2px var(--working-ring), var(--shadow)'],
   ];
 }
 
 /** The state's colour (`--c`): its tab, its state line, the frame of its turn. */
 const tints = (f: CardFlags): Rule<string>[] => [
-  [1, f.state === 'planned', '[--c:var(--planned)]'],
-  [1, f.state === 'working', '[--c:var(--working)]'],
-  [1, f.state === 'waiting', '[--c:var(--waiting)]'],
-  [1, f.state === 'approved', '[--c:var(--approved)]'],
-  [1, f.state === 'inPr', '[--c:var(--inPr)]'],
-  [1, f.doneLive, '[--c:var(--live)]'],
-  [1, f.proposal, '[--c:var(--proposal)]'],
-  [1, f.idea, '[--c:var(--idea)]'],
-  [2, f.q, '[--c:var(--question)]'],
-  [3, f.q && f.doneLive, '[--c:var(--question)]'],
+  [1, f.state === 'planned', 'c-planned'],
+  [1, f.state === 'working', 'c-working'],
+  [1, f.state === 'waiting', 'c-waiting'],
+  [1, f.state === 'approved', 'c-approved'],
+  [1, f.state === 'inPr', 'c-inPr'],
+  [1, f.doneLive, 'c-live'],
+  [1, f.proposal, 'c-proposal'],
+  [1, f.idea, 'c-idea'],
+  [2, f.q, 'c-question'],
+  [3, f.q && f.doneLive, 'c-question'],
   // done: muted green
-  [2, f.doneLive, '[--c:color-mix(in_srgb,var(--approved)_60%,var(--card))]'],
-  [3, f.waiting && f.underway, '[--c:var(--approved)]'],
-  [3, f.waiting && f.answering, '[--c:var(--working)]'],
-  [3, f.waiting && f.failed, '[--c:var(--error)]'],
-  [2, f.snoozed, '[--c:var(--muted-foreground)]'],
-  [2, f.restartPaused, '[--c:var(--restart)]'],
-  [2, f.restartQueued, '[--c:var(--restart)]'],
-  [2, f.mergeProposed, '[--c:var(--proposal)]'],
-  [2, f.asking, '[--c:var(--asking)]'],
-  [2, f.reviewing, '[--c:var(--reviewing)]'],
-  [3, f.waiting && f.reviewing, '[--c:var(--reviewing)]'],
+  [2, f.doneLive, 'c-approved'],
+  [3, f.waiting && f.underway, 'c-approved'],
+  [3, f.waiting && f.answering, 'c-working'],
+  [3, f.waiting && f.failed, 'c-destructive'],
+  [2, f.snoozed, 'c-muted'],
+  [2, f.restartPaused, 'c-restart'],
+  [2, f.restartQueued, 'c-restart'],
+  [2, f.mergeProposed, 'c-proposal'],
+  [2, f.asking, 'c-asking'],
+  [2, f.reviewing, 'c-reviewing'],
+  [3, f.waiting && f.reviewing, 'c-reviewing'],
 ];
 
 /** The card's stock: ideas on coloured card, a Question tinted blue-grey, finished work green, a proposal none. */
 const stocks = (f: CardFlags): Rule<string>[] => [
   [1, true, 'bg-card'],
-  [2, f.idea, 'bg-[color-mix(in_srgb,var(--idea)_9%,var(--card))]'],
-  [2, f.q, 'bg-[color-mix(in_srgb,var(--question)_8%,var(--card))]'],
-  [3, f.q && f.doneLive, 'bg-[color-mix(in_srgb,var(--question)_8%,var(--card))]'],
-  [2, f.doneLive, 'bg-[color-mix(in_srgb,var(--approved)_13%,var(--card))]'],
+  [2, f.idea, 'bg-idea/9'],
+  [2, f.q, 'bg-question/8'],
+  [3, f.q && f.doneLive, 'bg-question/8'],
+  [2, f.doneLive, 'bg-approved/13'],
   [2, f.proposal, 'bg-transparent'],
   [2, f.mergedPair, 'bg-transparent'],
-  [2, f.snoozed, 'bg-[color-mix(in_srgb,var(--muted-foreground)_9%,var(--card))]'],
-  [2, f.restartPaused, 'bg-[color-mix(in_srgb,var(--restart)_16%,var(--card))]'],
-  [2, f.restartQueued, 'bg-[color-mix(in_srgb,var(--restart)_16%,var(--card))]'],
+  [2, f.snoozed, 'bg-muted-foreground/9'],
+  [2, f.restartPaused, 'bg-restart/16'],
+  [2, f.restartQueued, 'bg-restart/16'],
 ];
 
 const opacities = (f: CardFlags, o: CardLookOptions): Rule<string>[] => [
@@ -274,7 +274,7 @@ const blurs = (f: CardFlags, o: CardLookOptions): Rule<string>[] => [
 const tabs = (f: CardFlags): Rule<string>[] => [
   [1, true, 'before:[background:var(--c)]'],
   [2, f.queued, 'before:[background:repeating-linear-gradient(90deg,var(--c)_0_8px,transparent_8px_13px)]'],
-  [2, f.limitPaused, 'before:[background:#a9d8ec]'],
+  [2, f.limitPaused, 'before:bg-info/30'],
 ];
 
 // what every card is: a pane of glass with soft corners, the state a glowing tab at its top edge (`--c`)
@@ -294,7 +294,7 @@ export function cardLook(item: Item | null, o: CardLookOptions = {}): { classNam
     CARD,
     pick(tints(f)),
     pick(stocks(f)),
-    f.proposal && !f.mergedPair && 'hover:bg-[color-mix(in_srgb,var(--proposal)_5%,transparent)]',
+    f.proposal && !f.mergedPair && 'hover:bg-proposal/5',
     // zoomed far out or moving (frost.ts), and under reduced motion, no blur behind the card: each blurred card is a
     // layer the GPU re-samples on every frame of a move, and with ~100 on screen that drops frames (a fifth with a
     // GPU, more than half without one); many small ones shimmer zoomed out. --unblurred stands in for the blur's
@@ -313,8 +313,8 @@ export function cardLook(item: Item | null, o: CardLookOptions = {}): { classNam
     hoverLift ? 'hover:[transform:translateY(-2px)]' : (o.dragging && (f.proposal || o.place === 'phone' || o.place === 'activity')) && 'hover:[transform:none]',
     o.pop && 'animate-[pop_.55s_cubic-bezier(.2,1.4,.4,1)]',
     o.dep === 'before' && '[--dep:var(--waiting)]',
-    o.place === 'phone' && 'relative flex flex-col w-full text-left text-ink active:[transform:translateY(1px)]',
-    o.place === 'activity' && 'relative block w-full h-auto min-h-0 text-left text-ink',
+    o.place === 'phone' && 'relative flex flex-col w-full text-left text-foreground active:[transform:translateY(1px)]',
+    o.place === 'activity' && 'relative block w-full h-auto min-h-0 text-left text-foreground',
     o.place === 'activity' && o.gone && 'cursor-default',
   ]
     .filter(Boolean)
@@ -324,7 +324,7 @@ export function cardLook(item: Item | null, o: CardLookOptions = {}): { classNam
 
 /** The tag over a card that names how it stands to the card under the pointer ("Waits for", "Comes first"), in the colour of its wait. */
 export const depTagClass =
-  'dep-tag absolute left-[14px] top-[-10px] py-px px-2 rounded-[2px] text-[11px] font-semibold bg-[var(--dep,var(--proposal))] text-on-ink whitespace-nowrap pointer-events-none';
+  'dep-tag absolute left-[14px] top-[-10px] py-px px-2 rounded-[2px] text-[11px] font-semibold bg-[var(--dep,var(--proposal))] text-primary-foreground whitespace-nowrap pointer-events-none';
 
 /** Where the card's face is drawn (M): which card's look it wears, where, and as which half of a merge. */
 export interface FaceMPlace {
@@ -412,15 +412,15 @@ export function stateClass(f: CardFlags, p: FaceMPlace & { doingNow?: boolean })
     'state flex flex-wrap items-center leading-[1.2]',
     where,
     phone ? 'text-[13px]' : activity ? 'text-[11.5px]' : 'text-[12px]',
-    p.subtle ? 'text-muted-foreground font-normal' : 'font-semibold text-[color-mix(in_srgb,var(--c),var(--ink)_var(--state-text-ink))]',
+    p.subtle ? 'text-muted-foreground font-normal' : 'font-semibold text-c-strong',
     pick<string>([
-      [2, p.half !== undefined, '[--c:var(--proposal)]'],
-      [3, f.finishing, '[--c:var(--working)]'],
-      [3, f.paused, '[--c:var(--muted-foreground)]'],
-      [3, f.snoozed, '[--c:var(--muted-foreground)]'],
-      [3, f.mergeProposed, '[--c:var(--proposal)]'],
-      [3, f.resolving, '[--c:var(--waiting)]'],
-      [3, f.limitPaused, '[--c:#56859d]'],
+      [2, p.half !== undefined, 'c-proposal'],
+      [3, f.finishing, 'c-working'],
+      [3, f.paused, 'c-muted'],
+      [3, f.snoozed, 'c-muted'],
+      [3, f.mergeProposed, 'c-proposal'],
+      [3, f.resolving, 'c-waiting'],
+      [3, f.limitPaused, 'c-info'],
     ]),
     f.queued && 'italic',
     p.chip && 'hidden',
@@ -437,8 +437,8 @@ export function stateClass(f: CardFlags, p: FaceMPlace & { doingNow?: boolean })
       ? '[&_:is(.hourglass-mark,.merge-mark)]:-mr-0.5 [&_:is(.clock-mark,.question-mark,.restart-mark)]:mr-[5px] [&_:is(.clock-mark,.question-mark,.restart-mark)]:align-[-1px] [&_.doing]:whitespace-pre [&_.since]:text-muted-foreground [&_.since]:font-medium [&_.since]:whitespace-pre'
       : '[&_:is(.clock-mark,.question-mark,.restart-mark,.hourglass-mark,.merge-mark)]:-mr-0.5',
     // the moving line: a pencil stroke being drawn, again and again
-    // (its faint track comes through a custom property: a color-mix() in the pseudo-element's own background did not apply)
-    line && !still && "[--track:color-mix(in_srgb,var(--c)_22%,transparent)] after:content-[''] after:flex-none after:w-9 after:mr-[100%] after:[background:linear-gradient(90deg,var(--c)_0_50%,transparent_50%)_0_0/200%_100%_no-repeat,var(--track)] after:animate-[draw_1.6s_cubic-bezier(.5,0,.3,1)_infinite]",
+    // (its faint track comes through a custom property: a colour mix in the pseudo-element's own background did not apply)
+    line && !still && "[--track:--alpha(var(--c)/22%)] after:content-[''] after:flex-none after:w-9 after:mr-[100%] after:[background:linear-gradient(90deg,var(--c)_0_50%,transparent_50%)_0_0/200%_100%_no-repeat,var(--track)] after:animate-[draw_1.6s_cubic-bezier(.5,0,.3,1)_infinite]",
     line && !still && (p.doingNow && !thick ? 'after:h-px' : 'after:h-0.5'),
     line && !still && p.doingNow && (phone || activity ? 'after:absolute after:left-0 after:bottom-0' : 'after:absolute after:left-0 after:bottom-[-5px]'),
     line && !still && phone && !p.doingNow && 'after:ml-[7px]',
@@ -452,11 +452,11 @@ export const stateTextClass = (p: FaceMPlace) => (p.place === 'phone' ? 'state-t
 
 /** M: the pin at the card's corner, in the colour of what the owner is asked (left out where the list says so already, and on a merge's halves). */
 export const pinClass = (f: CardFlags, p: FaceMPlace) =>
-  [f.failed ? '[--pin:var(--error)]' : f.asking && '[--pin:var(--asking)]', (p.half || p.place === 'phone') && 'hidden'].filter(Boolean).join(' ') || undefined;
+  [f.failed ? '[--pin:var(--destructive)]' : f.asking && '[--pin:var(--asking)]', (p.half || p.place === 'phone') && 'hidden'].filter(Boolean).join(' ') || undefined;
 
 // ---------- the faces in lists, S and XS (their state's colour comes as --c on the face)
 
-const LIST_TITLE = 'f-ttl flex min-w-0 [font-family:var(--font)] font-semibold text-ink [overflow-wrap:anywhere] [.inbox-entry.unread_&]:font-bold [.inbox-entry.read_&]:font-normal';
+const LIST_TITLE = 'f-ttl flex min-w-0 [font-family:var(--font)] font-semibold text-foreground [overflow-wrap:anywhere] [.inbox-entry.unread_&]:font-bold [.inbox-entry.read_&]:font-normal';
 
 export const faceClass = (size: 's' | 'xs', subtle?: boolean) =>
   ['face flex flex-col min-w-0 text-left', size === 's' ? 'face-s' : 'face-xs gap-0.5', subtle && 'subtle relative'].filter(Boolean).join(' ');

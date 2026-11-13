@@ -31,8 +31,8 @@ export function PromptInputBody({ className, dictating, ...props }: ComponentPro
       data-slot="prompt-input-body"
       data-dictating={dictating || undefined}
       className={cn(
-        'flex min-w-0 flex-[1_1_100%] flex-col gap-1 rounded-xl border border-line bg-card p-2 shadow-sm focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50',
-        'group-data-[dropping]/pi:border-dashed group-data-[dropping]/pi:border-working group-data-[dropping]/pi:bg-[color-mix(in_srgb,var(--working)_6%,var(--card))]',
+        'flex min-w-0 flex-[1_1_100%] flex-col gap-1 rounded-xl border border-border bg-card p-2 shadow-sm focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50',
+        'group-data-[dropping]/pi:border-dashed group-data-[dropping]/pi:border-working group-data-[dropping]/pi:bg-working/6',
         'data-[dictating]:border-working data-[dictating]:shadow-[0_0_0_1px_var(--working)] data-[dictating]:focus-within:border-working',
         className,
       )}
@@ -48,7 +48,7 @@ export function PromptInputTextarea({ className, ref, ...props }: ComponentProps
       data-slot="prompt-input-textarea"
       ref={ref}
       rows={1}
-      className={cn('min-h-0 max-h-[30vh] min-w-0 w-full box-border resize-none border-0 bg-transparent px-1 py-1.5 text-[14px] leading-[1.45] text-ink outline-none placeholder:text-muted-foreground/80', className)}
+      className={cn('min-h-0 max-h-[30vh] min-w-0 w-full box-border resize-none border-0 bg-transparent px-1 py-1.5 text-[14px] leading-[1.45] text-foreground outline-none placeholder:text-muted-foreground/80', className)}
       {...props}
     />
   );
@@ -67,7 +67,7 @@ export function PromptInputButton({ className, active, onMouseDown, ...props }: 
       data-active={active || undefined}
       variant="ghost"
       // held by a finger (the phone's microphone in a field): no long-press menu, no text selected
-      className={cn('size-[26px] rounded-lg text-muted-foreground [-webkit-touch-callout:none] select-none touch-none hover:not-disabled:text-ink data-[active]:bg-working data-[active]:text-on-ink data-[active]:hover:not-disabled:bg-working data-[active]:hover:not-disabled:text-on-ink', className)}
+      className={cn('size-[26px] rounded-lg text-muted-foreground [-webkit-touch-callout:none] select-none touch-none hover:not-disabled:text-foreground data-[active]:bg-working data-[active]:text-primary-foreground data-[active]:hover:not-disabled:bg-working data-[active]:hover:not-disabled:text-primary-foreground', className)}
       {...props}
       onMouseDown={(e) => {
         // Keep the keyboard and layout steady until click opens the picker (or another tool).
@@ -95,7 +95,7 @@ export function PromptInputHint({ className, tone, ...props }: ComponentProps<'d
   return (
     <div
       data-slot="prompt-input-hint"
-      className={cn('-mt-1 basis-full text-[11.5px] text-muted-foreground', tone === 'working' && 'text-working [&_b]:text-working', tone === 'warn' && 'text-warn', className)}
+      className={cn('-mt-1 basis-full text-[11.5px] text-muted-foreground', tone === 'working' && 'text-working [&_b]:text-working', tone === 'warn' && 'text-warning', className)}
       {...props}
     />
   );

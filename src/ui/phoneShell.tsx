@@ -13,7 +13,7 @@ import { type ActDone, Detail, type Pending, TalkElsewhere, useEvents } from './
 import { cardDraft, fieldOn, focusedDraft, keepDrafts, MIC_DRAFT, obeyaDraft } from './draft';
 import { plain } from './markdown';
 import { Cards, KoordinatorAgent } from './message';
-import { CardFace, cardLook, shownState } from './card';
+import { CardFace, cardLook, shownState, stateVars } from './card';
 import { TalkIcon } from './parts';
 import { videoOf } from './spot';
 import { failText, t } from './strings';
@@ -492,7 +492,7 @@ export function usePhoneShell(loaded: ProjectInfo[], { follow = false }: { follo
           id="ph-card"
           className={cn(pageClass, "before:content-[''] before:fixed before:inset-x-0 before:top-0 before:h-1 before:bg-(--c) before:z-6", above && 'top-(--ph-top) pt-0 before:top-(--ph-top)')}
           ref={cardRef}
-          style={i ? ({ '--c': `var(--${shownState(i)})` } as React.CSSProperties) : undefined}
+          style={i ? (stateVars(shownState(i)) as React.CSSProperties) : undefined}
         >
           {header}
           {banner}
@@ -601,10 +601,10 @@ export function TalkButton({ label, shown, n, count, working, onClick }: { label
       on={shown}
       className={cn(
         phoneControl,
-        'left-[max(14px,env(safe-area-inset-left))] px-3.5 text-ink active:[transform:translateY(1px)] active:shadow-none ph-landscape:bottom-[calc(14px+env(safe-area-inset-bottom))] [&_svg]:size-5',
+        'left-[max(14px,env(safe-area-inset-left))] px-3.5 text-foreground active:[transform:translateY(1px)] active:shadow-none ph-landscape:bottom-[calc(14px+env(safe-area-inset-bottom))] [&_svg]:size-5',
         // the conversation shows an agent at work: the moving line of a working card, along the button's foot
         working &&
-          "after:absolute after:inset-x-2.5 after:bottom-[5px] after:h-0.5 after:animate-[draw_1.6s_cubic-bezier(.5,0,.3,1)_infinite] after:content-[''] after:[background:linear-gradient(90deg,var(--working)_0_50%,transparent_50%)_0_0/200%_100%_no-repeat,color-mix(in_srgb,var(--working)_22%,transparent)]",
+          "after:absolute after:inset-x-2.5 after:bottom-[5px] after:h-0.5 after:animate-[draw_1.6s_cubic-bezier(.5,0,.3,1)_infinite] after:content-[''] after:[background:linear-gradient(90deg,var(--working)_0_50%,transparent_50%)_0_0/200%_100%_no-repeat,--alpha(var(--working)/22%)]",
       )}
       aria-expanded={shown}
       aria-label={shown ? t.phone.closeTalk : label}

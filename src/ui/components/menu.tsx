@@ -57,7 +57,7 @@ export function MenuContent({ className, children, onCloseAutoFocus, ...props }:
       <DropdownMenu.Content
         data-slot="dropdown-menu-content"
         className={cn(
-          'z-60 max-h-[min(var(--radix-dropdown-menu-content-available-height),calc(100vh-16px))] overflow-auto rounded-[3px] bg-panel text-ink shadow-lift outline-none',
+          'z-60 max-h-[min(var(--radix-dropdown-menu-content-available-height),calc(100vh-16px))] overflow-auto rounded-[3px] bg-surface text-foreground shadow-lift outline-none',
           className,
         )}
         sideOffset={6}
@@ -78,7 +78,7 @@ export function MenuContent({ className, children, onCloseAutoFocus, ...props }:
 }
 
 const item =
-  'flex w-full cursor-pointer items-center rounded-[3px] border-0 bg-transparent px-2 py-[5px] text-left text-[13px] text-ink normal-case tracking-normal outline-none data-highlighted:bg-chip data-disabled:cursor-default data-disabled:opacity-50';
+  'flex w-full cursor-pointer items-center rounded-[3px] border-0 bg-transparent px-2 py-[5px] text-left text-[13px] text-foreground normal-case tracking-normal outline-none data-highlighted:bg-muted data-disabled:cursor-default data-disabled:opacity-50';
 
 export function MenuItem({ asChild, className, children, ...props }: ComponentProps<typeof DropdownMenu.Item>) {
   return (
@@ -95,7 +95,7 @@ export function MenuRadioGroup(props: ComponentProps<typeof DropdownMenu.RadioGr
 export function MenuRadioItem({ className, children, ...props }: ComponentProps<typeof DropdownMenu.RadioItem>) {
   return (
     <DropdownMenu.RadioItem data-slot="dropdown-menu-radio-item" asChild {...props}>
-      <button type="button" className={cn(item, 'data-[state=checked]:bg-chip data-[state=checked]:font-semibold', className)}>
+      <button type="button" className={cn(item, 'data-[state=checked]:bg-muted data-[state=checked]:font-semibold', className)}>
         {children as ReactNode}
       </button>
     </DropdownMenu.RadioItem>

@@ -30,14 +30,14 @@ export const talkClass =
  * microphone; while the keyboard is up the field has its own microphone and stands right above the
  * keyboard, and with the phone turned the microphone's strip is empty then, so the field takes its width.
  */
-const panelClass = `${viewClass} ph-panel inset-x-0 top-[calc(100%*(1-var(--ph-h)))] bottom-auto h-[calc(100%*var(--ph-h))] z-20 overflow-hidden flex flex-col pb-[calc(87px+env(safe-area-inset-bottom))] ph-landscape:pb-[calc(24px+env(safe-area-inset-bottom))] [.ph-kb_&]:pb-2.5 ph-landscape:[.ph-kb_&]:pr-[max(14px,env(safe-area-inset-right))] bg-background shadow-[0_-6px_24px_rgba(0,0,0,.12)] animate-[ph-up_.22s_ease-out]`;
+const panelClass = `${viewClass} ph-panel inset-x-0 top-[calc(100%*(1-var(--ph-h)))] bottom-auto h-[calc(100%*var(--ph-h))] z-20 overflow-hidden flex flex-col pb-[calc(87px+env(safe-area-inset-bottom))] ph-landscape:pb-[calc(24px+env(safe-area-inset-bottom))] [.ph-kb_&]:pb-2.5 ph-landscape:[.ph-kb_&]:pr-[max(14px,env(safe-area-inset-right))] bg-background shadow-[0_-6px_24px_--alpha(black/12%)] animate-[ph-up_.22s_ease-out]`;
 
 /**
  * The panel's top is its grip: the panel follows the finger up and down, and closes when let go near the
  * bottom. Its handle's colour comes through `--grip`: Tailwind's fallback for a color-mix on a
  * pseudo-element nests it where it never applies.
  */
-const gripClass = `${barClass} ph-grip pt-3.5 pb-1.5 ph-landscape:pt-2.5 ph-landscape:pb-[3px] touch-none select-none cursor-ns-resize before:content-[''] before:absolute before:left-1/2 before:top-[5px] before:w-10 before:h-1 before:-ml-5 before:rounded-[2px] [--grip:color-mix(in_srgb,var(--ink)_22%,transparent)] before:bg-(--grip)`;
+const gripClass = `${barClass} ph-grip pt-3.5 pb-1.5 ph-landscape:pt-2.5 ph-landscape:pb-[3px] touch-none select-none cursor-ns-resize before:content-[''] before:absolute before:left-1/2 before:top-[5px] before:w-10 before:h-1 before:-ml-5 before:rounded-[2px] [--grip:--alpha(var(--foreground)/22%)] before:bg-(--grip)`;
 
 /** Opens beside a demo or a working card and brings its video above the panel.
  * The shell supplies its card page, so neither shell needs a private video selector or scroll fix.
@@ -238,7 +238,7 @@ export function TalkPanel({
         panelClass,
         half ? 'half [--ph-h:.52] ph-landscape:[--ph-h:1]' : '[--ph-h:1]',
         page && 'page',
-        (half || (height ?? 1) < 1) && 'border-t border-line',
+        (half || (height ?? 1) < 1) && 'border-t border-border',
         (height ?? 1) < 1 && 'part',
         leaving && 'leaving [transform:translateY(100%)]',
         dragging ? 'dragging transition-none' : '[transition:transform_.2s_ease-out,top_.2s_ease-out,height_.2s_ease-out]',

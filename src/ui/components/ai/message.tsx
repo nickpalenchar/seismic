@@ -21,13 +21,13 @@ export function Message({ className, from, ...props }: ComponentProps<'div'> & {
       className={cn(
         'group/message group relative flex-none min-w-0 rounded-xl',
         from === 'user' ? 'is-user self-end max-w-[92%] bg-secondary px-3 py-2' : 'is-assistant w-full self-stretch py-1',
-        '[&.q]:bg-[color-mix(in_srgb,var(--waiting)_9%,var(--card))] [&.q]:px-3 [&.q]:py-2',
+        '[&.q]:bg-waiting/9 [&.q]:px-3 [&.q]:py-2',
         // State hooks are shared by the card, chats and Koordinator adapters.
-        '[&:is(.held,.unread)]:px-3 [&:is(.held,.unread)]:py-2 [&:is(.held,.unread)]:outline [&:is(.held,.unread)]:outline-dashed [&:is(.held,.unread)]:outline-[color-mix(in_srgb,var(--working)_40%,transparent)] [&:is(.held,.unread)]:-outline-offset-1',
+        '[&:is(.held,.unread)]:px-3 [&:is(.held,.unread)]:py-2 [&:is(.held,.unread)]:outline [&:is(.held,.unread)]:outline-dashed [&:is(.held,.unread)]:outline-working/40 [&:is(.held,.unread)]:-outline-offset-1',
         '[&.unread>:not(.msg-actions):not(.unread-mark)]:opacity-60 [&.paused>:not(.who)]:opacity-70',
-        '[&.fresh]:px-3 [&.fresh]:py-2 [&.fresh]:shadow-[0_0_0_1.5px_color-mix(in_srgb,var(--waiting)_70%,transparent)] [&.flash]:animate-[msg-flash_2.4s_ease-out]',
+        '[&.fresh]:px-3 [&.fresh]:py-2 [&.fresh]:shadow-[0_0_0_1.5px_--alpha(var(--waiting)/70%)] [&.flash]:animate-[msg-flash_2.4s_ease-out]',
         '[&.undone_:is(.p-lead,.p-list,.p-table)]:line-through [&.undone_:is(.p-lead,.p-list,.p-table)]:decoration-muted-foreground [&.by-owner_.shots]:justify-end',
-        '[&.action]:bg-chip [&.action]:shadow-none [&.action]:border [&.action]:border-dashed [&.action]:border-[color-mix(in_srgb,var(--muted-foreground)_55%,transparent)] [&.action]:[font-family:var(--font)] [&.action]:px-2.5 [&.action]:pt-[7px] [&.action]:pb-2.5 [&.action]:self-start',
+        '[&.action]:bg-muted [&.action]:shadow-none [&.action]:border [&.action]:border-dashed [&.action]:border-muted-foreground/55 [&.action]:[font-family:var(--font)] [&.action]:px-2.5 [&.action]:pt-[7px] [&.action]:pb-2.5 [&.action]:self-start',
         className,
       )}
       {...props}
@@ -38,7 +38,7 @@ export function Message({ className, from, ...props }: ComponentProps<'div'> & {
 /** The colour of who said it, by the author's kind. */
 const author: Record<string, string> = {
   owner: 'text-working',
-  worker: 'text-ink',
+  worker: 'text-foreground',
   koordinator: 'text-muted-foreground',
   plan: 'text-muted-foreground',
   proposal: 'text-muted-foreground',
@@ -87,7 +87,7 @@ export function MessageAction({ className, ...props }: ComponentProps<typeof Ico
 }
 
 export const ReplyAction = ({ onClick }: { onClick: () => void }) => (
-  <MessageAction icon={<Reply size={15} strokeWidth={2} aria-hidden="true" />} label={t.talk.reply} className="bg-chip" onClick={onClick} />
+  <MessageAction icon={<Reply size={15} strokeWidth={2} aria-hidden="true" />} label={t.talk.reply} className="bg-muted" onClick={onClick} />
 );
 
 export const DeleteAction = ({ onClick, label }: { onClick: () => void; label?: string }) => (
@@ -95,4 +95,4 @@ export const DeleteAction = ({ onClick, label }: { onClick: () => void; label?: 
 );
 
 /** A state change between turns, shared by card conversations and chats. */
-export const noteClass = 'note text-xs text-muted-foreground italic self-center text-center [&.ev-error]:text-error [&.ev-error]:not-italic [&.ev-denied]:text-warn [&.ev-denied]:not-italic [&_.reauthenticate]:justify-center [&.snooze-line]:flex [&.snooze-line]:flex-col [&.snooze-line]:items-center [&.snooze-line]:gap-0.5 [&.snooze-line]:border-t [&.snooze-line]:border-dashed [&.snooze-line]:border-line [&.snooze-line]:pt-2 [&.snooze-line]:not-italic [&.snooze-line_.clock-mark]:align-[-1px]';
+export const noteClass = 'note text-xs text-muted-foreground italic self-center text-center [&.ev-error]:text-destructive [&.ev-error]:not-italic [&.ev-denied]:text-warning [&.ev-denied]:not-italic [&_.reauthenticate]:justify-center [&.snooze-line]:flex [&.snooze-line]:flex-col [&.snooze-line]:items-center [&.snooze-line]:gap-0.5 [&.snooze-line]:border-t [&.snooze-line]:border-dashed [&.snooze-line]:border-border [&.snooze-line]:pt-2 [&.snooze-line]:not-italic [&.snooze-line_.clock-mark]:align-[-1px]';

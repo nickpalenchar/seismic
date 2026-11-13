@@ -46,7 +46,7 @@ type PhoneStage = (typeof PHONE_STAGES)[number];
  * turned in the microphone's strip, centred in it.
  */
 const newClass =
-  'ph-new fixed z-50 left-1/2 bottom-[calc(18px+env(safe-area-inset-bottom))] [transform:translateX(-50%)] w-[68px] h-[68px] rounded-full border-0 p-0 grid place-items-center cursor-pointer bg-card text-ink shadow-lift [-webkit-touch-callout:none] select-none active:shadow-glass active:[transform:translateX(-50%)_translateY(1px)] disabled:text-muted-foreground disabled:cursor-default [.ph-kb_.ph-view~&]:hidden ph-landscape:left-auto ph-landscape:right-[calc(56px+env(safe-area-inset-right))] ph-landscape:[translate:50%_0] ph-landscape:top-[calc(50%-34px)] ph-landscape:bottom-auto ph-landscape:[transform:none] ph-landscape:active:[transform:none]';
+  'ph-new fixed z-50 left-1/2 bottom-[calc(18px+env(safe-area-inset-bottom))] [transform:translateX(-50%)] w-[68px] h-[68px] rounded-full border-0 p-0 grid place-items-center cursor-pointer bg-card text-foreground shadow-lift [-webkit-touch-callout:none] select-none active:shadow-glass active:[transform:translateX(-50%)_translateY(1px)] disabled:text-muted-foreground disabled:cursor-default [.ph-kb_.ph-view~&]:hidden ph-landscape:left-auto ph-landscape:right-[calc(56px+env(safe-area-inset-right))] ph-landscape:[translate:50%_0] ph-landscape:top-[calc(50%-34px)] ph-landscape:bottom-auto ph-landscape:[transform:none] ph-landscape:active:[transform:none]';
 
 
 export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
@@ -59,7 +59,7 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
   if (open)
     return s.cardScreen(
       <header className={pageBarClass}>
-        <button className="ph-back inline-flex items-center gap-0.5 min-h-10 py-0 pr-3 pl-1.5 border-0 rounded-[3px] bg-chip text-[16px] cursor-pointer ph-landscape:min-h-9" onClick={back}>
+        <button className="ph-back inline-flex items-center gap-0.5 min-h-10 py-0 pr-3 pl-1.5 border-0 rounded-[3px] bg-muted text-[16px] cursor-pointer ph-landscape:min-h-9" onClick={back}>
           <ChevronLeft size={18} strokeWidth={2.25} aria-hidden="true" />
           {t.phone.back}
         </button>
@@ -129,7 +129,7 @@ export function Phone({ projects: loaded }: { projects: ProjectInfo[] }) {
                 <section key={s} className={`${sectionClass} ph-stage stage-${s}`}>
                   {/* the stage's count beside its heading, trimmed to its capitals so it centres on what the eye sees */}
                   <h2 className={sectionHeadClass}>
-                    {t.agents.stages[s]} <Badge variant="count" className="rounded-lg bg-chip px-2 py-1.5 text-[13px] font-semibold text-muted-foreground [text-box:trim-both_cap_alphabetic]">{count(s)}</Badge>
+                    {t.agents.stages[s]} <Badge variant="count" className="rounded-lg bg-muted px-2 py-1.5 text-[13px] font-semibold text-muted-foreground [text-box:trim-both_cap_alphabetic]">{count(s)}</Badge>
                   </h2>
                   {s === 'needsYou' ? (
                     <InboxList

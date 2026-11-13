@@ -39,8 +39,8 @@ function Meter({ limit, wide }: { limit: UsageLimit; wide?: boolean }) {
     <Progress
       value={limit.percent}
       aria-label={limitName(limit)}
-      className={cn('h-[9px] flex-none rounded-[2px] shadow-[inset_0_0_0_1px_var(--line)]', wide ? 'w-[60px]' : 'w-[26px]')}
-      indicatorClassName={cn('rounded-[inherit] duration-0', { critical: 'bg-error', warning: 'bg-waiting' }[limit.severity as string] ?? 'bg-muted-foreground')}
+      className={cn('h-[9px] flex-none rounded-[2px] shadow-[inset_0_0_0_1px_var(--border)]', wide ? 'w-[60px]' : 'w-[26px]')}
+      indicatorClassName={cn('rounded-[inherit] duration-0', { critical: 'bg-destructive', warning: 'bg-waiting' }[limit.severity as string] ?? 'bg-muted-foreground')}
     />
   );
 }
@@ -50,7 +50,7 @@ function ClaudeMark() {
   // a starburst of rounded rays of uneven length, in Claude's terracotta
   const rays = [10, 7.5, 9, 6.5, 10, 8, 9.5, 7, 10, 7.5, 9, 6.5];
   return (
-    <svg className="block stroke-[#d97757] stroke-[2.6] [stroke-linecap:round]" viewBox="0 0 24 24" width="14" height="14" aria-hidden>
+    <svg className="block stroke-orange-400 stroke-[2.6] [stroke-linecap:round]" viewBox="0 0 24 24" width="14" height="14" aria-hidden>
       {rays.map((r, i) => {
         const a = (i / rays.length) * 2 * Math.PI - Math.PI / 2;
         return <line key={i} x1={12} y1={12} x2={12 + r * Math.cos(a)} y2={12 + r * Math.sin(a)} />;
@@ -88,7 +88,7 @@ export function UsagePill({ usage, phone, compact }: { usage: Usage; phone?: boo
     <Popover open={open} onOpenChange={setOpen}>
       <Pill variant={phone ? 'glass' : 'flat'} className="relative p-0" id={usage.harness === 'claude' ? 'usage' : `usage-${usage.harness}`}>
         <PopoverTrigger
-          className={cn(statusFace, 'gap-4 rounded-full', phone ? 'gap-2.5 px-2.5 py-1.5 text-[13px]' : 'hover:bg-chip data-[state=open]:bg-chip')}
+          className={cn(statusFace, 'gap-4 rounded-full', phone ? 'gap-2.5 px-2.5 py-1.5 text-[13px]' : 'hover:bg-muted data-[state=open]:bg-muted')}
           aria-label={t.usage.title[usage.harness]}
         >
           <span className="-mr-1.5 flex items-center" title={t.usage.harness[usage.harness]}>
@@ -98,7 +98,7 @@ export function UsagePill({ usage, phone, compact }: { usage: Usage; phone?: boo
             <span key={l.group} className="flex items-center gap-1.5" title={compact ? limitName(l) : undefined}>
               {!compact && <span>{t.usage.groups[l.group] ?? limitName(l)}</span>}
               <Meter limit={l} />
-              <b className={cn('font-semibold tabular-nums', l.severity === 'critical' && 'text-error')}>{percent(l.percent)}</b>
+              <b className={cn('font-semibold tabular-nums', l.severity === 'critical' && 'text-destructive')}>{percent(l.percent)}</b>
             </span>
           ))}
         </PopoverTrigger>
@@ -112,7 +112,7 @@ export function UsagePill({ usage, phone, compact }: { usage: Usage; phone?: boo
             <li key={i} className="grid grid-cols-[minmax(0,1fr)_60px_42px] items-center gap-x-2 py-[3px]">
               <span>{limitName(l)}</span>
               <Meter limit={l} wide />
-              <b className={cn('text-right font-semibold tabular-nums', l.severity === 'critical' && 'text-error')}>{percent(l.percent)}</b>
+              <b className={cn('text-right font-semibold tabular-nums', l.severity === 'critical' && 'text-destructive')}>{percent(l.percent)}</b>
               {l.resetsAt && <span className="hint col-span-full">{t.usage.resets(snoozeWhen(l.resetsAt))}</span>}
             </li>
           ))}
@@ -124,7 +124,7 @@ export function UsagePill({ usage, phone, compact }: { usage: Usage; phone?: boo
           </Button>{' '}
           {t.usage.hideHint}
         </p>
-        {status && <p className="m-0 mt-1.5 text-warn">{status}</p>}
+        {status && <p className="m-0 mt-1.5 text-warning">{status}</p>}
       </PopoverContent>
     </Popover>
   );

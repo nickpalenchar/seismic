@@ -32,7 +32,7 @@ const VIEW_KEY = 'obeya.performance.view';
 const DAY = 86_400_000;
 
 /** A cell of the table: a line under each row. */
-const cell = 'py-[7px] px-2 border-b border-line text-left align-middle';
+const cell = 'py-[7px] px-2 border-b border-border text-left align-middle';
 /** A column's head: small and quiet, on one line. */
 const headCell = cn(cell, 'text-[12px] font-semibold text-muted-foreground whitespace-nowrap');
 /** A column of numbers: right-aligned figures of one width, as narrow as they allow. */
@@ -56,10 +56,10 @@ const contextClass = 'text-muted-foreground text-[12.5px]';
 
 /** The ink of a rating of 1 to 5 stars, as `--r`: from red through grey to green. */
 const STAR_INKS = [
-  'color-mix(in srgb, var(--error) 85%, var(--panel))',
-  'color-mix(in srgb, var(--waiting) 70%, var(--panel))',
-  'color-mix(in srgb, var(--planned) 70%, var(--panel))',
-  'color-mix(in srgb, var(--approved) 55%, var(--panel))',
+  'var(--chart-1)',
+  'var(--chart-2)',
+  'var(--chart-3)',
+  'var(--chart-4)',
   'var(--approved)',
 ];
 const inkOf = (stars: number) => ({ ['--r' as string]: STAR_INKS[stars - 1] });
@@ -193,14 +193,14 @@ export function PerformanceDialog({ on, onClose, projects, here, onOpenCard, ini
                   <tbody>
                   {heading && (
                     <tr className="perf-group">
-                      <th scope="rowgroup" colSpan={5} className={cn(cell, 'font-semibold bg-[color-mix(in_srgb,var(--chip)_70%,transparent)] py-1.5')}>
+                      <th scope="rowgroup" colSpan={5} className={cn(cell, 'font-semibold bg-muted/70 py-1.5')}>
                         {group}
                       </th>
                     </tr>
                   )}
                   <tr className={`perf-row${r.few ? ' few' : ''}${r.kind !== 'config' ? ' special' : ''}${expanded ? ' open' : ''}`}>
                     <th scope="row" className={cn(cell, 'font-normal')}>
-                      <CollapsibleTrigger className={cn('perf-expand inline-flex items-center gap-1.5 py-0.5 px-0 hover:underline hover:underline-offset-[3px]', r.few ? 'text-muted-foreground' : 'text-ink')}>
+                      <CollapsibleTrigger className={cn('perf-expand inline-flex items-center gap-1.5 py-0.5 px-0 hover:underline hover:underline-offset-[3px]', r.few ? 'text-muted-foreground' : 'text-foreground')}>
                         <span className="inline-flex align-middle w-3 text-muted-foreground text-[11px]" aria-hidden>
                           {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                         </span>
@@ -219,7 +219,7 @@ export function PerformanceDialog({ on, onClose, projects, here, onOpenCard, ini
                   </tr>
                   <CollapsibleContent asChild>
                     <tr className="perf-detail">
-                      <td colSpan={5} className={cn(cell, 'bg-[color-mix(in_srgb,var(--chip)_35%,transparent)] pt-1 pr-2 pb-2.5 pl-[18px]')}>
+                      <td colSpan={5} className={cn(cell, 'bg-muted/35 pt-1 pr-2 pb-2.5 pl-[18px]')}>
                         <Responses list={r.responses} link={link} projectName={projectName} withConfig={r.kind === 'mixed'} />
                       </td>
                     </tr>
@@ -343,7 +343,7 @@ function Spread({ r }: { r: PerformanceRow }) {
   const label = t.performance.spreadLabel(r.counts);
   if (!n) return <span className="hint">{t.performance.noRatings}</span>;
   return (
-    <span className={cn('flex w-full max-w-[260px] min-w-[120px] max-[700px]:min-w-[100px] h-3.5 rounded-[2px] overflow-hidden bg-line', r.few && 'opacity-60')} role="img" aria-label={label} title={label}>
+    <span className={cn('flex w-full max-w-[260px] min-w-[120px] max-[700px]:min-w-[100px] h-3.5 rounded-[2px] overflow-hidden bg-border', r.few && 'opacity-60')} role="img" aria-label={label} title={label}>
       {r.counts.map((k, s) => (k ? <span key={s} className="block h-full bg-(--r)" style={{ ...inkOf(s + 1), width: `${(k / n) * 100}%` }} /> : null))}
     </span>
   );
@@ -371,8 +371,8 @@ function Dots({ r }: { r: PerformanceRow }) {
   rated.sort((a, b) => (a.f.updatedAt ?? a.f.at).localeCompare(b.f.updatedAt ?? b.f.at));
   return (
     <span className="relative block min-w-[160px] max-[700px]:min-w-[100px] h-8 mx-[26px]" role="img" aria-label={label} title={label}>
-      <span className="absolute inset-x-0 top-1/2 [border-top:1px_dashed_var(--line)]" />
-      {r.median !== null && <b className="absolute top-px bottom-px w-0.5 -ml-px bg-ink opacity-55" style={{ left: at(r.median) }} />}
+      <span className="absolute inset-x-0 top-1/2 [border-top:1px_dashed_var(--border)]" />
+      {r.median !== null && <b className="absolute top-px bottom-px w-0.5 -ml-px bg-foreground opacity-55" style={{ left: at(r.median) }} />}
       {rated.map(({ f, v }) => {
         const [jx, jy] = scatter(f.id);
         const wide = Math.min(24, 7 + r.counts[v - 1]! * 2);
@@ -415,7 +415,7 @@ export function StarText({ rating }: { rating: number | undefined }) {
   return (
     <span className={starsClass} role="img" aria-label={t.feedback.star(s, t.feedback.stars[s - 1]!)}>
       {'★'.repeat(s)}
-      <span className="text-line">{'★'.repeat(5 - s)}</span>
+      <span className="text-border">{'★'.repeat(5 - s)}</span>
     </span>
   );
 }
@@ -427,14 +427,14 @@ function Responses({ list, link, projectName, withConfig }: { list: Feedback[]; 
   return (
     <ul className="list-none m-0 p-0">
       {list.map((f) => (
-        <li key={f.id} className="flex items-start justify-between gap-4 py-2 px-0 border-b border-line last:border-b-0">
+        <li key={f.id} className="flex items-start justify-between gap-4 py-2 px-0 border-b border-border last:border-b-0">
           <div className="flex flex-col gap-0.5 min-w-0">
             {link(f)}
             <span className={contextClass}>
               {[f.plan ? plain(f.plan.title) : '', f.repo ?? '', several ? projectName(f.projectId) : '', p.when(new Date(f.updatedAt ?? f.at))].filter(Boolean).join(' · ')}
             </span>
             {withConfig && <span className={contextClass}>{f.attribution === 'missing' || !f.configs.length ? p.missing : f.configs.map((c) => configText(c, true)).join(' + ')}</span>}
-            {f.answer.comment && <p className="mt-0.5 mb-0 text-[13.5px] text-ink whitespace-pre-wrap">{t.feedback.quoted(f.answer.comment)}</p>}
+            {f.answer.comment && <p className="mt-0.5 mb-0 text-[13.5px] text-foreground whitespace-pre-wrap">{t.feedback.quoted(f.answer.comment)}</p>}
           </div>
           <StarText rating={f.answer.rating} />
         </li>
@@ -467,7 +467,7 @@ function Trend({ rows }: { rows: PerformanceRow[] }) {
       <svg className="block w-full h-auto overflow-visible" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={p.trendLabel(months.length)}>
         {[1, 2, 3, 4, 5].map((v) => (
           <g key={v}>
-            <line x1={L} x2={W - R} y1={y(v)} y2={y(v)} className="stroke-line" />
+            <line x1={L} x2={W - R} y1={y(v)} y2={y(v)} className="stroke-border" />
             <text x={L - 8} y={y(v) + 4} textAnchor="end" className={axisTextClass}>
               {v}★
             </text>
@@ -482,7 +482,7 @@ function Trend({ rows }: { rows: PerformanceRow[] }) {
           <g key={s.key} style={{ color: s.ink }}>
             <polyline fill="none" stroke="currentColor" strokeWidth={2} points={s.points.map((pt) => `${x(pt.month)},${y(pt.mean)}`).join(' ')} />
             {s.points.map((pt) => (
-              <circle key={pt.month} cx={x(pt.month)} cy={y(pt.mean)} r={4.5} stroke="currentColor" strokeWidth={2} fill={pt.n < FEW ? 'var(--panel)' : 'currentColor'}>
+              <circle key={pt.month} cx={x(pt.month)} cy={y(pt.mean)} r={4.5} stroke="currentColor" strokeWidth={2} fill={pt.n < FEW ? 'var(--surface)' : 'currentColor'}>
                 <title>{p.point(s.name, p.month(pt.month), pt.mean, pt.n)}</title>
               </circle>
             ))}

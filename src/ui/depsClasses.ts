@@ -36,7 +36,7 @@ export const dotSide = { top: 'left-1/2 top-0', right: 'left-full top-1/2', bott
  * pointer; sized by its foreignObject, which keeps it the same on screen at every zoom.
  */
 export const manualRemoveClass =
-  'grid place-items-center box-border w-full h-full p-0 border-[length:calc(1px/var(--s))] border-solid border-line rounded-[50%] bg-card text-muted-foreground cursor-pointer [transition:color_.12s,border-color_.12s] [&_svg]:w-[54%] [&_svg]:h-[54%] hover:text-ink hover:border-muted-foreground focus-visible:text-ink focus-visible:border-muted-foreground';
+  'grid place-items-center box-border w-full h-full p-0 border-[length:calc(1px/var(--s))] border-solid border-border rounded-[50%] bg-card text-muted-foreground cursor-pointer [transition:color_.12s,border-color_.12s] [&_svg]:w-[54%] [&_svg]:h-[54%] hover:text-foreground hover:border-muted-foreground focus-visible:text-foreground focus-visible:border-muted-foreground';
 
 /**
  * The colour of a card's handles (`--c`) where its state makes it another than the state's own (the
@@ -52,7 +52,7 @@ export function handleColour(classes: string, dep: boolean): string | undefined 
   const underway = c.has('underway');
   const answering = c.has('answering');
   if (!snoozed && !underway && !answering && (waiting || (c.has('s-idea') && c.has('your-turn')))) return 'var(--waiting)';
-  if (waiting && c.has('failed') && !snoozed) return 'var(--error)';
+  if (waiting && c.has('failed') && !snoozed) return 'var(--destructive)';
   if (c.has('asking') && !dep) return 'var(--asking)';
   if (waiting && answering) return 'var(--working)';
   if (waiting && underway) return 'var(--approved)';

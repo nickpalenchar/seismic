@@ -41,7 +41,7 @@ export function ArchiveView({ on, onClose, held, archived, done, onOpen, onArchi
         <div className="a-search relative mt-0.5 mx-0 mb-2 flex-1 min-w-0 max-w-[640px]">
           <input
             ref={field}
-            className="w-full box-border py-2 pr-[30px] pl-[11px] text-[14px] bg-card border border-line rounded-[3px] [outline:none] focus:border-muted-foreground"
+            className="w-full box-border py-2 pr-[30px] pl-[11px] text-[14px] bg-card border border-border rounded-[3px] [outline:none] focus:border-muted-foreground"
             type="text"
             autoFocus
             value={query}
@@ -70,11 +70,11 @@ export function ArchiveView({ on, onClose, held, archived, done, onOpen, onArchi
 
 /** A day's timeline: per card the time, a tick on the line through the day, and the card; the line starts and ends at the first and last tick. */
 const timelineRowClass =
-  "relative grid grid-cols-[38px_12px_1fr] gap-x-2 [align-items:start] pb-2 before:content-[''] before:absolute before:left-[51px] before:top-0 before:bottom-0 before:w-0.5 before:bg-line first:before:top-[15px] last:before:bottom-auto last:before:h-[15px] only:before:hidden";
+  "relative grid grid-cols-[38px_12px_1fr] gap-x-2 [align-items:start] pb-2 before:content-[''] before:absolute before:left-[51px] before:top-0 before:bottom-0 before:w-0.5 before:bg-border first:before:top-[15px] last:before:bottom-auto last:before:h-[15px] only:before:hidden";
 
 /** An archived card as a small card, the words of the search marked in its title. */
 const archiveCardClass =
-  'a-card flex flex-col min-w-0 py-2 px-3 text-left [font:inherit] text-ink bg-card border border-line rounded-[3px] [box-shadow:var(--shadow)] cursor-pointer [transition:transform_.15s,box-shadow_.15s] hover:[transform:translateY(-1px)] hover:[box-shadow:var(--lift)] focus-visible:[outline:2px_solid_var(--working)] focus-visible:outline-offset-2 [&_mark]:bg-chip [&_mark]:text-inherit [&_mark]:rounded-[2px] [&_mark]:[box-shadow:0_0_0_1px_var(--chip)]';
+  'a-card flex flex-col min-w-0 py-2 px-3 text-left [font:inherit] text-foreground bg-card border border-border rounded-[3px] [box-shadow:var(--shadow)] cursor-pointer [transition:transform_.15s,box-shadow_.15s] hover:[transform:translateY(-1px)] hover:[box-shadow:var(--lift)] focus-visible:[outline:2px_solid_var(--working)] focus-visible:outline-offset-2 [&_mark]:bg-muted [&_mark]:text-inherit [&_mark]:rounded-[2px] [&_mark]:[box-shadow:0_0_0_1px_var(--muted)]';
 
 /** The archive's entries, one heading per day in the server's order, filtered by the search; the drop-down and the full-screen view share it. */
 function ArchiveEntries({ archived, words, query, onOpen, els }: { archived: Item[]; words: string[]; query: string; onOpen: (i: Item) => void; els: Map<string, HTMLElement> }) {
@@ -96,7 +96,7 @@ function ArchiveEntries({ archived, words, query, onOpen, els }: { archived: Ite
             {items.map((i) => (
               <li key={i.id} className={timelineRowClass}>
                 <time className="pt-[9px] text-[11.5px] text-muted-foreground tabular-nums text-right">{t.archive.time(new Date(i.archivedAt!))}</time>
-                <span className="tick relative w-3 h-3 mt-2.5 rounded-[50%] bg-panel border-2 border-live box-border" />
+                <span className="tick relative w-3 h-3 mt-2.5 rounded-[50%] bg-surface border-2 border-live box-border" />
                 <button className={archiveCardClass} ref={(el) => void (el ? els.set(i.id, el) : els.delete(i.id))} onClick={() => onOpen(i)}>
                   <CardFace
                     item={i}

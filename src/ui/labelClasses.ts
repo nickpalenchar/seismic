@@ -13,8 +13,8 @@ const level: Record<Priority, string> = {
   low: 'text-question font-semibold',
   medium: 'text-in-pr font-semibold',
   high: 'text-waiting font-semibold',
-  veryHigh: 'text-error font-semibold',
-  critical: 'text-on-ink bg-error font-semibold rounded-[3px]',
+  veryHigh: 'text-destructive font-semibold',
+  critical: 'text-primary-foreground bg-destructive font-semibold rounded-[3px]',
 };
 
 /**
@@ -48,8 +48,8 @@ export const prioPickClass = 'prio-pick relative inline-flex text-[12px]';
  */
 export const prioBtnClass = (set?: boolean) =>
   [
-    set ? 'prio-btn set border-transparent has-[.prio-critical,.lchip,.prio.sugg]:p-px' : 'prio-btn border-line',
-    'border border-solid bg-transparent py-px px-1.5 rounded-[8px] cursor-pointer leading-[18px] hover:border-line hover:bg-chip',
+    set ? 'prio-btn set border-transparent has-[.prio-critical,.lchip,.prio.sugg]:p-px' : 'prio-btn border-border',
+    'border border-solid bg-transparent py-px px-1.5 rounded-[8px] cursor-pointer leading-[18px] hover:border-border hover:bg-muted',
     '[&_.lchip]:text-[12px] [&_.lchip]:leading-4 [&_.prio.sugg]:leading-4',
   ].join(' ');
 
@@ -57,4 +57,4 @@ export const prioBtnClass = (set?: boolean) =>
 export const prioMenuClass = 'prio-menu min-w-[140px] p-1 flex flex-col border border-solid border-glass-edge rounded-[12px]';
 
 /** An option with an icon before its words (a complexity's bars, a canvas's icon). */
-export const loptClass = 'lopt flex items-center gap-1.5 text-ink [&_svg]:flex-none [&_svg]:text-ink [&_b]:font-semibold';
+export const loptClass = 'lopt flex items-center gap-1.5 text-foreground [&_svg]:flex-none [&_svg]:text-foreground [&_b]:font-semibold';

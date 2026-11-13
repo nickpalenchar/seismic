@@ -148,7 +148,7 @@ const setting: Renderer = (e, p) => {
 /** Seismic's answer, which is no card, in the same lines as a card's entry. */
 const answer: Renderer = (e, { unread, onGo, onRead }) => (
   <li className={cn(entryClass, unread ? 'unread' : 'read')} onClick={(ev) => readOnButton(ev, () => onRead(e))}>
-    <div className="face face-s obeya-answer [--c:var(--waiting)]">
+    <div className="face face-s obeya-answer c-waiting">
       <div className="f-top">
         <span className="f-where">
           <ProjectName name={e.projectName} /> · {when(e.since)}

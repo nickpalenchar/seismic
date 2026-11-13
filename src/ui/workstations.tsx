@@ -7,7 +7,7 @@ import type { CSSProperties } from 'react';
 import { useState } from 'react';
 import { type BlockedClone, type ClonePool, inParkingLot, type Item, type PoolHost, type PoolWorkstation, type ProjectInfo, snoozeOf, stopped } from '../core/types';
 import { plain } from './markdown';
-import { CardFace, cardTone } from './card';
+import { CardFace, cardTone, stateVars } from './card';
 import { t } from './strings';
 import { cn } from 'cn';
 import { Button, LinkButton } from './components/button';
@@ -17,7 +17,7 @@ import { Tooltip } from './components/tooltip';
 const PULSING = new Set(['working', 'reviewing', 'approved']);
 /** The pulse of a dot at work (`ws-pulse` in frost.css); under reduced motion a ring in its colour around a dot that stands still. */
 const pulse =
-  "relative animate-[ws-pulse_3.6s_ease-in-out_infinite] reduced:animate-none reduced:border-2 reduced:border-[var(--c)] reduced:bg-transparent reduced:shadow-none reduced:after:absolute reduced:after:top-1/2 reduced:after:left-1/2 reduced:after:size-1 reduced:after:[transform:translate(-50%,-50%)] reduced:after:rounded-[50%] reduced:after:bg-[var(--c)] reduced:after:content-['']";
+  "relative animate-[ws-pulse_3.6s_ease-in-out_infinite] reduced:animate-none reduced:border-2 reduced:border-[var(--c)] reduced:bg-transparent reduced:shadow-none reduced:after:absolute reduced:after:top-1/2 reduced:after:left-1/2 reduced:after:size-1 reduced:after:[transform:translate(-50%,-50%)] reduced:after:rounded-[50%] reduced:after:bg-c reduced:after:content-['']";
 
 /**
  * A workstation's dot, the same on the pill and in its list: in the colour of its card's state as
@@ -41,18 +41,18 @@ export function WorkstationMark({ dot, className }: { dot: WorkstationDot; class
 }
 
 export function wsDot(w: PoolWorkstation | undefined, host: PoolHost, items: Item[], underway: Record<string, string>): WorkstationDot {
-  const dot = 'ws-dot box-border block rounded-full border border-[#6b7280]';
+  const dot = 'ws-dot box-border block rounded-full border border-slate-500';
   if (!w?.card) {
     const blocked = !!w && !!host.blocked?.some((b) => b.path === w.path);
-    return { className: cn(dot, blocked && 'shadow-[inset_0_0_0_1.5px_var(--waiting)]'), fill: blocked ? 'color-mix(in srgb, var(--waiting) 40%, transparent)' : undefined };
+    return { className: cn(dot, blocked && 'shadow-[inset_0_0_0_1.5px_var(--waiting)]'), fill: blocked ? 'var(--waiting-wash)' : undefined };
   }
   const item = w.project ? undefined : items.find((i) => i.id === w.card);
   const tone = item ? cardTone(item, underway[item.id]) : host.busy.includes(w.card) ? 'working' : null;
   if (item?.hold?.reason === 'restart') return { className: 'block text-[var(--restart)]', paused: true, fill: 'var(--restart)' };
-  if (!tone) return { className: cn(dot, 'bg-[color-mix(in_srgb,var(--working)_35%,transparent)]'), fill: 'color-mix(in srgb, var(--working) 35%, transparent)' };
+  if (!tone) return { className: cn(dot, 'bg-working/35'), fill: 'var(--working-wash)' };
   return {
-    className: cn(dot, 'bg-[var(--c)]', PULSING.has(tone) && pulse),
-    style: { '--c': `var(--${tone})` } as CSSProperties,
+    className: cn(dot, 'bg-c', PULSING.has(tone) && pulse),
+    style: stateVars(tone) as CSSProperties,
     fill: `var(--${tone})`,
     pulsing: PULSING.has(tone),
   };
@@ -157,7 +157,7 @@ export function WorkstationRow({ w, host, items, underway, projects, onOpen, onE
       {!item && path}
       <span className={cn('col-start-2 [overflow-wrap:anywhere]', item ? 'row-start-1 flex min-w-0 items-start gap-1' : 'row-start-2')}>
         {item ? (
-          <button type="button" className="-mx-1.5 -my-0.5 block min-w-0 flex-1 cursor-pointer rounded-[6px] border-0 bg-transparent px-1.5 py-0.5 text-left text-inherit hover:bg-chip focus-visible:bg-chip [&_.f-dot]:hidden" onClick={() => onOpen(item)}>
+          <button type="button" className="-mx-1.5 -my-0.5 block min-w-0 flex-1 cursor-pointer rounded-[6px] border-0 bg-transparent px-1.5 py-0.5 text-left text-inherit hover:bg-muted focus-visible:bg-muted [&_.f-dot]:hidden" onClick={() => onOpen(item)}>
             <CardFace item={item} size="xs" underway={underway[item.id]} />
           </button>
         ) : w.card && there ? (
@@ -168,7 +168,7 @@ export function WorkstationRow({ w, host, items, underway, projects, onOpen, onE
         ) : w.card ? (
           <span className="hint">{w.title ? t.workstations.notOnProject(plain(w.title)) : t.workstations.offProject}</span>
         ) : (
-          <span className={state === 'blocked' ? 'text-warn' : 'hint'}>{state === 'blocked' ? t.workstations.blockedRow : t.workstations.freeRow}</span>
+          <span className={state === 'blocked' ? 'text-warning' : 'hint'}>{state === 'blocked' ? t.workstations.blockedRow : t.workstations.freeRow}</span>
         )}
         {busy && !w.leaving && !item && <span className="hint"> · {t.workstations.atWork}</span>}
         {item && w.leaving && (
@@ -182,7 +182,7 @@ export function WorkstationRow({ w, host, items, underway, projects, onOpen, onE
         {item && w.takeable && onTake && (
           <Tooltip content={t.workstations.more}>
             <button
-              className="ml-1.5 inline-flex cursor-pointer items-center rounded-[3px] border-0 bg-transparent px-[3px] py-px align-middle text-muted-foreground opacity-55 hover:bg-chip hover:opacity-100 aria-expanded:bg-chip aria-expanded:opacity-100"
+              className="ml-1.5 inline-flex cursor-pointer items-center rounded-[3px] border-0 bg-transparent px-[3px] py-px align-middle text-muted-foreground opacity-55 hover:bg-muted hover:opacity-100 aria-expanded:bg-muted aria-expanded:opacity-100"
               aria-label={t.workstations.more}
               aria-expanded={more === w.path}
               onClick={() => onMore(more === w.path ? null : w.path)}
@@ -194,7 +194,7 @@ export function WorkstationRow({ w, host, items, underway, projects, onOpen, onE
       </span>
       {item && path}
       {item && w.takeable && onTake && more === w.path && (
-        <div className="col-start-2 mt-1 mb-0.5 flex flex-col items-start gap-1 rounded-[3px] bg-chip px-2.5 py-2 [--button-bg:var(--panel)]">
+        <div className="col-start-2 mt-1 mb-0.5 flex flex-col items-start gap-1 rounded-[3px] bg-muted px-2.5 py-2 [--button-bg:var(--surface)]">
           <Button
             size="small"
             onClick={() => {
@@ -235,7 +235,7 @@ export function BlockedClones({ host }: { host: PoolHost }) {
       {all
         .filter((b, i) => b.why !== 'unreachable' || all.findIndex((x) => x.why === 'unreachable') === i)
         .map((b) => (
-          <p key={b.path} className="text-warn [overflow-wrap:anywhere]">
+          <p key={b.path} className="text-warning [overflow-wrap:anywhere]">
             {line(b)}
           </p>
         ))}
@@ -337,8 +337,8 @@ export function WorkingRows({ cards, pools, items, underway, projects, onOpen, o
         const tone = cardTone(i, underway[i.id]);
         return (
           <li key={i.id} className="grid grid-cols-[12px_minmax(0,1fr)] items-start gap-x-2 py-1">
-            <WorkstationMark dot={{ className: cn('ws-dot box-border block rounded-full border border-[#6b7280] bg-[var(--c)]', PULSING.has(tone) && pulse), style: { '--c': `var(--${tone})` } as CSSProperties }} className="mt-[5px]" />
-            <button type="button" className="-mx-1.5 -my-0.5 block min-w-0 cursor-pointer rounded-[6px] border-0 bg-transparent px-1.5 py-0.5 text-left text-inherit hover:bg-chip focus-visible:bg-chip [&_.f-dot]:hidden" onClick={() => onOpen(i)}>
+            <WorkstationMark dot={{ className: cn('ws-dot box-border block rounded-full border border-slate-500 bg-c', PULSING.has(tone) && pulse), style: stateVars(tone) as CSSProperties }} className="mt-[5px]" />
+            <button type="button" className="-mx-1.5 -my-0.5 block min-w-0 cursor-pointer rounded-[6px] border-0 bg-transparent px-1.5 py-0.5 text-left text-inherit hover:bg-muted focus-visible:bg-muted [&_.f-dot]:hidden" onClick={() => onOpen(i)}>
               <CardFace item={i} size="xs" underway={underway[i.id]} />
             </button>
           </li>

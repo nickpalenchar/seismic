@@ -144,7 +144,7 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
                 <Collapsible key={x} open={!folded.includes(x)} onOpenChange={(o) => fold(x, o)} className={cn(sectionClass, `ph-next-${x}`)}>
                   <CollapsibleTrigger className="group mb-2 flex w-full items-center gap-2.5 py-1">
                     <span className="text-[21px] leading-[1.15] font-semibold">{t.phone.next.sections[x]}</span>
-                    <Badge variant="count" className="rounded-lg bg-chip px-2 py-1.5 text-[13px] font-semibold text-muted-foreground [text-box:trim-both_cap_alphabetic]">
+                    <Badge variant="count" className="rounded-lg bg-muted px-2 py-1.5 text-[13px] font-semibold text-muted-foreground [text-box:trim-both_cap_alphabetic]">
                       {cards.length}
                     </Badge>
                     <ChevronDown size={18} strokeWidth={2} className="ml-auto text-muted-foreground transition-transform group-data-[state=closed]:-rotate-90" aria-hidden="true" />
@@ -153,7 +153,7 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
                     <CardList entries={cards.slice(0, n).map(entriesOf)} several={false} onOpen={openCard} />
                     {cards.length > n && (
                       <button
-                        className="mt-3 w-full rounded-[10px] border border-line bg-transparent py-2.5 text-[15px] text-ink cursor-pointer"
+                        className="mt-3 w-full rounded-[10px] border border-border bg-transparent py-2.5 text-[15px] text-foreground cursor-pointer"
                         onClick={() => setShown({ project: obeyaId, n: { ...(shown.project === obeyaId ? shown.n : {}), [x]: n + PAGE } })}
                       >
                         {t.phone.next.loadMore(cards.length - n)}
@@ -173,7 +173,7 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
               <Sign size={26} />
             </button>
             <h1 className="m-0 min-w-0 flex-1 overflow-hidden text-[19px] font-semibold text-ellipsis whitespace-nowrap">{t.phone.next.needsYou}</h1>
-            <button className="ph-close inline-grid size-10 shrink-0 place-items-center rounded-full border-0 bg-chip text-ink cursor-pointer ph-landscape:size-9" aria-label={t.phone.next.closeNeedsYou} onClick={closeNeeds}>
+            <button className="ph-close inline-grid size-10 shrink-0 place-items-center rounded-full border-0 bg-muted text-foreground cursor-pointer ph-landscape:size-9" aria-label={t.phone.next.closeNeedsYou} onClick={closeNeeds}>
               <X size={20} strokeWidth={2.25} aria-hidden="true" />
             </button>
           </header>
@@ -298,7 +298,7 @@ function TopBar({ projects, project, onProject, usage, onClose, onMenu }: { proj
       {/* the usage pills at the right, scrolling sideways and fading out under the project's name
           (right to left, so they start at the right end; the pills inside read left to right) */}
       {onClose ? (
-        <button className="ph-close ml-auto inline-grid size-10 shrink-0 place-items-center rounded-full border-0 bg-chip text-ink cursor-pointer ph-landscape:size-9" aria-label={t.phone.next.close} onClick={onClose}>
+        <button className="ph-close ml-auto inline-grid size-10 shrink-0 place-items-center rounded-full border-0 bg-muted text-foreground cursor-pointer ph-landscape:size-9" aria-label={t.phone.next.close} onClick={onClose}>
           <X size={20} strokeWidth={2.25} aria-hidden="true" />
         </button>
       ) : usage.length > 0 && (
@@ -364,9 +364,9 @@ function WorkingBox({ open, onOpen, cards, atWork, snap, projects, onCard, onEls
       <span className="shrink-0 font-semibold whitespace-nowrap">{t.phone.next.working(atWork)}</span>
     </>
   );
-  if (!cards.length) return <div className="ph-working mt-3 flex min-h-12 items-center gap-2.5 rounded-[12px] bg-chip px-3.5 py-2 text-[15px]">{head}</div>;
+  if (!cards.length) return <div className="ph-working mt-3 flex min-h-12 items-center gap-2.5 rounded-[12px] bg-muted px-3.5 py-2 text-[15px]">{head}</div>;
   return (
-    <Collapsible open={open} onOpenChange={onOpen} className="ph-working mt-3 rounded-[12px] bg-chip">
+    <Collapsible open={open} onOpenChange={onOpen} className="ph-working mt-3 rounded-[12px] bg-muted">
       <CollapsibleTrigger className="group flex min-h-12 w-full items-center gap-2.5 px-3.5 py-2 text-[15px]" aria-label={`${t.phone.next.working(atWork)}: ${open ? t.phone.next.hideWorking : t.phone.next.showWorking}`}>
         {head}
         <ChevronDown size={18} strokeWidth={2} className="ml-auto shrink-0 text-muted-foreground transition-transform group-data-[state=closed]:-rotate-90" aria-hidden="true" />
@@ -388,7 +388,7 @@ function WorkingBox({ open, onOpen, cards, atWork, snap, projects, onCard, onEls
 }
 
 /** A button of the floating bar, a finger's size. */
-const barButton = 'relative inline-grid size-11 place-items-center rounded-full border-0 bg-transparent p-0 text-ink cursor-pointer disabled:cursor-default disabled:text-muted-foreground [&_svg]:size-[22px]';
+const barButton = 'relative inline-grid size-11 place-items-center rounded-full border-0 bg-transparent p-0 text-foreground cursor-pointer disabled:cursor-default disabled:text-muted-foreground [&_svg]:size-[22px]';
 
 /**
  * The floating bar along the foot: a glass pill with Menu, Chat, New card (larger, standing out of
@@ -405,7 +405,7 @@ function FloatingBar({ needsYou, making, chat, chatWorking, onNew, onChat, onSea
       <button className={barButton} aria-label={t.phone.next.menu} onClick={onMenu}>
         <Menu aria-hidden="true" />
       </button>
-      <button className={cn(barButton, chatWorking && "after:absolute after:inset-x-2.5 after:bottom-1 after:h-0.5 after:animate-[draw_1.6s_cubic-bezier(.5,0,.3,1)_infinite] after:content-[''] after:[background:linear-gradient(90deg,var(--working)_0_50%,transparent_50%)_0_0/200%_100%_no-repeat,color-mix(in_srgb,var(--working)_22%,transparent)]")} aria-label={t.phone.next.chat} title={chat ? t.koordinator.unreadCount(chat) : undefined} onClick={onChat}>
+      <button className={cn(barButton, chatWorking && "after:absolute after:inset-x-2.5 after:bottom-1 after:h-0.5 after:animate-[draw_1.6s_cubic-bezier(.5,0,.3,1)_infinite] after:content-[''] after:[background:linear-gradient(90deg,var(--working)_0_50%,transparent_50%)_0_0/200%_100%_no-repeat,--alpha(var(--working)/22%)]")} aria-label={t.phone.next.chat} title={chat ? t.koordinator.unreadCount(chat) : undefined} onClick={onChat}>
         <TalkIcon />
         {chat > 0 && (
           <Badge variant="count" className="absolute top-0.5 right-0.5 bg-waiting text-white">
@@ -414,7 +414,7 @@ function FloatingBar({ needsYou, making, chat, chatWorking, onNew, onChat, onSea
         )}
       </button>
       <button
-        className="ph-new mx-1.5 -my-4 ph-landscape:-mx-4 ph-landscape:my-1.5 inline-grid size-[60px] place-items-center rounded-full border-0 bg-ink p-0 text-background shadow-lift cursor-pointer [-webkit-touch-callout:none] select-none active:translate-y-px disabled:opacity-60 disabled:cursor-default"
+        className="ph-new mx-1.5 -my-4 ph-landscape:-mx-4 ph-landscape:my-1.5 inline-grid size-[60px] place-items-center rounded-full border-0 bg-foreground p-0 text-background shadow-lift cursor-pointer [-webkit-touch-callout:none] select-none active:translate-y-px disabled:opacity-60 disabled:cursor-default"
         aria-label={t.newCard}
         disabled={making}
         onClick={onNew}

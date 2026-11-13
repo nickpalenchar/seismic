@@ -86,7 +86,7 @@ export function Listbox<T>({ box, items, label, className, itemKey, children }: 
     list.current?.children[box.active]?.scrollIntoView({ block: 'nearest' });
   }, [box.active, held]);
   return (
-    <ul ref={list} id={box.id} className={cn('m-0 list-none p-0 [&>li]:cursor-pointer [&>li[aria-selected=true]]:bg-chip', className)} role="listbox" aria-label={label}>
+    <ul ref={list} id={box.id} className={cn('m-0 list-none p-0 [&>li]:cursor-pointer [&>li[aria-selected=true]]:bg-muted', className)} role="listbox" aria-label={label}>
       {items.map((item, i) => (
         <li
           key={itemKey(item)}

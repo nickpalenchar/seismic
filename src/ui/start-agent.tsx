@@ -168,9 +168,9 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
     {!selectionOnly && (picked ?? currentDefault) && <span className={startAgentModel}>{describeAgent((picked ?? currentDefault)!, true)}</span>}
   </Button>;
   return <Popover open={open} onOpenChange={setOpen}><div className="start-agent">
-    <PopoverAnchor asChild><div className={cn('start-agent-buttons flex items-stretch', suggested && 'suggested rounded-[6px] shadow-[0_0_0_2px_var(--bg),0_0_0_4px_var(--idea)]')}>
+    <PopoverAnchor asChild><div className={cn('start-agent-buttons flex items-stretch', suggested && 'suggested rounded-[6px] shadow-[0_0_0_2px_var(--background),0_0_0_4px_var(--idea)]')}>
       {selectionOnly ? <PopoverTrigger asChild>{main}</PopoverTrigger> : main}
-      {!selectionOnly && <Tooltip content={a.chooseStart}><PopoverTrigger asChild><Button type="button" variant={variant} className="start-agent-chevron rounded-l-none rounded-r-[6px] border-l border-l-[var(--bg)] min-w-9" disabled={disabled || starting} aria-label={a.chooseStart}>
+      {!selectionOnly && <Tooltip content={a.chooseStart}><PopoverTrigger asChild><Button type="button" variant={variant} className="start-agent-chevron rounded-l-none rounded-r-[6px] border-l border-l-[var(--background)] min-w-9" disabled={disabled || starting} aria-label={a.chooseStart}>
         <ChevronDown size={14} strokeWidth={2.5} aria-hidden />
       </Button></PopoverTrigger></Tooltip>}
     </div></PopoverAnchor>

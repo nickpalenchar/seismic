@@ -43,7 +43,7 @@ export function CardSearch({ items, onOpen, field, hidden }: { items: Item[]; on
               ref={field}
               icon={false}
               wrapperClassName="block"
-              className="h-[34px] rounded-[17px] border-line bg-card py-0 pr-8 pl-[34px] text-sm shadow-none focus:bg-card in-data-[fit~='3']:pr-2"
+              className="h-[34px] rounded-[17px] border-border bg-card py-0 pr-8 pl-[34px] text-sm shadow-none focus:bg-card in-data-[fit~='3']:pr-2"
               value={query}
               onValueChange={(v) => (setQuery(v), setOpen(true))}
               placeholder={t.cardSearch.placeholder}
@@ -57,7 +57,7 @@ export function CardSearch({ items, onOpen, field, hidden }: { items: Item[]; on
               }}
               onBlur={close}
             />
-            {!query && !open && <kbd className="pointer-events-none absolute top-1/2 right-2.5 grid h-5 min-w-[18px] -translate-y-1/2 place-items-center rounded-[3px] border border-line px-[5px] font-mono text-xs text-muted-foreground in-data-[fit~='3']:hidden" aria-hidden>/</kbd>}
+            {!query && !open && <kbd className="pointer-events-none absolute top-1/2 right-2.5 grid h-5 min-w-[18px] -translate-y-1/2 place-items-center rounded-[3px] border border-border px-[5px] font-mono text-xs text-muted-foreground in-data-[fit~='3']:hidden" aria-hidden>/</kbd>}
           </div>
         </PopoverAnchor>
         <PopoverContent

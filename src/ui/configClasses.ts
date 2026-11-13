@@ -13,7 +13,7 @@ import { cn } from 'cn';
  * colours, an error close under what it is about (over what the parts in them set themselves).
  */
 const inside =
-  '[&_textarea]:w-full [&_[data-slot=check-label]]:[margin:8px_0_0] [&_code]:[font:12px_var(--mono)]! [&_code]:[overflow-wrap:anywhere]! [&_.warn]:text-warn! [&_.p-error]:[margin:6px_0_0]! [&_.p-error]:text-[13px]!';
+  '[&_textarea]:w-full [&_[data-slot=check-label]]:[margin:8px_0_0] [&_code]:[font:12px_var(--mono)]! [&_code]:[overflow-wrap:anywhere]! [&_.warn]:text-warning! [&_.p-error]:[margin:6px_0_0]! [&_.p-error]:text-[13px]!';
 
 /** The dim around Configuration and Preferences, which places the box. */
 export const cfgLayerClass = 'z-55 items-stretch p-7 max-[900px]:p-2.5';
@@ -30,7 +30,7 @@ export const settingsSheetClass = cn(inside, '[@media(max-width:760px)]:bottom-[
 
 /** The navigation down the left; in a narrow window a wrapping row over the section. */
 export const cfgNavClass =
-  'cfg-nav flex flex-col pt-[22px] px-3.5 pb-[18px] bg-transparent border-r border-r-line overflow-y-auto [--button-bg:var(--panel)] max-[900px]:flex-row max-[900px]:flex-wrap max-[900px]:items-center max-[900px]:gap-y-1 max-[900px]:gap-x-2.5 max-[900px]:p-3';
+  'cfg-nav flex flex-col pt-[22px] px-3.5 pb-[18px] bg-transparent border-r border-r-border overflow-y-auto [--button-bg:var(--surface)] max-[900px]:flex-row max-[900px]:flex-wrap max-[900px]:items-center max-[900px]:gap-y-1 max-[900px]:gap-x-2.5 max-[900px]:p-3';
 
 /** What the dialog is, over its title (the look of `.p-kind`); not in a narrow window. */
 export const cfgKindClass =
@@ -47,14 +47,14 @@ export const cfgAskHintClass = 'm-0 mb-3.5 leading-[1.45]';
 export const cfgNavListClass = 'list-none m-0 p-0 max-[900px]:flex max-[900px]:flex-wrap max-[900px]:gap-0.5 max-[900px]:pr-9';
 
 const navEntry =
-  'w-full flex items-center gap-2 px-2.5 [border:0] rounded-[8px] bg-transparent text-ink text-left cursor-pointer hover:[&:not([data-state=active])]:bg-[color-mix(in_srgb,var(--ink)_6%,transparent)] data-[state=active]:bg-card data-[state=active]:font-semibold data-[state=active]:shadow-[inset_0_1px_0_var(--glass-hi),var(--shadow)] max-[900px]:w-auto max-[900px]:px-2.5';
+  'w-full flex items-center gap-2 px-2.5 [border:0] rounded-[8px] bg-transparent text-foreground text-left cursor-pointer hover:[&:not([data-state=active])]:bg-foreground/6 data-[state=active]:bg-card data-[state=active]:font-semibold data-[state=active]:shadow-[inset_0_1px_0_var(--glass-hi),var(--shadow)] max-[900px]:w-auto max-[900px]:px-2.5';
 
 /** A section in the list; `nested` for a project, indented under the heading of the projects. */
 export const cfgNavEntryClass = (nested?: boolean) =>
   cn(navEntry, 'py-2 text-[14px] max-[900px]:py-1.5 max-[900px]:text-[13px]', nested && 'pl-6 max-[900px]:pl-2.5');
 
 /** "+ Project", last under the projects: quieter. */
-export const cfgNavAddClass = cn(navEntry, 'cfg-nav-add py-[5px] pl-6 text-[13px] text-muted-foreground hover:text-ink max-[900px]:pl-2.5');
+export const cfgNavAddClass = cn(navEntry, 'cfg-nav-add py-[5px] pl-6 text-[13px] text-muted-foreground hover:text-foreground max-[900px]:pl-2.5');
 
 /** Projects: a heading over the projects, each indented under it, and "+ Project" last. In a narrow window they join the row. */
 export const cfgNavGroupClass = 'cfg-nav-group max-[900px]:contents';
@@ -85,7 +85,7 @@ const headingFace = '[font-family:var(--font)] font-[650] tracking-[-.018em]';
 export const cfgHeadClass = (sub?: boolean) =>
   cn(
     'cfg-head mb-3.5 [#project-settings_&]:mt-[22px]',
-    sub && 'sub mt-[30px] pt-[22px] border-t border-t-line [.cfg-head:not(.sub)+&]:mt-0 [.cfg-head:not(.sub)+&]:pt-1 [.cfg-head:not(.sub)+&]:border-t-0',
+    sub && 'sub mt-[30px] pt-[22px] border-t border-t-border [.cfg-head:not(.sub)+&]:mt-0 [.cfg-head:not(.sub)+&]:pt-1 [.cfg-head:not(.sub)+&]:border-t-0',
   );
 export const cfgHeadTitleClass = cn('m-0 mr-12 mb-1.5 text-[26px] leading-[1.15] [#project-settings_&]:m-0 [#project-settings_&]:mb-1 [#project-settings_&]:text-[16px]', headingFace);
 export const cfgHeadSubTitleClass = 'm-0 mb-1 text-[15px]';
@@ -113,14 +113,14 @@ export const cfgSettingLabelClass = cn(cfgLabelClass, 'flex flex-wrap items-base
 
 /** Where a setting's value comes from: this machine's in the working colour. */
 export const cfgSourceClass = (here: boolean) =>
-  cn('cfg-source text-[11.5px]', here ? 'here text-working' : '[color:color-mix(in_srgb,var(--muted-foreground)_80%,var(--panel))]');
+  cn('cfg-source text-[11.5px]', here ? 'here text-working' : 'text-muted-foreground/80');
 
 /**
  * What to know about a field: an icon beside its label, shown only while the pointer is on the field or the
  * label (the nearest `.cfg-has-info`) or the field has the focus.
  */
 export const cfgInfoClass =
-  'cfg-info inline-flex align-[-3px] ml-0.5 py-0 px-px [border:0] bg-transparent text-muted-foreground cursor-help leading-[0] opacity-0 [transition:opacity_.12s] [.cfg-has-info:is(:hover,:focus-within)_&]:opacity-100 [.cfg-has-info:is(:hover,:focus-within)_.cfg-has-info:not(:hover,:focus-within)_&]:opacity-0 hover:opacity-100 hover:text-ink [&.on]:opacity-100 [&.on]:text-ink focus-visible:opacity-100 focus-visible:text-ink focus-visible:outline-1 focus-visible:outline-solid focus-visible:outline-muted-foreground focus-visible:outline-offset-1 focus-visible:rounded-[50%]';
+  'cfg-info inline-flex align-[-3px] ml-0.5 py-0 px-px [border:0] bg-transparent text-muted-foreground cursor-help leading-[0] opacity-0 [transition:opacity_.12s] [.cfg-has-info:is(:hover,:focus-within)_&]:opacity-100 [.cfg-has-info:is(:hover,:focus-within)_.cfg-has-info:not(:hover,:focus-within)_&]:opacity-0 hover:opacity-100 hover:text-foreground [&.on]:opacity-100 [&.on]:text-foreground focus-visible:opacity-100 focus-visible:text-foreground focus-visible:outline-1 focus-visible:outline-solid focus-visible:outline-muted-foreground focus-visible:outline-offset-1 focus-visible:rounded-[50%]';
 
 /** A group of a repository's settings under a small heading; marked a moment when the dialog was opened at its clones. */
 export const cfgGroupClass = (flash?: boolean) => cn('cfg-group mt-[18px] rounded-[2px]', flash && 'flash animate-[cfg-flash_2.4s_ease-out]');
@@ -128,7 +128,7 @@ export const cfgGroupHeadClass = 'cfg-group-head m-0 mb-0.5 text-[11.5px] font-s
 
 /** The save buttons stay in view at the foot of the section; solid under reduced motion. */
 export const cfgActionsClass =
-  'cfg-actions sticky bottom-0 z-1 flex flex-wrap items-center gap-2.5 mt-5 pt-3.5 px-0 pb-[18px] bg-[color-mix(in_srgb,var(--panel)_88%,transparent)] backdrop-blur-[16px] border-t border-t-line reduced:bg-panel [&_.c-status]:m-0! [&_.c-status]:text-[12.5px]!';
+  'cfg-actions sticky bottom-0 z-1 flex flex-wrap items-center gap-2.5 mt-5 pt-3.5 px-0 pb-[18px] bg-surface/88 backdrop-blur-[16px] border-t border-t-border reduced:bg-surface [&_.c-status]:m-0! [&_.c-status]:text-[12.5px]!';
 
 /** Columns side by side as far as they fit, one under the other in a narrow window. */
 export const cfgColsClass = 'cfg-cols grid grid-cols-[repeat(auto-fit,minmax(420px,1fr))] gap-y-0 gap-x-14 [align-items:start] max-[900px]:grid-cols-[1fr] [&>.c-setup>.cfg-head.sub]:mt-0 [&>.c-setup>.cfg-head.sub]:pt-0 [&>.c-setup>.cfg-head.sub]:border-t-0';

@@ -8,7 +8,7 @@
 //   `MenuTrigger`, `MenuItem` …), `variant` and `size` through cva, `className` merged with `cn`,
 //   `asChild` where a link or label must be the element. Text comes from `strings.ts`, never literal.
 // - Look: Tailwind classes in the component on shadcn's tokens (`bg-primary`, `text-muted-foreground`)
-//   and Seismic's own (`bg-waiting`, `bg-glass`), which `tailwind.css` takes from frost, so light,
+//   and Seismic's own (`bg-waiting`, `bg-glass`), which `tailwind.css` defines (one palette, Tailwind's hues), so light,
 //   dark and frost apply without a rule of their own. Tailwind's preflight is on, so a bare `button` or
 //   `input` needs no reset of its own; layout (gap, alignment, margin) belongs to the container, which
 //   reaches a part through its `data-slot` (`[data-slot=button]`), never to change its look.

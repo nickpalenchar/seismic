@@ -7,7 +7,7 @@ import { shortDay, t } from './strings';
 
 export function PageChangeList({ changes, className }: { changes: { id: OutdatedBy; pages?: number }[]; className?: string }) {
   return (
-    <ul className={cn('page-changes list-none mt-1 mb-0 p-0 grid gap-1 text-xs text-ink', className)}>
+    <ul className={cn('page-changes list-none mt-1 mb-0 p-0 grid gap-1 text-xs text-foreground', className)}>
       {changes.map(({ id, pages }) => {
         const kinds = PAGE_CHANGES.find((c) => c.id === id)?.kinds ?? [];
         return (

@@ -97,7 +97,7 @@ export function InboxView({ on, held, onClose, ...p }: InboxProps & { on: boolea
   // card unfolds in the room beside it (a row, over the full page's column)
   return (
     <FullPage id="inbox-full" title={t.inbox.title} className="flex-row">
-      <div className={cn('inbox-col flex-none w-[min(480px,max(340px,36vw))] box-border overflow-auto pt-3 px-3.5 pb-[30px] border-r border-r-line', held && 'held')}>
+      <div className={cn('inbox-col flex-none w-[min(480px,max(340px,36vw))] box-border overflow-auto pt-3 px-3.5 pb-[30px] border-r border-r-border', held && 'held')}>
         <h2 className="mt-0 mx-2 mb-2.5 text-[18px]">{t.inbox.title}</h2>
         <InboxList {...p} />
       </div>

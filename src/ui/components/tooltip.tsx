@@ -32,7 +32,7 @@ export function Tooltip({ content, children, side = 'top', align = 'center', ...
       <TooltipPrimitive.Portal container={uiPortal()}>
         <TooltipPrimitive.Content
           data-slot="tooltip-content"
-          className="pointer-events-none z-60 max-w-[340px] rounded-[3px] bg-panel px-2.5 py-1.5 text-left text-[13px] leading-[1.45] font-normal whitespace-normal text-ink shadow-lift"
+          className="pointer-events-none z-60 max-w-[340px] rounded-[3px] bg-surface px-2.5 py-1.5 text-left text-[13px] leading-[1.45] font-normal whitespace-normal text-foreground shadow-lift"
           side={side}
           align={align}
           sideOffset={6}

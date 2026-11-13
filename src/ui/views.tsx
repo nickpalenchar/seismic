@@ -96,7 +96,7 @@ const switchButtonClass = 'inline-flex items-center gap-1.5 h-[30px] py-0 px-3.5
 /** Canvas | Parked | Table at the bottom centre, where the microphone was; Table is still to come. */
 export function ViewSwitcher({ shown, onShow }: { shown: SwitchedView | null; onShow: (v: SwitchedView) => void }) {
   const button = (v: SwitchedView, label: string, icon: ReactNode) => (
-    <button type="button" className={cn(switchButtonClass, shown === v ? 'bg-chip text-ink font-semibold' : 'hover:text-ink [@media(max-width:1100px)]:px-2.5')} aria-pressed={shown === v} aria-label={label} onClick={() => onShow(v)}>
+    <button type="button" className={cn(switchButtonClass, shown === v ? 'bg-muted text-foreground font-semibold' : 'hover:text-foreground [@media(max-width:1100px)]:px-2.5')} aria-pressed={shown === v} aria-label={label} onClick={() => onShow(v)}>
       {icon}
       <span className={cn(shown !== v && '[@media(max-width:1100px)]:hidden')}>{label}</span>
     </button>

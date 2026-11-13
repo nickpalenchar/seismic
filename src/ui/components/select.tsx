@@ -61,7 +61,7 @@ export function Select({
           position="popper"
           sideOffset={4}
           collisionPadding={8}
-          className="z-80 max-h-[min(var(--radix-select-content-available-height),360px)] min-w-(--radix-select-trigger-width) overflow-hidden rounded-[10px] border border-solid border-glass-edge bg-panel text-[13px] text-ink shadow-lift"
+          className="z-80 max-h-[min(var(--radix-select-content-available-height),360px)] min-w-(--radix-select-trigger-width) overflow-hidden rounded-[10px] border border-solid border-glass-edge bg-surface text-[13px] text-foreground shadow-lift"
         >
           <SelectPrimitive.Viewport className="p-1">{children}</SelectPrimitive.Viewport>
         </SelectPrimitive.Content>
@@ -76,7 +76,7 @@ export function SelectItem({ value, className, children, ...props }: Omit<Compon
       data-slot="select-item"
       value={wrap(value)}
       className={cn(
-        'relative flex cursor-pointer items-center rounded-[6px] px-2.5 py-1.5 text-[13px] outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-[color-mix(in_srgb,var(--ink)_8%,transparent)] data-[state=checked]:font-semibold',
+        'relative flex cursor-pointer items-center rounded-[6px] px-2.5 py-1.5 text-[13px] outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-foreground/8 data-[state=checked]:font-semibold',
         className,
       )}
       {...props}

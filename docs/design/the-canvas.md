@@ -904,11 +904,9 @@ code, a generic one otherwise.
   like a dialog, and the phone already closed cards that way. Rejected: closing as a step of its own,
   after which Back opened the card that was just closed.
 - **The look is frost, on shadcn/ui with Tailwind** (owner, 2026-11-05, 2026-11-10): frost is
-  one token set (board, glass, inks; light, dark by system, dark by choice), and
-  its tokens are the values behind shadcn/ui's variables
-  (`--background`, `--card`, `--primary` …), and the state inks and glass are Tailwind tokens of their
-  own, so a shadcn part wears frost without a rule of its own; `dark:` follows the owner's choice of
-  light or dark, else the system's. Controls are shadcn parts on Radix Primitives in
+  one token set (board, glass, colours; light, dark by system, dark by choice) in one token file,
+  `tailwind.css`, so a shadcn part wears frost without a rule of its own; `dark:` follows the owner's
+  choice of light or dark, else the system's. Controls are shadcn parts on Radix Primitives in
   `src/ui/components/`, added through the shadcn CLI and edited freely once copied; AI Elements serve
   the conversations. Controls take their icons from lucide (`lucide-react`), never a typographic
   character standing in for one (▾, ✕), so they share stroke and sizing; the exceptions are in Visual identity's icon rule. Glass on every card was chosen over frost on the chrome alone with solid cards:
@@ -917,7 +915,7 @@ code, a generic one otherwise.
   blur while the canvas moves brought it to 60 and 55 fps, against 60 without glass. Solid cards
   remain the fallback. Everything is Tailwind, preflight included (headings keep the browser's sizes and weight, lists
   their markers and indent, as the views and rendered markdown expect them); the one stylesheet of its own, `frost.css`,
-  holds frost's token values, the board and its font and keyframes, and sits outside the cascade layers.
+  holds the board's font and the keyframes, and sits outside the cascade layers.
   No class in it may share a name with a Tailwind utility (`hidden`, `fixed`, `ring`), since the utility
   would apply to it as well, and a test fails on a control written by hand outside `src/ui/components/`
   (a switch, select, dialog or menu of a view's own). Rejected: our own
@@ -929,6 +927,30 @@ code, a generic one otherwise.
   as a layer over upstream's stylesheet, which made every rule depend on the layer that overrode it
   (merged into one on 2026-11-10). The earlier
   look, index cards pinned to a wall (2026-10-10), is gone.
+
+- **Colours are Tailwind's palette on shadcn's tokens** (owner, 2026-11-12): three layers in the token
+  file. *Hues* are Tailwind's palette (neutrals from `slate`, the closest to frost's blue-grey); no hex,
+  `rgb()` or `rgba()` is written anywhere else, and a test fails on one, on `color-mix()` outside the token
+  file, and on frost's former names. *Semantic tokens* are shadcn's names (`background`, `foreground`,
+  `card`, `popover`, `primary`, `secondary`, `muted`, `muted-foreground`, `accent`, `border`, `input`,
+  `ring`, `destructive`) plus `success`, `warning`, `info`, and frost's own layers `surface` (solid), `glass`,
+  `glass-edge`, `glass-hi` and `scrim`. *State tokens* give each state three steps, a solid fill
+  (`bg-waiting`), a subtle tint (`bg-waiting-subtle`) and the text on the tint (`text-waiting-strong`): the
+  hue's -600 / -100 / -800 in light and -400 / -950 / -200 in dark, and an element in a state's colour
+  carries them as `--c`, `--c-subtle`, `--c-strong` (`c-waiting`, `.s-waiting`), so a part tinted by "its"
+  state needs no mixing; a tint over glass is Tailwind's opacity (`bg-waiting/10`). Hues: working and primary
+  blue, waiting orange, approved green, reviewing teal, in-PR cyan, proposal violet, idea rose, question sky,
+  asking yellow, restart sky, planned and live slate, destructive red, warning amber. Light takes the -600
+  step where it reaches 3:1 for marks and 4.5:1 for text on glass over the board (`frost.test.ts` measures
+  it from the tokens), else -700 (approved, asking, question, success, info); a state's line is the strong step
+  (about 6:1 light, 10:1 dark). Reviewing and in-PR were two nearly identical teals and are now teal and
+  cyan. A subtle tint is the palette's step, not a mix of the state colour into the glass, so it is a little
+  stronger than the old hand-mixed one. Chosen over the stock shadcn neutrals so that frost keeps its glass
+  and its meaning of colour, and over a scale of frost's own hues so that new parts fit without picking
+  values. Rejected: Radix Colors (it replaces the 2026-11-09 "Radix's hues as they are" choice), frost's
+  own hues put on a scale, a CSS-in-JS library. Colours not reached by CSS (a mark drawn into a canvas) are
+  named with their reason in the guard.
+
 - **The inbox opens a list instead of jumping to the next card** (owner, 2026-11-01): with
   several things waiting, a jump hides what the others are and cannot answer anything. Entries
   come the latest changed first on desktop and phone alike (see "The inbox a full-page view"), as

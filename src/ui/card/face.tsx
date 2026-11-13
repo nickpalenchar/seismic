@@ -10,7 +10,7 @@ import { stateLabel, t } from '../strings';
 import { hasChips, hasLabels, LabelMarks, PriorityMark } from './labels';
 import { cardFlags, type CardPlace, chipLabelClass, dotClass, faceClass, kindClass, lineClass, listStateClass, listStateTextClass, listTextClass, listTitleClass, listTitleTextClass, metaClass, pinClass, shortStateClass, stateClass, stateTextClass, topClass, ttlClass, whereClass, wordsClass, wsLabelClass } from './faceClasses';
 import { Pin, PinDot, shownTitle, StateMarks, StateText, StoppedWords, Title, UnreadDot } from './pieces';
-import { cardKind, cardSummary, cardTone } from './summary';
+import { cardKind, cardSummary, cardTone, stateVars } from './summary';
 import { Badge } from '../components/badge';
 
 export type CardSize = 'm' | 's' | 'xs' | 'inline';
@@ -61,7 +61,7 @@ const dotted = (parts: ReactNode[]) =>
   ));
 
 /** The state's colour for the sizes in lists, which do not wear the card's classes. */
-const tone = (item: Item, underway?: string) => ({ '--c': `var(--${cardTone(item, underway)})` }) as CSSProperties;
+const tone = (item: Item, underway?: string) => stateVars(cardTone(item, underway)) as CSSProperties;
 
 export function CardFace(p: CardFaceProps) {
   return p.size === 'inline' ? <FaceInline {...p} /> : p.size === 'xs' ? <FaceXS {...p} /> : p.size === 's' ? <FaceS {...p} /> : <FaceM {...p} />;

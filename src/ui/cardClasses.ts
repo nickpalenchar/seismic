@@ -27,23 +27,23 @@ export type QuestionKind =
 
 const kinds: Record<QuestionKind, string> = {
   // an agent's questions, one after the other; in the conversation a turn of its own
-  ask: '[&_.ask-q+.ask-q]:mt-3 [&_.ask-q+.ask-q]:pt-2.5 [&_.ask-q+.ask-q]:border-t [&_.ask-q+.ask-q]:border-[color-mix(in_srgb,var(--waiting)_30%,transparent)] [&.flash]:animate-[msg-flash_2.4s_ease-out] [.talk_&]:m-0 [.talk_&]:max-w-[92%] [.talk_&]:py-2.5 [.talk_&]:px-3 [.talk_&]:text-[14px] [.talk_&]:flex-none [.talk_&]:bg-[color-mix(in_srgb,var(--waiting)_9%,var(--card))]',
-  brief: 'border-idea bg-[color-mix(in_srgb,var(--idea)_6%,transparent)] [&_.p-lead]:text-[14px] [&_.p-list]:mt-1',
-  'duplicate-notice': 'max-w-none border-proposal bg-[color-mix(in_srgb,var(--proposal)_7%,var(--card))] [&_h4]:mb-[5px] [&_h4]:text-proposal [&>p]:m-0 [&_.duplicate-preview]:mt-3.5',
-  failed: 'border-error bg-[color-mix(in_srgb,var(--error)_6%,transparent)]',
-  pr: 'border-in-pr bg-[color-mix(in_srgb,var(--inPr)_7%,transparent)] [&_h4_a]:text-ink [&_h4_a]:normal-case [&_h4_a]:tracking-normal [&_h4_a]:text-[14px]',
+  ask: '[&_.ask-q+.ask-q]:mt-3 [&_.ask-q+.ask-q]:pt-2.5 [&_.ask-q+.ask-q]:border-t [&_.ask-q+.ask-q]:border-waiting/30 [&.flash]:animate-[msg-flash_2.4s_ease-out] [.talk_&]:m-0 [.talk_&]:max-w-[92%] [.talk_&]:py-2.5 [.talk_&]:px-3 [.talk_&]:text-[14px] [.talk_&]:flex-none [.talk_&]:bg-waiting/9',
+  brief: 'border-idea bg-idea/6 [&_.p-lead]:text-[14px] [&_.p-list]:mt-1',
+  'duplicate-notice': 'max-w-none border-proposal bg-proposal/7 [&_h4]:mb-[5px] [&_h4]:text-proposal [&>p]:m-0 [&_.duplicate-preview]:mt-3.5',
+  failed: 'border-destructive bg-destructive/6',
+  pr: 'border-in-pr bg-in-pr/7 [&_h4_a]:text-foreground [&_h4_a]:normal-case [&_h4_a]:tracking-normal [&_h4_a]:text-[14px]',
   proposal: 'border-dashed border-proposal',
-  queue: 'border-planned bg-chip [--button-bg:var(--card)]',
-  'repo-down': 'border-warn bg-[color-mix(in_srgb,var(--warn)_6%,transparent)]',
+  queue: 'border-planned bg-muted [--button-bg:var(--card)]',
+  'repo-down': 'border-warning bg-warning/6',
   // the settled part "Split off a task" builds, folded under the brief
-  settled: 'border-idea bg-[color-mix(in_srgb,var(--idea)_6%,transparent)] mt-2.5 [&>[data-slot=collapsible-trigger]]:font-semibold [&>[data-slot=collapsible-trigger]]:text-[14px]',
-  superseded: 'border-proposal bg-[color-mix(in_srgb,var(--proposal)_6%,transparent)]',
+  settled: 'border-idea bg-idea/6 mt-2.5 [&>[data-slot=collapsible-trigger]]:font-semibold [&>[data-slot=collapsible-trigger]]:text-[14px]',
+  superseded: 'border-proposal bg-proposal/6',
 };
 
 /** A framed box on the card (a question, the brief, the queue …), in the waiting colour unless its kind says otherwise. */
 export const questionClass = (kind?: QuestionKind, className?: string) =>
   cn(
-    'question mt-[18px] py-3.5 px-[18px] rounded-[3px] border-[1.5px] border-solid border-waiting max-w-[80ch] bg-[color-mix(in_srgb,var(--waiting)_9%,transparent)] text-[15px] [&_h4]:mt-0 [&_h4]:mb-1.5 [&_h4]:text-[11px] [&_h4]:uppercase [&_h4]:tracking-[.08em] [&_h4]:text-muted-foreground [&_.q-text]:whitespace-pre-wrap [&_.p-lead]:mt-1.5 [&_.p-lead]:text-[14.5px] [.split-main_&]:max-w-none',
+    'question mt-[18px] py-3.5 px-[18px] rounded-[3px] border-[1.5px] border-solid border-waiting max-w-[80ch] bg-waiting/9 text-[15px] [&_h4]:mt-0 [&_h4]:mb-1.5 [&_h4]:text-[11px] [&_h4]:uppercase [&_h4]:tracking-[.08em] [&_h4]:text-muted-foreground [&_.q-text]:whitespace-pre-wrap [&_.p-lead]:mt-1.5 [&_.p-lead]:text-[14.5px] [.split-main_&]:max-w-none',
     kind && [kind === 'settled' ? 'brief settled' : kind, kinds[kind]],
     className,
   );
@@ -57,7 +57,7 @@ export const titleFieldClass = cn(titleClass, 'block w-[calc(100%-40px)] resize-
 
 /** The card's state line under its title, in the state's colour (`--c`, set per state with the card faces' rules). */
 export const stateClass =
-  'p-state text-[13px] font-semibold text-[color-mix(in_srgb,var(--c),var(--ink)_var(--state-text-ink))] [&_:is(.merge-mark,.restart-mark,.question-mark)]:align-[-1px] [&+.p-src]:mt-1';
+  'p-state text-[13px] font-semibold text-c-strong [&_:is(.merge-mark,.restart-mark,.question-mark)]:align-[-1px] [&+.p-src]:mt-1';
 
 /** What the state line adds after it (who snoozed it, the agent's status line), quieter. */
 export const statusClass = 'p-status text-muted-foreground font-medium [&.conflict]:text-waiting [&.conflict]:italic';
@@ -67,7 +67,7 @@ export const statusClass = 'p-status text-muted-foreground font-medium [&.confli
  * text and then scrolls; a proposal's grows with the text (detail.tsx) and leaves the reason below it in view.
  */
 export const bodyClass =
-  'p-body block box-border w-full max-w-[76ch] min-h-[180px] mt-4 py-3 px-3.5 border border-line rounded-[3px] bg-card text-[15px] leading-normal outline-none focus:border-muted-foreground resize-none whitespace-pre-wrap break-words max-h-[70vh] overflow-y-auto cursor-text [&.blank]:before:content-[attr(data-placeholder)] [&.blank]:before:text-muted-foreground [&.blank]:before:pointer-events-none [&.blank]:before:absolute [&_.smart-link]:cursor-default [&_.smart-link]:select-all [&_.smart-link]:align-[1px] [.split-main_&]:max-w-none [.c-field_&]:pr-10 [.dropping_&]:border-working [.dropping_&]:border-dashed [.dropping_&]:bg-[color-mix(in_srgb,var(--working)_6%,var(--card))] [.proposal-grid_&]:min-h-[min(360px,calc(100vh-440px))] [.proposal-grid_&]:max-h-[calc(100vh-440px)] phone:[.proposal-grid_&]:min-h-[160px] phone:[.proposal-grid_&]:max-h-[50vh]';
+  'p-body block box-border w-full max-w-[76ch] min-h-[180px] mt-4 py-3 px-3.5 border border-border rounded-[3px] bg-card text-[15px] leading-normal outline-none focus:border-muted-foreground resize-none whitespace-pre-wrap break-words max-h-[70vh] overflow-y-auto cursor-text [&.blank]:before:content-[attr(data-placeholder)] [&.blank]:before:text-muted-foreground [&.blank]:before:pointer-events-none [&.blank]:before:absolute [&_.smart-link]:cursor-default [&_.smart-link]:select-all [&_.smart-link]:align-[1px] [.split-main_&]:max-w-none [.c-field_&]:pr-10 [.dropping_&]:border-working [.dropping_&]:border-dashed [.dropping_&]:bg-working/6 [.proposal-grid_&]:min-h-[min(360px,calc(100vh-440px))] [.proposal-grid_&]:max-h-[calc(100vh-440px)] phone:[.proposal-grid_&]:min-h-[160px] phone:[.proposal-grid_&]:max-h-[50vh]';
 
 /** A small heading over a part of the card (the conversation, the plan's text, the findings). */
 export const headClass =
@@ -96,19 +96,19 @@ export const choicesClass = (mode?: 'single' | 'multiple', className?: string) =
  */
 export const choiceClass = ({ on, picked, other, alone }: { on?: boolean; picked?: boolean; other?: boolean; alone?: boolean }) =>
   cn(
-    "choice flex items-start gap-[9px] text-left bg-card border border-line rounded-[3px] py-[5px] pr-[11px] pl-[9px] text-[13.5px] text-ink cursor-pointer max-w-full hover:border-muted-foreground before:content-[''] before:flex-none before:size-[14px] before:mt-0.5 before:box-border before:border-[1.5px] before:border-solid before:border-muted-foreground before:bg-card group-[.single]/choices:before:rounded-full group-[.multiple]/choices:before:rounded-[2px] [.prototype-variants_&]:basis-full",
-    on && 'on border-waiting hover:border-waiting bg-[color-mix(in_srgb,var(--waiting)_8%,var(--card))] before:border-waiting group-[.single]/choices:before:bg-[radial-gradient(var(--waiting)_0_3.5px,var(--card)_4px)] group-[.multiple]/choices:before:choice-checked',
-    picked && 'picked border-[color-mix(in_srgb,var(--idea)_55%,var(--line))]',
+    "choice flex items-start gap-[9px] text-left bg-card border border-border rounded-[3px] py-[5px] pr-[11px] pl-[9px] text-[13.5px] text-foreground cursor-pointer max-w-full hover:border-muted-foreground before:content-[''] before:flex-none before:size-[14px] before:mt-0.5 before:box-border before:border-[1.5px] before:border-solid before:border-muted-foreground before:bg-card group-[.single]/choices:before:rounded-full group-[.multiple]/choices:before:rounded-[2px] [.prototype-variants_&]:basis-full",
+    on && 'on border-waiting hover:border-waiting bg-waiting/8 before:border-waiting group-[.single]/choices:before:bg-[radial-gradient(var(--waiting)_0_3.5px,var(--card)_4px)] group-[.multiple]/choices:before:choice-checked',
+    picked && 'picked border-idea/55',
     other && 'other basis-full box-border cursor-text [&_textarea]:flex-1 [&_textarea]:min-w-0 [&_textarea]:m-0 [&_textarea]:resize-none [&_textarea]:[font:inherit] [&_textarea]:text-inherit [&_textarea]:leading-[inherit] [&_textarea]:[field-sizing:content] [&_textarea]:min-h-lh',
     alone && 'alone before:content-none',
   );
 
 /** The tag on the option the asking agent would pick. */
-export const pickTag = 'pick-tag inline-block ml-1.5 px-[7px] rounded-[2px] text-[11px] font-bold leading-[18px] whitespace-nowrap text-idea bg-[color-mix(in_srgb,var(--idea)_10%,var(--card))]';
+export const pickTag = 'pick-tag inline-block ml-1.5 px-[7px] rounded-[2px] text-[11px] font-bold leading-[18px] whitespace-nowrap text-idea bg-idea/10';
 
 /**
  * A menu over the field (the skills, the cards to link): a list on the card's glass, its options a row each.
  * Where it stands is the menu's own.
  */
 export const menuClass =
-  'skill-menu absolute left-0 right-0 z-5 max-h-[min(320px,45vh)] overflow-x-hidden overflow-y-auto border border-line rounded-[3px] bg-card [box-shadow:0_6px_20px_rgb(0_0_0/14%)] text-[13px] [&_li]:flex [&_li]:gap-3 [&_li]:items-baseline [&_li]:py-1.5 [&_li]:px-2 [&_li]:rounded-[2px]';
+  'skill-menu absolute left-0 right-0 z-5 max-h-[min(320px,45vh)] overflow-x-hidden overflow-y-auto border border-border rounded-[3px] bg-card shadow-lift text-[13px] [&_li]:flex [&_li]:gap-3 [&_li]:items-baseline [&_li]:py-1.5 [&_li]:px-2 [&_li]:rounded-[2px]';

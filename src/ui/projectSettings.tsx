@@ -137,12 +137,12 @@ export function ProjectSettingsSheet({ project, name, homePath, on, covered, pro
         </>
       )}
       {status && <p className={`hint ${statusClass}`}>{status}</p>}
-      <div className="cs-more mt-[26px] pt-3.5 border-t border-t-line flex flex-col items-start gap-1 text-[13px]">
+      <div className="cs-more mt-[26px] pt-3.5 border-t border-t-border flex flex-col items-start gap-1 text-[13px]">
         <span className="text-muted-foreground text-[12.5px]">{l.more}</span>
         <LinkButton type="button" onClick={onConfig}>
           {l.toConfig}
         </LinkButton>
-        {problems > 0 && <Badge variant="count" className="bg-transparent p-0 text-warn text-[12.5px]">{t.config.problemCount(problems)}</Badge>}
+        {problems > 0 && <Badge variant="count" className="bg-transparent p-0 text-warning text-[12.5px]">{t.config.problemCount(problems)}</Badge>}
       </div>
     </Docked>
   );

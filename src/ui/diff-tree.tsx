@@ -35,19 +35,19 @@ export function DiffTreeLayout({ rows, current, onPick, children }: { rows: Chan
     <div className="diff-tree-toggle row-start-1">
       {wide
         ? <CollapsibleTrigger asChild><Button size="small" variant="ghost" aria-expanded={open}><Files size={15} />{open ? t.diff.hideTree : t.diff.showTree}</Button></CollapsibleTrigger>
-        : <CollapsibleTrigger className={cn(barTrigger, 'border border-line bg-chip font-medium')}>{open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}<Files size={15} /><span className="flex-1">{t.diff.showTree}</span><span className="hint">{files.length}</span></CollapsibleTrigger>}
+        : <CollapsibleTrigger className={cn(barTrigger, 'border border-border bg-muted font-medium')}>{open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}<Files size={15} /><span className="flex-1">{t.diff.showTree}</span><span className="hint">{files.length}</span></CollapsibleTrigger>}
     </div>
-    <CollapsibleContent asChild forceMount hidden={!open}><nav className={cn('diff-tree min-w-0 border border-line rounded-[8px] p-2 row-start-2', beside && 'col-start-1 [align-self:start]', !wide && 'max-h-[40vh] overflow-auto')} aria-label={t.diff.showTree}><Tree rows={files} current={current} onPick={(path) => { onPick(path); setPicked(n => n + 1); }} /></nav></CollapsibleContent>
+    <CollapsibleContent asChild forceMount hidden={!open}><nav className={cn('diff-tree min-w-0 border border-border rounded-[8px] p-2 row-start-2', beside && 'col-start-1 [align-self:start]', !wide && 'max-h-[40vh] overflow-auto')} aria-label={t.diff.showTree}><Tree rows={files} current={current} onPick={(path) => { onPick(path); setPicked(n => n + 1); }} /></nav></CollapsibleContent>
     <div className={cn('diff-selection min-w-0', beside ? 'col-start-2 row-start-2' : wide ? 'row-start-2' : 'row-start-3')} ref={selection}>{typeof children === 'function' ? children(!wide) : children}</div>
   </div></Collapsible>;
 }
 
 /** A bar of the stacked Diff tab that folds what is below it: the tree, or a file's changes. */
-export const barTrigger = 'flex w-full min-w-0 items-center gap-2 py-1.5 px-2.5 rounded-[8px] text-[13px] hover:bg-chip [&_svg]:shrink-0 [&_svg]:text-muted-foreground phone:min-h-11';
+export const barTrigger = 'flex w-full min-w-0 items-center gap-2 py-1.5 px-2.5 rounded-[8px] text-[13px] hover:bg-muted [&_svg]:shrink-0 [&_svg]:text-muted-foreground phone:min-h-11';
 
 /** What happened to a file, as a coloured letter. */
 export function StatusBadge({ kind }: { kind: NonNullable<ChangeRow['kind']> }) {
-  return <span className={cn('diff-status shrink-0 inline-flex items-center justify-center size-4 rounded-[3px] text-[color-mix(in_srgb,var(--diff-status)_75%,var(--ink))] bg-[color-mix(in_srgb,var(--diff-status)_22%,transparent)] [font:700_11px/1_var(--mono)]', kind, statusColour[kind])} title={t.diff.treeStatus[kind]} aria-label={t.diff.treeStatus[kind]}>{({ added: '+', deleted: '−', moved: '↪', modified: 'M' })[kind]}</span>;
+  return <span className={cn('diff-status shrink-0 inline-flex items-center justify-center size-4 rounded-[3px] text-c-strong bg-c/22 [font:700_11px/1_var(--mono)]', kind, statusColour[kind])} title={t.diff.treeStatus[kind]} aria-label={t.diff.treeStatus[kind]}>{({ added: '+', deleted: '−', moved: '↪', modified: 'M' })[kind]}</span>;
 }
 
 /** A file or folder of the tree: the row's width, its name from the left; a fingertip's height on a narrow screen. */
@@ -55,10 +55,10 @@ const treeButton = 'w-full justify-start min-h-[26px] py-[3px] px-1.5 [&_svg]:sh
 
 /** What happened to a file, in the colour of that. */
 const statusColour: Record<NonNullable<ChangeRow['kind']>, string> = {
-  added: '[--diff-status:var(--approved)]',
-  deleted: '[--diff-status:var(--destructive)]',
-  modified: '[--diff-status:var(--warn)]',
-  moved: '[--diff-status:var(--working)]',
+  added: 'c-approved',
+  deleted: 'c-destructive',
+  modified: 'c-warning',
+  moved: 'c-working',
 };
 
 function Tree({ rows, current, onPick, prefix = '' }: { rows: ChangeRow[]; current?: string; onPick: (path: string) => void; prefix?: string }) {
@@ -66,7 +66,7 @@ function Tree({ rows, current, onPick, prefix = '' }: { rows: ChangeRow[]; curre
   return <ul className={cn('list-none m-0 p-0', prefix && 'pl-3.5')}>{diffTreeEntries(rows, prefix).map(({ name, path, file, children }) => {
     const expanded = !closed.has(path);
     return <li key={path}>
-      {file && <Button variant="ghost" size="small" className={cn(treeButton, current === path && 'selected bg-chip text-ink')} aria-current={current === path ? 'true' : undefined} title={file.from ? `${file.from} → ${path}` : path} onClick={() => onPick(path)}>
+      {file && <Button variant="ghost" size="small" className={cn(treeButton, current === path && 'selected bg-muted text-foreground')} aria-current={current === path ? 'true' : undefined} title={file.from ? `${file.from} → ${path}` : path} onClick={() => onPick(path)}>
         <StatusBadge kind={file.kind!} /><span className="diff-tree-name overflow-hidden text-ellipsis">{name}</span>
       </Button>}
       {children.length > 0 && <Collapsible open={expanded} onOpenChange={() => setClosed(was => { const next = new Set(was); next.has(path) ? next.delete(path) : next.add(path); return next; })}>

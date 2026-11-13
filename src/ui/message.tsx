@@ -96,7 +96,7 @@ export function goToMessage(ev: number | string, orElse?: string) {
  * it and its start, a few lines at most. A click on it goes to the message in the conversation
  * (`ev` in `Msg`); `onClear` takes it out of the field.
  */
-export const quoteClass = "quote [--q:var(--muted-foreground)] flex items-start min-w-0 border border-[color-mix(in_srgb,var(--q)_30%,transparent)] rounded-[3px] bg-[color-mix(in_srgb,var(--q)_8%,var(--card))] [&.q-by-owner]:[--q:var(--working)] [&.q-by-worker]:[--q:var(--inPr)] [&.q-by-explorer]:[--q:var(--idea)] [&:is(.q-by-koordinator,.q-by-obeya,.q-by-plan)]:[--q:var(--proposal)] [.msg>&]:mt-[5px] [.msg>&]:mb-1 [[data-slot=prompt-input-body]_&]:flex-[1_1_100%] [[data-slot=prompt-input-body]_&]:mb-0.5 [&.decided]:[--q:var(--waiting)] [&.place]:[--q:var(--working)] [&.place]:items-center [&.place]:gap-2 [&.place]:py-1 [&.place]:pr-0 [&.place]:pl-1.5";
+export const quoteClass = "quote [--q:var(--muted-foreground)] flex items-start min-w-0 border border-[color:--alpha(var(--q)/30%)] rounded-[3px] bg-[color:--alpha(var(--q)/8%)] [&.q-by-owner]:[--q:var(--working)] [&.q-by-worker]:[--q:var(--inPr)] [&.q-by-explorer]:[--q:var(--idea)] [&:is(.q-by-koordinator,.q-by-obeya,.q-by-plan)]:[--q:var(--proposal)] [.msg>&]:mt-[5px] [.msg>&]:mb-1 [[data-slot=prompt-input-body]_&]:flex-[1_1_100%] [[data-slot=prompt-input-body]_&]:mb-0.5 [&.decided]:[--q:var(--waiting)] [&.place]:[--q:var(--working)] [&.place]:items-center [&.place]:gap-2 [&.place]:py-1 [&.place]:pr-0 [&.place]:pl-1.5";
 
 export function Quote({ q, onClear }: { q: Quoted; onClear?: () => void }) {
   return (
@@ -141,7 +141,7 @@ export function Body({ md }: { md: string }) {
           return <ListTree key={i} list={b.list} className="p-list max-w-[76ch] mt-3 mb-0 pl-0 list-none text-sm [&_li]:my-[5px] [&_li]:pl-6 [&_li]:relative [&_li]:before:content-['•'] [&_li]:before:absolute [&_li]:before:left-[7px] [&_li]:before:text-muted-foreground [&_li.done]:before:content-['✓'] [&_li.done]:before:left-1 [&_li.done]:before:text-approved [&_li.done]:before:font-bold [&_li.open]:before:content-['○'] [&_li.open]:before:left-[3px] [&_.p-list]:mt-0.5 [&_.p-list]:text-inherit [&:is(ol)]:list-decimal [&:is(ol)]:pl-6 [&:is(ol)>li]:pl-0.5 [&:is(ol)>li]:before:content-none [.msg_&]:mt-1 [.msg_&]:text-[13.5px]" />;
         case 'table':
           return (
-            <div key={i} className="p-table max-w-full overflow-auto mt-2.5 [&_table]:border-collapse [&_table]:text-sm [&_table]:tabular-nums [&_th]:font-semibold [&_:is(th,td)]:text-left [&_:is(th,td)]:align-top [&_:is(th,td)]:py-1 [&_:is(th,td)]:pr-3 [&_:is(th,td)]:pl-0 [&_:is(th,td)]:border-b [&_:is(th,td)]:border-line [.msg_&]:mt-1.5 [.msg_&_table]:text-[13.5px]">
+            <div key={i} className="p-table max-w-full overflow-auto mt-2.5 [&_table]:border-collapse [&_table]:text-sm [&_table]:tabular-nums [&_th]:font-semibold [&_:is(th,td)]:text-left [&_:is(th,td)]:align-top [&_:is(th,td)]:py-1 [&_:is(th,td)]:pr-3 [&_:is(th,td)]:pl-0 [&_:is(th,td)]:border-b [&_:is(th,td)]:border-border [.msg_&]:mt-1.5 [.msg_&_table]:text-[13.5px]">
               <Table head={b.head} rows={b.rows} />
             </div>
           );
@@ -149,12 +149,12 @@ export function Body({ md }: { md: string }) {
           return <Code key={i} text={b.text} />;
         case 'quote':
           return (
-            <blockquote key={i} className="p-quote mt-2.5 mx-0 mb-0 py-px px-3 border border-line rounded-[3px] text-muted-foreground [&>:first-child]:mt-0 [.msg_&]:mt-1.5">
+            <blockquote key={i} className="p-quote mt-2.5 mx-0 mb-0 py-px px-3 border border-border rounded-[3px] text-muted-foreground [&>:first-child]:mt-0 [.msg_&]:mt-1.5">
               {nodes(b.blocks)}
             </blockquote>
           );
         case 'hr':
-          return <hr key={i} className="p-hr border-0 border-t border-line my-3" />;
+          return <hr key={i} className="p-hr border-0 border-t border-border my-3" />;
         case 'blank':
           return (
             <p key={i} className="p-lead p-blank text-[15.5px] max-w-[76ch] mt-3.5 mb-0 whitespace-pre-wrap break-words [.msg_&]:[overflow-wrap:anywhere] [.msg_&]:mt-0.5 [.msg_&]:text-sm [.msg.q.ended_&]:text-muted-foreground mt-0!" aria-hidden="true">
@@ -186,12 +186,12 @@ function Code({ text }: { text: string }) {
   const label = done === 'copied' ? t.talk.copied : done === 'selected' ? t.talk.selected : t.talk.copy;
   return (
     <div className="p-code-box group/code relative mt-2.5 [.msg_&]:mt-1.5">
-      <pre ref={pre} className="p-code m-0 py-2 pl-2.5 pr-9 bg-chip rounded-[2px] overflow-auto [font:12.5px/1.5_var(--mono)] whitespace-pre-wrap break-words [@media(pointer:coarse)]:pr-11">
+      <pre ref={pre} className="p-code m-0 py-2 pl-2.5 pr-9 bg-muted rounded-[2px] overflow-auto [font:12.5px/1.5_var(--mono)] whitespace-pre-wrap break-words [@media(pointer:coarse)]:pr-11">
         {text}
       </pre>
       <Tooltip content={t.talk.copy}>
         <button
-            className={['p-copy absolute top-[3px] right-[3px] min-w-[26px] h-[26px] grid place-items-center px-1.5 py-0 border-0 rounded-[3px] bg-chip text-muted-foreground [font:inherit] text-xs cursor-pointer hover:text-ink hover:bg-line [&.copied]:text-ink [@media(pointer:coarse)]:min-w-[34px] [@media(pointer:coarse)]:h-[34px]', !done && '[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:transition-opacity group-hover/code:opacity-100 focus-visible:opacity-100', done].filter(Boolean).join(' ')} aria-label={label}
+            className={['p-copy absolute top-[3px] right-[3px] min-w-[26px] h-[26px] grid place-items-center px-1.5 py-0 border-0 rounded-[3px] bg-muted text-muted-foreground [font:inherit] text-xs cursor-pointer hover:text-foreground hover:bg-border [&.copied]:text-foreground [@media(pointer:coarse)]:min-w-[34px] [@media(pointer:coarse)]:h-[34px]', !done && '[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:transition-opacity group-hover/code:opacity-100 focus-visible:opacity-100', done].filter(Boolean).join(' ')} aria-label={label}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => void copy()}
         >
@@ -231,7 +231,7 @@ export function useReportedHeight(frame: RefObject<HTMLIFrameElement | null>, ca
           placeholder = document.createElement('div'); placeholder.style.cssText = `height:${f.offsetHeight}px;width:${f.offsetWidth}px;`; f.before(placeholder);
           f.dataset.obeyaPreviousStyle = f.getAttribute('style') || ''; f.style.cssText += ';position:fixed;inset:0;width:100vw;height:100vh;z-index:2147483646;border:0';
           closeButton = document.createElement('button'); closeButton.innerHTML = X_ICON_SVG; closeButton.setAttribute('aria-label', t.close);
-          closeButton.style.cssText = 'position:fixed;right:16px;top:12px;z-index:2147483647;color:white;background:#222;border:0;display:flex;padding:6px;cursor:pointer';
+          closeButton.style.cssText = 'position:fixed;right:16px;top:12px;z-index:2147483647;color:white;background:black;border:0;display:flex;padding:6px;cursor:pointer';
           closeButton.className = 'artifact-image-close'; closeButton.onclick = closeImage; document.body.append(closeButton); closeButton.focus();
         } else if (!e.data.obeyaImage) closeImage();
         return;
@@ -284,7 +284,7 @@ export function AnswerFiles({ thread, files }: { thread: number; files?: AnswerF
         <AnswerPage key={f.name} thread={thread} file={f} />
       ))}
       {files.filter((f) => isImage(f.name)).map((f) => (
-        <figure key={f.name} className="answer-image [&_img]:block [&_img]:max-w-full [&_img]:max-h-[480px] [&_img]:border [&_img]:border-line [&_img]:rounded-[2px] [&_img]:bg-white">
+        <figure key={f.name} className="answer-image [&_img]:block [&_img]:max-w-full [&_img]:max-h-[480px] [&_img]:border [&_img]:border-border [&_img]:rounded-[2px] [&_img]:bg-white">
           <a href={answerFile(thread, f.name)} target="_blank" rel="noreferrer">
             <img src={answerFile(thread, f.name)} alt={f.caption || f.name} />
           </a>
@@ -296,12 +296,12 @@ export function AnswerFiles({ thread, files }: { thread: number; files?: AnswerF
       ))}
       <div className="file-chips flex flex-wrap gap-[5px] items-center">
         {others.map((f) => (
-          <span key={f.name} className="file-chip inline-flex items-stretch border border-line rounded-[11px] overflow-hidden [font:12px_var(--font)]">
-            <button className="file-open border-0 bg-transparent py-0.5 pr-1.5 pl-2 text-ink cursor-pointer [font:inherit] hover:bg-line" title={t.answer.open(f.caption)} onMouseDown={(e) => e.preventDefault()} onClick={() => void open(f.name)}>
+          <span key={f.name} className="file-chip inline-flex items-stretch border border-border rounded-[11px] overflow-hidden [font:12px_var(--font)]">
+            <button className="file-open border-0 bg-transparent py-0.5 pr-1.5 pl-2 text-foreground cursor-pointer [font:inherit] hover:bg-border" title={t.answer.open(f.caption)} onMouseDown={(e) => e.preventDefault()} onClick={() => void open(f.name)}>
               <span className="file-mark text-question">{fileMark(f.name)}</span> {f.name}
             </button>
             <Tooltip content={t.answer.download}>
-              <a className="file-down py-0.5 px-[7px] border-l border-line text-muted-foreground no-underline hover:bg-line" href={answerFile(thread, f.name, true)} aria-label={t.answer.download}>
+              <a className="file-down py-0.5 px-[7px] border-l border-border text-muted-foreground no-underline hover:bg-border" href={answerFile(thread, f.name, true)} aria-label={t.answer.download}>
                 ↓
               </a>
             </Tooltip>
@@ -320,7 +320,7 @@ function AnswerPage({ thread, file }: { thread: number; file: AnswerFile }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const height = useReportedHeight(frame, PAGE_CAP);
   return (
-    <figure className="answer-page [&_iframe]:w-full [&_iframe]:min-h-20 [&_iframe]:border [&_iframe]:border-line [&_iframe]:rounded-[2px] [&_iframe]:bg-white [&_iframe]:block">
+    <figure className="answer-page [&_iframe]:w-full [&_iframe]:min-h-20 [&_iframe]:border [&_iframe]:border-border [&_iframe]:rounded-[2px] [&_iframe]:bg-white [&_iframe]:block">
       <iframe ref={frame} sandbox="allow-scripts" src={answerFile(thread, file.name)} title={file.caption || file.name} style={height ? { height } : undefined} />
       <figcaption>
         <a href={answerFile(thread, file.name)} target="_blank" rel="noreferrer">
@@ -340,13 +340,13 @@ export function ThreadCard({ thread, card, onOpen }: { thread: number; card?: It
   const [busy, setBusy] = useState(false);
   if (card)
     return (
-      <button className="msg-card on float-right -mt-0.5 ml-2 py-px px-1.5 border border-line rounded-[3px] bg-transparent text-muted-foreground [font:500_11px_var(--font)] cursor-pointer hover:text-ink hover:border-question [&.on]:text-question [&.on]:border-[color-mix(in_srgb,var(--question)_50%,transparent)] [.moved_&]:float-none [.moved_&]:m-0" title={t.answer.onCardHint} onMouseDown={(e) => e.preventDefault()} onClick={() => onOpen(card)}>
+      <button className="msg-card on float-right -mt-0.5 ml-2 py-px px-1.5 border border-border rounded-[3px] bg-transparent text-muted-foreground [font:500_11px_var(--font)] cursor-pointer hover:text-foreground hover:border-question [&.on]:text-question [&.on]:border-question/50 [.moved_&]:float-none [.moved_&]:m-0" title={t.answer.onCardHint} onMouseDown={(e) => e.preventDefault()} onClick={() => onOpen(card)}>
         ↗ {t.answer.onCard(plain(card.title))}
       </button>
     );
   return (
     <button
-      className="msg-card float-right -mt-0.5 ml-2 py-px px-1.5 border border-line rounded-[3px] bg-transparent text-muted-foreground [font:500_11px_var(--font)] cursor-pointer hover:text-ink hover:border-question [&.on]:text-question [&.on]:border-[color-mix(in_srgb,var(--question)_50%,transparent)] [.moved_&]:float-none [.moved_&]:m-0"
+      className="msg-card float-right -mt-0.5 ml-2 py-px px-1.5 border border-border rounded-[3px] bg-transparent text-muted-foreground [font:500_11px_var(--font)] cursor-pointer hover:text-foreground hover:border-question [&.on]:text-question [&.on]:border-question/50 [.moved_&]:float-none [.moved_&]:m-0"
       title={t.answer.makeCardHint}
       disabled={busy}
       onMouseDown={(e) => e.preventDefault()}

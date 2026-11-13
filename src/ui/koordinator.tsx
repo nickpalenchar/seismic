@@ -77,7 +77,7 @@ export function KoordinatorSheet({ on, project, projectName, items, repos, talk,
       <ChatsHead title={<h2 className={sheetTitleClass}>{t.koordinator.title}</h2>} project={project} projectName={projectName} chat={chat} chats={chats} talk={talk} onProject={onProject} onClose={onClose} />
       <KoordinatorTalk on={on} project={project} talk={talk} chat={chat} chatModel={chatModel} chats={chats} items={items} repos={repos} onOpen={onOpen} onTell={onTell} />
 
-      <div className="k-rest border-t border-t-line mt-1 pt-1">
+      <div className="k-rest border-t border-t-border mt-1 pt-1">
         {reshare && <ReshareBox r={reshare} items={items} onOpen={onOpen} />}
 
 
@@ -551,7 +551,7 @@ export function SettingRow({ p, items, repo, onOpen, onConfig, project }: { p: S
         {now !== null && (
           <>
             <span className={settingLabelClass}>{k.settingWas}</span>
-            <pre className={cn(settingValueClass, 'was text-muted-foreground bg-transparent border border-dashed border-line', !now && 'setting-none [font-family:inherit] italic')}>{now || k.settingEmpty}</pre>
+            <pre className={cn(settingValueClass, 'was text-muted-foreground bg-transparent border border-dashed border-border', !now && 'setting-none [font-family:inherit] italic')}>{now || k.settingEmpty}</pre>
           </>
         )}
         <span className={settingLabelClass}>{k.settingNew}</span>

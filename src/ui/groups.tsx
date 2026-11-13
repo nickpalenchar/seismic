@@ -159,7 +159,7 @@ const hue = (h: number) => ({ '--h': h }) as React.CSSProperties;
 const worldLayerClass = 'absolute left-0 top-0 overflow-visible pointer-events-none';
 
 /** A line beside the pointer or the marked cards that says how something works: ink on the board's colour. */
-export const hintBubbleClass = 'max-w-[300px] m-0 py-1.5 px-2.5 rounded-[3px] bg-ink text-background [font:13px/1.35_var(--font)] text-left';
+export const hintBubbleClass = 'max-w-[300px] m-0 py-1.5 px-2.5 rounded-[3px] bg-foreground text-background [font:13px/1.35_var(--font)] text-left';
 
 /** The territories, in world coordinates under the cards; `selected`: the cards the colour ring is for. */
 export function TerritoryLayer({ shapes, waves, streaks, selected }: { shapes: Shape[]; waves: Wave[]; streaks: Streak[]; selected: Bounds[] }) {
@@ -184,7 +184,7 @@ export function TerritoryLayer({ shapes, waves, streaks, selected }: { shapes: S
         <circle key={w.key} className="fill-none [stroke:hsl(var(--h)_85%_var(--tl))] [stroke-width:3] opacity-0 [r:0] animate-[wave_.9s_cubic-bezier(.2,.7,.3,1)_both] reduced:hidden" cx={w.x} cy={w.y} style={{ ...hue(w.hue), animationDelay: `${w.delay}ms` }} />
       ))}
       {selected.map((b, n) => (
-        <rect key={n} className="fill-none [stroke:var(--ink)] [stroke-width:calc(2px/var(--s))] [stroke-dasharray:6_5] opacity-55 animate-[halo-drift_4s_linear_infinite]" x={b.x - 7} y={b.y - 7} width={b.w + 14} height={b.h + 14} rx={4} />
+        <rect key={n} className="fill-none [stroke:var(--foreground)] [stroke-width:calc(2px/var(--s))] [stroke-dasharray:6_5] opacity-55 animate-[halo-drift_4s_linear_infinite]" x={b.x - 7} y={b.y - 7} width={b.w + 14} height={b.h + 14} rx={4} />
       ))}
     </svg>
   );
@@ -215,8 +215,8 @@ export function Lasso({ pts }: { pts: Pt[] }) {
   const head = pts[pts.length - 1]!;
   return (
     <svg id="lasso" className="fixed inset-0 w-full h-full z-40 pointer-events-none">
-      <path className="[fill:color-mix(in_srgb,var(--working)_8%,transparent)]" d={d} />
-      <path className="fill-none [stroke:color-mix(in_srgb,var(--working)_25%,transparent)] [stroke-width:9] [stroke-linejoin:round]" d={d} />
+      <path className="[fill:--alpha(var(--working)/8%)]" d={d} />
+      <path className="fill-none [stroke:--alpha(var(--working)/25%)] [stroke-width:9] [stroke-linejoin:round]" d={d} />
       <path className="fill-none stroke-working [stroke-width:2] [stroke-dasharray:7_6] [stroke-linejoin:round] animate-[halo-drift_3s_linear_infinite]" d={d} />
       <circle className="fill-working" cx={head.x} cy={head.y} r={5} />
     </svg>
@@ -248,7 +248,7 @@ export function Marked({ at, below, count, hint, onGroup }: { at: Pt; below: boo
       <div className="flex items-center gap-2 py-[3px] pr-[3px] pl-2.5 rounded-[3px] bg-card [box-shadow:var(--shadow)] whitespace-nowrap">
         <span className="[font:500_13px/1_var(--font)] text-muted-foreground">{t.marked.count(count)}</span>
         <button
-          className="mgroup flex items-center gap-1.5 py-1 pr-2.5 pl-[7px] [border:0] rounded-[3px] bg-transparent text-ink [font:600_13px/1_var(--font)] cursor-pointer hover:bg-[color-mix(in_srgb,var(--ink)_8%,transparent)]"
+          className="mgroup flex items-center gap-1.5 py-1 pr-2.5 pl-[7px] [border:0] rounded-[3px] bg-transparent text-foreground [font:600_13px/1_var(--font)] cursor-pointer hover:bg-foreground/8"
           title={t.marked.groupTip}
           onClick={(e) => {
             const r = e.currentTarget.getBoundingClientRect();

@@ -13,10 +13,10 @@ export const prefsClass = 'prefs list-none p-0 mt-2.5 mx-0 mb-0 [&_.p-error]:bas
 export const proposalsClass = cn(prefsClass, 'proposals');
 
 /** A row: the rule's text, what it came from and its buttons, wrapping onto lines of their own. */
-export const prefRowClass = 'flex flex-wrap gap-2 items-start pt-[7px] pr-2 pb-[7px] pl-2.5 my-1.5 mx-0 rounded-[3px] bg-chip text-[13px] cursor-default';
+export const prefRowClass = 'flex flex-wrap gap-2 items-start pt-[7px] pr-2 pb-[7px] pl-2.5 my-1.5 mx-0 rounded-[3px] bg-muted text-[13px] cursor-default';
 
 /** A proposal's row, tinted as a proposal. */
-export const proposalRowClass = cn(prefRowClass, 'bg-[color-mix(in_srgb,var(--proposal)_9%,var(--chip))]');
+export const proposalRowClass = cn(prefRowClass, 'bg-proposal/9');
 
 /** A rule's text, clicked to edit it. */
 export const prefTextClass = 'pref-text flex-1 cursor-text min-w-0 [overflow-wrap:anywhere]';
@@ -34,7 +34,7 @@ export const prefActionsClass = 'pref-actions basis-full flex flex-wrap gap-1.5 
 export const targetClass = 'target basis-full flex items-center gap-1.5 text-muted-foreground text-[12px]';
 
 /** A link in a proposal's lines (to the configuration, back to the proposed value). */
-export const fromLinkClass = 'from text-ink cursor-pointer underline decoration-line underline-offset-2';
+export const fromLinkClass = 'from text-foreground cursor-pointer underline decoration-border underline-offset-2';
 
 /** What a setting's value is (now, proposed), beside it. */
 export const settingLabelClass = 'setting-label text-muted-foreground text-[12px] pt-1.5';

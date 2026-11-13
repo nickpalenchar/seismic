@@ -1,51 +1,13 @@
 /* Seismic's look, frost (docs/design/the-canvas.md, "Visual identity"): frosted glass over a soft gradient board, in Inter
-   (OFL, served from ./fonts with its licence). The states are inks, not UI hues. --on-ink is what is written on a fill of
-   ink (a badge, the play button); --error and --warn are for failures and cautions. --panel is a solid surface; --glass
-   the translucent one, only on what blurs what lies behind it. frost.test.ts measures the contrast of text on glass
-   from these tokens. This file holds frost's values, the board and the keyframes; everything else is Tailwind
-   (tailwind.css maps these tokens to shadcn's and its own). The cascade layers come first so that Tailwind's take this
-   order; rules outside them win over any utility. */
+   (OFL, served from ./fonts with its licence). The colours, the glass and the board's gradient are tokens in
+   tailwind.css; this file holds the font, the page's base, and the keyframes. frost.test.ts measures the contrast
+   of text on glass from those tokens. The cascade layers come first so that Tailwind's take this order; rules
+   outside them win over any utility. */
 @layer theme, base, components, utilities;
 @font-face { font-family: Inter; font-style: normal; font-weight: 100 900; font-display: swap;
   src: url(./fonts/inter-latin-wght-normal.woff2) format("woff2"); }
-/* light: ice on a cool board */
-:root {
-  --bg: #e6edf5; --dot: rgba(70,100,140,.18); --card: rgba(255,255,255,.55); --ink: #14202e; --muted-foreground: #5a6b80; --line: rgba(120,145,175,.24);
-  --glass-edge: rgba(255,255,255,.85); --glass-hi: rgba(255,255,255,.7);
-  --shadow: 0 1px 2px rgba(30,55,90,.06), 0 8px 24px -10px rgba(40,70,110,.32);
-  --lift: 0 2px 4px rgba(30,55,90,.06), 0 18px 40px -14px rgba(40,70,110,.45);
-  --font: Inter, system-ui, sans-serif;
-  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --planned: #8592a3; --working: #2f6fe8; --reviewing: #008c91; --waiting: #e05f00; --approved: #2f9a3f; --inPr: #0b8b93; --live: #6f7b8b; --proposal: #7a52e0; --idea: #e0336a; --question: #4b7799; --asking: #998900; --restart: #3a9bc4;
-  --waiting-rgb: 224,95,0; --on-ink: #ffffff; --error: #c42b1c; --warn: #a3520a; --state-text-ink: 32%; --unblurred: rgba(255,255,255,0);
-  --dep-line: rgba(90,115,150,.45); --done-dep: #9ac59a; --container: rgba(255,255,255,.22); --container-line: rgba(255,255,255,.7);
-  --dim: rgba(30,45,70,.22); --panel: #f5f8fc; --glass: rgba(246,249,253,.74); --chip: rgba(120,150,190,.13); --online: #5aa83a; --ice: #3e93bf;
-  --board: radial-gradient(1100px 800px at 12% 18%, rgba(140,185,255,.22), transparent 60%),
-    radial-gradient(900px 700px at 88% 30%, rgba(255,190,220,.14), transparent 60%),
-    radial-gradient(1000px 900px at 60% 95%, rgba(150,230,220,.18), transparent 60%),
-    linear-gradient(135deg, #dce6f2, #eef3f9 55%, #d7e2ef);
-  --s: 1;
-  /* native controls, and the pages in a frame (prefers-color-scheme), take the look chosen */
-  color-scheme: light;
-}
-/* One dark palette for the system look and an explicit choice (index.html tracks the system). */
-:root:where([data-theme="dark"], :not([data-theme])[data-system-theme="dark"]) {
-  --bg: #0d1420; --dot: rgba(150,180,220,.10); --card: rgba(150,180,220,.09); --ink: #e6eef8; --muted-foreground: #8fa3bb; --line: rgba(180,210,255,.13);
-  --glass-edge: rgba(180,210,255,.16); --glass-hi: rgba(200,225,255,.10);
-  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -10px rgba(0,0,0,.7);
-  --lift: 0 2px 4px rgba(0,0,0,.3), 0 18px 40px -14px rgba(0,0,0,.85);
-  --planned: #8a97a9; --working: #6aa2ff; --reviewing: #36c6c2; --waiting: #ff8a2a; --approved: #6fcf6a; --inPr: #2fc2c0; --live: #7a879d; --proposal: #a78bff; --idea: #ff6b95; --question: #8db6d6; --asking: #e6d43a; --restart: #7fd0ef;
-  --waiting-rgb: 255,138,42; --on-ink: #0b111a; --error: #ff7a63; --warn: #f0a85a; --state-text-ink: 20%; --unblurred: rgba(0,53,145,.125);
-  --dep-line: rgba(140,165,200,.35); --done-dep: #3f6e45; --container: rgba(150,180,220,.04); --container-line: rgba(180,210,255,.12);
-  --dim: rgba(0,5,15,.5); --panel: #151e2c; --glass: rgba(21,30,44,.76); --chip: rgba(150,180,220,.10); --online: #96d873; --ice: #9fd6f0;
-  --board: radial-gradient(1100px 800px at 12% 18%, rgba(50,90,180,.18), transparent 60%),
-    radial-gradient(900px 700px at 88% 30%, rgba(130,60,150,.10), transparent 60%),
-    radial-gradient(1000px 900px at 60% 95%, rgba(20,120,130,.12), transparent 60%),
-    linear-gradient(135deg, #0d1420, #141d2b 55%, #0b111a);
-  color-scheme: dark;
-}
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; overflow: hidden; background-color: var(--bg); background-image: var(--board); background-attachment: fixed; color: var(--ink);
+html, body { margin: 0; height: 100%; overflow: hidden; background-color: var(--background); background-image: var(--board); background-attachment: fixed; color: var(--foreground);
   font: 14.5px/1.45 var(--font); -webkit-font-smoothing: antialiased; font-feature-settings: "cv11", "ss01"; letter-spacing: -.003em; }
 /* the on-screen keyboard of an iPhone or iPad is up (keyboard.ts): the page stands in the part of the screen it leaves,
    and what is fixed to the screen with it, the body being their containing block (its transform) */
@@ -62,7 +24,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background-color: var(--
 
 /* a message or question pointed at (a link to it, a notification) flashes once */
 @keyframes msg-flash {
-  0%, 45% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--working) 60%, transparent), var(--shadow); background: color-mix(in srgb, var(--working) 14%, var(--card)); }
+  0%, 45% { box-shadow: 0 0 0 3px var(--flash-ring), var(--shadow); background: var(--working-subtle); }
 }
 
 @keyframes dim { from { background-color: transparent; } }
@@ -85,7 +47,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background-color: var(--
 :root[data-motion="reduce"] .flash { animation-duration: 2.4s !important; }
 /* glass that blurred what lies behind it turns solid, so the canvas does not show through the bars and panes,
    and the cards take the tint they have zoomed out (card/faceClasses.ts) */
-:root[data-motion="reduce"] { --glass: var(--panel); }
+:root[data-motion="reduce"] { --glass: var(--surface); }
 
 /* a workstation's dot whose card is at work, in review or landing (workstations.tsx `wsDot`, the dot's colour in
    --c): its fill and glow pulse slowly while the outline stays. Here rather than in tailwind.css, whose
@@ -93,11 +55,11 @@ html, body { margin: 0; height: 100%; overflow: hidden; background-color: var(--
 @keyframes ws-pulse {
   0%, 40%, 100% {
     background-color: var(--c);
-    box-shadow: 0 0 6px color-mix(in srgb, var(--c) 60%, transparent);
+    box-shadow: 0 0 6px var(--c);
   }
   70% {
-    background-color: color-mix(in srgb, var(--c) 30%, var(--background));
-    box-shadow: 0 0 1px color-mix(in srgb, var(--c) 10%, transparent);
+    background-color: var(--c-subtle);
+    box-shadow: 0 0 1px var(--c-subtle);
   }
 }
 

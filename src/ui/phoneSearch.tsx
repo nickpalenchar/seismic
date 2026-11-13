@@ -30,7 +30,7 @@ export function PhoneSearch({ items, query, onQuery, onOpen, onClose }: { items:
             ref={field}
             icon={false}
             wrapperClassName="block"
-            className="h-10 rounded-[20px] border-line bg-card py-0 pr-3 pl-[38px] shadow-none focus:bg-card"
+            className="h-10 rounded-[20px] border-border bg-card py-0 pr-3 pl-[38px] shadow-none focus:bg-card"
             value={query}
             onValueChange={onQuery}
             placeholder={t.cardSearch.placeholder}
@@ -39,7 +39,7 @@ export function PhoneSearch({ items, query, onQuery, onOpen, onClose }: { items:
             enterKeyHint="search"
           />
         </div>
-        <button className="ph-close inline-grid size-10 shrink-0 place-items-center rounded-full border-0 bg-chip text-ink cursor-pointer ph-landscape:size-9" aria-label={t.phone.next.closeSearch} onClick={onClose}>
+        <button className="ph-close inline-grid size-10 shrink-0 place-items-center rounded-full border-0 bg-muted text-foreground cursor-pointer ph-landscape:size-9" aria-label={t.phone.next.closeSearch} onClick={onClose}>
           <X size={20} strokeWidth={2.25} aria-hidden="true" />
         </button>
       </header>
@@ -56,7 +56,7 @@ export function PhoneSearch({ items, query, onQuery, onOpen, onClose }: { items:
               </CommandItem>
             ))}
             {found.length > shown && (
-              <button className="mt-1 w-full rounded-[10px] border border-line bg-transparent py-2.5 text-[15px] text-ink cursor-pointer" onClick={() => setShown(shown + PAGE)}>
+              <button className="mt-1 w-full rounded-[10px] border border-border bg-transparent py-2.5 text-[15px] text-foreground cursor-pointer" onClick={() => setShown(shown + PAGE)}>
                 {t.phone.next.loadMore(found.length - shown)}
               </button>
             )}

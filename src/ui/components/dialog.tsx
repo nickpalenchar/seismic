@@ -21,10 +21,10 @@ import { Button, type ButtonVariant } from './button';
 import { uiPortal, useOpenerFocus } from './ui';
 
 const layer =
-  'fixed inset-0 z-60 flex items-center justify-center bg-dim p-6 backdrop-blur-[3px] data-[state=open]:animate-[fade_.15s_ease-out]';
-const box = 'relative box-border max-h-full max-w-full text-ink outline-none';
+  'fixed inset-0 z-60 flex items-center justify-center bg-scrim p-6 backdrop-blur-[3px] data-[state=open]:animate-[fade_.15s_ease-out]';
+const box = 'relative box-border max-h-full max-w-full text-foreground outline-none';
 /** The box's surface: solid, or (`glass`) frost's pane, the page blurred behind it. */
-const surface = { solid: 'bg-panel shadow-lift', glass: 'frost-pane' };
+const surface = { solid: 'bg-surface shadow-lift', glass: 'frost-pane' };
 
 export function Dialog(props: ComponentProps<typeof DialogPrimitive.Root>) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />;

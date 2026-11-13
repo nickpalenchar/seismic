@@ -24,7 +24,7 @@ import { Sidebar, SidebarContent, SidebarGroup, SidebarMenu, SidebarMenuButton, 
 const list = 'm-0 list-none p-0';
 /** entries under another: the open project's canvases and views, what sits under Settings and Performance */
 const tree = cn(list, 'mt-0.5 mb-1 pl-[22px]');
-const rowButton = 'flex w-full cursor-pointer items-center gap-[7px] rounded-[6px] border-0 bg-transparent px-2.5 py-1.5 text-left text-[13px] text-muted-foreground no-underline outline-none hover:bg-chip data-highlighted:bg-chip [&_svg]:flex-none';
+const rowButton = 'flex w-full cursor-pointer items-center gap-[7px] rounded-[6px] border-0 bg-transparent px-2.5 py-1.5 text-left text-[13px] text-muted-foreground no-underline outline-none hover:bg-muted data-highlighted:bg-muted [&_svg]:flex-none';
 /** the dropdown's panel: under ☰, or the floating row's project switcher */
 const menuPanel = 'w-[min(360px,calc(100vw-28px))] rounded-[12px] border border-glass-edge px-3.5 pt-3.5 pb-4';
 
@@ -157,7 +157,7 @@ export function MenuButton({ docked, dockedOn, onDocked, ...p }: MenuProps & { d
   const logo = (
     <button
       data-on={on || undefined}
-      className="-ml-1.5 mr-1 flex h-[34px] cursor-pointer items-center gap-[5px] rounded-[3px] border-0 bg-transparent px-1.5 text-ink hover:bg-[color-mix(in_srgb,var(--ink)_7%,transparent)] data-[on]:bg-[color-mix(in_srgb,var(--ink)_7%,transparent)]"
+      className="-ml-1.5 mr-1 flex h-[34px] cursor-pointer items-center gap-[5px] rounded-[3px] border-0 bg-transparent px-1.5 text-foreground hover:bg-foreground/7 data-[on]:bg-foreground/7"
       aria-label={t.leftMenu.button}
       aria-expanded={docked ? dockedOn : undefined}
       onClick={docked ? () => onDocked(!dockedOn) : undefined}
@@ -235,7 +235,7 @@ export function NavSheet({ on, onOpenChange, width, maxWidth, onWidthChange, onW
           aria-valuemax={Math.min(NAV_MAX_W, maxWidth)}
           aria-valuenow={width}
           title={t.leftMenu.resizeHint}
-          className="group/resize absolute inset-y-0 -right-1.5 z-40 flex w-3 cursor-ew-resize touch-none items-center justify-center border-0 bg-transparent p-0 text-muted-foreground hover:text-ink focus-visible:text-ink focus-visible:outline-none"
+          className="group/resize absolute inset-y-0 -right-1.5 z-40 flex w-3 cursor-ew-resize touch-none items-center justify-center border-0 bg-transparent p-0 text-muted-foreground hover:text-foreground focus-visible:text-foreground focus-visible:outline-none"
           onPointerDown={(e) => {
             if (e.button !== 0) return;
             e.preventDefault();
@@ -258,7 +258,7 @@ export function NavSheet({ on, onOpenChange, width, maxWidth, onWidthChange, onW
               onWidthChange(value); onWidthEnd(value);
             }
           }}
-        ><span className="block h-5 w-1 rounded-full bg-muted-foreground/70 group-hover/resize:bg-ink group-focus-visible/resize:ring-2 group-focus-visible/resize:ring-working" aria-hidden /></button>}
+        ><span className="block h-5 w-1 rounded-full bg-muted-foreground/70 group-hover/resize:bg-foreground group-focus-visible/resize:ring-2 group-focus-visible/resize:ring-working" aria-hidden /></button>}
       </Sidebar>
     </SidebarProvider>
   );
@@ -285,7 +285,7 @@ function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean
   // an entry's action: in the dropdown the menu closes with the choice
   const run = (f: () => void) => f;
   const pin = (p.pinnable || p.pinned) && (
-    <Act sidebarItem={false} className={cn('ml-auto grid size-[30px] cursor-pointer place-items-center rounded-[3px] border-0 bg-chip p-0 text-muted-foreground hover:text-ink', p.pinned && 'text-ink')} tip={p.pinned ? m.unpin : m.pin} aria-label={p.pinned ? m.unpin : m.pin} aria-pressed={p.pinned} onAct={() => p.onPin(!p.pinned)}>
+    <Act sidebarItem={false} className={cn('ml-auto grid size-[30px] cursor-pointer place-items-center rounded-[3px] border-0 bg-muted p-0 text-muted-foreground hover:text-foreground', p.pinned && 'text-foreground')} tip={p.pinned ? m.unpin : m.pin} aria-label={p.pinned ? m.unpin : m.pin} aria-pressed={p.pinned} onAct={() => p.onPin(!p.pinned)}>
       {p.pinned ? <PanelLeftClose size={16} strokeWidth={2} aria-hidden /> : <PanelLeft size={16} strokeWidth={2} aria-hidden />}
     </Act>
   );
@@ -331,7 +331,7 @@ function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean
           )}
           <NewProject onNew={run(p.onNew)} />
         </NavList>
-        <NavList className={cn(list, 'mt-0.5 border-t border-line pt-2.5')}>
+        <NavList className={cn(list, 'mt-0.5 border-t border-border pt-2.5')}>
           <Entry icon={<Settings size={16} strokeWidth={2} aria-hidden />} label={m.settings} onClick={run(p.onConfig)} />
           <li>
             <NavList className={tree}>
@@ -346,7 +346,7 @@ function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean
       <InMenu.Provider value={!floating ? null : page === 'agents' ? ACTIVE : INACTIVE}>
       <div className={pageClass(page !== 'agents')} inert={page !== 'agents'}>
         <div className={head(titlebar)} {...drag}>
-          <Act sidebarItem={false} className="-ml-0.5 flex h-8 cursor-pointer items-center gap-2 rounded-[6px] border-0 bg-transparent px-2.5 text-[14px] text-ink hover:bg-chip" ref={backButton} keep onAct={() => setPage('main')} tip={m.back} aria-label={m.back}>
+          <Act sidebarItem={false} className="-ml-0.5 flex h-8 cursor-pointer items-center gap-2 rounded-[6px] border-0 bg-transparent px-2.5 text-[14px] text-foreground hover:bg-muted" ref={backButton} keep onAct={() => setPage('main')} tip={m.back} aria-label={m.back}>
             <ArrowLeft size={16} strokeWidth={2} aria-hidden />
             <b>{m.configureAgents}</b>
           </Act>
@@ -380,7 +380,7 @@ const pageClass = (away: boolean) => cn('min-w-0', away && 'invisible h-0 [trans
 const head = (titlebar?: boolean) =>
   cn(
     'mb-0.5 flex min-h-8 items-center gap-2.5',
-    titlebar && 'sticky -top-3.5 z-1 -mx-3.5 -mt-3.5 h-[58px] bg-[color-mix(in_srgb,var(--panel)_88%,transparent)] pr-3.5 pl-[92px] backdrop-blur-[16px] reduced:bg-panel',
+    titlebar && 'sticky -top-3.5 z-1 -mx-3.5 -mt-3.5 h-[58px] bg-surface/88 pr-3.5 pl-[92px] backdrop-blur-[16px] reduced:bg-surface',
   );
 
 /** A button of the menu: an item of the open dropdown, else a plain button. `keep` leaves the dropdown open. */
@@ -419,9 +419,9 @@ function Entry({ icon, label, end, on, soon, sub, keep, onClick, focusRef }: { i
       <Act
         ref={focusRef}
         className={cn(
-          'box-border flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-[6px] border-0 bg-transparent px-2.5 py-1.5 text-left text-[14px] text-ink outline-none hover:not-disabled:bg-chip focus-visible:bg-chip disabled:cursor-default disabled:text-muted-foreground disabled:opacity-60 data-highlighted:bg-chip [&>svg]:flex-none [&>svg]:text-muted-foreground',
+          'box-border flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-[6px] border-0 bg-transparent px-2.5 py-1.5 text-left text-[14px] text-foreground outline-none hover:not-disabled:bg-muted focus-visible:bg-muted disabled:cursor-default disabled:text-muted-foreground disabled:opacity-60 data-highlighted:bg-muted [&>svg]:flex-none [&>svg]:text-muted-foreground',
           sub && 'min-h-[30px] py-[5px] text-[13px]',
-          on && 'bg-chip font-semibold',
+          on && 'bg-muted font-semibold',
         )}
         aria-current={on || undefined}
         disabled={soon}
@@ -442,7 +442,7 @@ function ProjectRow({ project: c, here, repos, bold, onGo }: { project: ProjectI
   const menu = useContext(InMenu);
   const link = (
     <a
-      className={cn(rowButton, here && 'bg-chip text-ink', here && bold && 'font-semibold', c.agents && 'pr-[46px]')}
+      className={cn(rowButton, here && 'bg-muted text-foreground', here && bold && 'font-semibold', c.agents && 'pr-[46px]')}
       href={projectPath(c.id)}
       aria-current={here ? 'page' : undefined}
       onClick={(e) => {
@@ -474,7 +474,7 @@ function NewProject({ onNew }: { onNew: () => void }) {
   const Item = useContext(InMenu) ? 'li' : SidebarMenuItem;
   return (
     <Item data-row className="[[data-row]+&]:mt-0.5">
-      <Act className={cn(rowButton, 'hover:text-ink data-highlighted:text-ink')} onAct={onNew}>
+      <Act className={cn(rowButton, 'hover:text-foreground data-highlighted:text-foreground')} onAct={onNew}>
         <Plus size={15} strokeWidth={2} aria-hidden />
         <b>{t.nav.newProject}</b>
       </Act>

@@ -62,7 +62,7 @@ import { HoldToTalk, PushToTalk, SPACE_SHOWS_MS, TAP_MS, usePushToTalk, useTold 
 import { acksClass, Toasts, useToasts } from './components/toast';
 import { layerOpen } from './components/ui';
 import { videoOf } from './spot';
-import { cardHooks, shownState } from './card';
+import { cardHooks, shownState, stateVars } from './card';
 import { CardView, DepLinks, depHead, depWidth, linkPath, linkSpot, Edges, Links, Minimap, minimapArea, OldBunPill, PlanView, RestartPill, Sheet, SourcePill, TalkIcon, UpdatePill, WorkstationsPill } from './parts';
 import { clock, failText, t } from './strings';
 import { loadNavHidden, loadNavWidth, loadPinned, MenuButton, NAV_PROJECT_MIN, NavPill, NavSheet, saveNavHidden, saveNavWidth, savePinned } from './nav';
@@ -144,7 +144,7 @@ function Shown({ id, projects, onProjects }: { id: string; projects: ProjectInfo
 /** The page while nothing else can show: the sign in the middle, a word or the projects under it. */
 const splash = 'fixed inset-0 flex flex-col items-center justify-center gap-3.5 text-muted-foreground animate-[fade_.3s_ease-out]';
 /** No project runs, or the address names none: what to do, in the text's ink. */
-const splashNoneRuns = 'p-6 text-ink [&_.c-problem]:max-w-[640px]';
+const splashNoneRuns = 'p-6 text-foreground [&_.c-problem]:max-w-[640px]';
 
 /** An address names a project that does not exist (a renamed one's old address, a typo): the projects there are, as links. */
 function NoSuchProject({ name, projects }: { name: string; projects: ProjectInfo[] }) {
@@ -745,7 +745,7 @@ function Project({
     addressOpens(i, f ? itemOrArchived(f.id) : undefined);
     const r = el.getBoundingClientRect();
     flushSync(() => setOpenId(i.id));
-    panel.style.setProperty('--c', `var(--${shownState(i)})`);
+    for (const [k, v] of Object.entries(stateVars(shownState(i)))) panel.style.setProperty(k, v);
     panel.classList.remove('anim', 'ready');
     panel.style.setProperty('--unfold', `${quick ? 0 : UNFOLD_MS}ms`);
     Object.assign(panel.style, rect(r), { display: 'block', visibility: hold ? 'hidden' : '' });
@@ -786,7 +786,7 @@ function Project({
     const panel = panelRef.current;
     const i = openItem;
     if (!panel || !i || !unfolded.current) return;
-    panel.style.setProperty('--c', `var(--${shownState(i)})`);
+    for (const [k, v] of Object.entries(stateVars(shownState(i)))) panel.style.setProperty(k, v);
     fitPanel(i);
   }, [openState]);
   // content that grows or shrinks (a log loading, a question arriving, a resized text box) resizes it too
@@ -2613,9 +2613,9 @@ function Project({
         )}
         {markHint && <MarkHint key={markHint.key} at={markHint.at} text={touchy ? t.touch.markHowTo : t.marked.howTo} />}
         {(coarse || touchy) && !holdKnown && !!items.length && !focus && (
-          <p id="touchhint" className="fixed z-30 top-[82px] left-[calc(var(--left)_+_(100vw_-_var(--left)_-_var(--side))_/_2)] [transform:translateX(-50%)] flex items-center gap-3 max-w-[min(520px,calc(100vw_-_40px))] m-0 py-2 pr-2 pl-3.5 rounded-[3px] bg-ink text-background [font:14px/1.35_var(--font)] [box-shadow:var(--lift)]">
+          <p id="touchhint" className="fixed z-30 top-[82px] left-[calc(var(--left)_+_(100vw_-_var(--left)_-_var(--side))_/_2)] [transform:translateX(-50%)] flex items-center gap-3 max-w-[min(520px,calc(100vw_-_40px))] m-0 py-2 pr-2 pl-3.5 rounded-[3px] bg-foreground text-background [font:14px/1.35_var(--font)] [box-shadow:var(--lift)]">
             {t.touch.hold}
-            <button className="flex-none py-1.5 px-3 border border-solid border-[color:color-mix(in_srgb,var(--bg)_40%,transparent)] rounded-[3px] bg-transparent text-inherit [font:inherit] cursor-pointer" onClick={learnHold}>{t.touch.ok}</button>
+            <button className="flex-none py-1.5 px-3 border border-solid border-background/40 rounded-[3px] bg-transparent text-inherit [font:inherit] cursor-pointer" onClick={learnHold}>{t.touch.ok}</button>
           </p>
         )}
         {connection && !depKnown && (
@@ -2642,7 +2642,7 @@ function Project({
           id="bar"
           ref={barRef}
           className={cn(
-            'group/bar frost-bar fixed top-0 right-[var(--side,0px)] left-[var(--left,0px)] z-25 box-border grid h-[58px] grid-cols-[1fr_minmax(150px,440px)_1fr] items-center gap-3.5 border-b border-line px-3.5 transition-[right,left,padding-left] duration-450 ease-[cubic-bezier(.3,.9,.3,1)] resizing:transition-none data-[fit~="3"]:grid-cols-[auto_minmax(34px,440px)_auto]',
+            'group/bar frost-bar fixed top-0 right-[var(--side,0px)] left-[var(--left,0px)] z-25 box-border grid h-[58px] grid-cols-[1fr_minmax(150px,440px)_1fr] items-center gap-3.5 border-b border-border px-3.5 transition-[right,left,padding-left] duration-450 ease-[cubic-bezier(.3,.9,.3,1)] resizing:transition-none data-[fit~="3"]:grid-cols-[auto_minmax(34px,440px)_auto]',
             window.obeyaApp?.platform === 'macos' && !side.left && 'pl-[92px]',
           )}
           {...(window.obeyaApp?.platform === 'macos' ? { 'data-tauri-drag-region': '' } : {})}
@@ -2691,7 +2691,7 @@ function Project({
               <PillButton size="bar" on={csOn} className="px-2.5 [&_[data-variant=count]]:ml-1" aria-label={t.projectSettings.button} aria-expanded={csOn} onClick={toggleProjectSettings}>
                 <BarIcon icon={SlidersHorizontal} />
                 {configProblems > 0 && (
-                  <Badge variant="count" className="bg-error" title={t.config.problemCount(configProblems)}>
+                  <Badge variant="count" className="bg-destructive" title={t.config.problemCount(configProblems)}>
                     {configProblems}
                   </Badge>
                 )}
@@ -2710,7 +2710,7 @@ function Project({
                     size="bar"
                     on={nyOn}
                     tone="ink"
-                    className="rounded-none rounded-r-[17px] border-l-line px-3 pr-3.5 shadow-none hover:shadow-none"
+                    className="rounded-none rounded-r-[17px] border-l-border px-3 pr-3.5 shadow-none hover:shadow-none"
                     id="attention" aria-label={t.needsYou.button(needsYouCards)}
                     aria-expanded={nyOn}
                     aria-pressed={nyOn}
@@ -2739,10 +2739,10 @@ function Project({
         {/* the status bar along the bottom: the connection (or the restart that waits), whom the microphone speaks to, the workstation pool and the usage limits */}
         <footer
           id="status"
-          className="frost-bar fixed right-[var(--side,0px)] bottom-0 left-[var(--left,0px)] z-45 grid h-[34px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3.5 border-t border-line px-2.5 text-[13px] transition-[right,left] duration-450 ease-[cubic-bezier(.3,.9,.3,1)] resizing:transition-none"
+          className="frost-bar fixed right-[var(--side,0px)] bottom-0 left-[var(--left,0px)] z-45 grid h-[34px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3.5 border-t border-border px-2.5 text-[13px] transition-[right,left] duration-450 ease-[cubic-bezier(.3,.9,.3,1)] resizing:transition-none"
         >
           <div className="flex min-w-0 items-center">
-            {!online || frozen ? <ConnectionLost since={downSince} frozen={frozen} /> : restart ? <RestartPill restart={restart} items={items} project={snapshot.project.id} onOpen={(i) => void openFresh(i)} /> : <span className={cn(statusWord, 'text-online')}>{t.online}</span>}
+            {!online || frozen ? <ConnectionLost since={downSince} frozen={frozen} /> : restart ? <RestartPill restart={restart} items={items} project={snapshot.project.id} onOpen={(i) => void openFresh(i)} /> : <span className={cn(statusWord, 'text-success')}>{t.online}</span>}
             {online && snapshot.project.demoSite?.init?.running && <span className={statusWord}>{t.creatingSite}</span>}
           </div>
           <div />
@@ -2764,7 +2764,7 @@ function Project({
         <CanvasTabs project={snapshot.project.id} canvases={canvases} shown={canvasId} waiting={perCanvas.waiting} empty={perCanvas.empty} onShow={(c) => (focusRef.current?.type === 'plan' && closePlan(), setInboxOn(false), showPage(null), showCanvas(c))} />
 
         {/* over the inbox's view, its list stays undimmed beside the card, to work down from there */}
-        <div id="dim" className={cn('fixed inset-x-0 top-[58px] bottom-0 z-30 bg-(--dim) opacity-0 pointer-events-none [transition:opacity_.2s,left_0s]', dim && 'on opacity-100 pointer-events-auto backdrop-blur-[3px]')} style={inboxOn && !matchMedia(NARROW).matches ? { left: side.left + inboxListWidth() } : undefined} onClick={() => closeCard()} />
+        <div id="dim" className={cn('fixed inset-x-0 top-[58px] bottom-0 z-30 bg-scrim opacity-0 pointer-events-none [transition:opacity_.2s,left_0s]', dim && 'on opacity-100 pointer-events-auto backdrop-blur-[3px]')} style={inboxOn && !matchMedia(NARROW).matches ? { left: side.left + inboxListWidth() } : undefined} onClick={() => closeCard()} />
         {helpOn && <Help note={helpNote} onClose={() => setHelpOn(false)} />}
         <WishDialog />
         {/* the open card blurs only while it is open in full (`ready`): as it unfolds, folds and hides it is a solid
@@ -2774,7 +2774,7 @@ function Project({
         <div
           id="panel"
           ref={panelRef}
-          className="group/panel fixed z-40 overflow-hidden hidden frost-pane [&:not(.ready)]:bg-panel [&:not(.ready)]:backdrop-filter-none [&.anim]:[--ease:cubic-bezier(.3,.9,.3,1)] [&.anim]:transition-[left,top,width,height] [&.anim]:duration-(--unfold) [&.anim]:ease-(--ease) before:content-[''] before:absolute before:left-[30px] before:w-20 before:top-0 before:h-[3px] before:rounded-b-[3px] before:bg-(--c) before:shadow-[0_0_12px_var(--c)] before:z-1"
+          className="group/panel fixed z-40 overflow-hidden hidden frost-pane [&:not(.ready)]:bg-surface [&:not(.ready)]:backdrop-filter-none [&.anim]:[--ease:cubic-bezier(.3,.9,.3,1)] [&.anim]:transition-[left,top,width,height] [&.anim]:duration-(--unfold) [&.anim]:ease-(--ease) before:content-[''] before:absolute before:left-[30px] before:w-20 before:top-0 before:h-[3px] before:rounded-b-[3px] before:bg-(--c) before:shadow-[0_0_12px_var(--c)] before:z-1"
         >
           <CloseButton label={t.close} className="close absolute right-3.5 top-3 z-2" onClick={() => closeCard()} />
           {/* keeps the final width while the panel unfolds, so the content can be measured before it shows; --pb is

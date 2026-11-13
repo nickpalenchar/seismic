@@ -20,12 +20,12 @@ export function RadioGroupItem({ className, ...props }: ComponentProps<typeof Ra
     <RadioGroupPrimitive.Item
       data-slot="radio-group-item"
       className={cn(
-        'inline-grid size-3.5 shrink-0 cursor-[inherit] place-items-center rounded-full border-[1.5px] border-solid border-muted-foreground bg-card m-0 p-0 outline-none data-[state=checked]:border-ink focus-visible:ring-[3px] focus-visible:ring-ring/50',
+        'inline-grid size-3.5 shrink-0 cursor-[inherit] place-items-center rounded-full border-[1.5px] border-solid border-muted-foreground bg-card m-0 p-0 outline-none data-[state=checked]:border-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50',
         className,
       )}
       {...props}
     >
-      <RadioGroupPrimitive.Indicator data-slot="radio-group-indicator" className="size-1.5 rounded-full bg-ink" />
+      <RadioGroupPrimitive.Indicator data-slot="radio-group-indicator" className="size-1.5 rounded-full bg-foreground" />
     </RadioGroupPrimitive.Item>
   );
 }

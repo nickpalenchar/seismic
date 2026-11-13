@@ -106,7 +106,7 @@ export function FolderBox({ item, diff }: { item: Item; diff: CardDiff | null })
   const rows = changeRows(diff);
   if (!rows.length) return null;
   return (
-    <div className="f-box mt-2.5 mb-1 py-2.5 px-3 border border-line rounded-[8px] max-w-[760px] text-[12.5px] [&_p]:mt-1.5 [&_p]:mb-0 [&_.cl-list]:mt-1.5 [&_.cl-list]:mb-0">
+    <div className="f-box mt-2.5 mb-1 py-2.5 px-3 border border-border rounded-[8px] max-w-[760px] text-[12.5px] [&_p]:mt-1.5 [&_p]:mb-0 [&_.cl-list]:mt-1.5 [&_.cl-list]:mb-0">
       <b>{t.folder.changed}</b>
       <ChangeList item={item} rows={rows} fold={atWork(item)} />
     </div>
@@ -136,7 +136,7 @@ export function DiscardChanges({ diff, act, onDone }: { diff: CardDiff | null; a
   return (
     <>
       <Button
-        className={cn('f-discard', counting && 'counting border border-error')}
+        className={cn('f-discard', counting && 'counting border border-destructive')}
         title={counting ? t.folder.cancelHint : t.folder.discardHint(undoable)}
         onClick={() => setLeft(counting ? null : DISCARD_WAIT_S)}
       >
@@ -144,7 +144,7 @@ export function DiscardChanges({ diff, act, onDone }: { diff: CardDiff | null; a
         {counting && (
           <>
             <span className="f-count ml-2 tabular-nums font-semibold">{t.folder.seconds(left)}</span>
-            <X className="f-cancel ml-1.5 text-error stroke-3" size={14} aria-label={t.folder.cancel} />
+            <X className="f-cancel ml-1.5 text-destructive stroke-3" size={14} aria-label={t.folder.cancel} />
           </>
         )}
       </Button>

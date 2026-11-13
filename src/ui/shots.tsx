@@ -266,25 +266,25 @@ export function ShotStrip({ shots }: { shots: ShotInput }) {
   return (
     <div className="c-shots basis-full flex flex-wrap gap-2">
       {shots.images.map((id) => (
-        <span key={id} className={cn('c-shot relative h-16 min-w-16 rounded-[2px] border border-line bg-chip inline-flex items-center justify-center text-xs text-muted-foreground [&_img]:h-full [&_img]:max-w-[160px] [&_img]:object-cover [&_img]:rounded-[2px] [&_img]:block', shots.marking.includes(id) && 'marking [&_img]:opacity-50')}>
+        <span key={id} className={cn('c-shot relative h-16 min-w-16 rounded-[2px] border border-border bg-muted inline-flex items-center justify-center text-xs text-muted-foreground [&_img]:h-full [&_img]:max-w-[160px] [&_img]:object-cover [&_img]:rounded-[2px] [&_img]:block', shots.marking.includes(id) && 'marking [&_img]:opacity-50')}>
           {shots.marking.includes(id) && <Spinner className="marking-loader size-5 absolute z-1 pointer-events-none" aria-label={t.shots.uploading} />}
           <Tooltip content={t.shots.markUp}>
             <button className="open h-full p-0 border-0 bg-transparent cursor-zoom-in" onClick={(e) => enlarge.open(id, e)}>
               <img src={imageUrl(id)} alt={t.shots.alt} />
             </button>
           </Tooltip>
-          <CloseButton label={t.shots.remove} size="small" className="remove absolute -top-[7px] -right-[7px] [--button-bg:var(--card)] shadow-[0_0_0_1px_var(--line)]" onClick={() => shots.remove(id)} />
+          <CloseButton label={t.shots.remove} size="small" className="remove absolute -top-[7px] -right-[7px] [--button-bg:var(--card)] shadow-[0_0_0_1px_var(--border)]" onClick={() => shots.remove(id)} />
         </span>
       ))}
       {Array.from({ length: shots.uploadingImages }, (_, i) => (
-        <span key={`u${i}`} className="c-shot relative h-16 min-w-16 rounded-[2px] border border-line bg-chip inline-flex items-center justify-center text-xs text-muted-foreground [&_img]:h-full [&_img]:max-w-[160px] [&_img]:object-cover [&_img]:rounded-[2px] [&_img]:block loading">
+        <span key={`u${i}`} className="c-shot relative h-16 min-w-16 rounded-[2px] border border-border bg-muted inline-flex items-center justify-center text-xs text-muted-foreground [&_img]:h-full [&_img]:max-w-[160px] [&_img]:object-cover [&_img]:rounded-[2px] [&_img]:block loading">
           <Spinner className="size-5" aria-label={t.shots.uploading} />
         </span>
       ))}
       {filesUploading > 0 && <span className="c-file-loading self-center text-muted-foreground text-xs" role="status">{t.shots.uploading}</span>}
       {/* after the first screenshot picked from disk: pasting works too, until confirmed */}
       {shots.pasteHint && (
-        <div className="c-paste-hint basis-full flex items-center gap-3 py-2 px-2.5 rounded-[2px] bg-[color-mix(in_srgb,var(--working)_8%,var(--card))] text-[13px] leading-[1.4] [&_p]:m-0 [&_p]:flex-1" role="note">
+        <div className="c-paste-hint basis-full flex items-center gap-3 py-2 px-2.5 rounded-[2px] bg-working/8 text-[13px] leading-[1.4] [&_p]:m-0 [&_p]:flex-1" role="note">
           <p>{t.shots.pasteHint(pasteKeys())}</p>
           <Button variant="primary" size="small" onClick={confirmPasteHint}>
             {t.newCardHint.ok}
@@ -359,7 +359,7 @@ export function Shots({ ids }: { ids?: string[] }) {
     <span className="shots flex flex-wrap gap-1.5 mt-1.5">
       {ids.map((id) => (
         <Tooltip key={id} content={t.shots.enlarge}>
-          <button className="shot border border-line rounded-[2px] p-0 bg-card cursor-zoom-in leading-none [&_img]:h-[88px] [&_img]:max-w-[240px] [&_img]:object-cover [&_img]:rounded-[2px] [&_img]:block" onClick={(e) => enlarge.open(id, e)}>
+          <button className="shot border border-border rounded-[2px] p-0 bg-card cursor-zoom-in leading-none [&_img]:h-[88px] [&_img]:max-w-[240px] [&_img]:object-cover [&_img]:rounded-[2px] [&_img]:block" onClick={(e) => enlarge.open(id, e)}>
             <img src={imageUrl(id)} alt={t.shots.alt} loading="lazy" />
           </button>
         </Tooltip>
@@ -537,7 +537,7 @@ function Lightbox({ src, thumb, marking, onClose }: { src: string; thumb: HTMLIm
     // a click here is not one on the card or field the thumbnail sits in
     <div
       className={cn(
-        'lightbox group/lb fixed inset-0 z-1000 bg-[rgba(15,12,8,.78)] flex items-center justify-center py-[4vh] px-[4vw] cursor-zoom-out animate-[dim_.38s_ease-out] transition-[background-color] duration-[380ms] [&>img]:max-w-full [&>img]:max-h-full [&>img]:rounded-[2px] [&>img]:shadow-lift [&>img]:bg-white [&>img]:origin-top-left',
+        'lightbox group/lb fixed inset-0 z-1000 bg-slate-950/80 flex items-center justify-center py-[4vh] px-[4vw] cursor-zoom-out animate-[dim_.38s_ease-out] transition-[background-color] duration-[380ms] [&>img]:max-w-full [&>img]:max-h-full [&>img]:rounded-[2px] [&>img]:shadow-lift [&>img]:bg-white [&>img]:origin-top-left',
         marking && 'marking flex-col gap-3.5 [&>img]:max-h-[calc(100%-58px)]',
         closing && 'closing bg-transparent',
       )}

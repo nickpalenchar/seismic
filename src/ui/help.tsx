@@ -16,7 +16,7 @@ export function HelpButton({ on, onClick }: { on: boolean; onClick: () => void }
       <PillButton
         size="bar"
         on={on}
-        className="w-[34px] justify-center p-0 text-[15px] font-bold text-muted-foreground hover:text-ink data-[on]:bg-card data-[on]:text-ink group-data-[fit~='2']/bar:hidden"
+        className="w-[34px] justify-center p-0 text-[15px] font-bold text-muted-foreground hover:text-foreground data-[on]:bg-card data-[on]:text-foreground group-data-[fit~='2']/bar:hidden"
         aria-label={t.help.button}
         onClick={onClick}
       >
@@ -45,7 +45,7 @@ export function Help({ onClose, note }: { onClose: () => void; note?: 'button' |
               <h3 className="m-0 mb-1 text-[12px] font-semibold tracking-[.05em] text-muted-foreground uppercase">{s.title}</h3>
               <ul className="m-0 list-none p-0 text-[13px]">
                 {s.rows.map((r) => (
-                  <li key={r.text} className="flex items-center justify-between gap-3.5 border-b border-b-line py-1.5 last:border-b-0">
+                  <li key={r.text} className="flex items-center justify-between gap-3.5 border-b border-b-border py-1.5 last:border-b-0">
                     <span>{r.text}</span>
                     <span className="flex flex-wrap items-center justify-end gap-1">
                       {r.keys.map((combo, i) => (
@@ -54,7 +54,7 @@ export function Help({ onClose, note }: { onClose: () => void; note?: 'button' |
                           {combo.map((k, j) => (
                             <Fragment key={j}>
                               {j > 0 && <span className={quiet}>+</span>}
-                              <kbd className="rounded-[2px] border border-line bg-chip px-[7px] py-0.5 [font-family:inherit] text-[12px] font-medium whitespace-nowrap shadow-[0_1px_0_var(--line)]">{k}</kbd>
+                              <kbd className="rounded-[2px] border border-border bg-muted px-[7px] py-0.5 [font-family:inherit] text-[12px] font-medium whitespace-nowrap shadow-[0_1px_0_var(--border)]">{k}</kbd>
                             </Fragment>
                           ))}
                         </Fragment>
@@ -67,11 +67,11 @@ export function Help({ onClose, note }: { onClose: () => void; note?: 'button' |
           ))}
         </div>
         {/* what the owner misses goes to Seismic's makers; the legend closes for the draft */}
-        <p className="m-0 mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-t border-t-line pt-3">
+        <p className="m-0 mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-t border-t-border pt-3">
           <WishLink className="text-[13px]" onOpen={onClose} />
           <span className="text-[12px] text-muted-foreground">{t.wish.legend}</span>
         </p>
-        {note && <p className="m-0 mt-4 border-t border-t-line pt-3 text-[13px] text-muted-foreground">{note === 'button' ? t.help.keyNote.button : t.help.keyNote.gone}</p>}
+        {note && <p className="m-0 mt-4 border-t border-t-border pt-3 text-[13px] text-muted-foreground">{note === 'button' ? t.help.keyNote.button : t.help.keyNote.gone}</p>}
       </DialogContent>
     </Dialog>
   );

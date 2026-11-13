@@ -260,7 +260,7 @@ export function WishDialog() {
         ) : (
           <>
             {w.pending && (
-              <div className="mx-0 mt-2.5 mb-3.5 flex flex-col items-start gap-2 rounded-[3px] bg-chip px-3 py-2.5 text-[14px] [--button-bg:var(--panel)]">
+              <div className="mx-0 mt-2.5 mb-3.5 flex flex-col items-start gap-2 rounded-[3px] bg-muted px-3 py-2.5 text-[14px] [--button-bg:var(--surface)]">
                 <p className="m-0 leading-[1.45]">{t.wish.pending}</p>
                 <blockquote className="m-0 border-l-2 border-l-muted-foreground pl-2.5 leading-[1.45]">{short(w.pending.said)}</blockquote>
                 <p className="m-0 leading-[1.45]">{t.wish.pendingThen}</p>
@@ -287,7 +287,7 @@ export function WishDialog() {
                   {issueUrl(issue.title, issue.body, t.wish.cut).trimmed && ` ${t.wish.long(issue.images.length > 0)}`}
                 </p>
                 <div className="flex items-center justify-between gap-3">
-                  <button className="cursor-pointer border-0 border-b border-b-line bg-transparent p-0 text-[12px] text-muted-foreground hover:text-ink" onClick={discard}>
+                  <button className="cursor-pointer border-0 border-b border-b-border bg-transparent p-0 text-[12px] text-muted-foreground hover:text-foreground" onClick={discard}>
                     {t.wish.discard}
                   </button>
                   <Button variant="primary" disabled={w.writing || !issue.title.trim() || !issue.body.trim()} onClick={() => void send(issue)}>
@@ -341,8 +341,8 @@ function IssueFields({ issue, disabled }: { issue: Issue; disabled: boolean }) {
 const issueLabel = 'flex flex-col gap-1 text-[12px] text-muted-foreground';
 
 /** The quiet link to the draft, its words underlined faintly until hovered. */
-const wishLinkClass = 'group/wish inline-flex cursor-pointer items-baseline gap-1.5 border-0 bg-transparent p-0 text-left text-[12px] text-muted-foreground hover:text-ink';
-const wishTextClass = 'border-b border-b-line group-hover/wish:border-muted-foreground';
+const wishLinkClass = 'group/wish inline-flex cursor-pointer items-baseline gap-1.5 border-0 bg-transparent p-0 text-left text-[12px] text-muted-foreground hover:text-foreground';
+const wishTextClass = 'border-b border-b-border group-hover/wish:border-muted-foreground';
 
 /** The quiet link that opens the dialog: under "Check setup" in the Konfiguration dialog, and in the legend (`onOpen` closes either). */
 export function WishLink({ className, onOpen }: { className?: string; onOpen?: () => void }) {

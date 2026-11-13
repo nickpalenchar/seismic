@@ -49,12 +49,12 @@ export const StateMarks = ({ marks }: { marks: StateMark[] }) => (
 
 /** The colours of the states a stopped card remembers that no state class (`s-…`) gives. */
 const TONES: Record<string, string> = {
-  's-asking': '[--c:var(--asking)]',
-  'tone-paused': '[--c:var(--muted-foreground)]',
-  'tone-limit': '[--c:#56859d]',
-  'tone-restart': '[--c:var(--restart)]',
-  'tone-reviewing': '[--c:var(--reviewing)]',
-  'tone-failed': '[--c:var(--error)]',
+  's-asking': 'c-asking',
+  'tone-paused': 'c-muted',
+  'tone-limit': 'c-info',
+  'tone-restart': 'c-restart',
+  'tone-reviewing': 'c-reviewing',
+  'tone-failed': 'c-destructive',
 };
 
 /** "Stopped at" in grey, then the state the card was in, in that state's colour. */
@@ -84,11 +84,11 @@ export function Title({ item, className, inline, children }: { item: Item; class
 
 /** A pin's fill, in the colour of what the owner is asked (`--pin`). */
 const PIN = 'bg-(--pin)';
-const pinInk = (pin: NonNullable<CardSummary['pin']>) => (pin.failed ? '[--pin:var(--error)]' : pin.asking ? '[--pin:var(--asking)]' : '[--pin:var(--waiting)]');
+const pinInk = (pin: NonNullable<CardSummary['pin']>) => (pin.failed ? '[--pin:var(--destructive)]' : pin.asking ? '[--pin:var(--asking)]' : '[--pin:var(--waiting)]');
 
 /** The pin while a card needs the owner, inline after a list's title: "!", "?" for a question, "!!" for a failed agent, "✦" for a proposal. */
 export const Pin = ({ pin }: { pin: NonNullable<CardSummary['pin']> }) => (
-  <span className={['f-pin', pin.failed && 'failed', pin.asking && 'asking', PIN, pinInk(pin), 'flex-none inline-grid place-items-center min-w-[17px] h-[17px] px-[5px] box-border rounded-[9px] text-on-ink [font:700_11px/1_var(--font)] not-italic'].filter(Boolean).join(' ')} title={t.phone.forYou}>
+  <span className={['f-pin', pin.failed && 'failed', pin.asking && 'asking', PIN, pinInk(pin), 'flex-none inline-grid place-items-center min-w-[17px] h-[17px] px-[5px] box-border rounded-[9px] text-primary-foreground [font:700_11px/1_var(--font)] not-italic'].filter(Boolean).join(' ')} title={t.phone.forYou}>
     {pin.mark}
   </span>
 );

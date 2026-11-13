@@ -10,13 +10,13 @@ export const entryListClass = 'inbox-list list-none m-0 p-0 flex flex-col gap-2.
  * the `[.inbox-entry.unread_&]` variants of the face's title (card/faceClasses.ts), which sets its weight.
  */
 export const entryClass =
-  'inbox-entry pt-3 px-3.5 pb-3.5 rounded-[14px] bg-card border border-solid border-[color:var(--glass-edge,var(--line))] [box-shadow:inset_0_1px_0_var(--glass-hi,transparent),var(--shadow)]';
+  'inbox-entry pt-3 px-3.5 pb-3.5 rounded-[14px] bg-card border border-solid border-[color:var(--glass-edge,var(--border))] [box-shadow:inset_0_1px_0_var(--glass-hi,transparent),var(--shadow)]';
 
 /** The entry of the card open now (or flying open): a ring and a tint. */
-export const entryOnClass = 'on bg-[color-mix(in_srgb,var(--working)_10%,var(--card))] [box-shadow:0_0_0_2px_color-mix(in_srgb,var(--working)_55%,transparent),var(--shadow)]';
+export const entryOnClass = 'on bg-working/10 [box-shadow:0_0_0_2px_--alpha(var(--working)/55%),var(--shadow)]';
 
 /** A proposed rule's or setting's entry, tinted as a proposal. */
-export const proposalEntryClass = 'proposal-entry bg-[color-mix(in_srgb,var(--proposal)_9%,var(--chip))] border-transparent';
+export const proposalEntryClass = 'proposal-entry bg-proposal/9 border-transparent';
 
 /** The title of an entry's card as a button that opens it, in the face's own type. */
 export const ttlLinkClass =

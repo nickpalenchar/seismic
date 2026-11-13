@@ -17,7 +17,7 @@ import type { ComponentProps } from 'react';
 import { inputFieldClassName } from './input';
 
 function Command({ className, ...props }: ComponentProps<typeof CommandPrimitive>) {
-  return <CommandPrimitive data-slot="command" className={cn('flex w-full flex-col text-ink', className)} {...props} />;
+  return <CommandPrimitive data-slot="command" className={cn('flex w-full flex-col text-foreground', className)} {...props} />;
 }
 
 function CommandInput({ className, wrapperClassName, icon = true, ...props }: ComponentProps<typeof CommandPrimitive.Input> & { wrapperClassName?: string; icon?: boolean }) {
@@ -45,14 +45,14 @@ function CommandGroup({ className, ...props }: ComponentProps<typeof CommandPrim
   return (
     <CommandPrimitive.Group
       data-slot="command-group"
-      className={cn('overflow-hidden text-ink [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground', className)}
+      className={cn('overflow-hidden text-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground', className)}
       {...props}
     />
   );
 }
 
 function CommandSeparator({ className, ...props }: ComponentProps<typeof CommandPrimitive.Separator>) {
-  return <CommandPrimitive.Separator data-slot="command-separator" className={cn('h-px bg-line', className)} {...props} />;
+  return <CommandPrimitive.Separator data-slot="command-separator" className={cn('h-px bg-border', className)} {...props} />;
 }
 
 function CommandItem({ className, ...props }: ComponentProps<typeof CommandPrimitive.Item>) {
@@ -61,7 +61,7 @@ function CommandItem({ className, ...props }: ComponentProps<typeof CommandPrimi
       data-slot="command-item"
       // a press keeps the focus in the field
       onMouseDown={(e) => e.preventDefault()}
-      className={cn('relative flex cursor-pointer items-center gap-2 rounded-[3px] outline-none select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-chip [&_svg]:pointer-events-none [&_svg]:shrink-0', className)}
+      className={cn('relative flex cursor-pointer items-center gap-2 rounded-[3px] outline-none select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-muted [&_svg]:pointer-events-none [&_svg]:shrink-0', className)}
       {...props}
     />
   );

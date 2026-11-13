@@ -95,7 +95,7 @@ const sidesClass = 'merge-sides flex items-stretch w-full';
 const sideClass = (cut: boolean, faded = false) =>
   cn(
     'merge-side relative flex-[1_1_0] min-w-0 box-border py-3.5 px-4 rounded-[3px] bg-card [box-shadow:var(--shadow)] [@media(max-width:700px)]:p-2.5',
-    'first:[box-shadow:none] first:border-[1.5px] first:border-dashed first:border-proposal first:bg-[color-mix(in_srgb,var(--proposal)_4%,var(--card))]',
+    'first:[box-shadow:none] first:border-[1.5px] first:border-dashed first:border-proposal first:bg-proposal/4',
     cut && 'max-h-[clamp(140px,22dvh,280px)] overflow-clip',
     faded && "after:content-[''] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-7 after:pointer-events-none after:bg-[linear-gradient(transparent,var(--card))]",
   );
@@ -114,7 +114,7 @@ export function DuplicateMergePreview({ item, partner }: { item: Item; partner: 
     <div className={sidesClass}>
       {([item, partner] as const).map((card, n) => <Fragment key={card.id}>
         {n === 1 && <div className={glueClass} aria-hidden><span className="merge-knot"><MergeMark /></span></div>}
-        <div className={cn(sideClass(true), '[box-shadow:none] border border-line first:border-[1.5px] first:border-dashed first:border-proposal')}>
+        <div className={cn(sideClass(true), '[box-shadow:none] border border-border first:border-[1.5px] first:border-dashed first:border-proposal')}>
         <div className={kindClass}>{n ? t.duplicate.otherCard : t.duplicate.thisCard}</div>
         <h3 className={sideTitleClass}><Inline md={card.title} /></h3>
         <Body md={card.body} />
@@ -186,7 +186,7 @@ export function MergeView({ item, partner, act, error }: { item: Item; partner?:
         </CollapsibleTrigger>
       )}
       <div className={arrowClass} aria-hidden />
-      <div className={cn(resultClass, (busy || updating) && 'busy [box-shadow:0_0_0_1.5px_color-mix(in_srgb,var(--proposal)_45%,transparent),var(--shadow)]')}>
+      <div className={cn(resultClass, (busy || updating) && 'busy [box-shadow:0_0_0_1.5px_--alpha(var(--proposal)/45%),var(--shadow)]')}>
         {updating && <p className="merge-wait merge-updating flex items-center gap-2.5 mt-0 mb-3 text-proposal font-semibold"><span className="spinner" /> {t.merge.updating}</p>}
         <div className={cn(kindClass, stale && 'stale opacity-45')}>{t.merge.result}</div>
         {busy ? (
@@ -204,8 +204,8 @@ export function MergeView({ item, partner, act, error }: { item: Item; partner?:
         {now.failed !== undefined && <p className="p-error" role="alert">{now.failed}</p>}
       </div>
       {m.followUp && <>
-        <div className={cn(arrowClass, 'merge-follow-arrow text-[#3b7dd8]')} aria-hidden />
-        <div className={cn(resultClass, stale && 'stale opacity-45', 'merge-follow-up [box-shadow:0_0_0_1.5px_#3b7dd8,var(--shadow)]')}>
+        <div className={cn(arrowClass, 'merge-follow-arrow text-working')} aria-hidden />
+        <div className={cn(resultClass, stale && 'stale opacity-45', 'merge-follow-up [box-shadow:0_0_0_1.5px_var(--working),var(--shadow)]')}>
           <div className={kindClass}>{t.merge.followUp}</div>
           <h3 className={titleClass}><Inline md={m.followUp.title} /></h3>
           <Body md={m.followUp.task} />
@@ -216,10 +216,10 @@ export function MergeView({ item, partner, act, error }: { item: Item; partner?:
       {m.outcome === 'followUp' ? <Callout kind="warn" className={cn('mt-3 max-w-[720px] box-border', stale && 'stale opacity-45')}>
         <TriangleAlert />
         <CalloutDescription>{t.merge.extra}</CalloutDescription>
-      </Callout> : m.outcome === 'covered' ? <p className={cn(stale && 'stale opacity-45', "merge-callout covered w-[min(720px,100%)] box-border py-3 px-4 rounded-[3px] leading-[1.45] bg-[color-mix(in_srgb,#41a05a_14%,var(--card))] text-ink")}>{t.merge.covered}</p> : m.task !== undefined && partner && <p className={cn("hint merge-intro text-center max-w-[720px]", stale && 'stale opacity-45')}>{t.merge.intro(plain(partner.title))}</p>}
+      </Callout> : m.outcome === 'covered' ? <p className={cn(stale && 'stale opacity-45', "merge-callout covered w-[min(720px,100%)] box-border py-3 px-4 rounded-[3px] leading-[1.45] bg-approved/14 text-foreground")}>{t.merge.covered}</p> : m.task !== undefined && partner && <p className={cn("hint merge-intro text-center max-w-[720px]", stale && 'stale opacity-45')}>{t.merge.intro(plain(partner.title))}</p>}
       {error && <p className="p-error" role="alert">{error}</p>}
       {/* on the phone the decisions stay in view at the page's foot, leaving 87px for the microphone below them (the page reserves 157px under its content) */}
-      <div className={cn(actionsClass, "merge-actions justify-center w-full [#panel_&]:panel-foot phone:sticky phone:-bottom-[70px] phone:z-5 phone:py-3 phone:px-0 phone:bg-background phone:border-t phone:border-t-line phone:after:content-[''] phone:after:absolute phone:after:top-full phone:after:left-0 phone:after:right-0 phone:after:h-[calc(87px+env(safe-area-inset-bottom))] phone:after:bg-background phone:after:pointer-events-none")}>
+      <div className={cn(actionsClass, "merge-actions justify-center w-full [#panel_&]:panel-foot phone:sticky phone:-bottom-[70px] phone:z-5 phone:py-3 phone:px-0 phone:bg-background phone:border-t phone:border-t-border phone:after:content-[''] phone:after:absolute phone:after:top-full phone:after:left-0 phone:after:right-0 phone:after:h-[calc(87px+env(safe-area-inset-bottom))] phone:after:bg-background phone:after:pointer-events-none")}>
         {m.task !== undefined && partner && (
           <Button variant="primary" disabled={stale} onClick={() => act({ action: 'approveMerge' }, { close: true, ack: t.merge.approved })}>
             <MergeMark size={13} /> {t.merge.approve}

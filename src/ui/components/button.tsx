@@ -18,23 +18,23 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-[var(--button-bg,var(--chip))] text-ink',
+        default: 'bg-[var(--button-bg,var(--muted))] text-foreground',
         primary: 'bg-primary text-primary-foreground',
-        danger: 'bg-[var(--button-bg,var(--chip))] text-destructive',
+        danger: 'bg-[var(--button-bg,var(--muted))] text-destructive',
         /** starting a code review: second to Approve, in purple */
-        'code-review': 'bg-proposal text-on-ink',
+        'code-review': 'bg-proposal text-primary-foreground',
         /** confirming a wontfix: closing the card without a change, in green */
-        success: 'bg-[color-mix(in_srgb,var(--approved)_80%,black)] text-on-ink dark:bg-approved',
-        'review-warning': 'bg-[#f5c247] text-[#34270b] shadow-[inset_0_0_0_1px_#c48f21]',
+        success: 'bg-approved text-approved-foreground',
+        'review-warning': 'bg-amber-300 text-amber-950 shadow-[inset_0_0_0_1px_var(--color-amber-600)]',
         /** the icon alone until hovered */
-        ghost: 'bg-transparent text-muted-foreground hover:not-disabled:bg-chip hover:not-disabled:text-ink hover:not-disabled:brightness-100',
+        ghost: 'bg-transparent text-muted-foreground hover:not-disabled:bg-muted hover:not-disabled:text-foreground hover:not-disabled:brightness-100',
         /** blue and underlined, inline in text */
         link: 'inline rounded-none bg-transparent p-0 leading-[1.25] text-primary whitespace-normal [text-align:inherit] underline decoration-1 underline-offset-[.18em] hover:not-disabled:decoration-2 hover:not-disabled:brightness-100',
       },
       /** `small`: a little apart from the text it stands under */
       size: { default: '', small: '[:is(p,ul,ol,.c-install)+&]:mt-2', icon: 'size-8 shrink-0 rounded-lg p-0', 'icon-small': 'size-5 shrink-0 rounded-[3px] p-0' },
       /** a ring around it: the step the agent suggests */
-      suggested: { true: 'shadow-[0_0_0_2px_var(--bg),0_0_0_4px_var(--idea)]' },
+      suggested: { true: 'shadow-[0_0_0_2px_var(--background),0_0_0_4px_var(--idea)]' },
       /** disabled while it waits, yet not faded, with a bar running under its label */
       armed: {
         true: "relative overflow-hidden disabled:opacity-100 after:absolute after:inset-x-0 after:bottom-0 after:h-[3px] after:bg-[linear-gradient(90deg,transparent,var(--idea),transparent)] after:bg-[length:200%_100%] after:animate-[flow_1.4s_linear_infinite] after:content-['']",

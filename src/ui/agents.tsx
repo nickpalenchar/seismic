@@ -67,11 +67,11 @@ export function AgentsTabs({ tab, onTab, queued, parked, children }: { tab: Tab;
  */
 /** The colour a stage chip tints with while its group shows. */
 const STAGE_TINT: Record<string, string> = {
-  needsYou: '[--c:var(--waiting)]',
-  reviewing: '[--c:var(--reviewing)]',
-  landing: '[--c:var(--approved)]',
-  planned: '[--c:var(--planned)]',
-  done: '[--c:var(--approved)]',
+  needsYou: 'c-waiting',
+  reviewing: 'c-reviewing',
+  landing: 'c-approved',
+  planned: 'c-planned',
+  done: 'c-approved',
 };
 
 export function StageChips<S extends string>({ stages, count, hidden, onHidden, onlyFull }: { stages: readonly S[]; count: (s: S) => number; hidden: S[]; onHidden: (h: S[]) => void; onlyFull?: boolean }) {

@@ -70,9 +70,9 @@ export function PlanDirNote({
     <div
       className={[
         'plan-dir absolute box-border select-none rounded-[4px] border-[1.5px] border-(--container-line) bg-(--container) px-3.5 py-3 text-[13px] leading-[1.4] [&_button]:cursor-pointer [&_p]:m-0',
-        dir.empty ? 'empty-dir border-dashed text-muted-foreground [&_p]:pr-3.5' : 'border-solid text-ink',
+        dir.empty ? 'empty-dir border-dashed text-muted-foreground [&_p]:pr-3.5' : 'border-solid text-foreground',
         dir.at ? 'put' : '[transform:translateY(-100%)]',
-        dragging ? 'dragging cursor-grabbing [box-shadow:0_8px_24px_rgba(0,0,0,.18)]' : 'cursor-grab',
+        dragging ? 'dragging cursor-grabbing [box-shadow:0_8px_24px_--alpha(black/18%)]' : 'cursor-grab',
       ]
         .filter(Boolean)
         .join(' ')}

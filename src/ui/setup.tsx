@@ -32,7 +32,7 @@ function Command({ text }: { text: string }) {
   return (
     <span className="c-cmd inline-flex items-baseline gap-1 max-w-full [&_code]:min-w-0 [&_code]:[overflow-wrap:anywhere]">
       <code>{text}</code>
-      <button className="c-copy [border:0] bg-transparent text-muted-foreground text-[11.5px] cursor-pointer py-0 px-0.5 underline decoration-dotted [&:hover]:text-ink" onClick={() => copy(text)} title={t.setup.copy}>
+      <button className="c-copy [border:0] bg-transparent text-muted-foreground text-[11.5px] cursor-pointer py-0 px-0.5 underline decoration-dotted [&:hover]:text-foreground" onClick={() => copy(text)} title={t.setup.copy}>
         {copied ? t.setup.copied : t.setup.copy}
       </button>
     </span>
@@ -60,17 +60,17 @@ export function SetupList<I extends SetupItem | VoiceSetupItem | MachineItem>({
         const slow = 'speed' in i && typeof i.speed === 'object' && i.speed.slow && !i.cloud?.used;
         return (
           <li key={i.id} className={cn(i.state, slow && 'slow', setupItemClass)}>
-            <span className={cn('c-mark font-bold text-center', slow ? 'text-warn' : { ok: 'text-approved', missing: 'text-error', later: 'text-muted-foreground' }[i.state])} aria-hidden>
+            <span className={cn('c-mark font-bold text-center', slow ? 'text-warning' : { ok: 'text-approved', missing: 'text-destructive', later: 'text-muted-foreground' }[i.state])} aria-hidden>
               {slow ? '!' : { ok: '✓', missing: '✗', later: '…' }[i.state]}
             </span>
             <span className={i.state === 'missing' ? 'c-name font-semibold' : 'c-name'}>{name(i)}</span>
             {/* a speech recognition too slow here says so in the warning colour */}
-            <span className={slow ? 'text-warn text-[12px] m-0 [overflow-wrap:anywhere]' : 'hint'} title={i.found}>
+            <span className={slow ? 'text-warning text-[12px] m-0 [overflow-wrap:anywhere]' : 'hint'} title={i.found}>
               {state(i)}
             </span>
             {act && <div className="c-act col-[2/-1] flex flex-wrap gap-2 items-center mt-0.5 mb-1 mx-0">{act}</div>}
             {i.state === 'missing' && i.install && (!!i.install.commands.length || i.install.url) && (
-              <div className="c-how col-[2/-1] flex flex-wrap gap-x-2 gap-y-1 items-baseline mt-[3px] mb-1 mx-0 [&_code]:py-0.5 [&_code]:px-1.5 [&_code]:rounded-[2px] [&_code]:bg-card [&_code]:border [&_code]:border-solid [&_code]:border-line [&_code]:select-all [&_a]:text-[12px]">
+              <div className="c-how col-[2/-1] flex flex-wrap gap-x-2 gap-y-1 items-baseline mt-[3px] mb-1 mx-0 [&_code]:py-0.5 [&_code]:px-1.5 [&_code]:rounded-[2px] [&_code]:bg-card [&_code]:border [&_code]:border-solid [&_code]:border-border [&_code]:select-all [&_a]:text-[12px]">
                 {!!i.install.commands.length && <span className="hint">{act ? t.setup.byHand : s.install}</span>}
                 {i.install.commands.map((c) => (
                   <Command key={c} text={c} />
@@ -106,7 +106,7 @@ export function voiceState(i: VoiceSetupItem | MachineItem) {
 /** Under the speech recognition's line: what was measured, the cloud's offer, each on a line of its own. */
 const voiceClass = 'c-voice flex flex-col items-start gap-1 w-full';
 /** Why the cloud or the measurement failed; in the configuration dialog in that dialog's size for errors. */
-const voiceErrorClass = 'text-error m-0 text-[12.5px] [#config_&]:mt-1.5 [#config_&]:text-[13px]';
+const voiceErrorClass = 'text-destructive m-0 text-[12.5px] [#config_&]:mt-1.5 [#config_&]:text-[13px]';
 /** A row of the cloud's offer: the service, its address and model, the key's link and the test. */
 const cloudRowClass = cn(rowClass, 'gap-1.5');
 
@@ -173,14 +173,14 @@ export function RecognitionDetail({ item, busy, changed }: { item: VoiceSetupIte
   const kept = cloud?.key && cloud.preset === preset;
   return (
     <div className={voiceClass}>
-      {slow && <span className="text-warn text-[12px] m-0 [overflow-wrap:anywhere]">{v.slowDetail(v.seconds(slow.seconds))}</span>}
+      {slow && <span className="text-warning text-[12px] m-0 [overflow-wrap:anywhere]">{v.slowDetail(v.seconds(slow.seconds))}</span>}
       {item.state === 'ok' && !measuring && (
         <LinkButton disabled={busy} onClick={() => act(api.measureVoice)}>
           {speed ? v.remeasure : v.measure}
         </LinkButton>
       )}
       {slow || open || cloud ? (
-        <div className="c-cloud flex flex-col gap-[5px] w-full max-w-[460px] box-border py-2 px-2.5 rounded-[6px] bg-chip text-[12.5px]">
+        <div className="c-cloud flex flex-col gap-[5px] w-full max-w-[460px] box-border py-2 px-2.5 rounded-[6px] bg-muted text-[12.5px]">
           <b>{c.offer}</b>
           <span className={cloudRowClass}>
             <Select className="text-[12.5px] py-1 px-1.5 box-border" aria-label={c.service} value={preset} onValueChange={(picked) => setPreset(picked as CloudPreset)}>
@@ -287,7 +287,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
             <span className="c-step">{s.installing}</span> <code>{job.line}</code>
           </span>
         );
-      if (job.error) return <span className="text-error m-0 text-[12.5px]">{s.failed(job.error.split('\n').at(-1) ?? '')}</span>;
+      if (job.error) return <span className="text-destructive m-0 text-[12.5px]">{s.failed(job.error.split('\n').at(-1) ?? '')}</span>;
     }
     if (i.act === 'identity') return <Identity onSaved={setView} onError={failed} />;
     const detail = section.id === 'voice' && i.id === 'recognition' && <RecognitionDetail item={i} busy={running} changed={recheck} />;
@@ -365,9 +365,9 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
                 <section key={section.id} className={cn(projectClass, 'c-setup', `setup-${section.id}`, '[&>.hint]:mt-0.5 [&>.hint]:mb-1.5 [&>.hint]:mx-0')}>
                   <div className={sectionHeadClass}>
                     <b>{s.sections[section.id].title}</b>
-                    <span className={cn('setup-tag text-[11px] py-px px-2 rounded-[3px]', section.id === 'needed' ? 'needed bg-ink text-background' : 'bg-chip text-muted-foreground')}>{section.id === 'needed' ? s.needed : s.optional}</span>
+                    <span className={cn('setup-tag text-[11px] py-px px-2 rounded-[3px]', section.id === 'needed' ? 'needed bg-foreground text-background' : 'bg-muted text-muted-foreground')}>{section.id === 'needed' ? s.needed : s.optional}</span>
                     {section.mb > 0 && <span className="hint">{s.size(fileSize(section.mb * 1e6))}</span>}
-                    <span className={cn('setup-ok ml-auto text-[12px]', ready(section) ? 'on text-approved' : 'text-error')}>
+                    <span className={cn('setup-ok ml-auto text-[12px]', ready(section) ? 'on text-approved' : 'text-destructive')}>
                       {!ready(section) ? s.open(section.items.filter((i) => i.state === 'missing').length) : section.items.some((i) => i.state === 'later') ? s.readyLater : s.ready}
                     </span>
                   </div>
@@ -405,7 +405,7 @@ function SetupShell({ first, onClose, children }: { first?: boolean; onClose?: (
   const [opener] = useState(() => document.activeElement instanceof HTMLElement ? document.activeElement : null);
   if (first) return <div className="setup first fixed inset-0 overflow-y-auto z-80 bg-background"><div className={cn(pageClass, 'mx-auto mt-14 mb-12')}>{children}</div></div>;
   return <Dialog open onOpenChange={(open) => !open && onClose?.()}>
-    <DialogContent layerClassName="setup over z-80 overflow-hidden py-12 px-6 bg-(--dim)" glass className={cn(pageClass, 'w-full my-0 mx-auto flex flex-col pr-0 pb-0')} onCloseAutoFocus={(e) => {
+    <DialogContent layerClassName="setup over z-80 overflow-hidden py-12 px-6 bg-scrim" glass className={cn(pageClass, 'w-full my-0 mx-auto flex flex-col pr-0 pb-0')} onCloseAutoFocus={(e) => {
       e.preventDefault();
       opener?.focus();
     }}>{children}</DialogContent>
@@ -447,7 +447,7 @@ function LanguagePick() {
   if (!chosen || LANGUAGES.length < 2) return null;
   return (
     <Select
-      className="setup-lang ml-auto text-[13px] py-1 px-2 rounded-[2px] border-line hover:border-line bg-card focus:bg-card text-ink"
+      className="setup-lang ml-auto text-[13px] py-1 px-2 rounded-[2px] border-border hover:border-border bg-card focus:bg-card text-foreground"
       aria-label={t.config.language.title}
       value={chosen}
       onValueChange={(picked) => api.saveLanguage(picked as Language).then(() => reload(), console.error)}
@@ -466,7 +466,7 @@ const fieldClass = 'block my-1.5 mx-0';
 const fieldLabelClass = 'block text-muted-foreground text-[11.5px] mb-0.5';
 const firstPathClass = 'w-full py-[7px] px-[9px]';
 /** What went wrong with the first project, in a block of the assistant. */
-const firstErrorClass = 'text-error mt-1 mb-0 mx-0 text-[12.5px]';
+const firstErrorClass = 'text-destructive mt-1 mb-0 mx-0 text-[12.5px]';
 /** The buttons that go on. */
 const actionsClass = 'c-actions flex gap-2 mt-4';
 
@@ -535,9 +535,9 @@ function FirstProject({ view, ready, onView }: { view: MachineView; ready: boole
         <b>{s.first.title}</b>
       </div>
       <p className="hint">{s.first.hint}</p>
-      {!ready && <p className="text-warn text-[12px]">{s.first.notReady}</p>}
+      {!ready && <p className="text-warning text-[12px]">{s.first.notReady}</p>}
       {saved ? (
-        <p className="setup-saved text-[13.5px] text-ink">
+        <p className="setup-saved text-[13.5px] text-foreground">
           {branch && `${s.first.branch(branch)} `}{saved.opens ? s.first.opens : s.first.startAgain}</p>
       ) : (
         <>
@@ -545,7 +545,7 @@ function FirstProject({ view, ready, onView }: { view: MachineView; ready: boole
           <RadioGroup className="setup-where grid grid-cols-2 gap-2.5 mt-3 mb-2.5 mx-0 [&>b]:col-span-full" labelledBy="setup-where" value={mode} onValueChange={(m) => setMode(m as typeof mode)}>
             <b id="setup-where">{s.first.where}</b>
             {(['folder', 'clone'] as const).map((m) => (
-              <RadioOption key={m} value={m} className={cn('setup-choice grid grid-cols-[auto_1fr] [align-content:start] items-center gap-x-2.5 gap-y-0.5 m-0 border border-solid rounded-[10px] cursor-pointer [&_.hint]:col-start-2', mode === m ? 'on border-2 border-ink py-[11px] px-[13px]' : 'border-line py-3 px-3.5 [&:hover]:border-ink')}>
+              <RadioOption key={m} value={m} className={cn('setup-choice grid grid-cols-[auto_1fr] [align-content:start] items-center gap-x-2.5 gap-y-0.5 m-0 border border-solid rounded-[10px] cursor-pointer [&_.hint]:col-start-2', mode === m ? 'on border-2 border-foreground py-[11px] px-[13px]' : 'border-border py-3 px-3.5 [&:hover]:border-foreground')}>
                 <b>{s.first.modes[m].title}</b>
                 <span className="hint">{s.first.modes[m].hint}</span>
               </RadioOption>
@@ -615,7 +615,7 @@ export const useFolderWithoutGit = (path: string) => (useFolder(path)?.noGit ? p
 /** A line of text in the offer to set up git. */
 const gitLineClass = 'hint my-1 mx-0';
 /** A choice of the offer: a frame with its title and what it means. */
-const gitChoiceClass = 'git-choice grid gap-[3px] [align-content:start] text-left bg-transparent py-2.5 px-3 border border-solid border-line rounded-[10px] cursor-pointer [&:hover:not(:disabled)]:border-ink';
+const gitChoiceClass = 'git-choice grid gap-[3px] [align-content:start] text-left bg-transparent py-2.5 px-3 border border-solid border-border rounded-[10px] cursor-pointer [&:hover:not(:disabled)]:border-foreground';
 /** What the first commit holds, in two columns where there is room. */
 const gitEntriesClass = 'git-entries list-none my-1.5 mx-0 p-0 max-w-[640px] [columns:2_260px] gap-x-6';
 
@@ -710,7 +710,7 @@ export function GitSetup({ path, confirm, onDone, onFolder }: { path: string; co
                 {s.gitignore} <u>{s.gitignoreShow}</u>
               </CollapsibleTrigger>
               <CollapsibleContent>
-                <pre className="[font:12px_var(--mono)] my-1.5 mx-0 py-2 px-2.5 bg-card border border-solid border-line rounded-[4px]">{p.gitignore}</pre>
+                <pre className="[font:12px_var(--mono)] my-1.5 mx-0 py-2 px-2.5 bg-card border border-solid border-border rounded-[4px]">{p.gitignore}</pre>
               </CollapsibleContent>
             </Collapsible>
           )}
@@ -736,7 +736,7 @@ export function GitSetup({ path, confirm, onDone, onFolder }: { path: string; co
 /** One of what the first commit holds: its path, its size on the right; a large file in the warning colour. */
 function GitEntry({ path, large, size }: { path: string; large?: boolean; size: string }) {
   return (
-    <li className={cn('flex justify-between gap-3 py-0.5 px-0 break-inside-avoid', large && 'large text-warn')}>
+    <li className={cn('flex justify-between gap-3 py-0.5 px-0 break-inside-avoid', large && 'large text-warning')}>
       <code className="[overflow-wrap:anywhere]">{path}</code>
       <span className={large ? 'flex-none text-[12px]' : 'hint flex-none'}>{size}</span>
     </li>

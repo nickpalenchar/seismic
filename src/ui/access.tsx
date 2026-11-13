@@ -107,7 +107,7 @@ function Reach({ view, onView }: { view: AccessView; onView: (v: AccessView) => 
       {via === 'tailscale' && (
         <Field label={a.network}>
           <div className={ts.state === 'ready' ? `acc-state ok ${okClass}` : 'acc-state'}>{ts.state === 'ready' ? a.state.ready(ts.name, ts.account) : a.state[ts.state]}</div>
-          {ts.state === 'ready' && !ts.others && <p className={`${stepClass} acc-alone text-warn! font-semibold`}>{a.alone(ts.account)}</p>}
+          {ts.state === 'ready' && !ts.others && <p className={`${stepClass} acc-alone text-warning! font-semibold`}>{a.alone(ts.account)}</p>}
           {step && (
             <p className={stepClass}>
               <Coded text={step} />
@@ -173,8 +173,8 @@ function Qr({ text, size = 220 }: { text: string; size?: number }) {
   data.forEach((row, y) => row.forEach((dark, x) => dark && (d += `M${x} ${y}h1v1h-1z`)));
   return (
     <svg className="acc-qr flex-none rounded-[3px] [box-shadow:var(--shadow)]" width={size} height={size} viewBox={`0 0 ${n} ${n}`} shapeRendering="crispEdges" role="img" aria-label={text}>
-      <rect width={n} height={n} fill="#fff" />
-      <path d={d} fill="#000" />
+      <rect width={n} height={n} fill="white" />
+      <path d={d} fill="black" />
     </svg>
   );
 }
@@ -202,7 +202,7 @@ export function AccessSection({ on, onConnect }: { on: boolean; onConnect: () =>
       {view.devices.length ? (
         <ul className="acc-devices list-none m-0 p-0 max-w-[720px]">
           {view.devices.map((d) => (
-            <li key={d.id} className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-[18px] items-center py-2 px-0 border-b border-b-line text-[13.5px]">
+            <li key={d.id} className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-[18px] items-center py-2 px-0 border-b border-b-border text-[13.5px]">
               <span>
                 <span className="acc-name font-semibold">{d.name}</span>
                 {d.push && <span className="hint"> · {a.pushOn}</span>}
@@ -272,7 +272,7 @@ export function PhoneDialog({ onClose, onSection }: { onClose: () => void; onSec
       <div className="acc-pair flex gap-[26px] items-start [&_p]:mt-0 [&_p]:mb-2.5 [&_p]:mx-0 [&_p]:leading-[1.45]">
         <Qr text={pairing.url} />
         <div>
-          {ts && !ts.others && <p className="acc-alone text-warn! font-semibold">{a.alone(ts.account)}</p>}
+          {ts && !ts.others && <p className="acc-alone text-warning! font-semibold">{a.alone(ts.account)}</p>}
           <p>{ts ? a.scanTailscale(ts.account) : a.scan}</p>
           <p className="hint">{a.orType}</p>
           <p>
@@ -294,7 +294,7 @@ export function PhoneDialog({ onClose, onSection }: { onClose: () => void; onSec
           <h2 className="mt-0 mb-4 mx-0 text-[23px]">{a.connect}</h2>
         </DialogTitle>
         {body}
-        <div className="acc-foot mt-[18px] pt-3 border-t border-t-line">
+        <div className="acc-foot mt-[18px] pt-3 border-t border-t-border">
           <Button size="small" onClick={onSection}>
             {a.toSection}
           </Button>

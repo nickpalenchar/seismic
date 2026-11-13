@@ -1906,7 +1906,7 @@ function DemoSitesBlock({ on, onAdd }: { on: boolean; /** Opens the page that ad
       <Head title={p.title} hint={p.hint} />
       <div className={narrowClass}>
         {view.sites.map((x) => (
-          <div key={x.url} className="demo-site py-2.5 px-0 border-b border-b-line first-of-type:pt-0 [&>.hint]:my-0.5 [&>.hint]:mx-0">
+          <div key={x.url} className="demo-site py-2.5 px-0 border-b border-b-border first-of-type:pt-0 [&>.hint]:my-0.5 [&>.hint]:mx-0">
             <p className="personal-url text-[15px] m-0 mb-1.5">
               <a className={K.cfgLinkClass} href={x.url} target="_blank" rel="noreferrer">
                 {siteLabel(x.url)}
@@ -2407,7 +2407,7 @@ function ProjectBlock({ n, project, file, checking, resolved, running, pin, save
                 return (
                   <TabsTrigger key={i} value={String(i)}>
                     {repoName(r, resolved?.repos[i])}
-                    {k > 0 && <Badge variant="count" className="bg-error ml-1.5">{k}</Badge>}
+                    {k > 0 && <Badge variant="count" className="bg-destructive ml-1.5">{k}</Badge>}
                   </TabsTrigger>
                 );
               })}
@@ -2541,7 +2541,7 @@ function RepoRow({ repo, home, resolved, projectId, problems, focus, where, ask,
   );
   // a repository of the project: its path, what is wrong with it, then where its agents work and its settings, each group under a heading
   return (
-    <section className="cfg-repo mt-2 pt-2.5 border-t border-t-line [&>.c-row]:mt-1.5 [&>.c-row]:mb-1 [&>.c-row]:max-w-[900px]">
+    <section className="cfg-repo mt-2 pt-2.5 border-t border-t-border [&>.c-row]:mt-1.5 [&>.c-row]:mb-1 [&>.c-row]:max-w-[900px]">
       <Field label={t.config.path} hint={home || folder ? [...(home ? [t.config.home] : []), ...(folder ? [t.config.folderMode] : [])].join(' · ') : undefined}>
         <div className="cfg-repo-path flex items-center gap-3 max-w-[664px] [&>.c-del]:ml-0">
           <Input className={pathClass} aria-label={t.config.path} value={repo.path} placeholder={t.config.path} spellCheck={false} onChange={(e) => {
@@ -2713,7 +2713,7 @@ function RepoSettingsBlock({
         {label}
         <span className={K.cfgSourceClass(here)}>{here ? c.source.machine : from}</span>
         {here && (
-          <button type="button" className="cfg-reset p-0 [border:0] bg-transparent text-muted-foreground text-[11.5px] underline cursor-pointer hover:text-ink" title={c.resetHint} onClick={reset}>
+          <button type="button" className="cfg-reset p-0 [border:0] bg-transparent text-muted-foreground text-[11.5px] underline cursor-pointer hover:text-foreground" title={c.resetHint} onClick={reset}>
             {c.reset}
           </button>
         )}
@@ -2942,7 +2942,7 @@ export function sharedPreview(repo: RepoConfig, values: RepoValues): Record<stri
 
 /** What "Take over into the repository for everyone" says: the file as it would be, where it goes, and what came of it. */
 const shareHint = 'text-muted-foreground text-[12.5px] leading-[1.45] max-w-[76ch] mt-1 mx-0 mb-0';
-const shareOk = cn(shareHint, 'text-ink');
+const shareOk = cn(shareHint, 'text-foreground');
 const shareConfirmHint = 'hint mt-1 mx-0 mb-0 max-w-[76ch]';
 
 /**
@@ -2976,7 +2976,7 @@ function ShareSettings({ repo, values, branch, shareTo, shareDirect, takeover }:
     setBusy(false);
   };
   return (
-    <div className={cn(K.cfgSettingClass, 'cfg-share-settings mt-1.5 pt-2 border-t border-t-line')}>
+    <div className={cn(K.cfgSettingClass, 'cfg-share-settings mt-1.5 pt-2 border-t border-t-border')}>
       <div className={K.cfgSettingLabelClass}>{c.label}</div>
       <div className={K.cfgControlClass}>
         {done && 'committed' in done && <p className={shareOk}>{c.committed(done.branch, done.committed.slice(0, 7))}</p>}
@@ -3022,7 +3022,7 @@ function ShareSettings({ repo, values, branch, shareTo, shareDirect, takeover }:
             </div>
           </div>
         )}
-        {error && <p className={cn(shareHint, 'text-warn')}>{error}</p>}
+        {error && <p className={cn(shareHint, 'text-warning')}>{error}</p>}
       </div>
     </div>
   );
@@ -3074,7 +3074,7 @@ function OldNames({ names, onDelete }: { names: string[]; onDelete: (name: strin
         confirm={{ label: c.deleteOldNameConfirm, variant: 'default', className: 'delete-old-name', onClick: () => asking !== null && onDelete(asking) }}
         cancel={c.deleteOldNameBack}
       >
-        <p className="old-name-warning py-2 px-3 rounded-[4px] text-error bg-[color-mix(in_srgb,var(--error)_10%,transparent)] font-semibold [[data-slot=confirm-dialog]_&]:mt-0 [[data-slot=confirm-dialog]_&]:mx-0 [[data-slot=confirm-dialog]_&]:mb-3">{c.deleteOldNameWarning}</p>
+        <p className="old-name-warning py-2 px-3 rounded-[4px] text-destructive bg-destructive/10 font-semibold [[data-slot=confirm-dialog]_&]:mt-0 [[data-slot=confirm-dialog]_&]:mx-0 [[data-slot=confirm-dialog]_&]:mb-3">{c.deleteOldNameWarning}</p>
         <ul className="old-name-effects mt-0 mx-0 mb-3 pl-5 leading-normal">
           <li>{c.deleteOldNameCards}</li>
           <li>{c.deleteOldNameReuse}</li>

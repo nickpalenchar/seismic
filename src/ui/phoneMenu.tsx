@@ -12,7 +12,7 @@ import { Sign } from './logo';
 import { ProjectAgents } from './parts';
 import { t } from './strings';
 
-const rowClass = 'box-border flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-[10px] border-0 bg-transparent px-3 py-2 text-left text-[17px] text-ink active:bg-chip';
+const rowClass = 'box-border flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-[10px] border-0 bg-transparent px-3 py-2 text-left text-[17px] text-foreground active:bg-muted';
 
 export function PhoneMenu({ open, onOpenChange, projects, project, needsYou, onProject, onNeedsYou }: {
   open: boolean;
@@ -31,7 +31,7 @@ export function PhoneMenu({ open, onOpenChange, projects, project, needsYou, onP
         <div className="flex min-h-14 items-center gap-2.5">
           <Sign size={26} />
           <SheetTitle className="min-w-0 flex-1 text-[19px]">{t.phone.next.menuTitle}</SheetTitle>
-          <SheetClose className="inline-grid size-10 shrink-0 place-items-center rounded-full border-0 bg-chip p-0 text-ink cursor-pointer" aria-label={t.phone.next.closeMenu}>
+          <SheetClose className="inline-grid size-10 shrink-0 place-items-center rounded-full border-0 bg-muted p-0 text-foreground cursor-pointer" aria-label={t.phone.next.closeMenu}>
             <X size={20} strokeWidth={2.25} aria-hidden="true" />
           </SheetClose>
         </div>
@@ -48,7 +48,7 @@ export function PhoneMenu({ open, onOpenChange, projects, project, needsYou, onP
         <ul className="m-0 list-none p-0">
           {projects.map((c) => (
             <li key={c.id} className="group/project relative">
-              <button className={cn(rowClass, c.id === project && 'bg-chip font-semibold', c.agents && 'pr-14')} aria-current={c.id === project ? 'true' : undefined} onClick={() => onProject(c.id)}>
+              <button className={cn(rowClass, c.id === project && 'bg-muted font-semibold', c.agents && 'pr-14')} aria-current={c.id === project ? 'true' : undefined} onClick={() => onProject(c.id)}>
                 <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{c.name}</span>
                 {c.id === project && <Check size={18} strokeWidth={2.25} aria-hidden="true" />}
               </button>

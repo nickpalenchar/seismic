@@ -120,7 +120,7 @@ const codeBlockLineVariants = cva(
       variant: {
         default: '',
         added: "bg-approved/12 after:text-approved after:content-['+']",
-        removed: "bg-error/10 after:text-error after:content-['−']",
+        removed: "bg-destructive/10 after:text-destructive after:content-['−']",
         highlighted: 'bg-muted',
         /** The empty side of a split diff's row, where the other side has a line the one has not. */
         absent: 'bg-muted/60',

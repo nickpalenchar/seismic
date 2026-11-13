@@ -44,24 +44,53 @@ test('no class the old stylesheets style is also a Tailwind utility', async () =
   expect(clashes).toEqual([]);
 });
 
-test('every frost token the shadcn tokens name is defined, in light and in dark', async () => {
+test('every token the token file names is defined, in light and in dark', async () => {
   const own = await read('tailwind.css');
-  const styles = await read('frost.css');
-  const defined = (css: string, selector: string) => {
-    const at = css.indexOf(`${selector} {`);
-    return new Set([...css.slice(at, css.indexOf('\n}', at)).matchAll(/--([\w-]+):/g)].map((m) => m[1]!));
+  const defined = (selector: string) => {
+    const at = own.indexOf(`${selector} {`);
+    return new Set([...own.slice(at, own.indexOf('\n}', at)).matchAll(/--([\w-]+):/g)].map((m) => m[1]!));
   };
-  const light = new Set([...defined(own, ':root'), ...defined(styles, ':root')]);
-  const dark = defined(styles, ':root:where([data-theme="dark"], :not([data-theme])[data-system-theme="dark"])');
+  const light = defined(':root');
   const named = new Set([...own.matchAll(/var\(--([\w-]+)\)/g)].map((m) => m[1]!));
-  // `--c` and `--hl` are set per element by the rules that use them; the faces are the same in both looks
-  const perElement = new Set(['c', 'hl']);
-  const faces = new Set(['font', 'mono']);
-  const missing = [...named].filter((v) => !light.has(v) && !perElement.has(v));
-  expect(missing).toEqual([]);
-  // a colour the light look sets, the dark one sets too
-  const themed = [...named].filter((v) => !defined(own, ':root').has(v) && !perElement.has(v) && !faces.has(v));
-  expect(themed.filter((v) => !dark.has(v))).toEqual([]);
+  // Tailwind's own variables, and the ones a rule sets per element: the state colour (`--c` and its steps, set by
+  // `.s-*` and `c-*`), a link's highlight, the card panel's room under its foot
+  const own_ = (v: string) => /^(color|tw|text|radius|spacing|blur|shadow|font|default)-/.test(v) || ['c', 'c-subtle', 'c-strong', 'hl', 'pb'].includes(v);
+  expect([...named].filter((v) => !light.has(v) && !own_(v))).toEqual([]);
+  // the dark look redefines the colours that differ; it never defines one the light look lacks
+  const dark = defined(':root:where([data-theme="dark"], :not([data-theme])[data-system-theme="dark"])');
+  expect([...dark].filter((v) => !light.has(v))).toEqual([]);
+});
+
+// The colours are one palette in one file (tailwind.css, the token file): Tailwind's hues, shadcn's semantic tokens and
+// the state tokens. A part takes them by name (`bg-waiting/10`, `text-c-strong`, `--alpha(var(--working)/22%)`); it writes
+// no hex, rgb() or rgba() of its own, mixes none with color-mix(), and uses none of frost's former names (`text-ink`,
+// `bg-chip`, `border-line`, `bg-panel`, `text-error`, `text-warn`, `text-on-ink`, `bg-dim`), now shadcn's.
+test('colours come from the token file', async () => {
+  // what is not a CSS colour, or is drawn into a canvas or an image where a token cannot reach: named with its reason
+  const allowed: Record<string, string> = {
+    'marks.ts': 'the marks drawn into a screenshot on a canvas, where CSS variables do not resolve',
+  };
+  const forbidden: [string, RegExp][] = [
+    ['hex colour', /(?<![\w&])#[0-9a-fA-F]{3,8}\b/],
+    ['rgb()/rgba()', /\brgba?\(/],
+    ['color-mix()', /color-mix\(/],
+    ['frost alias class', /(?<![\w-])(?:bg|text|border(?:-[trblxy])?|ring|fill|stroke|shadow|outline|divide)-(?:ink|chip|line|panel|error|warn|on-ink|dim|online|ice)(?![\w-])/],
+    ['frost alias variable', /var\(--(?:ink|chip|line|panel|error|warn|on-ink|dim|online|ice|bg)\)/],
+  ];
+  const found: string[] = [];
+  for (const file of new Glob('**/*.{ts,tsx,css,html}').scanSync(dir)) {
+    if (file.includes('.test.') || file === 'tailwind.css' || allowed[file.split('/').pop()!]) continue;
+    const text = await read(file);
+    for (const [what, re] of forbidden) {
+      // the token file alone mixes colours; frost.css and every view only name them
+      const lines = text.split('\n').flatMap((l, i) => (re.test(l) ? [`${file}:${i + 1}`] : []));
+      if (lines.length) found.push(`${what}: ${lines.slice(0, 5).join(' ')}`);
+    }
+  }
+  // the token file itself writes hues from the palette: no hex or rgb() literal there either
+  const own = await read('tailwind.css');
+  for (const [what, re] of forbidden.slice(0, 2)) if (re.test(own.replace(/\/\*[\s\S]*?\*\//g, ''))) found.push(`${what}: tailwind.css`);
+  expect(found).toEqual([]);
 });
 
 // Every menu, dialog, switch and select is a part of src/ui/components/ (shadcn on Radix), which brings its own

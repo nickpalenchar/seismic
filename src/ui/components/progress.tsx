@@ -12,7 +12,7 @@ function Progress({ className, indicatorClassName, value, ...props }: ComponentP
     <ProgressPrimitive.Root
       data-slot="progress"
       value={shown}
-      className={cn('relative block h-1 w-full overflow-hidden rounded-sm bg-chip', className)}
+      className={cn('relative block h-1 w-full overflow-hidden rounded-sm bg-muted', className)}
       {...props}
     >
       <ProgressPrimitive.Indicator

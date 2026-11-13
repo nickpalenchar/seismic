@@ -12,7 +12,7 @@ import { type ComponentProps, createContext, type ReactNode, useContext } from '
 
 const groupVariants = cva('', {
   variants: {
-    variant: { none: '', segmented: 'inline-flex gap-0.5 rounded-[3px] bg-chip p-[3px]', chips: 'flex flex-wrap gap-1.5' },
+    variant: { none: '', segmented: 'inline-flex gap-0.5 rounded-[3px] bg-muted p-[3px]', chips: 'flex flex-wrap gap-1.5' },
     size: { default: '', small: '' },
   },
   compoundVariants: [{ variant: 'segmented', size: 'small', className: 'p-0.5' }],
@@ -25,9 +25,9 @@ const itemVariants = cva('', {
       none: '',
       // a filter chip: outlined while off, tinted in its colour (`--c`, set by the caller) while on
       chips:
-        'inline-flex cursor-pointer items-center gap-[5px] rounded-full border border-line bg-transparent px-2.5 py-1 text-[12.5px] text-muted-foreground outline-none [--c:var(--working)] data-[state=on]:border-[color-mix(in_srgb,var(--c)_55%,transparent)] data-[state=on]:bg-[color-mix(in_srgb,var(--c)_16%,var(--card))] data-[state=on]:text-ink focus-visible:ring-[3px] focus-visible:ring-ring/50',
+        'inline-flex cursor-pointer items-center gap-[5px] rounded-full border border-border bg-transparent px-2.5 py-1 text-[12.5px] text-muted-foreground outline-none c-working data-[state=on]:border-[color:--alpha(var(--c)/55%)] data-[state=on]:bg-[color:--alpha(var(--c)/16%)] data-[state=on]:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50',
       segmented:
-        'cursor-pointer rounded-[2px] border-0 bg-transparent px-3 py-1 text-[13px] text-muted-foreground outline-none data-[state=on]:bg-card data-[state=on]:text-ink data-[state=on]:shadow-glass focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-default disabled:opacity-45',
+        'cursor-pointer rounded-[2px] border-0 bg-transparent px-3 py-1 text-[13px] text-muted-foreground outline-none data-[state=on]:bg-card data-[state=on]:text-foreground data-[state=on]:shadow-glass focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-default disabled:opacity-45',
     },
     size: { default: '', small: '' },
   },

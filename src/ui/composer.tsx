@@ -293,7 +293,7 @@ function SkillMenu({ skills, box }: { skills: Skill[] | undefined; box: ListboxS
         <Listbox box={box} items={skills} label={t.skills.menu} itemKey={(s) => s.name} className="p-1!">
           {(s) => (
             <>
-              <span className="sk-name flex-none max-w-[55%] overflow-hidden text-ellipsis whitespace-nowrap [font-family:var(--mono)] text-[12.5px] text-ink">
+              <span className="sk-name flex-none max-w-[55%] overflow-hidden text-ellipsis whitespace-nowrap [font-family:var(--mono)] text-[12.5px] text-foreground">
                 /{s.name}
                 {s.hint && <span className="sk-hint text-muted-foreground"> {s.hint}</span>}
               </span>

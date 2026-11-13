@@ -243,11 +243,11 @@ function toastClass(x: Toast, { wrap, phone, nudge }: { wrap: boolean; phone: bo
       ? 'max-w-full'
       : 'max-w-[min(560px,max(300px,calc((100vw-var(--left,0px)-var(--side,0px))/2-110px)),calc(100vw-var(--left,0px)-var(--side,0px)-32px))]',
     x.reading
-      ? ['reading bg-panel text-muted-foreground shadow-glass py-[7px] px-3.5 text-[13px]', spinner('before:size-2.5 before:border-transparent before:border-t-working')]
+      ? ['reading bg-surface text-muted-foreground shadow-glass py-[7px] px-3.5 text-[13px]', spinner('before:size-2.5 before:border-transparent before:border-t-working')]
       : warning
-        ? 'bg-[color-mix(in_srgb,var(--warn)_22%,var(--panel))] text-ink shadow-glass outline outline-[color-mix(in_srgb,var(--warn)_45%,transparent)] py-3 px-4 text-[14px]'
-        : 'bg-ink text-background py-3 px-4 text-[14px]',
-    x.kind === 'wait' && ['[--track:color-mix(in_srgb,var(--bg)_25%,transparent)]', spinner('before:size-3 before:[border-color:var(--bg)_var(--track)_var(--track)_var(--track)]')],
+        ? 'bg-warning/22 text-foreground shadow-glass outline outline-warning/45 py-3 px-4 text-[14px]'
+        : 'bg-foreground text-background py-3 px-4 text-[14px]',
+    x.kind === 'wait' && ['[--track:--alpha(var(--background)/25%)]', spinner('before:size-3 before:[border-color:var(--background)_var(--track)_var(--track)_var(--track)]')],
     wrap ? ['flex-wrap gap-x-2 gap-y-2.5 [&>span]:basis-full', phone && warning && 'justify-end'] : 'gap-3.5',
     // the phone's toasts are swiped aside: a finger dragging one selects nothing
     phone && 'swipeable select-none',
@@ -259,7 +259,7 @@ function toastClass(x: Toast, { wrap, phone, nudge }: { wrap: boolean; phone: bo
 const toastButtonClass = (warning: boolean, several: boolean) =>
   cn(
     'bg-transparent border border-solid rounded-[2px] py-[3px] px-2.5 cursor-pointer flex-none',
-    warning ? 'border-warn text-warn' : 'border-[color-mix(in_srgb,var(--bg)_40%,transparent)] text-background',
+    warning ? 'border-warning text-warning' : 'border-background/40 text-background',
     several && 'max-w-full overflow-hidden text-ellipsis whitespace-nowrap',
   );
 
