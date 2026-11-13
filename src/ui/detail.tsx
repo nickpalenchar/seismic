@@ -491,7 +491,7 @@ export function Detail(p: Props) {
   const halted = stopped(item) && !item.queue;
   // on a planned card, queued or not: a suggested card it cannot merge with can still be dismissed
   const duplicateActions = duplicatePartner && mergeProposed(item) && <ButtonGroup className="duplicate-merge-actions inline-flex align-middle">
-    <Button className="duplicate-attempt bg-proposal text-primary-foreground" disabled={!mergeableWith(item, duplicatePartner)} onClick={() => act({ action: 'merge', with: duplicatePartner.id }, { close: false })}>{t.duplicate.attempt}</Button>
+    <Button className="duplicate-attempt bg-proposal text-proposal-foreground" disabled={!mergeableWith(item, duplicatePartner)} onClick={() => act({ action: 'merge', with: duplicatePartner.id }, { close: false })}>{t.duplicate.attempt}</Button>
     <Button className="duplicate-dismiss bg-proposal/12 text-foreground" onClick={() => act({ action: 'dismissDuplicate' }, { close: false })}>{t.duplicate.dismiss}</Button>
   </ButtonGroup>;
   const duplicateNotice = duplicatePartner && mergeProposed(item) && <div className={questionClass('duplicate-notice')}>

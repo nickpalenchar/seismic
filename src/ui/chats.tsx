@@ -157,7 +157,7 @@ export function ChatsHead({ title, project, projectName, chat, chats, talk, onPr
                         {when(c.at)}
                         {c.projectName && ` · ${c.projectName}`}
                         {c.unread ? (
-                          <span className="chat-unread ml-auto min-w-[18px] py-px px-1.5 rounded-[9px] bg-waiting text-primary-foreground text-[11px] font-semibold text-center" title={t.koordinator.unreadCount(c.unread)}>
+                          <span className="chat-unread ml-auto min-w-[18px] py-px px-1.5 rounded-[9px] bg-waiting text-waiting-foreground text-[11px] font-semibold text-center" title={t.koordinator.unreadCount(c.unread)}>
                             {c.unread}
                           </span>
                         ) : null}

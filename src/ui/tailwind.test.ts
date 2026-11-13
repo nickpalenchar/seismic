@@ -54,7 +54,7 @@ test('every token the token file names is defined, in light and in dark', async 
   const named = new Set([...own.matchAll(/var\(--([\w-]+)\)/g)].map((m) => m[1]!));
   // Tailwind's own variables, and the ones a rule sets per element: the state colour (`--c` and its steps, set by
   // `.s-*` and `c-*`), a link's highlight, the card panel's room under its foot
-  const own_ = (v: string) => /^(color|tw|text|radius|spacing|blur|shadow|font|default)-/.test(v) || ['c', 'c-subtle', 'c-strong', 'hl', 'pb'].includes(v);
+  const own_ = (v: string) => /^(color|tw|text|radius|spacing|blur|shadow|font|default)-/.test(v) || ['c', 'c-subtle', 'c-strong', 'c-foreground', 'hl', 'pb'].includes(v);
   expect([...named].filter((v) => !light.has(v) && !own_(v))).toEqual([]);
   // the dark look redefines the colours that differ; it never defines one the light look lacks
   const dark = defined(':root:where([data-theme="dark"], :not([data-theme])[data-system-theme="dark"])');

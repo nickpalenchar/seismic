@@ -16,7 +16,7 @@ const base =
 const gone = 'gone cursor-default! [box-shadow:none]! opacity-70! hover:[transform:none]! before:bg-border!';
 
 /** In the chain a queued card waits in, the card itself: ringed green as on the project, its title only, not a link. */
-const own = 'own cursor-default! pt-[13px]! [--dep:var(--approved)] [box-shadow:0_0_0_2.5px_var(--approved),var(--shadow)]! hover:[transform:none]!';
+const own = 'own cursor-default! pt-[13px]! [--dep:var(--approved)] [--dep-fg:var(--approved-foreground)] [box-shadow:0_0_0_2.5px_var(--approved),var(--shadow)]! hover:[transform:none]!';
 
 /** The cover's class beside the card's own (`card`): `own` for the queued card itself in its chain, `gone` for a card no longer on the project. */
 export const coverClass = (card: string, how: { own?: boolean; gone?: boolean } = {}) => cn(card, base, how.own && own, how.gone && gone);

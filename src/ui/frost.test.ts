@@ -138,6 +138,8 @@ function measure(t: Record<string, RGBA>) {
     { what: 'live line', ratio: worst(t['live-strong']!, mix(t.live!, 0.14, card), 0.74), needs: 3 },
     // the status colours as text on the glass
     ...(['destructive', 'success', 'warning', 'info'] as const).map((s) => ({ what: `${s} text`, ratio: worst(t[s]!, card), needs: 4.5 })),
+    // text on a solid fill of a colour (a count, a pin, a badge): its own foreground, which is not always white
+    ...[...STATES, 'live', 'destructive', 'success', 'warning', 'info'].map((s) => ({ what: `${s} fill text`, ratio: contrast(t[`${s}-foreground`]!, t[s]!), needs: 4.5 })),
     // the marks in the colours themselves (tab, frame, pin, minimap) as graphics: 3:1, but for planned, which stays quiet
     ...STATES.filter((s) => s !== 'planned').map((s) => ({ what: `${s} mark`, ratio: worst(t[s]!, ['idea', 'question'].includes(s) ? stockOf(s) : card), needs: 3 })),
   ];

@@ -157,7 +157,7 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow }:
                   >
                     <CanvasIcon canvas={c} />
                     {c.id === shown && <span className={ctabName}>{c.name}</span>}
-                    {c.id !== shown && !!waiting[c.id] && <span className="absolute -top-[5px] -right-[5px] box-border h-4 min-w-4 rounded-[999px] bg-waiting px-1 text-center text-[10px] leading-4 font-bold text-primary-foreground" title={t.canvases.waiting(waiting[c.id]!)}>{waiting[c.id]}</span>}
+                    {c.id !== shown && !!waiting[c.id] && <span className="absolute -top-[5px] -right-[5px] box-border h-4 min-w-4 rounded-[999px] bg-waiting px-1 text-center text-[10px] leading-4 font-bold text-waiting-foreground" title={t.canvases.waiting(waiting[c.id]!)}>{waiting[c.id]}</span>}
                   </TabsTrigger>
                 ))}
               <Tooltip content={t.canvases.newCanvas}>
@@ -273,7 +273,7 @@ function Drawer({ canvases, shown, waiting, empty, onPick, onEdit, onNew }: { ca
                 <CanvasIcon canvas={c} size={16} />
                 <span className={cn('min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap', c.id === shown && 'font-bold')}>{c.name}</span>
                 {n > 0 && (
-                  <span className="box-border h-[18px] min-w-[18px] flex-none rounded-full bg-waiting px-[5px] text-center text-[11px] leading-[18px] font-bold text-primary-foreground" title={t.canvases.waiting(n)}>
+                  <span className="box-border h-[18px] min-w-[18px] flex-none rounded-full bg-waiting px-[5px] text-center text-[11px] leading-[18px] font-bold text-waiting-foreground" title={t.canvases.waiting(n)}>
                     {n}
                   </span>
                 )}

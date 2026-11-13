@@ -1348,7 +1348,7 @@ export function Edges({ cam, targets, side, onOpen }: { cam: Cam; targets: { ite
         const title = plain(item.title);
         return (
           <button key={item.id} className={`edge s-${item.state} pointer-events-auto absolute box-border flex h-[30px] w-[min(300px,calc(100vw-var(--left,0px)-var(--side,0px)-60px))] cursor-pointer items-center gap-1.5 overflow-hidden rounded-none border-0 bg-card py-[5px] pr-[11px] pl-[7px] text-[13px] font-medium text-ellipsis whitespace-nowrap shadow-glass`} style={{ left: position.x, top: position.y, transform: 'translateY(-50%)' }} onClick={() => onOpen(item)}>
-            <span className="grid size-5 flex-none place-items-center rounded-[50%] bg-[var(--c)] text-[12px] text-primary-foreground" style={{ transform: `rotate(${position.angle}deg)` }}>
+            <span className="grid size-5 flex-none place-items-center rounded-[50%] bg-[var(--c)] text-[12px] text-c-foreground" style={{ transform: `rotate(${position.angle}deg)` }}>
               ➜
             </span>
             {clip(title, 30)}

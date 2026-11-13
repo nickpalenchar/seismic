@@ -312,7 +312,7 @@ export function cardLook(item: Item | null, o: CardLookOptions = {}): { classNam
     o.dragging ? '[transition:none] [transform:translateY(-4px)_scale(1.02)] z-5! [#viewport.touch_&]:[transform:rotate(-1.5deg)_translate(-1px,-3px)_scale(1.04)]' : '[transition:box-shadow_.18s,transform_.18s,opacity_.25s]',
     hoverLift ? 'hover:[transform:translateY(-2px)]' : (o.dragging && (f.proposal || o.place === 'phone' || o.place === 'activity')) && 'hover:[transform:none]',
     o.pop && 'animate-[pop_.55s_cubic-bezier(.2,1.4,.4,1)]',
-    o.dep === 'before' && '[--dep:var(--waiting)]',
+    o.dep === 'before' && '[--dep:var(--waiting)] [--dep-fg:var(--waiting-foreground)]',
     o.place === 'phone' && 'relative flex flex-col w-full text-left text-foreground active:[transform:translateY(1px)]',
     o.place === 'activity' && 'relative block w-full h-auto min-h-0 text-left text-foreground',
     o.place === 'activity' && o.gone && 'cursor-default',
@@ -324,7 +324,7 @@ export function cardLook(item: Item | null, o: CardLookOptions = {}): { classNam
 
 /** The tag over a card that names how it stands to the card under the pointer ("Waits for", "Comes first"), in the colour of its wait. */
 export const depTagClass =
-  'dep-tag absolute left-[14px] top-[-10px] py-px px-2 rounded-[2px] text-[11px] font-semibold bg-[var(--dep,var(--proposal))] text-primary-foreground whitespace-nowrap pointer-events-none';
+  'dep-tag absolute left-[14px] top-[-10px] py-px px-2 rounded-[2px] text-[11px] font-semibold bg-[var(--dep,var(--proposal))] text-[var(--dep-fg,var(--proposal-foreground))] whitespace-nowrap pointer-events-none';
 
 /** Where the card's face is drawn (M): which card's look it wears, where, and as which half of a merge. */
 export interface FaceMPlace {
@@ -452,7 +452,7 @@ export const stateTextClass = (p: FaceMPlace) => (p.place === 'phone' ? 'state-t
 
 /** M: the pin at the card's corner, in the colour of what the owner is asked (left out where the list says so already, and on a merge's halves). */
 export const pinClass = (f: CardFlags, p: FaceMPlace) =>
-  [f.failed ? '[--pin:var(--destructive)]' : f.asking && '[--pin:var(--asking)]', (p.half || p.place === 'phone') && 'hidden'].filter(Boolean).join(' ') || undefined;
+  [f.failed ? '[--pin:var(--destructive)] [--pin-fg:var(--destructive-foreground)]' : f.asking && '[--pin:var(--asking)] [--pin-fg:var(--asking-foreground)]', (p.half || p.place === 'phone') && 'hidden'].filter(Boolean).join(' ') || undefined;
 
 // ---------- the faces in lists, S and XS (their state's colour comes as --c on the face)
 

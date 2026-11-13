@@ -328,7 +328,7 @@ export function PushToTalk({ phase, level, flat, target, field, onDown, instead 
     'max-w-[calc((100vw-var(--left,0px)-var(--side,0px))*.6)] bg-card px-3 py-1 text-[12px] shadow-glass ph-landscape:max-w-[104px] ph-landscape:border-y-4 ph-landscape:border-[var(--card)] ph-landscape:px-2 ph-landscape:py-0 ph-landscape:text-center ph-landscape:whitespace-normal ph-landscape:[-webkit-box-orient:vertical] ph-landscape:[-webkit-line-clamp:4] ph-landscape:[display:-webkit-box]',
   );
   const line = flat ? (
-        <div id="target" className={cn(lineClass, 'bg-destructive font-semibold text-primary-foreground')}>
+        <div id="target" className={cn(lineClass, 'bg-destructive font-semibold text-destructive-foreground')}>
           {t.voice.flat}
         </div>
       ) : into ? (
@@ -436,7 +436,7 @@ const micClass = cn(
   'w-[58px] h-[58px] rounded-[50%] border border-solid border-glass-edge bg-glass backdrop-blur-glass [box-shadow:var(--lift)] cursor-pointer grid place-items-center relative [&_svg]:w-6 [&_svg]:h-6',
   // held by a finger: no long-press menu, no text selected
   '[-webkit-touch-callout:none] select-none touch-none',
-  'group-[.listening]/ptt:bg-waiting group-[.listening]/ptt:text-primary-foreground',
+  'group-[.listening]/ptt:bg-waiting group-[.listening]/ptt:text-waiting-foreground',
   'group-[.dropping]/ptt:outline-2 group-[.dropping]/ptt:outline-dashed group-[.dropping]/ptt:outline-working group-[.dropping]/ptt:outline-offset-[5px]',
   'ph-ptt:w-[68px] ph-ptt:h-[68px]',
 );

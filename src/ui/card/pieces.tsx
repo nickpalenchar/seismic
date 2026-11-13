@@ -84,11 +84,11 @@ export function Title({ item, className, inline, children }: { item: Item; class
 
 /** A pin's fill, in the colour of what the owner is asked (`--pin`). */
 const PIN = 'bg-(--pin)';
-const pinInk = (pin: NonNullable<CardSummary['pin']>) => (pin.failed ? '[--pin:var(--destructive)]' : pin.asking ? '[--pin:var(--asking)]' : '[--pin:var(--waiting)]');
+const pinInk = (pin: NonNullable<CardSummary['pin']>) => (pin.failed ? '[--pin:var(--destructive)] [--pin-fg:var(--destructive-foreground)]' : pin.asking ? '[--pin:var(--asking)] [--pin-fg:var(--asking-foreground)]' : '[--pin:var(--waiting)] [--pin-fg:var(--waiting-foreground)]');
 
 /** The pin while a card needs the owner, inline after a list's title: "!", "?" for a question, "!!" for a failed agent, "✦" for a proposal. */
 export const Pin = ({ pin }: { pin: NonNullable<CardSummary['pin']> }) => (
-  <span className={['f-pin', pin.failed && 'failed', pin.asking && 'asking', PIN, pinInk(pin), 'flex-none inline-grid place-items-center min-w-[17px] h-[17px] px-[5px] box-border rounded-[9px] text-primary-foreground [font:700_11px/1_var(--font)] not-italic'].filter(Boolean).join(' ')} title={t.phone.forYou}>
+  <span className={['f-pin', pin.failed && 'failed', pin.asking && 'asking', PIN, pinInk(pin), 'flex-none inline-grid place-items-center min-w-[17px] h-[17px] px-[5px] box-border rounded-[9px] text-(--pin-fg) [font:700_11px/1_var(--font)] not-italic'].filter(Boolean).join(' ')} title={t.phone.forYou}>
     {pin.mark}
   </span>
 );

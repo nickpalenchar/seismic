@@ -67,24 +67,24 @@ a.link.card-link { color: var(--working); text-decoration: underline 1px current
 
 /* a card and its face (src/ui/card/faceClasses.ts) are Tailwind; the state colours below are shared with the
    plans, the edge chips, the smart links and the halves of a merge */
-.s-planned { --c: var(--planned); --c-subtle: var(--planned-subtle); --c-strong: var(--planned-strong); }
-.s-working { --c: var(--working); --c-subtle: var(--working-subtle); --c-strong: var(--working-strong); }
-.s-waiting { --c: var(--waiting); --c-subtle: var(--waiting-subtle); --c-strong: var(--waiting-strong); }
-.s-approved { --c: var(--approved); --c-subtle: var(--approved-subtle); --c-strong: var(--approved-strong); }
-.s-inPr { --c: var(--inPr); --c-subtle: var(--inPr-subtle); --c-strong: var(--inPr-strong); }
-.s-proposal { --c: var(--proposal); --c-subtle: var(--proposal-subtle); --c-strong: var(--proposal-strong); }
-.s-idea { --c: var(--idea); --c-subtle: var(--idea-subtle); --c-strong: var(--idea-strong); }
-.s-live, .s-done { --c: var(--live); --c-subtle: var(--live-subtle); --c-strong: var(--live-strong); }
+.s-planned { --c: var(--planned); --c-subtle: var(--planned-subtle); --c-strong: var(--planned-strong); --c-foreground: var(--planned-foreground); }
+.s-working { --c: var(--working); --c-subtle: var(--working-subtle); --c-strong: var(--working-strong); --c-foreground: var(--working-foreground); }
+.s-waiting { --c: var(--waiting); --c-subtle: var(--waiting-subtle); --c-strong: var(--waiting-strong); --c-foreground: var(--waiting-foreground); }
+.s-approved { --c: var(--approved); --c-subtle: var(--approved-subtle); --c-strong: var(--approved-strong); --c-foreground: var(--approved-foreground); }
+.s-inPr { --c: var(--inPr); --c-subtle: var(--inPr-subtle); --c-strong: var(--inPr-strong); --c-foreground: var(--inPr-foreground); }
+.s-proposal { --c: var(--proposal); --c-subtle: var(--proposal-subtle); --c-strong: var(--proposal-strong); --c-foreground: var(--proposal-foreground); }
+.s-idea { --c: var(--idea); --c-subtle: var(--idea-subtle); --c-strong: var(--idea-strong); --c-foreground: var(--idea-foreground); }
+.s-live, .s-done { --c: var(--live); --c-subtle: var(--live-subtle); --c-strong: var(--live-strong); --c-foreground: var(--live-foreground); }
 /* the open card's state line (detail.tsx `.p-state`) in the colour its card on the project shows */
-.p-state.finishing { --c: var(--working); --c-subtle: var(--working-subtle); --c-strong: var(--working-strong); }
-.p-state.paused { --c: var(--muted-foreground); --c-subtle: var(--muted); --c-strong: var(--foreground); }
-.p-state.restart-paused { --c: var(--restart); --c-subtle: var(--restart-subtle); --c-strong: var(--restart-strong); }
-.p-state.merge-proposed, .p-state.merging { --c: var(--proposal); --c-subtle: var(--proposal-subtle); --c-strong: var(--proposal-strong); }
-.p-state.resolving-conflicts { --c: var(--waiting); --c-subtle: var(--waiting-subtle); --c-strong: var(--waiting-strong); }
-.p-state.reviewing { --c: var(--reviewing); --c-subtle: var(--reviewing-subtle); --c-strong: var(--reviewing-strong); }
+.p-state.finishing { --c: var(--working); --c-subtle: var(--working-subtle); --c-strong: var(--working-strong); --c-foreground: var(--working-foreground); }
+.p-state.paused { --c: var(--muted-foreground); --c-subtle: var(--muted); --c-strong: var(--foreground); --c-foreground: var(--background); }
+.p-state.restart-paused { --c: var(--restart); --c-subtle: var(--restart-subtle); --c-strong: var(--restart-strong); --c-foreground: var(--restart-foreground); }
+.p-state.merge-proposed, .p-state.merging { --c: var(--proposal); --c-subtle: var(--proposal-subtle); --c-strong: var(--proposal-strong); --c-foreground: var(--proposal-foreground); }
+.p-state.resolving-conflicts { --c: var(--waiting); --c-subtle: var(--waiting-subtle); --c-strong: var(--waiting-strong); --c-foreground: var(--waiting-foreground); }
+.p-state.reviewing { --c: var(--reviewing); --c-subtle: var(--reviewing-subtle); --c-strong: var(--reviewing-strong); --c-foreground: var(--reviewing-foreground); }
 /* the knot of a merge, on the project and in the merge view (merge.tsx) */
 .merge-knot { position: relative; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%;
-  background: var(--proposal); color: white; box-shadow: var(--shadow); }
+  background: var(--proposal); color: var(--proposal-foreground); box-shadow: var(--shadow); }
 .merge-knot svg { display: block; }
 .spinner { display: block; width: 16px; height: 16px; border-radius: 50%; border: 2.5px solid color-mix(in srgb, currentColor 22%, transparent);
   border-top-color: currentColor; animation: spin .9s linear infinite; }
@@ -93,23 +93,23 @@ a.link.card-link { color: var(--working); text-decoration: underline 1px current
 
 /* an element in a state's colour: `--c` and its subtle and strong steps (`c-waiting`); `.s-*` do the same for the plain classes
    the cards and plans carry, and `c-muted` is the quiet one of a paused or snoozed card */
-@utility c-planned { --c: var(--planned); --c-subtle: var(--planned-subtle); --c-strong: var(--planned-strong); }
-@utility c-working { --c: var(--working); --c-subtle: var(--working-subtle); --c-strong: var(--working-strong); }
-@utility c-reviewing { --c: var(--reviewing); --c-subtle: var(--reviewing-subtle); --c-strong: var(--reviewing-strong); }
-@utility c-waiting { --c: var(--waiting); --c-subtle: var(--waiting-subtle); --c-strong: var(--waiting-strong); }
-@utility c-approved { --c: var(--approved); --c-subtle: var(--approved-subtle); --c-strong: var(--approved-strong); }
-@utility c-inPr { --c: var(--inPr); --c-subtle: var(--inPr-subtle); --c-strong: var(--inPr-strong); }
-@utility c-live { --c: var(--live); --c-subtle: var(--live-subtle); --c-strong: var(--live-strong); }
-@utility c-proposal { --c: var(--proposal); --c-subtle: var(--proposal-subtle); --c-strong: var(--proposal-strong); }
-@utility c-idea { --c: var(--idea); --c-subtle: var(--idea-subtle); --c-strong: var(--idea-strong); }
-@utility c-question { --c: var(--question); --c-subtle: var(--question-subtle); --c-strong: var(--question-strong); }
-@utility c-asking { --c: var(--asking); --c-subtle: var(--asking-subtle); --c-strong: var(--asking-strong); }
-@utility c-restart { --c: var(--restart); --c-subtle: var(--restart-subtle); --c-strong: var(--restart-strong); }
-@utility c-destructive { --c: var(--destructive); --c-subtle: var(--destructive-subtle); --c-strong: var(--destructive-strong); }
-@utility c-success { --c: var(--success); --c-subtle: var(--success-subtle); --c-strong: var(--success-strong); }
-@utility c-warning { --c: var(--warning); --c-subtle: var(--warning-subtle); --c-strong: var(--warning-strong); }
-@utility c-info { --c: var(--info); --c-subtle: var(--info-subtle); --c-strong: var(--info-strong); }
-@utility c-muted { --c: var(--muted-foreground); --c-subtle: var(--muted); --c-strong: var(--foreground); }
+@utility c-planned { --c: var(--planned); --c-subtle: var(--planned-subtle); --c-strong: var(--planned-strong); --c-foreground: var(--planned-foreground); }
+@utility c-working { --c: var(--working); --c-subtle: var(--working-subtle); --c-strong: var(--working-strong); --c-foreground: var(--working-foreground); }
+@utility c-reviewing { --c: var(--reviewing); --c-subtle: var(--reviewing-subtle); --c-strong: var(--reviewing-strong); --c-foreground: var(--reviewing-foreground); }
+@utility c-waiting { --c: var(--waiting); --c-subtle: var(--waiting-subtle); --c-strong: var(--waiting-strong); --c-foreground: var(--waiting-foreground); }
+@utility c-approved { --c: var(--approved); --c-subtle: var(--approved-subtle); --c-strong: var(--approved-strong); --c-foreground: var(--approved-foreground); }
+@utility c-inPr { --c: var(--inPr); --c-subtle: var(--inPr-subtle); --c-strong: var(--inPr-strong); --c-foreground: var(--inPr-foreground); }
+@utility c-live { --c: var(--live); --c-subtle: var(--live-subtle); --c-strong: var(--live-strong); --c-foreground: var(--live-foreground); }
+@utility c-proposal { --c: var(--proposal); --c-subtle: var(--proposal-subtle); --c-strong: var(--proposal-strong); --c-foreground: var(--proposal-foreground); }
+@utility c-idea { --c: var(--idea); --c-subtle: var(--idea-subtle); --c-strong: var(--idea-strong); --c-foreground: var(--idea-foreground); }
+@utility c-question { --c: var(--question); --c-subtle: var(--question-subtle); --c-strong: var(--question-strong); --c-foreground: var(--question-foreground); }
+@utility c-asking { --c: var(--asking); --c-subtle: var(--asking-subtle); --c-strong: var(--asking-strong); --c-foreground: var(--asking-foreground); }
+@utility c-restart { --c: var(--restart); --c-subtle: var(--restart-subtle); --c-strong: var(--restart-strong); --c-foreground: var(--restart-foreground); }
+@utility c-destructive { --c: var(--destructive); --c-subtle: var(--destructive-subtle); --c-strong: var(--destructive-strong); --c-foreground: var(--destructive-foreground); }
+@utility c-success { --c: var(--success); --c-subtle: var(--success-subtle); --c-strong: var(--success-strong); --c-foreground: var(--success-foreground); }
+@utility c-warning { --c: var(--warning); --c-subtle: var(--warning-subtle); --c-strong: var(--warning-strong); --c-foreground: var(--warning-foreground); }
+@utility c-info { --c: var(--info); --c-subtle: var(--info-subtle); --c-strong: var(--info-strong); --c-foreground: var(--info-foreground); }
+@utility c-muted { --c: var(--muted-foreground); --c-subtle: var(--muted); --c-strong: var(--foreground); --c-foreground: var(--background); }
 
 /* the window or a docked panel being resized (App.tsx sets `.resizing`): what follows its edges jumps, no transition */
 @custom-variant resizing (&:where(.resizing, .resizing *));
@@ -156,10 +156,10 @@ a.link.card-link { color: var(--working); text-decoration: underline 1px current
   --success: var(--color-green-700);
   --warning: var(--color-amber-700);
   --info: var(--color-sky-700);
-  --destructive-subtle: var(--color-red-100); --destructive-strong: var(--color-red-800);
-  --success-subtle: var(--color-green-100); --success-strong: var(--color-green-800);
-  --warning-subtle: var(--color-amber-100); --warning-strong: var(--color-amber-800);
-  --info-subtle: var(--color-sky-100); --info-strong: var(--color-sky-800);
+  --destructive-subtle: var(--color-red-100); --destructive-strong: var(--color-red-800); --destructive-foreground: white;
+  --success-subtle: var(--color-green-100); --success-strong: var(--color-green-800); --success-foreground: white;
+  --warning-subtle: var(--color-amber-100); --warning-strong: var(--color-amber-800); --warning-foreground: white;
+  --info-subtle: var(--color-sky-100); --info-strong: var(--color-sky-800); --info-foreground: white;
   --border: color-mix(in oklab, var(--color-slate-400) 30%, transparent);
   --input: var(--border);
   --ring: var(--primary);
@@ -194,18 +194,18 @@ a.link.card-link { color: var(--working); text-decoration: underline 1px current
   --chart-3: color-mix(in oklab, var(--planned) 70%, var(--surface));
   --chart-4: color-mix(in oklab, var(--approved) 55%, var(--surface));
   /* the states */
-  --planned: var(--color-slate-400); --planned-subtle: var(--color-slate-100); --planned-strong: var(--color-slate-800);
-  --working: var(--color-blue-600); --working-subtle: var(--color-blue-100); --working-strong: var(--color-blue-800);
-  --reviewing: var(--color-teal-600); --reviewing-subtle: var(--color-teal-100); --reviewing-strong: var(--color-teal-800);
-  --waiting: var(--color-orange-600); --waiting-subtle: var(--color-orange-100); --waiting-strong: var(--color-orange-800);
-  --approved: var(--color-green-700); --approved-subtle: var(--color-green-100); --approved-strong: var(--color-green-800);
-  --inPr: var(--color-cyan-600); --inPr-subtle: var(--color-cyan-100); --inPr-strong: var(--color-cyan-800);
-  --live: var(--color-slate-500); --live-subtle: var(--color-slate-100); --live-strong: var(--color-slate-800);
-  --proposal: var(--color-violet-600); --proposal-subtle: var(--color-violet-100); --proposal-strong: var(--color-violet-800);
-  --idea: var(--color-rose-600); --idea-subtle: var(--color-rose-100); --idea-strong: var(--color-rose-800);
-  --question: var(--color-sky-700); --question-subtle: var(--color-sky-100); --question-strong: var(--color-sky-800);
-  --asking: var(--color-yellow-700); --asking-subtle: var(--color-yellow-100); --asking-strong: var(--color-yellow-800);
-  --restart: var(--color-sky-600); --restart-subtle: var(--color-sky-100); --restart-strong: var(--color-sky-800);
+  --planned: var(--color-slate-400); --planned-subtle: var(--color-slate-100); --planned-strong: var(--color-slate-800); --planned-foreground: var(--color-slate-950);
+  --working: var(--color-blue-600); --working-subtle: var(--color-blue-100); --working-strong: var(--color-blue-800); --working-foreground: white;
+  --reviewing: var(--color-teal-600); --reviewing-subtle: var(--color-teal-100); --reviewing-strong: var(--color-teal-800); --reviewing-foreground: black;
+  --waiting: var(--color-orange-600); --waiting-subtle: var(--color-orange-100); --waiting-strong: var(--color-orange-800); --waiting-foreground: black;
+  --approved: var(--color-green-700); --approved-subtle: var(--color-green-100); --approved-strong: var(--color-green-800); --approved-foreground: white;
+  --inPr: var(--color-cyan-600); --inPr-subtle: var(--color-cyan-100); --inPr-strong: var(--color-cyan-800); --inPr-foreground: black;
+  --live: var(--color-slate-600); --live-subtle: var(--color-slate-100); --live-strong: var(--color-slate-800); --live-foreground: white;
+  --proposal: var(--color-violet-600); --proposal-subtle: var(--color-violet-100); --proposal-strong: var(--color-violet-800); --proposal-foreground: white;
+  --idea: var(--color-rose-600); --idea-subtle: var(--color-rose-100); --idea-strong: var(--color-rose-800); --idea-foreground: white;
+  --question: var(--color-sky-700); --question-subtle: var(--color-sky-100); --question-strong: var(--color-sky-800); --question-foreground: white;
+  --asking: var(--color-yellow-700); --asking-subtle: var(--color-yellow-100); --asking-strong: var(--color-yellow-800); --asking-foreground: white;
+  --restart: var(--color-sky-600); --restart-subtle: var(--color-sky-100); --restart-strong: var(--color-sky-800); --restart-foreground: black;
   --font: Inter, system-ui, sans-serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --s: 1;
@@ -224,10 +224,10 @@ a.link.card-link { color: var(--working); text-decoration: underline 1px current
   --success: var(--color-green-400);
   --warning: var(--color-amber-400);
   --info: var(--color-sky-300);
-  --destructive-subtle: var(--color-red-950); --destructive-strong: var(--color-red-200);
-  --success-subtle: var(--color-green-950); --success-strong: var(--color-green-200);
-  --warning-subtle: var(--color-amber-950); --warning-strong: var(--color-amber-200);
-  --info-subtle: var(--color-sky-950); --info-strong: var(--color-sky-200);
+  --destructive-subtle: var(--color-red-950); --destructive-strong: var(--color-red-200); --destructive-foreground: var(--color-red-950);
+  --success-subtle: var(--color-green-950); --success-strong: var(--color-green-200); --success-foreground: var(--color-green-950);
+  --warning-subtle: var(--color-amber-950); --warning-strong: var(--color-amber-200); --warning-foreground: var(--color-amber-950);
+  --info-subtle: var(--color-sky-950); --info-strong: var(--color-sky-200); --info-foreground: var(--color-sky-950);
   --border: color-mix(in oklab, var(--color-slate-300) 13%, transparent);
   --surface: var(--color-slate-900);
   --glass: color-mix(in oklab, var(--color-slate-900) 76%, transparent);
@@ -247,18 +247,18 @@ a.link.card-link { color: var(--working); text-decoration: underline 1px current
     radial-gradient(900px 700px at 88% 30%, color-mix(in oklab, var(--color-purple-700) 10%, transparent), transparent 60%),
     radial-gradient(1000px 900px at 60% 95%, color-mix(in oklab, var(--color-teal-700) 12%, transparent), transparent 60%),
     linear-gradient(135deg, var(--board-from), var(--board-mid) 55%, var(--board-to));
-  --planned: var(--color-slate-400); --planned-subtle: var(--color-slate-950); --planned-strong: var(--color-slate-200);
-  --working: var(--color-blue-400); --working-subtle: var(--color-blue-950); --working-strong: var(--color-blue-200);
-  --reviewing: var(--color-teal-400); --reviewing-subtle: var(--color-teal-950); --reviewing-strong: var(--color-teal-200);
-  --waiting: var(--color-orange-400); --waiting-subtle: var(--color-orange-950); --waiting-strong: var(--color-orange-200);
-  --approved: var(--color-green-400); --approved-subtle: var(--color-green-950); --approved-strong: var(--color-green-200);
-  --inPr: var(--color-cyan-400); --inPr-subtle: var(--color-cyan-950); --inPr-strong: var(--color-cyan-200);
-  --live: var(--color-slate-500); --live-subtle: var(--color-slate-950); --live-strong: var(--color-slate-200);
-  --proposal: var(--color-violet-400); --proposal-subtle: var(--color-violet-950); --proposal-strong: var(--color-violet-200);
-  --idea: var(--color-rose-400); --idea-subtle: var(--color-rose-950); --idea-strong: var(--color-rose-200);
-  --question: var(--color-sky-300); --question-subtle: var(--color-sky-950); --question-strong: var(--color-sky-200);
-  --asking: var(--color-yellow-400); --asking-subtle: var(--color-yellow-950); --asking-strong: var(--color-yellow-200);
-  --restart: var(--color-sky-300); --restart-subtle: var(--color-sky-950); --restart-strong: var(--color-sky-200);
+  --planned: var(--color-slate-400); --planned-subtle: var(--color-slate-950); --planned-strong: var(--color-slate-200); --planned-foreground: var(--color-slate-950);
+  --working: var(--color-blue-400); --working-subtle: var(--color-blue-950); --working-strong: var(--color-blue-200); --working-foreground: var(--color-blue-950);
+  --reviewing: var(--color-teal-400); --reviewing-subtle: var(--color-teal-950); --reviewing-strong: var(--color-teal-200); --reviewing-foreground: var(--color-teal-950);
+  --waiting: var(--color-orange-400); --waiting-subtle: var(--color-orange-950); --waiting-strong: var(--color-orange-200); --waiting-foreground: var(--color-orange-950);
+  --approved: var(--color-green-400); --approved-subtle: var(--color-green-950); --approved-strong: var(--color-green-200); --approved-foreground: var(--color-green-950);
+  --inPr: var(--color-cyan-400); --inPr-subtle: var(--color-cyan-950); --inPr-strong: var(--color-cyan-200); --inPr-foreground: var(--color-cyan-950);
+  --live: var(--color-slate-400); --live-subtle: var(--color-slate-950); --live-strong: var(--color-slate-200); --live-foreground: var(--color-slate-950);
+  --proposal: var(--color-violet-400); --proposal-subtle: var(--color-violet-950); --proposal-strong: var(--color-violet-200); --proposal-foreground: var(--color-violet-950);
+  --idea: var(--color-rose-400); --idea-subtle: var(--color-rose-950); --idea-strong: var(--color-rose-200); --idea-foreground: var(--color-rose-950);
+  --question: var(--color-sky-300); --question-subtle: var(--color-sky-950); --question-strong: var(--color-sky-200); --question-foreground: var(--color-sky-950);
+  --asking: var(--color-yellow-400); --asking-subtle: var(--color-yellow-950); --asking-strong: var(--color-yellow-200); --asking-foreground: var(--color-yellow-950);
+  --restart: var(--color-sky-300); --restart-subtle: var(--color-sky-950); --restart-strong: var(--color-sky-200); --restart-foreground: var(--color-sky-950);
 
   color-scheme: dark;
 }
@@ -297,25 +297,25 @@ a.link.card-link { color: var(--working); text-decoration: underline 1px current
   --radius-xl: calc(var(--radius) + 4px);
 
   /* the states: fill, subtle tint, text on the tint */
-  --color-planned: var(--planned); --color-planned-subtle: var(--planned-subtle); --color-planned-strong: var(--planned-strong);
-  --color-working: var(--working); --color-working-subtle: var(--working-subtle); --color-working-strong: var(--working-strong);
-  --color-reviewing: var(--reviewing); --color-reviewing-subtle: var(--reviewing-subtle); --color-reviewing-strong: var(--reviewing-strong);
-  --color-waiting: var(--waiting); --color-waiting-subtle: var(--waiting-subtle); --color-waiting-strong: var(--waiting-strong);
-  --color-approved: var(--approved); --color-approved-subtle: var(--approved-subtle); --color-approved-strong: var(--approved-strong);
-  --color-in-pr: var(--inPr); --color-in-pr-subtle: var(--inPr-subtle); --color-in-pr-strong: var(--inPr-strong);
-  --color-live: var(--live); --color-live-subtle: var(--live-subtle); --color-live-strong: var(--live-strong);
-  --color-proposal: var(--proposal); --color-proposal-subtle: var(--proposal-subtle); --color-proposal-strong: var(--proposal-strong);
-  --color-idea: var(--idea); --color-idea-subtle: var(--idea-subtle); --color-idea-strong: var(--idea-strong);
-  --color-question: var(--question); --color-question-subtle: var(--question-subtle); --color-question-strong: var(--question-strong);
-  --color-asking: var(--asking); --color-asking-subtle: var(--asking-subtle); --color-asking-strong: var(--asking-strong);
-  --color-restart: var(--restart); --color-restart-subtle: var(--restart-subtle); --color-restart-strong: var(--restart-strong);
+  --color-planned: var(--planned); --color-planned-subtle: var(--planned-subtle); --color-planned-strong: var(--planned-strong); --color-planned-foreground: var(--planned-foreground);
+  --color-working: var(--working); --color-working-subtle: var(--working-subtle); --color-working-strong: var(--working-strong); --color-working-foreground: var(--working-foreground);
+  --color-reviewing: var(--reviewing); --color-reviewing-subtle: var(--reviewing-subtle); --color-reviewing-strong: var(--reviewing-strong); --color-reviewing-foreground: var(--reviewing-foreground);
+  --color-waiting: var(--waiting); --color-waiting-subtle: var(--waiting-subtle); --color-waiting-strong: var(--waiting-strong); --color-waiting-foreground: var(--waiting-foreground);
+  --color-approved: var(--approved); --color-approved-subtle: var(--approved-subtle); --color-approved-strong: var(--approved-strong); --color-approved-foreground: var(--approved-foreground);
+  --color-in-pr: var(--inPr); --color-in-pr-subtle: var(--inPr-subtle); --color-in-pr-strong: var(--inPr-strong); --color-in-pr-foreground: var(--inPr-foreground);
+  --color-live: var(--live); --color-live-subtle: var(--live-subtle); --color-live-strong: var(--live-strong); --color-live-foreground: var(--live-foreground);
+  --color-proposal: var(--proposal); --color-proposal-subtle: var(--proposal-subtle); --color-proposal-strong: var(--proposal-strong); --color-proposal-foreground: var(--proposal-foreground);
+  --color-idea: var(--idea); --color-idea-subtle: var(--idea-subtle); --color-idea-strong: var(--idea-strong); --color-idea-foreground: var(--idea-foreground);
+  --color-question: var(--question); --color-question-subtle: var(--question-subtle); --color-question-strong: var(--question-strong); --color-question-foreground: var(--question-foreground);
+  --color-asking: var(--asking); --color-asking-subtle: var(--asking-subtle); --color-asking-strong: var(--asking-strong); --color-asking-foreground: var(--asking-foreground);
+  --color-restart: var(--restart); --color-restart-subtle: var(--restart-subtle); --color-restart-strong: var(--restart-strong); --color-restart-foreground: var(--restart-foreground);
   /* the per-element state colour (`.s-*`) */
-  --color-c: var(--c); --color-c-subtle: var(--c-subtle); --color-c-strong: var(--c-strong);
+  --color-c: var(--c); --color-c-subtle: var(--c-subtle); --color-c-strong: var(--c-strong); --color-c-foreground: var(--c-foreground);
   /* the status colours */
-  --color-destructive: var(--destructive); --color-destructive-subtle: var(--destructive-subtle); --color-destructive-strong: var(--destructive-strong);
-  --color-success: var(--success); --color-success-subtle: var(--success-subtle); --color-success-strong: var(--success-strong);
-  --color-warning: var(--warning); --color-warning-subtle: var(--warning-subtle); --color-warning-strong: var(--warning-strong);
-  --color-info: var(--info); --color-info-subtle: var(--info-subtle); --color-info-strong: var(--info-strong);
+  --color-destructive: var(--destructive); --color-destructive-subtle: var(--destructive-subtle); --color-destructive-strong: var(--destructive-strong); --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success); --color-success-subtle: var(--success-subtle); --color-success-strong: var(--success-strong); --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning); --color-warning-subtle: var(--warning-subtle); --color-warning-strong: var(--warning-strong); --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info); --color-info-subtle: var(--info-subtle); --color-info-strong: var(--info-strong); --color-info-foreground: var(--info-foreground);
   /* the glass */
   --color-surface: var(--surface);
   --color-glass: var(--glass);
@@ -379,6 +379,10 @@ a.link.card-link { color: var(--working); text-decoration: underline 1px current
 @utility choice-checked {
   background: var(--waiting) no-repeat center / 10px
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1.5 5.2 4 7.5 8.5 2.5' fill='none' stroke='white' stroke-width='1.8'/%3E%3C/svg%3E");
+  /* the tick is the waiting fill's foreground: black on the dark look's lighter orange */
+  :root:where([data-theme="dark"], :not([data-theme])[data-system-theme="dark"]) & {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1.5 5.2 4 7.5 8.5 2.5' fill='none' stroke='black' stroke-width='1.8'/%3E%3C/svg%3E");
+  }
 }
 
 /* the phone view and the toasts (phone.tsx, components/toast.tsx): a conversation's panel comes up from below;

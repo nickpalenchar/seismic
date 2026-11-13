@@ -14,7 +14,7 @@ const level: Record<Priority, string> = {
   medium: 'text-in-pr font-semibold',
   high: 'text-waiting font-semibold',
   veryHigh: 'text-destructive font-semibold',
-  critical: 'text-primary-foreground bg-destructive font-semibold rounded-[3px]',
+  critical: 'text-destructive-foreground bg-destructive font-semibold rounded-[3px]',
 };
 
 /**

@@ -61,7 +61,7 @@ export function NeedsYouSheet({ on, entries, current, open, onGo, onReply, isRea
               >
                 <ChevronRight size={14} strokeWidth={2} aria-hidden />
                 <span className="ny-name flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{list[0]!.projectName}</span>
-                {n > 0 && <Badge variant="count" className="bg-waiting">{n}</Badge>}
+                {n > 0 && <Badge variant="count" tone="waiting">{n}</Badge>}
               </button>
               {open && <ul className={cn(entryListClass, 'mt-1.5')}>{list.map(entry)}</ul>}
             </section>

@@ -408,7 +408,7 @@ function FloatingBar({ needsYou, making, chat, chatWorking, onNew, onChat, onSea
       <button className={cn(barButton, chatWorking && "after:absolute after:inset-x-2.5 after:bottom-1 after:h-0.5 after:animate-[draw_1.6s_cubic-bezier(.5,0,.3,1)_infinite] after:content-[''] after:[background:linear-gradient(90deg,var(--working)_0_50%,transparent_50%)_0_0/200%_100%_no-repeat,--alpha(var(--working)/22%)]")} aria-label={t.phone.next.chat} title={chat ? t.koordinator.unreadCount(chat) : undefined} onClick={onChat}>
         <TalkIcon />
         {chat > 0 && (
-          <Badge variant="count" className="absolute top-0.5 right-0.5 bg-waiting text-white">
+          <Badge variant="count" tone="waiting" className="absolute top-0.5 right-0.5">
             {chat}
           </Badge>
         )}
@@ -427,7 +427,7 @@ function FloatingBar({ needsYou, making, chat, chatWorking, onNew, onChat, onSea
       <button className={barButton} aria-label={needsYou ? `${t.phone.next.needsYou}: ${t.phone.next.needsYouCount(needsYou)}` : t.phone.next.needsYou} onClick={onNeedsYou}>
         <Bell aria-hidden="true" />
         {needsYou > 0 && (
-          <Badge variant="count" className="absolute top-0.5 right-0.5 bg-waiting text-white">
+          <Badge variant="count" tone="waiting" className="absolute top-0.5 right-0.5">
             {needsYou}
           </Badge>
         )}

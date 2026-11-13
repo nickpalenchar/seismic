@@ -2432,7 +2432,7 @@ function Project({
       <PillButton size="bar" tone="ink" on={kOn} className="px-3" aria-label={t.koordinator.button} onClick={talkKoordinator}>
         <TalkIcon />
         {unread > 0 && (
-          <Badge variant="count" className="bg-waiting" title={t.koordinator.unreadCount(unread)}>
+          <Badge variant="count" tone="waiting" title={t.koordinator.unreadCount(unread)}>
             {unread}
           </Badge>
         )}
@@ -2691,7 +2691,7 @@ function Project({
               <PillButton size="bar" on={csOn} className="px-2.5 [&_[data-variant=count]]:ml-1" aria-label={t.projectSettings.button} aria-expanded={csOn} onClick={toggleProjectSettings}>
                 <BarIcon icon={SlidersHorizontal} />
                 {configProblems > 0 && (
-                  <Badge variant="count" className="bg-destructive" title={t.config.problemCount(configProblems)}>
+                  <Badge variant="count" tone="destructive" title={t.config.problemCount(configProblems)}>
                     {configProblems}
                   </Badge>
                 )}
@@ -2724,7 +2724,7 @@ function Project({
                 >
                   <BarIcon icon={ConciergeBell} />
                   {!needsYouKnown && <span className="font-semibold group-data-[fit~='2']/row:hidden">{t.needsYou.label}</span>}
-                  {needsYouCards > 0 && <Badge variant="count" className="bg-waiting">{needsYouCards}</Badge>}
+                  {needsYouCards > 0 && <Badge variant="count" tone="waiting">{needsYouCards}</Badge>}
                 </PillButton>
               </Tooltip>
             </div>

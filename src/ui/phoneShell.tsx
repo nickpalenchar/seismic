@@ -612,7 +612,7 @@ export function TalkButton({ label, shown, n, count, working, onClick }: { label
     >
       <TalkIcon />
       {!shown && n > 0 && (
-        <Badge variant="count" className="bg-waiting" title={count}>
+        <Badge variant="count" tone="waiting" title={count}>
           {n}
         </Badge>
       )}

@@ -39,7 +39,7 @@ export function PhoneMenu({ open, onOpenChange, projects, project, needsYou, onP
           <Inbox size={20} strokeWidth={2} className="text-muted-foreground" aria-hidden="true" />
           <span className="min-w-0 flex-1">{t.phone.next.needsYou}</span>
           {needsYou > 0 && (
-            <Badge variant="count" className="bg-waiting text-white" title={t.phone.next.needsYouCount(needsYou)}>
+            <Badge variant="count" tone="waiting" title={t.phone.next.needsYouCount(needsYou)}>
               {needsYou}
             </Badge>
           )}

@@ -2407,7 +2407,7 @@ function ProjectBlock({ n, project, file, checking, resolved, running, pin, save
                 return (
                   <TabsTrigger key={i} value={String(i)}>
                     {repoName(r, resolved?.repos[i])}
-                    {k > 0 && <Badge variant="count" className="bg-destructive ml-1.5">{k}</Badge>}
+                    {k > 0 && <Badge variant="count" tone="destructive" className="ml-1.5">{k}</Badge>}
                   </TabsTrigger>
                 );
               })}
