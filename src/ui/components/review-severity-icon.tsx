@@ -11,7 +11,7 @@ export function ReviewSeverityIcon({ severity }: { severity: Severity }) {
         : severity === 'minor' ? <rect x="3" y="3" width="10" height="10" />
         : severity === 'major' ? <path d="M8 1 15 8 8 15 1 8Z" />
         : <>
-          <path d="M8 0 14 6 8 12 2 6Z M8 4 14 10 8 16 2 10Z" />
+          <path d="M8 0 13 5 8 10 3 5Z M8 6 13 11 8 16 3 11Z" />
           {severity === 'blocker' && <path d="M8 4.5v5M8 11.5v.1" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" />}
         </>}
     </svg>
