@@ -1,4 +1,4 @@
-// Shared by phone shells: mount once in the active shell. Keep ph-view/ph-panel and the
+// The phone view's environment: mounted once by its controller. Keep ph-view/ph-panel and the
 // sibling microphone/toast structure: the landscape strip and keyboard CSS use that contract.
 // Composer already preserves focus on Send/screenshots (first tap acts); Demo uses
 // useFullscreen, Notify owns the push prompt, and Toasts aside enables swipe dismissal.

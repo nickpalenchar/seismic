@@ -1,6 +1,6 @@
-// Mount the returned feeds once in the active phone shell, across list/card navigation:
-// each project owns one useProject connection. Both shells can consume the same snapshots,
-// usage, updated project list and connection banner without opening a second set of sockets.
+// Mount the returned feeds once in the phone view, across list/card navigation:
+// each project owns one useProject connection. The snapshots, usage, updated project list
+// and connection banner come from them without a second set of sockets.
 import { useEffect, useState } from 'react';
 import type { ProjectInfo, ProjectSnapshot, Usage } from '../core/types';
 import { useProject } from './api';

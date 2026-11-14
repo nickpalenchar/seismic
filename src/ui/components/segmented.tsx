@@ -1,8 +1,7 @@
 // Segmented control and toggle groups (shadcn/ui's ToggleGroup, on Radix ToggleGroup).
 // `SegmentedControl` is the pick-one row (theme, landing, Unread | All): the group is one tab stop
 // and the arrow keys move between its options. `ToggleGroup` and `ToggleGroupItem` are the parts
-// under it: with `variant="segmented"` they wear its look, without one the caller's (the stage chips,
-// a multi-select); `type="multiple"` makes each item its own on/off. Where a control sits is up to
+// under it: with `variant="segmented"` they wear its look, without one the caller's (a multi-select); `type="multiple"` makes each item its own on/off. Where a control sits is up to
 // the container, which reaches it as `[data-slot=toggle-group]`.
 
 import { cva, type VariantProps } from 'class-variance-authority';

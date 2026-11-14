@@ -1,4 +1,4 @@
-// Shared conversation panel for phone shells: layout, keyboard/landscape adjustments,
+// Shared conversation panel for the phone view: layout, keyboard/landscape adjustments,
 // dragging, focus on arrival and measurements used by the page and toast stack travel together.
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import type { Item } from '../core/types';
@@ -40,7 +40,7 @@ const panelClass = `${viewClass} ph-panel inset-x-0 top-[calc(100%*(1-var(--ph-h
 const gripClass = `${barClass} ph-grip pt-3.5 pb-1.5 ph-landscape:pt-2.5 ph-landscape:pb-[3px] touch-none select-none cursor-ns-resize before:content-[''] before:absolute before:left-1/2 before:top-[5px] before:w-10 before:h-1 before:-ml-5 before:rounded-[2px] [--grip:--alpha(var(--foreground)/22%)] before:bg-(--grip)`;
 
 /** Opens beside a demo or a working card and brings its video above the panel.
- * The shell supplies its card page, so neither shell needs a private video selector or scroll fix.
+ * The view supplies its card page, so it needs no video selector or scroll fix of its own.
  */
 export function usePhoneCardPanel(open: string | null, talk: boolean, item: Item | undefined, pageRef: RefObject<HTMLElement | null>) {
   const [half, setHalf] = useState(false);

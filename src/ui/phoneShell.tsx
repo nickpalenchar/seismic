@@ -1,7 +1,7 @@
-// The controller both phone views share: one WebSocket per project, what is open (a card, a
+// The controller of the phone view: one WebSocket per project, what is open (a card, a
 // conversation) as steps in the browser's history, edits of the open card, a new card, the
 // microphone and the confirmations, and the open card full screen with its conversation in a panel
-// that comes up from below. Each view renders its own list and the open card's top bar.
+// that comes up from below. The view renders its own list and the open card's top bar.
 
 import { useRatePrompt } from './feedback';
 import { useEffect, useMemo, useRef, useState } from 'react';

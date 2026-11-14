@@ -4,7 +4,7 @@
 // folded), twenty at a time; and a floating bar along the foot with Menu, Chat, New card, Search and
 // Needs you. Chat opens Seismic's conversation as a full page and Search a page over the project's
 // cards (`phoneSearch.tsx`), each without the bar. A card opens full screen with an X at the top and
-// no floating bar; its conversation is the panel both phone views share (`phoneShell.tsx`).
+// no floating bar; its conversation is the panel of `phoneShell.tsx`.
 
 import { Bell, ChevronDown, Menu, Plus, Search, X } from 'lucide-react';
 import { useEffect, useState } from 'react';

@@ -4,7 +4,6 @@
 // ones; each card a pane like an inbox entry (its face at size S), whose title or "Go to card" opens
 // it. Cards that need the owner are in "Needs you" instead (src/ui/needsYou.tsx), the parked ones in
 // the Parked view (src/ui/views.tsx). "Activity" is the log of what happened on the cards (src/ui/activity.tsx).
-// The phone keeps its own lists with the tabs and stage chips below.
 
 import { cn } from 'cn';
 import { useEffect, useRef } from 'react';

@@ -1,4 +1,4 @@
-// Push routing belongs to the shell; subscription and the prompt remain shared in notify.tsx.
+// Push routing belongs to the phone controller; subscription and the prompt remain shared in notify.tsx.
 import { useEffect, useRef } from 'react';
 import { registerWorker } from './notify';
 import { readAddress } from './address';
