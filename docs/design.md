@@ -140,6 +140,11 @@ cycling through terminals.
   audits must not recreate it without another explicit publishing action, in either mode. The
   minute check never repairs a folder site: git refuses a push that would drop another machine's
   commit, so what the folder lacks a person took off or never merged.
+  Publishing stages the demo folder with `git add -A -f`, so its files (videos, posters, captions,
+  assets) go out even where the repository's `.gitignore` excludes them: a manifest that refers to
+  ignored files would point at assets missing from the site. Ignore rules therefore do not guard
+  publication; the force reaches only the demo folder, nothing outside it. Owners are not warned
+  at setup yet.
 - **Retakes with real agents replay a recording** (2026-10-22): real runs are slow, cost usage and
   differ each time.
 - **A Tauri shell around one compiled Bun binary; the browser stays a way in**; DMG, NSIS, AppImage
