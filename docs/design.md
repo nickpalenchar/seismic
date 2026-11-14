@@ -141,17 +141,30 @@ cycling through terminals.
 
 Formats to stay compatible with:
 
-- `.obeya/settings.json` is read from the repository's main branch, never the checkout; an unknown
-  or ill-typed field falls back to its default while the rest still applies.
-- Seismic's home (`~/.obeya`, or `SEISMIC_HOME`) keeps its file names; clones live under
-  `workspaces/<project>/<repo>/<n>`, a name kept because agents resume their sessions in them.
+- `.seismic/settings.json` is read from the repository's main branch, never the checkout; an unknown
+  or ill-typed field falls back to its default while the rest still applies. `.seismic/` is read
+  first, then `.obeya/` (other people's repositories are never moved); Seismic writes to whichever
+  exists, a repository with neither gets `.seismic/`.
+- Seismic's home is `~/.seismic` (`~/.seismic-dev` for a `-dev` checkout), or `SEISMIC_HOME`; its
+  database is `seismic.db`. The first start after the rename moves `~/.obeya` there in one rename
+  (`src/server/home-move.ts`): only for the default home, only where `~/.seismic` is absent, `~/.obeya`
+  is a real folder and no Seismic runs on it. Nothing is copied; `~/.obeya` becomes a symlink; the
+  worktree links (`git worktree repair`), the home paths in the database, `sessions/` and the JSON
+  files, and Claude Code's session folders (`~/.claude/projects/<cwd with non-alphanumerics as
+  "-">`) follow, since agents resume their sessions by the checkout's path. A Codex thread resumes
+  by its id, given the new cwd. A marker file lets a start after a crash finish the steps. An older
+  checkout started afterwards finds no `obeya.db` through the symlink and shows an empty setup.
+  Clones live under `workspaces/<project>/<repo>/<n>`.
 - Old names are still read: `workspaces` in settings and configuration, `--workspace`,
   `canvases.json` (copied once to `projects.json`), `OBEYA_*` beside `SEISMIC_*`, which agents get
-  under both names.
+  under both names; the owner key's header `X-Obeya-Key` and cookie `obeya-<port>`, and the paired
+  device's `obeya-device`, beside the `seismic-` ones (only the new ones are written); the
+  browser's `obeya-…` storage keys, moved to `seismic-…` once at page start (`src/ui/browserState.ts`).
 - A plan doc is a plan when its `## Workstreams` section holds a checklist (`- [ ] **W1:** Title. …`);
   a ticked item is live; a workstream is known by its label, else its title, never its place.
-- Card branches are `obeya/<title>-<id>`; a card's change is measured from the nearest branch that
-  is not `obeya/…`.
+- Card branches are `seismic/<title>-<id>` (`obeya/…` for cards started before the rename; both are
+  recognised); a card's change is measured from the nearest branch that is neither. Plan baseline
+  tags are `seismic/project/<id>/baseline`; a plan that has its tag under `obeya/…` keeps it.
 - Addresses are `/p/<project>/c/<card code>`; a card's code never changes, and former project names
   and the older `/c/…` forms keep resolving. Card links in text are stored as such markdown links.
 - The database's version is `PRAGMA user_version`; an older Seismic refuses a newer database; a

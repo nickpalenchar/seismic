@@ -1888,7 +1888,7 @@ test('plan baselines default on, remain separate per plan, and the project toggl
     await project.repoOf(card.id).workers.start(card.id);
     const row = project.board.row(card.id);
     const tag = planBaselineTag(card.parent!);
-    expect(git(row.workstation!, 'config', '--get', `branch.${row.branch}.obeya-project-baseline`)).toBe(tag);
+    expect(git(row.workstation!, 'config', '--get', `branch.${row.branch}.seismic-project-baseline`)).toBe(tag);
     expect(project.board.events(card.id).some((e) => e.text.includes(tag))).toBe(true);
     await project.repoOf(card.id).workers.stop(card.id);
   }
@@ -1899,5 +1899,5 @@ test('plan baselines default on, remain separate per plan, and the project toggl
   git(kept, 'config', '--remove-section', `branch.${project.board.row(a!.id).branch}`);
   await repo.workers.start(a!.id);
   const row = project.board.row(a!.id);
-  expect(gitOrNull(row.workstation!, 'config', '--get', `branch.${row.branch}.obeya-project-baseline`)).toBeNull();
+  expect(gitOrNull(row.workstation!, 'config', '--get', `branch.${row.branch}.seismic-project-baseline`)).toBeNull();
 });

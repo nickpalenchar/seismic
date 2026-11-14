@@ -1111,7 +1111,7 @@ describe('a prototype', () => {
     expect(built.idea?.discussion).toBeUndefined();
     const row = board().row(i.id);
     expect(row.workstation).toBe(ws);
-    expect(row.branch).toMatch(/^obeya\/export-fur-vermieter-/);
+    expect(row.branch).toMatch(/^seismic\/export-fur-vermieter-/);
     expect(git(ws, 'branch', '--show-current')).toBe(row.branch!);
     expect(git(ws, 'log', '--format=%s', '-1')).toBe('Prototyp knopf.txt');
     expect(project.repos[0]!.workstations.leasedBy(i.id)).toBe(ws);

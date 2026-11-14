@@ -798,7 +798,7 @@ test('a pending migration is preceded by a backup of the database, and only the 
     expect(copy.query("SELECT 1 FROM sqlite_master WHERE name = 'backup_probe'").get()).toBeNull();
     copy.close();
     expect(version(path)).toBe(before + 1);
-    expect(readdirSync(dir).filter((f) => f.includes('.before-')).sort()).toEqual(['obeya.db.before-3', 'obeya.db.before-4', `obeya.db.before-${before + 1}`]);
+    expect(readdirSync(dir).filter((f) => f.includes('.before-')).sort()).toEqual(['seismic.db.before-3', 'seismic.db.before-4', `seismic.db.before-${before + 1}`]);
     // up to date and fresh databases are not backed up
     const names = readdirSync(dir).sort();
     MIGRATIONS.push('CREATE TABLE backup_probe (id INTEGER)');

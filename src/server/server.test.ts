@@ -238,7 +238,7 @@ describe('only the owner', () => {
     expect((await bare('/api/demo-settings/sample', { method: 'POST', body: JSON.stringify({ voice: 'command', command: 'touch /tmp/x' }) })).status).toBe(401);
     expect((await bare('/api/stop', { method: 'POST' })).status).toBe(401);
     expect((await bare('/api/login-link', { method: 'POST' })).status).toBe(401);
-    expect((await bare('/api/c/main/cards/x/act', { method: 'POST', headers: { 'x-obeya-key': 'guessed' } })).status).toBe(401);
+    expect((await bare('/api/c/main/cards/x/act', { method: 'POST', headers: { 'x-seismic-key': 'guessed' } })).status).toBe(401);
     const page = await bare('/');
     expect(page.status).toBe(401);
     expect(await page.text()).toContain('Not signed in');
@@ -253,7 +253,7 @@ describe('only the owner', () => {
     expect(signed.status).toBe(200);
     const set = signed.headers.get('set-cookie')!;
     expect(await onward(signed)).toBe('/?c=main');
-    expect(set).toContain(`obeya-${server.port}=`);
+    expect(set).toContain(`seismic-${server.port}=`);
     expect(set).toContain('HttpOnly; SameSite=Strict');
     const cookie = set.split(';')[0]!;
     expect((await bare('/', { headers: { cookie } })).status).toBe(200);
@@ -264,8 +264,8 @@ describe('only the owner', () => {
     expect(await link('/?c=main')).toBe(url);
     expect(await onward(await bare(url, { headers: { cookie } }))).toBe('/?c=main');
     // a cookie of the Seismic on another port, or with another key, names nobody
-    expect((await bare(api('/project'), { headers: { cookie: cookie.replace(`obeya-${server.port}`, `obeya-${server.port! + 1}`) } })).status).toBe(401);
-    expect((await bare(api('/project'), { headers: { cookie: `obeya-${server.port}=guessed` } })).status).toBe(401);
+    expect((await bare(api('/project'), { headers: { cookie: cookie.replace(`seismic-${server.port}`, `seismic-${server.port! + 1}`) } })).status).toBe(401);
+    expect((await bare(api('/project'), { headers: { cookie: `seismic-${server.port}=guessed` } })).status).toBe(401);
   });
 
   test('a link for one browser (through the system’s `open`) signs in only the first', async () => {

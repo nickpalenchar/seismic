@@ -14,7 +14,7 @@ const CHECK = join(import.meta.dir, 'check.ts');
 
 /** Runs the check in a repository with these settings (and files), as a worker runs it. */
 function check(settings: Record<string, unknown>, files: Record<string, string> = {}): { code: number; out: string } {
-  const repo = gitRepo(join(dir, 'shop'), { '.obeya/settings.json': JSON.stringify(settings), ...files });
+  const repo = gitRepo(join(dir, 'shop'), { '.seismic/settings.json': JSON.stringify(settings), ...files });
   const r = Bun.spawnSync([process.execPath, CHECK], { cwd: repo });
   return { code: r.exitCode, out: r.stdout.toString() };
 }
@@ -35,19 +35,19 @@ describe('check.ts', () => {
     const { code, out } = check({ checks: ['bun test'], land: 'main', chekcs: [] });
     expect(out).toContain('checks: ["bun test"]');
     expect(out).toContain('land: main');
-    expect(out).toContain('- .obeya/settings.json, chekcs: no such field (did you mean checks?)');
+    expect(out).toContain('- .seismic/settings.json, chekcs: no such field (did you mean checks?)');
     expect(code).toBe(1);
   });
 
   test('reports a demo site, which a project chooses now', () => {
     const { code, out } = check({ demo: { site: SITE } });
-    expect(out).toContain('- .obeya/settings.json, demo.site: no longer read; a project chooses its demo site in its settings');
+    expect(out).toContain('- .seismic/settings.json, demo.site: no longer read; a project chooses its demo site in its settings');
     expect(code).toBe(1);
   });
 
   test('reports an adapter module that is still there', () => {
     const { code, out } = check({}, { '.obeya/adapter/index.ts': "export default { name: 'shop' };\n" });
-    expect(out).toContain('- .obeya/adapter/ is no longer read: take over what it says into .obeya/settings.json and delete it');
+    expect(out).toContain('- .obeya/adapter/ is no longer read: take over what it says into .seismic/settings.json and delete it');
     expect(code).toBe(1);
   });
 

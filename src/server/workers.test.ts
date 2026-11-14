@@ -56,7 +56,7 @@ describe('workers', () => {
     await workers.start(c.id);
     const row = board.row(c.id);
     expect(state(c.id)).toBe('working');
-    expect(row.branch).toMatch(/^obeya\/zahlerstande-exportieren-/);
+    expect(row.branch).toMatch(/^seismic\/zahlerstande-exportieren-/);
     expect(git(row.workstation!, 'branch', '--show-current')).toBe(row.branch!);
     expect(runtime.last.spec.cwd).toBe(row.workstation!);
     expect(runtime.last.inbox[0]).toContain('Zählerstände exportieren');

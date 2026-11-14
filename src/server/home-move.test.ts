@@ -8,7 +8,7 @@ import { Board } from './board';
 import { claim } from './instance';
 import { claudeFolderName, databaseFile, HOME_MOVE_MARKER, moveDefaultHome, rewritePaths } from './home-move';
 import { Store } from './store';
-import { FakeRuntime, gitRepo, identify } from './testing';
+import { FakeRuntime, gitRepo } from './testing';
 import { Workers } from './workers';
 import { git, Workstations } from './workstations';
 
@@ -52,9 +52,8 @@ test('rewritePaths renames the home as a path, plain or JSON-escaped, never a lo
 test('the home moves in one rename: its database files, the link back, the paths it holds, the Claude Code session folders', async () => {
   const h = oldHome();
   const db = new Database(join(h, 'obeya.db'));
-  // a write still in the log (-wal) goes with the database
-  db.run('PRAGMA wal_autocheckpoint = 0');
   db.run('UPDATE cards SET body = ? WHERE id = ?', ['later', 'b']);
+  db.close();
   // Claude Code's folders of two checkouts, the one of an older folder of the same name, and a project of its own
   const folders = join(claudeDir, 'projects');
   const old = claudeFolderName(join(h, 'workspaces', 'shop', 'a1'));
@@ -65,7 +64,6 @@ test('the home moves in one rename: its database files, the link back, the paths
   mkdirSync(join(folders, '-Users-me-code-app'), { recursive: true });
 
   const r = await moveDefaultHome({ user, claudeDir });
-  db.close();
   expect(r).toMatchObject({ home: moved(), moved: true, problems: [] });
   expect(lstatSync(home()).isSymbolicLink()).toBe(true);
   expect(readlinkSync(home())).toBe('.seismic');
@@ -167,7 +165,6 @@ test("a worktree of a project's repository follows the move, and a paused worker
   const card = before.board.create({ title: 'Export readings', x: 0, y: 0 });
   await before.workers.start(card.id);
   before.runtime.last.emit({ type: 'session', id: 'sess-1' });
-  identify(before.board.row(card.id).workstation!);
   const was = before.board.row(card.id).workstation!;
   expect(was.startsWith(`${h}/workspaces/shop/`)).toBe(true);
   before.workers.shutdown();

@@ -1,7 +1,7 @@
 // Starts Seismic on a copy of an existing home (from before projects were canvases, say) and
 // checks that it comes up with what the home held, without running agents or touching anything
 // outside the copy:
-//   bun scripts/check-home-migration.ts [home]      (default: ~/.obeya; the home itself is never written)
+//   bun scripts/check-home-migration.ts [home]      (default: ~/.seismic, else ~/.obeya; the home itself is never written)
 //
 // The copy holds the database (a SQLite snapshot), the JSON and key files and every directory of files the home
 // keeps but the checkouts. Each git repository of the configuration is cloned locally into the copy and the configuration points at
@@ -15,16 +15,17 @@
 
 import { Database } from 'bun:sqlite';
 import { spawn, spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { homedir, tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { adoptOldConfig, CONFIG_FILE } from '../src/server/config';
+import { databaseFile, moveDefaultHome } from '../src/server/home-move';
 import { ownerHeaders } from '../src/server/owner';
 import { waitUp } from './wait-up';
 
-const source = process.argv[2] ?? join(homedir(), '.obeya');
-const home = mkdtempSync(join(tmpdir(), 'obeya-home-copy-'));
+const source = process.argv[2] ?? join(homedir(), existsSync(join(homedir(), '.seismic')) ? '.seismic' : '.obeya');
+const home = mkdtempSync(join(tmpdir(), 'seismic-home-copy-'));
 const failures: string[] = [];
 const expect = (ok: boolean, what: string) => {
   console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}`);
@@ -37,12 +38,13 @@ const expect = (ok: boolean, what: string) => {
 // `server.json` names the Seismic running on the home, which would keep the copy's from starting.
 const NOT_COPIED = new Set(['workspaces', 'read', 'voices', 'server.json']);
 for (const f of readdirSync(source)) {
-  if (/^obeya\.db/.test(f)) continue;
+  if (/^(obeya|seismic)\.db/.test(f)) continue;
   if (!NOT_COPIED.has(f)) cpSync(join(source, f), join(home, f), { recursive: true });
 }
-if (existsSync(join(source, 'obeya.db'))) {
-  const live = new Database(join(source, 'obeya.db'), { readonly: true });
-  live.run(`VACUUM INTO '${join(home, 'obeya.db').replaceAll("'", "''")}'`);
+const sourceDatabase = databaseFile(source);
+if (existsSync(sourceDatabase)) {
+  const live = new Database(sourceDatabase, { readonly: true });
+  live.run(`VACUUM INTO '${join(home, 'seismic.db').replaceAll("'", "''")}'`);
   live.close();
 }
 /** Every file under `dir`, relative, with its size. */
@@ -87,7 +89,7 @@ for (const p of config)
 writeFileSync(file, JSON.stringify(config, null, 2));
 
 // the database: what it holds before, and no workstation leases
-const db = new Database(join(home, 'obeya.db'));
+const db = new Database(join(home, 'seismic.db'));
 function tablesBefore() {
   return (db.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'").all() as { name: string }[]).map((t) => t.name);
 }
@@ -111,6 +113,42 @@ const openIds = (db.query(`SELECT ${projectColumn} p, id FROM cards WHERE delete
 const shots = (db.query("SELECT images FROM events WHERE images IS NOT NULL AND images != '[]'").all() as { images: string }[]).flatMap((r) => JSON.parse(r.images) as string[]);
 db.close();
 console.log(`home copy ${home}: schema ${before}, ${Object.values(cardsBy).reduce((a, b) => a + b, 0)} cards on the projects, ${leases} workstation leases kept (checkouts not copied), ${shots.length} screenshots referred to`);
+
+// the move of the home to ~/.seismic: on a second copy of this one as `~/.obeya` of a user of its own, with a worktree of the
+// first repository under `workspaces/` that the leases name, the way a real home has them
+{
+  const user = mkdtempSync(join(tmpdir(), 'seismic-home-move-'));
+  const old = join(user, '.obeya');
+  cpSync(home, old, { recursive: true });
+  renameSync(join(old, 'seismic.db'), join(old, 'obeya.db'));
+  const repo = config[0]?.repos.find((r) => r.git !== false && existsSync(join(r.path, '.git')))?.path;
+  const checkout = join(old, 'workspaces', 'move-check', 'w1');
+  if (repo) spawnSync('git', ['-C', repo, 'worktree', 'add', '--quiet', '-b', 'move-check', checkout]);
+  const there = new Database(join(old, 'obeya.db'));
+  for (const t of ['workstations', 'workspaces']) if (there.query('SELECT 1 FROM sqlite_master WHERE name = ?').get(t)) there.run(`UPDATE ${t} SET path = replace(path, '${join(home, 'workspaces')}', '${join(old, 'workspaces')}')`);
+  for (const c of ['workstation', 'workspace']) if (there.query("SELECT 1 FROM pragma_table_info('cards') WHERE name = ?").get(c)) there.run(`UPDATE cards SET ${c} = replace(${c}, '${join(home, 'workspaces')}', '${join(old, 'workspaces')}') WHERE ${c} IS NOT NULL`);
+  const inOld = (db: Database) =>
+    ['workstations', 'workspaces'].flatMap((t) => (db.query('SELECT 1 FROM sqlite_master WHERE name = ?').get(t) ? (db.query(`SELECT path p FROM ${t}`).all() as { p: string }[]).map((r) => r.p) : [])).filter((p) => p.startsWith(old));
+  const leasesBefore = inOld(there).length;
+  there.close();
+  const jsonBefore = readdirSync(old).filter((f) => f.endsWith('.json') && readFileSync(join(old, f), 'utf8').includes(old));
+  const moved = await moveDefaultHome({ user, claudeDir: join(user, '.claude') });
+  const now = join(user, '.seismic');
+  expect(moved.moved && moved.problems.length === 0, `the home moves to ~/.seismic${moved.problems.length ? `: ${moved.problems.join('; ')}` : ''}`);
+  expect(lstatSync(old).isSymbolicLink() && existsSync(join(now, 'seismic.db')) && !existsSync(join(now, 'obeya.db')), '~/.obeya is a link to it, and the database is seismic.db');
+  if (repo) {
+    const list = spawnSync('git', ['-C', repo, 'worktree', 'list', '--porcelain'], { encoding: 'utf8' }).stdout;
+    const nowCheckout = join(now, 'workspaces', 'move-check', 'w1');
+    expect(list.includes(`worktree ${realpathSync(nowCheckout)}`) && spawnSync('git', ['-C', nowCheckout, 'status'], { encoding: 'utf8' }).status === 0, 'the repository\'s worktree link follows the move (git worktree repair)');
+  }
+  const moveCheck = new Database(join(now, 'seismic.db'), { readonly: true });
+  const leftBehind = ['workstations', 'workspaces'].some((t) => moveCheck.query('SELECT 1 FROM sqlite_master WHERE name = ?').get(t) && (moveCheck.query(`SELECT count(*) n FROM ${t} WHERE path LIKE ?`).get(`${old}%`) as { n: number }).n > 0);
+  const rewritten = (moveCheck.query("SELECT count(*) n FROM sqlite_master WHERE name IN ('workstations', 'workspaces')").get() as { n: number }).n ? inOld(moveCheck).length : 0;
+  moveCheck.close();
+  expect(!leftBehind && rewritten === 0, `no lease keeps the old home's path (${leasesBefore} leases named it before)`);
+  expect(jsonBefore.every((f) => !readFileSync(join(now, f), 'utf8').includes(old)), `the home paths in ${jsonBefore.join(', ') || 'no JSON file'} are rewritten`);
+  rmSync(user, { recursive: true, force: true });
+}
 
 // the server
 const port = await new Promise<number>((res) => {
@@ -154,7 +192,7 @@ try {
     });
     expect(lostFiles.length === 0, `no file of ${DIRS.join(', ')} was lost (${Object.values(filesBefore).flat().length} files)${lostFiles.length ? `: ${lostFiles.slice(0, 5).join(', ')}` : ''}`);
   }
-  const check = new Database(join(home, 'obeya.db'), { readonly: true });
+  const check = new Database(join(home, 'seismic.db'), { readonly: true });
   const after = (check.query('PRAGMA user_version').get() as { user_version: number }).user_version;
   // the canvas layer's own names: its table, indexes, and the column cards and groups point to it with
   const layer = /^(canvases|canvases_name|cards_canvas|sqlite_autoindex_canvases_1)$/;

@@ -234,7 +234,7 @@ describe('a worktree per card', () => {
     const moved = await workers.buildOn(prototype.id, board.item(idea.id)!);
     // the worktree stays where it is; its branch now has the idea's name
     expect(moved.path).toBe(path);
-    expect(moved.branch).toMatch(/^obeya\/logo-/);
+    expect(moved.branch).toMatch(/^seismic\/logo-/);
     expect(git(path, 'branch', '--show-current')).toBe(moved.branch);
     expect(git(main, 'branch', '--list', old)).toBe('');
     expect(spaces.leasedBy(idea.id)).toBe(path);
@@ -352,7 +352,7 @@ describe('a worktree per card', () => {
     expect(sc.inbox.at(-1)).toContain('make a new demo');
     expect(gitOrNull(board.row(c.id).workstation!, 'rev-parse', '-q', '--verify', 'CHERRY_PICK_HEAD')).not.toBeNull();
     expect(git(main, 'status', '--porcelain')).toBe('');
-    expect(git(main, 'rev-parse', 'refs/obeya/folded/' + c.id)).toBeTruthy();
+    expect(git(main, 'rev-parse', 'refs/seismic/folded/' + c.id)).toBeTruthy();
   });
 
   test('an approval while a restart is due that cannot land: the worker leaves the conflict until Seismic resumes it', async () => {

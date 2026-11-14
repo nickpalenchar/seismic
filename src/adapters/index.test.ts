@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { repoInfo } from '../server/repo';
 import { gitRepo } from '../server/testing';
 import { git } from '../server/workstations';
 import { layerSettings, type RepoSettings } from '../core/types';
-import { defaultsFor, hasAdapterModule, parseShared, readShared, readSharedFiles, repoValues, withSettings } from '.';
+import { defaultsFor, hasAdapterModule, parseShared, readShared, readSharedFiles, REPO_SETTINGS_FILES, repoValues, withSettings } from '.';
 import { generic } from './generic';
 
 let dir: string;
@@ -18,7 +18,7 @@ afterEach(() => rmSync(dir, { recursive: true, force: true }));
 describe('defaultsFor', () => {
   test("Seismic's own repository brings its settings like any other, with no problems in them", () => {
     const root = join(import.meta.dir, '../..');
-    const read = parseShared(readFileSync(join(root, '.obeya/settings.json'), 'utf8'));
+    const read = parseShared(readFileSync(REPO_SETTINGS_FILES.map((f) => join(root, f)).find((f) => existsSync(f))!, 'utf8'));
     expect(read.problems).toEqual([]);
     expect(read.settings).toMatchObject({ land: 'main', workstations: 'worktrees', checks: ['bun test --parallel', 'bun run typecheck'] });
   });
@@ -71,25 +71,25 @@ describe('withSettings', () => {
   });
 });
 
-describe('.obeya/settings.json', () => {
+describe('.seismic/settings.json', () => {
   test('is read from the default branch, not the checkout; a field that is wrong does not count, the rest does', () => {
-    const repo = gitRepo(join(dir, 'shop'), { 'README.md': 'hi\n', '.obeya/settings.json': '{ "land": "main", "checks": ["bun test"] }\n' });
+    const repo = gitRepo(join(dir, 'shop'), { 'README.md': 'hi\n', '.seismic/settings.json': '{ "land": "main", "checks": ["bun test"] }\n' });
     // with the tree of .obeya/ there, which the repository's theme is read from (theme.ts)
     expect(readShared(repo)).toEqual({ settings: { land: 'main', checks: ['bun test'] }, raw: { land: 'main', checks: ['bun test'] }, problems: [], obeyaTree: expect.stringMatching(/^[0-9a-f]{40,64}$/) });
     // the checkout's own change counts once it is committed on the default branch
-    writeFileSync(join(repo, '.obeya/settings.json'), '{ "land": "pr" }\n');
+    writeFileSync(join(repo, '.seismic/settings.json'), '{ "land": "pr" }\n');
     expect(readShared(repo).settings).toEqual({ land: 'main', checks: ['bun test'] });
     expect(readShared(gitRepo(join(dir, 'plain'))).settings).toBeUndefined();
 
     const read = parseShared('{ "check": ["x"], "land": "sideways", "branch": "develop", "setup": "bun install", "app": { "run": "bun dev" } }');
     expect(read.settings).toEqual({ setup: 'bun install', app: { run: 'bun dev' } });
     expect(read.problems).toEqual([
-      '.obeya/settings.json, land: expected one of "main"|"pr"',
-      '.obeya/settings.json, check: no such field (did you mean checks?)',
-      '.obeya/settings.json, branch: the main branch is set on each machine (or detected), not in the repository',
+      '.seismic/settings.json, land: expected one of "main"|"pr"',
+      '.seismic/settings.json, check: no such field (did you mean checks?)',
+      '.seismic/settings.json, branch: the main branch is set on each machine (or detected), not in the repository',
     ]);
-    expect(parseShared('{ land: main }').problems[0]).toStartWith('.obeya/settings.json is no JSON');
-    expect(parseShared('[]').problems).toEqual(['.obeya/settings.json holds no JSON object']);
+    expect(parseShared('{ land: main }').problems[0]).toStartWith('.seismic/settings.json is no JSON');
+    expect(parseShared('[]').problems).toEqual(['.seismic/settings.json holds no JSON object']);
   });
 
   test('demo.artifacts names what a handover may bring; a list with neither video nor html does not count', () => {
@@ -110,13 +110,13 @@ describe('.obeya/settings.json', () => {
     // a demo site, which a project chooses now, goes alone: the rest stays
     const old = parseShared(JSON.stringify({ demo: { site, language: 'en' } }));
     expect(old.settings).toEqual({ demo: { language: 'en' } });
-    expect(old.problems).toEqual(['.obeya/settings.json, demo.site: no longer read; a project chooses its demo site in its settings']);
+    expect(old.problems).toEqual(['.seismic/settings.json, demo.site: no longer read; a project chooses its demo site in its settings']);
     const read = parseShared(JSON.stringify({ app: { ...app, stp: 'x' }, demo: { howToRun: 'bun dev' }, stack: { start: 'bun dev' } }));
     expect(read.settings).toEqual({});
     expect(read.problems).toEqual([
-      '.obeya/settings.json, app.stp: no such field (did you mean stop?)',
-      '.obeya/settings.json, demo.howToRun: no such field',
-      '.obeya/settings.json, stack: no such field',
+      '.seismic/settings.json, app.stp: no such field (did you mean stop?)',
+      '.seismic/settings.json, demo.howToRun: no such field',
+      '.seismic/settings.json, stack: no such field',
     ]);
   });
 
