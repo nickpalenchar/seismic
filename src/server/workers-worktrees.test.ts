@@ -461,6 +461,24 @@ describe('a worktree per card', () => {
     expect(git(main, 'status', '--porcelain')).toBe('');
   });
 
+  test('a file whose name starts and ends with a blank: the card names it as it is, and folding takes it', async () => {
+    writeFileSync(join(main, ' spaced.ts '), 'a\n');
+    git(main, 'add', '.');
+    git(main, 'commit', '--quiet', '-m', 'spaced');
+    const c = manual();
+    await workers.start(c.id);
+    commitIn(board.row(c.id).workstation!, ' spaced.ts ', 'card\n');
+    writeFileSync(join(main, ' spaced.ts '), 'owner\n');
+    const sc = runtime.sessions.find((s) => s.spec.cwd === board.row(c.id).workstation)!;
+    await sc.call('ready_for_review', { summary: 'S', demo: artifact() });
+    sc.emit({ type: 'idle' });
+    expect(await workers.approve(c.id).catch((e) => e)).toMatchObject({ code: 'landMerge' });
+    expect(board.item(c.id)!.review?.blocked).toEqual({ files: [' spaced.ts '] });
+    await workers.fold(c.id, false);
+    expect(git(main, 'cat-file', 'blob', `${git(main, 'rev-parse', 'refs/seismic/folded/' + c.id)}: spaced.ts `)).toBe('owner');
+    expect(git(main, 'status', '--porcelain')).toBe('');
+  });
+
   test('folded in for a new demo, a conflict stays under way for the worker, and the owner approves anew', async () => {
     const c = manual();
     await workers.start(c.id);

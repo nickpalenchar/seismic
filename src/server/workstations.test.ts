@@ -19,6 +19,8 @@ describe('what git names in its refusal', () => {
     expect(namedInRefusal(untracked)).toEqual(['new.ts']);
     expect(namedInRefusal("error: Entry 'x.ts' not uptodate. Cannot merge.\nfatal: Could not reset index file to revision 'abc'.")).toEqual(['x.ts']);
     expect(namedInRefusal('fatal: something else')).toEqual([]);
+    // blanks at a name's start or end are part of it
+    expect(namedInRefusal('error: Your local changes to the following files would be overwritten by merge:\n\t lead.ts\n\ttrail.ts \nAborting')).toEqual([' lead.ts', 'trail.ts ']);
   });
 });
 

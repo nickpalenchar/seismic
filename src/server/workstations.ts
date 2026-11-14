@@ -140,6 +140,16 @@ export async function gitAsync(cwd: string, ...args: string[]): Promise<string> 
   return r.stdout.trim();
 }
 
+/**
+ * The paths a `-z` listing of git's names in `cwd`, exactly as git wrote them: `gitAsync` trims its
+ * output, which would cut whitespace off the first and last of them.
+ */
+async function gitPaths(cwd: string, ...args: string[]): Promise<string[]> {
+  const r = await gitRun(cwd, args);
+  if (r.code !== 0) throw new WorkstationError(`git ${args.join(' ')} in ${cwd}: ${(r.stderr || r.stdout).trim() || `exit code ${r.code}`}`);
+  return r.stdout.split('\0').filter(Boolean);
+}
+
 /** `git` in `cwd` without blocking, with its exit code: for commands whose exit code is an answer (`diff --no-index`). */
 async function gitRun(cwd: string, args: string[]): Promise<{ code: number; stdout: string; stderr: string }> {
   const there = remoteWorkstation(cwd);
@@ -258,16 +268,15 @@ async function rebased(ws: string, base: string, upstream: () => Promise<string>
  * the work from `head` to `tip` changes too: what keeps a fast-forward there from landing it.
  */
 async function inTheWay(repo: string, head: string, tip: string): Promise<string[]> {
-  const list = (out: string) => out.split('\0').filter(Boolean);
   const [changed, tracked, staged, untracked] = await Promise.all([
-    gitAsync(repo, 'diff', '--name-only', '-z', '--no-renames', `${head}...${tip}`),
-    gitAsync(repo, 'diff', '--name-only', '-z', '--no-renames', 'HEAD'),
+    gitPaths(repo, 'diff', '--name-only', '-z', '--no-renames', `${head}...${tip}`),
+    gitPaths(repo, 'diff', '--name-only', '-z', '--no-renames', 'HEAD'),
     // staged, also where the file on disk is back as it was in HEAD: git still refuses to overwrite the index
-    gitAsync(repo, 'diff', '--name-only', '-z', '--no-renames', '--cached', 'HEAD'),
-    gitAsync(repo, 'ls-files', '-z', '--others', '--exclude-standard'),
+    gitPaths(repo, 'diff', '--name-only', '-z', '--no-renames', '--cached', 'HEAD'),
+    gitPaths(repo, 'ls-files', '-z', '--others', '--exclude-standard'),
   ]);
-  const ours = new Set(list(changed));
-  return [...new Set([...list(tracked), ...list(staged), ...list(untracked)])].filter((f) => ours.has(f)).sort();
+  const ours = new Set(changed);
+  return [...new Set([...tracked, ...staged, ...untracked])].filter((f) => ours.has(f)).sort();
 }
 
 /**
@@ -281,8 +290,9 @@ export function namedInRefusal(message: string): string[] {
   for (const line of message.split('\n')) {
     const entry = /Entry '(.+)' (?:not uptodate|would be)/.exec(line);
     if (entry) named.add(entry[1]!);
+    // a name listed after a tab, as it is: blanks at its start or end are part of it
     if (listing && /^\t/.test(line)) {
-      named.add(line.trim());
+      named.add(line.slice(1).replace(/\r$/, ''));
       continue;
     }
     listing = /would be (?:overwritten|removed) by .*:\s*$/.test(line);
@@ -298,14 +308,12 @@ export function namedInRefusal(message: string): string[] {
  * holds the owner's change: a staged edit comes as staged, a staged deletion goes.
  */
 async function commitOf(repo: string, parent: string, files: string[], message: string): Promise<string> {
-  const list = (out: string) => out.split('\0').filter(Boolean);
-  // `<mode> <object> <stage>\t<path>`
-  const entries = (out: string) => new Map(list(out).map((e) => [e.slice(e.indexOf('\t') + 1), e.split(/\s/)] as const));
+  // `<mode> <object> <stage>\t<path>`, `<mode> blob <object>\t<path>`: the path after the tab, as it is
+  const entries = (listed: string[]) => new Map(listed.map((e) => [e.slice(e.indexOf('\t') + 1), e.slice(0, e.indexOf('\t')).split(' ')] as const));
   const [indexed, unstaged, inParent] = await Promise.all([
-    gitAsync(repo, '--literal-pathspecs', 'ls-files', '-s', '-z', '--', ...files).then(entries),
-    gitAsync(repo, '--literal-pathspecs', 'diff', '--name-only', '-z', '--no-renames', '--', ...files).then((o) => new Set(list(o))),
-    // `<mode> blob <object>\t<path>`
-    gitAsync(repo, '--literal-pathspecs', 'ls-tree', '-r', '-z', parent, '--', ...files).then((o) => new Map(list(o).map((e) => [e.slice(e.indexOf('\t') + 1), e.split(/\s/)] as const))),
+    gitPaths(repo, '--literal-pathspecs', 'ls-files', '-s', '-z', '--', ...files).then(entries),
+    gitPaths(repo, '--literal-pathspecs', 'diff', '--name-only', '-z', '--no-renames', '--', ...files).then((o) => new Set(o)),
+    gitPaths(repo, '--literal-pathspecs', 'ls-tree', '-r', '-z', parent, '--', ...files).then(entries),
   ]);
   const fileMode = (await gitRun(repo, ['config', '--bool', 'core.fileMode'])).stdout.trim() !== 'false';
   const path = resolve(repo, await gitAsync(repo, 'rev-parse', '--git-path', `obeya-fold-${process.pid}-${Date.now()}`));
@@ -1529,7 +1537,7 @@ export class Workstations implements CardWorkstations {
           tip = await gitAsync(repo, 'rev-parse', 'FETCH_HEAD');
         }
         // what git named in its refusal goes too, where the checkout still has a change to it
-        const changed = async (...args: string[]) => (await gitAsync(repo, '--literal-pathspecs', ...args, '--', ...named)).split('\0').filter(Boolean);
+        const changed = (...args: string[]) => gitPaths(repo, '--literal-pathspecs', ...args, '--', ...named);
         const still = named.length ? [...(await changed('diff', '--name-only', '-z', '--no-renames', 'HEAD')), ...(await changed('diff', '--name-only', '-z', '--no-renames', '--cached', 'HEAD')), ...(await changed('ls-files', '-z', '--others'))] : [];
         const files = [...new Set([...(await inTheWay(repo, 'HEAD', tip)), ...still])].sort();
         if (!files.length) return { files };
@@ -1556,7 +1564,7 @@ export class Workstations implements CardWorkstations {
         if ((await gitAsync(repo, 'rev-parse', `${now}^{tree}`)) !== (await gitAsync(repo, 'rev-parse', `${commit}^{tree}`)))
           return { files, commit, ...(conflict ? { conflict } : {}), kept: true };
         // the checkout's copies go back to HEAD: tracked files restored, new ones removed
-        const tracked = (await gitAsync(repo, '--literal-pathspecs', 'ls-tree', '-r', '-z', '--name-only', 'HEAD', '--', ...files)).split('\0').filter(Boolean);
+        const tracked = await gitPaths(repo, '--literal-pathspecs', 'ls-tree', '-r', '-z', '--name-only', 'HEAD', '--', ...files);
         const added = files.filter((f) => !tracked.includes(f));
         if (tracked.length) await gitAsync(repo, '--literal-pathspecs', 'restore', '--source=HEAD', '--staged', '--worktree', '--', ...tracked);
         if (added.length) {
