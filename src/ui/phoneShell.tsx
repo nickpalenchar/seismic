@@ -381,8 +381,8 @@ export function usePhoneShell(loaded: ProjectInfo[]) {
   /** After an action on the open card: back to the list, with the confirmation; one the server is still at says so until it answered. */
   function onDone(d: ActDone, p?: Pending) {
     if (!d.close) return;
-    // the card a merge became opens in this one's place
-    if (d.next) openId(d.next);
+    // the card a merge became opens in this one's place; from the card's conversation, Back would lead to the card that went
+    if (d.next && !talkRef.current) openId(d.next);
     else back();
     if (!p || !d.pending) {
       if (d.rate) ratePrompt.ask(d.rate);

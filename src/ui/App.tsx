@@ -680,6 +680,8 @@ function Project({
   const innerRef = useRef<HTMLDivElement>(null);
   // the panel follows its content from the unfold until it starts to fold
   const unfolded = useRef(false);
+  // the fold under way, which a second close joins
+  const folding = useRef<Promise<void> | null>(null);
   const fitPanel = (i: Item) => {
     const panel = panelRef.current;
     const inner = innerRef.current;
@@ -835,9 +837,10 @@ function Project({
 
   function onDone(d: ActDone, p?: Pending) {
     if (!d.close) return;
-    const gone = focusRef.current?.id;
+    // the server may have taken the card away already, which folded it: then the project shows `next` as it now stands
+    const gone = focusRef.current?.type === 'card' ? focusRef.current.id : undefined;
     const folded = closeCard({ keepUntitled: true });
-    if (d.next && gone) void folded.then(() => openOnward(gone, d.next!));
+    if (d.next) void folded.then(() => openOnward(gone, d.next!));
     if (!p || !d.pending) {
       if (d.rate) ratePrompt.ask(d.rate);
       if (d.ack) showAck(d.ack, d.undo);
@@ -867,13 +870,18 @@ function Project({
    * After the card `gone` folded into `next` (a merge approved): once the project no longer shows it,
    * and so shows `next` where it now stands, flies there and opens it.
    */
-  async function openOnward(gone: string, next: string) {
-    const i = await soon(() => byId(gone) ? undefined : byId(next));
+  async function openOnward(gone: string | undefined, next: string) {
+    const i = await soon(() => gone && byId(gone) ? undefined : byId(next));
     if (i && focusRef.current?.type !== 'card') await open(i);
   }
 
   /** Folds the open card; `onward` where another opens in its place next, which takes over its address. */
-  async function closeCard({ keepUntitled = false, onward = false } = {}) {
+  function closeCard(o: { keepUntitled?: boolean; onward?: boolean } = {}): Promise<void> {
+    // a second close while the card folds (the server took it away as the owner acted on it) waits for the first
+    folding.current ??= foldCard(o).finally(() => { folding.current = null; });
+    return folding.current;
+  }
+  async function foldCard({ keepUntitled = false, onward = false }) {
     const f = focusRef.current;
     const panel = panelRef.current;
     if (f?.type !== 'card' || !panel) return;
