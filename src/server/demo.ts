@@ -31,11 +31,10 @@ function manifestName(dir: string): string | undefined {
 }
 
 /**
- * The plugin's name, which prefixes its skills' names; read from `plugin.json` so the two cannot
- * drift. A damaged plugin does not keep Seismic from starting: `checkPlugin` names the fault at start,
- * and the name falls back to the one the shipped manifest carries.
+ * The namespace required by setup cards and worker briefs. A damaged or stale plugin does not
+ * change those skill names or keep Seismic from starting: `checkPlugin` names the fault at start.
  */
-export const PLUGIN_NAME: string = manifestName(OBEYA_PLUGIN) ?? 'seismic';
+export const PLUGIN_NAME = 'seismic';
 export const DEMO_SKILL = `${PLUGIN_NAME}:demo`;
 
 /** The demo skill's instructions, for a session that does not know the skill to read. */
@@ -45,7 +44,9 @@ export const DEMO_SKILL_FILE = join(OBEYA_PLUGIN, 'skills', 'demo', 'SKILL.md');
 export function checkPlugin(dir = OBEYA_PLUGIN): string | null {
   for (const f of [MANIFEST, join('skills', 'demo', 'SKILL.md')])
     if (!existsSync(join(dir, f))) return `${join(dir, f)} is missing: workers' sessions have no demo skill`;
-  if (!manifestName(dir)) return `${join(dir, MANIFEST)} is unreadable or names no plugin: workers' sessions may not load its skills`;
+  const name = manifestName(dir);
+  if (!name) return `${join(dir, MANIFEST)} is unreadable or names no plugin: workers' sessions may not load its skills`;
+  if (name !== PLUGIN_NAME) return `${join(dir, MANIFEST)} names ${JSON.stringify(name)} instead of ${JSON.stringify(PLUGIN_NAME)}: workers' sessions will not have the skills requested by Seismic`;
   return null;
 }
 

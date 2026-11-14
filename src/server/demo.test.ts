@@ -190,18 +190,36 @@ describe('the plugin workers load', () => {
     expect(checkPlugin(broken)).toBe(`${join(broken, '.claude-plugin', 'plugin.json')} is unreadable or names no plugin: workers' sessions may not load its skills`);
   });
 
-  test('a missing or damaged manifest does not keep the server from loading', () => {
-    for (const manifest of [undefined, '{ "name": ', '{}']) {
+  test('a stale namespace is reported rather than accepted as a healthy plugin', () => {
+    const plugin = join(dir, 'stale-plugin');
+    mkdirSync(join(plugin, '.claude-plugin'), { recursive: true });
+    mkdirSync(join(plugin, 'skills', 'demo'), { recursive: true });
+    writeFileSync(join(plugin, 'skills', 'demo', 'SKILL.md'), '---\nname: demo\n---\n');
+    for (const name of ['obeya', 'other', ' seismic ']) {
+      writeFileSync(join(plugin, '.claude-plugin', 'plugin.json'), JSON.stringify({ name }));
+      expect(checkPlugin(plugin)).toBe(`${join(plugin, '.claude-plugin', 'plugin.json')} names ${JSON.stringify(name)} instead of "seismic": workers' sessions will not have the skills requested by Seismic`);
+    }
+    writeFileSync(join(plugin, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'seismic' }));
+    expect(checkPlugin(plugin)).toBeNull();
+  });
+
+  test('missing, damaged or stale manifests neither prevent loading nor change generated skill names', () => {
+    for (const manifest of [undefined, '{ "name": ', '{}', '{"name":"obeya"}', '{"name":"other"}']) {
       const resources = mkdtempSync(join(dir, 'resources-'));
+      for (const skill of ['demo', 'settings']) {
+        mkdirSync(join(resources, 'plugin', 'skills', skill), { recursive: true });
+        writeFileSync(join(resources, 'plugin', 'skills', skill, 'SKILL.md'), '---\ndescription: A bundled skill.\n---\n');
+      }
       if (manifest !== undefined) {
         mkdirSync(join(resources, 'plugin', '.claude-plugin'), { recursive: true });
         writeFileSync(join(resources, 'plugin', '.claude-plugin', 'plugin.json'), manifest);
       }
-      const run = Bun.spawnSync([process.execPath, '-e', `const d = await import(${JSON.stringify(join(import.meta.dir, 'demo.ts'))}); console.log(d.DEMO_SKILL, d.checkPlugin() !== null)`], {
+      const run = Bun.spawnSync([process.execPath, '-e', `const d = await import(${JSON.stringify(join(import.meta.dir, 'demo.ts'))}); const s = await import(${JSON.stringify(join(import.meta.dir, 'skills.ts'))}); console.log(d.demoSkillName(${JSON.stringify(join(resources, 'no-user-skills'))}), d.checkPlugin() !== null, s.bundledSkills().map(s => s.name).join(','))`], {
         env: { ...process.env, SEISMIC_RESOURCES: resources },
       });
       expect(run.stderr.toString()).toBe('');
-      expect(run.stdout.toString().trim()).toBe('seismic:demo true');
+      expect(run.exitCode).toBe(0);
+      expect(run.stdout.toString().trim()).toBe('seismic:demo true seismic:demo,seismic:settings');
     }
   });
 

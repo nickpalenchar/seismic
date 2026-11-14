@@ -237,6 +237,8 @@ Platform quirks:
   plan docs are watched and polled.
 - Bun's embedded files are readable only by the binary itself: the plugin, skills and sidecars ship
   as real files beside it.
+- The bundled plugin's namespace must be `seismic`, matching setup cards and worker briefs. Startup
+  warns about a missing, damaged or differently named manifest without changing generated skill names.
 - A macOS binary must be signed, ad hoc at least, or it is killed at start.
 - Claude's SDK hands a queued message over only after the running tool call, so agents never wait
   in long foreground commands.
