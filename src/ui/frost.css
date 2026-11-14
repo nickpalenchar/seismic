@@ -25,6 +25,9 @@ html, body { margin: 0; height: 100%; overflow: hidden; background-color: var(--
 /* the working bars' and fixing badges' glow, running left to right (`animate-[draw_…]`) */
 @keyframes draw { 0% { background-position: 100% 0; } 55% { background-position: 0 0; } 100% { background-position: -100% 0; } }
 
+/* a glow running along a bar, left to right: the working bar (components/working-bar.tsx) and the one under a waiting button (`armed` in components/button.tsx) */
+@keyframes flow { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+
 /* a message or question pointed at (a link to it, a notification) flashes once */
 @keyframes msg-flash {
   0%, 45% { box-shadow: 0 0 0 3px var(--flash-ring), var(--shadow); background: var(--working-subtle); }

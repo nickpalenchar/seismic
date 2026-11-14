@@ -16,10 +16,15 @@ import { scrollBehavior } from './motion';
 import { Message, MessageActions, MessageHead, MessageMeta, ReplyAction, DeleteAction } from './components/ai/message';
 import { CloseButton, LinkButton } from './components/button';
 import { Tooltip } from './components/tooltip';
+import { WorkingBar } from './components/working-bar';
+
+/** The colour of the bar beside an agent at work (`thinking`), by who it is; an idea's agent otherwise. */
+const workingColor: Record<string, string> = { worker: 'var(--working)', koordinator: 'var(--proposal)' };
 
 /**
  * A message's frame: `by` places and colours it (the owner's on the right), `who` heads it with its
- * time; `className` adds what kind it is (a question, the agent at work, the starting point).
+ * time; `className` adds what kind it is (a question, the agent at work, the starting point); at work
+ * (`thinking`), a working bar runs beside its head.
  * `ev`: the message's place in the conversation (a card's event id), which a quote of it leads to; `onReply`: the owner can reply to it;
  * `onDelete`: the owner can delete it, with `deleteLabel` as the button's title; `head`: a button at
  * the right of its head, always in view ("Make it a card").
@@ -50,6 +55,7 @@ export function Msg({
   children?: ReactNode;
 }) {
   const actions = (onReply ? 1 : 0) + (onDelete ? 1 : 0);
+  const working = className?.split(' ').includes('thinking');
   return (
     <Message from={by === 'owner' ? 'user' : 'assistant'} className={['msg', `by-${by}`, onReply && 'replies', className].filter(Boolean).join(' ')} data-ev={ev}>
       {(who || agent || at || head) && (
@@ -57,6 +63,7 @@ export function Msg({
           {who}
           {agent && <MessageMeta className="agent-model ml-[7px] [overflow-wrap:anywhere] group-[:is(.thinking,.paused)]/message:ml-0 group-[:is(.thinking,.paused)]/message:[overflow-wrap:normal]">{t.config.agents.harnesses[agent.harness]}{agent.model ? ` · ${agent.model}` : ''}</MessageMeta>}
           {at && <MessageMeta className="t ml-1">{time(at)}</MessageMeta>}
+          {working && <WorkingBar color={workingColor[by] ?? 'var(--idea)'} />}
           {head}
         </MessageHead>
       )}
