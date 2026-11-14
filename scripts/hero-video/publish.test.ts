@@ -12,6 +12,9 @@ const checkout = path.join(dir, 'checkout');
 fs.mkdirSync(path.join(checkout, 'scripts', 'hero-video'), { recursive: true });
 fs.copyFileSync(path.join(import.meta.dirname, '..', 'gh.ts'), path.join(checkout, 'scripts', 'gh.ts'));
 fs.copyFileSync(path.join(import.meta.dirname, 'publish.ts'), path.join(checkout, 'scripts', 'hero-video', 'publish.ts'));
+// the machinery is tested as it comes back with distribution; the repository's own copy stays paused
+fs.writeFileSync(path.join(checkout, 'scripts', 'distribution.ts'),
+  fs.readFileSync(path.join(import.meta.dirname, '..', 'distribution.ts'), 'utf8').replace('DISTRIBUTION = false', 'DISTRIBUTION = true'));
 Bun.spawnSync(['git', 'init', '-q', checkout]);
 Bun.spawnSync(['git', '-C', checkout, 'remote', 'add', 'origin', 'git@github.com:alice/obeya.git']);
 const out = path.join(dir, 'out');
@@ -87,4 +90,17 @@ test.skipIf(process.platform === 'win32')('names the scene the loop needs when t
   });
   expect(r.exitCode).toBe(1);
   expect(r.stderr.toString()).toContain('chapters.vtt has no scene "Your wall"');
+});
+
+test.skipIf(process.platform === 'win32')('uploads nothing while distribution is paused', () => {
+  const paused = path.join(dir, 'paused');
+  fs.cpSync(checkout, paused, { recursive: true });
+  fs.copyFileSync(path.join(import.meta.dirname, '..', 'distribution.ts'), path.join(paused, 'scripts', 'distribution.ts'));
+  fs.rmSync(log, { force: true });
+  const r = Bun.spawnSync(['node', path.join(paused, 'scripts', 'hero-video', 'publish.ts')], {
+    env: { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}`, HERO_OUT: out },
+  });
+  expect(r.exitCode).toBe(1);
+  expect(r.stderr.toString()).toContain('is paused until Seismic distributes its own app');
+  expect(fs.existsSync(log)).toBe(false);
 });

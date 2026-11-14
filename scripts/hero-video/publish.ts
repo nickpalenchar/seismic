@@ -1,3 +1,4 @@
+// Paused with distribution (scripts/distribution.ts): only `--poster-only` runs.
 // Publishes a rendered hero video to obeya.si: uploads `demo.mp4`, `captions.vtt` and
 // `chapters.vtt` from the render's directory as `hero.mp4`, `hero.vtt` and `hero.chapters.vtt` of
 // the release `site-media`, with `hero.loop.gif`, the README's loop cut from the video (creating the
@@ -14,6 +15,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { distributionPaused } from '../distribution.ts';
 import { ghEnv } from '../gh.ts';
 
 const RELEASE = 'site-media';
@@ -62,6 +64,10 @@ const chapters = path.join(OUT, 'chapters.vtt');
 for (const f of [video, captions, chapters]) {
   if (!fs.existsSync(f)) fail(`missing ${f}: render first (scripts/hero-video/README.md)`);
 }
+
+// the poster alone stays on this machine; uploading waits for distribution
+const paused = distributionPaused('Publishing the hero video');
+if (paused && !posterOnly) fail(paused);
 
 const root = path.join(import.meta.dirname, '..', '..');
 if (poster) {

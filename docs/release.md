@@ -4,7 +4,8 @@
 > no hero video, no update checks (decided 2026-11-13, `docs/plan/seismic-rename.md`). This page, the
 > release skill, `scripts/hero-video/` and `scripts/site-shots.ts` stay as they were, for when Seismic
 > distributes its own app; their accounts, domain and voice (`sadilek`, obeya.si, ElevenLabs) are
-> the upstream's and have to be replaced then.
+> the upstream's and have to be replaced then. `scripts/hero-video/publish.ts` refuses to upload until `DISTRIBUTION` in
+> `scripts/distribution.ts` is switched on.
 
 How a version of the app goes out, and the owner's steps it depends on. The constraints the builds
 must keep are in [`docs/design.md`](design.md) (Constraints).
