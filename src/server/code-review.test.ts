@@ -808,6 +808,31 @@ describe('code reviews', () => {
     expect(reviewers()).toHaveLength(1);
   });
 
+  test('a pending manual start does not launch from the old instance after shutdown', async () => {
+    reviewing('manual');
+    const id = await started();
+    await handOver(id, 'export.ts');
+    await until(() => !!board.item(id)!.review?.codeReview);
+    workers.startCodeReview(id);
+    workers.reviews.shutdown();
+    await Bun.sleep(50);
+    expect(reviewers()).toHaveLength(0);
+    expect(board.row(id).review?.codeReview?.pending).toBe(true);
+  });
+
+  test('a legacy running review without a count is counted before a newer handover', async () => {
+    reviewing('auto');
+    const id = await started();
+    await handOver(id, 'export.ts');
+    await until(() => reviewers().length === 1);
+    const c = board.row(id).review!.codeReview!;
+    const { runs: _, ...legacy } = c;
+    board.work(id, { review: { codeReview: { ...legacy, review: { ...legacy.review!, head: 'older' } } } });
+    await workers.reviews.handedOver(id, c.handover, 'auto');
+    await until(() => reviewers().length === 2, 15000);
+    expect(board.item(id)!.review?.codeReview).toMatchObject({ state: 'running', runs: 2 });
+  });
+
   test('a requested review starts even if the mode changes while Git answers', async () => {
     reviewing('auto');
     const id = await started();
@@ -828,6 +853,8 @@ describe('code reviews', () => {
     const id = await started();
     await handOver(id, 'export.ts');
     await until(() => reviewers().length === 1);
+    const { runs: _, ...legacy } = board.row(id).review!.codeReview!;
+    board.work(id, { review: { codeReview: legacy } });
     workers.reviews.cancel(id);
     const c = board.row(id).review!.codeReview!;
     expect(c.runs).toBe(1);

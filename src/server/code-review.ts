@@ -127,7 +127,7 @@ export class CodeReviews {
     const ws = this.o.board.row(cardId).workstation;
     // awaited also without a workstation: the handover is recorded before anything starts
     const head = await (ws ? gitAsync(ws, 'rev-parse', 'HEAD').catch(() => undefined) : Promise.resolve(undefined));
-    if (!this.o.board.item(cardId)) return;
+    if (this.shut || !this.o.board.item(cardId)) return;
     // a newer handover came while git answered: its own continuation decides, and keeps the card pending until then
     if (mode === 'auto' && codeReviewOf(this.o.board.row(cardId))?.pendingId !== pendingId) return;
     const now = codeReviewOf(this.o.board.row(cardId)) ?? had;
@@ -141,7 +141,8 @@ export class CodeReviews {
     const unverified = this.items(cardId).some((i) => i.status === 'underReview' && !(review?.state === 'running' && review.scope?.includes(i.number)));
     const same = !!review && !!head && review.head === head && !resubmitted.length && !unverified;
     if (review && same) review = { ...review, handover };
-    this.save(cardId, { mode: mode === 'auto' ? now?.mode ?? mode : mode, handover, ...(now?.runs ? { runs: now.runs } : {}), ...(review ? { review } : {}) });
+    const runs = now?.runs ?? (now?.review ? 1 : undefined);
+    this.save(cardId, { mode: mode === 'auto' ? now?.mode ?? mode : mode, handover, ...(runs ? { runs } : {}), ...(review ? { review } : {}) });
     if (mode === 'auto' && !same) this.begin(cardId, head);
   }
 
@@ -183,7 +184,7 @@ export class CodeReviews {
   private startPending(cardId: string, c: StoredCodeReview): void {
     const ws = this.o.board.row(cardId).workstation;
     void (ws ? gitAsync(ws, 'rev-parse', 'HEAD').catch(() => undefined) : Promise.resolve(undefined)).then((head) => {
-      if (!this.o.board.item(cardId)) return;
+      if (this.shut || !this.o.board.item(cardId)) return;
       const now = codeReviewOf(this.o.board.row(cardId));
       if (now?.pending && now.pendingStart && now.pendingId === c.pendingId && now.handover === c.handover && this.waits(cardId)) this.begin(cardId, head);
     });
@@ -197,6 +198,7 @@ export class CodeReviews {
     if (c?.pending || c?.review?.state === 'running' || (running && c?.review)) {
       const { pending: _, pendingStart: __, pendingId: ___, review, ...rest } = c;
       if (review?.state !== 'running' && !running) Object.assign(rest, { review });
+      else if (review && !rest.runs) rest.runs = 1;
       this.save(cardId, rest);
     }
   }
@@ -344,7 +346,7 @@ export class CodeReviews {
   /** A review of the card's latest handover, at `head`: its agent starts, any before it stops. */
   private begin(cardId: string, head: string | undefined): void {
     // approved or stopped while git told the commit: nothing starts
-    if (!this.waits(cardId)) return;
+    if (this.shut || !this.waits(cardId)) return;
     const stored = codeReviewOf(this.o.board.row(cardId));
     if (!stored) return;
     const { pending: _, pendingStart: __, pendingId: ___, ...c } = stored;
@@ -537,7 +539,7 @@ export class CodeReviews {
     this.save(cardId, { ...c, pending: true, pendingId });
     const ws = this.o.board.row(cardId).workstation;
     void (ws ? gitAsync(ws, 'rev-parse', 'HEAD').catch(() => undefined) : Promise.resolve(undefined)).then((head) => {
-      if (!this.o.board.item(cardId)) return;
+      if (this.shut || !this.o.board.item(cardId)) return;
       const now = codeReviewOf(this.o.board.row(cardId));
       if (!now?.pending || now.pendingId !== pendingId || now.handover !== c.handover || now.review?.at !== at) return;
       if (!this.waits(cardId) || !this.items(cardId).some((i) => i.status === 'underReview')) {
