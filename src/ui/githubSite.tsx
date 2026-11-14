@@ -199,9 +199,12 @@ export function GithubSetup({ running, onAdd, cancel }: { running: boolean; onAd
 function useRepoView(repo: string, folder: string): [GithubRepoView | 'loading' | string | null, () => void] {
   const [info, setInfo] = useState<GithubRepoView | 'loading' | string | null>(null);
   const [round, setRound] = useState(0);
+  const input = `${repo}\n${folder}`;
+  const [checkedInput, setCheckedInput] = useState('');
   const asked = useRef(0);
   useEffect(() => {
     const n = ++asked.current;
+    setCheckedInput(input);
     if (!repo) return setInfo(null);
     setInfo('loading');
     const at = setTimeout(
@@ -227,7 +230,7 @@ function useRepoView(repo: string, folder: string): [GithubRepoView | 'loading' 
     window.addEventListener('focus', again);
     return () => window.removeEventListener('focus', again);
   }, [repo]);
-  return [info, () => {
+  return [checkedInput === input ? info : repo ? 'loading' : null, () => {
     ++asked.current;
     setInfo('loading');
     setRound((r) => r + 1);
