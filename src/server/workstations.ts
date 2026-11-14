@@ -292,10 +292,10 @@ export function namedInRefusal(message: string): string[] {
 
 /**
  * A commit on `parent` holding the checkout's `files` as the owner left them, made in an index of its
- * own: the checkout's index and branch stay as they are. A file edited on disk beyond what is
- * staged comes as on disk; one whose disk copy is as staged, as staged (also where the file on disk
- * went back to `parent`'s and only the index holds the change); one staged for deletion goes, also
- * where it is back on disk as in `parent`; a new file git does not track comes as on disk.
+ * own: the checkout's index and branch stay as they are. A file whose disk copy is as staged comes
+ * as staged; one edited on disk beyond what is staged, or new and untracked, as on disk; one deleted
+ * on disk (its deletion staged or not) goes. Where the file on disk is back as in `parent`, the index
+ * holds the owner's change: a staged edit comes as staged, a staged deletion goes.
  */
 async function commitOf(repo: string, parent: string, files: string[], message: string): Promise<string> {
   const list = (out: string) => out.split('\0').filter(Boolean);
@@ -314,20 +314,31 @@ async function commitOf(repo: string, parent: string, files: string[], message: 
   };
   try {
     await git('read-tree', parent);
-    // the file on disk as an object, null where there is none: back as in `parent`, it holds no change of the owner's
-    const asInParent = async (f: string) => {
-      const onDisk = existsSync(join(repo, f)) ? await gitAsync(repo, '--literal-pathspecs', 'hash-object', '--', f).catch(() => null) : null;
-      return !onDisk || onDisk === inParent.get(f);
+    // the file on disk: gone, back as in `parent` (where it holds no change of the owner's), or another copy
+    const onDisk = async (f: string): Promise<'gone' | 'asInParent' | 'other'> => {
+      if (!existsSync(join(repo, f))) return 'gone';
+      const object = await gitAsync(repo, '--literal-pathspecs', 'hash-object', '--', f).catch(() => null);
+      return object && object === inParent.get(f) ? 'asInParent' : 'other';
     };
     const fromDisk: string[] = [];
+    const gone: string[] = [];
     for (const f of files) {
       const staged = indexed.get(f);
-      if (staged && (!unstaged.has(f) || (inParent.has(f) && (await asInParent(f))))) await git('update-index', '--add', '--cacheinfo', `${staged[0]},${staged[1]},${f}`);
-      else if (staged || !inParent.has(f)) fromDisk.push(f);
-      // staged for deletion: a copy on disk again counts only where it differs from what was deleted
-      else if (await asInParent(f)) await git('rm', '-q', '--cached', '--ignore-unmatch', '--', f);
+      // on disk as staged: the staged version
+      if (staged && !unstaged.has(f)) {
+        await git('update-index', '--add', '--cacheinfo', `${staged[0]},${staged[1]},${f}`);
+        continue;
+      }
+      const disk = await onDisk(f);
+      // deleted on disk, after an edit was staged or with its deletion staged: the deletion; a new file staged and then deleted: nothing
+      if (disk === 'gone') gone.push(f);
+      // back on disk as in `parent`: what the index holds, the staged edit or the staged deletion
+      else if (disk === 'asInParent' && staged) await git('update-index', '--add', '--cacheinfo', `${staged[0]},${staged[1]},${f}`);
+      else if (disk === 'asInParent') gone.push(f);
+      // edited on disk beyond what is staged, or new and untracked: as on disk
       else fromDisk.push(f);
     }
+    if (gone.length) await git('rm', '-q', '--cached', '--ignore-unmatch', '--', ...gone);
     if (fromDisk.length) await git('add', '-A', '--', ...fromDisk);
     const tree = await git('write-tree');
     return await git('commit-tree', tree, '-p', parent, '-m', message);

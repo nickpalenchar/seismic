@@ -377,6 +377,44 @@ describe('a worktree per card', () => {
     expect(git(main, 'status', '--porcelain')).toBe('');
   });
 
+  test('an edit staged in the checkout, then its file deleted on disk: folding carries the deletion', async () => {
+    writeFileSync(join(main, 'mine.ts'), 'a\nb\nc\n');
+    git(main, 'add', '.');
+    git(main, 'commit', '--quiet', '-m', 'mine');
+    const c = manual();
+    await workers.start(c.id);
+    commitIn(board.row(c.id).workstation!, 'mine.ts', 'card\nb\nc\n');
+    writeFileSync(join(main, 'mine.ts'), 'a\nb\nowner\n');
+    git(main, 'add', 'mine.ts');
+    rmSync(join(main, 'mine.ts'));
+    const sc = runtime.sessions.find((s) => s.spec.cwd === board.row(c.id).workstation)!;
+    await sc.call('ready_for_review', { summary: 'S', demo: artifact() });
+    sc.emit({ type: 'idle' });
+    expect(await workers.approve(c.id).catch((e) => e)).toMatchObject({ code: 'landMerge' });
+    expect(board.item(c.id)!.review?.blocked).toEqual({ files: ['mine.ts'] });
+    await workers.fold(c.id, false);
+    expect(gitOrNull(main, 'cat-file', '-e', `${git(main, 'rev-parse', 'refs/seismic/folded/' + c.id)}:mine.ts`)).toBeNull();
+    expect(git(main, 'status', '--porcelain')).toBe('');
+  });
+
+  test('a new file staged in the checkout, then deleted on disk: folding brings nothing of it and clears it from the index', async () => {
+    const c = manual();
+    await workers.start(c.id);
+    commitIn(board.row(c.id).workstation!, 'n.ts', 'card\n');
+    writeFileSync(join(main, 'n.ts'), 'owner\n');
+    git(main, 'add', 'n.ts');
+    rmSync(join(main, 'n.ts'));
+    const sc = runtime.sessions.find((s) => s.spec.cwd === board.row(c.id).workstation)!;
+    await sc.call('ready_for_review', { summary: 'S', demo: artifact() });
+    sc.emit({ type: 'idle' });
+    expect(await workers.approve(c.id).catch((e) => e)).toMatchObject({ code: 'landMerge' });
+    expect(board.item(c.id)!.review?.blocked).toEqual({ files: ['n.ts'] });
+    await workers.fold(c.id, true);
+    expect(git(main, 'status', '--porcelain')).toBe('');
+    // the card's own new file stands: what was folded in added nothing to it
+    expect(git(board.row(c.id).workstation!, 'show', 'HEAD:n.ts')).toBe('card');
+  });
+
   test('folded in for a new demo, a conflict stays under way for the worker, and the owner approves anew', async () => {
     const c = manual();
     await workers.start(c.id);
