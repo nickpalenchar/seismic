@@ -12,7 +12,7 @@ Wordmark header, to bring back once the wordmark is updated:
 
 A spatial canvas for directing AI coding agents.
 
-New info coming soon. More on [seismic.site](https://seismic.site).
+New info coming soon. More on [seismic.im](https://seismic.im).
 
 ## On your phone
 
