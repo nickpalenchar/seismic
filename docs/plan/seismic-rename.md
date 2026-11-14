@@ -13,7 +13,7 @@ The rename of 2026-11-07 (bfd10b25) changed the product name, UI strings, docs p
 3. **Git names.** Card branches `obeya/<slug>-<id>` and baseline tags `obeya/project/<id>/baseline`.
 4. **Browser state.** localStorage `obeya-theme`, the phone's project key, the draft key `obeya`, the owner cookie `obeya-<port>` and the header `X-Obeya-Key`.
 5. **Desktop app.** Bundle identifier `si.obeya`, binaries `obeya` / `obeya-server`, `Obeya.app`, installer names.
-6. **Repo files and names.** Package name, plugin name `obeya` (skills cited as `obeya:browser`), `.codex/rules/obeya.rules`, `scripts/scratch-obeya.ts`.
+6. **Repo files and names.** Package name, plugin name (now `seismic`, skills cited as `seismic:browser`), `.codex/rules/obeya.rules`, `scripts/scratch-obeya.ts`.
 7. **Code identifiers** (`toObeya`, `obeyaId`, `OBEYA_DRAFT`, `window.obeyaApp`, the Codex `clientInfo` "obeya" …): most of the hits, visible to nobody.
 
 Ties to upstream that still work and must go:

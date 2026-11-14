@@ -21,7 +21,7 @@ describe('what a worker is doing', () => {
   });
 
   test('the demo skill goes from preparing over recording to finalizing, and the handover ends it', () => {
-    const preparing = run(tool('Skill', { skill: 'obeya:demo' }), done('Skill'), tool('Write', { file_path: '/home/me/demos/shop-x/demo.ts' }), bash('cd /home/me/demos/shop-x && node demo.ts --dry'));
+    const preparing = run(tool('Skill', { skill: 'seismic:demo' }), done('Skill'), tool('Write', { file_path: '/home/me/demos/shop-x/demo.ts' }), bash('cd /home/me/demos/shop-x && node demo.ts --dry'));
     expect(shownDoing(preparing)).toBe('preparingDemo');
     const recording = run(() => preparing, bash('cd /home/me/demos/shop-x && node demo.ts'));
     expect(shownDoing(recording)).toBe('recordingDemo');

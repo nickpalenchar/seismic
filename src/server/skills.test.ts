@@ -8,17 +8,17 @@ describe('skillsOf', () => {
         { name: 'review', description: ' Reviews the branch (project) ', argumentHint: '<branch>' },
         { name: 'compact', description: 'Compacts the conversation', argumentHint: '', builtin: true },
         { name: 'code-review', description: 'Reviews the diff', argumentHint: '', builtin: true },
-        { name: 'obeya:demo', description: '(obeya) Records a demo', argumentHint: '' },
+        { name: 'seismic:demo', description: '(obeya) Records a demo', argumentHint: '' },
         { name: 'review', description: 'A second one of that name', argumentHint: '' },
         { name: 'changelog', description: 'Writes the changelog entry,\nfrom the commits (user)', argumentHint: '' },
       ],
-      new Set(['code-review', 'review', 'obeya:demo', 'changelog']),
+      new Set(['code-review', 'review', 'seismic:demo', 'changelog']),
     );
     // the repository's first, then the user's, the plugins', Claude Code's own; descriptions on one line
     expect(skills).toEqual([
       { name: 'review', description: 'Reviews the branch (project)', hint: '<branch>' },
       { name: 'changelog', description: 'Writes the changelog entry,' },
-      { name: 'obeya:demo', description: '(obeya) Records a demo' },
+      { name: 'seismic:demo', description: '(obeya) Records a demo' },
       { name: 'code-review', description: 'Reviews the diff' },
     ]);
   });

@@ -29,7 +29,7 @@ describe('workers', () => {
     const setup = board.setupCard(board.home, 'shop');
     await workers.start(setup.id);
     expect(runtime.last.inbox[0]).toContain('allow list');
-    expect(runtime.last.inbox[0]).toContain('The agent harnesses that can work on this machine, for the allow list the skill `obeya:settings` drafts: Claude Code, Codex. Ask the owner which of them to set it up for');
+    expect(runtime.last.inbox[0]).toContain('The agent harnesses that can work on this machine, for the allow list the skill `seismic:settings` drafts: Claude Code, Codex. Ask the owner which of them to set it up for');
     await workers.stop(setup.id);
     await workers.start(manual().id);
     expect(runtime.last.inbox[0]).not.toContain('agent harnesses');
@@ -1470,7 +1470,7 @@ describe('workers', () => {
     agent.emit({ type: 'toolDone', name: 'Bash', ok: true });
     expect(doing()).toBe('working');
     await until(() => doing() === 'thinking');
-    agent.emit({ type: 'tool', name: 'Skill', input: { skill: 'obeya:demo' } });
+    agent.emit({ type: 'tool', name: 'Skill', input: { skill: 'seismic:demo' } });
     expect(doing()).toBe('preparingDemo');
     agent.emit({ type: 'toolDone', name: 'Skill', ok: true });
     agent.emit({ type: 'tool', name: 'Bash', input: { command: 'cd ~/demos/shop-x && node demo.ts', run_in_background: true } });

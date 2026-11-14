@@ -652,7 +652,7 @@ describe('the configuration over HTTP', () => {
   test('makes the card that fills in the settings of a repository, once while it is open', async () => {
     const made = await call('POST', '/api/c/web/adapter-setup', { repo: 'web' });
     expect(made).toMatchObject({ status: 200, body: { title: 'Set up Seismic for web', state: 'planned' } });
-    expect(made.body.body).toContain('obeya:settings');
+    expect(made.body.body).toContain('seismic:settings');
     expect((await call('POST', '/api/c/web/adapter-setup', { repo: 'web' })).body.id).toBe(made.body.id);
     expect((await call('POST', '/api/c/web/adapter-setup', { repo: 'nope' })).status).toBe(400);
   });

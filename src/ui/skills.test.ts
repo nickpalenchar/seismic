@@ -16,8 +16,8 @@ test('a path, a slash inside a word, or a word already ended opens none', () => 
 });
 
 test('names that start with the query come first, also after a plugin prefix, then those that contain it', () => {
-  const skills = ['release-notes', 'seed-data', 'obeya:settings', 'code-review', 'security-review'].map((name) => ({ name, description: '' }));
-  expect(matching(skills, 'se').map((s) => s.name)).toEqual(['seed-data', 'obeya:settings', 'security-review', 'release-notes']);
+  const skills = ['release-notes', 'seed-data', 'seismic:settings', 'code-review', 'security-review'].map((name) => ({ name, description: '' }));
+  expect(matching(skills, 'se').map((s) => s.name)).toEqual(['seed-data', 'seismic:settings', 'security-review', 'release-notes']);
   expect(matching(skills, 'REVIEW').map((s) => s.name)).toEqual(['code-review', 'security-review']);
   expect(matching(skills, '')).toEqual(skills);
 });

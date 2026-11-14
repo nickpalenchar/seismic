@@ -1728,7 +1728,7 @@ describe("the skills of a card's agent", () => {
       c.board.work(task.id, { session_id: 'legacy-claude-session' });
       expect(await c.skillsOf(task.id)).toEqual([{ name: 'review', description: 'Reviews' }]);
       c.board.work(task.id, { agent_setting: JSON.stringify({ model: 'opus', effort: 'high', harness: 'codex' }) });
-      expect((await c.skillsOf(task.id)).map((s) => s.name)).toEqual(['obeya:browser', 'obeya:demo', 'obeya:labels', 'obeya:settings', 'obeya:titles']);
+      expect((await c.skillsOf(task.id)).map((s) => s.name)).toEqual(['seismic:browser', 'seismic:demo', 'seismic:labels', 'seismic:settings', 'seismic:titles']);
       expect(asked).toHaveLength(2); // Codex discovery never starts a Claude SDK session
       expect(await c.skillsOf('nope').catch(() => 'refused')).toEqual([]);
     } finally {

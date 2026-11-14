@@ -13,12 +13,12 @@ import type { FileAt } from './workstations';
 import { resource } from './resources';
 
 /**
- * The plugin Seismic loads into its workers' sessions: it brings the demo skill (`obeya:demo`), the
+ * The plugin Seismic loads into its workers' sessions: it brings the demo skill (`seismic:demo`), the
  * pipeline that records a demo. A Claude Code session without Seismic reaches the same skill through
  * the plugin or a user skill that points to `plugin/skills/demo`.
  */
 export const OBEYA_PLUGIN = resource('plugin');
-export const DEMO_SKILL = 'obeya:demo';
+export const DEMO_SKILL = 'seismic:demo';
 
 /** The demo skill's instructions, for a session that does not know the skill to read. */
 export const DEMO_SKILL_FILE = join(OBEYA_PLUGIN, 'skills', 'demo', 'SKILL.md');
@@ -42,7 +42,7 @@ const realpath = (path: string) => {
  * The name of the demo skill in a worker's session on this machine. Claude Code lists a skill file
  * once: a user skill that links to the plugin's (`~/.claude/skills/demo` pointing to
  * `plugin/skills/demo`, as a session without Seismic reaches the skill) is listed under its own name
- * instead, and the session knows no `obeya:demo`.
+ * instead, and the session knows no `seismic:demo`.
  */
 export function demoSkillName(skills = join(process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude'), 'skills'), file = DEMO_SKILL_FILE): string {
   const own = realpath(file);

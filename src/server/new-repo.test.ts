@@ -118,9 +118,9 @@ describe('building an idea in a new repository', () => {
     await until(() => runtime.sessions.some((s) => s.spec.role === 'worker' && s.inbox[0]?.includes('Class schedule')), 10_000);
     const brief = runtime.sessions.find((s) => s.spec.role === 'worker')!.inbox[0]!;
     expect(brief).toContain('This repository is new');
-    expect(brief).toContain('obeya:settings');
+    expect(brief).toContain('seismic:settings');
     expect(brief).toContain('CLAUDE.md');
-    expect(brief).toContain('The agent harnesses that can work on this machine, for the allow list the skill `obeya:settings` drafts: Claude Code');
+    expect(brief).toContain('The agent harnesses that can work on this machine, for the allow list the skill `seismic:settings` drafts: Claude Code');
   });
 
   test('„Rückgängig“ in the undo window leaves everything as it was', async () => {

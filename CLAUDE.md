@@ -31,7 +31,7 @@ its lasting decisions and constraints move into the design doc and the plan doc 
   cards in about a second (its header describes the stage file; `--stop <port>` ends it). Its
   workers are idle; with `--real-workers` they are real agents on the machine's Claude login.
 - UI checks run in a headless browser through the `browser` skill of Seismic's plugin
-  (`obeya:browser`; a session without the plugin reads `plugin/skills/browser/SKILL.md`): `input`
+  (`seismic:browser`; a session without the plugin reads `plugin/skills/browser/SKILL.md`): `input`
   for trusted clicks, drags, keys held for push-to-talk; `start --fake-mic <wav>` for voice. A
   claude-in-chrome tab is often hidden, which freezes `requestAnimationFrame`: camera flights and
   the unfold never finish there. For what headless Chromium can't reproduce (on-screen keyboard,

@@ -64,7 +64,7 @@ export function slashAt(text: string, caret: number): Slash | null {
 
 /**
  * The skills that fit `query`, case aside: those whose name, or its part after a plugin's prefix
- * (`obeya:demo`), starts with it first, then those that contain it; each group as listed.
+ * (`seismic:demo`), starts with it first, then those that contain it; each group as listed.
  */
 export function matching(skills: Skill[], query: string): Skill[] {
   const q = query.toLowerCase();

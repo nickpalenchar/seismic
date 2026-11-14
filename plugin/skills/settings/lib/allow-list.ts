@@ -65,7 +65,7 @@ if (commands.length) {
 }
 
 if (codex) {
-  const { file: rulesFile, skipped } = codexRules(text ?? '{}', 'the `allow-list.ts --codex` of the skill `obeya:settings`');
+  const { file: rulesFile, skipped } = codexRules(text ?? '{}', 'the `allow-list.ts --codex` of the skill `seismic:settings`');
   const out = join(repo.path, CODEX_RULES);
   mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, rulesFile);

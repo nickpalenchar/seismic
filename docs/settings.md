@@ -9,7 +9,7 @@ code, for one machine or, with "Take over into the repository for everyone", for
 
 The quickest way to get them: in "Configuration", a repository without settings of its own has
 "Have an agent fill them in". It puts a card on the
-repository's project whose worker writes them with the `obeya:settings` skill: it reads the
+repository's project whose worker writes them with the `seismic:settings` skill: it reads the
 repository, starts the app, records a demo with it to prove the recipe, and asks you what it
 cannot find out (a login, test data). It also drafts the allow list of commands agents run there
 without asking (the `Bash` rules of `.claude/settings.json`, which Seismic applies to its Codex

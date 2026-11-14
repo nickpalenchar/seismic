@@ -126,7 +126,7 @@ before trusting them.
 - Follow `app.run` word for word, as if you had never seen the project: start the
   app, open it, log in. Where the recipe falls short (a step missing, a port taken, data that is
   not there), fix the recipe, not just the running app, and run it again from the start.
-- Record a short demo with the demo skill (`obeya:demo`), the app run by the recipe and nothing
+- Record a short demo with the demo skill (`seismic:demo`), the app run by the recipe and nothing
   else: the app starting up, the login, a page with data. That demo is the proof and your
   handover's demo.
 

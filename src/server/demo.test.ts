@@ -184,7 +184,7 @@ describe('the plugin workers load', () => {
     expect(checkPlugin(join(dir, 'no-plugin'))).toBe(`${join(dir, 'no-plugin', '.claude-plugin', 'plugin.json')} is missing: workers' sessions have no demo skill`);
   });
 
-  test('the demo skill is obeya:demo, unless a user skill links to its file and takes its place', () => {
+  test('the demo skill is seismic:demo, unless a user skill links to its file and takes its place', () => {
     const skills = join(dir, 'skills');
     expect(demoSkillName(skills)).toBe(DEMO_SKILL);
     mkdirSync(join(skills, 'other'), { recursive: true });
