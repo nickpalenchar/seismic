@@ -39,8 +39,9 @@ export default function CodeDiff({ part, card, style }: { part: DiffPart; card: 
   const text = useMemo(() => part.lines.join('\n'), [part]);
   const file = part.file;
   const hunks = useMemo(() => parseHunks(text.split('\n')), [text]);
-  const ends = useMemo(() => endsFile(hunks), [hunks]);
   const changed = part.status === 'modified' || part.status === 'renamed';
+  // an added or deleted file's patch holds all of it, so nothing follows its last hunk
+  const ends = useMemo(() => !changed || endsFile(hunks), [hunks, changed]);
   // Every answer below (the probe, the whole files, the highlighting) is kept with the diff it was
   // asked for; one that comes back after the card, the file or its patch changed is never shown.
   const key = `${card}\n${file}\n${text}`;
