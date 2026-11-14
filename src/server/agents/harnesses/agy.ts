@@ -20,6 +20,9 @@ import { which } from '../../path';
 import { OWN_GROUP } from '../../spawn';
 import { cleanEnv, type AgentEvent, type AgentRuntime, type AgentSpec } from '../../runtime';
 import { AGY_CONVERSATION_ID } from '../../transcript';
+import { AgentProcesses, tolerateTimeouts } from './processes';
+import { observeEveryTick } from './codexRpc';
+import { sessionRegistry } from './sessionRegistry';
 import { AGY_SERVER, registerAgyTools, wireTools, type AgyRegistration } from './agyMcp';
 
 /** The installed `agy`, or null: `SEISMIC_AGY` first, else on the search path (which has its installer's directory). */
@@ -172,6 +175,9 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
       supported(spec);
       const command = executable();
       if (!command) throw new Error('Antigravity (agy) is not installed; set SEISMIC_AGY to its path');
+      // An earlier Seismic crashed and its sweep could not end this workstation's old session.
+      const left = sessionRegistry()?.unaccounted(spec.cwd);
+      if (left?.length) throw new Error(`An earlier session in this workstation left processes that are still running (${left.map((l) => l.label).join('; ')}); Seismic tries to end them when it starts`);
       const closeConfig = { current: () => {} };
       const emit = (event: AgentEvent) => { if (!closing) spec.onEvent(event); };
       const registration: AgyRegistration = {
@@ -197,6 +203,24 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
       let finish!: () => void;
       const done = new Promise<void>((resolve) => { finish = resolve; });
 
+      // What a crash of Seismic would leave behind (agy's own commands, which may detach from its
+      // group) is recorded as it is observed, as for Codex (sessionRegistry.ts).
+      const terminals = child.pid ? new AgentProcesses(child.pid) : undefined;
+      const record = terminals ? sessionRegistry()?.begin(`Antigravity in ${spec.cwd}`, spec.cwd) : undefined;
+      const publish = () => {
+        void record?.then((generation) => generation?.publish(terminals!.observed())).catch((error) => {
+          console.warn(`Session record not updated: ${messageOf(error)}`);
+        });
+      };
+      if (terminals && record) { terminals.onChange = publish; publish(); }
+      const observed = tolerateTimeouts();
+      let observing = false;
+      const stopObserving = observeEveryTick(() => {
+        if (observing || !terminals) return;
+        observing = true;
+        observed(terminals.track()).catch(() => { /* the next tick tries again */ }).finally(() => { observing = false; });
+      });
+
       const signal = (which: NodeJS.Signals) => {
         if (exited) return;
         try { if (OWN_GROUP && child.pid) process.kill(-child.pid, which); else child.kill(which); } catch { /* already gone */ }
@@ -205,6 +229,7 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
         if (closing) return;
         closing = true;
         endpoint.dispose();
+        void terminals?.track().catch(() => {});
         child.stdin?.end();
         terminate = setTimeout(() => signal('SIGTERM'), 1000);
         kill = setTimeout(() => signal('SIGKILL'), 3000);
@@ -277,19 +302,31 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
       child.stderr?.on('data', (chunk: Buffer) => { stderr = (stderr + chunk.toString()).slice(-4000); });
       child.stdin?.on('error', () => { /* the process is gone; its exit says why */ });
       child.on('error', (error) => failEnded(`Antigravity could not start: ${messageOf(error)}`));
+      child.on('exit', () => {
+        stopObserving();
+        // Do not wait for `close`: a command agy started may still hold its pipes open.
+        void terminals?.kill().catch(() => { /* retried at close */ });
+      });
       child.on('close', (code) => {
         exited = true;
+        stopObserving();
         clearTimeout(terminate);
         clearTimeout(kill);
         if (OWN_GROUP && child.pid) try { process.kill(-child.pid, 'SIGKILL'); } catch { /* none left */ }
         endpoint.dispose();
         closeConfig.current();
+        // The record goes only once every process is ended; a refused signal leaves it for the sweep.
+        void (async () => {
+          let ended = true;
+          try { await terminals?.kill(); } catch { ended = false; }
+          try { const generation = await record; if (ended) await generation?.finish(); else await generation?.abandon(); } catch (error) { console.warn(`Session record not settled: ${messageOf(error)}`); }
+          finish();
+        })();
         if (!closing) {
           const signedOut = /authentication|sign in|log ?in/i.test(stderr);
           failEnded(signedOut ? 'Antigravity is not signed in; the owner signs in with their Google account by running `agy` once' : `Antigravity exited${code === null ? '' : ` with code ${code}`}${stderr.trim() ? `: ${stderr.trim().split('\n').slice(-3).join(' ')}` : ''}`);
         }
         closing = true;
-        finish();
       });
 
       if (firstMessage !== undefined) send(firstMessage, images);

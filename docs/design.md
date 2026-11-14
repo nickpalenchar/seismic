@@ -268,6 +268,10 @@ Safety rules:
   the artifact's directory go out; site and voice credentials belong to the machine.
 - The owner's voice clone, recordings and demo videos never leave the machine through git.
 - Crash recovery ends only processes that still carry their recorded identity.
+- `agy --sandbox` does not end the commands an agent starts in the background: they outlive the turn
+  and agy's own exit (measured 2026-11-14, macOS). Seismic therefore observes the descendants of each
+  `agy` process like Codex's (every 500 ms) and ends them, or the sweep does after a crash. A command
+  that detaches (reparented to init) between two observations is not attributable and stays running.
 
 ## Chapters
 

@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import * as fsPromises from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { gitRepo } from '../../testing';
 import { processes } from './processes';
 import { environment, SessionRegistry, type SessionRecord } from './sessionRegistry';
 
@@ -234,6 +235,43 @@ require('node:fs').writeFileSync(${JSON.stringify(join(root, '..', 'leaf'))},Str
   expect(alive(canary.pid!)).toBe(true);
   expect(readdirSync(root)).toEqual([]);
 }, 20_000);
+
+test.skipIf(!supported)('a crash of the host of an agy session: the next sweep ends agy and the command it detached', async () => {
+  const root = scratch();
+  const repo = join(root, '..', 'repo');
+  gitRepo(repo);
+  const ready = join(root, '..', 'ready');
+  const leafFile = join(root, '..', 'leaf');
+  const agyCode = testProcessCode(`const {spawn}=require('node:child_process');
+const leaf=spawn(process.execPath,['-e',${JSON.stringify(testProcessCode())}],{detached:true,stdio:'ignore'});
+require('node:fs').writeFileSync(${JSON.stringify(leafFile)},String(leaf.pid));setInterval(()=>{},1000);`);
+  const host = spawn(process.execPath, ['-e', testProcessCode(`
+    import { createAgyRuntime } from ${JSON.stringify(join(import.meta.dir, 'agy'))};
+    import { SessionRegistry, useSessionRegistry } from ${JSON.stringify(join(import.meta.dir, 'sessionRegistry'))};
+    import { spawn } from 'node:child_process';
+    import { readFileSync } from 'node:fs';
+    useSessionRegistry(new SessionRegistry(${JSON.stringify(root)}));
+    let pid = 0;
+    const launch = (_c, _a, o) => { const child = spawn(process.execPath, ['-e', ${JSON.stringify(agyCode)}], { ...o, stdio: ['pipe', 'pipe', 'pipe'] }); pid = child.pid; return child; };
+    createAgyRuntime(launch, () => '/fake/agy').start({ cwd: ${JSON.stringify(repo)}, system: 's', tools: [], onEvent() {} });
+    let leaf = 0;
+    while (!leaf) { try { leaf = Number(readFileSync(${JSON.stringify(leafFile)}, 'utf8')); } catch {} await Bun.sleep(10); }
+    await Bun.sleep(1500); // the observation ticks pick the detached command up
+    await Bun.write(${JSON.stringify(ready)}, JSON.stringify([pid, leaf]));
+    setInterval(() => {}, 1000);`)], { detached: true, stdio: 'inherit' });
+  cleanup.push(() => { try { process.kill(host.pid!, 'SIGKILL'); } catch { /* gone */ } try { for (const pid of pidsOf(ready)) process.kill(pid, 'SIGKILL'); } catch { /* gone */ } });
+  const canary = start();
+  await until(() => existsSync(ready), 15000);
+  const [agy, leaf] = pidsOf(ready) as [number, number];
+  await crash(host);
+  expect(alive(agy) && alive(leaf)).toBe(true);
+  const [result] = new SessionRegistry(root).recover();
+  expect(result).toMatchObject({ outcome: 'recovered', label: expect.stringContaining('Antigravity') });
+  expect(result!.killed).toEqual(expect.arrayContaining([agy, leaf]));
+  await until(() => !alive(agy) && !alive(leaf));
+  expect(alive(canary.pid!)).toBe(true);
+  expect(readdirSync(root)).toEqual([]);
+}, 30_000);
 
 test.skipIf(!supported)('a Codex transport that ends in order removes its own record', async () => {
   const root = scratch();

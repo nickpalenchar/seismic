@@ -23,7 +23,7 @@ export async function endCodexHere(force = false) {
 /** One tick for every session, so their observations share one process snapshot. */
 const observers = new Set<() => void>();
 let ticker: ReturnType<typeof setInterval> | undefined;
-function observeEveryTick(observe: () => void) {
+export function observeEveryTick(observe: () => void) {
   observers.add(observe);
   if (!ticker) {
     ticker = setInterval(() => { for (const o of observers) o(); }, 500);

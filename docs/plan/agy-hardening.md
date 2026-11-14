@@ -8,7 +8,7 @@ Bring `agy` workers to the Codex level of crash recovery, process cleanup and tr
 
 ## Workstreams
 
-- [ ] **W1:** Process cleanup and crash recovery. Observe the processes an `agy` session starts (as
+- [x] **W1:** Process cleanup and crash recovery. Observe the processes an `agy` session starts (as
   `codexRpc.ts` does for Codex) and record them in the session registry, so that a crashed Seismic's
   sweep ends them. Check what `--sandbox` does with background commands and how `agy` ends them.
 - [x] **W2:** Transcript reading. `agy` keeps a conversation as a SQLite database,
