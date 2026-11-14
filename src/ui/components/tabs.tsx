@@ -25,7 +25,7 @@ const triggerVariants = cva('outline-none focus-visible:ring-[3px] focus-visible
   variants: {
     variant: {
       none: '',
-      segmented: "inline-flex items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-all focus-visible:border-ring data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm dark:data-[state=active]:border-input dark:data-[state=active]:bg-input/30 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+      segmented: "inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-all focus-visible:border-ring data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm dark:data-[state=active]:border-input dark:data-[state=active]:bg-input/30 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
       underline: 'cursor-pointer border-b-2 border-transparent bg-transparent px-0.5 py-2 text-sm text-muted-foreground [overflow-wrap:anywhere] hover:not-disabled:text-foreground data-[state=active]:border-waiting data-[state=active]:font-semibold data-[state=active]:text-foreground',
       pill: 'cursor-pointer rounded-xl border border-border bg-transparent px-3.5 py-1 text-sm text-muted-foreground data-[state=active]:border-foreground data-[state=active]:bg-foreground data-[state=active]:text-background',
     },
