@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { generic } from '../adapters/generic';
 import { BadRequest, Board } from './board';
@@ -413,6 +413,31 @@ describe('a worktree per card', () => {
     expect(git(main, 'status', '--porcelain')).toBe('');
     // the card's own new file stands: what was folded in added nothing to it
     expect(git(board.row(c.id).workstation!, 'show', 'HEAD:n.ts')).toBe('card');
+  });
+
+  test('a symbolic link pointed elsewhere in the checkout, its new target missing: folding carries the new link, not a deletion', async () => {
+    symlinkSync('a.txt', join(main, 'link'));
+    git(main, 'add', '.');
+    git(main, 'commit', '--quiet', '-m', 'link');
+    const c = manual();
+    await workers.start(c.id);
+    const ws = board.row(c.id).workstation!;
+    rmSync(join(ws, 'link'));
+    symlinkSync('b.txt', join(ws, 'link'));
+    git(ws, 'add', '.');
+    git(ws, 'commit', '--quiet', '-m', 'card link');
+    rmSync(join(main, 'link'));
+    symlinkSync('nowhere.txt', join(main, 'link'));
+    const sc = runtime.sessions.find((s) => s.spec.cwd === ws)!;
+    await sc.call('ready_for_review', { summary: 'S', demo: artifact() });
+    sc.emit({ type: 'idle' });
+    expect(await workers.approve(c.id).catch((e) => e)).toMatchObject({ code: 'landMerge' });
+    expect(board.item(c.id)!.review?.blocked).toEqual({ files: ['link'] });
+    await workers.fold(c.id, false);
+    const folded = git(main, 'rev-parse', 'refs/seismic/folded/' + c.id);
+    expect(git(main, 'ls-tree', folded, 'link')).toStartWith('120000');
+    expect(git(main, 'cat-file', 'blob', `${folded}:link`)).toBe('nowhere.txt');
+    expect(git(main, 'status', '--porcelain')).toBe('');
   });
 
   test('folded in for a new demo, a conflict stays under way for the worker, and the owner approves anew', async () => {

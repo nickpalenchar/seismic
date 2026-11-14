@@ -7,7 +7,7 @@
 // across stop and restart until the card's work has landed.
 
 import { existsSync, mkdirSync, readdirSync, realpathSync, renameSync, statSync } from 'node:fs';
-import { rm } from 'node:fs/promises';
+import { lstat, readlink, rm } from 'node:fs/promises';
 import { hostname } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { type CardDiff, cardDiff } from '../core/diff';
@@ -304,8 +304,10 @@ async function commitOf(repo: string, parent: string, files: string[], message: 
   const [indexed, unstaged, inParent] = await Promise.all([
     gitAsync(repo, '--literal-pathspecs', 'ls-files', '-s', '-z', '--', ...files).then(entries),
     gitAsync(repo, '--literal-pathspecs', 'diff', '--name-only', '-z', '--no-renames', '--', ...files).then((o) => new Set(list(o))),
-    gitAsync(repo, '--literal-pathspecs', 'ls-tree', '-r', '-z', parent, '--', ...files).then((o) => new Map(list(o).map((e) => [e.slice(e.indexOf('\t') + 1), e.split(/\s/)[2]!] as const))),
+    // `<mode> blob <object>\t<path>`
+    gitAsync(repo, '--literal-pathspecs', 'ls-tree', '-r', '-z', parent, '--', ...files).then((o) => new Map(list(o).map((e) => [e.slice(e.indexOf('\t') + 1), e.split(/\s/)] as const))),
   ]);
+  const fileMode = (await gitRun(repo, ['config', '--bool', 'core.fileMode'])).stdout.trim() !== 'false';
   const path = resolve(repo, await gitAsync(repo, 'rev-parse', '--git-path', `obeya-fold-${process.pid}-${Date.now()}`));
   const git = async (...args: string[]) => {
     const r = await spawnOutput([GIT, '-C', repo, '--literal-pathspecs', ...args], { env: { ...process.env, GIT_INDEX_FILE: path } });
@@ -314,11 +316,19 @@ async function commitOf(repo: string, parent: string, files: string[], message: 
   };
   try {
     await git('read-tree', parent);
-    // the file on disk: gone, back as in `parent` (where it holds no change of the owner's), or another copy
+    // the path on disk, as git would record it: gone, back as in `parent` (where it holds no change of the owner's), or another
+    // version; a symbolic link is its own entry (its target, also one that does not exist), never what it points to
     const onDisk = async (f: string): Promise<'gone' | 'asInParent' | 'other'> => {
-      if (!existsSync(join(repo, f))) return 'gone';
-      const object = await gitAsync(repo, '--literal-pathspecs', 'hash-object', '--', f).catch(() => null);
-      return object && object === inParent.get(f) ? 'asInParent' : 'other';
+      const at = join(repo, f);
+      const stat = await lstat(at).catch(() => null);
+      if (!stat) return 'gone';
+      const link = stat.isSymbolicLink();
+      const mode = link ? '120000' : fileMode && stat.mode & 0o111 ? '100755' : '100644';
+      const hashed = link
+        ? await spawnOutput([GIT, '-C', repo, 'hash-object', '--stdin'], { stdin: new Blob([await readlink(at)]) })
+        : await spawnOutput([GIT, '-C', repo, '--literal-pathspecs', 'hash-object', '--', f]);
+      const was = inParent.get(f);
+      return hashed.code === 0 && was && hashed.stdout.trim() === was[2] && (mode === was[0] || (!fileMode && !link && was[0] !== '120000')) ? 'asInParent' : 'other';
     };
     const fromDisk: string[] = [];
     const gone: string[] = [];
