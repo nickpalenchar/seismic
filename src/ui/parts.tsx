@@ -26,6 +26,7 @@ import { cn } from 'cn';
 import { Pill as BarPill } from './components/pill';
 import { Button } from './components/button';
 import { Badge } from './components/badge';
+import { DrawLine } from './components/draw-line';
 import { Popover, PopoverContent, PopoverTrigger, useHoverOpen } from './components/popover';
 import { MenuItem } from './components/menu';
 import { Tooltip } from './components/tooltip';
@@ -323,10 +324,9 @@ export function ProjectAgents({ project, item }: { project: ProjectInfo; item?: 
       className={cn(
         // where a finger taps, the button's reach (its ::after) is the row's whole height and the end of the row the row leaves free, not the small mark
         'absolute top-1/2 right-2.5 flex h-5 w-[26px] -translate-y-1/2 items-center justify-center [@media(hover:none)]:inset-y-0 [@media(hover:none)]:right-0 [@media(hover:none)]:h-auto [@media(hover:none)]:w-11 [@media(hover:none)]:translate-y-0',
-        pause &&
-          "before:h-0.5 before:w-[26px] before:animate-[draw_1.6s_cubic-bezier(.5,0,.3,1)_infinite] before:content-[''] before:[background:linear-gradient(90deg,var(--working)_0_50%,transparent_50%)_0_0/200%_100%_no-repeat,--alpha(var(--working)/22%)] group-focus-within/project:before:hidden group-hover/project:before:hidden [@media(hover:none)]:before:hidden",
       )}
     >
+      {pause && <DrawLine className="w-[26px] group-focus-within/project:hidden group-hover/project:hidden [@media(hover:none)]:hidden" />}
       <Tooltip content={label} side="right">
         {item ? (
           <MenuItem asChild disabled={asked || !item.active} onSelect={(e) => e.preventDefault()}>

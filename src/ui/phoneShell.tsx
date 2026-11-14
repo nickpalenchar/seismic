@@ -26,6 +26,7 @@ import { projectPath, cardPath, named, projectNamed, queryWithout, readAddress }
 import { layerOpen } from './components/ui';
 import { Badge } from './components/badge';
 import { PillButton } from './components/pill';
+import { DrawLine } from './components/draw-line';
 import { cn } from 'cn';
 import { usePhoneEnvironment, pageClass } from './phoneEnvironment';
 import { usePhoneProjects } from './phoneProjects';
@@ -600,15 +601,14 @@ export function TalkButton({ label, shown, n, count, working, onClick }: { label
       className={cn(
         phoneControl,
         'left-[max(14px,env(safe-area-inset-left))] px-3.5 text-foreground active:[transform:translateY(1px)] active:shadow-none ph-landscape:bottom-[calc(14px+env(safe-area-inset-bottom))] [&_svg]:size-5',
-        // the conversation shows an agent at work: the moving line of a working card, along the button's foot
-        working &&
-          "after:absolute after:inset-x-2.5 after:bottom-[5px] after:h-0.5 after:animate-[draw_1.6s_cubic-bezier(.5,0,.3,1)_infinite] after:content-[''] after:[background:linear-gradient(90deg,var(--working)_0_50%,transparent_50%)_0_0/200%_100%_no-repeat,--alpha(var(--working)/22%)]",
       )}
       aria-expanded={shown}
       aria-label={shown ? t.phone.closeTalk : label}
       onClick={onClick}
     >
       <TalkIcon />
+      {/* the conversation shows an agent at work: the moving line of a working card, along the button's foot */}
+      {working && <DrawLine className="absolute inset-x-2.5 bottom-[5px] w-auto" />}
       {!shown && n > 0 && (
         <Badge variant="count" tone="waiting" title={count}>
           {n}

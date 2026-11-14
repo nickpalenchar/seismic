@@ -85,12 +85,11 @@ const severity: Record<Severity, string> = {
 export const severityBadge = (s: Severity) =>
   cn('f-sev self-center text-[11px] leading-4 rounded-[4px] px-[5px] text-[var(--badge-ink,var(--sev))] bg-[color:--alpha(var(--sev)/16%)]', s, severity[s]);
 
-/** A line drawing itself after the badge of what the agent is fixing (the `draw` keyframes). */
-const fixingLine =
-  "relative mr-[30px] after:content-[''] after:absolute after:left-[calc(100%+5px)] after:top-[calc(50%-1px)] after:w-6 after:h-0.5 after:[background:linear-gradient(90deg,var(--color-teal-800)_0_50%,transparent_50%)_0_0/200%_100%_no-repeat,--alpha(var(--color-teal-800)/22%)] after:animate-[draw_1.6s_cubic-bezier(.5,0,.3,1)_infinite]";
+/** "Fixing" on a review card's finding the owner gave the card's agent, with room after it for its moving line (`fixingLine`). */
+export const fixingBadge = 'f-fixing relative mr-[30px] self-center text-[11px] leading-4 text-teal-50 bg-teal-800 rounded-[4px] px-[5px]';
 
-/** "Fixing" on a review card's finding the owner gave the card's agent. */
-export const fixingBadge = cn('f-fixing self-center text-[11px] leading-4 text-teal-50 bg-teal-800 rounded-[4px] px-[5px]', fixingLine);
+/** The moving line (a `DrawLine`) inside the fixing badge, drawn in the room after it. */
+export const fixingLine = 'absolute left-[calc(100%+5px)] top-[calc(50%-1px)] w-6';
 
 /** Each status of a code review's item, in its colours. */
 const pills: Record<string, string> = {

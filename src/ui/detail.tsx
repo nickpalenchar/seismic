@@ -65,10 +65,11 @@ import { Tooltip } from './components/tooltip';
 import { Textarea } from './components/input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './components/collapsible';
 import { Badge, badgeVariants } from './components/badge';
+import { DrawLine } from './components/draw-line';
 import { cn } from 'cn';
 import { coverClass } from './coverClasses';
 import { actionsClass, bodyClass, conversationBox, conversationList, headClass, questionClass, choiceClass, choicesClass, pickTag, stateClass, statusClass, titleClass, titleFieldClass } from './cardClasses';
-import { badClass, blockedFiles, bundleClass, bundleHead, checksClass, clashClass, clashPush, clashWhat, decidedLines, decidedTasks, findingChevron, findingChoices, findingClass, findingContext, findingContextButton, findingFold, findingHead, findingLog, findingNo, findingNote, findingReopen, findingRow, findingsClass, findingsHead, findingStatus, findingTag, findingText, findingWhere, fixingBadge, reviewBusy, reviewClean, reviewCount, reviewOutdated, reviewRunningDot, reviewSubmit, severityBadge, statusPill } from './reviewClasses';
+import { badClass, blockedFiles, bundleClass, bundleHead, checksClass, clashClass, clashPush, clashWhat, decidedLines, decidedTasks, findingChevron, findingChoices, findingClass, findingContext, findingContextButton, findingFold, findingHead, findingLog, findingNo, findingNote, findingReopen, findingRow, findingsClass, findingsHead, findingStatus, findingTag, findingText, findingWhere, fixingBadge, fixingLine, reviewBusy, reviewClean, reviewCount, reviewOutdated, reviewRunningDot, reviewSubmit, severityBadge, statusPill } from './reviewClasses';
 
 /** A prototype whose idea became a plan: the workstream to build on it, on a line of its own above the buttons. */
 const buildOnClass = 'build-on basis-full flex flex-col gap-1 text-xs text-muted-foreground';
@@ -645,7 +646,7 @@ export function Detail(p: Props) {
       {editable ? <ManualTitle item={item} onEdit={p.onEdit} /> : <div className={titleClass}>{shownTitle(item)}</div>}
       <div className={cn(stateClass, finishingUp(item) && 'finishing', (isPaused(item) || snoozeOf(item) || inParkingLot(item)) && 'paused', (item.hold?.reason === 'restart') && 'restart-paused', item.queue && 'restart' in item.queue && 'restart-paused', item.review?.resolvingConflicts && 'resolving-conflicts', item.review?.codeReview?.state === 'running' && 'reviewing', mergeProposed(item) && 'merge-proposed', item.idea?.proposal?.merge && 'merging')}>
         {mergeProposed(item) ? <Lightbulb className="merge-mark" size={13} aria-hidden /> : item.idea?.proposal?.merge ? <GitMerge className="merge-mark" size={13} strokeWidth={1.75} aria-hidden /> : asksYou(item) ? <QuestionMark /> : (item.hold?.reason === 'restart') ? <RestartMark /> : item.queue && 'restart' in item.queue ? <HourglassMark /> : inParkingLot(item) ? <Car size={13} aria-hidden /> : item.state === 'proposal' ? '✦' : '●'} {stoppedAtOf(item) ? <StoppedWords stopped={stoppedAtOf(item)!} /> : stateLabel(item)}
-        {item.review?.codeReview?.state === 'running' && <span aria-hidden className="ml-2 inline-block h-0.5 w-9 align-middle [--track:--alpha(var(--c)/22%)] [background:linear-gradient(90deg,var(--c)_0_50%,transparent_50%)_0_0/200%_100%_no-repeat,var(--track)] animate-[draw_1.6s_cubic-bezier(.5,0,.3,1)_infinite] motion-reduce:animate-none" />}
+        {item.review?.codeReview?.state === 'running' && <DrawLine color="var(--c)" className="ml-2 motion-reduce:after:animate-none" />}
         {snoozeOf(item) ? (
           <span className={statusClass}> · {snoozeWho(snoozeOf(item)!)}</span>
         ) : item.review?.resolvingConflicts ? (
@@ -2631,7 +2632,12 @@ function FindingList({ item, findings, decides }: { item: Item; findings: Findin
     const head = (
       <>
         <span className={findingNo}>{f.id}</span>
-        {fixing && <span className={fixingBadge}>{t.codeReview.fixing}</span>}
+        {fixing && (
+          <span className={fixingBadge}>
+            {t.codeReview.fixing}
+            <DrawLine color="var(--color-teal-800)" className={fixingLine} />
+          </span>
+        )}
         {f.severity && <span className={severityBadge(f.severity)}>{t.codeReview.severity[f.severity]}</span>}
         <b>{f.title}</b>
         {f.security && <span className={findingTag}>{t.review.security}</span>}

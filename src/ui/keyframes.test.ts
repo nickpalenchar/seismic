@@ -43,9 +43,13 @@ test('a keyframe commented out counts as missing', () => {
   expect(keyframes(uncommented('/* @keyframes flow { to { opacity: 0; } } */')).has('flow')).toBe(false);
 });
 
-test('the working bar moves by transform alone, which repaints nothing', async () => {
-  const flow = keyframes(await linkedCss()).get('flow')!;
-  const properties = [...flow.matchAll(/([\w-]+)\s*:/g)].map((m) => m[1]!);
+// docs/design.md: an animation that repaints a card every frame makes zoomed-out cards shimmer. The endless ones
+// (the working bar, the moving line of a card at work, a workstation's dot at work, the pin) move transform and
+// opacity alone, which the compositor does without repainting.
+test.each(['flow', 'draw', 'ws-pulse', 'pulse'])('the endless animation %s moves only transform and opacity', async (name) => {
+  const body = keyframes(await linkedCss()).get(name);
+  expect(body).toBeDefined();
+  const properties = [...body!.matchAll(/([\w-]+)\s*:/g)].map((m) => m[1]!);
   expect(properties.length).toBeGreaterThan(0);
   for (const p of properties) expect(['transform', 'opacity']).toContain(p);
 });

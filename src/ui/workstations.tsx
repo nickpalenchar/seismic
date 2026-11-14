@@ -15,9 +15,13 @@ import { Tooltip } from './components/tooltip';
 
 /** The colours of a card's state that pulse on its workstation's dot: at work, in review, landing. */
 const PULSING = new Set(['working', 'reviewing', 'approved']);
-/** The pulse of a dot at work (`ws-pulse` in frost.css); under reduced motion a ring in its colour around a dot that stands still. */
+/**
+ * The pulse of a dot at work: its pale fill under its full fill (`::after`) and glow (`::before`, round the outline),
+ * which fade out and back (`ws-pulse` in frost.css); under reduced motion a ring in its colour around a dot that
+ * stands still. In place of the dot's own fill (`bg-c`).
+ */
 const pulse =
-  "relative animate-[ws-pulse_3.6s_ease-in-out_infinite] reduced:animate-none reduced:border-2 reduced:border-[var(--c)] reduced:bg-transparent reduced:shadow-none reduced:after:absolute reduced:after:top-1/2 reduced:after:left-1/2 reduced:after:size-1 reduced:after:[transform:translate(-50%,-50%)] reduced:after:rounded-[50%] reduced:after:bg-c reduced:after:content-['']";
+  "relative bg-c-subtle shadow-[0_0_1px_var(--c-subtle)] before:absolute before:-inset-px before:rounded-full before:shadow-[0_0_6px_var(--c)] before:content-[''] before:animate-[ws-pulse_3.6s_ease-in-out_infinite] after:absolute after:inset-0 after:rounded-full after:bg-c after:content-[''] after:animate-[ws-pulse_3.6s_ease-in-out_infinite] reduced:border-2 reduced:border-[var(--c)] reduced:bg-transparent reduced:shadow-none reduced:before:hidden reduced:after:animate-none reduced:after:inset-auto reduced:after:top-1/2 reduced:after:left-1/2 reduced:after:size-1 reduced:after:[transform:translate(-50%,-50%)]";
 
 /**
  * A workstation's dot, the same on the pill and in its list: in the colour of its card's state as
@@ -51,7 +55,7 @@ export function wsDot(w: PoolWorkstation | undefined, host: PoolHost, items: Ite
   if (item?.hold?.reason === 'restart') return { className: 'block text-[var(--restart)]', paused: true, fill: 'var(--restart)' };
   if (!tone) return { className: cn(dot, 'bg-working/35'), fill: 'var(--working-wash)' };
   return {
-    className: cn(dot, 'bg-c', PULSING.has(tone) && pulse),
+    className: cn(dot, PULSING.has(tone) ? pulse : 'bg-c'),
     style: stateVars(tone) as CSSProperties,
     fill: stateVars(tone)['--c'],
     pulsing: PULSING.has(tone),
@@ -329,7 +333,7 @@ export function WorkingRows({ cards, pools, items, underway, projects, onOpen, o
         const tone = cardTone(i, underway[i.id]);
         return (
           <li key={i.id} className="grid grid-cols-[12px_minmax(0,1fr)] items-start gap-x-2 py-1">
-            <WorkstationMark dot={{ className: cn('ws-dot box-border block rounded-full border border-slate-500 bg-c', PULSING.has(tone) && pulse), style: stateVars(tone) as CSSProperties }} className="mt-[5px]" />
+            <WorkstationMark dot={{ className: cn('ws-dot box-border block rounded-full border border-slate-500', PULSING.has(tone) ? pulse : 'bg-c'), style: stateVars(tone) as CSSProperties }} className="mt-[5px]" />
             <button type="button" className="-mx-1.5 -my-0.5 block min-w-0 cursor-pointer rounded-[6px] border-0 bg-transparent px-1.5 py-0.5 text-left text-inherit hover:bg-muted focus-visible:bg-muted [&_.f-dot]:hidden" onClick={() => onOpen(i)}>
               <CardFace item={i} size="xs" workstation underway={underway[i.id]} />
             </button>

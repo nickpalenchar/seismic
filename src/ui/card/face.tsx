@@ -8,10 +8,11 @@ import type { Item } from '../../core/types';
 import { OtherCanvas, useOtherCanvas } from '../canvases';
 import { stateLabel, t } from '../strings';
 import { hasChips, hasLabels, LabelMarks, PriorityMark } from './labels';
-import { LIST_DOING, cardFlags, type CardPlace, chipLabelClass, dotClass, faceClass, kindClass, lineClass, listStateClass, listStateTextClass, listTextClass, listTitleClass, listTitleTextClass, metaClass, pinClass, shortStateClass, stateClass, stateTextClass, topClass, ttlClass, whereClass, wordsClass, wsLabelClass } from './faceClasses';
+import { LIST_DOING, cardFlags, type CardPlace, chipLabelClass, dotClass, faceClass, kindClass, lineClass, listStateClass, listStateTextClass, listTextClass, listTitleClass, listTitleTextClass, metaClass, pinClass, shortStateClass, stateClass, stateLineClass, stateTextClass, topClass, ttlClass, whereClass, wordsClass, wsLabelClass } from './faceClasses';
 import { Pin, PinDot, shownTitle, StateMarks, StateText, StoppedWords, Title, UnreadDot } from './pieces';
 import { cardKind, cardSummary, cardTone, stateVars } from './summary';
 import { Badge } from '../components/badge';
+import { DrawLine } from '../components/draw-line';
 
 export type CardSize = 'm' | 's' | 'xs' | 'inline';
 
@@ -122,6 +123,8 @@ function FaceM({ item, where, underway, since, chip, subtle, mergePartner, place
   // a plain task says nothing of its kind: that it is one shows
   const label = [item.state === 'proposal' && t.proposalMark, where, s.kind].filter(Boolean);
   const labelled = hasLabels(item);
+  // the moving line at the end of the state line while an agent is at it
+  const moving = stateLineClass(f, { ...at, doingNow: s.state.live });
   return (
     <>
       {(label.length > 0 || labelled) && (
@@ -146,6 +149,7 @@ function FaceM({ item, where, underway, since, chip, subtle, mergePartner, place
         <span className={stateTextClass(at)}>
           <StateText state={s.state} since={since} />
         </span>
+        {moving && <DrawLine color="var(--c)" className={moving} />}
       </div>
       {s.pin && (subtle ? <PinDot pin={s.pin} /> : <Badge variant="pin" pulse className={pinClass(f, at)}>{s.pin.mark}</Badge>)}
     </>

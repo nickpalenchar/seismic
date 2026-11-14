@@ -22,8 +22,10 @@ html, body { margin: 0; height: 100%; overflow: hidden; background-color: var(--
    The name is Tailwind's too (its `animate-pulse`), so it stays here, unlayered, where the pin's `animate-[pulse_…]` finds it. */
 @keyframes pulse { 0% { transform: none; opacity: .85; } 80%, 100% { transform: scale(2.1); opacity: 0; } }
 
-/* the working bars' and fixing badges' glow, running left to right (`animate-[draw_…]`) */
-@keyframes draw { 0% { background-position: 100% 0; } 55% { background-position: 0 0; } 100% { background-position: -100% 0; } }
+/* the moving line of something at work (components/draw-line.tsx): its stroke slides in from the left under the
+   line's clipping edge, fills it, and slides out to the right; a moving background repainted the card under it
+   every frame (docs/design.md: animate transform and opacity only) */
+@keyframes draw { 0% { transform: translateX(-100%); } 55% { transform: none; } 100% { transform: translateX(100%); } }
 
 /* a glow running along a bar, left to right: the working bar (components/working-bar.tsx) and the one under a waiting
    button (`armed` in components/button.tsx). The glow lies on a strip four times the bar's width, two glows on it,
@@ -58,17 +60,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; background-color: var(--
    and the cards take the tint they have zoomed out (card/faceClasses.ts) */
 :root[data-motion="reduce"] { --glass: var(--surface); }
 
-/* a workstation's dot whose card is at work, in review or landing (workstations.tsx `wsDot`, the dot's colour in
-   --c): its fill and glow pulse slowly while the outline stays. Here rather than in tailwind.css, whose
-   build empties keyframes that mix a per-element colour */
-@keyframes ws-pulse {
-  0%, 40%, 100% {
-    background-color: var(--c);
-    box-shadow: 0 0 6px var(--c);
-  }
-  70% {
-    background-color: var(--c-subtle);
-    box-shadow: 0 0 1px var(--c-subtle);
-  }
-}
+/* a workstation's dot whose card is at work, in review or landing (workstations.tsx `pulse`): its fill and glow, laid
+   over the dot's pale fill, fade slowly out and back while the outline stays. By opacity, which repaints nothing,
+   where a pulsing background and shadow repainted the dot every frame */
+@keyframes ws-pulse { 0%, 40%, 100% { opacity: 1; } 70% { opacity: 0; } }
 

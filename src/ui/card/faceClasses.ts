@@ -392,15 +392,10 @@ export const metaClass = (p: FaceMPlace) =>
     .join(' ');
 
 
-/** M: the state line at the card's foot, in its state's colour; the moving line after it while an agent is at it (`doingNow`: under it). */
+/** M: the state line at the card's foot, in its state's colour (the moving line after it: `stateLineClass`). */
 export function stateClass(f: CardFlags, p: FaceMPlace & { doingNow?: boolean }) {
   const phone = p.place === 'phone';
   const activity = p.place === 'activity';
-  const line =
-    (f.q && f.thinking) || (f.idea && f.thinking) || (f.proposal && f.thinking) || f.underway || f.state === 'working' || (f.waiting && f.answering) || f.finishing || f.reviewing;
-  const still = f.paused || f.snoozed || f.restartPaused || f.restartQueued || f.limitPaused || p.subtle || p.half === 'partner';
-  // the thinking ones weigh more than the line run thin under a state line
-  const thick = (f.q && f.thinking) || (f.idea && f.thinking) || (f.proposal && f.thinking) || (f.waiting && f.answering);
   const where = phone
     ? p.doingNow
       ? 'relative left-0 right-[14px] bottom-[10px] mt-auto pt-2 pb-1.5 gap-0'
@@ -436,12 +431,29 @@ export function stateClass(f: CardFlags, p: FaceMPlace & { doingNow?: boolean })
     phone
       ? '[&_:is(.hourglass-mark,.merge-mark)]:-mr-0.5 [&_:is(.clock-mark,.question-mark,.restart-mark)]:mr-[5px] [&_:is(.clock-mark,.question-mark,.restart-mark)]:align-[-1px] [&_.doing]:whitespace-pre [&_.since]:text-muted-foreground [&_.since]:font-medium [&_.since]:whitespace-pre'
       : '[&_:is(.clock-mark,.question-mark,.restart-mark,.hourglass-mark,.merge-mark)]:-mr-0.5',
-    // the moving line: a pencil stroke being drawn, again and again
-    // (its faint track comes through a custom property: a colour mix in the pseudo-element's own background did not apply)
-    line && !still && "[--track:--alpha(var(--c)/22%)] after:content-[''] after:flex-none after:w-9 after:mr-[100%] after:[background:linear-gradient(90deg,var(--c)_0_50%,transparent_50%)_0_0/200%_100%_no-repeat,var(--track)] after:animate-[draw_1.6s_cubic-bezier(.5,0,.3,1)_infinite]",
-    line && !still && (p.doingNow && !thick ? 'after:h-px' : 'after:h-0.5'),
-    line && !still && p.doingNow && (phone || activity ? 'after:absolute after:left-0 after:bottom-0' : 'after:absolute after:left-0 after:bottom-[-5px]'),
-    line && !still && phone && !p.doingNow && 'after:ml-[7px]',
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
+
+/**
+ * M: the moving line (a `DrawLine`, a pencil stroke being drawn again and again) at the end of the state line while an
+ * agent is at it (`doingNow`: under it); undefined where none moves.
+ */
+export function stateLineClass(f: CardFlags, p: FaceMPlace & { doingNow?: boolean }) {
+  const phone = p.place === 'phone';
+  const activity = p.place === 'activity';
+  const line =
+    (f.q && f.thinking) || (f.idea && f.thinking) || (f.proposal && f.thinking) || f.underway || f.state === 'working' || (f.waiting && f.answering) || f.finishing || f.reviewing;
+  const still = f.paused || f.snoozed || f.restartPaused || f.restartQueued || f.limitPaused || p.subtle || p.half === 'partner';
+  if (!line || still) return undefined;
+  // the thinking ones weigh more than the line run thin under a state line
+  const thick = (f.q && f.thinking) || (f.idea && f.thinking) || (f.proposal && f.thinking) || (f.waiting && f.answering);
+  return [
+    'mr-[100%]',
+    p.doingNow && !thick ? 'h-px' : 'h-0.5',
+    p.doingNow && (phone || activity ? 'absolute left-0 bottom-0' : 'absolute left-0 bottom-[-5px]'),
+    phone && !p.doingNow && 'ml-[7px]',
   ]
     .filter(Boolean)
     .join(' ');

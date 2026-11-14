@@ -18,6 +18,7 @@ import { failText, t } from './strings';
 import { UsagePill } from './usage';
 import { obeyaWorks, runs } from './talk';
 import { Badge } from './components/badge';
+import { DrawLine } from './components/draw-line';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './components/collapsible';
 import { TalkIcon } from './parts';
 import { hostSpots, WorkingRows, WorkstationDots } from './workstations';
@@ -413,8 +414,10 @@ function FloatingBar({ needsYou, making, chat, chatWorking, onNew, onChat, onSea
       <button className={barButton} aria-label={t.phone.next.menu} onClick={onMenu}>
         <Menu aria-hidden="true" />
       </button>
-      <button className={cn(barButton, chatWorking && "after:absolute after:inset-x-2.5 after:bottom-1 after:h-0.5 after:animate-[draw_1.6s_cubic-bezier(.5,0,.3,1)_infinite] after:content-[''] after:[background:linear-gradient(90deg,var(--working)_0_50%,transparent_50%)_0_0/200%_100%_no-repeat,--alpha(var(--working)/22%)]")} aria-label={t.phone.next.chat} title={chat ? t.koordinator.unreadCount(chat) : undefined} onClick={onChat}>
+      <button className={barButton} aria-label={t.phone.next.chat} title={chat ? t.koordinator.unreadCount(chat) : undefined} onClick={onChat}>
         <TalkIcon />
+        {/* the conversation shows an agent at work: the moving line of a working card, along the button's foot */}
+        {chatWorking && <DrawLine className="absolute inset-x-2.5 bottom-1 w-auto" />}
         {chat > 0 && (
           <Badge variant="count" tone="waiting" className="absolute top-0.5 right-0.5">
             {chat}
