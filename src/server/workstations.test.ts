@@ -5,11 +5,22 @@ import { join } from 'node:path';
 import { Board } from './board';
 import { Store } from './store';
 import { gitRepo, identify, until } from './testing';
-import { addTrailer, defaultBranch, git, Workstations } from './workstations';
+import { addTrailer, defaultBranch, git, Workstations, namedInRefusal } from './workstations';
 
 let dir: string;
 beforeEach(() => (dir = mkdtempSync(join(tmpdir(), 'obeya-branch-'))));
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
+
+describe('what git names in its refusal', () => {
+  test('a merge lists the files it would overwrite; a reset names entries not up to date', () => {
+    const merge = "git merge --ff-only in /r: error: Your local changes to the following files would be overwritten by merge:\n\tsrc/a.ts\n\tsrc/b c.ts\nPlease commit your changes or stash them before you merge.\nAborting";
+    expect(namedInRefusal(merge)).toEqual(['src/a.ts', 'src/b c.ts']);
+    const untracked = 'error: The following untracked working tree files would be overwritten by merge:\n\tnew.ts\nPlease move or remove them before you merge.';
+    expect(namedInRefusal(untracked)).toEqual(['new.ts']);
+    expect(namedInRefusal("error: Entry 'x.ts' not uptodate. Cannot merge.\nfatal: Could not reset index file to revision 'abc'.")).toEqual(['x.ts']);
+    expect(namedInRefusal('fatal: something else')).toEqual([]);
+  });
+});
 
 describe('the main branch', () => {
   test("is origin's HEAD where the checkout knows one, whatever branch it is on", () => {

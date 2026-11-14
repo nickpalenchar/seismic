@@ -1609,11 +1609,11 @@ export class Workers {
     const card = this.card(cardId);
     if (!handedOver(card) || this.landing.has(cardId) || this.approving.has(cardId) || card.state !== 'waiting') throw new BadRequest('notReady', 'the card is not ready for review');
     const row = this.o.board.row(cardId);
-    const { blocked: _, ...detail } = this.detailOf(cardId);
+    const { blocked, ...detail } = this.detailOf(cardId) as { blocked?: { files: string[] } };
     this.landing.add(cardId);
     let folded;
     try {
-      folded = await this.o.workstations.foldMain(cardId, row.branch!);
+      folded = await this.o.workstations.foldMain(cardId, row.branch!, blocked?.files);
     } finally {
       this.landing.delete(cardId);
     }

@@ -271,15 +271,41 @@ async function inTheWay(repo: string, head: string, tip: string): Promise<string
 }
 
 /**
- * A commit on `parent` holding the checkout's `files` as they are on disk (deleted ones deleted),
- * or as staged where the file on disk is as in `parent` and only the index changed it, made in an
- * index of its own: the checkout's index and branch stay as they are.
+ * The files git names in its refusal to overwrite the checkout's changes (a merge's list under
+ * "would be overwritten by merge:", an `Entry '…' not uptodate`): what stood in the way where
+ * `inTheWay` saw nothing, so that the owner is still offered to fold them in.
+ */
+export function namedInRefusal(message: string): string[] {
+  const named = new Set<string>();
+  let listing = false;
+  for (const line of message.split('\n')) {
+    const entry = /Entry '(.+)' (?:not uptodate|would be)/.exec(line);
+    if (entry) named.add(entry[1]!);
+    if (listing && /^\t/.test(line)) {
+      named.add(line.trim());
+      continue;
+    }
+    listing = /would be (?:overwritten|removed) by .*:\s*$/.test(line);
+  }
+  return [...named].sort();
+}
+
+/**
+ * A commit on `parent` holding the checkout's `files` as the owner left them, made in an index of its
+ * own: the checkout's index and branch stay as they are. A file edited on disk beyond what is
+ * staged comes as on disk; one whose disk copy is as staged, as staged (also where the file on disk
+ * went back to `parent`'s and only the index holds the change); one staged for deletion goes, also
+ * where it is back on disk as in `parent`; a new file git does not track comes as on disk.
  */
 async function commitOf(repo: string, parent: string, files: string[], message: string): Promise<string> {
-  const onDisk = new Set((await gitAsync(repo, '--literal-pathspecs', 'diff', '--name-only', '-z', '--no-renames', parent, '--', ...files)).split('\0').filter(Boolean));
-  const untracked = new Set((await gitAsync(repo, '--literal-pathspecs', 'ls-files', '-z', '--others', '--exclude-standard', '--', ...files)).split('\0').filter(Boolean));
-  const stagedOnly = files.filter((f) => !onDisk.has(f) && !untracked.has(f));
-  const entries = stagedOnly.length ? await gitAsync(repo, '--literal-pathspecs', 'ls-files', '-s', '-z', '--', ...stagedOnly) : '';
+  const list = (out: string) => out.split('\0').filter(Boolean);
+  // `<mode> <object> <stage>\t<path>`
+  const entries = (out: string) => new Map(list(out).map((e) => [e.slice(e.indexOf('\t') + 1), e.split(/\s/)] as const));
+  const [indexed, unstaged, inParent] = await Promise.all([
+    gitAsync(repo, '--literal-pathspecs', 'ls-files', '-s', '-z', '--', ...files).then(entries),
+    gitAsync(repo, '--literal-pathspecs', 'diff', '--name-only', '-z', '--no-renames', '--', ...files).then((o) => new Set(list(o))),
+    gitAsync(repo, '--literal-pathspecs', 'ls-tree', '-r', '-z', parent, '--', ...files).then((o) => new Map(list(o).map((e) => [e.slice(e.indexOf('\t') + 1), e.split(/\s/)[2]!] as const))),
+  ]);
   const path = resolve(repo, await gitAsync(repo, 'rev-parse', '--git-path', `obeya-fold-${process.pid}-${Date.now()}`));
   const git = async (...args: string[]) => {
     const r = await spawnOutput([GIT, '-C', repo, '--literal-pathspecs', ...args], { env: { ...process.env, GIT_INDEX_FILE: path } });
@@ -288,15 +314,21 @@ async function commitOf(repo: string, parent: string, files: string[], message: 
   };
   try {
     await git('read-tree', parent);
-    const onTheirDisk = files.filter((f) => !stagedOnly.includes(f));
-    if (onTheirDisk.length) await git('add', '-A', '--', ...onTheirDisk);
-    // a staged file comes as the checkout's index has it (`<mode> <object> <stage>\t<path>`), one staged for deletion goes
-    const staged = new Map(entries.split('\0').filter(Boolean).map((e) => [e.slice(e.indexOf('\t') + 1), e.split(/\s/)] as const));
-    for (const f of stagedOnly) {
-      const at = staged.get(f);
-      if (at) await git('update-index', '--add', '--cacheinfo', `${at[0]},${at[1]},${f}`);
-      else await git('rm', '-q', '--cached', '--ignore-unmatch', '--', f);
+    // the file on disk as an object, null where there is none: back as in `parent`, it holds no change of the owner's
+    const asInParent = async (f: string) => {
+      const onDisk = existsSync(join(repo, f)) ? await gitAsync(repo, '--literal-pathspecs', 'hash-object', '--', f).catch(() => null) : null;
+      return !onDisk || onDisk === inParent.get(f);
+    };
+    const fromDisk: string[] = [];
+    for (const f of files) {
+      const staged = indexed.get(f);
+      if (staged && (!unstaged.has(f) || (inParent.has(f) && (await asInParent(f))))) await git('update-index', '--add', '--cacheinfo', `${staged[0]},${staged[1]},${f}`);
+      else if (staged || !inParent.has(f)) fromDisk.push(f);
+      // staged for deletion: a copy on disk again counts only where it differs from what was deleted
+      else if (await asInParent(f)) await git('rm', '-q', '--cached', '--ignore-unmatch', '--', f);
+      else fromDisk.push(f);
     }
+    if (fromDisk.length) await git('add', '-A', '--', ...fromDisk);
     const tree = await git('write-tree');
     return await git('commit-tree', tree, '-p', parent, '-m', message);
   } finally {
@@ -548,7 +580,7 @@ export interface CardWorkstations {
   forkPoint(cardId: string): Promise<{ ws: string; base: string } | null>;
   addedFiles(cardId: string, dir: string): Promise<string[]>;
   landOnMain(cardId: string, branch: string, trailer?: string, turn?: LandingTurn): Promise<LandProblem | Landed>;
-  foldMain(cardId: string, branch: string): Promise<{ files: string[]; commit?: string; conflict?: boolean; kept?: boolean } | LandProblem>;
+  foldMain(cardId: string, branch: string, named?: string[]): Promise<{ files: string[]; commit?: string; conflict?: boolean; kept?: boolean } | LandProblem>;
   pushToMain(cardId: string, trailer?: string, turn?: LandingTurn): Promise<LandProblem | Landed>;
   removeLanded(cardId: string, branch: string): Promise<void>;
   discard(cardId: string, branch: string): Promise<void>;
@@ -1444,7 +1476,8 @@ export class Workstations implements CardWorkstations {
         if (moved && attempt === 0) continue;
         if (moved) return { code: 'land', worker: false, detail: messageOf(e) };
         // else typically local changes in the Seismic checkout that the fast-forward would overwrite: which, so that the owner may fold them into the card
-        const files = await inTheWay(repo, 'HEAD', tip).catch(() => []);
+        const seen = await inTheWay(repo, 'HEAD', tip).catch(() => []);
+        const files = [...new Set([...seen, ...namedInRefusal(messageOf(e))])].sort();
         return { code: 'landMerge', worker: false, detail: messageOf(e), ...(files.length ? { files } : {}) };
       }
     }
@@ -1459,7 +1492,7 @@ export class Workstations implements CardWorkstations {
    * stays under way in the workstation for the worker to resolve (`conflict`). Nothing in the way any
    * more: no files, and nothing moved.
    */
-  foldMain(cardId: string, branch: string): Promise<{ files: string[]; commit?: string; conflict?: boolean; kept?: boolean } | LandProblem> {
+  foldMain(cardId: string, branch: string, named: string[] = []): Promise<{ files: string[]; commit?: string; conflict?: boolean; kept?: boolean } | LandProblem> {
     return landings.run(this.o.repoPath, async () => {
       const ws = this.leasedBy(cardId);
       if (!ws) return { code: 'land', worker: false, detail: 'the card has no workstation' };
@@ -1473,7 +1506,10 @@ export class Workstations implements CardWorkstations {
           await gitAsync(repo, 'fetch', '--quiet', ws, branch);
           tip = await gitAsync(repo, 'rev-parse', 'FETCH_HEAD');
         }
-        const files = await inTheWay(repo, 'HEAD', tip);
+        // what git named in its refusal goes too, where the checkout still has a change to it
+        const changed = async (...args: string[]) => (await gitAsync(repo, '--literal-pathspecs', ...args, '--', ...named)).split('\0').filter(Boolean);
+        const still = named.length ? [...(await changed('diff', '--name-only', '-z', '--no-renames', 'HEAD')), ...(await changed('diff', '--name-only', '-z', '--no-renames', '--cached', 'HEAD')), ...(await changed('ls-files', '-z', '--others'))] : [];
+        const files = [...new Set([...(await inTheWay(repo, 'HEAD', tip)), ...still])].sort();
         if (!files.length) return { files };
         const head = await gitAsync(repo, 'rev-parse', 'HEAD');
         const commit = await commitOf(repo, head, files, 'Uncommitted changes from the main checkout, folded into this card');

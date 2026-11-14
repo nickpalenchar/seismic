@@ -758,7 +758,7 @@ const en = {
     landPush: 'Not landed: the push to main was rejected. Please check why and approve again.',
     landCheckout: 'Not landed: the Seismic checkout is not on main and has uncommitted changes. The agent sees to them; then the work lands without another approval.',
     landMerge: 'Not landed: main\'s checkout has uncommitted changes to files this card changes too. The card offers to fold them in.',
-    landLocal: 'Not landed: changes in main\'s checkout are in the way. Commit or set them aside, then approve again. git says:',
+    landLocal: 'Not landed: something in main\'s checkout is in the way that Seismic could not name, and nothing was changed. Approve again to try once more.',
     land: 'Not landed: git error in the Seismic checkout.',
     config: 'Not saved: the configuration has errors.',
     voiceSample: 'The sample could not be made:',

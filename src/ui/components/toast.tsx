@@ -9,6 +9,8 @@ import { cn } from 'cn';
 import { CardLink } from '../cardLink';
 import { Cards } from '../message';
 import { t } from '../strings';
+import { Button } from './button';
+import { Callout, CalloutDescription } from './callout';
 import { Toaster } from './sonner';
 
 /**
@@ -246,25 +248,42 @@ function toastClass(x: Toast, { wrap, phone, nudge }: { wrap: boolean; phone: bo
     x.reading
       ? ['reading bg-surface text-muted-foreground shadow-glass py-2 px-3.5 text-sm', spinner('before:size-2.5 before:border-transparent before:border-t-working')]
       : warning
-        ? 'border border-solid border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-50 rounded-lg shadow-glass py-3 px-4 text-base'
+        ? 'shadow-glass'
         : 'bg-foreground text-background py-3 px-4 text-base',
     x.kind === 'wait' && ['[--track:--alpha(var(--background)/25%)]', spinner('before:size-3 before:[border-color:var(--background)_var(--track)_var(--track)_var(--track)]')],
-    wrap ? ['flex-wrap gap-x-2 gap-y-2.5 [&>span]:basis-full', warning && 'justify-end'] : 'gap-3.5',
+    wrap && !warning ? 'flex-wrap gap-x-2 gap-y-2.5 [&>span]:basis-full' : 'gap-3.5',
     // the phone's toasts are swiped aside: a finger dragging one selects nothing
     phone && 'swipeable select-none',
     nudge && !x.reading && 'nudge animate-[toast-nudge_.9s_.7s_ease-in-out]',
   );
 }
 
-/** A toast's button: outlined in the toast's ink, in the warning callout's amber on a warning; cut short where several share a line. */
-const toastButtonClass = (warning: boolean, several: boolean) =>
-  cn(
-    'bg-transparent border border-solid rounded-sm py-1 px-2.5 cursor-pointer flex-none',
-    warning
-      ? 'rounded-md border-amber-300 bg-white/60 text-amber-900 hover:bg-amber-100 dark:border-amber-800 dark:bg-transparent dark:text-amber-50 dark:hover:bg-amber-900'
-      : 'border-background/40 text-background',
-    several && 'max-w-full overflow-hidden text-ellipsis whitespace-nowrap',
+/** A toast's button: outlined in the toast's ink; cut short where several share a line. */
+const toastButtonClass = (several: boolean) =>
+  cn('bg-transparent border border-solid rounded-sm py-1 px-2.5 cursor-pointer flex-none border-background/40 text-background', several && 'max-w-full overflow-hidden text-ellipsis whitespace-nowrap');
+
+/**
+ * A toast's actions: "Undo", a "Go to card" per card, "Dismiss". On a warning they are the UI's own
+ * outlined buttons; on the dark toasts, outlines in the toast's ink.
+ */
+function ToastActions({ toast: x, go, warning, several, onGone }: { toast: Toast; go: ToastGo[]; warning: boolean; several: boolean; onGone: () => void }) {
+  const actions = [
+    ...(x.undo ? [{ key: 'undo', label: t.undo, run: () => x.undo?.() }] : []),
+    ...go.map((c) => ({ key: c.id, label: c.label, run: () => (onGone(), c.run()) })),
+    ...(x.dismiss ? [{ key: 'dismiss', label: t.voice.dismissWarning, run: onGone }] : []),
+  ];
+  return actions.map((a) =>
+    warning ? (
+      <Button key={a.key} variant="outline" size="small" className={cn(several && 'max-w-full overflow-hidden text-ellipsis')} onClick={a.run}>
+        {a.label}
+      </Button>
+    ) : (
+      <button key={a.key} className={toastButtonClass(several)} onClick={a.run}>
+        {a.label}
+      </button>
+    ),
   );
+}
 
 export function ToastLine({ toast: x, open, aside, onGone }: { toast: Toast; open?: string; aside: boolean; onGone: () => void }) {
   const go = x.undo ? [] : (x.go ?? []).filter((c) => c.id !== open);
@@ -272,35 +291,26 @@ export function ToastLine({ toast: x, open, aside, onGone }: { toast: Toast; ope
   const warning = x.kind === 'warning';
   // until the owner has swiped one aside, each nudges aside and back once as a hint
   const nudge = aside && !swipedOnce();
-  const button = toastButtonClass(warning, several);
+  const words = (
+    <>
+      {x.card && x.card.id !== open && !x.reading && <ToastCard card={x.card} />}
+      {x.text}
+    </>
+  );
+  // a warning is the warning callout, its words across its full width and its buttons below them on the right
+  if (warning)
+    return (
+      <Callout kind="warn" className={cn(toastClass(x, { wrap: true, phone: aside, nudge }), 'block rounded-lg text-base', several && 'several')}>
+        <CalloutDescription className="block text-base">{words}</CalloutDescription>
+        <div className="mt-2.5 flex flex-wrap justify-end gap-2">
+          <ToastActions toast={x} go={go} warning several={several} onGone={onGone} />
+        </div>
+      </Callout>
+    );
   return (
-    <div className={cn(toastClass(x, { wrap: several || warning, phone: aside, nudge }), several && 'several')} role={warning ? 'alert' : undefined}>
-      <span>
-        {x.card && x.card.id !== open && !x.reading && <ToastCard card={x.card} />}
-        {x.text}
-      </span>
-      {x.undo && (
-        <button className={button} onClick={() => x.undo?.()}>
-          {t.undo}
-        </button>
-      )}
-      {go.map((c) => (
-        <button
-          key={c.id}
-          className={button}
-          onClick={() => {
-            onGone();
-            c.run();
-          }}
-        >
-          {c.label}
-        </button>
-      ))}
-      {x.dismiss && (
-        <button className={button} onClick={onGone}>
-          {t.voice.dismissWarning}
-        </button>
-      )}
+    <div className={cn(toastClass(x, { wrap: several, phone: aside, nudge }), several && 'several')}>
+      <span>{words}</span>
+      <ToastActions toast={x} go={go} warning={false} several={several} onGone={onGone} />
     </div>
   );
 }

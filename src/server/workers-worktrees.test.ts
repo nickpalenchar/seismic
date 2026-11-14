@@ -356,6 +356,27 @@ describe('a worktree per card', () => {
     expect(git(main, 'status', '--porcelain')).toBe('');
   });
 
+  test('a deletion staged in the checkout, its file back on disk as in main: folding carries the deletion, not the copy', async () => {
+    writeFileSync(join(main, 'mine.ts'), 'a\nb\nc\n');
+    git(main, 'add', '.');
+    git(main, 'commit', '--quiet', '-m', 'mine');
+    const c = manual();
+    await workers.start(c.id);
+    commitIn(board.row(c.id).workstation!, 'mine.ts', 'card\nb\nc\n');
+    git(main, 'rm', '--quiet', 'mine.ts');
+    writeFileSync(join(main, 'mine.ts'), 'a\nb\nc\n');
+    const sc = runtime.sessions.find((s) => s.spec.cwd === board.row(c.id).workstation)!;
+    await sc.call('ready_for_review', { summary: 'S', demo: artifact() });
+    sc.emit({ type: 'idle' });
+    expect(await workers.approve(c.id).catch((e) => e)).toMatchObject({ code: 'landMerge' });
+    expect(board.item(c.id)!.review?.blocked).toEqual({ files: ['mine.ts'] });
+    await workers.fold(c.id, false);
+    // the card's edit and the owner's deletion meet in the pick: the worker resolves it
+    expect(git(board.row(c.id).workstation!, 'status', '--porcelain')).toContain('mine.ts');
+    expect(gitOrNull(main, 'cat-file', '-e', `${git(main, 'rev-parse', 'refs/seismic/folded/' + c.id)}:mine.ts`)).toBeNull();
+    expect(git(main, 'status', '--porcelain')).toBe('');
+  });
+
   test('folded in for a new demo, a conflict stays under way for the worker, and the owner approves anew', async () => {
     const c = manual();
     await workers.start(c.id);
