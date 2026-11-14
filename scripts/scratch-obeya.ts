@@ -23,7 +23,7 @@
 // file with the same --code or --binary (`from`) replaces the scratch Seismic staged from them
 // before and takes its port again while that is free; with another --code, the two run side by
 // side. The dir is --dir, else the stage file's `dir`, else /tmp/obeya-scratch-<port>.
-// `url` signs browsers in (design: Who may talk to it), until the scratch Seismic stops; --login
+// `url` signs browsers in, until the scratch Seismic stops; --login
 // prints it again. --stop ends only the server it staged, never another program that has its
 // process number by now, and fails if the server still runs after it. The script itself talks to the API with the owner's key of the scratch home.
 //
@@ -287,7 +287,7 @@ interface Stage {
   /** The owner trusted the repositories' commands as staged (their Claude Code and Codex configuration, say), so none is held. */
   trusted?: boolean;
   plans?: Record<string, string>;
-  /** `false`: the repository is a folder without git (design: Folders without git). */
+  /** `false`: the repository is a folder without git. */
   git?: false;
   /** A directory whose contents go into the repository first (a small folder of documents, binaries included). */
   copy?: string;

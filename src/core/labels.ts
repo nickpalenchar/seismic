@@ -1,4 +1,4 @@
-// A card's built-in labels, the owner's (design: The project): the fixed lists and the complexity
+// A card's built-in labels, the owner's: the fixed lists and the complexity
 // scale, one place for the server, the UI and the skill that suggests them.
 
 /** A card's priorities, from the lowest to the highest. */

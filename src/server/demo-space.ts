@@ -1,7 +1,7 @@
 // The disk space demos take in the demo directory, and the frames of old renders that Seismic
 // deletes: a render keeps the frames it was cut from in its work directory (`.work/frames`, about
-// half a gigabyte a demo), which only re-voicing needs once the video is made (design: Demos, Disk
-// space of demos).
+// half a gigabyte a demo), which only re-voicing needs once the video is made.
+//
 
 import { existsSync, readFileSync } from 'node:fs';
 import { lstat, readdir, readFile, rm, stat } from 'node:fs/promises';

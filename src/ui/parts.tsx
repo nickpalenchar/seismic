@@ -290,7 +290,7 @@ export const CardView = memo(
 );
 
 /**
- * A project's agents on its row in the switcher (design: Pausing a project's agents): while one works
+ * A project's agents on its row in the switcher: while one works
  * there, the moving line of a card at work, which turns into a pause for all of them while the
  * pointer is on the row; with none at work but some paused, a play that resumes them, on the same
  * hover. Where nothing hovers (touch), the button shows throughout.

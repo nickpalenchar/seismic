@@ -2,7 +2,7 @@
 // Seismic records, per session, the identities (pid and creation time) of the processes it observed
 // and holds an exclusive lease on that record; the next Seismic on the same home finds records whose
 // lease nobody holds any more, ends the processes that still are the recorded ones, and removes
-// the record. Best-effort cleanup, not containment: see "Lifetimes" in docs/design/agents-and-workstations.md.
+// the record. Best-effort cleanup, not containment.
 import { Database } from 'bun:sqlite';
 import { randomUUID } from 'node:crypto';
 import { lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, renameSync, statSync, unlinkSync } from 'node:fs';

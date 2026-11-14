@@ -2,8 +2,7 @@ import { serverExtensions as extensions } from '../extensions/server';
 import { validProjectName } from '../core/project-slug';
 // Seismic's configuration: the projects it serves, saved in `projects.json` under its home. The owner
 // reads and edits it in its sheet, the Koordinator on their word. A saved change applies while
-// Seismic runs (`Projects.apply`, see Live configuration in
-// docs/design/repositories-and-configuration.md): what a repository's agents are set up by
+// Seismic runs (`Projects.apply`): what a repository's agents are set up by
 // restarts that repository's agents alone, once they paused. The
 // repositories' settings (`RepoSettings`) are read where they are used, apply at once, and saving
 // them alone restarts nothing but where they change where the workers work.
@@ -833,8 +832,8 @@ export class Config {
   }
 
   /**
-   * Saves a configuration that works, and the running projects take it over (design: Live
-   * configuration). Where they came from the command line, Seismic starts again with it where
+   * Saves a configuration that works, and the running projects take it over.
+   * Where they came from the command line, Seismic starts again with it where
    * something restarts it.
    */
   /**

@@ -1,4 +1,4 @@
-/* Seismic's look, frost (docs/design/the-canvas.md, "Visual identity"): frosted glass over a soft gradient board, in Inter
+/* Seismic's look, frost (docs/design/ui-system.md): frosted glass over a soft gradient board, in Inter
    (OFL, served from ./fonts with its licence). The colours, the glass and the board's gradient are tokens in
    tailwind.css; this file holds the font, the page's base, and the keyframes. frost.test.ts measures the contrast
    of text on glass from those tokens. The cascade layers come first so that Tailwind's take this order; rules

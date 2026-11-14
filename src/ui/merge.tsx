@@ -1,4 +1,4 @@
-// Merge selection and the owner's coverage review (design: Merging cards).
+// Merge selection and the owner's coverage review.
 
 import { mergeQuestionTexts } from '../core/merge';
 import { actionsClass } from './cardClasses';

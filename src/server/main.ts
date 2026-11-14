@@ -266,7 +266,7 @@ const forgeFile = seismicEnv('FORGE_FILE');
 const forge = forgeFile ? fileForge(forgeFile) : routedForge(ghForge, forgejoForge, originOf, (remote) => onGitHub(remote));
 const narration = new NarrationHost({ argv: (voice, language) => qwen3Serve(voice, language, home), log: (line) => console.log(line) });
 // what a demo's narration reaches of Seismic, for the voice it holds loaded (narration.ts): the
-// narration and nothing else, from a worker here as from one on another machine (design: Hosts)
+// narration and nothing else, from a worker here as from one on another machine
 const narrationServer = serveNarration(narration);
 const narrationUrl = `http://127.0.0.1:${narrationServer.port}`;
 // the disk space demos take, and the frames of old renders deleted (demo-space.ts)

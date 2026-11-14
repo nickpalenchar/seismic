@@ -147,7 +147,7 @@ export function serveDemoFile(demo: { dir: string; kind: DemoKind }, name: strin
     // the player asks again for what follows, so a part of the file at a time
     end = Math.min(end, size - 1, start + RANGE_BYTES - 1);
     if (start > end) return new Response(null, { status: 416, headers: { 'content-range': `bytes */${size}` } });
-    // Read at once: see "Demo files are read at once" in docs/design/demos.md.
+    // Read at once: a file streamed in pieces stalls whenever the event loop is busy (on Windows at about 1 MB/s).
     const part = readAt(fd, end - start + 1, start);
     // shorter than its size said: cut while it was read, so the answer carries what was there
     const total = part.length < end - start + 1 ? fstatSync(fd).size : size;

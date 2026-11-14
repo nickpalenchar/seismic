@@ -573,7 +573,7 @@ export interface ItemReview {
   contribution?: Contribution;
   /**
    * The code review of the card's work, where its project reviews work that lands on `main` and the
-   * card's does: present from its handover on (design: Code reviews in Card lifecycle).
+   * card's does: present from its handover on.
    */
   codeReview?: CodeReview;
 }
@@ -857,7 +857,7 @@ export interface Proposal {
   merge?: Merge;
   /**
    * Seismic's own proposal of the card that fills in a repository's settings, while it knows them not
-   * yet (design: Repositories and configuration): accepted, it is the owner's card like the one the
+   * yet: accepted, it is the owner's card like the one the
    * Konfiguration dialog makes.
    */
   setup?: true;
@@ -2370,7 +2370,7 @@ export interface RepoConfig {
   path: string;
   /**
    * `false`: a folder without git that is to stay one (a document archive, say): every card works in
-   * the folder itself, nothing lands, and each card lists what it changed (design: Folders without git).
+   * the folder itself, nothing lands, and each card lists what it changed.
    */
   git?: false;
   /** Clones to register as workstations (adapters that use clones). */
@@ -2380,7 +2380,7 @@ export interface RepoConfig {
   /** How many of its workers may be busy at once on this machine; left out, as many as it has clones, or any number in worktrees. */
   slots?: number;
   /**
-   * Other machines its workers run on, reached over SSH (design: Hosts), in the order a new card
+   * Other machines its workers run on, reached over SSH, in the order a new card
    * looks for a free slot after this one. Only for a repository whose workers use clones and whose work goes out through its
    * remote.
    */
@@ -2531,7 +2531,7 @@ export interface DemoSite {
 
 /**
  * What Seismic needs to know about how a repository works, and its main branch, as the owner sets
- * them in the configuration dialog for this machine (design: Repository settings). Read where they
+ * them in the configuration dialog for this machine. Read where they
  * are used: saving them restarts nothing, but for `workstations`, which restarts the repository's agents.
  */
 export interface RepoSettings {
@@ -2589,7 +2589,7 @@ export interface RepoSettings {
 
 /**
  * A repository's settings for everyone who runs Seismic on it, in `.obeya/settings.json` as its
- * default branch has it (design: Repository settings): those for this machine but the main branch,
+ * default branch has it: those for this machine but the main branch,
  * which says where the file is read from.
  */
 export type SharedSettings = Omit<RepoSettings, 'branch'>;
@@ -2632,7 +2632,7 @@ export interface SettingValue<T> {
 /**
  * What of a repository's own files Seismic runs or contacts on this machine without a click, or its
  * agents' sessions run outside Claude Code's permission checks, by group: one confirmed by the
- * owner counts as long as the default branch has it so (design: Trusting a repository's commands).
+ * owner counts as long as the default branch has it so.
  */
 export interface RepoCommands {
   /** `app.stop` and `app.keep` of `.obeya/settings.json`, which park a waiting card: one without the other could stop what `keep` keeps. */
@@ -2763,7 +2763,7 @@ export interface HostConfig {
 
 /**
  * A project's own settings, beside its name, id and repositories. Each has a value in Project
- * defaults, copied into a project when it is created (design: Project defaults).
+ * defaults, copied into a project when it is created.
  */
 export interface ProjectSettings {
   /** Tag each plan’s starting commit and configure its workstream branches with it; on by default. */

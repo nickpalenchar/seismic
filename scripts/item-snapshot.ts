@@ -1,5 +1,4 @@
-// The equality check of a change to the data layer (docs/design/data.md, the decision on the data
-// layer): reads every project of a database as the code of two commits sees it, each on a copy of
+// The equality check of a change to the data layer: reads every project of a database as the code of two commits sees it, each on a copy of
 // its own, and says where they differ.
 //   bun scripts/item-snapshot.ts [db] [--before <commit>] [--after <commit>] [--out <dir>]
 // `db` defaults to ~/.obeya/obeya.db, which is only read (through SQLite's own snapshot, as a
@@ -80,7 +79,7 @@ try {
 }
 
 /**
- * The before side as the planned regroupings of the card model have it (docs/design/data.md),
+ * The before side as the planned regroupings of the card model have it,
  * for a before side from a commit that had not made them yet; one that had is left as it is.
  * W4, one hold: a stored card gets the `hold` its migration writes, a card as the UI gets it the
  * `hold` in place of `paused`, `pausing`, `limitPaused`, `restartPaused`, `snoozed` and `parkingLot`.

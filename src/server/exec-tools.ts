@@ -1,4 +1,4 @@
-// The tools a Codex worker reaches what its sandbox keeps from it through (docs/design/agents-and-workstations.md):
+// The tools a Codex worker reaches what its sandbox keeps from it through:
 // network, a browser, a local server, a git write in a worktree (its `.git` lies in the main
 // repository, outside the workstation), a place outside the workstation. Seismic runs the call itself,
 // on the owner's machine and with the owner's rights; what makes that safe is the gate (the

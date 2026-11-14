@@ -6,11 +6,16 @@ same steps work for you, with or without Seismic running.
 
 ## Design doc first
 
-[`docs/design.md`](docs/design.md) describes what Seismic does and why: goal, principles, behaviour
-and the decisions behind them, as much as an experienced engineer would need to rebuild it with the
-same features (its header says what belongs in it and what the code says instead). It is an index
-of chapters under [`docs/design/`](docs/design/): read it, then the chapters your change touches,
-and keep those current in the same change.
+[`docs/design.md`](docs/design.md) says why Seismic is the way it is: its goal, the principles
+behind its flows, its concepts, the decisions that still hold and the constraints a change would
+otherwise walk into. Read it, and the chapters it lists under [`docs/design/`](docs/design/) that
+your change touches ([`ui-system.md`](docs/design/ui-system.md) for anything in the UI).
+
+The design docs hold principles, decisions (chosen, why, rejected, date) and non-obvious
+constraints (platform quirks, formats to stay compatible with, safety rules), not a description
+of every behaviour and not history. When your change settles one of those, write it into
+`design.md` or a chapter in the same change; a chapter is started when an area gathers enough of
+them.
 
 ## Plan docs
 
@@ -18,7 +23,7 @@ Work larger than one change is planned in a plan doc under [`docs/plan/`](docs/p
 where things stand, the design, and the workstreams as a checklist (`- [ ] **W1:** …`). Seismic
 shows each plan doc as a plan with a card per workstream; the change that finishes a workstream
 ticks it off in the doc, and once all are ticked the plan goes into the archive. When the
-plan is done, what passes the design doc's test moves into it and the plan doc goes.
+plan is done, its lasting decisions and constraints move into the design doc and the plan doc goes.
 
 ## Cards
 
@@ -54,8 +59,8 @@ second. Demo videos and voice recordings never go into git.
 ## From outside
 
 Issues and pull requests against `main` are welcome. A pull request that changes behaviour
-updates the design doc and shows the change: a demo video linked from the pull request, or
-screenshots.
+records in the design doc what decision or constraint it settles, and shows the change: a demo
+video linked from the pull request, or screenshots.
 
 With Seismic, set up a personal demo site once (Configuration → Demos → “Personal demo site”:
 GitHub Pages from a public repository with any GitHub account, from a private one with GitHub

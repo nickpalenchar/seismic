@@ -1,4 +1,4 @@
-// A command of the `app` of a repository's settings (`stop`, `keep`), run in a workstation by Seismic itself (design: Parking).
+// A command of the `app` of a repository's settings (`stop`, `keep`), run in a workstation by Seismic itself.
 
 import { remote } from './hosts';
 import { messageOf } from '../core/text';

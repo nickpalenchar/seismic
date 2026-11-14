@@ -1,4 +1,4 @@
-// Notifications on the phone (design: Push). On iOS a web page gets pushes only once it is on the
+// Notifications on the phone. On iOS a web page gets pushes only once it is on the
 // home screen and opened from there: Safari's phone view says how until it runs that way. There a
 // button asks for the permission (iOS asks only after a tap) and stays until it is granted or
 // refused. Granted, the page subscribes with Seismic's key and hands the subscription to the server,

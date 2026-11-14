@@ -106,7 +106,7 @@ function clipRoute(narration: NarrationHost, remote = false) {
 }
 
 /**
- * What a worker on another machine reaches through the port forwarded to it (design: Hosts): the
+ * What a worker on another machine reaches through the port forwarded to it: the
  * narration clips and nothing else of Seismic's, as whoever is on that machine reaches the port too.
  */
 export function serveNarration(narration: NarrationHost) {

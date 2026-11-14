@@ -1,4 +1,4 @@
-// A card's look in Tailwind on frost's tokens (design: Cards on the canvas, Card sizes): the card on the
+// A card's look in Tailwind on frost's tokens: the card on the
 // project (its glass, the state's tab at its top edge, the frame of the owner's turn, its stock) and the
 // parts of its face at every size. The classes come from the card's state, worked out here once; the
 // class names before the utilities (`card`, `ttl`, `state` …) stay as hooks for code that finds them.

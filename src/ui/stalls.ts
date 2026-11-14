@@ -1,5 +1,5 @@
-// A page that froze tells the server, which logs it beside its own stalls (design: Running Seismic,
-// Stalls): how long, where the time went as far as the browser says (Chromium's long animation
+// A page that froze tells the server, which logs it beside its own stalls:
+// how long, where the time went as far as the browser says (Chromium's long animation
 // frames; Safari and Firefox tell only the length), and the server's messages it took in just before.
 
 import type { PageStall } from '../core/types';

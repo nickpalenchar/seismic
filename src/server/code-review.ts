@@ -1,5 +1,5 @@
-// The code review of a card's work where its project reviews work (design: Code
-// reviews in Card lifecycle): a separate, read-only agent of the "Code reviews" group reads the
+// The code review of a card's work where its project reviews work:
+// a separate, read-only agent of the "Code reviews" group reads the
 // branch's diff against main the repository's way and adds graded items to the card's one running
 // list, which its Review tab shows; it also verifies what the worker resubmitted as fixed and
 // reopens what regressed or is not fixed. It starts with each handover (`auto`) or on the owner's

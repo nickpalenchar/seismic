@@ -2,7 +2,7 @@
 
 Seismic owns the project, workstations, conversations and owner decisions. Each harness owns its coding
 loop. A role (Koordinator, worker, explorer or small job) is not a harness or a model. The local
-Codex worker preview is described in the permanent design chapters; this plan tracks what remains.
+Codex worker preview is built; this plan tracks what remains.
 
 ## Goal
 
@@ -26,8 +26,7 @@ Harden the local Codex worker preview and complete its remaining acceptance and 
   external operations as distinct lifetimes. Use probe results to design and validate safe
   recovery of observed processes after an Seismic crash. This is not a Codex preview gate; it is
   a Pi gate. Recovery must not kill another live Seismic instance's processes or unrelated processes.
-  Done for Codex on macOS and Linux (container); see "Recovery boundary" below. The lifetimes and
-  the recovery are now in `docs/design/agents-and-workstations.md` (Lifetimes).
+  Done for Codex on macOS and Linux (container); see "Recovery boundary" below.
   Launching agents through the liveness supervisor, and what must hold before that, belongs here
   (see "Liveness-pipe prototype: evaluation").
 - [x] **W4:** Liveness-pipe prototype. Evaluated (2026-11-01): the two failure cases that reverted
@@ -45,12 +44,11 @@ Harden the local Codex worker preview and complete its remaining acceptance and 
   one session throughout. Found and fixed: a Codex card waited a blind 15 minutes after a usage
   limit; it now goes on at the reset. See "Live phase 1 acceptance (W6)" below.
 - [x] **W7:** Active session identity. Done (2026-11-02): the working and reading bubbles name the
-  harness and model of the session at work; see `docs/design/conversation-on-the-card.md`.
+  harness and model of the session at work.
 - [x] **W8:** Codex configuration trust. Done (2026-11-02): `.codex/` is the trust group `codex`
   of the repository-trust dialog; a Codex worker loads it only where its workstation's `.codex/` is
   to the byte what the owner trusted, checked at every start and resume, with Codex's own layer
-  report (`config/read`) checked before a thread runs. See `docs/design/agents-and-workstations.md`
-  (Native Codex workers). Verified against Codex CLI 0.162.0 on macOS: the per-session trust
+  report (`config/read`) checked before a thread runs. Verified against Codex CLI 0.162.0 on macOS: the per-session trust
   override wins over the user's `[projects]` in both directions, project layers above the
   checkout are never read, and the workspace-write sandbox refuses creating or writing `.codex/`.
   Not verified: Linux and Windows Codex; whether Codex reloads project configuration that changes
@@ -58,12 +56,10 @@ Harden the local Codex worker preview and complete its remaining acceptance and 
 - [x] **W9:** Foreground-wait guard. Decided (2026-11-02): no guard for Codex. Native `PreToolUse` hooks exist
   (Claude-shaped input and `permissionDecision: deny`) and work, but only once trusted in the user's
   own `config.toml`; session-level hooks stay untrusted and never run. And none is needed: steering
-  lands during a running foreground command, which then continues as a background terminal. Now in
-  `docs/design/agents-and-workstations.md` (Native Codex workers). Still open, and W8's: if Seismic ever
+  lands during a running foreground command, which then continues as a background terminal. Still open, and W8's: if Seismic ever
   manages Codex hooks, that is a write into the user's configuration.
 - [x] **W10:** Transcripts and retrospectives. Done (2026-11-03): decided to build it. A Codex worker's run is read from its
-  rollout like a Claude transcript, so its cards feed the work retrospective. Now in
-  `docs/design/the-koordinator.md` (Friction notes). Verified against rollouts of Codex CLI 0.162.0
+  rollout like a Claude transcript, so its cards feed the work retrospective. Verified against rollouts of Codex CLI 0.162.0
   on macOS; the format is Codex's own and may change, in which case a run simply gives no excerpt.
 - [ ] **W11:** Feature parity. SSH, non-Git folder undo, contributor reviews and record/replay, each with its own parity tests
   before removing the current refusal. User/repository skill discovery is separate from bundled
@@ -270,8 +266,7 @@ the crash.
 
 ### Recovery boundary (W3, implemented 2026-11-02)
 
-What W3 built from the proposal below, for Codex sessions (`src/server/session-registry.ts`; the
-rules are in the design chapter, Lifetimes). Differences from the proposal, with reasons:
+What W3 built from the proposal below, for Codex sessions (`src/server/session-registry.ts`). Differences from the proposal, with reasons:
 
 - **No separate supervisor.** The Seismic server itself holds the per-session lease and writes the
   record; its death releases the lease. The supervisor of W4 is a different failure (a launcher that

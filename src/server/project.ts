@@ -278,11 +278,11 @@ export class ProjectRuntime {
   /** What the code reviews' agents run on (`WorkerOptions.reviewRuntime`). */
   private reviewRuntime!: AgentRuntime;
 
-  /** The project's own settings as they apply (design: The project settings). */
+  /** The project's own settings as they apply. */
   settings(): ProjectDefaults { return appliedProjectSettings(this.config); }
 
   constructor(config: ProjectConfig, private deps: ProjectDeps) {
-    // Configuration's model and effort of each group, with the project's own over it (design: The project settings)
+    // Configuration's model and effort of each group, with the project's own over it
     const agents = (role: AgentRole) => projectAgentSetting(role, deps.agents?.(role) ?? AGENT_DEFAULTS[role], this.config?.agents);
     this.agentFor = agents;
     // the agents other than workers and Seismic's chat wait for the usage limit through it, each where it shows;
@@ -986,7 +986,7 @@ export class ProjectRuntime {
   }
 
   /**
-   * The configuration of the project changed while it runs (design: Live configuration). A new name
+   * The configuration of the project changed while it runs. A new name
    * applies at once, and so does a repository new on it. A repository whose agents now work
    * elsewhere (other clones, other machines, another adapter, worktrees instead of clones) or that
    * left the project has its agents restarted once they paused, or stopped; the other repositories
@@ -1229,7 +1229,7 @@ export class ProjectRuntime {
   }
 
   /**
-   * The owner pauses the project's agents (design: Pausing a project's agents): each one at work now
+   * The owner pauses the project's agents: each one at work now
    * pauses at a safe point as its card's own pause has it, and until they resume them, the cards the
    * Koordinator lets start wait in the queue. With none at work, nothing changes.
    */
@@ -2972,8 +2972,8 @@ export function startProjects(configs: ProjectConfig[], deps: ProjectDeps, faile
 }
 
 /**
- * The projects Seismic serves, as its configuration has them while it runs (design: Live
- * configuration): a project new in it starts at once, one that changed takes the change
+ * The projects Seismic serves, as its configuration has them while it runs:
+ * a project new in it starts at once, one that changed takes the change
  * (`ProjectRuntime.apply`), one no longer in it stops once its agents paused, its cards kept.
  */
 export class Projects {

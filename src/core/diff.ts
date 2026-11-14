@@ -29,7 +29,7 @@ export interface DiffFile {
   binary?: true;
 }
 
-/** What a card changed in a folder without git (design: Folders without git), as its change list shows it. */
+/** What a card changed in a folder without git, as its change list shows it. */
 export interface FolderChanges {
   /**
    * Which undo the card has: `full` from a clone of the folder taken at its start (where the file

@@ -1,5 +1,5 @@
-// What a card says on its face, worked out once for every size of it (design: Cards on the canvas,
-// Card sizes): its kind, the line under its title, its state line with its marks, the pin while it
+// What a card says on its face, worked out once for every size of it:
+// its kind, the line under its title, its state line with its marks, the pin while it
 // needs the owner, and the classes and colour of its state.
 
 import { agentFailed, answering, demoStage, finishingUp, handedOver, type Item, needsYou, openQuestions, type PullRequest, snoozeOf, isPaused, isPausing, inParkingLot } from '../../core/types';

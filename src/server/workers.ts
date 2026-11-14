@@ -137,7 +137,7 @@ export interface WorkerOptions {
    * extensions change no repository.
    */
   asOwner?: <T>(cwd: string, change: (repo: { path: string; folder: boolean }) => Promise<T>) => Promise<T>;
-  /** Whether and when the project reviews work that lands on main (design: Code reviews in Card lifecycle); off when left out. */
+  /** Whether and when the project reviews work that lands on main; off when left out. */
   codeReviews?: () => CodeReviewSetting;
   /** Runs the code reviews' agents (the "Code reviews" group, in Claude Code or Codex); `runtime` when left out. */
   reviewRuntime?: AgentRuntime;
@@ -729,7 +729,7 @@ export class Workers {
     });
   }
 
-  /** The folder without git the cards work in, where the repository is one (design: Folders without git). */
+  /** The folder without git the cards work in, where the repository is one. */
   private get folder(): FolderWorkstations | null {
     return this.o.workstations.mode === 'folder' ? (this.o.workstations as FolderWorkstations) : null;
   }
@@ -1699,7 +1699,7 @@ export class Workers {
   }
 
   /** `direct`: the work goes onto the default branch at once instead of into a pull request, where the repository's settings allow it. */
-  /** "Start code review" on work waiting for the owner's approval: a review of its latest handover starts (design: Code reviews in Card lifecycle). */
+  /** "Start code review" on work waiting for the owner's approval: a review of its latest handover starts. */
   startCodeReview(cardId: string) {
     const card = this.card(cardId);
     if (!handedOver(card) || card.review?.landing || this.landing.has(cardId) || this.approving.has(cardId)) throw new BadRequest('notReady', 'the card is not ready for review');
@@ -4546,7 +4546,7 @@ export class Workers {
 
   /**
    * A demo directory as the server reads it: the worker's own on this machine; from a worker on
-   * another machine, its copy here (design: Hosts), taken afresh at each handover.
+   * another machine, its copy here, taken afresh at each handover.
    */
   private async demoHere(cardId: string, dir: string): Promise<{ dir: string } | { wrong: string }> {
     try {
@@ -5539,12 +5539,12 @@ export class Workers {
 
   // ---------------------------------------------------------------- prompts
 
-  /** What a handover on this repository may bring (design: Handover artifacts): its settings', else the demo settings', else everything. */
+  /** What a handover on this repository may bring: its settings', else the demo settings', else everything. */
   private artifacts(): readonly HandoverArtifact[] {
     return this.o.adapter.demo?.artifacts ?? this.o.demoArtifacts?.() ?? HANDOVER_ARTIFACTS;
   }
 
-  /** The language of the card's demos (design: Language): the repository's, else the demo settings' narration language. */
+  /** The language of the card's demos: the repository's, else the demo settings' narration language. */
   private demoLanguage(): Language {
     return this.o.adapter.demo?.language ?? this.o.demoLanguage?.() ?? this.o.board.conversation();
   }

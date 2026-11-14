@@ -1,4 +1,4 @@
-// Trusting a repository's commands (design: Trusting a repository's commands): what of its own
+// Trusting a repository's commands: what of its own
 // files Seismic runs or contacts without a click, or its agents' sessions run outside Claude Code's
 // permission checks, counts only as the owner last confirmed it. A command new on the default
 // branch, or changed there, is held until the owner confirms it in "Configuration".

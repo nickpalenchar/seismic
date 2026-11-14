@@ -33,7 +33,7 @@ const SHOT = path.join(OUT, 'tipjar-comma.png');
 
 /** What scratch-obeya.ts staged: its directory and the ids of the cards by their keys. */
 let staged: { url: string; dir: string; cards: Record<string, string> };
-/** The scratch Seismic's owner key, for the API (design: Who may talk to it). */
+/** The scratch Seismic's owner key, for the API. */
 const owner = () => ownerHeaders(path.join(staged.dir, 'home'));
 
 function stage() {

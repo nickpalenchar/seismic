@@ -1,4 +1,4 @@
-// Pushes to the owner's phone when something starts to wait for them (design: Push): a card whose
+// Pushes to the owner's phone when something starts to wait for them: a card whose
 // `needsYou` turns true (a demo, a question, a proposal, a card its agent withdrew, a PR to merge, an idea's turn), a landing
 // that failed, a worker that is stuck. Each paired device that turned notifications on holds one
 // subscription; Seismic signs with a VAPID key of its own in its home and needs no account.

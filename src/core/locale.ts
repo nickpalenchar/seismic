@@ -4,8 +4,8 @@ import { type Language, LANGUAGE_NAMES } from '../../plugin/skills/demo/lib/loca
 export { FALLBACK_LANGUAGE, LANGUAGE_NAMES, LANGUAGES, type Language, languageOf } from '../../plugin/skills/demo/lib/locale.ts';
 
 /**
- * What a prompt tells an agent that talks with the owner about the language it writes them in
- * (design: Language): the chosen conversation language, or a standing language preference.
+ * What a prompt tells an agent that talks with the owner about the language it writes them in:
+ * the chosen conversation language, or a standing language preference.
  * Its tools then say "in the owner's language".
  */
 export const ownersLanguage = (conversation: Language, first?: string) =>

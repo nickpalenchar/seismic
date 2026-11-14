@@ -1,4 +1,4 @@
-/* Seismic's colours and Tailwind's tokens (docs/design/the-canvas.md, "Visual identity"). index.html links this file
+/* Seismic's colours and Tailwind's tokens (docs/design/ui-system.md). index.html links this file
    beside frost.css (the board's font and keyframes), never imported by it: Tailwind would process (and rewrite)
    whatever file imports it. Tailwind's preflight is on, in the base layer; everything it generates sits in cascade
    layers, so a rule outside them (frost.css's) wins.

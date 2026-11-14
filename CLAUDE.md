@@ -1,16 +1,15 @@
 # CLAUDE.md
 
-Seismic: a spatial canvas for directing AI coding agents. Goal, behaviour and the decisions behind
-them are in `docs/design.md`, an index, and its chapters under `docs/design/`: read the index, then
-the chapters the change touches, and keep those current in the same change by the rebuild test the
-index's header states. The permanent docs (`docs/*.md` and the chapters under `docs/design/`) hold
-only what an experienced engineer would need to rebuild the software with the same features,
-however different the reimplementation would look: behaviour seen from outside, formats a rebuild
-must stay compatible with, non-obvious constraints, and decisions (chosen, why, rejected, date).
-Not what the code shows (names, modules, pixel values), and not history: a change rewrites the
-description instead of adding the old behaviour to it. Work in progress is planned in plan docs
-under `docs/plan/` (Seismic shows them as plans); when one is done, what passes the same test moves
-into the chapters under `docs/design/` (or the index) and the doc goes.
+Seismic: a spatial canvas for directing AI coding agents. Its goal, principles, concepts, decisions
+and non-obvious constraints are in `docs/design.md`; read it before a change, and the chapters it
+lists under `docs/design/` that the change touches (UI work: `docs/design/ui-system.md`).
+
+The design docs hold principles, decisions (chosen, why, rejected, date) and non-obvious constraints
+(platform quirks, formats to stay compatible with, safety rules): not a description of every
+behaviour, and not history. A worker who settles one of those writes it into `docs/design.md` or a
+chapter in the same change; a chapter is started when an area gathers enough of them. Work in
+progress is planned in plan docs under `docs/plan/` (Seismic shows them as plans); when one is done,
+its lasting decisions and constraints move into the design doc and the plan doc goes.
 
 - Bun + TypeScript throughout; tests with `bun test --parallel` (a file per process, from Bun 1.4 on;
   older Bun ignores the flag and runs them one after the other), types with `bun run typecheck`.
@@ -51,7 +50,9 @@ into the chapters under `docs/design/` (or the index) and the doc goes.
   in a `-dev` checkout runs its code on `~/.obeya-dev` and port 4418, beside it. An Seismic restarts
   itself once `main` moves to commits that change code, a commit of yours included (workers resume, the page
   reloads); docs-only commits leave it running. Keep tests off it.
-- New UI uses the components in `src/ui/components/`: shadcn/ui parts styled with Tailwind on frost's tokens (`src/ui/tailwind.css`), AI Elements for conversations; a missing part is added with the shadcn CLI (`bunx --bun shadcn@latest add <part>`, configured by `components.json`) rather than built as a bespoke control. The conventions are the header of `components/ui.tsx`.
+- UI work follows `docs/design/ui-system.md`: shadcn/ui parts and proven libraries first, React
+  components, frost's own CSS only where its look needs it, and the rules every screen follows
+  (keyboard paths, toggles, no accent bars, links, undo, discoverability, the phone view, polish).
 - No project-specific logic in the core: what a project needs goes into its settings
   (`.obeya/settings.json` in that repository), not into this repo. Those settings stay few and
   generic: each describes something that holds for any kind of app, not one kind of web stack, and
@@ -64,54 +65,14 @@ into the chapters under `docs/design/` (or the index) and the doc goes.
   and checks results in demos and result artifacts. Source code and diffs stay in the background:
   on a card with a demo or artifact, its changed files are optional and stay in their own Diff tab,
   never shown up front.
-- Seismic's UI never sends the owner to the command line: when a message suggests a step (pushing
-  `main` first, say), Seismic offers it as an action right there, or the message doesn't mention it.
 - UI strings live in one place, `src/ui/strings.ts`, in English (German support was removed on
   2026-11-07 until language support returns; the table per language keeps its shape).
   Docs, comments and prompts are in English and quote the English labels.
-- An interaction that several kinds of card share (answering questions with comments and one Send
-  button, the conversation history, starting ("Build it like this", "Accept and start") while the agent
-  is still working) is built once in shared code and works the same on each of them; no card kind
-  gets its own variant.
-- The phone view stays as simple as possible: not every desktop view belongs on it (the workstations
-  list, say, stays desktop-only). What it does show follows the desktop version: same controls,
-  icons, button states and card layout, departing from it only where the small screen requires.
-  A tap on a button while the keyboard is open does what the button does on the first tap; it
-  never just closes the keyboard first.
-- Whatever the owner has entered on a card but not sent yet (text, pasted screenshots, picked answer
-  options, comments) survives closing the card, switching projects and a page reload, for every
-  input on the card, not only the text field.
-- What the owner is looking at right now is not flagged to them: a message that arrives in a
-  conversation they have open gets neither a notification nor an unread marker, and an answered
-  question no longer shows as open.
-- Dialogs and text fields use the space the screen offers (the owner works on a tall monitor)
-  instead of staying small with a scrollbar of their own; never two scrollbars side by side.
-- A button that is easy to click by accident and sets a lot in motion gets an undo. What is easy
-  to reverse afterwards gets no undo window with a wait: it takes effect at once.
-- Every new feature and every shortcut gets a way for first-time users to discover it: a visible
-  icon, say, or a hint that shows until it has been used once. A button that appears on hover over
-  the thing it acts on is found that way and needs no more. A tooltip or a key that is only
-  documented is not enough.
-- Every menu, popover, dialog or trigger in the UI works from the keyboard: Space and Enter activate
-  it (Space never starts push-to-talk on it), it has a keyboard opening path, and closing it leaves
-  focus where the user expects.
-- A single on/off setting is a toggle switch, not a checkbox; checkboxes only where several options
-  of a set can be picked.
-- Rarely used actions stay out of the way: shown only where they apply, behind hover or an overflow
-  menu, so everyday use isn't cluttered with buttons. A button's label makes clear what it does to
-  someone who doesn't yet know the use case.
 - Prompts and skills for agents: fix unwanted behaviour by removing the instruction that causes
   it, not by adding a prohibition. Forbid nothing an agent would not do without being told to.
 - The colleagues use Windows or Linux: features must work there; macOS-only tools (e.g. `say`)
   only as an additional option.
 - Demo videos and voice recordings never go into git.
-- Before UI work goes to the owner, look closely at screenshots of it for visual polish and fix
-  what is off: text vertically centred with neighbouring buttons, enough padding to the edges of
-  its block, controls (a remove ×, say) where the eye expects them.
-- Links in the UI are blue as well as underlined, so they are recognizable as links.
-- No coloured vertical accent bar down either side of an element (a border or inset stripe)
-  anywhere in the UI, list items, entries and chat messages included: emphasis comes from a tint,
-  a full outline or ring, or bolder text.
 - A demo video shows the entire feature from start to finish, not only what changed since the last demo.
 - Before a demo video goes to the owner, watch it for faults of the demo itself and fix them first:
   every dictated text it shows is transcribed completely and correctly (no missing words or

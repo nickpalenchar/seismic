@@ -297,7 +297,7 @@ function Project({
   usage: Usage[];
   projects: ProjectInfo[];
   waiting: Record<string, Waiting>;
-  /** The Bun the server runs on, when it is too old for it (docs/design/distribution.md, Builds). */
+  /** The Bun the server runs on, when it is too old for it. */
   oldBun: string | null;
 }) {
   knowProjects(projects);

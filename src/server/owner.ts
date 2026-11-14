@@ -1,4 +1,4 @@
-// Only the owner talks to Seismic from this machine (design: Who may talk to it). Every request names
+// Only the owner talks to Seismic from this machine. Every request names
 // the owner's key, a secret in `owner.key` in Seismic's home that only the owner's account may read
 // (0600): in the header `X-Obeya-Key` (the app's shell, Seismic's own scripts) or in a cookie (the
 // page, the push-to-talk panel). A browser gets the cookie from a link with a token

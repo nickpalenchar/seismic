@@ -1,6 +1,6 @@
 // Stalls: moments Seismic's server did nothing else (a synchronous git call, a long computation), so
 // that no page got an answer meanwhile, and moments a page froze; each goes into the server's log
-// and into `stalls.log` in the home, with where the time went (design: Running Seismic, Stalls).
+// and into `stalls.log` in the home, with where the time went.
 
 import * as jsc from 'bun:jsc';
 import { appendFileSync, renameSync, statSync } from 'node:fs';

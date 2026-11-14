@@ -1,4 +1,4 @@
-// A folder without git as a repository (design: Folders without git). Every card works in the
+// A folder without git as a repository. Every card works in the
 // folder itself, beside other cards, the owner and whatever syncs it; nothing lands. What a card
 // changes is told from a manifest of the folder (path, size, mtime, inode; a hash only of what
 // changed), taken again after each of its tool calls that may write: a change goes to the card

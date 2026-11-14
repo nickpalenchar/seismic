@@ -1,7 +1,7 @@
 # Releasing Seismic
 
-How a version of the app goes out, and the owner's steps it depends on. The builds are described
-in [`docs/design/distribution.md`](design/distribution.md) (Builds, App updates).
+How a version of the app goes out, and the owner's steps it depends on. The constraints the builds
+must keep are in [`docs/design.md`](design.md) (Constraints).
 
 The Mac apps are signed with a Developer ID and notarised; the Windows installer and the Linux
 packages are not signed (Windows: the SignPath Foundation, applied for), and the release lists the

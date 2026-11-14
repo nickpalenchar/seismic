@@ -1,4 +1,4 @@
-// A card's face, the one every surface that shows a card draws, in four sizes (design: Card sizes):
+// A card's face, the one every surface that shows a card draws, in four sizes:
 // M, the card on the project; S, a compact row of up to four lines (the inbox); XS, two lines with
 // the least (search and the other lists); inline, a pill within a line of text. A surface adds what is its own around the face (buttons,
 // a grip, an ×) and in its slots, never a title, state or labels of its own.

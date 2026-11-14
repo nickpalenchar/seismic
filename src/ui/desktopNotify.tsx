@@ -1,4 +1,4 @@
-// Desktop notifications (design: Notifications on the desktop): the project page tells the owner when
+// Desktop notifications: the project page tells the owner when
 // a card starts to wait for them while they are not looking at the page. In the app (Tauri) the
 // system's notification comes from the shell, in a browser from the page's own permission. Whether
 // it does is the owner's choice (Konfiguration → Benachrichtigungen und Limits), asked once at the first start.

@@ -2,7 +2,7 @@
 //
 // `clones`: a pool of full clones per project, leased one card at a time (for repositories with tools
 // that break in worktrees, or one app per clone), here and on other machines; a new card
-// takes a clone on the first machine whose busy workers leave it a slot (design: Hosts). `worktrees`: one worktree of the Seismic checkout per card,
+// takes a clone on the first machine whose busy workers leave it a slot. `worktrees`: one worktree of the Seismic checkout per card,
 // created on start, as many in parallel as there are cards unless the repository has slots; kept
 // across stop and restart until the card's work has landed.
 

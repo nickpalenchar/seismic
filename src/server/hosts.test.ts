@@ -1,4 +1,4 @@
-// Workers on other machines (design: Hosts), against a stand-in for `ssh` that runs the commands
+// Workers on other machines, against a stand-in for `ssh` that runs the commands
 // on this machine (`fakeSsh`): git and files over the connection, a session's process, clones
 // there, and a session that resumes once a dropped connection is back.
 

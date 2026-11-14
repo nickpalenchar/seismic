@@ -1,4 +1,4 @@
-// The service worker of the web app on the phone's home screen (design: Push). The server serves
+// The service worker of the web app on the phone's home screen. The server serves
 // `/sw.js` as this function's source, so it stays one file in the binary and is checked with the rest.
 // It shows Seismic's pushes, opens the card a tapped one is about, and keeps the page's shell: the app
 // opened while the machine sleeps shows that Seismic does not answer, instead of the browser's error.

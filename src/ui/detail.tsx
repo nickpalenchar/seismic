@@ -2736,7 +2736,7 @@ function FindingList({ item, findings, decides }: { item: Item; findings: Findin
 }
 
 /**
- * The Review tab of a card whose work its project reviews (design: Code reviews in Card lifecycle):
+ * The Review tab of a card whose work its project reviews:
  * its label counts the items that need the owner by severity in their colours, or shows the review
  * running, and "outdated" where it reviewed an earlier handover; a check says nothing is open. Its
  * panel is the one list of items.
