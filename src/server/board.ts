@@ -202,6 +202,10 @@ export interface StoredCodeReview {
   review?: { handover: number; head?: string; state: 'running' | 'done' | 'failed'; error?: string; at: string; agent?: AgentIdentity; session?: string; scope?: number[] };
   /** An automatic review is about to start (git has not told the commit yet): the card shows it as running, so the handover is not announced before the review. */
   pending?: true;
+  /** Identifies the lookup so a cancelled or superseded callback cannot start a review. */
+  pendingId?: string;
+  /** A pending review started by the owner, rather than by a handover. */
+  pendingStart?: true;
   /** Number of review runs started for this card. */
   runs?: number;
 }
@@ -214,7 +218,7 @@ function shownCodeReview(c: StoredCodeReview, items: ReviewItem[]): CodeReview {
   return {
     mode: c.mode,
     items,
-    ...(c.runs ? { runs: c.pending && r?.state !== 'running' ? c.runs + 1 : c.runs } : {}),
+    ...(c.pending && r && r.state !== 'running' ? { runs: (c.runs ?? 1) + 1 } : c.runs ? { runs: c.runs } : {}),
     ...(c.pending && r?.state !== 'running' ? { state: 'running' as const } : r ? { state: r.state, ...(r.agent ? { agent: r.agent } : {}), ...(r.error ? { error: r.error } : {}), ...(r.handover !== c.handover ? { stale: true as const } : {}) } : {}),
   };
 }

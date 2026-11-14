@@ -76,10 +76,11 @@ export class CodeReviews {
       if (c?.pending) {
         // git had not told the commit yet: the review starts now, as the handover would have started it
         if (this.waits(i.id)) {
-          void this.handedOver(i.id, c.handover, c.mode);
+          if (c.pendingStart) this.startPending(i.id, c);
+          else void this.handedOver(i.id, c.handover, c.mode);
           continue;
         }
-        const { pending: _, ...rest } = c;
+        const { pending: _, pendingStart: __, pendingId: ___, ...rest } = c;
         if (rest.review?.state === 'running') this.save(i.id, rest);
         else this.save(i.id, { ...rest, review: { handover: rest.handover, state: 'failed', error: this.o.board.t.worker.codeReviewInterrupted, at: new Date().toISOString() } });
       }
@@ -115,15 +116,19 @@ export class CodeReviews {
     }
     const resubmitted = this.resubmit(cardId, this.items(cardId).filter((i) => i.status === 'fixing').map((i) => ({ number: i.number })), 'worker', handover).done;
     // the review starts once git has told the commit; until then the card already counts as under review
-    if (mode === 'auto' && had) this.save(cardId, { ...had, mode, handover, pending: true });
-    else if (mode === 'auto') this.save(cardId, { mode, handover, pending: true });
+    const pendingId = crypto.randomUUID();
+    if (mode === 'auto' && had) {
+      const { pendingStart: _, ...rest } = had;
+      this.save(cardId, { ...rest, mode, handover, pending: true, pendingId });
+    }
+    else if (mode === 'auto') this.save(cardId, { mode, handover, pending: true, pendingId });
     this.paused.delete(cardId);
     const ws = this.o.board.row(cardId).workstation;
     // awaited also without a workstation: the handover is recorded before anything starts
     const head = await (ws ? gitAsync(ws, 'rev-parse', 'HEAD').catch(() => undefined) : Promise.resolve(undefined));
     if (!this.o.board.item(cardId)) return;
     // a newer handover came while git answered: its own continuation decides, and keeps the card pending until then
-    if (mode === 'auto' && (codeReviewOf(this.o.board.row(cardId))?.handover !== handover || !codeReviewOf(this.o.board.row(cardId))?.pending)) return;
+    if (mode === 'auto' && codeReviewOf(this.o.board.row(cardId))?.pendingId !== pendingId) return;
     const now = codeReviewOf(this.o.board.row(cardId)) ?? had;
     let review = now?.review;
     // a review still running for an earlier commit is stale before it ends: it stops, and leaves nothing
@@ -165,10 +170,22 @@ export class CodeReviews {
   start(cardId: string): void {
     const c = codeReviewOf(this.o.board.row(cardId));
     if (!c) throw new BadRequest('notReview', 'the card has no code review: its project reviews no work');
+    if (c.pending) throw new BadRequest('notReview', 'the review is starting already');
     if (c.review?.handover === c.handover && c.review.state !== 'failed' && !this.items(cardId).some((i) => i.status === 'underReview')) throw new BadRequest('notReview', 'the latest handover is reviewed already');
     this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.codeReviewStarted);
+    const pending = { ...c, pending: true as const, pendingStart: true as const, pendingId: crypto.randomUUID() };
+    this.save(cardId, pending);
+    this.startPending(cardId, pending);
+  }
+
+  /** Start an explicitly requested review once Git answers, including after a restart. */
+  private startPending(cardId: string, c: StoredCodeReview): void {
     const ws = this.o.board.row(cardId).workstation;
-    void (ws ? gitAsync(ws, 'rev-parse', 'HEAD').catch(() => undefined) : Promise.resolve(undefined)).then((head) => this.begin(cardId, head));
+    void (ws ? gitAsync(ws, 'rev-parse', 'HEAD').catch(() => undefined) : Promise.resolve(undefined)).then((head) => {
+      if (!this.o.board.item(cardId)) return;
+      const now = codeReviewOf(this.o.board.row(cardId));
+      if (now?.pending && now.pendingStart && now.pendingId === c.pendingId && now.mode === c.mode && now.handover === c.handover && this.waits(cardId)) this.begin(cardId, head);
+    });
   }
 
   /** The owner approved, or the card goes: a review still running stops, and leaves nothing. */
@@ -177,7 +194,7 @@ export class CodeReviews {
     this.stopSession(cardId);
     const c = this.o.board.item(cardId) ? codeReviewOf(this.o.board.row(cardId)) : null;
     if (c?.pending || c?.review?.state === 'running' || (running && c?.review)) {
-      const { pending: _, review, ...rest } = c;
+      const { pending: _, pendingStart: __, pendingId: ___, review, ...rest } = c;
       if (review?.state !== 'running' && !running) Object.assign(rest, { review });
       this.save(cardId, rest);
     }
@@ -329,7 +346,7 @@ export class CodeReviews {
     if (!this.waits(cardId)) return;
     const stored = codeReviewOf(this.o.board.row(cardId));
     if (!stored) return;
-    const { pending: _, ...c } = stored;
+    const { pending: _, pendingStart: __, pendingId: ___, ...c } = stored;
     this.stopSession(cardId);
     const setting = this.o.agentSetting?.();
     const choice = setting && harnessChoice(setting);
@@ -515,14 +532,15 @@ export class CodeReviews {
   private verifyLeft(cardId: string, at: string): void {
     const c = codeReviewOf(this.o.board.row(cardId));
     if (c?.mode !== 'auto' || c.pending || c.review?.at !== at || !this.waits(cardId) || !this.items(cardId).some((i) => i.status === 'underReview')) return;
-    this.save(cardId, { ...c, pending: true });
+    const pendingId = crypto.randomUUID();
+    this.save(cardId, { ...c, pending: true, pendingId });
     const ws = this.o.board.row(cardId).workstation;
     void (ws ? gitAsync(ws, 'rev-parse', 'HEAD').catch(() => undefined) : Promise.resolve(undefined)).then((head) => {
       if (!this.o.board.item(cardId)) return;
       const now = codeReviewOf(this.o.board.row(cardId));
-      if (now?.mode !== 'auto' || !now.pending || now.handover !== c.handover || now.review?.at !== at) return;
+      if (now?.mode !== 'auto' || !now.pending || now.pendingId !== pendingId || now.handover !== c.handover || now.review?.at !== at) return;
       if (!this.waits(cardId) || !this.items(cardId).some((i) => i.status === 'underReview')) {
-        const { pending: _, ...rest } = now;
+        const { pending: _, pendingId: __, ...rest } = now;
         this.save(cardId, rest);
         return;
       }

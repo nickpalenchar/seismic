@@ -70,7 +70,8 @@ type Verdict = { number: number; fixed: boolean; why?: string };
 async function review(id: string, s: FakeSession, items: unknown[] = FINDINGS, verdicts: Verdict[] = [], regressions: { number: number; why: string }[] = []) {
   expect(s.call('review', { verdicts, regressions, items })).toContain('Recorded');
   s.emit({ type: 'idle' });
-  await until(() => board.item(id)!.review?.codeReview?.state === 'done');
+  // Another run may already be pending for an item submitted during this one.
+  await until(() => board.row(id).review?.codeReview?.review?.state === 'done');
 }
 
 const itemsOf = (id: string) => board.item(id)!.review!.codeReview!.items;
@@ -758,6 +759,20 @@ describe('code reviews', () => {
     expect(itemsOf(id)).toHaveLength(3);
     await review(id, reviewers()[1]!, []);
     expect(itemsOf(id)).toHaveLength(3);
+  });
+
+  test('a manually started review is pending immediately and resumes after restart', async () => {
+    reviewing('manual');
+    const id = await started();
+    await handOver(id, 'export.ts');
+    await until(() => !!board.item(id)!.review?.codeReview);
+    workers.startCodeReview(id);
+    expect(board.row(id).review?.codeReview).toMatchObject({ pending: true, pendingStart: true });
+    expect(board.item(id)!.review?.codeReview?.state).toBe('running');
+    workers.reviews.interrupted();
+    await until(() => reviewers().length === 1, 15000);
+    expect(board.row(id).review?.codeReview?.pending).toBeUndefined();
+    expect(reviewers()).toHaveLength(1);
   });
 
   test('a handover of the same commit keeps the review running, and it stands for that handover', async () => {
