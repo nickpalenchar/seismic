@@ -108,6 +108,7 @@ export class CodeReviews {
    * otherwise it is stale, and in `auto` a new one starts.
    */
   async handedOver(cardId: string, handover: number, mode: CodeReviewMode | null, resumePending = false): Promise<void> {
+    if (this.shut) return;
     const had = codeReviewOf(this.o.board.row(cardId));
     if (!mode) {
       this.stopSession(cardId);
@@ -170,6 +171,7 @@ export class CodeReviews {
 
   /** "Start code review": a review of the card's latest handover starts, where it has none that stands (or one that failed). */
   start(cardId: string): void {
+    if (this.shut) throw new BadRequest('notReview', 'the reviewer is shutting down');
     const c = codeReviewOf(this.o.board.row(cardId));
     if (!c) throw new BadRequest('notReview', 'the card has no code review: its project reviews no work');
     if (c.pending) throw new BadRequest('notReview', 'the review is starting already');
@@ -533,6 +535,7 @@ export class CodeReviews {
 
   /** In automatic mode, items still under review after the review run `at` is done get the next review. */
   private verifyLeft(cardId: string, at: string): void {
+    if (this.shut) return;
     const c = codeReviewOf(this.o.board.row(cardId));
     if (c?.mode !== 'auto' || c.pending || c.review?.at !== at || !this.waits(cardId) || !this.items(cardId).some((i) => i.status === 'underReview')) return;
     const pendingId = crypto.randomUUID();

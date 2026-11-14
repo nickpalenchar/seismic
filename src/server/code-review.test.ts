@@ -815,6 +815,8 @@ describe('code reviews', () => {
     await until(() => !!board.item(id)!.review?.codeReview);
     workers.startCodeReview(id);
     workers.reviews.shutdown();
+    expect(() => workers.startCodeReview(id)).toThrow();
+    workers.reviews.workerFinished(id);
     await Bun.sleep(50);
     expect(reviewers()).toHaveLength(0);
     expect(board.row(id).review?.codeReview?.pending).toBe(true);
