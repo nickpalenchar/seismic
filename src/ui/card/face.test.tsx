@@ -67,6 +67,7 @@ test("the smallest face says a card's state in a word or two, from one table", (
   const xs = (more: Partial<Item>) => face({ item: card({ body: '', ...more }), size: 'xs' }).match(/<span class="f-state">([^<]*)</)?.[1];
   expect(xs({ state: 'working' })).toBe('Working');
   expect(xs({ state: 'waiting', need: 'demo' })).toBe('Demo ready');
+  expect(xs({ state: 'waiting', need: 'demo', review: { answered: true, codeReview: { mode: 'auto', state: 'running', runs: 2, items: [] } } })).toBe('2nd review check');
   expect(xs({ state: 'waiting', need: 'question', question: { text: 'Which?', options: [] } } as Partial<Item>)).toBe('Question');
   expect(xs({ queue: { behind: ['x'], reason: 'r', since: 'now' } } as Partial<Item>)).toBe('Queued');
   expect(xs({ state: 'planned' })).toBe('Planned');

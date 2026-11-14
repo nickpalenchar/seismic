@@ -64,6 +64,7 @@ test('a card whose agent paused for a restart says so in place of being at work'
   expect(stateLabel({ state: 'working' })).toBe('Agent at work');
   expect(stateLabel({ state: 'waiting', need: 'review', review: { codeReview: { state: 'running' } } })).toBe('Agent reviewing');
   expect(stateLabel({ state: 'waiting', need: 'review', review: { answered: true, codeReview: { state: 'running', runs: 2 } } })).toBe('2nd review check');
+  expect(stateLabel({ state: 'waiting', need: 'review', review: { answered: true, codeReview: { state: 'running', runs: 2 } } }, true)).toBe('2nd review check');
 });
 
 test('a stopped card names the state it was stopped at', () => {

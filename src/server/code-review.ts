@@ -123,7 +123,7 @@ export class CodeReviews {
     const head = await (ws ? gitAsync(ws, 'rev-parse', 'HEAD').catch(() => undefined) : Promise.resolve(undefined));
     if (!this.o.board.item(cardId)) return;
     // a newer handover came while git answered: its own continuation decides, and keeps the card pending until then
-    if (mode === 'auto' && codeReviewOf(this.o.board.row(cardId))?.handover !== handover) return;
+    if (mode === 'auto' && (codeReviewOf(this.o.board.row(cardId))?.handover !== handover || !codeReviewOf(this.o.board.row(cardId))?.pending)) return;
     const now = codeReviewOf(this.o.board.row(cardId)) ?? had;
     let review = now?.review;
     // a review still running for an earlier commit is stale before it ends: it stops, and leaves nothing
@@ -176,8 +176,9 @@ export class CodeReviews {
     const running = this.running.has(cardId);
     this.stopSession(cardId);
     const c = this.o.board.item(cardId) ? codeReviewOf(this.o.board.row(cardId)) : null;
-    if (c?.review?.state === 'running' || (running && c?.review)) {
-      const { review: _, ...rest } = c;
+    if (c?.pending || c?.review?.state === 'running' || (running && c?.review)) {
+      const { pending: _, review, ...rest } = c;
+      if (review?.state !== 'running' && !running) Object.assign(rest, { review });
       this.save(cardId, rest);
     }
   }
@@ -512,12 +513,20 @@ export class CodeReviews {
 
   /** In automatic mode, items still under review after the review run `at` is done get the next review. */
   private verifyLeft(cardId: string, at: string): void {
-    if (codeReviewOf(this.o.board.row(cardId))?.mode !== 'auto' || !this.waits(cardId) || !this.items(cardId).some((i) => i.status === 'underReview')) return;
+    const c = codeReviewOf(this.o.board.row(cardId));
+    if (c?.mode !== 'auto' || c.pending || c.review?.at !== at || !this.waits(cardId) || !this.items(cardId).some((i) => i.status === 'underReview')) return;
+    this.save(cardId, { ...c, pending: true });
     const ws = this.o.board.row(cardId).workstation;
     void (ws ? gitAsync(ws, 'rev-parse', 'HEAD').catch(() => undefined) : Promise.resolve(undefined)).then((head) => {
       if (!this.o.board.item(cardId)) return;
       const now = codeReviewOf(this.o.board.row(cardId));
-      if (now?.mode === 'auto' && !now.pending && (now.review?.state === 'done' || now.review?.state === 'failed') && now.review.at === at) this.begin(cardId, head);
+      if (now?.mode !== 'auto' || !now.pending || now.handover !== c.handover || now.review?.at !== at) return;
+      if (!this.waits(cardId) || !this.items(cardId).some((i) => i.status === 'underReview')) {
+        const { pending: _, ...rest } = now;
+        this.save(cardId, rest);
+        return;
+      }
+      this.begin(cardId, head);
     });
   }
 

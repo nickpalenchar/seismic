@@ -518,8 +518,30 @@ describe('code reviews', () => {
     await worker().call('reply', { text: 'Fixed.' });
     worker().emit({ type: 'text', text: 'Fixed.' });
     worker().emit({ type: 'idle' });
+    // The Git lookup has not returned yet, but the owner already sees the next review.
+    expect(board.row(id).review?.codeReview?.pending).toBe(true);
+    expect(board.item(id)!.review?.codeReview).toMatchObject({ state: 'running', runs: 2 });
+    expect(needsYou(board.item(id)!)).toBe(false);
+    // A restart during the lookup resumes it; the original callback must not start a second run.
+    workers.reviews.interrupted();
     await until(() => reviewers().length === 2);
     expect(board.item(id)!.review?.codeReview).toMatchObject({ state: 'running', runs: 2 });
+    expect(reviewers()).toHaveLength(2);
+  });
+
+  test('cancelling a pending verification prevents its Git callback from starting a review', async () => {
+    reviewing('auto');
+    const id = await started();
+    await handOver(id, 'export.ts');
+    await until(() => reviewers().length === 1);
+    await review(id, reviewers()[0]!);
+    board.work(id, { review: { items: itemsOf(id).map((i) => i.number === 1 ? { ...i, status: 'underReview' as const } : i) } });
+    workers.reviews.workerFinished(id);
+    expect(board.row(id).review?.codeReview?.pending).toBe(true);
+    workers.reviews.cancel(id);
+    expect(board.row(id).review?.codeReview?.pending).toBeUndefined();
+    await Bun.sleep(30);
+    expect(reviewers()).toHaveLength(1);
   });
 
   test('a resubmission after a failed review is checked on reply', async () => {
