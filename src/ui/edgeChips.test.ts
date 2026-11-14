@@ -23,3 +23,10 @@ test('pointers on one screen edge touch even when their cards are at different h
   const chips = edgeChipPositions(targets, { x: 0, y: 400, s: 1 }, { left: 0, right: 0 }, 1440, 900);
   expect(chips.map((p) => p.y)).toEqual([500, 530, 560]);
 });
+
+test('pointers keep clear of the minimap', () => {
+  const targets = [0, 1, 2].map((n) => ({ id: String(n), b: { x: -500, y: 600, w: 200, h: 100 } }));
+  const avoid = { x: 14, y: 900 - 46 - 130, w: 210, h: 130 };
+  const chips = edgeChipPositions(targets, { x: 0, y: 0, s: 1 }, { left: 0, right: 0 }, 1440, 900, avoid);
+  for (const c of chips) expect(c.y + CHIP_HEIGHT / 2 <= avoid.y || c.y - CHIP_HEIGHT / 2 >= avoid.y + avoid.h || c.x >= avoid.x + avoid.w).toBe(true);
+});
