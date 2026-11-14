@@ -44,6 +44,8 @@ const EVERY: Duration = Duration::from_secs(6 * 3600);
 const AGAIN: Duration = Duration::from_secs(30 * 60);
 /// Checking for releases is switched off until Seismic distributes its own app (docs/release.md).
 const CHECK_RELEASES: bool = false;
+/// Where a .deb update is fetched by hand, as the server expects it (`RELEASES` in src/server/app-update.ts).
+const RELEASES: &str = "https://github.com/nickpalenchar/seismic/releases";
 
 /// A newer version, downloaded and checked; or for a .deb, where to get it.
 struct Ready {
@@ -175,11 +177,11 @@ fn report(app: &AppHandle, obeya: &Seismic, updates: &Updates) {
   let body = match updates.ready.lock().unwrap().as_ref() {
     None if *updates.rebuilt.lock().unwrap() => json!({ "rebuilt": true }),
     None => return,
-    Some(Ready { update, .. }) => json!({
+    Some(Ready { update, bytes }) => json!({
       "version": update.version,
       "notes": update.body,
       "date": update.date.map(|d| d.unix_timestamp() * 1000),
-      "download": None::<String>,
+      "download": bytes.is_none().then(|| format!("{RELEASES}/tag/v{}", update.version)),
     }),
   };
   post(port, "/api/app-update", &body);

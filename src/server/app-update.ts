@@ -9,7 +9,7 @@ import { BadRequest } from './board';
  * App updates are switched off until Seismic distributes its own app (docs/release.md): the shell
  * checks nothing (app/src/update.rs), and a report that reaches the server shows no update.
  */
-/** Where the app's releases will be once there are any. */
+/** Where the app's releases will be once there are any, as its shell names them (`RELEASES` in app/src/update.rs). */
 const RELEASES = 'https://github.com/nickpalenchar/seismic/releases/';
 const UPDATES_ENABLED = false;
 

@@ -1,4 +1,4 @@
-// The repository's social preview on GitHub (the picture a link to github.com/sadilek/obeya shows
+// The repository's social preview on GitHub (the picture a link to github.com/nickpalenchar/seismic shows
 // when it is shared): 1280×640, the wordmark and the site's headline beside the site's screenshot of
 // the project (`site/img/project.png`), in the site's palette and type. GitHub's API cannot set it: the
 // owner uploads the PNG under the repository's Settings → General → Social preview.
@@ -26,7 +26,7 @@ const html = `<!doctype html>
   <div class="text">
     <img src="img/wordmark.svg" alt="Seismic" width="190" height="54">
     <h1>Direct coding agents like an engineering director.</h1>
-    <p class="eyebrow">Open source · runs on your machine · obeya.si</p>
+    <p class="eyebrow">Open source · runs on your machine</p>
   </div>
   <img class="project shot" src="img/project.png" alt="">
 </body></html>`;

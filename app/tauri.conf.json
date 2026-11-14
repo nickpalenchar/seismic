@@ -14,7 +14,7 @@
     "category": "DeveloperTool",
     "shortDescription": "A project for directing AI coding agents",
     "longDescription": "Seismic is a spatial project on which you direct AI coding agents like an engineering director directs a team.",
-    "homepage": "https://obeya.si",
+    "homepage": "https://github.com/nickpalenchar/seismic",
     "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
     "externalBin": ["binaries/obeya-server"],
     "resources": { "staged/resources/": "resources/" },
