@@ -60,8 +60,9 @@ html, body { margin: 0; height: 100%; overflow: hidden; background-color: var(--
    and the cards take the tint they have zoomed out (card/faceClasses.ts) */
 :root[data-motion="reduce"] { --glass: var(--surface); }
 
-/* a workstation's dot whose card is at work, in review or landing (workstations.tsx `pulse`): its fill and glow, laid
-   over the dot's pale fill, fade slowly out and back while the outline stays. By opacity, which repaints nothing,
-   where a pulsing background and shadow repainted the dot every frame */
+/* a workstation's dot whose card is at work, in review or landing, and its share of the bar many workstations
+   become (workstations.tsx `pulse`, `barPulse`): its full fill (and the dot's glow), laid over its pale fill, fades
+   slowly out and back while the outline stays. By opacity, which repaints nothing, where a pulsing background and
+   shadow repainted the dot every frame */
 @keyframes ws-pulse { 0%, 40%, 100% { opacity: 1; } 70% { opacity: 0; } }
 

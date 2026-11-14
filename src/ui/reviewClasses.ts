@@ -85,17 +85,20 @@ const severity: Record<Severity, string> = {
 export const severityBadge = (s: Severity) =>
   cn('f-sev self-center text-[11px] leading-4 rounded-[4px] px-[5px] text-[var(--badge-ink,var(--sev))] bg-[color:--alpha(var(--sev)/16%)]', s, severity[s]);
 
-/** "Fixing" on a review card's finding the owner gave the card's agent, with room after it for its moving line (`fixingLine`). */
-export const fixingBadge = 'f-fixing relative mr-[30px] self-center text-[11px] leading-4 text-teal-50 bg-teal-800 rounded-[4px] px-[5px]';
+/** Room after a "Fixing" badge or status pill for its moving line (`fixingLine`), which hangs out of it. */
+const fixingRoom = 'relative mr-[30px]';
 
-/** The moving line (a `DrawLine`) inside the fixing badge, drawn in the room after it. */
+/** "Fixing" on a review card's finding the owner gave the card's agent. */
+export const fixingBadge = cn('f-fixing self-center text-[11px] leading-4 text-teal-50 bg-teal-800 rounded-[4px] px-[5px]', fixingRoom);
+
+/** The moving line (a `DrawLine`) inside a "Fixing" badge or status pill, drawn in the room after it. */
 export const fixingLine = 'absolute left-[calc(100%+5px)] top-[calc(50%-1px)] w-6';
 
 /** Each status of a code review's item, in its colours. */
 const pills: Record<string, string> = {
   raised: 'text-rose-800 bg-rose-600/14 dark:text-rose-300',
   reopened: 'text-amber-800 bg-amber-100 dark:text-amber-300 dark:bg-amber-950',
-  fixing: cn('text-teal-50 bg-teal-800', fixingLine),
+  fixing: cn('text-teal-50 bg-teal-800', fixingRoom),
   underReview: 'text-sky-800 bg-sky-100 dark:text-sky-300 dark:bg-sky-950',
   'done-fix': 'text-green-800 bg-green-100 dark:text-green-300 dark:bg-green-950',
   closed: 'text-muted-foreground bg-muted',

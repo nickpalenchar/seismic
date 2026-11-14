@@ -23,6 +23,10 @@ const PULSING = new Set(['working', 'reviewing', 'approved']);
 const pulse =
   "relative bg-c-subtle shadow-[0_0_1px_var(--c-subtle)] before:absolute before:-inset-px before:rounded-full before:shadow-[0_0_6px_var(--c)] before:content-[''] before:animate-[ws-pulse_3.6s_ease-in-out_infinite] after:absolute after:inset-0 after:rounded-full after:bg-c after:content-[''] after:animate-[ws-pulse_3.6s_ease-in-out_infinite] reduced:border-2 reduced:border-[var(--c)] reduced:bg-transparent reduced:shadow-none reduced:before:hidden reduced:after:animate-none reduced:after:inset-auto reduced:after:top-1/2 reduced:after:left-1/2 reduced:after:size-1 reduced:after:[transform:translate(-50%,-50%)]";
 
+/** The pulse of a share of the bar at work: its full fill (`::after`) fades out to its pale fill and back, as a dot's does. */
+const barPulse =
+  "relative bg-c-subtle after:absolute after:inset-0 after:bg-c after:content-[''] after:animate-[ws-pulse_3.6s_ease-in-out_infinite] reduced:after:animate-none";
+
 /**
  * A workstation's dot, the same on the pill and in its list: in the colour of its card's state as
  * the card shows it (`cardTone`), so it follows the cards' colours, pulsing slowly where the card is
@@ -274,8 +278,8 @@ export function DotsFace({ dots }: { dots: WorkstationDot[] }) {
         {shares.map(({ dot, n }, i) => (
           <i
             key={i}
-            className={cn('block h-full', dot.pulsing && 'animate-[ws-pulse_3.6s_ease-in-out_infinite] reduced:animate-none')}
-            style={{ flexGrow: n, flexBasis: 0, ...(dot.fill && ({ '--c': dot.fill, background: dot.fill } as CSSProperties)) }}
+            className={cn('block h-full', dot.pulsing && barPulse)}
+            style={{ flexGrow: n, flexBasis: 0, ...(dot.pulsing ? dot.style : dot.fill && ({ '--c': dot.fill, background: dot.fill } as CSSProperties)) }}
           />
         ))}
       </span>

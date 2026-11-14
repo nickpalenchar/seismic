@@ -2831,6 +2831,7 @@ function ReviewList({ item, act, decides, again, reviewer }: { item: Item; act: 
       <span className={statusPill(i.status)} title={t.codeReview.statusHint[i.status]}>
         {i.status === 'fixed' && <Check size={11} strokeWidth={2.5} aria-hidden="true" />}
         {t.codeReview.status[i.status]}
+        {i.status === 'fixing' && <DrawLine color="var(--color-teal-800)" className={fixingLine} />}
       </span>
     );
     const cls = findingClass({ security: i.security, settled: !waits, folded: !open, extra: ['ritem', i.severity] });
