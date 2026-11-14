@@ -140,7 +140,7 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow }:
         >
           {/* a tab picks its canvas by its own click, which tells a finger's first tap from the rest; Enter and Space click, the arrow keys move focus */}
           <Tabs value={shown ?? ''} onValueChange={() => {}} activationMode="manual" className="contents">
-            <TabsList className="flex items-center gap-1 rounded-[999px] border border-glass-edge bg-card px-[3px] py-[2px] shadow-[inset_0_1px_0_var(--glass-hi),var(--shadow)] backdrop-blur-[12px] backdrop-saturate-[1.4]" aria-label={t.canvases.strip}>
+            <TabsList className="flex items-center gap-0.5 rounded-[999px] border border-glass-edge bg-card px-[3px] py-[2px] shadow-[inset_0_1px_0_var(--glass-hi),var(--shadow)] backdrop-blur-[12px] backdrop-saturate-[1.4]" aria-label={t.canvases.strip}>
               {several &&
                 canvases.map((c) => (
                   <TabsTrigger

@@ -407,7 +407,7 @@ const barButton = 'relative inline-grid size-11 place-items-center rounded-full 
 function FloatingBar({ needsYou, making, chat, chatWorking, onNew, onChat, onSearch, onMenu, onNeedsYou }: { needsYou: number; making: boolean; chat: number; chatWorking: boolean; onNew: () => void; onChat: () => void; onSearch: () => void; onMenu: () => void; onNeedsYou: () => void }) {
   return (
     <nav
-      className="ph-float fixed z-50 left-1/2 bottom-[calc(14px+env(safe-area-inset-bottom))] -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-glass px-2 py-0.5 shadow-lift backdrop-blur-xl [.ph-kb_.ph-view~&]:hidden ph-landscape:left-auto ph-landscape:right-[calc(10px+env(safe-area-inset-right))] ph-landscape:top-1/2 ph-landscape:bottom-auto ph-landscape:-translate-y-1/2 ph-landscape:translate-x-0 ph-landscape:flex-col ph-landscape:px-1 ph-landscape:py-2"
+      className="ph-float fixed z-50 left-1/2 bottom-[calc(14px+env(safe-area-inset-bottom))] -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-glass px-2 py-0.5 shadow-lift backdrop-blur-xl [.ph-kb_.ph-view~&]:hidden ph-landscape:left-auto ph-landscape:right-[calc(10px+env(safe-area-inset-right))] ph-landscape:top-1/2 ph-landscape:bottom-auto ph-landscape:-translate-y-1/2 ph-landscape:translate-x-0 ph-landscape:flex-col ph-landscape:px-1 ph-landscape:py-1"
       aria-label={t.phone.next.menu}
     >
       <button className={barButton} aria-label={t.phone.next.menu} onClick={onMenu}>
