@@ -835,7 +835,9 @@ function Project({
 
   function onDone(d: ActDone, p?: Pending) {
     if (!d.close) return;
-    closeCard({ keepUntitled: true });
+    const gone = focusRef.current?.id;
+    const folded = closeCard({ keepUntitled: true });
+    if (d.next && gone) void folded.then(() => openOnward(gone, d.next!));
     if (!p || !d.pending) {
       if (d.rate) ratePrompt.ask(d.rate);
       if (d.ack) showAck(d.ack, d.undo);
@@ -859,6 +861,15 @@ function Project({
         warnings.show(t.cardError(p.title, failText(e)), p.card);
       },
     );
+  }
+
+  /**
+   * After the card `gone` folded into `next` (a merge approved): once the project no longer shows it,
+   * and so shows `next` where it now stands, flies there and opens it.
+   */
+  async function openOnward(gone: string, next: string) {
+    const i = await soon(() => byId(gone) ? undefined : byId(next));
+    if (i && focusRef.current?.type !== 'card') await open(i);
   }
 
   /** Folds the open card; `onward` where another opens in its place next, which takes over its address. */

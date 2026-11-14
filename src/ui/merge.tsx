@@ -19,7 +19,7 @@ import { Button, CloseButton } from './components/button';
 import { Command, CommandInput, CommandItem, CommandList } from './components/command';
 import { Dialog, DialogContent, DialogTitle } from './components/dialog';
 
-type Act = (a: CardAction, done: { close: true; ack: string } | { close: false }) => Promise<void>;
+type Act = (a: CardAction, done: { close: true; ack: string; next?: string } | { close: false }) => Promise<void>;
 
 /** How many cards the picker lists before a search narrows them. */
 const SHOWN = 30;
@@ -221,7 +221,7 @@ export function MergeView({ item, partner, act, error }: { item: Item; partner?:
       {/* on the phone the decisions stay in view at the page's foot, leaving 87px for the microphone below them (the page reserves 157px under its content) */}
       <div className={cn(actionsClass, "merge-actions justify-center w-full [#panel_&]:panel-foot phone:sticky phone:-bottom-[70px] phone:z-5 phone:py-3 phone:px-0 phone:bg-background phone:border-t phone:border-t-border phone:after:content-[''] phone:after:absolute phone:after:top-full phone:after:left-0 phone:after:right-0 phone:after:h-[calc(87px+env(safe-area-inset-bottom))] phone:after:bg-background phone:after:pointer-events-none")}>
         {m.task !== undefined && partner && (
-          <Button variant="primary" disabled={stale} onClick={() => act({ action: 'approveMerge' }, { close: true, ack: t.merge.approved })}>
+          <Button variant="primary" disabled={stale} onClick={() => act({ action: 'approveMerge' }, { close: true, ack: t.merge.approved, next: partner.archivedAt ? undefined : partner.id })}>
             <MergeMark size={13} /> {t.merge.approve}
           </Button>
         )}

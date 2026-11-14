@@ -83,7 +83,8 @@ const prototypeVariants = 'prototype-variants mt-4 max-w-[80ch]';
  * With `pending`, the card folds at once, before the server has answered, and says so until it has.
  */
 /** `rate`: the card whose approved work the owner is asked for feedback on, once the action went through. */
-export type ActDone = { close: true; ack?: string; undo?: () => unknown; pending?: string; rate?: string } | { close: false };
+/** `next`: the card to open once this one has gone, as the card an approved merge became. */
+export type ActDone = { close: true; ack?: string; undo?: () => unknown; pending?: string; rate?: string; next?: string } | { close: false };
 
 /** An action the server is still at, after its card has folded: the answer confirms it or tells why not. */
 export type Pending = { card: string; title: string; answered: Promise<void> };
