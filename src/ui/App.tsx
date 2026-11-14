@@ -1196,10 +1196,8 @@ function Project({
   const toasts = useToasts();
   const { showAck, showWait, fail } = useAck(toasts.store);
   const [manualStart, setManualStart] = useState<{ item: Item; names: string } | null>(null);
-  const warnings = useWarnings(toasts.store, (id) => {
-    const i = itemsRef.current.find((x) => x.id === id);
-    if (i) void open(i);
-  });
+  // "Go to card" on a warning: the card opens in place of one open
+  const warnings = useWarnings(toasts.store, (id) => void openNamed(id).catch(console.error));
   const ratePrompt = useRatePrompt(items);
 
   /** The play button on a card: starts it, or one queued behind others despite the likely conflict. */
