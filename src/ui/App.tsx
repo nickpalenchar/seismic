@@ -2248,7 +2248,7 @@ function Project({
     if (e.target instanceof Element && e.target.closest('[role=menu], [data-slot=popover-content]')) return;
     // the configuration over the page takes the keys until it closes, Esc closing it
     if (cOnRef.current) {
-      if (e.key === 'Escape' && !document.querySelector('.setup')) {
+      if (e.key === 'Escape') {
         e.preventDefault();
         setCOn(false);
       }
@@ -2325,8 +2325,8 @@ function Project({
     }
     if (e.key === 'Escape' && connection) { setConnection(null); return; }
     if (e.key === 'Escape') {
-      // a screenshot or demo shown large closes first, and a card's diff; the card or plan stays open
-      if (document.querySelector('.lightbox, .demo-zoom, .artifact-image-close, .diff-view')) return;
+      // a screenshot or demo shown large closes first; the card or plan stays open
+      if (document.querySelector('.lightbox, .demo-zoom, .artifact-image-close')) return;
       // so does the quote of a message the owner was replying to: in the field with the cursor, the open card's, the sidebar's
       const quoting = [focusedDraft(), f?.type === 'card' || f?.type === 'plan' ? cardDraft(f.id) : null, kOnRef.current ? OBEYA_DRAFT : null].find((k) => k && fieldOn(k) && replyOn(k));
       if (quoting) return setReply(quoting, null);
