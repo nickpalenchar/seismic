@@ -1,12 +1,15 @@
-// The draft of a wish or a bug for Seismic's makers: a small job writes what the owner wrote or said
-// (and, for a request Seismic could not do, its answer) up as a GitHub issue in English, the
-// repository's language, with a line about the Seismic it came from. The owner checks and edits it,
-// then opens it on GitHub (`src/core/wish.ts`); nothing goes out from here.
+/**
+ * The draft of a wish or a bug for Seismic's makers: a small job writes what the owner wrote or said
+ * (and, for a request Seismic could not do, its answer) up as a GitHub issue in English, the
+ * repository's language, with a line about the Seismic it came from. The owner checks and edits it,
+ * then opens it on GitHub (`src/core/wish.ts`); nothing goes out from here.
+ */
 
 import { tmpdir } from 'node:os';
 import { z } from 'zod';
-import { issueFooter, ISSUES_REPO, withoutFooter } from '../core/wish';
-import type { AgentRuntime } from './runtime';
+import { issueFooter, withoutFooter } from '../../../core/wish';
+import type { AgentRuntime } from '../../runtime';
+import { wishSystem } from '../prompts/wishSystem';
 
 export interface WishInput {
   /** What the owner wrote or said now. */
@@ -29,12 +32,6 @@ export interface WishDraft {
 
 /** How long the job may take before the owner's words stand as they are. */
 const WRITE_MS = 90_000;
-
-const SYSTEM = `
-You write a GitHub issue for the makers of Seismic, an open-source app in which one directs coding agents on a project, from what one of its users told you. It appears publicly on github.com/${ISSUES_REPO}.
-Write it in English, whatever language the user used. title: a short summary, at most about 70 characters. body: what the user wants or what is broken, in markdown, plainly and briefly, in their meaning; add nothing they did not say. Spoken words come through speech recognition and may be misheard: read them for what was most likely meant.
-Call issue once, then end your turn.
-`.trim();
 
 function brief(w: WishInput, shots: number): string {
   const parts: string[] = [];
@@ -69,7 +66,7 @@ export function writeWish(runtime: AgentRuntime, w: WishInput, footer: string, i
         cwd: tmpdir(),
         readOnly: true,
         role: 'chores',
-        system: SYSTEM,
+        system: wishSystem,
         // the owner is waiting for the draft: their words stand in it, and the draft says when the job can write it
         onLimit: (until) => {
           if (until != null) end({ ...fallback(), limitedUntil: new Date(until).toISOString() });

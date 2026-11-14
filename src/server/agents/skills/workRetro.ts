@@ -1,22 +1,25 @@
-// The work retrospective: Seismic looks back at how the workers worked, to make future runs cheaper.
-// When a card's work ends, an excerpt of its runs (Claude's or Codex's, transcript.ts, no model) goes to a short session
-// that notes the friction in it; after WORK_RETRO_RAMP finished cards of a new repository (1, 2 more,
-// 4 more), then every WORK_RETRO_EVERY, or when the
-// owner asks, a session in that repository's checkout reads the notes since the last one and
-// proposes cards (a script, a skill), CLAUDE.md lines or values for the repository's settings for
-// friction that recurs across cards.
+/**
+ * The work retrospective: Seismic looks back at how the workers worked, to make future runs cheaper.
+ * When a card's work ends, an excerpt of its runs (Claude's or Codex's, transcript.ts, no model) goes to a short session
+ * that notes the friction in it; after WORK_RETRO_RAMP finished cards of a new repository (1, 2 more,
+ * 4 more), then every WORK_RETRO_EVERY, or when the
+ * owner asks, a session in that repository's checkout reads the notes since the last one and
+ * proposes cards (a script, a skill), CLAUDE.md lines or values for the repository's settings for
+ * friction that recurs across cards.
+ */
 
 import { z } from 'zod';
-import { type CardEvent, PROPOSED_SETTINGS, type ProposedSetting } from '../core/types';
-import type { Board } from './board';
-import type { FrictionNote } from './models/friction';
-import { readSession } from './koordinator';
-import { type AgentRuntime, type AgentTool, waitQuietly } from './runtime';
-import { remote } from './hosts';
-import { type Excerpt, excerptOf, excerptText, findTranscript } from './transcript';
-import { type Language, LANGUAGE_NAMES } from '../core/locale';
-import { MESSAGES } from '../core/messages';
-import { clip } from '../core/text';
+import { type CardEvent, PROPOSED_SETTINGS, type ProposedSetting } from '../../../core/types';
+import type { Board } from '../../board';
+import type { FrictionNote } from '../../models/friction';
+import { readSession } from '../../koordinator';
+import { type AgentRuntime, type AgentTool, waitQuietly } from '../../runtime';
+import { remote } from '../../hosts';
+import { type Excerpt, excerptOf, excerptText, findTranscript } from '../../transcript';
+import { type Language, LANGUAGE_NAMES } from '../../../core/locale';
+import { clip } from '../../../core/text';
+import { retroNotesSystem } from '../prompts/retroNotesSystem';
+import { retroSystem } from '../prompts/retroSystem';
 
 export interface WorkRetroOptions {
   board: Board;
@@ -130,7 +133,7 @@ export class WorkRetro {
     const ownerLanguage = `${LANGUAGE_NAMES[this.o.board.conversation()]} unless an explicit standing preference names another language`;
     await readSession(this.o.runtime, {
       cwd: this.o.pathFor(card.repo),
-      system: [NOTES_SYSTEM(ownerLanguage), this.o.board.preferencesText()].filter(Boolean).join('\n\n'),
+      system: [retroNotesSystem(ownerLanguage), this.o.board.preferencesText()].filter(Boolean).join('\n\n'),
       role: 'chores',
       // nobody waits for it
       onLimit: waitQuietly,
@@ -205,7 +208,7 @@ export class WorkRetro {
     };
     await readSession(this.o.runtime, {
       cwd: this.o.pathFor(repo),
-      system: [RETRO_SYSTEM(ownerLanguage, b.language(), this.o.repoLanguage?.(repo) ?? 'en'), b.preferencesText()].filter(Boolean).join('\n\n'),
+      system: [retroSystem(ownerLanguage, b.language(), this.o.repoLanguage?.(repo) ?? 'en', WORK_RETRO_PROPOSALS), b.preferencesText()].filter(Boolean).join('\n\n'),
       role: 'chores',
       onLimit: waitQuietly,
       brief: [
@@ -333,37 +336,3 @@ function settingValue(field: ProposedSetting, value: unknown): string | string[]
   const list = (Array.isArray(value) ? value : typeof value === 'string' ? value.split('\n') : []).map((x) => String(x).trim()).filter(Boolean);
   return list.length ? list.slice(0, 20).map((x) => clip(x, 500)) : null;
 }
-
-const NOTES_SYSTEM = (language: string) => `
-You are the Koordinator of Seismic, a project on which the owner directs coding agents; the owner knows you simply as Seismic. Each worker works on one card in its own workstation of a repository. You look back at how a worker worked, so that future runs in this repository go faster.
-
-You get an excerpt of one card's run from its transcript: tool calls that failed, with their errors; similar calls in a row (a failed one followed by its correction, or one command again and again); files written whole more than once; the worker's words around them; and how many tool calls the run took, and after how many it first changed a file.
-
-Note the friction a change to the repository would prevent in future runs:
-- a command with wrong flags, or run the wrong way, and corrected;
-- a script that failed and was rewritten;
-- a long search for how to start, run, test or demo something;
-- a tool or check used wrongly, a missing piece of knowledge about the repository;
-- working out what one of the repository's settings in Seismic (listed with the card, where they are) would have said: how to run the app, which checks to run, how to prepare a fresh workstation. Its fix names the setting and the value the run shows works: the commands as the worker finally ran them.
-Not friction: a test or type check failing on the change being made and then fixed (that is the work itself), one quick slip corrected at once at no cost, a call blocked by a rule that then worked the other way at once.
-
-Note 0 to 3, the costliest first; most runs have one or none. Call note for each: what (concretely: the command, the file, the error), cost (the steps or time it took, a wrong turn), fix (what would have prevented it: a script, a skill, a line in the CLAUDE.md, a clearer error message; concretely). In ${language}, a sentence each: the owner reads them on the card. You may read the repository (you cannot change it) to check whether that already exists. Then call done.
-`.trim();
-
-const RETRO_SYSTEM = (language: string, ui: Language, repository: Language) => `
-You are the Koordinator of Seismic, a project on which the owner directs coding agents; the owner knows you simply as Seismic. Each worker works on one card in its own workstation of a repository. This is the work retrospective for the repository you are in (you cannot change it): you get the friction noted on its workers' runs since the last one, card by card, and propose what would make future runs cheaper.
-
-Look for friction that recurs on at least two different cards, the same detour taken again and again, and that a change to the repository would prevent:
-- a script (scripts/…) for what workers keep putting together by hand or keep getting wrong;
-- a skill (.claude/skills/…) for a procedure they keep fumbling;
-- a fix to a tool, a check or an error message that misleads;
-- a line in the repository's CLAUDE.md, for knowledge they lacked;
-- a value for one of the repository's settings in Seismic (listed after the friction, as they are now), where workers each worked out what it would have told them: how to run the app (run), which checks to run, the setup of a fresh workstation. Seismic hands a setting to every worker where it needs it, so where one holds the knowledge it beats a CLAUDE.md line.
-Read the repository first: its CLAUDE.md, its docs, scripts and skills. Propose nothing it has already; where it has it but the workers did not find it, propose making it findable (a CLAUDE.md line). Skills of the user (~/.claude/skills) are out of scope.
-
-Propose at most ${WORK_RETRO_PROPOSALS}, only for patterns on at least two cards and only what you expect the owner to take; most of the time that is fewer, or none.
-- card: a feature card. title in ${language}, naming what it builds. body in ${language}: what to build and how to verify it, so a worker needs no other context, and the friction it prevents. basis: one sentence in ${language} for the owner, naming the cards it rests on and what went wrong on them. cards: the tags of those cards.
-- rule: a line for the CLAUDE.md: rule short, general, in ${LANGUAGE_NAMES[repository]} (the language of what lands in the repository, whatever the owner's); basis and cards as for card. It waits for the owner and goes into the CLAUDE.md through the card ${MESSAGES[ui].quote(MESSAGES[ui].claudeMd.title)}.
-- setting: field and the whole value it should have (it replaces the one now), from what the notes show works, checked against the repository: for run a recipe a worker can follow without searching (the commands, what to do after a change, where the app's address is, how to get past a login, what to stage); basis and cards as for card. The owner takes it on their machine or into the repository's .obeya/settings.json for everyone.
-The owner does not know the tags: name cards by their titles in basis. Do not propose again what was proposed before, above all what the owner dismissed, in other words either. Then call done.
-`.trim();

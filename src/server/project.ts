@@ -30,7 +30,7 @@ import { Images, MAX_IMAGES } from './images';
 import { makeRepo, newRepoPath, realPath } from './new-repo';
 import { type ContributionInfo, type Forge, parsePrUrl, sameRepo } from './forge';
 import { Koordinator } from './koordinator';
-import { WorkRetro } from './work-retro';
+import { WorkRetro } from './agents/skills/workRetro';
 import { PrWatcher } from './pr-watcher';
 import { branchCommit, readingDefaultBranch, ReadTree, refsSeal } from './read-tree';
 import { Revisions } from './revisions';
@@ -41,7 +41,7 @@ import { boundsOf, GAP, type Place, planDirNoteBox, unionBounds } from '../core/
 import { type AgentRuntime, idleRuntime, withAgentSetting, withCodexTrust, withLimitWait, withRepoTrust, withTrustedAllow } from './runtime';
 import { codexConnected } from './codex-runtime';
 import { bashRules } from './allow-rules';
-import { type TagCard, tagCards } from './tag-proposal';
+import { type TagCard, tagCards } from './agents/skills/tagProposal';
 import { commandsOf, heldGroups, withoutHeld } from './trust';
 import { bundledSkills, Skills } from './skills';
 
@@ -59,7 +59,7 @@ import { FolderWorkstations } from './folder';
 import { readingTheme, readTheme, type Theme } from './theme';
 import { claudeToken, githubToken, hostName, registerHost } from './hosts';
 import { clip, messageOf, oneLine } from '../core/text';
-import { type WishDraft, type WishInput, writeWish } from './wish';
+import { type WishDraft, type WishInput, writeWish } from './agents/skills/wish';
 
 export type { ProjectConfig, RepoConfig };
 

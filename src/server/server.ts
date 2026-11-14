@@ -40,12 +40,12 @@ import { Tailscale } from './tailscale';
 import { codexModels } from './codex-runtime';
 import { agyModels } from './agy-runtime';
 import { agentsView, projectDefaultsView, feedbackPromptView, languageView, notificationsView, ownerLanguage, saveAgents, saveProjectDefaults, saveCodexAutoReview, saveNotifications, saveFeedbackPrompt, saveLanguage, saveTheme, saveMotion, saveUsageMeter, themeView, motionView, usageMeterView } from './settings';
-import { proposeTags, TagProposals } from './tag-proposal';
+import { proposeTags, TagProposals } from './agents/skills/tagProposal';
 import { parseTagLines, tagLines } from '../core/page-tags';
 import { expandHome, readDemoSettings } from '../../plugin/skills/demo/lib/settings.ts';
 import type { UsageMeter } from './usage';
 import { VERSION } from './resources';
-import { footerOf } from './wish';
+import { footerOf } from './agents/skills/wish';
 import { serving } from './owner';
 import { pageStall, type Stalls } from './stalls';
 

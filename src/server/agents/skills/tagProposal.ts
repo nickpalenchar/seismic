@@ -1,17 +1,19 @@
-// "Suggest tags" at a demo site's tags: a read-only session reads the repository (how the app
-// is built: its areas, its users) and the cards of the projects it is on (finished and open,
-// archived ones too, with what their demos show), and proposes a vocabulary of tags, which the
-// dialog puts into the field for the owner to change and save. It runs in the background, so the
-// dialog may close meanwhile and take the proposal in when it opens again.
+/**
+ * "Suggest tags" at a demo site's tags: a read-only session reads the repository (how the app
+ * is built: its areas, its users) and the cards of the projects it is on (finished and open,
+ * archived ones too, with what their demos show), and proposes a vocabulary of tags, which the
+ * dialog puts into the field for the owner to change and save. It runs in the background, so the
+ * dialog may close meanwhile and take the proposal in when it opens again.
+ */
 
 import { z } from 'zod';
-import { LANGUAGE_NAMES, type Language } from '../core/locale';
-import { dimensions, parseTagLines, tagLines } from '../core/page-tags';
-import { messageOf } from '../core/text';
-import { finished, type Item, type PageTags, type TagProposalJob } from '../core/types';
-import { BadRequest } from './board';
-import { readSession } from './koordinator';
-import type { AgentRuntime } from './runtime';
+import { LANGUAGE_NAMES, type Language } from '../../../core/locale';
+import { dimensions, parseTagLines, tagLines } from '../../../core/page-tags';
+import { messageOf } from '../../../core/text';
+import { finished, type Item, type PageTags, type TagProposalJob } from '../../../core/types';
+import { BadRequest } from '../../board';
+import { readSession } from '../../koordinator';
+import type { AgentRuntime } from '../../runtime';
 
 /** A card as the session reads it. */
 export interface TagCard {

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { OBEYA_PLUGIN } from './demo';
+import { OBEYA_PLUGIN } from '../../demo';
 
 let guide: string | undefined;
 /** The title skill's instructions, shared by the plugin and the automatic naming session. */

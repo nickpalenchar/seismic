@@ -46,7 +46,7 @@ import { type DataSignal, dataModelSignals, isSchemaPage, SIGNALS_NAMED } from '
 import { type Forge, parsePrUrl, sameRepo } from './forge';
 import { clip, messageOf } from '../core/text';
 import { holdsNotes } from '../core/queue';
-import { CodeReviews } from './code-review';
+import { CodeReviews } from './agents/skills/codeReview';
 
 export interface WorkerOptions {
   board: Board;

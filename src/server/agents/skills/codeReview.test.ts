@@ -1,19 +1,21 @@
-// Code reviews of a card's work where its project reviews work that lands on main: a separate,
-// read-only agent of the "Code reviews" group, started with the demo or on the owner's word, whose
-// items (one running list across all reviews) the owner sends to the worker to fix or makes
-// follow-up tasks, and which verifies what the worker resubmitted.
+/**
+ * Code reviews of a card's work where its project reviews work that lands on main: a separate,
+ * read-only agent of the "Code reviews" group, started with the demo or on the owner's word, whose
+ * items (one running list across all reviews) the owner sends to the worker to fix or makes
+ * follow-up tasks, and which verifies what the worker resubmitted.
+ */
 
 import { describe, expect, test } from 'bun:test';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { generic } from '../adapters/generic';
-import type { RepoAdapter } from '../adapters/types';
-import { type AgentSetting, type CodeReviewSetting, needsYou, type ReviewItem, type ReviewItemEvent, type ReviewItemStatus, type Severity } from '../core/types';
-import { described, listed, reopenings } from './code-review';
-import { artifact, type FakeSession, until } from './testing';
-import { Workers } from './workers';
-import { git } from './workstations';
-import { board, dir, eachTest, main, manual, runtime, setWorkers, spaces, state, workers } from './workers-fixture';
+import { generic } from '../../../adapters/generic';
+import type { RepoAdapter } from '../../../adapters/types';
+import { type AgentSetting, type CodeReviewSetting, needsYou, type ReviewItem, type ReviewItemEvent, type ReviewItemStatus, type Severity } from '../../../core/types';
+import { described, listed, reopenings } from './codeReview';
+import { artifact, type FakeSession, until } from '../../testing';
+import { Workers } from '../../workers';
+import { git } from '../../workstations';
+import { board, dir, eachTest, main, manual, runtime, setWorkers, spaces, state, workers } from '../../workers-fixture';
 
 eachTest();
 

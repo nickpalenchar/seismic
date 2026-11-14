@@ -1,5 +1,7 @@
-// Seismic's suggestion of a card's labels: the plugin's labels skill guides the
-// short session that judges them, as part of the naming call or a call of its own at the start.
+/**
+ * Seismic's suggestion of a card's labels: the plugin's labels skill guides the
+ * short session that judges them, as part of the naming call or a call of its own at the start.
+ */
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -13,8 +15,8 @@ import {
   PRIORITIES,
   PRIORITY_NAMES,
   SUBCATEGORIES,
-} from '../core/labels';
-import { OBEYA_PLUGIN } from './demo';
+} from '../../../core/labels';
+import { OBEYA_PLUGIN } from '../../demo';
 
 /** The labels skill's file in Seismic's plugin. */
 export const LABELS_SKILL_FILE = join(OBEYA_PLUGIN, 'skills', 'labels', 'SKILL.md');

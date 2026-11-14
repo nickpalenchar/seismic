@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { TagProposalJob } from '../core/types';
-import { ProjectRuntime } from './project';
-import { Config } from './config';
-import { Store } from './store';
-import { serve } from './server';
-import { asOwner, FakeRuntime, gitRepo, noForge, until } from './testing';
+import type { TagProposalJob } from '../../../core/types';
+import { ProjectRuntime } from '../../project';
+import { Config } from '../../config';
+import { Store } from '../../store';
+import { serve } from '../../server';
+import { asOwner, FakeRuntime, gitRepo, noForge, until } from '../../testing';
 
 let dir: string;
 let repo: string;

@@ -1,21 +1,26 @@
-// The code review of a card's work where its project reviews work:
-// a separate, read-only agent of the "Code reviews" group reads the
-// branch's diff against main the repository's way and adds graded items to the card's one running
-// list, which its Review tab shows; it also verifies what the worker resubmitted as fixed and
-// reopens what regressed or is not fixed. It starts with each handover (`auto`) or on the owner's
-// "Start code review" (`manual`); a handover that changes the branch makes the review before it
-// stale. On an item that needs them the owner decides "Fix it" (the card's worker fixes it) or "As a
-// follow-up task", or ignores it, with the card's one Send, as on a review card.
+/**
+ * The code review of a card's work where its project reviews work:
+ * a separate, read-only agent of the "Code reviews" group reads the
+ * branch's diff against main the repository's way and adds graded items to the card's one running
+ * list, which its Review tab shows; it also verifies what the worker resubmitted as fixed and
+ * reopens what regressed or is not fixed. It starts with each handover (`auto`) or on the owner's
+ * "Start code review" (`manual`); a handover that changes the branch makes the review before it
+ * stale. On an item that needs them the owner decides "Fix it" (the card's worker fixes it) or "As a
+ * follow-up task", or ignores it, with the card's one Send, as on a review card.
+ */
 
 import { z } from 'zod';
-import { BadRequest, type Board, codeReviewOf, type StoredCodeReview } from './board';
-import { type AgentRuntime, type AgentSession, type AgentTool, waitQuietly } from './runtime';
-import { gitAsync } from './workstations';
-import type { CardWorkstations } from './workstations';
-import { harnessChoice, type AgentSetting, type AgentIdentity, type ChangeRoute, type CodeReviewMode, needsOwner, type ReviewItem, type ReviewItemStatus, type ReviewItemWho, type Severity, SEVERITIES } from '../core/types';
-import { LANGUAGE_NAMES } from '../core/locale';
-import { clip, messageOf } from '../core/text';
-import type { DueRestart } from './workers';
+import { BadRequest, type Board, codeReviewOf, type StoredCodeReview } from '../../board';
+import { type AgentRuntime, type AgentSession, type AgentTool, waitQuietly } from '../../runtime';
+import { gitAsync } from '../../workstations';
+import type { CardWorkstations } from '../../workstations';
+import { harnessChoice, type AgentSetting, type AgentIdentity, type ChangeRoute, type CodeReviewMode, needsOwner, type ReviewItem, type ReviewItemStatus, type ReviewItemWho, type Severity, SEVERITIES } from '../../../core/types';
+import { LANGUAGE_NAMES } from '../../../core/locale';
+import { clip, messageOf } from '../../../core/text';
+import type { DueRestart } from '../../workers';
+import { restartNotice } from '../prompts/restartNotice';
+import { reviewResumed } from '../prompts/reviewResumed';
+import { reviewSystem } from '../prompts/reviewSystem';
 
 /** How much of the diff the review agent gets in its brief; it reads the files themselves beyond that. */
 const DIFF_LIMIT = 150_000;
@@ -384,7 +389,7 @@ export class CodeReviews {
   /** The review agent at work hears that a restart is due, and pauses for it. */
   private tell(cardId: string, r: { session?: AgentSession; told?: boolean }): void {
     r.told = true;
-    r.session?.send(RESTART_NOTICE);
+    r.session?.send(restartNotice);
     this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.worker.codeReviewPaused);
   }
 
@@ -470,7 +475,7 @@ export class CodeReviews {
         readOnly: true,
         role: 'review',
         ...(setting ? { setting } : {}),
-        system: [SYSTEM(language), b.preferencesText()].filter(Boolean).join('\n\n'),
+        system: [reviewSystem(language), b.preferencesText()].filter(Boolean).join('\n\n'),
         tools,
         onLimit: waitQuietly,
         onEvent: (e) => {
@@ -485,7 +490,7 @@ export class CodeReviews {
           else if (e.type === 'error') end(e.message);
         },
       },
-      resume ? RESUMED : [
+      resume ? reviewResumed : [
         `The card: “${card?.title ?? ''}”.`,
         card?.body ? `Its task, as the owner gave it:\n\n${clip(card.body, 8000)}` : '',
         `The files its branch changes against main:\n${diff!.files.map((f) => `- ${f.file} (${f.status}, +${f.added} −${f.removed})`).join('\n')}`,
@@ -724,22 +729,3 @@ export function listed(items: ReviewItem[]): string {
 }
 
 const oneLine = (s: string) => s.replace(/\s+/g, ' ').trim();
-
-/** Tells a review agent at work that Seismic is about to restart, so that it pauses instead of being cut off. */
-const RESTART_NOTICE =
-  'Seismic is about to restart, which stops this review. Pause it now: end your turn without recording your review. Seismic resumes you once it runs again, and you go on with your review from where you are.';
-
-const RESUMED = 'Seismic has restarted. Go on with your review from where you paused, and record it with the review tool at the end.';
-
-const SYSTEM = (language: string) => `You review the work of a card on Seismic before it lands on main: the diff of its branch against main, which the brief holds. Another agent did the work; the owner decides on what you find.
-
-You only read: you change no file and run nothing. Read the changed files and their surroundings where the diff alone does not tell enough.
-
-Review it the repository's way: its CLAUDE.md and its docs (design docs, contribution rules) say what matters here. Look for correctness (bugs, edge cases, races, error handling), security, code quality (what the repository's rules ask, needless complexity, duplication of what exists), and whether the change fits the design docs and keeps them current where the repository asks for that.
-
-The work has one running list of review items, which earlier reviews of it added to; the brief holds it with each item's status. Your review does three things with it:
-- Verify every item that is under review against its own failure scenario: read the code as it is now, and say whether the problem the item describes is gone. Fixed means that problem is gone, not that something nearby changed. Not fixed means that same problem is still there; say what is still wrong. A different flaw, even right beside the item or caused by its fix, is a new item ("found while verifying #N"): what you find while verifying is a real defect, to be raised, not speculation to drop. The brief says how often an item was reopened before; on the third time, say what is structurally wrong with the way it is being fixed so that the owner can decide how to go on.
-- Check that nothing fixed came back: report an item marked fixed as a regression where the diff shows its problem again.
-- Add new items for what the list does not hold yet, including small issues or uncertain points worth flagging. Raise nothing the list already holds, whatever its status, and nothing like what the owner closed. Each item's title and explanation say what is wrong and why it matters, in ${language}, with the file and line. Grade each from blocker through critical, major, minor, low and info as the review tool describes.
-
-Record your review with the review tool, once, at the end (empty lists where there is nothing to report), then end your turn.`;

@@ -1,23 +1,25 @@
-// Exercise the real detail buttons and portal dialogs, then the PR card's approval API.
+/**
+ * Exercise the real detail buttons and portal dialogs, then the PR card's approval API.
+ */
 import { afterAll, beforeAll, expect, test } from 'bun:test';
 import tailwind from 'bun-plugin-tailwind';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Browser, BrowserContext } from 'playwright-core';
-import { launchChromium } from '../../plugin/lib/chromium';
-import { generic } from '../adapters/generic';
-import type { CardAction } from '../core/types';
-import { artifact, until } from './testing';
-import { Workers } from './workers';
-import { git } from './workstations';
-import { board, dir, eachTest, main, manual, runtime, setWorkers, spaces, state, workers } from './workers-fixture';
+import { launchChromium } from '../../../../plugin/lib/chromium';
+import { generic } from '../../../adapters/generic';
+import type { CardAction } from '../../../core/types';
+import { artifact, until } from '../../testing';
+import { Workers } from '../../workers';
+import { git } from '../../workstations';
+import { board, dir, eachTest, main, manual, runtime, setWorkers, spaces, state, workers } from '../../workers-fixture';
 
 eachTest();
 let browser: Browser;
 let script: string;
 let css: string;
 beforeAll(async () => {
-  const bundle = await Bun.build({ entrypoints: [join(import.meta.dir, '../ui/testing/approval.tsx'), join(import.meta.dir, '../ui/tailwind.css')], target: 'browser', plugins: [tailwind] });
+  const bundle = await Bun.build({ entrypoints: [join(import.meta.dir, '../../../ui/testing/approval.tsx'), join(import.meta.dir, '../../../ui/tailwind.css')], target: 'browser', plugins: [tailwind] });
   if (!bundle.success) throw new AggregateError(bundle.logs, 'Building the card detail browser fixture');
   script = await bundle.outputs.find((o) => o.path.endsWith('.js'))!.text();
   css = await bundle.outputs.find((o) => o.path.endsWith('.css'))!.text();
@@ -73,7 +75,7 @@ for (const scenario of ['running', 'fixing', 'verifying', 'unsent', 'unsentDurin
         if (path === '/') return new Response('<!doctype html><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/tailwind.css"><div id="panel" style="display:block;position:relative;width:1100px;margin:20px"></div><script type="module" src="/fixture.js"></script>', { headers: { 'content-type': 'text/html' } });
         if (path === '/fixture.js') return new Response(script, { headers: { 'content-type': 'text/javascript' } });
         if (path === '/tailwind.css') return new Response(css, { headers: { 'content-type': 'text/css' } });
-        if (path === '/style.css') return new Response(Bun.file(join(import.meta.dir, '../ui/frost.css')));
+        if (path === '/style.css') return new Response(Bun.file(join(import.meta.dir, '../../../ui/frost.css')));
         if (path === '/fixture') return Response.json({ item: board.item(id), repo: { id: 'home', name: 'Home', path: main, branch: 'main', pullRequests: true, direct: true } });
         if (path.endsWith('/act')) {
           const action = await req.json() as CardAction;

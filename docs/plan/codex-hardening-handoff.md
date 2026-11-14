@@ -90,7 +90,7 @@ The broad set was these 19 files:
 - `src/server/agent-processes.test.ts`, `src/server/agent-identity.test.ts`
 - `src/server/codex-rpc.test.ts`, `src/server/codex-runtime.test.ts`
 - `src/server/worker-runtime.test.ts`, `src/server/workers-harness.test.ts`
-- `src/server/runtime.test.ts`, `src/server/settings.test.ts`, `src/server/work-retro.test.ts`
+- `src/server/runtime.test.ts`, `src/server/settings.test.ts`, `src/server/agents/skills/workRetro.test.ts`
 - `src/server/workers.test.ts`, `src/server/project.test.ts`, `src/server/db.test.ts`
 - `src/server/server.test.ts`, `src/server/commands.test.ts`, `src/server/answers.test.ts`
 - `src/ui/message.test.ts`, `src/ui/usage.test.ts`, `src/ui/barFit.test.ts`

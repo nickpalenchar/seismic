@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
-import { CATEGORIES, COMPLEXITIES, LABEL_NAMES, PRIORITIES, PRIORITY_NAMES, SUBCATEGORIES } from '../core/labels';
-import { LABELS_SKILL_FILE, labelsFrom, labelsGuide, labelWords } from './label-suggestion';
+import { CATEGORIES, COMPLEXITIES, LABEL_NAMES, PRIORITIES, PRIORITY_NAMES, SUBCATEGORIES } from '../../../core/labels';
+import { LABELS_SKILL_FILE, labelsFrom, labelsGuide, labelWords } from './labelSuggestion';
 
 describe('the labels skill', () => {
   test('names every value of the lists and the complexity scale as src/core/labels.ts has them', () => {
