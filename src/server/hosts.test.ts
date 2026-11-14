@@ -135,7 +135,7 @@ describe('a session on a host', () => {
     s.p.stdin.write('ping\n');
     expect(await s.exited).toBe(0);
     // Seismic's directory there is in the host's home
-    const remoteDir = join(dir, 'net', 'home', '.obeya', 'remote');
+    const remoteDir = join(dir, 'net', 'home', '.seismic', 'remote');
     const [first, skill, got] = s.out().trim().split('\n');
     const [pwd, foo, home, token, url, plugin, held, seismicUrl, seismicHome, seismicHeld] = first!.split('|');
     expect(pwd).toEndWith('/ws');
@@ -172,8 +172,20 @@ describe('a session on a host', () => {
     expect(events).toEqual([{ type: 'lost', message: `the connection to ${name} was lost` }]);
   });
 
-  test('ends the session a dropped connection left running there, but never itself', async () => {
+  test('ends the session a dropped connection left running there before the rename, under .obeya/remote', async () => {
     const pids = join(dir, 'net', 'home', '.obeya', 'remote', 'sessions');
+    mkdirSync(pids, { recursive: true });
+    const left = spawn('sh', ['-c', 'sleep 30; echo claude']);
+    writeFileSync(join(pids, `${join(dir, 'ws').replace(/[^\w.-]+/g, '-')}.pid`), `${left.pid}\n`);
+    const ended = new Promise((r) => left.on('exit', r));
+    const s = spawnSession({ command: 'sh', args: ['-c', 'echo claude here'], env: {} });
+    expect(await s.exited).toBe(0);
+    await ended;
+    expect(s.out()).toContain('claude here');
+  });
+
+  test('ends the session a dropped connection left running there, but never itself', async () => {
+    const pids = join(dir, 'net', 'home', '.seismic', 'remote', 'sessions');
     const pidFile = join(pids, `${join(dir, 'ws').replace(/[^\w.-]+/g, '-')}.pid`);
     mkdirSync(pids, { recursive: true });
     // the one left running

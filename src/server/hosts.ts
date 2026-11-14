@@ -53,7 +53,9 @@ export const RECHECK_DOWN_MS = 30_000;
 const PATH_PREFIX = '$HOME/.local/bin:$HOME/.bun/bin';
 
 /** Seismic's directory on a host, in its home: the plugin, the demo settings, the owner's screenshots, voices. */
-export const HOST_DIR = '.obeya/remote';
+export const HOST_DIR = '.seismic/remote';
+/** `HOST_DIR` before the rename: only its pid files are still read (migration shim, docs/plan/seismic-rename.md). */
+export const OLD_HOST_DIR = '.obeya/remote';
 
 /** A string as one word for a POSIX shell. */
 export const sh = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
@@ -413,8 +415,11 @@ export class SshHost {
         const there = here ? 30_000 + Math.floor(Math.random() * 30_000) : 0;
         // a session cut off by a dropped connection may still run there: the one that resumes it ends it first;
         // not itself, whose pid a host that restarted since (a container, say) may give out again
-        const pid = sh(`${dir}/sessions/${o.cwd.replace(/[^\w.-]+/g, '-')}.pid`);
-        const previous = `mkdir -p ${sh(`${dir}/sessions`)}; old=$(cat ${pid} 2>/dev/null); [ -n "$old" ] && [ "$old" != $$ ] && ps -p "$old" -o command= 2>/dev/null | grep -q claude && kill "$old"; echo $$ > ${pid};`;
+        // (one that began before the rename has its pid under `OLD_HOST_DIR`)
+        const pidFile = `sessions/${o.cwd.replace(/[^\w.-]+/g, '-')}.pid`;
+        const pid = sh(`${dir}/${pidFile}`);
+        const pids = [pid, ...(dir.endsWith(HOST_DIR) ? [sh(`${dir.slice(0, -HOST_DIR.length)}${OLD_HOST_DIR}/${pidFile}`)] : [])];
+        const previous = `mkdir -p ${sh(`${dir}/sessions`)}; for f in ${pids.join(' ')}; do old=$(cat "$f" 2>/dev/null); [ -n "$old" ] && [ "$old" != $$ ] && ps -p "$old" -o command= 2>/dev/null | grep -q claude && kill "$old"; done; echo $$ > ${pid};`;
         const argv = this.argv(`${previous} exec ${[s.command, ...args].map(sh).join(' ')}`, {
           cwd: o.cwd,
           env: true,

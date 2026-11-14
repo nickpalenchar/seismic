@@ -177,7 +177,11 @@ Formats to stay compatible with:
   `canvases.json` (copied once to `projects.json`), `OBEYA_*` beside `SEISMIC_*`, which agents get
   under both names; the owner key's header `X-Obeya-Key` and cookie `obeya-<port>`, and the paired
   device's `obeya-device`, beside the `seismic-` ones (only the new ones are written); the
-  browser's `obeya-…` storage keys, moved to `seismic-…` once at page start (`src/ui/browserState.ts`).
+  browser's `obeya-…` storage keys, moved to `seismic-…` once at page start (`src/ui/browserState.ts`);
+  on a remote host, the pid file of a session under `~/.obeya/remote` (now `~/.seismic/remote`, a
+  cache copied anew), so a session a dropped connection left running there is still ended.
+  A Codex thread resumes by its id from any cwd, so a moved checkout needs nothing for it (checked
+  2026-11-14 with Codex 0.169).
 - A plan doc is a plan when its `## Workstreams` section holds a checklist (`- [ ] **W1:** Title. …`);
   a ticked item is live; a workstream is known by its label, else its title, never its place.
 - Card branches are `seismic/<title>-<id>` (`obeya/…` for cards started before the rename; both are
