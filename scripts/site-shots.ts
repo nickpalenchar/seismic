@@ -1,3 +1,4 @@
+// PAUSED until Seismic distributes its own app (docs/release.md): the site is unpublished.
 // The screenshots on obeya.si (`site/img/`), taken again from a scratch Seismic in English: the Tipjar
 // app of the hero video as the repository, cards in the states the page talks about, and a demo of
 // a Tipjar change on the card whose demo the page shows, so that the picture is of a demo and not of

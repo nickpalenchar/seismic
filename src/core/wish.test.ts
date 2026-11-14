@@ -5,7 +5,7 @@ test('the link opens a prefilled issue on Seismic’s repository', () => {
   const { url, trimmed } = issueUrl('Sort cards by date', 'I asked Seismic to sort the cards & it could not.', '…');
   expect(trimmed).toBe(false);
   const u = new URL(url);
-  expect(`${u.origin}${u.pathname}`).toBe('https://github.com/sadilek/obeya/issues/new');
+  expect(`${u.origin}${u.pathname}`).toBe('https://github.com/nickpalenchar/seismic/issues/new');
   expect(u.searchParams.get('title')).toBe('Sort cards by date');
   expect(u.searchParams.get('body')).toBe('I asked Seismic to sort the cards & it could not.');
 });

@@ -5,8 +5,13 @@
 import type { AppUpdate } from '../core/types';
 import { BadRequest } from './board';
 
-/** Where the app's releases are, as its shell names them (`RELEASES` in app/src/update.rs). */
-const RELEASES = 'https://github.com/sadilek/obeya/releases/';
+/**
+ * App updates are switched off until Seismic distributes its own app (docs/release.md): the shell
+ * checks nothing (app/src/update.rs), and a report that reaches the server shows no update.
+ */
+/** Where the app's releases will be once there are any. */
+const RELEASES = 'https://github.com/nickpalenchar/seismic/releases/';
+const UPDATES_ENABLED = false;
 
 /** A shell that reported nothing for this long has gone (the app quit), and its update with it. */
 const FRESH_MS = 10_000;
@@ -16,7 +21,11 @@ export class AppUpdates {
   private expiry: ReturnType<typeof setTimeout> | undefined;
   private listeners = new Set<() => void>();
 
-  report(input: unknown): AppUpdate {
+  /** `enabled` is for the tests of the machinery that comes back with distribution. */
+  constructor(private enabled = UPDATES_ENABLED) {}
+
+  report(input: unknown): AppUpdate | null {
+    if (!this.enabled) return null;
     const u = (input ?? {}) as Partial<Record<keyof AppUpdate, unknown>>;
     const text = (x: unknown) => (typeof x === 'string' && x.trim() ? x.trim() : undefined);
     const version = text(u.version);
@@ -26,7 +35,7 @@ export class AppUpdates {
     if (notes) update.notes = notes;
     if (typeof u.date === 'number' && Number.isFinite(u.date)) update.date = u.date;
     const download = text(u.download);
-    // the shell names a release of Seismic's (update.rs); another address in the bar would lead elsewhere
+    // the shell names a release of Seismic's; another address in the bar would lead elsewhere
     if (download?.startsWith(RELEASES)) update.download = download;
     clearTimeout(this.expiry);
     this.expiry = setTimeout(() => this.set(null), FRESH_MS);

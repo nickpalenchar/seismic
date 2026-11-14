@@ -950,7 +950,7 @@ describe('a newer version of the app', () => {
     const gone: string[] = [];
     let busy = [{ project: 'main', card: 'k1' }];
     const restarter = new Restarter({ busy: () => busy, go: (reason) => gone.push(reason), patienceMs: 60_000, intervalMs: 10 });
-    const updates = new AppUpdates();
+    const updates = new AppUpdates(true);
     server.stop(true);
     server = serve([project], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, restarter, undefined, undefined, undefined, updates);
     const messages: ServerMessage[] = [];
@@ -981,13 +981,19 @@ describe('a newer version of the app', () => {
     ws.close();
   });
 
+  test('app updates are switched off: a report shows no update', async () => {
+    const updates = new AppUpdates();
+    expect(updates.report({ version: '0.2.0' })).toBeNull();
+    expect(updates.current()).toBeNull();
+  });
+
   test('one the app cannot install (a .deb) is only shown, with where to get it', async () => {
     const restarter = new Restarter({ busy: () => [], go: () => {} });
-    const updates = new AppUpdates();
+    const updates = new AppUpdates(true);
     server.stop(true);
     server = serve([project], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, restarter, undefined, undefined, undefined, updates);
-    await post('/api/app-update', JSON.stringify({ version: '0.2.0', download: 'https://github.com/sadilek/obeya/releases/tag/v0.2.0' }));
-    expect(updates.current()).toEqual({ version: '0.2.0', download: 'https://github.com/sadilek/obeya/releases/tag/v0.2.0' });
+    await post('/api/app-update', JSON.stringify({ version: '0.2.0', download: 'https://github.com/nickpalenchar/seismic/releases/tag/v0.2.0' }));
+    expect(updates.current()).toEqual({ version: '0.2.0', download: 'https://github.com/nickpalenchar/seismic/releases/tag/v0.2.0' });
     expect(await codeOf(post('/api/app-update/install', ''))).toBe('invalid');
     expect(restarter.due()).toBeNull();
     // the bar leads to Seismic's releases only, whoever reports another address
@@ -999,7 +1005,7 @@ describe('a newer version of the app', () => {
     const gone: string[] = [];
     let busy = [{ project: 'main', card: 'k1' }];
     const restarter = new Restarter({ busy: () => busy, go: (reason) => gone.push(reason), patienceMs: 60_000, intervalMs: 10 });
-    const updates = new AppUpdates();
+    const updates = new AppUpdates(true);
     server.stop(true);
     server = serve([project], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, restarter, undefined, undefined, undefined, updates);
     expect(await (await post('/api/app-update', JSON.stringify({ rebuilt: true }))).json()).toEqual({ updating: true });

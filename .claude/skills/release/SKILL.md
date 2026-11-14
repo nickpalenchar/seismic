@@ -5,6 +5,8 @@ description: Take a version of Seismic out from start to finish, with the hero v
 
 # Release
 
+**Paused** until Seismic distributes its own app (`docs/release.md`): do not take a release out now; tell the owner it is switched off.
+
 The steps, their commands and the facts behind them are in `docs/release.md` § "A release". Read
 it first and go through its steps in its order. This skill adds where the owner comes in and what
 to judge on the way.

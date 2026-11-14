@@ -42,7 +42,8 @@ pub const EXIT: i32 = 77;
 const EVERY: Duration = Duration::from_secs(6 * 3600);
 /// After a check that failed (offline, say).
 const AGAIN: Duration = Duration::from_secs(30 * 60);
-const RELEASES: &str = "https://github.com/sadilek/obeya/releases";
+/// Checking for releases is switched off until Seismic distributes its own app (docs/release.md).
+const CHECK_RELEASES: bool = false;
 
 /// A newer version, downloaded and checked; or for a .deb, where to get it.
 struct Ready {
@@ -69,7 +70,7 @@ pub fn start(app: &AppHandle, obeya: Arc<Seismic>) -> Arc<Updates> {
     };
     let (home, u) = (crate::home(), updates.clone());
     thread::spawn(move || rebuild(&checkout, built, &home, &u));
-  } else {
+  } else if CHECK_RELEASES {
     check_releases(app, &updates);
   }
   let (a, u) = (app.clone(), updates.clone());
@@ -174,11 +175,11 @@ fn report(app: &AppHandle, obeya: &Seismic, updates: &Updates) {
   let body = match updates.ready.lock().unwrap().as_ref() {
     None if *updates.rebuilt.lock().unwrap() => json!({ "rebuilt": true }),
     None => return,
-    Some(Ready { update, bytes }) => json!({
+    Some(Ready { update, .. }) => json!({
       "version": update.version,
       "notes": update.body,
       "date": update.date.map(|d| d.unix_timestamp() * 1000),
-      "download": bytes.is_none().then(|| format!("{RELEASES}/tag/v{}", update.version)),
+      "download": None::<String>,
     }),
   };
   post(port, "/api/app-update", &body);

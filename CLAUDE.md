@@ -43,9 +43,8 @@ its lasting decisions and constraints move into the design doc and the plan doc 
 - Reviews of the code (security, code quality and the like) always bring in Codex (`codex exec`)
   as a second reviewer.
 - Voice on this machine: Parakeet through uv, the default, needs nothing set. For Whisper instead:
-  `SEISMIC_WHISPER_BACKEND=mlx SEISMIC_WHISPER_PYTHON=/Users/sadilek/dev/stimmzwilling/.venv/bin/python`
-  (has `mlx_whisper`; the model is cached). That Python alone, without the backend, fails: it has no
-  `onnx_asr` for Parakeet.
+  `SEISMIC_WHISPER_BACKEND=mlx` with `SEISMIC_WHISPER_PYTHON` naming a Python that has `mlx_whisper`
+  (the model is cached). That Python alone, without the backend, fails: it has no `onnx_asr` for Parakeet.
 - The Seismic that plans this repo is the stable clone's, on port 4417 with `~/.obeya`; `bun start`
   in a `-dev` checkout runs its code on `~/.obeya-dev` and port 4418, beside it. An Seismic restarts
   itself once `main` moves to commits that change code, a commit of yours included (workers resume, the page
@@ -78,28 +77,6 @@ its lasting decisions and constraints move into the design doc and the plan doc 
   every dictated text it shows is transcribed completely and correctly (no missing words or
   numbers, no misrecognitions), and what the agents in it say points out no fault (a comment cut
   off, input missing).
-- Videos on the site (the hero video, anything for obeya.si) are narrated in the owner's ElevenLabs
-  voice clone (voice ID `IErGHDQU4vPqicCi8dwR`), not the voice of the demo settings; demo videos
-  published elsewhere (in a PR or issue comment, say) keep the voice of the demo settings. Its API
-  key is in `.voice/elevenlabs.key` of the main checkout (`/Users/sadilek/dev/obeya`, gitignored);
-  render with an `SEISMIC_HOME` whose `demo.json` names both (`voice: elevenlabs`, `voiceName`,
-  `keyFile`), as `scripts/hero-video/render.ts` sets up for the hero video (its README says how to
-  change and re-render it). Credits are limited: only for the site's videos, never as Seismic's own
-  demo voice, and even there only once: a video for the site is iterated in local renders in the
-  owner's Qwen3 voice, and the ElevenLabs render happens after the owner has approved the video.
-  Qwen3-TTS references of the owner's voice lie beside the key, each with its transcript (`.txt`):
-  `.voice/qwen-reference-de.wav` (a recording) and `qwen-reference-en.wav` (cut from the ElevenLabs
-  voice); the demo settings' `reference` names the one of the narration language. Qwen3 is good
-  enough for demos, ElevenLabs marginally better for the site, so the site stays with ElevenLabs
-  (owner, 2026-10-12); `scripts/hero-video/qwen.py` renders the hero narration in Qwen3 to compare.
-- Every release also brings the README's text up to date: like the site, it names what the release
-  adds that a newcomer should know (phone remote control, say).
-- A release contains everything on `main` at the moment it is tagged: right before tagging, rebase
-  onto the current `main` (moving the tag if it is already set), so commits that landed while the
-  release was being prepared go into it too.
-- gh calls against this repository's GitHub repository go through `bun scripts/gh.ts <gh args…>`:
-  it runs gh on the checkout's origin as the account that owns it (`sadilek` for sadilek/obeya),
-  since the machine's active gh account may be another without admin rights.
 - A recurring step that needs a longer CLI call (an upload, say) goes into a script in the repo,
   not into the docs as a command to copy.
 - Commit directly to `main`; this repo uses no feature branches or pull requests. An Seismic worker

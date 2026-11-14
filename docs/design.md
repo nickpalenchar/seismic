@@ -78,6 +78,12 @@ cycling through terminals.
 
 ## Decisions
 
+- **Seismic is a permanent fork of Obeya** (2026-11-13): nothing pulls from upstream and nothing points
+  to it. Wishes and bug reports become issues on nickpalenchar/seismic. LICENSE keeps Daniel
+  Sadilek's copyright line (MIT requires it); the README credits him in one line. Distribution is
+  switched off until Seismic publishes its own app: no release workflow, no update checks (the shell's
+  `CHECK_RELEASES` in `app/src/update.rs` and `UPDATES_ENABLED` in `src/server/app-update.ts`), no
+  site (`site/` stays in the repo, unpublished). `docs/release.md` holds the paused release rules.
 - **The Koordinator is called Seismic in the UI** (2026-10-09): the owner has one counterpart, not a
   product plus a component in it.
 - **A persistent local store** (SQLite in Seismic's home), not an ephemeral one.

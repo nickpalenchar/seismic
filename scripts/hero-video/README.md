@@ -1,5 +1,7 @@
 # The hero video for obeya.si
 
+> Paused until Seismic distributes its own app (docs/release.md): it acts for the upstream's accounts, domain and voice.
+
 A real run, recorded with Seismic's own demo pipeline (`plugin/skills/demo`): a scratch Seismic on a
 small tip calculator, the wall arranged (a lasso into a group, a card dragged beside another group), an
 idea said into the microphone, a bug report typed, pasted and spoken in Seismic's

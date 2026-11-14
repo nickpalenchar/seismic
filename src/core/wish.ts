@@ -3,7 +3,7 @@
 // the app runs without a checkout whose `origin` could say otherwise.
 
 /** Where the issue goes. */
-export const ISSUES_REPO = 'sadilek/obeya';
+export const ISSUES_REPO = 'nickpalenchar/seismic';
 const NEW_ISSUE = `https://github.com/${ISSUES_REPO}/issues/new`;
 
 /** How long the link may get: GitHub and browsers take about 8 KB. */

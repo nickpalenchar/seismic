@@ -1,5 +1,11 @@
 # Releasing Seismic
 
+> **Paused.** Seismic is a permanent fork and distributes nothing for now: no app releases, no site,
+> no hero video, no update checks (decided 2026-11-13, `docs/plan/seismic-rename.md`). This page, the
+> release skill, `scripts/hero-video/` and `scripts/site-shots.ts` stay as they were, for when Seismic
+> distributes its own app; their accounts, domain and voice (`sadilek`, obeya.si, ElevenLabs) are
+> the upstream's and have to be replaced then.
+
 How a version of the app goes out, and the owner's steps it depends on. The constraints the builds
 must keep are in [`docs/design.md`](design.md) (Constraints).
 
@@ -204,3 +210,31 @@ SimplySign cloud costs €49 a year, shows "Open Source Developer, Daniel Sadile
 code from its phone app for every signing session, which makes signing in GitHub Actions awkward;
 CAs with CI signing cost about €200–500 a year. SmartScreen's reputation has to grow with any new
 certificate.
+
+## Rules that lived in CLAUDE.md
+
+Paused with the rest of this page; they served the site, the hero video and releases. Paths and accounts are the upstream's.
+
+- Videos on the site (the hero video, anything for obeya.si) are narrated in the owner's ElevenLabs
+  voice clone (voice ID `IErGHDQU4vPqicCi8dwR`), not the voice of the demo settings; demo videos
+  published elsewhere (in a PR or issue comment, say) keep the voice of the demo settings. Its API
+  key is in `.voice/elevenlabs.key` of the main checkout (`<main checkout>`, gitignored);
+  render with an `SEISMIC_HOME` whose `demo.json` names both (`voice: elevenlabs`, `voiceName`,
+  `keyFile`), as `scripts/hero-video/render.ts` sets up for the hero video (its README says how to
+  change and re-render it). Credits are limited: only for the site's videos, never as Seismic's own
+  demo voice, and even there only once: a video for the site is iterated in local renders in the
+  owner's Qwen3 voice, and the ElevenLabs render happens after the owner has approved the video.
+  Qwen3-TTS references of the owner's voice lie beside the key, each with its transcript (`.txt`):
+  `.voice/qwen-reference-de.wav` (a recording) and `qwen-reference-en.wav` (cut from the ElevenLabs
+  voice); the demo settings' `reference` names the one of the narration language. Qwen3 is good
+  enough for demos, ElevenLabs marginally better for the site, so the site stays with ElevenLabs
+  (owner, 2026-10-12); `scripts/hero-video/qwen.py` renders the hero narration in Qwen3 to compare.
+- Every release also brings the README's text up to date: like the site, it names what the release
+  adds that a newcomer should know (phone remote control, say).
+- A release contains everything on `main` at the moment it is tagged: right before tagging, rebase
+  onto the current `main` (moving the tag if it is already set), so commits that landed while the
+  release was being prepared go into it too.
+- gh calls against this repository's GitHub repository go through `bun scripts/gh.ts <gh args…>`:
+  it runs gh on the checkout's origin as the account that owns it (`sadilek` for sadilek/obeya),
+  since the machine's active gh account may be another without admin rights.
+- gh calls against the repository's GitHub repository went through `bun scripts/gh.ts <gh args…>`: it runs gh on the checkout's origin as the account that owns it (`sadilek` for sadilek/obeya), since the machine's active gh account may be another without admin rights.
