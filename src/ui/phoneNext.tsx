@@ -20,7 +20,7 @@ import { obeyaWorks, runs } from './talk';
 import { Badge } from './components/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './components/collapsible';
 import { TalkIcon } from './parts';
-import { WorkingRows, WorkstationDots } from './workstations';
+import { hostSpots, WorkingRows, WorkstationDots } from './workstations';
 import { api, ApiError } from './api';
 import { needsYouCount } from '../core/inbox';
 import { plain } from './markdown';
@@ -91,12 +91,14 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
   const inInbox = new Set(entries.flatMap((e) => (e.card ? [e.card.id] : [])));
   const listed = (i: Item) => !inInbox.has(i.id) && !i.archivedAt;
   // the cards agents are on; one whose agent is paused or snoozed stands in the box after them, but no agent works on it
-  // a card waiting for the owner still holds its workstation (an orange dot), so it stands in the box as the desktop's list has it
-  const held = new Set((snap?.workstations ?? []).flatMap((p) => p.hosts.flatMap((h) => h.workstations.filter((w) => w.card && !w.project).map((w) => w.card!))));
-  const onIt = [...new Set([...agentWork(items, isUnderway).working, ...items.filter((i) => i.kind !== 'task' && !i.queue && !needsYou(i) && !i.archivedAt && runs(i))].filter(listed).concat(items.filter((i) => held.has(i.id) && !i.archivedAt)))];
+  const onIt = [...agentWork(items, isUnderway).working, ...items.filter((i) => i.kind !== 'task' && !i.queue && !needsYou(i) && !i.archivedAt && runs(i))].filter(listed);
   const idle = (i: Item) => halted(i) || !!snoozeOf(i);
-  const working = [...onIt.filter((i) => !idle(i)), ...onIt.filter(idle)];
-  const atWork = onIt.filter((i) => !idle(i)).length;
+  // a card waiting for the owner keeps its workstation (an orange dot): it stands in the box as the desktop's list has it, under the same rule as the dots (`hostSpots`), but no agent works on it
+  const atWorkIds = new Set(onIt.filter((i) => !idle(i)).map((i) => i.id));
+  const waiting = new Set((snap?.workstations ?? []).flatMap((p) => p.hosts.flatMap((h) => hostSpots(h, items).flatMap((w) => (w?.card && !w.project ? [w.card] : [])))));
+  const waits = items.filter((i) => waiting.has(i.id) && !i.archivedAt && !atWorkIds.has(i.id) && !onIt.includes(i));
+  const working = [...onIt.filter((i) => !idle(i)), ...waits, ...onIt.filter(idle)];
+  const atWork = atWorkIds.size;
   /** Gives a card its workstation back during the undo window after it was taken, with what came of it, as the status bar does. */
   const keepWorkstation = async (i: Item) => {
     try {
