@@ -416,29 +416,30 @@ export class SshHost {
         // a port of its own per session, so that sessions ending do not take another's forward along
         const there = here ? 30_000 + Math.floor(Math.random() * 30_000) : 0;
         // a session cut off by a dropped connection may still run there: the one that resumes it ends it first.
-        // A pid alone may since be another process's (a host that restarted, a container, gives them out again), so
-        // the pid file names the session too: a mark of its own in its environment, where the host shows that
-        // (`/proc` on Linux, where a container's pids start over), else its start time (macOS: pids go round
-        // its whole range before one comes back, and `ps` there shows no environment). Not itself either.
+        // Recover only a process carrying this session's unique mark, never by a rounded start time.
+        // A small supervisor carries the same mark in argv for hosts where ps cannot read environments.
         const pidFile = `sessions/${o.cwd.replace(/[^\w.-]+/g, '-')}.pid`;
         const pid = sh(`${dir}/${pidFile}`);
         const mark = randomUUID();
         let previous = [
           `mkdir -p ${sh(`${dir}/sessions`)};`,
-          'seismic_started() { echo $(ps -p "$1" -o lstart= 2>/dev/null); };',
-          `seismic_ours() { if [ -r "/proc/$1/environ" ]; then tr "\\000" "\\n" < "/proc/$1/environ" | grep -qx "${SESSION_MARK}=$2"; else [ -n "$3" ] && [ "$(seismic_started "$1")" = "$3" ]; fi; };`,
-          `old=; mark=; stamp=; read -r old mark stamp 2>/dev/null < ${pid};`,
-          '[ -n "$old" ] && [ -n "$mark" ] && [ "$old" != $$ ] && seismic_ours "$old" "$mark" "$stamp" && kill "$old";',
+          `seismic_ours() { if [ -r "/proc/$1/environ" ]; then tr "\\000" "\\n" < "/proc/$1/environ" | grep -Fxq -- "${SESSION_MARK}=$2"; else ps -ww -p "$1" -o command= 2>/dev/null | tr ' ' '\\n' | grep -Fxq -- "seismic-session-$2"; fi; };`,
+          // Bare PIDs are accepted only for one-time migration of pre-rename records.
+          `seismic_recover() { old=; mark=; stamp=; read -r old mark stamp 2>/dev/null < "$1"; case "$old" in ''|*[!0-9]*) return;; esac; [ "$old" -gt 1 ] && [ "$old" != $$ ] || return; if [ -n "$mark" ]; then seismic_ours "$old" "$mark" && kill "$old"; elif [ "$2" = 1 ]; then ps -p "$old" -o command= 2>/dev/null | grep -q claude && kill "$old"; fi; };`,
         ].join(' ');
-        // migration shim: one that began before the rename has a bare pid under `OLD_HOST_DIR`; that file is
-        // checked once and removed, so a pid given out again later is never taken for it. Where the host's
-        // `~/.obeya` is a link to `~/.seismic`, it is the new file itself, which stays.
+        // An alias may contain a pre-rename bare PID or an already marked record. Inspect it once,
+        // before writing the replacement. Distinct legacy files are consumed even if recovery fails.
         if (dir.endsWith(HOST_DIR)) {
           const legacy = sh(`${dir.slice(0, -HOST_DIR.length)}${OLD_HOST_DIR}/${pidFile}`);
-          previous += ` if [ -f ${legacy} ] && ! [ ${legacy} -ef ${pid} ]; then old=$(cat ${legacy} 2>/dev/null); rm -f ${legacy}; [ -n "$old" ] && [ "$old" != $$ ] && ps -p "$old" -o command= 2>/dev/null | grep -q claude && kill "$old"; fi;`;
+          previous += ` if [ ${legacy} -ef ${pid} ]; then seismic_recover ${pid} 1; else seismic_recover ${pid} 0; if [ -f ${legacy} ]; then seismic_recover ${legacy} 1; rm -f ${legacy}; fi; fi;`;
+        } else {
+          previous += ` seismic_recover ${pid} 0;`;
         }
-        previous += ` export ${SESSION_MARK}=${mark}; echo $$ ${mark} $(seismic_started $$) > ${pid};`;
-        const argv = this.argv(`${previous} exec ${[s.command, ...args].map(sh).join(' ')}`, {
+        previous += ` export ${SESSION_MARK}=${mark}; echo $$ ${mark} > ${pid};`;
+        // Keep stdin attached for SDK messages even though the child runs asynchronously. The
+        // supervisor forwards termination and returns Claude's exit code, while retaining its argv mark.
+        const supervise = `exec 3<&0; ${[s.command, ...args].map(sh).join(' ')} <&3 3<&- & child=$!; trap 'kill "$child" 2>/dev/null' TERM INT HUP; wait "$child"; code=$?; exit "$code"`;
+        const argv = this.argv(`${previous} exec sh -c ${sh(supervise)} ${sh(`seismic-session-${mark}`)}`, {
           cwd: o.cwd,
           env: true,
           ...(here ? { forward: `127.0.0.1:${there}:127.0.0.1:${here}` } : {}),

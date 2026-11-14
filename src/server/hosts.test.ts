@@ -4,7 +4,7 @@
 
 import { afterEach, beforeEach, describe, expect, setSystemTime, test } from 'bun:test';
 import { spawn, spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, symlinkSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, linkSync, mkdirSync, symlinkSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { SpawnOptions } from '@anthropic-ai/claude-agent-sdk';
@@ -194,7 +194,51 @@ describe('a session on a host', () => {
     const s = spawnSession({ command: 'sh', args: ['-c', 'echo claude here'], env: {} });
     expect(await s.exited).toBe(0);
     const record = readFileSync(join(home, '.seismic', 'remote', 'sessions', `${join(dir, 'ws').replace(/[^\w.-]+/g, '-')}.pid`), 'utf8').trim().split(' ');
-    expect(record.length).toBeGreaterThan(2);
+    expect(record.length).toBe(2);
+  });
+
+  test.each([false, true])('recovers a pre-rename bare record when both home paths alias it (hard link: %s)', async (hardLink) => {
+    const home = join(dir, 'net', 'home');
+    const pids = join(home, '.seismic', 'remote', 'sessions');
+    mkdirSync(pids, { recursive: true });
+    const pidFile = join(pids, `${join(dir, 'ws').replace(/[^\w.-]+/g, '-')}.pid`);
+    const legacyDir = join(home, '.obeya', 'remote', 'sessions');
+    if (!hardLink) symlinkSync('.seismic', join(home, '.obeya'));
+    else mkdirSync(legacyDir, { recursive: true });
+    const left = spawn('sh', ['-c', 'sleep 30; echo claude']);
+    try {
+      writeFileSync(pidFile, `${left.pid}\n`);
+      const legacy = join(legacyDir, pidFile.split('/').at(-1)!);
+      if (hardLink) linkSync(pidFile, legacy);
+      const ended = new Promise((r) => left.on('exit', r));
+      const s = spawnSession({ command: 'true', args: [], env: {} });
+      expect(await s.exited).toBe(0);
+      await ended;
+      expect(readFileSync(pidFile, 'utf8').trim().split(' ')).toHaveLength(2);
+      expect(readFileSync(legacy, 'utf8')).toBe(readFileSync(pidFile, 'utf8'));
+    } finally {
+      left.kill();
+    }
+  });
+
+  test.each(['alias', 'distinct'])('never treats a marked legacy record as a bare PID (%s)', async (path) => {
+    const home = join(dir, 'net', 'home');
+    mkdirSync(join(home, '.seismic', 'remote', 'sessions'), { recursive: true });
+    if (path === 'alias') symlinkSync('.seismic', join(home, '.obeya'));
+    const pids = join(home, '.obeya', 'remote', 'sessions');
+    mkdirSync(pids, { recursive: true });
+    const legacy = join(pids, `${join(dir, 'ws').replace(/[^\w.-]+/g, '-')}.pid`);
+    const other = spawn('sh', ['-c', 'sleep 30; echo claude']);
+    try {
+      writeFileSync(legacy, `${other.pid} different-mark\n`);
+      const s = spawnSession({ command: 'true', args: [], env: {} });
+      expect(await s.exited).toBe(0);
+      expect(other.signalCode).toBeNull();
+      expect(other.exitCode).toBeNull();
+      expect(existsSync(legacy)).toBe(path === 'alias');
+    } finally {
+      other.kill();
+    }
   });
 
   test('the session runs with the mark its pid file names', async () => {
@@ -205,12 +249,17 @@ describe('a session on a host', () => {
     expect(record[1]).toMatch(/^[0-9a-f-]{36}$/);
   });
 
-  test('leaves alone a process that got the pid of a session since ended (its start time differs)', async () => {
+  test.each([false, true])('leaves a reused PID alone with the same start second (no proc: %s)', async (noProc) => {
+    if (noProc) {
+      // Exercise the ps fallback even on Linux. Only the proc path in the remote script changes.
+      const original = readFileSync(ssh, 'utf8');
+      writeFileSync(ssh, original.replace('exec sh -c "$*"', `script=$(printf '%s' "$*" | sed 's@/proc/@/seismic-test-no-proc/@g'); exec sh -c "$script"`));
+    }
     const pids = join(dir, 'net', 'home', '.seismic', 'remote', 'sessions');
     mkdirSync(pids, { recursive: true });
     const other = spawn('sh', ['-c', 'sleep 30; echo claude']);
     try {
-      writeFileSync(join(pids, `${join(dir, 'ws').replace(/[^\w.-]+/g, '-')}.pid`), `${other.pid} m3 Mon Jan 1 00:00:00 2024\n`);
+      writeFileSync(join(pids, `${join(dir, 'ws').replace(/[^\w.-]+/g, '-')}.pid`), `${other.pid} m3 ${spawnSync('ps', ['-p', String(other.pid), '-o', 'lstart='], { encoding: 'utf8' }).stdout.trim().split(/\s+/).join(' ')}\n`);
       const s = spawnSession({ command: 'sh', args: ['-c', 'echo claude here'], env: {} });
       expect(await s.exited).toBe(0);
       expect(other.exitCode).toBeNull();
@@ -220,13 +269,29 @@ describe('a session on a host', () => {
     }
   });
 
+  test.each([false, true])('recovers an actual marked supervisor and terminates its child (no proc: %s)', async (noProc) => {
+    if (noProc) {
+      const original = readFileSync(ssh, 'utf8');
+      writeFileSync(ssh, original.replace('exec sh -c "$*"', `script=$(printf '%s' "$*" | sed 's@/proc/@/seismic-test-no-proc/@g'); exec sh -c "$script"`));
+    }
+    const first = spawnSession({ command: 'sh', args: ['-c', 'echo ready; read line'], env: {} });
+    try {
+      await until(() => first.out().includes('ready'));
+      const second = spawnSession({ command: 'sh', args: ['-c', 'exit 7'], env: {} });
+      expect(await second.exited).toBe(7);
+      expect(await first.exited).not.toBe(0);
+    } finally {
+      first.p.kill('SIGTERM');
+    }
+  });
+
   test('ends the session a dropped connection left running there, but never itself', async () => {
     const pids = join(dir, 'net', 'home', '.seismic', 'remote', 'sessions');
     const pidFile = join(pids, `${join(dir, 'ws').replace(/[^\w.-]+/g, '-')}.pid`);
     mkdirSync(pids, { recursive: true });
     // the one left running
-    // marked as that session, as the session's start marks it (its environment, else its start time)
-    const left = spawn('sh', ['-c', 'sleep 30; echo claude'], { env: { ...process.env, SEISMIC_REMOTE_SESSION: 'm1' } });
+    // marked as that session in its environment
+    const left = spawn('sh', ['-c', 'sleep 30; echo claude', 'seismic-session-m1'], { env: { ...process.env, SEISMIC_REMOTE_SESSION: 'm1' } });
     const started = spawnSync('ps', ['-p', String(left.pid), '-o', 'lstart='], { encoding: 'utf8' }).stdout.trim().split(/\s+/).join(' ');
     writeFileSync(pidFile, `${left.pid} m1 ${started}\n`);
     const ended = new Promise((r) => left.on('exit', r));
