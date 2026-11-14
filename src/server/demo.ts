@@ -18,7 +18,9 @@ import { resource } from './resources';
  * the plugin or a user skill that points to `plugin/skills/demo`.
  */
 export const OBEYA_PLUGIN = resource('plugin');
-export const DEMO_SKILL = 'seismic:demo';
+/** The plugin's name, which prefixes its skills' names; read from `plugin.json` so the two cannot drift. */
+export const PLUGIN_NAME: string = JSON.parse(readFileSync(join(OBEYA_PLUGIN, '.claude-plugin', 'plugin.json'), 'utf8')).name;
+export const DEMO_SKILL = `${PLUGIN_NAME}:demo`;
 
 /** The demo skill's instructions, for a session that does not know the skill to read. */
 export const DEMO_SKILL_FILE = join(OBEYA_PLUGIN, 'skills', 'demo', 'SKILL.md');

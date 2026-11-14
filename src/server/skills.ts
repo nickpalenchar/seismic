@@ -7,7 +7,7 @@ import { query, type SlashCommand } from '@anthropic-ai/claude-agent-sdk';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Skill } from '../core/types';
-import { OBEYA_PLUGIN } from './demo';
+import { OBEYA_PLUGIN, PLUGIN_NAME } from './demo';
 import { cleanEnv, spawnHere } from './runtime';
 import { claudeExecutable } from './agents/harnesses/claude';
 
@@ -19,7 +19,7 @@ export function bundledSkills(): (Skill & { file: string })[] {
       const file = join(OBEYA_PLUGIN, 'skills', e.name, 'SKILL.md');
       const header = readFileSync(file, 'utf8').match(/^---\r?\n([\s\S]*?)\r?\n---/);
       const meta = header ? Bun.YAML.parse(header[1]!) as { description?: string; 'argument-hint'?: string } : {};
-      return { name: `obeya:${e.name}`, description: firstLine(meta.description ?? ''), ...(meta['argument-hint'] ? { hint: meta['argument-hint'] } : {}), file };
+      return { name: `${PLUGIN_NAME}:${e.name}`, description: firstLine(meta.description ?? ''), ...(meta['argument-hint'] ? { hint: meta['argument-hint'] } : {}), file };
     })
     .sort((a, b) => a.name.localeCompare(b.name));
 }
