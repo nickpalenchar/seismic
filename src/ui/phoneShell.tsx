@@ -35,7 +35,7 @@ import { TalkPanel, talkClass, usePhoneCardPanel } from './phoneTalkPanel';
 /** The phone view keeps its drafts apart from any project's: it shows every project. */
 const DRAFTS = '@phone';
 /** The project in view (whose Seismic is spoken to without a card open), as the owner last picked it. */
-const OBEYA_PROJECT = 'obeya-phone-project';
+const OBEYA_PROJECT = 'seismic-phone-project';
 /** The card the address names, by its code or its id. */
 const cardInAddress = () => readAddress().card ?? null;
 const talkInAddress = () => new URLSearchParams(location.search).has('talk');

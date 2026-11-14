@@ -700,7 +700,7 @@ for (const [i, c] of stage.cards.entries()) {
   ids[c.key ?? String(i)] = id!;
 }
 
-const db = new Database(join(home, 'obeya.db'), { strict: true });
+const db = new Database(join(home, 'seismic.db'), { strict: true });
 db.run('PRAGMA busy_timeout = 10000');
 // code from before workstations were renamed (`--code`) keeps them in `workspaces`, a card's in `workspace`
 const WS = db.query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'workstations'").get() ? 'workstations' : 'workspaces';
@@ -1108,7 +1108,7 @@ function scratchDirs() {
 
 /** Where a scratch Seismic in `d` keeps what workers look for, as staging prints it. */
 function pathsAt(d: string, repo: string, log: string) {
-  return { dir: d, home: join(d, 'home'), repo, database: join(d, 'home', 'obeya.db'), log };
+  return { dir: d, home: join(d, 'home'), repo, database: join(d, 'home', 'seismic.db'), log };
 }
 
 function pointerOf(p: number) {

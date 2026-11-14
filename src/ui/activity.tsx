@@ -19,7 +19,7 @@ import { agentsEmptyClass, inboxBarClass } from './inboxClasses';
 
 /** The log of the open project, or with the switch on, of every project; `allProjects` (the phone, which shows every project) always every project's, without the switch. */
 export function ActivityTab({ project, changed, open, onGo, allProjects }: { project: string; changed: unknown; open?: string; onGo: (project: string, i: Item) => void; allProjects?: boolean }) {
-  const [everywhere, setEverywhere] = useStoredState<boolean>('obeya-activity-all-projects', false);
+  const [everywhere, setEverywhere] = useStoredState<boolean>('seismic-activity-all-projects', false);
   const all = allProjects || everywhere;
   // the lines shown, newest first; `paged` once older pages were added under the first
   const [list, setList] = useState<{ entries: ActivityEntry[]; more: boolean; paged: boolean }>({ entries: [], more: false, paged: false });

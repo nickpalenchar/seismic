@@ -6,14 +6,15 @@
 // is published with the theme's hash, and is outdated once the hash differs (board.ts).
 
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { REPO_DIR, REPO_DIRS } from '../adapters';
 import { themeData } from './artifact-copy';
 import { demoFile } from './demo-file';
 import { GIT, isFolder } from './workstations';
 
-/** The directory a repository's theme is in, and the theme's file there. */
-export const THEME_DIR = '.obeya';
+/** The directory a repository's theme is in (`.seismic/`, else `.obeya/`, which `readShared` picks), and the theme's file there. */
+export const THEME_DIR = REPO_DIR;
 export const THEME_FILE = 'theme.css';
 
 /** A theme as the pages carry it: its CSS with what it names inside, and a hash of that. */
@@ -31,7 +32,7 @@ const read = new Map<string, Theme | null>();
  * folder has it. Null without a `theme.css`. The server waits for git here; `readingTheme` does not.
  */
 export function readTheme(repo: string, tree: string | undefined): Theme | null {
-  if (isFolder(repo)) return themeOf(folderFiles(join(repo, THEME_DIR)));
+  if (isFolder(repo)) return themeOf(folderFiles(join(repo, REPO_DIRS.find((d) => existsSync(join(repo, d))) ?? THEME_DIR)));
   if (!tree) return null;
   const key = `${repo}\0${tree}`;
   if (!read.has(key)) read.set(key, themeOf(treeFiles(repo, tree)));

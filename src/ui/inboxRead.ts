@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { type InboxEntry, readMark } from '../core/inbox';
 
-const READ = 'obeya-inbox-read';
+const READ = 'seismic-inbox-read';
 /** The marks kept, the latest last; older ones belong to waits long over. */
 const KEEP = 500;
 

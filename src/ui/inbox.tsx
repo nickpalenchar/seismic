@@ -47,8 +47,8 @@ type Filter = 'all' | 'unread';
 
 /** The entries as a list, the same on the desktop's sheet and the phone. */
 export function InboxList({ entries: all, current, open, onGo, onReply, onProposalCard, onProposalConfig, isRead, onRead, els }: InboxProps) {
-  const [filter, setFilter] = useStoredState<Filter>('obeya-inbox-filter', 'unread');
-  const [everywhere, setEverywhere] = useStoredState<boolean>('obeya-inbox-all-projects', false);
+  const [filter, setFilter] = useStoredState<Filter>('seismic-inbox-filter', 'unread');
+  const [everywhere, setEverywhere] = useStoredState<boolean>('seismic-inbox-all-projects', false);
   const entries = current && !everywhere ? all.filter((e) => e.project === current) : all;
   if (!entries.length && !current) return <p className={emptyInboxClass}>{t.inbox.empty}</p>;
   // the open card's entry stays while the owner is at it, read or not

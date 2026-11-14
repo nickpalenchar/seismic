@@ -110,7 +110,7 @@ import { kindOf, type NeedsYou } from '../core/waits';
 import type { Mark, Store } from './store';
 import { attribute, checkedFeedback } from './feedback';
 import type { Images } from './images';
-import { branchName, CARD_BRANCH } from './workstations';
+import { branchName, CARD_BRANCH, CARD_BRANCHES } from './workstations';
 import { clip, messageOf, oneLine } from '../core/text';
 import type { Wish } from '../core/wish';
 
@@ -3468,7 +3468,7 @@ export class Board {
   /** The title of the card the agent last started on, as its branch has it (`branchName`); none for a card never started. */
   private startedAs(row: CardRow): string | null {
     const short = row.id.slice(0, 6);
-    const at = new RegExp(`${CARD_BRANCH}([a-z0-9-]+)-${short}`);
+    const at = new RegExp(`(?:${CARD_BRANCHES.join('|')})([a-z0-9-]+)-${short}`);
     const slug = at.exec(row.branch ?? '')?.[1] ?? at.exec(this.store.events.branchMention(row.id) ?? '')?.[1] ?? null;
     // a title without a Latin letter or digit names its branch `card`, which tells no workstream apart
     return slug === 'card' ? null : slug;

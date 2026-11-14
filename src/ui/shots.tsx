@@ -393,7 +393,7 @@ function useEnlarge(shots?: ShotInput) {
 }
 
 /** Set once the owner put a mark on a screenshot: the hint on how goes. */
-const MARKS_KNOWN = 'obeya-marks-known';
+const MARKS_KNOWN = 'seismic-marks-known';
 
 /** The marks over the image, in its pixels (`w`×`h`), and the frame being drawn (`drawing`). */
 function MarkLayer({ marks, w, h, drawing }: { marks: Mark[]; w: number; h: number; drawing?: Mark | null }) {

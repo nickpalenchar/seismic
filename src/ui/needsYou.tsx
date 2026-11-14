@@ -24,7 +24,7 @@ import { emptyInboxClass, entryListClass, inboxBarClass } from './inboxClasses';
 type CardOnly = InboxEntry & { card: Item };
 
 export function NeedsYouSheet({ on, entries, current, open, onGo, onReply, isRead, onRead }: Omit<InboxProps, 'onProposalCard' | 'onProposalConfig' | 'els'> & { on: boolean; current: string }) {
-  const [hideOthers, setHideOthers] = useStoredState<boolean>('obeya-needs-you-hide-others', false);
+  const [hideOthers, setHideOthers] = useStoredState<boolean>('seismic-needs-you-hide-others', false);
   // the other projects opened in this sheet, until the page reloads
   const [unfolded, setUnfolded] = useState<string[]>([]);
   const cards = entries.filter((e): e is CardOnly => !!e.card);

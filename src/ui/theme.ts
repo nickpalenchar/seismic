@@ -12,7 +12,7 @@ import { applyMotion } from './motion';
 import { setLanguage } from './strings';
 
 /** Where this browser keeps the owner's last choice; index.html reads it under the same name. */
-export const THEME_KEY = 'obeya-theme';
+export const THEME_KEY = 'seismic-theme';
 
 export function applyTheme(theme: Theme | null) {
   if (theme) document.documentElement.dataset.theme = theme;

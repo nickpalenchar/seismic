@@ -1,6 +1,6 @@
 // Only the owner talks to Seismic from this machine. Every request names
 // the owner's key, a secret in `owner.key` in Seismic's home that only the owner's account may read
-// (0600): in the header `X-Obeya-Key` (the app's shell, Seismic's own scripts) or in a cookie (the
+// (0600): in the header `X-Seismic-Key` (`X-Obeya-Key` from before the rename) (the app's shell, Seismic's own scripts) or in a cookie (the
 // page, the push-to-talk panel). A browser gets the cookie from a link with a token
 // (`/login?token=…`), as Jupyter's: Seismic prints it when it starts, and gives it to whoever holds
 // the key (`POST /api/login-link`: the app's shell, a second start of Seismic,
@@ -16,7 +16,9 @@ import type { Language } from '../core/locale';
 import { MESSAGES } from '../core/messages.ts';
 
 export const KEY_FILE = 'owner.key';
-export const KEY_HEADER = 'x-obeya-key';
+export const KEY_HEADER = 'x-seismic-key';
+/** The header's name before the rename, which a server still accepts (migration shim: an app or script from before sends it). */
+export const OLD_KEY_HEADER = 'x-obeya-key';
 /** The cookie's lifetime, the longest browsers keep one (400 days); the key decides how long it holds. */
 const COOKIE_MAX_AGE = 400 * 24 * 3600;
 /** One-time tokens that wait to be used; the oldest goes when another comes. */
@@ -122,12 +124,17 @@ export class Owner {
 
   /** The cookie of the Seismic on `port`: a browser keeps cookies per host, not per port, and a scratch Seismic beside it has another key. */
   cookieName(port: number) {
+    return `seismic-${port}`;
+  }
+
+  /** The cookie's name before the rename, which a browser signed in before it still sends; only the new one is written. */
+  oldCookieName(port: number) {
     return `obeya-${port}`;
   }
 
-  /** Whether `req` names the owner's key, in the header or in the cookie. */
+  /** Whether `req` names the owner's key, in the header or in the cookie, under either name. */
   admits(req: Request, port: number): boolean {
-    const given = req.headers.get(KEY_HEADER) ?? cookie(req, this.cookieName(port));
+    const given = req.headers.get(KEY_HEADER) ?? req.headers.get(OLD_KEY_HEADER) ?? cookie(req, this.cookieName(port)) ?? cookie(req, this.oldCookieName(port));
     return !!given && same(given, this.key);
   }
 

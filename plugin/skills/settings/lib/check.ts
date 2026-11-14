@@ -1,5 +1,5 @@
 // Checks the settings of the repository in the working directory as they stand in the checkout
-// (`.obeya/settings.json`, committed or not), the way Seismic will read them once they are on the
+// (`.seismic/settings.json`, else `.obeya/`; committed or not), the way Seismic will read them once they are on the
 // default branch: every field is known and of the right type (the problems the configuration sheet
 // reports), and no adapter module is left. Prints what Seismic makes
 // of them, the docs in the plan directory among it: which are plans and which are not, and why;
@@ -7,12 +7,12 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { defaultsFor, parseShared, REPO_ADAPTER_DIR, REPO_SETTINGS_FILE, withSettings } from '../../../../src/adapters/index.ts';
+import { defaultsFor, parseShared, REPO_ADAPTER_DIR, REPO_SETTINGS_FILE, REPO_SETTINGS_FILES, withSettings } from '../../../../src/adapters/index.ts';
 import { allTicked, type NotAPlan } from '../../../../src/core/plan-doc.ts';
 import { outsidePlanDir, readPlanDocs, repoInfo } from '../../../../src/server/repo.ts';
 
 const repo = repoInfo(process.cwd());
-const settingsFile = join(repo.path, REPO_SETTINGS_FILE);
+const settingsFile = REPO_SETTINGS_FILES.map((f) => join(repo.path, f)).find((f) => existsSync(f)) ?? join(repo.path, REPO_SETTINGS_FILE);
 if (!existsSync(settingsFile)) {
   console.log(`No ${settingsFile}: write the repository's settings first.`);
   process.exit(1);

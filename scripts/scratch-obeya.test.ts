@@ -55,7 +55,7 @@ test('stages a scratch Seismic with its cards in the states the stage file gives
   expect(Bun.spawnSync([process.execPath, script, '--login', String(port), '--dir', dir]).stdout.toString().trim()).toBe(staged.url);
   // --list finds it outside /tmp/obeya-scratch-<port> too, and --login without --dir
   const line = Bun.spawnSync([process.execPath, script, '--list']).stdout.toString().split('\n').find((l) => l.includes(`"port":${port},`));
-  expect(JSON.parse(line!)).toMatchObject({ port, dir, database: join(dir, 'home', 'obeya.db') });
+  expect(JSON.parse(line!)).toMatchObject({ port, dir, database: join(dir, 'home', 'seismic.db') });
   expect(Bun.spawnSync([process.execPath, script, '--login', String(port)]).stdout.toString().trim()).toBe(staged.url);
   // the API with the owner's key of its home
   const headers = ownerHeaders(join(dir, 'home'));

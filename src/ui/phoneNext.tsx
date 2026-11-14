@@ -51,8 +51,8 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
   const { projects, snaps, usage, feeds, banner, open, openCard, obeyaId, setObeyaProject, entries, isUnderway, homeRef, newCard, making, made, press, acks, back, showAck } = s;
   const [menuOpen, setMenuOpen] = useState(false);
   const [needsOn, openNeeds, closeNeeds] = useNeedsPage();
-  const [workingOpen, setWorkingOpen] = useStoredState('obeya-phone-working-open', true);
-  const [folded, setFolded] = useStoredState<Section[]>('obeya-phone-folded', FOLDED);
+  const [workingOpen, setWorkingOpen] = useStoredState('seismic-phone-working-open', true);
+  const [folded, setFolded] = useStoredState<Section[]>('seismic-phone-folded', FOLDED);
   // how many cards each section shows; back to the first twenty with another project
   const [shown, setShown] = useState<{ project: string; n: Partial<Record<Section, number>> }>({ project: obeyaId, n: {} });
   const shownOf = (x: Section) => (shown.project === obeyaId ? shown.n[x] : undefined) ?? PAGE;

@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState } from 'react';
 
 /** The last event of each card's conversation the owner had in view, by card. */
-const SEEN = 'obeya-seen';
+const SEEN = 'seismic-seen';
 // until 2026-10-17 only the phone kept it, under its own name
-const BEFORE = 'obeya-phone-seen';
+const BEFORE = 'seismic-phone-seen';
 
 function all(): Record<string, number> {
   try {

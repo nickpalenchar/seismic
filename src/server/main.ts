@@ -7,8 +7,8 @@
 // lists, `[{ "name"?, "id"?, "repos": [{ "path", "workstations"?, "clones"? }] }]`, by default
 // $SEISMIC_HOME/projects.json; while that does not exist, none, and the page shows the setup
 // assistant, which checks the machine and creates the first project (machine.ts). With repositories: one project with them (the first is its home;
-// --workstation and --clones apply to it). Data lives in $SEISMIC_HOME/obeya.db (default
-// ~/.obeya).
+// --workstation and --clones apply to it). Data lives in $SEISMIC_HOME/seismic.db (default
+// ~/.seismic; moved there from ~/.obeya, home-move.ts).
 //
 // Without --dev the process supervises the server: it runs it as a child and starts it again
 // when the server exits to pick up new code on Seismic's own checkout (self-update.ts); new commits
@@ -81,6 +81,7 @@ import { DemoSpace } from './demo-space';
 import { qwen3Serve } from '../../plugin/skills/demo/lib/voices.ts';
 import { agentSetting, agentsView, conversationLanguage, feedbackPromptView, ownerLanguage, usageMeterView } from './settings';
 import { loginLink } from './owner';
+import { databaseFile, moveDefaultHome, moveNotice } from './home-move';
 import { Stalls } from './stalls';
 import { hideConsoleWindows } from './spawn';
 
@@ -106,7 +107,12 @@ const { values, positionals } = parseArgs({
   allowPositionals: true,
 });
 
-const home = seismicEnv('HOME') ?? join(homedir(), '.obeya');
+// the default home moved from ~/.obeya to ~/.seismic (home-move.ts), before anything reads it
+const move = seismicEnv('HOME') ? null : await moveDefaultHome();
+const home = seismicEnv('HOME') ?? move!.home;
+if (move?.moved) console.log(moveNotice(move, join(homedir(), '.obeya')));
+if (move?.skipped && !move.moved) console.error(`Seismic: ${join(homedir(), '.obeya')} stays where it is (${move.skipped})`);
+for (const p of move?.problems ?? []) console.error(`Seismic: home move: ${p}`);
 // the home holds the logins, the cards and the agents' transcripts: the owner's alone
 mkdirSync(home, { recursive: true, mode: 0o700 });
 if (process.platform !== 'win32' && (statSync(home).mode & 0o077) !== 0 && statSync(home).uid === process.getuid?.()) chmodSync(home, 0o700);
@@ -208,7 +214,7 @@ const configs = expandConfig(started);
 
 const store = (() => {
   try {
-    return new Store(join(home, 'obeya.db'));
+    return new Store(databaseFile(home));
   } catch (e) {
     if (!(e instanceof UnusableDatabase)) throw e;
     console.error(`Seismic: ${e.message}`);

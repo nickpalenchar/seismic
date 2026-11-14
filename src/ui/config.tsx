@@ -74,10 +74,10 @@ const proseFieldClass = (hook: string) => `${hook} block w-full max-w-[420px] re
 const PROJECT_TAB = 'project:';
 const SECTIONS: Section[] = ['projects', 'defaults', 'agents', 'voice', 'demos', 'notices', 'devices', 'advanced', 'developer'];
 // the section shown, per tab: a save that restarts Seismic reloads the page, and the dialog comes back at it
-const SECTION_KEY = 'obeya-config-section';
+const SECTION_KEY = 'seismic-config-section';
 
 // the project shown in Projects, per tab, by its place in the list
-const PROJECT_KEY = 'obeya-config-project';
+const PROJECT_KEY = 'seismic-config-project';
 
 /** Opens the dialog at the projects next time, at the one the page shows, as from the note on a plan directory. */
 export const showProjectsSection = () => {
@@ -85,7 +85,7 @@ export const showProjectsSection = () => {
   sessionStorage.removeItem(PROJECT_KEY);
 };
 
-const ADD_PROJECT_KEY = 'obeya-config-add-project';
+const ADD_PROJECT_KEY = 'seismic-config-add-project';
 /** Opens the dialog next time with a new project added to its list, as from "+ New project" in the navigation. */
 export const showNewProject = () => {
   showProjectsSection();
@@ -104,10 +104,10 @@ export const showDemosSection = () => {
   sessionStorage.setItem(SITES_SHOW_KEY, '1');
 };
 /** The demo sites are to be scrolled to once the dialog shows them. */
-const SITES_SHOW_KEY = 'obeya-config-sites';
+const SITES_SHOW_KEY = 'seismic-config-sites';
 /** The dialog shows the page that adds a demo site ("Configure publishing site"), in place of the Demos section. */
-const ADD_SITE_KEY = 'obeya-config-add-site';
-const ADD_SITE_EVENT = 'obeya-add-site';
+const ADD_SITE_KEY = 'seismic-config-add-site';
+const ADD_SITE_EVENT = 'seismic-add-site';
 /** Opens the page that adds a demo site: at once where the dialog is open, else the next time it opens. */
 export const showAddSite = () => {
   sessionStorage.setItem(SECTION_KEY, 'demos');
@@ -132,7 +132,7 @@ export interface ConfigFocus {
   /** With `settings`: the setting to show. */
   setting?: string;
 }
-const FOCUS_KEY = 'obeya-config-focus';
+const FOCUS_KEY = 'seismic-config-focus';
 
 /** Opens the dialog next time at a repository's clone count or slots, as from a card waiting for a free clone or slot. */
 export const showRepoClones = (f: ConfigFocus) => {
@@ -832,7 +832,7 @@ const VOICE_FIELDS: Record<VoiceKind, ('voiceName' | 'command' | 'url' | 'keyFil
   azure: ['url', 'voiceName', 'keyFile'],
 };
 /** Where the settings sheet keeps the sentence typed to hear a voice by, for the tab. */
-const SAMPLE_TEXT_KEY = 'obeya-demo-sample-text';
+const SAMPLE_TEXT_KEY = 'seismic-demo-sample-text';
 /** A stock voice of a model or service is nobody's own. */
 const STOCK_ONLY: VoiceKind[] = ['piper', 'say'];
 /** Where demos go when the settings name no directory (`DEFAULT_DEMO_DIRECTORY` of the demo skill, which the page cannot import). */
@@ -1660,9 +1660,9 @@ const SYSTEM = 'system';
 const ADD_HOSTS: AddHost[] = ['github-public', 'github', 'cloudflare', 'manual'];
 
 /** The way chosen for a new site, a site entered by hand and a connection code not sent yet: they survive closing the dialog. */
-const ADD_HOST_KEY = 'obeya-site-host';
-const ADD_MANUAL_KEY = 'obeya-site-manual';
-const ADD_CODE_KEY = 'obeya-site-code';
+const ADD_HOST_KEY = 'seismic-site-host';
+const ADD_MANUAL_KEY = 'seismic-site-manual';
+const ADD_CODE_KEY = 'seismic-site-code';
 
 /** The demo sites of this machine, read once per page and shared by every block that shows them. */
 let sitesNow: DemoSitesView | null = null;

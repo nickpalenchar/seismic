@@ -9,7 +9,7 @@ import { api } from './api';
 import { know, known } from './known';
 
 /** Set once the owner has used the menu (moved through it with the arrow keys, or picked a skill): its hint under the field goes. */
-export const SKILLS_KNOWN = 'obeya-skills-known';
+export const SKILLS_KNOWN = 'seismic-skills-known';
 
 /** How long a card's list serves before it is asked again. */
 const FRESH_MS = 60_000;

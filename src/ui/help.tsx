@@ -81,4 +81,4 @@ export function Help({ onClose, note }: { onClose: () => void; note?: 'button' |
 const quiet = 'text-[12px] text-muted-foreground';
 
 /** Set once the owner opened the legend with `?`: the bar's `?` button goes. */
-export const HELP_KEY_KNOWN = 'obeya-help-key-known';
+export const HELP_KEY_KNOWN = 'seismic-help-key-known';

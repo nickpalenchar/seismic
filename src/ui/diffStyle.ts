@@ -6,7 +6,7 @@ import { phoneView } from './phoneEnvironment';
 
 export type DiffStyle = 'split' | 'unified';
 
-const KEY = 'obeya-diff-style';
+const KEY = 'seismic-diff-style';
 const listeners = new Set<() => void>();
 
 const read = (): DiffStyle => {

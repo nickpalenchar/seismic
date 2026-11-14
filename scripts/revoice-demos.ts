@@ -27,7 +27,7 @@ const option = (name: string, fallback: string) => {
   const i = args.indexOf(`--${name}`);
   return i >= 0 && args[i + 1] ? args.splice(i, 2)[1]! : fallback;
 };
-const home = (process.env.SEISMIC_HOME ?? process.env.OBEYA_HOME) || join(homedir(), '.obeya');
+const home = (process.env.SEISMIC_HOME ?? process.env.OBEYA_HOME) || join(homedir(), existsSync(join(homedir(), '.seismic')) ? '.seismic' : '.obeya');
 const project = option('project', 'obeya');
 const count = Number(option('count', '30'));
 const languageArg = option('language', 'en');
@@ -67,7 +67,7 @@ function standing(dir: string, shared: boolean): string {
 }
 
 function candidates(): (Row & { dir: string })[] {
-  const db = new Database(join(home, 'obeya.db'), { readonly: true });
+  const db = new Database(join(home, 'seismic.db'), { readonly: true });
   const rows = db
     .query<Row, string[]>(
       `SELECT c.id, c.title, d.latest AS demo, d.share, max(e.at) AS approved FROM cards c JOIN card_demos d ON d.card_id = c.id JOIN events e ON e.card_id = c.id

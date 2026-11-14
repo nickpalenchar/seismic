@@ -19,7 +19,7 @@ import * as K from './configClasses';
 type PrefsSection = 'appearance' | 'rules' | 'about';
 const SECTIONS: PrefsSection[] = ['appearance', 'rules', 'about'];
 // the section shown, per tab: a new language reloads the page, and the dialog comes back at it
-const SECTION_KEY = 'obeya-prefs-section';
+const SECTION_KEY = 'seismic-prefs-section';
 
 const showPrefsSection = (s: PrefsSection) => sessionStorage.setItem(SECTION_KEY, s);
 

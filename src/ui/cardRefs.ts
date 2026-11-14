@@ -9,7 +9,7 @@ import { named } from './address';
 import { know, known } from './known';
 
 /** Set once the owner has picked a card from the menu: its hint under the field goes. */
-export const CARD_REFS_KNOWN = 'obeya-card-refs-known';
+export const CARD_REFS_KNOWN = 'seismic-card-refs-known';
 export const usedCardRefs = () => know(CARD_REFS_KNOWN);
 export const knowsCardRefs = () => known(CARD_REFS_KNOWN);
 

@@ -33,6 +33,6 @@ test('the chosen widths are remembered, and held to the window they are shown in
 
 test('a broken entry falls back to the defaults', () => {
   const s = store();
-  s.setItem('obeya-sheet-width', '{nope');
+  s.setItem('seismic-sheet-width', '{nope');
   expect(loadWidths(s)).toEqual({ sheet: SHEET_W, read: null });
 });

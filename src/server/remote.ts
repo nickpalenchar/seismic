@@ -25,7 +25,9 @@ import { Owner } from './owner';
 import { remoteOf, remoteSetting, saveRemote } from './settings';
 import { type ServeEntry, Tailscale } from './tailscale';
 
-export const DEVICE_COOKIE = 'obeya-device';
+export const DEVICE_COOKIE = 'seismic-device';
+/** The paired device's cookie before the rename: a device paired before it keeps working, and gets the new one when it pairs again. */
+const OLD_DEVICE_COOKIE = 'obeya-device';
 /** How long a pairing code holds. */
 export const PAIRING_MS = 5 * 60_000;
 /** Wrong codes after which a pairing code no longer pairs anything. */
@@ -311,12 +313,9 @@ export class Access implements Gate {
 
   /** The paired device a request's cookie names; one unused for too long is removed. */
   device(req: Request): DeviceView | null {
-    const token = req.headers
-      .get('cookie')
-      ?.split(';')
-      .map((c) => c.trim())
-      .find((c) => c.startsWith(`${DEVICE_COOKIE}=`))
-      ?.slice(DEVICE_COOKIE.length + 1);
+    const cookies = req.headers.get('cookie')?.split(';').map((c) => c.trim()) ?? [];
+    const named = (name: string) => cookies.find((c) => c.startsWith(`${name}=`))?.slice(name.length + 1);
+    const token = named(DEVICE_COOKIE) ?? named(OLD_DEVICE_COOKIE);
     if (!token) return null;
     const d = this.store.devices.byToken(sha256(token));
     if (!d) return null;

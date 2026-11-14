@@ -4,7 +4,7 @@ import { closeWish, keepWish, openWish, wishNow } from './wish';
 
 const m = new Map<string, string>();
 const store = { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k) };
-const KEY = 'obeya-wish-shop';
+const KEY = 'seismic-wish-shop';
 (globalThis as { window?: object }).window ??= {};
 
 const calls: Parameters<typeof api.writeWish>[0][] = [];
@@ -52,7 +52,7 @@ test('a draft with text or screenshots stays, and the new wish waits for the own
 
 test("switching to another project within the page shows that project's draft, and the one before keeps its own", () => {
   m.set(KEY, JSON.stringify({ title: 'On shop', body: '', images: [] }));
-  m.set('obeya-wish-blog', JSON.stringify({ title: 'On blog', body: '', images: [] }));
+  m.set('seismic-wish-blog', JSON.stringify({ title: 'On blog', body: '', images: [] }));
   keepWish(store, 'shop');
   keepWish(store, 'blog');
   expect(wishNow().issue?.title).toBe('On blog');
@@ -63,13 +63,13 @@ test("switching to another project within the page shows that project's draft, a
 
 test('a draft still being written when the owner switches projects goes to the project it was asked on', async () => {
   m.set(KEY, JSON.stringify({ title: '', body: '', images: [] }));
-  m.delete('obeya-wish-blog');
+  m.delete('seismic-wish-blog');
   keepWish(store, 'shop');
   openWish({ said: 'The tabs flicker.' });
   keepWish(store, 'blog');
   await written();
   expect(wishNow().issue).toBeNull();
-  expect(m.get('obeya-wish-blog')).toBeUndefined();
+  expect(m.get('seismic-wish-blog')).toBeUndefined();
   expect(JSON.parse(m.get(KEY)!).title).toBe('Issue: The tabs flicker.');
   keepWish(store, 'shop');
   expect(wishNow().issue?.title).toBe('Issue: The tabs flicker.');
@@ -77,7 +77,7 @@ test('a draft still being written when the owner switches projects goes to the p
 
 test("a draft written after a switch keeps its own project's screenshots, not the shown project's", async () => {
   m.set(KEY, JSON.stringify({ title: '', body: '', images: [] }));
-  m.set('obeya-wish-blog', JSON.stringify({ title: 'On blog', body: 'Text', images: ['blog-shot'] }));
+  m.set('seismic-wish-blog', JSON.stringify({ title: 'On blog', body: 'Text', images: ['blog-shot'] }));
   keepWish(store, 'blog');
   keepWish(store, 'shop');
   openWish({ said: 'The bar jumps.' });
@@ -89,7 +89,7 @@ test("a draft written after a switch keeps its own project's screenshots, not th
 
 test('a draft still being written when the owner switches away and back shows on its project at once', async () => {
   m.set(KEY, JSON.stringify({ title: '', body: '', images: [] }));
-  m.delete('obeya-wish-blog');
+  m.delete('seismic-wish-blog');
   keepWish(store, 'shop');
   openWish({ said: 'The menu sticks.' });
   keepWish(store, 'blog');

@@ -32,7 +32,7 @@ interface Props {
 
 export function ChatsHead({ title, project, projectName, chat, chats, talk, onProject, onClose }: Props) {
   const [open, setOpen] = useState(false);
-  const [all, setAll] = useStoredState('obeya-chats-all', false);
+  const [all, setAll] = useStoredState('seismic-chats-all', false);
   const [every, setEvery] = useState<ChatElsewhere[] | null>(null);
   const [error, setError] = useState('');
   const drawer = useRef<HTMLDivElement>(null);

@@ -34,7 +34,7 @@ export function keepDays(s: Pick<DemoSettings, 'keepFrames'>, home: string): num
   return defaultDays(home);
 }
 
-export const defaultDays = (home: string): number | null => (resolve(home) === resolve(homedir(), '.obeya') ? DEFAULT_KEEP_DAYS : null);
+export const defaultDays = (home: string): number | null => ([resolve(homedir(), '.seismic'), resolve(homedir(), '.obeya')].includes(resolve(home)) ? DEFAULT_KEEP_DAYS : null);
 
 /**
  * The work directories of the renders in the demo directory: `<demo>/.work`, and `<demo>/<voice>/.work`

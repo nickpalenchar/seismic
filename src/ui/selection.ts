@@ -23,6 +23,6 @@ export const shifted = (cards: { id: string; start: Pos }[], by: Pos) =>
   Object.fromEntries(cards.map((c) => [c.id, { x: Math.round(c.start.x + by.x), y: Math.round(c.start.y + by.y) }]));
 
 /** Set once the owner has marked cards: the hint on how, after moving a card alone, goes. */
-export const MARK_KNOWN = 'obeya-mark-known';
+export const MARK_KNOWN = 'seismic-mark-known';
 /** Set once the owner has moved several marked cards together: the hint on how, beside the marked ones, goes. */
-export const MOVE_MARKED_KNOWN = 'obeya-move-marked-known';
+export const MOVE_MARKED_KNOWN = 'seismic-move-marked-known';

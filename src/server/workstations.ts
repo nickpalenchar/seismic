@@ -957,7 +957,9 @@ export class Workstations implements CardWorkstations {
   private async configurePlanBaseline(cardId: string, ws: string): Promise<void> {
     const plan = this.o.planOf?.(cardId);
     if (!plan) return;
-    const tag = planBaselineTag(plan);
+    // a plan whose baseline was tagged before the rename keeps that tag
+    const oldTag = oldPlanBaselineTag(plan);
+    const tag = (await gitAsync(this.o.repoPath, 'rev-parse', '--verify', '--quiet', `refs/tags/${oldTag}`).catch(() => '')) ? oldTag : planBaselineTag(plan);
     const ref = `refs/tags/${tag}`;
     const read = (path: string) => gitAsync(path, 'rev-parse', '--verify', '--quiet', ref).catch(() => '');
     const hasCommit = async (path: string, commit: string) => {
@@ -979,7 +981,7 @@ export class Workstations implements CardWorkstations {
     if (!existing) await gitAsync(ws, 'update-ref', ref, commit, '');
     const branch = await gitAsync(ws, 'branch', '--show-current');
     if (!branch) throw new WorkstationError(`Cannot configure plan baseline on a detached HEAD in ${ws}`);
-    await gitAsync(ws, 'config', '--local', `branch.${branch}.obeya-project-baseline`, tag);
+    await gitAsync(ws, 'config', '--local', `branch.${branch}.seismic-project-baseline`, tag);
     this.o.baselineConfigured?.(cardId, tag, commit);
   }
 
@@ -1437,7 +1439,7 @@ export class Workstations implements CardWorkstations {
    * Moves the Seismic checkout's uncommitted changes that stand in the way of landing the card (files
    * its branch changes too, `inTheWay`) into the card's branch, so that its worker can work them in
    * before the work lands: they become one commit on the checkout's `HEAD` (kept under
-   * `refs/obeya/folded/<card>`), picked onto the branch in its workstation, then put back to `HEAD`
+   * `refs/seismic/folded/<card>`), picked onto the branch in its workstation, then put back to `HEAD`
    * in the checkout. Its other uncommitted changes stay as they are. Where the pick conflicts, it
    * stays under way in the workstation for the worker to resolve (`conflict`). Nothing in the way any
    * more: no files, and nothing moved.
@@ -1460,7 +1462,7 @@ export class Workstations implements CardWorkstations {
         if (!files.length) return { files };
         const head = await gitAsync(repo, 'rev-parse', 'HEAD');
         const commit = await commitOf(repo, head, files, 'Uncommitted changes from the main checkout, folded into this card');
-        const ref = `refs/obeya/folded/${cardId}`;
+        const ref = `refs/seismic/folded/${cardId}`;
         await gitAsync(repo, 'update-ref', ref, commit);
         // what the owner staged is kept too, for a file staged in one version and edited on to another
         const staged = await gitAsync(repo, 'commit-tree', await gitAsync(repo, 'write-tree'), '-p', head, '-m', 'The main checkout\'s index when its changes were folded into this card');
@@ -1930,7 +1932,7 @@ export class Workstations implements CardWorkstations {
     const [main, at] = await Promise.all([gitAsync(ws, 'merge-base', 'HEAD', up), gitAsync(ws, 'rev-parse', 'HEAD', '--abbrev-ref', 'HEAD')]);
     const [head, branch] = at.split('\n');
     // the card's branch here and in remotes, whatever its name
-    const cards = [`${CARD_BRANCH}*`, ...(branch && branch !== 'HEAD' ? [branch] : [])];
+    const cards = [...CARD_BRANCHES.map((p) => `${p}*`), ...(branch && branch !== 'HEAD' ? [branch] : [])];
     const own = (
       await gitAsync(ws, 'rev-list', '--first-parent', '--parents', 'HEAD', '--not', main, ...cards.map((b) => `--exclude=${b}`), '--branches', ...cards.map((b) => `--exclude=*/${b}`), '--remotes')
     )
@@ -2363,13 +2365,13 @@ export const detectedBranch = (path: string): string => gitStepsSync(path, detec
 export function* detectingBranch(branches?: Branches | null): GitSteps<string> {
   const b = branches !== undefined ? branches : yield* readingBranches();
   if (b?.originHead) return b.originHead;
-  const own = [...(b?.local.keys() ?? [])].filter((name) => !name.startsWith(CARD_BRANCH));
+  const own = [...(b?.local.keys() ?? [])].filter((name) => !isCardBranch(name));
   if (own.length === 1) return own[0]!;
   const [init] = yield [['config', '--get', 'init.defaultBranch']];
   const usual = [init, 'main', 'master'].find((name) => name && own.includes(name));
   if (usual) return usual;
   const [current] = yield [['symbolic-ref', '--short', '-q', 'HEAD']];
-  if (current && !current.startsWith(CARD_BRANCH)) return current;
+  if (current && !isCardBranch(current)) return current;
   return init || 'main';
 }
 
@@ -2441,13 +2443,20 @@ export function* gitCalls(...calls: string[][]): GitSteps<(string | null)[]> {
   return yield calls;
 }
 
-/** What every card's branch begins with. */
-export const CARD_BRANCH = 'obeya/';
+/** What every new card's branch begins with. */
+export const CARD_BRANCH = 'seismic/';
+/** What a card's branch began with before the rename; cards in flight keep theirs (migration shim: both are recognised). */
+export const OLD_CARD_BRANCH = 'obeya/';
+export const CARD_BRANCHES = [CARD_BRANCH, OLD_CARD_BRANCH];
+/** Whether `name` is a card's branch, under either prefix (`refs/heads/` or a remote's name in front of it does not count). */
+export const isCardBranch = (name: string): boolean => CARD_BRANCHES.some((p) => name.startsWith(p));
 
 /** Stable across renaming a plan or its plan doc; plan ids are globally unique. */
-export const planBaselineTag = (planId: string): string => `obeya/project/${planId}/baseline`;
+export const planBaselineTag = (planId: string): string => `seismic/project/${planId}/baseline`;
+/** A plan's baseline tag before the rename, which a repository that has it keeps using. */
+export const oldPlanBaselineTag = (planId: string): string => `obeya/project/${planId}/baseline`;
 
-/** `obeya/<slug>` from a card title, kept short and unique by the card id. */
+/** `seismic/<slug>` from a card title, kept short and unique by the card id. */
 export function branchName(title: string, cardId: string): string {
   const slug = title
     .normalize('NFKD')

@@ -17,7 +17,7 @@ export interface Cam {
  * so reordering moves no view to another canvas.
  */
 export const camKey = (projectId: string, canvas?: { id: string; name: string }) =>
-  `obeya-cam-${projectId}${canvas && canvas.name !== MAIN_CANVAS ? `#${canvas.id}` : ''}`;
+  `seismic-cam-${projectId}${canvas && canvas.name !== MAIN_CANVAS ? `#${canvas.id}` : ''}`;
 
 export const MIN_ZOOM = 0.55;
 export const MAX_ZOOM = 2;

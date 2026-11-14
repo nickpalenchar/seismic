@@ -22,7 +22,7 @@ let ideas: string[];
 beforeAll(() => {
   dir = mkdtempSync(join(tmpdir(), 'obeya-board-size-'));
   const repo = gitRepo(join(dir, 'app'), { 'docs/plan/plan.md': '# App\n\n## Goal\n\nG.\n\n## Workstreams\n\n- [ ] **W1:** One.\n- [ ] **W2:** Two.\n' });
-  store = new Store(join(dir, 'obeya.db'));
+  store = new Store(join(dir, 'seismic.db'));
   project = new ProjectRuntime({ name: 'App', repos: [{ path: repo, clones: 2 }] }, { store, home: dir, runtime: new FakeRuntime(), forge: noForge });
   const c = project.board.project.id;
   const body = 'What the card asks for, in a few sentences, as the owner wrote it. '.repeat(6);

@@ -34,10 +34,10 @@ export const NAV_MIN_W = 240;
 export const NAV_MAX_W = 460;
 /** The least room the project keeps beside the docked menu and a sheet on the right; with less, it folds back under ☰. */
 export const NAV_PROJECT_MIN = 480;
-const WIDTH_KEY = 'obeya-nav-width';
-const PIN_KEY = 'obeya-nav-pinned';
+const WIDTH_KEY = 'seismic-nav-width';
+const PIN_KEY = 'seismic-nav-pinned';
 // docked, ☰ hides the menu and shows it again; it stays docked meanwhile
-const HIDDEN_KEY = 'obeya-nav-hidden';
+const HIDDEN_KEY = 'seismic-nav-hidden';
 
 const loadFlag = (key: string) => () => {
   try {

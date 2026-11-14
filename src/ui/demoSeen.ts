@@ -1,7 +1,7 @@
 // Whether this browser has already played a card's demo on its own: only the first opening plays it.
 import type { Demo } from '../core/types';
 
-const key = (cardId: string) => `obeya-demo-seen-${cardId}`;
+const key = (cardId: string) => `seismic-demo-seen-${cardId}`;
 /** A new render after feedback has other chapter times, so it counts as unseen again. */
 const mark = (demo: Demo) => JSON.stringify(demo.chapters);
 

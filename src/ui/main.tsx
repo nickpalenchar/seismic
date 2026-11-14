@@ -1,3 +1,4 @@
+import './browserStateMigration';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { UiRoot } from './components/ui';

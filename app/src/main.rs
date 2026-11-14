@@ -65,7 +65,7 @@ const SERVER: &str = if cfg!(windows) { "obeya-server.exe" } else { "obeya-serve
 const DEFAULT_PORT: u16 = 4417;
 /// How long the server may take to answer after it was started.
 const START_PATIENCE: Duration = Duration::from_secs(120);
-const KEY_HEADER: &str = "X-Obeya-Key";
+const KEY_HEADER: &str = "X-Seismic-Key";
 
 /// Seismic's home, once known.
 static HOME: OnceLock<PathBuf> = OnceLock::new();
@@ -170,9 +170,12 @@ fn answers(port: u16) -> bool {
 }
 
 pub(crate) fn home() -> PathBuf {
-  seismic_env("HOME")
-    .map(PathBuf::from)
-    .unwrap_or_else(|| std::env::home_dir().unwrap_or_default().join(".obeya"))
+  seismic_env("HOME").map(PathBuf::from).unwrap_or_else(|| {
+    // the default home moved from ~/.obeya to ~/.seismic (src/server/home-move.ts), by the server's first start after the rename
+    let user = std::env::home_dir().unwrap_or_default();
+    let new = user.join(".seismic");
+    if new.exists() { new } else { user.join(".obeya") }
+  })
 }
 
 /// The home's entry of the Seismic that runs on it (src/server/instance.ts).
@@ -325,10 +328,12 @@ fn start_server(app: &AppHandle, home: &Path, port: u16, log: &(fs::File, PathBu
     }
     None => Command::new(server),
   };
+  // the default home is left to the server: it moves ~/.obeya to ~/.seismic before it opens it
+  if seismic_env("HOME").is_some() {
+    cmd.env("SEISMIC_HOME", home).env("OBEYA_HOME", home);
+  }
   cmd
     .args(["--port", &port.to_string()])
-    .env("SEISMIC_HOME", home)
-    .env("OBEYA_HOME", home)
     // its entry in the home says so (`orphaned`)
     .env("SEISMIC_FROM_APP", "1")
     .env("OBEYA_FROM_APP", "1")

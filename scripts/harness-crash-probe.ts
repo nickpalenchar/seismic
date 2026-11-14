@@ -113,7 +113,7 @@ async function run(harness: Harness, kind: Case) {
       if (!r.ok) throw new Error(`${path}: ${r.status} ${text}`);
       return text ? JSON.parse(text) : {};
     };
-    db = new Database(join(home, 'obeya.db'), { readonly: true });
+    db = new Database(join(home, 'seismic.db'), { readonly: true });
     const id = s.cards.probe!;
     const card = () => db!.query('select state, need, hold, workstation, detail, session_id from cards where id = ?').get(id) as Record<string, string | null> | null;
     const check = await api('/api/config/check', undefined, 'GET');

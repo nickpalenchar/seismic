@@ -90,7 +90,7 @@ const shown = (at: typeof kept) => kept?.key === at?.key && kept?.store === at?.
 
 /** Takes back the project's draft that `store` kept, and writes it down there from now on; for another project (switched to within the page), in place of the one's before. */
 export function keepWish(store: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>, project: string) {
-  const key = `obeya-wish-${project}`;
+  const key = `seismic-wish-${project}`;
   if (kept?.key === key && kept.store === store) return;
   // the project before keeps its draft under its own name
   if (kept) state = { open: false, issue: null, writing: false, error: '' };

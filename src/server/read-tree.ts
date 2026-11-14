@@ -7,7 +7,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from 'node:fs';
 import { rm } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
-import { branchSetting, type Branches, CARD_BRANCH, detachedTree, detectingBranch, GIT, type GitSteps, gitOrNull, gitSteps, gitStepsSync, isFolder, readingBranches } from './workstations';
+import { branchSetting, type Branches, CARD_BRANCHES, detachedTree, detectingBranch, GIT, type GitSteps, gitOrNull, gitSteps, gitStepsSync, isFolder, readingBranches } from './workstations';
 
 const gitIn =
   (path: string) =>
@@ -49,7 +49,7 @@ export function refsSeal(repoPath: string): string | null {
   const { common } = dirs;
   const seal: string[] = [];
   const sealed = ['refs/heads/', 'refs/remotes/origin/'];
-  const cards = sealed.map((r) => `${r}${CARD_BRANCH}`);
+  const cards = sealed.flatMap((r) => CARD_BRANCHES.map((p) => `${r}${p}`));
   // a branch that names another ref (`ref: <name>`) moves with that one
   const followsSealed = (text: string) => {
     const target = text.match(/^ref: (\S+)\s*$/)?.[1];
@@ -72,7 +72,7 @@ export function refsSeal(repoPath: string): string | null {
         const path = join(dir, e.name);
         if (e.isDirectory()) {
           // the cards' branches, not a branch of the repository's own that has the word in its name
-          if (path !== join(top, CARD_REFS)) refs(path, top);
+          if (!CARD_REFS.some((c) => path === join(top, c))) refs(path, top);
         } else at(path);
       }
     };
@@ -80,7 +80,7 @@ export function refsSeal(repoPath: string): string | null {
     at(join(common, 'packed-refs'), false);
     // where no other rule tells the main branch, the branch the checkout is on does (`detectingBranch`)
     const head = readFileSync(join(dirs.own, 'HEAD'), 'utf8').trim();
-    if (head.startsWith('ref: ') && !head.startsWith(`ref: refs/heads/${CARD_BRANCH}`)) seal.push(`HEAD ${head}`);
+    if (head.startsWith('ref: ') && !CARD_BRANCHES.some((p) => head.startsWith(`ref: refs/heads/${p}`))) seal.push(`HEAD ${head}`);
     // the main branch the owner set takes the place of the one detected
     seal.push(`branch ${branchSetting(repoPath) ?? ''}`);
   } catch {
@@ -90,7 +90,7 @@ export function refsSeal(repoPath: string): string | null {
 }
 
 /** The directory the cards' branches are in, under a repository's branches and `origin`'s. */
-const CARD_REFS = CARD_BRANCH.slice(0, -1);
+const CARD_REFS = CARD_BRANCHES.map((p) => p.slice(0, -1));
 
 /** By the repository's path: its own git directory and the one its worktrees share, as `gitDirs` found them. */
 const knownDirs = new Map<string, { own: string; common: string }>();

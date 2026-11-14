@@ -156,7 +156,7 @@ export function useToasts() {
 }
 
 /** In this browser the owner has swiped a toast aside: they no longer nudge. */
-const SWIPED = 'obeya.swipedAside';
+const SWIPED = 'seismic.swipedAside';
 let nextToastBridge = 0;
 
 function swipedOnce(): boolean {

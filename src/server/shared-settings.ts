@@ -7,7 +7,7 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { parseShared, REPO_SETTINGS_FILE } from '../adapters';
+import { parseShared, REPO_DIRS, REPO_SETTINGS_FILE, REPO_SETTINGS_FILES } from '../adapters';
 import { layerSettings, SHARED_FIELDS, type SettingsShared, type SharedSettings } from '../core/types';
 import { BadRequest } from './board';
 import type { Forge } from './forge';
@@ -37,11 +37,21 @@ async function must(repoPath: string, args: string[], o?: Parameters<typeof gitR
 }
 
 /**
- * The text of `.obeya/settings.json` with `mine` in front of what the file at `commit` holds: its
+ * The settings file Seismic writes in the repository at `commit`: in `.seismic/` or, where only
+ * `.obeya/` exists there, in that; `.seismic/` for a repository with neither.
+ */
+async function settingsFileAt(repoPath: string, commit: string): Promise<string> {
+  for (const dir of REPO_DIRS) if ((await gitRun(repoPath, ['rev-parse', '--verify', '--quiet', `${commit}:${dir}`])).code === 0) return `${dir}/settings.json`;
+  return REPO_SETTINGS_FILE;
+}
+
+/**
+ * The text of `settings.json` (`.seismic/`, else `.obeya/`) with `mine` in front of what the file at `commit` holds: its
  * fields in the dialog's order, what else it holds after them, as it was.
  */
 export async function sharedText(repoPath: string, commit: string, mine: SharedSettings): Promise<{ text: string; before?: SharedSettings; after: SharedSettings }> {
-  const r = await gitRun(repoPath, ['cat-file', 'blob', `${commit}:${REPO_SETTINGS_FILE}`]);
+  let r = await gitRun(repoPath, ['cat-file', 'blob', `${commit}:${REPO_SETTINGS_FILES[0]}`]);
+  if (r.code !== 0) r = await gitRun(repoPath, ['cat-file', 'blob', `${commit}:${REPO_SETTINGS_FILES[1]}`]);
   const read = r.code === 0 ? parseShared(r.out) : { problems: [] };
   const raw = read.raw ?? {};
   const merged = layerSettings<Record<string, unknown>>(raw, mine as Record<string, unknown>)!;
@@ -52,14 +62,15 @@ export async function sharedText(repoPath: string, commit: string, mine: SharedS
   return { text, ...(read.settings ? { before: read.settings } : {}), after: parseShared(text).settings ?? {} };
 }
 
-/** A commit with `text` as `.obeya/settings.json` on top of `parent`, made beside the checkout (its index and files stay as they are). */
+/** A commit with `text` as the settings file (`settingsFileAt`) on top of `parent`, made beside the checkout (its index and files stay as they are). */
 async function commitBeside(repoPath: string, parent: string, text: string, message: string): Promise<string> {
-  const dir = mkdtempSync(join(tmpdir(), 'obeya-settings-'));
+  const dir = mkdtempSync(join(tmpdir(), 'seismic-settings-'));
   try {
+    const file = await settingsFileAt(repoPath, parent);
     const env = { GIT_INDEX_FILE: join(dir, 'index') };
     const blob = await must(repoPath, ['hash-object', '-w', '--stdin'], { stdin: text });
     await must(repoPath, ['read-tree', parent], { env });
-    await must(repoPath, ['update-index', '--add', '--cacheinfo', `100644,${blob},${REPO_SETTINGS_FILE}`], { env });
+    await must(repoPath, ['update-index', '--add', '--cacheinfo', `100644,${blob},${file}`], { env });
     const tree = await must(repoPath, ['write-tree'], { env });
     const commit = await gitRun(repoPath, ['commit-tree', tree, '-p', parent, '-m', message]);
     if (commit.code !== 0) {
@@ -76,7 +87,7 @@ async function commitBeside(repoPath: string, parent: string, text: string, mess
 const subjectOf = (mine: SharedSettings) => `Seismic settings for everyone: ${Object.keys(mine).join(', ')}`;
 
 /**
- * Commits `mine` into the repository's `.obeya/settings.json` on its main branch (the local one,
+ * Commits `mine` into the repository's `settings.json` (`.seismic/`, else `.obeya/`) on its main branch (the local one,
  * where work lands): beside the checkout, which, where it is on that branch, then has the file as
  * committed. Refused where the checkout has changes of its own in the file.
  */
@@ -85,23 +96,24 @@ export async function commitShared(repoPath: string, mine: SharedSettings): Prom
   const parent = (await gitRun(repoPath, ['rev-parse', '--verify', '--quiet', `refs/heads/${branch}^{commit}`])).out;
   if (!parent) throw new BadRequest('settingsShare', `the repository has no local branch ${branch}`);
   const onIt = (await gitRun(repoPath, ['symbolic-ref', '--quiet', '--short', 'HEAD'])).out === branch;
-  if (onIt && (await gitRun(repoPath, ['status', '--porcelain', '--', REPO_SETTINGS_FILE])).out)
-    throw new BadRequest('settingsDirty', `${REPO_SETTINGS_FILE} has changes of its own in ${repoPath}; commit or discard them first`);
+  const file = await settingsFileAt(repoPath, parent);
+  if (onIt && (await gitRun(repoPath, ['status', '--porcelain', '--', file])).out)
+    throw new BadRequest('settingsDirty', `${file} has changes of its own in ${repoPath}; commit or discard them first`);
   const { text, before, after } = await sharedText(repoPath, parent, mine);
   const commit = await commitBeside(repoPath, parent, text, subjectOf(mine));
-  await must(repoPath, ['update-ref', '-m', 'obeya: settings for everyone', `refs/heads/${branch}`, commit, parent]);
+  await must(repoPath, ['update-ref', '-m', 'seismic: settings for everyone', `refs/heads/${branch}`, commit, parent]);
   // the checkout on the branch gets the file as committed, in its index and among its files
-  if (onIt) await must(repoPath, ['checkout', commit, '--', REPO_SETTINGS_FILE]);
+  if (onIt) await must(repoPath, ['checkout', commit, '--', file]);
   return { committed: commit, branch, ...(before ? { before } : {}), after };
 }
 
-/** A commit with `mine` in `.obeya/settings.json` on top of `origin`'s main branch, as just fetched. */
+/** A commit with `mine` in the settings file on top of `origin`'s main branch, as just fetched. */
 async function onOrigin(repoPath: string, mine: SharedSettings) {
   const branch = defaultBranch(repoPath);
   await must(repoPath, ['fetch', '--quiet', '--no-write-fetch-head', 'origin', `+refs/heads/${branch}:refs/remotes/origin/${branch}`]);
   const parent = await must(repoPath, ['rev-parse', '--verify', `refs/remotes/origin/${branch}^{commit}`]);
   const { text, after } = await sharedText(repoPath, parent, mine);
-  return { branch, text, after, commit: await commitBeside(repoPath, parent, text, subjectOf(mine)) };
+  return { branch, text, after, file: await settingsFileAt(repoPath, parent), commit: await commitBeside(repoPath, parent, text, subjectOf(mine)) };
 }
 
 /**
@@ -121,15 +133,15 @@ export async function pushShared(repoPath: string, mine: SharedSettings): Promis
  * main branch: a commit on top of it, pushed to a branch of its own, and the pull request opened.
  */
 export async function proposeShared(repoPath: string, mine: SharedSettings, forge: Forge, now = new Date()): Promise<SettingsShared> {
-  const { branch, text, commit } = await onOrigin(repoPath, mine);
-  const head = `obeya-settings-${now.toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '-')}`;
+  const { branch, text, commit, file } = await onOrigin(repoPath, mine);
+  const head = `seismic-settings-${now.toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '-')}`;
   await must(repoPath, ['push', '--quiet', 'origin', `${commit}:refs/heads/${head}`]);
   try {
     const pr = await forge.open(repoPath, {
       base: branch,
       head,
       title: subjectOf(mine),
-      body: `Takes the Seismic settings set on one machine over into \`${REPO_SETTINGS_FILE}\`, so that everyone who runs Seismic on this repository gets them (a fresh clone too):\n\n\`\`\`json\n${text}\`\`\``,
+      body: `Takes the Seismic settings set on one machine over into \`${file}\`, so that everyone who runs Seismic on this repository gets them (a fresh clone too):\n\n\`\`\`json\n${text}\`\`\``,
     });
     return { pr };
   } catch (e) {

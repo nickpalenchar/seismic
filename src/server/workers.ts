@@ -1627,7 +1627,7 @@ export class Workers {
     this.deliver(
       cardId,
       [
-        `The owner approved your work, but the Seismic checkout had uncommitted changes of theirs to files your branch changes too, so it could not land. At the owner's word, Seismic moved those changes into your branch, as the commit ${folded.commit!.slice(0, 7)} on top of your work (also under refs/obeya/folded/${cardId})${folded.kept ? '' : ', and set those files back in the checkout'}:\n${files}`,
+        `The owner approved your work, but the Seismic checkout had uncommitted changes of theirs to files your branch changes too, so it could not land. At the owner's word, Seismic moved those changes into your branch, as the commit ${folded.commit!.slice(0, 7)} on top of your work (also under refs/seismic/folded/${cardId})${folded.kept ? '' : ', and set those files back in the checkout'}:\n${files}`,
         ...(folded.kept ? ['The owner edited those files once more while Seismic folded them, so the checkout keeps its copies: if they still stand in the way once you hand over, the owner is offered to fold them in again.'] : []),
         folded.conflict
           ? 'The commit conflicts with your work: the cherry-pick is still under way in your workstation. Resolve it (git cherry-pick --continue), so that the owner\'s changes and yours both hold.'

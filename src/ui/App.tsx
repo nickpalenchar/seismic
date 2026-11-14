@@ -193,11 +193,11 @@ function NoProject() {
 
 /** While the page loads, and after a restart until the project is back: the sign in the middle, above "offline" when the server cannot be reached. */
 /** The projects the phone view last had, for when the machine does not answer. */
-const KEPT_PROJECTS = 'obeya-phone-projects';
+const KEPT_PROJECTS = 'seismic-phone-projects';
 /** Set once the owner has drawn their first arrow between cards: what an arrow does no longer shows while drawing. */
-const DEP_KNOWN = 'obeya-dep-known';
+const DEP_KNOWN = 'seismic-dep-known';
 /** Set once the owner has clicked "Needs you": its label goes, the bell and the count stay. */
-const NEEDS_YOU_KNOWN = 'obeya-needs-you-known';
+const NEEDS_YOU_KNOWN = 'seismic-needs-you-known';
 function keepProjects(list: ProjectInfo[]) {
   try {
     localStorage.setItem(KEPT_PROJECTS, JSON.stringify(list));

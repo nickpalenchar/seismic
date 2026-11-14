@@ -28,7 +28,11 @@ if (import.meta.main) {
   const args = process.argv.slice(hot ? 3 : 2);
   const dev = isDevCheckout(root);
 
-  const home = (process.env.SEISMIC_HOME ?? process.env.OBEYA_HOME) ?? join(homedir(), dev ? '.obeya-dev' : '.obeya');
+  // the default homes moved from ~/.obeya(-dev) to ~/.seismic(-dev) (home-move.ts)
+  const explicit = process.env.SEISMIC_HOME ?? process.env.OBEYA_HOME;
+  const move = explicit ? null : await (await import('../src/server/home-move')).moveDefaultHome({ dev });
+  if (move?.moved) console.log((await import('../src/server/home-move')).moveNotice(move, join(homedir(), dev ? '.obeya-dev' : '.obeya')));
+  const home = explicit ?? move!.home;
   const env = { ...process.env, ...(dev ? { SEISMIC_HOME: home, SEISMIC_PORT: (process.env.SEISMIC_PORT ?? process.env.OBEYA_PORT) ?? DEFAULT_PORT } : {}) };
 
   // without arguments the projects come from the home's projects.json

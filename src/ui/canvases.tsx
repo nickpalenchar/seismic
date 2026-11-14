@@ -44,7 +44,7 @@ export const Canvases = createContext<CanvasesView>({ canvases: [], move: () => 
 export const canvasOf = (canvases: Canvas[], i: Pick<Item, 'canvas'>) => canvases.find((c) => c.id === i.canvas) ?? canvases[0];
 
 /** Set once the owner has made a canvas or opened the drawer: the "+" stops naming what it does. */
-const KNOWN = 'obeya-canvases-known';
+const KNOWN = 'seismic-canvases-known';
 
 /** How long the drawer stays out after the pointer left it, so a path across its edge does not close it. */
 const LEAVE_MS = 260;
@@ -357,7 +357,7 @@ export const iconsMatching = (search: string) => {
  * other way.
  */
 export function CanvasDialog({ project, canvases, canvas, onClose, onDone }: { project: string; canvases: Canvas[]; canvas?: Canvas; onClose: () => void; onDone: (c: Canvas) => void }) {
-  const [draft, setDraft] = useStoredState<CanvasDraft | null>(`obeya-canvas-draft-${project}-${canvas?.id ?? 'new'}`, null);
+  const [draft, setDraft] = useStoredState<CanvasDraft | null>(`seismic-canvas-draft-${project}-${canvas?.id ?? 'new'}`, null);
   const name = draft?.name ?? canvas?.name ?? '';
   const icon = draft ? draft.icon : (canvas?.icon ?? null);
   const lucide = lucideIcon(icon ?? undefined);

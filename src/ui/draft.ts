@@ -6,6 +6,7 @@
 // These drafts (text, screenshots, picks, the message replied to) are written down per tab and project (`keepDrafts`), so they outlive a page load too:
 // switching to another project and back, or a restart. So are the marks on screenshots (`Markup`).
 
+import { renamedDraftKey } from './browserState';
 import type { AgentSetting, FindingPick } from '../core/types';
 import { useEffect, useSyncExternalStore } from 'react';
 import type { Mark } from './marks';
@@ -90,7 +91,7 @@ export const cardDraft = (id: string) => `card:${id}`;
 /** The draft of the comment on a card's approved work, for its feedback (`feedback.tsx`). */
 export const rateDraft = (id: string) => `rate:${id}`;
 /** The draft of the field in Seismic's sidebar. */
-export const OBEYA_DRAFT = 'obeya';
+export const OBEYA_DRAFT = 'seismic';
 /** The draft of the field under Seismic's conversation of a project, in the phone view, which shows every project. */
 export const obeyaDraft = (project: string) => `${OBEYA_DRAFT}:${project}`;
 /** The screenshots beside the microphone, where no field is spoken to. */
@@ -119,8 +120,8 @@ const subscribe = (fn: () => void) => {
 type Store = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 /** The drafts that last beyond their field: the cards' (their feedback's comment too), the sidebar's (the phone view's per project) and the microphone's, not those of a field of its own. */
 const lasting = (key: string) => key.startsWith('card:') || key.startsWith('rate:') || key === OBEYA_DRAFT || key.startsWith(`${OBEYA_DRAFT}:`) || key === MIC_DRAFT || key === WISH_DRAFT;
-const storeKey = (project: string) => `obeya-drafts-${project}`;
-const markupsKey = (project: string) => `obeya-markups-${project}`;
+const storeKey = (project: string) => `seismic-drafts-${project}`;
+const markupsKey = (project: string) => `seismic-markups-${project}`;
 let kept: { store: Store; project: string } | null = null;
 
 /**
@@ -167,8 +168,8 @@ export function keepDrafts(store: Store, project: string) {
   kept = { store, project };
   try {
     const saved = JSON.parse(store.getItem(storeKey(project)) ?? '{}') as Record<string, Kept>;
-    for (const [key, { text, images, picks, reply, files, findings, findingNotes, findingNoteEdits, reviewKey, agent }] of Object.entries(saved))
-      if (!drafts.has(key)) drafts.set(key, { ...EMPTY, text, images, ...(picks ? { picks } : {}), ...(reply ? { reply } : {}), ...(files ? { files } : {}), ...(findings ? { findings } : {}), ...(findingNotes ? { findingNotes } : {}), ...(findingNoteEdits ? { findingNoteEdits } : {}), ...(reviewKey ? { reviewKey } : {}), ...(agent ? { agent } : {}) });
+    for (const [oldKey, { text, images, picks, reply, files, findings, findingNotes, findingNoteEdits, reviewKey, agent }] of Object.entries(saved))
+      if (!drafts.has(renamedDraftKey(oldKey))) drafts.set(renamedDraftKey(oldKey), { ...EMPTY, text, images, ...(picks ? { picks } : {}), ...(reply ? { reply } : {}), ...(files ? { files } : {}), ...(findings ? { findings } : {}), ...(findingNotes ? { findingNotes } : {}), ...(findingNoteEdits ? { findingNoteEdits } : {}), ...(reviewKey ? { reviewKey } : {}), ...(agent ? { agent } : {}) });
   } catch {}
   try {
     const saved = JSON.parse(store.getItem(markupsKey(project)) ?? '{}') as Record<string, Markup>;

@@ -32,7 +32,7 @@ import { type Forge, landedUrl, parsePrUrl } from './forge';
 import type { AgentRuntime } from './runtime';
 import { readSession } from './koordinator';
 import type { CardRow } from './models/cards/cards';
-import { branchName, gitAsync } from './workstations';
+import { branchName, CARD_BRANCH, gitAsync } from './workstations';
 import { originOf } from './forgejo';
 import { zip } from './zip';
 import { messageOf } from '../core/text';
@@ -1241,7 +1241,7 @@ export function withDemoLink(body: string, url: string, kind: DemoKind = 'video'
 }
 
 /** A card's page keeps this slug for good: a shared link stays the same, and an export is named by it. */
-const slugOf = (card: Item) => branchName(card.title, card.id).slice('obeya/'.length);
+const slugOf = (card: Item) => branchName(card.title, card.id).slice(CARD_BRANCH.length);
 
 /** The words of a command line, as a shell would split it where quotes ("…", '…') keep spaces. */
 export const commandWords = (line: string): string[] => [...line.matchAll(/"([^"]*)"|'([^']*)'|(\S+)/g)].map((m) => m[1] ?? m[2] ?? m[3]!);

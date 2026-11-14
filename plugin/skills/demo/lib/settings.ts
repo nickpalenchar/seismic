@@ -79,7 +79,7 @@ export const DEFAULT_DEMO_DIRECTORY = '~/demos';
 
 /** Seismic's home, where its settings live. */
 export function obeyaHome(): string {
-  return (process.env.SEISMIC_HOME ?? process.env.OBEYA_HOME) || path.join(os.homedir(), '.obeya');
+  return (process.env.SEISMIC_HOME ?? process.env.OBEYA_HOME) || path.join(os.homedir(), fs.existsSync(path.join(os.homedir(), '.seismic')) ? '.seismic' : '.obeya');
 }
 
 export const expandHome = (p: string) => p.replace(/^~(?=$|[\\/])/, os.homedir());
@@ -146,14 +146,15 @@ export type LanguageSource = 'obeya' | 'repository';
 /**
  * The language a repository names for its demos (`demo.language` of its settings): from Seismic,
  * which gives its workers the one of their card's repository as `DEMO_LANGUAGE`, else from the
- * `.obeya/settings.json` of the repository the directory `cwd` is in. None where neither names one.
+ * `.seismic/settings.json` (else `.obeya/`) of the repository the directory `cwd` is in. None where neither names one.
  */
 export function repositoryLanguage(env: Record<string, string | undefined> = process.env, cwd = process.cwd()): { language: NarrationLanguage; from: LanguageSource; file?: string } | undefined {
   const given = LANGUAGES.find((l) => l === env.DEMO_LANGUAGE);
   if (given) return { language: given, from: 'obeya' };
   for (let dir = path.resolve(cwd); ; dir = path.dirname(dir)) {
     if (fs.existsSync(path.join(dir, '.git'))) {
-      const file = path.join(dir, '.obeya', 'settings.json');
+      // `.seismic/` first, then `.obeya/` (a repository from before the rename)
+      const file = ['.seismic', '.obeya'].map((d) => path.join(dir, d, 'settings.json')).find((f) => fs.existsSync(f)) ?? path.join(dir, '.seismic', 'settings.json');
       try {
         const language = LANGUAGES.find((l) => l === (JSON.parse(fs.readFileSync(file, 'utf8')) as { demo?: { language?: unknown } }).demo?.language);
         return language ? { language, from: 'repository', file } : undefined;

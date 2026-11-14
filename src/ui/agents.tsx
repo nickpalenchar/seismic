@@ -31,7 +31,7 @@ type WorkTab = 'work' | 'activity';
 
 /** The desktop's Agent work, docked on the right: "Working" and "Todo" (the queue, then the planned cards), and "Activity". */
 export function AgentsSheet({ on, items, open, underway, onOpen, project, changed, onGo }: { on: boolean; items: Item[]; open?: string; underway: (id: string) => boolean; onOpen: (i: Item) => void; project: string; changed: unknown; onGo: (project: string, i: Item) => void }) {
-  const [kept, setTab] = useStoredState<WorkTab | null>('obeya-agent-work-tab', null);
+  const [kept, setTab] = useStoredState<WorkTab | null>('seismic-agent-work-tab', null);
   const tab: WorkTab = kept === 'activity' ? kept : 'work';
   const box = useRef<HTMLElement>(null);
   const q = useQueueSort(items, box);

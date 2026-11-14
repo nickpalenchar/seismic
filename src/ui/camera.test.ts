@@ -148,7 +148,7 @@ test('a card shows when it lies wholly in the view', () => {
 test('a canvas keeps its saved view key wherever it stands in the order', () => {
   const main = { id: 'c1', name: 'main' };
   const other = { id: 'c2', name: 'Ideas' };
-  expect(camKey('p', main)).toBe('obeya-cam-p');
-  expect(camKey('p', other)).toBe('obeya-cam-p#c2');
-  expect(camKey('p')).toBe('obeya-cam-p');
+  expect(camKey('p', main)).toBe('seismic-cam-p');
+  expect(camKey('p', other)).toBe('seismic-cam-p#c2');
+  expect(camKey('p')).toBe('seismic-cam-p');
 });

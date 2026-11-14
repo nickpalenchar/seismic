@@ -10,7 +10,7 @@ export interface Pos {
 }
 
 /** Set once the owner has picked up a card or begun a lasso with a long press: the hint on it goes. */
-export const TOUCH_HOLD_KNOWN = 'obeya-touch-hold-known';
+export const TOUCH_HOLD_KNOWN = 'seismic-touch-hold-known';
 /** How long a finger rests before a long press picks up the card under it, or starts the lasso. */
 export const HOLD_MS = 400;
 /** How far, in screen pixels, a finger may wander and still tap or hold rather than pan. */

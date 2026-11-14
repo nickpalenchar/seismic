@@ -11,9 +11,9 @@ const s = store();
 
 test("a card's draft outlives the page: written down per project as it changes, taken back by the next page", () => {
   const picks = { of: '[{"text":"Farbe?"}]', picks: [['Blau']] };
-  s.setItem('obeya-drafts-shop', JSON.stringify({ [cardDraft('c9')]: { text: 'vom letzten Mal', images: ['img1'] }, [cardDraft('c5')]: { text: '', images: [], picks } }));
+  s.setItem('seismic-drafts-shop', JSON.stringify({ [cardDraft('c9')]: { text: 'vom letzten Mal', images: ['img1'] }, [cardDraft('c5')]: { text: '', images: [], picks } }));
   const markup = { original: 'img0', marks: [{ kind: 'frame', x: 1, y: 2, w: 30, h: 40 }] };
-  s.setItem('obeya-markups-shop', JSON.stringify({ img1: markup }));
+  s.setItem('seismic-markups-shop', JSON.stringify({ img1: markup }));
   keepDrafts(s, 'shop');
   expect(draftOf(cardDraft('c9'))).toMatchObject({ text: 'vom letzten Mal', images: ['img1'], uploading: 0, dictation: '' });
   // the marks on its screenshot come back too, apart from the original
@@ -26,7 +26,7 @@ test("a card's draft outlives the page: written down per project as it changes, 
   updateDraft(cardDraft('c1'), { text: 'Bitte den Knopf blau' });
   updateDraft('field:x', { text: 'ein Feld für sich' });
   updateDraft(cardDraft('c2'), { text: '   ' });
-  expect(JSON.parse(s.getItem('obeya-drafts-shop')!)).toEqual({
+  expect(JSON.parse(s.getItem('seismic-drafts-shop')!)).toEqual({
     [cardDraft('c9')]: { text: 'vom letzten Mal', images: ['img1'] },
     [cardDraft('c1')]: { text: 'Bitte den Knopf blau', images: [] },
   });
@@ -34,31 +34,31 @@ test("a card's draft outlives the page: written down per project as it changes, 
   // sent: the field is empty again, and nothing is kept
   updateDraft(cardDraft('c1'), { text: '' });
   dropDraft(cardDraft('c9'));
-  expect(s.getItem('obeya-drafts-shop')).toBeNull();
+  expect(s.getItem('seismic-drafts-shop')).toBeNull();
 });
 
 test('the options picked for a card\'s questions are written down with its draft, and go once nothing is picked', () => {
   updateDraft(cardDraft('p1'), { picks: { of: 'q', picks: [['Ja'], []] } });
-  expect(JSON.parse(s.getItem('obeya-drafts-shop')!)).toEqual({ [cardDraft('p1')]: { text: '', images: [], picks: { of: 'q', picks: [['Ja'], []] } } });
+  expect(JSON.parse(s.getItem('seismic-drafts-shop')!)).toEqual({ [cardDraft('p1')]: { text: '', images: [], picks: { of: 'q', picks: [['Ja'], []] } } });
   updateDraft(cardDraft('p1'), { picks: undefined });
-  expect(s.getItem('obeya-drafts-shop')).toBeNull();
+  expect(s.getItem('seismic-drafts-shop')).toBeNull();
 });
 
 test('the owner\'s own answer to a question is written down with the draft while written, picked or not', () => {
   updateDraft(cardDraft('p2'), { picks: { of: 'q', picks: [[]], others: ['Lieber JSON'] } });
-  expect(JSON.parse(s.getItem('obeya-drafts-shop')!)[cardDraft('p2')].picks).toEqual({ of: 'q', picks: [[]], others: ['Lieber JSON'] });
+  expect(JSON.parse(s.getItem('seismic-drafts-shop')!)[cardDraft('p2')].picks).toEqual({ of: 'q', picks: [[]], others: ['Lieber JSON'] });
   updateDraft(cardDraft('p2'), { picks: { of: 'q', picks: [[]], others: [' '] } });
-  expect(s.getItem('obeya-drafts-shop')).toBeNull();
+  expect(s.getItem('seismic-drafts-shop')).toBeNull();
 });
 
 test('the marks on a screenshot are kept beside its original by the marked image, and go when taken back', () => {
   const marks = [{ kind: 'pin' as const, x: 4, y: 5 }];
   setMarkup('marked1', { original: 'orig1', marks });
   expect(markupOf('marked1')).toEqual({ original: 'orig1', marks });
-  expect(JSON.parse(s.getItem('obeya-markups-shop')!)).toEqual({ marked1: { original: 'orig1', marks } });
+  expect(JSON.parse(s.getItem('seismic-markups-shop')!)).toEqual({ marked1: { original: 'orig1', marks } });
   setMarkup('marked1', null);
   expect(markupOf('marked1')).toBeUndefined();
-  expect(s.getItem('obeya-markups-shop')).toBeNull();
+  expect(s.getItem('seismic-markups-shop')).toBeNull();
 });
 
 test('words taken back go into an empty field with their screenshots; a field with newer words keeps those', () => {
@@ -110,7 +110,7 @@ test("the paths of dropped files go back beside the microphone when Seismic's fi
   // the owner writes on and takes one path out by hand: it stays gone
   updateDraft(OBEYA_DRAFT, (d) => ({ text: `${d.text.replace('/o/a/Rechnung.pdf ', '')} und sag was dazu` }));
   // the written-down draft keeps only the path still in it, so it goes back after a reload too
-  expect(JSON.parse(s.getItem('obeya-drafts-shop')!)[OBEYA_DRAFT].files).toEqual([spaced]);
+  expect(JSON.parse(s.getItem('seismic-drafts-shop')!)[OBEYA_DRAFT].files).toEqual([spaced]);
   moveFiles(OBEYA_DRAFT, MIC_DRAFT);
   expect(draftOf(OBEYA_DRAFT)).toMatchObject({ text: 'Schau mal und sag was dazu', files: [] });
   expect(draftOf(MIC_DRAFT).text).toBe(spaced);
@@ -148,12 +148,12 @@ test('findingDraft hides choices and context of another review until the reset c
 test('switching to another project within the page puts its drafts in place of those of the one before, which stay written down', () => {
   updateDraft(cardDraft('a1'), { text: 'on shop' });
   updateDraft(OBEYA_DRAFT, { text: 'to Seismic on shop' });
-  s.setItem('obeya-drafts-blog', JSON.stringify({ [OBEYA_DRAFT]: { text: 'to Seismic on blog', images: [] } }));
+  s.setItem('seismic-drafts-blog', JSON.stringify({ [OBEYA_DRAFT]: { text: 'to Seismic on blog', images: [] } }));
   keepDrafts(s, 'blog');
   expect(draftOf(OBEYA_DRAFT).text).toBe('to Seismic on blog');
   expect(draftOf(cardDraft('a1')).text).toBe('');
   updateDraft(cardDraft('b1'), { text: 'on blog' });
-  expect(Object.keys(JSON.parse(s.getItem('obeya-drafts-blog')!))).toEqual([OBEYA_DRAFT, cardDraft('b1')]);
+  expect(Object.keys(JSON.parse(s.getItem('seismic-drafts-blog')!))).toEqual([OBEYA_DRAFT, cardDraft('b1')]);
   // and back: the first project's drafts are there as it left them
   keepDrafts(s, 'shop');
   expect(draftOf(OBEYA_DRAFT).text).toBe('to Seismic on shop');
@@ -169,7 +169,7 @@ test('an upload that ends after a switch to another project goes to the draft of
   expect(into.here()).toBe(false);
   into.update((d) => ({ images: [...d.images, 'img9'] }));
   expect(draftOf(OBEYA_DRAFT).images).toEqual([]);
-  expect(JSON.parse(s.getItem('obeya-drafts-shop')!)[OBEYA_DRAFT]).toEqual({ text: 'with a shot', images: ['img9'] });
+  expect(JSON.parse(s.getItem('seismic-drafts-shop')!)[OBEYA_DRAFT]).toEqual({ text: 'with a shot', images: ['img9'] });
   keepDrafts(s, 'shop');
   expect(draftOf(OBEYA_DRAFT).images).toEqual(['img9']);
   expect(draftIn(OBEYA_DRAFT).here()).toBe(true);
@@ -184,4 +184,11 @@ test('an upload that ends after switching away and back shows in the draft at on
   expect(into.here()).toBe(true);
   into.update((d) => ({ images: [...d.images, 'img7'] }));
   expect(draftOf(OBEYA_DRAFT)).toMatchObject({ text: 'and back', images: ['img7'] });
+});
+
+test('a sidebar draft kept under its key from before the rename is found under the new one', () => {
+  s.setItem('seismic-drafts-old', JSON.stringify({ obeya: { text: 'from before', images: [] }, 'obeya:shop': { text: 'phone', images: [] } }));
+  keepDrafts(s, 'old');
+  expect(draftOf(OBEYA_DRAFT).text).toBe('from before');
+  expect(draftOf(`${OBEYA_DRAFT}:shop`).text).toBe('phone');
 });

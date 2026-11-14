@@ -85,10 +85,21 @@ export function repoValues(repo: RepoInfo, clones = false, shared: SharedSetting
   };
 }
 
-/** Where a repository keeps its settings for everyone (`SharedSettings`), like `.vscode/settings.json`. */
-export const REPO_SETTINGS_FILE = '.obeya/settings.json';
+/**
+ * The folder a repository keeps what Seismic reads from it in (settings, theme, remote helpers).
+ * `.seismic/` is read first, then `.obeya/` (migration shim: other people's repositories are never
+ * moved); Seismic writes to whichever exists, a repository with neither gets `.seismic/`.
+ */
+export const REPO_DIR = '.seismic';
+export const OLD_REPO_DIR = '.obeya';
+export const REPO_DIRS = [REPO_DIR, OLD_REPO_DIR];
 
-/** A repository's `.obeya/settings.json` as read: its settings that count, the file's own object, and what does not count. */
+/** Where a repository keeps its settings for everyone (`SharedSettings`), like `.vscode/settings.json`: the file a repository with none gets. */
+export const REPO_SETTINGS_FILE = `${REPO_DIR}/settings.json`;
+/** `REPO_SETTINGS_FILE` in each folder that may hold it, in the order they are read. */
+export const REPO_SETTINGS_FILES = REPO_DIRS.map((d) => `${d}/settings.json`);
+
+/** A repository's `.seismic/settings.json` (else `.obeya/settings.json`) as read: its settings that count, the file's own object, and what does not count. */
 export interface SharedRead {
   settings?: SharedSettings;
   /** The object the file holds, every field as it is; none where there is no file or it is no JSON object. */
@@ -98,7 +109,7 @@ export interface SharedRead {
   claude?: Record<string, ClaudeFile>;
   /** The repository's own Codex configuration on the default branch, by file (`CODEX_PATHS`); none where it has none. */
   codex?: Record<string, ClaudeFile>;
-  /** The git tree of `.obeya/` on the default branch, which its theme is read from (theme.ts); none where it has none, or the repository is a folder without git. */
+  /** The git tree of `.seismic/` (else `.obeya/`) on the default branch, which its theme is read from (theme.ts); none where it has none, or the repository is a folder without git. */
   obeyaTree?: string;
 }
 
@@ -123,7 +134,7 @@ function byHarness(files: [string, ClaudeFile][]): Pick<SharedRead, 'claude' | '
   return { ...(claude.length ? { claude: Object.fromEntries(claude) } : {}), ...(codex.length ? { codex: Object.fromEntries(codex) } : {}) };
 }
 
-/** Reads the text of a `.obeya/settings.json`: a field that is unknown or of the wrong type does not count, the rest does. */
+/** Reads the text of a `settings.json`: a field that is unknown or of the wrong type does not count, the rest does. */
 export function parseShared(text: string): SharedRead {
   let made: unknown;
   try {
@@ -147,10 +158,10 @@ export function readShared(repoPath: string, commit = defaultBranchCommit(repoPa
   return gitStepsSync(repoPath, readingShared(commit));
 }
 
-/** `readShared` of a folder without git: its `.obeya/settings.json` and Claude Code and Codex configuration as the folder has them. */
+/** `readShared` of a folder without git: its `.seismic/settings.json` (else `.obeya/`) and Claude Code and Codex configuration as the folder has them. */
 export function readSharedFiles(dir: string): SharedRead {
-  const file = join(dir, REPO_SETTINGS_FILE);
-  const read: SharedRead = existsSync(file) ? parseShared(readFileSync(file, 'utf8')) : { problems: [] };
+  const file = REPO_SETTINGS_FILES.map((f) => join(dir, f)).find((f) => existsSync(f));
+  const read: SharedRead = file ? parseShared(readFileSync(file, 'utf8')) : { problems: [] };
   const files: string[] = [];
   const add = (rel: string) => {
     const abs = join(dir, rel);
@@ -174,11 +185,13 @@ export function readSharedFiles(dir: string): SharedRead {
 
 /** `readShared` at `commit` as git steps, with the repository's Claude Code and Codex configuration beside it. */
 export function* readingShared(commit: string): GitSteps<SharedRead> {
-  const [text, listed, tree] = yield [
-    ['cat-file', 'blob', `${commit}:${REPO_SETTINGS_FILE}`],
+  const [first, second, listed, ...trees] = yield [
+    ...REPO_SETTINGS_FILES.map((f): string[] => ['cat-file', 'blob', `${commit}:${f}`]),
     ['ls-tree', '-r', '-z', commit, '--', ...CLAUDE_PATHS, ...CODEX_PATHS],
-    ['rev-parse', '--verify', '-q', `${commit}:.obeya`],
+    ...REPO_DIRS.map((d): string[] => ['rev-parse', '--verify', '-q', `${commit}:${d}`]),
   ];
+  const text = first ?? second;
+  const tree = trees.find((t) => t != null);
   const read: SharedRead = { ...(text != null ? parseShared(text) : { problems: [] }), ...(tree ? { obeyaTree: tree } : {}) };
   // `<mode> <type> <object>\t<path>`: a blob's text is read (trimmed, for reading: its object tells
   // contents apart), a submodule's commit stands for what it holds

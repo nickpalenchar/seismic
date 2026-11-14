@@ -166,7 +166,7 @@ function PendingMessage({ text, images }: { text: string; images?: string[] }) {
 }
 
 /** Where the project has seen a review card: the hint on "Review PR #5" is no longer shown. */
-const REVIEW_KNOWN = 'obeya-review-pr-known';
+const REVIEW_KNOWN = 'seismic-review-pr-known';
 
 /**
  * Under Seismic's field, where a repository of the project is on a forge and until the owner has had a
@@ -541,7 +541,7 @@ function GearIcon() {
  * outlives closing the sheet and a page load.
  */
 function useSettingDraft(id: number, proposed: string): [string, (v: string) => void] {
-  const key = `obeya-setting-draft-${id}`;
+  const key = `seismic-setting-draft-${id}`;
   const [draft, setDraft] = useState(() => sessionStorage.getItem(key) ?? proposed);
   return [
     draft,

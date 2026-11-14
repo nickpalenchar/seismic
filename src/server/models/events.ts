@@ -133,12 +133,12 @@ export class Events {
     this.db.delete(events).where(and(eq(events.cardId, cardId), eq(events.id, id))).run();
   }
 
-  /** The last line of the card's log that names a branch of its own (`obeya/<slug>-<id>…`). */
+  /** The last line of the card's log that names a branch of its own (`seismic/<slug>-<id>…`, or `obeya/` from before the rename). */
   branchMention(cardId: string): string | null {
     const row = this.db
       .select({ text: events.text })
       .from(events)
-      .where(and(eq(events.cardId, cardId), sql`${events.text} LIKE '%obeya/%' || ${cardId.slice(0, 6)} || '%'`))
+      .where(and(eq(events.cardId, cardId), sql`(${events.text} LIKE '%seismic/%' || ${cardId.slice(0, 6)} || '%' OR ${events.text} LIKE '%obeya/%' || ${cardId.slice(0, 6)} || '%')`))
       .orderBy(desc(events.id))
       .limit(1)
       .get();

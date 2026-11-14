@@ -32,7 +32,7 @@ const flag = (name: string) => {
 const before = flag('--before') ?? 'main';
 const after = flag('--after');
 const out = resolve(flag('--out') ?? mkdtempSync(join(tmpdir(), 'obeya-item-snapshot-')));
-const db = resolve(args[0] ?? join(homedir(), '.obeya', 'obeya.db'));
+const db = resolve(args[0] ?? join(homedir(), '.seismic', 'seismic.db'));
 mkdirSync(out, { recursive: true });
 
 const worktrees: string[] = [];

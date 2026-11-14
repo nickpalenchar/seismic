@@ -17,7 +17,7 @@ const version = (path: string) => {
 function withPath(f: (path: string) => void) {
   const dir = mkdtempSync(join(tmpdir(), 'obeya-db-'));
   try {
-    f(join(dir, 'obeya.db'));
+    f(join(dir, 'seismic.db'));
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

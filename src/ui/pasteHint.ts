@@ -6,9 +6,9 @@ import { useEffect, useSyncExternalStore } from 'react';
 import { know, known } from './known';
 
 /** Set once the owner pasted a screenshot or confirmed the hint: it never shows again. */
-export const PASTE_KNOWN = 'obeya-paste-known';
+export const PASTE_KNOWN = 'seismic-paste-known';
 /** The field (its draft key) the hint is due in, kept across reloads until it is confirmed. */
-const PASTE_DUE = 'obeya-paste-hint';
+const PASTE_DUE = 'seismic-paste-hint';
 
 let due: string | null = (() => {
   try {

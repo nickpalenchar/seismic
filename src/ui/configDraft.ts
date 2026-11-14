@@ -7,7 +7,7 @@ type Store = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 /** The dialog's drafts that are saved with a button of their own. */
 export type ConfigDraftName = 'projects' | 'demo';
 
-const key = (name: ConfigDraftName) => `obeya-config-draft-${name}`;
+const key = (name: ConfigDraftName) => `seismic-config-draft-${name}`;
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
 /** Writes down `draft` while it differs from what is saved (`saved`), else forgets it. */

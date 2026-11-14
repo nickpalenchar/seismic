@@ -50,7 +50,7 @@ export async function show(title: string, body: string, onClick?: () => void) {
 /** The owner is looking at the page: in view, in the focused window. */
 const attended = () => document.visibilityState === 'visible' && document.hasFocus();
 
-const CHANGED = 'obeya-notifications';
+const CHANGED = 'seismic-notifications';
 /** Tells the pages of this tab that the setting changed. */
 export const notificationsChanged = () => window.dispatchEvent(new Event(CHANGED));
 

@@ -2413,7 +2413,7 @@ const SEEK_S = 5;
 /** How soon after the video handed the focus back its controls take it again for their overflow menu: a press on its button, ms. */
 const MENU_FOCUS_MS = 1000;
 /** Set once the owner jumped with the arrow keys: a click on the video's controls stops showing them. */
-const SEEK_KEYS_KNOWN = 'obeya-seek-keys-known';
+const SEEK_KEYS_KNOWN = 'seismic-seek-keys-known';
 
 /**
  * ← and → jump back and forward in the demo video, without a click on its progress bar first. The
@@ -2460,7 +2460,7 @@ function useSeekKeys(video: RefObject<HTMLVideoElement | null>) {
 }
 
 /** Set once the owner zoomed with Z: the magnifier stops showing the key beside it. */
-const ZOOM_KEY_KNOWN = 'obeya-zoom-key-known';
+const ZOOM_KEY_KNOWN = 'seismic-zoom-key-known';
 
 /**
  * The demo video shown large over the greyed page, short of full screen: the same video element
@@ -3705,7 +3705,7 @@ function Split({ main, talk, className, cite }: { main: ReactNode; talk: ReactNo
 /** Whether the card's conversation column is folded away, and how to bring it back (`focus`: the cursor in its field). */
 const TalkFolded = createContext<{ folded: boolean; show: (focus?: boolean) => void }>({ folded: false, show: () => {} });
 
-const TALK_FOLDED = 'obeya.talkFolded';
+const TALK_FOLDED = 'seismic.talkFolded';
 
 /** Whether the owner folded the conversation column away on the full-size card, kept in this browser. */
 function useFoldedTalk(): [boolean, (v: boolean) => void] {

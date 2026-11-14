@@ -48,18 +48,18 @@ test('before the app starts again, the page hands what a reload keeps to the ser
   }) as typeof fetch;
   try {
     globalThis.sessionStorage = storage();
-    sessionStorage.setItem('obeya-drafts-shop', '{"card:k1":{"text":"half a sentence"}}');
+    sessionStorage.setItem('seismic-drafts-shop', '{"card:k1":{"text":"half a sentence"}}');
     // what is written down just before a reload goes along
-    const off = beforeReload(() => sessionStorage.setItem('obeya-kept-shop', '{"card":"k1"}'));
+    const off = beforeReload(() => sessionStorage.setItem('seismic-kept-shop', '{"card":"k1"}'));
     await handOver('17');
     off();
-    expect(handed).toEqual({ token: '17', entries: [['obeya-drafts-shop', '{"card:k1":{"text":"half a sentence"}}'], ['obeya-kept-shop', '{"card":"k1"}']] });
+    expect(handed).toEqual({ token: '17', entries: [['seismic-drafts-shop', '{"card:k1":{"text":"half a sentence"}}'], ['seismic-kept-shop', '{"card":"k1"}']] });
 
     // the new shell's webview: an empty tab
     globalThis.sessionStorage = storage();
     await takeHandOver();
-    expect(sessionStorage.getItem('obeya-kept-shop')).toBe('{"card":"k1"}');
-    expect(sessionStorage.getItem('obeya-drafts-shop')).toBe('{"card:k1":{"text":"half a sentence"}}');
+    expect(sessionStorage.getItem('seismic-kept-shop')).toBe('{"card":"k1"}');
+    expect(sessionStorage.getItem('seismic-drafts-shop')).toBe('{"card:k1":{"text":"half a sentence"}}');
   } finally {
     globalThis.sessionStorage = real;
   }

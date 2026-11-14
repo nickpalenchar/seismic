@@ -31,7 +31,7 @@ export function planDirBoxes(dirs: PlanDir[], placed: { item: Item; b: Bounds }[
  * its repository has no plan doc; a directory changed in the settings brings it back.
  */
 export function useHiddenEmptyNotes(project: string): [(d: PlanDir) => boolean, (d: PlanDir) => void] {
-  const [ids, setIds] = useStoredState<string[]>(`obeya-plan-dir-hidden-${project}`, []);
+  const [ids, setIds] = useStoredState<string[]>(`seismic-plan-dir-hidden-${project}`, []);
   const isHidden = useCallback((d: PlanDir) => d.empty && ids.includes(noteId(d)), [ids]);
   const hide = (d: PlanDir) => setIds([...ids, noteId(d)]);
   return [isHidden, hide];

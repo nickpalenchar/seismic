@@ -29,7 +29,7 @@ export const ROOTS = ['panel', 'sheet', 'ksheet', 'nav', 'inbox-full', 'amenu', 
 
 /** How old what was kept may be to come back: a restart takes seconds, a page reloaded much later starts afresh. */
 const FRESH_MS = 5 * 60_000;
-const key = (project: string) => `obeya-kept-${project}`;
+const key = (project: string) => `seismic-kept-${project}`;
 
 type Store = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
@@ -146,7 +146,7 @@ export function restore(k: Pick<Kept, 'scroll' | 'drafts' | 'video'>): () => voi
   return owner;
 }
 
-const sheetKey = (project: string) => `obeya-sheet-left-open-${project}`;
+const sheetKey = (project: string) => `seismic-sheet-left-open-${project}`;
 
 /**
  * Whether the owner left the project (for another project, or a reload) with Seismic's sheet open and
@@ -171,7 +171,7 @@ export function takeSheetLeft(store: Store, project: string): boolean {
   }
 }
 
-const INBOX_KEY = 'obeya-inbox-open';
+const INBOX_KEY = 'seismic-inbox-open';
 
 /** Whether the inbox is open, for this tab and every project in it: it stays open as the owner switches project. */
 export function keepInbox(store: Store, on: boolean) {

@@ -14,7 +14,7 @@ import { know, known } from './known';
 import { t } from './strings';
 import { Tooltip } from './components/tooltip';
 
-const KNOWN = 'obeya-cite-known';
+const KNOWN = 'seismic-cite-known';
 
 /** The marked text as the quote has it: one line, without the spaces around it. */
 export const citable = (marked: string) => marked.replace(/\s+/g, ' ').trim();

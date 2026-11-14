@@ -27,7 +27,7 @@ export const OpenPerformance = createContext<(() => void) | null>(null);
 
 type View = 'stars' | 'dots' | 'trend';
 const VIEWS: View[] = ['stars', 'dots', 'trend'];
-const VIEW_KEY = 'obeya.performance.view';
+const VIEW_KEY = 'seismic.performance.view';
 
 const DAY = 86_400_000;
 

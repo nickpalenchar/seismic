@@ -5,7 +5,7 @@ export const SHEET_W = 380;
 /** Room the canvas keeps beside a sheet, however wide it is dragged. */
 const CANVAS_MIN = 240;
 const MIN = { sheet: 320, read: 380 };
-const KEY = 'obeya-sheet-width';
+const KEY = 'seismic-sheet-width';
 
 /**
  * The widths the owner chose; `read` (a plan doc read in the sheet) follows the window until chosen,
