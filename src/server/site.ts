@@ -806,7 +806,9 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
           return e.withdrawn && mine && !mine.withdrawn && mine.rev < e.rev ? [{ slug, machine: e.machine }] : [];
         });
         // shared from here, and not on the live site as written here: another machine's deployment took it offline
-        const missing = shared.filter((slug) => {
+        // A proposed revision is not missing from the live site: only an explicit share may
+        // start another PR after its predecessor was closed. Never repair proposals on a timer.
+        const missing = site.git?.mode === 'pr' ? [] : shared.filter((slug) => {
           const mine = local.pages[slug];
           return mine && !mine.withdrawn && (live.pages[slug]?.rev ?? 0) < mine.rev;
         });

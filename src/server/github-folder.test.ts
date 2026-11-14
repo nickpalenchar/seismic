@@ -111,9 +111,10 @@ describe('a site in a folder of an existing repository', () => {
   let demo: string;
   /** What gh is asked, and the pull requests it says are open. */
   let gh: string[][];
-  let open: { url: string; number: number; mergeable?: string }[];
+  let open: { url: string; number: number; mergeable?: string; body?: string }[];
   let state: string;
   let failCreate: boolean;
+  let failEdit: boolean;
   let history: unknown[];
   let failRollback: boolean;
   /** Runs once right before the next push: another machine's commit coming in between. */
@@ -126,8 +127,13 @@ describe('a site in a folder of an existing repository', () => {
       if (line.startsWith('pr list')) return { code: 0, out: JSON.stringify(argv.includes('all') ? history : open), err: '' };
       if (line.startsWith('pr create')) {
         if (failCreate) return { code: 1, out: '', err: 'service unavailable' };
-        open = [{ url: 'https://github.com/acme/docs/pull/7', number: 7, mergeable: 'MERGEABLE' }];
+        open = [{ url: 'https://github.com/acme/docs/pull/7', number: 7, mergeable: 'MERGEABLE', body: argv.at(-1) }];
         return { code: 0, out: 'https://github.com/acme/docs/pull/7\n', err: '' };
+      }
+      if (line.startsWith('pr edit')) {
+        if (failEdit) return { code: 1, out: '', err: 'service unavailable' };
+        if (open[0]) open[0].body = argv.at(-1);
+        return { code: 0, out: '', err: '' };
       }
       if (line.startsWith('pr view')) return { code: 0, out: `${state}\n`, err: '' };
       return { code: 0, out: '', err: '' };
@@ -175,6 +181,7 @@ describe('a site in a folder of an existing repository', () => {
     open = [];
     state = 'OPEN';
     failCreate = false;
+    failEdit = false;
     failRollback = false;
     history = [];
     beforePush = null;
@@ -222,7 +229,7 @@ describe('a site in a folder of an existing repository', () => {
     // the next share goes onto the same branch, and the pull request lists both pages
     expect(await make('pr').publish(page('two', ['one']))).toMatchObject({ merge: 'https://github.com/acme/docs/pull/7' });
     expect(gh.filter((c) => c[0] === 'pr' && c[1] === 'create')).toHaveLength(1);
-    const edit = gh.find((c) => c[0] === 'pr' && c[1] === 'edit')!;
+    const edit = gh.filter((c) => c[0] === 'pr' && c[1] === 'edit').at(-1)!;
     expect(edit.at(-1)).toContain('[Title one](https://acme.github.io/docs/docs/demos/one/)');
     expect(edit.at(-1)).toContain('[Title two]');
     expect(await git(await look('seismic/demos'), 'log', '--format=%s')).toBe('Demos: Title two\nDemos: Title one\nseed');
@@ -237,6 +244,38 @@ describe('a site in a folder of an existing repository', () => {
     expect(await make('pr').publish(page('three', ['one', 'two']))).toMatchObject({ merge: 'https://github.com/acme/docs/pull/7' });
     expect(gh.filter((c) => c[0] === 'pr' && c[1] === 'create')).toHaveLength(2);
     expect(await git(await look('seismic/demos'), 'log', '--format=%s')).toBe('Demos: Title three\nDemos (#7)\nseed');
+  });
+
+  test('auditing a closed proposal does not recreate its pages or PR', async () => {
+    await make('pr').publish(page('one'));
+    history = [{ headRefOid: await git(remote, 'rev-parse', 'seismic/demos'), state: 'CLOSED' }];
+    open = [];
+    state = 'CLOSED';
+    const count = gh.filter((c) => c[0] === 'pr' && c[1] === 'create').length;
+    for (let i = 0; i < 2; i++) expect(await make('pr').audit(['one'])).toEqual({ gone: [], missing: [] });
+    expect(gh.filter((c) => c[0] === 'pr' && c[1] === 'create')).toHaveLength(count);
+    expect(existsSync(join(await look(), 'docs/demos/one'))).toBe(false);
+    expect(await make('pr').publish(page('two', ['one']))).toHaveProperty('merge');
+    expect(existsSync(join(await look('seismic/demos'), 'docs/demos/one/demo.mp4'))).toBe(true);
+  });
+
+  test('site audits retry a failed PR list update after restart, including withdrawals', async () => {
+    await make('pr').publish(page('one'));
+    failEdit = true;
+    expect(await make('pr').publish(page('two', ['one']))).toHaveProperty('merge');
+    expect(open[0]!.body).not.toContain('Title two');
+    failEdit = false;
+    await make('pr').audit(['one', 'two']);
+    expect(open[0]!.body).toContain('Title two');
+    failEdit = true;
+    expect((await make('pr').withdraw('one', ['two'])).why).toBeUndefined();
+    expect(open[0]!.body).not.toContain('withdrawn');
+    failEdit = false;
+    await make('pr').audit(['two']);
+    expect(open[0]!.body).toContain('withdrawn: `one`');
+    const edits = gh.filter((c) => c[0] === 'pr' && c[1] === 'edit').length;
+    await make('pr').audit(['two']);
+    expect(gh.filter((c) => c[0] === 'pr' && c[1] === 'edit')).toHaveLength(edits);
   });
 
   test('failed PR creation removes its pushed branch and a retry succeeds', async () => {

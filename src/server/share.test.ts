@@ -190,6 +190,65 @@ async function until(ok: () => boolean) {
 }
 const log = (id: string) => board.events(id).map((e) => e.text);
 
+describe('rolling proposal tracking', () => {
+  const setup = (state: 'merged' | 'closed' | 'open' | null) => {
+    const old = card('Earlier demo');
+    const next = card('Next demo');
+    const target = sharing['target'](old)!;
+    const fake = { ...target, prMode: true as const,
+      prState: async () => state, openPr: async () => null,
+      publish: async () => ({ url: `${SITE_URL}next/`, said: '', merge: 'https://github.com/a/b/pull/2' }),
+      withdraw: async () => ({ said: '', merge: 'https://github.com/a/b/pull/2' }),
+      audit: async () => ({ gone: [], missing: [] }),
+    };
+    sharing['target'] = () => fake;
+    board.work(old.id, { demo: { share: { slug: 'old', url: `${SITE_URL}old/`, merge: 'https://github.com/a/b/pull/1' } } });
+    return { old, next };
+  };
+
+  test('a new share observes the earlier merge before assigning a new proposal', async () => {
+    const { old, next } = setup('merged');
+    sharing.share(next.id);
+    await until(() => share(next.id)?.state === 'shared');
+    await until(() => !board.row(old.id).demo!.share!.merge);
+    expect(board.row(next.id).demo!.share!.merge).toBe('https://github.com/a/b/pull/2');
+  });
+
+  test('a withdrawal also preserves the merged status of earlier pages', async () => {
+    const { old, next } = setup('merged');
+    board.work(next.id, { demo: { share: { slug: 'next', url: `${SITE_URL}next/` } } });
+    sharing.unshare(next.id);
+    await until(() => !share(next.id));
+    expect(board.row(old.id).demo!.share!.merge).toBeUndefined();
+  });
+
+  test('audits retain a closed proposal; only an explicit share carries it forward', async () => {
+    const { old, next } = setup('closed');
+    await sharing.checkSites();
+    expect(board.row(old.id).demo!.share!.merge).toBe('https://github.com/a/b/pull/1');
+    sharing.share(next.id);
+    await until(() => board.row(old.id).demo!.share!.merge === 'https://github.com/a/b/pull/2');
+  });
+
+  test('a PR site is still audited after its last page is withdrawn', async () => {
+    const { old } = setup('open');
+    let audited = 0;
+    const target = sharing['target'](old)!;
+    target.audit = async () => { audited++; return { gone: [], missing: [] }; };
+    sharing.unshare(old.id);
+    await until(() => !share(old.id));
+    await sharing.checkSites();
+    expect(audited).toBe(1);
+  });
+
+  test('an unknown earlier state keeps the original PR link for a later check', async () => {
+    const { old, next } = setup(null);
+    sharing.share(next.id);
+    await until(() => share(next.id)?.state === 'shared');
+    expect(board.row(old.id).demo!.share!.merge).toBe('https://github.com/a/b/pull/1');
+  });
+});
+
 describe('sharing a demo', () => {
   test('publishes the page on the site right away, keeps its link, and withdraws it', async () => {
     const c = card();

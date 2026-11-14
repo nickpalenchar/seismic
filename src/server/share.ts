@@ -545,14 +545,24 @@ export class Sharing {
    * one it went into (`pr`, the pull request may have been opened afresh), or none any more where the
    * change went straight to the branch, which carries them all.
    */
-  private pendingIn(key: string, pr: string | null, except: string) {
+  private async pendingIn(target: ShareTarget, pr: string | null, except: string) {
+    const states = new Map<string, Promise<'open' | 'merged' | 'closed' | null>>();
     for (const { r, s } of this.shares()) {
       if (r.id === except || !s.merge || s.state || s.merge === pr) continue;
       const card = this.find(r.id);
-      if (!card || this.target(card)?.key !== key) continue;
-      const { merge: _, ...rest } = s;
-      this.set(r.id, pr ? { ...rest, merge: pr } : rest);
-      if (!pr && s.url) this.o.board.log(r.id, 'state', 'obeya', this.o.board.t.share.mergedOnline(s.url));
+      if (!card || this.target(card)?.key !== target.key) continue;
+      let next = pr;
+      if (pr) {
+        if (!states.has(s.merge)) states.set(s.merge, target.prState?.(s.merge).catch(() => null) ?? Promise.resolve(null));
+        const state = await states.get(s.merge)!;
+        if (state === 'merged') next = null;
+        else if (state !== 'closed') continue; // retain the original evidence when GitHub cannot answer
+      }
+      const now = this.stored(r.id);
+      if (!now || now.merge !== s.merge || now.state) continue;
+      const { merge: _, ...rest } = now;
+      this.set(r.id, next ? { ...rest, merge: next } : rest);
+      if (!next && s.url) this.o.board.log(r.id, 'state', 'obeya', this.o.board.t.share.mergedOnline(s.url));
     }
   }
 
@@ -591,8 +601,10 @@ export class Sharing {
     const targets = new Map<string, ShareTarget>();
     for (const { r, s } of this.shares()) {
       const card = this.find(r.id);
-      const target = card && s.url ? this.target(card) : null;
-      if (target) targets.set(target.key, target);
+      // Keep auditing a PR site after its last withdrawal: its description may still need
+      // reconciliation. Retain the old site's identity even if the project now uses another.
+      const target = card ? (!s.url && s.site ? this.storedTarget(card, s) : this.target(card)) : null;
+      if (target && (s.url || target.prMode)) targets.set(target.key, target);
     }
     await this.merges(new Map());
     for (const target of targets.values()) {
@@ -723,7 +735,7 @@ export class Sharing {
     if (r.said) this.o.board.log(cardId, 'activity', 'obeya', r.said);
     this.o.board.log(cardId, 'state', 'obeya', s.again ? t.sharedAgain(url) : s.retag ? t.retagged(url) : s.refresh ? (pr ? t.linksPr(url) : t.linksCommit(url)) : t.shared(url));
     if (r.merge) this.o.board.log(cardId, 'state', 'obeya', t.waitingForMerge(r.merge));
-    this.pendingIn(target.key, r.merge ?? null, cardId);
+    await this.pendingIn(target, r.merge ?? null, cardId);
     this.settled(cardId, { url });
     if (pr) await this.linkPr(cardId, pr, url, target.repo, first.shown.kind);
     // the pull request was opened or the work landed while the page went out, or the owner changed its tags: once more, with them
@@ -788,8 +800,8 @@ export class Sharing {
     const r = await target.withdraw(pathOf(s), this.others(cardId, target.key), (text) => this.o.board.log(cardId, 'activity', 'obeya', text));
     this.lost(target.key, r.gone);
     if (r.why) return back(r.why, r.said);
-    this.pendingIn(target.key, r.merge ?? null, cardId);
-    this.set(cardId, { slug: s.slug, ...kept(this.currentChoice(cardId, s)) });
+    await this.pendingIn(target, r.merge ?? null, cardId);
+    this.set(cardId, { slug: s.slug, ...kept(this.currentChoice(cardId, s)), ...(target.prMode ? placeOf(s) : {}) });
     if (r.said) this.o.board.log(cardId, 'activity', 'obeya', r.said);
     this.o.board.log(cardId, 'state', 'obeya', t.withdrawn);
   }

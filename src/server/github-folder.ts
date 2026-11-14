@@ -221,13 +221,13 @@ export function folderStore(o: FolderStoreOptions): FolderStore {
   };
   const fetch = (ref: string) => run(['fetch', '-q', '--no-tags', '--filter=blob:none', '--depth=1', 'origin', `+refs/heads/${ref}:refs/remotes/origin/${ref}`]);
   const prs = async (state: 'open' | 'all') => {
-    const r = await x(['gh', 'pr', 'list', '--repo', o.repo, '--head', DEMOS_BRANCH, '--base', branch, '--state', state, '--json', 'url,number,mergeable,state,headRefOid', '--limit', '5']);
+    const r = await x(['gh', 'pr', 'list', '--repo', o.repo, '--head', DEMOS_BRANCH, '--base', branch, '--state', state, '--json', 'url,number,mergeable,state,headRefOid,body', '--limit', '5']);
     if (r.code !== 0) throw new Error(`gh pr list: ${lastLine(r)}`);
-    return JSON.parse(r.out || '[]') as { url: string; number: number; mergeable?: string; state?: string; headRefOid?: string }[];
+    return JSON.parse(r.out || '[]') as { url: string; number: number; mergeable?: string; state?: string; headRefOid?: string; body?: string }[];
   };
 
   /** The pages the pull request holds: those whose revision differs from the default branch's. */
-  const prBody = async () => {
+  const prBody = async (ref?: string) => {
     let theirs: { pages?: Record<string, { rev: number }> } = {};
     const shown = await run(['show', `refs/remotes/origin/${branch}:${folder}/${o.manifestAt}`]);
     if (shown.code === 0) {
@@ -235,12 +235,16 @@ export function folderStore(o: FolderStoreOptions): FolderStore {
         theirs = JSON.parse(shown.out);
       } catch {}
     }
-    const mine = JSON.parse(readFileSync(join(root, o.manifestAt), 'utf8')) as { pages: Record<string, { rev: number; withdrawn?: true; meta?: { title?: string } }> };
+    const mine = JSON.parse(ref ? await step(['show', `${ref}:${folder}/${o.manifestAt}`], 'git show') : readFileSync(join(root, o.manifestAt), 'utf8')) as { pages: Record<string, { rev: number; withdrawn?: true; meta?: { title?: string } }> };
     const lines = Object.entries(mine.pages)
       .filter(([place, e]) => theirs.pages?.[place]?.rev !== e.rev)
       .map(([place, e]) => (e.withdrawn ? `- withdrawn: \`${place}\`` : `- [${(e.meta?.title ?? place).replace(/[[\]]/g, '')}](${o.pageUrl(place)})`));
     return `Demo pages for \`${folder}\`, published by Seismic: they go online once this is merged. Later demos add to this pull request until then.\n\n${lines.join('\n') || '- none'}\n`;
   };
+
+  const updateBody = (pr: { number: number }, body: string) =>
+    x(['gh', 'pr', 'edit', String(pr.number), '--repo', o.repo, '--body', body])
+      .catch((e) => ({ code: 1, out: '', err: String(e) }));
 
   return {
     root,
@@ -284,6 +288,18 @@ export function folderStore(o: FolderStoreOptions): FolderStore {
       }
       await step(['checkout', '-q', '--force', '-B', 'obeya-work', base], 'git checkout');
       await step(['clean', '-qfdx'], 'git clean');
+      // Reconcile the description with the remote proposal on every audit, without pushing.
+      // GitHub's stale body is the durable pending state, so this also works after a restart.
+      try {
+        const proposal = (await prs('open'))[0];
+        if (proposal && (await fetch(DEMOS_BRANCH)).code === 0) {
+          const body = await prBody(`refs/remotes/origin/${DEMOS_BRANCH}`);
+          if (proposal.body !== body) await updateBody(proposal, body);
+        }
+      } catch {
+        // Description maintenance must not turn a readable site into a failed publication.
+        // Its mismatch is checked again on the next audit.
+      }
       const file = join(root, o.manifestAt);
       return existsSync(file) ? readFileSync(file, 'utf8') : null;
     },
@@ -312,8 +328,8 @@ export function folderStore(o: FolderStoreOptions): FolderStore {
       const pushed = `Pushed a commit to ${o.repo} (${to}, ${folder}).`;
       if (!pr) return { said: pushed };
       if (at.pr) {
-        const e = await x(['gh', 'pr', 'edit', String(at.pr.number), '--repo', o.repo, '--body', body]).catch((e) => ({ code: 1, out: '', err: String(e) }));
-        return { said: e.code === 0 ? pushed : `${pushed}\nThe pull request's list did not change: ${lastLine(e)}`, pr: at.pr.url };
+        const e = await updateBody(at.pr, body);
+        return { said: e.code === 0 ? pushed : `${pushed}\nThe pull request's list will be retried on the next site check: ${lastLine(e)}`, pr: at.pr.url };
       }
       const c = await x(['gh', 'pr', 'create', '--repo', o.repo, '--base', branch, '--head', DEMOS_BRANCH, '--title', 'Demos', '--body', body]).catch((e) => ({ code: 1, out: '', err: String(e) }));
       const url = /https:\/\/\S+\/pull\/\d+/.exec(c.out + c.err)?.[0];
