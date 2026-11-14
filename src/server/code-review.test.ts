@@ -545,6 +545,34 @@ describe('code reviews', () => {
     expect(reviewers()).toHaveLength(1);
   });
 
+  test('a pending automatic verification continues if the project switches to manual', async () => {
+    reviewing('auto');
+    const id = await started();
+    await handOver(id, 'export.ts');
+    await until(() => reviewers().length === 1);
+    await review(id, reviewers()[0]!);
+    board.work(id, { review: { items: itemsOf(id).map((i) => i.number === 1 ? { ...i, status: 'underReview' as const } : i) } });
+    workers.reviews.workerFinished(id);
+    const c = board.row(id).review!.codeReview!;
+    expect(c.pending).toBe(true);
+    workers.reviews.applyMode(id, c.handover, 'manual');
+    await until(() => reviewers().length === 2, 15000);
+    expect(board.item(id)!.review?.codeReview).toMatchObject({ mode: 'manual', state: 'running', runs: 2 });
+  });
+
+  test('a mode change while a handover checks Git is retained', async () => {
+    reviewing('auto');
+    const id = await started();
+    await handOver(id, 'export.ts');
+    await until(() => reviewers().length === 1);
+    await review(id, reviewers()[0]!);
+    const c = board.row(id).review!.codeReview!;
+    const pending = workers.reviews.handedOver(id, c.handover, 'auto');
+    workers.reviews.applyMode(id, c.handover, 'manual');
+    await pending;
+    expect(board.row(id).review?.codeReview?.mode).toBe('manual');
+  });
+
   test('a resubmission after a failed review is checked on reply', async () => {
     reviewing('auto');
     const id = await started();

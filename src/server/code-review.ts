@@ -140,7 +140,7 @@ export class CodeReviews {
     const unverified = this.items(cardId).some((i) => i.status === 'underReview' && !(review?.state === 'running' && review.scope?.includes(i.number)));
     const same = !!review && !!head && review.head === head && !resubmitted.length && !unverified;
     if (review && same) review = { ...review, handover };
-    this.save(cardId, { mode, handover, ...(now?.runs ? { runs: now.runs } : {}), ...(review ? { review } : {}) });
+    this.save(cardId, { mode: mode === 'auto' ? now?.mode ?? mode : mode, handover, ...(now?.runs ? { runs: now.runs } : {}), ...(review ? { review } : {}) });
     if (mode === 'auto' && !same) this.begin(cardId, head);
   }
 
@@ -538,7 +538,7 @@ export class CodeReviews {
     void (ws ? gitAsync(ws, 'rev-parse', 'HEAD').catch(() => undefined) : Promise.resolve(undefined)).then((head) => {
       if (!this.o.board.item(cardId)) return;
       const now = codeReviewOf(this.o.board.row(cardId));
-      if (now?.mode !== 'auto' || !now.pending || now.pendingId !== pendingId || now.handover !== c.handover || now.review?.at !== at) return;
+      if (!now?.pending || now.pendingId !== pendingId || now.handover !== c.handover || now.review?.at !== at) return;
       if (!this.waits(cardId) || !this.items(cardId).some((i) => i.status === 'underReview')) {
         const { pending: _, pendingId: __, ...rest } = now;
         this.save(cardId, rest);
