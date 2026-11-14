@@ -93,11 +93,14 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
   // the cards agents are on; one whose agent is paused or snoozed stands in the box after them, but no agent works on it
   const onIt = [...agentWork(items, isUnderway).working, ...items.filter((i) => i.kind !== 'task' && !i.queue && !needsYou(i) && !i.archivedAt && runs(i))].filter(listed);
   const idle = (i: Item) => halted(i) || !!snoozeOf(i);
+  // a worker still in a turn on a card that left the agent stages (finishing after landing, say) is at work too, as the status bar counts it
+  const busy = new Set((snap?.workstations ?? []).flatMap((p) => p.hosts.flatMap((h) => [...h.busy, ...(h.reviewing ?? [])])));
+  const finishing = items.filter((i) => busy.has(i.id) && !onIt.includes(i) && !needsYou(i) && !i.archivedAt);
+  const atWorkIds = new Set([...onIt.filter((i) => !idle(i)), ...finishing].map((i) => i.id));
   // a card waiting for the owner keeps its workstation (an orange dot): it stands in the box as the desktop's list has it, under the same rule as the dots (`hostSpots`), but no agent works on it
-  const atWorkIds = new Set(onIt.filter((i) => !idle(i)).map((i) => i.id));
-  const waiting = new Set((snap?.workstations ?? []).flatMap((p) => p.hosts.flatMap((h) => hostSpots(h, items).flatMap((w) => (w?.card && !w.project ? [w.card] : [])))));
-  const waits = items.filter((i) => waiting.has(i.id) && !i.archivedAt && !atWorkIds.has(i.id) && !onIt.includes(i));
-  const working = [...onIt.filter((i) => !idle(i)), ...waits, ...onIt.filter(idle)];
+  const held = new Set((snap?.workstations ?? []).flatMap((p) => p.hosts.flatMap((h) => hostSpots(h, items).flatMap((w) => (w?.card && !w.project ? [w.card] : [])))));
+  const waits = items.filter((i) => held.has(i.id) && needsYou(i) && !i.archivedAt && !atWorkIds.has(i.id) && !onIt.includes(i));
+  const working = [...onIt.filter((i) => !idle(i)), ...finishing, ...waits, ...onIt.filter(idle)];
   const atWork = atWorkIds.size;
   /** Gives a card its workstation back during the undo window after it was taken, with what came of it, as the status bar does. */
   const keepWorkstation = async (i: Item) => {
