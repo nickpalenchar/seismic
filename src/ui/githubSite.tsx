@@ -285,6 +285,8 @@ export function PublishMode({ url, repo, git, onChanged, title = true }: { url: 
   useEffect(() => recheck(), [url]);
   const view = info && info !== 'loading' && typeof info !== 'string' ? info : null;
   const blocked = !!view && !view.push.allowed;
+  // the default branch as GitHub has it now, which the check is about and shares go to; the setup's until it is read
+  const branch = view?.branch ?? git.branch;
   const choose = async (mode: string) => {
     if (mode !== 'direct' && mode !== 'pr') return;
     setStatus('');
@@ -299,14 +301,19 @@ export function PublishMode({ url, repo, git, onChanged, title = true }: { url: 
       {title && <span className="text-[13.5px] font-semibold">{g.modeTitle}</span>}
       <RadioGroup label={g.modeTitle} value={git.mode} onValueChange={(m) => void choose(m)} className="grid gap-1">
         <RadioOption value="direct" disabled={!view || blocked}>
-          {g.direct(git.branch)}
+          {g.direct(branch)}
         </RadioOption>
         <RadioOption value="pr">{g.pr}</RadioOption>
       </RadioGroup>
       {git.mode === 'pr' && <p className="hint m-0">{g.prHint}</p>}
       {info === 'loading' && <p className="hint m-0">{g.checking}</p>}
       {typeof info === 'string' && info !== 'loading' && <p className="p-error m-0">{info}</p>}
-      {view && blocked && <PushCallout repo={repo} branch={git.branch} check={view.push} />}
+      {view && blocked && <PushCallout repo={repo} branch={branch} check={view.push} />}
+      {view && !view.address && (
+        <p className="p-error m-0">
+          {g.outside} {view.outside}
+        </p>
+      )}
       {view && <RepoSize size={view.size} />}
       {status && <p className="p-error m-0">{status}</p>}
     </div>

@@ -173,7 +173,9 @@ export class SiteSetup {
     if (!site?.git || !site.project) throw new BadRequest('invalid', 'no such site in a repository’s folder on this machine');
     if (mode !== 'direct' && mode !== 'pr') throw new BadRequest('invalid', 'expected { mode: "direct" | "pr" }');
     if (mode === 'direct') {
+      // the repository as it is now: its default branch and Pages may have changed since the setup
       const info = await this.repo(site.project, site.git.folder);
+      if (!info.address) throw new BadRequest('invalid', info.outside ?? `GitHub Pages does not serve ${site.git.folder} of ${site.project}`);
       if (!info.push.allowed) throw new BadRequest('invalid', `a push straight to ${info.branch} of ${site.project} does not go through`);
     }
     setMode(this.o.home, site.url, mode);

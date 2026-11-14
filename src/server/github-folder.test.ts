@@ -122,7 +122,10 @@ describe('a site in a folder of an existing repository', () => {
   let demo: string;
   /** What gh is asked, and the pull requests it says are open. */
   let gh: string[][];
-  let open: { url: string; number: number; mergeable?: string; body?: string; headRefOid?: string }[];
+  let open: { url: string; number: number; mergeable?: string; body?: string; headRefOid?: string; base?: string }[];
+  /** The repository's default branch and its Pages as GitHub says now (null: off). */
+  let defaultBranch: string;
+  let pages: { source: { branch: string; path: string } } | null;
   let state: string;
   let failCreate: boolean;
   let failEdit: boolean;
@@ -136,21 +139,24 @@ describe('a site in a folder of an existing repository', () => {
       gh.push(argv.slice(1));
       const line = argv.slice(1).join(' ');
       if (line === 'auth token') return { code: 0, out: 'gho_secret\n', err: '' };
+      if (line === 'api repos/acme/docs') return { code: 0, out: JSON.stringify({ default_branch: defaultBranch }), err: '' };
+      if (line === 'api repos/acme/docs/pages') return pages ? { code: 0, out: JSON.stringify(pages), err: '' } : { code: 1, out: '', err: 'gh: Not Found (HTTP 404)' };
       // GitHub's list of the branch's pull requests, two to a page, the open one first
-      const pulls = /^api --paginate --slurp repos\/acme\/docs\/pulls\?state=(open|all)&head=acme%3Aseismic%2Fdemos&base=main&per_page=100$/.exec(line);
+      const pulls = /^api --paginate --slurp repos\/acme\/docs\/pulls\?state=(open|all)&head=acme%3Aseismic%2Fdemos&per_page=100$/.exec(line);
       if (pulls) {
-        const list = [...open, ...(pulls[1] === 'all' ? history : [])].map((p) => ({ html_url: 'url' in p ? p.url : '', number: 'number' in p ? p.number : 0, body: 'body' in p ? p.body : null, head: { sha: p.headRefOid ?? '' } }));
+        const list = [...open, ...(pulls[1] === 'all' ? history : [])].map((p) => ({ html_url: 'url' in p ? p.url : '', number: 'number' in p ? p.number : 0, body: 'body' in p ? p.body : null, head: { sha: p.headRefOid ?? '' }, base: { ref: 'base' in p && p.base ? p.base : 'main' } }));
         return { code: 0, out: JSON.stringify(list.length ? Array.from({ length: Math.ceil(list.length / 2) }, (_, i) => list.slice(i * 2, i * 2 + 2)) : [[]]), err: '' };
       }
       if (line.startsWith('pr view') && argv.includes('mergeable')) return { code: 0, out: `${open.find((p) => String(p.number) === argv[3])?.mergeable ?? 'UNKNOWN'}\n`, err: '' };
       if (line.startsWith('pr create')) {
         if (failCreate) return { code: 1, out: '', err: 'service unavailable' };
-        open = [{ url: 'https://github.com/acme/docs/pull/7', number: 7, mergeable: 'MERGEABLE', body: argv.at(-1) }];
+        open = [{ url: 'https://github.com/acme/docs/pull/7', number: 7, mergeable: 'MERGEABLE', body: argv.at(-1), base: argv[argv.indexOf('--base') + 1] }];
         return { code: 0, out: 'https://github.com/acme/docs/pull/7\n', err: '' };
       }
       if (line.startsWith('pr edit')) {
         if (failEdit) return { code: 1, out: '', err: 'service unavailable' };
         if (open[0]) open[0].body = argv.at(-1);
+        if (open[0] && argv.includes('--base')) open[0].base = argv[argv.indexOf('--base') + 1];
         return { code: 0, out: '', err: '' };
       }
       if (line.startsWith('pr view')) return { code: 0, out: `${state}\n`, err: '' };
@@ -211,6 +217,8 @@ describe('a site in a folder of an existing repository', () => {
     failRollback = false;
     history = [];
     beforePush = null;
+    defaultBranch = 'main';
+    pages = null;
   });
   afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
@@ -411,6 +419,53 @@ describe('a site in a folder of an existing repository', () => {
     failCreate = true;
     expect(JSON.stringify(await make('pr').publish(page('two')))).toContain('rolled back');
     expect(await git(remote, 'rev-parse', 'seismic/demos')).toBe(tip);
+  });
+
+  /** Makes `trunk` the repository's default branch: main's history and a commit of its own. */
+  const toTrunk = async () => {
+    const at = await look();
+    await git(at, 'checkout', '-q', '-b', 'trunk');
+    writeFileSync(join(at, 'TRUNK.md'), 'the new default\n');
+    await git(at, 'add', '-A');
+    await git(at, 'commit', '-qm', 'trunk');
+    await git(at, 'push', '-q', 'origin', 'trunk');
+    defaultBranch = 'trunk';
+  };
+
+  test('shares follow a default branch changed after the setup, straight to it', async () => {
+    await make('direct').publish(page('one'));
+    await toTrunk();
+    expect(await make('direct').publish(page('two', ['one']))).toHaveProperty('url');
+    const trunk = await look('trunk');
+    expect(await git(trunk, 'log', '--format=%s')).toBe('Demos: Title two\ntrunk\nDemos: Title one\nseed');
+    for (const slug of ['one', 'two']) expect(existsSync(join(trunk, 'docs/demos', slug, 'index.html'))).toBe(true);
+    // the earlier default branch is left as it was
+    expect(await git(await look(), 'log', '--format=%s')).toBe('Demos: Title one\nseed');
+  });
+
+  test('the rolling pull request moves to a changed default branch with the next share, or with a site check after a failed move', async () => {
+    await make('pr').publish(page('one'));
+    expect(open[0]!.base).toBe('main');
+    await toTrunk();
+    failEdit = true;
+    expect(JSON.stringify(await make('pr').publish(page('two', ['one'])))).toContain('brought up to date on the next site check');
+    // its branch is built afresh on trunk, in the same pull request
+    expect(await git(await look('seismic/demos'), 'log', '--format=%s')).toBe('Demos: Title two\ntrunk\nseed');
+    expect(gh.filter((c) => c[0] === 'pr' && c[1] === 'create')).toHaveLength(1);
+    expect(open[0]!.base).toBe('main');
+    failEdit = false;
+    await make('pr').audit(['one', 'two']);
+    expect(open[0]!.base).toBe('trunk');
+    expect(open[0]!.body).toContain('[Title two]');
+  });
+
+  test('a share is refused where Pages no longer serve the folder from the default branch', async () => {
+    await make('direct').publish(page('one'));
+    await toTrunk();
+    pages = { source: { branch: 'main', path: '/' } };
+    const r = await make('direct').publish(page('two', ['one']));
+    expect('why' in r && r.why).toContain('not on its GitHub Pages any more: GitHub Pages serves the branch main, not trunk.');
+    expect(await git(await look('trunk'), 'log', '--format=%s')).toBe('trunk\nDemos: Title one\nseed');
   });
 
   test('a branch that no longer merges is built afresh from the default branch, with this machine’s pages', async () => {

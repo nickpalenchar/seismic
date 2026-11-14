@@ -140,17 +140,42 @@ export async function repoView(repo: string, folder: string, x: Exec = exec): Pr
   } catch (e) {
     throw new Error(`GitHub did not show ${repo}: ${e instanceof Error ? e.message : e}`);
   }
-  let pages: GithubRepoView['pages'] = null;
-  try {
-    const p = await ghJson<{ html_url?: string; build_type?: string; source?: { branch?: string; path?: string } }>(x, ['api', `repos/${repo}/pages`]);
-    pages = { url: (p.html_url ?? pagesAddress(repo)).replace(/\/+$/, ''), ...(p.source?.branch ? { branch: p.source.branch } : {}), ...(p.source?.path ? { path: p.source.path } : {}), workflow: p.build_type === 'workflow' };
-  } catch (e) {
-    if (!(e as { notFound?: boolean }).notFound) throw new Error(`GitHub did not show the Pages of ${repo}: ${e instanceof Error ? e.message : e}`);
-  }
+  const pages = await readPages(x, repo);
   const branch = r.default_branch;
   const at = isFolder(folder) ? folderAddress(repo, branch, pages, folder) : { address: null };
   const push = await pushCheck(x, repo, branch, { push: !!r.permissions?.push, admin: !!r.permissions?.admin });
   return { repo, private: !!r.private, branch, size: (r.size ?? 0) * 1024, pages, ...at, push };
+}
+
+/** A repository's GitHub Pages as GitHub has them now; null where they are off. */
+async function readPages(x: Exec, repo: string): Promise<GithubRepoView['pages']> {
+  try {
+    const p = await ghJson<{ html_url?: string; build_type?: string; source?: { branch?: string; path?: string } }>(x, ['api', `repos/${repo}/pages`]);
+    return { url: (p.html_url ?? pagesAddress(repo)).replace(/\/+$/, ''), ...(p.source?.branch ? { branch: p.source.branch } : {}), ...(p.source?.path ? { path: p.source.path } : {}), workflow: p.build_type === 'workflow' };
+  } catch (e) {
+    if (!(e as { notFound?: boolean }).notFound) throw new Error(`GitHub did not show the Pages of ${repo}: ${e instanceof Error ? e.message : e}`);
+    return null;
+  }
+}
+
+/**
+ * The branch a folder site's changes go on now: the repository's default branch as GitHub has it,
+ * so a default branch changed after the setup is followed (the one the setup saw is only kept for
+ * the list). Refused where its Pages no longer serve the folder from there, since pages published
+ * there would not show.
+ */
+export async function liveBranch(x: Exec, repo: string, folder: string): Promise<string> {
+  let r: { default_branch?: string };
+  try {
+    r = await ghJson(x, ['api', `repos/${repo}`]);
+  } catch (e) {
+    throw new Error(`GitHub did not show ${repo}: ${e instanceof Error ? e.message : e}`);
+  }
+  const branch = r.default_branch;
+  if (!branch) throw new Error(`GitHub did not say which branch of ${repo} is its default.`);
+  const at = folderAddress(repo, branch, await readPages(x, repo), folder);
+  if (!at.address) throw new Error(`${folder} of ${repo} is not on its GitHub Pages any more: ${at.outside}`);
+  return branch;
 }
 
 /** Turns on GitHub Pages for a repository, from the branch's root. */
@@ -196,13 +221,15 @@ const LEFT_OUT = new Set(['_headers', '.nojekyll', 'CNAME']);
 
 export function folderStore(o: FolderStoreOptions): FolderStore {
   const x = o.x ?? exec;
-  const { branch, folder } = o.git;
+  const { folder } = o.git;
+  /** The default branch as the last look at GitHub found it (`liveBranch`); the setup's until then. */
+  let branch = o.git.branch;
   const remote = o.remote ?? `https://github.com/${o.repo}.git`;
   const none = join(o.clone, '.git', 'none');
   const cfg = ['-c', 'user.name=Seismic', '-c', 'user.email=obeya@localhost', '-c', 'commit.gpgsign=false', '-c', 'core.autocrlf=false', '-c', `core.hooksPath=${none}`, '-c', `core.excludesFile=${none}`, '-c', 'advice.detachedHead=false'];
   const root = join(o.clone, folder);
   /** The branch the last sync checked out, and how the next push goes. */
-  let at: { pr: { url: string; number: number } | null; lease: string | null } = { pr: null, lease: null };
+  let at: { pr: { url: string; number: number; base: string } | null; lease: string | null } = { pr: null, lease: null };
   let env: Record<string, string> = {};
 
   const auth = async () => {
@@ -224,16 +251,17 @@ export function folderStore(o: FolderStoreOptions): FolderStore {
   };
   const fetch = (ref: string) => run(['fetch', '-q', '--no-tags', '--filter=blob:none', '--depth=1', 'origin', `+refs/heads/${ref}:refs/remotes/origin/${ref}`]);
   /**
-   * The rolling pull requests against the default branch, newest first: every one GitHub has, page by
-   * page, of this repository's branch alone (a fork's branch of the same name is someone else's).
+   * The rolling pull requests, newest first: every one GitHub has, page by page, of this repository's
+   * branch alone (a fork's branch of the same name is someone else's), whichever branch each is
+   * against (`base`): one opened before the default branch changed is still the rolling one.
    */
   const prs = async (state: 'open' | 'all') => {
     const head = encodeURIComponent(`${o.repo.split('/')[0]}:${DEMOS_BRANCH}`);
-    const r = await x(['gh', 'api', '--paginate', '--slurp', `repos/${o.repo}/pulls?state=${state}&head=${head}&base=${encodeURIComponent(branch)}&per_page=100`]);
+    const r = await x(['gh', 'api', '--paginate', '--slurp', `repos/${o.repo}/pulls?state=${state}&head=${head}&per_page=100`]);
     if (r.code !== 0) throw new Error(`gh api pulls: ${lastLine(r)}`);
-    const pages = JSON.parse(r.out || '[]') as { html_url: string; number: number; body?: string | null; head?: { sha?: string } }[][];
+    const pages = JSON.parse(r.out || '[]') as { html_url: string; number: number; body?: string | null; head?: { sha?: string }; base?: { ref?: string } }[][];
     if (!Array.isArray(pages) || !pages.every(Array.isArray)) throw new Error('GitHub did not return a list of pull requests.');
-    return pages.flat().map((p) => ({ url: p.html_url, number: p.number, headRefOid: p.head?.sha ?? '', body: p.body ?? '' }));
+    return pages.flat().map((p) => ({ url: p.html_url, number: p.number, headRefOid: p.head?.sha ?? '', body: p.body ?? '', base: p.base?.ref ?? '' }));
   };
   /** Whether GitHub finds the pull request no longer merges into the default branch. */
   const conflicting = async (pr: { number: number }) => {
@@ -284,14 +312,16 @@ export function folderStore(o: FolderStoreOptions): FolderStore {
     return `Demo pages for \`${folder}\`, published by Seismic: they go online once this is merged. Later demos add to this pull request until then.\n\n${lines.join('\n') || '- none'}\n`;
   };
 
-  const updateBody = (pr: { number: number }, body: string) =>
-    x(['gh', 'pr', 'edit', String(pr.number), '--repo', o.repo, '--body', body])
+  /** Brings the pull request's list up to date, and where it is against an earlier default branch, moves it to this one. */
+  const updatePr = (pr: { number: number; base: string }, body: string) =>
+    x(['gh', 'pr', 'edit', String(pr.number), '--repo', o.repo, ...(pr.base !== branch ? ['--base', branch] : []), '--body', body])
       .catch((e) => ({ code: 1, out: '', err: String(e) }));
 
   return {
     root,
     async sync() {
       await auth();
+      branch = await liveBranch(x, o.repo, folder);
       if (o.unlisted) {
         const v = await x(['gh', 'repo', 'view', o.repo, '--json', 'visibility', '--jq', '.visibility']);
         const visibility = v.out.trim().toUpperCase();
@@ -319,8 +349,9 @@ export function folderStore(o: FolderStoreOptions): FolderStore {
         const open = (await prs('open'))[0] ?? null;
         const has = (await fetch(DEMOS_BRANCH)).code === 0;
         const tip = has ? await step(['rev-parse', `refs/remotes/origin/${DEMOS_BRANCH}`], 'git rev-parse') : '';
-        // on the open pull request's branch while it merges; else afresh from the default branch, with this machine's pages
-        if (open && has && !(await conflicting(open))) {
+        // on the open pull request's branch while it merges into the default branch; else afresh from
+        // that, with this machine's pages (one against an earlier default branch is moved over to it)
+        if (open && has && open.base === branch && !(await conflicting(open))) {
           base = `refs/remotes/origin/${DEMOS_BRANCH}`;
           at = { pr: open, lease: null };
         } else {
@@ -337,7 +368,9 @@ export function folderStore(o: FolderStoreOptions): FolderStore {
         const proposal = (await prs('open'))[0];
         if (proposal && (await fetch(DEMOS_BRANCH)).code === 0) {
           const body = await prBody(`refs/remotes/origin/${DEMOS_BRANCH}`);
-          if (proposal.body !== body) await updateBody(proposal, body);
+          // against an earlier default branch, it moves once a share rebuilt its branch on this one
+          const moves = proposal.base !== branch && (await compare(branch, await step(['rev-parse', `refs/remotes/origin/${DEMOS_BRANCH}`], 'git rev-parse'))) === 'ahead';
+          if (proposal.body !== body || moves) await updatePr(moves ? proposal : { ...proposal, base: branch }, body);
         }
       } catch {
         // Description maintenance must not turn a readable site into a failed publication.
@@ -371,8 +404,8 @@ export function folderStore(o: FolderStoreOptions): FolderStore {
       const pushed = `Pushed a commit to ${o.repo} (${to}, ${folder}).`;
       if (!pr) return { said: pushed };
       if (at.pr) {
-        const e = await updateBody(at.pr, body);
-        return { said: e.code === 0 ? pushed : `${pushed}\nThe pull request's list will be retried on the next site check: ${lastLine(e)}`, pr: at.pr.url };
+        const e = await updatePr(at.pr, body);
+        return { said: e.code === 0 ? pushed : `${pushed}\nThe pull request will be brought up to date on the next site check: ${lastLine(e)}`, pr: at.pr.url };
       }
       const c = await x(['gh', 'pr', 'create', '--repo', o.repo, '--base', branch, '--head', DEMOS_BRANCH, '--title', 'Demos', '--body', body]).catch((e) => ({ code: 1, out: '', err: String(e) }));
       const url = /https:\/\/\S+\/pull\/\d+/.exec(c.out + c.err)?.[0];
@@ -400,6 +433,7 @@ export function folderStore(o: FolderStoreOptions): FolderStore {
     },
     async openPr() {
       try {
+        branch = await liveBranch(x, o.repo, folder);
         return (await prs('open'))[0]?.url ?? null;
       } catch {
         return null;
