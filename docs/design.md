@@ -179,7 +179,9 @@ Formats to stay compatible with:
   device's `obeya-device`, beside the `seismic-` ones (only the new ones are written); the
   browser's `obeya-…` storage keys, moved to `seismic-…` once at page start (`src/ui/browserState.ts`);
   on a remote host, the pid file of a session under `~/.obeya/remote` (now `~/.seismic/remote`, a
-  cache copied anew), so a session a dropped connection left running there is still ended.
+  cache copied anew), checked once and removed, so a session a dropped connection left running
+  there is still ended. The new pid files hold the process's start time beside its pid, so a pid
+  given out again to another process is never ended.
   A Codex thread resumes by its id from any cwd, so a moved checkout needs nothing for it (checked
   2026-11-14 with Codex 0.169).
 - A plan doc is a plan when its `## Workstreams` section holds a checklist (`- [ ] **W1:** Title. …`);

@@ -413,13 +413,19 @@ export class SshHost {
         const here = narration ? Number(new URL(narration).port) : 0;
         // a port of its own per session, so that sessions ending do not take another's forward along
         const there = here ? 30_000 + Math.floor(Math.random() * 30_000) : 0;
-        // a session cut off by a dropped connection may still run there: the one that resumes it ends it first;
-        // not itself, whose pid a host that restarted since (a container, say) may give out again
-        // (one that began before the rename has its pid under `OLD_HOST_DIR`)
+        // a session cut off by a dropped connection may still run there: the one that resumes it ends it first.
+        // Its pid file holds the pid and the process's start time, so a pid given out again since (to another
+        // process, or to this one by a host that restarted, a container, say) never matches.
         const pidFile = `sessions/${o.cwd.replace(/[^\w.-]+/g, '-')}.pid`;
         const pid = sh(`${dir}/${pidFile}`);
-        const pids = [pid, ...(dir.endsWith(HOST_DIR) ? [sh(`${dir.slice(0, -HOST_DIR.length)}${OLD_HOST_DIR}/${pidFile}`)] : [])];
-        const previous = `mkdir -p ${sh(`${dir}/sessions`)}; for f in ${pids.join(' ')}; do old=$(cat "$f" 2>/dev/null); [ -n "$old" ] && [ "$old" != $$ ] && ps -p "$old" -o command= 2>/dev/null | grep -q claude && kill "$old"; done; echo $$ > ${pid};`;
+        const started = (p: string) => `$(echo $(ps -p ${p} -o lstart= 2>/dev/null))`;
+        let previous = `mkdir -p ${sh(`${dir}/sessions`)}; old=; stamp=; read -r old stamp 2>/dev/null < ${pid}; [ -n "$old" ] && [ -n "$stamp" ] && [ "$old" != $$ ] && [ "${started('"$old"')}" = "$stamp" ] && kill "$old"; echo $$ ${started('$$')} > ${pid};`;
+        // migration shim: one that began before the rename has a bare pid under `OLD_HOST_DIR`; that file is
+        // checked once and removed, so a pid given out again later is never taken for it
+        if (dir.endsWith(HOST_DIR)) {
+          const legacy = sh(`${dir.slice(0, -HOST_DIR.length)}${OLD_HOST_DIR}/${pidFile}`);
+          previous += ` old=$(cat ${legacy} 2>/dev/null); rm -f ${legacy}; [ -n "$old" ] && [ "$old" != $$ ] && ps -p "$old" -o command= 2>/dev/null | grep -q claude && kill "$old";`;
+        }
         const argv = this.argv(`${previous} exec ${[s.command, ...args].map(sh).join(' ')}`, {
           cwd: o.cwd,
           env: true,

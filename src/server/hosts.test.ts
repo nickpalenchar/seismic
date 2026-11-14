@@ -3,7 +3,7 @@
 // there, and a session that resumes once a dropped connection is back.
 
 import { afterEach, beforeEach, describe, expect, setSystemTime, test } from 'bun:test';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, symlinkSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -176,12 +176,30 @@ describe('a session on a host', () => {
     const pids = join(dir, 'net', 'home', '.obeya', 'remote', 'sessions');
     mkdirSync(pids, { recursive: true });
     const left = spawn('sh', ['-c', 'sleep 30; echo claude']);
-    writeFileSync(join(pids, `${join(dir, 'ws').replace(/[^\w.-]+/g, '-')}.pid`), `${left.pid}\n`);
+    const legacy = join(pids, `${join(dir, 'ws').replace(/[^\w.-]+/g, '-')}.pid`);
+    writeFileSync(legacy, `${left.pid}\n`);
     const ended = new Promise((r) => left.on('exit', r));
     const s = spawnSession({ command: 'sh', args: ['-c', 'echo claude here'], env: {} });
     expect(await s.exited).toBe(0);
     await ended;
     expect(s.out()).toContain('claude here');
+    // checked once: a pid given out again later is never taken for that session
+    expect(existsSync(legacy)).toBe(false);
+  });
+
+  test('leaves alone a process that got the pid of a session since ended (its start time differs)', async () => {
+    const pids = join(dir, 'net', 'home', '.seismic', 'remote', 'sessions');
+    mkdirSync(pids, { recursive: true });
+    const other = spawn('sh', ['-c', 'sleep 30; echo claude']);
+    try {
+      writeFileSync(join(pids, `${join(dir, 'ws').replace(/[^\w.-]+/g, '-')}.pid`), `${other.pid} Mon Jan 1 00:00:00 2024\n`);
+      const s = spawnSession({ command: 'sh', args: ['-c', 'echo claude here'], env: {} });
+      expect(await s.exited).toBe(0);
+      expect(other.exitCode).toBeNull();
+      expect(other.signalCode).toBeNull();
+    } finally {
+      other.kill();
+    }
   });
 
   test('ends the session a dropped connection left running there, but never itself', async () => {
@@ -190,14 +208,15 @@ describe('a session on a host', () => {
     mkdirSync(pids, { recursive: true });
     // the one left running
     const left = spawn('sh', ['-c', 'sleep 30; echo claude']);
-    writeFileSync(pidFile, `${left.pid}\n`);
+    const started = spawnSync('ps', ['-p', String(left.pid), '-o', 'lstart='], { encoding: 'utf8' }).stdout.trim().split(/\s+/).join(' ');
+    writeFileSync(pidFile, `${left.pid} ${started}\n`);
     const ended = new Promise((r) => left.on('exit', r));
     const s = spawnSession({ command: 'sh', args: ['-c', 'echo claude here'], env: {} });
     expect(await s.exited).toBe(0);
     await ended;
     // a host that restarted gives out its pids again: the new session may have the one in the file
     const wrapper = join(dir, 'net', 'same-pid');
-    writeFileSync(wrapper, `#!/bin/sh\necho $$ > ${JSON.stringify(pidFile)}\nexec ${JSON.stringify(ssh)} "$@"\n`, { mode: 0o755 });
+    writeFileSync(wrapper, `#!/bin/sh\necho $$ $(echo $(ps -p $$ -o lstart=)) > ${JSON.stringify(pidFile)}\nexec ${JSON.stringify(ssh)} "$@"\n`, { mode: 0o755 });
     const again = registerHost({ name: `${name}-again`, ssh: 'me@box', home: join(dir, 'home'), program: wrapper });
     const p = again.session({ cwd: join(dir, 'ws'), files: { dirs: { plugin: join(dir, 'plugin') } } })({ command: 'sh', args: ['-c', 'echo claude here'], env: {}, signal: new AbortController().signal });
     let out = '';
