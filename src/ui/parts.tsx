@@ -1339,7 +1339,7 @@ export function Sheet({
 
 /** Chips at the edge of the project pointing at off-screen cards that need the owner; `side`: the panels docked at the window's edges. */
 export function Edges({ cam, targets, side, onOpen }: { cam: Cam; targets: { item: Item; b: Bounds }[]; side: Sides; onOpen: (i: Item) => void }) {
-  const positions = new Map(edgeChipPositions(targets.map(({ item, b }) => ({ id: item.id, b })), cam, side, innerWidth, innerHeight, { x: side.left + 14, y: innerHeight - 46 - MAP_H, w: MAP_W, h: MAP_H }).map((p) => [p.id, p]));
+  const positions = new Map(edgeChipPositions(targets.map(({ item, b }) => ({ id: item.id, b })), cam, side, innerWidth, innerHeight, innerWidth > 760 ? { x: side.left + 14, y: innerHeight - 46 - MAP_H, w: MAP_W, h: MAP_H } : undefined).map((p) => [p.id, p]));
   return (
     <div id="edges" className="pointer-events-none fixed inset-0 z-15">
       {targets.map(({ item }) => {

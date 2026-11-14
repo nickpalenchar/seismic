@@ -30,3 +30,12 @@ test('pointers keep clear of the minimap', () => {
   const chips = edgeChipPositions(targets, { x: 0, y: 0, s: 1 }, { left: 0, right: 0 }, 1440, 900, avoid);
   for (const c of chips) expect(c.y + CHIP_HEIGHT / 2 <= avoid.y || c.y - CHIP_HEIGHT / 2 >= avoid.y + avoid.h || c.x >= avoid.x + avoid.w).toBe(true);
 });
+
+test('a narrow right dock leaves the strip beside the minimap usable', () => {
+  const targets = Array.from({ length: 14 }, (_, n) => ({ id: String(n).padStart(2, '0'), b: { x: -500, y: 600, w: 200, h: 100 } }));
+  const avoid = { x: 14, y: 900 - 46 - 130, w: 210, h: 130 };
+  const chips = edgeChipPositions(targets, { x: 0, y: 0, s: 1 }, { left: 0, right: 700 }, 1000, 900, avoid);
+  const w = Math.min(300, 1000 - 700 - 60);
+  for (const c of chips) expect(c.x >= avoid.x + avoid.w || c.y + CHIP_HEIGHT / 2 <= avoid.y || c.y - CHIP_HEIGHT / 2 >= avoid.y + avoid.h).toBe(true);
+  expect(w).toBeGreaterThan(0);
+});

@@ -35,11 +35,21 @@ export function edgeChipPositions(targets: { id: string; b: Bounds }[], cam: Cam
   for (const chip of candidates) {
     const step = chip.cx >= right ? -chipWidth - COLUMN_GAP : chipWidth + COLUMN_GAP;
     let x = chip.x, y: number | undefined;
+    const columns: number[] = [];
     for (let column = 0; column <= candidates.length; column++) {
       const nextX = chip.x + column * step;
       if (nextX < left || nextX + chipWidth > right) break;
+      columns.push(nextX);
+    }
+    // the free strip beside the minimap is a column of its own, wherever the fixed steps fall
+    if (avoid) {
+      const beside = chip.cx >= right ? avoid.x - COLUMN_GAP - chipWidth : avoid.x + avoid.w + COLUMN_GAP;
+      if (beside >= left && beside + chipWidth <= right && !columns.includes(beside)) columns.push(beside);
+    }
+    const covering = (nextX: number, y: number) => !!avoid && nextX < avoid.x + avoid.w + COLUMN_GAP && nextX + chipWidth > avoid.x - COLUMN_GAP && y + CHIP_HEIGHT / 2 > avoid.y - COLUMN_GAP && y - CHIP_HEIGHT / 2 < avoid.y + avoid.h + COLUMN_GAP;
+    for (const nextX of columns) {
       const peers = placed.filter((p) => nextX < p.x + chipWidth + COLUMN_GAP && nextX + chipWidth + COLUMN_GAP > p.x);
-      const covers = (y: number) => !!avoid && nextX < avoid.x + avoid.w + COLUMN_GAP && nextX + chipWidth > avoid.x - COLUMN_GAP && y + CHIP_HEIGHT / 2 > avoid.y - COLUMN_GAP && y - CHIP_HEIGHT / 2 < avoid.y + avoid.h + COLUMN_GAP;
+      const covers = (y: number) => covering(nextX, y);
       const around = avoid ? [avoid.y - COLUMN_GAP - CHIP_HEIGHT / 2, avoid.y + avoid.h + COLUMN_GAP + CHIP_HEIGHT / 2] : [];
       const choices = [chip.wantedY, ...around, ...peers.flatMap((p) => [p.y - CHIP_HEIGHT, p.y + CHIP_HEIGHT])]
         .filter((candidate) => candidate >= top && candidate <= bottom)
@@ -47,7 +57,9 @@ export function edgeChipPositions(targets: { id: string; b: Bounds }[], cam: Cam
       const free = choices.find((candidate) => !covers(candidate) && peers.every((p) => Math.abs(candidate - p.y) >= CHIP_HEIGHT));
       if (free !== undefined) { x = nextX; y = free; break; }
     }
-    y ??= chip.wantedY;
+    // no column has room: crowd the first column, but still off the minimap where a row allows
+    y ??= [chip.wantedY, ...(avoid ? [avoid.y - COLUMN_GAP - CHIP_HEIGHT / 2, avoid.y + avoid.h + COLUMN_GAP + CHIP_HEIGHT / 2] : [])]
+      .filter((candidate) => candidate >= top && candidate <= bottom && !covering(chip.x, candidate))[0] ?? chip.wantedY;
     const anchorX = chip.cx >= right ? right : chip.cx <= left ? left : Math.max(left, Math.min(right, chip.cx));
     const angle = Math.atan2(chip.cy - y, chip.cx - anchorX) * 180 / Math.PI;
     placed.push({ id: chip.id, x, y, angle });
