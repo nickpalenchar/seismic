@@ -1,17 +1,8 @@
-<picture>
+<h1><picture>
   <source media="(prefers-color-scheme: dark)" srcset="site/img/banner-dark.png">
   <img src="site/img/banner.png" alt="Seismic: Drive Agentic Development Visually" width="100%">
-</picture>
+</picture></h1>
 
-<!--
-Wordmark header, to bring back once the wordmark is updated:
-<h1>
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="src/ui/logo/wordmark-dark.svg">
-    <img src="src/ui/logo/wordmark.svg" alt="Seismic" height="48">
-  </picture>
-</h1>
--->
 
 A spatial canvas for directing AI coding agents.
 
