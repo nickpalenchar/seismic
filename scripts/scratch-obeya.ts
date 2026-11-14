@@ -825,7 +825,7 @@ for (const [i, c] of stage.cards.entries()) {
   if (workstation && folder) {
     // every card works in the folder itself, with a record of what it changed there (folder.ts)
     row.workstation = repo;
-    row.branch = branch ?? `obeya/${id.slice(0, 6)}`;
+    row.branch = branch ?? `seismic/${id.slice(0, 6)}`;
     db.query('INSERT INTO folder_cards (card_id, folder, state) VALUES ($id, $f, $s) ON CONFLICT(card_id) DO NOTHING').run({
       id,
       f: realpathSync(repo),

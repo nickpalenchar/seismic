@@ -68,12 +68,12 @@ test('stages a scratch Seismic with its cards in the states the stage file gives
   expect(card('C')).toMatchObject({ state: 'waiting', need: 'question', question: { text: 'Lang oder kurz?', options: ['Lang', 'Kurz'] } });
   // cards at work or waiting have the branch their start gave them: only then does the card show the
   // conversation with the question and the field to answer it, on the project and on the phone
-  expect(card('C').agent?.branch).toBe(`obeya/frage-${staged.cards.C!.slice(0, 6)}`);
-  expect(card('W1').agent?.branch).toStartWith('obeya/konfiguration-');
+  expect(card('C').agent?.branch).toBe(`seismic/frage-${staged.cards.C!.slice(0, 6)}`);
+  expect(card('W1').agent?.branch).toStartWith('seismic/konfiguration-');
   for (const key of ['A', 'C', 'H', 'W1']) expect(worked(card(key))).toBe(true);
   expect(card('B').agent?.branch).toBeUndefined();
   expect(card('D').from).toBe(staged.cards.C!);
-  const created = Bun.spawnSync(['sqlite3', join(dir, 'home/obeya.db'), `SELECT created_at FROM cards WHERE id = '${staged.cards.A}'`]).stdout.toString();
+  const created = Bun.spawnSync(['sqlite3', join(dir, 'home/seismic.db'), `SELECT created_at FROM cards WHERE id = '${staged.cards.A}'`]).stdout.toString();
   expect(Date.now() - Date.parse(created.trim())).toBeGreaterThan(7000_000);
   const events = (await (await fetch(`http://127.0.0.1:${port}/api/c/${staged.project}/cards/${staged.cards.B}/events`, { headers })).json()) as { text: string }[];
   expect(events.map((e) => e.text)).toContain('wartet');
@@ -149,7 +149,7 @@ test('without a port, stagings at the same time each pick a free one, and stagin
         dir: s.dir,
         home: `${s.dir}/home`,
         repo: `${s.dir}/repo`,
-        database: `${s.dir}/home/obeya.db`,
+        database: `${s.dir}/home/seismic.db`,
         log: `${s.dir}/server.log`,
         stage: realpathSync(stages[i]!),
       });
