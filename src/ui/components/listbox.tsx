@@ -4,10 +4,11 @@
 // closes the list and `data-esc` keeps App from also closing the card. No library behind it: a plain
 // search field with a list is `Command` (components/command.tsx), but cmdk owns its input and cannot
 // sit in a textarea or a contentEditable. `useListbox` is the behaviour, `Listbox` the markup with the
-// ARIA wiring.
+// ARIA wiring, `ListboxMenu` a `Listbox` on the solid surface of the dropdown menu (components/menu.tsx),
+// as a menu over a field shows it; where it stands is the caller's.
 
 import { cn } from 'cn';
-import { type KeyboardEvent, type ReactNode, useEffect, useId, useRef, useState } from 'react';
+import { type CSSProperties, type KeyboardEvent, type ReactNode, useEffect, useId, useRef, useState } from 'react';
 
 export interface ListboxOptions {
   /** How many options the list holds. */
@@ -102,5 +103,18 @@ export function Listbox<T>({ box, items, label, className, itemKey, children }: 
         </li>
       ))}
     </ul>
+  );
+}
+
+/** The surface of a menu over a field: solid, as the dropdown menu's, so the canvas beneath doesn't show through. */
+export const listboxMenuClassName =
+  'z-5 box-border max-h-[min(320px,45vh)] overflow-x-hidden overflow-y-auto rounded-md border border-solid border-glass-edge bg-surface p-1 text-[13px] text-foreground shadow-lift';
+
+/** A `Listbox` on a menu's surface, its options a row each; `children` of the surface stand in for the list while `items` is undefined (still asked). */
+export function ListboxMenu<T>({ className, style, items, fallback, ...props }: Omit<Parameters<typeof Listbox<T>>[0], 'items' | 'className'> & { items: T[] | undefined; fallback?: ReactNode; className?: string; style?: CSSProperties }) {
+  return (
+    <div data-slot="listbox-menu" className={cn(listboxMenuClassName, className)} style={style}>
+      {items ? <Listbox {...props} items={items} className="[&>li]:flex [&>li]:gap-3 [&>li]:items-baseline [&>li]:rounded-sm [&>li]:px-2 [&>li]:py-1.5" /> : fallback}
+    </div>
   );
 }

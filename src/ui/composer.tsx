@@ -14,12 +14,10 @@ import { dropDraft, typeInto, updateDraft, useDraft, useDraftField } from './dra
 import { useFitHeight } from './fitHeight';
 import { Quote } from './message';
 import { type Reply, replyOn, setReply, useReply } from './reply';
-import { Listbox, type ListboxState, useListbox } from './components/listbox';
+import { ListboxMenu, type ListboxState, useListbox } from './components/listbox';
 import { knowsSkills, matching, type Slash, skillWord, slashAt, useSkills, usedSkills } from './skills';
 import { AttachButton, ShotStrip, useShotInput } from './shots';
 import { t } from './strings';
-import { cn } from 'cn';
-import { menuClass } from './cardClasses';
 import type { Skill } from '../core/types';
 import { HoldToTalk, MicIcon, TAP_MS, useHeldByTouch } from './voice';
 import { PromptInput, PromptInputBody, PromptInputButton, PromptInputHint, PromptInputSubmit, PromptInputTextarea, PromptInputTools } from './components/ai/prompt-input';
@@ -302,22 +300,23 @@ export function Composer({
  */
 function SkillMenu({ skills, box }: { skills: Skill[] | undefined; box: ListboxState }) {
   return (
-    <div className={cn(menuClass, 'bottom-full mb-1')}>
-      {skills ? (
-        <Listbox box={box} items={skills} label={t.skills.menu} itemKey={(s) => s.name} className="p-1!">
-          {(s) => (
-            <>
-              <span className="sk-name flex-none max-w-[55%] overflow-hidden text-ellipsis whitespace-nowrap [font-family:var(--mono)] text-[12.5px] text-foreground">
-                /{s.name}
-                {s.hint && <span className="sk-hint text-muted-foreground"> {s.hint}</span>}
-              </span>
-              <span className="sk-desc flex-1 min-w-0 text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis">{s.description}</span>
-            </>
-          )}
-        </Listbox>
-      ) : (
-        <p className="sk-loading m-0 py-2.5 px-3 text-muted-foreground">{t.skills.loading}</p>
+    <ListboxMenu
+      className="skill-menu absolute left-0 right-0 bottom-full mb-1"
+      box={box}
+      items={skills}
+      label={t.skills.menu}
+      itemKey={(s) => s.name}
+      fallback={<p className="sk-loading m-0 py-1.5 px-2 text-muted-foreground">{t.skills.loading}</p>}
+    >
+      {(s) => (
+        <>
+          <span className="sk-name flex-none max-w-[55%] overflow-hidden text-ellipsis whitespace-nowrap [font-family:var(--mono)] text-[12.5px] text-foreground">
+            /{s.name}
+            {s.hint && <span className="sk-hint text-muted-foreground"> {s.hint}</span>}
+          </span>
+          <span className="sk-desc flex-1 min-w-0 text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis">{s.description}</span>
+        </>
       )}
-    </div>
+    </ListboxMenu>
   );
 }

@@ -106,9 +106,3 @@ export const choiceClass = ({ on, picked, other, alone }: { on?: boolean; picked
 /** The tag on the option the asking agent would pick. */
 export const pickTag = 'pick-tag inline-block ml-1.5 px-[7px] rounded-[2px] text-[11px] font-bold leading-[18px] whitespace-nowrap text-idea-strong bg-idea/10';
 
-/**
- * A menu over the field (the skills, the cards to link): a list on the card's glass, its options a row each.
- * Where it stands is the menu's own.
- */
-export const menuClass =
-  'skill-menu absolute left-0 right-0 z-5 max-h-[min(320px,45vh)] overflow-x-hidden overflow-y-auto border border-border rounded-[3px] bg-card shadow-lift text-[13px] [&_li]:flex [&_li]:gap-3 [&_li]:items-baseline [&_li]:py-1.5 [&_li]:px-2 [&_li]:rounded-[2px]';

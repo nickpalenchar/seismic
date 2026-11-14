@@ -11,13 +11,11 @@ import { cardPath } from './address';
 import { projectOf } from './api';
 import { SmartLink } from './cardLink';
 import { type CardSearch, cardSearchAt, knowsCardRefs, lines, linkText, matchingCards, referenced, textOf, usedCardRefs } from './cardRefs';
-import { Listbox, type ListboxState, useListbox } from './components/listbox';
+import { ListboxMenu, type ListboxState, useListbox } from './components/listbox';
 import { badgeClass } from './components/badge';
 import { prioClass } from './labelClasses';
 import { Cards } from './message';
 import { t } from './strings';
-import { cn } from 'cn';
-import { menuClass } from './cardClasses';
 import { PromptInputHint } from './components/ai/prompt-input';
 
 /** What the task field offers the card around it. */
@@ -242,18 +240,16 @@ export const LinkField = forwardRef<
 /** The cards that fit the search, the active one picked with Enter or Tab, another with the arrow keys or a click; `at`: where it stands in the field's frame. */
 function CardMenu({ cards, box, at }: { cards: Item[]; box: ListboxState; at?: Place }) {
   return (
-    <div className={cn(menuClass, 'card-menu top-full right-auto mt-1 [&_li]:items-center [&_li]:justify-between')} style={at}>
-      <Listbox box={box} items={cards} label={t.cardRefs.menu} itemKey={(c) => c.id} className="p-1!">
-        {(c) => (
-          <>
-            {/* a click on it picks the card rather than opening it */}
-            <span className="cm-pill min-w-0 pointer-events-none">
-              <SmartLink href={cardPath(projectOf(c.id), c)} text={c.title} />
-            </span>
-            {c.short && <span className="cm-code flex-none [font-family:var(--mono)] text-[11.5px] text-muted-foreground">{c.short}</span>}
-          </>
-        )}
-      </Listbox>
-    </div>
+    <ListboxMenu className="card-menu absolute left-0 top-full mt-1 [&_li]:items-center! [&_li]:justify-between" style={at} box={box} items={cards} label={t.cardRefs.menu} itemKey={(c) => c.id}>
+      {(c) => (
+        <>
+          {/* a click on it picks the card rather than opening it */}
+          <span className="cm-pill min-w-0 pointer-events-none">
+            <SmartLink href={cardPath(projectOf(c.id), c)} text={c.title} />
+          </span>
+          {c.short && <span className="cm-code flex-none [font-family:var(--mono)] text-[11.5px] text-muted-foreground">{c.short}</span>}
+        </>
+      )}
+    </ListboxMenu>
   );
 }
