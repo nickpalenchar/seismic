@@ -182,6 +182,27 @@ describe('the plugin workers load', () => {
     expect(DEMO_SKILL_FILE).toBe(join(OBEYA_PLUGIN, 'skills', 'demo', 'SKILL.md'));
     expect(checkPlugin()).toBeNull();
     expect(checkPlugin(join(dir, 'no-plugin'))).toBe(`${join(dir, 'no-plugin', '.claude-plugin', 'plugin.json')} is missing: workers' sessions have no demo skill`);
+    const broken = join(dir, 'broken-plugin');
+    mkdirSync(join(broken, '.claude-plugin'), { recursive: true });
+    mkdirSync(join(broken, 'skills', 'demo'), { recursive: true });
+    writeFileSync(join(broken, 'skills', 'demo', 'SKILL.md'), '---\nname: demo\n---\n');
+    writeFileSync(join(broken, '.claude-plugin', 'plugin.json'), '{ "name": ');
+    expect(checkPlugin(broken)).toBe(`${join(broken, '.claude-plugin', 'plugin.json')} is unreadable or names no plugin: workers' sessions may not load its skills`);
+  });
+
+  test('a missing or damaged manifest does not keep the server from loading', () => {
+    for (const manifest of [undefined, '{ "name": ', '{}']) {
+      const resources = mkdtempSync(join(dir, 'resources-'));
+      if (manifest !== undefined) {
+        mkdirSync(join(resources, 'plugin', '.claude-plugin'), { recursive: true });
+        writeFileSync(join(resources, 'plugin', '.claude-plugin', 'plugin.json'), manifest);
+      }
+      const run = Bun.spawnSync([process.execPath, '-e', `const d = await import(${JSON.stringify(join(import.meta.dir, 'demo.ts'))}); console.log(d.DEMO_SKILL, d.checkPlugin() !== null)`], {
+        env: { ...process.env, SEISMIC_RESOURCES: resources },
+      });
+      expect(run.stderr.toString()).toBe('');
+      expect(run.stdout.toString().trim()).toBe('seismic:demo true');
+    }
   });
 
   test('the demo skill is seismic:demo, unless a user skill links to its file and takes its place', () => {

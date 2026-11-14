@@ -18,8 +18,24 @@ import { resource } from './resources';
  * the plugin or a user skill that points to `plugin/skills/demo`.
  */
 export const OBEYA_PLUGIN = resource('plugin');
-/** The plugin's name, which prefixes its skills' names; read from `plugin.json` so the two cannot drift. */
-export const PLUGIN_NAME: string = JSON.parse(readFileSync(join(OBEYA_PLUGIN, '.claude-plugin', 'plugin.json'), 'utf8')).name;
+const MANIFEST = join('.claude-plugin', 'plugin.json');
+
+/** The name in the plugin's manifest; undefined when it is missing, unreadable or names none. */
+function manifestName(dir: string): string | undefined {
+  try {
+    const name = JSON.parse(readFileSync(join(dir, MANIFEST), 'utf8'))?.name;
+    return typeof name === 'string' && name ? name : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * The plugin's name, which prefixes its skills' names; read from `plugin.json` so the two cannot
+ * drift. A damaged plugin does not keep Seismic from starting: `checkPlugin` names the fault at start,
+ * and the name falls back to the one the shipped manifest carries.
+ */
+export const PLUGIN_NAME: string = manifestName(OBEYA_PLUGIN) ?? 'seismic';
 export const DEMO_SKILL = `${PLUGIN_NAME}:demo`;
 
 /** The demo skill's instructions, for a session that does not know the skill to read. */
@@ -27,8 +43,9 @@ export const DEMO_SKILL_FILE = join(OBEYA_PLUGIN, 'skills', 'demo', 'SKILL.md');
 
 /** What is wrong with the plugin workers load, for the log at start; null when nothing is. */
 export function checkPlugin(dir = OBEYA_PLUGIN): string | null {
-  for (const f of [join('.claude-plugin', 'plugin.json'), join('skills', 'demo', 'SKILL.md')])
+  for (const f of [MANIFEST, join('skills', 'demo', 'SKILL.md')])
     if (!existsSync(join(dir, f))) return `${join(dir, f)} is missing: workers' sessions have no demo skill`;
+  if (!manifestName(dir)) return `${join(dir, MANIFEST)} is unreadable or names no plugin: workers' sessions may not load its skills`;
   return null;
 }
 

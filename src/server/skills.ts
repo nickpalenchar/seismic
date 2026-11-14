@@ -4,19 +4,24 @@
 // (no message, no tokens): a process starts, answers, and ends.
 
 import { query, type SlashCommand } from '@anthropic-ai/claude-agent-sdk';
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Skill } from '../core/types';
 import { OBEYA_PLUGIN, PLUGIN_NAME } from './demo';
 import { cleanEnv, spawnHere } from './runtime';
 import { claudeExecutable } from './agents/harnesses/claude';
 
-/** The portable Seismic skills shipped with this app, without starting a Claude process. */
-export function bundledSkills(): (Skill & { file: string })[] {
-  return readdirSync(join(OBEYA_PLUGIN, 'skills'), { withFileTypes: true })
-    .filter((e) => e.isDirectory())
+/**
+ * The portable Seismic skills shipped with this app, without starting a Claude process. A damaged
+ * plugin (no skills directory, a skill without its file) lists what is there; `checkPlugin` names the fault.
+ */
+export function bundledSkills(plugin = OBEYA_PLUGIN): (Skill & { file: string })[] {
+  const skills = join(plugin, 'skills');
+  if (!existsSync(skills)) return [];
+  return readdirSync(skills, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && existsSync(join(skills, e.name, 'SKILL.md')))
     .map((e) => {
-      const file = join(OBEYA_PLUGIN, 'skills', e.name, 'SKILL.md');
+      const file = join(skills, e.name, 'SKILL.md');
       const header = readFileSync(file, 'utf8').match(/^---\r?\n([\s\S]*?)\r?\n---/);
       const meta = header ? Bun.YAML.parse(header[1]!) as { description?: string; 'argument-hint'?: string } : {};
       return { name: `${PLUGIN_NAME}:${e.name}`, description: firstLine(meta.description ?? ''), ...(meta['argument-hint'] ? { hint: meta['argument-hint'] } : {}), file };
