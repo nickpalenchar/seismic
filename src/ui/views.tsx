@@ -104,7 +104,7 @@ export function ViewSwitcher({ shown, onShow }: { shown: SwitchedView | null; on
   return (
     // a click leaves the focus where it was: in a field, typing goes on there; outlined while files are dragged over the row
     <div
-      className="flex gap-0.5 p-[2px] rounded-[999px] bg-glass border border-solid border-glass-edge [box-shadow:var(--lift)] backdrop-blur-glass group-[.dropping]/ptt:outline-2 group-[.dropping]/ptt:outline-dashed group-[.dropping]/ptt:outline-working group-[.dropping]/ptt:outline-offset-[5px]"
+      className="flex gap-0.5 px-[3px] py-[2px] rounded-[999px] bg-glass border border-solid border-glass-edge [box-shadow:var(--lift)] backdrop-blur-glass group-[.dropping]/ptt:outline-2 group-[.dropping]/ptt:outline-dashed group-[.dropping]/ptt:outline-working group-[.dropping]/ptt:outline-offset-[5px]"
       role="group"
       aria-label={t.views.switcher}
       onPointerDown={(e) => e.preventDefault()}

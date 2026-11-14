@@ -703,13 +703,13 @@ fn window(app: &AppHandle, obeya: Arc<Seismic>, placed: Option<&Placed>) -> taur
     None => builder,
   };
   // on a Mac the window has no title bar of its own: the project's bar is it, with the traffic lights in it,
-  // centred on the bar's height (58 px, #bar in src/ui/App.tsx). tao makes the title bar the buttons'
+  // centred on the bar's height (50 px, #bar in src/ui/App.tsx). tao makes the title bar the buttons'
   // height plus y and leaves them 9 px above its bottom: the 14 px buttons' centre is y - 2 from the top
   #[cfg(target_os = "macos")]
   let builder = builder
     .title_bar_style(tauri::TitleBarStyle::Overlay)
     .hidden_title(true)
-    .traffic_light_position(tauri::LogicalPosition::new(18.0, 31.0));
+    .traffic_light_position(tauri::LogicalPosition::new(18.0, 27.0));
   // WebView2 drops WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS when the app sets arguments of its own, as wry
   // does: they go together (scripts/check-app.ts gives it a fake microphone that way)
   #[cfg(windows)]
