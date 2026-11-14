@@ -135,7 +135,7 @@ export const reviewClean = 'rv-clean size-4 ml-1.5 align-middle text-approved st
 export const reviewOutdated = 'rv-outdated ml-1.5 text-[11px] font-normal text-muted-foreground border border-border rounded-[8px] px-1.5';
 
 /** Send the choices, beside "with a new agent"; an error takes its own line. */
-export const reviewSubmit = 'review-submit mt-3.5 flex flex-wrap items-stretch gap-1.5 [&>.start-agent>.start-agent-buttons]:h-full [&>.p-error]:basis-full [&>.p-error]:m-0!';
+export const reviewSubmit = 'review-submit mt-0.5flex flex-wrap items-stretch gap-1.5 [&>.start-agent>.start-agent-buttons]:h-full [&>.p-error]:basis-full [&>.p-error]:m-0!';
 
 /** What stands in the way of landing (main's unpushed commits a PR collides with, or uncommitted files), in the warning colour. */
 export const clashClass = 'rr-clash border border-warning/50 rounded-[8px] py-2 px-2.5 mb-2 bg-card leading-[1.4] [&_b]:text-warning';
