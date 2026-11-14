@@ -11,8 +11,14 @@ Bring `agy` workers to the Codex level of crash recovery, process cleanup and tr
 - [ ] **W1:** Process cleanup and crash recovery. Observe the processes an `agy` session starts (as
   `codexRpc.ts` does for Codex) and record them in the session registry, so that a crashed Seismic's
   sweep ends them. Check what `--sandbox` does with background commands and how `agy` ends them.
-- [ ] **W2:** Transcript reading. Find where `agy` keeps a conversation on disk
-  (`~/.gemini/antigravity-cli`) and read it in `transcript.ts`, so the work retrospective covers `agy` sessions.
+- [x] **W2:** Transcript reading. `agy` keeps a conversation as a SQLite database,
+  `~/.gemini/antigravity-cli/conversations/<conversation id>.db` (the id after `agy:`), in WAL mode
+  while it runs. Its `steps` table holds one protobuf message per row, undocumented, read by field
+  number in `transcript.ts` (`agyRun`): step type 15 is the model's turn (words in field 20.1), 132 a
+  tool call (call in 5.4, result text in 140.2.1), with `status` 6 for canceled and 7 for failed
+  (reason in `error_details`). `run_command` reads as Bash, `read_file`/`write_file`/`edit_file` as
+  Read/Write/Edit, `call_mcp_tool` as `mcp__<server>__<tool>`. A sandboxed process cannot always
+  open a WAL database read-only, so the reader falls back to `?immutable=1`.
 - [x] **W3:** Usage limits. Record what `agy` actually reports when a Google account's quota is used up
   (the preview recognises it from the error text) and read the reset time from it.
 - [ ] **W4:** Background commands. Show the agent's background tasks on the card and wake the

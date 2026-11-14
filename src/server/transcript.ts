@@ -1,11 +1,14 @@
 // The excerpt of a worker's run for the work retrospective, drawn without a model from the Agent
 // SDK's transcript (`<projects>/<workstation path>/<session id>.jsonl`) or Codex's rollout
-// (`<codex home>/sessions/<year>/<month>/<day>/rollout-<time>-<thread id>.jsonl`): where the worker
-// went wrong and corrected itself. Both formats are their harness's own and may change: whatever
-// cannot be read is left out, and a file that cannot be read at all gives no excerpt rather than
-// an error. Codex's calls are read as the Claude tools they match (a command is a Bash call, a
-// file added a Write, a patch an Edit), so one analysis serves both.
+// (`<codex home>/sessions/<year>/<month>/<day>/rollout-<time>-<thread id>.jsonl`) or Antigravity's
+// conversation database (`~/.gemini/antigravity-cli/conversations/<conversation id>.db`, SQLite
+// holding protobuf steps): where the worker went wrong and corrected itself. The formats are their
+// harness's own and may change: whatever cannot be read is left out, and a file that cannot be read
+// at all gives no excerpt rather than an error. Codex's and Antigravity's calls are read as the
+// Claude tools they match (a command is a Bash call, a file added a Write, a patch an Edit), so one
+// analysis serves all.
 
+import { Database } from 'bun:sqlite';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -57,6 +60,11 @@ export function rolloutsDirs(): string[] {
   return [join(home, 'sessions'), join(home, 'archived_sessions')];
 }
 
+/** The directory holding Antigravity's conversations, one SQLite database per conversation. */
+export function agyConversationsDir(): string {
+  return join(homedir(), '.gemini', 'antigravity-cli', 'conversations');
+}
+
 /**
  * The rollout file of a Codex thread, or null: `rollout-<time>-<thread id>.jsonl` under a directory
  * per day, newest first, as the thread is usually a recent one.
@@ -88,11 +96,18 @@ function findRollout(thread: string, dirs: string[]): string | null {
 }
 
 /**
- * The transcript file of a session, or null. A Codex session (`codex:<thread id>`) is looked for among
+ * The transcript file of a session, or null. An Antigravity session (`agy:<conversation id>`) is its
+ * conversation database. A Codex session (`codex:<thread id>`) is looked for among
  * Codex's rollouts. A Claude session is looked for under the working directory it ran in first (`cwd`,
  * as the SDK names its directory), then in every directory, as the naming may change.
  */
 export function findTranscript(sessionId: string, cwd?: string | null, dir?: string): string | null {
+  if (sessionId.startsWith('agy:')) {
+    const id = sessionId.slice('agy:'.length);
+    if (!/^[\w-]+$/.test(id)) return null;
+    const file = join(dir ?? agyConversationsDir(), `${id}.db`);
+    return existsSync(file) ? file : null;
+  }
   if (sessionId.startsWith('codex:')) return findRollout(sessionId.slice('codex:'.length), dir ? [dir] : rolloutsDirs());
   dir ??= transcriptsDir();
   if (!/^[\w-]+$/.test(sessionId)) return null;
@@ -113,13 +128,12 @@ export function findTranscript(sessionId: string, cwd?: string | null, dir?: str
 /** The excerpt of a transcript file; null when it is missing, unreadable or shows nothing gone wrong. */
 export function excerptOf(file: string | null): Excerpt | null {
   if (!file) return null;
-  let text: string;
+  let e: Excerpt | null;
   try {
-    text = readFileSync(file, 'utf8');
+    e = file.endsWith('.db') ? analyse(agyRun(file)) : excerpt(readFileSync(file, 'utf8'));
   } catch {
     return null;
   }
-  const e = excerpt(text);
   return e && e.findings.length ? e : null;
 }
 
@@ -203,6 +217,136 @@ function codexRun(records: Record<string, unknown>[]): Run {
   return run;
 }
 
+type ProtoField = { f: number; v?: number; b?: Uint8Array };
+
+/** The fields of one protobuf message; throws when the bytes are none. */
+function protoFields(b: Uint8Array): ProtoField[] {
+  const out: ProtoField[] = [];
+  let i = 0;
+  const varint = () => {
+    let r = 0;
+    let m = 1;
+    for (;;) {
+      const c = b[i++];
+      if (c === undefined) throw new Error('truncated');
+      r += (c & 127) * m;
+      m *= 128;
+      if (!(c & 128)) return r;
+    }
+  };
+  while (i < b.length) {
+    const key = varint();
+    const f = Math.floor(key / 8);
+    const wire = key % 8;
+    if (wire === 0) out.push({ f, v: varint() });
+    else if (wire === 2) {
+      const n = varint();
+      if (i + n > b.length) throw new Error('truncated');
+      out.push({ f, b: b.subarray(i, i + n) });
+      i += n;
+    } else if (wire === 1) i += 8;
+    else if (wire === 5) i += 4;
+    else throw new Error('unknown wire type');
+  }
+  return out;
+}
+
+/** The fields of the message found by following the field numbers down; none when the path is not there. */
+function nested(fields: ProtoField[], ...path: number[]): ProtoField[] {
+  let cur = fields;
+  for (const f of path) {
+    const x = cur.find((y) => y.f === f && y.b);
+    if (!x) return [];
+    try {
+      cur = protoFields(x.b!);
+    } catch {
+      return [];
+    }
+  }
+  return cur;
+}
+
+const protoText = (x: ProtoField | undefined) => (x?.b ? new TextDecoder().decode(x.b) : '');
+
+/** Antigravity's step kinds and outcomes, as far as they are known. */
+const AGY_MODEL_STEP = 15;
+const AGY_TOOL_STEP = 132;
+const AGY_CANCELED = 6;
+const AGY_FAILED = 7;
+
+/**
+ * Antigravity's conversation: a `steps` table in index order, each row a protobuf message. A model
+ * step (15) holds the agent's words (field 20.1); a tool step (132) holds the call (5.4: id, name,
+ * arguments as JSON), its outcome in `status` (6 canceled, 7 failed, with the reason in
+ * `error_details`) and its result text (140.2.1). A command the owner refused is an error too, read
+ * as a call cut off.
+ */
+function agyRun(file: string): Run {
+  const run: Run = { entries: [], results: new Map(), recognised: false };
+  // a live conversation has a write-ahead log to read; where the shared memory file cannot be made (a sandbox), the file is read as it lies
+  let db: Database;
+  try {
+    db = new Database(file, { readonly: true });
+    db.query('select 1 from steps limit 1').get();
+  } catch {
+    db = new Database(`file:${file}?immutable=1`, { readonly: true });
+  }
+  let rows: { idx: number; step_type: number; status: number; step_payload: Uint8Array; error_details: Uint8Array | null }[];
+  try {
+    rows = db.query('select idx, step_type, status, step_payload, error_details from steps order by idx').all() as typeof rows;
+  } finally {
+    db.close();
+  }
+  for (const row of rows) {
+    try {
+      const payload = protoFields(row.step_payload);
+      if (row.step_type === AGY_MODEL_STEP) {
+        const text = protoText(nested(payload, 20).find((x) => x.f === 1)).trim();
+        if (text) {
+          run.recognised = true;
+          run.entries.push({ kind: 'text', text });
+        }
+      } else if (row.step_type === AGY_TOOL_STEP) {
+        const call = nested(payload, 5, 4);
+        const name = protoText(call.find((x) => x.f === 2));
+        if (!name) continue;
+        let args: Record<string, unknown> = {};
+        try {
+          const parsed: unknown = JSON.parse(protoText(call.find((x) => x.f === 3)));
+          if (isObject(parsed)) args = parsed;
+        } catch {}
+        const output = protoText(nested(payload, 140, 2).find((x) => x.f === 1));
+        const error = row.error_details ? protoText(protoFields(row.error_details).find((x) => x.f === 2)) : '';
+        const code = /^Command exited with code (-?\d+)/.exec(output)?.[1];
+        const id = `${row.idx}`;
+        const { tool, input } = agyCall(name, args);
+        run.recognised = true;
+        run.entries.push({ kind: 'call', id, tool, input });
+        const canceled = row.status === AGY_CANCELED;
+        run.results.set(id, {
+          failed: canceled || row.status === AGY_FAILED || (code !== undefined && code !== '0'),
+          output: error || output,
+          ...(canceled || /user denied permission/.test(error) ? { cutOff: true } : {}),
+        });
+      }
+    } catch {}
+  }
+  return run;
+}
+
+/** Antigravity's tool as the Claude tool it matches; the others keep their names, an MCP tool as the SDK names it. */
+function agyCall(name: string, args: Record<string, unknown>): { tool: string; input: Record<string, unknown> } {
+  const file = { file_path: str(args.Path) };
+  if (name === 'run_command') return { tool: 'Bash', input: { command: str(args.CommandLine) } };
+  if (name === 'read_file') return { tool: 'Read', input: file };
+  if (name === 'write_file') return { tool: 'Write', input: file };
+  if (name === 'edit_file') return { tool: 'Edit', input: file };
+  const server = str(args.ServerName);
+  const tool = str(args.ToolName);
+  if (name === 'call_mcp_tool' && server && tool) return { tool: `mcp__${server}__${tool.startsWith(`${server}_`) ? tool.slice(server.length + 1) : tool}`, input: isObject(args.Arguments) ? args.Arguments : {} };
+  return { tool: name, input: args };
+}
+
 /**
  * The excerpt of a transcript's text (JSON lines); null when no line reads as the run of an agent.
  */
@@ -216,7 +360,12 @@ export function excerpt(jsonl: string): Excerpt | null {
     } catch {}
   }
   const run = [claudeRun, codexRun].map((read) => read(records)).find((r) => r.recognised);
-  if (!run) return null;
+  return run ? analyse(run) : null;
+}
+
+/** The excerpt of a run: its failures, retries and rewrites; null when it holds no agent's work. */
+function analyse(run: Run): Excerpt | null {
+  if (!run.recognised) return null;
   const { entries, results } = run;
 
   const calls: (Call & { key: string; input: Record<string, unknown> })[] = [];

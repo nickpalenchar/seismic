@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
+import { Database } from 'bun:sqlite';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -177,5 +178,67 @@ describe('transcript excerpt', () => {
     expect(findTranscript('codex:01a1aaaa-0000-7000-8000-0000000000ff', null, join(dir, 'sessions'))).toBeNull();
     expect(findTranscript('codex:../../etc/passwd', null, join(dir, 'sessions'))).toBeNull();
     expect(findTranscript(`codex:${thread}`, null, join(dir, 'missing'))).toBeNull();
+  });
+
+  describe('an Antigravity conversation', () => {
+    const varint = (n: number) => {
+      const out: number[] = [];
+      while (n > 127) {
+        out.push((n & 127) | 128);
+        n = Math.floor(n / 128);
+      }
+      return [...out, n];
+    };
+    const field = (f: number, body: number[] | string) => {
+      const bytes = typeof body === 'string' ? [...new TextEncoder().encode(body)] : body;
+      return [...varint(f * 8 + 2), ...varint(bytes.length), ...bytes];
+    };
+    const model = (text: string) => new Uint8Array([...varint(8), 15, ...field(20, field(1, text))]);
+    const tool = (name: string, args: unknown, result: string) =>
+      new Uint8Array([...field(5, field(4, [...field(1, 'call_1'), ...field(2, name), ...field(3, JSON.stringify(args))])), ...field(140, field(2, field(1, result)))]);
+    const conversation = (steps: [number, number, Uint8Array, string?][]) => {
+      dir = mkdtempSync(join(tmpdir(), 'obeya-agy-'));
+      const file = join(dir, 'c1.db');
+      const db = new Database(file);
+      db.run('create table steps (idx integer primary key, step_type integer, status integer, step_payload blob, error_details blob)');
+      steps.forEach(([type, status, payload, error], idx) => db.query('insert into steps values (?, ?, ?, ?, ?)').run(idx, type, status, payload, error ? new Uint8Array(field(2, error)) : null));
+      db.close();
+      return file;
+    };
+
+    test('reads commands, edits and MCP calls as the tools they match, a refusal and a cancel as cut off', () => {
+      const file = conversation([
+        [15, 3, model('I run the tests.')],
+        [132, 3, tool('run_command', { CommandLine: 'bun test' }, 'Command exited with code 1.\n\nCommand output:\nfailed')],
+        [15, 3, model('A typo; I fix it.')],
+        [132, 3, tool('edit_file', { Path: '/repo/a.ts' }, 'Made 1 replacement')],
+        [132, 3, tool('write_file', { Path: '/repo/b.ts' }, 'Created file.')],
+        [132, 7, tool('read_file', { Path: '/repo/none.ts' }, ''), 'file does not exist'],
+        [132, 7, tool('run_command', { CommandLine: 'rm -rf x' }, ''), 'permission check failed: user denied permission to run command'],
+        [132, 6, tool('run_command', { CommandLine: 'bun run slow' }, 'Command exited with code 0.')],
+        [132, 3, tool('call_mcp_tool', { ServerName: 'obeya', ToolName: 'obeya_ask', Arguments: { question: 'q' } }, 'blue')],
+      ]);
+      const e = excerptOf(file)!;
+      expect(e.steps).toBe(7);
+      expect(e.firstChange).toBe(1);
+      expect(e.cutOff).toEqual([5, 6]);
+      expect(e.findings).toMatchObject([
+        { kind: 'failure', call: { step: 1, tool: 'Bash', what: '`bun test`', failed: true, before: 'I run the tests.', after: 'A typo; I fix it.' } },
+        { kind: 'failure', call: { step: 4, tool: 'Read', what: '/repo/none.ts', error: 'file does not exist' } },
+      ]);
+    });
+
+    test('finds a conversation by its id', () => {
+      const file = conversation([[15, 3, model('hello')]]);
+      expect(findTranscript('agy:c1', null, dir)).toBe(file);
+      expect(findTranscript('agy:c2', null, dir)).toBeNull();
+      expect(findTranscript('agy:../c1', null, dir)).toBeNull();
+    });
+
+    test('a database that is none gives no excerpt', () => {
+      dir = mkdtempSync(join(tmpdir(), 'obeya-agy-'));
+      writeFileSync(join(dir, 'c1.db'), 'not sqlite');
+      expect(excerptOf(join(dir, 'c1.db'))).toBeNull();
+    });
   });
 });
