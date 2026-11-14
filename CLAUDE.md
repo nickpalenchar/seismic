@@ -15,10 +15,7 @@ its lasting decisions and constraints move into the design doc and the plan doc 
   older Bun ignores the flag and runs them one after the other), types with `bun run typecheck`.
   When the suite fails only from machine load or timing, don't ask to rerun it: hand over and say
   which failing tests were unrelated. When it hangs or stalls, stop it and go on to the demo and
-  handover without asking: say there that the tests were skipped. The test "names what stands in
-  the way: site-media as the latest, a missing secret, GitHub ahead, a tag taken, a draft left over"
-  in `release-status.test.ts` clones real git repositories and may time out while iterating: skip it
-  locally (`--test-name-pattern` or by file), and run the full suite before handing over.
+  handover without asking: say there that the tests were skipped.
 - Never wait with `sleep` or polling chains in the foreground (`sleep 25; …`, `until curl …; sleep 3`):
   a hook blocks them. Run long commands (`bun test --parallel`, `bun run typecheck`, a scratch Seismic
   start) with run_in_background or Monitor and wait for the notification; for a short wait on a port

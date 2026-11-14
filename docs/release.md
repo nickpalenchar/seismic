@@ -238,3 +238,7 @@ Paused with the rest of this page; they served the site, the hero video and rele
   it runs gh on the checkout's origin as the account that owns it (`sadilek` for sadilek/obeya),
   since the machine's active gh account may be another without admin rights.
 - gh calls against the repository's GitHub repository went through `bun scripts/gh.ts <gh args…>`: it runs gh on the checkout's origin as the account that owns it (`sadilek` for sadilek/obeya), since the machine's active gh account may be another without admin rights.
+- The test "names what stands in the way: site-media as the latest, a missing secret, GitHub ahead,
+  a tag taken, a draft left over" in `scripts/release-status.test.ts` clones real git repositories
+  and may time out while iterating: skip it locally (`--test-name-pattern` or by file), and run the
+  full suite before handing over.
