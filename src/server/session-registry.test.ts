@@ -1,7 +1,8 @@
-import { afterEach, expect, test } from 'bun:test';
+import { afterEach, expect, spyOn, test } from 'bun:test';
 import { testProcessCode } from '../test-process';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import * as fsPromises from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { processes } from './agent-processes';
@@ -40,10 +41,10 @@ function owner(root: string, ready: string, jobs: number) {
     import { spawn } from 'node:child_process';
     import { SessionRegistry } from ${JSON.stringify(join(import.meta.dir, 'session-registry'))};
     import { processes } from ${JSON.stringify(join(import.meta.dir, 'agent-processes'))};
-    const g = new SessionRegistry(${JSON.stringify(root)}).begin('test session', '/work/a');
+    const g = await new SessionRegistry(${JSON.stringify(root)}).begin('test session', '/work/a');
     const pids = Array.from({ length: ${jobs} }, () => spawn(process.execPath, ['-e', ${JSON.stringify(testProcessCode())}], { detached: true, stdio: 'ignore' }).pid);
     const table = processes();
-    g.publish(pids.map((pid) => ({ pid, born: table.find((p) => p.pid === pid).born })));
+    await g.publish(pids.map((pid) => ({ pid, born: table.find((p) => p.pid === pid).born })));
     await Bun.write(${JSON.stringify(ready)}, JSON.stringify(pids));
     setInterval(() => {}, 1000);`);
   const child = spawn(process.execPath, ['-e', code], { detached: true, stdio: 'inherit' });
@@ -103,15 +104,15 @@ test.skipIf(!supported)('another live Seismic on the same directory keeps its se
   expect(alive(live.pid!)).toBe(true);
 }, 20_000);
 
-test.skipIf(!supported)('this process holding a lease is not a candidate for its own sweep', () => {
+test.skipIf(!supported)('this process holding a lease is not a candidate for its own sweep', async () => {
   const root = scratch();
   const registry = new SessionRegistry(root);
   const job = start();
-  const g = registry.begin('mine', '/work/b')!;
-  g.publish([{ pid: job.pid!, born: born(job.pid!)! }]);
+  const g = (await registry.begin('mine', '/work/b'))!;
+  await g.publish([{ pid: job.pid!, born: born(job.pid!)! }]);
   expect(registry.recover().map((r) => r.outcome)).toEqual(['busy']);
   expect(alive(job.pid!)).toBe(true);
-  g.finish();
+  await g.finish();
   expect(readdirSync(root)).toEqual([]);
 });
 
@@ -166,9 +167,9 @@ test.skipIf(!supported)('a workstation whose old session could not be ended is r
   registry.recover();
   expect(registry.unaccounted('/work/a')).toEqual([]);
   // this Seismic's own live session is not an old one
-  const g = registry.begin('mine', '/work/b')!;
+  const g = (await registry.begin('mine', '/work/b'))!;
   expect(registry.unaccounted('/work/b')).toEqual([]);
-  g.finish();
+  await g.finish();
 });
 
 test.skipIf(!supported)('a record from an earlier boot is dropped without signalling its pids', async () => {
@@ -186,20 +187,20 @@ test.skipIf(!supported)('a record from an earlier boot is dropped without signal
   expect(readdirSync(root)).toEqual([]);
 });
 
-test('without process identities, sessions are not recorded and a sweep finds nothing', () => {
+test('without process identities, sessions are not recorded and a sweep finds nothing', async () => {
   const root = scratch();
   const registry = new SessionRegistry(root, null);
   expect(registry.supported).toBe(false);
-  expect(registry.begin('x', '/', () => {})).toBeUndefined();
+  expect(await registry.begin('x', '/', () => {})).toBeUndefined();
   expect(registry.recover()).toEqual([]);
 });
 
-test.skipIf(!supported)('an unwritable registry runs the session unrecorded and warns', () => {
+test.skipIf(!supported)('an unwritable registry runs the session unrecorded and warns', async () => {
   const root = join(scratch(), 'file');
   mkdirSync(join(root, '..'), { recursive: true });
   writeFileSync(root, 'not a directory');
   const warnings: string[] = [];
-  expect(new SessionRegistry(root).begin('x', '/', (m) => warnings.push(m))).toBeUndefined();
+  expect(await new SessionRegistry(root).begin('x', '/', (m) => warnings.push(m))).toBeUndefined();
   expect(warnings.length).toBe(1);
 });
 
@@ -253,3 +254,81 @@ test.skipIf(!supported)('a Codex transport that ends in order removes its own re
   await new Promise((resolve) => out.once('exit', resolve));
   expect(JSON.parse(text.trim().split('\n').pop()!)).toEqual([true, 0]);
 }, 20_000);
+
+// Use a synthetic environment: these ordering tests need filesystem leases, not real processes.
+const testEnvironment = { host: 'test', boot: 'boot', namespace: 'test' };
+
+test('concurrent publications stay ordered and abandonment keeps the last durable record', async () => {
+  const root = scratch();
+  const registry = new SessionRegistry(root, testEnvironment);
+  const g = (await registry.begin('ordered', '/work'))!;
+  const first = g.publish([{ pid: 1, born: 'first' }]);
+  const last = g.publish([{ pid: 1, born: 'first' }, { pid: 2, born: 'last' }]);
+  const abandoned = g.abandon();
+  // Closing prevents new writes immediately, even while previous writes are in flight.
+  expect(() => g.publish([])).toThrow('closed');
+  expect(registry.recover().map((r) => r.outcome)).toEqual(['busy']);
+  await Promise.all([first, last, abandoned]);
+  const record = JSON.parse(readFileSync(join(root, `${g.id}.json`), 'utf8'));
+  expect(record.processes).toEqual([{ pid: 1, born: 'first' }, { pid: 2, born: 'last' }]);
+  expect(registry.unaccounted('/work')).toEqual([{ generation: g.id, label: 'ordered' }]);
+});
+
+test('finish drains queued publications before removing the record and releasing its lease', async () => {
+  const root = scratch();
+  const registry = new SessionRegistry(root, testEnvironment);
+  const g = (await registry.begin('finishing', '/work'))!;
+  const publications = Array.from({ length: 10 }, (_, n) => g.publish([{ pid: n + 1, born: 'birth' }]));
+  let ticked = false;
+  const timer = new Promise<void>((resolve) => setTimeout(() => { ticked = true; resolve(); }, 0));
+  const finished = g.finish();
+  expect(g.finish()).toBe(finished);
+  await Promise.all([...publications, finished, timer]);
+  expect(ticked).toBe(true);
+  expect(readdirSync(root)).toEqual([]);
+  expect(registry.recover()).toEqual([]);
+});
+
+test('a failed publication rejects without poisoning later writes or cleanup', async () => {
+  const root = scratch();
+  const registry = new SessionRegistry(root, testEnvironment);
+  const g = (await registry.begin('retry', '/work'))!;
+  const file = join(root, `${g.id}.json`);
+  // A directory at the destination forces atomic rename to fail.
+  rmSync(file);
+  mkdirSync(file);
+  await expect(g.publish([{ pid: 1, born: 'birth' }])).rejects.toThrow();
+  expect(readdirSync(root).some((n) => n.endsWith('.tmp'))).toBe(false);
+  rmSync(file, { recursive: true });
+  await g.publish([{ pid: 2, born: 'retry' }]);
+  expect(JSON.parse(readFileSync(file, 'utf8')).processes).toEqual([{ pid: 2, born: 'retry' }]);
+  await g.finish();
+  expect(readdirSync(root)).toEqual([]);
+});
+
+test('a slow registry rename leaves timers free and holds the lease until cleanup drains it', async () => {
+  const root = scratch();
+  const registry = new SessionRegistry(root, testEnvironment);
+  const g = (await registry.begin('slow disk', '/work'))!;
+  const rename = fsPromises.rename;
+  let entered!: () => void;
+  const writing = new Promise<void>((resolve) => { entered = resolve; });
+  let unblock!: () => void;
+  const blocked = new Promise<void>((resolve) => { unblock = resolve; });
+  const slow = spyOn(fsPromises, 'rename').mockImplementation(async (from, to) => {
+    entered();
+    await blocked;
+    return rename(from, to);
+  });
+  try {
+    const publication = g.publish([{ pid: 1, born: 'birth' }]);
+    await writing;
+    const finished = g.finish();
+    await Bun.sleep(20);
+    expect(registry.recover().map((r) => r.outcome)).toEqual(['busy']);
+    expect(existsSync(join(root, `${g.id}.json`))).toBe(true);
+    unblock();
+    await Promise.all([publication, finished]);
+    expect(readdirSync(root)).toEqual([]);
+  } finally { unblock(); slow.mockRestore(); }
+});

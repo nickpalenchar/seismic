@@ -548,7 +548,13 @@ A crash of Seismic runs no cleanup. While a Codex session runs, the server recor
 and the pid and creation time of the app-server and each observed descendant, no command lines or
 credentials) beside a lease file on which the server holds a SQLite write lock, which the kernel
 drops when the server dies. The record is written before the app-server can run any session code and
-again whenever the observed set grows; a session that ends in order removes both.
+again whenever the observed set grows; a session that ends in order removes both. Record writes,
+file and directory flushes, and atomic renames use asynchronous filesystem operations, so a slow disk
+does not stop the server answering pages. Publications are ordered per session, independently of
+other sessions. Session requests wait for the initial identity to be durable; later observations
+are published in the background. Finishing or abandoning a session drains its pending publications
+before removing its record or releasing its lease, so a late write cannot recreate a finished record.
+As with any crash during an observation, identities not yet durably published may be absent from recovery.
 
 The next Seismic on that home sweeps before any card resumes. A record is looked at only while the
 sweep holds its lease, so a live Seismic's sessions, this one's or another's on the same directory,

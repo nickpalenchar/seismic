@@ -75,13 +75,19 @@ export function codexConnection(
   // What a crash of Seismic would leave behind is recorded as it is observed (session-registry.ts).
   const record = terminals ? sessionRegistry()?.begin(options.label ?? 'Codex session', options.cwd) : undefined;
   const publish = () => {
-    try { record?.publish(terminals!.observed()); } catch (error) { console.warn(`Session record not updated: ${messageOf(error)}`); }
+    const identities = terminals!.observed();
+    void record?.then((generation) => generation?.publish(identities)).catch((error) => {
+      console.warn(`Session record not updated: ${messageOf(error)}`);
+    });
   };
   if (terminals && record) { terminals.onChange = publish; publish(); }
   // A busy machine's snapshot can time out: that observation is skipped, not the session ended.
   const observed = tolerateTimeouts();
   /** The session's processes have ended, or the attempt failed and the record stays for a sweep. */
-  const settleRecord = (ended: boolean) => { if (ended) record?.finish(); else record?.abandon(); };
+  const settleRecord = async (ended: boolean) => {
+    const generation = await record;
+    if (ended) await generation?.finish(); else await generation?.abandon();
+  };
   const pending = new Map<number, { resolve(value: unknown): void; reject(error: Error): void; timer: ReturnType<typeof setTimeout> }>();
   let nextId = 0;
   let closing = false;
@@ -211,18 +217,24 @@ export function codexConnection(
     void (async () => {
       let ended = true;
       try { await terminals?.kill(); } catch (error) { ended = false; failure ??= new Error(messageOf(error)); }
-      settleRecord(ended);
+      try { await settleRecord(ended); } catch (error) { failure ??= new Error(messageOf(error)); }
       running.delete(close);
       if (failure) rejectDone(failure);
       else resolveDone();
     })();
   });
-  // Refuse to proceed if the initial app-server identity could not be established.
-  if (terminals) observed(terminals.track()).catch((error: unknown) => fail(new Error(messageOf(error))));
+  // Session requests wait for their initial identity to be durable, without blocking other
+  // sessions or the server's event loop while the filesystem completes the publication.
+  const ready = terminals ? observed(terminals.track()).then(async () => {
+    const generation = await record;
+    await generation?.publish(terminals.observed());
+  }) : Promise.resolve();
+  void ready.catch((error: unknown) => fail(new Error(messageOf(error))));
   return {
     pid: child.pid,
     trackProcesses: async (pids) => { if (terminals) await observed(terminals.track(pids)); },
-    request<T>(method: string, params: Record<string, unknown>): Promise<T> {
+    async request<T>(method: string, params: Record<string, unknown>): Promise<T> {
+      await ready;
       return new Promise<T>((resolve, reject) => {
         if (closing) return reject(failure ?? new Error('Codex app-server connection closed'));
         const id = ++nextId;

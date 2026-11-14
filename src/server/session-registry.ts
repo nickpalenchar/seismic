@@ -5,7 +5,8 @@
 // the record. Best-effort cleanup, not containment: see "Lifetimes" in docs/design/agents-and-workstations.md.
 import { Database } from 'bun:sqlite';
 import { randomUUID } from 'node:crypto';
-import { chmodSync, closeSync, fsyncSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, readlinkSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import { lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, renameSync, statSync, unlinkSync } from 'node:fs';
+import { chmod, mkdir, open, rename, unlink, writeFile } from 'node:fs/promises';
 import { hostname } from 'node:os';
 import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -76,30 +77,30 @@ function acquire(file: string): Database | undefined {
 function release(db: Database) {
   try { db.exec('ROLLBACK'); } finally { db.close(); }
 }
-function atomicRecord(file: string, record: SessionRecord) {
+async function atomicRecord(file: string, record: SessionRecord) {
   const temporary = `${file}.${randomUUID()}.tmp`;
   try {
-    const fd = openSync(temporary, 'wx', 0o600);
+    const fd = await open(temporary, 'wx', 0o600);
     try {
-      writeFileSync(fd, JSON.stringify(record) + '\n');
-      fsyncSync(fd);
-    } finally { closeSync(fd); }
-    renameSync(temporary, file);
+      await fd.writeFile(JSON.stringify(record) + '\n');
+      await fd.sync();
+    } finally { await fd.close(); }
+    await rename(temporary, file);
     // Persist the directory entry as well: a failure is not a successful publication.
-    const directory = openSync(dirname(file), 'r');
-    try { fsyncSync(directory); } finally { closeSync(directory); }
-  } finally { try { unlinkSync(temporary); } catch { /* renamed or not created */ } }
+    const directory = await open(dirname(file), 'r');
+    try { await directory.sync(); } finally { await directory.close(); }
+  } finally { try { await unlink(temporary); } catch { /* renamed or not created */ } }
 }
 
 /** A running session's side: the lease, and the record kept current while it owns processes. */
 export interface Generation {
   readonly id: string;
-  /** Records the identities observed so far. Throws if the record cannot be written. */
-  publish(processes: Observed[]): void;
+  /** Records the identities observed so far. Resolves after durable publication; rejects if it cannot be written. */
+  publish(processes: Observed[]): Promise<void>;
   /** Everything the session started has ended: the record goes. */
-  finish(): void;
+  finish(): Promise<void>;
   /** Cleanup could not be completed: keep the record, free the lease, so a later sweep tries again. */
-  abandon(): void;
+  abandon(): Promise<void>;
 }
 
 /** The leases held, by session: a lease dropped by the garbage collector would be a lease released. */
@@ -117,46 +118,66 @@ export class SessionRegistry {
    * where sessions cannot be recorded or the registry cannot be written: the session then runs
    * without recovery, and says so through `warn`.
    */
-  begin(label: string, cwd: string, warn: (message: string) => void = console.warn): Generation | undefined {
+  async begin(label: string, cwd: string, warn: (message: string) => void = console.warn): Promise<Generation | undefined> {
     const env = this.env;
     if (!env) return;
     let lease: Database | undefined;
     const id = randomUUID();
     const paths = files(this.root, id);
     try {
-      mkdirSync(this.root, { recursive: true, mode: 0o700 });
+      await mkdir(this.root, { recursive: true, mode: 0o700 });
       // Created exactly once: lease files are never replaced while a contender may hold one.
-      writeFileSync(paths.lease, '', { mode: 0o600, flag: 'wx' });
+      await writeFile(paths.lease, '', { mode: 0o600, flag: 'wx' });
       lease = new Database(paths.lease, { create: false, readwrite: true });
-      chmodSync(paths.lease, 0o600);
+      await chmod(paths.lease, 0o600);
       lease.exec('PRAGMA journal_mode = DELETE; BEGIN IMMEDIATE');
       let current: SessionRecord = recordSchema.parse({ version: 1, generation: id, ...env, owner: process.pid, label, cwd, processes: [] });
-      atomicRecord(paths.record, current);
+      await atomicRecord(paths.record, current);
       const held = lease;
       let open = true;
       live.set(id, held);
+      // Independent sessions write independently. Within one session, even a failed write must
+      // finish before its successor or lease release, so stale writes cannot resurrect a record.
+      let pending = Promise.resolve();
+      const serial = (fn: () => Promise<void>) => {
+        const next = pending.then(fn);
+        pending = next.catch(() => {});
+        return next;
+      };
+      let closing: Promise<void> | undefined;
       return {
         id,
         publish(processes) {
           if (!open) throw new Error('Session record is closed');
           const next = recordSchema.parse({ ...current, processes });
-          atomicRecord(paths.record, next);
-          current = next;
+          return serial(async () => {
+            await atomicRecord(paths.record, next);
+            current = next;
+          });
         },
         finish() {
-          if (!open) return;
+          if (closing) return closing;
           open = false;
-          live.delete(id);
-          // Both go while the lease is held, so no sweep can see one without the other; one that
-          // opens the lease file before it goes finds no record and judges a lease without one.
-          for (const file of [paths.record, paths.lease]) try { unlinkSync(file); } catch { /* already gone */ }
-          release(held);
+          return closing = serial(async () => {
+            try {
+              // Remove under the lease, after all outstanding publications have settled.
+              for (const file of [paths.record, paths.lease]) {
+                try { await unlink(file); } catch (error) {
+                  if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+                }
+              }
+            } finally { live.delete(id); release(held); }
+          });
         },
-        abandon() { if (open) { open = false; live.delete(id); release(held); } },
+        abandon() {
+          if (closing) return closing;
+          open = false;
+          return closing = serial(async () => { live.delete(id); release(held); });
+        },
       };
     } catch (error) {
       try { lease && release(lease); } catch { /* closed below */ }
-      for (const file of [paths.record, paths.lease]) try { unlinkSync(file); } catch { /* not created */ }
+      for (const file of [paths.record, paths.lease]) try { await unlink(file); } catch { /* not created */ }
       warn(`Session not recorded, so a crash of Seismic could not be cleaned up after: ${messageOf(error)}`);
       return;
     }
