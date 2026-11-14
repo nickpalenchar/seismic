@@ -102,7 +102,7 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
   const waits = items.filter((i) => held.has(i.id) && needsYou(i) && !i.archivedAt && !onIt.includes(i));
   const working = [...onIt.filter((i) => !idle(i)), ...finishing, ...waits, ...onIt.filter(idle)];
   // the count is the agents at work, whether or not their card shows as a row (a card being stopped still holds its slot until the worker ends)
-  const atWork = new Set([...onIt.filter((i) => !idle(i)).map((i) => i.id), ...busy]).size;
+  const atWork = new Set([...onIt.filter((i) => !idle(i)).map((i) => i.id), ...items.filter((i) => busy.has(i.id)).map((i) => i.id)]).size;
   /** Gives a card its workstation back during the undo window after it was taken, with what came of it, as the status bar does. */
   const keepWorkstation = async (i: Item) => {
     try {
