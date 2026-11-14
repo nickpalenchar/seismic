@@ -1,17 +1,19 @@
-// Native installed Codex app-server adapter. Worker routing and portability live separately.
-import { bothNames, seismicEnv } from '../core/env';
+/**
+ * Native installed Codex app-server adapter. Worker routing and portability live separately.
+ */
+import { bothNames, seismicEnv } from '../../../core/env';
 import { basename, dirname, isAbsolute, join } from 'node:path';
 import { homedir } from 'node:os';
 import { realpathSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { GIT } from './workstations';
-import type { CodexModel, Usage, UsageLimit } from '../core/types';
-import type { UsageSource } from './usage';
+import { GIT } from '../../workstations';
+import type { CodexModel, Usage, UsageLimit } from '../../../core/types';
+import type { UsageSource } from '../../usage';
 import { z } from 'zod';
-import { messageOf } from '../core/text';
-import { sessionRegistry } from './session-registry';
-import { codexConnection, CodexRpcError, type CodexConnection, type CodexHandlers } from './codex-rpc';
-import { cleanEnv, type AgentEvent, type AgentRuntime, type AgentSpec } from './runtime';
+import { messageOf } from '../../../core/text';
+import { sessionRegistry } from './sessionRegistry';
+import { codexConnection, CodexRpcError, type CodexConnection, type CodexHandlers } from './codexRpc';
+import { cleanEnv, type AgentEvent, type AgentRuntime, type AgentSpec } from '../../runtime';
 
 // Codex reserves mcp__ names for actual MCP servers. Keep its wire name separate from the
 // canonical identity consumed by Seismic's existing orchestration.

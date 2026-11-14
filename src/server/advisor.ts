@@ -1,7 +1,7 @@
 // What the agents that answer the owner's questions (the Koordinator, a plan agent) share, and
 // how an agent's question to the owner is put together.
 
-import { currentAgent } from './agent-identity';
+import { currentAgent } from './agents/harnesses/identity';
 import type { AgentAt, AgentIdentity } from '../core/types';
 import type { PermissionMode } from '@anthropic-ai/claude-agent-sdk';
 import { existsSync, statSync } from 'node:fs';
@@ -9,7 +9,8 @@ import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { z } from 'zod';
 import { type Language, ownersLanguage } from '../core/locale';
 import type { AnswerFile, Question } from '../core/types';
-import { type AgentRuntime, type AgentTool, BackgroundWait } from './runtime';
+import { type AgentRuntime, type AgentTool } from './runtime';
+import { BackgroundWait } from './agents/harnesses/claude';
 import { clip } from '../core/text';
 
 /** An answer to a question the owner asked, for the card or the sheet, with the files it comes with. */

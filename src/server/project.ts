@@ -39,7 +39,7 @@ import { PlanAgents } from './plan-agents';
 import { ghHosts, onGitHub, outsidePlanDir, planHistory, readPlanDocs, watchPlanDocs } from './repo';
 import { boundsOf, GAP, type Place, planDirNoteBox, unionBounds } from '../core/layout';
 import { type AgentRuntime, idleRuntime, withAgentSetting, withCodexTrust, withLimitWait, withRepoTrust, withTrustedAllow } from './runtime';
-import { codexConnected } from './codex-runtime';
+import { codexConnected } from './agents/harnesses/codex';
 import { bashRules } from './allow-rules';
 import { type TagCard, tagCards } from './agents/skills/tagProposal';
 import { commandsOf, heldGroups, withoutHeld } from './trust';

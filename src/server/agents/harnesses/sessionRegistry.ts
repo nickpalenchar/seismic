@@ -1,8 +1,10 @@
-// What an Seismic that crashed leaves behind: the processes its agent sessions started. A running
-// Seismic records, per session, the identities (pid and creation time) of the processes it observed
-// and holds an exclusive lease on that record; the next Seismic on the same home finds records whose
-// lease nobody holds any more, ends the processes that still are the recorded ones, and removes
-// the record. Best-effort cleanup, not containment.
+/**
+ * What an Seismic that crashed leaves behind: the processes its agent sessions started. A running
+ * Seismic records, per session, the identities (pid and creation time) of the processes it observed
+ * and holds an exclusive lease on that record; the next Seismic on the same home finds records whose
+ * lease nobody holds any more, ends the processes that still are the recorded ones, and removes
+ * the record. Best-effort cleanup, not containment.
+ */
 import { Database } from 'bun:sqlite';
 import { randomUUID } from 'node:crypto';
 import { lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, renameSync, statSync, unlinkSync } from 'node:fs';
@@ -11,8 +13,8 @@ import { hostname } from 'node:os';
 import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { z } from 'zod';
-import { messageOf } from '../core/text';
-import { processes, terminate, type ProcessInfo } from './agent-processes';
+import { messageOf } from '../../../core/text';
+import { processes, terminate, type ProcessInfo } from './processes';
 
 const generationId = z.string().uuid();
 const observed = z.object({ pid: z.number().int().positive().safe(), born: z.string().min(1) }).strict();

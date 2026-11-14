@@ -1,11 +1,13 @@
-// Experimental Codex app-server stdio transport. No credentials or HTTP API calls of our own.
+/**
+ * Experimental Codex app-server stdio transport. No credentials or HTTP API calls of our own.
+ */
 import { spawn } from 'node:child_process';
 import { StringDecoder } from 'node:string_decoder';
 import { z } from 'zod';
-import { messageOf } from '../core/text';
-import { OWN_GROUP } from './spawn';
-import { AgentProcesses, tolerateTimeouts } from './agent-processes';
-import { sessionRegistry } from './session-registry';
+import { messageOf } from '../../../core/text';
+import { OWN_GROUP } from '../../spawn';
+import { AgentProcesses, tolerateTimeouts } from './processes';
+import { sessionRegistry } from './sessionRegistry';
 
 const running = new Map<() => void, { done: Promise<void>; force: () => Promise<void> }>();
 /** Ordinary shutdown waits for escalation; an explicit force waits only for its signals to go out. */
@@ -72,7 +74,7 @@ export function codexConnection(
 ): CodexConnection {
   const child = spawn(options.command, options.args, { cwd: options.cwd, env: options.env, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true, detached: OWN_GROUP });
   const terminals = child.pid ? new AgentProcesses(child.pid) : undefined;
-  // What a crash of Seismic would leave behind is recorded as it is observed (session-registry.ts).
+  // What a crash of Seismic would leave behind is recorded as it is observed (sessionRegistry.ts).
   const record = terminals ? sessionRegistry()?.begin(options.label ?? 'Codex session', options.cwd) : undefined;
   const publish = () => {
     const identities = terminals!.observed();

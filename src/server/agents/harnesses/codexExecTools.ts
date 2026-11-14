@@ -1,17 +1,19 @@
-// The tools a Codex worker reaches what its sandbox keeps from it through:
-// network, a browser, a local server, a git write in a worktree (its `.git` lies in the main
-// repository, outside the workstation), a place outside the workstation. Seismic runs the call itself,
-// on the owner's machine and with the owner's rights; what makes that safe is the gate (the
-// repository's confirmed allow list, else the owner is asked) and the places a command may run in,
-// not a sandbox. Claude workers have no use for them: their own tools and the same allow list cover this.
+/**
+ * The tools a Codex worker reaches what its sandbox keeps from it through:
+ * network, a browser, a local server, a git write in a worktree (its `.git` lies in the main
+ * repository, outside the workstation), a place outside the workstation. Seismic runs the call itself,
+ * on the owner's machine and with the owner's rights; what makes that safe is the gate (the
+ * repository's confirmed allow list, else the owner is asked) and the places a command may run in,
+ * not a sandbox. Claude workers have no use for them: their own tools and the same allow list cover this.
+ */
 
 import { spawn } from 'node:child_process';
 import { realpathSync } from 'node:fs';
 import { isAbsolute, resolve, sep } from 'node:path';
 import { z } from 'zod';
-import { allowed } from './allow-rules';
-import { cleanEnv, endWithAgents, type AgentTool, type PermissionAnswer, type PermissionRequest } from './runtime';
-import { OWN_GROUP } from './spawn';
+import { allowed } from '../../allow-rules';
+import { cleanEnv, endWithAgents, type AgentTool, type PermissionAnswer, type PermissionRequest } from '../../runtime';
+import { OWN_GROUP } from '../../spawn';
 
 export interface ExecLane {
   /** The card's workstation on this machine: where commands run by default, and where git works. */

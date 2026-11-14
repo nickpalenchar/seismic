@@ -2,11 +2,11 @@ import { expect, test } from 'bun:test';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { AgentAt, AgentIdentity, AgentSetting } from '../core/types';
-import { Store } from './store';
-import { withAgentSetting } from './runtime';
-import { FakeRuntime } from './testing';
-import { agentIdentity, currentAgent } from './agent-identity';
+import type { AgentAt, AgentIdentity, AgentSetting } from '../../../core/types';
+import { Store } from '../../store';
+import { withAgentSetting } from '../../runtime';
+import { FakeRuntime } from '../../testing';
+import { agentIdentity, currentAgent } from './identity';
 
 test('concurrent sessions record resolved speaker snapshots, never current defaults or another session', async () => {
   const store = new Store(':memory:');

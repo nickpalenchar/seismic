@@ -9,7 +9,7 @@ Bring `agy` workers to the Codex level of crash recovery, process cleanup and tr
 ## Workstreams
 
 - [ ] **W1:** Process cleanup and crash recovery. Observe the processes an `agy` session starts (as
-  `codex-rpc.ts` does for Codex) and record them in the session registry, so that a crashed Seismic's
+  `codexRpc.ts` does for Codex) and record them in the session registry, so that a crashed Seismic's
   sweep ends them. Check what `--sandbox` does with background commands and how `agy` ends them.
 - [ ] **W2:** Transcript reading. Find where `agy` keeps a conversation on disk
   (`~/.gemini/antigravity-cli`) and read it in `transcript.ts`, so the work retrospective covers `agy` sessions.

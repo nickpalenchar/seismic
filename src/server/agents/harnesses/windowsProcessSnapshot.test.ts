@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { WindowsProcessSnapshot, processes } from './agent-processes';
+import { WindowsProcessSnapshot, processes } from './processes';
 
 test('cold Windows snapshots get more time and a later timeout is retried', () => {
   const timeouts: number[] = [];

@@ -26,9 +26,10 @@ import { artifactFiles } from './demo-page';
 import { imageNote } from './images';
 import { outsidePlanDir, remoteHost } from './repo';
 import type { InputContext } from './koordinator';
-import { type AgentEvent, type AgentRuntime, type AgentSession, type AgentTool, BACKGROUND_GRACE, BACKGROUND_LIMIT, failureReason, LIMIT_LIFTED, type PermissionAnswer, type PermissionRequest } from './runtime';
+import { type AgentEvent, type AgentRuntime, type AgentSession, type AgentTool, LIMIT_LIFTED, type PermissionAnswer, type PermissionRequest } from './runtime';
+import { BACKGROUND_GRACE, BACKGROUND_LIMIT, failureReason } from './agents/harnesses/claude';
 import { TO_OBEYA, toObeyaTool } from './to-obeya';
-import { EXEC_LANE_AUTO_NOTE, EXEC_LANE_NOTE, execTools } from './exec-tools';
+import { EXEC_LANE_AUTO_NOTE, EXEC_LANE_NOTE, execTools } from './agents/harnesses/codexExecTools';
 import { type Forward, HOST_DIR, hostName, remote } from './hosts';
 import { runAppCommand } from './app-command';
 import { readingShared } from '../adapters';
@@ -5362,7 +5363,7 @@ export class Workers {
 
   /**
    * A Codex worker on this machine gets `seismic_run` and `seismic_git`: Seismic runs what its sandbox
-   * keeps from it (`exec-tools.ts`). Not a review card's worker: its workstation holds a stranger's code.
+   * keeps from it (`codexExecTools.ts`). Not a review card's worker: its workstation holds a stranger's code.
    */
   private execLane(cardId: string, live: Live): AgentTool[] {
     const row = this.o.board.row(cardId);

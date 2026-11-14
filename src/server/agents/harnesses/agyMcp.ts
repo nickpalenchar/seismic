@@ -1,12 +1,14 @@
-// The MCP endpoint through which Antigravity (`agy`) reaches Seismic's tools. Claude gets its tools
-// from an in-process MCP server and Codex over its app-server protocol; `agy` can only connect to an
-// MCP server of its own: here a localhost HTTP endpoint (Streamable HTTP, JSON replies), one for the
-// whole server, on a port of its own. Each session registers its tools under a token of its own that
-// the session's `.agents/mcp_config.json` hands to `agy` as a bearer header (`agy-runtime.ts`).
+/**
+ * The MCP endpoint through which Antigravity (`agy`) reaches Seismic's tools. Claude gets its tools
+ * from an in-process MCP server and Codex over its app-server protocol; `agy` can only connect to an
+ * MCP server of its own: here a localhost HTTP endpoint (Streamable HTTP, JSON replies), one for the
+ * whole server, on a port of its own. Each session registers its tools under a token of its own that
+ * the session's `.agents/mcp_config.json` hands to `agy` as a bearer header (`agy.ts`).
+ */
 import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
-import { messageOf } from '../core/text';
-import type { AgentTool } from './runtime';
+import { messageOf } from '../../../core/text';
+import type { AgentTool } from '../../runtime';
 
 /** The name `agy` knows the server by, and the prefix of every tool, so none clashes with one of its own. */
 export const AGY_SERVER = 'seismic';

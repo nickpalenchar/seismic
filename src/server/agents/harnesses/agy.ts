@@ -1,23 +1,25 @@
-// Antigravity (`agy`) as a harness for task workers and code reviews, in preview. One headless
-// `agy` process per session, speaking stream-json both ways: a `user` frame in per turn, `step_update`
-// frames out while it works, one `result` frame when the turn ends. It runs fully automatic
-// (`--dangerously-skip-permissions`) inside agy's own OS sandbox (`--sandbox`), so the card never asks a
-// permission question; what the sandbox keeps from it goes through `seismic_run` and `seismic_git`
-// (`exec-tools.ts`). Seismic's tools reach it over a localhost MCP endpoint (`agy-mcp.ts`) that the
-// session's `.agents/mcp_config.json` names. Routing and portability checks: `worker-runtime.ts`.
-import { seismicEnv } from '../core/env';
+/**
+ * Antigravity (`agy`) as a harness for task workers and code reviews, in preview. One headless
+ * `agy` process per session, speaking stream-json both ways: a `user` frame in per turn, `step_update`
+ * frames out while it works, one `result` frame when the turn ends. It runs fully automatic
+ * (`--dangerously-skip-permissions`) inside agy's own OS sandbox (`--sandbox`), so the card never asks a
+ * permission question; what the sandbox keeps from it goes through `seismic_run` and `seismic_git`
+ * (`codexExecTools.ts`). Seismic's tools reach it over a localhost MCP endpoint (`agyMcp.ts`) that the
+ * session's `.agents/mcp_config.json` names. Routing and portability checks: `index.ts`.
+ */
+import { seismicEnv } from '../../../core/env';
 import { spawn, spawnSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { StringDecoder } from 'node:string_decoder';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { z } from 'zod';
-import { GIT } from './workstations';
-import { AGENT_EFFORTS, type CodexModel } from '../core/types';
-import { messageOf } from '../core/text';
-import { which } from './path';
-import { OWN_GROUP } from './spawn';
-import { cleanEnv, type AgentEvent, type AgentRuntime, type AgentSpec } from './runtime';
-import { AGY_SERVER, registerAgyTools, wireTools, type AgyRegistration } from './agy-mcp';
+import { GIT } from '../../workstations';
+import { AGENT_EFFORTS, type CodexModel } from '../../../core/types';
+import { messageOf } from '../../../core/text';
+import { which } from '../../path';
+import { OWN_GROUP } from '../../spawn';
+import { cleanEnv, type AgentEvent, type AgentRuntime, type AgentSpec } from '../../runtime';
+import { AGY_SERVER, registerAgyTools, wireTools, type AgyRegistration } from './agyMcp';
 
 /** The installed `agy`, or null: `SEISMIC_AGY` first, else on the search path (which has its installer's directory). */
 export function installedAgy(env: Record<string, string | undefined> = process.env): string | null {

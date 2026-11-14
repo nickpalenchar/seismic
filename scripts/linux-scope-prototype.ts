@@ -4,7 +4,7 @@
 // code runs outside it: the launch is gated by construction. A shell in between reports the cgroup it
 // finds itself in on a private pipe (fd 3), closes it and execs the agent, which is how the caller
 // learns that the scope holds: systemd-run that cannot reach a manager exits before running anything,
-// and the caller may then start the agent without a scope (the existing tracking, agent-processes.ts).
+// and the caller may then start the agent without a scope (the existing tracking, processes.ts).
 // Ending the session writes `cgroup.kill` (Linux 5.14+, cgroup v2), which the kernel applies to
 // every member at once, forks during the kill included; no pid is looked up, so nothing races reuse.
 // Where that file cannot be written (a read-only cgroupfs, an older kernel), `systemctl --user kill`

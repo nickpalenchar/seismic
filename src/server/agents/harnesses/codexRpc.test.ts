@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
-import { testProcessCode } from '../test-process';
+import { testProcessCode } from '../../../test-process';
 import { tmpdir } from 'node:os';
-import { codexConnection, CodexRpcError, type CodexHandlers } from './codex-rpc';
+import { codexConnection, CodexRpcError, type CodexHandlers } from './codexRpc';
 
 const handlers: CodexHandlers = { notification: () => {}, request: async () => { throw new CodexRpcError(-32601, 'unsupported'); } };
 const preamble = `import {createInterface} from 'node:readline';

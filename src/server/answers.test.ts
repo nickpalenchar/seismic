@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { pagePolicy } from '../core/frame';
 import { type Notice, waitingOn } from '../core/types';
 import { inform } from './advisor';
-import { agentIdentity } from './agent-identity';
+import { agentIdentity } from './agents/harnesses/identity';
 import { answersDir } from './answers';
 import { ProjectRuntime } from './project';
 import { serveAnswerFile } from './demo';

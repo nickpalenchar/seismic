@@ -2,13 +2,13 @@ import { afterEach, expect, test } from 'bun:test';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { z } from 'zod';
-import { CodexRpcError, type CodexConnection, type CodexHandlers } from './codex-rpc';
-import { codexLimit, codexSandbox, codexUsage, codexUsageOf, createCodexRuntime, projectTrust } from './codex-runtime';
+import { CodexRpcError, type CodexConnection, type CodexHandlers } from './codexRpc';
+import { codexLimit, codexSandbox, codexUsage, codexUsageOf, createCodexRuntime, projectTrust } from './codex';
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs';
-import { gitRepo } from './testing';
-import { execTools } from './exec-tools';
-import { git } from './workstations';
-import type { AgentEvent, AgentSession, AgentSpec } from './runtime';
+import { gitRepo } from '../../testing';
+import { execTools } from './codexExecTools';
+import { git } from '../../workstations';
+import type { AgentEvent, AgentSession, AgentSpec } from '../../runtime';
 
 const model = { model: 'codex-test', isDefault: true, supportedReasoningEfforts: [{ reasoningEffort: 'high' }], inputModalities: ['text', 'image'] };
 class Wire implements CodexConnection {

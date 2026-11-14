@@ -6,7 +6,7 @@
 import { spawn, type ChildProcess, type StdioNull, type StdioPipe } from 'node:child_process';
 import { join } from 'node:path';
 import type { Readable, Writable } from 'node:stream';
-import { AgentProcesses } from '../src/server/agent-processes';
+import { AgentProcesses } from '../src/server/agents/harnesses/processes';
 
 export interface Identity { pid: number; born: string }
 

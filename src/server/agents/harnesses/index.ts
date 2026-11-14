@@ -1,13 +1,15 @@
-// Roles belong to Seismic; a harness supplies the coding loop. Local workers roll out first.
+/**
+ * Roles belong to Seismic; a harness supplies the coding loop. Local workers roll out first.
+ */
 import { spawnSync } from 'node:child_process';
-import { GIT } from './workstations';
-import { messageOf } from '../core/text';
-import { OBEYA_PLUGIN } from './demo';
-import { createCodexRuntime } from './codex-runtime';
-import { createAgyRuntime } from './agy-runtime';
-import { bundledSkills } from './skills';
-import type { AgentRuntime, AgentSpec } from './runtime';
-import { choosesHarness } from '../core/types';
+import { GIT } from '../../workstations';
+import { messageOf } from '../../../core/text';
+import { OBEYA_PLUGIN } from '../../demo';
+import { createCodexRuntime } from './codex';
+import { createAgyRuntime } from './agy';
+import { bundledSkills } from '../../skills';
+import type { AgentRuntime, AgentSpec } from '../../runtime';
+import { choosesHarness } from '../../../core/types';
 
 /** Only Seismic's bundled plugin is portable here, by explicit file-based skill instructions. */
 function portable(spec: AgentSpec, name = 'Codex'): AgentSpec {

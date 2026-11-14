@@ -4,7 +4,7 @@
 //     PATH; no model turn, no login needed) starts Python heartbeats with `thread/shellCommand`: one
 //     in the shell's tree, and three started detached (DETACHED_PROCESS, a process group of their
 //     own) by launchers that stay, exit after 1.5 s, or exit at once. Then the session ends: through
-//     today's tracker alone (agent-processes.ts, taskkill /T), or with the app-server in a job
+//     today's tracker alone (processes.ts, taskkill /T), or with the app-server in a job
 //     (scripts/windows-job-prototype.ts) that is then terminated.
 //   codex-host-death-tracker, codex-host-death-job: the same, but the process holding the transport
 //     (Seismic's stand-in) is killed; the job's kill-on-close is all that runs.
@@ -16,7 +16,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { codexConnection } from '../src/server/codex-rpc';
+import { codexConnection } from '../src/server/agents/harnesses/codexRpc';
 import { assign, createJob, inAnyJob, inJob, launchInJob } from './windows-job-prototype';
 
 const read = (file: string) => { try { return readFileSync(file, 'utf8').trim(); } catch { return ''; } };

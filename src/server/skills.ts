@@ -8,7 +8,8 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Skill } from '../core/types';
 import { OBEYA_PLUGIN } from './demo';
-import { claudeExecutable, cleanEnv, spawnHere } from './runtime';
+import { cleanEnv, spawnHere } from './runtime';
+import { claudeExecutable } from './agents/harnesses/claude';
 
 /** The portable Seismic skills shipped with this app, without starting a Claude process. */
 export function bundledSkills(): (Skill & { file: string })[] {

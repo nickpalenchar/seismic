@@ -1,7 +1,7 @@
 // The usage limits of the Claude plan Claude Code is logged in with on this machine (the five-hour
 // session, the week, a model's week), for the bar while the owner has it show them (the settings'
 // `usageMeter`) and a page of Seismic's is open; Codex's, beside them, come from its app-server
-// (`codexUsage` in codex-runtime.ts) on a meter of their own. Claude's come from the data behind Claude Code's
+// (`codexUsage` in codex.ts) on a meter of their own. Claude's come from the data behind Claude Code's
 // `/usage`, which asks the plan's usage endpoint: one idle Claude Code session is asked about every
 // minute and sends no prompt, so it uses none of what it reports. The session keeps an answer for a
 // minute, so the rounds are a little longer apart and each gets a fresh one. A login without plan
@@ -9,7 +9,8 @@
 
 import { query, type SDKControlGetUsageResponse } from '@anthropic-ai/claude-agent-sdk';
 import type { Usage, UsageLimit } from '../core/types';
-import { claudeExecutable, cleanEnv, spawnHere } from './runtime';
+import { cleanEnv, spawnHere } from './runtime';
+import { claudeExecutable } from './agents/harnesses/claude';
 
 /** How often the limits are fetched while the bar shows them: just over the minute Claude Code keeps an answer. */
 export const USAGE_EVERY_MS = 65_000;

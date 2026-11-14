@@ -2,12 +2,12 @@ import { afterEach, expect, test } from 'bun:test';
 import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { AGENT_DEFAULTS } from '../core/types';
-import { OBEYA_PLUGIN } from './demo';
-import { withAgentSetting, type AgentEvent, type AgentSpec } from './runtime';
-import { FakeRuntime, gitRepo } from './testing';
-import { workerHarnessRuntime } from './worker-runtime';
-import { createCodexRuntime } from './codex-runtime';
+import { AGENT_DEFAULTS } from '../../../core/types';
+import { OBEYA_PLUGIN } from '../../demo';
+import { withAgentSetting, type AgentEvent, type AgentSpec } from '../../runtime';
+import { FakeRuntime, gitRepo } from '../../testing';
+import { workerHarnessRuntime } from './';
+import { createCodexRuntime } from './codex';
 
 const dirs: string[] = [];
 afterEach(() => { for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true }); });

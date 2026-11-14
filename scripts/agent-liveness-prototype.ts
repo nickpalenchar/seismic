@@ -8,7 +8,7 @@
 // This is a sampling experiment, not containment or a production crash-recovery mechanism.
 import { spawn } from 'node:child_process';
 import { createReadStream, writeSync } from 'node:fs';
-import { AgentProcesses } from '../src/server/agent-processes';
+import { AgentProcesses } from '../src/server/agents/harnesses/processes';
 import { createGeneration, processIdentity, type ProcessIdentity } from './agent-registry-prototype';
 
 // Bun consumes the separator before exposing argv to the script.

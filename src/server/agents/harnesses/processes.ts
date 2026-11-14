@@ -1,4 +1,6 @@
-// Native PTYs can start a new process group: killing the app-server's group is not sufficient.
+/**
+ * Native PTYs can start a new process group: killing the app-server's group is not sufficient.
+ */
 import { spawn, spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import { readFile, readdir } from 'node:fs/promises';

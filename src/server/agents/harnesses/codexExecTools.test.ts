@@ -2,9 +2,9 @@ import { afterEach, beforeEach, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { execTools, gitRefusal, placeFor, type ExecLane } from './exec-tools';
-import type { PermissionRequest } from './runtime';
-import { gitRepo } from './testing';
+import { execTools, gitRefusal, placeFor, type ExecLane } from './codexExecTools';
+import type { PermissionRequest } from '../../runtime';
+import { gitRepo } from '../../testing';
 
 let root: string;
 let workstation: string;

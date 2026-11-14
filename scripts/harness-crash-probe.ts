@@ -5,7 +5,7 @@
 // that leaves for a session and process group of its own; the launcher exits after three seconds)
 // and asks a question. Once parking has asked the trusted `app.keep` (which logs and keeps the app)
 // it SIGKILLs the worker's agent process or the Seismic server (obeya-restart: and then starts an
-// Seismic again on the same home, whose startup sweep ends what the crash left, session-registry.ts),
+// Seismic again on the same home, whose startup sweep ends what the crash left, sessionRegistry.ts),
 // waits, and records what still runs:
 // heartbeat, agent, server, an unrelated canary, the card and the settings commands that ran. Then
 // it ends every process it started or saw under the server, and checks nothing of them is left.

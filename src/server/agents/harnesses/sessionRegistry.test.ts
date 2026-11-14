@@ -1,12 +1,12 @@
 import { afterEach, expect, spyOn, test } from 'bun:test';
-import { testProcessCode } from '../test-process';
+import { testProcessCode } from '../../../test-process';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import * as fsPromises from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { processes } from './agent-processes';
-import { environment, SessionRegistry, type SessionRecord } from './session-registry';
+import { processes } from './processes';
+import { environment, SessionRegistry, type SessionRecord } from './sessionRegistry';
 
 // Real processes and a real crash: the owner of a session is a separate process that is killed
 // without running any cleanup. Platforms that cannot compare process identities record nothing.
@@ -39,8 +39,8 @@ function start(extra = ''): ChildProcess {
 function owner(root: string, ready: string, jobs: number) {
   const code = testProcessCode(`
     import { spawn } from 'node:child_process';
-    import { SessionRegistry } from ${JSON.stringify(join(import.meta.dir, 'session-registry'))};
-    import { processes } from ${JSON.stringify(join(import.meta.dir, 'agent-processes'))};
+    import { SessionRegistry } from ${JSON.stringify(join(import.meta.dir, 'sessionRegistry'))};
+    import { processes } from ${JSON.stringify(join(import.meta.dir, 'processes'))};
     const g = await new SessionRegistry(${JSON.stringify(root)}).begin('test session', '/work/a');
     const pids = Array.from({ length: ${jobs} }, () => spawn(process.execPath, ['-e', ${JSON.stringify(testProcessCode())}], { detached: true, stdio: 'ignore' }).pid);
     const table = processes();
@@ -211,8 +211,8 @@ test.skipIf(!supported)('a crash of the host of a Codex transport: the next swee
 const leaf=spawn(process.execPath,['-e',${JSON.stringify(testProcessCode())}],{detached:true,stdio:'ignore'});
 require('node:fs').writeFileSync(${JSON.stringify(join(root, '..', 'leaf'))},String(leaf.pid));setInterval(()=>{},1000);`);
   const host = spawn(process.execPath, ['-e', testProcessCode(`
-    import { codexConnection } from ${JSON.stringify(join(import.meta.dir, 'codex-rpc'))};
-    import { SessionRegistry, useSessionRegistry } from ${JSON.stringify(join(import.meta.dir, 'session-registry'))};
+    import { codexConnection } from ${JSON.stringify(join(import.meta.dir, 'codexRpc'))};
+    import { SessionRegistry, useSessionRegistry } from ${JSON.stringify(join(import.meta.dir, 'sessionRegistry'))};
     import { readFileSync } from 'node:fs';
     useSessionRegistry(new SessionRegistry(${JSON.stringify(root)}));
     const c = codexConnection({ command: process.execPath, args: ['-e', ${JSON.stringify(appCode)}], cwd: '/', env: process.env, label: 'Codex in /scratch' }, { notification() {}, request: async () => ({}) });
@@ -238,8 +238,8 @@ require('node:fs').writeFileSync(${JSON.stringify(join(root, '..', 'leaf'))},Str
 test.skipIf(!supported)('a Codex transport that ends in order removes its own record', async () => {
   const root = scratch();
   const code = testProcessCode(`
-    import { codexConnection } from ${JSON.stringify(join(import.meta.dir, 'codex-rpc'))};
-    import { SessionRegistry, useSessionRegistry } from ${JSON.stringify(join(import.meta.dir, 'session-registry'))};
+    import { codexConnection } from ${JSON.stringify(join(import.meta.dir, 'codexRpc'))};
+    import { SessionRegistry, useSessionRegistry } from ${JSON.stringify(join(import.meta.dir, 'sessionRegistry'))};
     import { readdirSync } from 'node:fs';
     useSessionRegistry(new SessionRegistry(${JSON.stringify(root)}));
     const c = codexConnection({ command: process.execPath, args: ['-e', ${JSON.stringify(testProcessCode('process.stdin.resume()'))}], cwd: '/', env: process.env }, { notification() {}, request: async () => ({}) });

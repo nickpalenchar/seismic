@@ -73,7 +73,12 @@ Not necesarilly "layers", but important to keep organized nonetheless
   exporting one value named like the file (`restartNotice.ts` exports `restartNotice`). A prompt
   that takes parameters (a language, a count) is a function of them, so the file needs nothing
   from the skill that uses it.
-- Files in both directories are named in camelCase.
+- `src/server/agents/harnesses/` the harnesses that run an agent session: `claude.ts` (Claude Agent
+  SDK), `codex.ts` with `codexRpc.ts` and `codexExecTools.ts`, `agy.ts` with `agyMcp.ts`, and `index.ts`,
+  which picks one for a role. The process bookkeeping they share sits beside them (`processes.ts`,
+  `sessionRegistry.ts`, `identity.ts`). The contract they fulfil (`AgentRuntime`, `AgentSpec`) and the
+  wrappers around it (limit wait, trust, setting) stay in `src/server/runtime.ts`.
+- Files in these directories are named in camelCase.
 - Moving existing code in is done a part at a time: `src/server/` still holds skills and prompts
   that have not moved yet.
 
