@@ -259,7 +259,7 @@ describe('a site in a folder of an existing repository', () => {
     for (const f of ['demo.mp4', 'poster.jpg', 'captions.vtt']) expect(existsSync(join(at, 'docs/demos/first', f))).toBe(true);
     await make('direct').publish(page('second'));
     const later = await look();
-    for (const n of ['first', 'second']) expect(existsSync(join(later, 'docs/demos', n, 'poster.jpg'))).toBe(true);
+    for (const n of ['first', 'second']) for (const f of ['demo.mp4', 'poster.jpg', 'captions.vtt']) expect(existsSync(join(later, 'docs/demos', n, f))).toBe(true);
     expect(readFileSync(join(later, 'README.md'), 'utf8')).toBe('the owner’s\n');
   });
 
