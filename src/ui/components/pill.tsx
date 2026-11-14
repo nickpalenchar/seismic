@@ -11,12 +11,12 @@ import type { ComponentProps } from 'react';
 const pillVariants = cva('flex items-center gap-2 rounded-full text-base whitespace-nowrap [&_b]:font-semibold', {
   variants: {
     variant: {
-      glass: 'border border-glass-edge bg-card px-3.5 py-2 shadow-[inset_0_1px_0_var(--glass-hi),var(--shadow)] backdrop-blur-[12px] backdrop-saturate-[1.4]',
+      glass: 'border border-glass-edge bg-card px-3.5 py-1.5 shadow-[inset_0_1px_0_var(--glass-hi),var(--shadow)] backdrop-blur-[12px] backdrop-saturate-[1.4]',
       /** in the status bar, on its glass */
       flat: 'h-7 py-0 text-sm',
     },
     /** one height for every button of a bar, whatever it holds */
-    size: { default: '', bar: 'h-8.5 py-0' },
+    size: { default: '', bar: 'h-8 py-0' },
   },
   defaultVariants: { variant: 'glass', size: 'default' },
 });

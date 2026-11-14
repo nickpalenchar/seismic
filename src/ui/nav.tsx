@@ -380,7 +380,7 @@ const pageClass = (away: boolean) => cn('min-w-0', away && 'invisible h-0 [trans
 const head = (titlebar?: boolean) =>
   cn(
     'mb-0.5 flex min-h-8 items-center gap-2.5',
-    titlebar && 'sticky -top-3.5 z-1 -mx-3.5 -mt-3.5 h-[58px] bg-surface/88 pr-3.5 pl-[92px] backdrop-blur-[16px] reduced:bg-surface',
+    titlebar && 'sticky -top-3.5 z-1 -mx-3.5 -mt-3.5 h-[50px] bg-surface/88 pr-3.5 pl-[92px] backdrop-blur-[16px] reduced:bg-surface',
   );
 
 /** A button of the menu: an item of the open dropdown, else a plain button. `keep` leaves the dropdown open. */

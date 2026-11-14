@@ -2650,7 +2650,7 @@ function Project({
           id="bar"
           ref={barRef}
           className={cn(
-            'group/bar frost-bar fixed top-0 right-[var(--side,0px)] left-[var(--left,0px)] z-25 box-border grid h-[58px] grid-cols-[1fr_minmax(150px,440px)_1fr] items-center gap-3.5 border-b border-border px-3.5 transition-[right,left,padding-left] duration-450 ease-[cubic-bezier(.3,.9,.3,1)] resizing:transition-none data-[fit~="3"]:grid-cols-[auto_minmax(34px,440px)_auto]',
+            'group/bar frost-bar fixed top-0 right-[var(--side,0px)] left-[var(--left,0px)] z-25 box-border grid h-[50px] grid-cols-[1fr_minmax(150px,440px)_1fr] items-center gap-3.5 border-b border-border px-3.5 transition-[right,left,padding-left] duration-450 ease-[cubic-bezier(.3,.9,.3,1)] resizing:transition-none data-[fit~="3"]:grid-cols-[auto_minmax(34px,440px)_auto]',
             window.obeyaApp?.platform === 'macos' && !side.left && 'pl-[92px]',
           )}
           {...(window.obeyaApp?.platform === 'macos' ? { 'data-tauri-drag-region': '' } : {})}
@@ -2691,7 +2691,7 @@ function Project({
         <div
           id="floating-row"
           ref={rowRef}
-          className={cn('group/row pointer-events-none fixed top-[66px] right-[calc(var(--side,0px)+14px)] left-[calc(var(--left,0px)+48px)] z-24 flex items-center gap-2.5 transition-[right,left] duration-450 ease-[cubic-bezier(.3,.9,.3,1)] resizing:transition-none [&>*]:pointer-events-auto', dim && 'z-41')}
+          className={cn('group/row pointer-events-none fixed top-[58px] right-[calc(var(--side,0px)+14px)] left-[calc(var(--left,0px)+48px)] z-24 flex items-center gap-2.5 transition-[right,left] duration-450 ease-[cubic-bezier(.3,.9,.3,1)] resizing:transition-none [&>*]:pointer-events-auto', dim && 'z-41')}
         >
           {!side.left && <NavPill {...nav} />}
           <div className="right ml-auto flex flex-none items-center gap-2.5 [&>*]:pointer-events-auto">
@@ -2772,7 +2772,7 @@ function Project({
         <CanvasTabs project={snapshot.project.id} canvases={canvases} shown={canvasId} waiting={perCanvas.waiting} empty={perCanvas.empty} onShow={(c) => (focusRef.current?.type === 'plan' && closePlan(), setInboxOn(false), showPage(null), showCanvas(c))} />
 
         {/* over the inbox's view, its list stays undimmed beside the card, to work down from there */}
-        <div id="dim" className={cn('fixed inset-x-0 top-[58px] bottom-0 z-30 bg-scrim opacity-0 pointer-events-none [transition:opacity_.2s,left_0s]', dim && 'on opacity-100 pointer-events-auto backdrop-blur-[3px]')} style={inboxOn && !matchMedia(NARROW).matches ? { left: side.left + inboxListWidth() } : undefined} onClick={() => closeCard()} />
+        <div id="dim" className={cn('fixed inset-x-0 top-[50px] bottom-0 z-30 bg-scrim opacity-0 pointer-events-none [transition:opacity_.2s,left_0s]', dim && 'on opacity-100 pointer-events-auto backdrop-blur-[3px]')} style={inboxOn && !matchMedia(NARROW).matches ? { left: side.left + inboxListWidth() } : undefined} onClick={() => closeCard()} />
         {helpOn && <Help note={helpNote} onClose={() => setHelpOn(false)} />}
         <WishDialog />
         {/* the open card blurs only while it is open in full (`ready`): as it unfolds, folds and hides it is a solid
@@ -2862,7 +2862,7 @@ function Project({
 
         {/* the button for Seismic's sidebar, over the room the bar keeps for it: left of the avatar (34px and the
             gap), going left with the bar's end beside another sheet; while the sidebar is open its corner has it */}
-        <div id="talk-docked" className={cn('fixed top-[11.5px] right-[calc(var(--side,0px)+14px+34px+10px)] z-27 [transition:right_.45s_cubic-bezier(.3,.9,.3,1)] resizing:[transition:none]', kOn && 'on right-[14px] hidden [@media(max-width:760px)]:top-[74px] [@media(max-width:760px)]:right-[22px]')}>
+        <div id="talk-docked" className={cn('fixed top-[9px] right-[calc(var(--side,0px)+14px+34px+10px)] z-27 [transition:right_.45s_cubic-bezier(.3,.9,.3,1)] resizing:[transition:none]', kOn && 'on right-[14px] hidden [@media(max-width:760px)]:top-[74px] [@media(max-width:760px)]:right-[22px]')}>
           {talkButton}
         </div>
         <DockShell dock={dock} />

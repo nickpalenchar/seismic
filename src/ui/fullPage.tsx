@@ -23,7 +23,7 @@ export function FullPageHost({ children, ...props }: HTMLAttributes<HTMLDivEleme
  * body (`fullHeadClass`, `fullBodyClass`).
  */
 const fullPageClass =
-  'full-page fixed z-23 top-[58px] pt-12 box-border bottom-0 left-[var(--left,0px)] right-[var(--side,0px)] flex flex-col bg-surface';
+  'full-page fixed z-23 top-[50px] pt-12 box-border bottom-0 left-[var(--left,0px)] right-[var(--side,0px)] flex flex-col bg-surface';
 
 /** A full-page view's head: its title, what it has beside it (a search, a count) and its ✕ at the end. */
 export const fullHeadClass = 'a-full-head flex items-center gap-3.5 pt-3 px-6 pb-1.5';
