@@ -24,6 +24,16 @@ export function findTailscale(platform = process.platform): string | null {
   return known && existsSync(known) ? known : null;
 }
 
+/** Whether a server answers at `target` (`http://127.0.0.1:<port>`), with anything at all. */
+async function answers(target: string): Promise<boolean> {
+  try {
+    await fetch(target, { method: 'HEAD', redirect: 'manual', signal: AbortSignal.timeout(1_000) });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 interface Status {
   BackendState?: string;
   CertDomains?: string[] | null;
@@ -103,7 +113,10 @@ export class Tailscale {
     const proxy = (https: number) => config.Web?.[`${name}:${https}`]?.Handlers?.['/']?.Proxy;
     const already = SERVE_PORTS.find((p) => proxy(p) === target);
     if (already) return { entry: { https: already, target } };
-    const https = kept && proxy(kept.https) === kept.target ? kept.https : SERVE_PORTS.find((p) => !config.TCP?.[String(p)]);
+    // the kept entry is still Seismic's only while nothing answers at its target: a home copied from a
+    // running Seismic records that one's entry, and taking it would take that Seismic's address
+    const reclaim = kept && proxy(kept.https) === kept.target && !(await answers(kept.target));
+    const https = reclaim ? kept.https : SERVE_PORTS.find((p) => !config.TCP?.[String(p)]);
     if (!https) return { problem: { code: 'portsTaken' } };
     // the tailnet may ask for HTTPS to be turned on and wait for it: the state says so beforehand, the timeout ends the wait
     const r = await this.run(['serve', '--bg', `--https=${https}`, target], 20_000);

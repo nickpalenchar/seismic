@@ -107,6 +107,23 @@ describe('through Tailscale', () => {
     expect(config().Web[`${NAME}:443`].Handlers['/'].Proxy).toBe('http://127.0.0.1:3000');
   });
 
+  test('an entry recorded in a copied home stays with the Seismic that still answers there; a dead one is taken back', async () => {
+    const other = Bun.serve({ port: 0, hostname: '127.0.0.1', fetch: () => new Response('the running Seismic') });
+    const live = `http://127.0.0.1:${other.port}`;
+    const dead = 'http://127.0.0.1:1';
+    const serving = (target: string) => writeFileSync(join(ts, 'serve.json'), JSON.stringify({ TCP: { 443: { HTTPS: true } }, Web: { [`${NAME}:443`]: { Handlers: { '/': { Proxy: target } } } } }));
+    const tailscale = new Tailscale(fakeTailscale(ts));
+    try {
+      serving(live);
+      expect(await tailscale.serve(NAME, 50104, { https: 443, target: live })).toEqual({ entry: { https: 8443, target: 'http://127.0.0.1:50104' } });
+      expect(JSON.parse(readFileSync(join(ts, 'serve.json'), 'utf8')).Web[`${NAME}:443`].Handlers['/'].Proxy).toBe(live);
+      serving(dead);
+      expect(await tailscale.serve(NAME, 50104, { https: 443, target: dead })).toEqual({ entry: { https: 443, target: 'http://127.0.0.1:50104' } });
+    } finally {
+      other.stop(true);
+    }
+  });
+
   test('stopping, Seismic removes its entry: what takes the port next is not served to the tailnet', async () => {
     await turnOn();
     access.release();
