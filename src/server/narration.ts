@@ -27,7 +27,7 @@ export interface ClipRequest {
   out: string;
   language: 'en';
   /**
-   * The render runs on another machine (a worker on an SSH host, design: Hosts): the WAV comes
+   * The render runs on another machine (a worker on an SSH host): the WAV comes
    * back in the reply (`wav`, base64) instead of being written to `out`, which is a path there.
    */
   inline?: boolean;

@@ -181,9 +181,14 @@ which repositories named until 2026-11-06, is no longer read and shows as a prob
 
 The shared pages get a look of the repository's own from `.obeya/theme.css` beside this file, a
 stylesheet put into every page after Seismic's own (as the default branch has it): its colour
-variables, fonts, a logo as a `data:`-embedded file of `.obeya/`. It is a file, not a setting;
-which parts of the pages it can style is in the design doc's chapter "Sharing demos" (A
-repository's theme). A changed theme leaves the pages shared before it outdated, to share again.
+variables, fonts, a logo as a `data:`-embedded file of `.obeya/` (a reference to anything outside
+`.obeya/` is dropped). It is a file, not a setting. What it styles is the pages' markup, which
+changes only on purpose: the colour variables on `:root` (`--bg`, `--card`, `--ink`, `--muted`,
+`--line`, `--chip`, `--accent`, for light and dark), and on a page `main`, `.top`, `h1`, `.when`,
+`.tags` with `.tag`, `.text`, `.grid` with `.player` and its chapters, `.pr`, `.links`, `.artifact`,
+`.credit` (with `.sections` and `section.addendum` for several versions); on the overview `.filter`,
+`.chip`, `.bar`, `.copy-all` and `ul.demos` with its `.copy` buttons. A changed theme leaves the pages shared before it
+outdated, to share again.
 
 Each of the two is a setting of its own. Default: the demo settings' language and artifacts.
 
