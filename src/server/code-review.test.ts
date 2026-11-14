@@ -775,6 +775,35 @@ describe('code reviews', () => {
     expect(reviewers()).toHaveLength(1);
   });
 
+  test('a requested review starts even if the mode changes while Git answers', async () => {
+    reviewing('auto');
+    const id = await started();
+    await handOver(id, 'export.ts');
+    await until(() => reviewers().length === 1);
+    await review(id, reviewers()[0]!);
+    // A failed review can be explicitly retried, then the project switches to manual.
+    const c = board.row(id).review!.codeReview!;
+    board.work(id, { review: { codeReview: { ...c, review: { ...c.review!, state: 'failed' } } } });
+    workers.startCodeReview(id);
+    workers.reviews.applyMode(id, c.handover, 'manual');
+    await until(() => reviewers().length === 2, 15000);
+    expect(board.item(id)!.review?.codeReview).toMatchObject({ mode: 'manual', state: 'running', runs: 2 });
+  });
+
+  test('a new review after cancellation shows its next number before Git answers', async () => {
+    reviewing('auto');
+    const id = await started();
+    await handOver(id, 'export.ts');
+    await until(() => reviewers().length === 1);
+    workers.reviews.cancel(id);
+    const c = board.row(id).review!.codeReview!;
+    expect(c.runs).toBe(1);
+    expect(c.review).toBeUndefined();
+    workers.startCodeReview(id);
+    expect(board.item(id)!.review?.codeReview).toMatchObject({ state: 'running', runs: 2 });
+    await until(() => reviewers().length === 2, 15000);
+  });
+
   test('a handover of the same commit keeps the review running, and it stands for that handover', async () => {
     reviewing('auto');
     const id = await started();

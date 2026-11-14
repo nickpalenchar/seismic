@@ -184,7 +184,7 @@ export class CodeReviews {
     void (ws ? gitAsync(ws, 'rev-parse', 'HEAD').catch(() => undefined) : Promise.resolve(undefined)).then((head) => {
       if (!this.o.board.item(cardId)) return;
       const now = codeReviewOf(this.o.board.row(cardId));
-      if (now?.pending && now.pendingStart && now.pendingId === c.pendingId && now.mode === c.mode && now.handover === c.handover && this.waits(cardId)) this.begin(cardId, head);
+      if (now?.pending && now.pendingStart && now.pendingId === c.pendingId && now.handover === c.handover && this.waits(cardId)) this.begin(cardId, head);
     });
   }
 

@@ -218,7 +218,7 @@ function shownCodeReview(c: StoredCodeReview, items: ReviewItem[]): CodeReview {
   return {
     mode: c.mode,
     items,
-    ...(c.pending && r && r.state !== 'running' ? { runs: (c.runs ?? 1) + 1 } : c.runs ? { runs: c.runs } : {}),
+    ...(c.pending && r?.state !== 'running' && (c.runs || r) ? { runs: (c.runs ?? 1) + 1 } : c.runs ? { runs: c.runs } : {}),
     ...(c.pending && r?.state !== 'running' ? { state: 'running' as const } : r ? { state: r.state, ...(r.agent ? { agent: r.agent } : {}), ...(r.error ? { error: r.error } : {}), ...(r.handover !== c.handover ? { stale: true as const } : {}) } : {}),
   };
 }
