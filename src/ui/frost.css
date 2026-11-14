@@ -62,7 +62,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background-color: var(--
 
 /* a workstation's dot whose card is at work, in review or landing, and its share of the bar many workstations
    become (workstations.tsx `pulse`, `barPulse`): its full fill (and the dot's glow), laid over its pale fill, fades
-   slowly out and back while the outline stays. By opacity, which repaints nothing, where a pulsing background and
+   out and back, resting full only briefly, while the outline stays. By opacity, which repaints nothing, where a pulsing background and
    shadow repainted the dot every frame */
-@keyframes ws-pulse { 0%, 40%, 100% { opacity: 1; } 70% { opacity: 0; } }
+@keyframes ws-pulse { 0%, 10%, 100% { opacity: 1; } 55% { opacity: 0; } }
 
