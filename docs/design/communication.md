@@ -215,8 +215,8 @@ meanwhile (its PR closed, a tool call to allow) ends the snooze.
 
 A snoozed card is off the canvas and lists under "Parked" with the parking lot's cards (see the canvas chapter), its state line reading "◷ Snoozed until
 tomorrow, 00:05" (or "until "…" is done", with "at the latest …" when it has a time too), with who
-snoozed it and why. One waiting on another card shows that wait while the pointer is on either, as
-a queued card does (see The queue's order). It counts neither as at work nor as needing the owner; on the phone it stands at
+snoozed it and why. One waiting on another card shows that wait while the pointer is on the card it waits on (or one waiting for it) as a short arrow
+out of that card's side ending in a clock mark, since the snoozed card itself is not on the canvas; the owner opens it from "Parked". It counts neither as at work nor as needing the owner; on the phone it stands at
 the end of its list. Its conversation shows a line where it was snoozed, carrying "Wake
 now" and "Change" (the same menu, whoever snoozed it) while it lasts, and on waking a line
 that says why it is back ("Back: time reached", "… woken by you", …).

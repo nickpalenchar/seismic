@@ -2616,6 +2616,8 @@ const en = {
     moved: (title: string, canvas: string) => `“${title}” is on ${canvas} now.`,
     stubBefore: (title: string, canvas: string) => `Waits for “${title}” on ${canvas}`,
     stubAfter: (title: string, canvas: string) => `“${title}” on ${canvas} waits for this`,
+    stubBeforeParked: (title: string) => `Waits for “${title}”, which is parked or snoozed`,
+    stubAfterParked: (title: string) => `“${title}”, parked or snoozed, waits for this`,
     onCanvas: (canvas: string) => `On ${canvas}`,
   },
   cardSearch: { shortcut: 'Search cards (/)', placeholder: 'Search cards …', results: 'Matching cards' },

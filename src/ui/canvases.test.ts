@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 import emojis from 'emojibase-data/en/data.json';
 import { CANVAS_ICON_COLORS, CANVAS_LUCIDE_ICONS, isCanvasIcon } from '../core/canvas-icons';
 import { type Canvas, canvasNamedBy, canvasOfHash, type Item } from '../core/types';
-import { iconsMatching, nameProblem, stubsOf } from './canvases';
+import { iconsMatching, nameProblem, parkedStubsOf, stubsOf } from './canvases';
 import { lucideOf } from './canvasIcon';
 import { columnsFor } from './components/emoji-picker';
 
@@ -74,7 +74,7 @@ test('a wait to a card on another canvas ends in a stub on the side of the card 
     canvases,
     'm',
   );
-  expect(stubs.map((s) => [s.here, s.other.id, s.dir, s.canvas.name])).toEqual([
+  expect(stubs.map((s) => [s.here, s.other.id, s.dir, s.canvas?.name])).toEqual([
     ['a', 'd', 'before', 'Billing'],
     ['a', 'd', 'after', 'Billing'],
   ]);
@@ -109,4 +109,32 @@ test('a wait to or from a card off the canvas (snoozed, parked, or a workstream 
     'm',
   );
   expect(stubs.map((s) => [s.here, s.other.id, s.dir])).toEqual([['a', 'd', 'before']]);
+});
+
+test('a wait of the hovered card that leads to a snoozed or parked card ends in a stub marked parked, none to a card on the canvas', () => {
+  const card = (id: string, more: Partial<Item> = {}) => ({ id, canvas: 'm', title: id, ...more }) as Item;
+  const items = [
+    card('a'),
+    card('b'),
+    card('s', { hold: { reason: 'snoozed', since: '2026-11-01', until: '2026-12-01' } as Item['hold'] }),
+    card('k', { hold: { reason: 'parkingLot', since: '2026-11-01' } }),
+    card('x', { archivedAt: '2026-11-01', hold: { reason: 'parkingLot', since: '2026-11-01' } }),
+  ];
+  const byId = (id: string) => items.find((i) => i.id === id);
+  const stubs = parkedStubsOf(
+    [
+      ['a', 's'],
+      ['k', 'a'],
+      ['a', 'b'],
+      ['x', 'a'],
+      ['a', 's'],
+    ],
+    new Set(['a', 'b']),
+    byId,
+    (id) => id,
+  );
+  expect(stubs.map((s) => [s.here, s.other.id, s.dir, s.canvas])).toEqual([
+    ['a', 's', 'after', undefined],
+    ['a', 'k', 'before', undefined],
+  ]);
 });

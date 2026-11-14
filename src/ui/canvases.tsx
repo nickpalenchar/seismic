@@ -5,7 +5,7 @@
 
 import { createContext, type PointerEvent as ReactPointerEvent, type ReactNode, useContext, useEffect, useRef, useState } from 'react';
 import { cn } from 'cn';
-import { Car, GripVertical, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Car, Clock, GripVertical, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
 import { CANVAS_ICON_COLORS, CANVAS_LUCIDE_ICONS, type CanvasIconColor, lucideIcon, lucideIconValue } from '../core/canvas-icons';
 import type { Bounds } from '../core/layout';
 import { type Canvas, CANVAS_NAME_MAX, canvasNameProblem, type Item, MAIN_CANVAS, parkable, parkableStopping, inParkingLot, offCanvas } from '../core/types';
@@ -590,10 +590,17 @@ export function CardMore({ item, floating }: { item: Item; floating?: boolean })
 export interface Stub {
   here: string;
   other: Item;
-  canvas: Canvas;
+  /** The canvas the other card lies on; none for a card off the canvas (snoozed or parked), which a marker for "Parked" stands for. */
+  canvas?: Canvas;
   /** The card here waits for the other (`before`), or the other waits for it (`after`). */
   dir: 'before' | 'after';
 }
+
+/** Whether the card, its plan or the card standing for it is off the canvas (snoozed, in the parking lot, or a workstream of a plan there): it is listed under "Parked", on no canvas. */
+const hiddenOf = (id: string, byId: (id: string) => Item | undefined, standsFor: (id: string) => string) => {
+  const i = byId(id);
+  return [i, i?.parent && byId(i.parent), byId(standsFor(id))].some((x) => !!x && offCanvas(x));
+};
 
 /**
  * The waits that leave the canvas shown: each `[from, to]` (from the card waited for to the one
@@ -605,12 +612,7 @@ export function stubsOf(waits: [string, string][], placed: Set<string>, byId: (i
     const [a, b] = [standsFor(from), standsFor(to)];
     const end = placed.has(b) && !placed.has(a) ? { here: b, away: from, dir: 'before' as const } : placed.has(a) && !placed.has(b) ? { here: a, away: to, dir: 'after' as const } : undefined;
     const other = end && byId(end.away);
-    // a card off the canvas (snoozed, in the parking lot, or a workstream of a plan there) is listed under "Parked", on no canvas
-    const hidden = (id: string) => {
-      const i = byId(id);
-      return [i, i?.parent && byId(i.parent), byId(standsFor(id))].some((x) => !!x && offCanvas(x));
-    };
-    if (!end || !other || other.archivedAt || hidden(from) || hidden(to)) return [];
+    if (!end || !other || other.archivedAt || hiddenOf(from, byId, standsFor) || hiddenOf(to, byId, standsFor)) return [];
     const canvas = canvasOf(canvases, other);
     if (!canvas || canvas.id === shown) return [];
     const key = `${end.here} ${other.id} ${end.dir}`;
@@ -621,9 +623,28 @@ export function stubsOf(waits: [string, string][], placed: Set<string>, byId: (i
 }
 
 /**
+ * The stubs of the waits (`[from, to]`, those lit while the pointer is on a card) that lead to a card
+ * off the canvas, snoozed or parked: one for each card placed here that the other end of a wait is
+ * not placed beside it. The stub ends in the marker for "Parked"; a click opens the card there.
+ */
+export function parkedStubsOf(waits: [string, string][], placed: Set<string>, byId: (id: string) => Item | undefined, standsFor: (id: string) => string): Stub[] {
+  const seen = new Set<string>();
+  return waits.flatMap(([from, to]): Stub[] => {
+    const [a, b] = [standsFor(from), standsFor(to)];
+    const end = placed.has(b) && !placed.has(a) ? { here: b, away: from, dir: 'before' as const } : placed.has(a) && !placed.has(b) ? { here: a, away: to, dir: 'after' as const } : undefined;
+    const other = end && byId(end.away);
+    if (!end || !other || other.archivedAt || !hiddenOf(end.away, byId, standsFor)) return [];
+    const key = `${end.here} ${other.id} ${end.dir}`;
+    if (seen.has(key)) return [];
+    seen.add(key);
+    return [{ here: end.here, other, dir: end.dir }];
+  });
+}
+
+/**
  * The stubs of the waits that leave the canvas, inside the waits' layer (`DepLinks`): a short faint
  * arrow out of the card's side, into it on the left from what it waits for and out of it on the right
- * to what waits for it, ending at the other canvas's icon; a click opens the other card there.
+ * to what waits for it, ending at the other canvas's icon; a click opens the other card there. A card off the canvas shows a clock instead, only while the pointer is on a card it waits with.
  */
 export function CanvasStubs({ stubs, boundsOf, s, onOpen }: { stubs: Stub[]; boundsOf: (id: string) => Bounds | undefined; s: number; onOpen: (i: Item) => void }) {
   const r = 13 / s;
@@ -642,16 +663,25 @@ export function CanvasStubs({ stubs, boundsOf, s, onOpen }: { stubs: Stub[]; bou
           const chip = x.dir === 'before' ? edge - len : edge + len;
           // into the card from the chip, or out of the card to the chip; the line stops at its head's base
           const [x0, x1] = x.dir === 'before' ? [chip + r, edge - head] : [edge, chip - r - head];
-          const title = (x.dir === 'before' ? t.canvases.stubBefore : t.canvases.stubAfter)(plain(x.other.title), canvasText(x.canvas));
+          const title = x.canvas
+            ? (x.dir === 'before' ? t.canvases.stubBefore : t.canvases.stubAfter)(plain(x.other.title), canvasText(x.canvas))
+            : (x.dir === 'before' ? t.canvases.stubBeforeParked : t.canvases.stubAfterParked)(plain(x.other.title));
           return (
             <g key={`${x.here} ${x.other.id} ${x.dir}`} className="canvas-stub">
               <path className={depLineClass.faint} d={`M${x0},${y} L${x1},${y}`} strokeWidth={Math.max(2, 1.6 / s)} strokeDasharray={`${4 / s} ${4 / s}`} markerEnd="url(#faint-arrow)" />
               <foreignObject className="overflow-visible" x={chip - r} y={y - r} width={2 * r} height={2 * r}>
-                <Tooltip content={title}>
-                  <button className="pointer-events-auto box-border grid size-full cursor-pointer place-items-center rounded-[50%] border border-[var(--dep-line)] bg-card p-0 text-foreground hover:border-proposal" aria-label={title} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => (e.stopPropagation(), onOpen(x.other))}>
-                    <CanvasIcon canvas={x.canvas} size={14 / s} />
-                  </button>
-                </Tooltip>
+                {x.canvas ? (
+                  <Tooltip content={title}>
+                    <button className="pointer-events-auto box-border grid size-full cursor-pointer place-items-center rounded-[50%] border border-[var(--dep-line)] bg-card p-0 text-foreground hover:border-proposal" aria-label={title} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => (e.stopPropagation(), onOpen(x.other))}>
+                      <CanvasIcon canvas={x.canvas} size={14 / s} />
+                    </button>
+                  </Tooltip>
+                ) : (
+                  // shown only while the pointer is on the card, so it is a mark, not a button: the card opens from "Parked"
+                  <div className="box-border grid size-full place-items-center rounded-[50%] border border-[var(--dep-line)] bg-card text-foreground" role="img" aria-label={title}>
+                    <Clock size={14 / s} strokeWidth={2} />
+                  </div>
+                )}
               </foreignObject>
             </g>
           );

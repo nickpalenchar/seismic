@@ -16,7 +16,7 @@ import { connectionDotClass, depLayerClass, dotSide, handleColour, manualRemoveC
 import { buzz, pinchCam, TOUCH_HOLD_KNOWN, Touches } from './touch';
 import { besideSheet, BOTTOM, type Cam, camFor, camKey, centreOn, chase, dragLimit, edgeScroll, FAR, flying, flyTo, keepInView, MAX_ZOOM, midX, MIN_ZOOM, NO_SIDES, overviewCam, placeIn, shows, type Sides, stopFlight, TOP, toWorld } from './camera';
 import { plain } from './markdown';
-import { CanvasRing, Canvases, CanvasStubs, CanvasTabs, stubsOf } from './canvases';
+import { CanvasRing, Canvases, CanvasStubs, CanvasTabs, parkedStubsOf, stubsOf } from './canvases';
 import { canvasText } from './canvasIcon';
 import { clip } from '../core/text';
 import { type ActDone, Detail, type Pending } from './detail';
@@ -2409,7 +2409,11 @@ function Project({
   const standsForId = (id: string) => (byId(id) ? standsFor(byId(id)!).id : id);
   // the waits whose other card lies on another canvas end in a stub with that canvas's icon
   const placedAt = new Map(placed.map((p) => [p.item.id, p.b]));
-  const stubs = canvases.length > 1 ? stubsOf(lineWaits, new Set(placedAt.keys()), byId, standsForId, canvases, canvasId) : [];
+  // the waits of the hovered card that lead to a card off the canvas end in a stub marked "Parked"
+  const stubs = [
+    ...(canvases.length > 1 ? stubsOf(lineWaits, new Set(placedAt.keys()), byId, standsForId, canvases, canvasId) : []),
+    ...(deps ? parkedStubsOf(deps.edges, new Set(placedAt.keys()), byId, standsForId) : []),
+  ];
   const depOf = (id: string) => (!deps ? undefined : id === hovered ? 'self' : deps.before.has(id) ? 'before' : deps.after.has(id) ? 'after' : undefined);
   // a workstream of a collapsed plan points to where its plan stands
   const at = new Map(placed.map((p) => [p.item.id, p.b]));
