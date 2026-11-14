@@ -2336,6 +2336,12 @@ export function defaultBranch(path: string): string {
   return branchSetting(path) || detectedBranch(path);
 }
 
+/** `defaultBranch` without blocking the server. */
+export async function defaultBranchAsync(path: string): Promise<string> {
+  if (isFolder(path)) return '';
+  return branchSetting(path) || (await gitSteps(path, detectingBranch()));
+}
+
 /**
  * The folders without git in the configuration (`RepoConfig.git` false), by path: they have no
  * branch, and what Seismic reads of them (`.obeya/settings.json`, plan docs) it reads as the folder has

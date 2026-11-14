@@ -680,9 +680,9 @@ describe("a repository's settings for everyone (.obeya/settings.json)", () => {
     expect(project.board.project.repos[0]).toMatchObject({ share: true });
     expect(project.shareSite()).toMatchObject({ path: 'shop', site: { url, title: project.board.project.name } });
     // another path is not initialized
-    project.apply({ repos: [{ path: shop }], demoSite: { url, path: 'other' } });
+    await project.apply({ repos: [{ path: shop }], demoSite: { url, path: 'other' } });
     expect(project.board.project.repos[0]).toMatchObject({ shareSite: 'init' });
-    project.apply({ repos: [{ path: shop }] });
+    await project.apply({ repos: [{ path: shop }] });
     expect(project.board.project.repos[0]).toMatchObject({ shareSite: 'none' });
     expect(project.board.project.demoSite).toBeUndefined();
   });
@@ -850,7 +850,7 @@ describe('the configuration changed while the project runs', () => {
     open([{ path: web, settings: { land: 'pr' } }]);
     const { session } = await atWork('web', 'A');
     const runtimeOfWeb = project.repos[0]!;
-    project.apply({ name: 'Plattform', repos: [{ path: web, settings: { land: 'pr' } }, { path: api, settings: { land: 'pr' } }] });
+    await project.apply({ name: 'Plattform', repos: [{ path: web, settings: { land: 'pr' } }, { path: api, settings: { land: 'pr' } }] });
     expect(project.board.project.name).toBe('Plattform');
     expect(project.id).toBe('produkt');
     expect(project.board.project.repos.map((r) => r.id)).toEqual(['web', 'api']);
@@ -870,7 +870,7 @@ describe('the configuration changed while the project runs', () => {
     const w = await atWork('web', 'W');
     const a = await atWork('api', 'A');
     const [webBefore, apiBefore] = project.repos;
-    project.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' }, clones: 2 }, { path: api, settings: { land: 'pr' }, clones: 1 }] });
+    await project.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' }, clones: 2 }, { path: api, settings: { land: 'pr' }, clones: 1 }] });
     expect(project.pendingRestart()).toMatchObject({ reason: 'config', cards: [w.card.id], repos: ['web'] });
     expect(w.session.inbox.at(-1)).toContain("restart this repository's agents");
     expect(a.session.inbox.join()).not.toContain('restart');
@@ -893,7 +893,7 @@ describe('the configuration changed while the project runs', () => {
     const [made1, made2] = project.repos[0]!.workstations.list().map((x) => x.path);
     expect(held).toBe(made1!);
     const before = project.repos[0]!;
-    project.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' }, workstations: [own] }] });
+    await project.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' }, workstations: [own] }] });
     w.session.emit({ type: 'idle' });
     await until(() => project.repos[0] !== before);
     const spaces = project.repos[0]!.workstations;
@@ -930,7 +930,7 @@ describe('the configuration changed while the project runs', () => {
     const w = await atWork('web', 'W');
     const held = project.repos[0]!.workstations.leasedBy(w.card.id)!;
     const before = project.repos[0]!;
-    project.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' }, clones: 1 }] });
+    await project.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' }, clones: 1 }] });
     v.session.emit({ type: 'idle' });
     w.session.emit({ type: 'idle' });
     await until(() => project.repos[0] !== before);
@@ -951,7 +951,7 @@ describe('the configuration changed while the project runs', () => {
     const [held, free] = project.repos[0]!.workstations.list().map((x) => x.path) as [string, string];
     const before = project.repos[0]!;
     // the number emptied: the repository's settings say nothing, so it goes over to worktrees
-    project.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' } }] });
+    await project.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' } }] });
     w.session.emit({ type: 'idle' });
     await until(() => project.repos[0] !== before);
     const spaces = project.repos[0]!.workstations;
@@ -970,7 +970,7 @@ describe('the configuration changed while the project runs', () => {
     open([{ path: web, settings: { land: 'pr', workstations: 'clones' }, clones: 1 }]);
     const [made] = project.repos[0]!.workstations.list().map((x) => x.path) as [string];
     const before = project.repos[0]!;
-    project.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr', workstations: 'clones' }, clones: 0 }] });
+    await project.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr', workstations: 'clones' }, clones: 0 }] });
     await until(() => project.repos[0] !== before);
     expect(project.repos[0]!.workstations.mode).toBe('clones');
     expect(project.repos[0]!.workstations.list()).toEqual([]);
@@ -980,13 +980,13 @@ describe('the configuration changed while the project runs', () => {
   test('"Jetzt übernehmen" restarts them at once, cutting off the worker in its turn', async () => {
     open([{ path: web, settings: { land: 'pr' }, clones: 1 }]);
     const w = await atWork('web', 'W');
-    project.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' }, clones: 1, slots: 1 }] });
+    await project.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' }, clones: 1, slots: 1 }] });
     expect(project.pendingRestart()?.cards).toEqual([w.card.id]);
-    expect(project.restartNow()).toBe(true);
+    expect(await project.restartNow()).toBe(true);
     expect(project.pendingRestart()).toBeNull();
     expect(w.session.closed).toBe(true);
     expect(workers.last.spec.resume).toBe('sess-W');
-    expect(project.restartNow()).toBe(false);
+    expect(await project.restartNow()).toBe(false);
   });
 
   test('a repository that left the project stops once its agents paused; its cards stay', async () => {
@@ -995,7 +995,7 @@ describe('the configuration changed while the project runs', () => {
       { path: api, settings: { land: 'pr' } },
     ]);
     const a = await atWork('api', 'A');
-    project.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' } }] });
+    await project.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' } }] });
     expect(project.pendingRestart()).toMatchObject({ cards: [a.card.id], repos: ['api'] });
     a.session.emit({ type: 'idle' });
     await until(() => project.repos.length === 1);
@@ -1013,7 +1013,7 @@ describe('the configuration changed while the project runs', () => {
     const card = project.board.create({ title: 'A', x: 0, y: 0, repo: 'api' });
     const later = project.board.create({ title: 'Später', x: 0, y: 0, repo: 'api' });
     project.act(later.id, { action: 'snooze', until: new Date(Date.now() + 60_000).toISOString() });
-    project.apply({ name: 'Produkt', repos: [both[0]!] });
+    await project.apply({ name: 'Produkt', repos: [both[0]!] });
     await until(() => project.repos.length === 1);
     expect(item(card.id).repoDown).toBe(true);
     expect(item(card.id).repo).toBe('api');
@@ -1027,7 +1027,7 @@ describe('the configuration changed while the project runs', () => {
     expect(item(later.id)?.hold?.reason).toBe('snoozed');
     await settle();
     expect(workers.sessions).toHaveLength(0);
-    project.apply({ name: 'Produkt', repos: both });
+    await project.apply({ name: 'Produkt', repos: both });
     expect(item(card.id).repoDown).toBeUndefined();
     project.act(card.id, { action: 'start' });
     await until(() => workers.sessions.length === 1);
@@ -1041,7 +1041,7 @@ describe('the configuration changed while the project runs', () => {
     open([{ path: web, settings: { land: 'pr' }, clones: 1 }]);
     const w = await atWork('web', 'W');
     project.restartDue({ reason: 'code', deadline: Date.now() + 60_000 });
-    project.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' }, clones: 2 }] });
+    await project.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' }, clones: 2 }] });
     expect(w.session.inbox.at(-1)).toContain('new code landed on main');
     expect(w.session.inbox.join()).not.toContain("restart this repository's agents");
     expect(project.pendingRestart()?.repos).toEqual(['web']);
@@ -1062,7 +1062,7 @@ describe('the configuration changed while the project runs', () => {
     // a clone of another repository listed for it: its workstations refuse it as it starts
     const wrong = cloneOf(api, 'x-api');
     const errors = quiet();
-    project.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' }, clones: 1, workstations: [wrong] }] });
+    await project.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' }, clones: 1, workstations: [wrong] }] });
     w.session.emit({ type: 'idle' });
     await until(() => project.repos[0] !== before);
     errors.restore();
@@ -1075,7 +1075,7 @@ describe('the configuration changed while the project runs', () => {
     expect(workers.last.spec.resume).toBe('sess-W');
     // a configuration it starts with: the failure goes
     const now = project.repos[0]!;
-    project.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' }, clones: 2 }] });
+    await project.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' }, clones: 2 }] });
     workers.last.emit({ type: 'idle' });
     await until(() => project.repos[0] !== now);
     expect(project.repos[0]!.workstations.list()).toHaveLength(2);
@@ -1093,7 +1093,7 @@ describe('the configuration changed while the project runs', () => {
     // the listed clone now belongs to another repository: the set-up before fails as well
     git(own, 'remote', 'set-url', 'origin', web);
     const errors = quiet();
-    project.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' } }, { path: api, settings: { land: 'pr' }, workstations: [own], clones: 1 }] });
+    await project.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' } }, { path: api, settings: { land: 'pr' }, workstations: [own], clones: 1 }] });
     a.session.emit({ type: 'idle' });
     await until(() => project.repos.length === 1);
     errors.restore();
@@ -1108,7 +1108,7 @@ describe('the configuration changed while the project runs', () => {
     expect(workers.sessions).toHaveLength(sessions);
     // the cause fixed, the configuration taken over again (a save, „Erneut versuchen“) starts it at once
     git(own, 'remote', 'set-url', 'origin', api);
-    project.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' } }, { path: api, settings: { land: 'pr' }, workstations: [own], clones: 1 }] });
+    await project.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' } }, { path: api, settings: { land: 'pr' }, workstations: [own], clones: 1 }] });
     expect(project.board.project.repos.map((r) => r.id)).toEqual(['web', 'api']);
     expect(project.repos[1]!.workstations.list()).toHaveLength(2);
     expect(project.failures()).toEqual([]);
@@ -1150,7 +1150,7 @@ describe('the projects Seismic serves', () => {
     // the causes fixed, the configuration taken over again (a save, „Erneut versuchen“): both start
     git(forWeb, 'remote', 'set-url', 'origin', web);
     git(forShop, 'remote', 'set-url', 'origin', shop);
-    set.apply(configs, ['web', 'api']);
+    await set.apply(configs, ['web', 'api']);
     expect(set.all().map((c) => c.id)).toEqual(['web', 'api']);
     expect(set.get('api')!.board.project.repos.map((r) => r.id)).toEqual(['api', 'shop']);
     expect(set.failures()).toEqual([]);
@@ -1160,7 +1160,7 @@ describe('the projects Seismic serves', () => {
     set.onChange(() => changes++);
     git(forWeb, 'remote', 'set-url', 'origin', api);
     const again = quiet();
-    set.apply([{ ...configs[0]!, repos: [{ ...configs[0]!.repos[0]!, clones: 1 }] }, configs[1]!], ['web', 'api']);
+    await set.apply([{ ...configs[0]!, repos: [{ ...configs[0]!.repos[0]!, clones: 1 }] }, configs[1]!], ['web', 'api']);
     await until(() => set.all().length === 1);
     again.restore();
     expect(set.all().map((c) => c.id)).toEqual(['api']);
@@ -1183,7 +1183,7 @@ describe('the projects Seismic serves', () => {
     let changes = 0;
     set.onChange(() => changes++);
     const keep = set.get('web')!.board.create({ title: 'Bleibt', x: 0, y: 0 });
-    set.apply(
+    await set.apply(
       [
         { name: 'Web', repos: [{ path: web, settings: { land: 'pr' } }] },
         { name: 'API', repos: [{ path: api, settings: { land: 'pr' } }] },
@@ -1194,7 +1194,7 @@ describe('the projects Seismic serves', () => {
     expect(started).toEqual(['api']);
     // moved in the configuration: listed in its new order, nothing started again
     const before = changes;
-    set.apply(
+    await set.apply(
       [
         { name: 'API', repos: [{ path: api, settings: { land: 'pr' } }] },
         { name: 'Web', repos: [{ path: web, settings: { land: 'pr' } }] },
@@ -1204,7 +1204,7 @@ describe('the projects Seismic serves', () => {
     expect(set.all().map((c) => c.id)).toEqual(['api', 'web']);
     expect(started).toEqual(['api']);
     expect(changes).toBeGreaterThan(before);
-    set.apply([{ name: 'API', repos: [{ path: api, settings: { land: 'pr' } }] }], ['api']);
+    await set.apply([{ name: 'API', repos: [{ path: api, settings: { land: 'pr' } }] }], ['api']);
     // nobody at work on it: it stops at once
     expect(set.all().map((c) => c.id)).toEqual(['api']);
     expect(changes).toBeGreaterThan(1);
@@ -1681,7 +1681,7 @@ test("a project's pause lasts while one of its paused agents cannot go on, its r
     for (const s of runtime.sessions.filter((s) => s.spec.resume === undefined && s.spec.role === 'worker').slice(-2)) s.emit({ type: 'idle' });
     await heard();
     expect(c.board.project.agents).toEqual({ running: 0, paused: 2 });
-    c.apply({ name: 'Pause', repos: [both[0]!] });
+    await c.apply({ name: 'Pause', repos: [both[0]!] });
     await until(() => c.repos.length === 1);
     const errors = quiet();
     c.resumeAgents();
@@ -1693,7 +1693,7 @@ test("a project's pause lasts while one of its paused agents cannot go on, its r
     await heard();
     expect(c.board.project).toMatchObject({ paused: true, agents: { paused: 1 } });
     // its repository back, it goes on, and the pause ends
-    c.apply({ name: 'Pause', repos: both });
+    await c.apply({ name: 'Pause', repos: both });
     await until(() => c.repos.length === 2);
     c.resumeAgents();
     expect(runtime.sessions.some((s) => s.spec.resume === 's-back')).toBe(true);

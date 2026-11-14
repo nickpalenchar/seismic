@@ -288,7 +288,7 @@ export interface ConfigOptions {
    * The running projects take the saved configuration over without a restart (`Projects.apply`):
    * `ids` are its projects' ids, null where one does not resolve.
    */
-  apply?: (projects: ProjectConfig[], ids: (string | null)[]) => void;
+  apply?: (projects: ProjectConfig[], ids: (string | null)[]) => void | Promise<void>;
   /** The projects, and repositories of those that run, that do not run as the configuration has them (`Projects.failures`). */
   failures?: () => StartFailure[];
   /** Repositories' settings for everyone were committed: the running projects read them again. */
@@ -843,7 +843,7 @@ export class Config {
   async retry(): Promise<{}> {
     if (!this.o.apply) throw new BadRequest('config', 'this Seismic does not apply its configuration while it runs');
     const { projects, resolved } = await this.check(this.current());
-    this.o.apply(expandConfig(projects), resolved.map((r) => r?.id ?? null));
+    await this.o.apply(expandConfig(projects), resolved.map((r) => r?.id ?? null));
     return {};
   }
 
@@ -889,7 +889,7 @@ export class Config {
     this.read = undefined;
     if (this.o.source === 'file' && !this.restarting && this.o.apply) {
       console.log(`Seismic: configuration saved to ${this.o.file}; it applies at once`);
-      this.o.apply(expandConfig(projects), resolved.map((r) => r?.id ?? null));
+      await this.o.apply(expandConfig(projects), resolved.map((r) => r?.id ?? null));
       return { restarting: false, applied: true };
     }
     console.log(`Seismic: configuration saved to ${this.o.file}`);

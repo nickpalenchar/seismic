@@ -278,7 +278,8 @@ describe("a repository's settings for everyone", () => {
     // where its workers work changes: with none of them at work, they restart at once, in clones
     push({ '.obeya/settings.json': settings({ land: 'pr', workstations: 'clones' }) });
     await repo.read.refresh();
-    expect(c.repos[0]).not.toBe(repo);
+    // the restart reads the repositories first, without holding the server up
+    await until(() => c.repos[0] !== repo);
     expect(c.repos[0]!.workstations.mode).toBe('clones');
   });
 

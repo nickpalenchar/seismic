@@ -54,7 +54,7 @@ import { isSitePath, siteMissing, siteName, sitePaths } from './site';
 import { demoSite, findSite } from './demo-sites';
 import { dimensions } from '../core/page-tags';
 import { type DueRestart, Workers } from './workers';
-import { branchSetting, type CardWorkstations, defaultBranch, type FileAt, type FileVersions, detectingBranch, gitCalls, gitOrNull, type GitSteps, gitSteps, gitStepsSync, isFolder, type Landed, markFolder, readingBranches, together, useBranchSetting, Workstations } from './workstations';
+import { branchSetting, type CardWorkstations, defaultBranchAsync, type FileAt, type FileVersions, detectingBranch, gitCalls, gitOrNull, type GitSteps, gitSteps, gitStepsSync, isFolder, type Landed, markFolder, readingBranches, together, useBranchSetting, Workstations } from './workstations';
 import { FolderWorkstations } from './folder';
 import { readingTheme, readTheme, type Theme } from './theme';
 import { claudeToken, githubToken, hostName, registerHost } from './hosts';
@@ -254,6 +254,10 @@ export class ProjectRuntime {
   private stopped = false;
   /** Set once the project shut down: what git reads for it after that changes nothing. */
   private shutDown = false;
+  /** The configurations `apply` took so far: one that is not the latest when its repositories are read is dropped. */
+  private applying = 0;
+  /** `restartRepos` is reading the repositories. */
+  private restartReading = false;
   /** By repository's id: why it does not run as the configuration has it (`StartFailure`). */
   private failed = new Map<string, { detail: string; before?: true }>();
   /** The restart of all of Seismic that waits, if one does: it covers the repositories' too. */
@@ -754,15 +758,42 @@ export class ProjectRuntime {
    * What a configuration of this project amounts to, with this machine's settings and the
    * repositories' (`resolveProject`): those of a repository new here as its read has them.
    */
-  private resolve(config: ProjectConfig) {
+  private resolve(config: ProjectConfig, reads?: Map<string, PreRead>) {
     return resolveProject(config, this.deps.store, this.settingsOf, this.sharedOf, (path, folder) => {
-      const seal = folder ? null : refsSeal(path);
-      const read = readRepo(path, folder);
+      // a read made beforehand (`readRepos`) comes with the seal it was started at; one the server waits for is read here
+      const before = reads?.get(path);
+      const seal = before ? before.seal : folder ? null : refsSeal(path);
+      const read = before ? before.read : readRepo(path, folder);
       if (read && seal) this.readAt(path, seal, { shared: read.shared, adapterModule: read.adapterModule });
       if (read && !this.shared.has(path)) this.shared.set(path, read.shared);
       if (read) this.adapterModules.set(path, read.adapterModule);
       return read;
     }, () => readDemoSettings(this.deps.home).artifacts);
+  }
+
+  /**
+   * Reads the configuration's repositories with git without blocking the server, for `resolve`. Each
+   * read comes with the seal its refs had when it started, so that a read the refs moved under is
+   * read again later. A repository that fails to read is left out: `resolve` reads it again, the
+   * server waiting, and names what is wrong with it.
+   */
+  private async readRepos(config: ProjectConfig): Promise<Map<string, PreRead>> {
+    const reads = new Map<string, PreRead>();
+    await Promise.all(
+      config.repos.map(async (r) => {
+        // an empty path names nothing: `resolveProject` says so
+        if (!r.path.trim()) return;
+        const path = resolve(r.path);
+        const folder = r.git === false;
+        const seal = folder ? null : refsSeal(path);
+        try {
+          reads.set(path, { read: await readRepoAsync(path, folder), seal });
+        } catch {
+          // read again by `resolve`
+        }
+      }),
+    );
+    return reads;
   }
 
   /** Registers where the main branch the owner set for the repository is read, once per path. */
@@ -815,7 +846,7 @@ export class ProjectRuntime {
       remote: !folder && !!info.remote,
       onChange: () => {
         board.lesestandMoved(repo.ref.id, read.head());
-        return Promise.resolve(this.moved(repo)).then((m) => void (m === 'follow' && this.follow()));
+        return Promise.resolve(this.moved(repo)).then((m) => (m === 'follow' ? this.follow() : undefined));
       },
     });
     stops.push(() => read.stop());
@@ -927,7 +958,7 @@ export class ProjectRuntime {
         if (pushedFrom) return false;
         if (deps.ownCheckout && sameDir(deps.ownCheckout, info.path) && (await changesCode(info.path, l.from, l.to))) return 'obeya';
         const moved = await this.moved(repo);
-        if (moved === 'follow') this.follow();
+        if (moved === 'follow') await this.follow();
         return moved === 'due' ? 'repo' : false;
       },
       imageFiles: this.imageFiles,
@@ -999,9 +1030,16 @@ export class ProjectRuntime {
       this.cancelPending();
     }
     for (const r of next.repos) this.useBranch(r);
+    // git reads the repositories without holding the server up; a configuration that came since, or the project leaving the configuration, counts instead of this one
+    const attempt = ++this.applying;
+    return this.readRepos(next).then((reads) => (attempt === this.applying && !this.shutDown ? this.applied(next, reads) : undefined));
+  }
+
+  /** `apply` with the repositories of `next` read. */
+  private applied(next: ProjectConfig, reads: Map<string, PreRead>): Promise<void> | undefined {
     let resolved: Resolved;
     try {
-      resolved = this.resolve(next);
+      resolved = this.resolve(next, reads);
     } catch (e) {
       console.error(`Seismic: the new configuration of the project ${this.id} does not resolve; it runs on as it was: ${messageOf(e)}`);
       return;
@@ -1056,6 +1094,8 @@ export class ProjectRuntime {
 
   /** The configuration no longer has the project: it stops once its agents paused, and then `done`. */
   retire(done: () => void) {
+    // a configuration still being read (`apply`) is not the project's any more
+    this.applying++;
     this.retiring = done;
     this.due(
       this.repos.map((r) => r.info.path),
@@ -1094,7 +1134,7 @@ export class ProjectRuntime {
         return now.length > 0;
       },
       () => {
-        if (this.pending === pending) this.restartRepos();
+        if (this.pending === pending) void this.restartRepos().catch((e) => console.error(`Seismic: the restart of the project ${this.id}'s agents failed: ${messageOf(e)}`));
       },
       pending.deadline - Date.now(),
       this.deps.restartIntervalMs,
@@ -1122,9 +1162,18 @@ export class ProjectRuntime {
    * starts again as the configuration has it now, its workers resuming where they paused; one that
    * left the project stays stopped, its cards kept. A project that left the configuration stops.
    */
-  private restartRepos() {
+  private async restartRepos(): Promise<void> {
     const p = this.pending;
-    if (!p) return;
+    if (!p || this.restartReading) return;
+    // git reads the repositories without holding the server up, the restart still waiting; what happened meanwhile (the project left the configuration, another restart took over) counts
+    this.restartReading = true;
+    let reads: Map<string, PreRead> | undefined;
+    try {
+      reads = await this.readRepos(this.config);
+    } finally {
+      this.restartReading = false;
+    }
+    if (this.pending !== p || this.shutDown) return;
     this.pending = null;
     p.stop();
     if (this.retiring) {
@@ -1137,7 +1186,7 @@ export class ProjectRuntime {
     }
     let resolved: Resolved;
     try {
-      resolved = this.resolve(this.config);
+      resolved = this.resolve(this.config, reads);
     } catch (e) {
       console.error(`Seismic: the configuration of the project ${this.id} does not resolve; its repositories run on as they were: ${messageOf(e)}`);
       for (const r of this.repos) if (p.paths.has(r.info.path)) r.workers.restartDue(this.obeyaDue);
@@ -1296,9 +1345,9 @@ export class ProjectRuntime {
   }
 
   /** Restarts the repositories' agents the restart waits for at once, cutting off those still in a turn; false when none waits. */
-  restartNow(): boolean {
+  async restartNow(): Promise<boolean> {
     if (!this.pending) return false;
-    this.restartRepos();
+    await this.restartRepos().catch((e) => console.error(`Seismic: the restart of the project ${this.id}'s agents failed: ${messageOf(e)}`));
     return true;
   }
 
@@ -1336,11 +1385,8 @@ export class ProjectRuntime {
   settingsChanged(): Promise<void> {
     const moved = [...this.repos].map((r) => this.moved(r));
     // where no repository's refs moved, at once
-    if (moved.every((m) => typeof m === 'string')) {
-      this.follow();
-      return Promise.resolve();
-    }
-    return Promise.all(moved).then(() => void (!this.shutDown && this.follow()));
+    if (moved.every((m) => typeof m === 'string')) return this.follow();
+    return Promise.all(moved).then(() => (this.shutDown ? undefined : this.follow()));
   }
 
   /**
@@ -1453,9 +1499,12 @@ export class ProjectRuntime {
    * now lands elsewhere, the watched plan directory, the pull requests, what the page shows of
    * each repository.
    */
-  private follow() {
+  private async follow(): Promise<void> {
+    // git tells the branches without holding the server up; what follows is one step, as it was
+    const branches = new Map(await Promise.all(this.repos.map(async (r): Promise<[string, string]> => [r.info.path, await defaultBranchAsync(r.info.path)])));
+    if (this.shutDown) return;
     for (const r of this.repos) {
-      r.info.branch = defaultBranch(r.info.path);
+      r.info.branch = branches.get(r.info.path) ?? r.info.branch;
       for (const k of ['pullRequests', 'direct', 'forge'] as const) delete r.ref[k];
       Object.assign(r.ref, settled(r.info, r.adapter));
       // where work lands on the local main, the checkout is the read checkout; otherwise a worktree on the default branch
@@ -3030,12 +3079,13 @@ export class Projects {
    * The configuration saved: `ids` are its projects' ids as its check resolved them (null where one
    * does not resolve; then no project leaves, since which one it is stays unknown).
    */
-  apply(configs: ProjectConfig[], ids: (string | null)[]) {
+  apply(configs: ProjectConfig[], ids: (string | null)[]): Promise<void> {
+    const applied: (Promise<void> | undefined)[] = [];
     configs.forEach((config, i) => {
       const id = ids[i];
       if (!id) return;
       const running = this.get(id);
-      if (running) return running.apply(config);
+      if (running) return void applied.push(running.apply(config));
       const [c] = this.start([config]);
       if (!c) return;
       this.list.push(c);
@@ -3056,6 +3106,8 @@ export class Projects {
           });
     }
     this.emit();
+    // the running projects have taken it over once their repositories are read
+    return Promise.all(applied).then(() => {});
   }
 
   /** Stops every project, for Seismic to end. */
@@ -3092,6 +3144,12 @@ export interface RepoRead {
   shared: SharedRead;
 }
 
+/** A repository read beforehand (`readRepos`), with the seal its refs had when the read started. */
+interface PreRead {
+  read: RepoRead | null;
+  seal: string | null;
+}
+
 /**
  * Reads a repository for `resolveProject`, as git steps; null where `path` is no git repository. A
  * folder without git (`folder`) is read as it is, without git: null where it is no directory.
@@ -3099,13 +3157,13 @@ export interface RepoRead {
 export function* readingRepo(path: string, folder = false): GitSteps<RepoRead | null> {
   markFolder(path, folder);
   if (folder) return readFolder(path);
-  const [[remote], branches] = yield* together(gitCalls(['remote', 'get-url', 'origin']), readingBranches());
+  const [[remote, configured], branches] = yield* together(gitCalls(['remote', 'get-url', 'origin'], ['config', '--get', 'remote.origin.url']), readingBranches());
   if (branches == null) return null;
   const detected = yield* detectingBranch(branches);
   const branch = branchSetting(path) || detected;
   const commit = yield* branchCommit(branch, branches);
   const [adapterModule, shared] = yield* together(readingAdapterModule(commit), readingShared(commit));
-  return { info: { path, remote: remote ?? null, branch }, detected, adapterModule, shared };
+  return { info: { path, remote: remote ?? null, origin: remote ? (configured ?? remote) : null, branch }, detected, adapterModule, shared };
 }
 
 /** How often `readSettings` reads a repository whose refs move while git reads it. */
@@ -3131,6 +3189,9 @@ function* readingSettings(path: string): GitSteps<DefaultRead> {
 
 /** Reads a repository for `resolveProject`, the server waiting; null where `path` is no git repository (no directory, for a `folder`). */
 export const readRepo = (path: string, folder = false): RepoRead | null => gitStepsSync(path, readingRepo(path, folder));
+
+/** `readRepo` without blocking the server. */
+export const readRepoAsync = (path: string, folder = false): Promise<RepoRead | null> => gitSteps(path, readingRepo(path, folder));
 
 /** A folder without git as `resolveProject` reads it: no remote, no branch, its `.obeya/settings.json` as the folder has it. */
 function readFolder(path: string): RepoRead | null {
@@ -3244,7 +3305,7 @@ function uniqueRefs(infos: RepoInfo[], adapters: RepoAdapter[]): RepoRef[] {
 }
 
 /** The URL of the repository's `origin` as it is configured, before git's `insteadOf` rewrites it; null without one. */
-const originUrl = (info: RepoInfo): string | null => (info.remote ? (gitOrNull(info.path, 'config', '--get', 'remote.origin.url') ?? info.remote) : null);
+const originUrl = (info: RepoInfo): string | null => (info.origin !== undefined ? info.origin : info.remote ? (gitOrNull(info.path, 'config', '--get', 'remote.origin.url') ?? info.remote) : null);
 
 /** Whether the repository's `origin` is on a server, as it is configured (git's `insteadOf` aside), rather than a directory on this machine. */
 function onServer(info: RepoInfo): boolean {
