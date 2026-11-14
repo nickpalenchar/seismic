@@ -32,7 +32,7 @@ import { dimensions, shownTags } from '../core/page-tags';
 import { CardRefs, Inline, plain } from './markdown';
 import { quoteClass, Body, Cards, goToMessage, Msg, Quote, Reading, useAnswer, useReportedHeight } from './message';
 import { appended, cardDraft, draftOf, dropDraft, findingDraft, giveBack, questionsKey, reviewReset, updateDraft, useDraft, useDraftField, useDrafting } from './draft';
-import { eventQuote, type Reply, setReply } from './reply';
+import { eventQuote, type Reply, replyOn, setReply } from './reply';
 import { CiteButton } from './cite';
 import { Composer } from './composer';
 import { useFitHeight } from './fitHeight';
@@ -3809,6 +3809,14 @@ function Talk({ item, past, field }: { item: Item; past?: boolean; field?: TalkF
     await (picked ? field!.onPicked(field!.quote ? answerText(questions, picks.answers, words) : words.trim(), picks.answers, images, replyTo) : field!.onWords(words, images, replyTo));
     picks.clear();
   };
+  // the Answer button under the questions sends what the field holds, as its own Send does
+  const submit = async () => {
+    const d = draftOf(draft);
+    if (d.uploading) return;
+    await send(d.text.trim(), d.images.length ? d.images : undefined, replyOn(draft)?.to);
+    updateDraft(draft, { text: '', images: [] });
+    setReply(draft, null);
+  };
   return (
     <>
       <Conversation
@@ -3816,7 +3824,7 @@ function Talk({ item, past, field }: { item: Item; past?: boolean; field?: TalkF
         past={past}
         onReply={field ? (e) => setReply(draft, { to: e.id, quote: eventQuote(e) }) : undefined}
         draft={field ? draft : undefined}
-        questions={<Questions {...picks} />}
+        questions={<Questions {...picks} submit={field && picked ? submit : undefined} />}
       />
       {field && (
         <Composer
@@ -3917,7 +3925,8 @@ function useOpenQuestions(item: Item, past = false) {
 }
 
 /** An agent's questions, each with its options as radio buttons, or checkboxes when several may be chosen. */
-function Questions(p: { questions: Question[]; picks: string[][]; others: string[]; choose: (i: number, option: string, write?: string) => void }) {
+function Questions(p: { questions: Question[]; picks: string[][]; others: string[]; choose: (i: number, option: string, write?: string) => void; submit?: () => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
   if (!p.questions.length) return null;
   return (
     <div className={questionClass('ask')}>
@@ -3960,6 +3969,22 @@ function Questions(p: { questions: Question[]; picks: string[][]; others: string
           {q.pick?.why && <div className="pick-why mt-1.5 text-[12.5px] text-muted-foreground">{t.ask.pickWhy(q.pick.why)}</div>}
         </div>
       ))}
+      {p.submit && (
+        <Button
+          className="mt-3"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              await p.submit!();
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          {t.ask.send}
+        </Button>
+      )}
     </div>
   );
 }
