@@ -14,8 +14,10 @@
 //
 // In pull-request mode the changes collect on one rolling branch (`DEMOS_BRANCH`) and its pull
 // request against the default branch, opened with the first and listing the pages it holds. Once
-// it is merged (or the branch no longer merges cleanly), the next change starts the branch afresh
-// from the default branch, with this machine's pages, pushed with a lease on the branch as it was.
+// it is merged or closed (or the branch no longer merges cleanly), the next change starts the branch
+// afresh from the default branch, with this machine's pages, pushed with a lease on the branch as it
+// was; so does a change after commits landed on a closed one's branch. Only a branch no pull request
+// ever had goes on as it is: a share whose pull request could not be opened, nor its push undone.
 
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -226,6 +228,32 @@ export function folderStore(o: FolderStoreOptions): FolderStore {
     return JSON.parse(r.out || '[]') as { url: string; number: number; mergeable?: string; state?: string; headRefOid?: string; body?: string }[];
   };
 
+  /** How `to` stands to `from` at GitHub (ahead: built on it); null where they share no history. */
+  const compare = async (from: string, to: string) => {
+    const r = await x(['gh', 'api', `repos/${o.repo}/compare/${from}...${to}`, '--jq', '.status']);
+    if (r.code !== 0 && /HTTP 404|Not Found/i.test(r.out + r.err)) return null;
+    if (r.code !== 0) throw new Error(`GitHub did not compare ${DEMOS_BRANCH} with the pull requests it held: ${lastLine(r)}`);
+    return r.out.trim();
+  };
+
+  /**
+   * Whether the rolling branch's tip belongs to a pull request: it is one's head, lies in its history
+   * (the branch reset), or is built on a head the default branch lacks (commits pushed after it was
+   * closed). GitHub compares them, since the clone holds the tip alone. A tip none of them has is a
+   * proposal whose pull request was never opened (a creation that failed and could not be undone),
+   * though it is built on what an earlier merge put on the default branch.
+   */
+  const inPr = async (tip: string) => {
+    const heads = [...new Set((await prs('all')).flatMap((p) => (p.headRefOid ? [p.headRefOid] : [])))];
+    if (heads.includes(tip)) return true;
+    for (const head of heads) {
+      const on = await compare(head, tip);
+      if (on === 'behind') return true;
+      if (on === 'ahead' && !['ahead', 'identical'].includes((await compare(head, branch)) ?? '')) return true;
+    }
+    return false;
+  };
+
   /** The pages the pull request holds: those whose revision differs from the default branch's. */
   const prBody = async (ref?: string) => {
     let theirs: { pages?: Record<string, { rev: number }> } = {};
@@ -282,7 +310,8 @@ export function folderStore(o: FolderStoreOptions): FolderStore {
           base = `refs/remotes/origin/${DEMOS_BRANCH}`;
           at = { pr: open, lease: null };
         } else {
-          if (!open && has && !(await prs('all')).some((p) => p.headRefOid === tip)) base = `refs/remotes/origin/${DEMOS_BRANCH}`;
+          // a closed or merged proposal's branch, with commits on top or not, never carries into the next one
+          if (!open && has && !(await inPr(tip))) base = `refs/remotes/origin/${DEMOS_BRANCH}`;
           at = { pr: open, lease: tip };
         }
       }

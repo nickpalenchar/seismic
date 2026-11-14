@@ -611,7 +611,9 @@ export class Sharing {
       const shared = this.others('', target.key);
       const { gone, missing } = await target.audit(shared);
       this.lost(target.key, gone);
-      if (missing.length) await this.repair(target, shared, missing);
+      // a page waiting for a pull request (open or closed) was never online, whatever the site's mode is now
+      const offline = missing.filter((slug) => !this.shares().some(({ s }) => s.merge && pathOf(s) === slug));
+      if (offline.length) await this.repair(target, shared, offline);
     }
   }
 
@@ -653,6 +655,23 @@ export class Sharing {
     }
   }
 
+  /**
+   * Whether a change of the site now would put out pages waiting for a pull request where the owner
+   * did not send them: in pull-request mode, with none open, into a pull request opened afresh; after
+   * a switch to direct publishing, straight onto the default branch. Only a merged one's do not wait;
+   * a state GitHub does not tell counts as waiting.
+   */
+  private async putsOutWaiting(target: ShareTarget): Promise<boolean> {
+    if (!target.prState) return false;
+    const waiting = new Set(this.shares().flatMap(({ r, s }) => {
+      const card = s.merge ? this.find(r.id) : undefined;
+      return card && this.target(card)?.key === target.key ? [s.merge!] : [];
+    }));
+    if (!waiting.size || (target.prMode && (await target.openPr?.()))) return false;
+    for (const pr of waiting) if ((await target.prState(pr).catch(() => null)) !== 'merged') return true;
+    return false;
+  }
+
   /** Publishes again what the page shows, with the pull request's link, or with the tags the owner set (`retag`). */
   private refresh(cardId: string, retag = false) {
     const s = this.stored(cardId);
@@ -686,6 +705,13 @@ export class Sharing {
         this.set(cardId, atRest(this.currentChoice(cardId, s)));
         this.o.board.log(cardId, 'activity', 'obeya', t.linkLater);
         this.settled(cardId, s.url ? { url: s.url } : { why: t.noDemo });
+        return null;
+      }
+      // an update of the page alone (its pull request's link, its commit) is no share: it does not put out pages waiting for a pull request
+      if (!s.again && !s.retag && (await this.putsOutWaiting(target))) {
+        this.set(cardId, atRest(this.currentChoice(cardId, s)));
+        this.o.board.log(cardId, 'activity', 'obeya', t.linkLater);
+        this.settled(cardId, { url: s.url! });
         return null;
       }
     } else {

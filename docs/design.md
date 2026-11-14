@@ -130,7 +130,9 @@ cycling through terminals.
 - **Demo sites may occupy a folder of an existing GitHub repository** (2026-11-13), rather than
   requiring a repository just for demos. Proposals collect in one rolling PR; direct publishing is
   offered only after successful branch-rule checks. Closing a proposal is an owner decision:
-  audits must not recreate it without another explicit publishing action.
+  audits must not recreate it without another explicit publishing action, in either mode. The
+  minute check never repairs a folder site: git refuses a push that would drop another machine's
+  commit, so what the folder lacks a person took off or never merged.
 - **Retakes with real agents replay a recording** (2026-10-22): real runs are slow, cost usage and
   differ each time.
 - **A Tauri shell around one compiled Bun binary; the browser stays a way in**; DMG, NSIS, AppImage
@@ -180,7 +182,9 @@ Formats to stay compatible with:
 - A shared site's pages, their later versions (`2/`, `3/`) and its `obeya-site.json` manifest keep
   their paths, so links survive republishing; machines pull the manifest before they push.
 - A demo folder leaves the repository's own Pages setup intact: no root-level `.nojekyll` or
-  `CNAME`; rebuilding its rolling branch uses a lease so another machine's push is not lost.
+  `CNAME`; rebuilding its rolling branch uses a lease so another machine's push is not lost. A
+  rolling branch that holds a closed or merged pull request's commits (commits on top, or reset
+  into it) is rebuilt from the default branch; only one no pull request ever had goes on.
 - Commits and PRs carry `Demo-Video:`/`Demo-Page:` trailers and an `<!-- obeya:demo -->` marker.
 - Installers have version-less names under `releases/latest/download/` and the updater reads
   `latest.json` there, so every release is "latest"; the `site-media` pre-release never is.

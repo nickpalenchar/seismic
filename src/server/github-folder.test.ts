@@ -136,9 +136,17 @@ describe('a site in a folder of an existing repository', () => {
         return { code: 0, out: '', err: '' };
       }
       if (line.startsWith('pr view')) return { code: 0, out: `${state}\n`, err: '' };
+      // GitHub's compare, as git tells it of the remote
+      const compare = /^api repos\/acme\/docs\/compare\/(\w+)\.\.\.(\w+)/.exec(line);
+      if (compare) {
+        const [, a, b] = compare as unknown as [string, string, string];
+        const on = async (x: string, y: string) => (await exec(['git', '-C', remote, 'merge-base', '--is-ancestor', x, y])).code === 0;
+        return { code: 0, out: `${a === b ? 'identical' : (await on(a, b)) ? 'ahead' : (await on(b, a)) ? 'behind' : 'diverged'}\n`, err: '' };
+      }
       return { code: 0, out: '', err: '' };
     }
-    if (failRollback && argv.some((a) => a === ':refs/heads/seismic/demos')) return { code: 1, out: '', err: 'cannot delete branch' };
+    // a rollback deletes the branch or puts back its tip from before, never pushes HEAD
+    if (failRollback && argv.some((a) => a.endsWith(':refs/heads/seismic/demos') && !a.startsWith('HEAD:') && !a.startsWith('--'))) return { code: 1, out: '', err: 'cannot restore branch' };
     if (argv.includes('push') && beforePush) {
       const run = beforePush;
       beforePush = null;
@@ -259,6 +267,58 @@ describe('a site in a folder of an existing repository', () => {
     expect(existsSync(join(await look('seismic/demos'), 'docs/demos/one/demo.mp4'))).toBe(true);
   });
 
+  /** Closes the open pull request without a merge; its branch's tip as it was. */
+  const close = async () => {
+    const head = await git(remote, 'rev-parse', 'seismic/demos');
+    history = [{ headRefOid: head, state: 'CLOSED' }];
+    open = [];
+    state = 'CLOSED';
+    return head;
+  };
+  /** Pushes a commit of someone else's onto the rolling branch, or resets it to `to`. */
+  const onBranch = async (to?: string) => {
+    if (to) return void (await git(remote, 'update-ref', 'refs/heads/seismic/demos', to));
+    const at = await look('seismic/demos');
+    writeFileSync(join(at, 'docs/demos/late.txt'), 'after the close\n');
+    await git(at, 'add', '-A');
+    await git(at, 'commit', '-qm', 'late');
+    await git(at, 'push', '-q', 'origin', 'seismic/demos');
+  };
+
+  test('commits on a closed proposal’s branch do not carry it into the next one', async () => {
+    await make('pr').publish(page('one'));
+    await close();
+    await onBranch();
+    expect(await make('pr', join(dir, 'home-b'), 'b').publish(page('two'))).toHaveProperty('merge');
+    const at = await look('seismic/demos');
+    expect(await git(at, 'log', '--format=%s')).toBe('Demos: Title two\nseed');
+    for (const f of ['docs/demos/one', 'docs/demos/late.txt']) expect(existsSync(join(at, f))).toBe(false);
+    expect(gh.filter((c) => c[0] === 'pr' && c[1] === 'create')).toHaveLength(2);
+  });
+
+  test('a closed proposal’s branch reset to an earlier commit of it starts afresh too', async () => {
+    await make('pr').publish(page('one'));
+    const first = await git(remote, 'rev-parse', 'seismic/demos');
+    await make('pr').publish(page('two', ['one']));
+    await close();
+    await onBranch(first);
+    expect(await make('pr', join(dir, 'home-b'), 'b').publish(page('three'))).toHaveProperty('merge');
+    const at = await look('seismic/demos');
+    expect(await git(at, 'log', '--format=%s')).toBe('Demos: Title three\nseed');
+    expect(existsSync(join(at, 'docs/demos/one'))).toBe(false);
+  });
+
+  test('switching to direct publishing never lets the audit publish a proposal, closed or open', async () => {
+    await make('pr').publish(page('one'));
+    // open, then closed: the default branch never gets the page from the minute check
+    for (const closed of [false, true]) {
+      if (closed) await close();
+      for (let i = 0; i < 2; i++) expect(await make('direct').audit(['one'])).toEqual({ gone: [], missing: [] });
+      expect(await git(await look(), 'log', '--format=%s')).toBe('seed');
+    }
+    expect(gh.filter((c) => c[0] === 'pr' && c[1] === 'create')).toHaveLength(1);
+  });
+
   test('site audits retry a failed PR list update after restart, including withdrawals', async () => {
     await make('pr').publish(page('one'));
     failEdit = true;
@@ -296,6 +356,23 @@ describe('a site in a folder of an existing repository', () => {
     expect(await make('pr', join(dir, 'other-home'), 'b').publish(page('two'))).toHaveProperty('merge');
     const at = await look('seismic/demos');
     for (const slug of ['one', 'two']) expect(existsSync(join(at, 'docs/demos', slug, 'demo.mp4'))).toBe(true);
+  });
+
+  test('an orphan branch goes on after an earlier proposal was merged with a merge commit', async () => {
+    await make('pr').publish(page('zero'));
+    // merged at GitHub with a merge commit: its head is in the default branch's history
+    const merged = await look();
+    await git(merged, 'merge', '-q', '--no-ff', '-m', 'Merge #7', 'origin/seismic/demos');
+    await git(merged, 'push', '-q', 'origin', 'main');
+    history = [{ headRefOid: await git(remote, 'rev-parse', 'seismic/demos'), state: 'MERGED' }];
+    open = [];
+    failCreate = true;
+    failRollback = true;
+    expect(JSON.stringify(await make('pr').publish(page('one', ['zero'])))).toContain('rollback failed');
+    failCreate = false;
+    expect(await make('pr', join(dir, 'other-home'), 'b').publish(page('two'))).toHaveProperty('merge');
+    const at = await look('seismic/demos');
+    for (const slug of ['zero', 'one', 'two']) expect(existsSync(join(at, 'docs/demos', slug, 'demo.mp4'))).toBe(true);
   });
 
   test('failed creation restores a pre-existing closed PR branch', async () => {

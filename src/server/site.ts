@@ -47,7 +47,8 @@
 // writes through a clone of that folder instead: its manifest and pages come from the branch the
 // change goes on, the change is a commit there, and a push rejected because another machine pushed
 // meanwhile makes the change once more. In pull-request mode the change is pending until the rolling
-// pull request is merged (`merge` in what a publish returns).
+// pull request is merged (`merge` in what a publish returns). No deployment can take a page offline
+// there, so `audit` finds nothing missing: what the folder lacks, a person took off or never merged.
 //
 // An unlisted site (demo-sites.ts) has `unlisted`: a page lies at `<path>/<token>/<slug>/`, the
 // token drawn per card; the manifest lies in a secret directory; the root and
@@ -805,10 +806,12 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
           const mine = local.pages[slug];
           return e.withdrawn && mine && !mine.withdrawn && mine.rev < e.rev ? [{ slug, machine: e.machine }] : [];
         });
-        // shared from here, and not on the live site as written here: another machine's deployment took it offline
-        // A proposed revision is not missing from the live site: only an explicit share may
-        // start another PR after its predecessor was closed. Never repair proposals on a timer.
-        const missing = site.git?.mode === 'pr' ? [] : shared.filter((slug) => {
+        // shared from here, and not on the live site as written here: another machine's deployment took it offline.
+        // Not in a repository's folder, in either mode: git refuses a push that would drop another
+        // machine's commit, so a page the branch lacks or has older was taken off there by a person,
+        // or only ever proposed (in a pull request closed, or still open, before a switch to direct
+        // publishing). Only an explicit share puts those out again, never the minute check.
+        const missing = store ? [] : shared.filter((slug) => {
           const mine = local.pages[slug];
           return mine && !mine.withdrawn && (live.pages[slug]?.rev ?? 0) < mine.rev;
         });

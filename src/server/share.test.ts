@@ -230,6 +230,56 @@ describe('rolling proposal tracking', () => {
     await until(() => board.row(old.id).demo!.share!.merge === 'https://github.com/a/b/pull/2');
   });
 
+  test('a page waiting for a pull request is never repaired, whatever the site’s mode is now', async () => {
+    for (const state of ['closed', 'open'] as const) {
+      const { old, next } = setup(state);
+      const target = sharing['target'](old)!;
+      delete target.prMode;
+      board.work(next.id, { demo: { share: { slug: 'next', url: `${SITE_URL}next/` } } });
+      const repaired: string[][] = [];
+      target.audit = async () => ({ gone: [], missing: ['old', 'next'] });
+      target.repair = async (shared) => (repaired.push(shared), { said: '' });
+      await sharing.checkSites();
+      // the page online elsewhere is put back; the one waiting is not why
+      expect(repaired).toHaveLength(1);
+      target.audit = async () => ({ gone: [], missing: ['old'] });
+      await sharing.checkSites();
+      expect(repaired).toHaveLength(1);
+      expect(board.row(old.id).demo!.share!.merge).toBe('https://github.com/a/b/pull/1');
+    }
+  });
+
+  test('a page’s link update waits for the next share rather than reopen a closed proposal or publish one directly', async () => {
+    const { old, next } = setup('closed');
+    const target = sharing['target'](old)!;
+    let published = 0;
+    target.publish = async () => (published++, { url: `${SITE_URL}next/`, said: '' });
+    sharing.share(next.id);
+    await until(() => share(next.id)?.state === 'shared');
+    board.work(old.id, { demo: { share: { slug: 'old', url: `${SITE_URL}old/`, merge: 'https://github.com/a/b/pull/1' } } });
+    // the card's own pull request opens: no proposal is open, and the closed one's page waits
+    openPr(next.id);
+    sharing.prOpened(next.id);
+    await until(() => log(next.id).at(-1) === board.t.share.linkLater);
+    expect(published).toBe(1);
+    // nor where GitHub does not tell its state; switched to direct publishing, any page still waiting holds the update back
+    const held = (n: number) => until(() => log(next.id).filter((l) => l === board.t.share.linkLater).length === n);
+    target.prState = async () => null;
+    sharing.prOpened(next.id);
+    await held(2);
+    delete target.prMode;
+    target.prState = async () => 'open';
+    sharing.prOpened(next.id);
+    await held(3);
+    expect(published).toBe(1);
+    // a proposal open in pull-request mode takes it
+    target.prMode = true;
+    target.openPr = async () => 'https://github.com/a/b/pull/3';
+    target.publish = async () => (published++, { url: `${SITE_URL}next/`, said: '', merge: 'https://github.com/a/b/pull/3' });
+    sharing.prOpened(next.id);
+    await until(() => published === 2);
+  });
+
   test('a PR site is still audited after switching to direct mode and withdrawing its last page', async () => {
     const { old } = setup('open');
     let audited = 0;
