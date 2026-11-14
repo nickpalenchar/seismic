@@ -9,6 +9,7 @@
 // rolling pull request, as the owner confirms, with Pages turned on where it is off. Each runs in the background, since a login in the browser or a
 // first deploy may take minutes; the dialog follows its lines.
 
+import { randomUUID } from 'node:crypto';
 import { MESSAGES } from '../core/messages';
 import type { DemoSiteEntry, DemoSitesView, SiteSetupJob } from '../core/types';
 import { BadRequest } from './board';
@@ -217,7 +218,7 @@ export class SiteSetup {
   /** Sets the site up (`fn`), publishes to it, and puts it on the list. */
   private run(host: SiteHost | undefined, fn: (log: (line: string) => void) => Promise<DemoSiteEntry>) {
     if (this.job?.running) throw new BadRequest('invalid', 'a demo site is being added already');
-    const job: SiteSetupJob = { ...(host ? { host } : {}), running: true, lines: [] };
+    const job: SiteSetupJob = { id: randomUUID(), ...(host ? { host } : {}), running: true, lines: [] };
     this.job = job;
     const log = (line: string) => {
       job.lines = [...job.lines, line.slice(0, 400)].slice(-12);

@@ -2413,6 +2413,8 @@ export interface AppSettings {
 
 /** A demo site being set up at a host, as the configuration follows it: its last lines, and how it ended. */
 export interface SiteSetupJob {
+  /** Which setup it is: a tab follows only the one it started. */
+  id: string;
   /** The host Seismic sets it up at; none for a site entered by hand. */
   host?: 'cloudflare' | 'github';
   running: boolean;

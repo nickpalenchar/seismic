@@ -1732,12 +1732,12 @@ function AddSite({ view, onView, onAdded, onCancel }: { view: DemoSitesView; onV
   const [code, setCode] = useState(() => sessionStorage.getItem(ADD_CODE_KEY) ?? '');
   const [connecting, setConnecting] = useState(() => !!sessionStorage.getItem(ADD_CODE_KEY));
   const [status, setStatus] = useState('');
-  // the job this tab started: its site is handed on once it is on the list
-  const [mine, setMineState] = useState(() => !!sessionStorage.getItem(ADD_MINE_KEY));
-  const setMine = (on: boolean) => {
-    if (on) sessionStorage.setItem(ADD_MINE_KEY, '1');
+  // the job this tab started, by its id: its site is handed on once it is on the list
+  const [mine, setMineState] = useState(() => sessionStorage.getItem(ADD_MINE_KEY));
+  const setMine = (id: string | null) => {
+    if (id) sessionStorage.setItem(ADD_MINE_KEY, id);
     else sessionStorage.removeItem(ADD_MINE_KEY);
-    setMineState(on);
+    setMineState(id);
   };
   // a site in a repository's folder, just added: how its demos go in is asked before it is handed on
   const [modeFor, setModeForState] = useState<string | null>(() => sessionStorage.getItem(ADD_MODE_KEY));
@@ -1753,16 +1753,16 @@ function AddSite({ view, onView, onAdded, onCancel }: { view: DemoSitesView; onV
   const job = view.job;
   const running = !!job?.running;
   useEffect(() => {
-    // no job left (Seismic restarted, or another tab took its result): nothing to hand on
-    if (!mine || job?.running) return;
-    setMine(false);
-    if (job?.site) {
+    if (!mine || (job?.id === mine && job.running)) return;
+    setMine(null);
+    // no job left, or another one since (Seismic restarted, another tab took its result or added a site): nothing to hand on
+    if (job?.id === mine && job.site) {
       if (view.sites.find((x) => x.url === job.site)?.git) setModeFor(job.site);
       else onAdded?.(job.site);
       sessionStorage.removeItem(ADD_MANUAL_KEY);
       void api.demoSitesSeen().then(onView, console.error);
     }
-  }, [mine, job?.running, job?.site]);
+  }, [mine, job?.id, job?.running, job?.site]);
   // a site removed meanwhile asks nothing any more
   useEffect(() => {
     if (modeFor && !view.sites.some((x) => x.url === modeFor)) setModeFor(null);
@@ -1770,11 +1770,12 @@ function AddSite({ view, onView, onAdded, onCancel }: { view: DemoSitesView; onV
   const act = async (fn: () => Promise<DemoSitesView>) => {
     setStatus('');
     try {
-      onView(await fn());
-      return true;
+      const v = await fn();
+      onView(v);
+      return v;
     } catch (e) {
       setStatus(failText(e));
-      return false;
+      return null;
     }
   };
   // the first site's account, until the owner chooses
@@ -1787,11 +1788,13 @@ function AddSite({ view, onView, onAdded, onCancel }: { view: DemoSitesView; onV
         : h === 'cloudflare'
           ? { host: 'cloudflare', ...cloudflareHow(chosen), ...(unlisted ? {} : { unlisted: false }) }
           : { host: 'github', public: true };
-    if (await act(() => api.addDemoSite(how))) setMine(true);
+    const v = await act(() => api.addDemoSite(how));
+    if (v?.job) setMine(v.job.id);
   };
   const addGithub = async (how: GithubAdd) => {
     const input: AddSiteInput = 'create' in how ? { host: 'github', name: how.create.name, ...(how.create.private ? {} : { public: true as const }) } : { host: 'github', ...how };
-    if (await act(() => api.addDemoSite(input))) setMine(true);
+    const v = await act(() => api.addDemoSite(input));
+    if (v?.job) setMine(v.job.id);
   };
   const added = modeFor ? view.sites.find((x) => x.url === modeFor) : undefined;
   if (added?.git && added.project) {
@@ -1988,14 +1991,16 @@ function DemoSitesBlock({ on, onAdd }: { on: boolean; /** Opens the page that ad
   // demos go in; any other is on the list, and that is all
   const job = view?.job;
   useEffect(() => {
-    if (!on || !view || job?.running || !sessionStorage.getItem(ADD_MINE_KEY)) return;
-    if (job?.site && view.sites.find((x) => x.url === job.site)?.git) {
+    const mine = sessionStorage.getItem(ADD_MINE_KEY);
+    if (!on || !view || !mine || (job?.id === mine && job.running)) return;
+    const ours = job?.id === mine ? job.site : undefined;
+    if (ours && view.sites.find((x) => x.url === ours)?.git) {
       onAdd();
       return;
     }
     sessionStorage.removeItem(ADD_MINE_KEY);
-    if (job?.site) void api.demoSitesSeen().then(setView, console.error);
-  }, [on, !!view, job?.running, job?.site]);
+    if (ours) void api.demoSitesSeen().then(setView, console.error);
+  }, [on, !!view, job?.id, job?.running, job?.site]);
   const urls = view?.sites.map((x) => x.url).join(' ') ?? '';
   useEffect(() => {
     for (const x of view?.sites ?? []) if (!codes[x.url]) api.demoSiteCode(x.url).then((r) => setCodes((now) => ({ ...now, [x.url]: r.code })), console.error);
