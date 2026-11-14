@@ -123,10 +123,15 @@ export class Tailscale {
     return r.ok ? { entry: { https, target } } : { problem: this.problemOf(r.out) };
   }
 
-  /** Removes the entry Seismic served, if it is still Seismic's. */
-  async unserve(name: string, entry: ServeEntry): Promise<void> {
+  /**
+   * Removes the entry Seismic served, if it is still Seismic's: it proxies to `own` (this Seismic's
+   * target), or to a target where nothing answers any more. One recorded in a home copied from a
+   * running Seismic proxies to that one, which still answers: it stays.
+   */
+  async unserve(name: string, entry: ServeEntry, own: string): Promise<void> {
     const config = await this.config().catch(() => ({}) as ServeConfig);
     if (config.Web?.[`${name}:${entry.https}`]?.Handlers?.['/']?.Proxy !== entry.target) return;
+    if (entry.target !== own && (await answers(entry.target))) return;
     await this.run(['serve', `--https=${entry.https}`, 'off']);
   }
 

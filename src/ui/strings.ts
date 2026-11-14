@@ -1501,7 +1501,7 @@ const en = {
     },
     agents: {
       title: 'Agents, models and effort',
-      chooseStart: 'Choose an agent for this start', currentDefault: 'Current default', startWith: 'Start with this choice', unavailable: 'Unavailable', codexUnavailableHere: 'Codex and Antigravity do not start tasks in a folder or review a pull request.', choiceHint: 'Only for this task; the default stays unchanged.', unavailableChoice: 'This choice is unavailable here. Choose an available model and effort.',
+      chooseStart: 'Choose an agent for this start', currentDefault: 'Current default', startWith: 'Start with this choice', unavailable: 'Unavailable', codexUnavailableHere: 'Codex and Antigravity do not start tasks in a folder or review a pull request.', unavailableChoice: 'This choice is unavailable here. Choose an available model and effort.',
       harness: 'Harness',
       harnesses: { claude: 'Claude Code', codex: 'Codex', agy: 'Antigravity' },
       codexDefault: 'Codex account default',

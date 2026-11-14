@@ -131,6 +131,29 @@ describe('through Tailscale', () => {
     expect(existsSync(join(dir, 'tailscale-serve.json'))).toBe(false);
   });
 
+  test('a Seismic on a copied home leaves the running Seismic its entry, stopping or turned off', async () => {
+    const other = Bun.serve({ port: 0, hostname: '127.0.0.1', fetch: () => new Response('the running Seismic') });
+    const live = `http://127.0.0.1:${other.port}`;
+    const entry = () => JSON.parse(readFileSync(join(ts, 'serve.json'), 'utf8')).Web[`${NAME}:443`]?.Handlers['/'].Proxy;
+    const copied = () => {
+      writeFileSync(join(ts, 'serve.json'), JSON.stringify({ TCP: { 443: { HTTPS: true } }, Web: { [`${NAME}:443`]: { Handlers: { '/': { Proxy: live } } } } }));
+      writeFileSync(join(dir, 'tailscale-serve.json'), JSON.stringify({ https: 443, target: live, name: NAME }));
+      return new Access({ store, home: dir, tailscale: new Tailscale(fakeTailscale(ts)), now: () => clock });
+    };
+    try {
+      // stopping before it served anything of its own (Tailscale did not answer in time, say)
+      copied().release();
+      expect(entry()).toBe(live);
+      expect(existsSync(join(dir, 'tailscale-serve.json'))).toBe(false);
+      // starting with remote access off, it gives up only what it served itself
+      await copied().start(server.port!, () => {});
+      expect(entry()).toBe(live);
+      expect(existsSync(join(dir, 'tailscale-serve.json'))).toBe(false);
+    } finally {
+      other.stop(true);
+    }
+  });
+
   test('says what the network lacks: Tailscale logged out, HTTPS off in the tailnet, missing', async () => {
     tailscaleStatus(ts, { state: 'NeedsLogin', name: NAME, https: false });
     expect((await turnOn()).tailscale).toEqual({ state: 'loggedOut' });

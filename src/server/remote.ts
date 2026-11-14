@@ -141,8 +141,14 @@ export class Access implements Gate {
   release() {
     this.stop();
     if (!this.served) return;
-    this.tailscale.unserveSync(this.served.name, this.served);
+    // an entry recorded in a home copied from a running Seismic proxies to that one's port: it stays
+    if (this.served.target === this.target()) this.tailscale.unserveSync(this.served.name, this.served);
     this.keepServed(null);
+  }
+
+  /** Where `tailscale serve` sends this Seismic's requests. */
+  private target() {
+    return `http://127.0.0.1:${this.port}`;
   }
 
   /** Makes the network as the setting says; `check`: asks Tailscale even where it was asked before. */
@@ -165,7 +171,7 @@ export class Access implements Gate {
     }
     if (s?.via !== 'tailscale') {
       if (this.served) {
-        await this.tailscale.unserve(this.served.name, this.served).catch(() => {});
+        await this.tailscale.unserve(this.served.name, this.served, this.target()).catch(() => {});
         this.keepServed(null);
       }
       if (s?.via === 'address' && this.listening !== s.address) {
@@ -189,7 +195,7 @@ export class Access implements Gate {
     if (check || this.ts.state !== 'ready') this.ts = await this.tailscale.state();
     if (this.ts.state !== 'ready') return void (this.problem = undefined);
     const name = this.ts.name;
-    if (this.served && this.served.name === name && this.served.target === `http://127.0.0.1:${this.port}` && !check && !this.problem) return;
+    if (this.served && this.served.name === name && this.served.target === this.target() && !check && !this.problem) return;
     const r = await this.tailscale.serve(name, this.port, this.served?.name === name ? this.served : null);
     if ('problem' in r) {
       this.problem = r.problem;

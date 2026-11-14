@@ -177,7 +177,6 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
     {!open && (startError || (checked?.key === pickedKey && checked.error)) && <p className="p-error" role="status">{startError || checked?.error}</p>}
     <PopoverContent side="top" align="start" aria-label={a.chooseStart} className="w-[min(380px,calc(100vw-16px))] max-h-[min(var(--radix-popover-content-available-height),600px)] p-4 text-sm [&_label]:my-2.5 [&_label]:flex [&_label]:items-center [&_label]:justify-between [&_label]:gap-3 [&_p]:m-0 [&_p]:mb-2.5 [&_[data-slot=select-trigger]]:max-w-[65%] [&_[data-slot=select-trigger]]:min-w-0">
       {initial && <p className="hint">{a.currentDefault}: {describeAgent(initial)}</p>}
-      <p className="hint">{a.choiceHint}</p>
       {setting && <>
         <label>{a.harness}<Select triggerRef={first} value={setting.harness ?? 'claude'} onValueChange={(picked) => choose({ ...setting, harness: picked as Harness, ...(picked !== 'claude' ? { [picked]: setting[picked as 'codex' | 'agy'] ?? { model: 'default', effort: choice.effort } } : {}) })}>
           <SelectItem value="claude">{a.harnesses.claude}</SelectItem><SelectItem value="codex" disabled={!codexAllowed}>{a.harnesses.codex}{!codexAllowed ? ` (${a.unavailable})` : ''}</SelectItem><SelectItem value="agy" disabled={!codexAllowed}>{a.harnesses.agy}{!codexAllowed ? ` (${a.unavailable})` : ''}</SelectItem>

@@ -235,6 +235,9 @@ Safety rules:
 
 - Every request is checked for `Host` and `Origin` (DNS rebinding, preflight-free POSTs); the owner
   holds a key, other devices are paired, workers get no key and reach only a narration server.
+- A home copied from a running Seismic records that one's `tailscale serve` entry: a Seismic gives
+  up only an entry that proxies to its own port or to one where nothing answers, never another
+  Seismic's address.
 - Landing never loses work: nothing is force-pushed, a direct push only fast-forwards, a merge is
   pinned to the head that was checked; a clone is deleted only when nothing on it would be lost.
 - Approval comes only from the card's button after the demo, never from a list or from words

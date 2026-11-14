@@ -35,11 +35,19 @@ const expect = (ok: boolean, what: string) => {
 // Everything the home persists but the checkouts (`workspaces/`, `read/`: gigabytes, and worktrees
 // that point back into the real repositories) and the voice models. The database goes through
 // SQLite's own snapshot, since a running Seismic writes to it while it is copied.
-// `server.json` names the Seismic running on the home, which would keep the copy's from starting.
-const NOT_COPIED = new Set(['workspaces', 'read', 'voices', 'server.json']);
+// `server.json` names the Seismic running on the home, which would keep the copy's from starting;
+// `tailscale-serve.json` is that Seismic's `tailscale serve` entry, which the copy's would give up on stopping.
+const NOT_COPIED = new Set(['workspaces', 'read', 'voices', 'server.json', 'tailscale-serve.json']);
 for (const f of readdirSync(source)) {
   if (/^(obeya|seismic)\.db/.test(f)) continue;
   if (!NOT_COPIED.has(f)) cpSync(join(source, f), join(home, f), { recursive: true });
+}
+// the copy stays off the tailnet: other devices reach the Seismic running on the home, not this one
+const settingsFile = join(home, 'settings.json');
+if (existsSync(settingsFile)) {
+  const settings = JSON.parse(readFileSync(settingsFile, 'utf8')) as Record<string, unknown>;
+  delete settings.remote;
+  writeFileSync(settingsFile, `${JSON.stringify(settings, null, 2)}\n`);
 }
 const sourceDatabase = databaseFile(source);
 if (existsSync(sourceDatabase)) {
