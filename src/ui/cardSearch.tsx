@@ -43,7 +43,7 @@ export function CardSearch({ items, onOpen, field, hidden }: { items: Item[]; on
               ref={field}
               icon={false}
               wrapperClassName="block"
-              className="h-[34px] rounded-[17px] border-border bg-card py-0 pr-8 pl-[34px] text-sm shadow-none focus:bg-card in-data-[fit~='3']:pr-2"
+              className="h-8 rounded-[16px] border-border bg-card py-0 pr-8 pl-[34px] text-sm shadow-none focus:bg-card in-data-[fit~='3']:pr-2"
               value={query}
               onValueChange={(v) => (setQuery(v), setOpen(true))}
               placeholder={t.cardSearch.placeholder}
