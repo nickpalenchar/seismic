@@ -122,6 +122,21 @@ describe("Seismic's configuration", async () => {
     expect((await leaving({ settings: { workstations: 'worktrees' } }))?.map((x) => x.path)).toEqual([own, ...made, '/far/1', '/far/2']);
   });
 
+  test("a project's own problem does not stop another project from being saved", async () => {
+    const c = config('file', []);
+    const broken = { repos: [{ path: join(dir, 'nowhere-at-all') }] };
+    const web2 = gitRepo(join(dir, 'web2'));
+    // the broken project is new: it blocks the save
+    await expect(c.save([broken, { repos: [{ path: web2 }] }])).rejects.toThrow();
+    // once saved as it is (the file may hold it from an earlier version), it no longer blocks the others
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, JSON.stringify([broken]));
+    await c.save([broken, { repos: [{ path: web2 }] }]);
+    expect(JSON.parse(readFileSync(file, 'utf8'))).toHaveLength(2);
+    // changing the broken one blocks again
+    await expect(c.save([{ ...broken, planBaselines: false }, { repos: [{ path: web2 }] }])).rejects.toThrow();
+  });
+
   test('a folder without git is checked as a folder, and keeps neither clones nor hosts', async () => {
     const c = config('file', []);
     const docs = join(dir, 'Dokumente');

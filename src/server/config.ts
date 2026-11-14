@@ -14,7 +14,7 @@ import { z } from 'zod';
 import { readShared, REPO_ADAPTER_DIR, REPO_SETTINGS_FILE } from '../adapters';
 import { renamedField, settingsShape, withoutGone as goneSettings } from '../adapters/schema';
 import { LANGUAGES } from '../core/locale';
-import { blocksSaving, type ProjectConfig, type ConfigChecked, type ConfigProblem, type ConfigSaved, type ConfigView, type RepoSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type SettingsShared, type SharedSettings, type DemoSettingsProblem, type DemoSettingsView, type DemoVoiceCheck, type ResolvedProject, type VoiceInstallJob, layerSettings, type ProposedSetting, type RepoTrust, type RepoValues, settingPatch, commandLines } from '../core/types';
+import { blockingProblems, type ProjectConfig, type ConfigChecked, type ConfigProblem, type ConfigSaved, type ConfigView, type RepoSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type SettingsShared, type SharedSettings, type DemoSettingsProblem, type DemoSettingsView, type DemoVoiceCheck, type ResolvedProject, type VoiceInstallJob, layerSettings, type ProposedSetting, type RepoTrust, type RepoValues, settingPatch, commandLines } from '../core/types';
 import {
   absoluteDirectory,
   DEMO_SETTINGS_FILE,
@@ -872,7 +872,9 @@ export class Config {
 
   async save(input: unknown): Promise<ConfigSaved> {
     const { projects: given, resolved, problems: all } = await this.check(input);
-    const problems = all.filter(blocksSaving);
+    // a project the saved configuration has as it is does not stop the others from being saved
+    const now = new Set(this.current().map((c) => JSON.stringify(c)));
+    const problems = blockingProblems(all, (i) => !now.has(JSON.stringify(given[i])));
     if (problems.length) throw new BadRequest('config', problems.map((p) => p.detail).join('; '));
     // a project created now takes Project defaults for what it does not set itself: one this configuration
     // already has (by its id, or its home repository, which a rename keeps) stays as it is

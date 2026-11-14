@@ -9,7 +9,7 @@ import { Fragment, lazy, type ReactNode, Suspense, useContext, useEffect, useRef
 import { OpenPerformance } from './performance';
 import { allowsDemo, HANDOVER_ARTIFACTS } from '../../plugin/skills/demo/lib/artifacts.ts';
 import { DEFAULT_STYLE, QWEN3_SPEAKER, QWEN3_SPEAKERS, qwen3IsClone, qwen3Speaker, STYLED_VOICES } from '../../plugin/skills/demo/lib/voice-choices.ts';
-import { AGENT_EFFORTS, AGENT_MODELS, AGENT_ROLES, choosesHarness, CARD_ARCHIVING, type CardArchiving, RIGHT_CLICK, type RightClick, CODE_REVIEW_MODES, type CodeReviewSetting, HARNESS_ROLES, type AgentEffort, type AgentModel, type AgentRole, type AgentSetting, type CodexModel, type Harness, type AgentsView, blocksSaving, type ProjectConfig, type ProjectDefaults, type ProjectDefaultsView, type ProjectSettings, type ConfigChecked, type DeveloperView, type ConfigProblem, type ConfigProblemCode, type ConfigView, commandLines, type DemoSettings, type HandoverArtifact, type DemoSettingsView, type DemoSpaceView, type DemoVoiceCheck, type FilledClones, type ProjectDemoSite, type ProjectDemoSiteState, type DemoSitesView, type TagProposalJob, type Language, type HostConfig, type LanguageView, type NarrationLanguage, restartsAgents, type RepoConfig, type RepoSettings, type RepoTrust, type RepoValues, type ResolvedProject, type SettingsShared, type SettingValue, layerSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type PageTags, type SetupCheck, START_FAILED, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type FeedbackPromptView, type NotificationsView, type VoiceKind, type VoiceSetupView, withClones } from '../core/types';
+import { AGENT_EFFORTS, AGENT_MODELS, AGENT_ROLES, choosesHarness, CARD_ARCHIVING, type CardArchiving, RIGHT_CLICK, type RightClick, CODE_REVIEW_MODES, type CodeReviewSetting, HARNESS_ROLES, type AgentEffort, type AgentModel, type AgentRole, type AgentSetting, type CodexModel, type Harness, type AgentsView, blockingProblems, type ProjectConfig, type ProjectDefaults, type ProjectDefaultsView, type ProjectSettings, type ConfigChecked, type DeveloperView, type ConfigProblem, type ConfigProblemCode, type ConfigView, commandLines, type DemoSettings, type HandoverArtifact, type DemoSettingsView, type DemoSpaceView, type DemoVoiceCheck, type FilledClones, type ProjectDemoSite, type ProjectDemoSiteState, type DemoSitesView, type TagProposalJob, type Language, type HostConfig, type LanguageView, type NarrationLanguage, restartsAgents, type RepoConfig, type RepoSettings, type RepoTrust, type RepoValues, type ResolvedProject, type SettingsShared, type SettingValue, layerSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type PageTags, type SetupCheck, START_FAILED, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type FeedbackPromptView, type NotificationsView, type VoiceKind, type VoiceSetupView, withClones } from '../core/types';
 import { patchOf } from '../core/diff';
 import { parseTagLines, tagLines } from '../core/page-tags';
 import { LANGUAGES } from '../core/locale';
@@ -484,6 +484,7 @@ export function ConfigDialog({ on, page, onClose, onAsk, onTalk, onProblems, onC
                 view={view}
                 draft={draft}
                 origin={origin}
+                projectChanged={projectChanged}
                 n={shown}
                 projectKey={keys.current[shown]}
                 checked={checked}
@@ -680,6 +681,8 @@ interface ProjectsProps {
   view: ConfigView;
   draft: ProjectConfig[];
   origin: (string | null)[];
+  /** Whether a project differs from the saved one, by its place in the draft. */
+  projectChanged: (i: number) => boolean;
   /** The project shown, by its place in the draft. */
   n: number;
   /** Shows another project, by its place in the draft. */
@@ -707,11 +710,13 @@ interface ProjectsProps {
 }
 
 /** One project of the configuration with its repositories; all projects are saved together, with the bar at the bottom. */
-function Projects({ view, draft, origin, n, projectKey, checked, changed, busy, focus, onAsk, onRecheck, onProject, onMove, onShow, onSave, onReset, onReload, status, json, onJson }: ProjectsProps) {
+function Projects({ view, draft, origin, projectChanged, n, projectKey, checked, changed, busy, focus, onAsk, onRecheck, onProject, onMove, onShow, onSave, onReset, onReload, status, json, onJson }: ProjectsProps) {
   const c = t.config;
   const problems = checked?.problems ?? [];
+  // only the problems of changed projects (and of none in particular) keep a save from going through
+  const blocking = blockingProblems(problems, projectChanged);
   // "For everyone" takes over what is saved: with changes in the dialog it saves them first, where that applies without a restart
-  const prepare = changed && view.source === 'file' && !view.restarting && !problems.some(blocksSaving) ? onSave : undefined;
+  const prepare = changed && view.source === 'file' && !view.restarting && !blocking.length ? onSave : undefined;
   // a project with a problem has no id yet: which running project goes is only known once all resolve
   const resolved = checked?.resolved ?? [];
   const gone = resolved.every(Boolean) ? view.running.filter((id) => !resolved.some((r) => r?.id === id)) : [];
@@ -737,7 +742,7 @@ function Projects({ view, draft, origin, n, projectKey, checked, changed, busy, 
           resolved={checked?.resolved[n] ?? null}
           running={view.running}
           pin={origin[n] && view.running.includes(origin[n]) ? origin[n] : undefined}
-          saved={!changed}
+          saved={!projectChanged(n)}
           problems={problems.filter((p) => p.project === n)}
           focus={focus}
           ask={changed ? undefined : onAsk}
@@ -758,7 +763,7 @@ function Projects({ view, draft, origin, n, projectKey, checked, changed, busy, 
       {changed && gone.length > 0 && <p className="hint warn">{c.gone(gone.join(', '))}</p>}
       {json && <pre className={jsonClass}>{JSON.stringify(draft, null, 2)}</pre>}
       <div className={K.cfgActionsClass}>
-        <Button variant="primary" disabled={!changed || busy || problems.some(blocksSaving)} onClick={() => void onSave()}>
+        <Button variant="primary" disabled={!changed || busy || blocking.length > 0} onClick={() => void onSave()}>
           {/* a configuration from the file applies while Seismic runs; one from the command line becomes the file with a restart */}
           {view.server.restarts && (view.source === 'args' || view.restarting) ? c.save : c.saveOnly}
         </Button>

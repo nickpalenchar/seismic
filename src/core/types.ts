@@ -2942,6 +2942,13 @@ export const START_FAILED: ConfigProblemCode[] = ['projectDown', 'repoDown', 're
 
 export const blocksSaving = (p: ConfigProblem) => !['adapterGone', 'repoSettings', 'untrusted', ...START_FAILED].includes(p.code);
 
+/**
+ * The problems that keep a save from going through: a project's own problems count only while the project is
+ * changed (or added), so one project's old problem does not stop another from being saved or set up.
+ */
+export const blockingProblems = (problems: ConfigProblem[], changed: (project: number) => boolean) =>
+  problems.filter((p) => blocksSaving(p) && (p.project === undefined || changed(p.project) || (p.ofProject !== undefined && changed(p.ofProject))));
+
 export type ConfigProblemCode =
   /** No project at all. */
   | 'noProject'
