@@ -326,7 +326,8 @@ async function commitOf(repo: string, parent: string, files: string[], message: 
       const mode = link ? '120000' : fileMode && stat.mode & 0o111 ? '100755' : '100644';
       const hashed = link
         ? await spawnOutput([GIT, '-C', repo, 'hash-object', '--stdin'], { stdin: new Blob([await readlink(at)]) })
-        : await spawnOutput([GIT, '-C', repo, '--literal-pathspecs', 'hash-object', '--', f]);
+        : // through the path's clean filters and line-ending conversion, as git stores it (named outright with --path)
+          await spawnOutput([GIT, '-C', repo, '--literal-pathspecs', 'hash-object', `--path=${f}`, '--', f]);
       const was = inParent.get(f);
       return hashed.code === 0 && was && hashed.stdout.trim() === was[2] && (mode === was[0] || (!fileMode && !link && was[0] !== '120000')) ? 'asInParent' : 'other';
     };

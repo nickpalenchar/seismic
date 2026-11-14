@@ -440,6 +440,27 @@ describe('a worktree per card', () => {
     expect(git(main, 'status', '--porcelain')).toBe('');
   });
 
+  test('an edit staged, its file back on disk as in main with the line endings the checkout writes: folding keeps the staged edit', async () => {
+    writeFileSync(join(main, '.gitattributes'), '*.txt text eol=crlf\n');
+    writeFileSync(join(main, 'mine.txt'), 'a\r\nb\r\nc\r\n');
+    git(main, 'add', '.');
+    git(main, 'commit', '--quiet', '-m', 'mine');
+    const c = manual();
+    await workers.start(c.id);
+    commitIn(board.row(c.id).workstation!, 'mine.txt', 'card\r\nb\r\nc\r\n');
+    writeFileSync(join(main, 'mine.txt'), 'a\r\nb\r\nowner\r\n');
+    git(main, 'add', 'mine.txt');
+    writeFileSync(join(main, 'mine.txt'), 'a\r\nb\r\nc\r\n');
+    const sc = runtime.sessions.find((s) => s.spec.cwd === board.row(c.id).workstation)!;
+    await sc.call('ready_for_review', { summary: 'S', demo: artifact() });
+    sc.emit({ type: 'idle' });
+    expect(await workers.approve(c.id).catch((e) => e)).toMatchObject({ code: 'landMerge' });
+    expect(board.item(c.id)!.review?.blocked).toEqual({ files: ['mine.txt'] });
+    await workers.fold(c.id, false);
+    expect(git(main, 'cat-file', 'blob', `${git(main, 'rev-parse', 'refs/seismic/folded/' + c.id)}:mine.txt`)).toBe('a\nb\nowner');
+    expect(git(main, 'status', '--porcelain')).toBe('');
+  });
+
   test('folded in for a new demo, a conflict stays under way for the worker, and the owner approves anew', async () => {
     const c = manual();
     await workers.start(c.id);
