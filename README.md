@@ -15,7 +15,7 @@ Wordmark header, to bring back once the wordmark is updated:
 
 A spatial canvas for directing AI coding agents.
 
-New info coming soon. More on [seismic.site](https://seismic.site).
+New info coming soon. More on [seismic.im](https://seismic.im).
 
 ## On your phone
 
@@ -34,15 +34,13 @@ private network, Tailscale or another VPN; nothing goes through a service of our
 “Reachable from other devices” in Seismic's configuration and scan the code of “Connect a phone”
 with the phone.
 
-Seismic began as a fork of Obeya by Daniel Sadilek, and has departed for good: it takes nothing from
-the original and points nothing to it. *Obeya* is
+Seismic began as a fork of Obeya by Daniel Sadilek. *Obeya* is
 Japanese for "big room", the room in lean management where every project hangs visibly on the
-walls, and it brought that idea to AI coding agents: every task and plan as a card on one
-canvas, where the agents work in the background and you keep every essential decision.
+walls.
 
 ## License
 
 [MIT](LICENSE)
 
 © 2026 Nick Palenchar  
-© 2026 Daniel Sadilek (original author)
+© Obeya 2026 Daniel Sadilek
