@@ -80,8 +80,8 @@ export function GithubSetup({ running, onAdd, cancel }: { running: boolean; onAd
   const view = info && info !== 'loading' && typeof info !== 'string' ? info : null;
   return (
     <div className="grid gap-2">
-      <Command shouldFilter={false} label={p.hosts.github} className="rounded-lg border border-line bg-card">
-        <CommandInput aria-label={g.search} placeholder={g.search} value={query} onValueChange={setQuery} wrapperClassName="border-b border-line" className="border-0 shadow-none rounded-b-none" />
+      <Command shouldFilter={false} label={p.hosts.github} className="rounded-lg border border-border bg-card">
+        <CommandInput aria-label={g.search} placeholder={g.search} value={query} onValueChange={setQuery} wrapperClassName="border-b border-border" className="border-0 shadow-none rounded-b-none" />
         <CommandList className="max-h-[min(360px,40vh)] p-1">
           <CommandItem value={CREATE} className={cn('px-2.5 py-1.5 text-primary', picked === CREATE && 'font-semibold')} onSelect={() => setPicked(CREATE)}>
             {g.create}

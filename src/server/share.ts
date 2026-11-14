@@ -604,7 +604,7 @@ export class Sharing {
       // Keep auditing a PR site after its last withdrawal: its description may still need
       // reconciliation. Retain the old site's identity even if the project now uses another.
       const target = card ? (!s.url && s.site ? this.storedTarget(card, s) : this.target(card)) : null;
-      if (target && (s.url || target.prMode)) targets.set(target.key, target);
+      if (target && (s.url || target.prState)) targets.set(target.key, target);
     }
     await this.merges(new Map());
     for (const target of targets.values()) {
@@ -801,7 +801,7 @@ export class Sharing {
     this.lost(target.key, r.gone);
     if (r.why) return back(r.why, r.said);
     await this.pendingIn(target, r.merge ?? null, cardId);
-    this.set(cardId, { slug: s.slug, ...kept(this.currentChoice(cardId, s)), ...(target.prMode ? placeOf(s) : {}) });
+    this.set(cardId, { slug: s.slug, ...kept(this.currentChoice(cardId, s)), ...(target.prState ? placeOf(s) : {}) });
     if (r.said) this.o.board.log(cardId, 'activity', 'obeya', r.said);
     this.o.board.log(cardId, 'state', 'obeya', t.withdrawn);
   }

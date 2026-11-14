@@ -230,10 +230,11 @@ describe('rolling proposal tracking', () => {
     await until(() => board.row(old.id).demo!.share!.merge === 'https://github.com/a/b/pull/2');
   });
 
-  test('a PR site is still audited after its last page is withdrawn', async () => {
+  test('a PR site is still audited after switching to direct mode and withdrawing its last page', async () => {
     const { old } = setup('open');
     let audited = 0;
     const target = sharing['target'](old)!;
+    delete target.prMode;
     target.audit = async () => { audited++; return { gone: [], missing: [] }; };
     sharing.unshare(old.id);
     await until(() => !share(old.id));
