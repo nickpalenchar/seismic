@@ -396,7 +396,7 @@ export function folderStore(o: FolderStoreOptions): FolderStore {
       rmSync(root, { recursive: true, force: true });
       mkdirSync(root, { recursive: true });
       cpSync(dir, root, { recursive: true, filter: (src) => !LEFT_OUT.has(src.slice(dir.length + 1)) });
-      await step(['add', '-A', '--', folder], 'git add');
+      await step(['add', '-A', '-f', '--', folder], 'git add');
       const same = (await run(['diff', '--cached', '--quiet'])).code === 0;
       const pr = o.git.mode === 'pr';
       if (same && !(pr && at.lease !== null && !at.pr)) return { said: `Nothing changed in ${o.repo}/${folder}.`, ...(at.pr ? { pr: at.pr.url } : {}) };
