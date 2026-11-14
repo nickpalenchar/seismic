@@ -187,12 +187,30 @@ describe('a session on a host', () => {
     expect(existsSync(legacy)).toBe(false);
   });
 
+  test("keeps the session's pid file where the host's own ~/.obeya is a link to ~/.seismic", async () => {
+    const home = join(dir, 'net', 'home');
+    mkdirSync(join(home, '.seismic', 'remote', 'sessions'), { recursive: true });
+    symlinkSync('.seismic', join(home, '.obeya'));
+    const s = spawnSession({ command: 'sh', args: ['-c', 'echo claude here'], env: {} });
+    expect(await s.exited).toBe(0);
+    const record = readFileSync(join(home, '.seismic', 'remote', 'sessions', `${join(dir, 'ws').replace(/[^\w.-]+/g, '-')}.pid`), 'utf8').trim().split(' ');
+    expect(record.length).toBeGreaterThan(2);
+  });
+
+  test('the session runs with the mark its pid file names', async () => {
+    const s = spawnSession({ command: 'sh', args: ['-c', 'echo "mark $SEISMIC_REMOTE_SESSION"'], env: {} });
+    expect(await s.exited).toBe(0);
+    const record = readFileSync(join(dir, 'net', 'home', '.seismic', 'remote', 'sessions', `${join(dir, 'ws').replace(/[^\w.-]+/g, '-')}.pid`), 'utf8').trim().split(' ');
+    expect(s.out()).toContain(`mark ${record[1]}`);
+    expect(record[1]).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
   test('leaves alone a process that got the pid of a session since ended (its start time differs)', async () => {
     const pids = join(dir, 'net', 'home', '.seismic', 'remote', 'sessions');
     mkdirSync(pids, { recursive: true });
     const other = spawn('sh', ['-c', 'sleep 30; echo claude']);
     try {
-      writeFileSync(join(pids, `${join(dir, 'ws').replace(/[^\w.-]+/g, '-')}.pid`), `${other.pid} Mon Jan 1 00:00:00 2024\n`);
+      writeFileSync(join(pids, `${join(dir, 'ws').replace(/[^\w.-]+/g, '-')}.pid`), `${other.pid} m3 Mon Jan 1 00:00:00 2024\n`);
       const s = spawnSession({ command: 'sh', args: ['-c', 'echo claude here'], env: {} });
       expect(await s.exited).toBe(0);
       expect(other.exitCode).toBeNull();
@@ -207,16 +225,17 @@ describe('a session on a host', () => {
     const pidFile = join(pids, `${join(dir, 'ws').replace(/[^\w.-]+/g, '-')}.pid`);
     mkdirSync(pids, { recursive: true });
     // the one left running
-    const left = spawn('sh', ['-c', 'sleep 30; echo claude']);
+    // marked as that session, as the session's start marks it (its environment, else its start time)
+    const left = spawn('sh', ['-c', 'sleep 30; echo claude'], { env: { ...process.env, SEISMIC_REMOTE_SESSION: 'm1' } });
     const started = spawnSync('ps', ['-p', String(left.pid), '-o', 'lstart='], { encoding: 'utf8' }).stdout.trim().split(/\s+/).join(' ');
-    writeFileSync(pidFile, `${left.pid} ${started}\n`);
+    writeFileSync(pidFile, `${left.pid} m1 ${started}\n`);
     const ended = new Promise((r) => left.on('exit', r));
     const s = spawnSession({ command: 'sh', args: ['-c', 'echo claude here'], env: {} });
     expect(await s.exited).toBe(0);
     await ended;
     // a host that restarted gives out its pids again: the new session may have the one in the file
     const wrapper = join(dir, 'net', 'same-pid');
-    writeFileSync(wrapper, `#!/bin/sh\necho $$ $(echo $(ps -p $$ -o lstart=)) > ${JSON.stringify(pidFile)}\nexec ${JSON.stringify(ssh)} "$@"\n`, { mode: 0o755 });
+    writeFileSync(wrapper, `#!/bin/sh\necho $$ m2 $(echo $(ps -p $$ -o lstart=)) > ${JSON.stringify(pidFile)}\nexec ${JSON.stringify(ssh)} "$@"\n`, { mode: 0o755 });
     const again = registerHost({ name: `${name}-again`, ssh: 'me@box', home: join(dir, 'home'), program: wrapper });
     const p = again.session({ cwd: join(dir, 'ws'), files: { dirs: { plugin: join(dir, 'plugin') } } })({ command: 'sh', args: ['-c', 'echo claude here'], env: {}, signal: new AbortController().signal });
     let out = '';

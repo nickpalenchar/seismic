@@ -6,7 +6,7 @@
 
 import { bothNames, seismicEnv } from '../core/env';
 import { type ChildProcess, spawn } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import { type AddressInfo, createServer } from 'node:net';
 import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -56,6 +56,8 @@ const PATH_PREFIX = '$HOME/.local/bin:$HOME/.bun/bin';
 export const HOST_DIR = '.seismic/remote';
 /** `HOST_DIR` before the rename: only its pid files are still read (migration shim, docs/plan/seismic-rename.md). */
 export const OLD_HOST_DIR = '.obeya/remote';
+/** The variable that marks a session's process on a host as that session (its pid file names the mark). */
+const SESSION_MARK = 'SEISMIC_REMOTE_SESSION';
 
 /** A string as one word for a POSIX shell. */
 export const sh = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
@@ -414,18 +416,28 @@ export class SshHost {
         // a port of its own per session, so that sessions ending do not take another's forward along
         const there = here ? 30_000 + Math.floor(Math.random() * 30_000) : 0;
         // a session cut off by a dropped connection may still run there: the one that resumes it ends it first.
-        // Its pid file holds the pid and the process's start time, so a pid given out again since (to another
-        // process, or to this one by a host that restarted, a container, say) never matches.
+        // A pid alone may since be another process's (a host that restarted, a container, gives them out again), so
+        // the pid file names the session too: a mark of its own in its environment, where the host shows that
+        // (`/proc` on Linux, where a container's pids start over), else its start time (macOS: pids go round
+        // its whole range before one comes back, and `ps` there shows no environment). Not itself either.
         const pidFile = `sessions/${o.cwd.replace(/[^\w.-]+/g, '-')}.pid`;
         const pid = sh(`${dir}/${pidFile}`);
-        const started = (p: string) => `$(echo $(ps -p ${p} -o lstart= 2>/dev/null))`;
-        let previous = `mkdir -p ${sh(`${dir}/sessions`)}; old=; stamp=; read -r old stamp 2>/dev/null < ${pid}; [ -n "$old" ] && [ -n "$stamp" ] && [ "$old" != $$ ] && [ "${started('"$old"')}" = "$stamp" ] && kill "$old"; echo $$ ${started('$$')} > ${pid};`;
+        const mark = randomUUID();
+        let previous = [
+          `mkdir -p ${sh(`${dir}/sessions`)};`,
+          'seismic_started() { echo $(ps -p "$1" -o lstart= 2>/dev/null); };',
+          `seismic_ours() { if [ -r "/proc/$1/environ" ]; then tr "\\000" "\\n" < "/proc/$1/environ" | grep -qx "${SESSION_MARK}=$2"; else [ -n "$3" ] && [ "$(seismic_started "$1")" = "$3" ]; fi; };`,
+          `old=; mark=; stamp=; read -r old mark stamp 2>/dev/null < ${pid};`,
+          '[ -n "$old" ] && [ -n "$mark" ] && [ "$old" != $$ ] && seismic_ours "$old" "$mark" "$stamp" && kill "$old";',
+        ].join(' ');
         // migration shim: one that began before the rename has a bare pid under `OLD_HOST_DIR`; that file is
-        // checked once and removed, so a pid given out again later is never taken for it
+        // checked once and removed, so a pid given out again later is never taken for it. Where the host's
+        // `~/.obeya` is a link to `~/.seismic`, it is the new file itself, which stays.
         if (dir.endsWith(HOST_DIR)) {
           const legacy = sh(`${dir.slice(0, -HOST_DIR.length)}${OLD_HOST_DIR}/${pidFile}`);
-          previous += ` old=$(cat ${legacy} 2>/dev/null); rm -f ${legacy}; [ -n "$old" ] && [ "$old" != $$ ] && ps -p "$old" -o command= 2>/dev/null | grep -q claude && kill "$old";`;
+          previous += ` if [ -f ${legacy} ] && ! [ ${legacy} -ef ${pid} ]; then old=$(cat ${legacy} 2>/dev/null); rm -f ${legacy}; [ -n "$old" ] && [ "$old" != $$ ] && ps -p "$old" -o command= 2>/dev/null | grep -q claude && kill "$old"; fi;`;
         }
+        previous += ` export ${SESSION_MARK}=${mark}; echo $$ ${mark} $(seismic_started $$) > ${pid};`;
         const argv = this.argv(`${previous} exec ${[s.command, ...args].map(sh).join(' ')}`, {
           cwd: o.cwd,
           env: true,
