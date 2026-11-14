@@ -23,9 +23,10 @@ import { pathClass } from './setupClasses';
 import { failText, t } from './strings';
 
 /** What the owner picked and typed, not sent yet: it survives closing the dialog. */
-const PICKED_KEY = 'obeya-site-github-repo';
-const FOLDER_KEY = 'obeya-site-github-folder';
-const NAME_KEY = 'obeya-site-github-name';
+const PICKED_KEY = 'seismic-site-github-repo';
+const FOLDER_KEY = 'seismic-site-github-folder';
+const NAME_KEY = 'seismic-site-github-name';
+const PRIVATE_KEY = 'seismic-site-github-private';
 /** The list item that creates a repository. */
 export const CREATE = '+';
 
@@ -56,12 +57,13 @@ export function GithubSetup({ running, onAdd, cancel }: { running: boolean; onAd
   const [query, setQuery] = useState('');
   const [folder, setFolder] = useState(() => sessionStorage.getItem(FOLDER_KEY) ?? 'docs/demos');
   const [name, setName] = useState(() => sessionStorage.getItem(NAME_KEY) ?? 'obeya-demos');
-  const [priv, setPriv] = useState(false);
+  const [priv, setPriv] = useState(() => sessionStorage.getItem(PRIVATE_KEY) === '1');
   const [confirming, setConfirming] = useState(false);
   const [confirmBranch, setConfirmBranch] = useState('');
   useEffect(() => sessionStorage.setItem(PICKED_KEY, picked), [picked]);
   useEffect(() => sessionStorage.setItem(FOLDER_KEY, folder), [folder]);
   useEffect(() => sessionStorage.setItem(NAME_KEY, name), [name]);
+  useEffect(() => sessionStorage.setItem(PRIVATE_KEY, priv ? '1' : ''), [priv]);
   useEffect(() => {
     api.githubRepos().then(
       (l) => {

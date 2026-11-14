@@ -184,7 +184,9 @@ Formats to stay compatible with:
 - A demo folder leaves the repository's own Pages setup intact: no root-level `.nojekyll` or
   `CNAME`; rebuilding its rolling branch uses a lease so another machine's push is not lost. A
   rolling branch that holds a closed or merged pull request's commits (commits on top, or reset
-  into it) is rebuilt from the default branch; only one no pull request ever had goes on.
+  into it) is rebuilt from the default branch; only one no pull request ever had goes on. Its pull
+  requests and the branch's rules are read from GitHub to the last page: a capped list would miss an
+  old closed proposal or a blocking rule.
 - Commits and PRs carry `Demo-Video:`/`Demo-Page:` trailers and an `<!-- obeya:demo -->` marker.
 - Installers have version-less names under `releases/latest/download/` and the updater reads
   `latest.json` there, so every release is "latest"; the `site-media` pre-release never is.

@@ -34,13 +34,16 @@ describe('where a folder is served', () => {
   });
 });
 
+/** The path a gh api call reads, without its query. */
+const pathOf = (argv: string[]) => (argv.find((a) => a.startsWith('repos/')) ?? '').replace(/\?.*/, '');
+
 describe('the push check', () => {
   const gh =
     (answers: Record<string, unknown>): Exec =>
     async (argv) => {
-      const path = argv[2] ?? '';
+      const path = pathOf(argv);
       if (!(path in answers)) return { code: 1, out: '', err: 'gh: Not Found (HTTP 404)' };
-      return { code: 0, out: JSON.stringify(answers[path]), err: '' };
+      return { code: 0, out: JSON.stringify(argv.includes('--slurp') ? [answers[path]] : answers[path]), err: '' };
     };
 
   test('a ruleset that requires a pull request blocks, and links that ruleset', async () => {
@@ -68,7 +71,7 @@ describe('the push check', () => {
   test('timeouts and permission errors on either rules or branch reads fail closed', async () => {
     for (const path of ['rules/branches/main', 'branches/main']) {
       for (const error of ['HTTP 403', 'HTTP 500', 'request timed out']) {
-        const x: Exec = async (args) => args[2] === `repos/acme/docs/${path}`
+        const x: Exec = async (args) => pathOf(args) === `repos/acme/docs/${path}`
           ? { code: 1, out: '', err: error }
           : { code: 0, out: '[]', err: '' };
         await expect(pushCheck(x, 'acme/docs', 'main', { push: true, admin: true })).rejects.toThrow(error);
@@ -80,6 +83,14 @@ describe('the push check', () => {
     const row = (name: string, push = true) => ({ full_name: name, owner: { login: name.split('/')[0] }, private: false, permissions: { push } });
     const x: Exec = async (args) => ({ code: 0, err: '', out: JSON.stringify(args.includes('user') ? { login: 'ada' } : [[row('org/docs'), row('org/hidden', false)], [row('ada/site')]], null, 2) });
     expect((await listRepos(x)).repos.map((r) => r.repo)).toEqual(['ada/site', 'org/docs']);
+  });
+
+  test('a blocking rule on a later page of the branch’s rules blocks too', async () => {
+    const x: Exec = async (argv) =>
+      pathOf(argv) === 'repos/acme/docs/rules/branches/main'
+        ? { code: 0, out: JSON.stringify(argv.includes('--paginate') ? [[{ type: 'deletion' }], [{ type: 'pull_request', ruleset_id: 5 }]] : [{ type: 'deletion' }]), err: '' }
+        : { code: 0, out: JSON.stringify({ protected: false }), err: '' };
+    expect(await pushCheck(x, 'acme/docs', 'main', { push: true, admin: false })).toEqual({ allowed: false, admin: false, settings: 'https://github.com/acme/docs/settings/rules/5' });
   });
 
   test('an open branch and push rights: allowed', async () => {
@@ -111,11 +122,12 @@ describe('a site in a folder of an existing repository', () => {
   let demo: string;
   /** What gh is asked, and the pull requests it says are open. */
   let gh: string[][];
-  let open: { url: string; number: number; mergeable?: string; body?: string }[];
+  let open: { url: string; number: number; mergeable?: string; body?: string; headRefOid?: string }[];
   let state: string;
   let failCreate: boolean;
   let failEdit: boolean;
-  let history: unknown[];
+  /** The pull requests GitHub has besides the open one, newest first. */
+  let history: { headRefOid: string; state: string }[];
   let failRollback: boolean;
   /** Runs once right before the next push: another machine's commit coming in between. */
   let beforePush: (() => Promise<void>) | null;
@@ -124,7 +136,13 @@ describe('a site in a folder of an existing repository', () => {
       gh.push(argv.slice(1));
       const line = argv.slice(1).join(' ');
       if (line === 'auth token') return { code: 0, out: 'gho_secret\n', err: '' };
-      if (line.startsWith('pr list')) return { code: 0, out: JSON.stringify(argv.includes('all') ? history : open), err: '' };
+      // GitHub's list of the branch's pull requests, two to a page, the open one first
+      const pulls = /^api --paginate --slurp repos\/acme\/docs\/pulls\?state=(open|all)&head=acme%3Aseismic%2Fdemos&base=main&per_page=100$/.exec(line);
+      if (pulls) {
+        const list = [...open, ...(pulls[1] === 'all' ? history : [])].map((p) => ({ html_url: 'url' in p ? p.url : '', number: 'number' in p ? p.number : 0, body: 'body' in p ? p.body : null, head: { sha: p.headRefOid ?? '' } }));
+        return { code: 0, out: JSON.stringify(list.length ? Array.from({ length: Math.ceil(list.length / 2) }, (_, i) => list.slice(i * 2, i * 2 + 2)) : [[]]), err: '' };
+      }
+      if (line.startsWith('pr view') && argv.includes('mergeable')) return { code: 0, out: `${open.find((p) => String(p.number) === argv[3])?.mergeable ?? 'UNKNOWN'}\n`, err: '' };
       if (line.startsWith('pr create')) {
         if (failCreate) return { code: 1, out: '', err: 'service unavailable' };
         open = [{ url: 'https://github.com/acme/docs/pull/7', number: 7, mergeable: 'MERGEABLE', body: argv.at(-1) }];
@@ -296,6 +314,16 @@ describe('a site in a folder of an existing repository', () => {
     expect(gh.filter((c) => c[0] === 'pr' && c[1] === 'create')).toHaveLength(2);
   });
 
+  test('a closed proposal counts however many pull requests came after it', async () => {
+    await make('pr').publish(page('one'));
+    await close();
+    // six later proposals, merged: the closed one is on GitHub's fourth page
+    history = [...Array.from({ length: 6 }, (_, i) => ({ headRefOid: String(i).repeat(40), state: 'MERGED' })), ...history];
+    await onBranch();
+    expect(await make('pr', join(dir, 'home-b'), 'b').publish(page('two'))).toHaveProperty('merge');
+    expect(await git(await look('seismic/demos'), 'log', '--format=%s')).toBe('Demos: Title two\nseed');
+  });
+
   test('a closed proposal’s branch reset to an earlier commit of it starts afresh too', async () => {
     await make('pr').publish(page('one'));
     const first = await git(remote, 'rev-parse', 'seismic/demos');
@@ -404,9 +432,9 @@ describe('initializing a site in an existing repository', () => {
     const line = argv.slice(1).join(' ');
     calls.push(line);
     if (line.startsWith('api -X POST')) return { code: 0, out: '{}', err: '' };
-    const path = argv[2] ?? '';
+    const path = pathOf(argv);
     if (!(path in answers)) return { code: 1, out: '', err: 'gh: Not Found (HTTP 404)' };
-    return { code: 0, out: JSON.stringify(answers[path]), err: '' };
+    return { code: 0, out: JSON.stringify(argv.includes('--slurp') ? [answers[path]] : answers[path]), err: '' };
   };
   beforeEach(() => {
     home = mkdtempSync(join(tmpdir(), 'obeya-folder-setup-'));

@@ -198,6 +198,8 @@ export function ConfigDialog({ on, page, onClose, onAsk, onTalk, onProblems, onC
   const setAddingSite = (on: boolean) => {
     if (on) sessionStorage.setItem(ADD_SITE_KEY, '1');
     else sessionStorage.removeItem(ADD_SITE_KEY);
+    // left on purpose: a publish mode not chosen yet stays in the site's entry, not on the page
+    if (!on) sessionStorage.removeItem(ADD_MODE_KEY);
     setAddingSiteState(on);
   };
   const setSection = (s: Section) => {
@@ -1664,6 +1666,24 @@ const ADD_HOSTS: AddHost[] = ['github', 'cloudflare', 'manual'];
 const ADD_HOST_KEY = 'seismic-site-host';
 const ADD_MANUAL_KEY = 'seismic-site-manual';
 const ADD_CODE_KEY = 'seismic-site-code';
+/** The Cloudflare account and listing chosen for a new site, kept alike; never its token. */
+const ADD_CLOUDFLARE_KEY = 'seismic-site-cloudflare';
+/**
+ * A site this tab started adding, and then the folder site whose publish mode is still to be chosen:
+ * what follows the setup survives closing the dialog, a reload, and going back to the list meanwhile.
+ */
+const ADD_MINE_KEY = 'seismic-site-adding';
+const ADD_MODE_KEY = 'seismic-site-mode-for';
+
+/** The Cloudflare account and listing kept for the form, as it was left. */
+const keptCloudflare = (): { way: CloudflareWay | null; unlisted: boolean } => {
+  try {
+    const k = JSON.parse(sessionStorage.getItem(ADD_CLOUDFLARE_KEY) ?? '{}') as { account?: unknown; accountId?: unknown; unlisted?: unknown };
+    return { way: typeof k.account === 'string' ? { account: k.account, token: '', accountId: typeof k.accountId === 'string' ? k.accountId : '' } : null, unlisted: k.unlisted !== false };
+  } catch {
+    return { way: null, unlisted: true };
+  }
+};
 
 /** The demo sites of this machine, read once per page and shared by every block that shows them. */
 let sitesNow: DemoSitesView | null = null;
@@ -1700,8 +1720,8 @@ function AddSite({ view, onView, onAdded, onCancel }: { view: DemoSitesView; onV
   const p = t.config.sites;
   const c = t.config.settings;
   const [host, setHost] = useState<AddHost>(() => ADD_HOSTS.find((h) => h === sessionStorage.getItem(ADD_HOST_KEY)) ?? ADD_HOSTS[0]!);
-  const [way, setWay] = useState<CloudflareWay | null>(null);
-  const [unlisted, setUnlisted] = useState(true);
+  const [way, setWay] = useState<CloudflareWay | null>(() => keptCloudflare().way);
+  const [unlisted, setUnlisted] = useState(() => keptCloudflare().unlisted);
   const [manual, setManual] = useState<{ url: string; deploy: string; env: string; maxFile: string }>(() => {
     try {
       return { url: '', deploy: '', env: '', maxFile: '', ...JSON.parse(sessionStorage.getItem(ADD_MANUAL_KEY) ?? '{}') };
@@ -1712,25 +1732,41 @@ function AddSite({ view, onView, onAdded, onCancel }: { view: DemoSitesView; onV
   const [code, setCode] = useState(() => sessionStorage.getItem(ADD_CODE_KEY) ?? '');
   const [connecting, setConnecting] = useState(() => !!sessionStorage.getItem(ADD_CODE_KEY));
   const [status, setStatus] = useState('');
-  // the job this form started: its site is handed on once it is on the list
-  const [mine, setMine] = useState(false);
+  // the job this tab started: its site is handed on once it is on the list
+  const [mine, setMineState] = useState(() => !!sessionStorage.getItem(ADD_MINE_KEY));
+  const setMine = (on: boolean) => {
+    if (on) sessionStorage.setItem(ADD_MINE_KEY, '1');
+    else sessionStorage.removeItem(ADD_MINE_KEY);
+    setMineState(on);
+  };
   // a site in a repository's folder, just added: how its demos go in is asked before it is handed on
-  const [modeFor, setModeFor] = useState<string | null>(null);
+  const [modeFor, setModeForState] = useState<string | null>(() => sessionStorage.getItem(ADD_MODE_KEY));
+  const setModeFor = (url: string | null) => {
+    if (url) sessionStorage.setItem(ADD_MODE_KEY, url);
+    else sessionStorage.removeItem(ADD_MODE_KEY);
+    setModeForState(url);
+  };
   useEffect(() => sessionStorage.setItem(ADD_HOST_KEY, host), [host]);
+  useEffect(() => sessionStorage.setItem(ADD_CLOUDFLARE_KEY, JSON.stringify({ ...(way ? { account: way.account, accountId: way.accountId } : {}), unlisted })), [way?.account, way?.accountId, unlisted]);
   useEffect(() => sessionStorage.setItem(ADD_MANUAL_KEY, JSON.stringify(manual)), [manual]);
   useEffect(() => (code ? sessionStorage.setItem(ADD_CODE_KEY, code) : sessionStorage.removeItem(ADD_CODE_KEY)), [code]);
   const job = view.job;
   const running = !!job?.running;
   useEffect(() => {
-    if (!mine || !job || job.running) return;
+    // no job left (Seismic restarted, or another tab took its result): nothing to hand on
+    if (!mine || job?.running) return;
     setMine(false);
-    if (job.site) {
+    if (job?.site) {
       if (view.sites.find((x) => x.url === job.site)?.git) setModeFor(job.site);
       else onAdded?.(job.site);
       sessionStorage.removeItem(ADD_MANUAL_KEY);
       void api.demoSitesSeen().then(onView, console.error);
     }
   }, [mine, job?.running, job?.site]);
+  // a site removed meanwhile asks nothing any more
+  useEffect(() => {
+    if (modeFor && !view.sites.some((x) => x.url === modeFor)) setModeFor(null);
+  }, [modeFor, view.sites]);
   const act = async (fn: () => Promise<DemoSitesView>) => {
     setStatus('');
     try {
@@ -1771,7 +1807,13 @@ function AddSite({ view, onView, onAdded, onCancel }: { view: DemoSitesView; onV
         <p className="hint m-0">{g.modeHint}</p>
         <PublishMode url={added.url} repo={added.project} git={added.git} onChanged={onView} />
         <div className={K.cfgPersonalActionsClass}>
-          <Button variant="primary" onClick={() => onAdded?.(added.url)}>
+          <Button
+            variant="primary"
+            onClick={() => {
+              setModeFor(null);
+              onAdded?.(added.url);
+            }}
+          >
             {g.done}
           </Button>
         </div>
@@ -1942,6 +1984,18 @@ function DemoSitesBlock({ on, onAdd }: { on: boolean; /** Opens the page that ad
     const at = setTimeout(() => box.current?.scrollIntoView({ block: 'start', behavior: scrollBehavior() }), 400);
     return () => clearTimeout(at);
   }, [on, !!view]);
+  // a site this tab started adding, done while the list showed: a folder site's page asks how its
+  // demos go in; any other is on the list, and that is all
+  const job = view?.job;
+  useEffect(() => {
+    if (!on || !view || job?.running || !sessionStorage.getItem(ADD_MINE_KEY)) return;
+    if (job?.site && view.sites.find((x) => x.url === job.site)?.git) {
+      onAdd();
+      return;
+    }
+    sessionStorage.removeItem(ADD_MINE_KEY);
+    if (job?.site) void api.demoSitesSeen().then(setView, console.error);
+  }, [on, !!view, job?.running, job?.site]);
   const urls = view?.sites.map((x) => x.url).join(' ') ?? '';
   useEffect(() => {
     for (const x of view?.sites ?? []) if (!codes[x.url]) api.demoSiteCode(x.url).then((r) => setCodes((now) => ({ ...now, [x.url]: r.code })), console.error);

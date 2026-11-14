@@ -110,9 +110,10 @@ export async function pushCheck(x: Exec, repo: string, branch: string, rights: {
   const { admin } = rights;
   if (!rights.push) return { allowed: false, admin };
   const b = encodeURIComponent(branch);
-  const rules = await ghJson<{ type: string; ruleset_id?: number }[]>(x, ['api', `repos/${repo}/rules/branches/${b}`]);
-  if (!Array.isArray(rules)) throw new Error('GitHub did not return branch rules.');
-  const rule = rules.find((r) => BLOCKING_RULES.has(r.type));
+  // every page of them: a blocking rule may come after the first
+  const pages = await ghJson<{ type: string; ruleset_id?: number }[][]>(x, ['api', '--paginate', '--slurp', `repos/${repo}/rules/branches/${b}?per_page=100`]);
+  if (!Array.isArray(pages) || !pages.every(Array.isArray)) throw new Error('GitHub did not return branch rules.');
+  const rule = pages.flat().find((r) => BLOCKING_RULES.has(r.type));
   if (rule) return { allowed: false, admin, settings: `https://github.com/${repo}/settings/rules${rule.ruleset_id ? `/${rule.ruleset_id}` : ''}` };
   const { protected: protectedBranch } = await ghJson<{ protected: boolean }>(x, ['api', `repos/${repo}/branches/${b}`]);
   if (typeof protectedBranch !== 'boolean') throw new Error('GitHub did not return branch protection status.');
@@ -222,10 +223,22 @@ export function folderStore(o: FolderStoreOptions): FolderStore {
     return r.out.trim();
   };
   const fetch = (ref: string) => run(['fetch', '-q', '--no-tags', '--filter=blob:none', '--depth=1', 'origin', `+refs/heads/${ref}:refs/remotes/origin/${ref}`]);
+  /**
+   * The rolling pull requests against the default branch, newest first: every one GitHub has, page by
+   * page, of this repository's branch alone (a fork's branch of the same name is someone else's).
+   */
   const prs = async (state: 'open' | 'all') => {
-    const r = await x(['gh', 'pr', 'list', '--repo', o.repo, '--head', DEMOS_BRANCH, '--base', branch, '--state', state, '--json', 'url,number,mergeable,state,headRefOid,body', '--limit', '5']);
-    if (r.code !== 0) throw new Error(`gh pr list: ${lastLine(r)}`);
-    return JSON.parse(r.out || '[]') as { url: string; number: number; mergeable?: string; state?: string; headRefOid?: string; body?: string }[];
+    const head = encodeURIComponent(`${o.repo.split('/')[0]}:${DEMOS_BRANCH}`);
+    const r = await x(['gh', 'api', '--paginate', '--slurp', `repos/${o.repo}/pulls?state=${state}&head=${head}&base=${encodeURIComponent(branch)}&per_page=100`]);
+    if (r.code !== 0) throw new Error(`gh api pulls: ${lastLine(r)}`);
+    const pages = JSON.parse(r.out || '[]') as { html_url: string; number: number; body?: string | null; head?: { sha?: string } }[][];
+    if (!Array.isArray(pages) || !pages.every(Array.isArray)) throw new Error('GitHub did not return a list of pull requests.');
+    return pages.flat().map((p) => ({ url: p.html_url, number: p.number, headRefOid: p.head?.sha ?? '', body: p.body ?? '' }));
+  };
+  /** Whether GitHub finds the pull request no longer merges into the default branch. */
+  const conflicting = async (pr: { number: number }) => {
+    const r = await x(['gh', 'pr', 'view', String(pr.number), '--repo', o.repo, '--json', 'mergeable', '--jq', '.mergeable']);
+    return r.code === 0 && r.out.trim() === 'CONFLICTING';
   };
 
   /** How `to` stands to `from` at GitHub (ahead: built on it); null where they share no history. */
@@ -244,6 +257,7 @@ export function folderStore(o: FolderStoreOptions): FolderStore {
    * though it is built on what an earlier merge put on the default branch.
    */
   const inPr = async (tip: string) => {
+    // all of them: the head the branch holds may be an old one's, however many came since
     const heads = [...new Set((await prs('all')).flatMap((p) => (p.headRefOid ? [p.headRefOid] : [])))];
     if (heads.includes(tip)) return true;
     for (const head of heads) {
@@ -306,7 +320,7 @@ export function folderStore(o: FolderStoreOptions): FolderStore {
         const has = (await fetch(DEMOS_BRANCH)).code === 0;
         const tip = has ? await step(['rev-parse', `refs/remotes/origin/${DEMOS_BRANCH}`], 'git rev-parse') : '';
         // on the open pull request's branch while it merges; else afresh from the default branch, with this machine's pages
-        if (open && has && open.mergeable !== 'CONFLICTING') {
+        if (open && has && !(await conflicting(open))) {
           base = `refs/remotes/origin/${DEMOS_BRANCH}`;
           at = { pr: open, lease: null };
         } else {
