@@ -159,3 +159,12 @@ export function lineDiff(before: string[], after: string[]): { kind: ' ' | '-' |
   }
   return out;
 }
+
+/** `lineDiff` of two line lists as the one hunk of a unified patch for `file`, all lines in it (no context is cut). */
+export function patchOf(file: string, before: string[], after: string[]): DiffPart {
+  const d = lineDiff(before, after);
+  const old = d.filter((x) => x.kind !== '+').length;
+  const neu = d.filter((x) => x.kind !== '-').length;
+  const lines = [`diff --git a/${file} b/${file}`, `--- a/${file}`, `+++ b/${file}`, `@@ -${old ? 1 : 0},${old} +${neu ? 1 : 0},${neu} @@`, ...d.map((x) => x.kind + x.line)];
+  return { file, status: 'added', added: d.filter((x) => x.kind === '+').length, removed: d.filter((x) => x.kind === '-').length, lines };
+}

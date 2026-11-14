@@ -5,12 +5,12 @@
 // dialog (prefs.tsx).
 
 import { Info as InfoIcon, Trash2 } from 'lucide-react';
-import { Fragment, type ReactNode, useContext, useEffect, useRef, useState } from 'react';
+import { Fragment, lazy, type ReactNode, Suspense, useContext, useEffect, useRef, useState } from 'react';
 import { OpenPerformance } from './performance';
 import { allowsDemo, HANDOVER_ARTIFACTS } from '../../plugin/skills/demo/lib/artifacts.ts';
 import { DEFAULT_STYLE, QWEN3_SPEAKER, QWEN3_SPEAKERS, qwen3IsClone, qwen3Speaker, STYLED_VOICES } from '../../plugin/skills/demo/lib/voice-choices.ts';
 import { AGENT_EFFORTS, AGENT_MODELS, AGENT_ROLES, choosesHarness, CARD_ARCHIVING, type CardArchiving, RIGHT_CLICK, type RightClick, CODE_REVIEW_MODES, type CodeReviewSetting, HARNESS_ROLES, type AgentEffort, type AgentModel, type AgentRole, type AgentSetting, type CodexModel, type Harness, type AgentsView, blocksSaving, type ProjectConfig, type ProjectDefaults, type ProjectDefaultsView, type ProjectSettings, type ConfigChecked, type DeveloperView, type ConfigProblem, type ConfigProblemCode, type ConfigView, commandLines, type DemoSettings, type HandoverArtifact, type DemoSettingsView, type DemoSpaceView, type DemoVoiceCheck, type FilledClones, type ProjectDemoSite, type ProjectDemoSiteState, type DemoSitesView, type TagProposalJob, type Language, type HostConfig, type LanguageView, type NarrationLanguage, restartsAgents, type RepoConfig, type RepoSettings, type RepoTrust, type RepoValues, type ResolvedProject, type SettingsShared, type SettingValue, layerSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type PageTags, type SetupCheck, START_FAILED, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type FeedbackPromptView, type NotificationsView, type VoiceKind, type VoiceSetupView, withClones } from '../core/types';
-import { lineDiff } from '../core/diff';
+import { patchOf } from '../core/diff';
 import { parseTagLines, tagLines } from '../core/page-tags';
 import { LANGUAGES } from '../core/locale';
 import { SUGGEST_TOGGLES, type SuggestSettings, type SuggestToggle, suggestToggles } from '../core/labels';
@@ -46,7 +46,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './component
 import { Select, SelectGroup, SelectItem, SelectLabel } from './components/select';
 import { type GithubAdd, GithubSetup, PublishMode } from './githubSite';
 import { cn } from 'cn';
-import { addedClass, removedClass } from './diff';
 import * as K from './configClasses';
 
 declare global {
@@ -3315,6 +3314,8 @@ export function Problem({ problem, where, ask, retried, onShow }: { problem: Con
   );
 }
 
+const CodeDiff = lazy(() => import('./diff-code'));
+
 /**
  * The commands of a repository that wait for the owner's trust (problem `untrusted`): each group
  * with what it does and its lines as last trusted against those on the main branch now, and the
@@ -3341,14 +3342,9 @@ function TrustCommands({ path, trust, onDone }: { path: string; trust: RepoTrust
       {trust.held.map((g) => (
         <div key={g} className={trustGroupClass}>
           <p className="hint">{c[g]}</p>
-          <div className="d-lines">
-            {lineDiff(commandLines(trust.before, g), commandLines(trust.now, g)).map((d, i) => (
-              <div key={i} className={d.kind === '+' ? addedClass : d.kind === '-' ? removedClass : undefined}>
-                <span className="d-no">{d.kind === ' ' ? '' : d.kind === '+' ? '+' : '−'}</span>
-                <span className="d-text">{d.line}</span>
-              </div>
-            ))}
-          </div>
+          <Suspense fallback={<p className="hint">{t.diff.loading}</p>}>
+            <CodeDiff part={patchOf(g, commandLines(trust.before, g), commandLines(trust.now, g))} card="" style="unified" />
+          </Suspense>
           {(g === 'claude' || g === 'codex') && blankOnly(trust, g).length > 0 && <p className="hint">{c.blankOnly(blankOnly(trust, g).join(', '))}</p>}
         </div>
       ))}
