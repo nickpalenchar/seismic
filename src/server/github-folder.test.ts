@@ -125,7 +125,7 @@ describe('a site in a folder of an existing repository', () => {
   let open: { url: string; number: number; mergeable?: string; body?: string; headRefOid?: string; base?: string }[];
   /** The repository's default branch and its Pages as GitHub says now (null: off). */
   let defaultBranch: string;
-  let pages: { source: { branch: string; path: string } } | null;
+  let pages: { source: { branch: string; path: string } } | null | 'default';
   let state: string;
   let failCreate: boolean;
   let failEdit: boolean;
@@ -140,7 +140,7 @@ describe('a site in a folder of an existing repository', () => {
       const line = argv.slice(1).join(' ');
       if (line === 'auth token') return { code: 0, out: 'gho_secret\n', err: '' };
       if (line === 'api repos/acme/docs') return { code: 0, out: JSON.stringify({ default_branch: defaultBranch }), err: '' };
-      if (line === 'api repos/acme/docs/pages') return pages ? { code: 0, out: JSON.stringify(pages), err: '' } : { code: 1, out: '', err: 'gh: Not Found (HTTP 404)' };
+      if (line === 'api repos/acme/docs/pages') return pages ? { code: 0, out: JSON.stringify(pages === 'default' ? { source: { branch: defaultBranch, path: '/' } } : pages), err: '' } : { code: 1, out: '', err: 'gh: Not Found (HTTP 404)' };
       // GitHub's list of the branch's pull requests, two to a page, the open one first
       const pulls = /^api --paginate --slurp repos\/acme\/docs\/pulls\?state=(open|all)&head=acme%3Aseismic%2Fdemos&per_page=100$/.exec(line);
       if (pulls) {
@@ -165,7 +165,11 @@ describe('a site in a folder of an existing repository', () => {
       if (compare) {
         const [, a, b] = compare as unknown as [string, string, string];
         const on = async (x: string, y: string) => (await exec(['git', '-C', remote, 'merge-base', '--is-ancestor', x, y])).code === 0;
-        return { code: 0, out: `${a === b ? 'identical' : (await on(a, b)) ? 'ahead' : (await on(b, a)) ? 'behind' : 'diverged'}\n`, err: '' };
+        const status = a === b ? 'identical' : (await on(a, b)) ? 'ahead' : (await on(b, a)) ? 'behind' : 'diverged';
+        if (!argv.at(-1)!.includes('ahead_by')) return { code: 0, out: `${status}\n`, err: '' };
+        // the commits the second has beyond the first, and whether each is Seismic's
+        const messages = (await exec(['git', '-C', remote, 'log', '--format=%s', `${a}..${b}`])).out.split('\n').filter(Boolean);
+        return { code: 0, out: JSON.stringify({ status, ahead_by: messages.length, demos: messages.map((m) => m.startsWith('Demos:')) }), err: '' };
       }
       return { code: 0, out: '', err: '' };
     }
@@ -218,7 +222,8 @@ describe('a site in a folder of an existing repository', () => {
     history = [];
     beforePush = null;
     defaultBranch = 'main';
-    pages = null;
+    // served from the default branch's root, whichever it is
+    pages = 'default';
   });
   afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
@@ -459,13 +464,29 @@ describe('a site in a folder of an existing repository', () => {
     expect(open[0]!.body).toContain('[Title two]');
   });
 
-  test('a share is refused where Pages no longer serve the folder from the default branch', async () => {
+  test('a share is refused where Pages no longer serve the folder from the default branch, or are off', async () => {
     await make('direct').publish(page('one'));
     await toTrunk();
     pages = { source: { branch: 'main', path: '/' } };
     const r = await make('direct').publish(page('two', ['one']));
     expect('why' in r && r.why).toContain('not on its GitHub Pages any more: GitHub Pages serves the branch main, not trunk.');
+    pages = null;
+    const off = await make('direct').publish(page('two', ['one']));
+    expect('why' in off && off.why).toContain('GitHub Pages is off for acme/docs');
     expect(await git(await look('trunk'), 'log', '--format=%s')).toBe('trunk\nDemos: Title one\nseed');
+  });
+
+  test('a site check moves the pull request only once its branch holds demos alone on the new default branch', async () => {
+    // the new default branch is an older point of the earlier one: the proposal's branch is built on it, with main's own commit between
+    const at = await look();
+    writeFileSync(join(at, 'MAIN.md'), 'after the fork\n');
+    await git(at, 'add', '-A');
+    await git(at, 'commit', '-qm', 'main only');
+    await git(at, 'push', '-q', 'origin', 'HEAD~1:refs/heads/trunk', 'main');
+    await make('pr').publish(page('one'));
+    defaultBranch = 'trunk';
+    await make('pr').audit(['one']);
+    expect(open[0]!.base).toBe('main');
   });
 
   test('a branch that no longer merges is built afresh from the default branch, with this machine’s pages', async () => {

@@ -173,7 +173,9 @@ export async function liveBranch(x: Exec, repo: string, folder: string): Promise
   }
   const branch = r.default_branch;
   if (!branch) throw new Error(`GitHub did not say which branch of ${repo} is its default.`);
-  const at = folderAddress(repo, branch, await readPages(x, repo), folder);
+  const pages = await readPages(x, repo);
+  if (!pages) throw new Error(`GitHub Pages is off for ${repo}: turn it on in the repository's settings, from ${branch}, for the demos to show.`);
+  const at = folderAddress(repo, branch, pages, folder);
   if (!at.address) throw new Error(`${folder} of ${repo} is not on its GitHub Pages any more: ${at.outside}`);
   return branch;
 }
@@ -278,6 +280,17 @@ export function folderStore(o: FolderStoreOptions): FolderStore {
   };
 
   /**
+   * Whether `tip` is the default branch with Seismic's commits on top and nothing else, so a pull
+   * request of it against the default branch shows demos alone (a branch rebuilt there).
+   */
+  const builtOn = async (tip: string) => {
+    const r = await x(['gh', 'api', `repos/${o.repo}/compare/${branch}...${tip}`, '--jq', '{status, ahead_by, demos: [.commits[].commit.message | startswith("Demos:")]}']);
+    if (r.code !== 0) return false;
+    const c = JSON.parse(r.out) as { status?: string; ahead_by?: number; demos?: boolean[] };
+    return c.status === 'ahead' && !!c.demos && c.demos.length === c.ahead_by && c.demos.every(Boolean);
+  };
+
+  /**
    * Whether the rolling branch's tip belongs to a pull request: it is one's head, lies in its history
    * (the branch reset), or is built on a head the default branch lacks (commits pushed after it was
    * closed). GitHub compares them, since the clone holds the tip alone. A tip none of them has is a
@@ -369,7 +382,7 @@ export function folderStore(o: FolderStoreOptions): FolderStore {
         if (proposal && (await fetch(DEMOS_BRANCH)).code === 0) {
           const body = await prBody(`refs/remotes/origin/${DEMOS_BRANCH}`);
           // against an earlier default branch, it moves once a share rebuilt its branch on this one
-          const moves = proposal.base !== branch && (await compare(branch, await step(['rev-parse', `refs/remotes/origin/${DEMOS_BRANCH}`], 'git rev-parse'))) === 'ahead';
+          const moves = proposal.base !== branch && (await builtOn(await step(['rev-parse', `refs/remotes/origin/${DEMOS_BRANCH}`], 'git rev-parse')));
           if (proposal.body !== body || moves) await updatePr(moves ? proposal : { ...proposal, base: branch }, body);
         }
       } catch {
