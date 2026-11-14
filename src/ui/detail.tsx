@@ -3971,6 +3971,7 @@ function Questions(p: { questions: Question[]; picks: string[][]; others: string
       ))}
       {p.submit && (
         <Button
+          variant="primary"
           className="mt-3"
           disabled={busy}
           onClick={async () => {
