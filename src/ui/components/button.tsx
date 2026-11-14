@@ -48,7 +48,7 @@ const buttonVariants = cva(
       suggested: { true: 'shadow-[0_0_0_2px_var(--background),0_0_0_4px_var(--idea)]' },
       /** disabled while it waits, yet not faded, with a bar running under its label */
       armed: {
-        true: "relative overflow-hidden disabled:opacity-100 after:absolute after:inset-x-0 after:bottom-0 after:h-1 after:bg-[linear-gradient(90deg,transparent,var(--idea),transparent)] after:bg-[length:200%_100%] after:animate-[flow_1.4s_linear_infinite] after:content-['']",
+        true: "relative overflow-hidden disabled:opacity-100 after:absolute after:left-0 after:bottom-0 after:h-1 after:w-[400%] after:bg-[linear-gradient(90deg,transparent,var(--idea),transparent)] after:bg-[length:50%_100%] after:animate-[flow_1.4s_linear_infinite] after:content-['']",
       },
     },
     compoundVariants: [
