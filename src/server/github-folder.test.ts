@@ -249,17 +249,17 @@ describe('a site in a folder of an existing repository', () => {
 
   test('assets the repository ignores are published too, at the setup and on later shares', async () => {
     const seed = join(dir, 'seed');
-    writeFileSync(join(seed, 'docs', '.gitignore'), '*.mp4\n*.vtt\ndemos/\n');
+    writeFileSync(join(seed, 'docs', '.gitignore'), '*.mp4\n*.vtt\n*.jpg\ndemos/\n');
     await git(seed, 'add', '-A');
     await git(seed, 'commit', '-qm', 'ignore');
     await exec(['git', '-C', seed, 'push', '-q', remote, 'main']);
-    writeFileSync(join(demo, 'poster.png'), 'png');
+    writeFileSync(join(demo, 'poster.jpg'), 'png');
     await make('direct').publish(page('first'));
     const at = await look();
-    for (const f of ['demo.mp4', 'captions.vtt']) expect(existsSync(join(at, 'docs/demos/first', f))).toBe(true);
+    for (const f of ['demo.mp4', 'poster.jpg', 'captions.vtt']) expect(existsSync(join(at, 'docs/demos/first', f))).toBe(true);
     await make('direct').publish(page('second'));
     const later = await look();
-    for (const n of ['first', 'second']) expect(existsSync(join(later, 'docs/demos', n, 'demo.mp4'))).toBe(true);
+    for (const n of ['first', 'second']) expect(existsSync(join(later, 'docs/demos', n, 'poster.jpg'))).toBe(true);
     expect(readFileSync(join(later, 'README.md'), 'utf8')).toBe('the owner’s\n');
   });
 
