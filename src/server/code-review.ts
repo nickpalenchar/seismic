@@ -114,7 +114,8 @@ export class CodeReviews {
       if (had) this.o.board.work(cardId, { review: { codeReview: null, items: [] } });
       return;
     }
-    const resubmitted = this.resubmit(cardId, this.items(cardId).filter((i) => i.status === 'fixing').map((i) => ({ number: i.number })), 'worker', handover).done;
+    // A pending lookup has already resubmitted its handover's fixes; a verification lookup has no handover to resubmit.
+    const resubmitted = resumePending ? [] : this.resubmit(cardId, this.items(cardId).filter((i) => i.status === 'fixing').map((i) => ({ number: i.number })), 'worker', handover).done;
     // the review starts once git has told the commit; until then the card already counts as under review
     const pendingId = crypto.randomUUID();
     if (mode === 'auto' && had) {

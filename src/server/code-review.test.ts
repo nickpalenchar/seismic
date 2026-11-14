@@ -551,7 +551,7 @@ describe('code reviews', () => {
     await handOver(id, 'export.ts');
     await until(() => reviewers().length === 1);
     await review(id, reviewers()[0]!);
-    board.work(id, { review: { items: itemsOf(id).map((i) => i.number === 1 ? { ...i, status: 'underReview' as const } : i) } });
+    board.work(id, { review: { items: itemsOf(id).map((i) => i.number === 1 ? { ...i, status: 'underReview' as const } : i.number === 2 ? { ...i, status: 'fixing' as const } : i) } });
     workers.reviews.workerFinished(id);
     const c = board.row(id).review!.codeReview!;
     expect(c.pending).toBe(true);
@@ -560,6 +560,7 @@ describe('code reviews', () => {
     workers.reviews.interrupted();
     await until(() => reviewers().length === 2, 15000);
     expect(board.item(id)!.review?.codeReview).toMatchObject({ mode: 'manual', state: 'running', runs: 2 });
+    expect(itemsOf(id)[1]!.status).toBe('fixing');
   });
 
   test('a mode change while a handover checks Git is retained', async () => {
