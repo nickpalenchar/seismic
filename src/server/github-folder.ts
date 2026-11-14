@@ -63,19 +63,10 @@ export async function listRepos(x: Exec = exec): Promise<GithubRepoList> {
   } catch (e) {
     throw new Error(`gh is not logged in to GitHub (gh auth login): ${e instanceof Error ? e.message : e}`);
   }
-  const r = await x(['gh', 'api', '--paginate', 'user/repos?per_page=100&affiliation=owner,collaborator,organization_member', '--jq', '.[] | select(.permissions.push) | {repo: .full_name, owner: .owner.login, private: .private}']);
-  if (r.code !== 0) throw new Error(`GitHub did not list the repositories: ${lastLine(r)}`);
-  const repos = r.out
-    .split('\n')
-    .filter((l) => l.trim())
-    .flatMap((l) => {
-      try {
-        const v = JSON.parse(l) as GithubRepo;
-        return typeof v.repo === 'string' && REPO.test(v.repo) ? [{ repo: v.repo, owner: v.owner, private: !!v.private }] : [];
-      } catch {
-        return [];
-      }
-    });
+  const pages = await ghJson<{ full_name: string; owner: { login: string }; private: boolean; permissions?: { push?: boolean } }[][]>(x,
+    ['api', '--paginate', '--slurp', 'user/repos?per_page=100&affiliation=owner,collaborator,organization_member']);
+  const repos: GithubRepo[] = pages.flat().filter((r) => r.permissions?.push && REPO.test(r.full_name))
+    .map((r) => ({ repo: r.full_name, owner: r.owner.login, private: !!r.private }));
   const rank = (o: string) => (o.toLowerCase() === login.toLowerCase() ? 0 : 1);
   repos.sort((a, b) => rank(a.owner) - rank(b.owner) || a.owner.localeCompare(b.owner) || a.repo.localeCompare(b.repo));
   return { login, repos };
@@ -117,16 +108,12 @@ export async function pushCheck(x: Exec, repo: string, branch: string, rights: {
   const { admin } = rights;
   if (!rights.push) return { allowed: false, admin };
   const b = encodeURIComponent(branch);
-  let rules: { type: string; ruleset_id?: number }[] = [];
-  try {
-    rules = await ghJson(x, ['api', `repos/${repo}/rules/branches/${b}`]);
-  } catch {}
-  const rule = Array.isArray(rules) ? rules.find((r) => BLOCKING_RULES.has(r.type)) : undefined;
+  const rules = await ghJson<{ type: string; ruleset_id?: number }[]>(x, ['api', `repos/${repo}/rules/branches/${b}`]);
+  if (!Array.isArray(rules)) throw new Error('GitHub did not return branch rules.');
+  const rule = rules.find((r) => BLOCKING_RULES.has(r.type));
   if (rule) return { allowed: false, admin, settings: `https://github.com/${repo}/settings/rules${rule.ruleset_id ? `/${rule.ruleset_id}` : ''}` };
-  let protectedBranch = false;
-  try {
-    protectedBranch = !!(await ghJson<{ protected?: boolean }>(x, ['api', `repos/${repo}/branches/${b}`])).protected;
-  } catch {}
+  const { protected: protectedBranch } = await ghJson<{ protected: boolean }>(x, ['api', `repos/${repo}/branches/${b}`]);
+  if (typeof protectedBranch !== 'boolean') throw new Error('GitHub did not return branch protection status.');
   if (!protectedBranch) return { allowed: true, admin };
   const blocked = { allowed: false, admin, settings: `https://github.com/${repo}/settings/branches` };
   if (!admin) return blocked;
@@ -234,9 +221,9 @@ export function folderStore(o: FolderStoreOptions): FolderStore {
   };
   const fetch = (ref: string) => run(['fetch', '-q', '--no-tags', '--filter=blob:none', '--depth=1', 'origin', `+refs/heads/${ref}:refs/remotes/origin/${ref}`]);
   const prs = async (state: 'open' | 'all') => {
-    const r = await x(['gh', 'pr', 'list', '--repo', o.repo, '--head', DEMOS_BRANCH, '--base', branch, '--state', state, '--json', 'url,number,mergeable,state', '--limit', '5']);
+    const r = await x(['gh', 'pr', 'list', '--repo', o.repo, '--head', DEMOS_BRANCH, '--base', branch, '--state', state, '--json', 'url,number,mergeable,state,headRefOid', '--limit', '5']);
     if (r.code !== 0) throw new Error(`gh pr list: ${lastLine(r)}`);
-    return JSON.parse(r.out || '[]') as { url: string; number: number; mergeable?: string; state?: string }[];
+    return JSON.parse(r.out || '[]') as { url: string; number: number; mergeable?: string; state?: string; headRefOid?: string }[];
   };
 
   /** The pages the pull request holds: those whose revision differs from the default branch's. */
@@ -290,7 +277,10 @@ export function folderStore(o: FolderStoreOptions): FolderStore {
         if (open && has && open.mergeable !== 'CONFLICTING') {
           base = `refs/remotes/origin/${DEMOS_BRANCH}`;
           at = { pr: open, lease: null };
-        } else at = { pr: open, lease: tip };
+        } else {
+          if (!open && has && !(await prs('all')).some((p) => p.headRefOid === tip)) base = `refs/remotes/origin/${DEMOS_BRANCH}`;
+          at = { pr: open, lease: tip };
+        }
       }
       await step(['checkout', '-q', '--force', '-B', 'obeya-work', base], 'git checkout');
       await step(['clean', '-qfdx'], 'git clean');
@@ -308,6 +298,9 @@ export function folderStore(o: FolderStoreOptions): FolderStore {
       if (!same) await step(['commit', '-q', '--no-verify', '-m', message], 'git commit');
       const to = pr ? DEMOS_BRANCH : branch;
       const lease = pr && at.lease !== null ? [`--force-with-lease=refs/heads/${DEMOS_BRANCH}:${at.lease}`] : [];
+      // Prepare metadata before publishing so a local read failure leaves no remote commit.
+      const body = pr ? await prBody() : '';
+      const tip = pr ? await step(['rev-parse', 'HEAD'], 'git rev-parse') : '';
       const r = await run(['push', '-q', '--no-verify', ...lease, 'origin', `HEAD:refs/heads/${to}`]);
       if (r.code !== 0) {
         const said = r.out + r.err;
@@ -318,14 +311,27 @@ export function folderStore(o: FolderStoreOptions): FolderStore {
       }
       const pushed = `Pushed a commit to ${o.repo} (${to}, ${folder}).`;
       if (!pr) return { said: pushed };
-      const body = await prBody();
       if (at.pr) {
-        const e = await x(['gh', 'pr', 'edit', String(at.pr.number), '--repo', o.repo, '--body', body]);
+        const e = await x(['gh', 'pr', 'edit', String(at.pr.number), '--repo', o.repo, '--body', body]).catch((e) => ({ code: 1, out: '', err: String(e) }));
         return { said: e.code === 0 ? pushed : `${pushed}\nThe pull request's list did not change: ${lastLine(e)}`, pr: at.pr.url };
       }
-      const c = await x(['gh', 'pr', 'create', '--repo', o.repo, '--base', branch, '--head', DEMOS_BRANCH, '--title', 'Demos', '--body', body]);
+      const c = await x(['gh', 'pr', 'create', '--repo', o.repo, '--base', branch, '--head', DEMOS_BRANCH, '--title', 'Demos', '--body', body]).catch((e) => ({ code: 1, out: '', err: String(e) }));
       const url = /https:\/\/\S+\/pull\/\d+/.exec(c.out + c.err)?.[0];
-      if (c.code !== 0 || !url) throw new Error(`gh pr create: ${lastLine(c)}`);
+      if (c.code !== 0 || !url) {
+        // A timed-out create may have succeeded at GitHub. Recover its URL first.
+        const recovered = await prs('open').catch(() => null);
+        if (!recovered) throw new Error(`gh pr create: ${lastLine(c)}. The commit remains on ${DEMOS_BRANCH} at ${tip}; GitHub could not confirm whether its pull request exists. Retry publishing to recover it.`);
+        if (recovered[0]) return { said: pushed, pr: recovered[0].url };
+        const restore = at.lease ?? '';
+        const rollback = () => run(['push', '-q', '--no-verify', `--force-with-lease=refs/heads/${DEMOS_BRANCH}:${tip}`, 'origin', `${restore}:refs/heads/${DEMOS_BRANCH}`]);
+        let undo = await rollback();
+        // Restoring a fetched shallow tip may need its ancestry once it is no longer advertised.
+        if (restore && /shallow update not allowed/.test(undo.err + undo.out)) {
+          const ancestry = await run(['fetch', '-q', '--unshallow', '--filter=blob:none', 'origin', restore]);
+          if (ancestry.code === 0) undo = await rollback();
+        }
+        throw new Error(`gh pr create: ${lastLine(c)}. ${undo.code === 0 ? 'The branch change was rolled back; retry publishing.' : `The commit remains on ${DEMOS_BRANCH} at ${tip}; rollback failed: ${undo.err.trim() || lastLine(undo)}`}`);
+      }
       return { said: `${pushed}\nOpened ${url}.`, pr: url };
     },
     async prState(url) {

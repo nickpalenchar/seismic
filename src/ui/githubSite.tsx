@@ -58,6 +58,7 @@ export function GithubSetup({ running, onAdd, cancel }: { running: boolean; onAd
   const [name, setName] = useState(() => sessionStorage.getItem(NAME_KEY) ?? 'obeya-demos');
   const [priv, setPriv] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [confirmBranch, setConfirmBranch] = useState('');
   useEffect(() => sessionStorage.setItem(PICKED_KEY, picked), [picked]);
   useEffect(() => sessionStorage.setItem(FOLDER_KEY, folder), [folder]);
   useEffect(() => sessionStorage.setItem(NAME_KEY, name), [name]);
@@ -67,7 +68,7 @@ export function GithubSetup({ running, onAdd, cancel }: { running: boolean; onAd
         reposNow = l;
         setList(l);
       },
-      (e) => setError(failText(e)),
+      (e) => setError(failText(e, { detail: ['invalid'] })),
     );
   }, []);
   const typed = tidy(folder);
@@ -160,6 +161,7 @@ export function GithubSetup({ running, onAdd, cancel }: { running: boolean; onAd
                   disabled={running || !view.address}
                   onClick={() => {
                     // a change made at GitHub meanwhile shows in the dialog
+                    setConfirmBranch(view.branch);
                     recheck();
                     setConfirming(true);
                   }}
@@ -168,19 +170,21 @@ export function GithubSetup({ running, onAdd, cancel }: { running: boolean; onAd
                 </Button>
                 {cancel}
               </div>
-              <ConfirmDialog
-                open={confirming}
-                onOpenChange={setConfirming}
-                title={g.confirmTitle}
-                confirm={{ label: g.viaPr, onClick: () => onAdd({ repo: view.repo, folder: typed, via: 'pr' }) }}
-                also={{ label: g.viaPush(view.branch), variant: 'review-warning', disabled: !view.push.allowed, onClick: () => onAdd({ repo: view.repo, folder: typed, via: 'push' }) }}
-                cancel={g.back}
-              >
-                <p>{g.confirmText(view.repo, typed)}</p>
-                {!view.push.allowed && <PushCallout repo={view.repo} branch={view.branch} check={view.push} className="mb-[22px]" />}
-              </ConfirmDialog>
             </>
           )}
+          <ConfirmDialog
+            open={confirming}
+            onOpenChange={setConfirming}
+            title={g.confirmTitle}
+            confirm={{ label: g.viaPr, disabled: !view?.address, onClick: () => onAdd({ repo: existing, folder: typed, via: 'pr' }) }}
+            also={{ label: g.viaPush(view?.branch ?? confirmBranch), variant: 'review-warning', disabled: !view?.push.allowed || !view.address, onClick: () => onAdd({ repo: existing, folder: typed, via: 'push' }) }}
+            cancel={g.back}
+          >
+            {info === 'loading' && <p>{g.checking}</p>}
+            {typeof info === 'string' && info !== 'loading' && <p className="p-error">{info}</p>}
+            <p>{g.confirmText(existing, typed)}</p>
+            {view && !view.push.allowed && <PushCallout repo={existing} branch={view.branch} check={view.push} className="mb-[22px]" />}
+          </ConfirmDialog>
         </div>
       )}
     </div>
@@ -190,33 +194,44 @@ export function GithubSetup({ running, onAdd, cancel }: { running: boolean; onAd
 /**
  * A repository as GitHub has it for a folder, read afresh when the repository or folder changes,
  * when `recheck` asks, and when the window comes back into focus (a rule changed at GitHub shows):
- * the view, 'loading' the first time, or why it could not be read.
+ * the view, 'loading' during every check, or why it could not be read.
  */
 function useRepoView(repo: string, folder: string): [GithubRepoView | 'loading' | string | null, () => void] {
   const [info, setInfo] = useState<GithubRepoView | 'loading' | string | null>(null);
   const [round, setRound] = useState(0);
   const asked = useRef(0);
   useEffect(() => {
-    if (!repo) return setInfo(null);
     const n = ++asked.current;
-    setInfo((now) => (now && typeof now !== 'string' && now.repo === repo ? now : 'loading'));
+    if (!repo) return setInfo(null);
+    setInfo('loading');
     const at = setTimeout(
       () =>
         api.githubRepo(repo, folder).then(
           (v) => n === asked.current && setInfo(v),
-          (e) => n === asked.current && setInfo(failText(e)),
+          (e) => n === asked.current && setInfo(failText(e, { detail: ['invalid'] })),
         ),
       round ? 0 : 350,
     );
-    return () => clearTimeout(at);
+    return () => {
+      clearTimeout(at);
+      ++asked.current;
+    };
   }, [repo, folder, round]);
   useEffect(() => {
     if (!repo) return;
-    const again = () => setRound((r) => r + 1);
+    const again = () => {
+      ++asked.current;
+      setInfo('loading');
+      setRound((r) => r + 1);
+    };
     window.addEventListener('focus', again);
     return () => window.removeEventListener('focus', again);
   }, [repo]);
-  return [info, () => setRound((r) => r + 1)];
+  return [info, () => {
+    ++asked.current;
+    setInfo('loading');
+    setRound((r) => r + 1);
+  }];
 }
 
 /** "We recommend allowing push to <branch>": where at GitHub to allow it, or whom to ask. */

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { DemoSite } from '../adapters/types';
 import { MESSAGES } from '../core/messages';
-import { folderAddress, pushCheck, repoView } from './github-folder';
+import { folderAddress, listRepos, pushCheck, repoView } from './github-folder';
 import type { SharePage } from './share';
 import { siteTarget } from './site';
 import { SiteSetup } from './site-setup';
@@ -49,7 +49,7 @@ describe('the push check', () => {
   });
 
   test('classic protection blocks where it holds for the login, and links the branch settings', async () => {
-    const protectedBranch = { 'repos/acme/docs/branches/main': { protected: true } };
+    const protectedBranch = { 'repos/acme/docs/rules/branches/main': [], 'repos/acme/docs/branches/main': { protected: true } };
     // not an admin: the protection cannot be read, so it counts
     expect(await pushCheck(gh(protectedBranch), 'acme/docs', 'main', { push: true, admin: false })).toEqual({ allowed: false, admin: false, settings: 'https://github.com/acme/docs/settings/branches' });
     // an admin passes it unless it includes administrators
@@ -59,12 +59,37 @@ describe('the push check', () => {
     expect((await pushCheck(gh({ ...protectedBranch, 'repos/acme/docs/branches/main/protection': strict }), 'acme/docs', 'main', { push: true, admin: true })).allowed).toBe(false);
   });
 
+  test('failed and malformed rule or branch reads never authorize direct publishing', async () => {
+    for (const answers of [{}, { 'repos/acme/docs/rules/branches/main': [] }, { 'repos/acme/docs/rules/branches/main': {} }, { 'repos/acme/docs/rules/branches/main': [], 'repos/acme/docs/branches/main': {} }]) {
+      await expect(pushCheck(gh(answers), 'acme/docs', 'main', { push: true, admin: true })).rejects.toThrow();
+    }
+  });
+
+  test('timeouts and permission errors on either rules or branch reads fail closed', async () => {
+    for (const path of ['rules/branches/main', 'branches/main']) {
+      for (const error of ['HTTP 403', 'HTTP 500', 'request timed out']) {
+        const x: Exec = async (args) => args[2] === `repos/acme/docs/${path}`
+          ? { code: 1, out: '', err: error }
+          : { code: 0, out: '[]', err: '' };
+        await expect(pushCheck(x, 'acme/docs', 'main', { push: true, admin: true })).rejects.toThrow(error);
+      }
+    }
+  });
+
+  test('repository pages are parsed as complete pretty-printed JSON', async () => {
+    const row = (name: string, push = true) => ({ full_name: name, owner: { login: name.split('/')[0] }, private: false, permissions: { push } });
+    const x: Exec = async (args) => ({ code: 0, err: '', out: JSON.stringify(args.includes('user') ? { login: 'ada' } : [[row('org/docs'), row('org/hidden', false)], [row('ada/site')]], null, 2) });
+    expect((await listRepos(x)).repos.map((r) => r.repo)).toEqual(['ada/site', 'org/docs']);
+  });
+
   test('an open branch and push rights: allowed', async () => {
     expect(await pushCheck(gh({ 'repos/acme/docs/rules/branches/main': [], 'repos/acme/docs/branches/main': { protected: false } }), 'acme/docs', 'main', { push: true, admin: false })).toEqual({ allowed: true, admin: false });
   });
 
   test('a repository read for a folder: its branch, Pages, the address, the check and its size', async () => {
     const x = gh({
+      'repos/acme/docs/rules/branches/trunk': [],
+      'repos/acme/docs/branches/trunk': { protected: false },
       'repos/acme/docs': { private: false, default_branch: 'trunk', size: 2048, permissions: { push: true, admin: false } },
       'repos/acme/docs/pages': { html_url: 'https://acme.github.io/docs/', build_type: 'legacy', source: { branch: 'trunk', path: '/' } },
     });
@@ -88,6 +113,9 @@ describe('a site in a folder of an existing repository', () => {
   let gh: string[][];
   let open: { url: string; number: number; mergeable?: string }[];
   let state: string;
+  let failCreate: boolean;
+  let history: unknown[];
+  let failRollback: boolean;
   /** Runs once right before the next push: another machine's commit coming in between. */
   let beforePush: (() => Promise<void>) | null;
   const x: Exec = async (argv, o) => {
@@ -95,14 +123,16 @@ describe('a site in a folder of an existing repository', () => {
       gh.push(argv.slice(1));
       const line = argv.slice(1).join(' ');
       if (line === 'auth token') return { code: 0, out: 'gho_secret\n', err: '' };
-      if (line.startsWith('pr list')) return { code: 0, out: JSON.stringify(open), err: '' };
+      if (line.startsWith('pr list')) return { code: 0, out: JSON.stringify(argv.includes('all') ? history : open), err: '' };
       if (line.startsWith('pr create')) {
+        if (failCreate) return { code: 1, out: '', err: 'service unavailable' };
         open = [{ url: 'https://github.com/acme/docs/pull/7', number: 7, mergeable: 'MERGEABLE' }];
         return { code: 0, out: 'https://github.com/acme/docs/pull/7\n', err: '' };
       }
       if (line.startsWith('pr view')) return { code: 0, out: `${state}\n`, err: '' };
       return { code: 0, out: '', err: '' };
     }
+    if (failRollback && argv.some((a) => a === ':refs/heads/seismic/demos')) return { code: 1, out: '', err: 'cannot delete branch' };
     if (argv.includes('push') && beforePush) {
       const run = beforePush;
       beforePush = null;
@@ -144,6 +174,9 @@ describe('a site in a folder of an existing repository', () => {
     gh = [];
     open = [];
     state = 'OPEN';
+    failCreate = false;
+    failRollback = false;
+    history = [];
     beforePush = null;
   });
   afterEach(() => rmSync(dir, { recursive: true, force: true }));
@@ -199,10 +232,41 @@ describe('a site in a folder of an existing repository', () => {
     await git(merged, 'checkout', '-q', 'origin/seismic/demos', '--', 'docs/demos');
     await git(merged, 'commit', '-qm', 'Demos (#7)');
     await git(merged, 'push', '-q', 'origin', 'main');
+    history = [{ headRefOid: await git(remote, 'rev-parse', 'seismic/demos'), state: 'MERGED' }];
     open = [];
     expect(await make('pr').publish(page('three', ['one', 'two']))).toMatchObject({ merge: 'https://github.com/acme/docs/pull/7' });
     expect(gh.filter((c) => c[0] === 'pr' && c[1] === 'create')).toHaveLength(2);
     expect(await git(await look('seismic/demos'), 'log', '--format=%s')).toBe('Demos: Title three\nDemos (#7)\nseed');
+  });
+
+  test('failed PR creation removes its pushed branch and a retry succeeds', async () => {
+    failCreate = true;
+    const result = await make('pr').publish(page('one'));
+    expect(JSON.stringify(result)).toContain('rolled back');
+    expect(await git(remote, 'branch', '--list', 'seismic/demos')).toBe('');
+    expect(await git(await look(), 'log', '--format=%s')).toBe('seed');
+    failCreate = false;
+    expect(await make('pr').publish(page('one'))).toMatchObject({ merge: 'https://github.com/acme/docs/pull/7' });
+  });
+
+  test('a failed rollback preserves the orphan branch for another machine retrying', async () => {
+    failCreate = true;
+    failRollback = true;
+    expect(JSON.stringify(await make('pr').publish(page('one')))).toContain('rollback failed');
+    failCreate = false;
+    expect(await make('pr', join(dir, 'other-home'), 'b').publish(page('two'))).toHaveProperty('merge');
+    const at = await look('seismic/demos');
+    for (const slug of ['one', 'two']) expect(existsSync(join(at, 'docs/demos', slug, 'demo.mp4'))).toBe(true);
+  });
+
+  test('failed creation restores a pre-existing closed PR branch', async () => {
+    await make('pr').publish(page('one'));
+    const tip = await git(remote, 'rev-parse', 'seismic/demos');
+    history = [{ headRefOid: tip, state: 'CLOSED' }];
+    open = [];
+    failCreate = true;
+    expect(JSON.stringify(await make('pr').publish(page('two')))).toContain('rolled back');
+    expect(await git(remote, 'rev-parse', 'seismic/demos')).toBe(tip);
   });
 
   test('a branch that no longer merges is built afresh from the default branch, with this machine’s pages', async () => {
@@ -232,6 +296,7 @@ describe('initializing a site in an existing repository', () => {
     home = mkdtempSync(join(tmpdir(), 'obeya-folder-setup-'));
     calls.length = 0;
     for (const k of Object.keys(answers)) delete answers[k];
+    answers['repos/acme/notes/branches/main'] = { protected: false };
     answers['repos/acme/notes'] = { private: true, default_branch: 'main', size: 10, permissions: { push: true, admin: true } };
     answers['repos/acme/notes/rules/branches/main'] = [{ type: 'pull_request', ruleset_id: 9 }];
   });
