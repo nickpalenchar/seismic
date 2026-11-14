@@ -596,11 +596,12 @@ export interface Stub {
   dir: 'before' | 'after';
 }
 
-/** Whether the card, its plan or the card standing for it is off the canvas (snoozed, in the parking lot, or a workstream of a plan there): it is listed under "Parked", on no canvas. */
-const hiddenOf = (id: string, byId: (id: string) => Item | undefined, standsFor: (id: string) => string) => {
+/** Whether the card or its plan is off the canvas (snoozed, in the parking lot, or a workstream of a plan there): it is listed under "Parked", on no canvas, whatever card stands for it. */
+export const hiddenCard = (id: string, byId: (id: string) => Item | undefined) => {
   const i = byId(id);
-  return [i, i?.parent && byId(i.parent), byId(standsFor(id))].some((x) => !!x && offCanvas(x));
+  return !!i && (offCanvas(i) || (!!i.parent && !!byId(i.parent) && offCanvas(byId(i.parent)!)));
 };
+const hiddenOf = (id: string, byId: (id: string) => Item | undefined, standsFor: (id: string) => string) => hiddenCard(id, byId) || hiddenCard(standsFor(id), byId);
 
 /**
  * The waits that leave the canvas shown: each `[from, to]` (from the card waited for to the one
@@ -630,10 +631,10 @@ export function stubsOf(waits: [string, string][], placed: Set<string>, byId: (i
 export function parkedStubsOf(waits: [string, string][], placed: Set<string>, byId: (id: string) => Item | undefined, standsFor: (id: string) => string): Stub[] {
   const seen = new Set<string>();
   return waits.flatMap(([from, to]): Stub[] => {
-    const [a, b] = [standsFor(from), standsFor(to)];
-    const end = placed.has(b) && !placed.has(a) ? { here: b, away: from, dir: 'before' as const } : placed.has(a) && !placed.has(b) ? { here: a, away: to, dir: 'after' as const } : undefined;
+    // the end that is off the canvas itself (not through the plan standing for it) and the card of the other end shown here
+    const end = hiddenCard(from, byId) && placed.has(standsFor(to)) && !hiddenCard(to, byId) ? { here: standsFor(to), away: from, dir: 'before' as const } : hiddenCard(to, byId) && placed.has(standsFor(from)) && !hiddenCard(from, byId) ? { here: standsFor(from), away: to, dir: 'after' as const } : undefined;
     const other = end && byId(end.away);
-    if (!end || !other || other.archivedAt || !hiddenOf(end.away, byId, standsFor)) return [];
+    if (!end || !other || other.archivedAt) return [];
     const key = `${end.here} ${other.id} ${end.dir}`;
     if (seen.has(key)) return [];
     seen.add(key);

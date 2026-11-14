@@ -16,7 +16,7 @@ import { connectionDotClass, depLayerClass, dotSide, handleColour, manualRemoveC
 import { buzz, pinchCam, TOUCH_HOLD_KNOWN, Touches } from './touch';
 import { besideSheet, BOTTOM, type Cam, camFor, camKey, centreOn, chase, dragLimit, edgeScroll, FAR, flying, flyTo, keepInView, MAX_ZOOM, midX, MIN_ZOOM, NO_SIDES, overviewCam, placeIn, shows, type Sides, stopFlight, TOP, toWorld } from './camera';
 import { plain } from './markdown';
-import { CanvasRing, Canvases, CanvasStubs, CanvasTabs, parkedStubsOf, stubsOf } from './canvases';
+import { CanvasRing, Canvases, CanvasStubs, CanvasTabs, hiddenCard, parkedStubsOf, stubsOf } from './canvases';
 import { canvasText } from './canvasIcon';
 import { clip } from '../core/text';
 import { type ActDone, Detail, type Pending } from './detail';
@@ -2397,8 +2397,10 @@ function Project({
   const waits = useMemo(() => waitsAmong(effective), [effective]);
   const settled = useMemo(() => settledAmong(effective), [effective]);
   const waitKeys = useMemo(() => new Set([...waits, ...settled.map((d): [string, string] => [d.from, d.to])].map(([from, to]) => `${from}:${to}`)), [waits, settled]);
-  const shownSettled = settled;
-  const shownWaits = waits;
+  // a wait of a card off the canvas (snoozed or parked, also as a workstream of a collapsed plan) is no line to the plan that stands for it
+  const onShownCanvas = ([from, to]: [string, string]) => !hiddenCard(from, byId) && !hiddenCard(to, byId);
+  const shownSettled = settled.filter((d) => onShownCanvas([d.from, d.to]));
+  const shownWaits = waits.filter(onShownCanvas);
   // a line only for the waits no chain of others already implies, finished ones taken together with open ones
   const lineKeys = useMemo(
     () => new Set(withoutImplied([...shownWaits, ...shownSettled.map((d): [string, string] => [d.from, d.to])]).map(([from, to]) => `${from}:${to}`)),
@@ -2518,7 +2520,7 @@ function Project({
           <div id="world" className="absolute top-0 left-0 origin-top-left will-change-transform" style={{ transform: `translate(${cam.x}px,${cam.y}px) scale(${cam.s})` }}>
             <TerritoryLayer {...territories} selected={placed.filter((p) => (ring ? ring.ids : marked).includes(p.item.id)).map((p) => p.b)} />
             <Links placed={placed} waits={[...shownWaits, ...shownSettled.map((d): [string, string] => [d.from, d.to])]} standsFor={standsForId} />
-            <DepLinks placed={placed} waits={lineWaits} lit={deps?.edges ?? []} first={deps?.first} settled={lineSettled} standsFor={standsForId} routeOf={routeOf} s={cam.s}>
+            <DepLinks placed={placed} waits={lineWaits} lit={(deps?.edges ?? []).filter(onShownCanvas)} first={deps?.first} settled={lineSettled} standsFor={standsForId} routeOf={routeOf} s={cam.s}>
               {/* an arrow the owner drew: under the pointer, a trash button that removes it, where no card
                   covers it; the button and the band that shows it keep their size on screen at every zoom */}
               {placed.flatMap(({ item, b }) => (connectable(item) ? item.plan?.manualDependsOn ?? [] : []).filter((from) => waitKeys.has(`${from}:${item.id}`) && !removing.some((x) => x.key === `${from}:${item.id}`)).flatMap((from) => {

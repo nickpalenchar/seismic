@@ -138,3 +138,12 @@ test('a wait of the hovered card that leads to a snoozed or parked card ends in 
     ['a', 'k', 'before', undefined],
   ]);
 });
+
+test('a snoozed workstream of a collapsed plan waiting on a visible card ends in a parked stub on that card, not a line to the plan', () => {
+  const card = (id: string, more: Partial<Item> = {}) => ({ id, canvas: 'm', title: id, ...more }) as Item;
+  const items = [card('a'), card('p'), card('w', { parent: 'p', hold: { reason: 'snoozed', since: '2026-11-01', until: '2026-12-01' } as Item['hold'] })];
+  const byId = (id: string) => items.find((i) => i.id === id);
+  const standsFor = (id: string) => (id === 'w' ? 'p' : id);
+  const stubs = parkedStubsOf([['a', 'w']], new Set(['a', 'p']), byId, standsFor);
+  expect(stubs.map((s) => [s.here, s.other.id, s.dir])).toEqual([['a', 'w', 'after']]);
+});
