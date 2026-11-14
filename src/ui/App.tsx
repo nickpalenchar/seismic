@@ -2961,9 +2961,9 @@ const TALK_W = 640;
 /** Below this the split's columns stack (its `max-[760px]` variants in detail.tsx) and the panel scrolls as a whole. */
 const NARROW = '(max-width: 760px)';
 
-/** Where a panel starts at the top: below the bar. */
-const PANEL_TOP = 64;
-/** The highest a panel starts, however tall: never over the bar, which stays usable beside an open card. */
+/** Where a panel starts at the top: below the bar and the floating pills under it (project switcher, view and canvas switchers, ending at 90 px). */
+const PANEL_TOP = 102;
+/** The highest a panel starts, however tall: never over the bar or the pills, which stay usable beside an open card. */
 const PANEL_TOP_OVER = PANEL_TOP;
 /** The least room a panel keeps at the bottom of the window, on a window too low to end it above the microphone. */
 const PANEL_BOTTOM = 46;
