@@ -412,6 +412,7 @@ export class CodeReviews {
     if (this.running.get(cardId)?.run !== run) return;
     if (!ws || (!resume && !diff?.patch)) return this.finish(cardId, run, undefined, b.t.worker.codeReviewNoDiff);
     const card = b.item(cardId);
+    const handoverSummary = b.summary(cardId);
     const items = this.items(cardId);
     // the items this run verifies: those under review when its brief was written, kept for a resumed session; one resubmitted meanwhile waits for the next review
     const stored = codeReviewOf(b.row(cardId))?.review;
@@ -491,11 +492,13 @@ export class CodeReviews {
         },
       },
       resume ? reviewResumed : [
-        `The card: “${card?.title ?? ''}”.`,
-        card?.body ? `Its task, as the owner gave it:\n\n${clip(card.body, 8000)}` : '',
-        `The files its branch changes against main:\n${diff!.files.map((f) => `- ${f.file} (${f.status}, +${f.added} −${f.removed})`).join('\n')}`,
-        `The branch's diff against main${diff!.truncated ? ' (cut off)' : ''}:\n\n\`\`\`diff\n${patch}\n\`\`\``,
-        listed(items),
+        // the stable parts first (the task does not change between review rounds), the ones that change each round last
+        `<card-title>${card?.title ?? ''}</card-title>`,
+        card?.body ? `<task>\n${clip(card.body, 8000)}\n</task>` : '',
+        handoverSummary ? `<handover-summary>\n${clip(handoverSummary, 8000)}\n</handover-summary>` : '',
+        `<changed-files>\n${diff!.files.map((f) => `- ${f.file} (${f.status}, +${f.added} −${f.removed})`).join('\n')}\n</changed-files>`,
+        `<diff against="main"${diff!.truncated ? ' truncated="true"' : ''}>\n${patch}\n</diff>`,
+        `<review-items>\n${listed(items)}\n</review-items>`,
       ]
         .filter(Boolean)
         .join('\n\n'),

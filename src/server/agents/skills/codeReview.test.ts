@@ -320,7 +320,7 @@ describe('code reviews', () => {
     await until(() => reviewers().length === 3);
     const fresh = reviewers()[2]!;
     expect(fresh.spec.resume).toBeUndefined();
-    expect(fresh.inbox[0]).toContain('The branch');
+    expect(fresh.inbox[0]).toContain('<diff against="main"');
     await review(id, fresh);
   });
 
