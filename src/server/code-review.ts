@@ -77,7 +77,7 @@ export class CodeReviews {
         // git had not told the commit yet: the review starts now, as the handover would have started it
         if (this.waits(i.id)) {
           if (c.pendingStart) this.startPending(i.id, c);
-          else void this.handedOver(i.id, c.handover, c.mode);
+          else void this.handedOver(i.id, c.handover, 'auto', true);
           continue;
         }
         const { pending: _, pendingStart: __, pendingId: ___, ...rest } = c;
@@ -107,7 +107,7 @@ export class CodeReviews {
    * it. A review of the same commit stands for this handover too, unless it resubmitted items;
    * otherwise it is stale, and in `auto` a new one starts.
    */
-  async handedOver(cardId: string, handover: number, mode: CodeReviewMode | null): Promise<void> {
+  async handedOver(cardId: string, handover: number, mode: CodeReviewMode | null, resumePending = false): Promise<void> {
     const had = codeReviewOf(this.o.board.row(cardId));
     if (!mode) {
       this.stopSession(cardId);
@@ -119,7 +119,7 @@ export class CodeReviews {
     const pendingId = crypto.randomUUID();
     if (mode === 'auto' && had) {
       const { pendingStart: _, ...rest } = had;
-      this.save(cardId, { ...rest, mode, handover, pending: true, pendingId });
+      this.save(cardId, { ...rest, mode: resumePending ? had.mode : mode, handover, pending: true, pendingId });
     }
     else if (mode === 'auto') this.save(cardId, { mode, handover, pending: true, pendingId });
     this.paused.delete(cardId);

@@ -556,6 +556,8 @@ describe('code reviews', () => {
     const c = board.row(id).review!.codeReview!;
     expect(c.pending).toBe(true);
     workers.reviews.applyMode(id, c.handover, 'manual');
+    // A restart before Git answers retains both the pending run and the new mode.
+    workers.reviews.interrupted();
     await until(() => reviewers().length === 2, 15000);
     expect(board.item(id)!.review?.codeReview).toMatchObject({ mode: 'manual', state: 'running', runs: 2 });
   });
@@ -569,7 +571,9 @@ describe('code reviews', () => {
     const c = board.row(id).review!.codeReview!;
     const pending = workers.reviews.handedOver(id, c.handover, 'auto');
     workers.reviews.applyMode(id, c.handover, 'manual');
+    workers.reviews.interrupted();
     await pending;
+    await until(() => !board.row(id).review?.codeReview?.pending, 15000);
     expect(board.row(id).review?.codeReview?.mode).toBe('manual');
   });
 
