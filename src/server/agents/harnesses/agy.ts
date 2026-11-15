@@ -145,10 +145,15 @@ export function nativeTool(name: string, parameters: Record<string, unknown> = {
  */
 export function agyLimit(message: string, now = Date.now()): { resetsAt?: number } | undefined {
   if (!/quota|rate.?limit|resource.?exhausted|usage limit|too many requests|\b429\b/i.test(message)) return undefined;
-  const m = /(?:resets?\s+in|retry\s+(?:in|after)|try again\s+(?:in|after))\s+((?:\d+(?:\.\d+)?\s*(?:hours?|hrs?|h|minutes?|mins?|m|seconds?|secs?|s)\s*)+)(?=$|[.,;)\s])/i.exec(message);
-  if (!m) return {};
+  const marker = /(?:resets?\s+in|retry\s+(?:in|after)|try again\s+(?:in|after))\s+/i.exec(message);
+  if (!marker) return {};
+  // Capture the whole phrase before validating it. Whitespace (including newlines) is not a
+  // terminator: "2h 3days" must stay unknown, rather than scheduling a retry after only 2h.
+  // A decimal point belongs to a number; other periods end the sentence.
+  const phrase = message.slice(marker.index + marker[0].length).split(/\.(?!\d)|[;)]/, 1)[0]!.trim();
+  if (!/^(?:\d+(?:\.\d+)?\s*(?:hours?|hrs?|h|minutes?|mins?|m|seconds?|secs?|s)\s*)+$/i.test(phrase)) return {};
   let duration = 0;
-  for (const part of m[1]!.matchAll(/(\d+(?:\.\d+)?)\s*([hms])/gi)) {
+  for (const part of phrase.matchAll(/(\d+(?:\.\d+)?)\s*([hms])/gi)) {
     const unit = part[2]!.toLowerCase();
     duration += Number(part[1]) * (unit === 'h' ? 3_600_000 : unit === 'm' ? 60_000 : 1000);
   }

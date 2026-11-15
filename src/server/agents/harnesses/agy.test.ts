@@ -128,3 +128,14 @@ test('real account-quota capture reads the entire reset duration', () => {
   expect(agyLimit('Quota reached. Resets in 2hgarbage.', now)).toEqual({});
   expect(agyLimit('Network unavailable. Retry in 30s.', now)).toBeUndefined();
 });
+
+test('a reset or retry duration must parse completely, not just its valid prefix', () => {
+  for (const marker of ['Resets in', 'Reset in', 'Retry in', 'Retry after', 'Try again in', 'Try again after']) {
+    for (const duration of ['2h 3days', '2h3days', '2h 3', '2h garbage', '2h\n3days', '2h, 3days', '2h 3ms', '2h 0.5days', '2h3m junk', '1.5s garbage']) {
+      expect(agyLimit(`Quota reached. ${marker} ${duration}.`, 0)).toEqual({});
+      expect(agyLimit(`Quota reached. ${marker} ${duration}`, 0)).toEqual({});
+    }
+    expect(agyLimit(`Quota reached. ${marker} 2h 3m. Please wait.`, 0)).toEqual({ resetsAt: 7380000 });
+    expect(agyLimit(`Quota reached. ${marker} 1.5s.`, 0)).toEqual({ resetsAt: 1500 });
+  }
+});
