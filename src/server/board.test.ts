@@ -989,6 +989,18 @@ describe('canvases', () => {
     expect([store.cards.get(a.id)!.canvas_id, store.cards.get(a.id)!.group_id]).toEqual([later.id, null]);
   });
 
+  test('what is made from a card its canvas does not hold (parked, archived) keeps its repository and group', () => {
+    board = new Board(store, { id: 'shop', name: 'Shop', repos: [{ id: 'home', name: 'Home', path: '/r', branch: 'main' }, { id: 'site', name: 'Site', path: '/s', branch: 'main' }] }, () => ({ docs, dirs }));
+    const parked = board.create({ title: 'Parked', x: 0, y: 0, repo: 'site' });
+    const idea = board.create({ idea: true, title: 'Idea', x: 400, y: 0, repo: 'site' });
+    const g = board.createGroup('Site work', [parked.id, idea.id]);
+    board.work(parked.id, { hold: { reason: 'parkingLot', since: new Date().toISOString() } });
+    board.patch(idea.id, { state: 'done' });
+    board.archive([idea.id]);
+    for (const c of [board.propose(parked.id, { title: 'From parked', task: 'T' }), board.create({ title: 'After parked', from: parked.id }), board.addPrototype(idea.id, 'Prototype', 'P')])
+      expect([c.repo, c.group]).toEqual(['site', g.id]);
+  });
+
   test('back from the archive, the trash or the parking lot onto a deleted canvas, a card is on main; so are follow-ups and prototypes of one', () => {
     const main = board.snapshot().canvases[0]!.id;
     const later = board.createCanvas('Later');

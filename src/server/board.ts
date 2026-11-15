@@ -987,12 +987,19 @@ export class Board {
   }
 
   /**
-   * The card new cards are made from, where its canvas holds it (`from`), and the canvas they go on:
-   * its own, or `main` once that is gone (`homeCanvas`), for one its canvas does not hold too.
+   * The card new cards are made from: where its canvas holds it, as placed there (`from`), to put them
+   * beside it; the canvas they go on, its own or `main` once that is gone (`homeCanvas`); and what
+   * they take from it whether its canvas holds it or not (parked, archived): its repository and group.
    */
-  private source(fromId: string): { from?: Item; canvas: string } {
+  private source(fromId: string): { from?: Item; canvas: string; repo?: string; group: string | null } {
     const from = this.items().find((i) => i.id === fromId && i.canvasVisible);
-    return { ...(from ? { from } : {}), canvas: this.homeCanvas(from?.canvas ?? this.store.cards.get(fromId)?.canvas_id) };
+    const row = this.store.cards.get(fromId);
+    return {
+      ...(from ? { from } : {}),
+      canvas: this.homeCanvas(from?.canvas ?? row?.canvas_id),
+      ...(row ? { repo: repoOfRow(row, this.home) } : {}),
+      group: row ? this.groupOf(row) : null,
+    };
   }
 
   /**
@@ -1023,7 +1030,7 @@ export class Board {
   /** An agent's proposal from card `fromId`: in the repository it names (`p.repo`), else in that card's. */
   propose(fromId: string, p: { title: string; task: string; reason?: string; idea?: boolean; questions?: Question[]; startAt?: string; repo?: string }): Item {
     if (p.repo !== undefined) this.checkRepo(p.repo);
-    const { from, canvas } = this.source(fromId);
+    const { from, canvas, repo, group } = this.source(fromId);
     const items = this.on(canvas);
     const at = from ? this.nearFree(items, below(boundsOf(from, items)), undefined, true) : this.spotOn(canvas);
     const proposal = proposalOf(p);
@@ -1037,9 +1044,9 @@ export class Board {
         body: p.task.slice(0, 20000),
         ...at,
         from_id: fromId,
-        repo: this.repoColumn(p.repo ?? from?.repo),
+        repo: this.repoColumn(p.repo ?? repo),
         idea: { proposal },
-        group_id: from?.group ?? null,
+        group_id: group,
       },
     ]);
     // its questions stand in its conversation as the proposing agent asked them, and stay there once settled
@@ -1395,9 +1402,8 @@ export class Board {
 
   /** A card whose worker builds a throwaway prototype for the idea; placed below it, beside the prototypes already there. */
   addPrototype(ideaId: string, title: string, body: string, variant?: string): Item {
-    const canvas = this.homeCanvas(this.store.cards.get(ideaId)?.canvas_id);
+    const { from: idea, canvas, repo, group } = this.source(ideaId);
     const items = this.on(canvas);
-    const idea = items.find((i) => i.id === ideaId);
     // an archived idea is not on the canvas: its prototype goes where there is room
     const at = idea ? below(boundsOf(idea, items), items.filter((i) => i.idea?.prototypeOf === ideaId).length) : this.spotOn(canvas);
     const [row] = this.store.addCards([
@@ -1411,8 +1417,8 @@ export class Board {
         ...at,
         from_id: ideaId,
         idea: { prototypeOf: ideaId, ...(variant ? { prototype: { variant } satisfies StoredPrototype } : {}) },
-        group_id: idea?.group ?? null,
-        repo: this.repoColumn(idea?.repo),
+        group_id: group,
+        repo: this.repoColumn(repo),
       },
     ]);
     this.changed();
