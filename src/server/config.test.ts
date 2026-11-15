@@ -894,9 +894,9 @@ describe('Project defaults', () => {
   });
 
   test('start with every label suggested, and keep what the owner saves of them', () => {
-    expect(projectDefaultsView(dir)).toEqual({ file: join(dir, 'settings.json'), defaults: { planBaselines: true, archive: 'manual', rightClick: 'groups', suggest: { category: true, complexity: true, priority: true }, agents: {}, codeReviews: { on: false, mode: 'auto' }, demoSite: null } });
+    expect(projectDefaultsView(dir)).toEqual({ file: join(dir, 'settings.json'), defaults: { planBaselines: true, archive: 'manual', rightClick: 'groups', suggest: { category: true, complexity: true, priority: true }, suggestCards: true, suggestMerges: true, agents: {}, codeReviews: { on: false, mode: 'auto' }, demoSite: null } });
     saveProjectDefaults(dir, { suggest: { complexity: false } });
-    expect(projectDefaults(dir)).toEqual({ planBaselines: true, archive: 'manual', rightClick: 'groups', suggest: { category: true, complexity: false, priority: true }, agents: {}, codeReviews: { on: false, mode: 'auto' }, demoSite: null });
+    expect(projectDefaults(dir)).toEqual({ planBaselines: true, archive: 'manual', rightClick: 'groups', suggest: { category: true, complexity: false, priority: true }, suggestCards: true, suggestMerges: true, agents: {}, codeReviews: { on: false, mode: 'auto' }, demoSite: null });
     // cards are archived by hand until the owner chooses otherwise
     saveProjectDefaults(dir, { archive: 'landed' });
     expect(projectDefaults(dir).archive).toBe('landed');
@@ -920,7 +920,7 @@ describe('Project defaults', () => {
     await c.save([{ name: 'Web', repos: [{ path: web }] }, { repos: [{ path: api }] }]);
     expect(readConfigFile(file)).toEqual([
       { name: 'Web', repos: [{ path: web }] },
-      { planBaselines: true, archive: 'manual', rightClick: 'groups', suggest: { category: true, complexity: true, priority: false }, codeReviews: { on: false, mode: 'auto' }, repos: [{ path: api }] },
+      { planBaselines: true, archive: 'manual', rightClick: 'groups', suggest: { category: true, complexity: true, priority: false }, suggestCards: true, suggestMerges: true, codeReviews: { on: false, mode: 'auto' }, repos: [{ path: api }] },
     ]);
     // changing the defaults later leaves both alone, and what a new project sets itself is its own
     saveProjectDefaults(dir, { suggest: { category: false, priority: true } });
@@ -954,6 +954,33 @@ describe('Project defaults', () => {
 });
 
 describe('The project settings', () => {
+  test('the settings sheet saves one repository’s entry, its path and the other repositories as they were', async () => {
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, `${JSON.stringify([{ name: 'Web', repos: [{ path: web, slots: 3 }, { path: api, settings: { checks: ['make'] } }] }])}\n`);
+    const c = config('file', [], ['web']);
+    const before = await c.projectView('web');
+    expect(before.project.repos.map((r) => r.path)).toEqual([web, api]);
+    expect(before.resolved?.repos).toHaveLength(2);
+    const after = await c.saveRepo('web', { path: api, settings: { checks: ['make', 'make lint'], setup: 'make deps' } });
+    expect(readConfigFile(file)).toEqual([{ name: 'Web', repos: [{ path: web, slots: 3 }, { path: api, settings: { checks: ['make', 'make lint'], setup: 'make deps' } }] }]);
+    expect(after.project.repos[1]?.settings?.setup).toBe('make deps');
+    // a field left out goes; where its agents work changes with what it is given
+    await c.saveRepo('web', { path: web, clones: 2, settings: { workstations: 'clones' } });
+    expect(readConfigFile(file)[0]?.repos[0]).toEqual({ path: web, clones: 2, settings: { workstations: 'clones' } });
+    await expect(c.saveRepo('web', { path: join(dir, 'elsewhere') })).rejects.toThrow();
+    await expect(c.saveRepo('web', { path: web, git: false })).rejects.toThrow();
+    await expect(c.saveRepo('nowhere', { path: web })).rejects.toThrow();
+  });
+
+  test('“Suggest new cards” and “Suggest card merges” are on where left out, and saved as the owner sets them', async () => {
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, `${JSON.stringify([{ name: 'Web', repos: [{ path: web }] }])}\n`);
+    const c = config('file', [], ['web']);
+    await c.saveProject('web', { suggestCards: false, suggestMerges: false });
+    expect(readConfigFile(file)[0]).toMatchObject({ suggestCards: false, suggestMerges: false });
+    await expect(c.saveProject('web', { suggestCards: 'no' })).rejects.toThrow();
+  });
+
   test('a project saves its own models over the configuration, and leaves the rest of it as it was', async () => {
     mkdirSync(dirname(file), { recursive: true });
     writeFileSync(file, `${JSON.stringify([{ name: 'Web', repos: [{ path: web }] }, { repos: [{ path: api }] }])}\n`);

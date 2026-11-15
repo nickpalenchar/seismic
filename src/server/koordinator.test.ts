@@ -80,6 +80,26 @@ async function schedule(entries: [string, string[], string[], string[], string][
 }
 
 describe('Koordinator', () => {
+  test('with “Suggest card merges” off a starting card is not checked for duplicates and records none', async () => {
+    let merges = false;
+    k = new Koordinator({ board, runtime, home: () => board.project.repos[0]!.path, repoFor: () => ({ workers, workstations, adapter: { ...generic, land: 'main' as const, workstations: 'worktrees' as const }, path: board.project.repos[0]!.path }), holdMs: 0, restarting: () => restarting, suggestsMerges: () => merges });
+    card('Export invoices to CSV');
+    const later = card('Add CSV export for invoices');
+    k.request(later.id);
+    await settle();
+    // nothing else runs or waits: it starts at once, without an estimate that looks for duplicates
+    expect(item(later.id).state).toBe('working');
+    expect(item(later.id).possibleDuplicates).toBeUndefined();
+    // the estimate of its scope for the cards after it
+    await scope(['src/export.ts']);
+    expect(JSON.parse(board.row(later.id).scope ?? '{}').duplicateCheck).toBeUndefined();
+    merges = true;
+    const third = card('CSV export of the invoices');
+    k.request(third.id);
+    await settle();
+    expect(estimates().at(-1)!.inbox[0]).toContain('Export invoices to CSV');
+  });
+
   test('a possible duplicate of a planned card stops the start and names the card', async () => {
     const earlier = card('Export invoices to CSV');
     const later = card('Add CSV export for invoices');

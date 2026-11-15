@@ -1,5 +1,5 @@
 // The looks of Seismic's configuration (Tailwind on frost's tokens), shared by the Configuration and Preferences
-// dialogs (config.tsx, prefs.tsx), the project's settings sheet (projectSettings.tsx) and the parts of other
+// dialogs (config.tsx, prefs.tsx), the project's settings sheet (projectSettings/sheet.tsx) and the parts of other
 // views that build on them (access.tsx, performance.tsx): a dialog nearly as large as the window, its sections
 // listed on the left and the one chosen on the right; settings as rows of label and control, without boxes.
 // The class names before the utilities (`cfg-field`, `cfg-control` …) stay as hooks for code, demos and the

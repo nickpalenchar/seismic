@@ -326,6 +326,7 @@ export class ProjectRuntime {
       runtime: deps.runtime,
       pathFor: (repo) => (this.repos.find((r) => r.ref.id === repo) ?? this.repos[0]!).read.path,
       settingsFor: this.settingsNow,
+      proposesCards: () => this.config.suggestCards !== false,
       repoLanguage: (repo) => (this.repos.find((r) => r.ref.id === repo) ?? this.repos[0]!).adapter.language,
     });
     board.showSettings(this.settingsNow);
@@ -377,6 +378,7 @@ export class ProjectRuntime {
       imageFiles: this.imageFiles,
       // the toggles as the configuration has them now: a saved change applies to the next suggestion
       suggests: () => this.config.suggest ?? {},
+      suggestsMerges: () => this.config.suggestMerges !== false,
     }));
     koordinator.resume();
     // a card whose page closed before Seismic named it

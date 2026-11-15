@@ -558,6 +558,11 @@ export function serve(
           return { settings: c.settings(), agents: agentsView(config.home).agents } satisfies ProjectSettingsView;
         }),
       },
+      // the project's repositories as configured, from its settings sheet: read with their check, and one saved at a time
+      '/api/c/:project/repos': {
+        GET: on((c) => (config ? config.projectView(c.id) : notFound())),
+        PUT: on(async (c, req) => (config ? config.saveRepo(c.id, await req.json()) : notFound())),
+      },
       // "Initialize" at the project's demo site: its path on the site, with the empty overview, deployed
       '/api/c/:project/demo-site': { GET: on((c) => c.siteState() ?? null) },
       '/api/c/:project/demo-site/init': { POST: on(async (c, req) => c.initSite(await req.json()) ?? null) },

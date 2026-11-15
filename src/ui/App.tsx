@@ -71,7 +71,7 @@ import { type QuickReply, sendReply } from './quickReply';
 import { InboxView, inboxListWidth } from './inbox';
 import { NeedsYouSheet } from './needsYou';
 import { useInboxRead } from './inboxRead';
-import { ProjectSettingsSheet } from './projectSettings';
+import { ProjectSettingsSheet } from './projectSettings/sheet';
 import { type InboxEntry, inboxEntries, needsYouCount, readMark } from '../core/inbox';
 import { beingWritten, split, talkAlone } from './talk';
 import { ACK_MS, noticeLine, tellers, useAck, useWarnings, voiceTarget } from './tell';
@@ -2274,6 +2274,8 @@ function Project({
     if (typing && (e.target as Element).closest('[data-esc]')) return;
     // an open layer from the component library (menu, popover, dialog) closes itself on Esc, before anything under it
     if (e.key === 'Escape' && layerOpen()) return;
+    // a view inside a sheet (a section of the project's settings) goes back to its list on Esc itself
+    if (e.key === 'Escape' && e.target instanceof Element && e.target.closest('[data-esc-back]')) return;
     // a focused menu or popover keeps its keys: arrows, typeahead and Tab are its own, not the page's shortcuts
     if (e.target instanceof Element && e.target.closest('[role=menu], [data-slot=popover-content]')) return;
     // the configuration over the page takes the keys until it closes, Esc closing it

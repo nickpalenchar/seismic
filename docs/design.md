@@ -108,6 +108,9 @@ cycling through terminals.
   and force-push, which clashed with repositories that merge `main` in.
 - **Work that changed nothing ends `done`, read from the workstation** (2026-10-02), not from the
   worker's word.
+- **What Seismic suggests by itself is switched per project** (2026-11-14): new cards from the work
+  retrospective, merges from the duplicate check at a card's start, and labels. Off takes the tool
+  and its instructions out of the agent's session rather than telling it to refrain.
 - **Code reviews are a project setting, by a separate agent, never blocking approval** (2026-11-05);
   rejected: the worker reviewing its own diff.
 - **A repository describes itself as values in `.obeya/settings.json`, read from `main`**

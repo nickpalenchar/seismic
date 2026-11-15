@@ -88,6 +88,8 @@ export interface KoordinatorOptions {
   imageFiles?: (ids?: string[]) => string[];
   /** Which labels the project lets Seismic suggest; a toggle not given is on, as are all without this. */
   suggests?: () => Partial<SuggestToggles>;
+  /** Whether a starting card is checked for duplicates ("Suggest card merges"); on without this. */
+  suggestsMerges?: () => boolean;
 }
 
 export class Koordinator {
@@ -1142,6 +1144,8 @@ export class Koordinator {
 
   /** Unfinished tasks in this repository, including ones still planned or awaiting approval. */
   private duplicateCandidates(card: Item): Item[] {
+    // the project switched merge suggestions off: nothing to check against, so no duplicate is recorded
+    if (this.o.suggestsMerges?.() === false) return [];
     const previous = this.o.board.row(card.id).scope;
     if (previous) {
       try {

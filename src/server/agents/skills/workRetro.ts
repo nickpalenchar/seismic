@@ -36,6 +36,8 @@ export interface WorkRetroOptions {
   settingsFor?: (repo: string) => Record<ProposedSetting, string | string[]> | undefined;
   /** The language of what lands in a repository (`language` of its settings), by its id; English when left out. */
   repoLanguage?: (repo: string) => Language;
+  /** Whether it proposes cards ("Suggest new cards"); off, only CLAUDE.md lines and setting values. On without this. */
+  proposesCards?: () => boolean;
 }
 
 /** A card whose work ended, as read at that moment: what follows may delete or archive it. */
@@ -200,6 +202,7 @@ export class WorkRetro {
     ];
     const settings = this.settingsText(repo);
     const ownerLanguage = `${LANGUAGE_NAMES[b.conversation()]} unless an explicit standing preference names another language`;
+    const withCards = this.o.proposesCards?.() !== false;
     let made = 0;
     const basisOf = (cards: unknown): { ids: string[] } | string => {
       const ids = [...new Set((Array.isArray(cards) ? cards : []).map((t) => tags.get(String(t))).filter((x): x is string => !!x))];
@@ -208,7 +211,7 @@ export class WorkRetro {
     };
     await readSession(this.o.runtime, {
       cwd: this.o.pathFor(repo),
-      system: [retroSystem(ownerLanguage, b.language(), this.o.repoLanguage?.(repo) ?? 'en', WORK_RETRO_PROPOSALS), b.preferencesText()].filter(Boolean).join('\n\n'),
+      system: [retroSystem(ownerLanguage, b.language(), this.o.repoLanguage?.(repo) ?? 'en', WORK_RETRO_PROPOSALS, withCards), b.preferencesText()].filter(Boolean).join('\n\n'),
       role: 'chores',
       onLimit: waitQuietly,
       brief: [
@@ -221,24 +224,25 @@ export class WorkRetro {
         .join('\n\n'),
       tools: (f): AgentTool[] => {
         const after = () => (made < WORK_RETRO_PROPOSALS ? 'Proposed.' : f('Proposed. That was the last one; end your turn now.'));
-        return [
-          {
-            name: 'card',
-            description: `Propose a feature card that prevents the friction: a script, a skill, a fix to a tool. title, body and basis in ${ownerLanguage}; cards: the tags of the cards it rests on (at least two).`,
-            schema: { title: z.string(), body: z.string(), basis: z.string(), cards: z.array(z.string()) },
-            run: ({ title, body, basis, cards }) => {
-              if (made >= WORK_RETRO_PROPOSALS) return f(`At most ${WORK_RETRO_PROPOSALS} proposals. End your turn now.`);
-              const t = clip(String(title).trim(), 200);
-              if (!t) return 'Not recorded: the title is missing.';
-              const on = basisOf(cards);
-              if (typeof on === 'string') return on;
-              const why = clip(String(basis).trim(), 600);
-              const p = b.proposeRetro(repo, { title: t, body: `${String(body).trim()}\n\n${b.t.retro.occasion(why)}`, basis: why });
-              b.log(p.id, 'state', 'koordinator', b.t.retro.from(name, why, on.ids.map((id) => b.t.quote(titles.get(id) ?? '')).join(', ')));
-              made++;
-              return after();
-            },
+        const card: AgentTool = {
+          name: 'card',
+          description: `Propose a feature card that prevents the friction: a script, a skill, a fix to a tool. title, body and basis in ${ownerLanguage}; cards: the tags of the cards it rests on (at least two).`,
+          schema: { title: z.string(), body: z.string(), basis: z.string(), cards: z.array(z.string()) },
+          run: ({ title, body, basis, cards }) => {
+            if (made >= WORK_RETRO_PROPOSALS) return f(`At most ${WORK_RETRO_PROPOSALS} proposals. End your turn now.`);
+            const t = clip(String(title).trim(), 200);
+            if (!t) return 'Not recorded: the title is missing.';
+            const on = basisOf(cards);
+            if (typeof on === 'string') return on;
+            const why = clip(String(basis).trim(), 600);
+            const p = b.proposeRetro(repo, { title: t, body: `${String(body).trim()}\n\n${b.t.retro.occasion(why)}`, basis: why });
+            b.log(p.id, 'state', 'koordinator', b.t.retro.from(name, why, on.ids.map((id) => b.t.quote(titles.get(id) ?? '')).join(', ')));
+            made++;
+            return after();
           },
+        };
+        return [
+          ...(withCards ? [card] : []),
           {
             name: 'rule',
             description: `Propose a line for the repository's CLAUDE.md, for knowledge the workers lacked: rule short and in ${LANGUAGE_NAMES[this.o.repoLanguage?.(repo) ?? 'en']}, the repository's language; basis in ${ownerLanguage}; cards: the tags of the cards it rests on (at least two).`,

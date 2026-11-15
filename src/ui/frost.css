@@ -40,6 +40,9 @@ html, body { margin: 0; height: 100%; overflow: hidden; background-color: var(--
 
 @keyframes dim { from { background-color: transparent; } }
 @keyframes fade { from { opacity: 0; } }
+/* a settings sheet's view pushed in from the right, and its list coming back from the left */
+@keyframes push-in { from { transform: translateX(100%); opacity: .4; } }
+@keyframes push-back { from { transform: translateX(-24%); opacity: 0; } }
 
 /* a spinner's turn (`.spinner`) */
 @keyframes spin { to { transform: rotate(360deg); } }

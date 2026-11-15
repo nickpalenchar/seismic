@@ -2843,6 +2843,10 @@ export interface ProjectSettings {
   rightClick?: RightClick;
   /** Which labels Seismic suggests on the project's cards ("Seismic suggests"); all where left out. */
   suggest?: SuggestSettings;
+  /** Whether the work retrospective proposes cards for friction it found ("Suggest new cards"); on where left out. */
+  suggestCards?: boolean;
+  /** Whether a card is checked for duplicates when it starts, which may end in a merge proposal ("Suggest card merges"); on where left out. */
+  suggestMerges?: boolean;
   /** The project's own harness, model and effort for groups of its agents, over Configuration's; none where left out. */
   agents?: ProjectAgents;
   /** Whether a separate agent reviews work that lands on `main`, with the demo or on the owner's word; off where left out. */
@@ -3023,6 +3027,19 @@ export interface ConfigChecked {
   /** What they amount to, by index; null for a project with a problem. */
   resolved: (ResolvedProject | null)[];
   problems: ConfigProblem[];
+}
+
+/**
+ * A project of the configuration as saved, for its settings sheet: its entry (its repositories as
+ * listed), what it amounts to (null while it has a problem), and its problems, its repositories' included.
+ */
+export interface ProjectReposView {
+  project: ProjectConfig;
+  resolved: ResolvedProject | null;
+  problems: ConfigProblem[];
+  /** Where the running projects come from (`ConfigView.source`): a save applies at once only from the file. */
+  source: 'file' | 'args';
+  restarting: boolean;
 }
 
 /** What "Take over into the repository for everyone" did with a repository's settings for this machine. */

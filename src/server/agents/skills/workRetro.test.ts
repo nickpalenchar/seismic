@@ -80,6 +80,25 @@ async function note(...notes: { what: string; cost?: string; fix?: string }[]) {
 }
 
 describe('Work retrospective', () => {
+  test('with “Suggest new cards” off it proposes CLAUDE.md lines and setting values, but no cards', async () => {
+    retro = new WorkRetro({ board, runtime, pathFor: () => main, transcript: (id) => files[id] ?? null, every: 3, ramp: [], proposesCards: () => false });
+    files = { a: SAMPLE, b: SAMPLE };
+    ran('A', 'a');
+    await note({ what: 'wrong flag for the dev server' });
+    ran('B', 'b');
+    await note({ what: 'wrong flag for the dev server again' });
+    ran('C', 'c');
+    await settle();
+    const s = runtime.sessions.find((x) => x.spec.tools.some((t) => t.name === 'rule'))! as FakeSession;
+    expect(s.spec.tools.map((t) => t.name)).toEqual(['rule', 'setting', 'done']);
+    expect(s.spec.system).not.toContain('- card:');
+    expect(s.spec.system).not.toContain('a script (scripts/');
+    expect(s.call('rule', { rule: 'The dev server starts with -p <port>.', basis: 'Wrong flags on “A” and “B”.', cards: ['K1', 'K2'] })).toBe('Proposed.');
+    s.emit({ type: 'idle' });
+    expect(board.preferences('proposed')).toHaveLength(1);
+    expect(board.snapshot().items.filter((i) => i.state === 'proposal')).toHaveLength(0);
+  });
+
   test('a finished card’s runs become friction notes, written as a small job from the excerpt', async () => {
     files = { s1: SAMPLE };
     const a = ran('A', 's1', 's2');

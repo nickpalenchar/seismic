@@ -5,7 +5,7 @@
 // dialog (prefs.tsx).
 
 import { Info as InfoIcon, Trash2 } from 'lucide-react';
-import { Fragment, lazy, type ReactNode, Suspense, useContext, useEffect, useRef, useState } from 'react';
+import { forwardRef, Fragment, lazy, type ReactNode, Suspense, useContext, useEffect, useRef, useState } from 'react';
 import { OpenPerformance } from './performance';
 import { allowsDemo, HANDOVER_ARTIFACTS } from '../../plugin/skills/demo/lib/artifacts.ts';
 import { DEFAULT_STYLE, QWEN3_SPEAKER, QWEN3_SPEAKERS, qwen3IsClone, qwen3Speaker, STYLED_VOICES } from '../../plugin/skills/demo/lib/voice-choices.ts';
@@ -660,7 +660,7 @@ export function Field({ label, hint, className, children }: { label: ReactNode; 
  * label (the nearest `.cfg-has-info` around it) or the field has the focus, so the page stays calm; the text
  * shows on hover, on focus and on a click or tap, kept inside the window.
  */
-function Info({ text }: { text: string }) {
+export function Info({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
   return (
     <Tooltip content={text} side="bottom" align="start" open={open} onOpenChange={setOpen} delayDuration={0}>
@@ -1105,6 +1105,19 @@ export function SuggestField({ value, onChange }: { value: SuggestSettings | und
   );
 }
 
+/** "Suggest new cards" or "Suggest card merges": on a project's page and settings sheet, and in Project defaults; on where left out. */
+export function SuggestionField({ which, value, onChange }: { which: 'cards' | 'merges'; value: boolean | undefined; onChange: (on: boolean) => void }) {
+  const l = t.config.suggestions[which];
+  return (
+    <Field label={l.title} hint={l.hint}>
+      <CheckLabel>
+        <Switch checked={value !== false} aria-label={l.title} onCheckedChange={onChange} />
+        {l.on}
+      </CheckLabel>
+    </Field>
+  );
+}
+
 /** Plan tagging uses the same control on a project and in Project defaults. */
 export function PlanBaselineField({ value, onChange }: { value: boolean | undefined; onChange: (on: boolean) => void }) {
   return (
@@ -1199,6 +1212,8 @@ function ProjectDefaultsBlock({ view, onSaved }: { view: ProjectDefaultsView | n
   // a field for every project setting: one added to the defaults without a field here does not compile
   const fields: { [K in keyof ProjectDefaults]: ReactNode } = {
     suggest: <SuggestField value={view.defaults.suggest} onChange={(suggest) => save({ suggest })} />,
+    suggestCards: <SuggestionField which="cards" value={view.defaults.suggestCards} onChange={(suggestCards) => save({ suggestCards })} />,
+    suggestMerges: <SuggestionField which="merges" value={view.defaults.suggestMerges} onChange={(suggestMerges) => save({ suggestMerges })} />,
     planBaselines: <PlanBaselineField value={view.defaults.planBaselines} onChange={(planBaselines) => save({ planBaselines })} />,
     archive: <CardArchiveField value={view.defaults.archive} onChange={(archive) => save({ archive })} />,
     rightClick: <RightClickField value={view.defaults.rightClick} onChange={(rightClick) => save({ rightClick })} />,
@@ -2488,6 +2503,8 @@ function ProjectBlock({ n, project, file, checking, resolved, running, pin, save
         />
       )}
       <SuggestField value={project.suggest} onChange={(suggest) => onChange({ ...project, suggest })} />
+      <SuggestionField which="cards" value={project.suggestCards} onChange={(suggestCards) => onChange({ ...project, suggestCards })} />
+      <SuggestionField which="merges" value={project.suggestMerges} onChange={(suggestMerges) => onChange({ ...project, suggestMerges })} />
       <PlanBaselineField value={project.planBaselines} onChange={(planBaselines) => onChange({ ...project, planBaselines })} />
       <CardArchiveField value={project.archive} onChange={(archive) => onChange({ ...project, archive })} />
       <RightClickField value={project.rightClick} onChange={(rightClick) => onChange({ ...project, rightClick })} />
@@ -2578,15 +2595,23 @@ interface RepoProps {
 }
 
 /** A repository's name on its tab: its id once checked, else its folder's name. */
-const repoName = (repo: RepoConfig, resolved: ResolvedProject['repos'][number] | undefined) => resolved?.id ?? (repo.path.trim().split(/[\\/]/).filter(Boolean).pop() || t.config.newRepo);
+export const repoName = (repo: RepoConfig, resolved: ResolvedProject['repos'][number] | undefined) => resolved?.id ?? (repo.path.trim().split(/[\\/]/).filter(Boolean).pop() || t.config.newRepo);
 
 /** What "For everyone" needs of the dialog: whether the projects are as saved (what is taken over), how to read them again, how to save them first. */
-interface Takeover {
+export interface Takeover {
   saved: boolean;
   /** Reads the saved configuration again: the server changed it. */
   onReload: () => Promise<void>;
   /** Saves the dialog's changes; none where saving restarts Seismic. Says whether they were saved. */
   prepare?: () => Promise<boolean>;
+}
+
+/** `repo` with its field `k` set to `v`, or without it where `v` is undefined. */
+function withField<K extends keyof RepoConfig>(repo: RepoConfig, k: K, v: RepoConfig[K] | undefined): RepoConfig {
+  const next = { ...repo };
+  if (v === undefined) delete next[k];
+  else next[k] = v;
+  return next;
 }
 
 function RepoRow({ repo, home, resolved, projectId, problems, focus, where, ask, onRecheck, takeover, onChange }: RepoProps) {
@@ -2601,54 +2626,8 @@ function RepoRow({ repo, home, resolved, projectId, problems, focus, where, ask,
     const h = setTimeout(() => setFlash(false), 2400);
     return () => clearTimeout(h);
   }, [focus]);
-  // a path without a repository that is a folder: git can be set up there
-  const noGit = useFolderWithoutGit(problems.some((p) => p.code === 'notRepo') ? repo.path.trim() : '');
   // a folder without git has neither clones nor slots: every card works in the folder itself
   const folder = repo.git === false;
-  // where work lands on the repository's main, its own folder listed as a clone is none: work lands there (as the server has it)
-  const landsHere = (repo.settings?.land ?? resolved?.values.land.value) === 'main';
-  const itself = (w: string) => landsHere && w.trim().replace(/\/+$/, '') === repo.path.trim().replace(/\/+$/, '');
-  // clones the configuration names (to make, existing ones, on hosts) put the repository in clones whatever its settings say
-  const named = !!repo.clones || (repo.workstations ?? []).some((w) => w.trim() && !itself(w)) || !!repo.hosts?.length;
-  const base = resolved?.values.workstations;
-  // what the repository's settings say without this machine's, where the check could tell it apart from the clones named
-  const known = base && base.source !== 'clones' ? base.value : undefined;
-  const own = repo.settings?.workstations;
-  const workIn = named ? 'clones' : (own ?? known ?? resolved?.workstations ?? 'worktrees');
-  const clones = !folder && workIn === 'clones';
-  const existing = useRef<HTMLTextAreaElement>(null);
-  const existingText = (repo.workstations ?? []).join('\n');
-  useFitHeight(existing, existingText, clones);
-  // the clones named, put aside while the owner switches to worktrees, back with a switch to clones
-  const parked = useRef<Pick<RepoConfig, 'clones' | 'workstations' | 'hosts'>>({});
-  const without = <K extends keyof RepoConfig>(k: K, v: RepoConfig[K] | undefined, from: RepoConfig = repo): RepoConfig => {
-    const next = { ...from };
-    if (v === undefined) delete next[k];
-    else next[k] = v;
-    return next;
-  };
-  // "Agents work in": this machine's setting where the repository's says otherwise; worktrees put the clones named aside
-  const setWorkIn = (mode: 'clones' | 'worktrees') => {
-    if (mode === workIn) return;
-    const { workstations: _, ...others } = repo.settings ?? {};
-    const settings = known === mode ? others : { ...others, workstations: mode };
-    let next = without('settings', Object.keys(settings).length ? settings : undefined);
-    if (mode === 'worktrees') {
-      parked.current = { ...(repo.clones !== undefined ? { clones: repo.clones } : {}), ...(repo.workstations ? { workstations: repo.workstations } : {}), ...(repo.hosts ? { hosts: repo.hosts } : {}) };
-      next = without('hosts', undefined, without('workstations', undefined, without('clones', undefined, next)));
-    } else next = { ...next, ...parked.current };
-    onChange(next);
-  };
-  const source = named ? t.config.settings.source.clones : own !== undefined ? t.config.settings.source.machine : base ? t.config.settings.source[base.source] : undefined;
-  const listed = (repo.workstations ?? []).filter((w) => w.trim() && !itself(w)).length;
-  // what saving does to the clones registered now: those it no longer names leave the pool, a card's once it is done
-  const leaving = resolved?.leaving?.length ? <p className="hint cfg-clone-leaving">{t.config.cloneLeaving(resolved.leaving.map((c) => (c.card ? { ...c, card: plain(c.card) } : c)))}</p> : null;
-  const slots = (hint: string, placeholder: string) => (
-    <Field className="cfg-slots" label={<>{t.config.slots} <Info text={hint} /></>}>
-      <Input className="w-20" type="number" min={0} max={20} aria-label={t.config.slots} placeholder={placeholder} value={repo.slots ?? ''} onChange={(e) => onChange(without('slots', slotsOf(e.target.value)))} />
-      {leaving}
-    </Field>
-  );
   // a repository of the project: its path, what is wrong with it, then where its agents work and its settings, each group under a heading
   return (
     <section className="cfg-repo mt-2 pt-2.5 border-t border-t-border [&>.c-row]:mt-1.5 [&>.c-row]:mb-1 [&>.c-row]:max-w-[900px]">
@@ -2662,68 +2641,10 @@ function RepoRow({ repo, home, resolved, projectId, problems, focus, where, ask,
           <RemoveButton label={t.config.removeRepo} onClick={() => onChange(null)} />
         </div>
       </Field>
-      {problems.map((p, k) => (
-        <div key={k} className="cfg-repo-problem mt-0.5 mx-0 mb-2">
-          <Problem problem={p} where={where} ask={ask} retried={ask && onRecheck} />
-          {p.code === 'notRepo' && noGit && <GitSetup key={noGit} path={noGit} confirm={t.setup.git.confirm} onDone={onRecheck} onFolder={() => onChange({ path: repo.path, git: false, ...(repo.settings ? { settings: repo.settings } : {}) })} />}
-          {p.code === 'untrusted' && resolved?.trust && <TrustCommands path={repo.path} trust={resolved.trust} onDone={onRecheck} />}
-        </div>
-      ))}
+      <RepoProblems repo={repo} resolved={resolved} problems={problems} where={where} ask={ask} onRecheck={onRecheck} onFolder={() => onChange({ path: repo.path, git: false, ...(repo.settings ? { settings: repo.settings } : {}) })} />
       {/* a repository without settings of its own, or with an adapter module that said them: a card on its project writes them, also before the project is saved */}
       {projectId && resolved && !folder && (resolved.adapterGone || !fromRepository(resolved.values)) && <AdapterSetup project={projectId} repo={resolved.id} takeover={takeover} />}
-      {!folder && (resolved || clones) && (
-        <div ref={clonesBox} className={K.cfgGroupClass(flash)}>
-          <h5 className={K.cfgGroupHeadClass}>{t.config.groups.workstations}</h5>
-          <div className={cn(K.cfgSettingClass, 'cfg-has-info')}>
-            <div className={K.cfgSettingLabelClass}>
-              {t.config.settings.workstations}
-              {source && <span className={K.cfgSourceClass(source === t.config.settings.source.machine)}>{source}</span>}
-              <Info text={t.config.settings.workstationsHint} />
-            </div>
-            <div className={K.cfgControlClass}>
-              <SegmentedControl
-                label={t.config.settings.workstations}
-                value={workIn}
-                onValueChange={setWorkIn}
-                options={(['worktrees', 'clones'] as const).map((x) => ({ value: x, label: t.config.settings.workIn[x] }))}
-              />
-            </div>
-          </div>
-          {clones ? (
-            <>
-              <Field label={t.config.workstations}>
-                <Textarea mono
-                  ref={existing}
-                  className="cfg-existing w-full max-w-[640px] resize-none overflow-y-hidden"
-                  rows={2}
-                  spellCheck={false}
-                  aria-label={t.config.workstations}
-                  value={existingText}
-                  onChange={(e) => {
-                    const list = e.target.value.split('\n');
-                    onChange(without('workstations', list.some((w) => w.trim()) ? list : undefined));
-                  }}
-                />
-                {(repo.workstations ?? []).some(itself) && <p className="hint">{t.config.cloneIsRepo}</p>}
-              </Field>
-              <Field className="cfg-clone-count" label={<>{t.config.clones} <Info text={t.config.clonesHint} /></>}>
-                <Input className="w-20" type="number" min={0} max={20} aria-label={t.config.clones} placeholder="0" value={repo.clones ?? ''} onChange={(e) => onChange(without('clones', Number(e.target.value) || undefined))} />
-                {listed + (repo.clones ?? 0) + (repo.hosts ?? []).reduce((n, h) => n + h.clones, 0) === 0 ? (
-                  <p className="hint warn">{t.config.noClones}</p>
-                ) : (
-                  <p className="hint">{t.config.cloneTotal(listed, repo.clones ?? 0)}</p>
-                )}
-              </Field>
-              {slots(t.config.slotsHint, t.config.slotsAll)}
-              <Field className="cfg-wide [&>.cfg-control]:max-w-[900px]" label={<>{t.config.hosts} <Info text={t.config.hostsHint} /></>}>
-                <Hosts hosts={repo.hosts ?? []} onChange={(hosts) => onChange(without('hosts', hosts.length ? hosts : undefined))} />
-              </Field>
-            </>
-          ) : (
-            slots(t.config.slotsWorktreesHint, t.config.slotsAny)
-          )}
-        </div>
-      )}
+      <Workstations ref={clonesBox} flash={flash} repo={repo} resolved={resolved} onChange={onChange} />
       {resolved && (
         <RepoSettingsBlock
           show={focus?.field === 'settings' ? focus : undefined}
@@ -2733,7 +2654,7 @@ function RepoRow({ repo, home, resolved, projectId, problems, focus, where, ask,
           shareTo={resolved.shareTo}
           shareDirect={!!resolved.shareDirect}
           takeover={takeover}
-          onChange={(settings) => onChange(without('settings', settings))}
+          onChange={(settings) => onChange(withField(repo, 'settings', settings))}
         />
       )}
     </section>
@@ -2741,10 +2662,137 @@ function RepoRow({ repo, home, resolved, projectId, problems, focus, where, ask,
 }
 
 /**
+ * What is wrong with a repository, each problem with what fixes it where it can be fixed here:
+ * setting up git in a folder without it, trusting the repository's commands.
+ */
+export function RepoProblems({ repo, resolved, problems, where, ask, onRecheck, onFolder }: { repo: RepoConfig; resolved: ResolvedProject['repos'][number] | undefined; problems: ConfigProblem[]; where: string; ask?: ((text: string) => void) | undefined; onRecheck: () => void; /** Keeps the folder without git; none where that is chosen in Configuration only. */ onFolder?: () => void }) {
+  // a path without a repository that is a folder: git can be set up there
+  const noGit = useFolderWithoutGit(problems.some((p) => p.code === 'notRepo') ? repo.path.trim() : '');
+  return (
+    <>
+      {problems.map((p, k) => (
+        <div key={k} className="cfg-repo-problem mt-0.5 mx-0 mb-2">
+          <Problem problem={p} where={where} ask={ask} retried={ask && onRecheck} />
+          {p.code === 'notRepo' && noGit && onFolder && <GitSetup key={noGit} path={noGit} confirm={t.setup.git.confirm} onDone={onRecheck} onFolder={onFolder} />}
+          {p.code === 'untrusted' && resolved?.trust && <TrustCommands path={repo.path} trust={resolved.trust} onDone={onRecheck} />}
+        </div>
+      ))}
+    </>
+  );
+}
+
+/** Where a repository's agents work as its entry has it (`workIn`), and what that rests on. */
+export function workPlace(repo: RepoConfig, resolved: ResolvedProject['repos'][number] | undefined) {
+  // where work lands on the repository's main, its own folder listed as a clone is none: work lands there (as the server has it)
+  const landsHere = (repo.settings?.land ?? resolved?.values.land.value) === 'main';
+  const itself = (w: string) => landsHere && w.trim().replace(/\/+$/, '') === repo.path.trim().replace(/\/+$/, '');
+  // clones the configuration names (to make, existing ones, on hosts) put the repository in clones whatever its settings say
+  const named = !!repo.clones || (repo.workstations ?? []).some((w) => w.trim() && !itself(w)) || !!repo.hosts?.length;
+  const base = resolved?.values.workstations;
+  // what the repository's settings say without this machine's, where the check could tell it apart from the clones named
+  const known = base && base.source !== 'clones' ? base.value : undefined;
+  const own = repo.settings?.workstations;
+  const workIn: 'clones' | 'worktrees' = named ? 'clones' : (own ?? known ?? resolved?.workstations ?? 'worktrees');
+  return { itself, named, base, known, own, workIn };
+}
+
+/**
+ * "Where agents work" of a repository: worktrees or clones, and with clones the existing ones listed,
+ * how many to make, the slots and the machines over SSH. None for a folder without git, nor before
+ * the repository is read unless it names clones.
+ */
+export const Workstations = forwardRef<HTMLDivElement, { repo: RepoConfig; resolved: ResolvedProject['repos'][number] | undefined; flash?: boolean; onChange: (r: RepoConfig) => void }>(function Workstations({ repo, resolved, flash = false, onChange }, ref) {
+  const folder = repo.git === false;
+  const { itself, named, base, known, own, workIn } = workPlace(repo, resolved);
+  const clones = !folder && workIn === 'clones';
+  const existing = useRef<HTMLTextAreaElement>(null);
+  const existingText = (repo.workstations ?? []).join('\n');
+  useFitHeight(existing, existingText, clones);
+  // the clones named, put aside while the owner switches to worktrees, back with a switch to clones
+  const parked = useRef<Pick<RepoConfig, 'clones' | 'workstations' | 'hosts'>>({});
+  // "Agents work in": this machine's setting where the repository's says otherwise; worktrees put the clones named aside
+  const setWorkIn = (mode: 'clones' | 'worktrees') => {
+    if (mode === workIn) return;
+    const { workstations: _, ...others } = repo.settings ?? {};
+    const settings = known === mode ? others : { ...others, workstations: mode };
+    let next = withField(repo, 'settings', Object.keys(settings).length ? settings : undefined);
+    if (mode === 'worktrees') {
+      parked.current = { ...(repo.clones !== undefined ? { clones: repo.clones } : {}), ...(repo.workstations ? { workstations: repo.workstations } : {}), ...(repo.hosts ? { hosts: repo.hosts } : {}) };
+      next = withField(withField(withField(next, 'clones', undefined), 'workstations', undefined), 'hosts', undefined);
+    } else next = { ...next, ...parked.current };
+    onChange(next);
+  };
+  if (folder || (!resolved && !clones)) return null;
+  const source = named ? t.config.settings.source.clones : own !== undefined ? t.config.settings.source.machine : base ? t.config.settings.source[base.source] : undefined;
+  const listed = (repo.workstations ?? []).filter((w) => w.trim() && !itself(w)).length;
+  // what saving does to the clones registered now: those it no longer names leave the pool, a card's once it is done
+  const leaving = resolved?.leaving?.length ? <p className="hint cfg-clone-leaving">{t.config.cloneLeaving(resolved.leaving.map((c) => (c.card ? { ...c, card: plain(c.card) } : c)))}</p> : null;
+  const slots = (hint: string, placeholder: string) => (
+    <Field className="cfg-slots" label={<>{t.config.slots} <Info text={hint} /></>}>
+      <Input className="w-20" type="number" min={0} max={20} aria-label={t.config.slots} placeholder={placeholder} value={repo.slots ?? ''} onChange={(e) => onChange(withField(repo, 'slots', slotsOf(e.target.value)))} />
+      {leaving}
+    </Field>
+  );
+  return (
+    <div ref={ref} className={K.cfgGroupClass(flash)}>
+      <h5 className={K.cfgGroupHeadClass}>{t.config.groups.workstations}</h5>
+      <div className={cn(K.cfgSettingClass, 'cfg-has-info')}>
+        <div className={K.cfgSettingLabelClass}>
+          {t.config.settings.workstations}
+          {source && <span className={K.cfgSourceClass(source === t.config.settings.source.machine)}>{source}</span>}
+          <Info text={t.config.settings.workstationsHint} />
+        </div>
+        <div className={K.cfgControlClass}>
+          <SegmentedControl
+            label={t.config.settings.workstations}
+            value={workIn}
+            onValueChange={setWorkIn}
+            options={(['worktrees', 'clones'] as const).map((x) => ({ value: x, label: t.config.settings.workIn[x] }))}
+          />
+        </div>
+      </div>
+      {clones ? (
+        <>
+          <Field label={t.config.workstations}>
+            <Textarea mono
+              ref={existing}
+              className="cfg-existing w-full max-w-[640px] resize-none overflow-y-hidden"
+              rows={2}
+              spellCheck={false}
+              aria-label={t.config.workstations}
+              value={existingText}
+              onChange={(e) => {
+                const list = e.target.value.split('\n');
+                onChange(withField(repo, 'workstations', list.some((w) => w.trim()) ? list : undefined));
+              }}
+            />
+            {(repo.workstations ?? []).some(itself) && <p className="hint">{t.config.cloneIsRepo}</p>}
+          </Field>
+          <Field className="cfg-clone-count" label={<>{t.config.clones} <Info text={t.config.clonesHint} /></>}>
+            <Input className="w-20" type="number" min={0} max={20} aria-label={t.config.clones} placeholder="0" value={repo.clones ?? ''} onChange={(e) => onChange(withField(repo, 'clones', Number(e.target.value) || undefined))} />
+            {listed + (repo.clones ?? 0) + (repo.hosts ?? []).reduce((n, h) => n + h.clones, 0) === 0 ? (
+              <p className="hint warn">{t.config.noClones}</p>
+            ) : (
+              <p className="hint">{t.config.cloneTotal(listed, repo.clones ?? 0)}</p>
+            )}
+          </Field>
+          {slots(t.config.slotsHint, t.config.slotsAll)}
+          <Field className="cfg-wide [&>.cfg-control]:max-w-[900px]" label={<>{t.config.hosts} <Info text={t.config.hostsHint} /></>}>
+            <Hosts hosts={repo.hosts ?? []} onChange={(hosts) => onChange(withField(repo, 'hosts', hosts.length ? hosts : undefined))} />
+          </Field>
+        </>
+      ) : (
+        slots(t.config.slotsWorktreesHint, t.config.slotsAny)
+      )}
+    </div>
+  );
+});
+
+/**
  * The settings of a repository, set on this machine (`RepoSettings`); those of `app` and `demo` each
  * on its own, `demo.language` as `demoLanguage` beside the repository's own `language`.
  */
-type SettingKey = Exclude<keyof RepoSettings, NestedSetting> | 'run' | 'stop' | 'keep' | 'demoLanguage' | 'artifacts';
+export type SettingKey = Exclude<keyof RepoSettings, NestedSetting> | 'run' | 'stop' | 'keep' | 'demoLanguage' | 'artifacts';
 
 /** The setting of `app` or `demo` that holds `k`, and its field there, if one does. */
 function nestedOf(k: SettingKey): [NestedSetting, string] | undefined {
@@ -2753,6 +2801,137 @@ function nestedOf(k: SettingKey): [NestedSetting, string] | undefined {
   if (k === 'language') return undefined;
   const n = (Object.keys(NESTED_SETTINGS) as NestedSetting[]).find((n) => (NESTED_SETTINGS[n] as readonly string[]).includes(k));
   return n && [n, k];
+}
+
+/** The groups of a repository's settings, each in its order: Configuration shows them under a heading each, the settings sheet in its sections. */
+export const REPO_SETTING_GROUPS = {
+  landing: ['branch', 'land', 'direct', 'autoMerge', 'prNoise', 'softPaths'],
+  app: ['setup', 'checks', 'run', 'stop', 'keep'],
+  plans: ['planDocs', 'language'],
+  demos: ['demoLanguage', 'artifacts'],
+} as const satisfies Record<string, readonly SettingKey[]>;
+
+/**
+ * A repository's settings as its fields edit them: this machine's (`settings`, the repository's
+ * entry) over what applies without them (`values`). Configuration edits its draft through it, the
+ * settings sheet saves each change.
+ */
+export interface RepoSettingsAt {
+  /** What applies: this machine's, else the repository's, detected or default. */
+  value: <T>(k: SettingKey) => T;
+  /** What this machine sets; undefined where it sets nothing. */
+  own: (k: SettingKey) => unknown;
+  /** Sets it on this machine; `undefined` takes it back to its source ("Reset"). */
+  set: (k: SettingKey, v: unknown) => void;
+  base: Record<SettingKey, SettingValue<unknown>>;
+  /** The setting marked for a moment: the dialog was opened from a proposal for it. */
+  shown?: string | null;
+}
+
+export function repoSettingsAt(settings: RepoSettings | undefined, values: RepoValues, onChange: (s: RepoSettings | undefined) => void, shown?: string | null): RepoSettingsAt {
+  const s = settings ?? {};
+  const { app: _, demo: __, ...flat } = values;
+  const base: Record<SettingKey, SettingValue<unknown>> = { ...flat, ...values.app, demoLanguage: values.demo.language, artifacts: values.demo.artifacts };
+  const own = (k: SettingKey): unknown => {
+    const n = nestedOf(k);
+    return n ? (s[n[0]] as Record<string, unknown> | undefined)?.[n[1]] : s[k as keyof RepoSettings];
+  };
+  const value = <T,>(k: SettingKey) => (own(k) ?? base[k].value) as T;
+  const set = (k: SettingKey, v: unknown) => {
+    const next: Record<string, unknown> = { ...s };
+    const n = nestedOf(k);
+    const at: Record<string, unknown> = n ? { ...s[n[0]] } : next;
+    const field = n?.[1] ?? k;
+    if (v === undefined) delete at[field];
+    else at[field] = v;
+    if (n) {
+      if (Object.keys(at).length) next[n[0]] = at;
+      else delete next[n[0]];
+    }
+    onChange(Object.keys(next).length ? (next as RepoSettings) : undefined);
+  };
+  return { value, own, set, base, shown: shown ?? null };
+}
+
+/** Repository settings in the order given, each where it applies (landing's options while work goes out as a pull request, say). */
+export function RepoSettingRows({ at, keys }: { at: RepoSettingsAt; keys: readonly SettingKey[] }) {
+  return <>{keys.map((k) => <RepoSettingRow key={k} k={k} at={at} />)}</>;
+}
+
+/**
+ * One setting of a repository: its label with where its value comes from (and "Reset" where it is
+ * set here), its control and what to know about it; nothing where it does not apply.
+ */
+export function RepoSettingRow({ k, at }: { k: SettingKey; at: RepoSettingsAt }) {
+  const c = t.config.settings;
+  const { value, set } = at;
+  const lines = (k: SettingKey) => value<string[]>(k).join('\n');
+  const control = ((): [string, ReactNode, string?] | null => {
+    switch (k) {
+      case 'branch':
+        return [c.branch, <Input className={pathClass} aria-label={c.branch} spellCheck={false} value={value<string>('branch')} onChange={(e) => set('branch', e.target.value)} />, c.branchHint];
+      case 'land':
+        return [c.land, <SegmentedControl label={c.land} value={value<'main' | 'pr'>('land') ?? 'main'} onValueChange={(x) => set('land', x)} options={(['main', 'pr'] as const).map((x) => ({ value: x, label: c.lands[x] }))} />, c.landHint];
+      case 'direct':
+        return value('land') !== 'pr' ? null : [c.direct, <CheckLabel><Switch checked={value<boolean>('direct')} onCheckedChange={(on) => set('direct', on)} />{c.directLabel}</CheckLabel>];
+      case 'autoMerge':
+        return value('land') !== 'pr' ? null : [c.autoMerge, <CheckLabel><Switch checked={value<boolean>('autoMerge')} onCheckedChange={(on) => set('autoMerge', on)} />{c.autoMergeLabel}</CheckLabel>, c.autoMergeHint];
+      case 'prNoise':
+        return value('land') !== 'pr' ? null : [c.prNoise, <Textarea mono rows={2} spellCheck={false} aria-label={c.prNoise} value={lines('prNoise')} onChange={(e) => set('prNoise', e.target.value.split('\n'))} />, c.prNoiseHint];
+      case 'softPaths':
+        return [c.softPaths, <Textarea mono rows={Math.max(2, value<string[]>('softPaths').length + 1)} spellCheck={false} aria-label={c.softPaths} value={lines('softPaths')} onChange={(e) => set('softPaths', e.target.value.split('\n'))} />, c.softPathsHint];
+      case 'setup':
+        return [c.setup, <Input className={pathClass} aria-label={c.setup} spellCheck={false} value={value<string>('setup')} onChange={(e) => set('setup', e.target.value)} />, c.setupHint];
+      case 'checks':
+        return [c.checks, <Textarea mono rows={Math.max(2, value<string[]>('checks').length + 1)} spellCheck={false} aria-label={c.checks} value={lines('checks')} onChange={(e) => set('checks', e.target.value.split('\n'))} />, c.checksHint];
+      case 'run':
+        return [c.run, <Textarea mono rows={Math.max(6, Math.ceil(value<string>('run').length / 70) + 1)} aria-label={c.run} placeholder={c.runPlaceholder} value={value<string>('run')} onChange={(e) => set('run', e.target.value)} />, c.runHint];
+      case 'stop':
+        return [c.stop, <Input className={pathClass} aria-label={c.stop} placeholder="docker compose down" spellCheck={false} value={value<string>('stop')} onChange={(e) => set('stop', e.target.value)} />, c.stopHint];
+      case 'keep':
+        return !value<string>('stop').trim() ? null : [c.keep, <Input className={pathClass} aria-label={c.keep} placeholder="grep -q PERSIST=1 .env" spellCheck={false} value={value<string>('keep')} onChange={(e) => set('keep', e.target.value)} />, c.keepHint];
+      case 'planDocs': {
+        const planDocs = value<{ dir: string; exclude: string[] }>('planDocs');
+        return [
+          c.planDocs,
+          <div className="cfg-plan grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2 max-w-[640px]">
+            <Input className={pathClass} aria-label={c.planDir} placeholder={c.planDir} spellCheck={false} value={planDocs.dir} onChange={(e) => set('planDocs', { ...planDocs, dir: e.target.value })} />
+            <Input className={pathClass} aria-label={c.planExclude} placeholder={c.planExclude} spellCheck={false} value={planDocs.exclude.join(', ')} onChange={(e) => set('planDocs', { ...planDocs, exclude: e.target.value.split(/,\s*/) })} />
+          </div>,
+          c.planDocsHint,
+        ];
+      }
+      case 'language':
+        return LANGUAGES.length < 2 ? null : [c.language, <SegmentedControl label={c.language} value={value<Language>('language')} onValueChange={(x) => set('language', x)} options={LANGUAGES.map((x) => ({ value: x, label: c.languages[x] }))} />, c.languageHint];
+      case 'demoLanguage':
+        return LANGUAGES.length < 2 ? null : [c.demoLanguage, <SegmentedControl label={c.demoLanguage} value={value<NarrationLanguage | null>('demoLanguage') ?? ''} onValueChange={(x) => set('demoLanguage', x)} options={LANGUAGES.map((x) => ({ value: x, label: c.languages[x] }))} />, c.demoLanguageHint];
+      case 'artifacts':
+        return [c.artifacts, <ArtifactChecks value={value<HandoverArtifact[]>('artifacts')} onChange={(v) => set('artifacts', v)} />, c.artifactsHint];
+      default:
+        return null;
+    }
+  })();
+  if (!control) return null;
+  const [label, field, hint] = control;
+  const here = at.own(k) !== undefined;
+  const from = at.base[k].held ? c.held : c.source[at.base[k].source];
+  return (
+    <div className={cn(K.cfgSettingClass, at.shown === k && 'flash')} data-setting={k}>
+      <div className={K.cfgSettingLabelClass}>
+        {label}
+        <span className={K.cfgSourceClass(here)}>{here ? c.source.machine : from}</span>
+        {here && (
+          <button type="button" className="cfg-reset p-0 [border:0] bg-transparent text-muted-foreground text-xs underline cursor-pointer hover:text-foreground" title={c.resetHint} onClick={() => at.set(k, undefined)}>
+            {c.reset}
+          </button>
+        )}
+      </div>
+      <div className={K.cfgControlClass}>
+        {field}
+        {hint && <p className="hint">{hint}</p>}
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -2793,136 +2972,27 @@ function RepoSettingsBlock({
   useEffect(() => {
     if (shown) box.current?.querySelector(`[data-setting="${shown}"]`)?.scrollIntoView({ block: 'center' });
   }, [shown]);
-  const c = t.config.settings;
-  const s = repo.settings ?? {};
-  const { app: _, demo: __, ...flat } = values;
-  const base: Record<SettingKey, SettingValue<unknown>> = { ...flat, ...values.app, demoLanguage: values.demo.language, artifacts: values.demo.artifacts };
-  const own = (k: SettingKey): unknown => {
-    const n = nestedOf(k);
-    return n ? (s[n[0]] as Record<string, unknown> | undefined)?.[n[1]] : s[k as keyof RepoSettings];
-  };
-  const value = <T,>(k: SettingKey) => (own(k) ?? base[k].value) as T;
-  const set = (k: SettingKey, v: unknown) => {
-    const next: Record<string, unknown> = { ...s };
-    const n = nestedOf(k);
-    const at: Record<string, unknown> = n ? { ...s[n[0]] } : next;
-    const field = n?.[1] ?? k;
-    if (v === undefined) delete at[field];
-    else at[field] = v;
-    if (n) {
-      if (Object.keys(at).length) next[n[0]] = at;
-      else delete next[n[0]];
-    }
-    onChange(Object.keys(next).length ? (next as RepoSettings) : undefined);
-  };
-  const lines = (k: SettingKey) => value<string[]>(k).join('\n');
-  // a setting: its label with where its value comes from (and "Reset" where it is set here), its control and what to know about it
-  const field = (key: string, label: string, here: boolean, from: string, reset: () => void, control: ReactNode, hint?: string) => (
-    <div className={cn(K.cfgSettingClass, shown === key && 'flash')} key={key} data-setting={key}>
-      <div className={K.cfgSettingLabelClass}>
-        {label}
-        <span className={K.cfgSourceClass(here)}>{here ? c.source.machine : from}</span>
-        {here && (
-          <button type="button" className="cfg-reset p-0 [border:0] bg-transparent text-muted-foreground text-xs underline cursor-pointer hover:text-foreground" title={c.resetHint} onClick={reset}>
-            {c.reset}
-          </button>
-        )}
-      </div>
-      <div className={K.cfgControlClass}>
-        {control}
-        {hint && <p className="hint">{hint}</p>}
-      </div>
+  const at = repoSettingsAt(repo.settings, values, onChange, shown);
+  const group = (title: string, keys: readonly SettingKey[]) => (
+    <div className={K.cfgGroupClass()}>
+      <h5 className={K.cfgGroupHeadClass}>{title}</h5>
+      <RepoSettingRows at={at} keys={keys} />
     </div>
   );
-  const row = (k: SettingKey, label: string, control: ReactNode, hint?: string) => {
-    const from = base[k].source;
-    return field(k, label, own(k) !== undefined, base[k].held ? c.held : c.source[from], () => set(k, undefined), control, hint);
-  };
-  const land = value<'main' | 'pr'>('land');
-  const planDocs = value<{ dir: string; exclude: string[] }>('planDocs');
-  const language = value<Language>('language');
-  const demoLanguage = value<NarrationLanguage | null>('demoLanguage');
-  const artifacts = value<HandoverArtifact[]>('artifacts');
   return (
     <div className="cfg-settings" ref={box}>
-      {!folder && (
-        <div className={K.cfgGroupClass()}>
-          <h5 className={K.cfgGroupHeadClass}>{t.config.groups.landing}</h5>
-          {row('branch', c.branch, <Input className={pathClass} aria-label={c.branch} spellCheck={false} value={value<string>('branch')} onChange={(e) => set('branch', e.target.value)} />, c.branchHint)}
-          {row(
-            'land',
-            c.land,
-            <SegmentedControl label={c.land} value={land ?? 'main'} onValueChange={(x) => set('land', x)} options={(['main', 'pr'] as const).map((x) => ({ value: x, label: c.lands[x] }))} />,
-            c.landHint,
-          )}
-          {land === 'pr' &&
-            row(
-              'direct',
-              c.direct,
-              <CheckLabel>
-                <Switch checked={value<boolean>('direct')} onCheckedChange={(on) => set('direct', on)} />
-                {c.directLabel}
-              </CheckLabel>,
-            )}
-          {land === 'pr' &&
-            row(
-              'autoMerge',
-              c.autoMerge,
-              <CheckLabel>
-                <Switch checked={value<boolean>('autoMerge')} onCheckedChange={(on) => set('autoMerge', on)} />
-                {c.autoMergeLabel}
-              </CheckLabel>,
-              c.autoMergeHint,
-            )}
-          {land === 'pr' && row('prNoise', c.prNoise, <Textarea mono rows={2} spellCheck={false} aria-label={c.prNoise} value={lines('prNoise')} onChange={(e) => set('prNoise', e.target.value.split('\n'))} />, c.prNoiseHint)}
-          {row('softPaths', c.softPaths, <Textarea mono rows={Math.max(2, value<string[]>('softPaths').length + 1)} spellCheck={false} aria-label={c.softPaths} value={lines('softPaths')} onChange={(e) => set('softPaths', e.target.value.split('\n'))} />, c.softPathsHint)}
-        </div>
-      )}
-      <div className={K.cfgGroupClass()}>
-        <h5 className={K.cfgGroupHeadClass}>{t.config.groups.app}</h5>
-        {row('setup', c.setup, <Input className={pathClass} aria-label={c.setup} spellCheck={false} value={value<string>('setup')} onChange={(e) => set('setup', e.target.value)} />, c.setupHint)}
-        {row('checks', c.checks, <Textarea mono rows={Math.max(2, value<string[]>('checks').length + 1)} spellCheck={false} aria-label={c.checks} value={lines('checks')} onChange={(e) => set('checks', e.target.value.split('\n'))} />, c.checksHint)}
-        {row('run', c.run, <Textarea mono rows={Math.max(6, Math.ceil(value<string>('run').length / 70) + 1)} aria-label={c.run} placeholder={c.runPlaceholder} value={value<string>('run')} onChange={(e) => set('run', e.target.value)} />, c.runHint)}
-        {row('stop', c.stop, <Input className={pathClass} aria-label={c.stop} placeholder="docker compose down" spellCheck={false} value={value<string>('stop')} onChange={(e) => set('stop', e.target.value)} />, c.stopHint)}
-        {!!value<string>('stop').trim() &&
-          row('keep', c.keep, <Input className={pathClass} aria-label={c.keep} placeholder="grep -q PERSIST=1 .env" spellCheck={false} value={value<string>('keep')} onChange={(e) => set('keep', e.target.value)} />, c.keepHint)}
-      </div>
-      <div className={K.cfgGroupClass()}>
-        <h5 className={K.cfgGroupHeadClass}>{t.config.groups.plans}</h5>
-        {row(
-          'planDocs',
-          c.planDocs,
-          <div className="cfg-plan grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2 max-w-[640px]">
-            <Input className={pathClass} aria-label={c.planDir} placeholder={c.planDir} spellCheck={false} value={planDocs.dir} onChange={(e) => set('planDocs', { ...planDocs, dir: e.target.value })} />
-            <Input className={pathClass} aria-label={c.planExclude} placeholder={c.planExclude} spellCheck={false} value={planDocs.exclude.join(', ')} onChange={(e) => set('planDocs', { ...planDocs, exclude: e.target.value.split(/,\s*/) })} />
-          </div>,
-          c.planDocsHint,
-        )}
-        {LANGUAGES.length > 1 && row(
-          'language',
-          c.language,
-          <SegmentedControl label={c.language} value={language} onValueChange={(x) => set('language', x)} options={LANGUAGES.map((x) => ({ value: x, label: c.languages[x] }))} />,
-          c.languageHint,
-        )}
-      </div>
-      <div className={K.cfgGroupClass()}>
-        <h5 className={K.cfgGroupHeadClass}>{t.config.groups.demos}</h5>
-        {LANGUAGES.length > 1 && row(
-          'demoLanguage',
-          c.demoLanguage,
-          <SegmentedControl label={c.demoLanguage} value={demoLanguage ?? ''} onValueChange={(x) => set('demoLanguage', x)} options={LANGUAGES.map((x) => ({ value: x, label: c.languages[x] }))} />,
-          c.demoLanguageHint,
-        )}
-        {row('artifacts', c.artifacts, <ArtifactChecks value={artifacts} onChange={(v) => set('artifacts', v)} />, c.artifactsHint)}
-      </div>
+      {!folder && group(t.config.groups.landing, REPO_SETTING_GROUPS.landing)}
+      {group(t.config.groups.app, REPO_SETTING_GROUPS.app)}
+      {group(t.config.groups.plans, REPO_SETTING_GROUPS.plans)}
+      {group(t.config.groups.demos, REPO_SETTING_GROUPS.demos)}
       {/* the folder's settings file is written there like any other file; there is no commit or pull request to make */}
-      {!folder && <ShareSettings repo={repo} values={values} branch={value<string>('branch')} shareTo={shareTo} shareDirect={shareDirect} takeover={takeover} />}
+      {!folder && <ShareSettings repo={repo} values={values} branch={at.value<string>('branch')} shareTo={shareTo} shareDirect={shareDirect} takeover={takeover} />}
     </div>
   );
 }
 
 /** Whether the repository has settings for everyone (`.obeya/settings.json`): then it is set up. */
-const fromRepository = (v: RepoValues) => SHARED_FIELDS.some((k) => (isNested(k) ? Object.values(v[k]).some((f) => f.source === 'repository') : v[k].source === 'repository'));
+export const fromRepository = (v: RepoValues) => SHARED_FIELDS.some((k) => (isNested(k) ? Object.values(v[k]).some((f) => f.source === 'repository') : v[k].source === 'repository'));
 
 /**
  * The site's vocabulary of tags, a dimension per line (`Area: Billing, Reports`): the text stays as
@@ -3061,7 +3131,7 @@ const shareConfirmHint = 'hint mt-1 mx-0 mb-0 max-w-[76ch]';
  * It first shows the file as it would be and where it goes (a commit on the main branch, or a pull
  * request), then does it at the owner's word. Only for the configuration as saved.
  */
-function ShareSettings({ repo, values, branch, shareTo, shareDirect, takeover }: { repo: RepoConfig; values: RepoValues; branch: string; shareTo: 'main' | 'pr'; shareDirect: boolean; takeover: Takeover }) {
+export function ShareSettings({ repo, values, branch, shareTo, shareDirect, takeover }: { repo: RepoConfig; values: RepoValues; branch: string; shareTo: 'main' | 'pr'; shareDirect: boolean; takeover: Takeover }) {
   const c = t.config.settings.share;
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -3326,7 +3396,7 @@ const CodeDiff = lazy(() => import('./diff-code'));
  * with what it does and its lines as last trusted against those on the main branch now, and the
  * button that trusts them; the dialog checks again after it.
  */
-function TrustCommands({ path, trust, onDone }: { path: string; trust: RepoTrust; onDone: () => void }) {
+export function TrustCommands({ path, trust, onDone }: { path: string; trust: RepoTrust; onDone: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const c = t.config.trust;
@@ -3372,7 +3442,7 @@ const blankOnly = (trust: RepoTrust, g: 'claude' | 'codex') =>
  * Creates the card that writes the repository's settings for everyone, and opens it on its project;
  * the dialog's changes are saved first, so the project runs with the repository on it.
  */
-function AdapterSetup({ project, repo, takeover }: { project: string; repo: string; takeover: Takeover }) {
+export function AdapterSetup({ project, repo, takeover, label = t.config.adapterSetup, hint = t.config.adapterSetupHint, icon, stacked }: { project: string; repo: string; takeover: Takeover; label?: string; hint?: string; icon?: ReactNode; /** The button over what it does, as wide as its place (the settings sheet). */ stacked?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const { saved, prepare } = takeover;
@@ -3391,15 +3461,23 @@ function AdapterSetup({ project, repo, takeover }: { project: string; repo: stri
     }
   };
   return (
-    <div className={`${rowClass} [&_.hint]:min-w-0 [&_.hint]:text-xs!`}>
-      <span className="hint">
-        {t.config.adapterSetupHint}
-        {!saved && <> {prepare ? t.config.adapterSetupSaves : t.config.adapterSetupSaveFirst}</>}
-      </span>
-      <Button size="small" disabled={busy || (!saved && !prepare)} onClick={go}>
-        {t.config.adapterSetup}
+    <div className={stacked ? 'cfg-adapter-setup flex flex-col gap-1.5 py-2 [&_.hint]:text-sm' : `${rowClass} [&_.hint]:min-w-0 [&_.hint]:text-xs!`}>
+      {!stacked && <AdapterSetupHint hint={hint} saved={saved} prepare={!!prepare} />}
+      <Button size="small" className={cn(stacked && 'w-full')} disabled={busy || (!saved && !prepare)} onClick={go}>
+        {icon}
+        {label}
       </Button>
+      {stacked && <AdapterSetupHint hint={hint} saved={saved} prepare={!!prepare} />}
       {error && <p className="p-error">{error}</p>}
     </div>
+  );
+}
+
+function AdapterSetupHint({ hint, saved, prepare }: { hint: string; saved: boolean; prepare: boolean }) {
+  return (
+    <span className="hint">
+      {hint}
+      {!saved && <> {prepare ? t.config.adapterSetupSaves : t.config.adapterSetupSaveFirst}</>}
+    </span>
   );
 }

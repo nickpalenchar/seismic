@@ -14,7 +14,7 @@ import { z } from 'zod';
 import { readShared, REPO_ADAPTER_DIR, REPO_SETTINGS_FILE } from '../adapters';
 import { renamedField, settingsShape, withoutGone as goneSettings } from '../adapters/schema';
 import { LANGUAGES } from '../core/locale';
-import { blockingProblems, type ProjectConfig, type ConfigChecked, type ConfigProblem, type ConfigSaved, type ConfigView, type RepoSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type SettingsShared, type SharedSettings, type DemoSettingsProblem, type DemoSettingsView, type DemoVoiceCheck, type ResolvedProject, type VoiceInstallJob, layerSettings, type ProposedSetting, type RepoTrust, type RepoValues, settingPatch, commandLines } from '../core/types';
+import { blockingProblems, type ProjectConfig, type ProjectReposView, type RepoConfig, type ConfigChecked, type ConfigProblem, type ConfigSaved, type ConfigView, type RepoSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type SettingsShared, type SharedSettings, type DemoSettingsProblem, type DemoSettingsView, type DemoVoiceCheck, type ResolvedProject, type VoiceInstallJob, layerSettings, type ProposedSetting, type RepoTrust, type RepoValues, settingPatch, commandLines } from '../core/types';
 import {
   absoluteDirectory,
   DEMO_SETTINGS_FILE,
@@ -156,6 +156,15 @@ export const configShape = z.array(
     .extend(projectSettingsShape.shape)
     .strict(),
 );
+
+/** A repository's entry as the project's settings sheet saves it: its path names it, the fields it holds replace those of the entry. */
+const repoEntryShape = configShape.element.shape.repos.element.omit({ git: true });
+
+/** Where the project `id` is in `projects`: by its id once resolved, else by the id it keeps. */
+function projectIndex(id: string, projects: ProjectConfig[], resolved: (ResolvedProject | null)[]): number {
+  const i = resolved.findIndex((r) => r?.id === id);
+  return i >= 0 ? i : projects.findIndex((c, j) => !resolved[j] && c.id === id);
+}
 
 /** The configuration as it is saved: no empty names, clone lists or counts. */
 function tidy(projects: z.infer<typeof configShape>): ProjectConfig[] {
@@ -868,6 +877,42 @@ export class Config {
     const i = resolved.findIndex((r) => r?.id === id);
     if (i < 0) throw new BadRequest('invalid', `the configuration has no project ${id}`);
     return this.save(current.map((c, j) => (j === i ? { ...c, ...parsed.data } : c)));
+  }
+
+  /**
+   * The project `id` of the configuration as saved with its check, for its settings sheet: its
+   * repositories as listed, what they amount to, and the problems of the project, theirs included.
+   */
+  async projectView(id: string): Promise<ProjectReposView> {
+    const projects = this.current();
+    const checked = await this.checkSaved();
+    const i = projectIndex(id, projects, checked.resolved);
+    if (i < 0) throw new BadRequest('invalid', `the configuration has no project ${id}`);
+    return { project: projects[i]!, resolved: checked.resolved[i] ?? null, problems: checked.problems.filter((p) => p.project === i), source: this.o.source, restarting: this.restarting };
+  }
+
+  /**
+   * Saves one repository's entry from the project's settings sheet (`{ path, settings, clones, … }`):
+   * the repository at `path` takes the fields given, without those left out, its path and folder mode
+   * staying; the rest of the configuration as it is saved. Applies at once, as a save from the dialog does.
+   */
+  saveRepo(id: string, input: unknown): Promise<ProjectReposView> {
+    const saved = this.projectSaves.then(async () => {
+      const parsed = repoEntryShape.safeParse(input);
+      if (!parsed.success) throw new BadRequest('invalid', `repository settings: ${z.prettifyError(parsed.error)}`);
+      const { path, ...fields } = parsed.data;
+      const current = this.current();
+      const i = projectIndex(id, current, (await this.check(current)).resolved);
+      if (i < 0) throw new BadRequest('invalid', `the configuration has no project ${id}`);
+      const project = current[i]!;
+      const at = project.repos.findIndex((r) => r.path === path);
+      if (at < 0) throw new BadRequest('invalid', `the project ${id} has no repository at ${path}`);
+      const { path: kept, git } = project.repos[at]!;
+      const repo: RepoConfig = { path: kept, ...(git === false ? { git } : {}), ...fields };
+      await this.save(current.map((c, j) => (j === i ? { ...c, repos: c.repos.map((r, k) => (k === at ? repo : r)) } : c)));
+    });
+    this.projectSaves = saved.catch(() => {});
+    return saved.then(() => this.projectView(id));
   }
 
   async save(input: unknown): Promise<ConfigSaved> {

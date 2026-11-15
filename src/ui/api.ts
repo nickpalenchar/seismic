@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { CardDiff } from '../core/diff';
 import { type Place, placeParam } from '../core/layout';
-import type { AccessView, ActivityPage, Pairing, RemoteSetting, CodexModel, AgentRole, AgentSetting, CloudPreset, AgentsView, ProjectConfig, ProjectInfo, ProjectSnapshot, ChatElsewhere, ClientMessage, ConfigSaved, ConfigView, CardAction, ConfigChecked, DemoSettings, Group, DemoSettingsView, DemoVoiceCheck, ProjectDemoSiteState, DemoSitesView, GithubRepoList, GithubRepoView, TagProposalJob, PageTags, NarrationLanguage, FirstProject, GitSetupPreview, MachineItem, MachineSectionId, MachineView, SetupCheck, SetupFolder, VoiceSetupView, CardEvent, CardPatch, Item, Language, LanguageView, NewCard, Notice, OwnerHold, PendingRestart, PlanHistory, RepoTrust, ServerMessage, SettingsShared, Skill, SourceUpdate, SpotInput, TalkRef, AppUpdate, Theme, ThemeView, Motion, MotionView, Usage, UsageMeterView, Waiting, Feedback, FeedbackAnswer, FeedbackPromptView,
+import type { ProjectReposView, RepoConfig, AccessView, ActivityPage, Pairing, RemoteSetting, CodexModel, AgentRole, AgentSetting, CloudPreset, AgentsView, ProjectConfig, ProjectInfo, ProjectSnapshot, ChatElsewhere, ClientMessage, ConfigSaved, ConfigView, CardAction, ConfigChecked, DemoSettings, Group, DemoSettingsView, DemoVoiceCheck, ProjectDemoSiteState, DemoSitesView, GithubRepoList, GithubRepoView, TagProposalJob, PageTags, NarrationLanguage, FirstProject, GitSetupPreview, MachineItem, MachineSectionId, MachineView, SetupCheck, SetupFolder, VoiceSetupView, CardEvent, CardPatch, Item, Language, LanguageView, NewCard, Notice, OwnerHold, PendingRestart, PlanHistory, RepoTrust, ServerMessage, SettingsShared, Skill, SourceUpdate, SpotInput, TalkRef, AppUpdate, Theme, ThemeView, Motion, MotionView, Usage, UsageMeterView, Waiting, Feedback, FeedbackAnswer, FeedbackPromptView,
   ProjectDefaultsView,
   ProjectSettings, ProjectSettingsView, DeveloperView, NotificationsView, Canvas } from '../core/types';
 import type { Wish } from '../core/wish';
@@ -199,6 +199,10 @@ export const api = {
   projectSettings: (project: string) => call<ProjectSettingsView>('GET', `/api/c/${encodeURIComponent(project)}/settings`),
   /** Saves some of a project's own settings (`{ agents }`, `{ suggest }` …) into the configuration. */
   saveProjectSettings: (project: string, s: ProjectSettings) => call<ProjectSettingsView>('PUT', `/api/c/${encodeURIComponent(project)}/settings`, s),
+  /** A project's repositories as configured, with their check, for its settings sheet. */
+  projectRepos: (project: string) => call<ProjectReposView>('GET', `/api/c/${encodeURIComponent(project)}/repos`),
+  /** Saves one repository's entry (named by its path) from the settings sheet; it applies at once. */
+  saveProjectRepo: (project: string, repo: RepoConfig) => call<ProjectReposView>('PUT', `/api/c/${encodeURIComponent(project)}/repos`, repo),
   /** The model and effort of each group of agents. */
   agents: () => call<AgentsView>('GET', '/api/agents'),
   /** The settings of the shown project, with Configuration's models as the base of its own. */

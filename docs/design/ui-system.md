@@ -107,3 +107,13 @@ same style. UI text comes from `src/ui/strings.ts`, never a literal.
   `slate`, three steps per state. Rejected: Radix Colors, a hue scale of frost's own, CSS-in-JS.
 - **frost's class names never share a name with a Tailwind utility** (`hidden`, `fixed`, `ring`),
   or the utility applies to them too.
+- **The project settings sheet is a list of sections, each pushed in as a view of its own**
+  (2026-11-14): Back and Esc return to the list; per-repository views have a switcher of the
+  project's repositories. Every change saves at once, a repository's into its own entry of the
+  configuration; what restarts a repository's agents (where they work, clones, slots, hosts) waits
+  for an inline "Save and restart agents". Rejected: one long scroll, and the Configuration dialog's
+  draft with a Save button. Configuration's project page still shows the same fields until they
+  are taken out of it.
+- **Esc in a docked sheet's inner view** goes back to its list: the docked sheet's Radix layer
+  prevents Esc's default and the page's key handler listens in the capture phase, so the view
+  marks itself `data-esc-back` and the page leaves Esc there to it.
