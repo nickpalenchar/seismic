@@ -121,6 +121,16 @@ export function usePhoneShell(loaded: ProjectInfo[]) {
     setTalk(false);
   };
   const openCard = (i: Item) => openId(i.id);
+  /** The card that takes the open one's place once Back has closed the conversation over it. */
+  const instead = useRef<string | null>(null);
+  /** The open card gave way to `id` (a merge approved): `id` takes its place in the history, its conversation closed. */
+  const replaceCard = (id: string) => {
+    if (steps().at(-1) !== 'talk') return openId(id);
+    // Back past the conversation first, so no step is left that opens the card that went
+    flushEdit().catch(console.error);
+    instead.current = resolve(id) ?? id;
+    history.back();
+  };
   /** Back to the list from a card, closing its conversation too. */
   const leavesCard = useRef(false);
   const back = () => {
@@ -156,6 +166,15 @@ export function usePhoneShell(loaded: ProjectInfo[]) {
     const pop = () => {
       flushEdit().catch(console.error);
       looked.current = null;
+      const next = instead.current;
+      if (next) {
+        instead.current = null;
+        looked.current = next;
+        history.replaceState(history.state, '', addressWith({ card: next, talk: false }));
+        setOpenState(next);
+        setTalk(false);
+        return;
+      }
       if (leavesCard.current) {
         leavesCard.current = false;
         history.replaceState(null, '', addressWith({ card: null, talk: false }));
@@ -378,11 +397,20 @@ export function usePhoneShell(loaded: ProjectInfo[]) {
     return () => removeEventListener('keydown', key);
   }, []);
 
+  const [onward, setOnward] = useState<{ gone: string; next: string } | null>(null);
+  useEffect(() => {
+    if (!onward || all.some((c) => c.item.id === onward.gone)) return;
+    setOnward(null);
+    // the owner may have gone elsewhere meanwhile
+    if (openRef.current === onward.gone) replaceCard(onward.next);
+  }, [onward, all]);
+
   /** After an action on the open card: back to the list, with the confirmation; one the server is still at says so until it answered. */
   function onDone(d: ActDone, p?: Pending) {
     if (!d.close) return;
-    // the card a merge became opens in this one's place; from the card's conversation, Back would lead to the card that went
-    if (d.next && !talkRef.current) openId(d.next);
+    // the card a merge became opens in this one's place, once the project no longer has the one that went:
+    // until then opening it would open the merge again
+    if (d.next && openRef.current) setOnward({ gone: openRef.current, next: d.next });
     else back();
     if (!p || !d.pending) {
       if (d.rate) ratePrompt.ask(d.rate);
