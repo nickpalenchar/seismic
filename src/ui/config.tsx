@@ -1106,7 +1106,7 @@ export function SuggestField({ value, onChange }: { value: SuggestSettings | und
 }
 
 /** "Suggest new cards" or "Suggest card merges": on a project's page and settings sheet, and in Project defaults; on where left out. */
-export function SuggestionField({ which, value, onChange }: { which: 'cards' | 'merges'; value: boolean | undefined; onChange: (on: boolean) => void }) {
+export function SuggestionField({ which, value, onChange }: { which: 'labels' | 'cards' | 'merges'; value: boolean | undefined; onChange: (on: boolean) => void }) {
   const l = t.config.suggestions[which];
   return (
     <Field label={l.title} hint={l.hint}>
@@ -1212,6 +1212,7 @@ function ProjectDefaultsBlock({ view, onSaved }: { view: ProjectDefaultsView | n
   // a field for every project setting: one added to the defaults without a field here does not compile
   const fields: { [K in keyof ProjectDefaults]: ReactNode } = {
     suggest: <SuggestField value={view.defaults.suggest} onChange={(suggest) => save({ suggest })} />,
+    suggestLabels: <SuggestionField which="labels" value={view.defaults.suggestLabels} onChange={(suggestLabels) => save({ suggestLabels })} />,
     suggestCards: <SuggestionField which="cards" value={view.defaults.suggestCards} onChange={(suggestCards) => save({ suggestCards })} />,
     suggestMerges: <SuggestionField which="merges" value={view.defaults.suggestMerges} onChange={(suggestMerges) => save({ suggestMerges })} />,
     planBaselines: <PlanBaselineField value={view.defaults.planBaselines} onChange={(planBaselines) => save({ planBaselines })} />,
@@ -2503,6 +2504,7 @@ function ProjectBlock({ n, project, file, checking, resolved, running, pin, save
         />
       )}
       <SuggestField value={project.suggest} onChange={(suggest) => onChange({ ...project, suggest })} />
+      <SuggestionField which="labels" value={project.suggestLabels} onChange={(suggestLabels) => onChange({ ...project, suggestLabels })} />
       <SuggestionField which="cards" value={project.suggestCards} onChange={(suggestCards) => onChange({ ...project, suggestCards })} />
       <SuggestionField which="merges" value={project.suggestMerges} onChange={(suggestMerges) => onChange({ ...project, suggestMerges })} />
       <PlanBaselineField value={project.planBaselines} onChange={(planBaselines) => onChange({ ...project, planBaselines })} />

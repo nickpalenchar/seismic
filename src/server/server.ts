@@ -563,6 +563,8 @@ export function serve(
         GET: on((c) => (config ? config.projectView(c.id) : notFound())),
         PUT: on(async (c, req) => (config ? config.saveRepo(c.id, await req.json()) : notFound())),
       },
+      // "Archive project" from its settings sheet: it leaves the configuration, its cards kept
+      '/api/c/:project/archive-project': { POST: on(async (c) => (config ? config.archiveProject(c.id) : notFound())) },
       // "Initialize" at the project's demo site: its path on the site, with the empty overview, deployed
       '/api/c/:project/demo-site': { GET: on((c) => c.siteState() ?? null) },
       '/api/c/:project/demo-site/init': { POST: on(async (c, req) => c.initSite(await req.json()) ?? null) },

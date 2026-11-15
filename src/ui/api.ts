@@ -201,6 +201,8 @@ export const api = {
   saveProjectSettings: (project: string, s: ProjectSettings) => call<ProjectSettingsView>('PUT', `/api/c/${encodeURIComponent(project)}/settings`, s),
   /** A project's repositories as configured, with their check, for its settings sheet. */
   projectRepos: (project: string) => call<ProjectReposView>('GET', `/api/c/${encodeURIComponent(project)}/repos`),
+  /** "Archive project": the project leaves the configuration and stops, its cards kept. */
+  archiveProject: (project: string) => call<ConfigSaved>('POST', `/api/c/${encodeURIComponent(project)}/archive-project`),
   /** Saves one repository's entry (named by its path) from the settings sheet; it applies at once. */
   saveProjectRepo: (project: string, repo: RepoConfig) => call<ProjectReposView>('PUT', `/api/c/${encodeURIComponent(project)}/repos`, repo),
   /** The model and effort of each group of agents. */

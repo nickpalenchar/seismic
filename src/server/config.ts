@@ -888,7 +888,23 @@ export class Config {
     const checked = await this.checkSaved();
     const i = projectIndex(id, projects, checked.resolved);
     if (i < 0) throw new BadRequest('invalid', `the configuration has no project ${id}`);
-    return { project: projects[i]!, resolved: checked.resolved[i] ?? null, problems: checked.problems.filter((p) => p.project === i), source: this.o.source, restarting: this.restarting };
+    return { project: projects[i]!, resolved: checked.resolved[i] ?? null, problems: checked.problems.filter((p) => p.project === i), source: this.o.source, restarting: this.restarting, projects: projects.length };
+  }
+
+  /**
+   * "Archive project" from its settings sheet: the project leaves the configuration and stops; its
+   * cards stay in the database and come back when a project of its name serves its repository again.
+   */
+  archiveProject(id: string): Promise<ConfigSaved> {
+    const saved = this.projectSaves.then(async () => {
+      const current = this.current();
+      const i = projectIndex(id, current, (await this.check(current)).resolved);
+      if (i < 0) throw new BadRequest('invalid', `the configuration has no project ${id}`);
+      if (current.length < 2) throw new BadRequest('config', 'the last project cannot be archived');
+      return this.save(current.filter((_, j) => j !== i));
+    });
+    this.projectSaves = saved.catch(() => {});
+    return saved;
   }
 
   /**

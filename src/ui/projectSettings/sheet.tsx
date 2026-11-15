@@ -1,14 +1,14 @@
 // The project's own settings, a docked sheet on the right like the inbox, opened from the sliders in the
 // bar: a list of sections, each of which slides into a view of its own with a Back button (and Esc) to
-// the list. Five of them hold settings of a repository, with a switcher of the project's repositories
-// at the top where it has more than one; the others the project's own (models, code reviews,
-// suggestions, the cards and plans). Each change saves at once: the project's into the configuration
-// (`PUT /api/c/:project/settings`), a repository's into its entry there (`PUT /api/c/:project/repos`),
-// shortly after the last key; what restarts a repository's agents waits for the owner's word. The rest
-// of the project (name, old names, order, its repositories and removing it) is in the Configuration
-// dialog, which the sheet's foot opens at this project.
+// the list, and "Archive project" at its foot. Allowed commands stands first, with a red count while a
+// repository has commands to trust. Four views hold settings of a repository, with a switcher of the
+// project's repositories at the top where it has more than one; the others the project's own (models,
+// code reviews, suggestions, card archiving). Each change saves at once: the project's into the
+// configuration (`PUT /api/c/:project/settings`), a repository's into its entry there (`PUT
+// /api/c/:project/repos`), shortly after the last key; what restarts a repository's agents waits for
+// the owner's word. The project's name, old names, order and repositories are in the Configuration dialog.
 
-import { ChevronLeft, ChevronRight, Sparkles, TriangleAlert } from 'lucide-react';
+import { Archive, Bot, BrickWall, ChevronLeft, ChevronRight, Film, GitPullRequest, Laptop, Lock, type LucideIcon, MessageSquareCode, Sparkle, Sparkles, TriangleAlert } from 'lucide-react';
 import { type KeyboardEvent, type ReactNode, useEffect, useId, useRef, useState } from 'react';
 import type { AgentRole, ConfigProblem, ConfigProblemCode, ProjectAgents, ProjectSettings, ProjectSettingsView } from '../../core/types';
 import { SUGGEST_TOGGLES, suggestToggles, type SuggestToggle } from '../../core/labels';
@@ -17,7 +17,9 @@ import { AdapterSetup, CardArchiveField, Head, PlanBaselineField, ProjectSiteFie
 import { cfgGroupClass, cfgGroupHeadClass, settingsSheetClass } from '../configClasses';
 import { Docked, sheetTitleClass } from '../docked';
 import { failText, t } from '../strings';
-import { Button, LinkButton } from '../components/button';
+import { Button } from '../components/button';
+import { ConfirmDialog } from '../components/dialog';
+import { Separator } from '../components/separator';
 import { Badge } from '../components/badge';
 import { Callout, CalloutDescription } from '../components/callout';
 import { CheckLabel } from '../components/check-label';
@@ -30,19 +32,25 @@ import { AgentChoice, AgentModels, type Catalogs, chosen } from './models';
 import { type ProjectRepos, useProjectRepos } from './repos';
 import { cn } from 'cn';
 
-/** The sheet's sections, in the order its list shows them. */
-const SECTIONS = ['app', 'demos', 'agents', 'reviews', 'suggestions', 'repository', 'plans'] as const;
+/** The sheet's sections, in the order its list shows them; Allowed commands stands apart above the others. */
+const SECTIONS = ['commands', 'agents', 'suggestions', 'environment', 'reviews', 'git', 'archiving', 'demos'] as const;
 type Section = (typeof SECTIONS)[number];
 
-/** Problems of where a repository's agents work: counted on "Agents and models"; every other one of a repository on "Repository". */
+/** Each section's icon on its row. */
+const ICONS: Record<Section, LucideIcon> = { commands: BrickWall, agents: Bot, suggestions: Sparkle, environment: Laptop, reviews: MessageSquareCode, git: GitPullRequest, archiving: Archive, demos: Film };
+
+/**
+ * Where a repository's problem shows and is counted: commands to trust under Allowed commands, where
+ * its agents work under Agents and models, every other one under Git and releasing.
+ */
 const PLACE_PROBLEMS: ConfigProblemCode[] = ['notClone', 'otherClone', 'hostRepo', 'hostName'];
-const sectionOf = (p: ConfigProblem): Section => (PLACE_PROBLEMS.includes(p.code) ? 'agents' : 'repository');
+const sectionOf = (p: ConfigProblem): Section => (p.code === 'untrusted' ? 'commands' : PLACE_PROBLEMS.includes(p.code) ? 'agents' : 'git');
 
 /** The labels' checkboxes under "Suggest card labels", in the order they show. */
 const LABEL_ORDER: SuggestToggle[] = ['priority', 'complexity', 'category'];
 
 /** The sheet of the project `project`; read afresh each time it opens or the Configuration over it closes. */
-export function ProjectSettingsSheet({ project, name, homePath, on, covered, problems, onConfig, onAddSite }: { project: string; name: string; /** The project's home repository, which proposing the demo site's tags reads. */ homePath?: string | undefined; /** Opens Configuration at the page that adds a demo site. */ onAddSite: () => void; on: boolean; /** The Configuration dialog is open over it: read afresh once it closes, as models may have changed there. */ covered: boolean; /** The configuration's problems, counted on the gear too. */ problems: number; onConfig: () => void }) {
+export function ProjectSettingsSheet({ project, name, homePath, on, covered, onAddSite }: { project: string; name: string; /** The project's home repository, which proposing the demo site's tags reads. */ homePath?: string | undefined; /** Opens Configuration at the page that adds a demo site. */ onAddSite: () => void; on: boolean; /** The Configuration dialog is open over it: read afresh once it closes, as models may have changed there. */ covered: boolean }) {
   const [view, setView] = useState<ProjectSettingsView | null>(null);
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
@@ -103,38 +111,40 @@ export function ProjectSettingsSheet({ project, name, homePath, on, covered, pro
           <p className="text-muted-foreground text-sm leading-[1.45] mt-0 mx-0 mb-3">{l.hint}</p>
           {view && <SectionList view={view} repos={repos} focus={back} onOpen={shown} />}
           {said && <p className={`hint ${statusClass}`}>{said}</p>}
-          <div className="cs-more mt-6 pt-3.5 border-t border-t-border flex flex-col items-start gap-1 text-sm">
-            <span className="text-muted-foreground text-sm">{l.more}</span>
-            <LinkButton type="button" onClick={onConfig}>
-              {l.toConfig}
-            </LinkButton>
-            {problems > 0 && <Badge variant="count" className="bg-transparent p-0 text-warning text-sm">{t.config.problemCount(problems)}</Badge>}
-          </div>
+          {repos.view && (
+            <>
+              <Separator className="my-2" />
+              <ArchiveProject project={project} name={name} last={repos.view.projects < 2} />
+            </>
+          )}
         </div>
       )}
     </Docked>
   );
 }
 
-/** The list of sections: each a row with its name, what it is set to, a count of its problems and a chevron. */
+/** A row of the list, as wide as the sheet: its icon, its name, what it is set to, and a chevron. */
+const rowClass = 'cs-section -mx-5.5 h-auto w-[calc(100%+2.75rem)] justify-start gap-3 rounded-none px-5.5 py-2.5 text-left text-base font-normal text-foreground [&_svg:not([class*=size-])]:size-[18px]';
+
+/** The list of sections: Allowed commands, then the others, each with what it is set to and a count of what needs the owner. */
 function SectionList({ view, repos, focus, onOpen }: { view: ProjectSettingsView; repos: ProjectRepos; focus: Section | null; onOpen: (s: Section) => void }) {
   const l = t.projectSettings;
-  const list = useRef<HTMLUListElement>(null);
+  const list = useRef<HTMLDivElement>(null);
   // back from a view: its row has the focus again
   useEffect(() => {
     if (focus) list.current?.querySelector<HTMLButtonElement>(`[data-section="${focus}"]`)?.focus();
   }, [focus]);
   const problems = (s: Section) => (repos.view?.problems ?? []).filter((p) => p.repo !== undefined && sectionOf(p) === s).length;
   const resolved = repos.view?.resolved;
-  const places = new Set(repos.repos.filter((r) => r.git !== false).map((r, i) => workPlace(r, resolved?.repos[i]).workIn));
+  const places = new Set(repos.repos.flatMap((r, i) => (r.git === false ? [] : [workPlace(r, resolved?.repos[i]).workIn])));
   const home = repos.repos[0];
   const homeValues = resolved?.repos[0]?.values;
   const site = view.settings.demoSite?.url;
   const status: Partial<Record<Section, ReactNode>> = {
     demos: site ? hostOf(site) : undefined,
     agents: places.size > 1 ? l.workIn.mixed : places.size ? l.workIn[[...places][0]!] : undefined,
-    reviews: view.settings.codeReviews.on ? <Badge className="bg-success-subtle text-success-strong">{l.enabled}</Badge> : undefined,
-    repository:
+    reviews: view.settings.codeReviews.on ? <Badge className="bg-success-subtle py-0 text-success-strong">{l.enabled}</Badge> : undefined,
+    git:
       home && homeValues && home.git !== false
         ? (() => {
             const at = repoSettingsAt(home.settings, homeValues, () => {});
@@ -142,29 +152,70 @@ function SectionList({ view, repos, focus, onOpen }: { view: ProjectSettingsView
           })()
         : undefined,
   };
+  const row = (s: Section) => {
+    const n = problems(s);
+    const waits = s === 'agents' && repos.repos.some((_, i) => repos.restarts(i));
+    const Icon = ICONS[s];
+    // commands to trust are the owner's to look at before they count: red; any other problem a warning
+    const alert = s === 'commands' ? 'bg-destructive text-destructive-foreground' : 'bg-warning-subtle text-warning-strong';
+    const said = s === 'commands' ? l.toTrust(n) : l.problems(n);
+    return (
+      <Button key={s} variant="ghost" data-section={s} className={rowClass} onClick={() => onOpen(s)}>
+        <Icon aria-hidden className="text-muted-foreground" />
+        <span className="min-w-0 flex-1 truncate">{l.sections[s]}</span>
+        {waits && <span className="text-xs text-warning">{l.unsaved}</span>}
+        {status[s] !== undefined && (typeof status[s] === 'string' ? <span className="max-w-[40%] truncate text-xs text-muted-foreground">{status[s]}</span> : status[s])}
+        {n > 0 && (
+          <Badge className={cn('py-0', alert)} title={said} aria-label={said}>
+            <TriangleAlert aria-hidden />
+            {n}
+          </Badge>
+        )}
+        <ChevronRight aria-hidden className="text-muted-foreground" />
+      </Button>
+    );
+  };
   return (
-    <ul ref={list} className="cs-sections m-0 p-0 list-none rounded-lg border border-border divide-y divide-border overflow-hidden">
-      {SECTIONS.map((s) => {
-        const n = problems(s);
-        const waits = s === 'agents' && repos.repos.some((_, i) => repos.restarts(i));
-        return (
-          <li key={s}>
-            <button type="button" data-section={s} className="cs-section flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm bg-transparent cursor-pointer hover:bg-accent focus-visible:bg-accent focus-visible:outline-none" onClick={() => onOpen(s)}>
-              <span className="min-w-0 flex-1 truncate">{t.projectSettings.sections[s]}</span>
-              {waits && <span className="text-xs text-warning">{l.unsaved}</span>}
-              {status[s] !== undefined && (typeof status[s] === 'string' ? <span className="max-w-[45%] truncate text-xs text-muted-foreground">{status[s]}</span> : status[s])}
-              {n > 0 && (
-                <Badge className="bg-warning-subtle py-0 text-warning-strong" title={l.problems(n)} aria-label={l.problems(n)}>
-                  <TriangleAlert aria-hidden />
-                  {n}
-                </Badge>
-              )}
-              <ChevronRight size={16} strokeWidth={2} className="flex-none text-muted-foreground" aria-hidden />
-            </button>
-          </li>
-        );
-      })}
-    </ul>
+    <div ref={list} className="cs-sections flex flex-col">
+      {row('commands')}
+      <Separator className="my-2" />
+      {SECTIONS.filter((s) => s !== 'commands').map(row)}
+    </div>
+  );
+}
+
+/** "Archive project" at the foot of the list, after a confirm: the project leaves Seismic, its cards kept. */
+function ArchiveProject({ project, name, last }: { project: string; name: string; /** It is the only project: it stays. */ last: boolean }) {
+  const l = t.projectSettings;
+  const [asking, setAsking] = useState(false);
+  const [error, setError] = useState('');
+  const archive = async () => {
+    setError('');
+    try {
+      await api.archiveProject(project);
+      // the project is gone: the page goes to the one Seismic opens first
+      location.assign('/');
+    } catch (e) {
+      setError(failText(e));
+    }
+  };
+  return (
+    <>
+      <Button variant="ghost" className={cn(rowClass, 'cs-archive text-destructive hover:not-disabled:text-destructive')} disabled={last} title={last ? l.archiveLast : undefined} onClick={() => setAsking(true)}>
+        <Lock aria-hidden />
+        <span className="min-w-0 flex-1 truncate">{l.archiveProject}</span>
+      </Button>
+      {error && <p className="p-error">{error}</p>}
+      <ConfirmDialog
+        open={asking}
+        onOpenChange={(o) => !o && setAsking(false)}
+        title={l.archiveTitle(name)}
+        confirm={{ label: l.archiveConfirm, variant: 'destructive', className: 'cs-archive-confirm', onClick: () => void archive() }}
+        cancel={l.archiveBack}
+      >
+        <p className="hint mt-0 mb-4">{l.archiveText}</p>
+      </ConfirmDialog>
+    </>
   );
 }
 
@@ -219,7 +270,9 @@ function SectionBody(p: BodyProps) {
   const { section, view, save } = p;
   const l = t.projectSettings;
   switch (section) {
-    case 'app':
+    case 'commands':
+      return <AllowedCommands repos={p.repos} />;
+    case 'environment':
       return <RepoPart {...p} />;
     case 'demos':
       return (
@@ -241,14 +294,11 @@ function SectionBody(p: BodyProps) {
       return <Reviews {...p} />;
     case 'suggestions':
       return <Suggestions view={view} save={save} />;
-    case 'repository':
+    case 'git':
       return <RepoPart {...p} />;
-    case 'plans':
+    case 'archiving':
       return (
         <>
-          <RepoPart {...p} />
-          <Head title={l.cards} sub />
-          <PlanBaselineField value={view.settings.planBaselines} onChange={(planBaselines) => save({ planBaselines })} />
           <CardArchiveField value={view.settings.archive} onChange={(archive) => save({ archive })} />
           <RightClickField value={view.settings.rightClick} onChange={(rightClick) => save({ rightClick })} />
         </>
@@ -256,8 +306,32 @@ function SectionBody(p: BodyProps) {
   }
 }
 
+/**
+ * "Allowed commands": each repository's commands that wait for the owner's trust, with what they do
+ * and their lines against those trusted before, and the button that trusts them.
+ */
+function AllowedCommands({ repos }: { repos: ProjectRepos }) {
+  const l = t.projectSettings;
+  const v = repos.view;
+  if (!v) return <p className="hint">{t.config.loading}</p>;
+  return (
+    <>
+      <p className="hint mt-0 mb-2 text-sm leading-[1.45]">{l.commandsHint}</p>
+      {repos.repos.map((r, i) => {
+        const held = v.problems.filter((x) => x.repo === i && x.code === 'untrusted');
+        return (
+          <div key={r.path} className={cfgGroupClass()}>
+            <h5 className={cfgGroupHeadClass}>{repoName(r, v.resolved?.repos[i])}</h5>
+            {held.length ? <RepoProblemsOf problems={held} repos={repos} at={i} /> : <p className="hint mt-1 mb-0 text-sm">{l.allTrusted}</p>}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 /** The part of a per-repository view that is the repository's: the switcher, then its settings for the section. */
-function RepoPart({ section, project, repos, repoAt, onRepo }: BodyProps) {
+function RepoPart({ section, project, view, save, repos, repoAt, onRepo }: BodyProps) {
   const l = t.projectSettings;
   const v = repos.view;
   if (!v) return <p className="hint">{t.config.loading}</p>;
@@ -271,7 +345,7 @@ function RepoPart({ section, project, repos, repoAt, onRepo }: BodyProps) {
       value={String(repoAt)}
       onValueChange={(x) => onRepo(Number(x))}
       options={repos.repos.map((r, i) => {
-        const n = v.problems.filter((x) => x.repo === i && (section === 'repository' || sectionOf(x) === section)).length;
+        const n = v.problems.filter((x) => x.repo === i && sectionOf(x) === section).length;
         return {
           value: String(i),
           label: (
@@ -301,7 +375,7 @@ function RepoPart({ section, project, repos, repoAt, onRepo }: BodyProps) {
   const takeover: Takeover = { saved: true, onReload: async () => repos.reload() };
   const name = repoName(repo, resolved);
   switch (section) {
-    case 'app':
+    case 'environment':
       return (
         <>
           {switcher}
@@ -339,7 +413,7 @@ function RepoPart({ section, project, repos, repoAt, onRepo }: BodyProps) {
           )}
         </>
       );
-    case 'repository':
+    case 'git':
       return (
         <>
           {switcher}
@@ -348,12 +422,19 @@ function RepoPart({ section, project, repos, repoAt, onRepo }: BodyProps) {
             <code className={cn(pathClass, 'block py-1')}>{repo.path}</code>
             {(repoAt === 0 || folder) && <p className="hint m-0">{[...(repoAt === 0 ? [t.config.home] : []), ...(folder ? [t.config.folderMode] : [])].join(' · ')}</p>}
           </div>
-          <RepoProblemsOf problems={problems} repos={repos} at={repoAt} />
+          <RepoProblemsOf problems={problems.filter((x) => sectionOf(x) === 'git')} repos={repos} at={repoAt} />
+          {folder && <RepoSettingRows at={at} keys={REPO_SETTING_GROUPS.plans} />}
+          {folder && <PlanBaselineField value={view.settings.planBaselines} onChange={(planBaselines) => save({ planBaselines })} />}
           {!folder && (
             <>
               <div className={cfgGroupClass()}>
                 <h5 className={cfgGroupHeadClass}>{t.config.groups.landing}</h5>
                 <RepoSettingRows at={at} keys={REPO_SETTING_GROUPS.landing.filter((k) => k !== 'softPaths')} />
+              </div>
+              <div className={cfgGroupClass()}>
+                <h5 className={cfgGroupHeadClass}>{l.plans}</h5>
+                <RepoSettingRows at={at} keys={REPO_SETTING_GROUPS.plans} />
+                <PlanBaselineField value={view.settings.planBaselines} onChange={(planBaselines) => save({ planBaselines })} />
               </div>
               {/* its button's label is long for the sheet: it wraps */}
               <div className="mt-4 [&_[data-slot=button]]:h-auto [&_[data-slot=button]]:py-1.5 [&_[data-slot=button]]:whitespace-normal">
@@ -361,13 +442,6 @@ function RepoPart({ section, project, repos, repoAt, onRepo }: BodyProps) {
               </div>
             </>
           )}
-        </>
-      );
-    case 'plans':
-      return (
-        <>
-          {switcher}
-          <RepoSettingRows at={at} keys={REPO_SETTING_GROUPS.plans} />
         </>
       );
     default:
@@ -434,17 +508,18 @@ function Suggestions({ view, save }: { view: ProjectSettingsView; save: (s: Proj
   const s = t.config.suggestions;
   const labels = suggestToggles(view.settings.suggest);
   const any = SUGGEST_TOGGLES.some((k) => labels[k]);
-  const all = (on: boolean) => Object.fromEntries(SUGGEST_TOGGLES.map((k) => [k, on])) as Record<SuggestToggle, boolean>;
+  const on = view.settings.suggestLabels;
+  const all = Object.fromEntries(SUGGEST_TOGGLES.map((k) => [k, true])) as Record<SuggestToggle, boolean>;
   return (
     <>
       <SwitchRow title={s.cards.title} hint={s.cards.hint} checked={view.settings.suggestCards} onChange={(suggestCards) => save({ suggestCards })} />
       <SwitchRow title={s.merges.title} hint={s.merges.hint} checked={view.settings.suggestMerges} onChange={(suggestMerges) => save({ suggestMerges })} />
-      {/* on with none checked is off; turning it on checks them all */}
-      <SwitchRow title={l.suggestLabels} hint={l.suggestLabelsHint} checked={any} onChange={(on) => save({ suggest: all(on) })}>
+      {/* off keeps the labels checked as they are, only Seismic suggests none; on with none checked checks them all */}
+      <SwitchRow title={l.suggestLabels} hint={l.suggestLabelsHint} checked={on} onChange={(suggestLabels) => save(suggestLabels && !any ? { suggestLabels, suggest: all } : { suggestLabels })}>
         <div className="cs-labels mt-1 pl-1">
           {LABEL_ORDER.map((k) => (
             <CheckLabel key={k}>
-              <Checkbox checked={labels[k]} onCheckedChange={(v) => save({ suggest: { ...labels, [k]: v === true } })} />
+              <Checkbox checked={labels[k]} disabled={!on} onCheckedChange={(v) => save({ suggest: { ...labels, [k]: v === true } })} />
               {t.config.suggest[k]}
             </CheckLabel>
           ))}

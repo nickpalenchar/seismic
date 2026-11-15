@@ -2843,6 +2843,8 @@ export interface ProjectSettings {
   rightClick?: RightClick;
   /** Which labels Seismic suggests on the project's cards ("Seismic suggests"); all where left out. */
   suggest?: SuggestSettings;
+  /** Whether Seismic suggests labels at all ("Suggest card labels"): off, none, whatever `suggest` checks; on where left out. */
+  suggestLabels?: boolean;
   /** Whether the work retrospective proposes cards for friction it found ("Suggest new cards"); on where left out. */
   suggestCards?: boolean;
   /** Whether a card is checked for duplicates when it starts, which may end in a merge proposal ("Suggest card merges"); on where left out. */
@@ -3040,6 +3042,8 @@ export interface ProjectReposView {
   /** Where the running projects come from (`ConfigView.source`): a save applies at once only from the file. */
   source: 'file' | 'args';
   restarting: boolean;
+  /** How many projects the configuration has: the last one cannot be archived. */
+  projects: number;
 }
 
 /** What "Take over into the repository for everyone" did with a repository's settings for this machine. */

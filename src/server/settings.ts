@@ -147,6 +147,7 @@ export const projectSettingsShape = z.object({
   archive: z.enum(CARD_ARCHIVING).optional(),
   rightClick: z.enum(RIGHT_CLICK).optional(),
   suggest: z.object({ category: z.boolean().optional(), complexity: z.boolean().optional(), priority: z.boolean().optional() }).strict().optional(),
+  suggestLabels: z.boolean().optional(),
   suggestCards: z.boolean().optional(),
   suggestMerges: z.boolean().optional(),
   agents: z.object({ koordinator: ownAgent, worker: ownAgent, explorer: ownAgent, chores: ownAgent, review: ownAgent }).strict().optional(),
@@ -197,6 +198,7 @@ function projectAgents(saved: ProjectAgents | undefined): ProjectAgents {
 export const PROJECT_SETTINGS: { [K in keyof ProjectSettings]-?: (saved: ProjectSettings[K]) => ProjectDefaults[K] } = {
   suggest: suggestToggles,
   // the work retrospective proposes cards, and a starting card is checked for duplicates, where left out
+  suggestLabels: (saved) => saved !== false,
   suggestCards: (saved) => saved !== false,
   suggestMerges: (saved) => saved !== false,
   planBaselines: (saved) => saved !== false,

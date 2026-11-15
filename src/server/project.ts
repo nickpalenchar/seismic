@@ -377,7 +377,7 @@ export class ProjectRuntime {
       },
       imageFiles: this.imageFiles,
       // the toggles as the configuration has them now: a saved change applies to the next suggestion
-      suggests: () => this.config.suggest ?? {},
+      suggests: () => (this.config.suggestLabels === false ? { category: false, complexity: false, priority: false } : this.config.suggest ?? {}),
       suggestsMerges: () => this.config.suggestMerges !== false,
     }));
     koordinator.resume();
