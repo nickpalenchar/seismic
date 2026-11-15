@@ -281,12 +281,11 @@ test.each([true, false])('resume captures history before launching agy (existing
   expect(events).toContainEqual({ type: 'background', tasks: [] });
 });
 
-test('a non-ASCII task description reaches both the card and the completion wake-up prompt intact', async () => {
+test.each(['echo café 日本語 🚀', 'for name in café 日本語; do\n  echo "$name 🚀"\ndone'])('task description reaches the card and completion prompt intact: %s', async (description) => {
   const repo = workstation();
   const brain = join(dirname(repo), 'brain');
   const log = agyTranscriptLog(brain, 'old-conv');
   const inbox = join(dirname(repo), 'inbox.jsonl');
-  const description = 'echo café 日本語 🚀';
   mkdirSync(dirname(log), { recursive: true });
   const events: AgentEvent[] = [];
   const session = createAgyRuntime(scripted(`

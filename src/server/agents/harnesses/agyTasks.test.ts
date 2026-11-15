@@ -78,7 +78,7 @@ test('UTF-8 task descriptions survive every byte boundary, including one-byte ap
   const dir = mkdtempSync(join(tmpdir(), 'agy-tail-'));
   dirs.push(dir);
   const file = join(dir, 'transcript.jsonl');
-  const description = 'echo café 日本語 🚀';
+  const description = 'for name in café 日本語; do\n  echo "$name 🚀"\ndone';
   const bytes = Buffer.from(`${started('c/task-2', description)}\n`);
   for (let split = 1; split < bytes.length; split++) {
     writeFileSync(file, bytes.subarray(0, split));
@@ -123,4 +123,18 @@ test('truncation resets pending UTF-8 bytes along with the partial line', () => 
   expect(tail.read()).toEqual(['fresh']);
   appendFileSync(file, `${started('c/task-2', 'echo 日本語 🚀')}\n`);
   expect(tail.tasks()).toEqual([{ id: 'c/task-2', description: 'echo 日本語 🚀' }]);
+});
+
+
+test('multiline descriptions preserve blank lines and indentation and end at the logs marker', () => {
+  const description = "cat <<'EOF'\n  café 日本語 🚀\n\nEOF\necho done";
+  const running = new Map<string, AgyTask>();
+  const entry = JSON.parse(started('c/task-2', description));
+  // An incomplete envelope or a quoted envelope must still be ignored.
+  applyLines(running, [JSON.stringify({ ...entry, content: entry.content.split('\nTask logs are available at:')[0] }), JSON.stringify({ ...entry, content: `Example:\n${entry.content}` })]);
+  expect(running.size).toBe(0);
+  applyLines(running, [JSON.stringify(entry)]);
+  expect([...running.values()]).toEqual([{ id: 'c/task-2', description }]);
+  applyLines(running, [finished('c/task-2')]);
+  expect(running.size).toBe(0);
 });
