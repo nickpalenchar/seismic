@@ -978,12 +978,21 @@ export class Board {
    * something is in the way there (the card's own plan, for a workstream), the nearest free spot.
    */
   private followUpSpot(fromId: string): { x: number; y: number } {
-    const from = this.items().find((i) => i.id === fromId);
-    // an archived card is not on the project: its follow-ups go where there is room on its canvas
-    if (!from) return this.spotOn(this.homeCanvas(this.store.cards.get(fromId)?.canvas_id));
-    const items = this.on(from.canvas!);
+    const { from, canvas } = this.source(fromId);
+    // a card its canvas does not hold (archived, parked): its follow-ups go where there is room on its canvas
+    if (!from) return this.spotOn(canvas);
+    const items = this.on(canvas);
     const earlier = items.filter((i) => i.from === fromId && i.state !== 'proposal' && !i.idea?.prototypeOf).length;
     return this.nearFree(items, below(boundsOf(from, items), earlier), undefined, true);
+  }
+
+  /**
+   * The card new cards are made from, where its canvas holds it (`from`), and the canvas they go on:
+   * its own, or `main` once that is gone (`homeCanvas`), for one its canvas does not hold too.
+   */
+  private source(fromId: string): { from?: Item; canvas: string } {
+    const from = this.items().find((i) => i.id === fromId && i.canvasVisible);
+    return { ...(from ? { from } : {}), canvas: this.homeCanvas(from?.canvas ?? this.store.cards.get(fromId)?.canvas_id) };
   }
 
   /**
@@ -1014,8 +1023,7 @@ export class Board {
   /** An agent's proposal from card `fromId`: in the repository it names (`p.repo`), else in that card's. */
   propose(fromId: string, p: { title: string; task: string; reason?: string; idea?: boolean; questions?: Question[]; startAt?: string; repo?: string }): Item {
     if (p.repo !== undefined) this.checkRepo(p.repo);
-    const from = this.items().find((i) => i.id === fromId);
-    const canvas = from?.canvas ?? this.homeCanvas(this.store.cards.get(fromId)?.canvas_id);
+    const { from, canvas } = this.source(fromId);
     const items = this.on(canvas);
     const at = from ? this.nearFree(items, below(boundsOf(from, items)), undefined, true) : this.spotOn(canvas);
     const proposal = proposalOf(p);
@@ -1376,7 +1384,7 @@ export class Board {
    */
   addQuestion(title: string, thread: StoredThread, session: string | undefined, repo: string | undefined, near?: string): Item {
     const nearRow = near && this.item(near) ? this.own(near) : undefined;
-    const { canvas, ...at } = nearRow ? { ...this.followUpSpot(nearRow.id), canvas: nearRow.canvas_id } : this.freeSpot();
+    const { canvas, ...at } = nearRow ? { ...this.followUpSpot(nearRow.id), canvas: this.source(nearRow.id).canvas } : this.freeSpot();
     const [row] = this.store.addCards([
       { project_id: this.project.id, canvas_id: canvas, kind: 'question', state: 'done', title: clip(oneLine(title), 160), body: '', ...at, repo: this.repoColumn(repo), ...(near && this.item(near) ? { group_id: this.groupOf(this.own(near)) } : {}) },
     ]);
@@ -3706,7 +3714,7 @@ export class Board {
     const plan = all.find((i) => i.id === planId);
     const idea = all.find((i) => i.id === ideaId);
     if (!plan || !idea) return;
-    const items = this.on(idea.canvas!, all);
+    const items = this.on(ideaCanvas, all);
     const [iw, ih] = sizeOf(idea, items);
     const [pw, ph] = sizeOf(plan, items);
     const moves: [string, { x: number; y: number }][] = [[plan.id, { x: idea.x, y: idea.y }]];

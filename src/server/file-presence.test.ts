@@ -49,7 +49,7 @@ test('refreshes with nothing asked in between do not forget what was seen', asyn
   expect(p.there(file)).toBe(false);
 });
 
-test('refreshes asked for while one runs follow it, and run together', async () => {
+test('refreshes asked for while one runs share the look that follows it, and resolve once it saw the disk', async () => {
   let flips = 0;
   const p = new FilePresence(() => flips++);
   const file = join(dir, 'a');
@@ -58,10 +58,9 @@ test('refreshes asked for while one runs follow it, and run together', async () 
   writeFileSync(file, 'x');
   p.there(file);
   const second = p.refresh();
-  expect(second).toBe(first);
-  await first;
-  // the one that followed
-  await new Promise((r) => setTimeout(r, 50));
+  expect(p.refresh()).toBe(second);
+  // awaiting the one asked for meanwhile waits for the look that follows, which sees the file
+  await second;
   expect(p.there(file)).toBe(true);
   expect(flips).toBe(1);
 });

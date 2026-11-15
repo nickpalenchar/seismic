@@ -16,7 +16,8 @@ export class FilePresence {
   /** When each path was last asked for: one nobody asked for in a while is forgotten, so the paths of cards long gone do not pile up. */
   private asked = new Map<string, number>();
   private running: Promise<void> | null = null;
-  private again = false;
+  /** The look that follows the running one, shared by every refresh asked for meanwhile. */
+  private queued: Promise<void> | null = null;
   private last = 0;
   private timer: ReturnType<typeof setTimeout> | null = null;
 
@@ -45,18 +46,25 @@ export class FilePresence {
     this.timer.unref?.();
   }
 
-  /** Looks at the paths asked for again without blocking the server; a refresh asked for while one runs follows it. */
+  /**
+   * Looks at the paths asked for again without blocking the server. One asked for while a look runs
+   * is a look of its own after it, which every such ask shares and waits for: a file that came or
+   * went during the running look is seen by the time it resolves.
+   */
   refresh(): Promise<void> {
-    if (this.running) {
-      this.again = true;
-      return this.running;
-    }
+    if (this.queued) return this.queued;
+    if (!this.running) return this.start();
+    const queued = this.running.catch(() => {}).then(() => {
+      this.queued = null;
+      return this.start();
+    });
+    this.queued = queued;
+    return queued;
+  }
+
+  private start(): Promise<void> {
     const run = this.check().finally(() => {
-      this.running = null;
-      if (this.again) {
-        this.again = false;
-        void this.refresh();
-      }
+      if (this.running === run) this.running = null;
     });
     this.running = run;
     return run;
