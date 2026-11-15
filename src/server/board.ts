@@ -12,6 +12,7 @@ import { isLabelValue, type Label, LABELS, LABEL_VALUES, type Labels } from '../
 import { createHash } from 'node:crypto';
 import { type ActivityCode, type ActivityEntry, type ActivityWho, type AgentAt, type AgentIdentity, type Harness, type Canvas, canvasHolds, CANVAS_NAME_MAX, canvasNameProblem, type CodeReview, type CodeReviewMode, type CardArchiving, type Feedback, MAIN_CANVAS, type ReviewItem, type WorkConfig, type StoppedAt } from '../core/types';
 import { existsSync } from 'node:fs';
+import { FilePresence, type Present } from './file-presence';
 import { basename, join } from 'node:path';
 import { arrangeWorkstreams, type Bounds, boundsOf, CARD_SIZE, freeSpotNear, GAP, MERGED_SIZE, type Place, PLAN_HEAD, placePlans, planDirNoteBox, placeWorkstreams, planSize, shapeOf, sizeOf, unionBounds } from '../core/layout';
 import type { Language } from '../core/locale';
@@ -342,7 +343,7 @@ export function pageTagsOf(r: CardRow): PageTags {
 export const sharedDemos = (s: StoredShare): SharedDemo[] => s.demos ?? (s.dir && s.shown ? [{ dir: s.dir, shown: s.shown }] : []);
 
 /** The file that shows a demo is there: its video, or its artifact's page. */
-export const demoThere = (d: { dir: string; kind: DemoKind }) => existsSync(join(d.dir, d.kind === 'html' ? 'index.html' : 'demo.mp4'));
+export const demoThere = (d: { dir: string; kind: DemoKind }, there: Present = existsSync) => there(join(d.dir, d.kind === 'html' ? 'index.html' : 'demo.mp4'));
 
 /** Sharing many outdated pages again at once (share.ts), kept so a restart goes on with it. */
 export interface StoredReshare {
@@ -388,7 +389,7 @@ export function missedBy(s: StoredShare): KnownChange[] {
 export type StoredDemo = Demo & { dir: string };
 
 /** A demo as the UI gets it: without its directory, and saying whether a video has a poster. */
-const shownDemo = ({ dir, ...d }: StoredDemo): Demo => (d.kind !== 'html' && !existsSync(join(dir, 'poster.jpg')) ? { ...d, noPoster: true } : d);
+const shownDemo = ({ dir, ...d }: StoredDemo, there: Present = existsSync): Demo => (d.kind !== 'html' && !there(join(dir, 'poster.jpg')) ? { ...d, noPoster: true } : d);
 
 const storedDemos = (r: CardRow): StoredDemo[] => r.demo?.earlier ?? [];
 
@@ -396,10 +397,10 @@ const storedDemos = (r: CardRow): StoredDemo[] => r.demo?.earlier ?? [];
  * The card's earlier demos the owner can still go back to: their files are on disk (demos are
  * deleted to free space) and no later demo was rendered into the same directory over them.
  */
-function earlierDemos(r: CardRow): EarlierDemo[] {
+function earlierDemos(r: CardRow, there: Present = existsSync): EarlierDemo[] {
   const all = storedDemos(r);
   const later = (i: number) => [...all.slice(i + 1).map((d) => d.dir), ...(r.demo?.latest ? [r.demo.latest.dir] : [])];
-  return all.flatMap((d, n) => (!later(n).includes(d.dir) && existsSync(join(d.dir, d.kind === 'html' ? 'index.html' : 'demo.mp4')) ? [{ ...shownDemo(d), n }] : []));
+  return all.flatMap((d, n) => (!later(n).includes(d.dir) && demoThere(d, there) ? [{ ...shownDemo(d, there), n }] : []));
 }
 
 /**
@@ -407,11 +408,11 @@ function earlierDemos(r: CardRow): EarlierDemo[] {
  * the card, or the one it showed, kept with the share, and its files still on disk (demos are
  * deleted to free space; a page whose files are gone stays as it is, with nothing to offer).
  */
-export function reshareable(r: CardRow, theme?: string | null): OutdatedBy[] {
+export function reshareable(r: CardRow, theme?: string | null, there: Present = existsSync): OutdatedBy[] {
   const s = r.demo?.share ?? null;
   const missed: OutdatedBy[] = s ? [...missedBy(s).map((c) => c.id), ...(themeChanged(s, theme) ? [THEME_CHANGED as OutdatedBy] : [])] : [];
   const demos = s ? sharedDemos(s) : [];
-  if (!missed.length || !demos.length || !demos.every((d) => demoThere({ dir: d.dir, kind: d.shown.kind }))) return [];
+  if (!missed.length || !demos.length || !demos.every((d) => demoThere({ dir: d.dir, kind: d.shown.kind }, there))) return [];
   return missed;
 }
 
@@ -419,12 +420,12 @@ export function reshareable(r: CardRow, theme?: string | null): OutdatedBy[] {
  * The card's demos a page may show, the oldest first: its earlier ones that are still at hand (as
  * `earlierDemos` says), then the one on the card.
  */
-export function cardDemos(r: CardRow): StoredDemo[] {
+export function cardDemos(r: CardRow, there: Present = existsSync): StoredDemo[] {
   const all = storedDemos(r);
   const latest = r.demo?.latest ?? null;
   const later = (i: number) => [...all.slice(i + 1).map((d) => d.dir), ...(latest ? [latest.dir] : [])];
   // drafts a question brought are not the work's result: no page shows them
-  return [...all.filter((d, i) => !later(i).includes(d.dir) && demoThere(d)), ...(latest ? [latest] : [])].filter((d) => !d.asked);
+  return [...all.filter((d, i) => !later(i).includes(d.dir) && demoThere(d, there)), ...(latest ? [latest] : [])].filter((d) => !d.asked);
 }
 
 /** States a worker or the owner's decision is still part of. */
@@ -518,6 +519,12 @@ export class Board {
   private waited = new Map<string, Item>();
   /** What `toItems` made of each card's row, for as long as the row stays the same; gone with any change but a write to one card (`work`). */
   private worked: Worked = new Map();
+  /** Whether the demos' files are there, as a snapshot reads it without touching the disk (`FilePresence`); a file that came or went makes the cards over. */
+  private presence = new FilePresence(() => {
+    this.worked.clear();
+    this.changedRows();
+  });
+  private there = this.presence.there;
   /** The archive as `archived` built it; gone with `cache`, since it changes with the same writes. */
   private archiveItems: Item[] | null = null;
   /** The project's prototypes, and those `withPrototypes` handed out so far; gone with `cache`. */
@@ -632,8 +639,9 @@ export class Board {
    * landing or a card moving on makes dozens of changes in a row.
    */
   changed() {
-    // the demos' files may have come or gone with it
     this.worked.clear();
+    // the demos' files may have come or gone with it: looked at again off the event loop, the cards made over where one did
+    this.presence.refreshSoon();
     this.changedRows();
   }
 
@@ -900,7 +908,13 @@ export class Board {
     // a card that leaves the planned state no longer stands where it was stopped
     if (update.state && update.state !== 'planned' && !('stopped_at' in update)) update = { ...update, stopped_at: null };
     this.store.updateCard(id, update);
+    this.presence.refreshSoon();
     this.changedRows();
+  }
+
+  /** Once the demos' files have been looked at again (see `changed`): what a card shows of them is as the disk has it. */
+  filesChecked(): Promise<void> {
+    return this.presence.refresh();
   }
 
   /** The cards of the project, archived ones too, that were ever shared or are about to be. */
@@ -1265,13 +1279,18 @@ export class Board {
       return !!was && JSON.stringify(was) === JSON.stringify(this.themePair(r));
     };
     return shared
-      .map((r) => ({ r, missed: this.outdatedBy(r) }))
+      .map((r) => ({ r, missed: this.outdatedSeen(r) }))
       .filter(({ r, missed }) => missed.some((id) => (id === THEME_CHANGED ? !hidden(r) : at(id) > dismissed)));
   }
 
   /** What leaves the card's page outdated (`reshareable`), its repository's theme included. */
   outdatedBy(r: CardRow): OutdatedBy[] {
     return reshareable(r, this.themeNow(r));
+  }
+
+  /** `outdatedBy` with the demos' files as the snapshot last saw them (`FilePresence`), for what the project shows; a decision about a page goes by the disk (`outdatedBy`). */
+  private outdatedSeen(r: CardRow): OutdatedBy[] {
+    return reshareable(r, this.themeNow(r), this.there);
   }
 
   /** The current theme of each repository (its hash, null for none), by its id; for the pages it leaves outdated. */
@@ -1307,7 +1326,7 @@ export class Board {
       const vocabulary = this.vocabularyOf?.(repoOfRow(r, this.home));
       if (!s.url || s.state || !vocabulary || !untagged(pageTagsOf(r), vocabulary).length) return false;
       const demos = sharedDemos(s);
-      return demos.length > 0 && demos.every((d) => demoThere({ dir: d.dir, kind: d.shown.kind }));
+      return demos.length > 0 && demos.every((d) => demoThere({ dir: d.dir, kind: d.shown.kind }, this.there));
     });
   }
 
@@ -1324,7 +1343,7 @@ export class Board {
     this.setSetting(RESHARE_DISMISSED, pagesVersion());
     // the pages outdated by a theme now; one no longer is needs no entry
     const themes: Record<string, ThemePair> = {};
-    for (const r of this.sharedRows()) if (this.outdatedBy(r).includes(THEME_CHANGED)) themes[r.id] = this.themePair(r);
+    for (const r of this.sharedRows()) if (this.outdatedSeen(r).includes(THEME_CHANGED)) themes[r.id] = this.themePair(r);
     this.setSetting(RESHARE_DISMISSED_THEMES, JSON.stringify(themes));
     this.setReshareRun(null);
   }
@@ -2006,7 +2025,7 @@ export class Board {
     const plans = rows.filter((r) => r.plan_ref);
     const docs = plans.map((r) => r.plan!.doc!);
     const kids = this.store.cards.children(plans.map((r) => r.id));
-    const items = this.withRate(this.withPrototypes(this.withActivePartners(toItems([...rows, ...kids], docs, this.home, this.worked, this.themeNow))), true);
+    const items = this.withRate(this.withPrototypes(this.withActivePartners(toItems([...rows, ...kids], docs, this.home, this.worked, this.themeNow, this.there))), true);
     const byId = new Map(items.map((i) => [i.id, i]));
     const kidsOf = Map.groupBy(items.filter((i) => i.parent), (i) => i.parent!);
     return rows.flatMap((r) => {
@@ -2029,7 +2048,7 @@ export class Board {
     const archived = row.archived_at ? row : parent?.archived_at && !parent.deleted_at && parent.project_id === this.project.id ? parent : null;
     if (archived) return this.archiveOf([archived]).find((i) => i.id === id);
     // a workstream whose key left its plan's doc: on no canvas
-    return parent && !parent.deleted_at ? toItems([parent, row], this.docs ?? [], this.home, this.worked, this.themeNow, true).find((i) => i.id === id) : undefined;
+    return parent && !parent.deleted_at ? toItems([parent, row], this.docs ?? [], this.home, this.worked, this.themeNow, this.there, true).find((i) => i.id === id) : undefined;
   }
 
   /** What a plan's sheet shows besides the doc: its decisions and those of the idea or task it came from. */
@@ -2197,7 +2216,7 @@ export class Board {
     }
     // a card back from the archive, the trash or the parking lot whose canvas went meanwhile is on main
     if (this.rehome(rows, docs)) rows = this.store.cards.onProject(this.project.id);
-    let items = withLivePartners(toItems(rows, docs, this.home, this.worked, this.themeNow));
+    let items = withLivePartners(toItems(rows, docs, this.home, this.worked, this.themeNow, this.there));
     this.visibleIds = new Set(items.map((i) => i.id));
     if (this.placeNew(docs, items, all, rows)) {
       // plans seen for the first time keep their doc too
@@ -2205,7 +2224,7 @@ export class Board {
       // what reacts to changes hears of them too (the Koordinator reads what builds on what in a plan just come)
       this.tell();
       rows = this.store.cards.onProject(this.project.id);
-      items = withLivePartners(toItems(rows, docs, this.home, this.worked, this.themeNow));
+      items = withLivePartners(toItems(rows, docs, this.home, this.worked, this.themeNow, this.there));
       this.visibleIds = new Set(items.map((i) => i.id));
     }
     if (read) {
@@ -2239,7 +2258,7 @@ export class Board {
       const sources = new Set(manual.map(([from]) => from));
       const archivedRows = this.store.cards.archived(this.project.id).filter((r) => sources.has(r.id) && r.state && !finished(r.state));
       const archivedAt = new Map(archivedRows.map((r) => [r.id, r.archived_at!]));
-      const archived = this.withActivePartners(toItems(archivedRows, [], this.home, this.worked, this.themeNow)).filter(connectable).map((i) => ({ ...i, archivedAt: archivedAt.get(i.id)! }));
+      const archived = this.withActivePartners(toItems(archivedRows, [], this.home, this.worked, this.themeNow, this.there)).filter(connectable).map((i) => ({ ...i, archivedAt: archivedAt.get(i.id)! }));
       const eligible = new Set([...items.filter(connectable), ...archived].map((i) => i.id));
       items = items.map((i) => {
         const edges = eligible.has(i.id) ? manual.filter(([from, to]) => to === i.id && eligible.has(from)) : [];
@@ -2673,7 +2692,7 @@ export class Board {
     const made = p.items.get(ref.id);
     if (made) return made;
     const row = given ? null : this.store.cards.get(ref.id);
-    const item = given ?? (row && this.withActivePartners(toItems([row], [], this.home, undefined, this.themeNow))[0]);
+    const item = given ?? (row && this.withActivePartners(toItems([row], [], this.home, undefined, this.themeNow, this.there))[0]);
     if (!item) return undefined;
     const prototype = withPart({ ...item, ...(ref.archived_at ? { archivedAt: ref.archived_at } : {}) }, 'idea', { ideaTitle: this.ideaTitle(p, ref.prototype_of) });
     p.items.set(ref.id, prototype);
@@ -2811,7 +2830,7 @@ export class Board {
 
   /** A card just stored, as the UI sees it. */
   private itemOf(row: CardRow): Item {
-    return this.withActivePartners(toItems([row], [], this.home, undefined, this.themeNow))[0]!;
+    return this.withActivePartners(toItems([row], [], this.home, undefined, this.themeNow, this.there))[0]!;
   }
 
   /** Items whose suggested duplicates are checked against the cards `items` shows, for items built from some rows only. */
@@ -2903,7 +2922,7 @@ export class Board {
     if (!gone.length) return false;
     const main = this.store.canvases.main(this.project.id);
     this.store.cards.setCanvas(gone, main);
-    const items = toItems(this.store.cards.onProject(this.project.id), docs, this.home).filter((i) => i.canvas === main);
+    const items = toItems(this.store.cards.onProject(this.project.id), docs, this.home, undefined, undefined, this.there).filter((i) => i.canvas === main);
     const moving = new Set(gone);
     const taken = items.filter((i) => !i.parent && !moving.has(i.id)).map((i) => boundsOf(i, items));
     for (const id of gone) {
@@ -3683,7 +3702,7 @@ export class Board {
     // on the idea's canvas, with its workstreams
     const ideaCanvas = this.homeCanvas(this.store.cards.get(ideaId)?.canvas_id);
     if (this.store.cards.get(planId)?.canvas_id !== ideaCanvas) this.store.cards.setCanvas([planId], ideaCanvas);
-    const all = toItems(this.store.cards.onProject(this.project.id), docs, this.home, undefined, this.themeNow);
+    const all = toItems(this.store.cards.onProject(this.project.id), docs, this.home, undefined, this.themeNow, this.there);
     const plan = all.find((i) => i.id === planId);
     const idea = all.find((i) => i.id === ideaId);
     if (!plan || !idea) return;
@@ -3796,8 +3815,8 @@ const heldByCanvas = (r: CardRow) => !r.deleted_at && !r.archived_at && r.hold?.
  * which no canvas holds (`canvasVisible` false), each after the others; the project and the archive
  * leave them out, one asked for by its id (`Board.card`) has them.
  */
-export function toItems(rows: CardRow[], docs: PlanDoc[], home: string, worked?: Worked, themeNow?: ThemeNow, gone = false): Item[] {
-  const work = (r: CardRow) => workOf(r, worked, themeNow);
+export function toItems(rows: CardRow[], docs: PlanDoc[], home: string, worked?: Worked, themeNow?: ThemeNow, there?: Present, gone = false): Item[] {
+  const work = (r: CardRow) => workOf(r, worked, themeNow, there);
   const docByFile = new Map(docs.map((d) => [d.file, d]));
   // a plan's group covers its workstreams
   const groupOf = new Map(rows.flatMap((r) => (r.kind === 'plan' && r.group_id ? [[r.id, r.group_id]] : [])));
@@ -3998,10 +4017,10 @@ function newRepoOf(r: CardRow): Pick<ItemIdea, 'newRepo'> {
 type Worked = Map<string, { row: CardRow; work: Partial<Item> }>;
 
 /** The fields a worker adds to the card, as `worked` holds them while its row is the same. */
-function workOf(r: CardRow, worked?: Worked, themeNow?: ThemeNow): Partial<Item> {
+function workOf(r: CardRow, worked?: Worked, themeNow?: ThemeNow, there?: Present): Partial<Item> {
   const had = worked?.get(r.id);
   if (had && sameRow(had.row, r)) return had.work;
-  const made = work(r, themeNow);
+  const made = work(r, themeNow, there);
   worked?.set(r.id, { row: r, work: made });
   return made;
 }
@@ -4026,11 +4045,11 @@ const pullRequest = (pr: PrState): PullRequest => ({
 });
 
 /** The fields a worker adds to a card. */
-function work(r: CardRow, themeNow?: ThemeNow): Partial<Item> {
+function work(r: CardRow, themeNow?: ThemeNow, there: Present = existsSync): Partial<Item> {
   const detail = r.detail ? (JSON.parse(r.detail) as { question?: Item['question']; summary?: string; noChange?: boolean; lands?: ItemReview['lands']; modelsUnchanged?: string; answering?: boolean; answered?: boolean; blocked?: ItemReview['blocked']; conflict?: boolean }) : {};
   const ended = !!r.idea?.prototypeOf && !!storedPrototype(r).end && !!detail.summary;
-  const demo = r.demo?.latest ? shownDemo(r.demo.latest) : undefined;
-  const earlier = demo ? earlierDemos(r) : [];
+  const demo = r.demo?.latest ? shownDemo(r.demo.latest, there) : undefined;
+  const earlier = demo ? earlierDemos(r, there) : [];
   const handed = r.need === 'review' || r.need === 'demo';
   const answering = detail.answering && handed;
   const storedScope = r.scope ? JSON.parse(r.scope) as { files: string[]; duplicateCheck?: { title: string; body: string; ids?: string[]; dismissed?: boolean } } : undefined;
@@ -4038,7 +4057,7 @@ function work(r: CardRow, themeNow?: ThemeNow): Partial<Item> {
   const pr = r.review?.pr;
   const contribution = contributionOf(r);
   const codeReview = codeReviewOf(r);
-  const share = shareOf(r, themeNow);
+  const share = shareOf(r, themeNow, there);
   const notOnApproval = r.plan_ref ? !r.demo?.share?.onApproval : r.demo?.share?.notOnApproval;
   const tags = demo && !r.idea?.prototypeOf ? pageTagsOf(r) : {};
   const landed = r.landed ? (JSON.parse(r.landed) as { followUp?: boolean; needsClone?: boolean; resolve?: object }) : null;
@@ -4095,7 +4114,7 @@ function work(r: CardRow, themeNow?: ThemeNow): Partial<Item> {
 }
 
 /** The card's shared page as the UI sees it: none when it is not shared and not about to be. */
-function shareOf(r: CardRow, themeNow?: ThemeNow): ItemDemo['share'] {
+function shareOf(r: CardRow, themeNow?: ThemeNow, there: Present = existsSync): ItemDemo['share'] {
   const s = r.demo?.share ?? null;
   if (!s || (!s.state && !s.url)) return undefined;
   // asked of a page at rest alone, so the cards never shared ask nothing
@@ -4104,9 +4123,9 @@ function shareOf(r: CardRow, themeNow?: ThemeNow): ItemDemo['share'] {
   const latest = r.demo?.latest ? [...storedDemos(r), r.demo.latest].findLast((d) => !d.asked) : undefined;
   const shared = s.url ? sharedDemos(s) : [];
   // the card's demos on the page, by their handovers
-  const on = cardDemos(r).flatMap((d) => (d.handover !== undefined && shared.some((x) => sameDemo(x, d)) ? [d.handover] : []));
+  const on = cardDemos(r, there).flatMap((d) => (d.handover !== undefined && shared.some((x) => sameDemo(x, d)) ? [d.handover] : []));
   const stale = !!s.url && !!latest && !shared.some((x) => sameDemo(x, latest));
-  const outdated = reshareable(r, theme);
+  const outdated = reshareable(r, theme, there);
   return {
     state: s.refresh ? 'shared' : (s.state ?? 'shared'),
     ...(s.url ? { url: s.url } : {}),
