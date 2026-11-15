@@ -2,7 +2,7 @@
 // (`since`). The owner moves a waiting card earlier or later, one place or several at once, past
 // cards it has no wait with: the waits fix the order between the cards they join, the owner the rest.
 
-import { finished, type Item, snoozeOf } from './types';
+import { finished, inParkingLot, type Item, snoozeOf } from './types';
 
 /** Waiting to start: being judged, behind others, or for a workstation. */
 export const inQueue = (i: Pick<Item, 'state' | 'queue'>) => i.state === 'planned' && !!i.queue;
@@ -25,12 +25,15 @@ export function drawnWaits(card: Item, items: Item[]): string[] {
   const archived = card.plan?.manualArchived;
   return (card.plan?.manualDependsOn ?? []).filter((id) => {
     const i = items.find((x) => x.id === id) ?? archived?.find((x) => x.id === id);
-    return !!i && !finished(i.state) && (!i.archivedAt || !!archived?.some((x) => x.id === id));
+    return !!i && !finished(i.state) && !inParkingLot(i) && (!i.archivedAt || !!archived?.some((x) => x.id === id));
   });
 }
 
 /** The cards `card` waits for: those it queued behind, and those the owner's arrows hold it for. */
-const behind = (card: Item, items: Item[]) => [...new Set([...(card.queue && 'behind' in card.queue ? card.queue.behind : []), ...drawnWaits(card, items)])];
+const behind = (card: Item, items: Item[]) => {
+  const parked = new Set(items.filter(inParkingLot).map((i) => i.id));
+  return [...new Set([...(card.queue && 'behind' in card.queue ? card.queue.behind : []), ...drawnWaits(card, items)])].filter((id) => !parked.has(id));
+};
 
 /**
  * The cards `card` relies on whether or not the reliance holds right now: also the owner's arrows

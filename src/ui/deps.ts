@@ -7,7 +7,7 @@
 // implies (A before C, while A is before B and B before C) shows no line of its own.
 
 import type { Bounds } from '../core/layout';
-import { finished, type Item, snoozeOf } from '../core/types';
+import { finished, inParkingLot, type Item, snoozeOf } from '../core/types';
 
 export interface Deps {
   /** The cards the hovered one waits for, directly or through others. */
@@ -28,7 +28,7 @@ const snoozedOn = (i: Item) => {
 
 /** The cards among `byId` that `i` waits for directly. */
 function waitsFor(i: Item, byId: Map<string, Item>): string[] {
-  const open = (x: string) => byId.has(x) && !finished(byId.get(x)!.state);
+  const open = (x: string) => byId.has(x) && !finished(byId.get(x)!.state) && !inParkingLot(byId.get(x)!);
   if (!open(i.id)) return [];
   return [...new Set([...queued(i), ...snoozedOn(i), ...(i.plan?.manualDependsOn ?? []), ...(i.plan?.buildsOn ?? [])])].filter(open);
 }
@@ -72,7 +72,7 @@ export function settledAmong(items: Item[]): { from: string; to: string }[] {
   return items.flatMap((i) =>
     [...new Set([...queued(i), ...snoozedOn(i), ...(i.plan?.buildsOn ?? []), ...(i.plan?.manualDependsOn ?? [])])].flatMap((from) => {
       const f = byId.get(from);
-      return f && finished(f.state) ? [{ from, to: i.id }] : [];
+      return f && finished(f.state) && !inParkingLot(i) ? [{ from, to: i.id }] : [];
     }),
   );
 }
@@ -163,6 +163,6 @@ export function manualPrerequisites(item: Item, items: Item[]): Item[] {
   const archived = item.plan?.manualArchived;
   return (item.plan?.manualDependsOn ?? []).flatMap((id) => {
     const prerequisite = items.find((i) => i.id === id) ?? archived?.find((i) => i.id === id);
-    return prerequisite && !finished(prerequisite.state) && (!prerequisite.archivedAt || archived?.some((i) => i.id === id)) ? [prerequisite] : [];
+    return prerequisite && !finished(prerequisite.state) && !inParkingLot(prerequisite) && (!prerequisite.archivedAt || archived?.some((i) => i.id === id)) ? [prerequisite] : [];
   });
 }

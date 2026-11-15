@@ -137,3 +137,11 @@ test('a queued or snoozed card keeps its line from a finished card while it stil
     { from: 'F', to: 'S' },
   ]);
 });
+
+test('a parked card shows no wait while parked', () => {
+  const mk = (id: string, extra: Partial<Item> = {}) => ({ id, state: 'planned', ...extra }) as Item;
+  const a = mk('a', { hold: { reason: 'parkingLot', since: 'x' } });
+  const b = mk('b', { plan: { manualDependsOn: ['a'] } as Item['plan'] });
+  expect(waitsAmong([a, b])).toEqual([]);
+  expect(waitsAmong([mk('a'), b])).toEqual([['a', 'b']]);
+});

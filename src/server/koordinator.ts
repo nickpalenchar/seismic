@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { RepoAdapter } from '../adapters/types';
 import { drawnWaits, inQueue, movable, notStarted, queueOrder, reach, waitsOn } from '../core/queue';
-import { type AgentAt, type AgentRole, type CardEvent, EVICT_HOLD_MS, finished, mergeRank, type Item, nameless, type Preference, START_ALL_HOLD_MS, type Wait, snoozeOf } from '../core/types';
+import { type AgentAt, type AgentRole, type CardEvent, EVICT_HOLD_MS, finished, inParkingLot, mergeRank, type Item, nameless, type Preference, START_ALL_HOLD_MS, type Wait, snoozeOf } from '../core/types';
 import { ACTIVE, BadRequest, type Board, contributionOf } from './board';
 import type { Utterance } from './store';
 import { type AgentRuntime, type AgentTool, waitQuietly } from './runtime';
@@ -981,7 +981,7 @@ export class Koordinator {
       // the waits the Koordinator inferred hold while what they wait for is in progress or queued, or
       // has not landed where it builds on it; the owner's arrows hold beside them while drawn, so
       // removing one leaves exactly the waits inferred
-      const inferred = q.behind.filter((id) => !q.manualWait?.includes(id) && (active.has(id) || (q.buildsOn?.includes(id) && unlanded(items.find((i) => i.id === id)))));
+      const inferred = q.behind.filter((id) => !q.manualWait?.includes(id) && !items.some((i) => i.id === id && inParkingLot(i)) && (active.has(id) || (q.buildsOn?.includes(id) && unlanded(items.find((i) => i.id === id)))));
       const manualWait = drawnWaits(w, items).filter((id) => !inferred.includes(id));
       const buildsOn = (q.buildsOn ?? []).filter((id) => inferred.includes(id));
       const still = [...inferred, ...manualWait];
