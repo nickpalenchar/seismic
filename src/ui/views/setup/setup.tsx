@@ -1,9 +1,11 @@
-// The setup assistant, in steps: the agents the owner works with (Claude Code, Codex, Antigravity,
-// picked as several options), each with what it needs on this machine and git beside them; then the
-// features that can wait (pull requests, voice, demos, mobile development); on the first start (no
-// project yet) it fills the page and ends with the first project, from a folder or a clone. Each piece
-// is installed at a click where Seismic can, with the command for the rest and a terminal for the
-// logins. Later the settings open it over the project, without the last step.
+/**
+ * The setup assistant, in steps: the agents the owner works with (Claude Code, Codex, Antigravity,
+ * picked as several options), each with what it needs on this machine and git beside them; then the
+ * features that can wait (pull requests, voice, demos, mobile development); on the first start (no
+ * project yet) it fills the page and ends with the first project, from a folder or a clone. Each piece
+ * is installed at a click where Seismic can, with the command for the rest and a terminal for the
+ * logins. Later the settings open it over the project, without the last step.
+ */
 
 import { Fragment, type ReactNode, useEffect, useRef, useState } from 'react';
 import { CLOUD_PRESETS, CLOUD_VOICES, type CloudPreset, type GitSetupPreview, LARGE_FILE, type Language, type MachineItem, type MachineSection, type MachineSectionId, type MachineView, type MobileId, RECOMMENDED_SECTIONS, type SetupItem, type VoiceSetupItem } from '../../../core/types';
