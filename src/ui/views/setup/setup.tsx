@@ -242,7 +242,7 @@ type Agent = (typeof AGENTS)[number];
 const AGENT_SECTION: Record<Exclude<Agent, 'pi'>, MachineSectionId> = { claude: 'needed', codex: 'codex', agy: 'agents' };
 const GIT_ITEMS: readonly MachineItem['id'][] = ['git', 'gitUser'];
 /** How often the list checks again while a login it waits for is missing. */
-const LOGIN_POLL_MS = 5000;
+const LOGIN_POLL_MS = 15000;
 /** The assistant's steps: the agents, the features that can wait, and on the first start the first project. */
 type Step = 'agents' | 'recommended' | 'first';
 
@@ -354,7 +354,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
           <Button size="small" variant="ghost" disabled={checking} onClick={() => recheck()}>
             {checking ? t.config.setup.checking : t.config.setup.recheck}
           </Button>
-          {terminal === i.id ? <span className="hint">{i.act === 'terminal' ? s.mobile.enableOpen : s.terminalOpen}</span> : polling && <span className="hint">{s.checksItself}</span>}
+          {terminal === i.id ? <span className="hint">{i.act === 'terminal' ? s.mobile.enableOpen : s.terminalOpen}</span> : awaitsLogin(i) && <span className="hint">{s.checksItself}</span>}
         </>
       );
     return (
@@ -415,11 +415,11 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
     if (gated && step !== 'agents') go('agents');
   }, [gated, step]);
   // A login done in a shell of its own (over SSH, say) brings no focus back to this page: while a login
-  // the step waits for is missing, the list checks again by itself. On the first step those of the picked
-  // agents; on the others only one the owner opened a terminal for, as they can wait.
+  // on the step shown is missing (those of the picked agents first, then the recommended ones), the list
+  // checks again by itself, whether or not Seismic could open a terminal for it.
   const awaitsLogin = (i: MachineItem) => i.state === 'missing' && (i.act === 'login' || i.act === 'terminal');
-  const polling =
-    step === 'agents' ? chosen.some((a) => agentItems(a).some(awaitsLogin)) : !!terminal && !!view?.sections.some((x) => x.items.some((i) => i.id === terminal && awaitsLogin(i)));
+  const shownItems = step === 'agents' ? chosen.flatMap(agentItems) : step === 'recommended' ? recommended.flatMap((x) => x.items) : [];
+  const polling = shownItems.some(awaitsLogin);
   useEffect(() => {
     if (!polling) return;
     const timer = setInterval(() => document.visibilityState === 'visible' && !inFlight.current && recheck(true), LOGIN_POLL_MS);

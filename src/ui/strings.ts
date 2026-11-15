@@ -2170,7 +2170,7 @@ const en = {
     saveToken: 'Save token',
     tokenSaved: (start: boolean) => `Saved: agents sign in with the new token from now on. ${start ? 'Now start the agent again.' : 'Now send your message again to continue the agent’s work.'}`,
     terminalOpen: 'A terminal is open: log in there, then come back here.',
-    checksItself: 'Logged in elsewhere? This list notices by itself within a few seconds.',
+    checksItself: 'Logged in elsewhere? This list checks again by itself every 15 seconds.',
     noTerminal: 'Seismic found no terminal here. Please run the command in a terminal.',
     byHand: 'Or in a terminal:',
     copy: 'Copy',

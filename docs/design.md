@@ -178,7 +178,8 @@ cycling through terminals.
   git ready too; the second never blocks, a callout names what is left out. Rejected: tabs
   "Needed"/"Recommended" with the first project under the needed ones. A login done in a shell of
   its own (over SSH) brings no focus back to the page, so while a login the step waits for is
-  missing the list checks again every five seconds, and each login has its own "Check again".
+  missing the list checks again every 15 seconds (also where Seismic opened no terminal and the
+  owner ran the command by hand), and each login has its own "Check again".
 - **The look is frost, built on shadcn/ui and Tailwind** (2026-11-05, 2026-11-12); see
   [UI system](design/ui-system.md).
 
