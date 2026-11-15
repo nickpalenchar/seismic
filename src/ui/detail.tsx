@@ -311,7 +311,7 @@ export function Detail(p: Props) {
           {item.idea?.builtInto ? t.idea.builtInto(plain(item.idea.ideaTitle ?? ''), plain(item.idea.builtInto)) : t.idea.endedLong[item.idea.prototypeEnd](plain(item.idea.ideaTitle ?? p.from?.title ?? ''))}
         </p>
         <Split
-          asking={asksYou(item)}
+          item={item}
           main={
             // the summary is the handover in the conversation, the task its first message
             item.demo?.latest && <DemoView item={item} demo={item.demo.latest} autoplay={false} />
@@ -738,7 +738,7 @@ export function Detail(p: Props) {
       {worked && talkAlone(item) && item.review?.blocked && item.state === 'waiting' && !!ownerField(item) && <Blocked item={item} act={act} />}
       {waits ? (
         <Split
-          asking={asksYou(item)}
+          item={item}
           main={
             <>
               {queueBox}
@@ -760,7 +760,7 @@ export function Detail(p: Props) {
         // what came of the work on the left, once there is something, the conversation with the owner's one field on the right;
         // the task is the conversation's first message, and the summary its handover
         <Split
-          asking={asksYou(item)}
+          item={item}
           main={
             !talkAlone(item) && (
               <>
@@ -1110,6 +1110,7 @@ function IdeaView({
       </div>
       {/* the brief is what stays; the conversation beside it is how it came about */}
       <Split
+        item={item}
         cite={!item.archivedAt && cardDraft(item.id)}
         main={
           <>
@@ -1252,6 +1253,7 @@ function QuestionView({ item, act, run, onTell }: { item: Item; act: (a: CardAct
       </div>
       {/* the conversation alone, as tall as the room down to the microphone allows */}
       <Split
+        item={item}
         main={null}
         talk={
           item.archivedAt ? (
@@ -1333,6 +1335,7 @@ function ProposalView({
     <>
       {/* the proposal as it stands, and beside it the talk about what should change, as with an idea */}
       <Split
+        item={item}
         className="proposal-grid"
         cite={cardDraft(item.id)}
         main={
@@ -3673,7 +3676,7 @@ function TaskTalk({
  * stands alone. `cite`:
  * the draft of the card's field, which text marked on the left can be quoted into.
  */
-function Split({ main, talk, className, cite, asking }: { main: ReactNode; talk: ReactNode; className?: string; cite?: string | false; asking?: boolean }) {
+function Split({ item, main, talk, className, cite }: { item: Item; main: ReactNode; talk: ReactNode; className?: string; cite?: string | false }) {
   const box = useRef<HTMLDivElement>(null);
   // on the phone the field is in a panel of its own, which a quote brings up
   const away = useContext(TalkElsewhere);
@@ -3684,9 +3687,11 @@ function Split({ main, talk, className, cite, asking }: { main: ReactNode; talk:
   };
   const foldable = !!main && !away;
   const closed = foldable && folded;
+  const asking = openQuestions(item).length > 0;
+  const toggleLabel = closed ? asking ? t.talk.showAsking : t.talk.show : t.talk.hide;
   const toggle = (
-    <Tooltip content={closed ? t.talk.show : t.talk.hide}>
-      <button type="button" className="split-fold self-end inline-flex items-center justify-center size-[26px] p-0 mb-1.5 bg-transparent text-muted-foreground rounded-sm cursor-pointer hover:bg-[color:--alpha(currentColor/12%)] [.folded>&]:absolute [.folded>&]:top-0 [.folded>&]:right-0 [.folded>&]:m-0 [.folded>&]:z-1 max-[760px]:hidden" aria-label={closed && asking ? t.talk.showAsking : closed ? t.talk.show : t.talk.hide} aria-expanded={!closed} onClick={() => fold(!closed)}>
+    <Tooltip content={toggleLabel}>
+      <button type="button" className="split-fold self-end inline-flex items-center justify-center size-[26px] p-0 mb-1.5 bg-transparent text-muted-foreground rounded-sm cursor-pointer hover:bg-[color:--alpha(currentColor/12%)] [.folded>&]:absolute [.folded>&]:top-0 [.folded>&]:right-0 [.folded>&]:m-0 [.folded>&]:z-1 max-[760px]:hidden" aria-label={toggleLabel} aria-expanded={!closed} onClick={() => fold(!closed)}>
         {closed ? <PanelRightOpen size={16} /> : <PanelRightClose size={16} />}
         {closed && asking && <span className="split-fold-dot absolute top-0.5 right-0.5 size-2 rounded-full bg-orange-500" aria-hidden />}
       </button>
