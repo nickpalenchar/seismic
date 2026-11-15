@@ -2355,6 +2355,26 @@ export async function workingChanges(path: string): Promise<{ files: string[]; d
         throw new WorkstationError('Working changes include a submodule; its contents cannot be captured in a parent-repository patch');
     };
     await checkSubmodules();
+    // Staging runs a path's clean filter, so the patch would hold what the filter made of the file: a
+    // Git LFS pointer to an object only this checkout's store has, say. Refuse, before any filter runs,
+    // where a changed file still on disk has a filter driver; line-ending and encoding conversions are
+    // git's own, and `git apply` reverses them. A deletion carries no contents.
+    const drivers = new Set((await gitRun(path, ['config', '-z', '--get-regexp', '^filter\\..*\\.(clean|process)$'])).stdout.split('\0')
+      // `key\nvalue`; git runs any command but an empty one, also one spanning lines
+      .filter((e) => e.includes('\n') && e.slice(e.indexOf('\n') + 1) !== '')
+      .map((e) => e.slice(0, e.indexOf('\n')).replace(/^filter\./, '').replace(/\.(clean|process)$/, '')));
+    for (const driver of drivers) {
+      if (!/^[\w.-]+$/.test(driver)) throw new WorkstationError(`Working changes may go through the ${driver} filter; their contents cannot be captured in a patch`);
+      const entries = (await run(['status', '--porcelain', '-z', '--untracked-files=all', '--', `:(attr:filter=${driver})`])).split('\0');
+      const filtered: string[] = [];
+      for (let i = 0; i < entries.length; i++) {
+        const e = entries[i]!;
+        if (e && e[1] !== 'D' && !(e[0] === 'D' && e[1] === ' ')) filtered.push(e.slice(3));
+        if (/[RC]/.test(e.slice(0, 2))) i++;
+      }
+      if (filtered.length)
+        throw new WorkstationError(`Working changes include ${filtered[0]}, which git stores through the ${driver} filter; its contents cannot be captured in a patch`);
+    }
     const head = await gitRun(path, ['rev-parse', '--verify', 'HEAD']);
     await run(head.code === 0 ? ['read-tree', 'HEAD'] : ['read-tree', '--empty'], env);
     await run(['add', '--all', '--', '.'], env);

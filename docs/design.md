@@ -255,6 +255,9 @@ Safety rules:
 - A finish-working-changes proposal keeps its complete binary patch separately from the editable
   task and supplies it to the worker across hosts. Submodule changes prevent the proposal: a
   parent patch cannot carry a submodule's dirty files or commits that only exist locally.
+  Changed files with a filter driver (Git LFS, say) prevent it too: staging stores the filter's
+  output (an LFS pointer to an object only that checkout has), not the file. Git's own line-ending
+  and encoding conversions do not: `git apply` reverses them.
 
 - Every request is checked for `Host` and `Origin` (DNS rebinding, preflight-free POSTs); the owner
   holds a key, other devices are paired, workers get no key and reach only a narration server.

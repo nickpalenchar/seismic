@@ -732,7 +732,10 @@ describe('clones the configuration no longer names', () => {
     expect(paths.slice(1)).toContain(again.path);
     await again.ready;
     expect(existsSync(again.path)).toBe(true);
-    expect(spaces.lease(c, 'obeya/c').path).not.toBe(again.path);
+    const other = spaces.lease(c, 'obeya/c');
+    expect(other.path).not.toBe(again.path);
+    // settled here, not in a later test: whether it is made does not matter to this one
+    await other.ready.catch(() => {});
   });
 
   test("a card's own worktree whose folder is gone stays the card's", () => {
@@ -777,6 +780,34 @@ describe('capturing working changes for another host', () => {
     git(join(repo, 'module'), 'add', 'new.txt');
     git(join(repo, 'module'), '-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'commit', '--quiet', '-m', 'Local work');
     await expect(workingChanges(repo)).rejects.toThrow('submodule');
+  });
+
+  test('files git stores through a filter driver (Git LFS, say) are refused; line-ending conversion is not', async () => {
+    const repo = gitRepo(join(dir, 'filtered'), { '.gitattributes': '*.dat filter=store\n*.txt text eol=crlf\n', 'kept.dat': 'kept\n' });
+    const target = join(dir, 'filtered-target');
+    git(dir, 'clone', '--quiet', repo, target);
+    git(repo, 'rm', '--quiet', 'kept.dat');
+    writeFileSync(join(repo, 'notes.txt'), 'one\r\ntwo\r\n');
+    // a filter as LFS has it: the index gets a pointer, the contents stay behind in this checkout
+    git(repo, 'config', 'filter.store.clean', 'printf pointer');
+    git(repo, 'config', 'filter.unused.clean', 'cat');
+    git(repo, 'config', 'filter.off.clean', '');
+    // a deletion carries no contents, and a conversion of git's own is undone by git apply
+    const converted = await workingChanges(repo);
+    expect(converted.files.sort()).toEqual(['kept.dat', 'notes.txt']);
+    const patch = join(dir, 'filtered.patch');
+    writeFileSync(patch, converted.diff);
+    git(target, 'apply', '--binary', patch);
+    expect(readFileSync(join(target, 'notes.txt'), 'utf8')).toBe('one\r\ntwo\r\n');
+    expect(existsSync(join(target, 'kept.dat'))).toBe(false);
+    writeFileSync(join(repo, 'new.dat'), 'the real contents\n');
+    await expect(workingChanges(repo)).rejects.toThrow('new.dat, which git stores through the store filter');
+    rmSync(join(repo, 'new.dat'));
+    writeFileSync(join(repo, 'kept.dat'), 'edited\n');
+    await expect(workingChanges(repo)).rejects.toThrow('kept.dat');
+    git(repo, 'config', '--unset', 'filter.store.clean');
+    git(repo, 'config', 'filter.store.process', 'git-lfs filter-process');
+    await expect(workingChanges(repo)).rejects.toThrow('kept.dat');
   });
 
   test('the entire patch recreates large edits, untracked binary files, renames and deletions without the checkout', async () => {
