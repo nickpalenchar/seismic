@@ -527,7 +527,7 @@ describe("Seismic's configuration", async () => {
     writeFileSync(file, JSON.stringify([{ repos: [{ path: web, settings }] }]));
     expect((await c.checkSaved()).resolved[0]!.repos[0]!.shareDirect).toBe(true);
     const done = (await c.shareSettings({ path: web, direct: true }));
-    expect(done).toEqual({ committed: git(origin, 'rev-parse', 'main').trim(), branch: 'main' });
+    expect(done).toEqual({ committed: git(origin, 'rev-parse', 'main').trim(), branch: 'main', file: '.seismic/settings.json' });
     expect(JSON.parse(git(origin, 'show', 'main:.seismic/settings.json'))).toEqual(settings);
     expect(readConfigFile(file)).toEqual([{ repos: [{ path: web }] }]);
     // read from origin's main, which has more than the local one

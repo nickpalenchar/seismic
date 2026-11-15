@@ -397,7 +397,7 @@ const en = {
       `Work retrospective for ${repo}: ${made ? `${made === 1 ? 'one proposal' : `${made} proposals`}, in the project and with Seismic.` : 'nothing that recurs on several cards.'}`,
     settings: { checks: 'Checks', setup: 'Setup', softPaths: 'Soft paths', run: 'How to run the app' },
     onMachine: (setting: string, repo: string) => `“${setting}” for ${repo} now applies on this machine.`,
-    committed: (setting: string, repo: string, branch: string) => `“${setting}” for ${repo} is now in .obeya/settings.json on ${branch} and applies to everyone.`,
+    committed: (setting: string, repo: string, branch: string, file: string) => `“${setting}” for ${repo} is now in ${file} on ${branch} and applies to everyone.`,
     opened: (setting: string, repo: string, pr: string) => `“${setting}” for ${repo}: pull request opened, ${pr}. Until it is merged, the value applies on this machine.`,
   },
   share: {

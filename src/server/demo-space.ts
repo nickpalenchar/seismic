@@ -112,7 +112,10 @@ export async function usage(dir: string): Promise<{ bytes: number; work: number 
     const here = sizes.reduce((a, b) => a + b, 0);
     sum.bytes += here;
     if (inWork) sum.work += here;
-    for (const e of entries) if (e.isDirectory()) await walk(join(d, e.name), inWork || e.name === '.work');
+    const dirs = entries.filter((e) => e.isDirectory());
+    for (let i = 0; i < dirs.length; i += DEMOS_AT_ONCE) {
+      await Promise.all(dirs.slice(i, i + DEMOS_AT_ONCE).map((e) => walk(join(d, e.name), inWork || e.name === '.work')));
+    }
   };
   await walk(dir, false);
   return sum;

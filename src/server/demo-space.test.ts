@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
+import { rm } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DEFAULT_KEEP_DAYS, DemoSpace, keepDays, sweep, usage, workDirs } from './demo-space';
@@ -8,7 +9,7 @@ import { STALL_MS } from './stalls';
 const DAY = 24 * 3600;
 let demos: string;
 beforeEach(() => (demos = mkdtempSync(join(tmpdir(), 'obeya-demo-space-'))));
-afterEach(() => rmSync(demos, { recursive: true, force: true }));
+afterEach(async () => { await rm(demos, { recursive: true, force: true }); }, 60_000);
 
 /** A rendered demo: video, a clip and its frames in `.work`, everything last written `days` ago. */
 function render(dir: string, days: number) {

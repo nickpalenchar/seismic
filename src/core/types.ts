@@ -3049,7 +3049,7 @@ export interface ProjectReposView {
 /** What "Take over into the repository for everyone" did with a repository's settings for this machine. */
 export type SettingsShared =
   /** Committed `.obeya/settings.json` on the main branch (pushed onto `origin`'s, where it went there directly): the settings now come from the repository. */
-  | { committed: string; branch: string }
+  | { committed: string; branch: string; file?: string }
   /** Opened a pull request with it: once it is merged, the settings come from the repository. */
   | { pr: string };
 

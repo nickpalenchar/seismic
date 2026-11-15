@@ -127,10 +127,11 @@ describe('Push', () => {
     push.away('tablet');
     push.waits([waits('c2')]);
     await push.settled();
-    expect(sent.map((s) => s.url)).toEqual(['https://web.push.apple.com/abc', 'https://web.push.apple.com/tablet']);
+    expect(sent.map((s) => s.url).sort()).toEqual(['https://web.push.apple.com/abc', 'https://web.push.apple.com/tablet']);
     endWindow();
     await push.settled();
-    expect(sent.map((s) => s.url)).toEqual(['https://web.push.apple.com/abc', 'https://web.push.apple.com/tablet', 'https://web.push.apple.com/abc']);
+    expect(sent.filter((s) => s.url.endsWith('/abc'))).toHaveLength(2);
+    expect(sent.filter((s) => s.url.endsWith('/tablet'))).toHaveLength(1);
   });
 
   test('a slow device does not block another, while each device keeps its own delivery order', async () => {

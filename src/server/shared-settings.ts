@@ -104,7 +104,7 @@ export async function commitShared(repoPath: string, mine: SharedSettings): Prom
   await must(repoPath, ['update-ref', '-m', 'seismic: settings for everyone', `refs/heads/${branch}`, commit, parent]);
   // the checkout on the branch gets the file as committed, in its index and among its files
   if (onIt) await must(repoPath, ['checkout', commit, '--', file]);
-  return { committed: commit, branch, ...(before ? { before } : {}), after };
+  return { committed: commit, branch, file, ...(before ? { before } : {}), after };
 }
 
 /** A commit with `mine` in the settings file on top of `origin`'s main branch, as just fetched. */
@@ -122,10 +122,10 @@ async function onOrigin(repoPath: string, mine: SharedSettings) {
  * it, pushed without force, so a protected branch, or one that moved meanwhile, refuses it.
  */
 export async function pushShared(repoPath: string, mine: SharedSettings): Promise<SettingsShared & { after: SharedSettings }> {
-  const { branch, commit, after } = await onOrigin(repoPath, mine);
+  const { branch, commit, after, file } = await onOrigin(repoPath, mine);
   await must(repoPath, ['push', '--quiet', 'origin', `${commit}:refs/heads/${branch}`]);
   await must(repoPath, ['update-ref', `refs/remotes/origin/${branch}`, commit]);
-  return { committed: commit, branch, after };
+  return { committed: commit, branch, file, after };
 }
 
 /**

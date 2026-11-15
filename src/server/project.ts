@@ -1668,7 +1668,7 @@ export class ProjectRuntime {
     this.board.decideSetting(id, where, v);
     const m = this.board.t.retro;
     const name = m.settings[p.field];
-    this.board.notify({ text: !done ? m.onMachine(name, r.ref.name) : 'pr' in done ? m.opened(name, r.ref.name, done.pr) : m.committed(name, r.ref.name, done.branch) });
+    this.board.notify({ text: !done ? m.onMachine(name, r.ref.name) : 'pr' in done ? m.opened(name, r.ref.name, done.pr) : m.committed(name, r.ref.name, done.branch, done.file ?? '.obeya/settings.json') });
     return done;
   }
 
