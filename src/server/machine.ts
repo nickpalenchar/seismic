@@ -13,7 +13,7 @@ import { spawn } from 'node:child_process';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { homedir, userInfo } from 'node:os';
-import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 // by its path: the package exports no package.json, which Bun imports all the same but TypeScript does not
 import sdk from '../../node_modules/@anthropic-ai/claude-agent-sdk/package.json';
 import { DOCUMENT } from '../core/files';
@@ -30,7 +30,7 @@ import { repoInfo } from './repo';
 import { COMPILED } from './resources';
 import { claudeExecutable } from './agents/harnesses/claude';
 import { installedAgy } from './agents/harnesses/agy';
-import { seismicEnv } from '../core/env';
+import { installedCodex } from './agents/harnesses/codex';
 import { extendPath, freshPath, which } from './path';
 import type { VoiceSetup } from './voice-setup';
 
@@ -72,9 +72,15 @@ export function machineHint(id: 'claude' | 'agy' | 'uv' | 'git' | 'gh', platform
   return { commands: command ? [command] : [], url: packages.url };
 }
 
-/** Codex from Homebrew where the Mac has it, else from npm, which needs Node.js. */
+/**
+ * Codex from Homebrew where the Mac has it, else from npm, which needs Node.js. On Windows npm brings
+ * only a `.cmd` shim, which Codex workers cannot start: there the native `codex.exe` of a release,
+ * named by SEISMIC_CODEX or put on the PATH.
+ */
 const CODEX_URL = 'https://developers.openai.com/codex/cli';
-export const codexHint = (brew: boolean): NonNullable<MachineItem['install']> => ({ commands: [brew ? 'brew install --cask codex' : 'npm install -g @openai/codex'], url: CODEX_URL });
+const CODEX_RELEASES = 'https://github.com/openai/codex/releases';
+export const codexHint = (platform: string, brew: boolean): NonNullable<MachineItem['install']> =>
+  platform === 'win32' ? { commands: [], url: CODEX_RELEASES } : { commands: [brew ? 'brew install --cask codex' : 'npm install -g @openai/codex'], url: CODEX_URL };
 
 const AXE_INSTALL = 'brew install cameroncooke/axe/axe';
 const AXE_URL = 'https://github.com/cameroncooke/AXe';
@@ -371,10 +377,10 @@ export class MachineSetup {
 
     // Codex: installed and signed in (`codex login status`), for tasks and code reviews that choose it
     const codexPart = async (): Promise<MachineItem[]> => {
-      const named = seismicEnv('CODEX', env);
-      const codex = named && isAbsolute(named) ? named : which(named ?? 'codex', env);
+      // the native executable Codex workers start; npm's Windows shim counts as missing, as it does for them
+      const codex = installedCodex(env);
       const version = codex ? (await output(codex, ['--version'], env))?.match(/(\d+\.\d+\.\d+)/)?.[1] : undefined;
-      if (!codex || !version) return [missing({ id: 'codex', install: codexHint(brew) }), { id: 'codexLogin', state: 'missing' }];
+      if (!codex || !version) return [missing({ id: 'codex', install: codexHint(platform, brew) }), { id: 'codexLogin', state: 'missing' }];
       logins.codexLogin = [codex, 'login'];
       const signedIn = (await output(codex, ['login', 'status'], env)) !== null;
       return [{ id: 'codex', state: 'ok', found: version }, signedIn ? { id: 'codexLogin', state: 'ok' } : missing({ id: 'codexLogin', install: { commands: [shown([codex === which('codex', env) ? 'codex' : codex, 'login'])] }, act: 'login' })];

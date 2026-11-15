@@ -8,7 +8,7 @@ import type { ProjectRuntime } from './project';
 import { Config } from './config';
 import { Store } from './store';
 import { claudeToken } from './hosts';
-import { cloneName, machineHint, MachineSetup, runnable, WELCOME_FILE, welcome } from './machine';
+import { cloneName, codexHint, machineHint, MachineSetup, runnable, WELCOME_FILE, welcome } from './machine';
 import { gitRepo } from './testing';
 import { VoiceSetup } from './voice-setup';
 import { git } from './workstations';
@@ -123,6 +123,16 @@ describe('what Seismic needs on this machine', () => {
     expect(await machine.login({ section: 'codex', id: 'codexLogin' })).toEqual({ opened: false, command: `${bin}/codex login` });
     fake('codex', 'case "$1" in --version) echo "codex-cli 0.169.0";; login) echo "Logged in using ChatGPT";; esac');
     expect(section(await setup().view(), 'codex').items[1]).toEqual({ id: 'codexLogin', state: 'ok' });
+  });
+
+  test("Codex: npm's Windows shim is no Codex a worker can start, so it counts as missing", async () => {
+    fake('codex.cmd', 'case "$1" in --version) echo "codex-cli 0.169.0";; login) echo "Logged in using ChatGPT";; esac');
+    const items = section(await setup({ env: { SEISMIC_CODEX: join(bin, 'codex.cmd') } }).view(), 'codex').items;
+    expect(items[0]).toMatchObject({ id: 'codex', state: 'missing' });
+    expect(items[1]).toEqual({ id: 'codexLogin', state: 'missing' });
+    // on Windows the hint names the native release, not npm's shim
+    expect(codexHint('win32', false)).toEqual({ commands: [], url: 'https://github.com/openai/codex/releases' });
+    expect(codexHint('darwin', true).commands).toEqual(['brew install --cask codex']);
   });
 
   test('Antigravity: found, signed in or to sign in by a terminal login', async () => {

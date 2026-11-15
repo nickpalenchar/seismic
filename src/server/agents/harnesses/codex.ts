@@ -112,8 +112,8 @@ export function projectTrust(cwd: string, trusted: boolean): string {
  * additions. An npm .cmd shim is not a native executable on Windows; do not work around that by
  * introducing a shell into the transport.
  */
-function installedCodex(): string | null {
-  const executable = Bun.which(seismicEnv('CODEX') ?? 'codex', { PATH: process.env.PATH ?? '' });
+export function installedCodex(env: Record<string, string | undefined> = process.env): string | null {
+  const executable = Bun.which(seismicEnv('CODEX', env) ?? 'codex', { PATH: env.PATH ?? '' });
   return executable && isAbsolute(executable) && !/\.(cmd|bat|ps1)$/i.test(executable) ? executable : null;
 }
 

@@ -377,18 +377,30 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
     const there = AGENTS.filter((a) => ready(agentItems(a)));
     return there.length ? there : (['claude'] as Agent[]);
   })() : []);
-  // an agent is configured once its own pieces and git are there
-  const configured = chosen.filter((a) => ready(agentItems(a)) && ready(gitItems));
+  // an agent is configured once its own pieces and git are there: its Ready badge, the count and the steps after the first all go by this
+  const isConfigured = (a: Agent) => ready(agentItems(a)) && ready(gitItems);
+  const configured = chosen.filter(isConfigured);
+  // without a configured agent only the first step is open, however far the owner got before
+  const gated = !!view && !configured.length;
   const recommended = view?.sections.filter((x) => RECOMMENDED_SECTIONS.includes(x.id)) ?? [];
   const open = recommended.filter((x) => !ready(x.items));
   const steps: Step[] = first ? ['agents', 'recommended', 'first'] : ['agents', 'recommended'];
   const top = useRef<HTMLElement>(null);
+  const body = useRef<HTMLDivElement>(null);
   const go = (to: Step) => {
+    if (gated && to !== 'agents') return;
     setStep(to);
-    // a new step starts at its top
-    requestAnimationFrame(() => top.current?.scrollIntoView({ block: 'start' }));
+    // a new step starts at its top: over the project the body scrolls, on the first start the page
+    requestAnimationFrame(() => {
+      if (body.current) body.current.scrollTop = 0;
+      if (first) top.current?.scrollIntoView({ block: 'start' });
+    });
     setFurthest((f) => Math.max(f, steps.indexOf(to)));
   };
+  // an agent that stops being configured (logged out, unpicked) takes the owner back to the first step
+  useEffect(() => {
+    if (gated && step !== 'agents') go('agents');
+  }, [gated, step]);
   const toggle = (a: Agent, on: boolean) => setPicked(on ? AGENTS.filter((x) => x === a || chosen.includes(x)) : chosen.filter((x) => x !== a));
 
   /** A block of the list: its title, how much of it is still open, its pieces. `canWait`: tagged as one that can wait. */
@@ -427,8 +439,8 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
           )}
         </header>
         {/* over the project the dialog stays within the window: its head stays, the rest scrolls inside */}
-        <div className={cn('setup-body', !first && 'flex-[1_1_auto] min-h-0 overflow-y-auto pt-0 pr-7 pb-6 pl-0')}>
-          <Steps steps={steps} at={step} furthest={furthest} onPick={go} />
+        <div ref={body} className={cn('setup-body', !first && 'flex-[1_1_auto] min-h-0 overflow-y-auto pt-0 pr-7 pb-6 pl-0')}>
+          <Steps steps={steps} at={step} furthest={gated ? 0 : furthest} onPick={go} />
           <p className="setup-intro text-muted-foreground text-sm leading-normal mt-3.5 mb-1 mx-0">{first ? s.introFirst : s.intro}</p>
           {!view ? (
             <p className="hint">{checking ? t.config.setup.checking : status}</p>
@@ -458,7 +470,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
                             <span className="grid gap-0.5 min-w-0">
                               <span className="flex items-center gap-2">
                                 <b>{s.agentNames[a]}</b>
-                                {!soon && ready(agentItems(a)) && (
+                                {!soon && isConfigured(a) && (
                                   <Badge variant="secondary" className="text-approved">
                                     <Check aria-hidden />
                                     {s.agentReady}
@@ -516,7 +528,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
                       {s.back}
                     </Button>
                     {first ? (
-                      <Button variant="primary" onClick={() => go('first')}>
+                      <Button variant="primary" disabled={gated} onClick={() => go('first')}>
                         {s.next}
                       </Button>
                     ) : (
