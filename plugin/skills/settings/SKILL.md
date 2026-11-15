@@ -55,8 +55,10 @@ shows the app well, whether approved work may go straight
 onto the default branch, and where plan docs go: the directory of plans you found (its docs then converted with "Als Plan
 aufbereiten" in the project), or a new `docs/plan/`. Where your briefing names more than one agent
 harness that can work on this machine, the owner also picks which of them the allow list (step 4)
-is set up for: that question is always asked, with each harness as an option and several
-pickable. Collect them and ask in one question
+is set up for, with each harness as an option and several pickable. A harness the repository
+already has configured (`.claude/settings.json` with `Bash` rules under `permissions.allow` for
+Claude Code and Codex in Seismic, `.codex/rules/obeya.rules` for Codex run outside Seismic) stays
+set up without a question; ask only about the others, and not at all when none is left. Collect them and ask in one question
 (the `ask` tool under Seismic), with the options you found, while you go on with the rest. A secret
 (a real password, an API key) goes into `app.run` only as where to find it (a file outside git,
 an environment variable), never itself.
@@ -111,11 +113,12 @@ bun ${CLAUDE_SKILL_DIR}/lib/allow-list.ts 'bun install' 'bun test --watch' …
 ```
 
 It shows the rules, marks the broad ones, says for each command whether the list covers it, and
-exits with 1 while one is not. For each harness the owner picked:
+exits with 1 while one is not. For each harness the owner picked or the repository already has configured:
 
 - **Claude Code** and **Codex in Seismic** read `.claude/settings.json`; nothing more to write.
 - **Codex run outside Seismic** has its own rule engine: with `--codex` the check also writes
-  `.codex/rules/obeya.rules` from the same list. Write it only where the owner picked Codex.
+  `.codex/rules/obeya.rules` from the same list. Write it where the owner picked Codex or the
+  file already exists.
 
 In your summary list the rules you added and where each comes from, so the owner can judge them
 before trusting them.

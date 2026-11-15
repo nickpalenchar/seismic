@@ -5690,7 +5690,7 @@ ${idea.idea.discussion.brief}` : '',
     if (isNew || this.o.board.isSetupCard(card)) {
       const harnesses = this.o.harnesses?.() ?? ['Claude Code'];
       parts.push(
-        `The agent harnesses that can work on this machine, for the allow list the skill \`seismic:settings\` drafts: ${harnesses.join(', ')}.${harnesses.length > 1 ? ' Ask the owner which of them to set it up for, with each one as an option, in the question the skill has you ask.' : ''}`,
+        `The agent harnesses that can work on this machine, for the allow list the skill \`seismic:settings\` drafts: ${harnesses.join(', ')}.${harnesses.length > 1 ? ' Ask the owner which of them to set it up for, with each one as an option, in the question the skill has you ask, except those the repository already has configured.' : ''}`,
       );
     }
     const allowed = this.artifacts();
