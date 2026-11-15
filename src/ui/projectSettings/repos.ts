@@ -66,7 +66,7 @@ export function useProjectRepos(project: string, on: boolean, covered: boolean):
   const [edited, setEdited] = useState<Map<string, RepoConfig>>(new Map());
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
-  const [failed, setFailed] = useState<{ path: string; status: string } | null>(null);
+  const [failed, setFailed] = useState<{ path: string; status: string; place: boolean } | null>(null);
   // the saves outlive renders: what is edited now, what is saved, the saves waiting
   const now = useRef({ repos, view, edited });
   now.current = { repos, view, edited };
@@ -109,7 +109,7 @@ export function useProjectRepos(project: string, on: boolean, covered: boolean):
       const whole = JSON.stringify(body) === JSON.stringify(edit);
       // nothing left to save (changed back to what is saved): a refusal before is over too
       if (JSON.stringify(body) === JSON.stringify(before)) {
-        setFailed((f) => (f?.path === path ? null : f));
+        setFailed((f) => (f?.path === path && (place || !f.place || whole) ? null : f));
         if (whole) forget(path, edit);
         return whole;
       }
@@ -119,13 +119,13 @@ export function useProjectRepos(project: string, on: boolean, covered: boolean):
         const v = await api.saveProjectRepo(project, body);
         now.current = { ...now.current, view: v };
         setView(v);
-        setFailed((f) => (f?.path === path ? null : f));
+        setFailed((f) => (f?.path === path && (place || !f.place || whole) ? null : f));
         // saved as it is still shown, place included: nothing of it waits any more
         if (whole) forget(path, edit);
         return whole;
       } catch (e) {
         // the edit stays, shown as not saved, with a way to try again
-        setFailed({ path, status: failText(e, { detail: ['config', 'invalid'] }) });
+        setFailed((f) => ({ path, place: place || (f?.path === path && f.place), status: failText(e, { detail: ['config', 'invalid'] }) }));
         return false;
       } finally {
         setBusy(false);
@@ -195,6 +195,7 @@ export function useProjectRepos(project: string, on: boolean, covered: boolean):
       if (JSON.stringify(back) === JSON.stringify(before)) next.delete(path);
       else next.set(path, back);
       keepEdited(next);
+      setFailed((f) => f?.path === path && (f.place || !next.has(path)) ? null : f);
     },
     reload: load,
     unsaved: (i) => {
@@ -206,12 +207,25 @@ export function useProjectRepos(project: string, on: boolean, covered: boolean):
       if (!path) return false;
       clearTimeout(timers.current.get(path));
       timers.current.delete(path);
-      const done = (await save(path, false)) || !now.current.edited.has(path);
+      await save(path, false);
+      // Other edits can enqueue saves while this request runs. Drain the chain, then compare
+      // the latest visible entry with the saved one, rather than trusting an earlier request.
+      let pending;
+      do {
+        pending = chain.current;
+        await pending;
+      } while (pending !== chain.current);
+      const done = !now.current.edited.has(path) && !!savedAt(path) &&
+        JSON.stringify(editedAt(path)) === JSON.stringify(savedAt(path));
       // what is left waits for "Save and restart agents"; a refused save says why itself
       if (!done && savedAt(path) && editedAt(path) && shape(editedAt(path)!) !== shape(savedAt(path)!)) setStatus(t.projectSettings.restartFirst);
       return done;
     },
-    failed: failed && { status: failed.status, retry: () => void save(failed.path, false) },
+    failed: failed && { status: failed.status, retry: () => {
+      clearTimeout(timers.current.get(failed.path));
+      timers.current.delete(failed.path);
+      void save(failed.path, failed.place);
+    } },
     busy,
     status,
   };

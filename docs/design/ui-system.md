@@ -115,6 +115,10 @@ same style. UI text comes from `src/ui/strings.ts`, never a literal.
   they work, clones, slots, hosts) waits for an inline "Save and restart agents". Rejected: one long
   scroll, and the Configuration dialog's draft with a Save button. Configuration's project page
   still shows the same fields until they are taken out of it.
+- **Phone settings and Needs you share one history step**: switching between them replaces that
+  step; closing returns to the project. Pages covering the project make its controls inert.
+- **Clone values parked while choosing worktrees belong to the repository draft**, rather than
+  its mounted view. They survive section and repository switches, and are omitted from saves.
 - **Esc in a docked sheet's inner view** goes back to its list: the docked sheet's Radix layer
   prevents Esc's default and the page's key handler listens in the capture phase, so the view
   marks itself `data-esc-back` and the page leaves Esc there to it.

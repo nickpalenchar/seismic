@@ -1,3 +1,4 @@
+import { parkClones, restoreClones } from './workstationDraft';
 // Seismic's configuration, in a dialog over the page with its sections listed on the left: the
 // projects it serves and their repositories, edited and saved together (Seismic then starts again
 // with them), and the settings saved on their own (models, voice, demos, notifications, other
@@ -2710,18 +2711,13 @@ export const Workstations = forwardRef<HTMLDivElement, { repo: RepoConfig; resol
   const existing = useRef<HTMLTextAreaElement>(null);
   const existingText = (repo.workstations ?? []).join('\n');
   useFitHeight(existing, existingText, clones);
-  // the clones named, put aside while the owner switches to worktrees, back with a switch to clones
-  const parked = useRef<Pick<RepoConfig, 'clones' | 'workstations' | 'hosts'>>({});
   // "Agents work in": this machine's setting where the repository's says otherwise; worktrees put the clones named aside
   const setWorkIn = (mode: 'clones' | 'worktrees') => {
     if (mode === workIn) return;
     const { workstations: _, ...others } = repo.settings ?? {};
     const settings = known === mode ? others : { ...others, workstations: mode };
     let next = withField(repo, 'settings', Object.keys(settings).length ? settings : undefined);
-    if (mode === 'worktrees') {
-      parked.current = { ...(repo.clones !== undefined ? { clones: repo.clones } : {}), ...(repo.workstations ? { workstations: repo.workstations } : {}), ...(repo.hosts ? { hosts: repo.hosts } : {}) };
-      next = withField(withField(withField(next, 'clones', undefined), 'workstations', undefined), 'hosts', undefined);
-    } else next = { ...next, ...parked.current };
+    next = mode === 'worktrees' ? parkClones(next) : restoreClones(next);
     onChange(next);
   };
   if (folder || (!resolved && !clones)) return null;

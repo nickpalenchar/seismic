@@ -54,8 +54,13 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
   const s = usePhoneShell(loaded);
   const { projects, snaps, usage, feeds, banner, open, openCard, obeyaId, setObeyaProject, entries, isUnderway, homeRef, newCard, making, made, press, acks, back, showAck } = s;
   const [menuOpen, setMenuOpen] = useState(false);
-  const [needsOn, openNeeds, closeNeeds] = usePage('needs');
-  const [settingsOn, openSettings, closeSettings] = usePage('settings');
+  const [page, showPage, closePage] = usePage();
+  const needsOn = page === 'needs';
+  const settingsOn = page === 'settings';
+  const openNeeds = () => showPage('needs');
+  const openSettings = () => showPage('settings');
+  const closeNeeds = () => { if (needsOn) closePage(); };
+  const closeSettings = () => { if (settingsOn) closePage(); };
   const [workingOpen, setWorkingOpen] = useStoredState('seismic-phone-working-open', true);
   const [folded, setFolded] = useStoredState<Section[]>('seismic-phone-folded', FOLDED);
   // how many cards each section shows; back to the first twenty with another project
@@ -137,7 +142,7 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
   return (
     <HoldToTalk.Provider value={press}>
       {feeds}
-      <div id="ph-home" className={pageClass} ref={homeRef} inert={needsOn}>
+      <div id="ph-home" className={pageClass} ref={homeRef} inert={needsOn || settingsOn || searching || !!s.talk}>
         <TopBar projects={projects} project={obeyaId} onProject={setObeyaProject} usage={usage} onMenu={() => setMenuOpen(true)} />
         {banner}
         <Notify />
@@ -255,12 +260,10 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
           }}
           onInbox={() => {
             setMenuOpen(false);
-            closeSettings();
             openNeeds();
           }}
           onProjectSettings={() => {
             setMenuOpen(false);
-            closeNeeds();
             openSettings();
           }}
           {...(sections.queued.length ? { onQueue: () => showSection('queued') } : {})}
@@ -306,7 +309,7 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
         </TalkPanel>
       )}
       {s.talk && s.mic}
-      {!s.talk && !searching && !needsOn && (
+      {!s.talk && !searching && !needsOn && !settingsOn && (
         <FloatingBar
           needsYou={needsYouCount(entries)}
           making={making || !!made}
@@ -497,32 +500,42 @@ function FloatingBar({ needsYou, making, chat, chatWorking, onNew, onChat, onSea
  * kept in the address (`?needs`) so Back and a reload hold it; opening is a step in the browser's
  * history, closing takes it back (or drops it from the address where the page was loaded on it).
  */
-function usePage(name: 'needs' | 'settings'): [boolean, () => void, () => void] {
-  const [on, setOn] = useState(() => new URLSearchParams(location.search).has(name));
+type PhonePage = 'needs' | 'settings';
+function usePage(): [PhonePage | null, (page: PhonePage) => void, () => void] {
+  const read = (): PhonePage | null => {
+    const q = new URLSearchParams(location.search);
+    return q.has('settings') ? 'settings' : q.has('needs') ? 'needs' : null;
+  };
+  const [page, setPage] = useState(read);
   useEffect(() => {
-    const pop = () => setOn(new URLSearchParams(location.search).has(name));
+    const pop = () => setPage(read());
     addEventListener('popstate', pop);
     return () => removeEventListener('popstate', pop);
   }, []);
-  const address = (open: boolean) => {
+  const address = (next: PhonePage | null) => {
     const q = new URLSearchParams(location.search);
-    if (open) q.set(name, '');
-    else q.delete(name);
+    q.delete('needs');
+    q.delete('settings');
+    if (next) q.set(next, '');
     const text = q.toString().replace(/=(&|$)/g, '$1');
-    return `${location.pathname}${text ? `?${text}` : ''}`;
+    return `${location.pathname}${text ? `?${text}` : ''}${location.hash}`;
   };
-  return [
-    on,
-    () => {
-      if (on) return;
-      history.pushState({ ...history.state, [name]: true }, '', address(true));
-      setOn(true);
-    },
-    () => {
-      if (!on) return;
-      if ((history.state as Record<string, boolean> | null)?.[name]) history.back();
-      else history.replaceState(history.state, '', address(false));
-      setOn(false);
-    },
-  ];
+  return [page, (next) => {
+    const current = read();
+    if (current === next) return;
+    // Switching sibling pages replaces their one history step; no asynchronous back can
+    // arrive after a push and dismiss the page that was just opened.
+    const state = { ...history.state, needs: undefined, settings: undefined };
+    const pushed = current ? !!history.state?.[current] : true;
+    if (pushed) state[next] = true;
+    if (current) history.replaceState(state, '', address(next));
+    else history.pushState(state, '', address(next));
+    setPage(next);
+  }, () => {
+    const current = read();
+    if (!current) return;
+    if (history.state?.[current]) history.back();
+    else history.replaceState(history.state, '', address(null));
+    setPage(null);
+  }];
 }
