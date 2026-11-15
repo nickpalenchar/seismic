@@ -122,14 +122,29 @@ export function usePhoneShell(loaded: ProjectInfo[]) {
   };
   const openCard = (i: Item) => openId(i.id);
   /** The card that takes the open one's place once Back has closed the conversation over it. */
-  const instead = useRef<string | null>(null);
-  /** The open card gave way to `id` (a merge approved): `id` takes its place in the history, its conversation closed. */
+  const instead = useRef<{ id: string; list: boolean } | null>(null);
+  /**
+   * The open card gave way to `id` (a merge approved): Back to where the card was opened from, then `id`
+   * opens from there as a new step, so neither Back nor Forward leads to the card that went or its
+   * conversation. `list`: the card's own entry was not this page's (a reload), so it becomes the list.
+   */
   const replaceCard = (id: string) => {
-    if (steps().at(-1) !== 'talk') return openId(id);
-    // Back past the conversation first, so no step is left that opens the card that went
     flushEdit().catch(console.error);
-    instead.current = resolve(id) ?? id;
-    history.back();
+    const s = steps();
+    const n = s.at(-1) === 'talk' && s.at(-2) === 'card' ? 2 : s.at(-1) === 'talk' || s.at(-1) === 'card' ? 1 : 0;
+    instead.current = { id: resolve(id) ?? id, list: n === 0 || s.at(-1) !== 'card' && s.at(-2) !== 'card' };
+    if (n) history.go(-n);
+    else landInstead();
+  };
+  const landInstead = () => {
+    const next = instead.current;
+    if (!next) return;
+    instead.current = null;
+    if (next.list) history.replaceState(null, '', addressWith({ card: null, talk: false }));
+    looked.current = next.id;
+    step('card', { card: next.id, talk: false });
+    setOpenState(next.id);
+    setTalk(false);
   };
   /** Back to the list from a card, closing its conversation too. */
   const leavesCard = useRef(false);
@@ -166,15 +181,7 @@ export function usePhoneShell(loaded: ProjectInfo[]) {
     const pop = () => {
       flushEdit().catch(console.error);
       looked.current = null;
-      const next = instead.current;
-      if (next) {
-        instead.current = null;
-        looked.current = next;
-        history.replaceState(history.state, '', addressWith({ card: next, talk: false }));
-        setOpenState(next);
-        setTalk(false);
-        return;
-      }
+      if (instead.current) return landInstead();
       if (leavesCard.current) {
         leavesCard.current = false;
         history.replaceState(null, '', addressWith({ card: null, talk: false }));
