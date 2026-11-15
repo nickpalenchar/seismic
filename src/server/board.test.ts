@@ -1010,6 +1010,9 @@ describe('canvases', () => {
     // what the canvas did not hold keeps pointing at it until it comes back
     board.snapshot();
     for (const id of [a.id, gone.id, parked.id]) expect(store.cards.get(id)!.canvas_id).toBe(later.id);
+    // what is made from a parked card meanwhile goes on main, written there at once
+    const fromParked = [board.propose(parked.id, { title: 'From parked', task: 'T' }), board.create({ title: 'After parked', from: parked.id })];
+    for (const c of fromParked) expect([c.canvas, store.cards.get(c.id)!.canvas_id]).toEqual([main, main]);
     board.work(parked.id, { hold: null });
     expect(canvasOf(parked.id)).toBe(main);
     // made from an archived card whose canvas is gone

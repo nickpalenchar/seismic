@@ -58,6 +58,7 @@ test('refreshes asked for while one runs share the look that follows it, and res
   writeFileSync(file, 'x');
   p.there(file);
   const second = p.refresh();
+  expect(second).not.toBe(first);
   expect(p.refresh()).toBe(second);
   // awaiting the one asked for meanwhile waits for the look that follows, which sees the file
   await second;
