@@ -37,7 +37,7 @@ export function DiffTreeLayout({ rows, current, onPick, children }: { rows: Chan
         ? <CollapsibleTrigger asChild><Button size="small" variant="ghost" aria-expanded={open}><Files size={15} />{open ? t.diff.hideTree : t.diff.showTree}</Button></CollapsibleTrigger>
         : <CollapsibleTrigger className={cn(barTrigger, 'border border-border bg-muted font-medium')}>{open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}<Files size={15} /><span className="flex-1">{t.diff.showTree}</span><span className="hint">{files.length}</span></CollapsibleTrigger>}
     </div>
-    <CollapsibleContent asChild forceMount hidden={!open}><nav className={cn('diff-tree min-w-0 border border-border rounded-md p-2 row-start-2', beside && 'col-start-1 [align-self:start]', !wide && 'max-h-[40vh] overflow-auto')} aria-label={t.diff.showTree}><Tree rows={files} current={current} onPick={(path) => { onPick(path); setPicked(n => n + 1); }} /></nav></CollapsibleContent>
+    <CollapsibleContent asChild forceMount hidden={!open}><nav className={cn('diff-tree min-w-0 border border-border rounded-md p-2 row-start-2', beside && 'col-start-1 [align-self:start] sticky top-0 max-h-[calc(100vh-8rem)] overflow-auto', !wide && 'max-h-[40vh] overflow-auto')} aria-label={t.diff.showTree}><Tree rows={files} current={current} onPick={(path) => { onPick(path); setPicked(n => n + 1); }} /></nav></CollapsibleContent>
     <div className={cn('diff-selection min-w-0', beside ? 'col-start-2 row-start-2' : wide ? 'row-start-2' : 'row-start-3')} ref={selection}>{typeof children === 'function' ? children(!wide) : children}</div>
   </div></Collapsible>;
 }
