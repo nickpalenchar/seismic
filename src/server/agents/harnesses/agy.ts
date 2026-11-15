@@ -216,10 +216,11 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
       };
       if (terminals && record) { terminals.onChange = publish; publish(); }
       // A busy machine's snapshot can time out: that observation is skipped. One that failed for good
-      // may have missed a process, so ending what was seen does not account for it: the record stays.
+      // once agy is identified (and may run turns) may have missed a process, so ending what was seen
+      // does not account for it: the record stays. Before that no turn went out, so nothing is owed.
       const observed = tolerateTimeouts();
       let unobserved = false;
-      const watch = (operation: Promise<void>) => observed(operation).catch((error: unknown) => { unobserved = true; throw error; });
+      const watch = (operation: Promise<void>) => observed(operation).catch((error: unknown) => { if (terminals?.observed().length) unobserved = true; throw error; });
       let observing = false;
       const stopObserving = observeEveryTick(() => {
         if (observing || !terminals) return;

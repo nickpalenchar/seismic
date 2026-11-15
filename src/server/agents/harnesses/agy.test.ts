@@ -170,7 +170,7 @@ test.skipIf(!recording)('the first turn goes to agy only once its identity is on
   expect(records()).toEqual([]);
 });
 
-test.skipIf(!recording)('processes that cannot be watched end the session before any turn and keep its record for a sweep', async () => {
+test.skipIf(!recording)('an agy whose processes cannot be watched ends before any turn', async () => {
   const { records } = registry();
   // agy as Seismic would see a process it did not start: its ownership cannot be established
   const orphan = `const c=require('node:child_process').spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{detached:true,stdio:'ignore'});console.log(c.pid);c.unref();`;
@@ -187,5 +187,6 @@ test.skipIf(!recording)('processes that cannot be watched end the session before
   await session.done;
   expect(events.find((e) => e.type === 'error')).toMatchObject({ message: expect.stringContaining('could not be put on record'), ended: true });
   expect(events.some((e) => e.type === 'text')).toBe(false);
-  expect(records()).toHaveLength(1);
+  // no turn went out, so nothing it could have started is owed to a sweep
+  expect(records()).toEqual([]);
 });

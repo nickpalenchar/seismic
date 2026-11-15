@@ -91,10 +91,11 @@ export function codexConnection(
   if (terminals && record) { terminals.onChange = publish; publish(); }
   // A busy machine's snapshot can time out: that observation is skipped, not the session ended.
   const observed = tolerateTimeouts();
-  // An observation that failed for good may have missed a process: ending what was seen does not
-  // account for it, so the record stays for a sweep.
+  // An observation that failed for good once the app-server is identified (and may run turns) may
+  // have missed a process: ending what was seen does not account for it, so the record stays for a
+  // sweep. Before that no request went out, so nothing is owed.
   let unobserved = false;
-  const watch = (operation: Promise<void>) => observed(operation).catch((error: unknown) => { unobserved = true; throw error; });
+  const watch = (operation: Promise<void>) => observed(operation).catch((error: unknown) => { if (terminals?.observed().length) unobserved = true; throw error; });
   /** The session's processes have ended, or the attempt failed and the record stays for a sweep. */
   const settleRecord = async (ended: boolean) => {
     const generation = await record;
@@ -246,7 +247,7 @@ export function codexConnection(
     pid: child.pid,
     trackProcesses: async (pids) => { if (terminals) await watch(terminals.track(pids)); },
     async request<T>(method: string, params: Record<string, unknown>): Promise<T> {
-      await ready;
+      try { await ready; } catch (error) { throw closing ? failure ?? new Error('Codex app-server connection closed') : error; }
       return new Promise<T>((resolve, reject) => {
         if (closing) return reject(failure ?? new Error('Codex app-server connection closed'));
         const id = ++nextId;

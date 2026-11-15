@@ -273,8 +273,9 @@ Safety rules:
   `agy` process like Codex's (every 500 ms) and ends them, or the sweep does after a crash. A command
   that detaches (reparented to init) between two observations is not attributable and stays running.
 - An agent session (Codex or agy) sends its first turn only once its own identity is durable in the
-  session registry, and an observation that fails for good (not a timed-out snapshot) ends the session
-  and keeps its record for the next start's sweep: what was seen may not be all it started.
+  session registry (a timed-out first snapshot is taken again), and an observation that fails for good
+  after that (not a timed-out snapshot) ends the session and keeps its record for the next start's
+  sweep: what was seen may not be all it started.
 
 ## Chapters
 
