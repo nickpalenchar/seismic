@@ -6,7 +6,7 @@ import { AGENT_DEFAULTS } from '../../../core/types';
 import { OBEYA_PLUGIN } from '../../demo';
 import { withAgentSetting, type AgentEvent, type AgentSpec } from '../../runtime';
 import { FakeRuntime, gitRepo } from '../../testing';
-import { workerHarnessRuntime } from './';
+import { connectedHarnesses, harnessNames, workerHarnessRuntime } from './';
 import { createCodexRuntime } from './codex';
 
 const dirs: string[] = [];
@@ -108,4 +108,12 @@ test('an agy worker routes to Antigravity with portable skills; its sessions are
   expect(agy.sessions).toHaveLength(1); expect(claude.sessions).toHaveLength(0);
   runtime.start({ ...spec, resume: 'agy:conv' });
   expect(agy.sessions).toHaveLength(2);
+});
+
+test('names the harnesses installed and signed in on this machine, Antigravity included; the asking one where none answers', () => {
+  const on = (...hs: string[]) => ({ claude: () => hs.includes('claude'), codex: () => hs.includes('codex'), agy: () => hs.includes('agy') });
+  expect(connectedHarnesses(on('agy', 'codex'))).toEqual(['codex', 'agy']);
+  expect(harnessNames('codex', connectedHarnesses(on('codex', 'agy')))).toEqual(['Codex', 'Antigravity']);
+  expect(harnessNames('claude', connectedHarnesses(on('claude', 'codex', 'agy')))).toEqual(['Claude Code', 'Codex', 'Antigravity']);
+  expect(harnessNames('agy', [])).toEqual(['Antigravity']);
 });

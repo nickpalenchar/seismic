@@ -9,7 +9,7 @@ import { Config } from './config';
 import { Store } from './store';
 import { claudeToken } from './hosts';
 import { cloneName, codexHint, machineHint, MachineSetup, runnable, WELCOME_FILE, welcome } from './machine';
-import { agentSetting } from './settings';
+import { agentSetting, saveAgents } from './settings';
 import { gitRepo } from './testing';
 import { VoiceSetup } from './voice-setup';
 import { git } from './workstations';
@@ -243,10 +243,38 @@ describe('the first project', () => {
 
   test('with only Codex configured, workers and reviews default to Codex', async () => {
     const repo = gitRepo(join(dir, 'shop'));
-    await setup().project({ path: repo, agents: ['agy', 'codex'] });
+    await setup().project({ path: repo, agents: ['codex'] });
     expect(agentSetting(home, 'worker').harness).toBe('codex');
     expect(agentSetting(home, 'review').harness).toBe('codex');
     expect(agentSetting(home, 'koordinator').harness).toBeUndefined();
+  });
+
+  test('with Codex and Antigravity configured, Codex comes first', async () => {
+    const repo = gitRepo(join(dir, 'shop'));
+    await setup().project({ path: repo, agents: ['agy', 'codex'] });
+    expect(agentSetting(home, 'worker').harness).toBe('codex');
+  });
+
+  test('a harness the owner set before stays', async () => {
+    const repo = gitRepo(join(dir, 'shop'));
+    saveAgents(home, { worker: { harness: 'agy' } });
+    await setup().project({ path: repo, agents: ['codex'] });
+    expect(agentSetting(home, 'worker').harness).toBe('agy');
+    expect(agentSetting(home, 'review').harness).toBe('codex');
+  });
+
+  test('a folder without git is refused where its workers would run in Codex or Antigravity, and nothing is saved', async () => {
+    const docs = join(dir, 'Dokumente');
+    mkdirSync(docs);
+    await expect(setup().project({ path: docs, git: false, agents: ['codex'] })).rejects.toMatchObject({ code: 'config', message: expect.stringContaining('Codex works only in a Git repository') });
+    expect(agentSetting(home, 'worker').harness).toBeUndefined();
+    expect(existsSync(join(home, 'projects.json'))).toBe(false);
+    // set before, the same
+    saveAgents(home, { worker: { harness: 'agy' } });
+    await expect(setup().project({ path: docs, git: false, agents: ['claude'] })).rejects.toMatchObject({ code: 'config', message: expect.stringContaining('Antigravity') });
+    // with Claude Code the folder is a project
+    saveAgents(home, { worker: { harness: 'claude' } });
+    expect(await setup().project({ path: docs, git: false, agents: ['claude', 'codex'] })).toMatchObject({ project: 'dokumente', branch: '' });
   });
 
   test('a repository whose settings say clones gets clones', async () => {

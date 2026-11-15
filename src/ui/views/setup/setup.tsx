@@ -8,7 +8,7 @@
  */
 
 import { Fragment, type ReactNode, useEffect, useRef, useState } from 'react';
-import { CLOUD_PRESETS, CLOUD_VOICES, type CloudPreset, type GitSetupPreview, LARGE_FILE, type Language, type MachineItem, type MachineSection, type MachineSectionId, type MachineView, type MobileId, RECOMMENDED_SECTIONS, type SetupItem, type VoiceSetupItem } from '../../../core/types';
+import { type AgentSetting, CLOUD_PRESETS, CLOUD_VOICES, type CloudPreset, firstProjectHarness, type GitSetupPreview, needsGit, LARGE_FILE, type Language, type MachineItem, type MachineSection, type MachineSectionId, type MachineView, type MobileId, RECOMMENDED_SECTIONS, type SetupItem, type VoiceSetupItem } from '../../../core/types';
 import { LANGUAGES } from '../../../core/locale';
 import { api, reload } from '../../api';
 import { useCopy } from '../../copy';
@@ -21,7 +21,7 @@ import { Checkbox } from '../../components/checkbox';
 import { CheckLabel } from '../../components/check-label';
 import { Badge } from '../../components/badge';
 import { Spinner } from '../../components/spinner';
-import { Callout, type CalloutKind, CalloutTitle } from '../../components/callout';
+import { Callout, CalloutDescription, type CalloutKind, CalloutTitle } from '../../components/callout';
 import { Check, CircleCheck, Info, TriangleAlert } from 'lucide-react';
 import { Input } from '../../components/input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../../components/collapsible';
@@ -719,6 +719,9 @@ function FirstProject({ view, ready, agents, onView }: { view: MachineView; read
   }, [job?.running, job?.project]);
   const branch = saved?.branch ?? found?.branch;
   const noGit = !!found?.noGit;
+  // the harness the project's workers will run in: one set before stays, else the first project's from the agents configured
+  const worker = useWorkerSetting();
+  const harness = worker ? (worker.harness ?? firstProjectHarness(agents)) : undefined;
   // once Seismic runs with the project (by itself, or started again by the owner), the page opens it
   const opened = useRef(false);
   useEffect(() => {
@@ -794,7 +797,7 @@ function FirstProject({ view, ready, agents, onView }: { view: MachineView; read
                 </span>
               </label>
               {branch && <p className="hint setup-branch">{s.first.branch(branch)}</p>}
-              {noGit && <GitSetup key={path.trim()} path={path.trim()} confirm={s.git.confirmProject} onDone={() => create()} onFolder={() => create(true)} />}
+              {noGit && <GitSetup key={path.trim()} path={path.trim()} confirm={s.git.confirmProject} gitOnly={needsGit(harness) ? harness : undefined} onDone={() => create()} onFolder={() => create(true)} />}
             </>
           ) : (
             <>
@@ -838,6 +841,15 @@ function useFolder(path: string): { branch?: string; noGit?: boolean } | null {
   return found?.path === path ? found : null;
 }
 
+/** Configuration's setting for workers ("Agents and models"), as saved; null until it has loaded. */
+export function useWorkerSetting(): AgentSetting | null {
+  const [setting, setSetting] = useState<AgentSetting | null>(null);
+  useEffect(() => {
+    api.agents().then((v) => setSetting(v.agents.worker), () => {});
+  }, []);
+  return setting;
+}
+
 /** The path, once Seismic found a folder without git there (where git can be set up); else empty. */
 export const useFolderWithoutGit = (path: string) => (useFolder(path)?.noGit ? path : '');
 
@@ -856,9 +868,9 @@ const IGNORED_SHOWN = 12;
  * (`onFolder`), or setting up git there: what the first commit holds (the folder's entries with
  * their sizes, large files marked, what stays out, the `.gitignore` Seismic writes), and only once the
  * owner confirms, the repository with its first commit. The first project and "+ Repository" in the
- * configuration both show it.
+ * configuration both show it. Where the workers run in a harness that needs git (`gitOnly`), only setting it up is offered, and why.
  */
-export function GitSetup({ path, confirm, onDone, onFolder }: { path: string; confirm: string; onDone: (branch: string) => void; onFolder: () => void }) {
+export function GitSetup({ path, confirm, gitOnly, onDone, onFolder }: { path: string; confirm: string; gitOnly?: 'codex' | 'agy' | undefined; onDone: (branch: string) => void; onFolder: () => void }) {
   const [preview, setPreview] = useState<GitSetupPreview | null>(null);
   const [busy, setBusy] = useState<'looking' | 'working' | null>(null);
   const [error, setError] = useState('');
@@ -890,13 +902,23 @@ export function GitSetup({ path, confirm, onDone, onFolder }: { path: string; co
     <div className="git-setup my-2 mx-0 [&_code]:bg-transparent [&_code]:[border:0] [&_code]:p-0">
       {!p ? (
         <>
-          <p className={gitLineClass}>{s.none}</p>
+          {gitOnly ? (
+            <Callout kind="info" className="git-only max-w-[720px] my-1.5">
+              <Info aria-hidden />
+              <CalloutTitle>{s.gitOnly.title(t.setup.agentNames[gitOnly])}</CalloutTitle>
+              <CalloutDescription>{s.gitOnly.text(t.setup.agentNames[gitOnly])}</CalloutDescription>
+            </Callout>
+          ) : (
+            <p className={gitLineClass}>{s.none}</p>
+          )}
           {/* use the folder as it is, or set up git there; each with what it means */}
           <div className="git-choices grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-2.5 max-w-[720px] my-1.5 mx-0">
-            <button className={gitChoiceClass} disabled={!!busy} onClick={onFolder}>
-              <b>{s.folder}</b>
-              <span className="text-muted-foreground text-xs">{s.folderHint}</span>
-            </button>
+            {!gitOnly && (
+              <button className={gitChoiceClass} disabled={!!busy} onClick={onFolder}>
+                <b>{s.folder}</b>
+                <span className="text-muted-foreground text-xs">{s.folderHint}</span>
+              </button>
+            )}
             <button className={gitChoiceClass} disabled={!!busy} onClick={look}>
               <b>{busy === 'looking' ? s.looking : s.offer}</b>
               <span className="text-muted-foreground text-xs">{s.offerHint}</span>

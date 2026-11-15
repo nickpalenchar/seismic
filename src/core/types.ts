@@ -2983,6 +2983,8 @@ export type ConfigProblemCode =
   | 'noPath'
   /** A path that is no git repository. */
   | 'notRepo'
+  /** A folder without git (`RepoConfig.git` false) whose project's workers run in a harness that needs a Git workstation (`needsGit`). */
+  | 'folderHarness'
   /** A folder without git (`RepoConfig.git` false) whose path is no folder. */
   | 'noFolder'
   /** A repository the project has already, under this path or another. */
@@ -3336,6 +3338,18 @@ export interface AgentSetting {
 /** The coding agents a worker or code review can run in: Claude Code (the default), Codex and Antigravity (`agy`), the latter two in preview. */
 export const HARNESSES = ['claude', 'codex', 'agy'] as const;
 export type Harness = (typeof HARNESSES)[number];
+/** Each harness by its name in what Seismic tells (prompts, problems); the UI has its own in its strings. */
+export const HARNESS_NAMES: Record<Harness, string> = { claude: 'Claude Code', codex: 'Codex', agy: 'Antigravity' };
+
+/** Whether a harness's workers need a local Git workstation, so a folder without git cannot be theirs (Codex and Antigravity, as `portable` has it). */
+export const needsGit = (harness: Harness | undefined): harness is 'codex' | 'agy' => harness === 'codex' || harness === 'agy';
+
+/**
+ * The harness the setup assistant's first project gives workers and code reviews where the owner set none, from the agents found
+ * configured (`MachineSetup.defaultAgent`): none (Claude Code stays) where Claude Code is among them, else the first of the others.
+ */
+export const firstProjectHarness = (configured: readonly string[]): Harness | undefined =>
+  configured.includes('claude') ? undefined : HARNESSES.find((h) => configured.includes(h));
 
 /** The model and effort of `setting` in the harness it names (Claude's aliases for Claude Code). */
 export function harnessChoice(setting: AgentSetting): { model: string; effort: AgentEffort } {

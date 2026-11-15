@@ -1784,6 +1784,7 @@ const en = {
       noPath: 'The path is missing.',
       notRepo: 'There is no git repository at this path.',
       noFolder: 'There is no folder at this path.',
+      folderHarness: 'This project’s workers run in Codex or Antigravity, which work only in a Git repository. Set up git in the folder, or let the project’s workers run in Claude Code.',
       sameRepo: 'The project has this repository already, further up.',
       sameId: 'Same id as another project: please give it another name.',
       nameTaken: 'Another project has this name.',
@@ -2204,6 +2205,10 @@ const en = {
     },
     git: {
       none: 'There is no git repository in this folder yet. Seismic can use it without git or set one up.',
+      gitOnly: {
+        title: (agent: string) => `${agent} needs a git repository`,
+        text: (agent: string) => `There is no git repository in this folder yet, and ${agent} works only in one. Set one up here to use the folder.`,
+      },
       folder: 'Use without git',
       folderHint: 'Cards work directly in the folder, several at once. Nothing is versioned; each card shows what it changed and can take it back.',
       offer: 'Set up a git repository here',

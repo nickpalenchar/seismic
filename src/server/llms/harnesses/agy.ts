@@ -32,6 +32,13 @@ export function installedAgy(env: Record<string, string | undefined> = process.e
   return found && isAbsolute(found) && !/\.(cmd|bat|ps1)$/i.test(found) ? found : null;
 }
 
+/** Whether an Antigravity worker could start on this machine: `agy` is installed and signed in (`agy models` answers), as the setup assistant checks it. */
+export function agyConnected(): boolean {
+  const executable = installedAgy();
+  if (!executable) return false;
+  return spawnSync(executable, ['models'], { env: cleanEnv(), timeout: 5000, stdio: 'ignore', windowsHide: true }).status === 0;
+}
+
 /**
  * The models `agy models` lists, as the picker has them. Every model offers all efforts `agy` knows;
  * the first listed, or the one marked as the default, is the account default.

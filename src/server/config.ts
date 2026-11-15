@@ -14,7 +14,7 @@ import { z } from 'zod';
 import { readShared, REPO_ADAPTER_DIR, REPO_SETTINGS_FILE } from '../adapters';
 import { renamedField, settingsShape, withoutGone as goneSettings } from '../adapters/schema';
 import { LANGUAGES } from '../core/locale';
-import { blockingProblems, type ProjectConfig, type ProjectReposView, type RepoConfig, type ConfigChecked, type ConfigProblem, type ConfigSaved, type ConfigView, type RepoSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type SettingsShared, type SharedSettings, type DemoSettingsProblem, type DemoSettingsView, type DemoVoiceCheck, type ResolvedProject, type VoiceInstallJob, layerSettings, type ProposedSetting, type RepoTrust, type RepoValues, settingPatch, commandLines } from '../core/types';
+import { blockingProblems, type ProjectConfig, type ProjectReposView, type RepoConfig, type ConfigChecked, type ConfigProblem, type ConfigSaved, type ConfigView, type RepoSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type SettingsShared, type SharedSettings, type DemoSettingsProblem, type DemoSettingsView, type DemoVoiceCheck, type ResolvedProject, type VoiceInstallJob, layerSettings, type ProposedSetting, type RepoTrust, type RepoValues, settingPatch, commandLines, HARNESS_NAMES, needsGit, projectAgentSetting } from '../core/types';
 import {
   absoluteDirectory,
   DEMO_SETTINGS_FILE,
@@ -41,7 +41,7 @@ import type { Forge } from './forge';
 import { commitShared, proposeShared, pushShared } from './shared-settings';
 import { gitCalls, gitSteps, leavingClones } from './workstations';
 import { VERSION } from './resources';
-import { projectDefaults, projectSettingsShape, renamedBaselines, tidyProjectSettings, withProjectDefaults } from './settings';
+import { agentSetting, projectDefaults, projectSettingsShape, renamedBaselines, tidyProjectSettings, withProjectDefaults } from './settings';
 import { canonical, commandsOf, heldGroups, trustHeld, trustTakenOver } from './trust';
 
 export const CONFIG_FILE = 'projects.json';
@@ -392,6 +392,10 @@ export function clipProblems(s: DemoSettings): DemoVoiceCheck['clips'] {
   return out;
 }
 
+/** Why a folder without git cannot be a project's while its workers run in `harness`. */
+export const folderHarnessDetail = (harness: 'codex' | 'agy') =>
+  `${HARNESS_NAMES[harness]} works only in a Git repository: set up git in the folder, or let the project's workers run in Claude Code`;
+
 export class Config {
   private restarting = false;
   /** The file as last read, by its time and size: repositories' settings are read from it whenever they are used. */
@@ -660,6 +664,11 @@ export class Config {
             problems.push({ code: 'otherClone', project, repo, detail: `${w} is not a clone of ${origins.join(' or ')} (its origin is ${origin || 'unset'})` });
         }),
       );
+      // workers that need a Git workstation have none in a folder without git: the project's harness, else Configuration's
+      const harness = projectAgentSetting('worker', agentSetting(this.o.server.home, 'worker'), c.agents).harness;
+      c.repos.forEach((r, repo) => {
+        if (r.git === false && needsGit(harness)) problems.push({ code: 'folderHarness', project, repo, detail: folderHarnessDetail(harness) });
+      });
       c.repos.forEach((r, repo) => {
         const branch = r.settings?.branch;
         if (branch && found.get(`${resolve(r.path)}\0${branch}`) === false) problems.push({ code: 'noBranch', project, repo, detail: `${r.path} has no branch ${branch}, neither here nor on origin` });

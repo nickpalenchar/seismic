@@ -143,7 +143,7 @@ export interface WorkerOptions {
   /** Runs the code reviews' agents (the "Code reviews" group, in Claude Code or Codex); `runtime` when left out. */
   reviewRuntime?: AgentRuntime;
   reviewAgentSetting?: () => AgentSetting;
-  /** The agent harnesses that can work on this machine (Claude Code; Codex where it is signed in), for the allow list a setup card drafts; Claude Code alone when left out. */
+  /** The agent harnesses that can work on this machine (each where it is installed and signed in), for the allow list a setup card drafts; Claude Code alone when left out. */
   harnesses?: () => string[];
   /** The directory demos go into on this machine (the demo settings'); `~/demos` when left out. */
   demoDirectory?: () => string;

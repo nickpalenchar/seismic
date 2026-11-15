@@ -5,11 +5,12 @@ import { spawnSync } from 'node:child_process';
 import { GIT } from '../../workstations';
 import { messageOf } from '../../../core/text';
 import { OBEYA_PLUGIN } from '../../demo';
-import { createCodexRuntime } from './codex';
-import { createAgyRuntime } from './agy';
+import { claudeConnected } from './claude';
+import { codexConnected, createCodexRuntime } from './codex';
+import { agyConnected, createAgyRuntime } from './agy';
 import { bundledSkills } from '../../skills';
 import type { AgentRuntime, AgentSpec } from '../../runtime';
-import { choosesHarness } from '../../../core/types';
+import { choosesHarness, HARNESS_NAMES, HARNESSES, type Harness } from '../../../core/types';
 
 /** Only Seismic's bundled plugin is portable here, by explicit file-based skill instructions. */
 function portable(spec: AgentSpec, name = 'Codex'): AgentSpec {
@@ -23,6 +24,14 @@ function portable(spec: AgentSpec, name = 'Codex'): AgentSpec {
   const { plugins: _, permissionMode: __, ...rest } = spec;
   return { ...rest, system: `${spec.system}\n\nSeismic skills are available as files, not Claude slash commands. Read the matching SKILL.md before using a skill, resolving its relative paths against its directory.\n${skills.join('\n')}\nUse the Seismic ask tool for owner questions, not a native terminal dialog.` };
 }
+
+/** The harnesses a worker could start in on this machine, each installed and signed in; checked anew at each call. */
+export function connectedHarnesses(connected: Record<Harness, () => boolean> = { claude: claudeConnected, codex: codexConnected, agy: agyConnected }): Harness[] {
+  return HARNESSES.filter((h) => connected[h]());
+}
+
+/** `connectedHarnesses` by name, for a prompt; `own` (the harness asking) where none answered, as it runs at least. */
+export const harnessNames = (own: Harness, found: Harness[] = connectedHarnesses()) => (found.length ? found : [own]).map((h) => HARNESS_NAMES[h]);
 
 export function workerHarnessRuntime(claude: AgentRuntime, codex: AgentRuntime = createCodexRuntime(), agy: AgentRuntime = createAgyRuntime()): AgentRuntime {
   return {

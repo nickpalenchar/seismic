@@ -57,7 +57,7 @@ import { fileForge } from './file-forge';
 import { NarrationHost } from './narration';
 import { endAgentsHere } from './runtime';
 import { claudeExecutable, sdkRuntime } from './llms/harnesses/claude';
-import { workerHarnessRuntime } from './llms/harnesses';
+import { connectedHarnesses, workerHarnessRuntime } from './llms/harnesses';
 import { claim, release, restarting, running, takenOver } from './instance';
 import { recordingRuntime, replayRuntime } from './replay';
 import { MachineSetup, welcome } from './machine';
@@ -327,6 +327,7 @@ projects = new Projects(
     asksFeedback: () => feedbackPromptView(home).on,
     agents: (role) => agentSetting(home, role),
     codexAutoReview: () => agentsView(home).codexAutoReview,
+    harnesses: connectedHarnesses,
     settings: (path) => config.repoSettings(path),
   },
   // the project the setup assistant created gets a first card that says what to try

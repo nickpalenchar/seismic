@@ -10,7 +10,7 @@ import { forwardRef, Fragment, lazy, type ReactNode, Suspense, useContext, useEf
 import { OpenPerformance } from './performance';
 import { allowsDemo, HANDOVER_ARTIFACTS } from '../../plugin/skills/demo/lib/artifacts.ts';
 import { DEFAULT_STYLE, QWEN3_SPEAKER, QWEN3_SPEAKERS, qwen3IsClone, qwen3Speaker, STYLED_VOICES } from '../../plugin/skills/demo/lib/voice-choices.ts';
-import { AGENT_EFFORTS, AGENT_MODELS, AGENT_ROLES, choosesHarness, CARD_ARCHIVING, type CardArchiving, RIGHT_CLICK, type RightClick, CODE_REVIEW_MODES, type CodeReviewSetting, HARNESS_ROLES, type AgentEffort, type AgentModel, type AgentRole, type AgentSetting, type CodexModel, type Harness, type AgentsView, blockingProblems, type ProjectConfig, type ProjectDefaults, type ProjectDefaultsView, type ProjectSettings, type ConfigChecked, type DeveloperView, type ConfigProblem, type ConfigProblemCode, type ConfigView, commandLines, type DemoSettings, type HandoverArtifact, type DemoSettingsView, type DemoSpaceView, type DemoVoiceCheck, type FilledClones, type ProjectDemoSite, type ProjectDemoSiteState, type DemoSitesView, type TagProposalJob, type Language, type HostConfig, type LanguageView, type NarrationLanguage, restartsAgents, type RepoConfig, type RepoSettings, type RepoTrust, type RepoValues, type ResolvedProject, type SettingsShared, type SettingValue, layerSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type PageTags, type SetupCheck, START_FAILED, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type FeedbackPromptView, type NotificationsView, type VoiceKind, type VoiceSetupView, withClones } from '../core/types';
+import { AGENT_EFFORTS, AGENT_MODELS, AGENT_ROLES, choosesHarness, needsGit, projectAgentSetting, CARD_ARCHIVING, type CardArchiving, RIGHT_CLICK, type RightClick, CODE_REVIEW_MODES, type CodeReviewSetting, HARNESS_ROLES, type AgentEffort, type AgentModel, type AgentRole, type AgentSetting, type CodexModel, type Harness, type AgentsView, blockingProblems, type ProjectConfig, type ProjectDefaults, type ProjectDefaultsView, type ProjectSettings, type ConfigChecked, type DeveloperView, type ConfigProblem, type ConfigProblemCode, type ConfigView, commandLines, type DemoSettings, type HandoverArtifact, type DemoSettingsView, type DemoSpaceView, type DemoVoiceCheck, type FilledClones, type ProjectDemoSite, type ProjectDemoSiteState, type DemoSitesView, type TagProposalJob, type Language, type HostConfig, type LanguageView, type NarrationLanguage, restartsAgents, type RepoConfig, type RepoSettings, type RepoTrust, type RepoValues, type ResolvedProject, type SettingsShared, type SettingValue, layerSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type PageTags, type SetupCheck, START_FAILED, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type FeedbackPromptView, type NotificationsView, type VoiceKind, type VoiceSetupView, withClones } from '../core/types';
 import { patchOf } from '../core/diff';
 import { parseTagLines, tagLines } from '../core/page-tags';
 import { LANGUAGES } from '../core/locale';
@@ -20,7 +20,7 @@ import { type AddSiteInput, api, reload, type SiteHow } from './api';
 import { keepConfigDraft, keptConfigDraft } from './configDraft';
 import { keep } from './keep';
 import { plain } from './markdown';
-import { demoState, GitSetup, platformName, RecognitionDetail, Setup, SetupList, useFolderWithoutGit, voiceState } from './views/setup';
+import { demoState, GitSetup, platformName, RecognitionDetail, Setup, SetupList, useFolderWithoutGit, useWorkerSetting, voiceState } from './views/setup';
 import { idClass, installClass, installHintClass, jsonClass, pathClass, problemClass, removeClass, rowClass, statusClass, trustClass, trustGroupClass } from './setupClasses';
 import { useFitHeight } from './fitHeight';
 import { useCopy } from './copy';
@@ -2446,6 +2446,10 @@ function ProjectBlock({ n, project, file, checking, resolved, running, pin, save
   }, [focus, resolved?.id]);
   const at = Math.min(tab, project.repos.length - 1);
   const repo = project.repos[at];
+  // the harness the project's workers run in: one that needs git leaves a folder without it no choice but setting it up
+  const worker = useWorkerSetting();
+  const harness = worker ? projectAgentSetting('worker', worker, project.agents).harness : undefined;
+  const gitOnly = needsGit(harness) ? harness : undefined;
   return (
     <div className="cfg-project pb-2">
       <header className={K.cfgHeadClass()}>
@@ -2558,6 +2562,7 @@ function ProjectBlock({ n, project, file, checking, resolved, running, pin, save
         <RepoRow
           key={at}
           repo={repo}
+          gitOnly={gitOnly}
           home={at === 0}
           resolved={resolved?.repos[at]}
           {...(resolved ? { projectId: resolved.id } : {})}
@@ -2581,6 +2586,8 @@ function ProjectBlock({ n, project, file, checking, resolved, running, pin, save
 
 interface RepoProps {
   repo: RepoConfig;
+  /** The harness that needs git which the project's workers run in, where they do: a folder without git is no choice then. */
+  gitOnly?: 'codex' | 'agy' | undefined;
   home: boolean;
   resolved?: ResolvedProject['repos'][number];
   /** The project the repository is on, as checked: where a card for it goes, once the dialog's changes are saved. */
@@ -2617,7 +2624,7 @@ function withField<K extends keyof RepoConfig>(repo: RepoConfig, k: K, v: RepoCo
   return next;
 }
 
-function RepoRow({ repo, home, resolved, projectId, problems, focus, where, ask, onRecheck, takeover, onChange }: RepoProps) {
+function RepoRow({ repo, gitOnly, home, resolved, projectId, problems, focus, where, ask, onRecheck, takeover, onChange }: RepoProps) {
   const clonesBox = useRef<HTMLDivElement>(null);
   const [flash, setFlash] = useState(false);
   useEffect(() => {
@@ -2644,7 +2651,7 @@ function RepoRow({ repo, home, resolved, projectId, problems, focus, where, ask,
           <RemoveButton label={t.config.removeRepo} onClick={() => onChange(null)} />
         </div>
       </Field>
-      <RepoProblems repo={repo} resolved={resolved} problems={problems} where={where} ask={ask} onRecheck={onRecheck} onFolder={() => onChange({ path: repo.path, git: false, ...(repo.settings ? { settings: repo.settings } : {}) })} />
+      <RepoProblems repo={repo} resolved={resolved} problems={problems} where={where} ask={ask} onRecheck={onRecheck} gitOnly={gitOnly} onFolder={() => onChange({ path: repo.path, git: false, ...(repo.settings ? { settings: repo.settings } : {}) })} />
       {/* a repository without settings of its own, or with an adapter module that said them: a card on its project writes them, also before the project is saved */}
       {projectId && resolved && !folder && (resolved.adapterGone || !fromRepository(resolved.values)) && <AdapterSetup project={projectId} repo={resolved.id} takeover={takeover} />}
       <Workstations ref={clonesBox} flash={flash} repo={repo} resolved={resolved} onChange={onChange} />
@@ -2668,7 +2675,7 @@ function RepoRow({ repo, home, resolved, projectId, problems, focus, where, ask,
  * What is wrong with a repository, each problem with what fixes it where it can be fixed here:
  * setting up git in a folder without it, trusting the repository's commands.
  */
-export function RepoProblems({ repo, resolved, problems, where, ask, onRecheck, onFolder }: { repo: RepoConfig; resolved: ResolvedProject['repos'][number] | undefined; problems: ConfigProblem[]; where: string; ask?: ((text: string) => void) | undefined; onRecheck: () => void; /** Keeps the folder without git; none where that is chosen in Configuration only. */ onFolder?: () => void }) {
+export function RepoProblems({ repo, resolved, problems, where, ask, onRecheck, gitOnly, onFolder }: { repo: RepoConfig; resolved: ResolvedProject['repos'][number] | undefined; problems: ConfigProblem[]; where: string; ask?: ((text: string) => void) | undefined; onRecheck: () => void; /** The harness that needs git which the workers run in (`GitSetup`). */ gitOnly?: 'codex' | 'agy' | undefined; /** Keeps the folder without git; none where that is chosen in Configuration only. */ onFolder?: () => void }) {
   // a path without a repository that is a folder: git can be set up there
   const noGit = useFolderWithoutGit(problems.some((p) => p.code === 'notRepo') ? repo.path.trim() : '');
   return (
@@ -2676,7 +2683,7 @@ export function RepoProblems({ repo, resolved, problems, where, ask, onRecheck, 
       {problems.map((p, k) => (
         <div key={k} className="cfg-repo-problem mt-0.5 mx-0 mb-2">
           <Problem problem={p} where={where} ask={ask} retried={ask && onRecheck} />
-          {p.code === 'notRepo' && noGit && onFolder && <GitSetup key={noGit} path={noGit} confirm={t.setup.git.confirm} onDone={onRecheck} onFolder={onFolder} />}
+          {p.code === 'notRepo' && noGit && onFolder && <GitSetup key={noGit} path={noGit} confirm={t.setup.git.confirm} gitOnly={gitOnly} onDone={onRecheck} onFolder={onFolder} />}
           {p.code === 'untrusted' && resolved?.trust && <TrustCommands path={repo.path} trust={resolved.trust} onDone={onRecheck} />}
         </div>
       ))}

@@ -6,8 +6,10 @@
 import { seismicEnv } from '../../../core/env';
 import { createSdkMcpServer, type HookInput, type HookJSONOutput, type PermissionUpdate, query, type SDKRateLimitInfo, type SDKResultMessage, type SDKUserMessage, tool } from '@anthropic-ai/claude-agent-sdk';
 import { randomUUID } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { basename, join, resolve } from 'node:path';
 import { LOST, remote, sessionFiles, type SshHost } from '../../hosts';
 import { localBin, which } from '../../path';
 import { filesIn } from '../../files';
@@ -35,6 +37,34 @@ export function claudeExecutable(env: Record<string, string | undefined> = proce
   const onPath = which('claude', env);
   // npm's `claude.cmd` on Windows is no program to start; the installer's binary is
   return onPath && !/\.(cmd|bat|ps1)$/i.test(onPath) ? onPath : installed;
+}
+
+/** The binary the SDK brings for this platform, where the checkout has it. */
+export function sdkClaude(platform: string, arch: string): string | null {
+  const require = createRequire(import.meta.path);
+  for (const name of [`${platform}-${arch}`, `${platform}-${arch}-musl`]) {
+    try {
+      const dir = resolve(require.resolve(`@anthropic-ai/claude-agent-sdk-${name}/package.json`), '..');
+      const bin = join(dir, platform === 'win32' ? 'claude.exe' : 'claude');
+      if (existsSync(bin)) return bin;
+    } catch {}
+  }
+  return null;
+}
+
+/**
+ * Whether a Claude Code worker could start on this machine: the Claude Code the agents run on (from the checkout,
+ * the machine's or else the SDK's) answers and is logged in (`claude auth status`), as the setup assistant checks it.
+ */
+export function claudeConnected(env: Record<string, string | undefined> = process.env): boolean {
+  const executable = claudeExecutable(env) ?? which('claude', env) ?? sdkClaude(process.platform, process.arch);
+  if (!executable) return false;
+  const r = spawnSync(executable, ['auth', 'status'], { env: cleanEnv(), encoding: 'utf8', timeout: 5000, windowsHide: true });
+  try {
+    return !!(JSON.parse(r.stdout || '{}') as { loggedIn?: boolean }).loggedIn;
+  } catch {
+    return false;
+  }
 }
 
 /** Runs agents through the Claude Agent SDK, on the Claude Code login of the machine. */

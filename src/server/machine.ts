@@ -11,25 +11,24 @@
 
 import { spawn } from 'node:child_process';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
 import { homedir, userInfo } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 // by its path: the package exports no package.json, which Bun imports all the same but TypeScript does not
 import sdk from '../../node_modules/@anthropic-ai/claude-agent-sdk/package.json';
 import { DOCUMENT } from '../core/files';
-import { blocksSaving, CLONES, HARNESS_ROLES, HARNESSES, type Harness, type FirstProject, type MachineItem, type MachineJob, type MachineSection, type MachineSectionId, type MachineView, type SetupFolder, type GitSetupPreview } from '../core/types';
+import { blocksSaving, CLONES, firstProjectHarness, HARNESS_ROLES, HARNESSES, needsGit, type Harness, type FirstProject, type MachineItem, type MachineJob, type MachineSection, type MachineSectionId, type MachineView, type SetupFolder, type GitSetupPreview } from '../core/types';
 import { expandHome, readDemoSettings } from '../../plugin/skills/demo/lib/settings.ts';
 import { checkSetup, type LinuxFamily, linuxFamily, output } from '../../plugin/skills/demo/lib/setup.ts';
 import { installVoice } from '../../plugin/skills/demo/lib/voices.ts';
 import { BadRequest } from './board';
 import type { ProjectRuntime } from './project';
-import type { Config } from './config';
+import { folderHarnessDetail, type Config } from './config';
 import { previewGitSetup, setUpGit, withoutGit } from './git-setup';
 import { saveClaudeToken } from './hosts';
 import { repoInfo } from './repo';
 import { COMPILED } from './resources';
 import { agentSetting, saveAgents } from './settings';
-import { claudeExecutable } from './llms/harnesses/claude';
+import { claudeExecutable, sdkClaude } from './llms/harnesses/claude';
 import { installedAgy } from './llms/harnesses/agy';
 import { installedCodex } from './llms/harnesses/codex';
 import { extendPath, freshPath, which } from './path';
@@ -100,19 +99,6 @@ export function runnable(command: string, env: Env, platform: string = process.p
   // the App Store's page of Xcode, and the simulator's iOS runtime, which Xcode downloads itself
   if (program === 'open' && platform === 'darwin' && /^macappstore:\/\/\S+$/.test(args.join(' '))) return [at, ...args];
   if (command === 'xcodebuild -downloadPlatform iOS') return [at, ...args];
-  return null;
-}
-
-/** The binary the SDK brings for this platform, where the checkout has it. */
-function sdkClaude(platform: string, arch: string): string | null {
-  const require = createRequire(import.meta.path);
-  for (const name of [`${platform}-${arch}`, `${platform}-${arch}-musl`]) {
-    try {
-      const dir = resolve(require.resolve(`@anthropic-ai/claude-agent-sdk-${name}/package.json`), '..');
-      const bin = join(dir, platform === 'win32' ? 'claude.exe' : 'claude');
-      if (existsSync(bin)) return bin;
-    } catch {}
-  }
   return null;
 }
 
@@ -588,6 +574,9 @@ export class MachineSetup {
 
   /** Adds the repository as a project of its own and saves the configuration; Seismic runs it at once. `folder`: a folder that stays without git. */
   private async add(path: string, folder = false, configured: Harness[] = []): Promise<FirstProject> {
+    // a folder without git is no place for workers that need a Git workstation, set before or set now (the configuration's check sees only those set before)
+    const harness = agentSetting(this.o.home, 'worker').harness ?? firstProjectHarness(configured);
+    if (folder && needsGit(harness)) throw new BadRequest('config', folderHarnessDetail(harness));
     let next = [...this.o.config.current(), { repos: [{ path, ...(folder ? { git: false as const } : {}) }] }];
     let { problems, resolved } = await this.o.config.check(next);
     // a repository whose settings say clones gets two, so two cards can be worked on at once
@@ -609,7 +598,7 @@ export class MachineSetup {
    * them (nothing changes), else the first of Codex and Antigravity. An agent the owner chose before stays.
    */
   private defaultAgent(configured: Harness[]) {
-    const first = configured.includes('claude') ? undefined : configured[0];
+    const first = firstProjectHarness(configured);
     if (!first) return;
     const saved = Object.fromEntries(HARNESS_ROLES.filter((r) => !agentSetting(this.o.home, r).harness).map((r) => [r, { harness: first }]));
     if (Object.keys(saved).length) saveAgents(this.o.home, saved);

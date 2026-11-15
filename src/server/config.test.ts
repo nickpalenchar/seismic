@@ -9,7 +9,7 @@ import { ProjectRuntime, type StartFailure } from './project';
 import { clipProblems, Config, configShape, demoSettingsProblems, readConfigFile } from './config';
 import { Store } from './store';
 import { serve } from './server';
-import { PROJECT_SETTINGS, projectAgentSetting, projectDefaults, projectDefaultsView, ownerLanguage, saveProjectDefaults } from './settings';
+import { PROJECT_SETTINGS, projectAgentSetting, projectDefaults, projectDefaultsView, ownerLanguage, saveAgents, saveProjectDefaults } from './settings';
 import { asOwner, FakeRuntime, noForge, gitRepo, until } from './testing';
 import { git } from './workstations';
 
@@ -147,6 +147,24 @@ describe("Seismic's configuration", async () => {
     expect(checked.projects[0]!.repos[0]).toEqual({ path: docs, git: false });
     expect(checked.resolved[0]!.repos[0]).toMatchObject({ id: 'dokumente', folder: true, values: { checks: { value: ['true'], source: 'repository' } } });
     expect((await c.check([{ repos: [{ path: join(dir, 'nowhere'), git: false }] }])).problems.map((p) => p.code)).toEqual(['noFolder']);
+  });
+
+  test('a folder without git is no project of workers that run in Codex or Antigravity, set in Configuration or by the project', async () => {
+    const c = config('file', []);
+    const docs = join(dir, 'Dokumente');
+    mkdirSync(docs);
+    const folder: ProjectConfig = { repos: [{ path: docs, git: false }] };
+    saveAgents(dir, { worker: { harness: 'agy' } });
+    const checked = await c.check([folder]);
+    expect(checked.problems).toEqual([{ code: 'folderHarness', project: 0, repo: 0, detail: "Antigravity works only in a Git repository: set up git in the folder, or let the project's workers run in Claude Code" }]);
+    expect(checked.problems.every(blocksSaving)).toBe(true);
+    // the project's own Claude Code over Configuration's: the folder is fine
+    expect((await c.check([{ ...folder, agents: { worker: { harness: 'claude' } } }])).problems).toEqual([]);
+    // and the other way round
+    saveAgents(dir, { worker: { harness: 'claude' } });
+    expect((await c.check([{ ...folder, agents: { worker: { harness: 'codex' } } }])).problems.map((p) => p.code)).toEqual(['folderHarness']);
+    // a git repository has no such problem
+    expect((await c.check([{ repos: [{ path: repo('web') }], agents: { worker: { harness: 'codex' } } }])).problems).toEqual([]);
   });
 
   test('finds what keeps a configuration from working, by project and repository', async () => {

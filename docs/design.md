@@ -331,6 +331,12 @@ Safety rules:
   where no harness is set, so a machine without it needs this default for a first task started without a choice to run
   (decided 2026-11-15).
 
+- Codex and Antigravity workers need a local Git workstation. Where a project's workers run in one of them (Configuration's
+  harness, the project's own over it, or the one the first project is about to get), a folder without git is not offered:
+  the setup assistant and "+ Repository" show only setting up git, with a note why, and the configuration's check refuses
+  such a folder (`folderHarness`). A setup card names the harnesses that are installed and signed in on the machine
+  (Claude Code, Codex, Antigravity, each checked as the setup assistant does), not Claude Code by default (decided 2026-11-15).
+
 ## Chapters
 
 - [UI system](design/ui-system.md): how the UI is built (shadcn/ui parts and proven libraries

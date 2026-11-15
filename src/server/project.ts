@@ -16,7 +16,7 @@ import type { RepoAdapter, RepoInfo } from '../adapters/types';
 import type { CardDiff } from '../core/diff';
 import type { Language } from '../core/locale';
 import type { HandoverArtifact } from '../../plugin/skills/demo/lib/artifacts.ts';
-import { AGENT_DEFAULTS, agentListens, type AgentRole, awaited, type Awaited, type AgentSetting, buildableOn, type ProjectConfig, type ProjectDefaults, type ProjectDemoSiteState, type PageTags, prototypeWorkstream, type CardAction, untouched, mergeRank, type CardPatch, type ConfigProblemCode, finished, type Item, layerSettings, nameless, needsYou, parkable, parkableStopping, NEW_REPO_HOLD_MS, pausable, halted, snoozable, SNOOZE_LIMIT, type PendingRestart, plannableAsPlan, plannedToStart, type RepoConfig, type RepoRef, repoShape, type ProposedSetting, type RepoSettings, type SettingsShared, SHARED_FIELDS, type SharedSettings, type Skill, type SpotInput, type TrustGroup, snoozeOf, inParkingLot, type Hold } from '../core/types';
+import { AGENT_DEFAULTS, agentListens, type AgentRole, type Harness, awaited, type Awaited, type AgentSetting, buildableOn, type ProjectConfig, type ProjectDefaults, type ProjectDemoSiteState, type PageTags, prototypeWorkstream, type CardAction, untouched, mergeRank, type CardPatch, type ConfigProblemCode, finished, type Item, layerSettings, nameless, needsYou, parkable, parkableStopping, NEW_REPO_HOLD_MS, pausable, halted, snoozable, SNOOZE_LIMIT, type PendingRestart, plannableAsPlan, plannedToStart, type RepoConfig, type RepoRef, repoShape, type ProposedSetting, type RepoSettings, type SettingsShared, SHARED_FIELDS, type SharedSettings, type Skill, type SpotInput, type TrustGroup, snoozeOf, inParkingLot, type Hold } from '../core/types';
 import { appliedProjectSettings, projectAgentSetting, startAgentSetting } from './settings';
 import { asksAhead, holdsNotes } from '../core/queue';
 import { BadRequest, Board, withQuestions, pathOfRef, repoOfRef, replyNote, type StoredContribution } from './board';
@@ -39,7 +39,7 @@ import { PlanAgents } from './plan-agents';
 import { ghHosts, onGitHub, outsidePlanDir, planHistory, readPlanDocs, watchPlanDocs } from './repo';
 import { boundsOf, GAP, type Place, planDirNoteBox, unionBounds } from '../core/layout';
 import { type AgentRuntime, idleRuntime, withAgentSetting, withCodexTrust, withLimitWait, withRepoTrust, withTrustedAllow } from './runtime';
-import { codexConnected } from './llms/harnesses/codex';
+import { harnessNames } from './llms/harnesses';
 import { bashRules } from './allow-rules';
 import { type TagCard, tagCards } from './llms/skills/tagProposal';
 import { commandsOf, heldGroups, withoutHeld } from './trust';
@@ -113,6 +113,8 @@ export interface ProjectDeps {
   agents?: (role: AgentRole) => AgentSetting;
   /** Whether Codex workers' approvals go to Codex's own automatic review now, not the owner; to the owner when left out (the tests). */
   codexAutoReview?: () => boolean;
+  /** The harnesses a worker could start in on this machine now (`connectedHarnesses`), for the allow list a setup card drafts; the workers' own when left out (the tests). */
+  harnesses?: () => Harness[];
   /** How long a restart of a repository's agents waits for them to pause at most; Seismic's patience for a restart when left out. */
   restartPatienceMs?: number;
   /** How often that restart looks whether they paused; every two seconds when left out. */
@@ -937,7 +939,7 @@ export class ProjectRuntime {
       machineSettings: this.settingsOf(rc),
       allowRules: this.allowRules,
       asOwner: this.asOwner,
-      harnesses: () => ['Claude Code', ...(codexConnected() ? ['Codex'] : [])],
+      harnesses: () => harnessNames(this.agentFor('worker').harness ?? 'claude', deps.harnesses?.() ?? []),
       shares: () => !!repo.ref.share,
       vocabulary: () => this.vocabulary(),
       repo: ref.id,
