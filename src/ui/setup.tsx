@@ -394,7 +394,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
 }
 
 /** The assistant's pane: frost's glass, its commands in the page's mono. */
-const pageClass = 'setup-page frost-pane max-w-[720px] pt-6 px-7 pb-6 [&_code]:font-mono text-xs';
+const pageClass = 'setup-page frost-pane max-w-[720px] pt-6 px-7 pb-6 [&_code]:font-mono [&_code]:text-xs';
 /** Its title, close under the kind above it. */
 const headingClass = 'mt-0.5 mb-0 mx-0';
 /** A block's head: its title, whether it is needed, its size and how much of it is still open. */

@@ -13,7 +13,7 @@ import { cn } from 'cn';
  * colours, an error close under what it is about (over what the parts in them set themselves).
  */
 const inside =
-  '[&_textarea]:w-full [&_[data-slot=check-label]]:[margin:8px_0_0] [&_code]:font-mono text-xs! [&_code]:[overflow-wrap:anywhere]! [&_.warn]:text-warning! [&_.p-error]:[margin:6px_0_0]! [&_.p-error]:text-sm!';
+  '[&_textarea]:w-full [&_[data-slot=check-label]]:mt-2 [&_[data-slot=check-label]]:mb-0 [&_[data-slot=check-label]]:mx-0 [&_code]:font-mono! [&_code]:text-xs! [&_code]:[overflow-wrap:anywhere]! [&_.warn]:text-warning! [&_.p-error]:mt-1.5! [&_.p-error]:mb-0! [&_.p-error]:mx-0! [&_.p-error]:text-sm!';
 
 /** The dim around Configuration and Preferences, which places the box. */
 export const cfgLayerClass = 'z-55 items-stretch p-7 max-[900px]:p-2.5';
@@ -105,7 +105,7 @@ export const cfgFieldClass =
   'cfg-field grid grid-cols-[200px_minmax(0,1fr)] gap-x-6 items-baseline py-2 px-0 text-sm max-[900px]:grid-cols-[1fr] max-[900px]:gap-y-1 [#phone_&]:grid-cols-[150px_minmax(0,1fr)] [#project-settings_&]:grid-cols-[1fr] [#project-settings_&]:gap-y-0.5 [.cfg-project_&]:[align-items:start]';
 export const cfgLabelClass = 'cfg-label text-muted-foreground text-sm [.cfg-project_.cfg-field>&]:pt-2';
 export const cfgControlClass =
-  'cfg-control min-w-0 max-w-[640px] [&>.hint]:[margin:5px_0_0] [&>.hint]:text-sm [&>.hint]:leading-[1.45] [&>.c-path]:w-full [&>.c-path]:max-w-[420px] [&>[data-slot=select-trigger]]:w-full [&>[data-slot=select-trigger]]:max-w-[420px] [&>[data-slot=button]]:mt-1.5';
+  'cfg-control min-w-0 max-w-[640px] [&>.hint]:mt-1 [&>.hint]:mb-0 [&>.hint]:mx-0 [&>.hint]:text-sm [&>.hint]:leading-[1.45] [&>.c-path]:w-full [&>.c-path]:max-w-[420px] [&>[data-slot=select-trigger]]:w-full [&>[data-slot=select-trigger]]:max-w-[420px] [&>[data-slot=button]]:mt-1.5';
 
 /** A repository's setting: where its value comes from beside its name, "Reset" where it is set here; marked a moment when the dialog was opened at it. */
 export const cfgSettingClass = cn(cfgFieldClass, 'cfg-setting [align-items:start] [&_textarea]:max-w-[640px] [&.flash]:animate-[cfg-setting-flash_2.4s_ease-out]');

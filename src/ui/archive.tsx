@@ -92,7 +92,7 @@ function ArchiveEntries({ archived, words, query, onOpen, els }: { archived: Ite
       {days.map(({ day, items }) => (
         <section key={day}>
           <h4 className="mt-2.5 mx-0 mb-1.5 text-2xs uppercase tracking-[.08em] text-muted-foreground">{day}</h4>
-          <ol className="timeline list-none p-0 m-[0_0_4px]">
+          <ol className="timeline list-none p-0 mt-0 mb-1 mx-0">
             {items.map((i) => (
               <li key={i.id} className={timelineRowClass}>
                 <time className="pt-2 text-xs text-muted-foreground tabular-nums text-right">{t.archive.time(new Date(i.archivedAt!))}</time>

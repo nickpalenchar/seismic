@@ -288,7 +288,7 @@ export function PhoneDialog({ onClose, onSection }: { onClose: () => void; onSec
   }
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent id="phone" glass className={`box relative pt-6 px-6 pb-5 w-[680px] max-w-full max-h-full overflow-auto text-base [&_code]:font-mono text-xs [&_code]:[overflow-wrap:anywhere]`}>
+      <DialogContent id="phone" glass className={`box relative pt-6 px-6 pb-5 w-[680px] max-w-full max-h-full overflow-auto text-base [&_code]:font-mono [&_code]:text-xs [&_code]:[overflow-wrap:anywhere]`}>
         <CloseButton label={t.close} className="close absolute right-3.5 top-3" onClick={onClose} />
         <DialogTitle asChild>
           <h2 className="mt-0 mb-4 mx-0 text-2xl">{a.connect}</h2>

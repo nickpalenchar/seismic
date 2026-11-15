@@ -187,7 +187,7 @@ const btnClass =
   'chats-btn inline-flex items-center justify-center relative size-8 flex-none p-0 [border:0] rounded-xs bg-transparent text-muted-foreground cursor-pointer hover:not-disabled:bg-muted hover:not-disabled:text-foreground disabled:opacity-40 disabled:cursor-default [.ph-bar_&]:size-10';
 /** The earlier chats, slid out from the left over the sheet or the panel. */
 const drawerClass =
-  'chats-drawer absolute top-0 bottom-0 left-0 z-31 w-[min(320px,86%)] flex flex-col gap-2.5 pt-4 px-3 pb-[calc(16px+env(safe-area-inset-bottom))] bg-surface border-r border-r-border [box-shadow:var(--lift)] overflow-y-auto overscroll-contain animate-[chats-in_.25s_cubic-bezier(.3,.9,.3,1)] text-base [&_.hint]:[margin:4px_6px]';
+  'chats-drawer absolute top-0 bottom-0 left-0 z-31 w-[min(320px,86%)] flex flex-col gap-2.5 pt-4 px-3 pb-[calc(16px+env(safe-area-inset-bottom))] bg-surface border-r border-r-border [box-shadow:var(--lift)] overflow-y-auto overscroll-contain animate-[chats-in_.25s_cubic-bezier(.3,.9,.3,1)] text-base [&_.hint]:my-1 [&_.hint]:mx-1.5';
 /** A chat in the list; the one open now tinted. */
 const rowClass = 'chat-row flex flex-col items-stretch gap-1 w-full py-2 px-2.5 [border:0] rounded-sm bg-transparent text-foreground text-left cursor-pointer hover:bg-muted';
 const onClass = 'on bg-working/14!';

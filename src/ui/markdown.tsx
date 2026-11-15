@@ -318,16 +318,16 @@ export function Table({ head, rows }: { head: string[]; rows: string[][] }) {
  */
 const docClass = [
   'doc [font-family:var(--font)] text-base leading-[1.55] [overflow-wrap:anywhere]',
-  '[&_h2]:text-2xl [&_h2]:leading-[1.2] [&_h2]:[margin:22px_0_10px] [&_h3]:text-xl [&_h3]:leading-[1.25] [&_h3]:[margin:26px_0_8px]',
-  '[&_:is(h4,h5,h6)]:text-base [&_:is(h4,h5,h6)]:[margin:18px_0_6px] [&_p]:[margin:8px_0] [&_:is(ul,ol)]:[margin:6px_0] [&_:is(ul,ol)]:pl-6 [&_li]:[margin:4px_0]',
+  '[&_h2]:text-2xl [&_h2]:leading-[1.2] [&_h2]:mt-6 [&_h2]:mb-2.5 [&_h2]:mx-0 [&_h3]:text-xl [&_h3]:leading-[1.25] [&_h3]:mt-6 [&_h3]:mb-2 [&_h3]:mx-0',
+  '[&_:is(h4,h5,h6)]:text-base [&_:is(h4,h5,h6)]:mt-4 [&_:is(h4,h5,h6)]:mb-1.5 [&_:is(h4,h5,h6)]:mx-0 [&_p]:my-2 [&_p]:mx-0 [&_:is(ul,ol)]:my-1.5 [&_:is(ul,ol)]:mx-0 [&_:is(ul,ol)]:pl-6 [&_li]:my-1 [&_li]:mx-0',
   '[&_li:is(.open,.done)]:list-none [&_li:is(.open,.done)]:relative [&_li:is(.open,.done)]:before:absolute [&_li:is(.open,.done)]:before:-left-[19px] [&_li:is(.open,.done)]:before:text-muted-foreground',
   "[&_li.open]:before:content-['○'] [&_li.done]:before:content-['✓'] [&_li.done]:before:text-approved! [&_li.done]:before:font-bold",
-  '[&_li.mark]:bg-waiting/16 [&_li.mark]:rounded-xs [&_li.mark]:-ml-6 [&_li.mark]:[padding:6px_10px_6px_26px] [&_li.mark:is(.open,.done)]:before:left-[7px] [&_li.mark:is(.open,.done)]:before:top-1.5',
-  '[&_pre]:bg-muted [&_pre]:rounded-xs [&_pre]:[padding:10px_12px] [&_pre]:overflow-auto [&_pre]:font-mono text-sm/[1.5]',
-  '[&_blockquote]:[margin:10px_0] [&_blockquote]:[padding:2px_0_2px_14px] [&_blockquote]:border-l-[3px] [&_blockquote]:border-l-border [&_blockquote]:text-muted-foreground [&_blockquote>:first-child]:mt-0 [&_blockquote>:last-child]:mb-0',
-  '[&_hr]:[border-width:1px_0_0] [&_hr]:[border-style:solid_none_none] [&_hr]:[border-color:var(--border)_currentcolor_currentcolor] [&_hr]:[margin:18px_0]',
-  '[&_.table-wrap]:overflow-auto [&_.table-wrap]:[margin:10px_0] [&_table]:border-collapse [&_table]:text-base',
-  '[&_:is(th,td)]:text-left [&_:is(th,td)]:align-top [&_:is(th,td)]:[padding:5px_10px] [&_:is(th,td)]:border-b [&_:is(th,td)]:border-b-border [&_th]:font-semibold',
+  '[&_li.mark]:bg-waiting/16 [&_li.mark]:rounded-xs [&_li.mark]:-ml-6 [&_li.mark]:py-1.5 [&_li.mark]:pr-2.5 [&_li.mark]:pl-6 [&_li.mark:is(.open,.done)]:before:left-[7px] [&_li.mark:is(.open,.done)]:before:top-1.5',
+  '[&_pre]:bg-muted [&_pre]:rounded-xs [&_pre]:py-2.5 [&_pre]:px-3 [&_pre]:overflow-auto [&_pre]:font-mono [&_pre]:text-sm/[1.5]',
+  '[&_blockquote]:my-2.5 [&_blockquote]:mx-0 [&_blockquote]:py-0.5 [&_blockquote]:pr-0 [&_blockquote]:pl-3.5 [&_blockquote]:border-l-[3px] [&_blockquote]:border-l-border [&_blockquote]:text-muted-foreground [&_blockquote>:first-child]:mt-0 [&_blockquote>:last-child]:mb-0',
+  '[&_hr]:[border-width:1px_0_0] [&_hr]:[border-style:solid_none_none] [&_hr]:[border-color:var(--border)_currentcolor_currentcolor] [&_hr]:my-4 [&_hr]:mx-0',
+  '[&_.table-wrap]:overflow-auto [&_.table-wrap]:my-2.5 [&_.table-wrap]:mx-0 [&_table]:border-collapse [&_table]:text-base',
+  '[&_:is(th,td)]:text-left [&_:is(th,td)]:align-top [&_:is(th,td)]:py-1 [&_:is(th,td)]:px-2.5 [&_:is(th,td)]:border-b [&_:is(th,td)]:border-b-border [&_th]:font-semibold',
 ].join(' ');
 
 /** A markdown document, as plan docs are written. `mark` highlights the item that starts with it (`W3`). */

@@ -125,7 +125,7 @@ const rowClass = (onCard: boolean, own: boolean) =>
 
 /** A row's grip: dragged to put the row elsewhere; a finger on it does not scroll the list, and is given more room. */
 const gripClass =
-  'grip flex-none flex justify-center w-3 m-[2px_-4px_0_-2px] text-muted-foreground touch-none opacity-70 group-hover/qrow:opacity-100 pointer-coarse:w-7 pointer-coarse:m-[-4px_-8px_-4px_-8px] pointer-coarse:pt-1.5';
+  'grip flex-none flex justify-center w-3 mt-0.5 mb-0 -mr-1 -ml-0.5 text-muted-foreground touch-none opacity-70 group-hover/qrow:opacity-100 pointer-coarse:w-7 pointer-coarse:-my-1 pointer-coarse:-mx-2 pointer-coarse:pt-1.5';
 
 /** The buttons that move a card one place earlier or later (Configuration's project order has them too). */
 export const qmovesClass = 'qmoves inline-flex gap-1 flex-none';

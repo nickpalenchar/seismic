@@ -31,7 +31,7 @@ interface ListProps {
 }
 
 /** A list view's body: the list and the hint above it to a readable width, the hint set apart from the list (over `.hint`'s own size). */
-const listBodyClass = `${fullBodyClass} [&>:is(ul,ol,.hint)]:max-w-[760px] [&>.hint]:m-[4px_0_14px] [&>.hint]:text-sm!`;
+const listBodyClass = `${fullBodyClass} [&>:is(ul,ol,.hint)]:max-w-[760px] [&>.hint]:mt-1 [&>.hint]:mb-3.5 [&>.hint]:mx-0 [&>.hint]:text-sm!`;
 
 /** The view's head: its title, its count and ✕. */
 function Head({ title, n, onClose }: { title: string; n: number; onClose: () => void }) {

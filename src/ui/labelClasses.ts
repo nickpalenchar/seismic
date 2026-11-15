@@ -31,7 +31,7 @@ export const prioClass = (priority: Priority, { suggested, bare }: { suggested?:
     level[priority],
     suggested && 'border border-dashed border-proposal rounded-xs',
     // the padding of a filled or framed mark; the flag alone is tighter
-    framed && (bare ? 'p-[1px_3px] leading-none' : 'pt-0 pb-0 pr-1 pl-1'),
+    framed && (bare ? 'py-px px-1 leading-none' : 'pt-0 pb-0 pr-1 pl-1'),
     suggested && !bare && 'leading-[15px]',
     bare && !framed && 'px-px',
   ]

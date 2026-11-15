@@ -122,7 +122,7 @@ function WaitsFor({ queue, all }: { queue: Behind; all: Item[] }) {
 }
 
 /** The arrow between two covers of the chain, under the middle of the card above it. */
-const chainArrowClass = 'block m-[2.5px_0_2.5px_134px]';
+const chainArrowClass = 'block my-0.5 mr-0 ml-34';
 
 /**
  * The chain a queued card waits in, top to bottom as its waits run on the project: the card it waits
@@ -2015,7 +2015,7 @@ const ARTIFACT_CAP = 30000;
 function Steps({ steps }: { steps: CardEvent[] }) {
   if (!steps.length) return null;
   return (
-    <Collapsible className="steps mt-1.5 text-xs text-muted-foreground [&_ol]:mt-1.5 [&_ol]:mb-0.5 [&_ol]:py-2 [&_ol]:px-2.5 [&_ol]:list-none [&_ol]:bg-muted [&_ol]:rounded-xs [&_ol]:flex [&_ol]:flex-col [&_ol]:gap-1 [&_li]:[overflow-wrap:anywhere] [&_.step-activity]:font-mono text-xs/[1.5] [&_:is(.step-say,.step-closing)]:text-foreground [&_:is(.step-say,.step-closing)_:is(.p-lead,.p-list,.p-table_table)]:m-0 [&_:is(.step-say,.step-closing)_:is(.p-lead,.p-list,.p-table_table)]:text-sm [&_.step-state]:text-idea-strong">
+    <Collapsible className="steps mt-1.5 text-xs text-muted-foreground [&_ol]:mt-1.5 [&_ol]:mb-0.5 [&_ol]:py-2 [&_ol]:px-2.5 [&_ol]:list-none [&_ol]:bg-muted [&_ol]:rounded-xs [&_ol]:flex [&_ol]:flex-col [&_ol]:gap-1 [&_li]:[overflow-wrap:anywhere] [&_.step-activity]:font-mono [&_.step-activity]:text-xs/[1.5] [&_:is(.step-say,.step-closing)]:text-foreground [&_:is(.step-say,.step-closing)_:is(.p-lead,.p-list,.p-table_table)]:m-0 [&_:is(.step-say,.step-closing)_:is(.p-lead,.p-list,.p-table_table)]:text-sm [&_.step-state]:text-idea-strong">
       <CollapsibleTrigger>{t.talk.steps(steps.length)}</CollapsibleTrigger>
       <CollapsibleContent>
       <ol>

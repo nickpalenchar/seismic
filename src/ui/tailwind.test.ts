@@ -140,7 +140,11 @@ test('the UI uses the type, radius and spacing scales', async () => {
   const scales = [
     /(?<![\w-])text-\[(?:length:)?-?[\d.]+(?:px|rem|em|%|pt)\]/,
     /(?<![\w-])rounded(?:-[trblse]{1,2})?-\[(?!inherit\])[^\]]+\]/,
-    /(?<![\w-])(?:p[xytrblse]?|m[xytrblse]?|gap(?:-[xy])?|space-[xy])-\[-?[\d.]+px\]/,
+    // one length or a shorthand of up to four (`p-[1px_3px]`); a calc() over the safe area is layout, not a step
+    /(?<![\w-])(?:p[xytrblse]?|m[xytrblse]?|gap(?:-[xy])?|space-[xy])-\[(?:-?[\d.]+(?:px|rem|em)|0)(?:_(?:-?[\d.]+(?:px|rem|em)|0))*\]/,
+    // the same values written as arbitrary properties (`[margin:8px_0]`, `[font-size:13.5px]`)
+    /\[(?:padding|margin|gap|row-gap|column-gap)(?:-[a-z]+)?:(?:-?[\d.]+(?:px|rem|em)|0)(?:_(?:-?[\d.]+(?:px|rem|em)|0))*\]/,
+    /\[(?:font-size|border(?:-[a-z]+)*-radius):-?[\d.]/,
     /\[font:[^\]]*\d(?:px|rem|em)/,
   ];
   const layout = /\b(?:size|[wh]|top|right|bottom|left|translate-[xy])-\[-?[\d.]+px\]/;
