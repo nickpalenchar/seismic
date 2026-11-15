@@ -672,6 +672,7 @@ describe('handing over with a demo', () => {
     // demos are deleted to free space: one whose files are gone is no longer offered, from the project's next change on
     rmSync(first.dir, { recursive: true, force: true });
     board.work(c.id, { status_line: 'Liest' });
+    await board.filesChecked();
     expect(board.item(c.id)!.demo?.earlier).toBeUndefined();
   });
 

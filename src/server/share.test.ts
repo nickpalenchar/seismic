@@ -901,14 +901,16 @@ describe('sharing many outdated pages again at once', () => {
   test('a page whose demo files were deleted is neither counted nor offered, and drops out of a run', async () => {
     const [a, b, c] = await outdated(3, 2, 1);
     rmSync(join(dir, `demo-${a!.id}`), { recursive: true });
-    // the project shows it with its next change
+    // the project shows it with its next change, once the files were looked at again
     board.changed();
+    await board.filesChecked();
     expect(reshare()).toEqual({ outdated: 2, changes: changes(2) });
     expect(share(a!.id)).toEqual({ state: 'shared', url: expect.stringContaining(SITE_URL) });
     const before = calls().length;
     sharing.reshareMany(null);
     rmSync(join(dir, `demo-${b!.id}`, 'demo.mp4'));
     await until(() => reshare()?.run?.left === 0);
+    await board.filesChecked();
     expect(reshare()).toEqual({ outdated: 0, run: { total: 1, done: 1, failed: [], left: 0 } });
     expect(wrote(before)).toEqual([slug(c!.id)]);
     sharing.dismissResharing();
