@@ -172,6 +172,11 @@ cycling through terminals.
   of their cards; a card that comes back (unarchived, restored, unparked, a plan whose doc returns)
   to a canvas that is gone lands on "main", as do follow-ups and prototypes made from it
   (`homeCanvas`). Rejected: archived cards blocking a delete, or moving to "main" with it.
+- **The setup assistant goes in steps** (2026-11-15): agents (several picked at once, each with
+  what it needs, git shared below them), the features that can wait, then on the first start the
+  first project. Going on from the first step needs one configured agent, which counts only with
+  git ready too; the second never blocks, a callout names what is left out. Rejected: tabs
+  "Needed"/"Recommended" with the first project under the needed ones.
 - **The look is frost, built on shadcn/ui and Tailwind** (2026-11-05, 2026-11-12); see
   [UI system](design/ui-system.md).
 
