@@ -145,6 +145,20 @@ describe('what Seismic needs on this machine', () => {
     expect(section(await setup().view(), 'agents').items[1]).toEqual({ id: 'agyLogin', state: 'ok' });
   });
 
+  test('each check tells which agents are installed and signed in', async () => {
+    const told: string[][] = [];
+    const machine = new MachineSetup({ home, config: config(), env: { PATH: bin }, platform: 'linux', arch: 'x64', compiled: true, onAgents: (found) => void told.push(found) });
+    fake('codex', 'case "$1" in --version) echo "codex-cli 0.169.0";; login) echo "Logged in using ChatGPT";; esac');
+    fake('agy', 'case "$1" in models) exit 1;; esac');
+    fake('claude', 'case "$1" in --version) echo "2.1.300 (Claude Code)";; auth) echo \'{"loggedIn": false}\'; exit 1;; esac');
+    await machine.view();
+    expect(told).toEqual([['codex']]);
+    fake('claude', 'case "$1" in --version) echo "2.1.300 (Claude Code)";; auth) echo \'{"loggedIn":true}\';; esac');
+    fake('agy', 'case "$1" in models) echo "gemini-x\tGemini";; esac');
+    await machine.view();
+    expect(told.at(-1)).toEqual(['claude', 'codex', 'agy']);
+  });
+
   test('offers the official installer for a missing Claude Code, and the logins once logged in', async () => {
     fake('git', 'case "$1" in --version) echo "git version 2.45.0";; config) echo "Ada";; esac');
     fake('gh', 'case "$1" in --version) echo "gh version 2.60.0 (2024-10-01)";; auth) echo "  ✓ Logged in to github.com account ada (keyring)";; esac');

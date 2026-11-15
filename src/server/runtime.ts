@@ -2,7 +2,7 @@
 
 import { LimitAttempts, limitWatch } from './limit-watch';
 import { type PermissionMode, type PermissionUpdate, type SpawnedProcess, type SpawnOptions } from '@anthropic-ai/claude-agent-sdk';
-import { type ChildProcess, spawn } from 'node:child_process';
+import { type ChildProcess, execFile, spawn } from 'node:child_process';
 import { endSessionsHere } from './llms/harnesses/codexRpc';
 import { agentIdentity } from './llms/harnesses/identity';
 import { allowed } from './allow-rules';
@@ -493,4 +493,11 @@ export const idleRuntime: AgentRuntime = {
  */
 export function cleanEnv(env: Record<string, string | undefined> = process.env): Record<string, string | undefined> {
   return Object.fromEntries(Object.entries(env).filter(([k]) => k === 'CLAUDE_CODE_OAUTH_TOKEN' || !/^(CLAUDE_CODE_|CLAUDECODE$|CLAUDE_PID$|SEISMIC_SUPERVISED$|SEISMIC_FROM_APP$|OBEYA_SUPERVISED$|OBEYA_FROM_APP$|BUN_BE_BUN$)/.test(k)));
+}
+
+/** What an agent's command line printed once it exited well within `timeout` ms, in the agents' environment; null otherwise. Never holds up the server. */
+export function answered(command: string, args: string[], timeout = 5000): Promise<string | null> {
+  return new Promise((resolve) => {
+    execFile(command, args, { env: cleanEnv(), timeout, maxBuffer: 1 << 20, windowsHide: true }, (error, stdout) => resolve(error ? null : String(stdout)));
+  });
 }

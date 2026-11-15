@@ -2,11 +2,11 @@ import { afterEach, expect, test } from 'bun:test';
 import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { AGENT_DEFAULTS } from '../../../core/types';
+import { AGENT_DEFAULTS, type Harness } from '../../../core/types';
 import { OBEYA_PLUGIN } from '../../demo';
 import { withAgentSetting, type AgentEvent, type AgentSpec } from '../../runtime';
 import { FakeRuntime, gitRepo } from '../../testing';
-import { connectedHarnesses, harnessNames, workerHarnessRuntime } from './';
+import { connectedHarnesses, HarnessCheck, harnessNames, workerHarnessRuntime } from './';
 import { createCodexRuntime } from './codex';
 
 const dirs: string[] = [];
@@ -110,10 +110,42 @@ test('an agy worker routes to Antigravity with portable skills; its sessions are
   expect(agy.sessions).toHaveLength(2);
 });
 
-test('names the harnesses installed and signed in on this machine, Antigravity included; the asking one where none answers', () => {
-  const on = (...hs: string[]) => ({ claude: () => hs.includes('claude'), codex: () => hs.includes('codex'), agy: () => hs.includes('agy') });
-  expect(connectedHarnesses(on('agy', 'codex'))).toEqual(['codex', 'agy']);
-  expect(harnessNames('codex', connectedHarnesses(on('codex', 'agy')))).toEqual(['Codex', 'Antigravity']);
-  expect(harnessNames('claude', connectedHarnesses(on('claude', 'codex', 'agy')))).toEqual(['Claude Code', 'Codex', 'Antigravity']);
+test('names the harnesses installed and signed in on this machine, Antigravity included; the asking one where none answers', async () => {
+  const on = (...hs: string[]) => ({ claude: async () => hs.includes('claude'), codex: async () => hs.includes('codex'), agy: async () => hs.includes('agy') });
+  expect(await connectedHarnesses(on('agy', 'codex'))).toEqual(['codex', 'agy']);
+  // a check that fails counts as not signed in
+  expect(await connectedHarnesses({ ...on('codex'), claude: () => Promise.reject(new Error('gone')) })).toEqual(['codex']);
+  expect(harnessNames('codex', await connectedHarnesses(on('codex', 'agy')))).toEqual(['Codex', 'Antigravity']);
+  expect(harnessNames('claude', await connectedHarnesses(on('claude', 'codex', 'agy')))).toEqual(['Claude Code', 'Codex', 'Antigravity']);
   expect(harnessNames('agy', [])).toEqual(['Antigravity']);
+});
+
+test('the harness check never keeps a caller waiting: it answers with what the last check found and checks again in the background once that is stale', async () => {
+  let clock = 0;
+  let calls = 0;
+  let answer: (found: Harness[]) => void = () => {};
+  const check = new HarnessCheck(() => (calls++, new Promise<Harness[]>((r) => (answer = r))), 60_000, () => clock);
+  // nothing known yet: an answer at once, the check under way
+  expect(check.current()).toEqual([]);
+  expect(check.current()).toEqual([]);
+  expect(calls).toBe(1);
+  const first = check.refresh();
+  answer(['codex']);
+  await first;
+  expect(check.current()).toEqual(['codex']);
+  expect(calls).toBe(1);
+  // the setup assistant's check counts as fresh
+  clock = 50_000;
+  check.set(['claude', 'codex']);
+  clock = 100_000;
+  expect(check.current()).toEqual(['claude', 'codex']);
+  const before = calls;
+  // stale: the last finding still answers while the next runs
+  clock = 200_000;
+  expect(check.current()).toEqual(['claude', 'codex']);
+  expect(calls).toBe(before + 1);
+  const next = check.refresh();
+  answer(['agy']);
+  await next;
+  expect(check.current()).toEqual(['agy']);
 });

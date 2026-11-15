@@ -335,7 +335,9 @@ Safety rules:
   harness, the project's own over it, or the one the first project is about to get), a folder without git is not offered:
   the setup assistant and "+ Repository" show only setting up git, with a note why, and the configuration's check refuses
   such a folder (`folderHarness`). A setup card names the harnesses that are installed and signed in on the machine
-  (Claude Code, Codex, Antigravity, each checked as the setup assistant does), not Claude Code by default (decided 2026-11-15).
+  (Claude Code, Codex, Antigravity, each checked as the setup assistant does), not Claude Code by default. Those logins are
+  checked in the background (`HarnessCheck`: from the server's start, by each setup assistant check, and again once a minute
+  old), never while a card starts: a CLI that hangs would otherwise hold up the whole server (decided 2026-11-15).
 
 ## Chapters
 

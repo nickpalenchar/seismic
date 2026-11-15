@@ -18,7 +18,7 @@ import { AGENT_EFFORTS, type CodexModel } from '../../../core/types';
 import { messageOf } from '../../../core/text';
 import { which } from '../../path';
 import { OWN_GROUP } from '../../spawn';
-import { cleanEnv, type AgentEvent, type AgentRuntime, type AgentSpec } from '../../runtime';
+import { answered, cleanEnv, type AgentEvent, type AgentRuntime, type AgentSpec } from '../../runtime';
 import { AGY_CONVERSATION_ID } from '../../transcript';
 import { agyBrainDir, agyTranscriptLog, TranscriptTail, type AgyTask } from './agyTasks';
 import { AgentProcesses, onceClosed, tolerateTimeouts, untilIdentified } from './processes';
@@ -33,10 +33,9 @@ export function installedAgy(env: Record<string, string | undefined> = process.e
 }
 
 /** Whether an Antigravity worker could start on this machine: `agy` is installed and signed in (`agy models` answers), as the setup assistant checks it. */
-export function agyConnected(): boolean {
+export async function agyConnected(): Promise<boolean> {
   const executable = installedAgy();
-  if (!executable) return false;
-  return spawnSync(executable, ['models'], { env: cleanEnv(), timeout: 5000, stdio: 'ignore', windowsHide: true }).status === 0;
+  return !!executable && (await answered(executable, ['models'], 15_000)) !== null;
 }
 
 /**

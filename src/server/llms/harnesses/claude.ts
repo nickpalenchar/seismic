@@ -6,7 +6,6 @@
 import { seismicEnv } from '../../../core/env';
 import { createSdkMcpServer, type HookInput, type HookJSONOutput, type PermissionUpdate, query, type SDKRateLimitInfo, type SDKResultMessage, type SDKUserMessage, tool } from '@anthropic-ai/claude-agent-sdk';
 import { randomUUID } from 'node:crypto';
-import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { basename, join, resolve } from 'node:path';
@@ -19,7 +18,7 @@ import type { Messages } from '../../../core/messages';
 import type { ToolCall } from '../../folder';
 import { messageOf } from '../../../core/text';
 import { claudeLoginFailed } from '../../../core/login';
-import { type AgentRuntime, type AgentSpec, type AgentTool, cleanEnv, type DeniedBy, spawnHere, withStderr } from '../../runtime';
+import { answered, type AgentRuntime, type AgentSpec, type AgentTool, cleanEnv, type DeniedBy, spawnHere, withStderr } from '../../runtime';
 
 const READ_ONLY_TOOLS = ['Read', 'Grep', 'Glob'];
 
@@ -56,12 +55,11 @@ export function sdkClaude(platform: string, arch: string): string | null {
  * Whether a Claude Code worker could start on this machine: the Claude Code the agents run on (from the checkout,
  * the machine's or else the SDK's) answers and is logged in (`claude auth status`), as the setup assistant checks it.
  */
-export function claudeConnected(env: Record<string, string | undefined> = process.env): boolean {
+export async function claudeConnected(env: Record<string, string | undefined> = process.env): Promise<boolean> {
   const executable = claudeExecutable(env) ?? which('claude', env) ?? sdkClaude(process.platform, process.arch);
   if (!executable) return false;
-  const r = spawnSync(executable, ['auth', 'status'], { env: cleanEnv(), encoding: 'utf8', timeout: 5000, windowsHide: true });
   try {
-    return !!(JSON.parse(r.stdout || '{}') as { loggedIn?: boolean }).loggedIn;
+    return !!(JSON.parse((await answered(executable, ['auth', 'status'])) ?? '{}') as { loggedIn?: boolean }).loggedIn;
   } catch {
     return false;
   }

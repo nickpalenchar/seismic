@@ -13,7 +13,7 @@ import { z } from 'zod';
 import { messageOf } from '../../../core/text';
 import { sessionRegistry } from './sessionRegistry';
 import { codexConnection, CodexRpcError, type CodexConnection, type CodexHandlers } from './codexRpc';
-import { cleanEnv, type AgentEvent, type AgentRuntime, type AgentSpec } from '../../runtime';
+import { answered, cleanEnv, type AgentEvent, type AgentRuntime, type AgentSpec } from '../../runtime';
 
 // Codex reserves mcp__ names for actual MCP servers. Keep its wire name separate from the
 // canonical identity consumed by Seismic's existing orchestration.
@@ -118,11 +118,9 @@ export function installedCodex(env: Record<string, string | undefined> = process
 }
 
 /** Whether a Codex worker could start on this machine: Codex is installed and signed in (`codex login status`). */
-export function codexConnected(): boolean {
+export async function codexConnected(): Promise<boolean> {
   const executable = installedCodex();
-  if (!executable) return false;
-  const r = spawnSync(executable, ['login', 'status'], { env: cleanEnv(), timeout: 5000, stdio: 'ignore' });
-  return r.status === 0;
+  return !!executable && (await answered(executable, ['login', 'status'])) !== null;
 }
 
 type Connect = (spec: AgentSpec, handlers: CodexHandlers) => CodexConnection;

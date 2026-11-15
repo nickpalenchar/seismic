@@ -226,6 +226,8 @@ export interface MachineOptions {
   arch?: string;
   /** Whether this is the compiled binary, which runs the machine's Claude Code rather than the SDK's. */
   compiled?: boolean;
+  /** Told after each check which harnesses are installed and signed in (`HarnessCheck.set`). */
+  onAgents?: (found: Harness[]) => void;
 }
 
 /** What the check found, with how Seismic acts on each piece. */
@@ -384,6 +386,9 @@ export class MachineSetup {
       platform === 'darwin' ? mobilePart() : null,
     ]);
     const needed = [...claudeItems, ...gitItems];
+    const ok = (items: MachineItem[], ...ids: string[]) => ids.every((id) => items.some((i) => i.id === id && i.state === 'ok'));
+    const signedIn: Record<Harness, boolean> = { claude: ok(claudeItems, 'claude', 'claudeLogin'), codex: ok(codexItems, 'codex', 'codexLogin'), agy: ok(agyItems, 'agy', 'agyLogin') };
+    this.o.onAgents?.(HARNESSES.filter((h) => signedIn[h]));
     // uv by its own installer, which needs no admin rights; the rest as the voice and demo checks say
     const ownUv = (i: MachineItem): MachineItem => (i.id === 'uv' && i.state === 'missing' ? missing({ id: 'uv', install: hint('uv') }) : i);
     const voiceItems = (voice?.items ?? []).map((i): MachineItem => {

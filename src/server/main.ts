@@ -57,7 +57,7 @@ import { fileForge } from './file-forge';
 import { NarrationHost } from './narration';
 import { endAgentsHere } from './runtime';
 import { claudeExecutable, sdkRuntime } from './llms/harnesses/claude';
-import { connectedHarnesses, workerHarnessRuntime } from './llms/harnesses';
+import { HarnessCheck, workerHarnessRuntime } from './llms/harnesses';
 import { claim, release, restarting, running, takenOver } from './instance';
 import { recordingRuntime, replayRuntime } from './replay';
 import { MachineSetup, welcome } from './machine';
@@ -305,6 +305,9 @@ const config = new Config({
     : {}),
 });
 const runtime = agentRuntime();
+// which agents are signed in on this machine, for a setup card's allow list: checked in the background from the start, never while a card starts
+const harnessCheck = new HarnessCheck();
+void harnessCheck.refresh();
 projects = new Projects(
   configs,
   {
@@ -327,7 +330,7 @@ projects = new Projects(
     asksFeedback: () => feedbackPromptView(home).on,
     agents: (role) => agentSetting(home, role),
     codexAutoReview: () => agentsView(home).codexAutoReview,
-    harnesses: connectedHarnesses,
+    harnesses: () => harnessCheck.current(),
     settings: (path) => config.repoSettings(path),
   },
   // the project the setup assistant created gets a first card that says what to try
@@ -353,7 +356,7 @@ const updates = new AppUpdates();
 const sources = own ? new SourceUpdates(own) : undefined;
 // the plans' usage limits in the bar, Claude Code's and Codex's, while the owner has it show them and a page is open
 const usage = [new UsageMeter(() => claudeUsage(home), { on: usageMeterView(home).on }), new UsageMeter(() => codexUsage(), { on: usageMeterView(home).on })];
-const machine = new MachineSetup({ home, config, voice: voiceSetup });
+const machine = new MachineSetup({ home, config, voice: voiceSetup, onAgents: (found) => harnessCheck.set(found) });
 // the project the assistant created gets a first card that says what to try
 welcome(home, projects.all());
 const shutdown = async (code: number, forced = false) => {

@@ -25,13 +25,48 @@ function portable(spec: AgentSpec, name = 'Codex'): AgentSpec {
   return { ...rest, system: `${spec.system}\n\nSeismic skills are available as files, not Claude slash commands. Read the matching SKILL.md before using a skill, resolving its relative paths against its directory.\n${skills.join('\n')}\nUse the Seismic ask tool for owner questions, not a native terminal dialog.` };
 }
 
-/** The harnesses a worker could start in on this machine, each installed and signed in; checked anew at each call. */
-export function connectedHarnesses(connected: Record<Harness, () => boolean> = { claude: claudeConnected, codex: codexConnected, agy: agyConnected }): Harness[] {
-  return HARNESSES.filter((h) => connected[h]());
+/** The harnesses a worker could start in on this machine, each installed and signed in; checked anew at each call, all at once. */
+export async function connectedHarnesses(connected: Record<Harness, () => Promise<boolean>> = { claude: claudeConnected, codex: codexConnected, agy: agyConnected }): Promise<Harness[]> {
+  const ok = await Promise.all(HARNESSES.map((h) => connected[h]().catch(() => false)));
+  return HARNESSES.filter((_, i) => ok[i]);
 }
 
-/** `connectedHarnesses` by name, for a prompt; `own` (the harness asking) where none answered, as it runs at least. */
-export const harnessNames = (own: Harness, found: Harness[] = connectedHarnesses()) => (found.length ? found : [own]).map((h) => HARNESS_NAMES[h]);
+/**
+ * The harnesses a worker could start in on this machine, as last found: by its own check (`connectedHarnesses`), or by the
+ * setup assistant's (`found`), whichever came last. A caller never waits for a check: one older than `maxAge` starts the
+ * next in the background and gets what the last found meanwhile (nothing before the first has answered).
+ */
+export class HarnessCheck {
+  private found: Harness[] = [];
+  private at = -Infinity;
+  private running: Promise<Harness[]> | null = null;
+
+  constructor(private check: () => Promise<Harness[]> = connectedHarnesses, private maxAge = 60_000, private now = Date.now) {}
+
+  /** What the last check found; a stale one starts the next. */
+  current(): Harness[] {
+    if (this.now() - this.at > this.maxAge) void this.refresh();
+    return this.found;
+  }
+
+  /** Checks again, or joins the check under way. */
+  refresh(): Promise<Harness[]> {
+    this.running ??= this.check()
+      .then((found) => this.set(found), () => this.found)
+      .finally(() => (this.running = null));
+    return this.running;
+  }
+
+  /** What a check elsewhere found (the setup assistant's), as fresh as one of its own. */
+  set(found: Harness[]): Harness[] {
+    this.found = found;
+    this.at = this.now();
+    return found;
+  }
+}
+
+/** Harnesses by name, for a prompt; `own` (the harness asking) where none is known, as it runs at least. */
+export const harnessNames = (own: Harness, found: Harness[]) => (found.length ? found : [own]).map((h) => HARNESS_NAMES[h]);
 
 export function workerHarnessRuntime(claude: AgentRuntime, codex: AgentRuntime = createCodexRuntime(), agy: AgentRuntime = createAgyRuntime()): AgentRuntime {
   return {
