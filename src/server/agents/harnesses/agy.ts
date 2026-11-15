@@ -21,7 +21,7 @@ import { OWN_GROUP } from '../../spawn';
 import { cleanEnv, type AgentEvent, type AgentRuntime, type AgentSpec } from '../../runtime';
 import { AGY_CONVERSATION_ID } from '../../transcript';
 import { AgentProcesses, tolerateTimeouts } from './processes';
-import { observeEveryTick } from './codexRpc';
+import { endAtShutdown, observeEveryTick } from './codexRpc';
 import { sessionRegistry } from './sessionRegistry';
 import { AGY_SERVER, registerAgyTools, wireTools, type AgyRegistration } from './agyMcp';
 
@@ -193,6 +193,8 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
       // agy calls an MCP tool through its own `call_mcp_tool`; Seismic's are shown at dispatch (`called`)
       const own = (name: string, parameters?: Record<string, unknown> | null) => name === 'call_mcp_tool' ? parameters?.ServerName === AGY_SERVER : [...registration.tools.keys()].some((w) => name === w || name.endsWith(w));
       let closing = false;
+      // Turns wait for agy's identity to be on record, so a crash during the first one leaves nothing unrecorded.
+      let ready = false;
       let turn = false;
       let introduced = false;
       let stderr = '';
@@ -213,12 +215,16 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
         });
       };
       if (terminals && record) { terminals.onChange = publish; publish(); }
+      // A busy machine's snapshot can time out: that observation is skipped. One that failed for good
+      // may have missed a process, so ending what was seen does not account for it: the record stays.
       const observed = tolerateTimeouts();
+      let unobserved = false;
+      const watch = (operation: Promise<void>) => observed(operation).catch((error: unknown) => { unobserved = true; throw error; });
       let observing = false;
       const stopObserving = observeEveryTick(() => {
         if (observing || !terminals) return;
         observing = true;
-        observed(terminals.track()).catch(() => { /* the next tick tries again */ }).finally(() => { observing = false; });
+        watch(terminals.track()).catch((error: unknown) => failEnded(`Antigravity's processes cannot be watched: ${messageOf(error)}`)).finally(() => { observing = false; });
       });
 
       const signal = (which: NodeJS.Signals) => {
@@ -229,7 +235,8 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
         if (closing) return;
         closing = true;
         endpoint.dispose();
-        void terminals?.track().catch(() => {});
+        // Queued before any kill, so the commands seen now are ended with the rest.
+        if (terminals) void watch(terminals.track()).catch(() => { /* the record stays for a sweep */ });
         child.stdin?.end();
         terminate = setTimeout(() => signal('SIGTERM'), 1000);
         kill = setTimeout(() => signal('SIGKILL'), 3000);
@@ -241,7 +248,7 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
         stop();
       };
       const pump = () => {
-        if (closing || turn || !queue.length) return;
+        if (closing || !ready || turn || !queue.length) return;
         const text = queue.shift()!;
         const content = introduced ? text : `${spec.system}\n\n---\n\n${text}`;
         introduced = true;
@@ -306,20 +313,31 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
         stopObserving();
         // Do not wait for `close`: a command agy started may still hold its pipes open.
         void terminals?.kill().catch(() => { /* retried at close */ });
+        // The leader is gone, so any member still in its group keeps the number reserved: this is the
+        // last point where signalling the group cannot reach a reused one.
+        if (OWN_GROUP && child.pid) try { process.kill(-child.pid, 'SIGKILL'); } catch { /* none left */ }
+        exited = true;
+        clearTimeout(terminate);
+        clearTimeout(kill);
       });
+      const unregister = endAtShutdown(stop, { done, force: async () => {
+        stop();
+        await terminals?.kill().catch(() => { /* the record stays for a sweep */ });
+        signal('SIGKILL');
+      } });
       child.on('close', (code) => {
         exited = true;
         stopObserving();
         clearTimeout(terminate);
         clearTimeout(kill);
-        if (OWN_GROUP && child.pid) try { process.kill(-child.pid, 'SIGKILL'); } catch { /* none left */ }
         endpoint.dispose();
         closeConfig.current();
         // The record goes only once every process is ended; a refused signal leaves it for the sweep.
         void (async () => {
           let ended = true;
           try { await terminals?.kill(); } catch { ended = false; }
-          try { const generation = await record; if (ended) await generation?.finish(); else await generation?.abandon(); } catch (error) { console.warn(`Session record not settled: ${messageOf(error)}`); }
+          try { const generation = await record; if (ended && !unobserved) await generation?.finish(); else await generation?.abandon(); } catch (error) { console.warn(`Session record not settled: ${messageOf(error)}`); }
+          unregister();
           finish();
         })();
         if (!closing) {
@@ -329,6 +347,8 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
         closing = true;
       });
 
+      const recorded = terminals ? watch(terminals.track()).then(async () => { await (await record)?.publish(terminals.observed()); }) : Promise.resolve();
+      recorded.then(() => { ready = true; pump(); }, (error: unknown) => failEnded(`Antigravity could not be put on record: ${messageOf(error)}`));
       if (firstMessage !== undefined) send(firstMessage, images);
       return { send, close: stop, done };
     },

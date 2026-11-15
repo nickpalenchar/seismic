@@ -193,7 +193,7 @@ then ends things four ways:
 | Case | Heartbeats | App-server | Canary |
 | --- | --- | --- | --- |
 | Graceful transport close | all three stopped | gone | alive |
-| Forced close (`endCodexHere(true)`) | all three stopped | gone | alive |
+| Forced close (`endSessionsHere(true)`) | all three stopped | gone | alive |
 | SIGKILL of the app-server (the host lives) | all three stopped | gone | alive |
 | SIGKILL of the host (no tracker left to run) | **all three kept running** | gone (stdin EOF) | alive |
 

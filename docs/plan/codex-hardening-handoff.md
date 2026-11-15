@@ -22,7 +22,7 @@ not the initial integration. Other roles remain Claude. Pi is a later phase; do 
    including separate process groups, using process creation identities to reduce PID-reuse risk.
    `src/server/agents/harnesses/codexRpc.ts` samples descendants every 500 ms and cleans them on exit. Arbitrary
    unrelated PIDs reported by the protocol are not adopted without ancestry evidence.
-2. **Shutdown:** `endCodexHere()` now returns a promise; `endAgentsHere()` returns it and
+2. **Shutdown:** `endSessionsHere()` now returns a promise; `endAgentsHere()` returns it and
    `src/server/main.ts` awaits shutdown before exiting, allowing TERM/KILL escalation to run.
 3. **Approval identity:** `src/server/agents/harnesses/codex.ts` removes callback ids, timestamps and
    turn/item ids from persisted permission identity, retaining the command and requested authority.

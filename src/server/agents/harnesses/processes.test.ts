@@ -218,7 +218,7 @@ test.skipIf(process.platform === 'win32')('forced shutdown signals an observed d
 const child=spawn(process.execPath,['-e',${JSON.stringify(code)}],{detached:true,stdio:'ignore'});
 createInterface({input:process.stdin}).on('line',line=>process.stdout.write(JSON.stringify({id:JSON.parse(line).id,result:child.pid})+'\\n'));
 process.stdin.on('end',()=>{});process.on('SIGTERM',()=>{});setInterval(()=>{},1000);`);
-  const { endCodexHere } = await import('./codexRpc');
+  const { endSessionsHere } = await import('./codexRpc');
   const canary = spawn(process.execPath, ['-e', testProcessCode()], { stdio: 'ignore' });
   const c = codexConnection({ command: process.execPath, args: ['-e', server], cwd: root, env: process.env }, handlers);
   let pid: number | undefined;
@@ -229,7 +229,7 @@ process.stdin.on('end',()=>{});process.on('SIGTERM',()=>{});setInterval(()=>{},1
     // A second stop can arrive after ordinary shutdown has already closed the session.
     c.close();
     const start = Date.now();
-    await endCodexHere(true);
+    await endSessionsHere(true);
     expect(Date.now() - start).toBeLessThan(1000);
     await until(() => { try { process.kill(pid!, 0); return false; } catch { return true; } });
     expect(process.kill(canary.pid!, 0)).toBe(true);
@@ -244,9 +244,9 @@ test('shutdown awaits escalation before exiting, including an EOF/TERM-ignoring 
   const root = mkdtempSync(join(tmpdir(), 'obeya-exit-test-'));
   const file = join(root, 'heartbeat');
   const code = testProcessCode(`import {writeFileSync} from 'node:fs';let n=0;process.stdin.resume();process.stdin.on('end',()=>{});process.on('SIGTERM',()=>{});setInterval(()=>writeFileSync(${JSON.stringify(file)},String(++n)),25);`);
-  const driver = testProcessCode(`import {codexConnection,endCodexHere} from ${JSON.stringify(join(import.meta.dir, 'codexRpc.ts'))};
+  const driver = testProcessCode(`import {codexConnection,endSessionsHere} from ${JSON.stringify(join(import.meta.dir, 'codexRpc.ts'))};
 const c=codexConnection({command:process.execPath,args:['-e',${JSON.stringify(code)}],cwd:${JSON.stringify(root)},env:process.env},{notification(){},request:async()=>({})});
-console.log(c.pid);await Bun.sleep(150);await endCodexHere();process.exit(0);`);
+console.log(c.pid);await Bun.sleep(150);await endSessionsHere();process.exit(0);`);
   const p = Bun.spawn([process.execPath, '-e', driver], { stdout: 'pipe', stderr: 'pipe' });
   let pid: number | undefined;
   try {

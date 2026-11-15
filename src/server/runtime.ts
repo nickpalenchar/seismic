@@ -3,7 +3,7 @@
 import { LimitAttempts, limitWatch } from './limit-watch';
 import { type PermissionMode, type PermissionUpdate, type SpawnedProcess, type SpawnOptions } from '@anthropic-ai/claude-agent-sdk';
 import { type ChildProcess, spawn } from 'node:child_process';
-import { endCodexHere } from './agents/harnesses/codexRpc';
+import { endSessionsHere } from './agents/harnesses/codexRpc';
 import { agentIdentity } from './agents/harnesses/identity';
 import { allowed } from './allow-rules';
 import { existsSync, readFileSync } from 'node:fs';
@@ -451,8 +451,8 @@ export function withStderr(message: string, stderr: string): string {
  * there they end as before, with their stdin.
  */
 export function endAgentsHere(force = false) {
-  const codexDone = endCodexHere(force);
-  if (!OWN_GROUP && !force) return codexDone;
+  const sessionsDone = endSessionsHere(force);
+  if (!OWN_GROUP && !force) return sessionsDone;
   for (const p of here) {
     try {
       if (OWN_GROUP && p.pid) process.kill(-p.pid, force ? 'SIGKILL' : 'SIGTERM');
@@ -466,7 +466,7 @@ export function endAgentsHere(force = false) {
       // gone already
     }
   }
-  return codexDone;
+  return sessionsDone;
 }
 
 /**

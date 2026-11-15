@@ -1,11 +1,13 @@
 import { afterEach, expect, test } from 'bun:test';
-import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { z } from 'zod';
 import { agyArgs, READ_ONLY_PERMISSIONS, agyLimit, createAgyRuntime, nativeTool, parseAgyModels } from './agy';
 import { handleMcp, registerAgyTools, wireTools } from './agyMcp';
+import { endSessionsHere } from './codexRpc';
+import { environment, SessionRegistry, useSessionRegistry } from './sessionRegistry';
 import type { AgentEvent, AgentSession, AgentSpec, AgentTool } from '../../runtime';
 import { gitRepo, until } from '../../testing';
 import { git } from '../../workstations';
@@ -14,7 +16,7 @@ const fake = join(import.meta.dir, '..', '..', 'fixtures', 'fake-agy.ts');
 const launch = (_command: string, args: string[], options: Parameters<Parameters<typeof createAgyRuntime>[0] & {}>[2]) => spawn('bun', [fake, ...args], { ...options, stdio: ['pipe', 'pipe', 'pipe'] });
 const sessions: AgentSession[] = [];
 const dirs: string[] = [];
-afterEach(async () => { for (const s of sessions.splice(0)) { s.close(); await s.done; } for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true }); });
+afterEach(async () => { useSessionRegistry(undefined); for (const s of sessions.splice(0)) { s.close(); await s.done; } for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true }); });
 
 function workstation() {
   const dir = mkdtempSync(join(tmpdir(), 'agy-'));
@@ -138,4 +140,52 @@ test('a reset or retry duration must parse completely, not just its valid prefix
     expect(agyLimit(`Quota reached. ${marker} 2h 3m. Please wait.`, 0)).toEqual({ resetsAt: 7380000 });
     expect(agyLimit(`Quota reached. ${marker} 1.5s.`, 0)).toEqual({ resetsAt: 1500 });
   }
+});
+
+const recording = !!environment();
+const registry = () => {
+  const root = mkdtempSync(join(tmpdir(), 'agy-registry-'));
+  dirs.push(root);
+  useSessionRegistry(new SessionRegistry(root));
+  const records = () => readdirSync(root).filter((f) => f.endsWith('.json')).map((f) => JSON.parse(readFileSync(join(root, f), 'utf8')) as { processes: { pid: number }[] });
+  return { root, records };
+};
+
+test.skipIf(!recording)('the first turn goes to agy only once its identity is on record', async () => {
+  const { records } = registry();
+  const events: AgentEvent[] = [];
+  let pid = 0;
+  let recordedAtFirstText: number[] | undefined;
+  const session = createAgyRuntime((c, a, o) => { const child = launch(c, a, o); pid = child.pid!; return child; }, () => '/fake/agy').start(spec(workstation(), events, {
+    onEvent: (e) => { events.push(e); if (e.type === 'text' && !recordedAtFirstText) recordedAtFirstText = records().flatMap((r) => r.processes.map((p) => p.pid)); },
+  }), 'hi');
+  sessions.push(session);
+  await until(() => events.some((e) => e.type === 'idle'));
+  expect(recordedAtFirstText).toContain(pid);
+  // an orderly end takes the record away, and the server's shutdown waits for it
+  let settled = false;
+  void session.done.then(() => { settled = true; });
+  await endSessionsHere();
+  expect(settled).toBe(true);
+  expect(records()).toEqual([]);
+});
+
+test.skipIf(!recording)('processes that cannot be watched end the session before any turn and keep its record for a sweep', async () => {
+  const { records } = registry();
+  // agy as Seismic would see a process it did not start: its ownership cannot be established
+  const orphan = `const c=require('node:child_process').spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{detached:true,stdio:'ignore'});console.log(c.pid);c.unref();`;
+  const stranger = { pid: Number(spawnSync(process.execPath, ['-e', orphan], { encoding: 'utf8' }).stdout.trim()), kill: (s: NodeJS.Signals) => { try { process.kill(stranger.pid, s); } catch { /* gone */ } } };
+  const events: AgentEvent[] = [];
+  const session = createAgyRuntime((c, a, o) => {
+    const child = launch(c, a, o);
+    child.once('exit', () => stranger.kill('SIGKILL'));
+    const wrapper = Object.create(child) as typeof child;
+    Object.defineProperty(wrapper, 'pid', { value: stranger.pid });
+    return wrapper;
+  }, () => '/fake/agy').start(spec(workstation(), events), 'hi');
+  sessions.push(session);
+  await session.done;
+  expect(events.find((e) => e.type === 'error')).toMatchObject({ message: expect.stringContaining('could not be put on record'), ended: true });
+  expect(events.some((e) => e.type === 'text')).toBe(false);
+  expect(records()).toHaveLength(1);
 });

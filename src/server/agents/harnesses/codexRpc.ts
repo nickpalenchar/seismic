@@ -9,9 +9,15 @@ import { OWN_GROUP } from '../../spawn';
 import { AgentProcesses, tolerateTimeouts } from './processes';
 import { sessionRegistry } from './sessionRegistry';
 
+/** The Codex and agy sessions of this Seismic, by their `close`, for the server's shutdown to end. */
 const running = new Map<() => void, { done: Promise<void>; force: () => Promise<void> }>();
+/** Has `endSessionsHere` end a session as Seismic stops; returns what takes it off again. */
+export function endAtShutdown(close: () => void, entry: { done: Promise<void>; force: () => Promise<void> }) {
+  running.set(close, entry);
+  return () => { running.delete(close); };
+}
 /** Ordinary shutdown waits for escalation; an explicit force waits only for its signals to go out. */
-export async function endCodexHere(force = false) {
+export async function endSessionsHere(force = false) {
   const active = [...running];
   if (force) await Promise.allSettled(active.map(([, entry]) => entry.force()));
   else {
@@ -85,10 +91,14 @@ export function codexConnection(
   if (terminals && record) { terminals.onChange = publish; publish(); }
   // A busy machine's snapshot can time out: that observation is skipped, not the session ended.
   const observed = tolerateTimeouts();
+  // An observation that failed for good may have missed a process: ending what was seen does not
+  // account for it, so the record stays for a sweep.
+  let unobserved = false;
+  const watch = (operation: Promise<void>) => observed(operation).catch((error: unknown) => { unobserved = true; throw error; });
   /** The session's processes have ended, or the attempt failed and the record stays for a sweep. */
   const settleRecord = async (ended: boolean) => {
     const generation = await record;
-    if (ended) await generation?.finish(); else await generation?.abandon();
+    if (ended && !unobserved) await generation?.finish(); else await generation?.abandon();
   };
   const pending = new Map<number, { resolve(value: unknown): void; reject(error: Error): void; timer: ReturnType<typeof setTimeout> }>();
   let nextId = 0;
@@ -122,7 +132,7 @@ export function codexConnection(
   function close() {
     if (closing) return;
     // Queued before any kill, so the terminals seen now are ended with the rest.
-    void terminals?.track().catch((error: unknown) => { failure ??= new Error(messageOf(error)); });
+    if (terminals) void watch(terminals.track()).catch((error: unknown) => { failure ??= new Error(messageOf(error)); });
     closing = true;
     rejectPending(new Error('Codex app-server connection closed'));
     // EOF lets Codex shut down its own terminals, including on Windows. Bound a stuck shutdown.
@@ -188,7 +198,7 @@ export function codexConnection(
   const stopObserving = observeEveryTick(() => {
     if (observing || !terminals) return;
     observing = true;
-    observed(terminals.track()).catch((error: unknown) => fail(new Error(messageOf(error)))).finally(() => { observing = false; });
+    watch(terminals.track()).catch((error: unknown) => fail(new Error(messageOf(error)))).finally(() => { observing = false; });
   });
   child.on('exit', (code, exitSignal) => {
     stopObserving();
@@ -203,7 +213,7 @@ export function codexConnection(
     clearTimeout(terminate);
     clearTimeout(kill);
   });
-  running.set(close, { done, force: async () => {
+  const unregister = endAtShutdown(close, { done, force: async () => {
     close();
     await terminals?.kill().catch((error: unknown) => { failure ??= new Error(messageOf(error)); });
     signal('SIGKILL');
@@ -220,21 +230,21 @@ export function codexConnection(
       let ended = true;
       try { await terminals?.kill(); } catch (error) { ended = false; failure ??= new Error(messageOf(error)); }
       try { await settleRecord(ended); } catch (error) { failure ??= new Error(messageOf(error)); }
-      running.delete(close);
+      unregister();
       if (failure) rejectDone(failure);
       else resolveDone();
     })();
   });
   // Session requests wait for their initial identity to be durable, without blocking other
   // sessions or the server's event loop while the filesystem completes the publication.
-  const ready = terminals ? observed(terminals.track()).then(async () => {
+  const ready = terminals ? watch(terminals.track()).then(async () => {
     const generation = await record;
     await generation?.publish(terminals.observed());
   }) : Promise.resolve();
   void ready.catch((error: unknown) => fail(new Error(messageOf(error))));
   return {
     pid: child.pid,
-    trackProcesses: async (pids) => { if (terminals) await observed(terminals.track(pids)); },
+    trackProcesses: async (pids) => { if (terminals) await watch(terminals.track(pids)); },
     async request<T>(method: string, params: Record<string, unknown>): Promise<T> {
       await ready;
       return new Promise<T>((resolve, reject) => {

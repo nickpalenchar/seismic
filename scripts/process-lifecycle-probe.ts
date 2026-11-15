@@ -9,7 +9,7 @@ import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { codexConnection, endCodexHere } from '../src/server/agents/harnesses/codexRpc';
+import { codexConnection, endSessionsHere } from '../src/server/agents/harnesses/codexRpc';
 
 const read = (file: string) => { try { return readFileSync(file, 'utf8').trim(); } catch { return ''; } };
 const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catch { return false; } };
@@ -51,8 +51,8 @@ if (mode === 'driver') {
   await c.request('thread/shellCommand', { threadId: started.thread.id, command: JOBS.map((j) => `python3 job.py ${j} &`).join(' ') + ' wait' });
   await Bun.sleep(2500); // enough samples (every 500 ms) to observe the ancestry of all three
   writeFileSync(join(dir!, 'ready'), '1');
-  if (kind === 'graceful') { await endCodexHere(); process.exit(0); }
-  if (kind === 'forced') { await endCodexHere(true); process.exit(0); }
+  if (kind === 'graceful') { await endSessionsHere(); process.exit(0); }
+  if (kind === 'forced') { await endSessionsHere(true); process.exit(0); }
   await Bun.sleep(60_000);
   process.exit(1);
 }
