@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { Board } from './board';
 import { Store } from './store';
 import { gitRepo, identify, until } from './testing';
-import { addTrailer, defaultBranch, git, Workstations, namedInRefusal } from './workstations';
+import { addTrailer, defaultBranch, git, Workstations, namedInRefusal, porcelainFiles, workingChanges } from './workstations';
 
 let dir: string;
 beforeEach(() => (dir = mkdtempSync(join(tmpdir(), 'obeya-branch-'))));
@@ -754,4 +754,43 @@ test('a trailer goes beside the trailers a commit message ends with, else into a
   expect(addTrailer('Fix\n\nCo-Authored-By:C <c@x>', t)).toBe(`Fix\n\nCo-Authored-By:C <c@x>\n${t}\n`);
   // a subject alone is no trailer block, even with a colon
   expect(addTrailer('Docs: typo', t)).toBe(`Docs: typo\n\n${t}\n`);
+});
+
+
+describe('capturing working changes for another host', () => {
+  test('rename and copy sources in either status column are not changed paths', () => {
+    expect(porcelainFiles(' R new\0old\0 C copy\0source\0R  staged\0before\0C  staged-copy\0original\0 M edited\0'))
+      .toEqual(['new', 'copy', 'staged', 'staged-copy', 'edited']);
+  });
+
+  test('the entire patch recreates large edits, untracked binary files, renames and deletions without the checkout', async () => {
+    const repo = gitRepo(join(dir, 'source'), { 'long.txt': 'before\n', 'old.txt': 'rename\n', 'gone.txt': 'delete\n' });
+    const target = join(dir, 'target');
+    git(dir, 'clone', '--quiet', repo, target);
+    writeFileSync(join(repo, 'long.txt'), 'staged\n');
+    git(repo, 'add', 'long.txt');
+    const staged = git(repo, 'diff', '--cached');
+    const large = 'long change\n'.repeat(2000) + 'last line\n';
+    writeFileSync(join(repo, 'long.txt'), large);
+    const binary = Buffer.from([0, 255, 1, 128, 13, 10]);
+    writeFileSync(join(repo, 'new.bin'), binary);
+    git(repo, 'mv', 'old.txt', 'new.txt');
+    git(repo, 'rm', 'gone.txt');
+    const before = git(repo, 'diff', '--cached');
+    const captured = await workingChanges(repo);
+    expect(captured.diff.length).toBeGreaterThan(6000);
+    expect(captured.diff).toContain('GIT binary patch');
+    expect(captured.diff).toContain('+last line');
+    expect(git(repo, 'diff', '--cached')).toBe(before);
+    expect(staged).toContain('+staged');
+    rmSync(repo, { recursive: true, force: true });
+    const patch = join(dir, 'changes.patch');
+    writeFileSync(patch, captured.diff);
+    git(target, 'apply', '--binary', patch);
+    expect(readFileSync(join(target, 'long.txt'), 'utf8')).toBe(large);
+    expect(readFileSync(join(target, 'new.bin'))).toEqual(binary);
+    expect(readFileSync(join(target, 'new.txt'), 'utf8')).toBe('rename\n');
+    expect(existsSync(join(target, 'old.txt'))).toBe(false);
+    expect(existsSync(join(target, 'gone.txt'))).toBe(false);
+  });
 });

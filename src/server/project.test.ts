@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { boundsOf, CARD_SIZE } from '../core/layout';
@@ -637,7 +637,7 @@ describe("a repository's settings for everyone (.obeya/settings.json)", () => {
     const shop = gitRepo(join(dir, 'shop'), { 'README.md': 'Shop\n' });
     const clean = gitRepo(join(dir, 'clean'), { 'README.md': 'Clean\n' });
     writeFileSync(join(shop, 'README.md'), 'Shop, edited\n');
-    writeFileSync(join(shop, 'cart.ts'), 'export {};\n');
+    writeFileSync(join(shop, 'cart.ts'), '// captured new file\n'.repeat(1500) + 'export {};\n');
     writeFileSync(join(shop, 'Übersicht.md'), 'x\n');
     git(shop, 'mv', 'README.md', 'LIESMICH.md');
     canvas.shutdown();
@@ -648,11 +648,28 @@ describe("a repository's settings for everyone (.obeya/settings.json)", () => {
     await until(() => finish().length === 1);
     expect(finish()[0]).toMatchObject({ state: 'proposal', repo: 'shop', body: expect.stringMatching(/`LIESMICH.md`[\s\S]*`cart.ts`[\s\S]*`Übersicht.md`[\s\S]*```diff/) });
     expect(finish()[0]).toMatchObject({ body: expect.not.stringContaining('README.md`') });
+    expect(canvas.board.row(finish()[0]!.id).body!.length).toBeGreaterThan(20000);
+    expect(canvas.board.row(finish()[0]!.id).body).toContain('+export {};');
     canvas.act(finish()[0]!.id, { action: 'dismiss' });
     canvas.shutdown();
     canvas = start([{ path: shop }, { path: clean }]);
     await new Promise((r) => setTimeout(r, 200));
     expect(finish()).toEqual([]);
+  });
+
+  test('a pending working-changes proposal is cancelled by shutdown', async () => {
+    const shop = gitRepo(join(dir, 'shop'), { 'README.md': 'Shop\n' });
+    writeFileSync(join(shop, 'new.txt'), 'new\n');
+    canvas.shutdown();
+    canvas = new CanvasRuntime({ repos: [{ path: shop }] }, { store: new Store(':memory:'), home: dir, runtime, forge: noForge, setupProposals: true });
+    const oldBoard = canvas.board;
+    const captures = () => readdirSync(join(shop, '.git')).filter((f) => f.startsWith('obeya-capture-'));
+    await until(() => captures().length > 0);
+    canvas.shutdown();
+    await until(() => captures().length === 0);
+    // Let the read's continuation run after its finally cleaned up the temporary index.
+    await new Promise((r) => setTimeout(r, 0));
+    expect(oldBoard.snapshot().items.some((i) => i.title === 'Offene Änderungen abschließen')).toBe(false);
   });
 
   test('a project whose cards are all archived is not new: a repository with changes gets no proposal', async () => {

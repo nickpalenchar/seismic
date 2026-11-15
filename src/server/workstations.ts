@@ -151,10 +151,10 @@ async function gitPaths(cwd: string, ...args: string[]): Promise<string[]> {
 }
 
 /** `git` in `cwd` without blocking, with its exit code: for commands whose exit code is an answer (`diff --no-index`). */
-async function gitRun(cwd: string, args: string[]): Promise<{ code: number; stdout: string; stderr: string }> {
+async function gitRun(cwd: string, args: string[], env?: Record<string, string>): Promise<{ code: number; stdout: string; stderr: string }> {
   const there = remoteWorkstation(cwd);
-  if (there) return there.host.run(['git', ...TOKEN_HELPER_ARGS, '-C', there.path, ...args], { cwd: there.path });
-  return spawnOutput([GIT, '-C', cwd, ...args]);
+  if (there) return there.host.run([...(env ? ['env', ...Object.entries(env).map(([k, v]) => `${k}=${v}`)] : []), 'git', ...TOKEN_HELPER_ARGS, '-C', there.path, ...args], { cwd: there.path });
+  return spawnOutput([GIT, '-C', cwd, ...args], env ? { env: { ...process.env, ...env } } : {});
 }
 
 /** `git diff` as Seismic shows it to the owner: plain, with renames found and file names unquoted. */
@@ -2318,29 +2318,44 @@ const stale = (look: (Seen & { at: number }) | undefined) => !look || Date.now()
 const sameSeen = (a: Seen, b: Seen) => a.found === b.found && a.more === b.more && a.error === b.error && (a.files ?? []).join('\n') === (b.files ?? []).join('\n');
 
 /** The paths in `git status --porcelain -z`: unquoted, each entry `XY path` ended by NUL; a rename or copy is followed by the path it came from. */
-function porcelainFiles(out: string): string[] {
+export function porcelainFiles(out: string): string[] {
   const files: string[] = [];
   const entries = out.split('\0');
   for (let i = 0; i < entries.length; i++) {
     const e = entries[i]!;
     if (!e) continue;
     files.push(e.slice(3));
-    if (e[0] === 'R' || e[0] === 'C') i++;
+    if (/[RC]/.test(e.slice(0, 2))) i++;
   }
   return files;
 }
 
 /**
- * What a checkout has uncommitted (untracked files too): the changed paths, and the diff of the tracked
- * ones against HEAD cut at `limit` characters, so that a worker on a branch of its own, perhaps on
- * another machine, can read what the checkout holds.
+ * A complete, applyable binary patch of the checkout, including untracked files. A private index
+ * leaves the owner's staging alone. Keep the entire patch on the card: its worker may be on a
+ * different host and the source checkout may change or disappear before the proposal is accepted.
  */
-export async function workingChanges(path: string, limit: number): Promise<{ files: string[]; diff: string; cut: boolean }> {
-  const status = await gitRun(path, ['status', '--porcelain', '-z', '--untracked-files=all']);
-  if (status.code !== 0) throw new WorkspaceError(`git status in ${path}: ${(status.stderr || status.stdout).trim()}`);
-  const diff = await gitRun(path, ['diff', 'HEAD', '--no-color']);
-  const text = diff.code === 0 ? diff.stdout : '';
-  return { files: porcelainFiles(status.stdout), diff: text.slice(0, limit), cut: text.length > limit };
+export async function workingChanges(path: string): Promise<{ files: string[]; diff: string }> {
+  const run = async (args: string[], env?: Record<string, string>) => {
+    const r = await gitRun(path, args, env);
+    if (r.code !== 0) throw new WorkstationError(`git ${args[0]} in ${path}: ${(r.stderr || r.stdout).trim()}`);
+    return r.stdout;
+  };
+  const files = porcelainFiles(await run(['status', '--porcelain', '-z', '--untracked-files=all']));
+  if (!files.length) return { files, diff: '' };
+  const index = (await run(['rev-parse', '--path-format=absolute', '--git-path', `obeya-capture-${crypto.randomUUID()}`])).trim();
+  const env = { GIT_INDEX_FILE: index };
+  try {
+    const head = await gitRun(path, ['rev-parse', '--verify', 'HEAD']);
+    await run(head.code === 0 ? ['read-tree', 'HEAD'] : ['read-tree', '--empty'], env);
+    await run(['add', '--all', '--', '.'], env);
+    const diff = await run(['diff', '--cached', '--binary', '--full-index', '--no-color', '--no-ext-diff', '--no-textconv'], env);
+    return { files, diff };
+  } finally {
+    const there = remoteWorkstation(path);
+    if (there) await there.host.run(['rm', '-f', index, `${index}.lock`]);
+    else await Promise.all([rm(index, { force: true }), rm(`${index}.lock`, { force: true })]);
+  }
 }
 
 /** Whether a clone is clean, has uncommitted changes (and which), git fails in it, or is not there; without blocking the server. */

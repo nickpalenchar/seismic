@@ -480,8 +480,8 @@ const en = {
   },
   finishChanges: {
     title: 'Finish working changes',
-    body: (path: string, files: string[], more: number, diff: string, cut: boolean) =>
-      `The repository has changes that are not committed yet. They are in the checkout \`${path}\`, not on your branch:\n\n${files.map((f) => `- \`${f}\``).join('\n')}${more ? `\n- … and ${more} more` : ''}\n\n${diff ? `The changes to tracked files${cut ? ' (cut short)' : ''}:\n\n\`\`\`diff\n${diff}\n\`\`\`\n\n` : ''}Work out what was being worked on and finish it: bring the changes into your branch (read new files from the checkout where you can reach it), add what is missing, run the checks and commit it. Ask me if what was intended stays unclear.`,
+    body: (path: string, files: string[], more: number, diff: string) =>
+      `The repository has changes that are not committed yet. They are in the checkout \`${path}\`, not on your branch:\n\n${files.map((f) => `- \`${f}\``).join('\n')}${more ? `\n- … and ${more} more` : ''}\n\n${diff ? `The complete patch (including new and binary files):\n\n\`\`\`diff\n${diff}\n\`\`\`\n\n` : ''}Work out what was being worked on and finish it: apply the patch with \`git apply --binary\` in your branch, add what is missing, run the checks and commit it. Ask me if what was intended stays unclear.`,
     reason: 'The repository has changes that are not committed yet.',
   },
   preparePlanDoc: {

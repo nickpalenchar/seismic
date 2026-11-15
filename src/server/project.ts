@@ -995,10 +995,10 @@ export class ProjectRuntime {
   /** Proposes finishing the uncommitted changes a repository new on the canvas comes with (`Board.proposeFinishChanges`). */
   private proposeFinishChanges(r: Repo) {
     if (!this.deps.setupProposals || r.info.folder) return;
-    workingChanges(r.info.path, 6000)
-      .then(({ files, diff, cut }) => {
-        if (this.stopped) return;
-        this.board.proposeFinishChanges(r.ref.id, r.info.path, files, diff, cut);
+    workingChanges(r.info.path)
+      .then(({ files, diff }) => {
+        if (this.stopped || this.shutDown || !this.repos.includes(r)) return;
+        this.board.proposeFinishChanges(r.ref.id, r.info.path, files, diff);
       })
       .catch(() => {});
   }
