@@ -52,8 +52,9 @@ export async function workDirs(dir: string): Promise<string[]> {
   };
   const ofDemo = async (demo: string) => {
     const dirs = [demo, ...(await subdirs(demo))].map((d) => join(d, '.work'));
-    const real = await Promise.all(dirs.map(realDir));
-    return dirs.filter((_, i) => real[i]);
+    const found: string[] = [];
+    for (const dir of dirs) if (await realDir(dir)) found.push(dir);
+    return found;
   };
   const demos = await subdirs(dir);
   const found: string[] = [];
@@ -71,8 +72,13 @@ const realDir = (p: string): Promise<boolean> => lstat(p).then((s) => s.isDirect
 export async function lastRender(work: string): Promise<number> {
   const names = await readdir(work);
   // what is gone meanwhile counts for nothing
-  const times = await Promise.all([work, ...names.map((n) => join(work, n))].map((p) => lstat(p).then((s) => s.mtimeMs, () => 0)));
-  return Math.max(0, ...times);
+  const paths = [work, ...names.map((n) => join(work, n))];
+  let last = 0;
+  for (let i = 0; i < paths.length; i += DEMOS_AT_ONCE) {
+    const times = await Promise.all(paths.slice(i, i + DEMOS_AT_ONCE).map((p) => lstat(p).then((s) => s.mtimeMs, () => 0)));
+    last = Math.max(last, ...times);
+  }
+  return last;
 }
 
 /** A render that still runs holds `render.pid` with its process (the director's `holdRenderLock`). */
@@ -96,28 +102,43 @@ const onDisk = (s: { blocks?: number; size: number }) => (s.blocks ? s.blocks * 
 
 /**
  * The bytes under `dir`, and those under work directories (`.work`) among them; symbolic links are
- * not followed. Directories one after the other, the files of one in parallel: a demo directory
- * holds millions of frames, and all of them at once took memory for nothing.
+ * not followed. At most `DEMOS_AT_ONCE` directory walkers and file stats run in total, including
+ * nested directories: a demo directory holds millions of frames, too many to stat at once.
  */
 export async function usage(dir: string): Promise<{ bytes: number; work: number }> {
   const sum = { bytes: 0, work: 0 };
-  const walk = async (d: string, inWork: boolean) => {
+  const pending: { path: string; inWork: boolean }[] = [{ path: dir, inWork: false }];
+  let next = 0;
+  let active = 0;
+  const walk = async ({ path, inWork }: { path: string; inWork: boolean }) => {
     let entries;
     try {
-      entries = await readdir(d, { withFileTypes: true });
+      entries = await readdir(path, { withFileTypes: true });
     } catch {
       return;
     }
-    const sizes = await Promise.all(entries.filter((e) => !e.isDirectory()).map((e) => lstat(join(d, e.name)).then(onDisk, () => 0)));
-    const here = sizes.reduce((a, b) => a + b, 0);
+    let here = 0;
+    for (const entry of entries) {
+      if (entry.isDirectory()) pending.push({ path: join(path, entry.name), inWork: inWork || entry.name === '.work' });
+      else here += await lstat(join(path, entry.name)).then(onDisk, () => 0);
+    }
     sum.bytes += here;
     if (inWork) sum.work += here;
-    const dirs = entries.filter((e) => e.isDirectory());
-    for (let i = 0; i < dirs.length; i += DEMOS_AT_ONCE) {
-      await Promise.all(dirs.slice(i, i + DEMOS_AT_ONCE).map((e) => walk(join(d, e.name), inWork || e.name === '.work')));
-    }
   };
-  await walk(dir, false);
+  await new Promise<void>((resolve) => {
+    const start = () => {
+      while (active < DEMOS_AT_ONCE && next < pending.length) {
+        const current = pending[next++]!;
+        active++;
+        void walk(current).finally(() => {
+          active--;
+          if (!active && next === pending.length) resolve();
+          else start();
+        });
+      }
+    };
+    start();
+  });
   return sum;
 }
 

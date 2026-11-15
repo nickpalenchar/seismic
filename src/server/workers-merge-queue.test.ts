@@ -81,7 +81,7 @@ describe('the visible landing queue', () => {
       }
       expect(git(main, 'log', '-3', '--format=%s').split('\n')).toEqual(['Third', 'Second', 'First']);
     } finally { gate.close(); await Promise.allSettled(approvals); }
-  }, 20_000);
+  }, 15_000);
 
   test('stopping a queued card withdraws it before git runs and moves the next up', async () => {
     const a = await card({ 'a.ts': 'a' }); await a.handOver();
@@ -106,7 +106,7 @@ describe('the visible landing queue', () => {
       await Promise.all([first, third]);
       expect(git(main, 'log', '--format=%s')).not.toContain('Withdrawn');
     } finally { gate.close(); await Promise.allSettled(approvals); }
-  }, 20_000);
+  }, 15_000);
 });
 
 test('only overlapping workers hear a successful landing, on their next turn', async () => {
@@ -152,14 +152,19 @@ test('a failed landing clears its place and emits no overlap notice', async () =
     await until(() => board.item(b.id)?.review?.landingPosition === 1);
     const third = workers.approve(c.id); approvals.push(third);
     await until(() => board.item(c.id)?.review?.landingPosition === 2);
-    gate.close();
-    await Promise.all([first, second, third]);
+    gate.release();
+    await first;
+    await second;
+    await until(() => board.item(c.id)?.review?.landingPosition === 0);
+    await gate.entered();
+    gate.release();
+    await third;
     expect(board.item(b.id)?.state).toBe('working');
     expect(board.item(b.id)?.review?.landingPosition).toBeUndefined();
     expect(board.item(c.id)?.state).toBe('live');
     expect(board.events(a.id).some((e) => e.text.includes('Cannot land'))).toBe(false);
   } finally { gate.close(); await Promise.allSettled(approvals); }
-}, 20_000);
+}, 15_000);
 
 test('a forge merge notifies overlapping workers using the merged commit', async () => {
   const a = await card({ 'shared.ts': 'merged' }, 'Merged change'); await a.handOver();

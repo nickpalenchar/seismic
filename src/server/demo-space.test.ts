@@ -90,6 +90,23 @@ test("what demos take, and their work directories' share of it", async () => {
   expect(await usage(join(demos, 'none'))).toEqual({ bytes: 0, work: 0 });
 });
 
+test('nested demo directories count their work without following links', async () => {
+  const work = join(demos, 'demo', 'voice', '.work');
+  mkdirSync(join(work, 'frames', 'nested'), { recursive: true });
+  writeFileSync(join(work, 'frames', 'nested', 'frame.jpg'), 'frame');
+  const outside = mkdtempSync(join(tmpdir(), 'obeya-demo-space-count-outside-'));
+  try {
+    writeFileSync(join(outside, 'large.wav'), 'x'.repeat(10_000));
+    symlinkSync(join(outside, 'large.wav'), join(work, 'linked.wav'));
+    const counted = await usage(demos);
+    expect(counted.work).toBeGreaterThanOrEqual(5);
+    expect(counted.bytes).toBe(counted.work);
+    expect(counted.bytes).toBeLessThan(10_000);
+  } finally {
+    rmSync(outside, { recursive: true, force: true });
+  }
+});
+
 test("the days kept: the settings', else the default, which only the Seismic in the default home applies", () => {
   const own = join(homedir(), '.obeya');
   expect(keepDays({}, own)).toBe(DEFAULT_KEEP_DAYS);

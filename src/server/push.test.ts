@@ -137,12 +137,17 @@ describe('Push', () => {
   test('a slow device does not block another, while each device keeps its own delivery order', async () => {
     let release!: () => void;
     let tabletReached!: () => void;
+    let phoneReached!: () => void;
     const blocked = new Promise<void>((resolve) => { release = resolve; });
     const tablet = new Promise<void>((resolve) => { tabletReached = resolve; });
+    const phone = new Promise<void>((resolve) => { phoneReached = resolve; });
     const calls: string[] = [];
     const { store, push, endWindow } = await setup({ post: async (url) => {
       calls.push(url);
-      if (url.endsWith('/abc') && calls.filter((u) => u.endsWith('/abc')).length === 1) await blocked;
+      if (url.endsWith('/abc') && calls.filter((u) => u.endsWith('/abc')).length === 1) {
+        phoneReached();
+        await blocked;
+      }
       if (url.endsWith('/tablet')) tabletReached();
       return { status: 201, text: async () => '' };
     } });
@@ -151,7 +156,7 @@ describe('Push', () => {
     push.subscribe('tablet', { ...store.devices.pushes()[0]!.push, endpoint: 'https://web.push.apple.com/tablet' });
     push.waits([waits('c1')]);
     push.waits([waits('c2')]);
-    await tablet;
+    await Promise.all([tablet, phone]);
     endWindow(); // the phone's second alert queues behind its first
     expect(calls.filter((u) => u.endsWith('/abc'))).toHaveLength(1);
     release();
