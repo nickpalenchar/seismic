@@ -179,7 +179,7 @@ export function Body({ md }: { md: string }) {
  * clipboard, it selects the text instead. At the desk the button shows while the pointer is on the
  * block, on a touch screen always.
  */
-function Code({ text }: { text: string }) {
+export function Code({ text }: { text: string }) {
   const pre = useRef<HTMLPreElement>(null);
   const [done, setDone] = useState<'copied' | 'selected' | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);

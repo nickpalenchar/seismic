@@ -15,6 +15,19 @@ import { git } from './workstations';
 eachTest();
 
 describe('workers', () => {
+  test('captured patches reach the worker separately after editing and accepting the proposal', async () => {
+    const patch = 'diff --git a/new.txt b/new.txt\n' + '+captured\n'.repeat(3000);
+    board.proposeFinishChanges(board.home, main, ['new.txt'], patch);
+    const card = board.snapshot().items.find((i) => i.state === 'proposal' && i.idea?.proposal?.finish)!;
+    board.patch(card.id, { body: 'Finish this work and validate it.' });
+    board.accept(card.id);
+    for (let n = 0; n < 501; n++) board.log(card.id, 'report', 'worker', 'Progress');
+    const brief = workers.startBrief(board.item(card.id)!);
+    expect(brief).toContain('Finish this work and validate it.');
+    expect(brief).toContain(patch);
+    expect(board.row(card.id).body!.length).toBeLessThan(20000);
+  });
+
   test("a follow-up's worker hears which card it comes from and that card's summary", async () => {
     const src = manual();
     board.work(src.id, { state: 'live', detail: JSON.stringify({ summary: 'CSV-Export gebaut; Excel fehlt noch.' }) });

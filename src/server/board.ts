@@ -1148,18 +1148,21 @@ export class Board {
     this.checkRepo(repo);
     const { title, body, reason } = this.t.finishChanges;
     const shown = files.slice(0, 15);
-    const [row] = this.store.insert([
+    const { canvas, ...at } = this.freeSpot();
+    const [row] = this.store.addCards([
       {
-        canvas_id: this.canvas.id,
+        project_id: this.project.id,
         kind: 'task',
         state: 'proposal',
         title,
-        body: body(path, shown, files.length - shown.length, diff),
-        ...this.freeSpot(),
+        body: body(path, shown, files.length - shown.length),
+        canvas_id: canvas,
+        ...at,
         repo: this.repoColumn(repo),
-        proposal: JSON.stringify({ ...proposalOf({ reason }), finish: true } satisfies Proposal),
+        idea: { proposal: { ...proposalOf({ reason }), finish: true } satisfies Proposal },
       },
     ]);
+    this.log(row!.id, 'changes', 'obeya', diff);
     this.setSetting(key, row!.id);
     this.changed();
   }

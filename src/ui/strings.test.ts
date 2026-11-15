@@ -97,3 +97,8 @@ test('a stopped card keeps the hold and the colour it showed', () => {
   expect(stoppedAtOf(at({ state: 'waiting', need: 'question', question: { stuck: true } }))?.tone).toBe('tone-failed');
   expect(stoppedAtOf(at({ state: 'waiting', need: 'demo' }))?.tone).toBe('s-waiting');
 });
+
+
+test('finish proposals use the same Seismic state label as setup proposals in every card face', () => {
+  expect(stateLabel({ state: 'proposal', idea: { proposal: { finish: true } } })).toBe('Proposed by Seismic');
+});

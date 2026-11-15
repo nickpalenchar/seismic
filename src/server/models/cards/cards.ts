@@ -340,6 +340,11 @@ export class Cards {
     return this.rows(and(eq(cards.projectId, projectId), sql`EXISTS (SELECT 1 FROM card_ideas i WHERE i.card_id = ${cards.id} AND json_extract(i.proposal, '$.merge') IS NOT NULL)`));
   }
 
+  /** Whether the project ever had a card, archived and deleted ones included. */
+  hasCards(projectId: string): boolean {
+    return !!this.db.select({ one: sql`1` }).from(cards).where(eq(cards.projectId, projectId)).limit(1).get();
+  }
+
   /** Every card on the project: not deleted, not archived. */
   onProject(projectId: string): CardRow[] {
     return this.complete(this.open.all({ project: projectId }));

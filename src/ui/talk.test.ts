@@ -881,3 +881,11 @@ test("Seismic's line that a card waits for others before it starts stands, in ei
   expect(t.shown.map((x) => x.e)).toEqual([drawn, inferred]);
   expect(t.shown.every((x) => x.line)).toBe(true);
 });
+
+
+test('captured changes stay accessible outside folded agent steps', () => {
+  const capture = ev('changes', 'obeya', 'complete patch');
+  const { shown, pending } = talkTurns([capture]);
+  expect(shown).toEqual([{ e: capture, steps: [] }]);
+  expect(pending).toEqual([]);
+});

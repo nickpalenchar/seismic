@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull, max, sql } from 'drizzle-orm';
+import { and, desc, eq, lt, inArray, isNull, max, sql } from 'drizzle-orm';
 import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { currentAgent } from '../agents/harnesses/identity';
 import type { AgentIdentity, AnswerRef, CardEvent, Mock, Spot } from '../../core/types';
@@ -97,10 +97,13 @@ export class Events {
     return rows.reverse().map(eventOf);
   }
 
-  /** The card's log, its latest `limit` lines, oldest first. */
+  /** The card's latest `limit` log lines, oldest first, plus its immutable captured source. */
   of(cardId: string, limit = 500): CardEvent[] {
     const rows = this.db.select().from(events).where(eq(events.cardId, cardId)).orderBy(desc(events.id)).limit(limit).all();
-    return rows.reverse().map(eventOf);
+    const oldest = rows.at(-1)?.id;
+    const captures = oldest === undefined ? [] : this.db.select().from(events)
+      .where(and(eq(events.cardId, cardId), eq(events.kind, 'changes'), lt(events.id, oldest))).orderBy(desc(events.id)).all();
+    return [...rows, ...captures].reverse().map(eventOf);
   }
 
   /** One event of the card's log. */

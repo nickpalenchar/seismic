@@ -1487,7 +1487,7 @@ export interface CardEvent {
    * fold under that message. `denied`: a tool call of the worker's refused without asking anyone,
    * with who refused it and why.
    */
-  kind: 'report' | 'activity' | 'say' | 'closing' | 'question' | 'answer' | 'hint' | 'review' | 'state' | 'error' | 'talk' | 'denied';
+  kind: 'changes' | 'report' | 'activity' | 'say' | 'closing' | 'question' | 'answer' | 'hint' | 'review' | 'state' | 'error' | 'talk' | 'denied';
   author: 'worker' | 'owner' | 'plan' | 'koordinator' | 'obeya' | 'explorer';
   text: string;
   /** Set on an error the UI words itself; `text` then holds the server's technical detail. */

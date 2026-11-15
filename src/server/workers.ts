@@ -5646,6 +5646,8 @@ ${idea.idea.discussion.brief}` : '',
           .join('\n\n'),
       );
     if (card.body.trim()) parts.push(card.body.trim());
+    for (const captured of this.o.board.events(card.id).filter((e) => e.kind === 'changes'))
+      parts.push(`Captured working changes (complete binary patch; apply with git apply --binary):\n\n${captured.text}`);
     // the owner's own words: the language the worker writes them in until they say more (`ownersLanguage`)
     if (card.idea?.mocks?.length) parts.push(mocksText(card.idea.mocks));
     if (card.idea?.builtOn) parts.push(this.builtOnPrototype(card.idea.builtOn, !!card.parent));

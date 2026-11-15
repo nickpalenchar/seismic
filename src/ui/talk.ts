@@ -73,6 +73,8 @@ const place = (e: CardEvent, prev: CardEvent | undefined): 'owner' | 'agent' | '
   // a proposal or follow-up stands as an action, outside the agent's folded steps
   if (e.made) return 'aside';
   switch (e.kind) {
+    case 'changes':
+      return 'aside';
     case 'closing':
       return 'after';
     case 'talk':

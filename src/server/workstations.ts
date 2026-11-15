@@ -2341,16 +2341,26 @@ export async function workingChanges(path: string): Promise<{ files: string[]; d
     if (r.code !== 0) throw new WorkstationError(`git ${args[0]} in ${path}: ${(r.stderr || r.stdout).trim()}`);
     return r.stdout;
   };
-  const files = porcelainFiles(await run(['status', '--porcelain', '-z', '--untracked-files=all']));
+  const files = porcelainFiles(await run(['status', '--porcelain', '-z', '--untracked-files=all', '--ignore-submodules=none']));
   if (!files.length) return { files, diff: '' };
   const index = (await run(['rev-parse', '--path-format=absolute', '--git-path', `obeya-capture-${crypto.randomUUID()}`])).trim();
   const env = { GIT_INDEX_FILE: index };
   try {
+    // Parent patches contain only gitlinks, never a submodule's files or its local commits.
+    // Refuse the whole capture rather than offer a task that cannot recover all of its work.
+    const checkSubmodules = async (env?: Record<string, string>) => {
+      const modules = (await run(['ls-files', '--stage', '-z'], env)).split('\0')
+        .filter((e) => e.startsWith('160000 ')).map((e) => e.slice(e.indexOf('\t') + 1));
+      if (modules.some((p) => files.some((f) => f.replace(/\/$/, '') === p)))
+        throw new WorkstationError('Working changes include a submodule; its contents cannot be captured in a parent-repository patch');
+    };
+    await checkSubmodules();
     const head = await gitRun(path, ['rev-parse', '--verify', 'HEAD']);
     await run(head.code === 0 ? ['read-tree', 'HEAD'] : ['read-tree', '--empty'], env);
     await run(['add', '--all', '--', '.'], env);
+    await checkSubmodules(env);
     const diff = await run(['diff', '--cached', '--binary', '--full-index', '--no-color', '--no-ext-diff', '--no-textconv'], env);
-    return { files, diff };
+    return { files: diff ? files : [], diff };
   } finally {
     const there = remoteWorkstation(path);
     if (there) await there.host.run(['rm', '-f', index, `${index}.lock`]);

@@ -40,6 +40,7 @@ const en = {
     done: 'Done',
   },
   proposalByObeya: 'Proposed by Seismic',
+  capturedChanges: 'Captured working changes',
   /** A card's state in a word or two, where the smallest card face says it (`stateLabel(i, true)`); a state not named here keeps its own words. */
   stateShort: {
     working: 'Working',
@@ -2886,7 +2887,7 @@ export const stateLabel = (i: { kind?: string; thread?: { thinking?: boolean }; 
         ? t.review.waits
       : i.state === 'inPr' && !review?.pr
         ? t.openingPr
-        : i.state === 'proposal' && (ideaPart?.retro || ideaPart?.proposal?.setup)
+        : i.state === 'proposal' && (ideaPart?.retro || ideaPart?.proposal?.setup || ideaPart?.proposal?.finish)
           ? word(t.proposalByObeya, 'proposal')
           : stopped(i)
             ? agent?.stoppedAt ? `${t.stoppedAt} ${stateLabel(stoppedFrom(agent.stoppedAt))}` : t.stoppedState

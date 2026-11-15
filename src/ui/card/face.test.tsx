@@ -124,3 +124,11 @@ test('both cards of a merge say their own state, then how the merge stands, behi
   expect(partner).toContain('merge-mark');
   expect(partner).toContain('Planned · Planning merge');
 });
+
+
+test('inbox faces style finish and setup proposals identically', () => {
+  const setup = card({ state: 'proposal', idea: { proposal: { questions: [], setup: true } } });
+  const finish = card({ state: 'proposal', idea: { proposal: { questions: [], finish: true } } });
+  expect(face({ item: finish, size: 's', subtle: true })).toBe(face({ item: setup, size: 's', subtle: true }));
+  expect(face({ item: finish, size: 's', subtle: true })).toContain('Proposed by Seismic');
+});

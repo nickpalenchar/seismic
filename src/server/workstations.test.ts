@@ -763,6 +763,22 @@ describe('capturing working changes for another host', () => {
       .toEqual(['new', 'copy', 'staged', 'staged-copy', 'edited']);
   });
 
+  test('submodule edits and local commits are refused, even when git is configured to ignore them', async () => {
+    const sub = gitRepo(join(dir, 'sub'), { 'file.txt': 'before\n' });
+    const repo = gitRepo(join(dir, 'parent'));
+    git(repo, '-c', 'protocol.file.allow=always', 'submodule', 'add', sub, 'module');
+    git(repo, 'commit', '--quiet', '-am', 'Add submodule');
+    git(repo, 'config', 'submodule.module.ignore', 'all');
+    writeFileSync(join(repo, 'module/file.txt'), 'edited\n');
+    await expect(workingChanges(repo)).rejects.toThrow('submodule');
+    git(join(repo, 'module'), 'checkout', '--', 'file.txt');
+    writeFileSync(join(repo, 'module/new.txt'), 'untracked\n');
+    await expect(workingChanges(repo)).rejects.toThrow('submodule');
+    git(join(repo, 'module'), 'add', 'new.txt');
+    git(join(repo, 'module'), '-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'commit', '--quiet', '-m', 'Local work');
+    await expect(workingChanges(repo)).rejects.toThrow('submodule');
+  });
+
   test('the entire patch recreates large edits, untracked binary files, renames and deletions without the checkout', async () => {
     const repo = gitRepo(join(dir, 'source'), { 'long.txt': 'before\n', 'old.txt': 'rename\n', 'gone.txt': 'delete\n' });
     const target = join(dir, 'target');

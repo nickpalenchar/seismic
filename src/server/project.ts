@@ -340,7 +340,7 @@ export class ProjectRuntime {
     });
     // the Koordinator needs the workers, and the workers ask it: it is set right after them
     // a canvas without cards is new: its repositories' working changes are worth a card
-    const fresh = !deps.store.hasCards(id);
+    const fresh = !deps.store.cards.hasCards(id);
     repos.forEach((x, i) => {
       try {
         this.addRepo(this.startRepo(resolved, i), fresh);

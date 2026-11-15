@@ -30,7 +30,7 @@ import { asksAhead, holdsNotes, queueOrder } from '../core/queue';
 import { forcedText, QueueList, scrollerOf, useQueueMove, useQueueSort, waitText, type Behind } from './queue';
 import { dimensions, shownTags } from '../core/page-tags';
 import { CardRefs, Inline, plain } from './markdown';
-import { quoteClass, Body, Cards, goToMessage, Msg, Quote, Reading, useAnswer, useReportedHeight } from './message';
+import { quoteClass, Body, Code, Cards, goToMessage, Msg, Quote, Reading, useAnswer, useReportedHeight } from './message';
 import { appended, cardDraft, draftOf, dropDraft, findingDraft, giveBack, questionsKey, reviewReset, updateDraft, useDraft, useDraftField, useDrafting } from './draft';
 import { eventQuote, type Reply, replyOn, setReply } from './reply';
 import { CiteButton } from './cite';
@@ -1357,7 +1357,7 @@ function ProposalView({
               </p>
             )}
             {item.idea?.retro && <p className="hint">{t.proposedByRetro(item.idea.retro)}</p>}
-            {item.idea?.proposal?.setup && item.idea.proposal.reason && <p className="hint">{item.idea.proposal.reason}</p>}
+            {(item.idea?.proposal?.setup || item.idea?.proposal?.finish) && item.idea.proposal.reason && <p className="hint">{item.idea.proposal.reason}</p>}
           </>
         }
         talk={
@@ -1820,7 +1820,12 @@ function Fold({ children, lines }: { children: ReactNode; lines?: number }) {
 
 /** A state change or an error between the messages, or a message. */
 function Line({ turn, snoozed, explained, ...rest }: { turn: Turn; snoozed?: Item; explained?: boolean; demoQuestion?: Demo; quoted?: CardEvent; fresh?: boolean; onReply?: (e: CardEvent) => void; onDelete?: () => void }) {
-  return snoozed ? (
+  return turn.e.kind === 'changes' ? (
+    <Collapsible>
+      <CollapsibleTrigger marker>{t.capturedChanges}</CollapsibleTrigger>
+      <CollapsibleContent><Code text={turn.e.text} /></CollapsibleContent>
+    </Collapsible>
+  ) : snoozed ? (
     <SnoozeLine item={snoozed} e={turn.e} at={time(turn.e.at)} />
   ) : turn.e.made ? (
     <Made e={turn.e} fresh={rest.fresh} />
