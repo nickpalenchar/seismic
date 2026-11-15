@@ -1,3 +1,4 @@
+import { activeMergeCard } from '../core/merge';
 import { FullPageHost, useFullPage } from './fullPage';
 import { DockShell, useDock, type DockView } from './dockViews';
 import { clientExtensions as extensions } from '../extensions/client';
@@ -721,6 +722,7 @@ function Project({
 
   /** Unfolds the card `i`; `quick` without the flight and the unfold, as after a reload. */
   async function open(i: Item, reload = false) {
+    i = activeMergeCard(i, itemsRef.current);
     // reduced motion opens at once too, but shows the card only at the size its content settles at
     const hold = !reload && reducedMotion();
     const quick = reload || hold;
@@ -819,6 +821,13 @@ function Project({
     if (i && unfolded.current) fitPanel(i);
   }, [tick]);
 
+  // A merge can choose the other card as its owner while this card is open.
+  useEffect(() => {
+    if (!openItem) return;
+    const owner = activeMergeCard(openItem, items);
+    if (owner.id !== openItem.id) void openFresh(owner);
+  }, [openItem, items]);
+
   // the open card went away on the server (cut into packages, deleted elsewhere): fold the panel
   useEffect(() => {
     if (openId && !openItem && focusRef.current?.type === 'card') closeCard({ keepUntitled: true });
@@ -890,7 +899,7 @@ function Project({
   async function openFresh(i: Item) {
     const f = focusRef.current;
     if (f?.type === 'card') {
-      if (f.id === i.id) return;
+      if (f.id === activeMergeCard(i, itemsRef.current).id) return;
       await closeCard({ keepUntitled: true, onward: true });
     }
     flushSync(() => {
@@ -1129,7 +1138,7 @@ function Project({
   /** The card or plan an address (or an id) names, on the project or in the archive, which it loads where it has to. */
   async function namedBy(code: string) {
     const here = named(itemsRef.current, code) ?? named(archivedRef.current, code);
-    if (here) return here;
+    if (here) return activeMergeCard(here, itemsRef.current);
     const gone = await api.archived().catch(() => []);
     archivedRef.current = gone;
     setArchived(gone);
@@ -1155,7 +1164,7 @@ function Project({
     if (i.kind === 'plan') return openPlan(i);
     const f = focusRef.current;
     if (f?.type === 'card') {
-      if (f.id === i.id) return;
+      if (f.id === activeMergeCard(i, itemsRef.current).id) return;
       await closeCard({ keepUntitled: true, onward: true });
     }
     const plan = i.archivedAt ? i.parent : undefined;

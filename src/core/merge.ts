@@ -1,4 +1,4 @@
-import type { Merge } from './types';
+import type { Item, Merge } from './types';
 
 /** The preview belongs to its comparison, never to the card's current question ordering.
  * Older completed results can recover the text from their recorded inputs. Older retained
@@ -16,4 +16,10 @@ export function mergeQuestionTexts(merge: Pick<Merge, 'followUp' | 'compared'>):
     if (texts.every((text) => typeof text === 'string')) return texts;
   } catch { /* No usable snapshot in older saved comparisons. */ }
   return undefined;
+}
+
+/** Opening either original card returns to the current comparison, using the latest snapshot. */
+export function activeMergeCard(card: Item, items: Item[]): Item {
+  const current = items.find((i) => i.id === card.id) ?? card;
+  return items.find((i) => i.idea?.proposal?.merge?.with === current.id) ?? current;
 }

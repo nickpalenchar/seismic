@@ -1,3 +1,4 @@
+import { activeMergeCard } from '../core/merge';
 // The controller of the phone view: one WebSocket per project, what is open (a card, a
 // conversation) as steps in the browser's history, edits of the open card, a new card, the
 // microphone and the confirmations, and the open card full screen with its conversation in a panel
@@ -73,7 +74,11 @@ export function usePhoneShell(loaded: ProjectInfo[]) {
     return `${path}${talk ? (q ? `${q}&talk` : '?talk') : q}`;
   };
   /** The id of the card a code names, once the snapshots hold it. */
-  const resolve = (code: string | null) => (code && named(allRef.current.map((x) => x.item), code)?.id) || code;
+  const resolve = (code: string | null) => {
+    const items = allRef.current.map((x) => x.item);
+    const card = code && named(items, code);
+    return card ? activeMergeCard(card, items).id : code;
+  };
   const openRef = useRef(open);
   openRef.current = open;
   // the conversation of what is in view, a panel over it: the open card's, else Seismic's
@@ -103,6 +108,7 @@ export function usePhoneShell(loaded: ProjectInfo[]) {
   const looked = useRef<string | null>(cardInAddress());
   // a card opens over Seismic's conversation, and from a card's conversation another card in its place
   const openId = (id: string) => {
+    id = resolve(id) ?? id;
     if (openRef.current === id) return;
     looked.current = id;
     if (!openRef.current) homeScroll.current = homeRef.current?.scrollTop ?? 0;
