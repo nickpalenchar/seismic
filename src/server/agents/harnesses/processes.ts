@@ -79,6 +79,15 @@ function linuxBootId(): string {
   return bootId;
 }
 
+/**
+ * Whether a recorded creation identity is the one now seen for the pid. Records written before the
+ * boot id joined the identity hold bare start ticks; the caller has already matched the record's
+ * boot, so those compare against the ticks part of a current identity.
+ */
+export function sameBirth(recorded: string, current: string): boolean {
+  return recorded === current || (!recorded.includes(':') && current.endsWith(`:${recorded}`));
+}
+
 /** /proc/<pid>/stat's command is parenthesized and can itself contain spaces and parentheses. */
 export function linuxProcessStat(stat: string, boot = linuxBootId()): ProcessInfo | undefined {
   const open = stat.indexOf(' (');
@@ -354,7 +363,7 @@ export function terminate(owned: Iterable<ProcessInfo>, table: Map<number, Proce
   const targets = new Map<number, ProcessInfo>();
   for (const info of owned) {
     const current = table.get(info.pid);
-    if (current?.born === info.born) targets.set(current.pid, current);
+    if (current && sameBirth(info.born, current.born)) targets.set(current.pid, current);
   }
   let changed = true;
   while (changed) {

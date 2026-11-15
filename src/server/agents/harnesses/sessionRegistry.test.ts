@@ -105,6 +105,22 @@ test.skipIf(!supported)('another live Seismic on the same directory keeps its se
   expect(alive(live.pid!)).toBe(true);
 }, 20_000);
 
+test.skipIf(!supported || process.platform !== 'linux')('a record from before the boot id joined the identity (bare start ticks) still recovers its work', async () => {
+  const root = scratch();
+  const ready = join(root, '..', 'ready');
+  const dead = owner(root, ready, 1);
+  await until(() => existsSync(ready));
+  const job = { pid: pidsOf(ready)[0]! };
+  const file = readdirSync(root).find((n) => n.endsWith('.json'))!;
+  const record: SessionRecord = JSON.parse(readFileSync(join(root, file), 'utf8'));
+  const legacy = record.processes.map((p) => ({ ...p, born: p.born.slice(p.born.lastIndexOf(':') + 1) }));
+  expect(legacy[0]!.born).not.toBe(record.processes[0]!.born);
+  writeFileSync(join(root, file), JSON.stringify({ ...record, processes: legacy }));
+  await crash(dead);
+  expect(new SessionRegistry(root).recover()[0]).toMatchObject({ outcome: 'recovered', killed: [job.pid] });
+  await until(() => !alive(job.pid));
+}, 20_000);
+
 test.skipIf(!supported)('this process holding a lease is not a candidate for its own sweep', async () => {
   const root = scratch();
   const registry = new SessionRegistry(root);

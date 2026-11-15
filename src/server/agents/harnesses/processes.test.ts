@@ -5,7 +5,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { codexConnection } from './codexRpc';
-import { AgentProcesses, linuxProcessStat, processes, processesAsync, sharedSnapshot, terminate, tolerateTimeouts, untilIdentified } from './processes';
+import { AgentProcesses, linuxProcessStat, processes, processesAsync, sameBirth, sharedSnapshot, terminate, tolerateTimeouts, untilIdentified } from './processes';
 
 const handlers = { notification() {}, request: async () => ({}) };
 const beat = (file: string) => { try { return Number(readFileSync(file, 'utf8')); } catch { return 0; } };
@@ -29,6 +29,19 @@ test('Linux identity includes the boot id: the same pid and start ticks on anoth
   expect(a.born).not.toBe(b.born);
   const killed = terminate([a], new Map([[42, b]]));
   expect(killed.signalled).toEqual([]);
+});
+
+test('Linux pid reuse within one boot: same pid, different start ticks is not the recorded process', () => {
+  const recorded = linuxProcessStat('42 (agent) S 10 42 42 0 -1 0 0 0 0 0 0 0 0 0 20 0 1 0 1000 0', 'boot-a')!;
+  const reused = linuxProcessStat('42 (other) S 10 42 42 0 -1 0 0 0 0 0 0 0 0 0 20 0 1 0 1001 0', 'boot-a')!;
+  expect(terminate([recorded], new Map([[42, reused]])).signalled).toEqual([]);
+});
+
+test('a record holding bare start ticks from before the boot id still matches the same process on this boot', () => {
+  const current = linuxProcessStat('42 (agent) S 10 42 42 0 -1 0 0 0 0 0 0 0 0 0 20 0 1 0 1000 0', 'boot-a')!;
+  expect(sameBirth('1000', current.born)).toBe(true);
+  expect(sameBirth('1001', current.born)).toBe(false);
+  expect(sameBirth('boot-b:1000', current.born)).toBe(false);
 });
 
 test('the snapshot leaves the event loop free and sees the same identities as the blocking one', async () => {

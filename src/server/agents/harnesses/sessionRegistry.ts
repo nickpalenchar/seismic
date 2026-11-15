@@ -14,7 +14,7 @@ import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { z } from 'zod';
 import { messageOf } from '../../../core/text';
-import { processes, terminate, type ProcessInfo } from './processes';
+import { processes, sameBirth, terminate, type ProcessInfo } from './processes';
 
 const generationId = z.string().uuid();
 const observed = z.object({ pid: z.number().int().positive().safe(), born: z.string().min(1) }).strict();
@@ -259,7 +259,7 @@ export class SessionRegistry {
     const table = options.table ?? (() => new Map(processes().map((p) => [p.pid, p])));
     const owned = record.processes.map(({ pid, born }): ProcessInfo => ({ pid, born, parent: 0, group: 0 }));
     const before = table();
-    const alive = owned.filter((o) => before.get(o.pid)?.born === o.born);
+    const alive = owned.filter((o) => sameRecorded(before.get(o.pid), o));
     if (!alive.length) { remove(); return { generation: id, outcome: 'cleared', detail: 'nothing of it is running', label: record.label }; }
     // The group of a recorded leader is read from the table, not the record: a group number is
     // only trusted for a process verified at this moment.
@@ -268,7 +268,7 @@ export class SessionRegistry {
     let remaining = alive;
     for (;;) {
       const now = table();
-      remaining = alive.filter((o) => now.get(o.pid)?.born === o.born);
+      remaining = alive.filter((o) => sameRecorded(now.get(o.pid), o));
       if (!remaining.length || Date.now() > deadline) break;
       Bun.sleepSync(25);
     }
@@ -279,6 +279,8 @@ export class SessionRegistry {
     return { generation: id, outcome: 'recovered', detail: `ended ${alive.map((a) => a.pid).join(', ')}`, label: record.label, killed: alive.map((a) => a.pid) };
   }
 }
+
+const sameRecorded = (current: ProcessInfo | undefined, o: ProcessInfo) => !!current && sameBirth(o.born, current.born);
 
 export interface Recovery {
   generation: string;
