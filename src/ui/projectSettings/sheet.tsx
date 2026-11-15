@@ -108,7 +108,6 @@ export function ProjectSettingsSheet({ project, name, homePath, on, covered, onA
         <div className={cn(back && 'animate-[push-back_.22s_ease-out]')}>
           <p className="cs-project mt-0 mr-10 mb-0.5 ml-0 text-xs text-muted-foreground">{name}</p>
           <h2 className={sheetTitleClass}>{l.title}</h2>
-          <p className="text-muted-foreground text-sm leading-[1.45] mt-0 mx-0 mb-3">{l.hint}</p>
           {view && <SectionList view={view} repos={repos} focus={back} onOpen={shown} />}
           {said && <p className={`hint ${statusClass}`}>{said}</p>}
           {repos.view && (
@@ -167,7 +166,7 @@ function SectionList({ view, repos, focus, onOpen }: { view: ProjectSettingsView
         {status[s] !== undefined && (typeof status[s] === 'string' ? <span className="max-w-[40%] truncate text-xs text-muted-foreground">{status[s]}</span> : status[s])}
         {n > 0 && (
           <Badge className={cn('py-0', alert)} title={said} aria-label={said}>
-            <TriangleAlert aria-hidden />
+            {s !== 'commands' && <TriangleAlert aria-hidden />}
             {n}
           </Badge>
         )}
