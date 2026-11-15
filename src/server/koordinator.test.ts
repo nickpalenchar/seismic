@@ -21,9 +21,11 @@ let workstations: Workstations;
 let k: Koordinator;
 let docs: PlanDoc[];
 let restarting = false;
+let merges = true;
 
 beforeEach(() => {
   restarting = false;
+  merges = true;
   dir = mkdtempSync(join(tmpdir(), 'obeya-k-'));
   const main = join(dir, 'main');
   gitRepo(main);
@@ -34,7 +36,7 @@ beforeEach(() => {
   workstations = new Workstations(store, 'c', { mode: 'worktrees', repoPath: main, dir: join(dir, 'ws') });
   runtime = new FakeRuntime();
   workers = new Workers({ board, runtime, workstations, adapter });
-  k = new Koordinator({ board, runtime, home: () => main, repoFor: () => ({ workers, workstations, adapter, path: main }), holdMs: 0, restarting: () => restarting });
+  k = new Koordinator({ board, runtime, home: () => main, repoFor: () => ({ workers, workstations, adapter, path: main }), holdMs: 0, restarting: () => restarting, suggestsMerges: () => merges });
 });
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
@@ -81,8 +83,7 @@ async function schedule(entries: [string, string[], string[], string[], string][
 
 describe('Koordinator', () => {
   test('with “Suggest card merges” off a starting card is not checked for duplicates and records none', async () => {
-    let merges = false;
-    k = new Koordinator({ board, runtime, home: () => board.project.repos[0]!.path, repoFor: () => ({ workers, workstations, adapter: { ...generic, land: 'main' as const, workstations: 'worktrees' as const }, path: board.project.repos[0]!.path }), holdMs: 0, restarting: () => restarting, suggestsMerges: () => merges });
+    merges = false;
     card('Export invoices to CSV');
     const later = card('Add CSV export for invoices');
     k.request(later.id);
@@ -98,6 +99,68 @@ describe('Koordinator', () => {
     k.request(third.id);
     await settle();
     expect(estimates().at(-1)!.inbox[0]).toContain('Export invoices to CSV');
+  });
+
+  describe('what the Koordinator agents are told about duplicates', () => {
+    const DUPLICATE = /duplicate/i;
+    const shape = (s: FakeSession, tool: string) => Object.keys(s.spec.tools.find((t) => t.name === tool)!.schema);
+
+    for (const on of [true, false]) {
+      test(`estimate with “Suggest card merges” ${on ? 'on' : 'off'}`, async () => {
+        merges = on;
+        const a = card('A');
+        k.request(a.id);
+        await scope(['src/a.ts']);
+        const later = card('Add CSV export for invoices');
+        k.request(later.id);
+        await settle();
+        const s = estimates().at(-1)!;
+        const tool = s.spec.tools.find((t) => t.name === 'scope')!;
+        const delivered = [s.spec.system, tool.description, s.inbox[0], Object.keys(tool.schema).join(' ')].join('\n');
+        expect(DUPLICATE.test(delivered)).toBe(on);
+        expect('duplicates' in tool.schema).toBe(on);
+        expect(s.inbox[0]!.includes('Other unfinished tasks to check')).toBe(on);
+        expect(shape(s, 'scope')).toContain('files');
+        // a duplicate the agent reports anyway is not recorded when off
+        s.call('scope', { files: ['src/a.ts'], conflicts_with: [], duplicates: ['K1'], reason: 'Same.' });
+        s.emit({ type: 'idle' });
+        await settle();
+        expect(item(later.id).possibleDuplicates?.length ?? 0).toBe(on ? 1 : 0);
+        if (!on) expect(item(later.id).state).toBe('working');
+      });
+
+      test(`joint schedule with “Suggest card merges” ${on ? 'on' : 'off'}`, async () => {
+        merges = on;
+        const a = card('A');
+        k.request(a.id);
+        await scope(['src/a.ts']);
+        const first = card('Export invoices to CSV');
+        const later = card('Add CSV export for invoices');
+        k.request(first.id);
+        await scope(['src/a.ts'], ['K1']);
+        k.request(later.id);
+        await scope(['src/a.ts'], ['K1']);
+        await workers.stop(a.id);
+        await settle();
+        const s = schedules().at(-1)!;
+        const tool = s.spec.tools.find((t) => t.name === 'schedule')!;
+        const item0 = (tool.schema.workstreams as unknown as { element: { shape: Record<string, unknown> } }).element.shape;
+        const delivered = [s.spec.system, tool.description, s.inbox[0], Object.keys(item0).join(' ')].join('\n');
+        expect(DUPLICATE.test(delivered)).toBe(on);
+        expect('duplicates' in item0).toBe(on);
+        expect(s.inbox[0]!.includes('Other unfinished tasks to check')).toBe(on);
+        s.call('schedule', {
+          workstreams: [
+            { card: 'K1', files: ['src/a.ts'], builds_on: [], conflicts_with: [], duplicates: ['K2'], reason: 'Go.' },
+            { card: 'K2', files: ['src/b.ts'], builds_on: [], conflicts_with: [], reason: 'Go.' },
+          ],
+        });
+        s.emit({ type: 'idle' });
+        await settle();
+        // with merges off nothing is recorded as a duplicate
+        expect(item(first.id).possibleDuplicates?.length ?? 0).toBe(on ? 1 : 0);
+      });
+    }
   });
 
   test('a possible duplicate of a planned card stops the start and names the card', async () => {
