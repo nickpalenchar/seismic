@@ -107,6 +107,40 @@ test('nested demo directories count their work without following links', async (
   }
 });
 
+test('one large directory fills the global metadata limit, even beside nested work', async () => {
+  const flat = join(demos, 'flat');
+  const nested = join(demos, 'nested');
+  const file = (name: string) => ({ name, isDirectory: () => false });
+  const directory = (name: string) => ({ name, isDirectory: () => true });
+  const tree = new Map<string, ReturnType<typeof file>[]>([
+    [flat, Array.from({ length: 48 }, (_, i) => file(`${i}.jpg`))],
+    [nested, Array.from({ length: 4 }, (_, i) => directory(`demo-${i}`))],
+  ]);
+  for (let i = 0; i < 4; i++) {
+    const demo = join(nested, `demo-${i}`);
+    tree.set(demo, [directory('.work')]);
+    tree.set(join(demo, '.work'), Array.from({ length: 16 }, (_, n) => file(`${n}.jpg`)));
+  }
+  let active = 0;
+  let highest = 0;
+  const observed = async <T>(value: T): Promise<T> => {
+    highest = Math.max(highest, ++active);
+    await Bun.sleep(0);
+    active--;
+    return value;
+  };
+  const io = {
+    entries: (path: string) => observed(tree.get(path) ?? []),
+    size: (_path: string) => observed(1),
+  };
+  expect(await usage(flat, io)).toEqual({ bytes: 48, work: 0 });
+  expect(highest).toBe(16);
+  highest = 0;
+  expect(await usage(nested, io)).toEqual({ bytes: 64, work: 64 });
+  expect(highest).toBe(16);
+  expect(active).toBe(0);
+});
+
 test("the days kept: the settings', else the default, which only the Seismic in the default home applies", () => {
   const own = join(homedir(), '.obeya');
   expect(keepDays({}, own)).toBe(DEFAULT_KEEP_DAYS);

@@ -100,27 +100,56 @@ const exists = (p: string): Promise<boolean> => stat(p).then(() => true, () => f
 /** What a file takes on disk: its blocks where the system says (a sparse or compressed file), else its size. */
 const onDisk = (s: { blocks?: number; size: number }) => (s.blocks ? s.blocks * 512 : s.size);
 
+type UsageEntry = { name: string; isDirectory(): boolean };
+type UsageIo = {
+  entries: (path: string) => Promise<UsageEntry[]>;
+  size: (path: string) => Promise<number>;
+};
+const diskUsageIo: UsageIo = {
+  entries: (path) => readdir(path, { withFileTypes: true }),
+  size: (path) => lstat(path).then(onDisk, () => 0),
+};
+
 /**
  * The bytes under `dir`, and those under work directories (`.work`) among them; symbolic links are
- * not followed. At most `DEMOS_AT_ONCE` directory walkers and file stats run in total, including
- * nested directories: a demo directory holds millions of frames, too many to stat at once.
+ * not followed. At most `DEMOS_AT_ONCE` walkers and, independently, that many metadata requests
+ * run across all walkers, including nested directories. A single large directory can fill the
+ * metadata limit without starting a request for every frame at once.
  */
-export async function usage(dir: string): Promise<{ bytes: number; work: number }> {
+export async function usage(dir: string, io: UsageIo = diskUsageIo): Promise<{ bytes: number; work: number }> {
   const sum = { bytes: 0, work: 0 };
   const pending: { path: string; inWork: boolean }[] = [{ path: dir, inWork: false }];
   let next = 0;
   let active = 0;
+  let ioActive = 0;
+  const ioWaiters: (() => void)[] = [];
+  const limited = async <T>(fn: () => Promise<T>): Promise<T> => {
+    if (ioActive < DEMOS_AT_ONCE) ioActive++;
+    else await new Promise<void>((resolve) => ioWaiters.push(resolve));
+    try {
+      return await fn();
+    } finally {
+      const waiter = ioWaiters.shift();
+      if (waiter) waiter();
+      else ioActive--;
+    }
+  };
   const walk = async ({ path, inWork }: { path: string; inWork: boolean }) => {
     let entries;
     try {
-      entries = await readdir(path, { withFileTypes: true });
+      entries = await limited(() => io.entries(path));
     } catch {
       return;
     }
-    let here = 0;
+    const files: string[] = [];
     for (const entry of entries) {
       if (entry.isDirectory()) pending.push({ path: join(path, entry.name), inWork: inWork || entry.name === '.work' });
-      else here += await lstat(join(path, entry.name)).then(onDisk, () => 0);
+      else files.push(join(path, entry.name));
+    }
+    let here = 0;
+    for (let i = 0; i < files.length; i += DEMOS_AT_ONCE) {
+      const sizes = await Promise.all(files.slice(i, i + DEMOS_AT_ONCE).map((file) => limited(() => io.size(file))));
+      here += sizes.reduce((total, size) => total + size, 0);
     }
     sum.bytes += here;
     if (inWork) sum.work += here;
