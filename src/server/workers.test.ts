@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { generic } from '../adapters/generic';
-import { needsYou, pausable } from '../core/types';
+import { needsYou, pausable, type ReviewItem } from '../core/types';
 import { BadRequest, Board } from './board';
 import { OBEYA_PLUGIN } from './demo';
 import { Images } from './images';
@@ -610,6 +610,29 @@ describe('workers', () => {
     runtime.last.emit({ type: 'idle' });
     expect(state(c.id)).toBe('waiting:question');
     expect(board.item(c.id)!.question!.text).toBe('Ich komme nicht an die Datenbank.');
+  });
+
+  test('a turn that ends with review items still being fixed is nudged though the card waits for approval', async () => {
+    const c = manual();
+    await workers.start(c.id);
+    const s = runtime.last;
+    await s.call('ready_for_review', { summary: 'Export als CSV.', demo: artifact() });
+    s.emit({ type: 'idle' });
+    expect(state(c.id)).toBe('waiting:demo');
+    // the owner chose "Fix it" on an item: the card keeps waiting while the worker is on it
+    const item: ReviewItem = { number: 1, title: 'Name', text: 'Name stimmt nicht.', severity: 'minor', status: 'fixing', log: [] };
+    board.work(c.id, { review: { items: [item] } });
+    s.emit({ type: 'idle' });
+    const before = s.inbox.length;
+    s.call('report', { status: 'Behoben und committet' });
+    s.emit({ type: 'text', text: 'Fertig.' });
+    s.emit({ type: 'idle' });
+    expect(s.inbox.length).toBe(before + 1);
+    expect(s.inbox.at(-1)).toContain('resubmit_review_item');
+    // ending again without settling the items goes to the owner
+    s.call('report', { status: 'Noch einmal' });
+    s.emit({ type: 'idle' });
+    expect(board.item(c.id)!.question?.text).toBe('Fertig.');
   });
 
   test('a session that fails again after the nudge goes to the owner with the reason', async () => {

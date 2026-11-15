@@ -4241,7 +4241,9 @@ export class Workers {
     const landed = landedOf(row);
     // in the PR phase a turn ends normally once the PR is open
     if (card.state === 'inPr' && card.review?.pr) return;
-    if (card.state !== 'working' && card.state !== 'inPr' && !landed) return;
+    // fixing review items under a handover that waits for approval is work too: the card stays waiting, and only a handover, a resubmission or a dispute settles the items
+    const fixing = this.reviews.items(cardId).some((i) => i.status === 'fixing');
+    if (card.state !== 'working' && card.state !== 'inPr' && !landed && !fixing) return;
     if (landed) {
       // what remained after the landing is done, unless the worker waits for its question, the restart, its demo's page or the usage limit
       if (card.state === 'waiting' || landed.waits) return;
@@ -4276,7 +4278,9 @@ export class Workers {
       live.session.send(
         card.state === 'inPr'
           ? 'Your turn ended, and Seismic has no pull request for this card yet (pr_opened), nor did you close it as needing none (close_unchanged).'
-          : 'Your turn ended without a handover (ready_for_review) or a question (ask), so the card still shows you at work. Should you end your turn again like this, Seismic passes your last words to the owner as a question.',
+          : card.state === 'waiting'
+            ? 'Your turn ended while items of the code review are still marked as being fixed by you. Hand over (ready_for_review), resubmit them (resubmit_review_item), or dispute them (dispute_review_item). Should you end your turn again like this, Seismic passes your last words to the owner as a question.'
+            : 'Your turn ended without a handover (ready_for_review) or a question (ask), so the card still shows you at work. Should you end your turn again like this, Seismic passes your last words to the owner as a question.',
       );
       return;
     }
