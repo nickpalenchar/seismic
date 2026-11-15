@@ -190,6 +190,18 @@ export function tolerateTimeouts(window = 30_000, now = Date.now) {
 }
 
 /**
+ * Observes until the session's own process is identified, trying a timed-out snapshot again, so a
+ * record published after it names that process; rejects once `watch` lets a failure through.
+ */
+export async function untilIdentified(terminals: AgentProcesses, watch: (operation: Promise<void>) => Promise<void>) {
+  for (;;) {
+    await watch(terminals.track());
+    if (terminals.observed().length) return;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+}
+
+/**
  * Only register descendants while ownership is provable; remember their creation time against PID reuse.
  * Snapshots are taken without blocking the event loop and shared with the other sessions' trackers,
  * so every operation waits for the ones before it: a kill always sees what an earlier track registered.

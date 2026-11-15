@@ -5,7 +5,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { codexConnection } from './codexRpc';
-import { AgentProcesses, linuxProcessStat, processes, processesAsync, sharedSnapshot, tolerateTimeouts } from './processes';
+import { AgentProcesses, linuxProcessStat, processes, processesAsync, sharedSnapshot, tolerateTimeouts, untilIdentified } from './processes';
 
 const handlers = { notification() {}, request: async () => ({}) };
 const beat = (file: string) => { try { return Number(readFileSync(file, 'utf8')); } catch { return 0; } };
@@ -305,3 +305,16 @@ test.skipIf(process.platform === 'win32')('after the app-server has exited, its 
     expect(seen).toEqual([[group, 'SIGKILL']]);
   } finally { process.kill = real; spy.restore(); }
 }, 10_000);
+
+test('a session is identified only once a snapshot that timed out has been taken again', async () => {
+  let calls = 0;
+  const root = { pid: 4242, parent: process.pid, group: 4242, born: 'b' };
+  const terminals = new AgentProcesses(root.pid, () => {
+    if (++calls <= 2) throw Object.assign(new Error('Agent process snapshot timed out'), { code: 'ETIMEDOUT' });
+    return [root];
+  });
+  await untilIdentified(terminals, tolerateTimeouts());
+  expect(terminals.observed()).toEqual([{ pid: 4242, born: 'b' }]);
+  const refused = new AgentProcesses(root.pid, () => { throw new Error('Cannot inspect agent process ownership'); });
+  await expect(untilIdentified(refused, tolerateTimeouts())).rejects.toThrow('Cannot inspect');
+});

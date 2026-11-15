@@ -20,7 +20,7 @@ import { which } from '../../path';
 import { OWN_GROUP } from '../../spawn';
 import { cleanEnv, type AgentEvent, type AgentRuntime, type AgentSpec } from '../../runtime';
 import { AGY_CONVERSATION_ID } from '../../transcript';
-import { AgentProcesses, tolerateTimeouts } from './processes';
+import { AgentProcesses, tolerateTimeouts, untilIdentified } from './processes';
 import { endAtShutdown, observeEveryTick } from './codexRpc';
 import { sessionRegistry } from './sessionRegistry';
 import { AGY_SERVER, registerAgyTools, wireTools, type AgyRegistration } from './agyMcp';
@@ -347,7 +347,7 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
         closing = true;
       });
 
-      const recorded = terminals ? watch(terminals.track()).then(async () => { await (await record)?.publish(terminals.observed()); }) : Promise.resolve();
+      const recorded = terminals ? untilIdentified(terminals, watch).then(async () => { await (await record)?.publish(terminals.observed()); }) : Promise.resolve();
       recorded.then(() => { ready = true; pump(); }, (error: unknown) => failEnded(`Antigravity could not be put on record: ${messageOf(error)}`));
       if (firstMessage !== undefined) send(firstMessage, images);
       return { send, close: stop, done };

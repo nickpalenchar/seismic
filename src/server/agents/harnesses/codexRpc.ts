@@ -6,7 +6,7 @@ import { StringDecoder } from 'node:string_decoder';
 import { z } from 'zod';
 import { messageOf } from '../../../core/text';
 import { OWN_GROUP } from '../../spawn';
-import { AgentProcesses, tolerateTimeouts } from './processes';
+import { AgentProcesses, tolerateTimeouts, untilIdentified } from './processes';
 import { sessionRegistry } from './sessionRegistry';
 
 /** The Codex and agy sessions of this Seismic, by their `close`, for the server's shutdown to end. */
@@ -237,7 +237,7 @@ export function codexConnection(
   });
   // Session requests wait for their initial identity to be durable, without blocking other
   // sessions or the server's event loop while the filesystem completes the publication.
-  const ready = terminals ? watch(terminals.track()).then(async () => {
+  const ready = terminals ? untilIdentified(terminals, watch).then(async () => {
     const generation = await record;
     await generation?.publish(terminals.observed());
   }) : Promise.resolve();
