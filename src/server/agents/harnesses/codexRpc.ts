@@ -134,7 +134,8 @@ export function codexConnection(
   function close() {
     if (closing) return;
     // Queued before any kill, so the terminals seen now are ended with the rest.
-    if (terminals) void watch(terminals.track()).catch((error: unknown) => { failure ??= new Error(messageOf(error)); });
+    // Before the app-server is identified no request went out: a failed look then is owed nothing.
+    if (terminals) void watch(terminals.track()).catch((error: unknown) => { if (terminals.observed().length) failure ??= new Error(messageOf(error)); });
     closing = true;
     rejectPending(new Error('Codex app-server connection closed'));
     // EOF lets Codex shut down its own terminals, including on Windows. Bound a stuck shutdown.
