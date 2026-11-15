@@ -5,7 +5,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { z } from 'zod';
 import { testProcessCode } from '../../../test-process';
+import { appendFileSync, mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { agyArgs, READ_ONLY_PERMISSIONS, agyLimit, createAgyRuntime, nativeTool, parseAgyModels } from './agy';
+import { agyTranscriptLog } from './agyTasks';
+import { finished, started } from './agyTasksFixture';
 import { handleMcp, registerAgyTools, wireTools } from './agyMcp';
 import { endSessionsHere } from './codexRpc';
 import { environment, SessionRegistry, useSessionRegistry } from './sessionRegistry';
@@ -233,4 +237,23 @@ test.skipIf(!recording)('a command agy left holding its pipes does not hold up t
     await session.done;
     expect(Date.now() - started).toBeLessThan(4500);
   } finally { try { process.kill(Number(readFileSync(leafFile, 'utf8')), 'SIGKILL'); } catch { /* gone */ } }
+});
+
+test('background tasks in agy\'s transcript show on the card, and one ending between turns wakes the session', async () => {
+  const repo = workstation();
+  const brain = join(dirname(repo), 'brain');
+  const events: AgentEvent[] = [];
+  const session = createAgyRuntime(launch as never, () => '/fake/agy', () => brain).start(spec(repo, events), 'hello');
+  sessions.push(session);
+  await until(() => events.some((e) => e.type === 'idle'));
+  const log = agyTranscriptLog(brain, 'conv-1');
+  mkdirSync(dirname(log), { recursive: true });
+  appendFileSync(log, `${started('conv-1/task-2', 'bun run build')}\n`);
+  await until(() => events.some((e) => e.type === 'background' && e.tasks.length === 1));
+  expect(events).toContainEqual({ type: 'background', tasks: [{ id: 'conv-1/task-2', description: 'bun run build' }] });
+  expect(events.at(-1)).toEqual({ type: 'idle', background: 1, more: false });
+  appendFileSync(log, `${finished('conv-1/task-2')}\n`);
+  await until(() => events.filter((e) => e.type === 'idle').length >= 4);
+  expect(events).toContainEqual({ type: 'background', tasks: [] });
+  expect(events).toContainEqual({ type: 'idle', background: 0, more: true });
 });

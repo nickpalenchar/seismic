@@ -20,6 +20,7 @@ import { which } from '../../path';
 import { OWN_GROUP } from '../../spawn';
 import { cleanEnv, type AgentEvent, type AgentRuntime, type AgentSpec } from '../../runtime';
 import { AGY_CONVERSATION_ID } from '../../transcript';
+import { agyBrainDir, agyTranscriptLog, TranscriptTail, type AgyTask } from './agyTasks';
 import { AgentProcesses, onceClosed, tolerateTimeouts, untilIdentified } from './processes';
 import { endAtShutdown, observeEveryTick } from './codexRpc';
 import { sessionRegistry } from './sessionRegistry';
@@ -169,7 +170,7 @@ export function agyLimit(message: string, now = Date.now()): { resetsAt?: number
 type Launch = (command: string, args: string[], options: { cwd: string; env: NodeJS.ProcessEnv }) => ReturnType<typeof spawn>;
 const launchInstalled: Launch = (command, args, options) => spawn(command, args, { ...options, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true, detached: OWN_GROUP });
 
-export function createAgyRuntime(launch: Launch = launchInstalled, executable: () => string | null = installedAgy): AgentRuntime {
+export function createAgyRuntime(launch: Launch = launchInstalled, executable: () => string | null = installedAgy, brain: () => string = agyBrainDir): AgentRuntime {
   return {
     start(spec, firstMessage, images) {
       supported(spec);
@@ -199,6 +200,9 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
       let introduced = false;
       let stderr = '';
       let exited = false;
+      // agy's background tasks, from its transcript: a command that outlives its wait is a task of agy's own.
+      let tail: TranscriptTail | undefined;
+      let background: AgyTask[] = [];
       let terminate: ReturnType<typeof setTimeout> | undefined;
       let kill: ReturnType<typeof setTimeout> | undefined;
       const child = launch(command, agyArgs(spec), { cwd: spec.cwd, env: { ...cleanEnv(), ...spec.env } });
@@ -228,6 +232,23 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
         observing = true;
         watch(terminals.track()).catch((error: unknown) => failEnded(`Antigravity's processes cannot be watched: ${messageOf(error)}`)).finally(() => { observing = false; });
       });
+
+      // agy wakes itself for a task that ends during a turn; between turns nothing does, so the session does.
+      const watchTasks = (turnEnded = false) => {
+        if (!tail || closing) return;
+        let tasks: AgyTask[];
+        try { tasks = tail.tasks(); } catch { return; }
+        if (JSON.stringify(tasks) === JSON.stringify(background)) return;
+        const ended = background.filter((before) => !tasks.some((now) => now.id === before.id));
+        background = tasks;
+        emit({ type: 'background', tasks });
+        // a turn that just ended reports its own idle
+        if (turn || turnEnded) return;
+        if (ended.length) queue.push(`Background commands have ended: ${ended.map((t) => t.description).join('; ')}. Inspect their results and continue your task.`);
+        emit({ type: 'idle', background: tasks.length, more: queue.length > 0 });
+        pump();
+      };
+      const stopTasks = observeEveryTick(() => watchTasks());
 
       const signal = (which: NodeJS.Signals) => {
         if (exited) return;
@@ -273,6 +294,7 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
         } catch { stderr = (stderr + line + '\n').slice(-4000); return; }
         if (parsed.event === 'init' && parsed.conversation_id) {
           const id = `agy:${parsed.conversation_id}`;
+          if (!tail) tail = new TranscriptTail(agyTranscriptLog(brain(), parsed.conversation_id), !!spec.resume);
           emit({ type: 'session', id, ...(spec.setting ? { setting: { ...spec.setting, agy: { model: spec.model ?? 'default', effort: spec.effort ?? 'high' } } } : {}), ...(spec.model ? { model: spec.model } : {}) });
         } else if (parsed.event === 'step_update' && parsed.step_update) {
           const s = parsed.step_update;
@@ -296,7 +318,8 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
             const limit = agyLimit(message);
             emit({ type: 'error', message, ...(limit ? { limit } : {}) });
           }
-          emit({ type: 'idle', more: queue.length > 0 });
+          watchTasks(true);
+          emit({ type: 'idle', ...(background.length ? { background: background.length } : {}), more: queue.length > 0 });
           pump();
         }
       }
@@ -313,6 +336,7 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
       child.on('error', (error) => failEnded(`Antigravity could not start: ${messageOf(error)}`));
       child.on('exit', () => {
         stopObserving();
+        stopTasks();
         // Do not wait for `close`: a command agy started may still hold its pipes open.
         void terminals?.kill().catch(() => { /* retried at close */ });
         // The leader is gone, so any member still in its group keeps the number reserved: this is the
@@ -330,6 +354,7 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
       onceClosed(child, (code) => {
         exited = true;
         stopObserving();
+        stopTasks();
         clearTimeout(terminate);
         clearTimeout(kill);
         endpoint.dispose();

@@ -24,7 +24,7 @@ Bring `agy` workers to the Codex level of crash recovery, process cleanup and tr
   shared by resuming and lookup.
 - [x] **W3:** Usage limits. Record what `agy` actually reports when a Google account's quota is used up
   (the preview recognises it from the error text) and read the reset time from it.
-- [ ] **W4:** Background commands. Show the agent's background tasks on the card and wake the
+- [x] **W4:** Background commands. Show the agent's background tasks on the card and wake the
   session when one ends, as for Codex.
 
 ## W3 evidence — account quota

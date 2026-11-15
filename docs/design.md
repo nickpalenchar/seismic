@@ -272,6 +272,12 @@ Safety rules:
   and agy's own exit (measured 2026-11-14, macOS). Seismic therefore observes the descendants of each
   `agy` process like Codex's (every 500 ms) and ends them, or the sweep does after a crash. A command
   that detaches (reparented to init) between two observations is not attributable and stays running.
+- `agy` turns a command that outlives its wait into a task of its own and holds the turn open until it
+  ends (it wakes itself); its stream-json frames say nothing of it and the frames behind the step wait.
+  Seismic reads the tasks from the conversation's transcript
+  (`~/.gemini/antigravity-cli/brain/<id>/.system_generated/logs/transcript.jsonl`, grown live: a step
+  "running as a background task with task id: X", a system message `Task id "X" finished`, measured
+  2026-11-14), shows them on the card, and, as for Codex, wakes the session when one ends between turns.
 - An agent session (Codex or agy) sends its first turn only once its own identity is durable in the
   session registry (a timed-out first snapshot is taken again), and an observation that fails for good
   after that (not a timed-out snapshot) ends the session and keeps its record for the next start's
