@@ -872,3 +872,24 @@ test('a delayed command stays in its captured chat after another chat opens', ()
     store.db.close();
   }
 });
+
+test('a workstream that sits on another canvas than its plan\'s, archived or not, is put back on its plan\'s', () =>
+  withPath((path) => {
+    const s = new Store(path);
+    s.ensureProject('c', 'C');
+    const main = s.canvases.main('c');
+    const later = s.canvases.add('c', 'Later', null).id;
+    const [plan] = s.addCards([{ project_id: 'c', kind: 'plan', plan_ref: 'docs/plan/a.md', canvas_id: later, x: 0, y: 0 }]);
+    const [live, archived, free] = s.addCards([
+      { project_id: 'c', kind: 'task', parent_id: plan!.id, plan_ref: 'docs/plan/a.md#W1', x: 0, y: 0 },
+      { project_id: 'c', kind: 'task', parent_id: plan!.id, plan_ref: 'docs/plan/a.md#W2', x: 0, y: 0 },
+      { project_id: 'c', kind: 'task', canvas_id: main, x: 0, y: 0 },
+    ]);
+    s.cards.update(archived!.id, { archived_at: new Date().toISOString() });
+    s.db.run('UPDATE cards SET canvas_id = ? WHERE id IN (?, ?)', [main, live!.id, archived!.id]);
+    s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('SELECT p.canvas_id FROM cards p'))}`);
+    s.db.close();
+    const after = new Store(path);
+    expect([live!.id, archived!.id, plan!.id, free!.id].map((id) => after.cards.get(id)!.canvas_id)).toEqual([later, later, later, main]);
+    after.db.close();
+  }));
