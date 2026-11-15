@@ -157,8 +157,12 @@ export const configShape = z.array(
     .strict(),
 );
 
-/** A repository's entry as the project's settings sheet saves it: its path names it, the fields it holds replace those of the entry. */
-const repoEntryShape = configShape.element.shape.repos.element.omit({ git: true });
+/**
+ * A repository's entry as the project's settings sheet saves it: its path names it, the fields it holds
+ * replace those of the entry. It may carry the entry's folder mode (`git`) as read, which is the entry's
+ * own and stays as it is.
+ */
+const repoEntryShape = configShape.element.shape.repos.element;
 
 /** Where the project `id` is in `projects`: by its id once resolved, else by the id it keeps. */
 function projectIndex(id: string, projects: ProjectConfig[], resolved: (ResolvedProject | null)[]): number {
@@ -916,7 +920,7 @@ export class Config {
     const saved = this.projectSaves.then(async () => {
       const parsed = repoEntryShape.safeParse(input);
       if (!parsed.success) throw new BadRequest('invalid', `repository settings: ${z.prettifyError(parsed.error)}`);
-      const { path, ...fields } = parsed.data;
+      const { path, git: _, ...fields } = parsed.data;
       const current = this.current();
       const i = projectIndex(id, current, (await this.check(current)).resolved);
       if (i < 0) throw new BadRequest('invalid', `the configuration has no project ${id}`);

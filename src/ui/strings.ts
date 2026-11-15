@@ -1439,6 +1439,7 @@ const en = {
       closeMenu: 'Close menu',
       projects: 'Projects',
       closeNeedsYou: 'Close Needs you',
+      closeSettings: 'Close project settings',
     },
     notify: {
       install: 'For Seismic to tell you when something waits for you: tap “Share” below, then “Add to Home Screen”, and open Seismic from there.',
@@ -2404,6 +2405,8 @@ const en = {
     restart: (repo: string) => `Saving this restarts the agents of ${repo} once they pause.`,
     restartSave: 'Save and restart agents',
     restartDiscard: 'Discard',
+    restartFirst: 'Save or discard the change to where agents work first.',
+    retry: 'Try again',
     notResolved: 'This project has a problem in its configuration; its repositories show once it is fixed.',
     saving: 'Saving…',
   },

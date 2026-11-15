@@ -968,8 +968,26 @@ describe('The project settings', () => {
     await c.saveRepo('web', { path: web, clones: 2, settings: { workstations: 'clones' } });
     expect(readConfigFile(file)[0]?.repos[0]).toEqual({ path: web, clones: 2, settings: { workstations: 'clones' } });
     await expect(c.saveRepo('web', { path: join(dir, 'elsewhere') })).rejects.toThrow();
-    await expect(c.saveRepo('web', { path: web, git: false })).rejects.toThrow();
+    // the folder mode is the entry's own: one sent along changes nothing
+    await c.saveRepo('web', { path: web, git: false, clones: 2, settings: { workstations: 'clones' } });
+    expect(readConfigFile(file)[0]?.repos[0]).toEqual({ path: web, clones: 2, settings: { workstations: 'clones' } });
     await expect(c.saveRepo('nowhere', { path: web })).rejects.toThrow();
+  });
+
+  test('a folder without git saves its settings from the sheet and stays a folder', async () => {
+    const docs = join(dir, 'Docs');
+    mkdirSync(docs, { recursive: true });
+    writeFileSync(join(docs, 'notes.md'), 'hi\n');
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, `${JSON.stringify([{ name: 'Docs', repos: [{ path: docs, git: false }] }])}\n`);
+    const c = config('file', [], ['docs']);
+    const v = await c.projectView('docs');
+    // the sheet sends the whole entry as read, its folder mode included
+    await c.saveRepo('docs', { ...v.project.repos[0]!, settings: { checks: ['make'] } });
+    expect(readConfigFile(file)).toEqual([{ name: 'Docs', repos: [{ path: docs, git: false, settings: { checks: ['make'] } }] }]);
+    // one sent without it stays a folder too
+    await c.saveRepo('docs', { path: docs, settings: { setup: 'make deps' } });
+    expect(readConfigFile(file)[0]?.repos[0]).toEqual({ path: docs, git: false, settings: { setup: 'make deps' } });
   });
 
   test('“Archive project” takes the project out of the configuration, but never the last one', async () => {

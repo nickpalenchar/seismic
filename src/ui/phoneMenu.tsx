@@ -1,9 +1,9 @@
 // The phone's menu: the desktop's left menu trimmed to what a phone has a use for, as a sheet over
 // everything, the floating bar included. Needs you (with its count across every project) and the
-// projects, a tap on one switching the view to it, each with its agents' pause; the canvases, the
-// queue, the settings and the configuration stay on the desktop.
+// projects, a tap on one switching the view to it, each with its agents' pause, and the settings of
+// the project in view; the canvases, the queue and the configuration stay on the desktop.
 
-import { Check, Inbox, X } from 'lucide-react';
+import { Check, ChevronRight, Inbox, SlidersHorizontal, X } from 'lucide-react';
 import type { ProjectInfo } from '../core/types';
 import { cn } from 'cn';
 import { Badge } from './components/badge';
@@ -14,7 +14,7 @@ import { t } from './strings';
 
 const rowClass = 'box-border flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-lg bg-transparent px-3 py-2 text-left text-lg text-foreground active:bg-muted';
 
-export function PhoneMenu({ open, onOpenChange, projects, project, needsYou, onProject, onNeedsYou }: {
+export function PhoneMenu({ open, onOpenChange, projects, project, needsYou, onProject, onNeedsYou, onSettings }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   projects: ProjectInfo[];
@@ -23,6 +23,8 @@ export function PhoneMenu({ open, onOpenChange, projects, project, needsYou, onP
   needsYou: number;
   onProject: (id: string) => void;
   onNeedsYou: () => void;
+  /** Opens the settings of the project in view. */
+  onSettings: () => void;
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -43,6 +45,11 @@ export function PhoneMenu({ open, onOpenChange, projects, project, needsYou, onP
               {needsYou}
             </Badge>
           )}
+        </button>
+        <button className={rowClass} onClick={onSettings}>
+          <SlidersHorizontal size={20} strokeWidth={2} className="text-muted-foreground" aria-hidden="true" />
+          <span className="min-w-0 flex-1">{t.leftMenu.projectSettings}</span>
+          <ChevronRight size={18} strokeWidth={2} className="text-muted-foreground" aria-hidden="true" />
         </button>
         <h3 className="mx-3 mt-5 mb-1.5 text-xs font-semibold tracking-[.04em] text-muted-foreground uppercase">{t.phone.next.projects}</h3>
         <ul className="m-0 list-none p-0">

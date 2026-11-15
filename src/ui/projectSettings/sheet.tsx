@@ -17,7 +17,7 @@ import { AdapterSetup, CardArchiveField, Head, PlanBaselineField, ProjectSiteFie
 import { cfgGroupClass, cfgGroupHeadClass, settingsSheetClass } from '../configClasses';
 import { Docked, sheetTitleClass } from '../docked';
 import { failText, t } from '../strings';
-import { Button } from '../components/button';
+import { Button, LinkButton } from '../components/button';
 import { ConfirmDialog } from '../components/dialog';
 import { Separator } from '../components/separator';
 import { Badge } from '../components/badge';
@@ -49,8 +49,32 @@ const sectionOf = (p: ConfigProblem): Section => (p.code === 'untrusted' ? 'comm
 /** The labels' checkboxes under "Suggest card labels", in the order they show. */
 const LABEL_ORDER: SuggestToggle[] = ['priority', 'complexity', 'category'];
 
-/** The sheet of the project `project`; read afresh each time it opens or the Configuration over it closes. */
-export function ProjectSettingsSheet({ project, name, homePath, on, covered, onAddSite }: { project: string; name: string; /** The project's home repository, which proposing the demo site's tags reads. */ homePath?: string | undefined; /** Opens Configuration at the page that adds a demo site. */ onAddSite: () => void; on: boolean; /** The Configuration dialog is open over it: read afresh once it closes, as models may have changed there. */ covered: boolean }) {
+interface SettingsProps {
+  project: string;
+  name: string;
+  /** The project's home repository, which proposing the demo site's tags reads. */
+  homePath?: string | undefined;
+  /** Opens Configuration at the page that adds a demo site. */
+  onAddSite: () => void;
+  on: boolean;
+  /** The Configuration dialog is open over it: read afresh once it closes, as models may have changed there. */
+  covered: boolean;
+}
+
+/** The sheet of the project `project`, docked on the right; read afresh each time it opens or the Configuration over it closes. */
+export function ProjectSettingsSheet(p: SettingsProps) {
+  return (
+    <Docked id="project-settings" on={p.on} label={t.projectSettings.title} className={settingsSheetClass}>
+      <ProjectSettingsBody {...p} />
+    </Docked>
+  );
+}
+
+/**
+ * The list of sections and the view open, in the docked sheet or on the phone's page of its own
+ * (`phone`: under the page's bar, which names it).
+ */
+export function ProjectSettingsBody({ project, name, homePath, on, covered, onAddSite, phone }: SettingsProps & { phone?: boolean }) {
   const [view, setView] = useState<ProjectSettingsView | null>(null);
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
@@ -98,18 +122,23 @@ export function ProjectSettingsSheet({ project, name, homePath, on, covered, onA
   };
   const said = status || repos.status;
   return (
-    <Docked id="project-settings" on={on} label={l.title} className={settingsSheetClass}>
+    <>
       {open && view ? (
         <SectionView key={open} section={open} onBack={() => shown(null)}>
+          {/* under the title, in view however far the section's fields reach */}
+          <Said status={said} failed={repos.failed} />
           <SectionBody section={open} project={project} view={view} repos={repos} repoAt={Math.min(repoAt, Math.max(0, repos.repos.length - 1))} onRepo={setRepoAt} catalogs={catalogs} busy={busy} save={save} choose={choose} homePath={homePath} onAddSite={onAddSite} />
-          {said && <p className={`hint ${statusClass}`}>{said}</p>}
         </SectionView>
       ) : (
         <div className={cn(back && 'animate-[push-back_.22s_ease-out]')}>
-          <p className="cs-project mt-0 mr-10 mb-0.5 ml-0 text-xs text-muted-foreground">{name}</p>
-          <h2 className={sheetTitleClass}>{l.title}</h2>
+          {!phone && (
+            <>
+              <p className="cs-project mt-0 mr-10 mb-0.5 ml-0 text-xs text-muted-foreground">{name}</p>
+              <h2 className={sheetTitleClass}>{l.title}</h2>
+            </>
+          )}
           {view && <SectionList view={view} repos={repos} focus={back} onOpen={shown} />}
-          {said && <p className={`hint ${statusClass}`}>{said}</p>}
+          <Said status={said} failed={repos.failed} />
           {repos.view && (
             <>
               <Separator className="my-2" />
@@ -118,7 +147,7 @@ export function ProjectSettingsSheet({ project, name, homePath, on, covered, onA
           )}
         </div>
       )}
-    </Docked>
+    </>
   );
 }
 
@@ -371,7 +400,8 @@ function RepoPart({ section, project, view, save, repos, repoAt, onRepo }: BodyP
     repos.edit(repoAt, settings ? { ...rest, settings } : rest);
   };
   const at = repoSettingsAt(repo.settings, resolved.values, edit);
-  const takeover: Takeover = { saved: true, onReload: async () => repos.reload() };
+  // what reads the saved configuration (sharing it for everyone, the agent that writes it) saves what waits first
+  const takeover: Takeover = { saved: !repos.unsaved(repoAt) && !repos.busy, onReload: async () => repos.reload(), prepare: () => repos.settle(repoAt) };
   const name = repoName(repo, resolved);
   switch (section) {
     case 'environment':
@@ -524,6 +554,24 @@ function Suggestions({ view, save }: { view: ProjectSettingsView; save: (s: Proj
           ))}
         </div>
       </SwitchRow>
+    </>
+  );
+}
+
+/** What the last change came to: a refusal, and a repository's save that was refused, with "Try again". */
+function Said({ status, failed }: { status: string; failed: ProjectRepos['failed'] }) {
+  const l = t.projectSettings;
+  return (
+    <>
+      {status && <p className={`hint ${statusClass}`}>{status}</p>}
+      {failed && (
+        <p className={cn('hint cs-failed text-warning', statusClass)}>
+          {failed.status}{' '}
+          <LinkButton type="button" onClick={failed.retry}>
+            {l.retry}
+          </LinkButton>
+        </p>
+      )}
     </>
   );
 }

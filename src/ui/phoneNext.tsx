@@ -39,6 +39,9 @@ import { InboxList } from './inbox';
 import { sendReply } from './quickReply';
 import { PhoneMenu } from './phoneMenu';
 import { plannedOrder } from './phoneOrder';
+import { ProjectSettingsBody } from './projectSettings/sheet';
+import { settingsSheetClass } from './configClasses';
+import { showAddSite } from './config';
 
 /** The sections of the list, in their order; those folded until the owner unfolds them. */
 const SECTIONS = ['queued', 'planned', 'parked', 'done'] as const;
@@ -51,7 +54,8 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
   const s = usePhoneShell(loaded);
   const { projects, snaps, usage, feeds, banner, open, openCard, obeyaId, setObeyaProject, entries, isUnderway, homeRef, newCard, making, made, press, acks, back, showAck } = s;
   const [menuOpen, setMenuOpen] = useState(false);
-  const [needsOn, openNeeds, closeNeeds] = useNeedsPage();
+  const [needsOn, openNeeds, closeNeeds] = usePage('needs');
+  const [settingsOn, openSettings, closeSettings] = usePage('settings');
   const [workingOpen, setWorkingOpen] = useStoredState('seismic-phone-working-open', true);
   const [folded, setFolded] = useStoredState<Section[]>('seismic-phone-folded', FOLDED);
   // how many cards each section shows; back to the first twenty with another project
@@ -210,6 +214,23 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
           </div>
         </div>
       )}
+      {/* the project's settings: kept while closed, so a change that waits for the owner's word stays with it */}
+      {snap && (
+        <div id="ph-settings" className={cn(pageClass, 'z-20 bg-background')} hidden={!settingsOn || searching}>
+          <header className={cn(pageBarClass, 'gap-2')}>
+            <button className="-ml-1 inline-grid size-10 shrink-0 place-items-center rounded-full bg-transparent p-0" aria-label={t.phone.next.menu} onClick={() => setMenuOpen(true)}>
+              <Sign size={26} />
+            </button>
+            <h1 className="m-0 min-w-0 flex-1 overflow-hidden text-xl font-semibold text-ellipsis whitespace-nowrap">{t.projectSettings.title}</h1>
+            <button className="ph-close inline-grid size-10 shrink-0 place-items-center rounded-full bg-muted text-foreground cursor-pointer ph-landscape:size-9" aria-label={t.phone.next.closeSettings} onClick={closeSettings}>
+              <X size={20} strokeWidth={2.25} aria-hidden="true" />
+            </button>
+          </header>
+          <div id="project-settings" className={cn(settingsSheetClass, 'px-5.5 pt-3')}>
+            <ProjectSettingsBody phone project={obeyaId} name={snap.project.name} homePath={snap.project.repos[0]?.path} onAddSite={showAddSite} on={settingsOn} covered={false} />
+          </div>
+        </div>
+      )}
       {acks}
       <PhoneMenu
         open={menuOpen}
@@ -220,11 +241,18 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
         onProject={(id) => {
           setObeyaProject(id);
           closeNeeds();
+          closeSettings();
           setMenuOpen(false);
         }}
         onNeedsYou={() => {
           setMenuOpen(false);
+          closeSettings();
           openNeeds();
+        }}
+        onSettings={() => {
+          setMenuOpen(false);
+          closeNeeds();
+          openSettings();
         }}
       />
       {searching && <PhoneSearch items={items.filter((i) => !i.archivedAt)} query={query} onQuery={setQuery} onOpen={openCard} onClose={closeSearch} />}
@@ -448,21 +476,21 @@ function FloatingBar({ needsYou, making, chat, chatWorking, onNew, onChat, onSea
 }
 
 /**
- * Whether the Needs you page is open, kept in the address (`?needs`) so Back and a reload hold it;
- * opening is a step in the browser's history, closing takes it back (or drops it from the address
- * where the page was loaded on it).
+ * Whether a page over the project is open (Needs you, `needs`; the project's settings, `settings`),
+ * kept in the address (`?needs`) so Back and a reload hold it; opening is a step in the browser's
+ * history, closing takes it back (or drops it from the address where the page was loaded on it).
  */
-function useNeedsPage(): [boolean, () => void, () => void] {
-  const [on, setOn] = useState(() => new URLSearchParams(location.search).has('needs'));
+function usePage(name: 'needs' | 'settings'): [boolean, () => void, () => void] {
+  const [on, setOn] = useState(() => new URLSearchParams(location.search).has(name));
   useEffect(() => {
-    const pop = () => setOn(new URLSearchParams(location.search).has('needs'));
+    const pop = () => setOn(new URLSearchParams(location.search).has(name));
     addEventListener('popstate', pop);
     return () => removeEventListener('popstate', pop);
   }, []);
-  const address = (needs: boolean) => {
+  const address = (open: boolean) => {
     const q = new URLSearchParams(location.search);
-    if (needs) q.set('needs', '');
-    else q.delete('needs');
+    if (open) q.set(name, '');
+    else q.delete(name);
     const text = q.toString().replace(/=(&|$)/g, '$1');
     return `${location.pathname}${text ? `?${text}` : ''}`;
   };
@@ -470,12 +498,12 @@ function useNeedsPage(): [boolean, () => void, () => void] {
     on,
     () => {
       if (on) return;
-      history.pushState({ ...history.state, needs: true }, '', address(true));
+      history.pushState({ ...history.state, [name]: true }, '', address(true));
       setOn(true);
     },
     () => {
       if (!on) return;
-      if ((history.state as { needs?: boolean } | null)?.needs) history.back();
+      if ((history.state as Record<string, boolean> | null)?.[name]) history.back();
       else history.replaceState(history.state, '', address(false));
       setOn(false);
     },
