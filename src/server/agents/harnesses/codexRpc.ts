@@ -6,7 +6,7 @@ import { StringDecoder } from 'node:string_decoder';
 import { z } from 'zod';
 import { messageOf } from '../../../core/text';
 import { OWN_GROUP } from '../../spawn';
-import { AgentProcesses, tolerateTimeouts, untilIdentified } from './processes';
+import { AgentProcesses, onceClosed, tolerateTimeouts, untilIdentified } from './processes';
 import { sessionRegistry } from './sessionRegistry';
 
 /** The Codex and agy sessions of this Seismic, by their `close`, for the server's shutdown to end. */
@@ -84,8 +84,9 @@ export function codexConnection(
   const record = terminals ? sessionRegistry()?.begin(options.label ?? 'Codex session', options.cwd) : undefined;
   const publish = () => {
     const identities = terminals!.observed();
-    void record?.then((generation) => generation?.publish(identities)).catch((error) => {
-      console.warn(`Session record not updated: ${messageOf(error)}`);
+    // A process the record does not name would outlive a crash: the session does not go on without it.
+    void record?.then((generation) => generation?.publish(identities)).catch((error: unknown) => {
+      fail(new Error(`Session processes could not be put on record: ${messageOf(error)}`));
     });
   };
   if (terminals && record) { terminals.onChange = publish; publish(); }
@@ -219,7 +220,7 @@ export function codexConnection(
     await terminals?.kill().catch((error: unknown) => { failure ??= new Error(messageOf(error)); });
     signal('SIGKILL');
   } });
-  child.on('close', (code, exitSignal) => {
+  onceClosed(child, (code, exitSignal) => {
     stopObserving();
     clearTimeout(terminate);
     clearTimeout(kill);

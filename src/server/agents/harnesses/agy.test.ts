@@ -1,9 +1,10 @@
 import { afterEach, expect, test } from 'bun:test';
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { chmodSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { z } from 'zod';
+import { testProcessCode } from '../../../test-process';
 import { agyArgs, READ_ONLY_PERMISSIONS, agyLimit, createAgyRuntime, nativeTool, parseAgyModels } from './agy';
 import { handleMcp, registerAgyTools, wireTools } from './agyMcp';
 import { endSessionsHere } from './codexRpc';
@@ -189,4 +190,47 @@ test.skipIf(!recording)('an agy whose processes cannot be watched ends before an
   expect(events.some((e) => e.type === 'text')).toBe(false);
   // no turn went out, so nothing it could have started is owed to a sweep
   expect(records()).toEqual([]);
+});
+
+/** An agy stand-in from a script: `code` runs with `turn(n)` called on each user frame, after which the turn ends. */
+const scripted = (code: string) => (_c: string, _a: string[], o: Parameters<Parameters<typeof createAgyRuntime>[0] & {}>[2]) => spawn(process.execPath, ['-e', testProcessCode(`
+  const { spawn } = require('node:child_process');
+  let n = 0;
+  ${code}
+  process.stdin.on('data', () => { turn(++n); process.stdout.write(JSON.stringify({ event: 'result', result: { status: 'SUCCESS' } }) + '\\n'); });
+  process.stdin.on('end', () => process.exit(0));
+  setInterval(() => {}, 1000);`)], { ...o, stdio: ['pipe', 'pipe', 'pipe'] });
+const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catch { return false; } };
+
+test.skipIf(!recording)('a command that can no longer be put on record ends the session, and the command with it', async () => {
+  const { root, records } = registry();
+  const leafFile = join(root, '..', `leaf-${process.pid}`);
+  const events: AgentEvent[] = [];
+  // the second turn starts a command once the registry has stopped taking writes
+  const session = createAgyRuntime(scripted(`const turn = (n) => { if (n === 2) { const c = spawn(process.execPath, ['-e', ${JSON.stringify(testProcessCode())}], { stdio: 'ignore' }); require('node:fs').writeFileSync(${JSON.stringify(leafFile)}, String(c.pid)); } };`), () => '/fake/agy').start(spec(workstation(), events), 'one');
+  sessions.push(session);
+  await until(() => events.some((e) => e.type === 'idle'));
+  chmodSync(root, 0o500);
+  try {
+    session.send('two');
+    await session.done;
+  } finally { chmodSync(root, 0o700); }
+  expect(events.find((e) => e.type === 'error')).toMatchObject({ message: expect.stringContaining('could not be put on record'), ended: true });
+  await until(() => !alive(Number(readFileSync(leafFile, 'utf8'))));
+  expect(records()).toHaveLength(1);
+});
+
+test.skipIf(!recording)('a command agy left holding its pipes does not hold up the end of the session', async () => {
+  registry();
+  const leafFile = join(mkdtempSync(join(tmpdir(), 'agy-leaf-')), 'leaf');
+  dirs.push(join(leafFile, '..'));
+  const events: AgentEvent[] = [];
+  // detached into a group of its own and holding agy's output, it is gone from agy's tree once agy exits
+  const session = createAgyRuntime(scripted(`const turn = () => { const c = spawn(process.execPath, ['-e', ${JSON.stringify(testProcessCode())}], { detached: true, stdio: ['ignore', 'inherit', 'inherit'] }); require('node:fs').writeFileSync(${JSON.stringify(leafFile)}, String(c.pid)); process.exit(0); };`), () => '/fake/agy').start(spec(workstation(), events), 'one');
+  sessions.push(session);
+  try {
+    const started = Date.now();
+    await session.done;
+    expect(Date.now() - started).toBeLessThan(4500);
+  } finally { try { process.kill(Number(readFileSync(leafFile, 'utf8')), 'SIGKILL'); } catch { /* gone */ } }
 });

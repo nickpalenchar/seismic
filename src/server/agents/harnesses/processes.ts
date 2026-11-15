@@ -1,7 +1,7 @@
 /**
  * Native PTYs can start a new process group: killing the app-server's group is not sufficient.
  */
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import { readFile, readdir } from 'node:fs/promises';
 
@@ -187,6 +187,29 @@ export function tolerateTimeouts(window = 30_000, now = Date.now) {
     if (timedOut(error) && now() - (since ??= now()) < window) return;
     throw error;
   });
+}
+
+/**
+ * Calls `settle` once, when the session's process has exited and its pipes have closed, or `grace`
+ * after its exit where they are still open: a command it started that was never observed (reparented
+ * between two observations) can hold them for as long as it runs. Its pipes are then let go.
+ */
+export function onceClosed(child: ChildProcess, settle: (code: number | null, signal: NodeJS.Signals | null) => void, grace = 2000) {
+  let settled = false;
+  let held: ReturnType<typeof setTimeout> | undefined;
+  const once = (code: number | null, signal: NodeJS.Signals | null) => {
+    if (settled) return;
+    settled = true;
+    clearTimeout(held);
+    settle(code, signal);
+  };
+  child.on('exit', (code, signal) => {
+    held = setTimeout(() => {
+      for (const pipe of [child.stdin, child.stdout, child.stderr]) pipe?.destroy();
+      once(code, signal);
+    }, grace);
+  });
+  child.on('close', once);
 }
 
 /**

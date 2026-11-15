@@ -20,7 +20,7 @@ import { which } from '../../path';
 import { OWN_GROUP } from '../../spawn';
 import { cleanEnv, type AgentEvent, type AgentRuntime, type AgentSpec } from '../../runtime';
 import { AGY_CONVERSATION_ID } from '../../transcript';
-import { AgentProcesses, tolerateTimeouts, untilIdentified } from './processes';
+import { AgentProcesses, onceClosed, tolerateTimeouts, untilIdentified } from './processes';
 import { endAtShutdown, observeEveryTick } from './codexRpc';
 import { sessionRegistry } from './sessionRegistry';
 import { AGY_SERVER, registerAgyTools, wireTools, type AgyRegistration } from './agyMcp';
@@ -209,9 +209,10 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
       // group) is recorded as it is observed, as for Codex (sessionRegistry.ts).
       const terminals = child.pid ? new AgentProcesses(child.pid) : undefined;
       const record = terminals ? sessionRegistry()?.begin(`Antigravity in ${spec.cwd}`, spec.cwd) : undefined;
+      // A command the record does not name would outlive a crash: agy does not go on without it.
       const publish = () => {
-        void record?.then((generation) => generation?.publish(terminals!.observed())).catch((error) => {
-          console.warn(`Session record not updated: ${messageOf(error)}`);
+        void record?.then((generation) => generation?.publish(terminals!.observed())).catch((error: unknown) => {
+          failEnded(`Antigravity's processes could not be put on record: ${messageOf(error)}`);
         });
       };
       if (terminals && record) { terminals.onChange = publish; publish(); }
@@ -326,7 +327,7 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
         await terminals?.kill().catch(() => { /* the record stays for a sweep */ });
         signal('SIGKILL');
       } });
-      child.on('close', (code) => {
+      onceClosed(child, (code) => {
         exited = true;
         stopObserving();
         clearTimeout(terminate);

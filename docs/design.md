@@ -276,6 +276,9 @@ Safety rules:
   session registry (a timed-out first snapshot is taken again), and an observation that fails for good
   after that (not a timed-out snapshot) ends the session and keeps its record for the next start's
   sweep: what was seen may not be all it started.
+  A process observed later that cannot be written to the record ends the session too. A session's
+  end does not wait for its pipes to close beyond 2 s after its process exited: a command it left
+  (never observed) can hold them for as long as it runs.
 
 ## Chapters
 
