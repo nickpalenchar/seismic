@@ -11,7 +11,7 @@
 import { cn } from 'cn';
 import { Select as SelectPrimitive } from 'radix-ui';
 import type { ComponentProps, ReactNode, Ref } from 'react';
-import { field } from './input';
+import { inputFieldClassName } from './input';
 import { uiPortal } from './ui';
 
 const EMPTY = '\u0000';
@@ -44,7 +44,7 @@ export function Select({
         ref={triggerRef}
         aria-label={label}
         data-slot="select-trigger"
-        className={cn(field, 'inline-flex min-w-0 max-w-full cursor-pointer items-center justify-between gap-2 py-1.5 pr-2.5 text-left font-[inherit]', className)}
+        className={cn(inputFieldClassName, 'inline-flex min-w-0 max-w-full cursor-pointer items-center justify-between gap-2 py-1.5 pr-2.5 text-left font-[inherit]', className)}
       >
         <span className="min-w-0 truncate">
           <SelectPrimitive.Value />

@@ -53,14 +53,11 @@ export function pickedShots(key: string) {
   setDue(key);
 }
 
-/** The owner pasted a screenshot: they know, and the hint goes. */
+/** The owner pasted a screenshot or confirmed the hint: they know, and the hint goes for good. */
 export function pastedShots() {
   know(PASTE_KNOWN);
   if (due) setDue(null);
 }
-
-/** The owner confirmed the hint: it goes for good. */
-export const confirmPasteHint = pastedShots;
 
 /** Whether the hint shows in field `key`, which takes screenshots while `on`. */
 export function usePasteHint(key: string, on: boolean) {

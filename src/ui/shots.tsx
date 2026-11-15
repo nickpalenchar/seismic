@@ -13,7 +13,7 @@ import { droppedPath, withBytes } from './appDrop';
 import { appended, draftIn, draftOf, dropDraft, insertFiles, markupOf, pathWord, setMarkup, updateDraft, useDraft } from './draft';
 import { know, known } from './known';
 import { badgeOf, CLICK_PX, drawMarks, EDGE, type Mark, markOf, markSize, type Point, RED, roundedRect } from './marks';
-import { confirmPasteHint, pastedShots, pickedShots, usePasteHint } from './pasteHint';
+import { pastedShots, pickedShots, usePasteHint } from './pasteHint';
 import { failText, pasteKeys, t } from './strings';
 import { motionMs } from './motion';
 import { behindThumb, type Box, onto, ZOOM_EASE, ZOOM_MS } from './zoomBox';
@@ -286,7 +286,7 @@ export function ShotStrip({ shots }: { shots: ShotInput }) {
       {shots.pasteHint && (
         <div className="c-paste-hint basis-full flex items-center gap-3 py-2 px-2.5 rounded-xs bg-working/8 text-sm leading-[1.4] [&_p]:m-0 [&_p]:flex-1" role="note">
           <p>{t.shots.pasteHint(pasteKeys())}</p>
-          <Button variant="primary" size="small" onClick={confirmPasteHint}>
+          <Button variant="primary" size="small" onClick={pastedShots}>
             {t.newCardHint.ok}
           </Button>
         </div>
