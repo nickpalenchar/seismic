@@ -39,7 +39,7 @@ import { contributionOf, type PrState, type Shipped, type StoredContribution } f
 import { type Doing, onTool, onToolDone, shownDoing, THINKING_AFTER } from './doing';
 import { type ChangeRoute, type Clash, needsOwner, type FindingPick, type CodeReviewSetting, type Finding, type FindingStatus, type HeldChanges, type PageTags, PUSH_HOLD_MS, SEVERITIES, type Severity } from '../core/types';
 import { dimensions, outside, tagsOf } from '../core/page-tags';
-import { gitAsync, gitOrNull } from './workstations';
+import { CAPTURED_CHANGES, gitAsync, gitOrNull, writeToGitDir } from './workstations';
 import { defaultBranchCommit } from './read-tree';
 import type { CardRow } from './models/cards/cards';
 import { workConfig } from './feedback';
@@ -772,9 +772,12 @@ export class Workers {
     if (selected) this.o.board.log(card.id, 'state', 'obeya', t.startedWith(selected.harness === 'codex' && selected.codex ? `Codex · ${selected.codex.model} · ${selected.codex.effort}` : selected.harness === 'agy' && selected.agy ? `Antigravity · ${selected.agy.model} · ${selected.agy.effort}` : `Claude Code · ${selected.model} · ${selected.effort}`));
     const asked = this.o.takeAsked?.(card.id);
     const launch = (headProblem?: string | null) => this.launch(card.id, [this.briefing(card, branch, !!row.branch, headProblem), asked].filter(Boolean).join('\n\n'), undefined, this.taskImages(card));
+    // captured working changes go into the workstation it is given, not into the prompt
+    const captured = this.captured(card.id);
+    const placed = captured === undefined ? ready : (ready ?? Promise.resolve(path)).then(async (at) => (await writeToGitDir(at, CAPTURED_CHANGES, captured), at));
     return this.whenReady(
       card.id,
-      ready,
+      placed,
       () => {
         // the branch is in this workstation now
         if (row.kept_in) this.o.board.work(card.id, { kept_in: null });
@@ -3422,7 +3425,7 @@ export class Workers {
       if (!row.workstation) continue;
       if (row.session_id) this.launch(i.id, restarted, row.session_id);
       // it never reported a session: start one with the card
-      else if (i.state === 'working') this.launch(i.id, this.briefing(i, row.branch ?? '', true), undefined, this.taskImages(i));
+      else if (i.state === 'working') this.launchAnew(i.id, row.workstation, this.briefing(i, row.branch ?? '', true), this.taskImages(i));
     }
     // what stood taken for good before the restart is freed now, not only at the next change
     this.settleLeases();
@@ -3859,7 +3862,23 @@ export class Workers {
     if (row.session_id) return this.launch(cardId, text, row.session_id, images);
     // no session to resume (it never reported one): a new one needs the card first
     const card = this.card(cardId);
-    this.launch(cardId, `${this.briefing(card, row.branch ?? '', true)}\n\n${text}`, undefined, [...this.taskImages(card), ...images]);
+    this.launchAnew(cardId, row.workstation, `${this.briefing(card, row.branch ?? '', true)}\n\n${text}`, [...this.taskImages(card), ...images]);
+  }
+
+  /**
+   * A new session for a card that had none, in its workstation `at`: its captured working changes
+   * (where it has them) are put there again first, as `start` puts them, since the briefing names their file.
+   */
+  private launchAnew(cardId: string, at: string | null, text: string, images: string[]) {
+    const captured = this.captured(cardId);
+    if (captured === undefined || !at) return this.launch(cardId, text, undefined, images);
+    // meanwhile what the owner says waits for the session, as while a workstation is made ready
+    void this.whenReady(
+      cardId,
+      writeToGitDir(at, CAPTURED_CHANGES, captured).then(() => at),
+      () => this.launch(cardId, text, undefined, images),
+      () => {},
+    );
   }
 
   /** Whether the worker is in the middle of a turn, so that the owner's words wait for its next step. */
@@ -5622,6 +5641,12 @@ ${folder ? '- Others work in the same folder at the same time: leave what your c
     return `the demo skill (\`${name}\`; if your session does not know it, read its file ${file} and follow that)`;
   }
 
+  /** The working changes captured for the card (`Board.proposeFinishChanges`), as one patch; none for other cards. */
+  private captured(cardId: string): string | undefined {
+    const patches = this.o.board.events(cardId).filter((e) => e.kind === 'changes').map((e) => e.text);
+    return patches.length ? patches.join('\n') : undefined;
+  }
+
   /**
    * `headProblem`: on a review card's start, why its workstation is not on the PR's head (null where
    * it is), so the worker fetches it itself.
@@ -5646,8 +5671,11 @@ ${idea.idea.discussion.brief}` : '',
           .join('\n\n'),
       );
     if (card.body.trim()) parts.push(card.body.trim());
-    for (const captured of this.o.board.events(card.id).filter((e) => e.kind === 'changes'))
-      parts.push(`Captured working changes (complete binary patch; apply with git apply --binary):\n\n${captured.text}`);
+    const captured = this.captured(card.id);
+    if (captured)
+      parts.push(
+        `The working changes this card finishes are captured as a complete binary patch (${captured.length} characters) in your workstation's git directory, outside the files git tracks. Apply it first: \`git apply --binary "$(git rev-parse --git-path ${CAPTURED_CHANGES})"\`.`,
+      );
     // the owner's own words: the language the worker writes them in until they say more (`ownersLanguage`)
     if (card.idea?.mocks?.length) parts.push(mocksText(card.idea.mocks));
     if (card.idea?.builtOn) parts.push(this.builtOnPrototype(card.idea.builtOn, !!card.parent));

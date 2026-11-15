@@ -528,7 +528,8 @@ export class Answers {
         );
       const log = this.o.board
         .events(about.id)
-        .filter((e) => e.kind !== 'activity')
+        // a captured patch is no line of the log
+        .filter((e) => e.kind !== 'activity' && e.kind !== 'changes')
         .slice(-LOG_LINES);
       if (log.length) parts.push(`The card's log, latest last:\n${log.map((e) => `- ${e.at.slice(0, 16)} ${e.author} (${e.kind}): ${clip(e.text, 300)}`).join('\n')}`);
     } else if (plan) parts.push(`It is about the plan "${plan.title}".`);

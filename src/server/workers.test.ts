@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { generic } from '../adapters/generic';
 import { needsYou, pausable, type ReviewItem } from '../core/types';
@@ -24,8 +24,26 @@ describe('workers', () => {
     for (let n = 0; n < 501; n++) board.log(card.id, 'report', 'worker', 'Progress');
     const brief = workers.startBrief(board.item(card.id)!);
     expect(brief).toContain('Finish this work and validate it.');
-    expect(brief).toContain(patch);
+    // too large for a prompt: the worker reads it from its workstation
+    expect(brief).not.toContain('+captured');
+    expect(brief).toContain('git apply --binary "$(git rev-parse --git-path obeya-captured-changes.patch)"');
     expect(board.row(card.id).body!.length).toBeLessThan(20000);
+    await workers.start(card.id);
+    expect(runtime.last.inbox[0]).not.toContain('+captured');
+    const at = board.row(card.id).workstation!;
+    expect(readFileSync(git(at, 'rev-parse', '--path-format=absolute', '--git-path', 'obeya-captured-changes.patch'), 'utf8')).toBe(patch);
+    expect(git(at, 'status', '--porcelain')).toBe('');
+    // a session that never reported itself starts anew after a restart: the file is put there again first
+    const file = git(at, 'rev-parse', '--path-format=absolute', '--git-path', 'obeya-captured-changes.patch');
+    rmSync(file);
+    board.work(card.id, { session_id: null });
+    const launched = runtime.sessions.length;
+    const again = new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' } });
+    again.resumeAll();
+    await until(() => runtime.sessions.length > launched);
+    expect(readFileSync(file, 'utf8')).toBe(patch);
+    expect(runtime.last.inbox[0]).toContain('obeya-captured-changes.patch');
+    again.shutdown();
   });
 
   test("a follow-up's worker hears which card it comes from and that card's summary", async () => {

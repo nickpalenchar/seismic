@@ -7,7 +7,7 @@
 // across stop and restart until the card's work has landed.
 
 import { existsSync, mkdirSync, readdirSync, realpathSync, renameSync, statSync } from 'node:fs';
-import { lstat, readlink, rm } from 'node:fs/promises';
+import { lstat, readlink, rm, writeFile } from 'node:fs/promises';
 import { hostname } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { type CardDiff, cardDiff } from '../core/diff';
@@ -2386,6 +2386,28 @@ export async function workingChanges(path: string): Promise<{ files: string[]; d
     if (there) await there.host.run(['rm', '-f', index, `${index}.lock`]);
     else await Promise.all([rm(index, { force: true }), rm(`${index}.lock`, { force: true })]);
   }
+}
+
+/**
+ * The file a card's captured working changes are put in, in its workstation's git directory: outside
+ * the files git tracks, so the clone stays clean, and on the machine its worker runs on. Too large
+ * for a prompt, the patch reaches the worker as this file (`git rev-parse --git-path` names it there).
+ */
+export const CAPTURED_CHANGES = 'obeya-captured-changes.patch';
+
+/** Writes `text` into the git directory of the workstation at `path` as `name`, on its machine; returns the file's absolute path there. */
+export async function writeToGitDir(path: string, name: string, text: string): Promise<string> {
+  const r = await gitRun(path, ['rev-parse', '--path-format=absolute', '--git-path', name]);
+  if (r.code !== 0) throw new WorkstationError(`git rev-parse in ${path}: ${(r.stderr || r.stdout).trim() || `exit code ${r.code}`}`);
+  const file = r.stdout.trim();
+  const there = remoteWorkstation(path);
+  if (!there) {
+    await writeFile(file, text);
+    return file;
+  }
+  const w = await there.host.run(`cat > ${shWord(file)}`, { input: text });
+  if (w.code !== 0) throw new WorkstationError(`writing ${file} on ${there.host.name}: ${(w.stderr || w.stdout).trim() || `exit code ${w.code}`}`);
+  return file;
 }
 
 /** Whether a clone is clean, has uncommitted changes (and which), git fails in it, or is not there; without blocking the server. */

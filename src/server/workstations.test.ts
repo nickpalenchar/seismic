@@ -735,7 +735,7 @@ describe('clones the configuration no longer names', () => {
     const other = spaces.lease(c, 'obeya/c');
     expect(other.path).not.toBe(again.path);
     // settled here, not in a later test: whether it is made does not matter to this one
-    await other.ready.catch(() => {});
+    await other.ready?.catch(() => {});
   });
 
   test("a card's own worktree whose folder is gone stays the card's", () => {
