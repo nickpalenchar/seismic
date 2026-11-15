@@ -20,6 +20,7 @@ import { RadioGroup, RadioOption } from '../../components/radio';
 import { Checkbox } from '../../components/checkbox';
 import { CheckLabel } from '../../components/check-label';
 import { Badge } from '../../components/badge';
+import { Spinner } from '../../components/spinner';
 import { Callout, type CalloutKind, CalloutTitle } from '../../components/callout';
 import { Check, CircleCheck, Info, TriangleAlert } from 'lucide-react';
 import { Input } from '../../components/input';
@@ -272,6 +273,16 @@ function Steps({ steps, at, furthest, onPick }: { steps: readonly Step[]; at: St
   );
 }
 
+/** "Check again", disabled with a spinner while a check runs. */
+function CheckAgain({ checking, disabled, variant, onClick }: { checking: boolean; disabled?: boolean; variant?: 'ghost'; onClick: () => void }) {
+  return (
+    <Button size="small" variant={variant} disabled={checking || disabled} onClick={onClick}>
+      {checking && <Spinner className="size-3.5" aria-hidden />}
+      {checking ? t.config.setup.checking : t.config.setup.recheck}
+    </Button>
+  );
+}
+
 export function Setup({ first, onClose }: { first?: boolean; onClose?: () => void }) {
   const [view, setView] = useState<MachineView | null>(null);
   const [checking, setChecking] = useState(false);
@@ -284,19 +295,37 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
   const shown = useRef(false);
   shown.current = !!view;
   const failed = (e: unknown) => setStatus(failText(e, { detail: ['invalid', 'config'] }));
-  const inFlight = useRef(false);
-  /** `quiet`: the periodic check, which leaves the buttons as they are. */
-  const recheck = (quiet = false) => {
-    inFlight.current = true;
-    if (!quiet) setChecking(true);
-    return api
+  // One check at a time: one asked for while another runs follows it, so the list ends on what the
+  // machine looks like after the last ask. `version` counts the lists set from elsewhere (an install, the
+  // identity, the first project), so a check that started before one of them does not overwrite it.
+  const inFlight = useRef<Promise<void> | null>(null);
+  const again = useRef<Promise<void> | null>(null);
+  const version = useRef(0);
+  const update = (v: MachineView) => {
+    version.current++;
+    setView(v);
+  };
+  /** Settles once a check that started after this call has ended. */
+  const recheck = (): Promise<void> => {
+    if (inFlight.current) return (again.current ??= inFlight.current.then(() => ((again.current = null), check())));
+    return check();
+  };
+  const check = (): Promise<void> => {
+    setChecking(true);
+    const at = version.current;
+    const run = api
       .setup()
-      // a check that fails (the server starting again) keeps the list it had
-      .then(setView, (e) => (shown.current ? console.error(e) : failed(e)))
+      .then(
+        (v) => void (at === version.current && setView(v)),
+        // a check that fails (the server starting again) keeps the list it had
+        (e) => void (shown.current ? console.error(e) : failed(e)),
+      )
       .finally(() => {
-        inFlight.current = false;
-        setChecking(false);
+        inFlight.current = null;
+        if (!again.current) setChecking(false);
       });
+    inFlight.current = run;
+    return run;
   };
   useEffect(() => {
     recheck();
@@ -312,7 +341,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
   const running = !!view?.job?.running;
   useEffect(() => {
     if (!running) return;
-    const timer = setInterval(() => api.setup().then(setView, console.error), 1500);
+    const timer = setInterval(recheck, 1500);
     return () => clearInterval(timer);
   }, [running]);
 
@@ -321,7 +350,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
     setStatus('');
     setTerminal(null);
     try {
-      if (i.act === 'install') setView(await api.setupInstall(section.id, i.id));
+      if (i.act === 'install') update(await api.setupInstall(section.id, i.id));
       else if (i.act === 'login' || i.act === 'terminal') {
         const { opened } = await api.setupLogin(section.id, i.id);
         setTerminal(opened ? i.id : null);
@@ -342,8 +371,8 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
         );
       if (job.error) return <span className="text-destructive m-0 text-sm">{s.failed(job.error.split('\n').at(-1) ?? '')}</span>;
     }
-    if (i.act === 'identity') return <Identity onSaved={setView} onError={failed} />;
-    const detail = section.id === 'voice' && i.id === 'recognition' && <RecognitionDetail item={i} busy={running} changed={() => recheck()} />;
+    if (i.act === 'identity') return <Identity onSaved={update} onError={failed} />;
+    const detail = section.id === 'voice' && i.id === 'recognition' && <RecognitionDetail item={i} busy={running} changed={recheck} />;
     if (!i.act) return detail || null;
     if (i.act === 'login' || i.act === 'terminal')
       return (
@@ -351,9 +380,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
           <Button size="small" onClick={() => act(section, i)}>
             {i.act === 'terminal' ? s.mobile.enable : s.login}
           </Button>
-          <Button size="small" variant="ghost" disabled={checking} onClick={() => recheck()}>
-            {checking ? t.config.setup.checking : t.config.setup.recheck}
-          </Button>
+          <CheckAgain variant="ghost" checking={checking} onClick={recheck} />
           {terminal === i.id ? <span className="hint">{i.act === 'terminal' ? s.mobile.enableOpen : s.terminalOpen}</span> : awaitsLogin(i) && <span className="hint">{s.checksItself}</span>}
         </>
       );
@@ -422,7 +449,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
   const polling = shownItems.some(awaitsLogin);
   useEffect(() => {
     if (!polling) return;
-    const timer = setInterval(() => document.visibilityState === 'visible' && !inFlight.current && recheck(true), LOGIN_POLL_MS);
+    const timer = setInterval(() => document.visibilityState === 'visible' && !inFlight.current && recheck(), LOGIN_POLL_MS);
     return () => clearInterval(timer);
   }, [polling]);
   const toggle = (a: Agent, on: boolean) => setPicked(on ? AGENTS.filter((x) => x === a || chosen.includes(x)) : chosen.filter((x) => x !== a));
@@ -444,9 +471,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
     </section>
   );
   const recheckButton = (
-    <Button size="small" disabled={checking || running} onClick={() => recheck()}>
-      {checking ? t.config.setup.checking : t.config.setup.recheck}
-    </Button>
+    <CheckAgain checking={checking} disabled={running} onClick={recheck} />
   );
 
   return (
@@ -567,7 +592,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
               )}
               {step === 'first' && first && (
                 <>
-                  <FirstProject view={view} ready={configured.length > 0} onView={setView} />
+                  <FirstProject view={view} ready={configured.length > 0} onView={update} />
                   <div className={actionsClass}>
                     <Button size="small" onClick={() => go('recommended')}>
                       {s.back}
