@@ -341,22 +341,34 @@ function agyRun(file: string): Run {
 /**
  * A live conversation's latest steps lie in its write-ahead log, which SQLite reads only through a
  * shared memory file beside the database. Where that file cannot be made (a sandbox, a directory not
- * writable), the database and its log are copied to a directory of our own and read there. A copy
- * taken while agy writes may pair a database with a log of another moment; it is taken again until
- * both stay unchanged across it, and a conversation that never holds still gives none.
+ * writable), the database and its log are copied to a directory of our own and read there. agy
+ * writes on meanwhile: a checkpoint may remove the log mid-copy, or pair a database with a log of
+ * another moment. Such a copy is taken again until both files stay unchanged across it, and a
+ * conversation that never holds still gives none.
  */
-function readCopy<T>(file: string, read: (path: string) => T): T {
-  const stamp = () => [file, `${file}-wal`].map((f) => (existsSync(f) ? `${statSync(f).size}:${statSync(f).mtimeMs}` : '-')).join('|');
+export function readCopy<T>(file: string, read: (path: string) => T, copy: (from: string, to: string) => void = copyFileSync): T {
+  const wal = `${file}-wal`;
+  const stamp = () =>
+    [file, wal]
+      .map((f) => statSync(f, { throwIfNoEntry: false }))
+      .map((st) => (st ? `${st.size}:${st.mtimeMs}` : '-'))
+      .join('|');
   const dir = mkdtempSync(join(tmpdir(), 'seismic-agy-'));
+  let failure: unknown = new Error('the conversation kept changing while it was copied');
   try {
     for (let attempt = 1; attempt <= 5; attempt++) {
-      const before = stamp();
-      const copy = join(dir, `${attempt}.db`);
-      copyFileSync(file, copy);
-      if (existsSync(`${file}-wal`)) copyFileSync(`${file}-wal`, `${copy}-wal`);
-      if (stamp() === before) return read(copy);
+      const target = join(dir, `${attempt}.db`);
+      try {
+        const before = stamp();
+        copy(file, target);
+        if (!before.endsWith('|-')) copy(wal, `${target}-wal`);
+        if (stamp() === before) return read(target);
+      } catch (e) {
+        // the log or the database went away mid-copy, or the copy is torn: taken again
+        failure = e;
+      }
     }
-    throw new Error('the conversation kept changing while it was copied');
+    throw failure;
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

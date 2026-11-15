@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { Database } from 'bun:sqlite';
-import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { excerpt, excerptOf, excerptText, findTranscript } from './transcript';
+import { excerpt, excerptOf, excerptText, findTranscript, readCopy } from './transcript';
 
 const SAMPLE = join(import.meta.dir, 'fixtures', 'transcript.jsonl');
 const CODEX = join(import.meta.dir, 'fixtures', 'codex-rollout.jsonl');
@@ -256,6 +256,35 @@ describe('transcript excerpt', () => {
       } finally {
         chmodSync(locked, 0o755);
       }
+    });
+
+    test('a log that goes away mid-copy is copied again, and one that never holds still is not read', () => {
+      const file = conversation([[15, 3, model('first')]]);
+      writeFileSync(`${file}-wal`, '');
+      const count = (path: string) => {
+        const db = new Database(path, { readonly: true });
+        try {
+          return (db.query('select count(*) as n from steps').get() as { n: number }).n;
+        } finally {
+          db.close();
+        }
+      };
+      let walCopies = 0;
+      const flaky = (from: string, to: string) => {
+        if (from.endsWith('-wal') && ++walCopies === 1) {
+          // agy checkpoints between the look and the copy
+          rmSync(from);
+          throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+        }
+        copyFileSync(from, to);
+      };
+      expect(readCopy(file, count, flaky)).toBe(1);
+      expect(walCopies).toBe(1);
+      const restless = (from: string, to: string) => {
+        copyFileSync(from, to);
+        utimesSync(file, new Date(), new Date(Date.now() + Math.random() * 1e6));
+      };
+      expect(() => readCopy(file, count, restless)).toThrow();
     });
 
     test('a database that is none gives no excerpt', () => {
