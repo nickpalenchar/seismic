@@ -464,9 +464,17 @@ export class Cards {
     this.db.update(cards).set({ updatedAt: now() }).where(eq(cards.id, id)).run();
   }
 
-  /** Puts the card on another workstream (`planRef`, in plan `parentId`), or takes it out of its plan (both null). */
+  /**
+   * Puts the card on another workstream (`planRef`, in plan `parentId`), or takes it out of its plan (both null).
+   * A workstream is on its plan's canvas, so a card put into a plan takes it; one leaving keeps its own.
+   */
   replan(id: string, planRef: string | null, parentId: string | null) {
-    this.db.update(cards).set({ planRef, parentId, updatedAt: now() }).where(eq(cards.id, id)).run();
+    const set = { planRef, parentId, updatedAt: now() };
+    this.db
+      .update(cards)
+      .set(parentId ? { ...set, canvasId: sql`(SELECT p.canvas_id FROM cards p WHERE p.id = ${parentId})` } : set)
+      .where(eq(cards.id, id))
+      .run();
   }
 
   /** The cards (plans with their workstreams) go onto the canvas, out of their groups, which stay on the canvas they leave. */

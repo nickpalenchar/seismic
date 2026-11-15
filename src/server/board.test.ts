@@ -876,6 +876,43 @@ describe('canvases', () => {
     expect(board.freeSpot({ x: 2000, y: 2000, canvas: main })).not.toMatchObject({ x: want.x, y: want.y });
   });
 
+  test('a workstream is always on its plan\'s canvas: archived, moved away and back, put into another plan; new cards from it land there', () => {
+    const later = board.createCanvas('Later');
+    const main = board.snapshot().canvases[0]!.id;
+    const rows = () => [...store.cards.onProject('shop'), ...store.cards.archived('shop')];
+    const aligned = () => rows().filter((r) => r.parent_id).every((r) => r.canvas_id === store.cards.get(r.parent_id!)!.canvas_id);
+    const [plan, w1] = board.snapshot().items;
+    board.moveToCanvas([plan!.id], later.id);
+    expect(aligned()).toBe(true);
+    docs = [];
+    board.docsChanged();
+    expect(aligned()).toBe(true);
+    expect(rows().filter((r) => r.parent_id).map((r) => r.canvas_id)).toEqual([later.id, later.id, later.id]);
+    // new cards from an archived workstream, while the owner looks at main
+    board.looking = () => ({ x: 0, y: 0, canvas: main });
+    const from = (id: string) => [
+      board.create({ title: 'Follow-up', from: id }),
+      board.propose(id, { title: 'Proposal', task: 'T' }),
+      board.addPrototype(id, 'Prototype', 'P'),
+    ].map((i) => canvasOf(i.id));
+    expect(from(w1!.id)).toEqual([later.id, later.id, later.id]);
+    // once that canvas is gone, they go to main
+    store.cards.setCanvas([plan!.id], main);
+    expect(aligned()).toBe(true);
+    store.cards.setCanvas([plan!.id], later.id);
+    store.canvases.delete(later.id);
+    expect(from(w1!.id)).toEqual([main, main, main]);
+  });
+
+  test('a card put into a plan takes the plan\'s canvas', () => {
+    const later = board.createCanvas('Later');
+    const [plan] = board.snapshot().items;
+    const own = board.create({ title: 'Own', x: 0, y: 0 });
+    store.cards.setCanvas([plan!.id], later.id);
+    store.cards.replan(own.id, 'docs/plan/a.md#X', plan!.id);
+    expect(store.cards.get(own.id)!.canvas_id).toBe(later.id);
+  });
+
   test('moving cards: a workstream takes its plan along, groups stay behind, only an empty canvas can be deleted and its archive goes to main', () => {
     const later = board.createCanvas('Later');
     const main = board.snapshot().canvases[0]!.id;

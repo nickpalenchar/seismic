@@ -728,6 +728,10 @@ export const MIGRATIONS = [
   // the cards an exchange's actions created, which the conversation shows each with its cover
   'ALTER TABLE talk ADD COLUMN made TEXT;',
   'ALTER TABLE talk ADD COLUMN request_id TEXT;',
+  // a workstream is on its plan's canvas: repairs the rows that hold another
+  `UPDATE cards SET canvas_id = (SELECT p.canvas_id FROM cards p WHERE p.id = cards.parent_id)
+    WHERE parent_id IS NOT NULL AND canvas_id IS NOT (SELECT p.canvas_id FROM cards p WHERE p.id = cards.parent_id)
+      AND (SELECT p.canvas_id FROM cards p WHERE p.id = cards.parent_id) IS NOT NULL;`,
 ];
 
 /**
