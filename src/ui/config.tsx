@@ -20,7 +20,7 @@ import { type AddSiteInput, api, reload, type SiteHow } from './api';
 import { keepConfigDraft, keptConfigDraft } from './configDraft';
 import { keep } from './keep';
 import { plain } from './markdown';
-import { demoState, GitSetup, platformName, RecognitionDetail, Setup, SetupList, useFolderWithoutGit, voiceState } from './setup';
+import { demoState, GitSetup, platformName, RecognitionDetail, Setup, SetupList, useFolderWithoutGit, voiceState } from './views/setup';
 import { idClass, installClass, installHintClass, jsonClass, pathClass, problemClass, removeClass, rowClass, statusClass, trustClass, trustGroupClass } from './setupClasses';
 import { useFitHeight } from './fitHeight';
 import { useCopy } from './copy';

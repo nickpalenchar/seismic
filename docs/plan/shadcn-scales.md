@@ -25,7 +25,7 @@ workstream recounts what it touches.
   `--border: var(--line)`) and registers the state and glass tokens. Preflight is on (headings keep the
   browser's sizes and weight, lists their markers).
 - **Sizes.** About 1,250 arbitrary pixel values in `src/ui`, about 110 of them in `src/ui/components/`.
-  Heaviest: `detail.tsx` 56, `parts.tsx` 52, `configClasses.ts` 38, `setup.tsx` 32, `card/faceClasses.ts` 30.
+  Heaviest: `detail.tsx` 56, `parts.tsx` 52, `configClasses.ts` 38, `views/setup/setup.tsx` 32, `card/faceClasses.ts` 30.
   - 27 distinct pixel font sizes from 9.5 to 31 px; the common ones `text-[13px]` 87×, `text-[12px]` 65×,
     `text-[12.5px]` 49×, `text-[11px]` 34×, `text-[14px]` and `text-[11.5px]` 27× each.
   - About 235 arbitrary radii, and paddings and gaps in odd pixels throughout.

@@ -5,22 +5,22 @@
 // later the settings open it over the project.
 
 import { Fragment, type ReactNode, useEffect, useRef, useState } from 'react';
-import { CLOUD_PRESETS, CLOUD_VOICES, type CloudPreset, type GitSetupPreview, LARGE_FILE, type Language, type MachineItem, type MachineSection, type MachineView, type MobileId, RECOMMENDED_SECTIONS, type SetupItem, type VoiceSetupItem } from '../core/types';
-import { LANGUAGES } from '../core/locale';
-import { api, reload } from './api';
-import { useCopy } from './copy';
-import { Sign } from './logo';
-import { failText, fileSize, t } from './strings';
-import { projectPath } from './address';
-import { Button, CloseButton, LinkButton } from './components/button';
-import { RadioGroup, RadioOption } from './components/radio';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
-import { Input } from './components/input';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './components/collapsible';
-import { Select, SelectItem } from './components/select';
-import { Dialog, DialogContent, DialogTitle } from './components/dialog';
+import { CLOUD_PRESETS, CLOUD_VOICES, type CloudPreset, type GitSetupPreview, LARGE_FILE, type Language, type MachineItem, type MachineSection, type MachineView, type MobileId, RECOMMENDED_SECTIONS, type SetupItem, type VoiceSetupItem } from '../../../core/types';
+import { LANGUAGES } from '../../../core/locale';
+import { api, reload } from '../../api';
+import { useCopy } from '../../copy';
+import { Sign } from '../../logo';
+import { failText, fileSize, t } from '../../strings';
+import { projectPath } from '../../address';
+import { Button, CloseButton, LinkButton } from '../../components/button';
+import { RadioGroup, RadioOption } from '../../components/radio';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/tabs';
+import { Input } from '../../components/input';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../../components/collapsible';
+import { Select, SelectItem } from '../../components/select';
+import { Dialog, DialogContent, DialogTitle } from '../../components/dialog';
 import { cn } from 'cn';
-import { installClass, installHintClass, pathClass, projectClass, rowClass, setupItemClass, setupListClass, statusClass } from './setupClasses';
+import { installClass, installHintClass, pathClass, projectClass, rowClass, setupItemClass, setupListClass, statusClass } from '../../setupClasses';
 
 const PLATFORMS: Record<string, string> = { darwin: 'macOS', win32: 'Windows', linux: 'Linux' };
 /** The machine's system and processor, as the owner knows them: "macOS (arm64)". */

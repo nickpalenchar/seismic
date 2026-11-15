@@ -1,4 +1,4 @@
-// The looks the setup assistant (setup.tsx) shares with the configuration dialog (config.tsx), in
+// The looks the setup assistant (views/setup/setup.tsx) shares with the configuration dialog (config.tsx), in
 // Tailwind on frost's tokens: a machine's pieces, the fields for paths and commands, an installation
 // going on, the problems the configuration found. The class names before the utilities (`c-path`,
 // `c-install`, `c-problem` …) stay as hooks for code, demos and the configuration's own rules that

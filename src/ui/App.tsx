@@ -35,7 +35,7 @@ import { PhoneDialog } from './access';
 import { OpenPerformance, PerformanceDialog } from './performance';
 import { FeedbackLog } from './feedbackLog';
 import { LOG_KEYS, readLogQuery } from '../core/feedback-log';
-import { Setup } from './setup';
+import { Setup } from './views/setup';
 import { phoneView } from './phoneEnvironment';
 import { PhoneNext } from './phoneNext';
 import { KoordinatorSheet } from './koordinator';
