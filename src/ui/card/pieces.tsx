@@ -59,9 +59,9 @@ const TONES: Record<string, string> = {
 
 /** "Stopped at" in grey, then the state the card was in, in that state's colour. */
 export const StoppedWords = ({ stopped }: { stopped: NonNullable<CardSummary['state']['stopped']> }) => (
-  <>
+  <span className="stopped-words">
     <span className="stopped-prefix text-muted-foreground">{stopped.prefix}</span> <span className={`stopped-status ${stopped.tone} text-c-strong ${TONES[stopped.tone] ?? ''}`}>{stopped.status}</span>
-  </>
+  </span>
 );
 
 /** The words of a state line: the state, what has landed of it, its notes, what its agent does, and `since`. */
