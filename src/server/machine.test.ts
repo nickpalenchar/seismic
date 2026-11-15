@@ -11,7 +11,7 @@ import { claudeToken } from './hosts';
 import { cloneName, codexHint, machineHint, MachineSetup, runnable, WELCOME_FILE, welcome } from './machine';
 import { agentSetting, saveAgents } from './settings';
 import { gitRepo } from './testing';
-import { HarnessCheck } from './agents/harnesses';
+import { HarnessCheck } from './llms/harnesses';
 import { VoiceSetup } from './voice-setup';
 import { git } from './workstations';
 
@@ -296,6 +296,26 @@ describe('the first project', () => {
     // tried again with Claude Code there too: nothing of the failed try stands in the way
     await setup().project({ path: repo, agents: ['claude', 'codex'] });
     expect(agentSetting(home, 'worker').harness).toBeUndefined();
+  });
+
+  test('a default agent that cannot be written keeps the project from being saved', async () => {
+    const repo = gitRepo(join(dir, 'shop'));
+    // the settings file cannot be written: a directory in its place
+    mkdirSync(join(home, 'settings.json'));
+    await expect(setup().project({ path: repo, agents: ['codex'] })).rejects.toThrow();
+    expect(existsSync(join(home, 'projects.json'))).toBe(false);
+    expect(existsSync(join(home, WELCOME_FILE))).toBe(false);
+    expect(applied).toEqual([]);
+  });
+
+  test('a project saved whose start then fails keeps its default agent and its welcome', async () => {
+    const repo = gitRepo(join(dir, 'shop'));
+    const starting = new Config({ file: join(home, 'projects.json'), source: 'file', started: [], store, running: () => [], server: { port: 4417, home, permissionMode: 'auto' }, apply: async () => { throw new Error('did not start'); } });
+    const machine = new MachineSetup({ home, config: starting, env: { PATH: bin }, platform: 'linux', arch: 'x64', compiled: true });
+    await expect(machine.project({ path: repo, agents: ['codex'] })).rejects.toThrow('did not start');
+    expect(JSON.parse(readFileSync(join(home, 'projects.json'), 'utf8'))[0].repos).toEqual([{ path: repo }]);
+    expect(agentSetting(home, 'worker').harness).toBe('codex');
+    expect(readFileSync(join(home, WELCOME_FILE), 'utf8')).toBe('shop');
   });
 
   test('a folder without git is refused where its workers would run in Codex or Antigravity, and nothing is saved', async () => {

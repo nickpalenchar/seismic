@@ -332,6 +332,15 @@ export function saveAgents(home: string, input: unknown): AgentsView {
   return agentsView(home);
 }
 
+/** What puts the agents' settings back as they are now, the rest of the file as it is then. */
+export function agentsAsNow(home: string): () => void {
+  const agents = read(home).agents;
+  return () => {
+    write(home, { ...read(home), agents });
+    console.log(`Seismic: models and effort of the agents put back in ${join(home, SETTINGS_FILE)}`);
+  };
+}
+
 /** A setting for other devices as the file or the page gives it; `null` for none or one Seismic cannot use. */
 export function remoteOf(input: unknown): RemoteSetting | null {
   const o = (input && typeof input === 'object' ? input : {}) as { via?: unknown; address?: unknown; awake?: unknown };

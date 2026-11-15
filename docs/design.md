@@ -327,7 +327,8 @@ Safety rules:
 
 - The first-project request of the setup assistant carries the agents the owner picked and found configured. When Claude Code is
   not among them, the first of Codex and Antigravity becomes the default harness of workers and code reviews in the owner's
-  settings (unless the owner set one before), once the project is saved; otherwise nothing changes. The runtime itself still falls back to Claude Code
+  settings (unless the owner set one before), together with the project: written before its save, which a failed write
+  stops, and taken back when the save writes nothing; otherwise nothing changes. The runtime itself still falls back to Claude Code
   where no harness is set, so a machine without it needs this default for a first task started without a choice to run
   (decided 2026-11-15).
 

@@ -27,7 +27,7 @@ import { previewGitSetup, setUpGit, withoutGit } from './git-setup';
 import { saveClaudeToken } from './hosts';
 import { repoInfo } from './repo';
 import { COMPILED } from './resources';
-import { agentSetting, saveAgents } from './settings';
+import { agentSetting, agentsAsNow, saveAgents } from './settings';
 import { claudeExecutable, sdkClaude } from './llms/harnesses/claude';
 import type { HarnessCheck } from './llms/harnesses';
 import { installedAgy } from './llms/harnesses/agy';
@@ -595,17 +595,26 @@ export class MachineSetup {
     const problem = problems.find(blocksSaving);
     if (problem) throw new BadRequest(problem.code === 'notRepo' ? 'notRepo' : 'config', problem.detail);
     const project = resolved.at(-1)!.id;
-    // the welcome goes first, for the project as it starts with the save; a save that fails leaves neither it nor a changed default
+    // the welcome and the default agent go first, for the project as it starts with the save: one that fails to be written
+    // keeps the project from being saved, and a save that writes nothing takes both back. Once the project is saved they stand.
     const welcomeFile = join(this.o.home, WELCOME_FILE);
-    writeFileSync(welcomeFile, project);
+    const undo = agentsAsNow(this.o.home);
     let saved;
     try {
+      writeFileSync(welcomeFile, project);
+      this.defaultAgent(configured);
       saved = await this.o.config.save(next);
     } catch (e) {
-      rmSync(welcomeFile, { force: true });
+      if (!this.o.config.current().some((c) => c.repos.some((r) => resolve(r.path) === path))) {
+        rmSync(welcomeFile, { force: true });
+        try {
+          undo();
+        } catch (again) {
+          console.error(`Seismic: the agents' defaults could not be put back: ${(again as Error).message}`);
+        }
+      }
       throw e;
     }
-    this.defaultAgent(configured);
     const { restarting, applied } = saved;
     return { project, branch: folder ? '' : repoInfo(path).branch, opens: restarting || !!applied };
   }
