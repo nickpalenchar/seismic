@@ -17,7 +17,7 @@ import { dirname, join, resolve } from 'node:path';
 // by its path: the package exports no package.json, which Bun imports all the same but TypeScript does not
 import sdk from '../../node_modules/@anthropic-ai/claude-agent-sdk/package.json';
 import { DOCUMENT } from '../core/files';
-import { blocksSaving, CLONES, type FirstProject, type MachineItem, type MachineJob, type MachineSection, type MachineSectionId, type MachineView, type SetupFolder, type GitSetupPreview } from '../core/types';
+import { blocksSaving, CLONES, HARNESS_ROLES, HARNESSES, type Harness, type FirstProject, type MachineItem, type MachineJob, type MachineSection, type MachineSectionId, type MachineView, type SetupFolder, type GitSetupPreview } from '../core/types';
 import { expandHome, readDemoSettings } from '../../plugin/skills/demo/lib/settings.ts';
 import { checkSetup, type LinuxFamily, linuxFamily, output } from '../../plugin/skills/demo/lib/setup.ts';
 import { installVoice } from '../../plugin/skills/demo/lib/voices.ts';
@@ -28,6 +28,7 @@ import { previewGitSetup, setUpGit, withoutGit } from './git-setup';
 import { saveClaudeToken } from './hosts';
 import { repoInfo } from './repo';
 import { COMPILED } from './resources';
+import { agentSetting, saveAgents } from './settings';
 import { claudeExecutable } from './llms/harnesses/claude';
 import { installedAgy } from './llms/harnesses/agy';
 import { installedCodex } from './llms/harnesses/codex';
@@ -557,8 +558,9 @@ export class MachineSetup {
 
   /** The first project: a repository's folder, saved at once; or a clone of one, in the background. */
   async project(input: unknown): Promise<FirstProject | MachineView> {
-    const { path, clone, into, git } = (input ?? {}) as { path?: unknown; clone?: unknown; into?: unknown; git?: unknown };
-    if (typeof path === 'string' && path.trim()) return this.add(resolve(expandHome(path.trim())), git === false);
+    const { path, clone, into, git, agents } = (input ?? {}) as { path?: unknown; clone?: unknown; into?: unknown; git?: unknown; agents?: unknown };
+    const configured = Array.isArray(agents) ? HARNESSES.filter((h) => agents.includes(h)) : [];
+    if (typeof path === 'string' && path.trim()) return this.add(resolve(expandHome(path.trim())), git === false, configured);
     if (typeof clone !== 'string' || !clone.trim()) throw new BadRequest('invalid', 'a folder or a repository to clone');
     this.idle();
     const spec = clone.trim();
@@ -575,7 +577,7 @@ export class MachineSetup {
       { kind: 'clone' },
       async (log, job) => {
         await this.run(argv, log);
-        ({ project: job.project, branch: job.branch, opens: job.opens } = await this.add(dest));
+        ({ project: job.project, branch: job.branch, opens: job.opens } = await this.add(dest, false, configured));
       },
       (e) => {
         console.error(`Seismic: cloning ${spec} failed: ${e.message}`);
@@ -585,7 +587,7 @@ export class MachineSetup {
   }
 
   /** Adds the repository as a project of its own and saves the configuration; Seismic runs it at once. `folder`: a folder that stays without git. */
-  private async add(path: string, folder = false): Promise<FirstProject> {
+  private async add(path: string, folder = false, configured: Harness[] = []): Promise<FirstProject> {
     let next = [...this.o.config.current(), { repos: [{ path, ...(folder ? { git: false as const } : {}) }] }];
     let { problems, resolved } = await this.o.config.check(next);
     // a repository whose settings say clones gets two, so two cards can be worked on at once
@@ -597,7 +599,19 @@ export class MachineSetup {
     if (problem) throw new BadRequest(problem.code === 'notRepo' ? 'notRepo' : 'config', problem.detail);
     const project = resolved.at(-1)!.id;
     writeFileSync(join(this.o.home, WELCOME_FILE), project);
+    this.defaultAgent(configured);
     const { restarting, applied } = await this.o.config.save(next);
     return { project, branch: folder ? '' : repoInfo(path).branch, opens: restarting || !!applied };
+  }
+
+  /**
+   * The agents the assistant found configured decide what a task started without a choice runs on: Claude Code when it is among
+   * them (nothing changes), else the first of Codex and Antigravity. An agent the owner chose before stays.
+   */
+  private defaultAgent(configured: Harness[]) {
+    const first = configured.includes('claude') ? undefined : configured[0];
+    if (!first) return;
+    const saved = Object.fromEntries(HARNESS_ROLES.filter((r) => !agentSetting(this.o.home, r).harness).map((r) => [r, { harness: first }]));
+    if (Object.keys(saved).length) saveAgents(this.o.home, saved);
   }
 }

@@ -325,6 +325,12 @@ Safety rules:
   end does not wait for its pipes to close beyond 2 s after its process exited: a command it left
   (never observed) can hold them for as long as it runs.
 
+- The first-project request of the setup assistant carries the agents the owner picked and found configured. When Claude Code is
+  not among them, the first of Codex and Antigravity becomes the default harness of workers and code reviews in the owner's
+  settings (unless the owner set one before); otherwise nothing changes. The runtime itself still falls back to Claude Code
+  where no harness is set, so a machine without it needs this default for a first task started without a choice to run
+  (decided 2026-11-15).
+
 ## Chapters
 
 - [UI system](design/ui-system.md): how the UI is built (shadcn/ui parts and proven libraries

@@ -9,6 +9,7 @@ import { Config } from './config';
 import { Store } from './store';
 import { claudeToken } from './hosts';
 import { cloneName, codexHint, machineHint, MachineSetup, runnable, WELCOME_FILE, welcome } from './machine';
+import { agentSetting } from './settings';
 import { gitRepo } from './testing';
 import { VoiceSetup } from './voice-setup';
 import { git } from './workstations';
@@ -232,6 +233,20 @@ describe('the first project', () => {
     expect(applied).toEqual([['shop']]);
     expect(JSON.parse(readFileSync(join(home, 'projects.json'), 'utf8'))).toEqual([{ planBaselines: true, archive: 'manual', rightClick: 'groups', suggest: { category: true, complexity: true, priority: true }, suggestLabels: true, suggestCards: true, suggestMerges: true, codeReviews: { on: false, mode: 'auto' }, repos: [{ path: repo }] }]);
     expect(readFileSync(join(home, WELCOME_FILE), 'utf8')).toBe('shop');
+  });
+
+  test('with Claude Code configured among others, the default agent stays Claude Code', async () => {
+    const repo = gitRepo(join(dir, 'shop'));
+    await setup().project({ path: repo, agents: ['claude', 'codex'] });
+    expect(agentSetting(home, 'worker').harness).toBeUndefined();
+  });
+
+  test('with only Codex configured, workers and reviews default to Codex', async () => {
+    const repo = gitRepo(join(dir, 'shop'));
+    await setup().project({ path: repo, agents: ['agy', 'codex'] });
+    expect(agentSetting(home, 'worker').harness).toBe('codex');
+    expect(agentSetting(home, 'review').harness).toBe('codex');
+    expect(agentSetting(home, 'koordinator').harness).toBeUndefined();
   });
 
   test('a repository whose settings say clones gets clones', async () => {

@@ -592,7 +592,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
               )}
               {step === 'first' && first && (
                 <>
-                  <FirstProject view={view} ready={configured.length > 0} onView={update} />
+                  <FirstProject view={view} ready={configured.length > 0} agents={configured} onView={update} />
                   <div className={actionsClass}>
                     <Button size="small" onClick={() => go('recommended')}>
                       {s.back}
@@ -700,7 +700,7 @@ const firstErrorClass = 'text-destructive mt-1 mb-0 mx-0 text-sm';
 const actionsClass = 'c-actions flex gap-2 mt-4';
 
 /** The first project: a repository's folder on this machine, or a clone of one. Seismic then starts again with it, and the page opens it. */
-function FirstProject({ view, ready, onView }: { view: MachineView; ready: boolean; onView: (v: MachineView) => void }) {
+function FirstProject({ view, ready, agents, onView }: { view: MachineView; ready: boolean; agents: Agent[]; onView: (v: MachineView) => void }) {
   const [mode, setMode] = useState<'folder' | 'clone'>('folder');
   const [path, setPath] = useState('');
   const [clone, setClone] = useState('');
@@ -749,7 +749,7 @@ function FirstProject({ view, ready, onView }: { view: MachineView; ready: boole
     setBusy(true);
     setStatus('');
     try {
-      const out = await api.setupProject(mode === 'folder' ? { path, ...(withoutGit ? { git: false as const } : {}) } : { clone, into });
+      const out = await api.setupProject({ ...(mode === 'folder' ? { path, ...(withoutGit ? { git: false as const } : {}) } : { clone, into }), agents });
       if ('project' in out) setSaved(out);
       else onView(out);
     } catch (e) {
