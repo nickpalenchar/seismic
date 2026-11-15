@@ -311,6 +311,7 @@ export function Detail(p: Props) {
           {item.idea?.builtInto ? t.idea.builtInto(plain(item.idea.ideaTitle ?? ''), plain(item.idea.builtInto)) : t.idea.endedLong[item.idea.prototypeEnd](plain(item.idea.ideaTitle ?? p.from?.title ?? ''))}
         </p>
         <Split
+          asking={asksYou(item)}
           main={
             // the summary is the handover in the conversation, the task its first message
             item.demo?.latest && <DemoView item={item} demo={item.demo.latest} autoplay={false} />
@@ -737,6 +738,7 @@ export function Detail(p: Props) {
       {worked && talkAlone(item) && item.review?.blocked && item.state === 'waiting' && !!ownerField(item) && <Blocked item={item} act={act} />}
       {waits ? (
         <Split
+          asking={asksYou(item)}
           main={
             <>
               {queueBox}
@@ -758,6 +760,7 @@ export function Detail(p: Props) {
         // what came of the work on the left, once there is something, the conversation with the owner's one field on the right;
         // the task is the conversation's first message, and the summary its handover
         <Split
+          asking={asksYou(item)}
           main={
             !talkAlone(item) && (
               <>
@@ -3670,7 +3673,7 @@ function TaskTalk({
  * stands alone. `cite`:
  * the draft of the card's field, which text marked on the left can be quoted into.
  */
-function Split({ main, talk, className, cite }: { main: ReactNode; talk: ReactNode; className?: string; cite?: string | false }) {
+function Split({ main, talk, className, cite, asking }: { main: ReactNode; talk: ReactNode; className?: string; cite?: string | false; asking?: boolean }) {
   const box = useRef<HTMLDivElement>(null);
   // on the phone the field is in a panel of its own, which a quote brings up
   const away = useContext(TalkElsewhere);
@@ -3683,8 +3686,9 @@ function Split({ main, talk, className, cite }: { main: ReactNode; talk: ReactNo
   const closed = foldable && folded;
   const toggle = (
     <Tooltip content={closed ? t.talk.show : t.talk.hide}>
-      <button type="button" className="split-fold self-end inline-flex items-center justify-center size-[26px] p-0 mb-1.5 bg-transparent text-muted-foreground rounded-sm cursor-pointer hover:bg-[color:--alpha(currentColor/12%)] [.folded>&]:absolute [.folded>&]:top-0 [.folded>&]:right-0 [.folded>&]:m-0 [.folded>&]:z-1 max-[760px]:hidden" aria-label={closed ? t.talk.show : t.talk.hide} aria-expanded={!closed} onClick={() => fold(!closed)}>
+      <button type="button" className="split-fold self-end inline-flex items-center justify-center size-[26px] p-0 mb-1.5 bg-transparent text-muted-foreground rounded-sm cursor-pointer hover:bg-[color:--alpha(currentColor/12%)] [.folded>&]:absolute [.folded>&]:top-0 [.folded>&]:right-0 [.folded>&]:m-0 [.folded>&]:z-1 max-[760px]:hidden" aria-label={closed && asking ? t.talk.showAsking : closed ? t.talk.show : t.talk.hide} aria-expanded={!closed} onClick={() => fold(!closed)}>
         {closed ? <PanelRightOpen size={16} /> : <PanelRightClose size={16} />}
+        {closed && asking && <span className="split-fold-dot absolute top-0.5 right-0.5 size-2 rounded-full bg-orange-500" aria-hidden />}
       </button>
     </Tooltip>
   );

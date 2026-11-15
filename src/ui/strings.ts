@@ -462,6 +462,7 @@ const en = {
     heading: 'Conversation',
     hide: 'Hide conversation',
     show: 'Show conversation',
+    showAsking: 'Show conversation (the agent has a question)',
     empty: 'Nothing has happened yet.',
     working: 'working …',
     reading: 'is reading …',
