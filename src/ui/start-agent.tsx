@@ -12,7 +12,7 @@ import { Select, SelectItem } from './components/select';
 
 /** The start button's two lines, its label over the agent it starts with; Approve takes them while a review is at work. */
 export const startAgentMain = 'start-agent-main flex flex-col items-center justify-center gap-0 py-1 leading-[1.15]';
-export const startAgentModel = 'start-agent-model text-[9.5px] font-normal opacity-85 whitespace-nowrap';
+export const startAgentModel = 'start-agent-model text-2xs font-normal opacity-85 whitespace-nowrap';
 
 /** What a worker on the shown project starts with: its own models over Configuration's. */
 const workerDefault = () => api.shownProjectSettings().then((v) => projectAgentSetting('worker', v.agents.worker, v.settings.agents));
@@ -163,14 +163,14 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
   // only a choice that can start is kept, so the main button never starts one the menu would refuse
   useEffect(() => { if (touched.current && setting && valid && (!codex || !loading)) setPicked(setting); }, [setting, valid, loading]);
 
-  const main = <Button variant={selectionOnly ? 'code-review' : variant} className={selectionOnly ? undefined : cn(startAgentMain, 'rounded-l-[6px] rounded-r-none')} disabled={disabled || starting || (!selectionOnly && (checking || gone))} title={gone ? a.unavailableChoice : title} onClick={selectionOnly ? undefined : () => void startPicked()}>
+  const main = <Button variant={selectionOnly ? 'code-review' : variant} className={selectionOnly ? undefined : cn(startAgentMain, 'rounded-l-sm rounded-r-none')} disabled={disabled || starting || (!selectionOnly && (checking || gone))} title={gone ? a.unavailableChoice : title} onClick={selectionOnly ? undefined : () => void startPicked()}>
     <span>{label}</span>
     {!selectionOnly && (picked ?? currentDefault) && <span className={startAgentModel}>{describeAgent((picked ?? currentDefault)!, true)}</span>}
   </Button>;
   return <Popover open={open} onOpenChange={setOpen}><div className="start-agent">
-    <PopoverAnchor asChild><div className={cn('start-agent-buttons flex items-stretch', suggested && 'suggested rounded-[6px] shadow-[0_0_0_2px_var(--background),0_0_0_4px_var(--idea)]')}>
+    <PopoverAnchor asChild><div className={cn('start-agent-buttons flex items-stretch', suggested && 'suggested rounded-sm shadow-[0_0_0_2px_var(--background),0_0_0_4px_var(--idea)]')}>
       {selectionOnly ? <PopoverTrigger asChild>{main}</PopoverTrigger> : main}
-      {!selectionOnly && <Tooltip content={a.chooseStart}><PopoverTrigger asChild><Button type="button" variant={variant} className="start-agent-chevron rounded-l-none rounded-r-[6px] border-l border-l-[var(--background)] min-w-9" disabled={disabled || starting} aria-label={a.chooseStart}>
+      {!selectionOnly && <Tooltip content={a.chooseStart}><PopoverTrigger asChild><Button type="button" variant={variant} className="start-agent-chevron rounded-l-none rounded-r-sm border-l border-l-[var(--background)] min-w-9" disabled={disabled || starting} aria-label={a.chooseStart}>
         <ChevronDown size={14} strokeWidth={2.5} aria-hidden />
       </Button></PopoverTrigger></Tooltip>}
     </div></PopoverAnchor>

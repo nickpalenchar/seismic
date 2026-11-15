@@ -38,7 +38,7 @@ export function PopoverContent({ className, align = 'center', sideOffset = 8, ..
         sideOffset={sideOffset}
         collisionPadding={8}
         className={cn(
-          'z-60 box-border max-h-(--radix-popover-content-available-height) w-[min(360px,calc(100vw-16px))] overflow-y-auto rounded-lg border border-solid border-glass-edge bg-surface px-3.5 py-2.5 text-left text-sm leading-[1.45] font-normal whitespace-normal text-foreground shadow-lift outline-none',
+          'z-60 box-border max-h-(--radix-popover-content-available-height) w-[min(360px,calc(100vw-16px))] overflow-y-auto rounded-lg border border-glass-edge bg-surface px-3.5 py-2.5 text-left text-sm leading-[1.45] font-normal whitespace-normal text-foreground shadow-lift outline-none',
           className,
         )}
         {...props}

@@ -26,7 +26,7 @@ const itemVariants = cva('', {
       chips:
         'inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-border bg-transparent px-2.5 py-1 text-sm text-muted-foreground outline-none data-[state=on]:border-[color:--alpha(var(--c)/55%)] data-[state=on]:bg-[color:--alpha(var(--c)/16%)] data-[state=on]:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50',
       segmented:
-        'cursor-pointer rounded-sm border-0 bg-transparent px-3 py-1 text-sm text-muted-foreground outline-none data-[state=on]:bg-card data-[state=on]:text-foreground data-[state=on]:shadow-glass focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-default disabled:opacity-45',
+        'cursor-pointer rounded-sm bg-transparent px-3 py-1 text-sm text-muted-foreground outline-none data-[state=on]:bg-card data-[state=on]:text-foreground data-[state=on]:shadow-glass focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-default disabled:opacity-45',
     },
     size: { default: '', small: '' },
   },

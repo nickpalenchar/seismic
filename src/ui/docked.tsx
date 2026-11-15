@@ -16,7 +16,7 @@ const sheetClass =
   'resizing:[transition:none]! [&>.p-kind:first-child]:mr-10 [&>.p-kind:first-child+h2]:mr-10 [&>h2:first-child]:mr-10 [@media(max-width:760px)]:w-auto [@media(max-width:760px)]:left-[14px] [@media(max-width:760px)]:right-[14px] [@media(max-width:760px)]:top-16 [@media(max-width:760px)]:bottom-[158px]';
 
 /** A sheet's title. */
-export const sheetTitleClass = 'mt-0.5 mb-2 text-[24px] leading-[1.15]';
+export const sheetTitleClass = 'mt-0.5 mb-2 text-2xl leading-[1.15]';
 
 export const Docked = forwardRef<HTMLElement, { id: string; on: boolean; className?: string; label?: string; children: ReactNode }>(function Docked({ id, on, className, label, children }, ref) {
   const besideCard = useContext(DockPolicy);

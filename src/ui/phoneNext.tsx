@@ -152,8 +152,8 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
               return (
                 <Collapsible key={x} open={!folded.includes(x)} onOpenChange={(o) => fold(x, o)} className={cn(sectionClass, `ph-next-${x}`)}>
                   <CollapsibleTrigger className="group mb-2 flex w-full items-center gap-2.5 py-1">
-                    <span className="text-[21px] leading-[1.15] font-semibold">{t.phone.next.sections[x]}</span>
-                    <Badge variant="count" className="rounded-lg bg-muted px-2 py-1.5 text-[13px] font-semibold text-muted-foreground [text-box:trim-both_cap_alphabetic]">
+                    <span className="text-xl leading-[1.15] font-semibold">{t.phone.next.sections[x]}</span>
+                    <Badge variant="count" className="rounded-lg bg-muted px-2 py-1.5 text-sm font-semibold text-muted-foreground [text-box:trim-both_cap_alphabetic]">
                       {cards.length}
                     </Badge>
                     <ChevronDown size={18} strokeWidth={2} className="ml-auto text-muted-foreground transition-transform group-data-[state=closed]:-rotate-90" aria-hidden="true" />
@@ -162,7 +162,7 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
                     <CardList entries={cards.slice(0, n).map(entriesOf)} onOpen={openCard} />
                     {cards.length > n && (
                       <button
-                        className="mt-3 w-full rounded-[10px] border border-border bg-transparent py-2.5 text-[15px] text-foreground cursor-pointer"
+                        className="mt-3 w-full rounded-lg border border-border bg-transparent py-2.5 text-base text-foreground cursor-pointer"
                         onClick={() => setShown({ project: obeyaId, n: { ...(shown.project === obeyaId ? shown.n : {}), [x]: n + PAGE } })}
                       >
                         {t.phone.next.loadMore(cards.length - n)}
@@ -178,11 +178,11 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
       {needsOn && !searching && (
         <div id="ph-needs" className={cn(pageClass, 'z-20 bg-background')}>
           <header className={cn(pageBarClass, 'gap-2')}>
-            <button className="-ml-1 inline-grid size-10 shrink-0 place-items-center rounded-full border-0 bg-transparent p-0" aria-label={t.phone.next.menu} onClick={() => setMenuOpen(true)}>
+            <button className="-ml-1 inline-grid size-10 shrink-0 place-items-center rounded-full bg-transparent p-0" aria-label={t.phone.next.menu} onClick={() => setMenuOpen(true)}>
               <Sign size={26} />
             </button>
-            <h1 className="m-0 min-w-0 flex-1 overflow-hidden text-[19px] font-semibold text-ellipsis whitespace-nowrap">{t.phone.next.needsYou}</h1>
-            <button className="ph-close inline-grid size-10 shrink-0 place-items-center rounded-full border-0 bg-muted text-foreground cursor-pointer ph-landscape:size-9" aria-label={t.phone.next.closeNeedsYou} onClick={closeNeeds}>
+            <h1 className="m-0 min-w-0 flex-1 overflow-hidden text-xl font-semibold text-ellipsis whitespace-nowrap">{t.phone.next.needsYou}</h1>
+            <button className="ph-close inline-grid size-10 shrink-0 place-items-center rounded-full bg-muted text-foreground cursor-pointer ph-landscape:size-9" aria-label={t.phone.next.closeNeedsYou} onClick={closeNeeds}>
               <X size={20} strokeWidth={2.25} aria-hidden="true" />
             </button>
           </header>
@@ -287,12 +287,12 @@ function TopBar({ projects, project, onProject, usage, onClose, onMenu }: { proj
   return (
     <header className={cn(pageBarClass, 'gap-2', onClose ? 'ph-card-top' : 'ph-home ph-landscape:static')}>
       {/* the sign opens the menu */}
-      <button className="-ml-1 inline-grid size-10 shrink-0 place-items-center rounded-full border-0 bg-transparent p-0 disabled:cursor-default" aria-label={t.phone.next.menu} disabled={!onMenu} onClick={onMenu}>
+      <button className="-ml-1 inline-grid size-10 shrink-0 place-items-center rounded-full bg-transparent p-0 disabled:cursor-default" aria-label={t.phone.next.menu} disabled={!onMenu} onClick={onMenu}>
         <Sign size={26} />
       </button>
       {/* the project in view; the phone's own picker switches it, remembered in this browser */}
-      <label className="relative z-1 flex min-w-0 shrink items-center gap-1 rounded-[6px] py-1 pr-1 cursor-pointer bg-background">
-        <span className="overflow-hidden text-[19px] font-semibold text-ellipsis whitespace-nowrap">{name}</span>
+      <label className="relative z-1 flex min-w-0 shrink items-center gap-1 rounded-sm py-1 pr-1 cursor-pointer bg-background">
+        <span className="overflow-hidden text-xl font-semibold text-ellipsis whitespace-nowrap">{name}</span>
         {onProject && projects.length > 1 && <ChevronDown size={16} strokeWidth={2} className="shrink-0 text-muted-foreground" aria-hidden="true" />}
         {onProject && projects.length > 1 && (
           <select className="absolute inset-0 h-full w-full cursor-pointer text-base opacity-0" value={project} aria-label={t.phone.next.switchProject} onChange={(e) => onProject(e.target.value)}>
@@ -307,12 +307,12 @@ function TopBar({ projects, project, onProject, usage, onClose, onMenu }: { proj
       {/* the usage pills at the right, scrolling sideways and fading out under the project's name
           (right to left, so they start at the right end; the pills inside read left to right) */}
       {onClose ? (
-        <button className="ph-close ml-auto inline-grid size-10 shrink-0 place-items-center rounded-full border-0 bg-muted text-foreground cursor-pointer ph-landscape:size-9" aria-label={t.phone.next.close} onClick={onClose}>
+        <button className="ph-close ml-auto inline-grid size-10 shrink-0 place-items-center rounded-full bg-muted text-foreground cursor-pointer ph-landscape:size-9" aria-label={t.phone.next.close} onClick={onClose}>
           <X size={20} strokeWidth={2.25} aria-hidden="true" />
         </button>
       ) : usage.length > 0 && (
         <div className="min-w-0 flex-1 overflow-x-auto [direction:rtl] [scrollbar-width:none] [mask-image:linear-gradient(to_right,transparent,black_18px)] [&::-webkit-scrollbar]:hidden">
-          <div className="flex w-max items-center gap-1.5 pl-[18px] [direction:ltr]">
+          <div className="flex w-max items-center gap-1.5 pl-4 [direction:ltr]">
             {usage.map((u) => (
               <UsagePill key={u.harness} usage={u} phone compact={usage.length > 1} />
             ))}
@@ -373,14 +373,14 @@ function WorkingBox({ open, onOpen, cards, atWork, snap, projects, onCard, onEls
       <span className="shrink-0 font-semibold whitespace-nowrap">{t.phone.next.working(atWork)}</span>
     </>
   );
-  if (!cards.length) return <div className="ph-working mt-3 flex min-h-12 items-center gap-2.5 rounded-[12px] bg-muted px-3.5 py-2 text-[15px]">{head}</div>;
+  if (!cards.length) return <div className="ph-working mt-3 flex min-h-12 items-center gap-2.5 rounded-lg bg-muted px-3.5 py-2 text-base">{head}</div>;
   return (
-    <Collapsible open={open} onOpenChange={onOpen} className="ph-working mt-3 rounded-[12px] bg-muted">
-      <CollapsibleTrigger className="group flex min-h-12 w-full items-center gap-2.5 px-3.5 py-2 text-[15px]" aria-label={`${t.phone.next.working(atWork)}: ${open ? t.phone.next.hideWorking : t.phone.next.showWorking}`}>
+    <Collapsible open={open} onOpenChange={onOpen} className="ph-working mt-3 rounded-lg bg-muted">
+      <CollapsibleTrigger className="group flex min-h-12 w-full items-center gap-2.5 px-3.5 py-2 text-base" aria-label={`${t.phone.next.working(atWork)}: ${open ? t.phone.next.hideWorking : t.phone.next.showWorking}`}>
         {head}
         <ChevronDown size={18} strokeWidth={2} className="ml-auto shrink-0 text-muted-foreground transition-transform group-data-[state=closed]:-rotate-90" aria-hidden="true" />
       </CollapsibleTrigger>
-      <CollapsibleContent className="px-3.5 pb-2.5 text-[14px]">
+      <CollapsibleContent className="px-3.5 pb-2.5 text-base">
         <WorkingRows
           cards={cards}
           pools={pools}
@@ -397,7 +397,7 @@ function WorkingBox({ open, onOpen, cards, atWork, snap, projects, onCard, onEls
 }
 
 /** A button of the floating bar, a finger's size. */
-const barButton = 'relative inline-grid size-11 place-items-center rounded-full border-0 bg-transparent p-0 text-foreground cursor-pointer disabled:cursor-default disabled:text-muted-foreground [&_svg]:size-[22px]';
+const barButton = 'relative inline-grid size-11 place-items-center rounded-full bg-transparent p-0 text-foreground cursor-pointer disabled:cursor-default disabled:text-muted-foreground [&_svg]:size-[22px]';
 
 /**
  * The floating bar along the foot: a glass pill with Menu, Chat, New card (larger, standing out of
@@ -425,7 +425,7 @@ function FloatingBar({ needsYou, making, chat, chatWorking, onNew, onChat, onSea
         )}
       </button>
       <button
-        className="ph-new mx-1.5 -my-4 ph-landscape:-mx-4 ph-landscape:my-1.5 inline-grid size-[60px] place-items-center rounded-full border-0 bg-foreground p-0 text-background shadow-lift cursor-pointer [-webkit-touch-callout:none] select-none active:translate-y-px disabled:opacity-60 disabled:cursor-default"
+        className="ph-new mx-1.5 -my-4 ph-landscape:-mx-4 ph-landscape:my-1.5 inline-grid size-[60px] place-items-center rounded-full bg-foreground p-0 text-background shadow-lift cursor-pointer [-webkit-touch-callout:none] select-none active:translate-y-px disabled:opacity-60 disabled:cursor-default"
         aria-label={t.newCard}
         disabled={making}
         onClick={onNew}

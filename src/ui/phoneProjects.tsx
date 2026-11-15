@@ -50,8 +50,8 @@ export function usePhoneProjects(loaded: ProjectInfo[]) {
   const feeds = projects.map((c) => <Feed key={c.id} id={c.id} onChange={feed} />);
   // stays in view under the bar while the page scrolls; with the phone turned the list's bar scrolls away, so there it sticks at the top
   const banner = quiet && (
-    <div className="ph-quiet sticky top-[60px] z-5 mt-3 py-2.5 px-3 rounded-[8px] bg-foreground text-background flex flex-col gap-0.5 text-[13.5px] ph-landscape:top-[50px] ph-landscape:[#ph-home_&]:top-2" role="status">
-      <b className="font-semibold text-[14.5px]">{isFrozen ? (unresponsive ? t.unresponsiveSince(when(quietSince!)) : t.notResponding) : t.phone.notAnswering(when(quietSince!))}</b>
+    <div className="ph-quiet sticky top-[60px] z-5 mt-3 py-2.5 px-3 rounded-md bg-foreground text-background flex flex-col gap-0.5 text-sm ph-landscape:top-[50px] ph-landscape:[#ph-home_&]:top-2" role="status">
+      <b className="font-semibold text-base">{isFrozen ? (unresponsive ? t.unresponsiveSince(when(quietSince!)) : t.notResponding) : t.phone.notAnswering(when(quietSince!))}</b>
       <span>{t.phone.notAnsweringWhy}</span>
     </div>
   );

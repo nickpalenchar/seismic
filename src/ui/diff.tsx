@@ -158,7 +158,7 @@ export function DiffView({ item, file, onClose, onRead }: { item: Item; file?: s
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent glass className="d-sheet flex flex-col w-[min(100%,1500px)] min-h-0" layerClassName="diff-view z-1000 items-stretch justify-center px-[3vw] py-[3vh]">
-        <div className="d-head flex items-baseline gap-3.5 pt-4 px-[22px] pb-3 border-b border-border [&_h2]:m-0 [&_h2]:text-[21px] [&>.hint]:flex-1">
+        <div className="d-head flex items-baseline gap-3.5 pt-4 px-6 pb-3 border-b border-border [&_h2]:m-0 [&_h2]:text-xl [&>.hint]:flex-1">
           <DialogTitle asChild>
             <h2>{t.diff.title(plain(item.title))}</h2>
           </DialogTitle>
@@ -184,7 +184,7 @@ export function DiffView({ item, file, onClose, onRead }: { item: Item; file?: s
           <DiffStyleSwitch />
           <CloseButton label={t.diff.close} variant="ghost" className="d-close" onClick={onClose} />
         </div>
-        <div className="d-body overflow-auto pt-2 px-[22px] pb-7 min-h-0">
+        <div className="d-body overflow-auto pt-2 px-6 pb-7 min-h-0">
           {diff === null && <p className="hint">{t.diff.loading}</p>}
           {diff === 'failed' && <p className="hint">{t.diff.failed}</p>}
           {folder && !only && folder.undo && <p className="hint">{t.folder.undoHint[folder.undo]}</p>}
@@ -197,7 +197,7 @@ export function DiffView({ item, file, onClose, onRead }: { item: Item; file?: s
                 <FileDiff key={p.file} part={p} card={item.id} />
               ))}
               </DiffTreeLayout>
-              {got.truncated && <p className="hint d-cut mt-[18px]">{t.diff.truncated}</p>}
+              {got.truncated && <p className="hint d-cut mt-4">{t.diff.truncated}</p>}
             </>
           )}
         </div>
@@ -238,9 +238,9 @@ export function FileDiff({ part, card }: { part: DiffPart; card: string }) {
   const folded = lines > FOLD_LINES && opened !== key;
   const empty = !part.lines.some((l) => l.startsWith('@@'));
   return (
-    <section className="d-file mt-[18px] [.r-diff_&]:mt-0 [&>.hint]:my-1.5 [&>.hint]:mx-2.5" id={anchor(part.file)}>
-      <h3 className="[.diff-bar_&]:hidden sticky top-[-8px] [.r-diff_&]:top-0 z-1 flex gap-3 items-baseline m-0 py-[7px] px-2.5 [background:linear-gradient(var(--muted),var(--muted)),var(--surface)] border border-border rounded-t-[2px] [font:500_13px_var(--font)]">
-        <span className="d-name [font:12.5px_var(--mono)]">{part.file}</span>
+    <section className="d-file mt-4 [.r-diff_&]:mt-0 [&>.hint]:my-1.5 [&>.hint]:mx-2.5" id={anchor(part.file)}>
+      <h3 className="[.diff-bar_&]:hidden sticky top-[-8px] [.r-diff_&]:top-0 z-1 flex gap-3 items-baseline m-0 py-2 px-2.5 [background:linear-gradient(var(--muted),var(--muted)),var(--surface)] border border-border rounded-t-xs font-sans text-sm font-medium">
+        <span className="d-name font-mono text-sm">{part.file}</span>
         {part.from && <span className="hint">{t.diff.renamedFrom(part.from)}</span>}
         <span className="hint">{t.diff.status[part.status]}</span>
         {!part.binary && (
@@ -291,7 +291,7 @@ const changeCount = 'pl-2.5! whitespace-nowrap text-right';
 /** The folder's changes over its whole diff: what happened to which path, the lines in columns of their own; a path `diffed` names goes to its diff. */
 function ChangeTable({ changes, diffed, onFile }: { changes: FolderChange[]; diffed: (c: FolderChange) => boolean; onFile: (path: string) => void }) {
   return (
-    <table className="f-list border-collapse mt-1.5 mb-2.5 text-[13px] [&_td]:py-px [&_td]:px-0 [&_td]:align-top">
+    <table className="f-list border-collapse mt-1.5 mb-2.5 text-sm [&_td]:py-px [&_td]:px-0 [&_td]:align-top">
       <tbody>
         {changes.map((c) => {
           const name = (p: string) => (c.dir ? `${p}/` : p);

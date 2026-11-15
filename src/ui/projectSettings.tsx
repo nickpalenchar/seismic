@@ -63,9 +63,9 @@ export function ProjectSettingsSheet({ project, name, homePath, on, covered, pro
   };
   return (
     <Docked id="project-settings" on={on} label={l.title} className={settingsSheetClass}>
-      <p className="cs-project mt-0 mr-10 mb-0.5 ml-0 text-[12px] text-muted-foreground">{name}</p>
+      <p className="cs-project mt-0 mr-10 mb-0.5 ml-0 text-xs text-muted-foreground">{name}</p>
       <h2 className={sheetTitleClass}>{l.title}</h2>
-      <p className="text-muted-foreground text-[12.5px] leading-[1.45] mt-0 mx-0 mb-1.5">{l.hint}</p>
+      <p className="text-muted-foreground text-sm leading-[1.45] mt-0 mx-0 mb-1.5">{l.hint}</p>
       {view && (
         <>
           <Head title={l.models} hint={l.modelsHint} />
@@ -137,12 +137,12 @@ export function ProjectSettingsSheet({ project, name, homePath, on, covered, pro
         </>
       )}
       {status && <p className={`hint ${statusClass}`}>{status}</p>}
-      <div className="cs-more mt-[26px] pt-3.5 border-t border-t-border flex flex-col items-start gap-1 text-[13px]">
-        <span className="text-muted-foreground text-[12.5px]">{l.more}</span>
+      <div className="cs-more mt-6 pt-3.5 border-t border-t-border flex flex-col items-start gap-1 text-sm">
+        <span className="text-muted-foreground text-sm">{l.more}</span>
         <LinkButton type="button" onClick={onConfig}>
           {l.toConfig}
         </LinkButton>
-        {problems > 0 && <Badge variant="count" className="bg-transparent p-0 text-warning text-[12.5px]">{t.config.problemCount(problems)}</Badge>}
+        {problems > 0 && <Badge variant="count" className="bg-transparent p-0 text-warning text-sm">{t.config.problemCount(problems)}</Badge>}
       </div>
     </Docked>
   );

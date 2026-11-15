@@ -114,13 +114,13 @@ function ProposalEntry({ e, unread, onRead, children }: { e: InboxEntry; unread:
   return (
     <li className={cn(entryClass, proposalEntryClass, unread ? 'unread' : 'read')} onClick={(ev) => readOnButton(ev, () => onRead(e))}>
       {/* the unread dot at the end of the project's line */}
-      <div className="where flex items-center gap-[5px] text-[11.5px] text-muted-foreground [&_svg]:flex-none [&_.unread-dot]:m-0 [&_.unread-dot]:ml-auto">
+      <div className="where flex items-center gap-1 text-xs text-muted-foreground [&_svg]:flex-none [&_.unread-dot]:m-0 [&_.unread-dot]:ml-auto">
         <GitBranch size={12} aria-hidden />
         <span className="project font-semibold min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{e.projectName}</span>
         {unread && <UnreadDot />}
       </div>
       {/* the rows stand in the entry's own tint, without a pane of their own */}
-      <ul className={cn(proposalsClass, 'mt-1 [&>li]:bg-transparent [&>li]:pt-[7px] [&>li]:px-0 [&>li]:pb-0 [&>li]:m-0')}>{children}</ul>
+      <ul className={cn(proposalsClass, 'mt-1 [&>li]:bg-transparent [&>li]:pt-2 [&>li]:px-0 [&>li]:pb-0 [&>li]:m-0')}>{children}</ul>
     </li>
   );
 }

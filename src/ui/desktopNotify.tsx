@@ -113,7 +113,7 @@ export function NotifyAsk({ ask, answer }: { ask: boolean; answer: (on: boolean)
   return (
     // solid, as the rating's prompt it stacks with above the microphone
     <div
-      className="notify-ask pointer-events-auto w-[min(460px,calc(100vw_-_32px))] py-3.5 px-4 rounded-[14px] border border-solid border-glass-edge bg-surface shadow-[inset_0_1px_0_var(--glass-hi),var(--lift)] text-[14.5px] flex flex-col gap-2"
+      className="notify-ask pointer-events-auto w-[min(460px,calc(100vw_-_32px))] py-3.5 px-4 rounded-xl border border-glass-edge bg-surface shadow-[inset_0_1px_0_var(--glass-hi),var(--lift)] text-base flex flex-col gap-2"
       role="dialog"
       aria-label={n.title}
     >

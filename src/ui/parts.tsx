@@ -77,12 +77,12 @@ export function LimitNotice({ item }: { item: Item }) {
   const limitedUntil = item.agent?.limitedUntil;
   if (!(item.hold?.reason === 'limit') && !limitedUntil) return null;
   // a light blue of its own, the colour of a card paused at the limit (`.card.limit-paused`); wrapping on a narrow screen
-  return <div className="limit-notice flex items-center gap-3 py-3 px-4 my-3 mx-0 text-info-strong bg-info-subtle border border-info/30 rounded-[3px] [font:15px/1.4_var(--sans)] [@media(max-width:600px)]:flex-wrap">
+  return <div className="limit-notice flex items-center gap-3 py-3 px-4 my-3 mx-0 text-info-strong bg-info-subtle border border-info/30 rounded-xs text-base/[1.4] [@media(max-width:600px)]:flex-wrap">
     <HourglassMark />
     <div className="flex-1">{(item.hold?.reason === 'limit') ? t.limitPaused : t.limitedUntil(clock(limitedUntil!))}
-      {(item.hold?.reason === 'limit') && limitedUntil && <div className="limit-reset mt-[3px] text-[13px]">{t.limitedUntil(clock(limitedUntil))}</div>}
+      {(item.hold?.reason === 'limit') && limitedUntil && <div className="limit-reset mt-1 text-sm">{t.limitedUntil(clock(limitedUntil))}</div>}
     </div>
-    <button className="flex-[0_0_auto] text-info-strong border border-info/40 rounded-[3px] bg-surface py-1.5 px-2.5 cursor-pointer [font:inherit] hover:bg-card [@media(max-width:600px)]:ml-[26px]" onClick={() => void api.act(item.id, { action: 'resume' }).catch(console.error)}><PlayMark /> {t.limitTryAgain}</button>
+    <button className="flex-[0_0_auto] text-info-strong border border-info/40 rounded-xs bg-surface py-1.5 px-2.5 cursor-pointer [font:inherit] hover:bg-card [@media(max-width:600px)]:ml-6" onClick={() => void api.act(item.id, { action: 'resume' }).catch(console.error)}><PlayMark /> {t.limitTryAgain}</button>
   </div>;
 }
 
@@ -99,7 +99,7 @@ function playClass(kind: 'play' | 'archive' | 'turn', on: PlayOn, extra?: string
     'play',
     kind !== 'play' && kind,
     extra,
-    "absolute right-2.5 size-[26px] rounded-[8px] grid place-items-center cursor-pointer opacity-0 pointer-events-none [transition:opacity_.15s,transform_.15s] [transform:scale(max(1,calc(.9/var(--s))))] origin-[100%_100%]",
+    "absolute right-2.5 size-[26px] rounded-md grid place-items-center cursor-pointer opacity-0 pointer-events-none [transition:opacity_.15s,transform_.15s] [transform:scale(max(1,calc(.9/var(--s))))] origin-[100%_100%]",
     on.chip ? 'bottom-[19px]' : 'bottom-2',
     kind === 'play' && '[border:0] pl-0.5 pr-0 py-0 bg-working text-primary-foreground [box-shadow:var(--shadow)] hover:[filter:brightness(1.1)]',
     kind === 'archive' && '[border:1px_solid_var(--glass-edge)] p-0 bg-surface text-foreground [box-shadow:var(--shadow)] hover:[filter:brightness(1.1)]',
@@ -180,7 +180,7 @@ const ColumnsIcon = ({ size }: { size: number }) => (
 const sameBounds = (a: Bounds, b: Bounds) => a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
 
 /** Each card of a merged pair: a card's size and padding. */
-const HALF = 'relative flex-[0_0_300px] box-border pt-[13px] px-[14px] pb-[12px] rounded-[14px]';
+const HALF = 'relative flex-[0_0_300px] box-border pt-3 px-3.5 pb-3 rounded-xl';
 
 /**
  * An unworked card merged with another card (`partner`), on the project: both cards side by side, glued by
@@ -201,7 +201,7 @@ function MergedPair({ item, partner, showRepo }: { item: Item; partner?: Item; s
       </div>
       {/* the card it merges with: glass, its state a rule across its top */}
       <div
-        className={`merge-half partner s-${partner?.state ?? 'planned'} ${HALF} [border:1px_solid_var(--glass-edge)] bg-card [box-shadow:var(--shadow)] backdrop-blur-glass backdrop-saturate-150 moving:backdrop-filter-none before:content-[''] before:absolute before:inset-x-0 before:top-0 before:h-1 before:rounded-[2px] before:bg-(--c)`}
+        className={`merge-half partner s-${partner?.state ?? 'planned'} ${HALF} [border:1px_solid_var(--glass-edge)] bg-card [box-shadow:var(--shadow)] backdrop-blur-glass backdrop-saturate-150 moving:backdrop-filter-none before:content-[''] before:absolute before:inset-x-0 before:top-0 before:h-1 before:rounded-xs before:bg-(--c)`}
       >
         {partner ? (
           <CardFace item={partner} mergePartner={mergeStatus(item.idea!.proposal!.merge!)} where={showRepo ? partner.repo : undefined} half="partner" pairOf={item} />
@@ -313,7 +313,7 @@ export function ProjectAgents({ project, item }: { project: ProjectInfo; item?: 
     // faint like the pause on a card and on the bubble in its conversation, full under the pointer
     <button
       type="button"
-      className="grid h-5 w-[26px] cursor-pointer place-items-center rounded-[3px] border after:absolute after:inset-0 after:content-[''] border-border bg-transparent p-0 text-muted-foreground opacity-0 transition-opacity duration-120 group-focus-within/project:opacity-55 group-hover/project:opacity-55 hover:border-muted-foreground! hover:text-foreground! hover:opacity-100! focus-visible:border-muted-foreground! focus-visible:text-foreground! focus-visible:opacity-100! data-highlighted:border-muted-foreground! data-highlighted:text-foreground! data-highlighted:opacity-100! [@media(hover:none)]:opacity-55"
+      className="grid h-5 w-[26px] cursor-pointer place-items-center rounded-xs border after:absolute after:inset-0 after:content-[''] border-border bg-transparent p-0 text-muted-foreground opacity-0 transition-opacity duration-120 group-focus-within/project:opacity-55 group-hover/project:opacity-55 hover:border-muted-foreground! hover:text-foreground! hover:opacity-100! focus-visible:border-muted-foreground! focus-visible:text-foreground! focus-visible:opacity-100! data-highlighted:border-muted-foreground! data-highlighted:text-foreground! data-highlighted:opacity-100! [@media(hover:none)]:opacity-55"
       aria-label={`${label}: ${project.name}`} disabled={asked} onClick={click}>
       {pause ? <PauseMark /> : <PlayMark />}
     </button>
@@ -453,7 +453,7 @@ function Pill({ restart, items, project, onOpen, elsewhere = [], go, going, say,
         <>
           <Spin flat />
           <span className="overflow-hidden text-ellipsis">{say}</span>
-          {until && <span className="text-[12px] font-normal text-info opacity-80">{t.restart.until(clock(restart.deadline))}</span>}
+          {until && <span className="text-xs font-normal text-info opacity-80">{t.restart.until(clock(restart.deadline))}</span>}
         </>
       }
       action={
@@ -514,7 +514,7 @@ const tipPill = (flat: boolean, action: boolean) =>
 
 /** The button that ends a pill with a tip: go ahead now, install, pull. */
 const goButton = (flat: boolean) =>
-  cn('cursor-pointer rounded-[3px] border-0 bg-muted px-[11px] py-1 text-[12px] font-semibold text-foreground hover:bg-foreground hover:text-background', flat && 'rounded-full px-2.5 py-[3px]');
+  cn('cursor-pointer rounded-xs bg-muted px-3 py-1 text-xs font-semibold text-foreground hover:bg-foreground hover:text-background', flat && 'rounded-full px-2.5 py-1');
 
 /** The turning arrow of a restart that waits or goes. */
 const Spin = ({ flat }: { flat?: boolean }) => <span className={cn('inline-block animate-[spin_2.4s_linear_infinite] font-bold', flat ? 'text-info' : 'text-working')}>↻</span>;
@@ -530,7 +530,7 @@ function TipPill({ id, flat = false, label, action, children }: { id: string; fl
     <Popover {...pop.root}>
       <BarPill variant={flat ? 'flat' : 'glass'} size={flat ? undefined : 'bar'} className={tipPill(flat, !!action)} id={id}>
         <PopoverTrigger
-          className="flex min-w-0 cursor-default items-center gap-2 rounded-full border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-ring"
+          className="flex min-w-0 cursor-default items-center gap-2 rounded-full bg-transparent p-0 focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-ring"
           {...pop.hover}
           {...pop.trigger}
         >
@@ -541,7 +541,7 @@ function TipPill({ id, flat = false, label, action, children }: { id: string; fl
       <PopoverContent
         side="top"
         align="start"
-        className="[&_p]:m-0 [&_p]:mb-1.5 [&_p:last-child]:mb-0 [&_ul]:m-0 [&_ul]:mb-1.5 [&_ul]:pl-[18px]"
+        className="[&_p]:m-0 [&_p]:mb-1.5 [&_p:last-child]:mb-0 [&_ul]:m-0 [&_ul]:mb-1.5 [&_ul]:pl-4"
         {...pop.hover}
         {...pop.content}
       >
@@ -723,7 +723,7 @@ export function WorkstationsPill({ pools, project, projects, items, underway, on
             <span key={p.repo} className="flex items-center gap-1.5">
               {several && <span className="hint hidden lg:inline">{name(p.repo)}</span>}
               {hosts.map((h) => (
-                <span key={h.name} className="flex items-center gap-[5px]">
+                <span key={h.name} className="flex items-center gap-1">
                   {hosts.length > 1 && <span className="hint hidden lg:inline">{h.name}</span>}
                   <DotsFace dots={hostDots(h, items, underway)} />
                 </span>
@@ -791,22 +791,22 @@ export function WorkstationsPill({ pools, project, projects, items, underway, on
 }
 
 /** The face of a status bar's pill that opens a list, the pill's whole height. */
-export const statusFace = 'flex h-full cursor-pointer flex-row items-center gap-2 rounded-[3px] border-0 bg-transparent px-2 text-inherit';
+export const statusFace = 'flex h-full cursor-pointer flex-row items-center gap-2 rounded-xs bg-transparent px-2 text-inherit';
 
 /**
  * A plan on the project: a quiet frosted container its workstreams stand in, its head along the top.
  * Its blur goes while the canvas is far out or moves (frost.ts), as the cards' does.
  */
 const planClass =
-  'group/plan absolute rounded-[22px] border border-solid border-(--container-line) bg-(--container) backdrop-blur-[6px] backdrop-saturate-[1.2] [:is(.z-far,.moving)_&]:backdrop-filter-none';
+  'group/plan absolute rounded-3xl border border-(--container-line) bg-(--container) backdrop-blur-[6px] backdrop-saturate-[1.2] [:is(.z-far,.moving)_&]:backdrop-filter-none';
 /** The plan's head: fold, title, labels, progress and its buttons in a row; a click opens the plan. */
-const planHeadClass = 'absolute inset-x-0 top-0 flex cursor-pointer items-center gap-2.5 py-4 pr-[22px] pl-3 has-[.card-more]:pr-2.5';
+const planHeadClass = 'absolute inset-x-0 top-0 flex cursor-pointer items-center gap-2.5 py-4 pr-6 pl-3 has-[.card-more]:pr-2.5';
 /** Folds the plan to its head and back; always in sight, so it is found. */
 const planFoldClass =
-  'text-[14px] grid h-6 w-6 flex-none cursor-pointer place-items-center rounded-[3px] [border:0] bg-transparent p-0 -mr-1 text-muted-foreground hover:bg-card hover:text-foreground [&_path]:[fill:none] [&_path]:[stroke:currentColor] [&_path]:[stroke-width:1.6] [&_path]:[stroke-linecap:round] [&_path]:[stroke-linejoin:round]';
+  'text-base grid h-6 w-6 flex-none cursor-pointer place-items-center rounded-xs [border:0] bg-transparent p-0 -mr-1 text-muted-foreground hover:bg-card hover:text-foreground [&_path]:[fill:none] [&_path]:[stroke:currentColor] [&_path]:[stroke-width:1.6] [&_path]:[stroke-linecap:round] [&_path]:[stroke-linejoin:round]';
 /** Arranges the workstreams by their dependencies, or starts all planned ones; quiet until the pointer is on one; gone from afar. */
 const planHeadButtonClass =
-  'flex flex-none cursor-pointer items-center gap-1.5 rounded-[3px] border border-solid border-border bg-card py-1 pr-[11px] pl-[9px] text-[12px] font-medium [transition:background_.15s,color_.15s,border-color_.15s] hover:enabled:border-working hover:enabled:bg-working hover:enabled:text-primary-foreground [.z-far_&]:hidden';
+  'flex flex-none cursor-pointer items-center gap-1.5 rounded-xs border border-border bg-card py-1 pr-3 pl-2 text-xs font-medium [transition:background_.15s,color_.15s,border-color_.15s] hover:enabled:border-working hover:enabled:bg-working hover:enabled:text-primary-foreground [.z-far_&]:hidden';
 
 export const PlanView = memo(
   function PlanView({
@@ -858,14 +858,14 @@ export const PlanView = memo(
               {collapsed ? <ChevronRight size={12} strokeWidth={1.75} aria-hidden="true" /> : <ChevronDown size={12} strokeWidth={1.75} aria-hidden="true" />}
             </button>
           </Tooltip>
-          <span className="ttl min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[21px] leading-[1.15] [font-family:var(--font)] font-[650] tracking-[-.018em]">{plain(item.title)}</span>
-          <span className={`kind text-[11px] uppercase tracking-[.08em] text-muted-foreground${labelled ? ' hidden' : ''}`}>{t.kind.plan}</span>
+          <span className="ttl min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-xl leading-[1.15] [font-family:var(--font)] font-[650] tracking-[-.018em]">{plain(item.title)}</span>
+          <span className={`kind text-2xs uppercase tracking-[.08em] text-muted-foreground${labelled ? ' hidden' : ''}`}>{t.kind.plan}</span>
           {labelled && (
-            <span className={`head-labels absolute left-11 right-[22px] ${collapsed ? 'top-[40px]' : 'top-[47px]'} flex items-center gap-1.5 overflow-hidden [&_.prio]:text-[11px] [&_.lchip]:text-[11px]`}>
+            <span className={`head-labels absolute left-11 right-[22px] ${collapsed ? 'top-[40px]' : 'top-[47px]'} flex items-center gap-1.5 overflow-hidden [&_.prio]:text-2xs [&_.lchip]:text-2xs`}>
               <LabelMarks item={item} />
             </span>
           )}
-          <span className="progress ml-auto whitespace-nowrap text-[12px] text-muted-foreground [.z-far_&]:hidden">{t.progress(live, kids.length)}</span>
+          <span className="progress ml-auto whitespace-nowrap text-xs text-muted-foreground [.z-far_&]:hidden">{t.progress(live, kids.length)}</span>
           {/* collapsed, its workstreams are not on the project to arrange; its sheet still has the button */}
           {!collapsed && (item.plan?.arranging || arrangeable(kids)) && (
             <button
@@ -910,7 +910,7 @@ export const PlanView = memo(
               <Tooltip key={k.id} content={plain(k.title)}>
                 <button
                   ref={(el) => void (el ? els.set(k.id, el) : els.delete(k.id))}
-                  className={`${needsYou(k) ? 'mark yours opacity-100' : 'mark opacity-55'} mt-0.5 h-2.5 w-[18px] flex-none cursor-pointer rounded-[2px] [border:0] p-0 hover:opacity-100`}
+                  className={`${needsYou(k) ? 'mark yours opacity-100' : 'mark opacity-55'} mt-0.5 h-2.5 w-[18px] flex-none cursor-pointer rounded-xs [border:0] p-0 hover:opacity-100`}
                   aria-label={plain(k.title)}
                   style={{ background: stateVars(shownState(k))['--c'] }}
                   onPointerDown={own}
@@ -933,7 +933,7 @@ export const PlanView = memo(
                     asChild
                     variant="pin"
                     pulse
-                    className="relative top-auto right-auto scale-100 [--pin:var(--proposal)] flex items-center justify-center gap-1 px-[5px] cursor-pointer"
+                    className="relative top-auto right-auto scale-100 [--pin:var(--proposal)] flex items-center justify-center gap-1 px-1 cursor-pointer"
                   >
                   <button
                     aria-label={t.plan.replied(replies)}
@@ -1234,15 +1234,15 @@ export function Sheet({
     return () => clearTimeout(h);
   }, [shown?.id, reading, !!shown]);
   return (
-    <Docked id="sheet" ref={box} on={!!on} className={reading ? 'reading w-(--read-w) pt-0 px-[30px] pb-10' : undefined}>
+    <Docked id="sheet" ref={box} on={!!on} className={reading ? 'reading w-(--read-w) pt-0 px-8 pb-10' : undefined}>
       {planCard?.plan?.file && reading && (
         <>
-          <div className="read-head sticky top-0 z-1 flex items-center gap-3 my-0 -mx-[30px] pt-3.5 pr-[58px] pb-3 pl-[30px] bg-surface/88 backdrop-blur-[16px] border-b border-b-border reduced:bg-surface">
-            <button className="back inline-flex items-center gap-1 [border:0] bg-muted rounded-[2px] py-1 px-3 cursor-pointer font-semibold text-[13px]" onClick={() => onRead(null)}>
+          <div className="read-head sticky top-0 z-1 flex items-center gap-3 my-0 -mx-8 pt-3.5 pr-14 pb-3 pl-8 bg-surface/88 backdrop-blur-[16px] border-b border-b-border reduced:bg-surface">
+            <button className="back inline-flex items-center gap-1 [border:0] bg-muted rounded-xs py-1 px-3 cursor-pointer font-semibold text-sm" onClick={() => onRead(null)}>
               <ChevronLeft size={14} aria-hidden />
               {t.plan.back}
             </button>
-            <span className="src [font:12px_var(--mono)] text-muted-foreground m-0 ml-auto overflow-hidden text-ellipsis whitespace-nowrap">{planCard.plan.file}</span>
+            <span className="src font-mono text-xs text-muted-foreground m-0 ml-auto overflow-hidden text-ellipsis whitespace-nowrap">{planCard.plan.file}</span>
           </div>
           {shown ? (
             <Doc md={shown.markdown} mark={reading.mark} markRef={(el) => void (markEl.current = el)} />
@@ -1259,10 +1259,10 @@ export function Sheet({
           </div>
           <h2 className={sheetTitleClass}>{plain(planCard.title)}</h2>
           {planCard.archivedAt && <p className="hint">{t.archive.planGone(new Date(planCard.archivedAt))}</p>}
-          <div className="goal text-[13.5px] opacity-90">
+          <div className="goal text-sm opacity-90">
             <Inline md={planCard.plan.goal ?? ''} />
           </div>
-          <div className="src [font:12px_var(--mono)] text-muted-foreground mt-2">{planCard.plan.file}</div>
+          <div className="src font-mono text-xs text-muted-foreground mt-2">{planCard.plan.file}</div>
           {!planCard.archivedAt && (
             <Button className="read mt-3.5" onClick={() => onRead({})}>
               {t.plan.read}
@@ -1286,14 +1286,14 @@ export function Sheet({
             </div>
           )}
           {history?.origin && (
-            <button className="origin flex flex-col items-start gap-0.5 w-full mt-3.5 py-[9px] px-3 border border-dashed border-idea rounded-[3px] bg-transparent text-foreground text-[13px] text-left cursor-pointer hover:bg-muted" ref={ref(history.origin.id)} onClick={() => onOpen(history.origin!)}>
-              <span className="hint text-[11px]">{t.fromIdea}</span>
+            <button className="origin flex flex-col items-start gap-0.5 w-full mt-3.5 py-2 px-3 border border-dashed border-idea rounded-xs bg-transparent text-foreground text-sm text-left cursor-pointer hover:bg-muted" ref={ref(history.origin.id)} onClick={() => onOpen(history.origin!)}>
+              <span className="hint text-2xs">{t.fromIdea}</span>
               <span>{plain(history.origin.title.replace(/^Plan-Doc:\s*/, ''))}</span>
             </button>
           )}
           <ol className="list-none p-0 mt-4 mx-0 mb-0">
             {inOrder.map((k) => (
-              <li key={k.id} className="py-2 px-2.5 rounded-[3px] cursor-pointer text-[13px] hover:bg-muted" ref={ref(k.id)} onClick={() => onOpen(k)}>
+              <li key={k.id} className="py-2 px-2.5 rounded-xs cursor-pointer text-sm hover:bg-muted" ref={ref(k.id)} onClick={() => onOpen(k)}>
                 <CardFace
                   item={k}
                   size="xs"
@@ -1306,7 +1306,7 @@ export function Sheet({
                   }
                 />
                 {k.body.trim() && (
-                  <div className="ws-text mt-1 text-muted-foreground text-[12.5px] leading-[1.4] [&_.p-lead]:text-[length:inherit] [&_.p-lead]:m-0 [&_.p-lead]:max-w-none [&_.p-lead+.p-lead]:mt-[3px] [&_.p-list]:mt-[3px] [&_.p-list]:text-[length:inherit] [&_.p-list]:max-w-none [&_.p-list_li]:my-px">
+                  <div className="ws-text mt-1 text-muted-foreground text-sm leading-[1.4] [&_.p-lead]:text-[length:inherit] [&_.p-lead]:m-0 [&_.p-lead]:max-w-none [&_.p-lead+.p-lead]:mt-1 [&_.p-list]:mt-1 [&_.p-list]:text-[length:inherit] [&_.p-list]:max-w-none [&_.p-list_li]:my-px">
                     <Body md={k.body} />
                   </div>
                 )}
@@ -1319,10 +1319,10 @@ export function Sheet({
           {history && history.decisions.length > 0 && (
             <ul className="decisions list-none p-0 m-0">
               {history.decisions.map((d) => (
-                <li key={d.id} className="block cursor-default py-[7px] px-2.5 border [border-color:var(--container-line)] rounded-[6px] mb-1.5">
-                  <div className="q text-muted-foreground text-[12.5px]">{d.question}</div>
+                <li key={d.id} className="block cursor-default py-2 px-2.5 border [border-color:var(--container-line)] rounded-sm mb-1.5">
+                  <div className="q text-muted-foreground text-sm">{d.question}</div>
                   <div className="a my-0.5">{d.answer}</div>
-                  <div className="hint text-[11px]">
+                  <div className="hint text-2xs">
                     {t.decidedBy[d.by]} · {shortDay(d.at)}
                   </div>
                 </li>
@@ -1347,8 +1347,8 @@ export function Edges({ cam, targets, side, onOpen }: { cam: Cam; targets: { ite
         if (!position) return null;
         const title = plain(item.title);
         return (
-          <button key={item.id} className={`edge s-${item.state} pointer-events-auto absolute box-border flex h-[30px] w-[min(300px,calc(100vw-var(--left,0px)-var(--side,0px)-60px))] cursor-pointer items-center gap-1.5 overflow-hidden rounded-none border-0 bg-card py-[5px] pr-[11px] pl-[7px] text-[13px] font-medium text-ellipsis whitespace-nowrap shadow-glass`} style={{ left: position.x, top: position.y, transform: 'translateY(-50%)' }} onClick={() => onOpen(item)}>
-            <span className="grid size-5 flex-none place-items-center rounded-[50%] bg-[var(--c)] text-[12px] text-c-foreground" style={{ transform: `rotate(${position.angle}deg)` }}>
+          <button key={item.id} className={`edge s-${item.state} pointer-events-auto absolute box-border flex h-[30px] w-[min(300px,calc(100vw-var(--left,0px)-var(--side,0px)-60px))] cursor-pointer items-center gap-1.5 overflow-hidden rounded-none bg-card py-1 pr-3 pl-2 text-sm font-medium text-ellipsis whitespace-nowrap shadow-glass`} style={{ left: position.x, top: position.y, transform: 'translateY(-50%)' }} onClick={() => onOpen(item)}>
+            <span className="grid size-5 flex-none place-items-center rounded-full bg-[var(--c)] text-xs text-c-foreground" style={{ transform: `rotate(${position.angle}deg)` }}>
               ➜
             </span>
             {clip(title, 30)}
@@ -1402,7 +1402,7 @@ export function Minimap({
   return (
     <div
       id="minimap"
-      className="fixed bottom-[46px] left-[calc(var(--left,0px)+14px)] z-20 h-[130px] w-[210px] cursor-pointer overflow-hidden rounded-[14px] border border-glass-edge bg-card shadow-glass backdrop-blur-[16px] [transition:left_.45s_cubic-bezier(.3,.9,.3,1)] [@media(max-width:760px)]:hidden"
+      className="fixed bottom-[46px] left-[calc(var(--left,0px)+14px)] z-20 h-[130px] w-[210px] cursor-pointer overflow-hidden rounded-xl border border-glass-edge bg-card shadow-glass backdrop-blur-[16px] [transition:left_.45s_cubic-bezier(.3,.9,.3,1)] [@media(max-width:760px)]:hidden"
       onPointerDown={(e) => {
         if (e.button !== 0) return;
         e.currentTarget.setPointerCapture(e.pointerId);

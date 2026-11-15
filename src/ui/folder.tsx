@@ -106,7 +106,7 @@ export function FolderBox({ item, diff }: { item: Item; diff: CardDiff | null })
   const rows = changeRows(diff);
   if (!rows.length) return null;
   return (
-    <div className="f-box mt-2.5 mb-1 py-2.5 px-3 border border-border rounded-[8px] max-w-[760px] text-[12.5px] [&_p]:mt-1.5 [&_p]:mb-0 [&_.cl-list]:mt-1.5 [&_.cl-list]:mb-0">
+    <div className="f-box mt-2.5 mb-1 py-2.5 px-3 border border-border rounded-md max-w-[760px] text-sm [&_p]:mt-1.5 [&_p]:mb-0 [&_.cl-list]:mt-1.5 [&_.cl-list]:mb-0">
       <b>{t.folder.changed}</b>
       <ChangeList item={item} rows={rows} fold={atWork(item)} />
     </div>
@@ -148,7 +148,7 @@ export function DiscardChanges({ diff, act, onDone }: { diff: CardDiff | null; a
           </>
         )}
       </Button>
-      {counting && <span className="f-discarding self-center text-[12.5px] text-muted-foreground">{t.folder.clickToCancel}</span>}
+      {counting && <span className="f-discarding self-center text-sm text-muted-foreground">{t.folder.clickToCancel}</span>}
     </>
   );
 }

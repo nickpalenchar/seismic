@@ -39,7 +39,7 @@ function Meter({ limit, wide }: { limit: UsageLimit; wide?: boolean }) {
     <Progress
       value={limit.percent}
       aria-label={limitName(limit)}
-      className={cn('h-[9px] flex-none rounded-[2px] shadow-[inset_0_0_0_1px_var(--border)]', wide ? 'w-[60px]' : 'w-[26px]')}
+      className={cn('h-[9px] flex-none rounded-xs shadow-[inset_0_0_0_1px_var(--border)]', wide ? 'w-[60px]' : 'w-[26px]')}
       indicatorClassName={cn('rounded-[inherit] duration-0', { critical: 'bg-destructive', warning: 'bg-waiting' }[limit.severity as string] ?? 'bg-muted-foreground')}
     />
   );
@@ -88,7 +88,7 @@ export function UsagePill({ usage, phone, compact }: { usage: Usage; phone?: boo
     <Popover open={open} onOpenChange={setOpen}>
       <Pill variant={phone ? 'glass' : 'flat'} className="relative p-0" id={usage.harness === 'claude' ? 'usage' : `usage-${usage.harness}`}>
         <PopoverTrigger
-          className={cn(statusFace, 'gap-4 rounded-full', phone ? 'gap-2.5 px-2.5 py-1.5 text-[13px]' : 'hover:bg-muted data-[state=open]:bg-muted')}
+          className={cn(statusFace, 'gap-4 rounded-full', phone ? 'gap-2.5 px-2.5 py-1.5 text-sm' : 'hover:bg-muted data-[state=open]:bg-muted')}
           aria-label={t.usage.title[usage.harness]}
         >
           <span className="-mr-1.5 flex items-center" title={t.usage.harness[usage.harness]}>
@@ -109,7 +109,7 @@ export function UsagePill({ usage, phone, compact }: { usage: Usage; phone?: boo
         </p>
         <ul className="m-0 mb-2 list-none p-0">
           {usage.limits.map((l, i) => (
-            <li key={i} className="grid grid-cols-[minmax(0,1fr)_60px_42px] items-center gap-x-2 py-[3px]">
+            <li key={i} className="grid grid-cols-[minmax(0,1fr)_60px_42px] items-center gap-x-2 py-1">
               <span>{limitName(l)}</span>
               <Meter limit={l} wide />
               <b className={cn('text-right font-semibold tabular-nums', l.severity === 'critical' && 'text-destructive')}>{percent(l.percent)}</b>

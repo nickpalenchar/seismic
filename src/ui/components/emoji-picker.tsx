@@ -51,7 +51,7 @@ function EmojiPickerEmoji({ emoji, className, ...props }: EmojiPickerListEmojiPr
       {...props}
       aria-pressed={chosen}
       className={cn(
-        'flex size-9 cursor-pointer items-center justify-center rounded-lg border border-solid border-transparent bg-transparent p-0 text-xl leading-none data-[active]:bg-muted',
+        'flex size-9 cursor-pointer items-center justify-center rounded-lg border border-transparent bg-transparent p-0 text-xl leading-none data-[active]:bg-muted',
         chosen && 'border-foreground bg-muted',
         className,
       )}
@@ -96,7 +96,7 @@ export function EmojiPicker({
         <div className={cn(inputFieldClassName, 'flex items-center gap-2 focus-within:border-muted-foreground focus-within:bg-surface')} data-slot="emoji-picker-search-wrapper">
           <SearchIcon className="size-4 shrink-0 opacity-50" aria-hidden />
           <EmojiPickerPrimitive.Search
-            className="m-0 w-full border-0 bg-transparent p-0 text-sm text-foreground outline-none placeholder:text-muted-foreground/80"
+            className="m-0 w-full bg-transparent p-0 text-sm text-foreground outline-none placeholder:text-muted-foreground/80"
             data-slot="emoji-picker-search"
             placeholder={t.canvases.searchEmojis}
             aria-label={t.canvases.searchEmojis}
@@ -117,7 +117,7 @@ export function EmojiPicker({
             data-slot="emoji-picker-list"
           />
         </EmojiPickerPrimitive.Viewport>
-        <div className="flex min-w-0 items-center gap-2 border-0 border-t border-solid border-border pt-2" data-slot="emoji-picker-footer">
+        <div className="flex min-w-0 items-center gap-2 border-t border-border pt-2" data-slot="emoji-picker-footer">
           <EmojiPickerPrimitive.ActiveEmoji>
             {({ emoji }) =>
               emoji ? (
@@ -132,7 +132,7 @@ export function EmojiPicker({
           </EmojiPickerPrimitive.ActiveEmoji>
           <EmojiPickerPrimitive.SkinToneSelector
             type="button"
-            className="flex size-7 flex-none cursor-pointer items-center justify-center rounded-lg border-0 bg-transparent p-0 text-lg hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/50 outline-none"
+            className="flex size-7 flex-none cursor-pointer items-center justify-center rounded-lg bg-transparent p-0 text-lg hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/50 outline-none"
             aria-label={t.canvases.skinTone}
             title={t.canvases.skinTone}
           />

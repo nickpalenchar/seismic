@@ -43,7 +43,7 @@ export function CardSearch({ items, onOpen, field, hidden }: { items: Item[]; on
               ref={field}
               icon={false}
               wrapperClassName="block"
-              className="h-8 rounded-[16px] border-border bg-card py-0 pr-8 pl-[34px] text-sm shadow-none focus:bg-card in-data-[fit~='3']:pr-2"
+              className="h-8 rounded-full border-border bg-card py-0 pr-8 pl-8 text-sm shadow-none focus:bg-card in-data-[fit~='3']:pr-2"
               value={query}
               onValueChange={(v) => (setQuery(v), setOpen(true))}
               placeholder={t.cardSearch.placeholder}
@@ -57,7 +57,7 @@ export function CardSearch({ items, onOpen, field, hidden }: { items: Item[]; on
               }}
               onBlur={close}
             />
-            {!query && !open && <kbd className="pointer-events-none absolute top-1/2 right-2.5 grid h-5 min-w-[18px] -translate-y-1/2 place-items-center rounded-[3px] border border-border px-[5px] font-mono text-xs text-muted-foreground in-data-[fit~='3']:hidden" aria-hidden>/</kbd>}
+            {!query && !open && <kbd className="pointer-events-none absolute top-1/2 right-2.5 grid h-5 min-w-[18px] -translate-y-1/2 place-items-center rounded-xs border border-border px-1 font-mono text-xs text-muted-foreground in-data-[fit~='3']:hidden" aria-hidden>/</kbd>}
           </div>
         </PopoverAnchor>
         <PopoverContent
@@ -71,7 +71,7 @@ export function CardSearch({ items, onOpen, field, hidden }: { items: Item[]; on
         >
           <CommandList className="max-h-none">
             {results.map((item) => (
-              <CommandItem key={item.id} value={item.id} className="px-2.5 py-[7px]" onSelect={() => pick(item)}>
+              <CommandItem key={item.id} value={item.id} className="px-2.5 py-2" onSelect={() => pick(item)}>
                 <CardFace item={item} size="xs" />
               </CommandItem>
             ))}

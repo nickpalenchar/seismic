@@ -200,7 +200,7 @@ export default function CodeDiff({ part, card, style }: { part: DiffPart; card: 
           {t.diff.wholeFailed}
         </p>
       )}
-      <CodeBlock size="sm" className="rounded-t-none rounded-b-[2px] border-t-0 border-border bg-surface">
+      <CodeBlock size="sm" className="rounded-t-none rounded-b-xs border-t-0 border-border bg-surface">
         <CodeBlockContent wrap aria-label={part.file} className="group-data-[size=sm]/code-block:py-0">
           {rows}
         </CodeBlockContent>
@@ -233,7 +233,7 @@ function paint(line: DiffLine, tokens?: Token[]): ReactNode[] {
         <span
           key={`${from}`}
           style={run.style}
-          className={`${marked ? (line.kind === 'removed' ? 'rounded-[2px] bg-destructive/25' : 'rounded-[2px] bg-approved/30') : ''}`}
+          className={`${marked ? (line.kind === 'removed' ? 'rounded-xs bg-destructive/25' : 'rounded-xs bg-approved/30') : ''}`}
         >
           {line.text.slice(from, to)}
         </span>,

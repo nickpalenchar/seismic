@@ -78,7 +78,7 @@ export function MenuContent({ className, children, onCloseAutoFocus, ...props }:
 }
 
 const item =
-  'flex w-full cursor-pointer items-center rounded-sm border-0 bg-transparent px-2 py-1.5 text-left text-sm text-foreground normal-case tracking-normal outline-none data-highlighted:bg-muted data-disabled:cursor-default data-disabled:opacity-50';
+  'flex w-full cursor-pointer items-center rounded-sm bg-transparent px-2 py-1.5 text-left text-sm text-foreground normal-case tracking-normal outline-none data-highlighted:bg-muted data-disabled:cursor-default data-disabled:opacity-50';
 
 export function MenuItem({ asChild, className, children, ...props }: ComponentProps<typeof DropdownMenu.Item>) {
   return (

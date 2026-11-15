@@ -247,7 +247,7 @@ function CardMenu({ cards, box, at }: { cards: Item[]; box: ListboxState; at?: P
           <span className="cm-pill min-w-0 pointer-events-none">
             <SmartLink href={cardPath(projectOf(c.id), c)} text={c.title} />
           </span>
-          {c.short && <span className="cm-code flex-none [font-family:var(--mono)] text-[11.5px] text-muted-foreground">{c.short}</span>}
+          {c.short && <span className="cm-code flex-none [font-family:var(--mono)] text-xs text-muted-foreground">{c.short}</span>}
         </>
       )}
     </ListboxMenu>

@@ -26,7 +26,7 @@ export const depLayerClass = 'absolute left-0 top-0 overflow-visible pointer-eve
 
 /** A dot on a card's edge to draw an arrow from, in the colour of the card's handles (`--c`); larger for a fingertip. */
 export const connectionDotClass =
-  'absolute w-[14px] h-[14px] p-0 border-2 border-solid [border-color:var(--c)] rounded-[50%] bg-card cursor-pointer [transform:translate(-50%,-50%)] pointer-coarse:w-[22px] pointer-coarse:h-[22px] pointer-coarse:border-3';
+  'absolute w-[14px] h-[14px] p-0 border-2 [border-color:var(--c)] rounded-full bg-card cursor-pointer [transform:translate(-50%,-50%)] pointer-coarse:w-[22px] pointer-coarse:h-[22px] pointer-coarse:border-3';
 
 /** Where each side's dot stands on the card's edge. */
 export const dotSide = { top: 'left-1/2 top-0', right: 'left-full top-1/2', bottom: 'left-1/2 top-full', left: 'left-0 top-1/2' } as const;
@@ -36,7 +36,7 @@ export const dotSide = { top: 'left-1/2 top-0', right: 'left-full top-1/2', bott
  * pointer; sized by its foreignObject, which keeps it the same on screen at every zoom.
  */
 export const manualRemoveClass =
-  'grid place-items-center box-border w-full h-full p-0 border-[length:calc(1px/var(--s))] border-solid border-border rounded-[50%] bg-card text-muted-foreground cursor-pointer [transition:color_.12s,border-color_.12s] [&_svg]:w-[54%] [&_svg]:h-[54%] hover:text-foreground hover:border-muted-foreground focus-visible:text-foreground focus-visible:border-muted-foreground';
+  'grid place-items-center box-border w-full h-full p-0 border-[length:calc(1px/var(--s))] border-border rounded-full bg-card text-muted-foreground cursor-pointer [transition:color_.12s,border-color_.12s] [&_svg]:w-[54%] [&_svg]:h-[54%] hover:text-foreground hover:border-muted-foreground focus-visible:text-foreground focus-visible:border-muted-foreground';
 
 /**
  * The colour of a card's handles (`--c`) where its state makes it another than the state's own (the

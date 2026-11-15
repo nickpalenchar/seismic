@@ -124,7 +124,7 @@ function LabelPick<L extends Label>({ item, label, values, shown, empty, option,
                 {option(v)}
               </MenuRadioItem>
             ))}
-            <MenuRadioItem value={NONE} className="mt-0.5 rounded-none rounded-b-[3px] border-0 border-t border-solid border-border text-muted-foreground">
+            <MenuRadioItem value={NONE} className="mt-0.5 rounded-none rounded-b-xs border-t border-border text-muted-foreground">
               {t.priority.none}
             </MenuRadioItem>
           </MenuRadioGroup>
@@ -139,7 +139,7 @@ export function LabelPicks({ item }: { item: Item }) {
   const [open, setOpen] = useState<Label>();
   const at = (l: Label) => ({ open: open === l, setOpen: (on: boolean) => setOpen((now) => (on ? l : now === l ? undefined : now)) });
   const empty = (text: string, icon?: ReactNode) => (
-    <span className="lchip-none inline-flex items-center gap-[3px] font-medium text-muted-foreground normal-case tracking-[.01em] [&_svg]:block [&_svg]:flex-none [&_svg]:opacity-70">
+    <span className="lchip-none inline-flex items-center gap-1 font-medium text-muted-foreground normal-case tracking-[.01em] [&_svg]:block [&_svg]:flex-none [&_svg]:opacity-70">
       {icon}
       {text}
     </span>

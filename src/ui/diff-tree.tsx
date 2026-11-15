@@ -37,21 +37,21 @@ export function DiffTreeLayout({ rows, current, onPick, children }: { rows: Chan
         ? <CollapsibleTrigger asChild><Button size="small" variant="ghost" aria-expanded={open}><Files size={15} />{open ? t.diff.hideTree : t.diff.showTree}</Button></CollapsibleTrigger>
         : <CollapsibleTrigger className={cn(barTrigger, 'border border-border bg-muted font-medium')}>{open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}<Files size={15} /><span className="flex-1">{t.diff.showTree}</span><span className="hint">{files.length}</span></CollapsibleTrigger>}
     </div>
-    <CollapsibleContent asChild forceMount hidden={!open}><nav className={cn('diff-tree min-w-0 border border-border rounded-[8px] p-2 row-start-2', beside && 'col-start-1 [align-self:start]', !wide && 'max-h-[40vh] overflow-auto')} aria-label={t.diff.showTree}><Tree rows={files} current={current} onPick={(path) => { onPick(path); setPicked(n => n + 1); }} /></nav></CollapsibleContent>
+    <CollapsibleContent asChild forceMount hidden={!open}><nav className={cn('diff-tree min-w-0 border border-border rounded-md p-2 row-start-2', beside && 'col-start-1 [align-self:start]', !wide && 'max-h-[40vh] overflow-auto')} aria-label={t.diff.showTree}><Tree rows={files} current={current} onPick={(path) => { onPick(path); setPicked(n => n + 1); }} /></nav></CollapsibleContent>
     <div className={cn('diff-selection min-w-0', beside ? 'col-start-2 row-start-2' : wide ? 'row-start-2' : 'row-start-3')} ref={selection}>{typeof children === 'function' ? children(!wide) : children}</div>
   </div></Collapsible>;
 }
 
 /** A bar of the stacked Diff tab that folds what is below it: the tree, or a file's changes. */
-export const barTrigger = 'flex w-full min-w-0 items-center gap-2 py-1.5 px-2.5 rounded-[8px] text-[13px] hover:bg-muted [&_svg]:shrink-0 [&_svg]:text-muted-foreground phone:min-h-11';
+export const barTrigger = 'flex w-full min-w-0 items-center gap-2 py-1.5 px-2.5 rounded-md text-sm hover:bg-muted [&_svg]:shrink-0 [&_svg]:text-muted-foreground phone:min-h-11';
 
 /** What happened to a file, as a coloured letter. */
 export function StatusBadge({ kind }: { kind: NonNullable<ChangeRow['kind']> }) {
-  return <span className={cn('diff-status shrink-0 inline-flex items-center justify-center size-4 rounded-[3px] text-c-strong bg-c/22 [font:700_11px/1_var(--mono)]', kind, statusColour[kind])} title={t.diff.treeStatus[kind]} aria-label={t.diff.treeStatus[kind]}>{({ added: '+', deleted: '−', moved: '↪', modified: 'M' })[kind]}</span>;
+  return <span className={cn('diff-status shrink-0 inline-flex items-center justify-center size-4 rounded-xs text-c-strong bg-c/22 font-mono text-2xs/none font-bold', kind, statusColour[kind])} title={t.diff.treeStatus[kind]} aria-label={t.diff.treeStatus[kind]}>{({ added: '+', deleted: '−', moved: '↪', modified: 'M' })[kind]}</span>;
 }
 
 /** A file or folder of the tree: the row's width, its name from the left; a fingertip's height on a narrow screen. */
-const treeButton = 'w-full justify-start min-h-[26px] py-[3px] px-1.5 [&_svg]:shrink-0 max-[760px]:min-h-11';
+const treeButton = 'w-full justify-start min-h-[26px] py-1 px-1.5 [&_svg]:shrink-0 max-[760px]:min-h-11';
 
 /** What happened to a file, in the colour of that. */
 const statusColour: Record<NonNullable<ChangeRow['kind']>, string> = {

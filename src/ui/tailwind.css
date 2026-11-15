@@ -280,11 +280,15 @@ a.link.card-link { color: var(--working); text-decoration: underline 1px current
   /* Emoji glyphs stay within one pixel of their original 21px, in a 36px cell. */
   --text-xl: 20px;
   --text-xl--line-height: 28px;
+  --text-2xl: 24px;
+  --text-2xl--line-height: 32px;
   --text-display: 30px;
   --text-display--line-height: 36px;
 }
 
 @theme inline {
+  --font-sans: var(--font);
+  --font-mono: var(--mono);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -302,10 +306,14 @@ a.link.card-link { color: var(--working); text-decoration: underline 1px current
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  /* a hairline corner for small marks and chips (Tailwind's own is .125rem, off frost's root) */
+  --radius-xs: 2px;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
 
   /* the states: fill, subtle tint, text on the tint */
   --color-planned: var(--planned); --color-planned-subtle: var(--planned-subtle); --color-planned-strong: var(--planned-strong); --color-planned-foreground: var(--planned-foreground);

@@ -44,7 +44,7 @@ const talkInAddress = () => new URLSearchParams(location.search).has('talk');
 type Step = 'card' | 'talk';
 
 /** A group of the list (a stage, a project's queue …). */
-export const sectionClass = 'ph-section mt-[22px] ph-landscape:mt-3.5';
+export const sectionClass = 'ph-section mt-6 ph-landscape:mt-3.5';
 
 export type PhoneShell = ReturnType<typeof usePhoneShell>;
 

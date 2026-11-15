@@ -116,7 +116,7 @@ function tapOpensKeyboard() {
  * A phone's browser zooms into a text field written smaller than 16 px: every field in it is 16 px.
  */
 export const viewClass =
-  'ph-view fixed overscroll-contain [-webkit-overflow-scrolling:touch] pt-[env(safe-area-inset-top)] pr-[max(14px,env(safe-area-inset-right))] pl-[max(14px,env(safe-area-inset-left))] ph-landscape:[--ph-side:calc(112px+env(safe-area-inset-right))] ph-landscape:pr-(--ph-side) [&_:is(textarea,select,input,[data-slot=select-trigger])]:text-[16px]';
+  'ph-view fixed overscroll-contain [-webkit-overflow-scrolling:touch] pt-[env(safe-area-inset-top)] pr-[max(14px,env(safe-area-inset-right))] pl-[max(14px,env(safe-area-inset-left))] ph-landscape:[--ph-side:calc(112px+env(safe-area-inset-right))] ph-landscape:pr-(--ph-side) [&_:is(textarea,select,input,[data-slot=select-trigger])]:text-base';
 
 /**
  * The list and an open card: the page scrolls, with the microphone's room under its end, and fades
@@ -133,5 +133,5 @@ export const pageClass = `${viewClass} inset-0 overflow-y-auto pb-[calc(157px+en
 export const barClass =
   'ph-bar sticky top-0 z-5 flex items-center gap-2.5 min-h-[52px] -mx-3.5 px-3.5 bg-background border-b border-border ph-landscape:min-h-[42px] ph-landscape:mr-[calc(-1*var(--ph-side))] ph-landscape:pr-[max(14px,env(safe-area-inset-right))]';
 /** The list's and the card's bar; the list's scrolls away with the phone turned. */
-export const pageBarClass = `${barClass} py-1.5 ph-landscape:py-[3px]`;
+export const pageBarClass = `${barClass} py-1.5 ph-landscape:py-1`;
 

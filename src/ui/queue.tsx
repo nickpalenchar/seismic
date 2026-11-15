@@ -117,7 +117,7 @@ type Sort = ReturnType<typeof useSortable>;
  */
 const rowClass = (onCard: boolean, own: boolean) =>
   cn(
-    'group/qrow relative flex gap-2.5 items-start py-[7px] px-2 rounded-[2px] text-[13px]',
+    'group/qrow relative flex gap-2.5 items-start py-2 px-2 rounded-xs text-sm',
     'data-[sorting=other]:[transition:transform_.15s_ease] data-[sorting=dragged]:bg-card data-[sorting=dragged]:[box-shadow:var(--lift)] data-[sorting=dragged]:cursor-grabbing',
     onCard ? 'cursor-default' : 'cursor-pointer hover:bg-muted',
     own && 'own bg-card! [box-shadow:inset_0_0_0_1px_var(--border)] cursor-grab! data-[sorting=dragged]:[box-shadow:var(--lift)]!',
@@ -162,7 +162,7 @@ function QueueRow(p: {
         {p.failed && <span className="hint why block mt-0.5">{p.failed}</span>}
       </span>
       {held && (
-        <span className="q-held absolute left-[30px] right-2 top-[calc(100%+4px)] py-1.5 px-[9px] bg-surface border border-glass-edge rounded-[12px] [box-shadow:var(--shadow)] text-[12.5px] text-foreground">
+        <span className="q-held absolute left-[30px] right-2 top-[calc(100%+4px)] py-1.5 px-2 bg-surface border border-glass-edge rounded-lg [box-shadow:var(--shadow)] text-sm text-foreground">
           {held}
         </span>
       )}

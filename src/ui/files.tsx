@@ -276,7 +276,7 @@ export function ChangeList({
   // folded completely, the toggle counts the files, and the size beside it need not
   const counted = toggle && !more && !visible.length;
   return (
-    <div className="cl-list mb-3 text-[13px] [&_table]:w-full [&_table]:border-collapse [&_table]:table-fixed [.results_&_table]:border-b [.results_&_table]:border-border [&_td]:py-0.5 [&_td]:px-0 [&_td]:align-top [&_col.cl-mark]:w-[2em] [&_col.cl-n]:w-[4.5em] [&_.f-mark]:pt-0.5 [&_.f-mark]:pr-1 [&_.f-mark]:pb-0.5 [&_.f-mark]:pl-1.5 [&_.f-mark]:text-center [&_.f-mark]:text-muted-foreground [&_td.d-add]:pl-2.5 [&_td.d-del]:pl-2.5 [&_td.d-add]:whitespace-nowrap [&_td.d-del]:whitespace-nowrap [&_td.d-add]:text-right [&_td.d-del]:text-right [&_td.d-del]:pr-1.5 [&_button.cl-lines]:text-inherit [&_button.cl-lines]:[font:inherit] [&_tr:has(.cl-lines:hover)_.cl-lines]:underline [&_[role=tablist]_.cl-row:not(.off)]:cursor-pointer [@media(hover:hover)]:[&_[role=tablist]_.cl-row:not(.off,.on):hover]:bg-muted phone:text-[14.5px] phone:[&_td]:py-2.5 phone:[&_.f-mark]:py-2.5">
+    <div className="cl-list mb-3 text-sm [&_table]:w-full [&_table]:border-collapse [&_table]:table-fixed [.results_&_table]:border-b [.results_&_table]:border-border [&_td]:py-0.5 [&_td]:px-0 [&_td]:align-top [&_col.cl-mark]:w-[2em] [&_col.cl-n]:w-[4.5em] [&_.f-mark]:pt-0.5 [&_.f-mark]:pr-1 [&_.f-mark]:pb-0.5 [&_.f-mark]:pl-1.5 [&_.f-mark]:text-center [&_.f-mark]:text-muted-foreground [&_td.d-add]:pl-2.5 [&_td.d-del]:pl-2.5 [&_td.d-add]:whitespace-nowrap [&_td.d-del]:whitespace-nowrap [&_td.d-add]:text-right [&_td.d-del]:text-right [&_td.d-del]:pr-1.5 [&_button.cl-lines]:text-inherit [&_button.cl-lines]:[font:inherit] [&_tr:has(.cl-lines:hover)_.cl-lines]:underline [&_[role=tablist]_.cl-row:not(.off)]:cursor-pointer [@media(hover:hover)]:[&_[role=tablist]_.cl-row:not(.off,.on):hover]:bg-muted phone:text-base phone:[&_td]:py-2.5 phone:[&_.f-mark]:py-2.5">
       <TableFrame pick={!!pick} current={current}>
       <table>
         <colgroup>
@@ -301,7 +301,7 @@ export function ChangeList({
       </table>
       </TableFrame>
       {(toggle || total) && (
-        <div className="cl-foot mt-1 ml-1.5 text-[12.5px] phone:text-[14.5px] phone:[&_[data-slot=button]]:py-2 phone:[&_[data-slot=button]]:px-0">
+        <div className="cl-foot mt-1 ml-1.5 text-sm phone:text-base phone:[&_[data-slot=button]]:py-2 phone:[&_[data-slot=button]]:px-0">
           {toggle && (
             <LinkButton className="cl-more" aria-expanded={more} onClick={() => setMore(!more)}>
               {more ? t.files.less : counted ? t.files.changed(hidden) : t.files.more(hidden)}
@@ -366,7 +366,7 @@ function Line({ row, on, onPick, onDiff, tabs, panel }: { row: ChangeRow; on: bo
             <bdi>{path}</bdi>
           </NameButton>
         ) : (
-          <span className="cl-name block max-w-full border-0 bg-transparent p-0 [font:inherit]! text-working text-left overflow-hidden whitespace-nowrap text-ellipsis [direction:rtl] cursor-pointer [.cl-row.on_&]:text-foreground [.cl-row.on_&]:font-semibold! text-inherit cursor-default" title={path}>
+          <span className="cl-name block max-w-full bg-transparent p-0 [font:inherit]! text-working text-left overflow-hidden whitespace-nowrap text-ellipsis [direction:rtl] cursor-pointer [.cl-row.on_&]:text-foreground [.cl-row.on_&]:font-semibold! text-inherit cursor-default" title={path}>
             <bdi>{path}</bdi>
           </span>
         )}
@@ -419,13 +419,13 @@ function revision(s: string): string {
 /** A changed file as a bar of its own, its path and size, that folds its changes open below it. */
 function FileBar({ row, open, onOpenChange, children }: { row: ChangeRow; open: boolean; onOpenChange: (open: boolean) => void; children: ReactNode }) {
   return (
-    <Collapsible open={open} onOpenChange={onOpenChange} className="diff-bar border border-border rounded-[8px] scroll-mt-2" data-path={row.path}>
+    <Collapsible open={open} onOpenChange={onOpenChange} className="diff-bar border border-border rounded-md scroll-mt-2" data-path={row.path}>
       <CollapsibleTrigger className={barTrigger} title={row.from ? `${row.from} → ${row.path}` : row.path}>
         <ChevronRight aria-hidden className={cn('size-3.5 transition-transform', open && 'rotate-90')} />
         {row.kind && <StatusBadge kind={row.kind} />}
-        <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap [direction:rtl] text-left [font:12.5px_var(--mono)]"><bdi>{row.path}</bdi></span>
+        <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap [direction:rtl] text-left font-mono text-sm"><bdi>{row.path}</bdi></span>
         {row.from && <span className="hint min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{t.diff.renamedFrom(row.from)}</span>}
-        {(row.added !== undefined && (row.added > 0 || row.removed! > 0)) && <span className="flex-none text-[12.5px]"><Lines n={{ added: row.added, removed: row.removed! }} /></span>}
+        {(row.added !== undefined && (row.added > 0 || row.removed! > 0)) && <span className="flex-none text-sm"><Lines n={{ added: row.added, removed: row.removed! }} /></span>}
       </CollapsibleTrigger>
       <CollapsibleContent className="px-2.5 pb-2.5 pt-1 border-t border-border">{open && children}</CollapsibleContent>
     </Collapsible>
@@ -449,7 +449,7 @@ function FileView({ item, file, rev, changes, onChanges }: { item: Item; file: S
   };
   return (
     <div className="r-file">
-      <div className="r-bar flex flex-wrap items-center gap-x-3.5 gap-y-1.5 mb-3 text-[13px]">
+      <div className="r-bar flex flex-wrap items-center gap-x-3.5 gap-y-1.5 mb-3 text-sm">
         {file.diff && (
           <SegmentedControl
             size="small"
@@ -502,11 +502,11 @@ function Shown({ item, file, url, rev, onOpen }: { item: Item; file: ShownFile; 
         </Text>
       );
     case 'text':
-      return <Text url={url}>{(text) => <pre className="r-text m-0 py-2.5 px-3 bg-muted rounded-[2px] [font:12.5px/1.5_var(--mono)] whitespace-pre-wrap break-words">{text}</pre>}</Text>;
+      return <Text url={url}>{(text) => <pre className="r-text m-0 py-2.5 px-3 bg-muted rounded-xs font-mono text-sm/[1.5] whitespace-pre-wrap break-words">{text}</pre>}</Text>;
     case 'image':
       return (
         <a href={url} target="_blank" rel="noreferrer">
-          <img className="r-image block max-w-full border border-border rounded-[2px] bg-white" src={url} alt={file.caption || file.path} />
+          <img className="r-image block max-w-full border border-border rounded-xs bg-white" src={url} alt={file.caption || file.path} />
         </a>
       );
     case 'page':
@@ -515,8 +515,8 @@ function Shown({ item, file, url, rev, onOpen }: { item: Item; file: ShownFile; 
       return <Pdf url={url} title={file.caption || file.path} />;
     case 'other':
       return (
-        <div className="r-tile flex flex-col items-start gap-2 py-[18px] px-5 border border-border rounded-md max-w-[420px]">
-          <span className="r-tile-name [font:600_15px_var(--font)] [overflow-wrap:anywhere]">{base(file.path)}</span>
+        <div className="r-tile flex flex-col items-start gap-2 py-4 px-5 border border-border rounded-md max-w-[420px]">
+          <span className="r-tile-name font-sans text-base font-semibold [overflow-wrap:anywhere]">{base(file.path)}</span>
           <span className="hint">{t.files.other}</span>
           <Button title={t.files.openHint} onClick={onOpen}>
             {t.files.open}
@@ -556,7 +556,7 @@ function Text({ url, children }: { url: string; children: (text: string) => Reac
 function Page({ url, title }: { url: string; title: string }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const height = useReportedHeight(frame, PAGE_CAP);
-  return <iframe ref={frame} className="r-page w-full min-h-[120px] h-[min(560px,62vh)] border border-border rounded-[3px] bg-white block" sandbox="allow-scripts" src={url} title={title} style={height ? { height } : undefined} />;
+  return <iframe ref={frame} className="r-page w-full min-h-[120px] h-[min(560px,62vh)] border border-border rounded-xs bg-white block" sandbox="allow-scripts" src={url} title={title} style={height ? { height } : undefined} />;
 }
 
 /**
@@ -582,7 +582,7 @@ function PdfFrame({ url, title }: { url: string; title: string }) {
     watch.observe(column);
     return () => watch.disconnect();
   }, []);
-  return <iframe ref={frame} className="r-pdf w-full h-[max(480px,calc(100vh-320px))] border border-border rounded-[3px] bg-white block" src={url} title={title} style={height ? { height } : undefined} />;
+  return <iframe ref={frame} className="r-pdf w-full h-[max(480px,calc(100vh-320px))] border border-border rounded-xs bg-white block" src={url} title={title} style={height ? { height } : undefined} />;
 }
 
 /** The card's whole change, file by file: read from the server and split once. */

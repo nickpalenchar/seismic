@@ -18,7 +18,7 @@ import { statusClass } from './setupClasses';
 /** A line that something is in order, behind a tick in the approved colour. */
 const okClass = "before:content-['✓_'] before:text-approved";
 /** The address to type, a little larger than the code around it. */
-const addressClass = 'acc-address text-[13px]!';
+const addressClass = 'acc-address text-sm!';
 /** A step that is still missing, close under the line it is about. */
 const stepClass = 'hint acc-step mt-1! mb-0! mx-0!';
 
@@ -172,7 +172,7 @@ function Qr({ text, size = 220 }: { text: string; size?: number }) {
   let d = '';
   data.forEach((row, y) => row.forEach((dark, x) => dark && (d += `M${x} ${y}h1v1h-1z`)));
   return (
-    <svg className="acc-qr flex-none rounded-[3px] [box-shadow:var(--shadow)]" width={size} height={size} viewBox={`0 0 ${n} ${n}`} shapeRendering="crispEdges" role="img" aria-label={text}>
+    <svg className="acc-qr flex-none rounded-xs [box-shadow:var(--shadow)]" width={size} height={size} viewBox={`0 0 ${n} ${n}`} shapeRendering="crispEdges" role="img" aria-label={text}>
       <rect width={n} height={n} fill="white" />
       <path d={d} fill="black" />
     </svg>
@@ -202,7 +202,7 @@ export function AccessSection({ on, onConnect }: { on: boolean; onConnect: () =>
       {view.devices.length ? (
         <ul className="acc-devices list-none m-0 p-0 max-w-[720px]">
           {view.devices.map((d) => (
-            <li key={d.id} className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-[18px] items-center py-2 px-0 border-b border-b-border text-[13.5px]">
+            <li key={d.id} className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-4 items-center py-2 px-0 border-b border-b-border text-sm">
               <span>
                 <span className="acc-name font-semibold">{d.name}</span>
                 {d.push && <span className="hint"> · {a.pushOn}</span>}
@@ -224,7 +224,7 @@ export function AccessSection({ on, onConnect }: { on: boolean; onConnect: () =>
         </Button>
       )}
       {status && <p className={`hint ${statusClass}`}>{status}</p>}
-      <p className="hint acc-note mt-[18px] max-w-[76ch]">{a.whileRunning}</p>
+      <p className="hint acc-note mt-4 max-w-[76ch]">{a.whileRunning}</p>
     </>
   );
 }
@@ -260,7 +260,7 @@ export function PhoneDialog({ onClose, onSection }: { onClose: () => void; onSec
   else if (pairing?.paired)
     body = (
       <div className="acc-done">
-        <p className={`acc-connected text-[18px] font-semibold my-2 mx-0 ${okClass}`}>{a.connected(pairing.paired.name)}</p>
+        <p className={`acc-connected text-lg font-semibold my-2 mx-0 ${okClass}`}>{a.connected(pairing.paired.name)}</p>
         <Button size="small" onClick={() => void another()}>
           {a.another}
         </Button>
@@ -269,7 +269,7 @@ export function PhoneDialog({ onClose, onSection }: { onClose: () => void; onSec
   else if (pairing) {
     const ts = view.remote?.via === 'tailscale' && view.tailscale.state === 'ready' ? view.tailscale : null;
     body = (
-      <div className="acc-pair flex gap-[26px] items-start [&_p]:mt-0 [&_p]:mb-2.5 [&_p]:mx-0 [&_p]:leading-[1.45]">
+      <div className="acc-pair flex gap-6 items-start [&_p]:mt-0 [&_p]:mb-2.5 [&_p]:mx-0 [&_p]:leading-[1.45]">
         <Qr text={pairing.url} />
         <div>
           {ts && !ts.others && <p className="acc-alone text-warning! font-semibold">{a.alone(ts.account)}</p>}
@@ -278,7 +278,7 @@ export function PhoneDialog({ onClose, onSection }: { onClose: () => void; onSec
           <p>
             <code className={addressClass}>{view.address}</code>
           </p>
-          <p className="acc-code [font:600_34px/1.1_var(--mono)] tracking-[.08em] mt-1! mb-1.5! mx-0!" aria-label={pairing.code}>
+          <p className="acc-code font-mono text-display/[1.1] font-semibold tracking-[.08em] mt-1! mb-1.5! mx-0!" aria-label={pairing.code}>
             {pairing.code.slice(0, 3)} {pairing.code.slice(3)}
           </p>
           <p className="hint">{a.validUntil(clock(pairing.expires))}</p>
@@ -288,13 +288,13 @@ export function PhoneDialog({ onClose, onSection }: { onClose: () => void; onSec
   }
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent id="phone" glass className={`box relative pt-[22px] px-[26px] pb-5 w-[680px] max-w-full max-h-full overflow-auto text-[14px] [&_code]:[font:12px_var(--mono)] [&_code]:[overflow-wrap:anywhere]`}>
+      <DialogContent id="phone" glass className={`box relative pt-6 px-6 pb-5 w-[680px] max-w-full max-h-full overflow-auto text-base [&_code]:font-mono text-xs [&_code]:[overflow-wrap:anywhere]`}>
         <CloseButton label={t.close} className="close absolute right-3.5 top-3" onClick={onClose} />
         <DialogTitle asChild>
-          <h2 className="mt-0 mb-4 mx-0 text-[23px]">{a.connect}</h2>
+          <h2 className="mt-0 mb-4 mx-0 text-2xl">{a.connect}</h2>
         </DialogTitle>
         {body}
-        <div className="acc-foot mt-[18px] pt-3 border-t border-t-border">
+        <div className="acc-foot mt-4 pt-3 border-t border-t-border">
           <Button size="small" onClick={onSection}>
             {a.toSection}
           </Button>

@@ -23,7 +23,7 @@ const UNKNOWN = '-';
 /** A cell of the log: a line under each row, the text on its first line's baseline. */
 const cell = 'py-2 px-2.5 border-b border-border text-left align-baseline';
 /** A column's head: small and quiet on one line, standing at the top while the log scrolls under it. */
-const headCell = cn(cell, 'text-[12px] font-semibold text-muted-foreground whitespace-nowrap sticky top-0 bg-surface z-1');
+const headCell = cn(cell, 'text-xs font-semibold text-muted-foreground whitespace-nowrap sticky top-0 bg-surface z-1');
 
 export function FeedbackLog({ projects, here }: { projects: ProjectInfo[]; here: string }) {
   const p = t.performance;
@@ -124,7 +124,7 @@ export function FeedbackLog({ projects, here }: { projects: ProjectInfo[]; here:
               <tr>
                 <th scope="rowgroup" colSpan={4 + COLUMNS.filter((c) => c !== group).length} className={cn(cell, 'bg-muted/70 pt-3.5')}>
                   <span className="font-semibold mr-3">{sectionName(s)}</span>
-                  <span className="font-normal text-[12.5px] text-muted-foreground">{l.sectionSummary(s.responses.length, s.ratings, s.mean)}</span>
+                  <span className="font-normal text-sm text-muted-foreground">{l.sectionSummary(s.responses.length, s.ratings, s.mean)}</span>
                 </th>
               </tr>
             )}
@@ -138,7 +138,7 @@ export function FeedbackLog({ projects, here }: { projects: ProjectInfo[]; here:
 
   return (
     <div id="flog" className="fixed inset-0 overflow-y-auto bg-surface">
-      <main className="flog-main max-w-[1500px] mx-auto pt-[22px] px-10 pb-12">
+      <main className="flog-main max-w-[1500px] mx-auto pt-6 px-10 pb-12">
         <a className={cn('flog-back inline-block mb-3.5', pageLinkClass)} href={back}>
           ← {p.title}
         </a>

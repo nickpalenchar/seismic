@@ -23,10 +23,10 @@ import { Sidebar, SidebarContent, SidebarGroup, SidebarMenu, SidebarMenuButton, 
 // the looks the menu's pieces share, docked or dropped down
 const list = 'm-0 list-none p-0';
 /** entries under another: the open project's canvases and views, what sits under Settings and Performance */
-const tree = cn(list, 'mt-0.5 mb-1 pl-[22px]');
-const rowButton = 'flex w-full cursor-pointer items-center gap-[7px] rounded-[6px] border-0 bg-transparent px-2.5 py-1.5 text-left text-[13px] text-muted-foreground no-underline outline-none hover:bg-muted data-highlighted:bg-muted [&_svg]:flex-none';
+const tree = cn(list, 'mt-0.5 mb-1 pl-6');
+const rowButton = 'flex w-full cursor-pointer items-center gap-2 rounded-sm bg-transparent px-2.5 py-1.5 text-left text-sm text-muted-foreground no-underline outline-none hover:bg-muted data-highlighted:bg-muted [&_svg]:flex-none';
 /** the dropdown's panel: under ☰, or the floating row's project switcher */
-const menuPanel = 'w-[min(360px,calc(100vw-28px))] rounded-[12px] border border-glass-edge px-3.5 pt-3.5 pb-4';
+const menuPanel = 'w-[min(360px,calc(100vw-28px))] rounded-lg border border-glass-edge px-3.5 pt-3.5 pb-4';
 
 /** Default and limits for the docked menu's remembered width. */
 export const NAV_W = 256;
@@ -87,7 +87,7 @@ export function NavPill(p: ProjectsProps) {
           <PillButton size="bar" on={open} className="group-data-[fit~='3']/row:max-w-full group-data-[fit~='3']/row:[&_b]:overflow-hidden group-data-[fit~='3']/row:[&_b]:text-ellipsis" title={t.nav.button}>
             <ProjectIcon />
             <b>{p.project.name}</b>
-            <span className="text-[12px] text-muted-foreground group-data-[fit~='1']/row:hidden">{p.project.repos.length > 1 ? t.repos(p.project.repos.length) : home?.branch}</span>
+            <span className="text-xs text-muted-foreground group-data-[fit~='1']/row:hidden">{p.project.repos.length > 1 ? t.repos(p.project.repos.length) : home?.branch}</span>
             <ChevronDown size={12} strokeWidth={1.75} className="text-muted-foreground" aria-hidden="true" />
           </PillButton>
         </MenuTrigger>
@@ -157,12 +157,12 @@ export function MenuButton({ docked, dockedOn, onDocked, ...p }: MenuProps & { d
   const logo = (
     <button
       data-on={on || undefined}
-      className="-ml-1.5 mr-1 flex h-[34px] cursor-pointer items-center gap-[5px] rounded-[3px] border-0 bg-transparent px-1.5 text-foreground hover:bg-foreground/7 data-[on]:bg-foreground/7"
+      className="-ml-1.5 mr-1 flex h-[34px] cursor-pointer items-center gap-1 rounded-xs bg-transparent px-1.5 text-foreground hover:bg-foreground/7 data-[on]:bg-foreground/7"
       aria-label={t.leftMenu.button}
       aria-expanded={docked ? dockedOn : undefined}
       onClick={docked ? () => onDocked(!dockedOn) : undefined}
     >
-      <Menu_ className="mr-[3px] block flex-none" size={18} strokeWidth={2} aria-hidden />
+      <Menu_ className="mr-1 block flex-none" size={18} strokeWidth={2} aria-hidden />
       {/* narrow, the bar gives up the wordmark for the sign (barFit.ts) */}
       <span className="block leading-0 group-data-[fit~='1']/bar:hidden">
         <Wordmark height={22} />
@@ -221,7 +221,7 @@ export function NavSheet({ on, onOpenChange, width, maxWidth, onWidthChange, onW
           on ? 'visible' : 'invisible [transition-delay:0s,.45s]',
         )}
       >
-        <SidebarContent className="px-3.5 pt-3.5 pb-[30px]">
+        <SidebarContent className="px-3.5 pt-3.5 pb-8">
           <SidebarGroup className="p-0">
             <MenuBody {...p} titlebar={titlebar} />
           </SidebarGroup>
@@ -235,7 +235,7 @@ export function NavSheet({ on, onOpenChange, width, maxWidth, onWidthChange, onW
           aria-valuemax={Math.min(NAV_MAX_W, maxWidth)}
           aria-valuenow={width}
           title={t.leftMenu.resizeHint}
-          className="group/resize absolute inset-y-0 -right-1.5 z-40 flex w-3 cursor-ew-resize touch-none items-center justify-center border-0 bg-transparent p-0 text-muted-foreground hover:text-foreground focus-visible:text-foreground focus-visible:outline-none"
+          className="group/resize absolute inset-y-0 -right-1.5 z-40 flex w-3 cursor-ew-resize touch-none items-center justify-center bg-transparent p-0 text-muted-foreground hover:text-foreground focus-visible:text-foreground focus-visible:outline-none"
           onPointerDown={(e) => {
             if (e.button !== 0) return;
             e.preventDefault();
@@ -285,7 +285,7 @@ function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean
   // an entry's action: in the dropdown the menu closes with the choice
   const run = (f: () => void) => f;
   const pin = (p.pinnable || p.pinned) && (
-    <Act sidebarItem={false} className={cn('ml-auto grid size-[30px] cursor-pointer place-items-center rounded-[3px] border-0 bg-muted p-0 text-muted-foreground hover:text-foreground', p.pinned && 'text-foreground')} tip={p.pinned ? m.unpin : m.pin} aria-label={p.pinned ? m.unpin : m.pin} aria-pressed={p.pinned} onAct={() => p.onPin(!p.pinned)}>
+    <Act sidebarItem={false} className={cn('ml-auto grid size-[30px] cursor-pointer place-items-center rounded-xs bg-muted p-0 text-muted-foreground hover:text-foreground', p.pinned && 'text-foreground')} tip={p.pinned ? m.unpin : m.pin} aria-label={p.pinned ? m.unpin : m.pin} aria-pressed={p.pinned} onAct={() => p.onPin(!p.pinned)}>
       {p.pinned ? <PanelLeftClose size={16} strokeWidth={2} aria-hidden /> : <PanelLeft size={16} strokeWidth={2} aria-hidden />}
     </Act>
   );
@@ -307,7 +307,7 @@ function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean
           {titlebar && inbox}
           <Entry icon={<Bot size={16} strokeWidth={2} aria-hidden />} label={m.configureAgents} focusRef={configureButton} keep onClick={() => setPage('agents')} end={<ChevronRight size={16} strokeWidth={2} className="ml-auto flex-none text-muted-foreground" aria-hidden />} />
         </NavList>
-        <h3 className="mx-2.5 mt-4 mb-1.5 text-[12px] font-semibold tracking-[.04em] text-muted-foreground uppercase">{m.projects}</h3>
+        <h3 className="mx-2.5 mt-4 mb-1.5 text-xs font-semibold tracking-[.04em] text-muted-foreground uppercase">{m.projects}</h3>
         <NavList className={list}>
           {p.projects.map((c) =>
             c.id === p.project.id ? (
@@ -346,7 +346,7 @@ function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean
       <InMenu.Provider value={!floating ? null : page === 'agents' ? ACTIVE : INACTIVE}>
       <div className={pageClass(page !== 'agents')} inert={page !== 'agents'}>
         <div className={head(titlebar)} {...drag}>
-          <Act sidebarItem={false} className="-ml-0.5 flex h-8 cursor-pointer items-center gap-2 rounded-[6px] border-0 bg-transparent px-2.5 text-[14px] text-foreground hover:bg-muted" ref={backButton} keep onAct={() => setPage('main')} tip={m.back} aria-label={m.back}>
+          <Act sidebarItem={false} className="-ml-0.5 flex h-8 cursor-pointer items-center gap-2 rounded-sm bg-transparent px-2.5 text-base text-foreground hover:bg-muted" ref={backButton} keep onAct={() => setPage('main')} tip={m.back} aria-label={m.back}>
             <ArrowLeft size={16} strokeWidth={2} aria-hidden />
             <b>{m.configureAgents}</b>
           </Act>
@@ -380,7 +380,7 @@ const pageClass = (away: boolean) => cn('min-w-0', away && 'invisible h-0 [trans
 const head = (titlebar?: boolean) =>
   cn(
     'mb-0.5 flex min-h-8 items-center gap-2.5',
-    titlebar && 'sticky -top-3.5 z-1 -mx-3.5 -mt-3.5 h-[50px] bg-surface/88 pr-3.5 pl-[92px] backdrop-blur-[16px] reduced:bg-surface',
+    titlebar && 'sticky -top-3.5 z-1 -mx-3.5 -mt-3.5 h-[50px] bg-surface/88 pr-3.5 pl-23 backdrop-blur-[16px] reduced:bg-surface',
   );
 
 /** A button of the menu: an item of the open dropdown, else a plain button. `keep` leaves the dropdown open. */
@@ -419,8 +419,8 @@ function Entry({ icon, label, end, on, soon, sub, keep, onClick, focusRef }: { i
       <Act
         ref={focusRef}
         className={cn(
-          'box-border flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-[6px] border-0 bg-transparent px-2.5 py-1.5 text-left text-[14px] text-foreground outline-none hover:not-disabled:bg-muted focus-visible:bg-muted disabled:cursor-default disabled:text-muted-foreground disabled:opacity-60 data-highlighted:bg-muted [&>svg]:flex-none [&>svg]:text-muted-foreground',
-          sub && 'min-h-[30px] py-[5px] text-[13px]',
+          'box-border flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-sm bg-transparent px-2.5 py-1.5 text-left text-base text-foreground outline-none hover:not-disabled:bg-muted focus-visible:bg-muted disabled:cursor-default disabled:text-muted-foreground disabled:opacity-60 data-highlighted:bg-muted [&>svg]:flex-none [&>svg]:text-muted-foreground',
+          sub && 'min-h-[30px] py-1 text-sm',
           on && 'bg-muted font-semibold',
         )}
         aria-current={on || undefined}
@@ -431,7 +431,7 @@ function Entry({ icon, label, end, on, soon, sub, keep, onClick, focusRef }: { i
       >
         {icon}
         <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{label}</span>
-        {soon ? <span className="ml-auto flex-none text-[12px]">{t.leftMenu.comingSoon}</span> : end}
+        {soon ? <span className="ml-auto flex-none text-xs">{t.leftMenu.comingSoon}</span> : end}
       </Act>
     </Item>
   );
@@ -442,7 +442,7 @@ function ProjectRow({ project: c, here, repos, bold, onGo }: { project: ProjectI
   const menu = useContext(InMenu);
   const link = (
     <a
-      className={cn(rowButton, here && 'bg-muted text-foreground', here && bold && 'font-semibold', c.agents && 'pr-[46px]')}
+      className={cn(rowButton, here && 'bg-muted text-foreground', here && bold && 'font-semibold', c.agents && 'pr-12')}
       href={projectPath(c.id)}
       aria-current={here ? 'page' : undefined}
       onClick={(e) => {
@@ -459,7 +459,7 @@ function ProjectRow({ project: c, here, repos, bold, onGo }: { project: ProjectI
       <ProjectIcon />
       {/* a long name and its repositories shorten rather than wrap, the repositories first */}
       <b className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap" title={c.name}>{c.name}</b>
-      {repos && <span className="min-w-0 flex-[0_1000_auto] overflow-hidden text-[12px] text-ellipsis whitespace-nowrap text-muted-foreground">{c.repos.map((r) => r.name).join(', ')}</span>}
+      {repos && <span className="min-w-0 flex-[0_1000_auto] overflow-hidden text-xs text-ellipsis whitespace-nowrap text-muted-foreground">{c.repos.map((r) => r.name).join(', ')}</span>}
     </a>
   );
   return (

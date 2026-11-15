@@ -19,7 +19,7 @@ function CollapsibleTrigger({ className, marker, children, ...props }: Component
     <CollapsiblePrimitive.Trigger
       data-slot="collapsible-trigger"
       className={cn(
-        'cursor-pointer border-0 bg-transparent p-0 text-left font-[inherit] text-[length:inherit] text-inherit focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+        'cursor-pointer bg-transparent p-0 text-left font-[inherit] text-[length:inherit] text-inherit focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
         marker && 'group/marker flex min-w-0 items-baseline gap-1.5 py-0.5',
         className,
       )}

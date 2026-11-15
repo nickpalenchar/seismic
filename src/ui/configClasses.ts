@@ -13,7 +13,7 @@ import { cn } from 'cn';
  * colours, an error close under what it is about (over what the parts in them set themselves).
  */
 const inside =
-  '[&_textarea]:w-full [&_[data-slot=check-label]]:[margin:8px_0_0] [&_code]:[font:12px_var(--mono)]! [&_code]:[overflow-wrap:anywhere]! [&_.warn]:text-warning! [&_.p-error]:[margin:6px_0_0]! [&_.p-error]:text-[13px]!';
+  '[&_textarea]:w-full [&_[data-slot=check-label]]:[margin:8px_0_0] [&_code]:font-mono text-xs! [&_code]:[overflow-wrap:anywhere]! [&_.warn]:text-warning! [&_.p-error]:[margin:6px_0_0]! [&_.p-error]:text-sm!';
 
 /** The dim around Configuration and Preferences, which places the box. */
 export const cfgLayerClass = 'z-55 items-stretch p-7 max-[900px]:p-2.5';
@@ -30,50 +30,50 @@ export const settingsSheetClass = cn(inside, '[@media(max-width:760px)]:bottom-[
 
 /** The navigation down the left; in a narrow window a wrapping row over the section. */
 export const cfgNavClass =
-  'cfg-nav flex flex-col pt-[22px] px-3.5 pb-[18px] bg-transparent border-r border-r-border overflow-y-auto [--button-bg:var(--surface)] max-[900px]:flex-row max-[900px]:flex-wrap max-[900px]:items-center max-[900px]:gap-y-1 max-[900px]:gap-x-2.5 max-[900px]:p-3';
+  'cfg-nav flex flex-col pt-6 px-3.5 pb-4 bg-transparent border-r border-r-border overflow-y-auto [--button-bg:var(--surface)] max-[900px]:flex-row max-[900px]:flex-wrap max-[900px]:items-center max-[900px]:gap-y-1 max-[900px]:gap-x-2.5 max-[900px]:p-3';
 
 /** What the dialog is, over its title (the look of `.p-kind`); not in a narrow window. */
 export const cfgKindClass =
-  'flex flex-wrap items-center gap-y-1 gap-x-2.5 min-h-[22px] px-2.5 text-[11px] uppercase tracking-[.08em] text-muted-foreground max-[900px]:hidden';
+  'flex flex-wrap items-center gap-y-1 gap-x-2.5 min-h-[22px] px-2.5 text-2xs uppercase tracking-[.08em] text-muted-foreground max-[900px]:hidden';
 
 /** The dialog's title. */
-export const cfgTitleClass = 'px-2.5 mt-0.5 mx-0 mb-[18px] text-[24px] max-[900px]:m-0 max-[900px]:mr-2 max-[900px]:text-[20px]';
+export const cfgTitleClass = 'px-2.5 mt-0.5 mx-0 mb-4 text-2xl max-[900px]:m-0 max-[900px]:mr-2 max-[900px]:text-xl';
 
 /** The note on asking Seismic, under the title; not in a narrow window. */
-export const cfgAskClass = 'cfg-ask -mt-1.5 mb-[22px] mx-0 px-2.5 max-[900px]:hidden';
+export const cfgAskClass = 'cfg-ask -mt-1.5 mb-6 mx-0 px-2.5 max-[900px]:hidden';
 export const cfgAskHintClass = 'm-0 mb-3.5 leading-[1.45]';
 
 /** The list of sections. */
 export const cfgNavListClass = 'list-none m-0 p-0 max-[900px]:flex max-[900px]:flex-wrap max-[900px]:gap-0.5 max-[900px]:pr-9';
 
 const navEntry =
-  'w-full flex items-center gap-2 px-2.5 [border:0] rounded-[8px] bg-transparent text-foreground text-left cursor-pointer hover:[&:not([data-state=active])]:bg-foreground/6 data-[state=active]:bg-card data-[state=active]:font-semibold data-[state=active]:shadow-[inset_0_1px_0_var(--glass-hi),var(--shadow)] max-[900px]:w-auto max-[900px]:px-2.5';
+  'w-full flex items-center gap-2 px-2.5 [border:0] rounded-md bg-transparent text-foreground text-left cursor-pointer hover:[&:not([data-state=active])]:bg-foreground/6 data-[state=active]:bg-card data-[state=active]:font-semibold data-[state=active]:shadow-[inset_0_1px_0_var(--glass-hi),var(--shadow)] max-[900px]:w-auto max-[900px]:px-2.5';
 
 /** A section in the list; `nested` for a project, indented under the heading of the projects. */
 export const cfgNavEntryClass = (nested?: boolean) =>
-  cn(navEntry, 'py-2 text-[14px] max-[900px]:py-1.5 max-[900px]:text-[13px]', nested && 'pl-6 max-[900px]:pl-2.5');
+  cn(navEntry, 'py-2 text-base max-[900px]:py-1.5 max-[900px]:text-sm', nested && 'pl-6 max-[900px]:pl-2.5');
 
 /** "+ Project", last under the projects: quieter. */
-export const cfgNavAddClass = cn(navEntry, 'cfg-nav-add py-[5px] pl-6 text-[13px] text-muted-foreground hover:text-foreground max-[900px]:pl-2.5');
+export const cfgNavAddClass = cn(navEntry, 'cfg-nav-add py-1 pl-6 text-sm text-muted-foreground hover:text-foreground max-[900px]:pl-2.5');
 
 /** Projects: a heading over the projects, each indented under it, and "+ Project" last. In a narrow window they join the row. */
 export const cfgNavGroupClass = 'cfg-nav-group max-[900px]:contents';
 export const cfgNavTitleClass =
-  'cfg-nav-title flex items-center gap-2 pt-2 px-2.5 pb-1 text-[14px] text-muted-foreground max-[900px]:py-1.5 max-[900px]:pl-2.5 max-[900px]:pr-1 max-[900px]:text-[13px]';
+  'cfg-nav-title flex items-center gap-2 pt-2 px-2.5 pb-1 text-base text-muted-foreground max-[900px]:py-1.5 max-[900px]:pl-2.5 max-[900px]:pr-1 max-[900px]:text-sm';
 export const cfgNavGroupListClass = 'list-none m-0 mb-1.5 p-0 max-[900px]:contents max-[900px]:flex-wrap max-[900px]:gap-0.5 max-[900px]:pr-9';
 export const cfgNavNameClass = 'cfg-nav-name min-w-0 truncate';
 
 /** Changes not saved yet. */
-export const cfgDotClass = 'cfg-dot flex-none size-[7px] rounded-[50%] bg-waiting';
+export const cfgDotClass = 'cfg-dot flex-none size-[7px] rounded-full bg-waiting';
 
 /** At the navigation's foot; not in a narrow window. */
-export const cfgNavFootClass = 'cfg-nav-foot mt-auto pt-[18px] px-2.5 pb-0 max-[900px]:hidden';
+export const cfgNavFootClass = 'cfg-nav-foot mt-auto pt-4 px-2.5 pb-0 max-[900px]:hidden';
 
 /** The dialog's close button: on the box, not in the scrolling column, so it stays in view however far that scrolls. */
 export const cfgCloseClass = 'cfg-close absolute right-[22px] top-3.5 z-2 max-[900px]:right-3 max-[900px]:top-3';
 
 /** The column of the section shown; the right padding keeps a lane for the close button, so nothing scrolls under it or stands beside it. */
-export const cfgMainClass = 'cfg-main relative overflow-y-auto pt-[26px] pr-[66px] pb-0 pl-10 max-[900px]:pt-[18px] max-[900px]:px-[18px] max-[900px]:pb-0';
+export const cfgMainClass = 'cfg-main relative overflow-y-auto pt-6 pr-16 pb-0 pl-10 max-[900px]:pt-4 max-[900px]:px-4 max-[900px]:pb-0';
 
 /** A section. */
 export const cfgSecClass = 'cfg-sec max-w-[1180px] pb-8 [&[hidden]]:hidden';
@@ -84,17 +84,17 @@ const headingFace = '[font-family:var(--font)] font-[650] tracking-[-.018em]';
 /** A section's title (in the settings sheet a smaller one), or a part's (`sub`), apart from what is above it unless it follows the section's title. */
 export const cfgHeadClass = (sub?: boolean) =>
   cn(
-    'cfg-head mb-3.5 [#project-settings_&]:mt-[22px]',
-    sub && 'sub mt-[30px] pt-[22px] border-t border-t-border [.cfg-head:not(.sub)+&]:mt-0 [.cfg-head:not(.sub)+&]:pt-1 [.cfg-head:not(.sub)+&]:border-t-0',
+    'cfg-head mb-3.5 [#project-settings_&]:mt-6',
+    sub && 'sub mt-8 pt-6 border-t border-t-border [.cfg-head:not(.sub)+&]:mt-0 [.cfg-head:not(.sub)+&]:pt-1 [.cfg-head:not(.sub)+&]:border-t-0',
   );
-export const cfgHeadTitleClass = cn('m-0 mr-12 mb-1.5 text-[26px] leading-[1.15] [#project-settings_&]:m-0 [#project-settings_&]:mb-1 [#project-settings_&]:text-[16px]', headingFace);
-export const cfgHeadSubTitleClass = 'm-0 mb-1 text-[15px]';
+export const cfgHeadTitleClass = cn('m-0 mr-12 mb-1.5 text-2xl leading-[1.15] [#project-settings_&]:m-0 [#project-settings_&]:mb-1 [#project-settings_&]:text-base', headingFace);
+export const cfgHeadSubTitleClass = 'm-0 mb-1 text-base';
 
 /** What a heading is about, and the file it is saved in. */
 export const cfgHeadHintClass =
-  'text-muted-foreground text-[13px] max-w-[76ch] m-0 mb-1 leading-normal [#project-settings_&]:m-0 [#project-settings_&]:text-[12.5px] [#project-settings_&]:leading-[1.45]';
+  'text-muted-foreground text-sm max-w-[76ch] m-0 mb-1 leading-normal [#project-settings_&]:m-0 [#project-settings_&]:text-sm [#project-settings_&]:leading-[1.45]';
 export const cfgHeadFileClass =
-  'cfg-file text-muted-foreground text-[12px] max-w-[76ch] m-0 mb-1 leading-normal [#project-settings_&]:m-0 [#project-settings_&]:text-[12.5px] [#project-settings_&]:leading-[1.45]';
+  'cfg-file text-muted-foreground text-xs max-w-[76ch] m-0 mb-1 leading-normal [#project-settings_&]:m-0 [#project-settings_&]:text-sm [#project-settings_&]:leading-[1.45]';
 
 /**
  * A setting: its name on the left, the control and what to know about it on the right; under each other in a
@@ -102,42 +102,42 @@ export const cfgHeadFileClass =
  * which are often several lines high.
  */
 export const cfgFieldClass =
-  'cfg-field grid grid-cols-[200px_minmax(0,1fr)] gap-x-6 items-baseline py-[7px] px-0 text-[13.5px] max-[900px]:grid-cols-[1fr] max-[900px]:gap-y-1 [#phone_&]:grid-cols-[150px_minmax(0,1fr)] [#project-settings_&]:grid-cols-[1fr] [#project-settings_&]:gap-y-0.5 [.cfg-project_&]:[align-items:start]';
-export const cfgLabelClass = 'cfg-label text-muted-foreground text-[13px] [.cfg-project_.cfg-field>&]:pt-[7px]';
+  'cfg-field grid grid-cols-[200px_minmax(0,1fr)] gap-x-6 items-baseline py-2 px-0 text-sm max-[900px]:grid-cols-[1fr] max-[900px]:gap-y-1 [#phone_&]:grid-cols-[150px_minmax(0,1fr)] [#project-settings_&]:grid-cols-[1fr] [#project-settings_&]:gap-y-0.5 [.cfg-project_&]:[align-items:start]';
+export const cfgLabelClass = 'cfg-label text-muted-foreground text-sm [.cfg-project_.cfg-field>&]:pt-2';
 export const cfgControlClass =
-  'cfg-control min-w-0 max-w-[640px] [&>.hint]:[margin:5px_0_0] [&>.hint]:text-[12.5px] [&>.hint]:leading-[1.45] [&>.c-path]:w-full [&>.c-path]:max-w-[420px] [&>[data-slot=select-trigger]]:w-full [&>[data-slot=select-trigger]]:max-w-[420px] [&>[data-slot=button]]:mt-1.5';
+  'cfg-control min-w-0 max-w-[640px] [&>.hint]:[margin:5px_0_0] [&>.hint]:text-sm [&>.hint]:leading-[1.45] [&>.c-path]:w-full [&>.c-path]:max-w-[420px] [&>[data-slot=select-trigger]]:w-full [&>[data-slot=select-trigger]]:max-w-[420px] [&>[data-slot=button]]:mt-1.5';
 
 /** A repository's setting: where its value comes from beside its name, "Reset" where it is set here; marked a moment when the dialog was opened at it. */
 export const cfgSettingClass = cn(cfgFieldClass, 'cfg-setting [align-items:start] [&_textarea]:max-w-[640px] [&.flash]:animate-[cfg-setting-flash_2.4s_ease-out]');
-export const cfgSettingLabelClass = cn(cfgLabelClass, 'flex flex-wrap items-baseline gap-y-0.5 gap-x-2 pt-[7px]');
+export const cfgSettingLabelClass = cn(cfgLabelClass, 'flex flex-wrap items-baseline gap-y-0.5 gap-x-2 pt-2');
 
 /** Where a setting's value comes from: this machine's in the working colour. */
 export const cfgSourceClass = (here: boolean) =>
-  cn('cfg-source text-[11.5px]', here ? 'here text-working' : 'text-muted-foreground/80');
+  cn('cfg-source text-xs', here ? 'here text-working' : 'text-muted-foreground/80');
 
 /**
  * What to know about a field: an icon beside its label, shown only while the pointer is on the field or the
  * label (the nearest `.cfg-has-info`) or the field has the focus.
  */
 export const cfgInfoClass =
-  'cfg-info inline-flex align-[-3px] ml-0.5 py-0 px-px [border:0] bg-transparent text-muted-foreground cursor-help leading-[0] opacity-0 [transition:opacity_.12s] [.cfg-has-info:is(:hover,:focus-within)_&]:opacity-100 [.cfg-has-info:is(:hover,:focus-within)_.cfg-has-info:not(:hover,:focus-within)_&]:opacity-0 hover:opacity-100 hover:text-foreground [&.on]:opacity-100 [&.on]:text-foreground focus-visible:opacity-100 focus-visible:text-foreground focus-visible:outline-1 focus-visible:outline-solid focus-visible:outline-muted-foreground focus-visible:outline-offset-1 focus-visible:rounded-[50%]';
+  'cfg-info inline-flex align-[-3px] ml-0.5 py-0 px-px [border:0] bg-transparent text-muted-foreground cursor-help leading-[0] opacity-0 [transition:opacity_.12s] [.cfg-has-info:is(:hover,:focus-within)_&]:opacity-100 [.cfg-has-info:is(:hover,:focus-within)_.cfg-has-info:not(:hover,:focus-within)_&]:opacity-0 hover:opacity-100 hover:text-foreground [&.on]:opacity-100 [&.on]:text-foreground focus-visible:opacity-100 focus-visible:text-foreground focus-visible:outline-1 focus-visible:outline-solid focus-visible:outline-muted-foreground focus-visible:outline-offset-1 focus-visible:rounded-full';
 
 /** A group of a repository's settings under a small heading; marked a moment when the dialog was opened at its clones. */
-export const cfgGroupClass = (flash?: boolean) => cn('cfg-group mt-[18px] rounded-[2px]', flash && 'flash animate-[cfg-flash_2.4s_ease-out]');
-export const cfgGroupHeadClass = 'cfg-group-head m-0 mb-0.5 text-[11.5px] font-semibold tracking-[.06em] uppercase text-muted-foreground';
+export const cfgGroupClass = (flash?: boolean) => cn('cfg-group mt-4 rounded-xs', flash && 'flash animate-[cfg-flash_2.4s_ease-out]');
+export const cfgGroupHeadClass = 'cfg-group-head m-0 mb-0.5 text-xs font-semibold tracking-[.06em] uppercase text-muted-foreground';
 
 /** The save buttons stay in view at the foot of the section; solid under reduced motion. */
 export const cfgActionsClass =
-  'cfg-actions sticky bottom-0 z-1 flex flex-wrap items-center gap-2.5 mt-5 pt-3.5 px-0 pb-[18px] bg-surface/88 backdrop-blur-[16px] border-t border-t-border reduced:bg-surface [&_.c-status]:m-0! [&_.c-status]:text-[12.5px]!';
+  'cfg-actions sticky bottom-0 z-1 flex flex-wrap items-center gap-2.5 mt-5 pt-3.5 px-0 pb-4 bg-surface/88 backdrop-blur-[16px] border-t border-t-border reduced:bg-surface [&_.c-status]:m-0! [&_.c-status]:text-sm!';
 
 /** Columns side by side as far as they fit, one under the other in a narrow window. */
 export const cfgColsClass = 'cfg-cols grid grid-cols-[repeat(auto-fit,minmax(420px,1fr))] gap-y-0 gap-x-14 [align-items:start] max-[900px]:grid-cols-[1fr] [&>.c-setup>.cfg-head.sub]:mt-0 [&>.c-setup>.cfg-head.sub]:pt-0 [&>.c-setup>.cfg-head.sub]:border-t-0';
 
 /** A setting with several fields (the demo site), each labelled above it; `.wide` ones span the row. */
 export const cfgSubClass =
-  'cfg-sub grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-y-2 gap-x-3 max-w-[640px] [&>label]:flex [&>label]:flex-col [&>label]:gap-[3px] [&>label]:min-w-0 [&>div]:flex [&>div]:flex-col [&>div]:gap-[3px] [&>div]:min-w-0 [&>.wide]:col-span-full [&>div>[data-slot=toggle-group]]:self-start [&_input]:w-full [&_textarea]:w-full';
+  'cfg-sub grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-y-2 gap-x-3 max-w-[640px] [&>label]:flex [&>label]:flex-col [&>label]:gap-1 [&>label]:min-w-0 [&>div]:flex [&>div]:flex-col [&>div]:gap-1 [&>div]:min-w-0 [&>.wide]:col-span-full [&>div>[data-slot=toggle-group]]:self-start [&_input]:w-full [&_textarea]:w-full';
 /** The label of a field in it (the look of `.hint`, smaller). */
-export const cfgSubHintClass = 'text-muted-foreground text-[11.5px]';
+export const cfgSubHintClass = 'text-muted-foreground text-xs';
 
 /** A link in the configuration's text: blue and underlined. */
 export const cfgLinkClass = 'text-working [text-decoration:underline_1px_currentColor] underline-offset-[.2em]';

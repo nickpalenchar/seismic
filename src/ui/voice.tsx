@@ -324,8 +324,8 @@ export function PushToTalk({ phase, level, flat, target, field, onDown, instead 
   // whom the microphone speaks to: in the status bar on its glass, else under the microphone (the
   // phone, where a field's own microphone says it, and turned, the line wraps to four in the strip)
   const lineClass = cn(
-    'overflow-hidden rounded-[3px] text-ellipsis whitespace-nowrap text-muted-foreground [&_b]:font-semibold [&_b]:text-foreground',
-    'max-w-[calc((100vw-var(--left,0px)-var(--side,0px))*.6)] bg-card px-3 py-1 text-[12px] shadow-glass ph-landscape:max-w-[104px] ph-landscape:border-y-4 ph-landscape:border-[var(--card)] ph-landscape:px-2 ph-landscape:py-0 ph-landscape:text-center ph-landscape:whitespace-normal ph-landscape:[-webkit-box-orient:vertical] ph-landscape:[-webkit-line-clamp:4] ph-landscape:[display:-webkit-box]',
+    'overflow-hidden rounded-xs text-ellipsis whitespace-nowrap text-muted-foreground [&_b]:font-semibold [&_b]:text-foreground',
+    'max-w-[calc((100vw-var(--left,0px)-var(--side,0px))*.6)] bg-card px-3 py-1 text-xs shadow-glass ph-landscape:max-w-[104px] ph-landscape:border-y-4 ph-landscape:border-[var(--card)] ph-landscape:px-2 ph-landscape:py-0 ph-landscape:text-center ph-landscape:whitespace-normal ph-landscape:[-webkit-box-orient:vertical] ph-landscape:[-webkit-line-clamp:4] ph-landscape:[display:-webkit-box]',
   );
   const line = flat ? (
         <div id="target" className={cn(lineClass, 'bg-destructive font-semibold text-destructive-foreground')}>
@@ -387,7 +387,7 @@ export function PushToTalk({ phase, level, flat, target, field, onDown, instead 
           </div>
         )}
       </div>
-      {shots.error && key === MIC_DRAFT && <div className="text-[12px] text-destructive bg-card [box-shadow:var(--shadow)] rounded-[2px] py-1 px-2.5 max-w-[calc((100vw_-_var(--left,0px)_-_var(--side,0px))_*_.6)] ph-ptt:ph-landscape:max-w-[104px]">{shots.error}</div>}
+      {shots.error && key === MIC_DRAFT && <div className="text-xs text-destructive bg-card [box-shadow:var(--shadow)] rounded-xs py-1 px-2.5 max-w-[calc((100vw_-_var(--left,0px)_-_var(--side,0px))_*_.6)] ph-ptt:ph-landscape:max-w-[104px]">{shots.error}</div>}
       {!instead && line}
     </div>
   );
@@ -400,7 +400,7 @@ function FileChips() {
   return (
     <div className="flex flex-wrap gap-2 max-w-[calc(50vw_-_160px)] ph-ptt:ph-landscape:flex-col-reverse ph-ptt:ph-landscape:flex-nowrap ph-ptt:ph-landscape:max-w-[104px]">
       {words.map((w, i) => (
-        <span key={i} className="relative h-[46px] inline-flex items-center py-0 px-3 max-w-[180px] rounded-[2px] border border-solid border-border bg-card [box-shadow:var(--shadow)] text-[12px] text-foreground whitespace-nowrap group-[.switching]/ptt:h-[38px] ph-ptt:ph-landscape:max-w-[104px]" title={w}>
+        <span key={i} className="relative h-[46px] inline-flex items-center py-0 px-3 max-w-[180px] rounded-xs border border-border bg-card [box-shadow:var(--shadow)] text-xs text-foreground whitespace-nowrap group-[.switching]/ptt:h-[38px] ph-ptt:ph-landscape:max-w-[104px]" title={w}>
           <span className="overflow-hidden text-ellipsis">{w.replace(/"/g, '').split(/[\\/]/).at(-1)}</span>
           <CloseButton label={t.shots.remove} size="small" className="remove absolute -top-[7px] -right-[7px] [--button-bg:var(--card)] [box-shadow:0_0_0_1px_var(--border)]" onClick={() => updateDraft(MIC_DRAFT, { text: words.filter((_, j) => j !== i).join(' ') })} />
         </span>
@@ -433,7 +433,7 @@ const pttSwitchingClass =
 
 /** The microphone: a round glass button, filled with the waiting colour while it listens; outlined while files are dragged over the row. */
 const micClass = cn(
-  'w-[58px] h-[58px] rounded-[50%] border border-solid border-glass-edge bg-glass backdrop-blur-glass [box-shadow:var(--lift)] cursor-pointer grid place-items-center relative [&_svg]:w-6 [&_svg]:h-6',
+  'w-[58px] h-[58px] rounded-full border border-glass-edge bg-glass backdrop-blur-glass [box-shadow:var(--lift)] cursor-pointer grid place-items-center relative [&_svg]:w-6 [&_svg]:h-6',
   // held by a finger: no long-press menu, no text selected
   '[-webkit-touch-callout:none] select-none touch-none',
   'group-[.listening]/ptt:bg-waiting group-[.listening]/ptt:text-waiting-foreground',
@@ -443,7 +443,7 @@ const micClass = cn(
 
 /** The ring around the microphone that swells with the voice's level (`--lvl`) while it listens. */
 const micRingClass =
-  'absolute -inset-1.5 rounded-[50%] border-3 border-solid border-waiting opacity-0 [transform:scale(var(--lvl,1))] [transition:transform_.08s_linear,opacity_.2s] group-[.listening]/ptt:opacity-80';
+  'absolute -inset-1.5 rounded-full border-3 border-waiting opacity-0 [transform:scale(var(--lvl,1))] [transition:transform_.08s_linear,opacity_.2s] group-[.listening]/ptt:opacity-80';
 
 /**
  * Screenshots for the next recording: a small button and thumbnails to the right of the microphone, which
@@ -458,7 +458,7 @@ const shotsClass = cn(
 
 /** The screenshot button beside the microphone: a small glass tile. */
 const attachClass =
-  'static size-[34px] rounded-[12px] grid place-items-center p-0 bg-glass hover:not-disabled:bg-glass border border-solid border-glass-edge [box-shadow:var(--shadow)] backdrop-blur-glass hover:text-foreground hover:[box-shadow:var(--lift)]';
+  'static size-[34px] rounded-lg grid place-items-center p-0 bg-glass hover:not-disabled:bg-glass border border-glass-edge [box-shadow:var(--shadow)] backdrop-blur-glass hover:text-foreground hover:[box-shadow:var(--lift)]';
 
 export function MicIcon({ size }: { size?: number }) {
   return (

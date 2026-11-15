@@ -61,7 +61,7 @@ export function Select({
           position="popper"
           sideOffset={4}
           collisionPadding={8}
-          className="z-80 max-h-[min(var(--radix-select-content-available-height),360px)] min-w-(--radix-select-trigger-width) overflow-hidden rounded-lg border border-solid border-glass-edge bg-surface text-sm text-foreground shadow-lift"
+          className="z-80 max-h-[min(var(--radix-select-content-available-height),360px)] min-w-(--radix-select-trigger-width) overflow-hidden rounded-lg border border-glass-edge bg-surface text-sm text-foreground shadow-lift"
         >
           <SelectPrimitive.Viewport className="p-1">{children}</SelectPrimitive.Viewport>
         </SelectPrimitive.Content>

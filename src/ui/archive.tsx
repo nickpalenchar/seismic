@@ -41,7 +41,7 @@ export function ArchiveView({ on, onClose, held, archived, done, onOpen, onArchi
         <div className="a-search relative mt-0.5 mx-0 mb-2 flex-1 min-w-0 max-w-[640px]">
           <input
             ref={field}
-            className="w-full box-border py-2 pr-[30px] pl-[11px] text-[14px] bg-card border border-border rounded-[3px] [outline:none] focus:border-muted-foreground"
+            className="w-full box-border py-2 pr-8 pl-3 text-base bg-card border border-border rounded-xs [outline:none] focus:border-muted-foreground"
             type="text"
             autoFocus
             value={query}
@@ -74,7 +74,7 @@ const timelineRowClass =
 
 /** An archived card as a small card, the words of the search marked in its title. */
 const archiveCardClass =
-  'a-card flex flex-col min-w-0 py-2 px-3 text-left [font:inherit] text-foreground bg-card border border-border rounded-[3px] [box-shadow:var(--shadow)] cursor-pointer [transition:transform_.15s,box-shadow_.15s] hover:[transform:translateY(-1px)] hover:[box-shadow:var(--lift)] focus-visible:[outline:2px_solid_var(--working)] focus-visible:outline-offset-2 [&_mark]:bg-muted [&_mark]:text-inherit [&_mark]:rounded-[2px] [&_mark]:[box-shadow:0_0_0_1px_var(--muted)]';
+  'a-card flex flex-col min-w-0 py-2 px-3 text-left [font:inherit] text-foreground bg-card border border-border rounded-xs [box-shadow:var(--shadow)] cursor-pointer [transition:transform_.15s,box-shadow_.15s] hover:[transform:translateY(-1px)] hover:[box-shadow:var(--lift)] focus-visible:[outline:2px_solid_var(--working)] focus-visible:outline-offset-2 [&_mark]:bg-muted [&_mark]:text-inherit [&_mark]:rounded-xs [&_mark]:[box-shadow:0_0_0_1px_var(--muted)]';
 
 /** The archive's entries, one heading per day in the server's order, filtered by the search; the drop-down and the full-screen view share it. */
 function ArchiveEntries({ archived, words, query, onOpen, els }: { archived: Item[]; words: string[]; query: string; onOpen: (i: Item) => void; els: Map<string, HTMLElement> }) {
@@ -91,12 +91,12 @@ function ArchiveEntries({ archived, words, query, onOpen, els }: { archived: Ite
     <>
       {days.map(({ day, items }) => (
         <section key={day}>
-          <h4 className="mt-2.5 mx-0 mb-1.5 text-[11px] uppercase tracking-[.08em] text-muted-foreground">{day}</h4>
+          <h4 className="mt-2.5 mx-0 mb-1.5 text-2xs uppercase tracking-[.08em] text-muted-foreground">{day}</h4>
           <ol className="timeline list-none p-0 m-[0_0_4px]">
             {items.map((i) => (
               <li key={i.id} className={timelineRowClass}>
-                <time className="pt-[9px] text-[11.5px] text-muted-foreground tabular-nums text-right">{t.archive.time(new Date(i.archivedAt!))}</time>
-                <span className="tick relative w-3 h-3 mt-2.5 rounded-[50%] bg-surface border-2 border-live box-border" />
+                <time className="pt-2 text-xs text-muted-foreground tabular-nums text-right">{t.archive.time(new Date(i.archivedAt!))}</time>
+                <span className="tick relative w-3 h-3 mt-2.5 rounded-full bg-surface border-2 border-live box-border" />
                 <button className={archiveCardClass} ref={(el) => void (el ? els.set(i.id, el) : els.delete(i.id))} onClick={() => onOpen(i)}>
                   <CardFace
                     item={i}

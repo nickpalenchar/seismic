@@ -23,8 +23,8 @@ import { Badge } from './components/badge';
 import { agentsEmptyClass, entryClass, entryListClass, entryOnClass, repliesClass, ttlLinkClass } from './inboxClasses';
 
 /** A stage's heading in Agent work, and the smaller one of a part of it. */
-const stageHeadClass = 'mt-[18px] mx-2 mb-2 text-[12px] font-semibold uppercase tracking-[.04em] text-muted-foreground';
-const stageSubheadClass = 'mt-2.5 mx-2 mb-1.5 text-[12px] font-semibold text-muted-foreground';
+const stageHeadClass = 'mt-4 mx-2 mb-2 text-xs font-semibold uppercase tracking-[.04em] text-muted-foreground';
+const stageSubheadClass = 'mt-2.5 mx-2 mb-1.5 text-xs font-semibold text-muted-foreground';
 
 /** The desktop's Agent work tabs: the cards at work and to do, and the log. */
 type WorkTab = 'work' | 'activity';
@@ -43,7 +43,7 @@ export function AgentsSheet({ on, items, open, underway, onOpen, project, change
   const todo = q.queued.length + planned.length;
   const entry = (i: Item) => <AgentEntry key={i.id} item={i} here={i.id === open} underway={underway(i.id)} onOpen={onOpen} />;
   return (
-    <Docked id="agents" ref={box} className="pt-5 px-3.5 pb-[30px]" on={on} label={t.agents.work.title}>
+    <Docked id="agents" ref={box} className="pt-5 px-3.5 pb-8" on={on} label={t.agents.work.title}>
       <h2 className={`${sheetTitleClass} px-2`}>{t.agents.work.title}</h2>
       <Tabs value={tab} onValueChange={(k) => setTab(k as WorkTab)}>
         <TabsList variant="segmented" className="agents-tabs mt-0 mx-2 mb-1" aria-label={t.agents.work.title}>

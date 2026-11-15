@@ -112,7 +112,7 @@ function PdfPage({ doc, n }: { doc: PDFDocumentProxy; n: number }) {
   }, [doc, n, near, width]);
 
   return (
-    <div ref={box} className="r-pdf-page w-full border border-border rounded-[2px] bg-white overflow-hidden" style={ratio ? { aspectRatio: String(ratio) } : undefined}>
+    <div ref={box} className="r-pdf-page w-full border border-border rounded-xs bg-white overflow-hidden" style={ratio ? { aspectRatio: String(ratio) } : undefined}>
       <canvas ref={canvas} />
     </div>
   );

@@ -63,15 +63,15 @@ function MergePicker({ item, all, onClose, onPick }: { item: Item; all: Item[]; 
   return (
     <div className="contents" onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
       <Dialog open onOpenChange={(open) => !open && onClose()}>
-        <DialogContent id="merge-pick" glass className="box-border flex w-[640px] flex-col px-[26px] pt-[22px] pb-[18px]" layerClassName="items-start pt-[10vh]" onOpenAutoFocus={(e) => { e.preventDefault(); field.current?.focus(); }}>
+        <DialogContent id="merge-pick" glass className="box-border flex w-[640px] flex-col px-6 pt-6 pb-4" layerClassName="items-start pt-[10vh]" onOpenAutoFocus={(e) => { e.preventDefault(); field.current?.focus(); }}>
           <CloseButton label={t.merge.cancel} className="close absolute top-3 right-3.5" onClick={onClose} />
-          <DialogTitle asChild><h2 className="m-0 mr-11 mb-3 text-[21px]">{t.merge.pickTitle(plain(item.title))}</h2></DialogTitle>
+          <DialogTitle asChild><h2 className="m-0 mr-11 mb-3 text-xl">{t.merge.pickTitle(plain(item.title))}</h2></DialogTitle>
           <Command shouldFilter={false} label={t.merge.pickTitle(plain(item.title))} className="min-h-0 flex-1">
-            <CommandInput ref={field} icon={false} className="text-[15px] px-3 py-[9px]" aria-label={t.merge.search} placeholder={t.merge.search} value={query} onValueChange={setQuery} />
+            <CommandInput ref={field} icon={false} className="text-base px-3 py-2" aria-label={t.merge.search} placeholder={t.merge.search} value={query} onValueChange={setQuery} />
             <p className={pickHint}>{t.merge.hint}</p>
             <CommandList>
               {found.map((i) => (
-                <CommandItem key={i.id} value={i.id} className="w-full gap-3 px-2.5 py-[9px] data-[selected=true]:bg-proposal/10 *:flex-1" onSelect={() => onPick(i)}>
+                <CommandItem key={i.id} value={i.id} className="w-full gap-3 px-2.5 py-2 data-[selected=true]:bg-proposal/10 *:flex-1" onSelect={() => onPick(i)}>
                   <CardFace item={i} size="xs" tail={i.archivedAt && t.merge.archived} />
                 </CommandItem>
               ))}
@@ -94,19 +94,19 @@ const viewClass = 'merge-view flex flex-col items-center gap-0 mt-2.5';
 const sidesClass = 'merge-sides flex items-stretch w-full';
 const sideClass = (cut: boolean, faded = false) =>
   cn(
-    'merge-side relative flex-[1_1_0] min-w-0 box-border py-3.5 px-4 rounded-[3px] bg-card [box-shadow:var(--shadow)] [@media(max-width:700px)]:p-2.5',
+    'merge-side relative flex-[1_1_0] min-w-0 box-border py-3.5 px-4 rounded-xs bg-card [box-shadow:var(--shadow)] [@media(max-width:700px)]:p-2.5',
     'first:[box-shadow:none] first:border-[1.5px] first:border-dashed first:border-proposal first:bg-proposal/4',
     cut && 'max-h-[clamp(140px,22dvh,280px)] overflow-clip',
     faded && "after:content-[''] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-7 after:pointer-events-none after:bg-[linear-gradient(transparent,var(--card))]",
   );
-const kindClass = 'merge-side-kind text-[11.5px] font-semibold tracking-[.04em] uppercase text-muted-foreground';
-const titleClass = 'mt-0.5 mx-0 mb-1.5 [font-family:var(--font)] text-[18px] leading-[1.2]';
-const sideTitleClass = `${titleClass} [@media(max-width:700px)]:text-[16px]`;
+const kindClass = 'merge-side-kind text-xs font-semibold tracking-[.04em] uppercase text-muted-foreground';
+const titleClass = 'mt-0.5 mx-0 mb-1.5 [font-family:var(--font)] text-lg leading-[1.2]';
+const sideTitleClass = `${titleClass} [@media(max-width:700px)]:text-base`;
 const glueClass =
   "merge-sides-glue relative flex-[0_0_56px] flex items-center justify-center text-proposal before:content-[''] before:absolute before:left-0 before:right-0 before:top-[calc(50%-1.5px)] before:h-[3px] before:bg-proposal before:opacity-55 [@media(max-width:700px)]:basis-6";
 const arrowClass =
   "merge-arrow relative w-[3px] h-[26px] text-proposal bg-current opacity-65 after:content-[''] after:absolute after:-bottom-px after:-left-1 after:border-x-[5.5px] after:border-x-transparent after:border-t-[7px] after:border-t-current";
-const resultClass = 'merge-result w-[min(720px,100%)] box-border py-4 px-5 rounded-[3px] bg-card [box-shadow:0_0_0_2px_var(--proposal),var(--shadow)] [@media(max-width:700px)]:p-3.5';
+const resultClass = 'merge-result w-[min(720px,100%)] box-border py-4 px-5 rounded-xs bg-card [box-shadow:0_0_0_2px_var(--proposal),var(--shadow)] [@media(max-width:700px)]:p-3.5';
 
 /** The two original cards, before the owner asks an agent to prepare a merge. */
 export function DuplicateMergePreview({ item, partner }: { item: Item; partner: Item }) {
@@ -216,7 +216,7 @@ export function MergeView({ item, partner, act, error }: { item: Item; partner?:
       {m.outcome === 'followUp' ? <Callout kind="warn" className={cn('mt-3 max-w-[720px] box-border', stale && 'stale opacity-45')}>
         <TriangleAlert />
         <CalloutDescription>{t.merge.extra}</CalloutDescription>
-      </Callout> : m.outcome === 'covered' ? <p className={cn(stale && 'stale opacity-45', "merge-callout covered w-[min(720px,100%)] box-border py-3 px-4 rounded-[3px] leading-[1.45] bg-approved/14 text-foreground")}>{t.merge.covered}</p> : m.task !== undefined && partner && <p className={cn("hint merge-intro text-center max-w-[720px]", stale && 'stale opacity-45')}>{t.merge.intro(plain(partner.title))}</p>}
+      </Callout> : m.outcome === 'covered' ? <p className={cn(stale && 'stale opacity-45', "merge-callout covered w-[min(720px,100%)] box-border py-3 px-4 rounded-xs leading-[1.45] bg-approved/14 text-foreground")}>{t.merge.covered}</p> : m.task !== undefined && partner && <p className={cn("hint merge-intro text-center max-w-[720px]", stale && 'stale opacity-45')}>{t.merge.intro(plain(partner.title))}</p>}
       {error && <p className="p-error" role="alert">{error}</p>}
       {/* on the phone the decisions stay in view at the page's foot, leaving 87px for the microphone below them (the page reserves 157px under its content) */}
       <div className={cn(actionsClass, "merge-actions justify-center w-full [#panel_&]:panel-foot phone:sticky phone:-bottom-[70px] phone:z-5 phone:py-3 phone:px-0 phone:bg-background phone:border-t phone:border-t-border phone:after:content-[''] phone:after:absolute phone:after:top-full phone:after:left-0 phone:after:right-0 phone:after:h-[calc(87px+env(safe-area-inset-bottom))] phone:after:bg-background phone:after:pointer-events-none")}>

@@ -85,9 +85,10 @@ blur-while-moving keep their recipe. Their neutrals come from Tailwind's `slate`
 blue-grey.
 
 **Sizes.** A small token scale near shadcn's, in `tailwind.css`:
-- type: `2xs` 11, `xs` 12, `sm` 13, `base` 14.5 (frost's root size), `lg` 18, and one display size for the
-  splash and empty-project headings; each with its line height;
-- radius: shadcn's `sm`/`md`/`lg`/`xl` from `--radius` (today 6/8/10/14), plus `full`;
+- type: `2xs` 11, `xs` 12, `sm` 13, `base` 14.5 (frost's root size), `lg` 18, `xl` 20, `2xl` 24, and one
+  display size (30) for the splash and empty-project headings; each with its line height;
+- radius: `xs` 2 for small marks and chips, shadcn's `sm`/`md`/`lg`/`xl`/`2xl`/`3xl` from `--radius` (today
+  6/8/10/14/18/22), plus `full`;
 - spacing: Tailwind's 4px steps (`--spacing: 4px` as today), half steps where a control needs them.
 
 Every arbitrary value snaps to the nearest step, mostly by a codemod with a hand pass for what the codemod
@@ -120,5 +121,5 @@ plan closed with W8 (2026-11-12).
 
 - [x] **W1:** Colour tokens. The token file: frost's theme values move from `frost.css` into `tailwind.css` as Tailwind palette hues (the table above, adjusted for contrast on glass), shadcn's semantic tokens plus `success`, `warning`, `info`, and the three steps per state, also on the per-element `--c`; frost's aliases renamed by codemod and retired; the hand-mixed `color-mix()`, hex and `rgba()` in class strings and CSS replaced by tokens; the colour guard in `tailwind.test.ts`; the frost decisions in [UI system](../design/ui-system.md) get the palette (chosen, why, rejected). Can run before or beside the shadcn plan's W8: the theme blocks it moves are then no longer W8's. M, one card.
 - [x] **W2:** The scales, and the components back to stock shadcn. The type, radius and spacing scale in `tailwind.css`; `src/ui/components/` (about 110 values) snapped to it, Button and Tabs back to shadcn's classes with only Seismic's extras kept, Tabs' looks as cva variants; the size guard for `src/ui/components/`. No overlap with the views, so it can run beside W1. M.
-- [ ] **W3:** The views on the scales. A codemod snaps every arbitrary font size, radius, padding and gap in `src/ui` outside the components to the nearest step, then a hand pass (detail, parts, config and setup first: the heaviest); the size guard widened to all of `src/ui`. After W2; the ~100 `border-0`/`border-solid` that preflight made redundant go in the same pass. L; may split by family (card faces and the canvas, then detail and the sheets).
+- [x] **W3:** The views on the scales. A codemod snaps every arbitrary font size, radius, padding and gap in `src/ui` outside the components to the nearest step, then a hand pass (detail, parts, config and setup first: the heaviest); the size guard widened to all of `src/ui`. After W2; the ~100 `border-0`/`border-solid` that preflight made redundant go in the same pass. L; may split by family (card faces and the canvas, then detail and the sheets). Done 2026-11-14 in one pass: ties snap to the coarser step (3 and 5 px to 4), pill radii to `full`; widths, heights and offsets in the views stay arbitrary as layout, and the guard leaves them out there.
 - [ ] **W4:** Shared looks as variants. The `*Classes.ts` strings become cva variants on components or plain classes in their one view, and the files go; the "Visual identity" decision gets the scales (chosen, why, rejected); this plan doc and its link in The canvas deleted. After W3. M.

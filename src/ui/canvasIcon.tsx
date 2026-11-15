@@ -314,7 +314,7 @@ export function CanvasIcon({ canvas, size = 14 }: { canvas: Pick<Canvas, 'name' 
   const l = lucideOf(canvas.icon);
   if (l) return <l.Icon className="canvas-icon inline-block flex-none" size={size} strokeWidth={2} style={l.color ? { color: l.color } : undefined} aria-hidden />;
   if (canvas.icon) return <span className="canvas-icon inline-block flex-none leading-none" style={{ fontSize: size }} aria-hidden>{canvas.icon}</span>;
-  return <span className="canvas-icon letter inline-grid flex-none place-items-center rounded-[50%] bg-muted p-0.5 leading-none font-bold text-foreground" style={{ fontSize: size * 0.8, width: size, height: size }} aria-hidden>{[...canvas.name][0]?.toUpperCase()}</span>;
+  return <span className="canvas-icon letter inline-grid flex-none place-items-center rounded-full bg-muted p-0.5 leading-none font-bold text-foreground" style={{ fontSize: size * 0.8, width: size, height: size }} aria-hidden>{[...canvas.name][0]?.toUpperCase()}</span>;
 }
 
 /** A canvas as text in a sentence: its emoji and name (a Lucide icon has no text). */

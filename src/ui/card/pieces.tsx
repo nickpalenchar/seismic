@@ -88,14 +88,14 @@ const pinInk = (pin: NonNullable<CardSummary['pin']>) => (pin.failed ? '[--pin:v
 
 /** The pin while a card needs the owner, inline after a list's title: "!", "?" for a question, "!!" for a failed agent, "✦" for a proposal. */
 export const Pin = ({ pin }: { pin: NonNullable<CardSummary['pin']> }) => (
-  <span className={['f-pin', pin.failed && 'failed', pin.asking && 'asking', PIN, pinInk(pin), 'flex-none inline-grid place-items-center min-w-[17px] h-[17px] px-[5px] box-border rounded-[9px] text-(--pin-fg) [font:700_11px/1_var(--font)] not-italic'].filter(Boolean).join(' ')} title={t.phone.forYou}>
+  <span className={['f-pin', pin.failed && 'failed', pin.asking && 'asking', PIN, pinInk(pin), 'flex-none inline-grid place-items-center min-w-[17px] h-[17px] px-1 box-border rounded-md text-(--pin-fg) font-sans text-2xs/none font-bold not-italic'].filter(Boolean).join(' ')} title={t.phone.forYou}>
     {pin.mark}
   </span>
 );
 
 /** The pin of a subtle card: a small dot in the card's top-right corner, in the pin's colour, saying only that the card wants the owner. */
 export const PinDot = ({ pin }: { pin: NonNullable<CardSummary['pin']> }) => (
-  <span className={['pin-dot', pin.failed && 'failed', pin.asking && 'asking', PIN, pinInk(pin), 'absolute top-2 right-2 size-2 rounded-[50%]'].filter(Boolean).join(' ')} role="img" aria-label={t.phone.forYou} title={t.phone.forYou} />
+  <span className={['pin-dot', pin.failed && 'failed', pin.asking && 'asking', PIN, pinInk(pin), 'absolute top-2 right-2 size-2 rounded-full'].filter(Boolean).join(' ')} role="img" aria-label={t.phone.forYou} title={t.phone.forYou} />
 );
 
 /** The orange dot of an inbox entry the owner has not read yet. */

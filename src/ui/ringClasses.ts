@@ -19,7 +19,7 @@ export const radialClass = 'absolute w-0 h-0';
  */
 export const haloClass = (open: boolean) =>
   cn(
-    'absolute left-[-330px] top-[-230px] w-[660px] h-[460px] rounded-[50%] bg-background/72',
+    'absolute left-[-330px] top-[-230px] w-[660px] h-[460px] rounded-full bg-background/72',
     '[backdrop-filter:blur(4px)_saturate(.6)] [-webkit-backdrop-filter:blur(4px)_saturate(.6)]',
     '[mask-image:radial-gradient(closest-side,#000_62%,transparent)] [-webkit-mask-image:radial-gradient(closest-side,#000_62%,transparent)]',
     '[transition:transform_.25s,opacity_.25s]',
@@ -35,7 +35,7 @@ export const ballClass = (kind: 'group' | 'canvas' | 'new' | 'none', { open, hot
   return cn(
     'ball',
     kind,
-    'absolute left-[-19px] top-[-19px] w-[38px] h-[38px] rounded-[50%] grid place-items-center [font:600_20px/1_var(--font)]',
+    'absolute left-[-19px] top-[-19px] w-[38px] h-[38px] rounded-full grid place-items-center font-sans text-xl/none font-semibold',
     '[transition:transform_.32s_cubic-bezier(.3,1.5,.5,1),opacity_.2s,box-shadow_.2s]',
     kind === 'canvas' ? 'text-white' : 'text-muted-foreground',
     plain
@@ -56,7 +56,7 @@ export const ballClass = (kind: 'group' | 'canvas' | 'new' | 'none', { open, hot
  */
 export const tagClass = ({ open, hot, vacant }: { open: boolean; hot: boolean; vacant: boolean }) =>
   cn(
-    'gtag absolute flex items-center gap-1 box-border py-0.5 px-[9px] rounded-[3px] whitespace-nowrap [font-family:var(--font)] text-[12px]/[18px] font-medium text-foreground cursor-pointer bg-card',
+    'gtag absolute flex items-center gap-1 box-border py-0.5 px-2 rounded-xs whitespace-nowrap [font-family:var(--font)] text-xs/[18px] font-medium text-foreground cursor-pointer bg-card',
     '[transition:opacity_.2s,box-shadow_.15s] [&_span]:overflow-hidden [&_span]:text-ellipsis',
     hot ? 'font-semibold [box-shadow:0_0_0_2px_hsl(var(--h)_75%_52%),0_0_14px_hsl(var(--h)_90%_55%_/_.45)]' : '[box-shadow:0_0_0_1px_hsl(var(--h)_60%_55%_/_.55),0_2px_8px_--alpha(black/10%)]',
     open ? 'opacity-100' : 'opacity-0',
@@ -66,16 +66,16 @@ export const tagClass = ({ open, hot, vacant }: { open: boolean; hot: boolean; v
 /** How many of the group's cards are still to be done, in the tag's coloured right end, on the name's line. */
 export const countClass = (vacant: boolean) =>
   cn(
-    'gcount flex-none self-stretch mt-[-2px] mr-[-9px] mb-[-2px] ml-0.5 pt-0.5 pr-2 pb-0.5 pl-[7px] rounded-[0_3px_3px_0] [font-family:var(--font)] text-[12px]/[18px] font-semibold tabular-nums',
+    'gcount flex-none self-stretch -mt-0.5 -mr-2 -mb-0.5 ml-0.5 pt-0.5 pr-2 pb-0.5 pl-2 rounded-r-xs [font-family:var(--font)] text-xs/[18px] font-semibold tabular-nums',
     vacant ? 'bg-border/70 text-muted-foreground' : 'text-foreground bg-[hsl(var(--h)_70%_50%_/_.2)]',
   );
 
 /** The × on the aimed group's name that deletes the group. */
-export const tagDeleteClass = 'gdel -mr-0.5 rounded-[50%]';
+export const tagDeleteClass = 'gdel -mr-0.5 rounded-full';
 
 /** What the aimed ball is (or how many cards the ring is for), in the middle. */
-export const captionClass = 'rcap absolute left-[-60px] w-[120px] top-[-9px] text-center [font:600_13px/18px_var(--font)] text-foreground whitespace-nowrap';
+export const captionClass = 'rcap absolute left-[-60px] w-[120px] top-[-9px] text-center font-sans text-sm/[18px] font-semibold text-foreground whitespace-nowrap';
 
 /** The name of a new group, typed in the middle. */
 export const nameFieldClass =
-  'rname absolute left-[-80px] top-[-16px] w-[160px] h-8 box-border rounded-[3px] border-[1.5px] border-solid border-working bg-card text-foreground [font:14px_var(--font)] py-0 px-3 text-center outline-none [box-shadow:0_0_18px_--alpha(var(--working)/40%)]';
+  'rname absolute left-[-80px] top-[-16px] w-[160px] h-8 box-border rounded-xs border-[1.5px] border-working bg-card text-foreground font-sans text-base py-0 px-3 text-center outline-none [box-shadow:0_0_18px_--alpha(var(--working)/40%)]';

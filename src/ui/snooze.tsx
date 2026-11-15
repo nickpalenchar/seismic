@@ -88,8 +88,8 @@ export function SnoozeMenu({
   };
   const picked = value ? new Date(value) : null;
   const valid = !!picked && !Number.isNaN(picked.getTime()) && picked.getTime() > Date.now();
-  const option = 'cursor-pointer border-0 bg-transparent px-3 py-[7px] text-left text-[13.5px] text-foreground outline-none hover:bg-muted focus-visible:bg-muted';
-  const more = 'mt-0.5 border-0 border-t border-solid border-border';
+  const option = 'cursor-pointer bg-transparent px-3 py-2 text-left text-sm text-foreground outline-none hover:bg-muted focus-visible:bg-muted';
+  const more = 'mt-0.5 border-t border-border';
   return (
     <Popover open={open} onOpenChange={show}>
       {/* above the button in a card's action row; on the snooze line over the conversation, placed by script */}
@@ -101,7 +101,7 @@ export function SnoozeMenu({
         </PopoverTrigger>
       </div>
       <PopoverContent side={inline ? 'bottom' : 'top'} align={inline ? 'center' : 'start'} sideOffset={6} aria-label={heading} className="flex w-auto min-w-[220px] flex-col px-0 py-1">
-        <div className="px-3 pt-1.5 pb-1 text-[11.5px] text-muted-foreground">{heading}</div>
+        <div className="px-3 pt-1.5 pb-1 text-xs text-muted-foreground">{heading}</div>
         {snoozePresets(now).map((p) => (
           <button key={p.label} className={option} onClick={() => go(p.at)}>
             {p.label}

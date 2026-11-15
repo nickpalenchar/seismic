@@ -108,7 +108,7 @@ export function Listbox<T>({ box, items, label, className, itemKey, children }: 
 
 /** The surface of a menu over a field: solid, as the dropdown menu's, so the canvas beneath doesn't show through. */
 export const listboxMenuClassName =
-  'z-5 box-border max-h-[min(320px,45vh)] overflow-x-hidden overflow-y-auto rounded-md border border-solid border-glass-edge bg-surface p-1 text-sm text-foreground shadow-lift';
+  'z-5 box-border max-h-[min(320px,45vh)] overflow-x-hidden overflow-y-auto rounded-md border border-glass-edge bg-surface p-1 text-sm text-foreground shadow-lift';
 
 /** A `Listbox` on a menu's surface, its options a row each; `children` of the surface stand in for the list while `items` is undefined (still asked). */
 export function ListboxMenu<T>({ className, style, items, fallback, ...props }: Omit<Parameters<typeof Listbox<T>>[0], 'items' | 'className'> & { items: T[] | undefined; fallback?: ReactNode; className?: string; style?: CSSProperties }) {

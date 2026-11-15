@@ -55,7 +55,7 @@ const closeClass = 'fixed top-[14px] right-[14px] z-27 animate-[fade_.3s_ease-ou
 
 /** The grip on the open sheet's left edge: drag to widen or narrow it, double-click for the default. None in a narrow window. */
 const gripClass =
-  "fixed top-0 bottom-0 w-3 z-26 cursor-ew-resize touch-none opacity-0 pointer-events-none [transition:opacity_.2s,right_.45s_cubic-bezier(.3,.9,.3,1)] resizing:[transition:none] [@media(max-width:760px)]:hidden after:content-[''] after:absolute after:left-1 after:top-1/2 after:w-1 after:h-11 after:-mt-[22px] after:rounded-[2px] after:bg-planned after:opacity-55 after:[transition:background_.15s,opacity_.15s,height_.15s,margin-top_.15s] hover:after:bg-muted-foreground hover:after:opacity-100 hover:after:h-16 hover:after:-mt-8 resizing:after:bg-muted-foreground resizing:after:opacity-100 resizing:after:h-16 resizing:after:-mt-8";
+  "fixed top-0 bottom-0 w-3 z-26 cursor-ew-resize touch-none opacity-0 pointer-events-none [transition:opacity_.2s,right_.45s_cubic-bezier(.3,.9,.3,1)] resizing:[transition:none] [@media(max-width:760px)]:hidden after:content-[''] after:absolute after:left-1 after:top-1/2 after:w-1 after:h-11 after:-mt-6 after:rounded-xs after:bg-planned after:opacity-55 after:[transition:background_.15s,opacity_.15s,height_.15s,margin-top_.15s] hover:after:bg-muted-foreground hover:after:opacity-100 hover:after:h-16 hover:after:-mt-8 resizing:after:bg-muted-foreground resizing:after:opacity-100 resizing:after:h-16 resizing:after:-mt-8";
 
 export function DockShell({ dock }: { dock: ReturnType<typeof useDock> }) {
   const { active, widths, setWidths, setResizing, close } = dock;

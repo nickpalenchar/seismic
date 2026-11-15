@@ -69,7 +69,7 @@ type Ask = (text: string, project?: string) => void;
 type Section = 'projects' | 'defaults' | 'agents' | 'voice' | 'demos' | 'notices' | 'devices' | 'advanced' | 'developer';
 /** The value of a project's tab in the navigation, followed by its number. */
 /** A field of prose in a setting (a voice's style, its sample text): the page's font, not a path's. */
-const proseFieldClass = (hook: string) => `${hook} block w-full max-w-[420px] resize-y text-[13px] leading-[1.45] py-1.5 px-2`;
+const proseFieldClass = (hook: string) => `${hook} block w-full max-w-[420px] resize-y text-sm leading-[1.45] py-1.5 px-2`;
 
 const PROJECT_TAB = 'project:';
 const SECTIONS: Section[] = ['projects', 'defaults', 'agents', 'voice', 'demos', 'notices', 'devices', 'advanced', 'developer'];
@@ -1161,7 +1161,7 @@ export function CodeReviewField({ value, onChange, bare }: { value: Partial<Code
       </CheckLabel>
       {now.on && (
         <RadioGroup className="cr-when mt-3 [&>p.hint]:mt-2 [&>p.hint]:mb-0 [&>p.hint]:mx-0" label={l.when} value={now.mode} onValueChange={(mode) => onChange({ ...now, mode: mode as typeof now.mode })}>
-          <span className="block text-muted-foreground text-[12.5px]">{l.when}</span>
+          <span className="block text-muted-foreground text-sm">{l.when}</span>
           {CODE_REVIEW_MODES.map((mode) => (
             <RadioOption key={mode} value={mode}>
               {l[mode]}
@@ -1215,10 +1215,10 @@ function ProjectDefaultsBlock({ view, onSaved }: { view: ProjectDefaultsView | n
 }
 
 /** The columns' names over the agents' table. */
-const agentsHeadClass = 'text-muted-foreground text-[11.5px] pb-1';
+const agentsHeadClass = 'text-muted-foreground text-xs pb-1';
 
 /** A group of agents, its name over what it does; in the project's settings sheet a little closer to its choices. */
-export const agentClass = 'cfg-agent flex flex-col py-[9px] px-0 text-[14px] max-[900px]:col-span-full max-[900px]:pb-0.5 [.cs-agents_&]:pt-2.5 [.cs-agents_&]:pb-1';
+export const agentClass = 'cfg-agent flex flex-col py-2 px-0 text-base max-[900px]:col-span-full max-[900px]:pb-0.5 [.cs-agents_&]:pt-2.5 [.cs-agents_&]:pb-1';
 
 /** The model and effort of each group of agents: saved on each change, taken by the next agent that starts. */
 function AgentsBlock({ on }: { on: boolean }) {
@@ -1618,10 +1618,10 @@ const CLOUDFLARE_TOKENS = 'https://dash.cloudflare.com/profile/api-tokens';
 function CloudflareAccount({ accounts, way, onChange, disabled }: { accounts: string[]; way: CloudflareWay; onChange: (way: CloudflareWay) => void; disabled?: boolean }) {
   const a = t.config.sites;
   return (
-    <div className="site-account grid gap-1.5 mt-0.5 mx-0 mb-2.5 max-w-[520px] [&_label]:flex [&_label]:flex-col [&_label]:gap-[3px] [&_label:first-child]:flex-row [&_label:first-child]:items-center [&_label:first-child]:gap-2">
+    <div className="site-account grid gap-1.5 mt-0.5 mx-0 mb-2.5 max-w-[520px] [&_label]:flex [&_label]:flex-col [&_label]:gap-1 [&_label:first-child]:flex-row [&_label:first-child]:items-center [&_label:first-child]:gap-2">
       <label>
         <span className="hint">{a.account}</span>
-        <Select className="text-[13px]" aria-label={a.account} value={way.account} disabled={disabled} onValueChange={(picked) => onChange({ ...way, account: picked })}>
+        <Select className="text-sm" aria-label={a.account} value={way.account} disabled={disabled} onValueChange={(picked) => onChange({ ...way, account: picked })}>
           {accounts.map((x) => (
             <SelectItem key={x} value={x}>
               {a.accountOf(x)}
@@ -1831,7 +1831,7 @@ function AddSite({ view, onView, onAdded, onCancel }: { view: DemoSitesView; onV
     </label>
   );
   return (
-    <div className="add-site flex flex-col items-stretch gap-2 mt-2.5 [&>[data-slot=toggle-group]]:self-start [&>.hint]:m-0 [&>.c-install]:m-0 [&>[data-slot=check-label]]:text-[13.5px]">
+    <div className="add-site flex flex-col items-stretch gap-2 mt-2.5 [&>[data-slot=toggle-group]]:self-start [&>.hint]:m-0 [&>.c-install]:m-0 [&>[data-slot=check-label]]:text-sm">
       <SegmentedControl label={p.add} value={host} disabled={running} onValueChange={setHost} options={ADD_HOSTS.map((h) => ({ value: h, label: p.hosts[h] }))} />
       <p className="hint">{p.notes[host]}</p>
       {host === 'github' && (
@@ -1944,7 +1944,7 @@ function AddSitePage({ on, onBack: back }: { on: boolean; onBack: () => void }) 
   };
   return (
     <div className="add-site-page">
-      <LinkButton type="button" className="add-site-back inline-block m-0 mb-3 [font-size:13.5px]" onClick={onBack}>
+      <LinkButton type="button" className="add-site-back inline-block m-0 mb-3 text-sm" onClick={onBack}>
         ← {p.back}
       </LinkButton>
       <Head title={p.add} hint={p.addHint} />
@@ -2011,7 +2011,7 @@ function DemoSitesBlock({ on, onAdd }: { on: boolean; /** Opens the page that ad
       <div className={narrowClass}>
         {view.sites.map((x) => (
           <div key={x.url} className="demo-site py-2.5 px-0 border-b border-b-border first-of-type:pt-0 [&>.hint]:my-0.5 [&>.hint]:mx-0">
-            <p className="personal-url text-[15px] m-0 mb-1.5">
+            <p className="personal-url text-base m-0 mb-1.5">
               <a className={K.cfgLinkClass} href={x.url} target="_blank" rel="noreferrer">
                 {siteLabel(x.url)}
               </a>
@@ -2818,7 +2818,7 @@ function RepoSettingsBlock({
         {label}
         <span className={K.cfgSourceClass(here)}>{here ? c.source.machine : from}</span>
         {here && (
-          <button type="button" className="cfg-reset p-0 [border:0] bg-transparent text-muted-foreground text-[11.5px] underline cursor-pointer hover:text-foreground" title={c.resetHint} onClick={reset}>
+          <button type="button" className="cfg-reset p-0 [border:0] bg-transparent text-muted-foreground text-xs underline cursor-pointer hover:text-foreground" title={c.resetHint} onClick={reset}>
             {c.reset}
           </button>
         )}
@@ -3046,7 +3046,7 @@ export function sharedPreview(repo: RepoConfig, values: RepoValues): Record<stri
 }
 
 /** What "Take over into the repository for everyone" says: the file as it would be, where it goes, and what came of it. */
-const shareHint = 'text-muted-foreground text-[12.5px] leading-[1.45] max-w-[76ch] mt-1 mx-0 mb-0';
+const shareHint = 'text-muted-foreground text-sm leading-[1.45] max-w-[76ch] mt-1 mx-0 mb-0';
 const shareOk = cn(shareHint, 'text-foreground');
 const shareConfirmHint = 'hint mt-1 mx-0 mb-0 max-w-[76ch]';
 
@@ -3179,12 +3179,12 @@ function OldNames({ names, onDelete }: { names: string[]; onDelete: (name: strin
         confirm={{ label: c.deleteOldNameConfirm, variant: 'default', className: 'delete-old-name', onClick: () => asking !== null && onDelete(asking) }}
         cancel={c.deleteOldNameBack}
       >
-        <p className="old-name-warning py-2 px-3 rounded-[4px] text-destructive bg-destructive/10 font-semibold [[data-slot=confirm-dialog]_&]:mt-0 [[data-slot=confirm-dialog]_&]:mx-0 [[data-slot=confirm-dialog]_&]:mb-3">{c.deleteOldNameWarning}</p>
+        <p className="old-name-warning py-2 px-3 rounded-sm text-destructive bg-destructive/10 font-semibold [[data-slot=confirm-dialog]_&]:mt-0 [[data-slot=confirm-dialog]_&]:mx-0 [[data-slot=confirm-dialog]_&]:mb-3">{c.deleteOldNameWarning}</p>
         <ul className="old-name-effects mt-0 mx-0 mb-3 pl-5 leading-normal">
           <li>{c.deleteOldNameCards}</li>
           <li>{c.deleteOldNameReuse}</li>
         </ul>
-        <p className="hint [[data-slot=confirm-dialog]_&]:mt-0 [[data-slot=confirm-dialog]_&]:mx-0 [[data-slot=confirm-dialog]_&]:mb-[18px]">{c.deleteOldNameSave}</p>
+        <p className="hint [[data-slot=confirm-dialog]_&]:mt-0 [[data-slot=confirm-dialog]_&]:mx-0 [[data-slot=confirm-dialog]_&]:mb-4">{c.deleteOldNameSave}</p>
       </ConfirmDialog>
     </Field>
   );
@@ -3386,7 +3386,7 @@ function AdapterSetup({ project, repo, takeover }: { project: string; repo: stri
     }
   };
   return (
-    <div className={`${rowClass} [&_.hint]:min-w-0 [&_.hint]:text-[11.5px]!`}>
+    <div className={`${rowClass} [&_.hint]:min-w-0 [&_.hint]:text-xs!`}>
       <span className="hint">
         {t.config.adapterSetupHint}
         {!saved && <> {prepare ? t.config.adapterSetupSaves : t.config.adapterSetupSaveFirst}</>}

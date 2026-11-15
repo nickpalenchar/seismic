@@ -260,7 +260,7 @@ function toastClass(x: Toast, { wrap, phone, nudge }: { wrap: boolean; phone: bo
 
 /** A toast's button: outlined in the toast's ink; cut short where several share a line. */
 const toastButtonClass = (several: boolean) =>
-  cn('bg-transparent border border-solid rounded-sm py-1 px-2.5 cursor-pointer flex-none border-background/40 text-background', several && 'max-w-full overflow-hidden text-ellipsis whitespace-nowrap');
+  cn('bg-transparent border rounded-sm py-1 px-2.5 cursor-pointer flex-none border-background/40 text-background', several && 'max-w-full overflow-hidden text-ellipsis whitespace-nowrap');
 
 /**
  * A toast's actions: "Undo", a "Go to card" per card, "Dismiss". On a warning they are the UI's own

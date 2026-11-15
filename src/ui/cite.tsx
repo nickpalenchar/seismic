@@ -191,10 +191,10 @@ export function CiteButton({ box, draft, anywhere, onCite }: { box: RefObject<HT
     <Tooltip content={t.talk.citeHint}>
       <button
           className={cn(
-            'fixed z-50 flex h-7 min-w-7 cursor-pointer items-center justify-center gap-[5px] rounded-[3px] border-0 bg-foreground px-1.5 py-0 text-[12.5px] text-background shadow-glass select-none hover:bg-foreground/85 pointer-coarse:h-9 pointer-coarse:min-w-9',
+            'fixed z-50 flex h-7 min-w-7 cursor-pointer items-center justify-center gap-1 rounded-xs bg-foreground px-1.5 py-0 text-sm text-background shadow-glass select-none hover:bg-foreground/85 pointer-coarse:h-9 pointer-coarse:min-w-9',
             // above the end of the marking, or below its last line, on a touch screen clear of the selection handles
             !marked.below ? '[transform:translate(-50%,calc(-100%-6px))]' : marked.left ? '[transform:translate(calc(-100%+2px),6px)]' : '[transform:translate(-50%,6px)] pointer-coarse:[transform:translate(-50%,30px)]',
-            named && 'pr-[9px] pl-[7px]',
+            named && 'pr-2 pl-2',
           )}
           style={{ left: marked.x, top: marked.y }} aria-label={t.talk.citeHint}
           // the marking stays while the button is pressed, and so does the focus where it is

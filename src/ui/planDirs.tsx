@@ -40,7 +40,7 @@ export function useHiddenEmptyNotes(project: string): [(d: PlanDir) => boolean, 
 const noteId = (d: PlanDir) => `${d.repo}:${d.dir}`;
 
 /** Why a doc is not a plan: quiet under its name, or under the head when one reason holds for all. */
-const whyClass = 'pd-why block text-[12px] text-muted-foreground';
+const whyClass = 'pd-why block text-xs text-muted-foreground';
 
 export function PlanDirNote({
   dir,
@@ -69,8 +69,8 @@ export function PlanDirNote({
     // a press on the note moves it, like a card; one on a button there is no move
     <div
       className={[
-        'plan-dir absolute box-border select-none rounded-[4px] border-[1.5px] border-(--container-line) bg-(--container) px-3.5 py-3 text-[13px] leading-[1.4] [&_button]:cursor-pointer [&_p]:m-0',
-        dir.empty ? 'empty-dir border-dashed text-muted-foreground [&_p]:pr-3.5' : 'border-solid text-foreground',
+        'plan-dir absolute box-border select-none rounded-sm border-[1.5px] border-(--container-line) bg-(--container) px-3.5 py-3 text-sm leading-[1.4] [&_button]:cursor-pointer [&_p]:m-0',
+        dir.empty ? 'empty-dir border-dashed text-muted-foreground [&_p]:pr-3.5' : 'text-foreground',
         dir.at ? 'put' : '[transform:translateY(-100%)]',
         dragging ? 'dragging cursor-grabbing [box-shadow:0_8px_24px_--alpha(black/18%)]' : 'cursor-grab',
       ]
@@ -95,8 +95,8 @@ export function PlanDirNote({
           {one && <div className={`${whyClass} mt-0.5 mb-1`}>{one}</div>}
           {dir.others.map((o) => (
             <div key={o.file} className="pd-doc flex min-h-[30px] items-center justify-between gap-2.5">
-              <span className="pd-file min-w-0 flex-1 py-[3px]" title={o.file}>
-                <span className="pd-name block overflow-hidden text-ellipsis whitespace-nowrap [font-family:var(--mono)] text-[12.5px]">{o.file.slice(o.file.lastIndexOf('/') + 1)}</span>
+              <span className="pd-file min-w-0 flex-1 py-1" title={o.file}>
+                <span className="pd-name block overflow-hidden text-ellipsis whitespace-nowrap [font-family:var(--mono)] text-sm">{o.file.slice(o.file.lastIndexOf('/') + 1)}</span>
                 {!one && <span className={whyClass}>{t.planDir.reason[o.reason]}</span>}
               </span>
               {o.preparing ? (

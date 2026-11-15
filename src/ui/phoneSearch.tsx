@@ -23,14 +23,14 @@ export function PhoneSearch({ items, query, onQuery, onOpen, onClose }: { items:
   const found = query.trim() ? finderResults(items, query) : [];
   return (
     <Command shouldFilter={false} loop label={t.cardSearch.results} className={cn(viewClass, 'ph-search inset-0 z-40 overflow-hidden bg-background')}>
-      <header className={cn(barClass, 'ph-search-bar py-1.5 ph-landscape:py-[3px]')}>
+      <header className={cn(barClass, 'ph-search-bar py-1.5 ph-landscape:py-1')}>
         <div className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground" size={17} strokeWidth={2} aria-hidden />
           <CommandInput
             ref={field}
             icon={false}
             wrapperClassName="block"
-            className="h-10 rounded-[20px] border-border bg-card py-0 pr-3 pl-[38px] shadow-none focus:bg-card"
+            className="h-10 rounded-full border-border bg-card py-0 pr-3 pl-10 shadow-none focus:bg-card"
             value={query}
             onValueChange={onQuery}
             placeholder={t.cardSearch.placeholder}
@@ -39,7 +39,7 @@ export function PhoneSearch({ items, query, onQuery, onOpen, onClose }: { items:
             enterKeyHint="search"
           />
         </div>
-        <button className="ph-close inline-grid size-10 shrink-0 place-items-center rounded-full border-0 bg-muted text-foreground cursor-pointer ph-landscape:size-9" aria-label={t.phone.next.closeSearch} onClick={onClose}>
+        <button className="ph-close inline-grid size-10 shrink-0 place-items-center rounded-full bg-muted text-foreground cursor-pointer ph-landscape:size-9" aria-label={t.phone.next.closeSearch} onClick={onClose}>
           <X size={20} strokeWidth={2.25} aria-hidden="true" />
         </button>
       </header>
@@ -56,7 +56,7 @@ export function PhoneSearch({ items, query, onQuery, onOpen, onClose }: { items:
               </CommandItem>
             ))}
             {found.length > shown && (
-              <button className="mt-1 w-full rounded-[10px] border border-border bg-transparent py-2.5 text-[15px] text-foreground cursor-pointer" onClick={() => setShown(shown + PAGE)}>
+              <button className="mt-1 w-full rounded-lg border border-border bg-transparent py-2.5 text-base text-foreground cursor-pointer" onClick={() => setShown(shown + PAGE)}>
                 {t.phone.next.loadMore(found.length - shown)}
               </button>
             )}

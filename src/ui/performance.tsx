@@ -32,27 +32,27 @@ const VIEW_KEY = 'seismic.performance.view';
 const DAY = 86_400_000;
 
 /** A cell of the table: a line under each row. */
-const cell = 'py-[7px] px-2 border-b border-border text-left align-middle';
+const cell = 'py-2 px-2 border-b border-border text-left align-middle';
 /** A column's head: small and quiet, on one line. */
-const headCell = cn(cell, 'text-[12px] font-semibold text-muted-foreground whitespace-nowrap');
+const headCell = cn(cell, 'text-xs font-semibold text-muted-foreground whitespace-nowrap');
 /** A column of numbers: right-aligned figures of one width, as narrow as they allow. */
 const num = 'text-right tabular-nums w-[1%] whitespace-nowrap';
 /** The spread's or the dots' column takes the room the others leave. */
 const wide = 'w-[45%]';
 /** The last column, the comments, stands a little apart from the bar before it. */
-const last = 'pl-[18px]';
+const last = 'pl-4';
 /** The heading of an empty dashboard. */
-const emptyHeadClass = '[font-family:var(--font)] font-medium text-[20px] mt-0 mb-1.5';
+const emptyHeadClass = '[font-family:var(--font)] font-medium text-xl mt-0 mb-1.5';
 /** The legend under the table and the chart. */
-const legendClass = 'flex flex-wrap gap-x-3.5 gap-y-1.5 mt-2.5 mx-0 mb-0 text-[12px] text-muted-foreground';
+const legendClass = 'flex flex-wrap gap-x-3.5 gap-y-1.5 mt-2.5 mx-0 mb-0 text-xs text-muted-foreground';
 /** A legend's key: a square in the ink of its stars (`--r`, `inkOf`). */
-const keyClass = "before:content-[''] before:inline-block before:size-2.5 before:rounded-[2px] before:mr-[5px] before:align-[-1px] before:bg-(--r)";
+const keyClass = "before:content-[''] before:inline-block before:size-2.5 before:rounded-xs before:mr-1 before:align-[-1px] before:bg-(--r)";
 /** A line's key in the chart's legend: a short stroke in its ink. */
-const lineKeyClass = "before:content-[''] before:inline-block before:w-3.5 before:h-[3px] before:rounded-[2px] before:mr-[5px] before:align-[3px] before:bg-(--r)";
+const lineKeyClass = "before:content-[''] before:inline-block before:w-3.5 before:h-[3px] before:rounded-xs before:mr-1 before:align-[3px] before:bg-(--r)";
 /** The chart's numbers and months. */
-const axisTextClass = 'fill-muted-foreground text-[12px]';
+const axisTextClass = 'fill-muted-foreground text-xs';
 /** What a response is about (its plan, repository, project, date) and whom it credits, under its card. */
-const contextClass = 'text-muted-foreground text-[12.5px]';
+const contextClass = 'text-muted-foreground text-sm';
 
 /** The ink of a rating of 1 to 5 stars, as `--r`: from red through grey to green. */
 const STAR_INKS = [
@@ -201,13 +201,13 @@ export function PerformanceDialog({ on, onClose, projects, here, onOpenCard, ini
                   <tr className={`perf-row${r.few ? ' few' : ''}${r.kind !== 'config' ? ' special' : ''}${expanded ? ' open' : ''}`}>
                     <th scope="row" className={cn(cell, 'font-normal')}>
                       <CollapsibleTrigger className={cn('perf-expand inline-flex items-center gap-1.5 py-0.5 px-0 hover:underline hover:underline-offset-[3px]', r.few ? 'text-muted-foreground' : 'text-foreground')}>
-                        <span className="inline-flex align-middle w-3 text-muted-foreground text-[11px]" aria-hidden>
+                        <span className="inline-flex align-middle w-3 text-muted-foreground text-2xs" aria-hidden>
                           {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                         </span>
                         <RowName r={r} />
                       </CollapsibleTrigger>
                       {r.few && (
-                        <span className="inline-block ml-2 py-0 px-[7px] border border-solid border-muted-foreground rounded-[9px] text-[11px] text-muted-foreground leading-4 align-[1px]" title={p.fewHint(FEW)}>
+                        <span className="inline-block ml-2 py-0 px-2 border border-muted-foreground rounded-md text-2xs text-muted-foreground leading-4 align-[1px]" title={p.fewHint(FEW)}>
                           {p.few}
                         </span>
                       )}
@@ -219,7 +219,7 @@ export function PerformanceDialog({ on, onClose, projects, here, onOpenCard, ini
                   </tr>
                   <CollapsibleContent asChild>
                     <tr className="perf-detail">
-                      <td colSpan={5} className={cn(cell, 'bg-muted/35 pt-1 pr-2 pb-2.5 pl-[18px]')}>
+                      <td colSpan={5} className={cn(cell, 'bg-muted/35 pt-1 pr-2 pb-2.5 pl-4')}>
                         <Responses list={r.responses} link={link} projectName={projectName} withConfig={r.kind === 'mixed'} />
                       </td>
                     </tr>
@@ -254,7 +254,7 @@ export function PerformanceDialog({ on, onClose, projects, here, onOpenCard, ini
       <DialogContent id="perf" glass className="flex-1 min-w-0 relative flex" layerClassName="z-55 items-stretch p-7 max-[700px]:p-2.5" onCloseAutoFocus={(e) => toCard.current && e.preventDefault()}>
         <CloseButton label={t.close} className={cfgCloseClass} onClick={onClose} />
         {/* the right padding keeps a lane for the close button, so nothing scrolls under it or stands beside it */}
-        <div className="perf-main flex-1 overflow-y-auto pt-[26px] pr-[66px] pb-8 pl-10 [&>*]:max-w-[980px] max-[700px]:pt-5 max-[700px]:pr-14 max-[700px]:pb-6 max-[700px]:pl-[18px]">
+        <div className="perf-main flex-1 overflow-y-auto pt-6 pr-16 pb-8 pl-10 [&>*]:max-w-[980px] max-[700px]:pt-5 max-[700px]:pr-14 max-[700px]:pb-6 max-[700px]:pl-4">
           <header className={headClass}>
             <DialogTitle asChild>
               <h2 className={titleClass}>{p.title}</h2>
@@ -332,7 +332,7 @@ function RowName({ r }: { r: PerformanceRow }) {
   const c = r.config!;
   return (
     <span>
-      <span className={c.model ? '[font:13px_var(--mono)]' : 'italic'}>{c.model ?? p.unknownModel}</span> · {c.effort ?? p.unknownEffort}
+      <span className={c.model ? 'font-mono text-sm' : 'italic'}>{c.model ?? p.unknownModel}</span> · {c.effort ?? p.unknownEffort}
     </span>
   );
 }
@@ -343,7 +343,7 @@ function Spread({ r }: { r: PerformanceRow }) {
   const label = t.performance.spreadLabel(r.counts);
   if (!n) return <span className="hint">{t.performance.noRatings}</span>;
   return (
-    <span className={cn('flex w-full max-w-[260px] min-w-[120px] max-[700px]:min-w-[100px] h-3.5 rounded-[2px] overflow-hidden bg-border', r.few && 'opacity-60')} role="img" aria-label={label} title={label}>
+    <span className={cn('flex w-full max-w-[260px] min-w-[120px] max-[700px]:min-w-[100px] h-3.5 rounded-xs overflow-hidden bg-border', r.few && 'opacity-60')} role="img" aria-label={label} title={label}>
       {r.counts.map((k, s) => (k ? <span key={s} className="block h-full bg-(--r)" style={{ ...inkOf(s + 1), width: `${(k / n) * 100}%` }} /> : null))}
     </span>
   );
@@ -370,14 +370,14 @@ function Dots({ r }: { r: PerformanceRow }) {
   // the oldest first, so newer dots lie on top
   rated.sort((a, b) => (a.f.updatedAt ?? a.f.at).localeCompare(b.f.updatedAt ?? b.f.at));
   return (
-    <span className="relative block min-w-[160px] max-[700px]:min-w-[100px] h-8 mx-[26px]" role="img" aria-label={label} title={label}>
+    <span className="relative block min-w-[160px] max-[700px]:min-w-[100px] h-8 mx-6" role="img" aria-label={label} title={label}>
       <span className="absolute inset-x-0 top-1/2 [border-top:1px_dashed_var(--border)]" />
       {r.median !== null && <b className="absolute top-px bottom-px w-0.5 -ml-px bg-foreground opacity-55" style={{ left: at(r.median) }} />}
       {rated.map(({ f, v }) => {
         const [jx, jy] = scatter(f.id);
         const wide = Math.min(24, 7 + r.counts[v - 1]! * 2);
         const size = DOT_SIZE[ageStep(f, now)]!;
-        return <i key={f.id} className={cn('absolute z-1 rounded-[50%] opacity-70', r.few ? 'bg-muted-foreground' : 'bg-working')} style={{ left: `calc(${at(v)} + ${(jx * wide).toFixed(1)}px)`, top: `calc(50% + ${(jy * 10).toFixed(1)}px)`, width: size, height: size, margin: -size / 2 }} />;
+        return <i key={f.id} className={cn('absolute z-1 rounded-full opacity-70', r.few ? 'bg-muted-foreground' : 'bg-working')} style={{ left: `calc(${at(v)} + ${(jx * wide).toFixed(1)}px)`, top: `calc(50% + ${(jy * 10).toFixed(1)}px)`, width: size, height: size, margin: -size / 2 }} />;
       })}
     </span>
   );
@@ -389,7 +389,7 @@ function DotSizes() {
     <span className="inline-flex flex-wrap items-center gap-x-2.5 gap-y-1">
       {DOT_SIZE.map((size, k) => (
         <span key={k} className="inline-flex items-center gap-1">
-          <i className="inline-block rounded-[50%] bg-working opacity-70" style={{ width: size, height: size }} />
+          <i className="inline-block rounded-full bg-working opacity-70" style={{ width: size, height: size }} />
           {t.performance.ages[k]}
         </span>
       ))}
@@ -399,7 +399,7 @@ function DotSizes() {
 
 function DotScale() {
   return (
-    <span className="relative block h-[1.2em] mx-[26px] font-normal" aria-label={t.performance.cols.each}>
+    <span className="relative block h-[1.2em] mx-6 font-normal" aria-label={t.performance.cols.each}>
       {[1, 2, 3, 4, 5].map((s) => (
         <span key={s} className="absolute [transform:translateX(-50%)]" style={{ left: `${((s - 1) / 4) * 100}%` }}>
           {s}★
@@ -434,7 +434,7 @@ function Responses({ list, link, projectName, withConfig }: { list: Feedback[]; 
               {[f.plan ? plain(f.plan.title) : '', f.repo ?? '', several ? projectName(f.projectId) : '', p.when(new Date(f.updatedAt ?? f.at))].filter(Boolean).join(' · ')}
             </span>
             {withConfig && <span className={contextClass}>{f.attribution === 'missing' || !f.configs.length ? p.missing : f.configs.map((c) => configText(c, true)).join(' + ')}</span>}
-            {f.answer.comment && <p className="mt-0.5 mb-0 text-[13.5px] text-foreground whitespace-pre-wrap">{t.feedback.quoted(f.answer.comment)}</p>}
+            {f.answer.comment && <p className="mt-0.5 mb-0 text-sm text-foreground whitespace-pre-wrap">{t.feedback.quoted(f.answer.comment)}</p>}
           </div>
           <StarText rating={f.answer.rating} />
         </li>
@@ -463,7 +463,7 @@ function Trend({ rows }: { rows: PerformanceRow[] }) {
   const named = new Map(rows.map((r) => [r.key, r]));
   const lines = series.map((s, k) => ({ ...s, ink: LINE_INKS[k % LINE_INKS.length]!, name: rowText(named.get(s.key)!) }));
   return (
-    <figure className="mt-0 mx-0 mb-[18px]">
+    <figure className="mt-0 mx-0 mb-4">
       <svg className="block w-full h-auto overflow-visible" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={p.trendLabel(months.length)}>
         {[1, 2, 3, 4, 5].map((v) => (
           <g key={v}>

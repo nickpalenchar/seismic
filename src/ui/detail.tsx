@@ -505,7 +505,7 @@ export function Detail(p: Props) {
   const readPlan = parent && !parent.archivedAt && p.onReadPlan;
   // a workstream names its plan doc at the top in every state, an agent's work its branch beside it
   const where = (worked || parent?.plan?.file || item.review?.contribution) && (
-    <p className="p-src mt-[22px] text-muted-foreground text-[12.5px] [&_code]:text-[12px]">
+    <p className="p-src mt-6 text-muted-foreground text-sm [&_code]:text-xs">
       {item.review?.contribution && (
         <>
           <a href={item.review?.contribution.url} target="_blank" rel="noreferrer">
@@ -761,7 +761,7 @@ export function Detail(p: Props) {
               <>
                 {/* a workstream's text in its plan doc stays in view in every state: the task it is, ahead of what came of it */}
                 {item.source === 'plan' && (
-                  <div className="p-plan mb-[18px] [&_.p-h+*]:mt-0 [&_.fold>:first-child]:mt-0">
+                  <div className="p-plan mb-4 [&_.p-h+*]:mt-0 [&_.fold>:first-child]:mt-0">
                     <h4 className={headClass}>{t.talk.opening.plan}</h4>
                     {/* in full, the column scrolls; above a demo or the files it made a few lines, so what came of the work stays in view below */}
                     {item.demo?.latest || item.demo?.files ? (
@@ -1154,8 +1154,8 @@ function IdeaView({
       ) : (
         <>
           {next && (
-            <div className={`next-step flex flex-col gap-[3px] mt-4 py-0.5 max-w-[80ch] text-[14px] ${next.step}`}>
-              <span className="next-h text-[11px] uppercase tracking-[.08em] font-bold text-idea-strong">{t.idea.next}</span>
+            <div className={`next-step flex flex-col gap-1 mt-4 py-0.5 max-w-[80ch] text-base ${next.step}`}>
+              <span className="next-h text-2xs uppercase tracking-[.08em] font-bold text-idea-strong">{t.idea.next}</span>
               <span>
                 <b>{t.idea.nextStep[next.step](idea.questions.length)}</b>
                 {next.why && <> – {next.why}</>}
@@ -1403,7 +1403,7 @@ function StartAt({ item, act }: { item: Item; act: (a: CardAction, done: ActDone
   if (!at) return null;
   const set = (to: string | null) => void act({ action: 'startAt', at: to }, { close: false });
   return (
-    <div className="start-at flex items-baseline gap-1 flex-wrap mt-2.5 mb-0.5 text-[13px] text-foreground [&_.clock-mark]:align-[-1px] [&_.clock-mark]:text-muted-foreground">
+    <div className="start-at flex items-baseline gap-1 flex-wrap mt-2.5 mb-0.5 text-sm text-foreground [&_.clock-mark]:align-[-1px] [&_.clock-mark]:text-muted-foreground">
       <ClockMark /> {t.startAt.line(snoozeWhen(at))} ·{' '}
       <SnoozeMenu
         label={t.snooze.change}
@@ -1469,7 +1469,7 @@ function PrototypeStart({ item, act }: { item: Item; act: (a: CardAction, done: 
                   <span>
                     <b>{v.approach}</b>
                     {running.has(v.approach) && <span className={pickTag}>{t.idea.variantRuns}</span>}
-                    <span className="v-show line-clamp-2 mt-0.5 text-[12.5px] text-muted-foreground" title={v.show}>
+                    <span className="v-show line-clamp-2 mt-0.5 text-sm text-muted-foreground" title={v.show}>
                       {v.show}
                     </span>
                   </span>
@@ -1521,7 +1521,7 @@ function PrototypeDemos({ item }: { item: Item }) {
     <>
       <h4 className={headClass}>{t.idea.prototypes}</h4>
       {all.map((p) => (
-        <Collapsible key={p.id} className="prototype-demo mt-2.5 [&>[data-slot=collapsible-trigger]]:font-semibold [&>[data-slot=collapsible-trigger]]:text-[14px] [&>[data-slot=collapsible-trigger]_.hint]:font-normal data-[state=open]:[&>[data-slot=collapsible-trigger]]:mb-2" defaultOpen={p === latest}>
+        <Collapsible key={p.id} className="prototype-demo mt-2.5 [&>[data-slot=collapsible-trigger]]:font-semibold [&>[data-slot=collapsible-trigger]]:text-base [&>[data-slot=collapsible-trigger]_.hint]:font-normal data-[state=open]:[&>[data-slot=collapsible-trigger]]:mb-2" defaultOpen={p === latest}>
           <CollapsibleTrigger>
             <Inline md={p.title} /> <span className="hint">· {stateLabel(p)}</span>
           </CollapsibleTrigger>
@@ -1634,7 +1634,7 @@ function Conversation({
       {turn.e.id === held.at(-1) && (
         <div className="held-note self-end flex items-center justify-end flex-wrap gap-x-2.5 gap-y-1 -mt-0.5 mx-0.5 mb-1 text-xs text-muted-foreground text-right">
           {t.demo.held(held.length)}
-          <button className="held-send py-[3px] px-2.5 border border-working/45 rounded-[3px] bg-card text-working [font:inherit] font-semibold cursor-pointer hover:bg-working/12" title={t.demo.sendNowHint} onClick={() => void api.act(item.id, { action: 'release', now: true }).catch(() => {})}>
+          <button className="held-send py-1 px-2.5 border border-working/45 rounded-xs bg-card text-working [font:inherit] font-semibold cursor-pointer hover:bg-working/12" title={t.demo.sendNowHint} onClick={() => void api.act(item.id, { action: 'release', now: true }).catch(() => {})}>
             {t.demo.sendNow}
           </button>
         </div>
@@ -1650,13 +1650,13 @@ function Conversation({
       who={proposal ? t.revising : `${agent} ${paused ? t.pause.paused : isPausing(item) ? t.pause.pausingTalk : idea ? t.idea.thinking : question ? t.answer.reading : t.talk.working}`}
       head={
         paused ? (
-          <button className="turn-resume order-1 ml-auto flex-none inline-flex items-center gap-1 py-0.5 px-[9px] border-0 rounded-[3px] bg-foreground text-background [font:600_11.5px_var(--font)] cursor-pointer [&_.btn-mark]:m-0 hover:opacity-85" title={t.pause.resumeHint} onClick={() => turn(item.id, 'resume')}>
+          <button className="turn-resume order-1 ml-auto flex-none inline-flex items-center gap-1 py-0.5 px-2 rounded-xs bg-foreground text-background font-sans text-xs font-semibold cursor-pointer [&_.btn-mark]:m-0 hover:opacity-85" title={t.pause.resumeHint} onClick={() => turn(item.id, 'resume')}>
             <PlayMark /> {t.pause.resume}
           </button>
         ) : (
           pausableNow(item) && (
             <Tooltip content={t.pause.hint}>
-              <button className="turn-pause order-1 ml-auto flex-none inline-flex items-center justify-center w-6 h-5 p-0 border border-border rounded-[3px] bg-transparent text-muted-foreground opacity-55 cursor-pointer transition-opacity duration-[120ms] [&_.btn-mark]:m-0 hover:opacity-100 focus-visible:opacity-100 hover:text-foreground focus-visible:text-foreground hover:border-muted-foreground focus-visible:border-muted-foreground [@media(hover:hover)]:group-[.thinking:not(:hover)]/message:[&:not(:focus-visible)]:opacity-0" aria-label={t.pause.button} onClick={() => turn(item.id, 'pause')}>
+              <button className="turn-pause order-1 ml-auto flex-none inline-flex items-center justify-center w-6 h-5 p-0 border border-border rounded-xs bg-transparent text-muted-foreground opacity-55 cursor-pointer transition-opacity duration-[120ms] [&_.btn-mark]:m-0 hover:opacity-100 focus-visible:opacity-100 hover:text-foreground focus-visible:text-foreground hover:border-muted-foreground focus-visible:border-muted-foreground [@media(hover:hover)]:group-[.thinking:not(:hover)]/message:[&:not(:focus-visible)]:opacity-0" aria-label={t.pause.button} onClick={() => turn(item.id, 'pause')}>
                 <PauseMark />
               </button>
             </Tooltip>
@@ -1776,7 +1776,7 @@ function Description({ item }: { item: Item }) {
       <Button onClick={() => setEditing(false)}>{t.descriptionDone}</Button>
     </> : <>
       <Body md={body} />
-      <Tooltip content={t.descriptionEdit}><button className="description-edit-button border-0 bg-transparent text-muted-foreground cursor-pointer p-1.5 opacity-0 group-hover/desc:opacity-100 focus-visible:opacity-100 no-hover:opacity-100" aria-label={t.descriptionEdit} onClick={() => setEditing(true)}><Pencil size={16} /></button></Tooltip>
+      <Tooltip content={t.descriptionEdit}><button className="description-edit-button bg-transparent text-muted-foreground cursor-pointer p-1.5 opacity-0 group-hover/desc:opacity-100 focus-visible:opacity-100 no-hover:opacity-100" aria-label={t.descriptionEdit} onClick={() => setEditing(true)}><Pencil size={16} /></button></Tooltip>
     </>}
   </div>;
 }
@@ -1801,7 +1801,7 @@ function Fold({ children, lines }: { children: ReactNode; lines?: number }) {
         {children}
       </div>
       {(long || open) && (
-        <LinkButton className="fold-more text-[12.5px] leading-[1.25] mt-0.5" onClick={() => setOpen(!open)}>
+        <LinkButton className="fold-more text-sm leading-[1.25] mt-0.5" onClick={() => setOpen(!open)}>
           {open ? t.talk.less : t.talk.more}
         </LinkButton>
       )}
@@ -1861,7 +1861,7 @@ function Linked({ text }: { text: string }) {
 const ownerSide = (e: CardEvent) => e.author === 'owner' || e.kind === 'answer';
 
 /** Historical agent and demo questions share their option pills and end label. */
-const questionOptionsClass = "q-opts list-none mt-1.5 mb-0.5 p-0 flex flex-wrap gap-1.5 [&_li]:text-[12.5px] [&_li]:py-0.5 [&_li]:px-[9px] [&_li]:border [&_li]:border-border [&_li]:rounded-[3px] [&_li]:text-muted-foreground [&_li.on]:text-foreground [&_li.on]:border-working [&_li.on]:bg-working/10 [&_li.on]:font-semibold [&_li.on]:before:content-['✓_'] [&_li.on]:before:text-working [.ended_&_li]:opacity-60";
+const questionOptionsClass = "q-opts list-none mt-1.5 mb-0.5 p-0 flex flex-wrap gap-1.5 [&_li]:text-sm [&_li]:py-0.5 [&_li]:px-2 [&_li]:border [&_li]:border-border [&_li]:rounded-xs [&_li]:text-muted-foreground [&_li.on]:text-foreground [&_li.on]:border-working [&_li.on]:bg-working/10 [&_li.on]:font-semibold [&_li.on]:before:content-['✓_'] [&_li.on]:before:text-working [.ended_&_li]:opacity-60";
 const questionEndClass = "hint q-end block mt-1 italic [&:is(button)]:p-0 [&:is(button)]:border-0 [&:is(button)]:bg-transparent [&:is(button)]:cursor-pointer [&:is(button)]:text-left [&:is(button)]:[font-family:inherit] [&:is(button):hover]:text-foreground [&:is(button):hover]:underline";
 
 /**
@@ -1932,8 +1932,8 @@ function Message({
         turn.end && <div className={questionEndClass}>{t.talk[turn.end]}</div>
       )}
       {turn.then && (
-        <div className="then mt-1.5 pt-1.5 border-t border-dashed border-border text-[13.5px]" data-ev={turn.then.e.id}>
-          <span className="then-who float-left mr-1.5 text-[11px] leading-5 font-semibold text-foreground [&_.t]:text-muted-foreground [&_.t]:font-normal [&_.t]:ml-1">
+        <div className="then mt-1.5 pt-1.5 border-t border-dashed border-border text-sm" data-ev={turn.then.e.id}>
+          <span className="then-who float-left mr-1.5 text-2xs leading-5 font-semibold text-foreground [&_.t]:text-muted-foreground [&_.t]:font-normal [&_.t]:ml-1">
             {t.talk.handover}
             <span className="t">{time(turn.then.e.at)}</span>
           </span>
@@ -1941,7 +1941,7 @@ function Message({
         </div>
       )}
       {demoQuestion?.question && (
-        <div className={`demo-q mt-1.5 pt-1.5 border-t border-dashed border-border text-[13.5px] [&_b]:text-waiting-strong [&_b]:font-semibold [&.answered_b]:text-muted-foreground${demoQuestion.answer === undefined ? '' : ' answered'}`}>
+        <div className={`demo-q mt-1.5 pt-1.5 border-t border-dashed border-border text-sm [&_b]:text-waiting-strong [&_b]:font-semibold [&.answered_b]:text-muted-foreground${demoQuestion.answer === undefined ? '' : ' answered'}`}>
           <b>{t.talk.demoQuestion}</b> {demoQuestion.question}
           {!!(demoQuestion.options?.length || demoQuestion.picks?.length) && (
             <ul className={questionOptionsClass}>
@@ -1975,7 +1975,7 @@ function Message({
 function Mocks({ mocks }: { mocks?: Mock[] }) {
   if (!mocks?.length) return null;
   return (
-    <div className="mocks grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-2.5 mt-2 mb-1 [&_.mock]:m-0 [&_.mock]:min-w-0 [&_figcaption]:text-xs [&_figcaption]:font-semibold [&_figcaption]:text-muted-foreground [&_figcaption]:mb-1 [&_iframe]:w-full [&_iframe]:border [&_iframe]:border-border [&_iframe]:rounded-[2px] [&_iframe]:bg-white [&_iframe]:block">
+    <div className="mocks grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-2.5 mt-2 mb-1 [&_.mock]:m-0 [&_.mock]:min-w-0 [&_figcaption]:text-xs [&_figcaption]:font-semibold [&_figcaption]:text-muted-foreground [&_figcaption]:mb-1 [&_iframe]:w-full [&_iframe]:border [&_iframe]:border-border [&_iframe]:rounded-xs [&_iframe]:bg-white [&_iframe]:block">
       {mocks.map((m, i) => (
         <MockFrame key={i} mock={m} />
       ))}
@@ -2015,7 +2015,7 @@ const ARTIFACT_CAP = 30000;
 function Steps({ steps }: { steps: CardEvent[] }) {
   if (!steps.length) return null;
   return (
-    <Collapsible className="steps mt-1.5 text-xs text-muted-foreground [&_ol]:mt-1.5 [&_ol]:mb-0.5 [&_ol]:py-2 [&_ol]:px-2.5 [&_ol]:list-none [&_ol]:bg-muted [&_ol]:rounded-[2px] [&_ol]:flex [&_ol]:flex-col [&_ol]:gap-[3px] [&_li]:[overflow-wrap:anywhere] [&_.step-activity]:[font:11.5px/1.5_var(--mono)] [&_:is(.step-say,.step-closing)]:text-foreground [&_:is(.step-say,.step-closing)_:is(.p-lead,.p-list,.p-table_table)]:m-0 [&_:is(.step-say,.step-closing)_:is(.p-lead,.p-list,.p-table_table)]:text-[12.5px] [&_.step-state]:text-idea-strong">
+    <Collapsible className="steps mt-1.5 text-xs text-muted-foreground [&_ol]:mt-1.5 [&_ol]:mb-0.5 [&_ol]:py-2 [&_ol]:px-2.5 [&_ol]:list-none [&_ol]:bg-muted [&_ol]:rounded-xs [&_ol]:flex [&_ol]:flex-col [&_ol]:gap-1 [&_li]:[overflow-wrap:anywhere] [&_.step-activity]:font-mono text-xs/[1.5] [&_:is(.step-say,.step-closing)]:text-foreground [&_:is(.step-say,.step-closing)_:is(.p-lead,.p-list,.p-table_table)]:m-0 [&_:is(.step-say,.step-closing)_:is(.p-lead,.p-list,.p-table_table)]:text-sm [&_.step-state]:text-idea-strong">
       <CollapsibleTrigger>{t.talk.steps(steps.length)}</CollapsibleTrigger>
       <CollapsibleContent>
       <ol>
@@ -2043,7 +2043,7 @@ function Background({ tasks }: { tasks?: BackgroundTask[] }) {
   }, [runs]);
   if (!tasks?.length) return null;
   return (
-    <div className="background-work mt-1.5 text-xs text-muted-foreground [.background-only_&]:mt-0 [&_ul]:mt-[3px] [&_ul]:mb-0 [&_ul]:p-0 [&_ul]:list-none [&_ul]:flex [&_ul]:flex-col [&_ul]:gap-0.5 [&_li]:text-foreground [&_li]:[overflow-wrap:anywhere] [&_li]:before:content-['↻'] [&_li]:before:text-working [&_li]:before:mr-1.5 [&_.t]:text-muted-foreground [&_.t]:ml-1 [&_.t]:tabular-nums">
+    <div className="background-work mt-1.5 text-xs text-muted-foreground [.background-only_&]:mt-0 [&_ul]:mt-1 [&_ul]:mb-0 [&_ul]:p-0 [&_ul]:list-none [&_ul]:flex [&_ul]:flex-col [&_ul]:gap-0.5 [&_li]:text-foreground [&_li]:[overflow-wrap:anywhere] [&_li]:before:content-['↻'] [&_li]:before:text-working [&_li]:before:mr-1.5 [&_.t]:text-muted-foreground [&_.t]:ml-1 [&_.t]:tabular-nums">
       <span className="background-head">{t.talk.background}</span>
       <ul>
         {tasks.map((task, i) => (
@@ -2082,7 +2082,7 @@ type Run = (fn: () => Promise<void>, done: ActDone) => Promise<void>;
  * owner may step back to it and forth again; a comment on a place in it takes them there too.
  */
 /** ‹ and › between the card's demos. */
-const versionStep = 'step inline-flex items-center justify-center p-0 size-6 border-0 bg-transparent text-foreground rounded-[2px] text-lg leading-none cursor-pointer enabled:hover:bg-muted disabled:opacity-30 disabled:cursor-default';
+const versionStep = 'step inline-flex items-center justify-center p-0 size-6 bg-transparent text-foreground rounded-xs text-lg leading-none cursor-pointer enabled:hover:bg-muted disabled:opacity-30 disabled:cursor-default';
 
 function DemoView({
   item,
@@ -2184,7 +2184,7 @@ function DemoView({
         {(earlier.length > 0 || top) && (
           <div className="demo-top flex flex-wrap items-center justify-end gap-x-4 gap-y-2 mb-2.5 [&>.hint]:flex-[1_1_260px] [&>.hint]:m-0">
             {earlier.length > 0 && (
-              <div className={cn('demo-versions flex items-center gap-1 mr-auto min-h-[34px] text-[13px] [&>span]:tabular-nums [&>span]:px-0.5 [&_[data-slot=button]]:ml-2.5', demo !== latest && 'earlier [&>span]:text-waiting-strong [&>span]:font-semibold')} title={demo === latest ? undefined : t.demo.earlierHint}>
+              <div className={cn('demo-versions flex items-center gap-1 mr-auto min-h-[34px] text-sm [&>span]:tabular-nums [&>span]:px-0.5 [&_[data-slot=button]]:ml-2.5', demo !== latest && 'earlier [&>span]:text-waiting-strong [&>span]:font-semibold')} title={demo === latest ? undefined : t.demo.earlierHint}>
                 <Tooltip content={t.demo.older}>
                   <button className={versionStep} disabled={shownAt === 0} aria-label={t.demo.older} onClick={() => show(all[shownAt - 1]!)}>
                     <ChevronLeft size={16} aria-hidden />
@@ -2222,7 +2222,7 @@ function DemoView({
           // (`withHeightReport`); sideways it still scrolls, where it is wider than the frame. Low until
           // then: the column keeps the height of its tallest view, and a frame higher than a short page
           // kept it scrolling over nothing
-          <iframe ref={artifact} className="artifact w-full h-[150px] border border-border rounded-[3px] bg-white block" sandbox="allow-scripts" src={src('index.html')} title={t.demo.artifact} style={{ height: artifactHeight }} />
+          <iframe ref={artifact} className="artifact w-full h-[150px] border border-border rounded-xs bg-white block" sandbox="allow-scripts" src={src('index.html')} title={t.demo.artifact} style={{ height: artifactHeight }} />
         ) : (
           <div className="player relative" ref={zoom.player} style={zoom.box ? { height: zoom.box.from.height } : undefined}>
             {zoom.box && <div className={cn('demo-zoom fixed inset-0 z-3 bg-slate-950/80 cursor-zoom-out animate-[fade_.38s_ease-out] transition-opacity duration-[380ms]', zoom.box.closing && 'closing opacity-0')} ref={zoom.backdrop} title={t.demo.unzoom} onClick={zoom.toggle} />}
@@ -2232,7 +2232,7 @@ function DemoView({
                 Chrome's newer controls, so it goes */}
             <div
               className={cn(
-                'screen group/screen relative [&_video]:w-full [&_video]:rounded-[3px] [&_video]:bg-black [&_video]:block phone:[&_video::-webkit-media-controls-fullscreen-button]:hidden',
+                'screen group/screen relative [&_video]:w-full [&_video]:rounded-xs [&_video]:bg-black [&_video]:block phone:[&_video::-webkit-media-controls-fullscreen-button]:hidden',
                 zoom.box && 'zoomed fixed z-4 origin-top-left [&_video]:h-full [&_video]:shadow-lift',
                 !zoom.box && fullscreen.full && 'full phone:bg-black phone:flex phone:items-center phone:[&_video]:h-full phone:[&_video]:object-contain phone:[&_video]:rounded-none',
               )}
@@ -2267,13 +2267,13 @@ function DemoView({
                 <track kind="captions" src={src('captions.vtt')} srcLang="en" label="English" />
               </video>
               {seek.hint && (
-                <span className="seek-hint absolute left-1/2 bottom-16 -translate-x-1/2 z-1 whitespace-nowrap pointer-events-none py-[5px] px-[9px] rounded-[3px] bg-black/75 text-white text-[13px] animate-[fade_.2s_ease-out] [&_kbd]:[font-family:inherit] [&_kbd]:[font-size:inherit] [&_kbd]:font-semibold [&_kbd]:px-1.5 [&_kbd]:rounded-[2px] [&_kbd]:bg-white/20 [&_kbd]:border [&_kbd]:border-white/35 phone:hidden">
+                <span className="seek-hint absolute left-1/2 bottom-16 -translate-x-1/2 z-1 whitespace-nowrap pointer-events-none py-1 px-2 rounded-xs bg-black/75 text-white text-sm animate-[fade_.2s_ease-out] [&_kbd]:[font-family:inherit] [&_kbd]:[font-size:inherit] [&_kbd]:font-semibold [&_kbd]:px-1.5 [&_kbd]:rounded-xs [&_kbd]:bg-white/20 [&_kbd]:border [&_kbd]:border-white/35 phone:hidden">
                   {t.demo.seekHint} <kbd>←</kbd> <kbd>→</kbd>
                 </span>
               )}
               {!started && (
                 // a click anywhere on the video but its controls starts it, like on a shared page
-                <button className="start absolute inset-[0_0_56px_0] p-0 border-0 bg-transparent cursor-pointer grid place-items-center group/start [&>span]:mt-14 [&>span]:size-20 [&>span]:rounded-full [&>span]:bg-black/60 [&>span]:grid [&>span]:place-items-center [&>span]:transition-[transform,background] [&>span]:duration-150 hover:[&>span]:bg-black/80 hover:[&>span]:scale-[1.06] [&_svg]:size-8 [&_svg]:ml-[5px] [&_svg]:fill-white [&_svg]:text-white [&_svg]:stroke-white" aria-label={t.demo.play} onClick={() => video.current?.play().catch(() => {})}>
+                <button className="start absolute inset-[0_0_56px_0] p-0 bg-transparent cursor-pointer grid place-items-center group/start [&>span]:mt-14 [&>span]:size-20 [&>span]:rounded-full [&>span]:bg-black/60 [&>span]:grid [&>span]:place-items-center [&>span]:transition-[transform,background] [&>span]:duration-150 hover:[&>span]:bg-black/80 hover:[&>span]:scale-[1.06] [&_svg]:size-8 [&_svg]:ml-1 [&_svg]:fill-white [&_svg]:text-white [&_svg]:stroke-white" aria-label={t.demo.play} onClick={() => video.current?.play().catch(() => {})}>
                   <span>
                     <Play fill="currentColor" strokeWidth={2} />
                   </span>
@@ -2281,7 +2281,7 @@ function DemoView({
               )}
               {comments && started && (
                 <button
-                  className="comment-here absolute top-2.5 right-14 z-1 h-[38px] px-3.5 border-0 rounded-[19px] bg-black/55 text-white text-[13.5px] cursor-pointer opacity-0 transition-[opacity,background] duration-150 flex items-center gap-2 [&_svg]:size-[18px] [&_svg]:fill-none [&_svg]:stroke-white [&_svg]:[stroke-width:2] [&_svg]:[stroke-linejoin:round] group-hover/screen:opacity-100 focus-visible:opacity-100 hover:bg-black/80 no-hover:opacity-100 phone:right-[60px] phone:h-[42px] phone:rounded-[21px] phone:group-[.full]/screen:top-[max(10px,env(safe-area-inset-top))] phone:group-[.full]/screen:right-[calc(50px+max(10px,env(safe-area-inset-right)))]"
+                  className="comment-here absolute top-2.5 right-14 z-1 h-[38px] px-3.5 rounded-full bg-black/55 text-white text-sm cursor-pointer opacity-0 transition-[opacity,background] duration-150 flex items-center gap-2 [&_svg]:size-[18px] [&_svg]:fill-none [&_svg]:stroke-white [&_svg]:[stroke-width:2] [&_svg]:[stroke-linejoin:round] group-hover/screen:opacity-100 focus-visible:opacity-100 hover:bg-black/80 no-hover:opacity-100 phone:right-[60px] phone:h-[42px] phone:rounded-full phone:group-[.full]/screen:top-[max(10px,env(safe-area-inset-top))] phone:group-[.full]/screen:right-[calc(50px+max(10px,env(safe-area-inset-right)))]"
                   title={t.demo.commentHint}
                   onClick={() => {
                     video.current?.pause();
@@ -2298,20 +2298,20 @@ function DemoView({
               )}
               {fullscreen.can && (
                 <Tooltip content={fullscreen.full ? t.demo.fullscreenOff : t.demo.fullscreen}>
-                  <button className="fullscreen grid absolute top-2.5 right-2.5 z-1 size-[42px] border-0 rounded-full bg-black/55 place-items-center [&_svg]:size-[22px] [&_svg]:fill-none [&_svg]:stroke-white [&_svg]:[stroke-width:2.2] [&_svg]:[stroke-linecap:round] [&_svg]:[stroke-linejoin:round] phone:group-[.full]/screen:top-[max(10px,env(safe-area-inset-top))] phone:group-[.full]/screen:right-[max(10px,env(safe-area-inset-right))]" aria-label={fullscreen.full ? t.demo.fullscreenOff : t.demo.fullscreen} onClick={fullscreen.toggle}>
+                  <button className="fullscreen grid absolute top-2.5 right-2.5 z-1 size-[42px] rounded-full bg-black/55 place-items-center [&_svg]:size-[22px] [&_svg]:fill-none [&_svg]:stroke-white [&_svg]:[stroke-width:2.2] [&_svg]:[stroke-linecap:round] [&_svg]:[stroke-linejoin:round] phone:group-[.full]/screen:top-[max(10px,env(safe-area-inset-top))] phone:group-[.full]/screen:right-[max(10px,env(safe-area-inset-right))]" aria-label={fullscreen.full ? t.demo.fullscreenOff : t.demo.fullscreen} onClick={fullscreen.toggle}>
                     {fullscreen.full ? <Minimize strokeWidth={2} /> : <Maximize strokeWidth={2} />}
                   </button>
                 </Tooltip>
               )}
               <Tooltip content={zoom.keyKnown ? (zoom.box ? t.demo.unzoom : t.demo.zoom) : undefined}>
                 <button
-                  className="zoom group/zoom absolute top-2.5 right-2.5 z-1 size-[38px] border-0 rounded-full bg-black/55 cursor-pointer grid place-items-center opacity-0 transition-[opacity,background] duration-150 group-hover/screen:opacity-100 focus-visible:opacity-100 hover:bg-black/80 [&>svg]:size-5 [&>svg]:fill-none [&>svg]:stroke-white [&>svg]:[stroke-width:2.2] [&>svg]:[stroke-linecap:round] phone:hidden"
+                  className="zoom group/zoom absolute top-2.5 right-2.5 z-1 size-[38px] rounded-full bg-black/55 cursor-pointer grid place-items-center opacity-0 transition-[opacity,background] duration-150 group-hover/screen:opacity-100 focus-visible:opacity-100 hover:bg-black/80 [&>svg]:size-5 [&>svg]:fill-none [&>svg]:stroke-white [&>svg]:[stroke-width:2.2] [&>svg]:[stroke-linecap:round] phone:hidden"
                   aria-label={zoom.box ? t.demo.unzoom : t.demo.zoom}
                   onClick={zoom.toggle}
                 >
                   {/* the key beside the magnifier until the owner first zoomed with it */}
                   {!zoom.keyKnown && (
-                    <span className="zoom-hint absolute right-0 top-[calc(100%+6px)] whitespace-nowrap py-[5px] px-[9px] rounded-[3px] bg-black/75 text-white text-[13px] opacity-0 pointer-events-none transition-opacity duration-150 group-hover/zoom:opacity-100 group-focus-visible/zoom:opacity-100 [&_kbd]:[font-family:inherit] [&_kbd]:[font-size:inherit] [&_kbd]:font-semibold [&_kbd]:px-1.5 [&_kbd]:rounded-[2px] [&_kbd]:bg-white/20 [&_kbd]:border [&_kbd]:border-white/35 [&_kbd]:ml-[3px]">
+                    <span className="zoom-hint absolute right-0 top-[calc(100%+6px)] whitespace-nowrap py-1 px-2 rounded-xs bg-black/75 text-white text-sm opacity-0 pointer-events-none transition-opacity duration-150 group-hover/zoom:opacity-100 group-focus-visible/zoom:opacity-100 [&_kbd]:[font-family:inherit] [&_kbd]:[font-size:inherit] [&_kbd]:font-semibold [&_kbd]:px-1.5 [&_kbd]:rounded-xs [&_kbd]:bg-white/20 [&_kbd]:border [&_kbd]:border-white/35 [&_kbd]:ml-1">
                       {zoom.box ? t.demo.unzoomHint : t.demo.zoomHint} <kbd>Z</kbd>
                     </span>
                   )}
@@ -2322,7 +2322,7 @@ function DemoView({
           </div>
         )}
         {demo.chapters.length > 0 && (
-          <ol className="chapters list-none mt-2 mb-0 p-1.5 bg-muted rounded-[3px] [&_button]:cursor-pointer [&_button]:flex [&_button]:gap-2.5 [&_button]:w-full [&_button]:py-1.5 [&_button]:px-2 [&_button]:rounded-[2px] [&_button]:text-[13px] [&_button]:box-border [&_button]:border-0 [&_button]:bg-transparent [&_button]:text-left [&_button]:text-[13px] [&_button]:text-foreground [&_button]:tracking-[inherit] [&_button:hover]:bg-card [&_button.on]:bg-card [&_.t]:text-muted-foreground [&_.t]:tabular-nums [&_.t]:min-w-8">
+          <ol className="chapters list-none mt-2 mb-0 p-1.5 bg-muted rounded-xs [&_button]:cursor-pointer [&_button]:flex [&_button]:gap-2.5 [&_button]:w-full [&_button]:py-1.5 [&_button]:px-2 [&_button]:rounded-xs [&_button]:text-sm [&_button]:box-border [&_button]:border-0 [&_button]:bg-transparent [&_button]:text-left [&_button]:text-sm [&_button]:text-foreground [&_button]:tracking-[inherit] [&_button:hover]:bg-card [&_button.on]:bg-card [&_.t]:text-muted-foreground [&_.t]:tabular-nums [&_.t]:min-w-8">
             {demo.chapters.map(([at, title], i) => (
               <li key={i}>
                 <button
@@ -3104,13 +3104,13 @@ function DecidedChip({ item, decided }: { item: Item; decided: Record<string, Fi
     <div className={`${quoteClass} decided`}>
       <div className={decidedLines}>
         {named.map(([id, route]) => (
-          <span key={id} className="quote-text text-[12.5px] leading-[1.4] text-foreground [overflow-wrap:anywhere] line-clamp-3 [[data-slot=prompt-input-body]_&]:line-clamp-2">
+          <span key={id} className="quote-text text-sm leading-[1.4] text-foreground [overflow-wrap:anywhere] line-clamp-3 [[data-slot=prompt-input-body]_&]:line-clamp-2">
             {t.review.decidedLine(Number(id), route === 'self' ? (code ? t.codeReview.fix : t.review.self) : route === 'later' ? t.review.later : route === 'ignore' ? t.review.ignore : t.review.toContributor)}
           </span>
         ))}
         {later.length > 1 && <span className={decidedTasks}>{t.review.tasks(tasks)}</span>}
       </div>
-      <CloseButton label={t.review.undecide} size="small" className="quote-clear mt-[3px] mr-[3px]" onMouseDown={(m) => m.preventDefault()} onClick={() => updateDraft(cardDraft(item.id), { findings: undefined })} />
+      <CloseButton label={t.review.undecide} size="small" className="quote-clear mt-1 mr-1" onMouseDown={(m) => m.preventDefault()} onClick={() => updateDraft(cardDraft(item.id), { findings: undefined })} />
     </div>
   );
 }
@@ -3131,18 +3131,18 @@ function PrBox({ pr, held, author, card, save }: { pr: PullRequest; held?: HeldC
         </a>
       </h4>
       {held && (
-        <div className="pr-held mt-2.5 mb-2 [&_h5]:mt-0 [&_h5]:mb-1 [&_h5]:text-[11px] [&_h5]:tracking-[.08em] [&_h5]:uppercase [&_h5]:text-muted-foreground">
+        <div className="pr-held mt-2.5 mb-2 [&_h5]:mt-0 [&_h5]:mb-1 [&_h5]:text-2xs [&_h5]:tracking-[.08em] [&_h5]:uppercase [&_h5]:text-muted-foreground">
           <h5>
             {t.review.heldHead(pr.number)} · {t.review.heldCommits(held.commits)}
           </h5>
           {card && save ? (
             <HeldText card={card} body={held.body} save={save} />
           ) : (
-            <div className="pr-held-text py-1.5 px-2.5 rounded-md bg-card border border-in-pr/25 text-[13px] [&_.p-lead]:my-1">
+            <div className="pr-held-text py-1.5 px-2.5 rounded-md bg-card border border-in-pr/25 text-sm [&_.p-lead]:my-1">
               <Body md={held.body} />
             </div>
           )}
-          {held.asks.length > 0 && author && <div className="pr-held-asks mt-1.5 text-[13px] text-waiting-strong">{t.review.heldAsks(held.asks, author)}</div>}
+          {held.asks.length > 0 && author && <div className="pr-held-asks mt-1.5 text-sm text-waiting-strong">{t.review.heldAsks(held.asks, author)}</div>}
         </div>
       )}
       {pr.merged && <div className="q-text">{t.pr.merged}</div>}
@@ -3151,7 +3151,7 @@ function PrBox({ pr, held, author, card, save }: { pr: PullRequest; held?: HeldC
       {waits.length > 0 && <div className="q-text">{t.pr.waits(waits)}</div>}
       {pr.ready && <div className="q-text">{pr.held ? t.pr.held(pr.held.score, pr.held.by) : pr.manual ? t.pr.manual : t.pr.ready(pr.mergeError ?? '')}</div>}
       {pr.checks.length > 0 ? (
-        <ul className="checks list-none p-0 mt-1.5 mb-0 flex flex-wrap gap-x-3.5 gap-y-1.5 text-[13px] [&_li]:before:mr-[5px] [&_li]:before:font-bold [&_li.success]:before:content-['✓'] [&_li.success]:before:text-approved [&_li.failure]:before:content-['✗'] [&_li.failure]:before:text-destructive [&_li.pending]:before:content-['○'] [&_li.pending]:before:text-muted-foreground [&_a]:text-inherit">
+        <ul className="checks list-none p-0 mt-1.5 mb-0 flex flex-wrap gap-x-3.5 gap-y-1.5 text-sm [&_li]:before:mr-1 [&_li]:before:font-bold [&_li.success]:before:content-['✓'] [&_li.success]:before:text-approved [&_li.failure]:before:content-['✗'] [&_li.failure]:before:text-destructive [&_li.pending]:before:content-['○'] [&_li.pending]:before:text-muted-foreground [&_a]:text-inherit">
           {pr.checks.map((c) => (
             <li key={c.name} className={c.state}>
               {c.url ? (
@@ -3224,7 +3224,7 @@ function HeldText({ card, body, save }: { card: string; body: string; save: (bod
   };
   if (!editing)
     return (
-      <div className="pr-held-text py-1.5 px-2.5 rounded-md bg-card border border-in-pr/25 text-[13px] [&_.p-lead]:my-1">
+      <div className="pr-held-text py-1.5 px-2.5 rounded-md bg-card border border-in-pr/25 text-sm [&_.p-lead]:my-1">
         <button
           className="pr-held-edit float-right -mr-1 mb-1 ml-2.5 mt-0 py-0.5 px-2 border border-border rounded-lg bg-surface text-muted-foreground text-xs cursor-pointer hover:text-foreground hover:border-in-pr/50"
           title={t.review.heldEditHint}
@@ -3237,7 +3237,7 @@ function HeldText({ card, body, save }: { card: string; body: string; save: (bod
     );
   return (
     <div className="pr-held-editing">
-      <Textarea ref={ref} className="pr-held-field block w-full box-border min-h-[6em] border-in-pr/50 text-[14.5px] leading-[1.45] resize-none" value={text} maxLength={20000} onChange={(e) => updateDraft(key, { text: e.target.value })} />
+      <Textarea ref={ref} className="pr-held-field block w-full box-border min-h-[6em] border-in-pr/50 text-base leading-[1.45] resize-none" value={text} maxLength={20000} onChange={(e) => updateDraft(key, { text: e.target.value })} />
       <div className="pr-held-acts flex flex-wrap items-center gap-2 mt-1.5">
         <Button variant="primary" size="small" disabled={saving || !text.trim()} onClick={() => void submit()}>
           {t.review.heldSave}
@@ -3245,7 +3245,7 @@ function HeldText({ card, body, save }: { card: string; body: string; save: (bod
         <Button size="small" disabled={saving} onClick={close}>
           {t.review.heldCancel}
         </Button>
-        {error && <span className="text-destructive text-[13.5px]">{error}</span>}
+        {error && <span className="text-destructive text-sm">{error}</span>}
       </div>
     </div>
   );
@@ -3261,11 +3261,11 @@ function sharesLater(item: Item, demo: Demo, onApproval: boolean): boolean {
 
 /** Sharing's box beside the demo: the button and what is under way on the right, the link taking the line once there is one. */
 const shareClass = (wide: boolean) =>
-  cn('share flex flex-col items-end gap-2 text-[13px] [&_.hint]:m-0', wide ? 'wide flex-[1_1_100%] items-stretch' : '[&>.hint]:text-right');
+  cn('share flex flex-col items-end gap-2 text-sm [&_.hint]:m-0', wide ? 'wide flex-[1_1_100%] items-stretch' : '[&>.hint]:text-right');
 /** A line in it: buttons on the right, a hint taking what they leave. */
 const shareRow = 'share-row flex gap-2 items-center justify-end flex-wrap [&>.hint]:flex-[1_1_240px] [&>.page-changes]:basis-full';
-const shareLabel = 'share-label text-[11px] uppercase tracking-[.08em] text-approved font-semibold';
-const shareGo = 'share-go inline-flex items-center gap-[7px] [&_svg]:size-4 [&_svg]:fill-none [&_svg]:stroke-current [&_svg]:[stroke-width:2] [&_svg]:[stroke-linecap:round] [&_svg]:[stroke-linejoin:round]';
+const shareLabel = 'share-label text-2xs uppercase tracking-[.08em] text-approved font-semibold';
+const shareGo = 'share-go inline-flex items-center gap-2 [&_svg]:size-4 [&_svg]:fill-none [&_svg]:stroke-current [&_svg]:[stroke-width:2] [&_svg]:[stroke-linecap:round] [&_svg]:[stroke-linejoin:round]';
 
 /** "Share on approval", under the row of buttons that approves. */
 function ShareOnApproval({ item, act }: { item: Item; act: (a: CardAction, done: ActDone) => Promise<void> }) {
@@ -3599,7 +3599,7 @@ function ManualFields({ item, repos, choice, fresh, onEdit, grow }: { item: Item
     <>
       {!item.idea?.newRepo?.due && <RepoPick choice={choice} repos={repos} fresh={!!fresh} />}
       {/* the task's screenshots: the worker gets them with the task when it starts */}
-      <div className={cn('p-body-field max-w-[76ch] [.split-main_&]:max-w-none [&_.c-shots]:mt-4 [&_.card-refs-hint]:absolute [&_.card-refs-hint]:top-full [&_.card-refs-hint]:left-0 [&_.card-refs-hint]:mt-1.5 [&_.card-refs-hint]:mx-0 [&_.card-refs-hint]:mb-0 max-[760px]:has-[.card-refs-hint]:pb-[30px]', shots.dropping && 'dropping')} {...shots.drop}>
+      <div className={cn('p-body-field max-w-[76ch] [.split-main_&]:max-w-none [&_.c-shots]:mt-4 [&_.card-refs-hint]:absolute [&_.card-refs-hint]:top-full [&_.card-refs-hint]:left-0 [&_.card-refs-hint]:mt-1.5 [&_.card-refs-hint]:mx-0 [&_.card-refs-hint]:mb-0 max-[760px]:has-[.card-refs-hint]:pb-8', shots.dropping && 'dropping')} {...shots.drop}>
         <ShotStrip shots={shots} />
         {/* a proposal's text shows in full as far as the screen allows, the panel growing with it */}
         <div className={cn('c-field relative', grow && 'expand')}>
@@ -3617,7 +3617,7 @@ function ManualFields({ item, repos, choice, fresh, onEdit, grow }: { item: Item
           />
           <AttachButton shots={shots} />
         </div>
-        {shots.error && <p className="c-error text-destructive mt-1.5 mb-0 text-[13.5px]">{shots.error}</p>}
+        {shots.error && <p className="c-error text-destructive mt-1.5 mb-0 text-sm">{shots.error}</p>}
       </div>
     </>
   );
@@ -3681,7 +3681,7 @@ function Split({ main, talk, className, cite }: { main: ReactNode; talk: ReactNo
   const closed = foldable && folded;
   const toggle = (
     <Tooltip content={closed ? t.talk.show : t.talk.hide}>
-      <button type="button" className="split-fold self-end inline-flex items-center justify-center size-[26px] p-0 mb-1.5 border-0 bg-transparent text-muted-foreground rounded-[4px] cursor-pointer hover:bg-[color:--alpha(currentColor/12%)] [.folded>&]:absolute [.folded>&]:top-0 [.folded>&]:right-0 [.folded>&]:m-0 [.folded>&]:z-1 max-[760px]:hidden" aria-label={closed ? t.talk.show : t.talk.hide} aria-expanded={!closed} onClick={() => fold(!closed)}>
+      <button type="button" className="split-fold self-end inline-flex items-center justify-center size-[26px] p-0 mb-1.5 bg-transparent text-muted-foreground rounded-sm cursor-pointer hover:bg-[color:--alpha(currentColor/12%)] [.folded>&]:absolute [.folded>&]:top-0 [.folded>&]:right-0 [.folded>&]:m-0 [.folded>&]:z-1 max-[760px]:hidden" aria-label={closed ? t.talk.show : t.talk.hide} aria-expanded={!closed} onClick={() => fold(!closed)}>
         {closed ? <PanelRightOpen size={16} /> : <PanelRightClose size={16} />}
       </button>
     </Tooltip>
@@ -3694,7 +3694,7 @@ function Split({ main, talk, className, cite }: { main: ReactNode; talk: ReactNo
         panel (`TalkElsewhere`): what the card is about is the page, which alone scrolls */}
     <div
       className={cn(
-        'split relative grid grid-cols-[minmax(0,1fr)_clamp(400px,36%,560px)] grid-rows-[minmax(0,1fr)] gap-6 mt-4 max-h-[min(600px,calc(100vh-370px))] max-[760px]:grid-cols-1 max-[760px]:grid-rows-none max-[760px]:max-h-none phone:grid-cols-[minmax(0,1fr)] phone:grid-rows-none phone:max-h-none phone:gap-[18px] phone:empty:hidden',
+        'split relative grid grid-cols-[minmax(0,1fr)_clamp(400px,36%,560px)] grid-rows-[minmax(0,1fr)] gap-6 mt-4 max-h-[min(600px,calc(100vh-370px))] max-[760px]:grid-cols-1 max-[760px]:grid-rows-none max-[760px]:max-h-none phone:grid-cols-[minmax(0,1fr)] phone:grid-rows-none phone:max-h-none phone:gap-4 phone:empty:hidden',
         className,
         (!main || closed) && 'grid-cols-[minmax(0,1fr)]',
         !main && 'alone',
@@ -3866,12 +3866,12 @@ function PlaceChip({ cardId, place }: { cardId: string; place: Place }) {
   }, [place.at]);
   return (
     <div className={`${quoteClass} place`} title={t.demo.place}>
-      <canvas ref={frame} className="place-frame flex-none w-12 rounded-[2px] bg-slate-800 block" />
-      <span className="place-text flex-1 min-w-0 text-[13px] text-muted-foreground [&_b]:text-foreground">
+      <canvas ref={frame} className="place-frame flex-none w-12 rounded-xs bg-slate-800 block" />
+      <span className="place-text flex-1 min-w-0 text-sm text-muted-foreground [&_b]:text-foreground">
         <b>{mmss(place.at)}</b>
         {place.chapter && ` · ${place.chapter}`}
       </span>
-      <CloseButton label={t.demo.unplace} size="small" className="quote-clear mt-[3px] mr-[3px]" onMouseDown={(m) => m.preventDefault()} onClick={dismissPlace} />
+      <CloseButton label={t.demo.unplace} size="small" className="quote-clear mt-1 mr-1" onMouseDown={(m) => m.preventDefault()} onClick={dismissPlace} />
     </div>
   );
 }
@@ -3879,7 +3879,7 @@ function PlaceChip({ cardId, place }: { cardId: string; place: Place }) {
 /** Above the owner's words in the conversation: the place in the demo video they are about; a click plays the video from there. */
 function SpotLink({ cardId, spot }: { cardId: string; spot: Spot }) {
   return (
-    <button className="spot flex items-center gap-2 mt-[5px] mb-1 p-0 border-0 bg-transparent text-[13px] text-working cursor-pointer text-left [&_img]:w-16 [&_img]:rounded-[2px] [&_img]:block hover:[&_span]:underline" title={t.demo.toPlace} onClick={() => seekTo(cardId, spot.at, spot.demo)}>
+    <button className="spot flex items-center gap-2 mt-1 mb-1 p-0 bg-transparent text-sm text-working cursor-pointer text-left [&_img]:w-16 [&_img]:rounded-xs [&_img]:block hover:[&_span]:underline" title={t.demo.toPlace} onClick={() => seekTo(cardId, spot.at, spot.demo)}>
       {spot.still && <img src={imageUrl(spot.still)} alt="" loading="lazy" />}
       <span className="inline-flex items-center gap-1">
         <Play size={11} aria-hidden className="fill-current" />
@@ -3966,7 +3966,7 @@ function Questions(p: { questions: Question[]; picks: string[][]; others: string
               <OtherChoice alone on text={p.others[i] ?? ''} onToggle={() => {}} onWrite={(text) => p.choose(i, OTHER, text)} />
             </div>
           )}
-          {q.pick?.why && <div className="pick-why mt-1.5 text-[12.5px] text-muted-foreground">{t.ask.pickWhy(q.pick.why)}</div>}
+          {q.pick?.why && <div className="pick-why mt-1.5 text-sm text-muted-foreground">{t.ask.pickWhy(q.pick.why)}</div>}
         </div>
       ))}
       {p.submit && (
@@ -4121,17 +4121,17 @@ const who = (c: { author: string; mine?: boolean }) => (c.mine ? t.pr.agent : c.
  */
 const prFirst = 'pr-first flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap';
 const prMeta = 'pr-meta flex-none text-muted-foreground text-xs';
-const prBody = 'pr-body mt-0.5 mb-2 ml-[18px] py-1.5 px-2.5 bg-card rounded-[2px] border border-border [&_:is(.p-lead,.p-list)]:text-[13px] [&_:is(.p-lead,.p-list)]:my-1 [&_a]:text-inherit [&_a]:text-xs';
+const prBody = 'pr-body mt-0.5 mb-2 ml-4 py-1.5 px-2.5 bg-card rounded-xs border border-border [&_:is(.p-lead,.p-list)]:text-sm [&_:is(.p-lead,.p-list)]:my-1 [&_a]:text-inherit [&_a]:text-xs';
 
 function PrReview({ entries }: { entries: PrReviewEntry[] }) {
   let round = 0;
   return (
-    <div className="pr-review mt-3 border-t border-in-pr/30 pt-2 text-[13px] [&_h5]:mt-0 [&_h5]:mb-1.5 [&_h5]:text-[11px] [&_h5]:tracking-[.08em] [&_h5]:uppercase [&_h5]:text-muted-foreground">
+    <div className="pr-review mt-3 border-t border-in-pr/30 pt-2 text-sm [&_h5]:mt-0 [&_h5]:mb-1.5 [&_h5]:text-2xs [&_h5]:tracking-[.08em] [&_h5]:uppercase [&_h5]:text-muted-foreground">
       <h5>{t.pr.review}</h5>
       {entries.map((e, i) =>
         'threads' in e ? (
           <div key={i} className="pr-round my-2">
-            <div className="pr-head text-muted-foreground mb-[3px] [&_b]:text-foreground [&_b]:font-semibold">
+            <div className="pr-head text-muted-foreground mb-1 [&_b]:text-foreground [&_b]:font-semibold">
               <b>{t.pr.round(++round, who(e))}</b> · {time(e.at)} · {t.pr.threads(e.threads.length, e.threads.filter((th) => !th.resolved).length)}
             </div>
             {e.threads.map((th, j) => (
@@ -4144,7 +4144,7 @@ function PrReview({ entries }: { entries: PrReviewEntry[] }) {
                 </CollapsibleTrigger>
                 <CollapsibleContent className={prBody}>
                   {th.path && (
-                    <div className="pr-where [font:11.5px/1.5_var(--mono)] text-muted-foreground">
+                    <div className="pr-where font-mono text-xs/[1.5] text-muted-foreground">
                       {th.url ? (
                         <a href={th.url} target="_blank" rel="noreferrer">
                           {th.path}

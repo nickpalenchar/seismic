@@ -233,7 +233,7 @@ export function WishDialog() {
       <DialogContent
         id="wish"
         glass
-        className="flex w-[760px] flex-col gap-3 overflow-auto px-[26px] py-[22px]"
+        className="flex w-[760px] flex-col gap-3 overflow-auto px-6 py-6"
         onOpenAutoFocus={(e) => {
           // the words go into the composer, not onto the close button that comes first
           const field = (e.currentTarget as HTMLElement).querySelector<HTMLElement>('textarea, [contenteditable]');
@@ -244,12 +244,12 @@ export function WishDialog() {
       >
         <CloseButton label={t.close} className="close absolute top-3 right-3.5" onClick={closeWish} />
         <DialogTitle asChild>
-          <h2 className="m-0 mb-0.5 text-[21px]">{t.wish.title}</h2>
+          <h2 className="m-0 mb-0.5 text-xl">{t.wish.title}</h2>
         </DialogTitle>
         {w.sent ? (
           <div className="flex flex-col items-start gap-1.5">
             {w.sent.map((line) => (
-              <p key={line} className="m-0 text-[15px] leading-[1.45]">
+              <p key={line} className="m-0 text-base leading-[1.45]">
                 {line}
               </p>
             ))}
@@ -260,7 +260,7 @@ export function WishDialog() {
         ) : (
           <>
             {w.pending && (
-              <div className="mx-0 mt-2.5 mb-3.5 flex flex-col items-start gap-2 rounded-[3px] bg-muted px-3 py-2.5 text-[14px] [--button-bg:var(--surface)]">
+              <div className="mx-0 mt-2.5 mb-3.5 flex flex-col items-start gap-2 rounded-xs bg-muted px-3 py-2.5 text-base [--button-bg:var(--surface)]">
                 <p className="m-0 leading-[1.45]">{t.wish.pending}</p>
                 <blockquote className="m-0 border-l-2 border-l-muted-foreground pl-2.5 leading-[1.45]">{short(w.pending.said)}</blockquote>
                 <p className="m-0 leading-[1.45]">{t.wish.pendingThen}</p>
@@ -270,7 +270,7 @@ export function WishDialog() {
               </div>
             )}
             {issue && <IssueFields issue={issue} disabled={w.writing} />}
-            {w.writing && <p className="hint m-0 !text-[14px]">{t.wish.writing}</p>}
+            {w.writing && <p className="hint m-0 !text-base">{t.wish.writing}</p>}
             {w.error && <p className="p-error">{w.error}</p>}
             <Composer
               className="mt-0 max-w-none"
@@ -281,13 +281,13 @@ export function WishDialog() {
             />
             {issue && (
               <>
-                <p className="m-0 text-[12px] text-muted-foreground">
+                <p className="m-0 text-xs text-muted-foreground">
                   {t.wish.public}
                   {issue.images.length > 0 && ` ${t.wish.shots(issue.images.length)}`}
                   {issueUrl(issue.title, issue.body, t.wish.cut).trimmed && ` ${t.wish.long(issue.images.length > 0)}`}
                 </p>
                 <div className="flex items-center justify-between gap-3">
-                  <button className="cursor-pointer border-0 border-b border-b-border bg-transparent p-0 text-[12px] text-muted-foreground hover:text-foreground" onClick={discard}>
+                  <button className="cursor-pointer border-b border-b-border bg-transparent p-0 text-xs text-muted-foreground hover:text-foreground" onClick={discard}>
                     {t.wish.discard}
                   </button>
                   <Button variant="primary" disabled={w.writing || !issue.title.trim() || !issue.body.trim()} onClick={() => void send(issue)}>
@@ -338,10 +338,10 @@ function IssueFields({ issue, disabled }: { issue: Issue; disabled: boolean }) {
 }
 
 /** A label over one of the draft's fields. */
-const issueLabel = 'flex flex-col gap-1 text-[12px] text-muted-foreground';
+const issueLabel = 'flex flex-col gap-1 text-xs text-muted-foreground';
 
 /** The quiet link to the draft, its words underlined faintly until hovered. */
-const wishLinkClass = 'group/wish inline-flex cursor-pointer items-baseline gap-1.5 border-0 bg-transparent p-0 text-left text-[12px] text-muted-foreground hover:text-foreground';
+const wishLinkClass = 'group/wish inline-flex cursor-pointer items-baseline gap-1.5 bg-transparent p-0 text-left text-xs text-muted-foreground hover:text-foreground';
 const wishTextClass = 'border-b border-b-border group-hover/wish:border-muted-foreground';
 
 /** The quiet link that opens the dialog: under "Check setup" in the Konfiguration dialog, and in the legend (`onOpen` closes either). */

@@ -34,7 +34,7 @@ export function NeedsYouSheet({ on, entries, current, open, onGo, onReply, isRea
     <Fragment key={e.key}>{renderEntry(e, { unread: !isRead(e), here: e.project === current && e.card.id === open, current, subtle: false, onGo, onReply, onRead })}</Fragment>
   );
   return (
-    <Docked id="needs-you" className="pt-5 px-3.5 pb-[30px]" on={on} label={t.needsYou.title}>
+    <Docked id="needs-you" className="pt-5 px-3.5 pb-8" on={on} label={t.needsYou.title}>
       <h2 className={`${sheetTitleClass} px-2`}>{t.needsYou.title}</h2>
       <div className={cn(inboxBarClass, 'justify-end')}>
         <CheckLabel>
@@ -52,7 +52,7 @@ export function NeedsYouSheet({ on, entries, current, open, onGo, onReply, isRea
               <button
                 type="button"
                 className={cn(
-                  'ny-head flex items-center gap-2 w-full p-2 [border:0] rounded-[6px] bg-transparent text-[14px] font-semibold text-foreground cursor-pointer text-left hover:bg-muted [&>svg]:flex-none [&>svg]:text-muted-foreground [&>svg]:[transition:transform_.15s]',
+                  'ny-head flex items-center gap-2 w-full p-2 [border:0] rounded-sm bg-transparent text-base font-semibold text-foreground cursor-pointer text-left hover:bg-muted [&>svg]:flex-none [&>svg]:text-muted-foreground [&>svg]:[transition:transform_.15s]',
                   open && 'open [&>svg]:[transform:rotate(90deg)]',
                 )}
                 aria-expanded={open}

@@ -48,7 +48,7 @@ export function PromptInputTextarea({ className, ref, ...props }: ComponentProps
       data-slot="prompt-input-textarea"
       ref={ref}
       rows={1}
-      className={cn('min-h-0 max-h-[30vh] min-w-0 w-full box-border resize-none border-0 bg-transparent px-1 py-1.5 text-base leading-[1.45] text-foreground outline-none placeholder:text-muted-foreground/80', className)}
+      className={cn('min-h-0 max-h-[30vh] min-w-0 w-full box-border resize-none bg-transparent px-1 py-1.5 text-base leading-[1.45] text-foreground outline-none placeholder:text-muted-foreground/80', className)}
       {...props}
     />
   );

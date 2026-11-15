@@ -90,11 +90,11 @@ export function ActivityTab({ project, changed, open, onGo, allProjects }: { pro
             return (
               // the card's compact face under the line, fitted into the row (`actCard`)
               <li key={e.id} className="activity-row">
-                {heading && <h3 className="activity-day mt-2 mx-0.5 mb-0 text-[11px] font-semibold tracking-[.04em] uppercase text-muted-foreground">{heading}</h3>}
-                <div className="activity-what flex items-center gap-2 mt-0 mx-0.5 mb-1.5 text-[12px] text-muted-foreground">
+                {heading && <h3 className="activity-day mt-2 mx-0.5 mb-0 text-2xs font-semibold tracking-[.04em] uppercase text-muted-foreground">{heading}</h3>}
+                <div className="activity-what flex items-center gap-2 mt-0 mx-0.5 mb-1.5 text-xs text-muted-foreground">
                   <span className="activity-text min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{t.agents.activity.line(e)}</span>
                   {all && (
-                    <span className="activity-where flex-none inline-flex items-center gap-[3px] max-w-[40%] overflow-hidden text-ellipsis whitespace-nowrap">
+                    <span className="activity-where flex-none inline-flex items-center gap-1 max-w-[40%] overflow-hidden text-ellipsis whitespace-nowrap">
                       <GitBranch size={11} aria-hidden />
                       {e.projectName}
                     </span>

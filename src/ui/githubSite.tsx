@@ -142,7 +142,7 @@ export function GithubSetup({ running, onAdd, cancel }: { running: boolean; onAd
           {view && (
             <>
               {view.address ? (
-                <p className="m-0 text-[13.5px]">
+                <p className="m-0 text-sm">
                   {g.address}{' '}
                   <a className={linkClass} href={`${view.address}/`} target="_blank" rel="noreferrer">
                     {view.address.replace(/^https?:\/\//, '')}/
@@ -185,7 +185,7 @@ export function GithubSetup({ running, onAdd, cancel }: { running: boolean; onAd
             {info === 'loading' && <p>{g.checking}</p>}
             {typeof info === 'string' && info !== 'loading' && <p className="p-error">{info}</p>}
             <p>{g.confirmText(existing, typed)}</p>
-            {view && !view.push.allowed && <PushCallout repo={existing} branch={view.branch} check={view.push} className="mb-[22px]" />}
+            {view && !view.push.allowed && <PushCallout repo={existing} branch={view.branch} check={view.push} className="mb-6" />}
           </ConfirmDialog>
         </div>
       )}
@@ -298,7 +298,7 @@ export function PublishMode({ url, repo, git, onChanged, title = true }: { url: 
   };
   return (
     <div className="publish-mode grid gap-1.5 my-1.5">
-      {title && <span className="text-[13.5px] font-semibold">{g.modeTitle}</span>}
+      {title && <span className="text-sm font-semibold">{g.modeTitle}</span>}
       <RadioGroup label={g.modeTitle} value={git.mode} onValueChange={(m) => void choose(m)} className="grid gap-1">
         <RadioOption value="direct" disabled={!view || blocked}>
           {g.direct(branch)}

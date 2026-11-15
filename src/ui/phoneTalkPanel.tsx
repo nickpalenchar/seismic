@@ -10,7 +10,7 @@ import { scrollBehavior } from './motion';
 /** The word a bar leads with, in frost's own font. */
 const wordClass = 'ph-word font-semibold leading-none [font-family:var(--font)]';
 /** A panel's title in its grip, cut short; a card's (its title) smaller than Seismic's. */
-export const gripWordClass = `${wordClass} text-[21px] overflow-hidden text-ellipsis whitespace-nowrap min-w-0 [.ph-panel:has(#ph-card-talk)_&]:text-[18px]`;
+export const gripWordClass = `${wordClass} text-xl overflow-hidden text-ellipsis whitespace-nowrap min-w-0 [.ph-panel:has(#ph-card-talk)_&]:text-lg`;
 
 /**
  * Seismic's conversation in its panel: only the conversation scrolls, the field stands under it at
@@ -37,7 +37,7 @@ const panelClass = `${viewClass} ph-panel inset-x-0 top-[calc(100%*(1-var(--ph-h
  * bottom. Its handle's colour comes through `--grip`: Tailwind's fallback for a color-mix on a
  * pseudo-element nests it where it never applies.
  */
-const gripClass = `${barClass} ph-grip pt-3.5 pb-1.5 ph-landscape:pt-2.5 ph-landscape:pb-[3px] touch-none select-none cursor-ns-resize before:content-[''] before:absolute before:left-1/2 before:top-[5px] before:w-10 before:h-1 before:-ml-5 before:rounded-[2px] [--grip:--alpha(var(--foreground)/22%)] before:bg-(--grip)`;
+const gripClass = `${barClass} ph-grip pt-3.5 pb-1.5 ph-landscape:pt-2.5 ph-landscape:pb-1 touch-none select-none cursor-ns-resize before:content-[''] before:absolute before:left-1/2 before:top-[5px] before:w-10 before:h-1 before:-ml-5 before:rounded-xs [--grip:--alpha(var(--foreground)/22%)] before:bg-(--grip)`;
 
 /** Opens beside a demo or a working card and brings its video above the panel.
  * The view supplies its card page, so it needs no video selector or scroll fix of its own.
@@ -249,7 +249,7 @@ export function TalkPanel({
       aria-label={label}
     >
       {page ? (
-        <header className={cn(barClass, 'ph-grip py-1.5 ph-landscape:py-[3px]')}>{head ?? <span className={gripWordClass}>{title}</span>}</header>
+        <header className={cn(barClass, 'ph-grip py-1.5 ph-landscape:py-1')}>{head ?? <span className={gripWordClass}>{title}</span>}</header>
       ) : (
         <header className={gripClass} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
           {head ?? <span className={gripWordClass}>{title}</span>}

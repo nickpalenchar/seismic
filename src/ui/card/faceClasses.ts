@@ -258,8 +258,8 @@ const borders = (f: CardFlags, o: CardLookOptions): Rule<string>[] => [
 ];
 
 const paddings = (f: CardFlags, o: CardLookOptions): Rule<string>[] => [
-  [1, true, 'pt-[13px] px-[14px] pb-[12px]'],
-  [1, o.place === 'phone', 'pt-[14px] px-[14px] pb-[12px]'],
+  [1, true, 'pt-3 px-3.5 pb-3'],
+  [1, o.place === 'phone', 'pt-3.5 px-3.5 pb-3'],
   [2, f.mergedPair, 'p-0'],
   [2, o.place === 'activity', 'py-2 px-2.5'],
 ];
@@ -279,7 +279,7 @@ const tabs = (f: CardFlags): Rule<string>[] => [
 
 // what every card is: a pane of glass with soft corners, the state a glowing tab at its top edge (`--c`)
 const CARD =
-  "group/card rounded-[14px] overflow-visible cursor-pointer select-none [font-family:var(--font)] [box-shadow:var(--sh)] hover:[box-shadow:var(--sh-hover)] far:[box-shadow:var(--sh-far)] far:hover:[box-shadow:var(--sh-far-hover)] reduced:hover:[transform:none] before:content-[''] before:absolute before:left-[14px] before:top-[-1px] before:h-[3px] before:pointer-events-none before:rounded-b-[3px] before:[box-shadow:0_0_10px_var(--c)] far:before:h-2 has-[>.state.subtle]:before:hidden";
+  "group/card rounded-xl overflow-visible cursor-pointer select-none [font-family:var(--font)] [box-shadow:var(--sh)] hover:[box-shadow:var(--sh-hover)] far:[box-shadow:var(--sh-far)] far:hover:[box-shadow:var(--sh-far-hover)] reduced:hover:[transform:none] before:content-[''] before:absolute before:left-[14px] before:top-[-1px] before:h-[3px] before:pointer-events-none before:rounded-b-xs before:[box-shadow:0_0_10px_var(--c)] far:before:h-2 has-[>.state.subtle]:before:hidden";
 
 /** A card's own classes and style: its hooks, its look in its state, where it shows, under the pointer and zoomed out. */
 export function cardLook(item: Item | null, o: CardLookOptions = {}): { className: string; style: CSSProperties } {
@@ -303,7 +303,7 @@ export function cardLook(item: Item | null, o: CardLookOptions = {}): { classNam
     pick(opacities(f, o)),
     pick(borders(f, o)),
     pick(paddings(f, o)),
-    o.place !== 'activity' && 'far:pt-[18px]',
+    o.place !== 'activity' && 'far:pt-4',
     pick(blurs(f, o)),
     'moving:backdrop-filter-none',
     pick(tabs(f)),
@@ -324,7 +324,7 @@ export function cardLook(item: Item | null, o: CardLookOptions = {}): { classNam
 
 /** The tag over a card that names how it stands to the card under the pointer ("Waits for", "Comes first"), in the colour of its wait. */
 export const depTagClass =
-  'dep-tag absolute left-[14px] top-[-10px] py-px px-2 rounded-[2px] text-[11px] font-semibold bg-[var(--dep,var(--proposal))] text-[var(--dep-fg,var(--proposal-foreground))] whitespace-nowrap pointer-events-none';
+  'dep-tag absolute left-[14px] top-[-10px] py-px px-2 rounded-xs text-2xs font-semibold bg-[var(--dep,var(--proposal))] text-[var(--dep-fg,var(--proposal-foreground))] whitespace-nowrap pointer-events-none';
 
 /** Where the card's face is drawn (M): which card's look it wears, where, and as which half of a merge. */
 export interface FaceMPlace {
@@ -341,8 +341,8 @@ export function kindClass(f: CardFlags, p: FaceMPlace, labels: { any: boolean; c
   return [
     'kind flex items-center gap-1.5 overflow-hidden whitespace-nowrap font-medium [&_span]:overflow-hidden [&_span]:text-ellipsis',
     f.q ? 'uppercase tracking-[.07em] text-question' : 'tracking-[.01em] text-muted-foreground',
-    p.place === 'activity' ? 'text-[11px]' : f.q ? 'text-[10.5px]' : p.place === 'phone' ? 'text-[12.5px]' : 'text-[11.5px]',
-    labels.chips && 'mb-[3px]',
+    p.place === 'activity' ? 'text-2xs' : f.q ? 'text-2xs' : p.place === 'phone' ? 'text-sm' : 'text-xs',
+    labels.chips && 'mb-1',
     p.chip && 'hidden',
     // zoomed out, only the labels stay, drawn 1.7 times as large so they still read
     'far:w-[calc(100%/1.7)] far:mb-2.5 far:h-[17px] far:flex-wrap far:content-start far:[transform:scale(1.7)] far:origin-[0_0]',
@@ -367,25 +367,25 @@ export function ttlClass(f: CardFlags, p: FaceMPlace & { untitled?: boolean; lab
     'ttl [font-family:var(--font)] tracking-[-.012em] [font-optical-sizing:auto] [display:-webkit-box] [-webkit-box-orient:vertical] overflow-hidden [overflow-wrap:anywhere]',
     weight,
     p.place === 'phone' ? 'mt-0.5 leading-[1.2]' : p.place === 'activity' ? 'mt-px leading-[1.2]' : 'mt-px leading-[1.25]',
-    p.place === 'activity' ? 'text-[14.5px]' : p.chip ? 'text-[13.5px]' : p.place === 'phone' ? 'text-[18.5px]' : 'text-[15.5px]',
+    p.place === 'activity' ? 'text-base' : p.chip ? 'text-sm' : p.place === 'phone' ? 'text-lg' : 'text-base',
     p.place === 'activity' ? '[-webkit-line-clamp:2]' : p.chip || p.place === 'phone' ? '[-webkit-line-clamp:3]' : '[-webkit-line-clamp:2]',
     p.untitled && 'text-muted-foreground italic',
     f.dropped && 'line-through decoration-idea decoration-[1.5px]',
     // zoomed out, the title fills the card
-    onCanvas && (p.chip ? 'far:text-[21px] far:leading-[1.1] far:[-webkit-line-clamp:2]' : p.labels ? 'far:text-[23px] far:leading-[1.1] far:[-webkit-line-clamp:2]' : 'far:text-[26px] far:leading-[1.1] far:[-webkit-line-clamp:2]'),
+    onCanvas && (p.chip ? 'far:text-xl far:leading-[1.1] far:[-webkit-line-clamp:2]' : p.labels ? 'far:text-2xl far:leading-[1.1] far:[-webkit-line-clamp:2]' : 'far:text-2xl far:leading-[1.1] far:[-webkit-line-clamp:2]'),
   ]
     .filter(Boolean)
     .join(' ');
 }
 
 /** M, a delivered workstream: its label before its title. */
-export const chipLabelClass = 'ws-no [font-family:var(--font)] text-[12.5px] font-semibold tracking-[.01em] text-muted-foreground mr-1.5';
+export const chipLabelClass = 'ws-no [font-family:var(--font)] text-sm font-semibold tracking-[.01em] text-muted-foreground mr-1.5';
 
 /** M: the line under the title. */
 export const metaClass = (p: FaceMPlace) =>
   [
     'meta mt-1 text-muted-foreground leading-[1.38] [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical] overflow-hidden [overflow-wrap:anywhere] far:hidden',
-    p.place === 'phone' ? 'text-[14px]' : 'text-[13px]',
+    p.place === 'phone' ? 'text-base' : 'text-sm',
     (p.chip || p.place === 'activity') && 'hidden',
   ]
     .filter(Boolean)
@@ -401,12 +401,12 @@ export function stateClass(f: CardFlags, p: FaceMPlace & { doingNow?: boolean })
       ? 'relative left-0 right-[14px] bottom-[10px] mt-auto pt-2 pb-1.5 gap-0'
       : `static ${f.q ? 'left-4' : 'left-[14px]'} right-[14px] bottom-[10px] mt-auto pt-2 gap-0`
     : activity
-      ? `relative left-auto right-auto bottom-auto mt-1 gap-x-[7px] gap-y-1 ${p.doingNow ? 'pb-1.5' : ''}`
-      : `absolute ${f.q ? 'left-4' : 'left-[14px]'} right-[14px] bottom-[10px] gap-x-[7px] gap-y-1`;
+      ? `relative left-auto right-auto bottom-auto mt-1 gap-x-2 gap-y-1 ${p.doingNow ? 'pb-1.5' : ''}`
+      : `absolute ${f.q ? 'left-4' : 'left-[14px]'} right-[14px] bottom-[10px] gap-x-2 gap-y-1`;
   return [
     'state flex flex-wrap items-center leading-[1.2]',
     where,
-    phone ? 'text-[13px]' : activity ? 'text-[11.5px]' : 'text-[12px]',
+    phone ? 'text-sm' : activity ? 'text-xs' : 'text-xs',
     p.subtle ? 'text-muted-foreground font-normal' : 'font-semibold text-c-strong',
     pick<string>([
       [2, p.half !== undefined, 'c-proposal'],
@@ -429,7 +429,7 @@ export function stateClass(f: CardFlags, p: FaceMPlace & { doingNow?: boolean })
       : '[&_.doing]:italic [&_.doing]:font-medium [&_.doing]:text-muted-foreground [&_.doing.demo]:text-approved [&_.doing.demo]:font-semibold [&_.doing.conflict]:text-waiting-strong',
     '[&_:is(.clock-mark,.question-mark,.restart-mark,.hourglass-mark,.merge-mark)]:flex-none [&_.hourglass-mark]:w-[9px] [&_.hourglass-mark]:h-3',
     phone
-      ? '[&_:is(.hourglass-mark,.merge-mark)]:-mr-0.5 [&_:is(.clock-mark,.question-mark,.restart-mark)]:mr-[5px] [&_:is(.clock-mark,.question-mark,.restart-mark)]:align-[-1px] [&_.doing]:whitespace-pre [&_.since]:text-muted-foreground [&_.since]:font-medium [&_.since]:whitespace-pre'
+      ? '[&_:is(.hourglass-mark,.merge-mark)]:-mr-0.5 [&_:is(.clock-mark,.question-mark,.restart-mark)]:mr-1 [&_:is(.clock-mark,.question-mark,.restart-mark)]:align-[-1px] [&_.doing]:whitespace-pre [&_.since]:text-muted-foreground [&_.since]:font-medium [&_.since]:whitespace-pre'
       : '[&_:is(.clock-mark,.question-mark,.restart-mark,.hourglass-mark,.merge-mark)]:-mr-0.5',
   ]
     .filter(Boolean)
@@ -453,7 +453,7 @@ export function stateLineClass(f: CardFlags, p: FaceMPlace & { doingNow?: boolea
     'mr-[100%]',
     p.doingNow && !thick ? 'h-px' : 'h-0.5',
     p.doingNow && (phone || activity ? 'absolute left-0 bottom-0' : 'absolute left-0 bottom-[-5px]'),
-    phone && !p.doingNow && 'ml-[7px]',
+    phone && !p.doingNow && 'ml-2',
   ]
     .filter(Boolean)
     .join(' ');
@@ -475,11 +475,11 @@ export const faceClass = (size: 's' | 'xs', subtle?: boolean) =>
 
 /** S: the line above the title (labels, where, kind, since). */
 export const topClass = (subtle?: boolean) =>
-  `f-top flex flex-nowrap items-center gap-1.5 min-w-0 overflow-hidden text-[11.5px] leading-[17px] text-muted-foreground [&>*:not(.f-where)]:flex-none [&_:is(.lchip,.prio)]:text-[11px] ${subtle ? 'pr-[14px]' : ''}`;
+  `f-top flex flex-nowrap items-center gap-1.5 min-w-0 overflow-hidden text-xs leading-[17px] text-muted-foreground [&>*:not(.f-where)]:flex-none [&_:is(.lchip,.prio)]:text-2xs ${subtle ? 'pr-3.5' : ''}`;
 export const whereClass =
-  'f-where flex-[0_1_auto] min-w-0 overflow-hidden text-ellipsis whitespace-nowrap [&>svg]:align-[-2px] [&>svg]:mr-1 [&_.project]:font-semibold [&_.other-canvas]:inline-flex [&_.other-canvas]:align-[-2px] [&_.other-canvas]:ml-[5px]';
+  'f-where flex-[0_1_auto] min-w-0 overflow-hidden text-ellipsis whitespace-nowrap [&>svg]:align-[-2px] [&>svg]:mr-1 [&_.project]:font-semibold [&_.other-canvas]:inline-flex [&_.other-canvas]:align-[-2px] [&_.other-canvas]:ml-1';
 export const listTitleClass = (size: 's' | 'xs', subtle?: boolean) =>
-  [LIST_TITLE, size === 's' ? 'items-start gap-[7px] mt-1 text-[16px] leading-[1.25] [&_.f-pin]:mt-px' : 'items-center gap-1.5 text-[14px] leading-[1.3]', subtle && 'pr-[14px]'].filter(Boolean).join(' ');
+  [LIST_TITLE, size === 's' ? 'items-start gap-2 mt-1 text-base leading-[1.25] [&_.f-pin]:mt-px' : 'items-center gap-1.5 text-base leading-[1.3]', subtle && 'pr-3.5'].filter(Boolean).join(' ');
 export const listTitleTextClass = (size: 's' | 'xs', untitled: boolean) =>
   ['f-ttl-text min-w-0', size === 'xs' && 'overflow-hidden text-ellipsis whitespace-nowrap', untitled && 'text-muted-foreground font-normal italic'].filter(Boolean).join(' ');
 
@@ -489,22 +489,22 @@ const LIST_DOING_SUBTLE = '[&_.doing]:text-muted-foreground [&_.doing]:not-itali
 /** S: the state line, in the state's colour (subtle: plain and muted). */
 export const listStateClass = (subtle?: boolean) =>
   [
-    `f-state flex flex-nowrap items-center gap-1 min-w-0 mt-[3px] text-[12px] leading-[1.3] [&>*:not(.state-text)]:flex-none [&_:is(.clock-mark,.question-mark,.restart-mark,.hourglass-mark,.merge-mark,.parked-mark)]:flex-none`,
+    `f-state flex flex-nowrap items-center gap-1 min-w-0 mt-1 text-xs leading-[1.3] [&>*:not(.state-text)]:flex-none [&_:is(.clock-mark,.question-mark,.restart-mark,.hourglass-mark,.merge-mark,.parked-mark)]:flex-none`,
     subtle ? `text-muted-foreground font-normal ${LIST_DOING_SUBTLE}` : `text-c-strong font-semibold ${LIST_DOING}`,
   ].join(' ');
 export const listStateTextClass = 'state-text flex-[0_1_auto] min-w-0 overflow-hidden text-ellipsis whitespace-nowrap';
 /** S: the line under the title, in at most two lines. */
 export const listTextClass =
-  'f-text mt-1 text-[13px] leading-[1.4] text-muted-foreground [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical] overflow-hidden [overflow-wrap:anywhere]';
+  'f-text mt-1 text-sm leading-[1.4] text-muted-foreground [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical] overflow-hidden [overflow-wrap:anywhere]';
 
 /** XS: a workstream's label before its title. */
-export const wsLabelClass = 'ws-no flex-none [font-family:var(--font)] text-[12px] font-semibold text-muted-foreground tabular-nums';
+export const wsLabelClass = 'ws-no flex-none [font-family:var(--font)] text-xs font-semibold text-muted-foreground tabular-nums';
 /** XS: the second line, after the dot of its state. */
-export const lineClass = 'f-line flex items-center gap-1.5 min-w-0 text-[12px] leading-[1.35] text-muted-foreground';
+export const lineClass = 'f-line flex items-center gap-1.5 min-w-0 text-xs leading-[1.35] text-muted-foreground';
 export const dotClass = (proposal: boolean, subtle?: boolean) =>
   proposal
-    ? `f-dot proposal flex-none box-border size-[9px] rounded-[50%] bg-transparent ${subtle ? '[border:1.5px_dashed_var(--muted-foreground)]' : '[border:1.5px_dashed_var(--c)]'}`
-    : `f-dot flex-none size-2 rounded-[50%] ${subtle ? 'bg-muted-foreground' : 'bg-(--c)'}`;
+    ? `f-dot proposal flex-none box-border size-[9px] rounded-full bg-transparent ${subtle ? '[border:1.5px_dashed_var(--muted-foreground)]' : '[border:1.5px_dashed_var(--c)]'}`
+    : `f-dot flex-none size-2 rounded-full ${subtle ? 'bg-muted-foreground' : 'bg-(--c)'}`;
 export const wordsClass = 'f-words min-w-0 overflow-hidden text-ellipsis whitespace-nowrap [&_.other-canvas]:inline-flex [&_.other-canvas]:align-[-2px]';
 /** XS: the state's short word, in its colour (subtle: as the line). */
 export const shortStateClass = (subtle?: boolean) => (subtle ? 'f-state text-inherit font-normal' : 'f-state text-c-strong font-semibold');

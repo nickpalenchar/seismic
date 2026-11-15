@@ -11,7 +11,7 @@ describe('inline markdown', () => {
     expect(html(md)).toBe('See <span>the chart</span> and <span>web</span>.');
     const served = renderToStaticMarkup(createElement(DocImages.Provider, { value: (src) => (src.startsWith('http') ? null : `/files/${src}`) }, createElement(Inline, { md })));
     // React's server rendering preloads the image ahead of it
-    expect(served.replace(/^<link [^>]*>/, '')).toBe('See <img class="doc-img max-w-full rounded-[2px] align-middle" src="/files/chart.png" alt="the chart" title="the chart"/> and <span>web</span>.');
+    expect(served.replace(/^<link [^>]*>/, '')).toBe('See <img class="doc-img max-w-full rounded-xs align-middle" src="/files/chart.png" alt="the chart" title="the chart"/> and <span>web</span>.');
     expect(plain(md)).toBe('See the chart and web.');
   });
 

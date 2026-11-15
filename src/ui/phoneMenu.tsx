@@ -12,7 +12,7 @@ import { Sign } from './logo';
 import { ProjectAgents } from './parts';
 import { t } from './strings';
 
-const rowClass = 'box-border flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-[10px] border-0 bg-transparent px-3 py-2 text-left text-[17px] text-foreground active:bg-muted';
+const rowClass = 'box-border flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-lg bg-transparent px-3 py-2 text-left text-lg text-foreground active:bg-muted';
 
 export function PhoneMenu({ open, onOpenChange, projects, project, needsYou, onProject, onNeedsYou }: {
   open: boolean;
@@ -30,8 +30,8 @@ export function PhoneMenu({ open, onOpenChange, projects, project, needsYou, onP
         <SheetDescription className="sr-only">{t.phone.next.menuTitle}</SheetDescription>
         <div className="flex min-h-14 items-center gap-2.5">
           <Sign size={26} />
-          <SheetTitle className="min-w-0 flex-1 text-[19px]">{t.phone.next.menuTitle}</SheetTitle>
-          <SheetClose className="inline-grid size-10 shrink-0 place-items-center rounded-full border-0 bg-muted p-0 text-foreground cursor-pointer" aria-label={t.phone.next.closeMenu}>
+          <SheetTitle className="min-w-0 flex-1 text-xl">{t.phone.next.menuTitle}</SheetTitle>
+          <SheetClose className="inline-grid size-10 shrink-0 place-items-center rounded-full bg-muted p-0 text-foreground cursor-pointer" aria-label={t.phone.next.closeMenu}>
             <X size={20} strokeWidth={2.25} aria-hidden="true" />
           </SheetClose>
         </div>
@@ -44,7 +44,7 @@ export function PhoneMenu({ open, onOpenChange, projects, project, needsYou, onP
             </Badge>
           )}
         </button>
-        <h3 className="mx-3 mt-5 mb-1.5 text-[12px] font-semibold tracking-[.04em] text-muted-foreground uppercase">{t.phone.next.projects}</h3>
+        <h3 className="mx-3 mt-5 mb-1.5 text-xs font-semibold tracking-[.04em] text-muted-foreground uppercase">{t.phone.next.projects}</h3>
         <ul className="m-0 list-none p-0">
           {projects.map((c) => (
             <li key={c.id} className="group/project relative">

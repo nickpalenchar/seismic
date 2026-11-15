@@ -2573,7 +2573,7 @@ function Project({
               const states = cardHooks(item, underway[item.id]).replace(/^card\s*/, '');
               const target = connection?.target === item.id;
               const colour = handleColour(states, !!depOf(item.id));
-              return <div key={`handles:${item.id}`} data-id={item.id} className={cn('connection-handles absolute z-4', states, target ? 'pointer-events-auto outline-3 outline-solid outline-waiting outline-offset-3 rounded-[4px]' : 'pointer-events-none')} style={{ left: b.x, top: b.y, width: b.w, height: b.h, ...(colour ? { '--c': colour } : {}) } as React.CSSProperties}>
+              return <div key={`handles:${item.id}`} data-id={item.id} className={cn('connection-handles absolute z-4', states, target ? 'pointer-events-auto outline-3 outline-solid outline-waiting outline-offset-3 rounded-sm' : 'pointer-events-none')} style={{ left: b.x, top: b.y, width: b.w, height: b.h, ...(colour ? { '--c': colour } : {}) } as React.CSSProperties}>
               {SIDES.map((side) => { const lit = !connection && (handle?.id === item.id && handle.side === side || touchDots(item.id)); return <Tooltip key={side} content={t.deps.connect}><button className={cn(connectionDotClass, dotSide[side], lit ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none focus-visible:opacity-100 focus-visible:pointer-events-auto')} aria-label={t.deps.connect} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); const p = toWorld(camRef.current, e.clientX, e.clientY); setConnection({ from: item.id, side, ...p }); }} /></Tooltip>; })}
             </div>; })}
             {planDirs?.map((d, n) => (
@@ -2608,7 +2608,7 @@ function Project({
             {...(notes.length ? { style: { top: cam.y + Math.min(...notes.map((b) => b.y)) * cam.s - 48 } } : {})}>
             <p className="m-0 mb-2">{t.empty.none}</p>
             <p className="m-0 mt-1">{t.empty.speak}</p>
-            <p className="m-0 mt-0.5 mb-2.5 text-[13px]">{t.empty.where}</p>
+            <p className="m-0 mt-0.5 mb-2.5 text-sm">{t.empty.where}</p>
             <p className="m-0 mt-1">{coarse || touchy ? t.touch.emptyTap : t.empty.click}</p>
           </div>
         )}
@@ -2623,9 +2623,9 @@ function Project({
         )}
         {markHint && <MarkHint key={markHint.key} at={markHint.at} text={touchy ? t.touch.markHowTo : t.marked.howTo} />}
         {(coarse || touchy) && !holdKnown && !!items.length && !focus && (
-          <p id="touchhint" className="fixed z-30 top-[82px] left-[calc(var(--left)_+_(100vw_-_var(--left)_-_var(--side))_/_2)] [transform:translateX(-50%)] flex items-center gap-3 max-w-[min(520px,calc(100vw_-_40px))] m-0 py-2 pr-2 pl-3.5 rounded-[3px] bg-foreground text-background [font:14px/1.35_var(--font)] [box-shadow:var(--lift)]">
+          <p id="touchhint" className="fixed z-30 top-[82px] left-[calc(var(--left)_+_(100vw_-_var(--left)_-_var(--side))_/_2)] [transform:translateX(-50%)] flex items-center gap-3 max-w-[min(520px,calc(100vw_-_40px))] m-0 py-2 pr-2 pl-3.5 rounded-xs bg-foreground text-background font-sans text-base/[1.35] [box-shadow:var(--lift)]">
             {t.touch.hold}
-            <button className="flex-none py-1.5 px-3 border border-solid border-background/40 rounded-[3px] bg-transparent text-inherit [font:inherit] cursor-pointer" onClick={learnHold}>{t.touch.ok}</button>
+            <button className="flex-none py-1.5 px-3 border border-background/40 rounded-xs bg-transparent text-inherit [font:inherit] cursor-pointer" onClick={learnHold}>{t.touch.ok}</button>
           </p>
         )}
         {connection && !depKnown && (
@@ -2653,7 +2653,7 @@ function Project({
           ref={barRef}
           className={cn(
             'group/bar frost-bar fixed top-0 right-[var(--side,0px)] left-[var(--left,0px)] z-25 box-border grid h-[50px] grid-cols-[1fr_minmax(150px,440px)_1fr] items-center gap-3.5 border-b border-border px-3.5 transition-[right,left,padding-left] duration-450 ease-[cubic-bezier(.3,.9,.3,1)] resizing:transition-none data-[fit~="3"]:grid-cols-[auto_minmax(34px,440px)_auto]',
-            window.obeyaApp?.platform === 'macos' && !side.left && 'pl-[92px]',
+            window.obeyaApp?.platform === 'macos' && !side.left && 'pl-23',
           )}
           {...(window.obeyaApp?.platform === 'macos' ? { 'data-tauri-drag-region': '' } : {})}
         >
@@ -2708,9 +2708,9 @@ function Project({
               </PillButton>
             </Tooltip>
             {/* two buttons as one: the agents and what needs the owner */}
-            <div className="flex rounded-[17px] shadow-glass hover:shadow-lift">
+            <div className="flex rounded-full shadow-glass hover:shadow-lift">
               <Tooltip content={t.agents.button(queued)}>
-                <PillButton size="bar" on={agentsOn} tone="ink" className="rounded-none rounded-l-[17px] pl-3.5 shadow-none hover:shadow-none" aria-label={t.agents.button(queued)} aria-expanded={agentsOn} aria-pressed={agentsOn} onClick={toggleAgents}>
+                <PillButton size="bar" on={agentsOn} tone="ink" className="rounded-none rounded-l-full pl-3.5 shadow-none hover:shadow-none" aria-label={t.agents.button(queued)} aria-expanded={agentsOn} aria-pressed={agentsOn} onClick={toggleAgents}>
                   <BarIcon icon={Bot} />
                   {queued > 0 && <Badge variant="count">{queued}</Badge>}
                 </PillButton>
@@ -2720,7 +2720,7 @@ function Project({
                     size="bar"
                     on={nyOn}
                     tone="ink"
-                    className="rounded-none rounded-r-[17px] border-l-border px-3 pr-3.5 shadow-none hover:shadow-none"
+                    className="rounded-none rounded-r-full border-l-border px-3 pr-3.5 shadow-none hover:shadow-none"
                     id="attention" aria-label={t.needsYou.button(needsYouCards)}
                     aria-expanded={nyOn}
                     aria-pressed={nyOn}
@@ -2749,7 +2749,7 @@ function Project({
         {/* the status bar along the bottom: the connection (or the restart that waits), whom the microphone speaks to, the workstation pool and the usage limits */}
         <footer
           id="status"
-          className="frost-bar fixed right-[var(--side,0px)] bottom-0 left-[var(--left,0px)] z-45 grid h-[34px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3.5 border-t border-border px-2.5 text-[13px] transition-[right,left] duration-450 ease-[cubic-bezier(.3,.9,.3,1)] resizing:transition-none"
+          className="frost-bar fixed right-[var(--side,0px)] bottom-0 left-[var(--left,0px)] z-45 grid h-[34px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3.5 border-t border-border px-2.5 text-sm transition-[right,left] duration-450 ease-[cubic-bezier(.3,.9,.3,1)] resizing:transition-none"
         >
           <div className="flex min-w-0 items-center">
             {!online || frozen ? <ConnectionLost since={downSince} frozen={frozen} /> : restart ? <RestartPill restart={restart} items={items} project={snapshot.project.id} onOpen={(i) => void openFresh(i)} /> : <span className={cn(statusWord, 'text-success')}>{t.online}</span>}
@@ -2784,12 +2784,12 @@ function Project({
         <div
           id="panel"
           ref={panelRef}
-          className="group/panel fixed z-40 overflow-hidden hidden frost-pane [&:not(.ready)]:bg-surface [&:not(.ready)]:backdrop-filter-none [&.anim]:[--ease:cubic-bezier(.3,.9,.3,1)] [&.anim]:transition-[left,top,width,height] [&.anim]:duration-(--unfold) [&.anim]:ease-(--ease) before:content-[''] before:absolute before:left-[30px] before:w-20 before:top-0 before:h-[3px] before:rounded-b-[3px] before:bg-(--c) before:shadow-[0_0_12px_var(--c)] before:z-1"
+          className="group/panel fixed z-40 overflow-hidden hidden frost-pane [&:not(.ready)]:bg-surface [&:not(.ready)]:backdrop-filter-none [&.anim]:[--ease:cubic-bezier(.3,.9,.3,1)] [&.anim]:transition-[left,top,width,height] [&.anim]:duration-(--unfold) [&.anim]:ease-(--ease) before:content-[''] before:absolute before:left-[30px] before:w-20 before:top-0 before:h-[3px] before:rounded-b-xs before:bg-(--c) before:shadow-[0_0_12px_var(--c)] before:z-1"
         >
           <CloseButton label={t.close} className="close absolute right-3.5 top-3 z-2" onClick={() => closeCard()} />
           {/* keeps the final width while the panel unfolds, so the content can be measured before it shows; --pb is
               the room below the content, more where the microphone covers the panel's foot (fitPanel) */}
-          <div className="inner card-sheet [--pb:26px] absolute left-0 top-0 bottom-0 w-full overflow-auto [scrollbar-gutter:stable] pt-[26px] px-[30px] pb-(--pb) opacity-0 transition-opacity duration-[120ms] group-[.ready]/panel:opacity-100" ref={innerRef}>
+          <div className="inner card-sheet [--pb:26px] absolute left-0 top-0 bottom-0 w-full overflow-auto [scrollbar-gutter:stable] pt-6 px-8 pb-(--pb) opacity-0 transition-opacity duration-[120ms] group-[.ready]/panel:opacity-100" ref={innerRef}>
             {/* as much room below the last line as above the title */}
             <div className="content flow-root [&>:last-child]:mb-0">
               {openItem && (
@@ -2997,5 +2997,5 @@ function BarIcon({ icon: I }: { icon: LucideIcon }) {
 }
 
 /** A word of the status bar's left end: online, or what the server is setting up. */
-const statusWord = 'rounded-full px-2.5 py-[3px] font-semibold whitespace-nowrap';
+const statusWord = 'rounded-full px-2.5 py-1 font-semibold whitespace-nowrap';
 

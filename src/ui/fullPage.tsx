@@ -28,7 +28,7 @@ const fullPageClass =
 /** A full-page view's head: its title, what it has beside it (a search, a count) and its ✕ at the end. */
 export const fullHeadClass = 'a-full-head flex items-center gap-3.5 pt-3 px-6 pb-1.5';
 /** A full-page view's title in its head. */
-export const fullTitleClass = 'mt-0 mx-0 mb-1.5 text-[18px]';
+export const fullTitleClass = 'mt-0 mx-0 mb-1.5 text-lg';
 /** A full-page view's ✕. */
 export const fullCloseClass = 'a-full flex-none mb-1.5';
 /** A full-page view's body under its head, scrolling; what it lists keeps to a readable width. */

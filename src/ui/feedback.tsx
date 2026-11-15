@@ -22,12 +22,12 @@ import { cn } from 'cn';
  */
 const rateClass = (prompt?: boolean) =>
   cn(
-    'rate max-w-[80ch] py-3 px-4 rounded-[3px] border border-solid border-border text-[14px]',
-    prompt ? 'prompt m-0 w-[min(560px,calc(100vw_-_var(--left,0px)_-_var(--side,0px)_-_32px))] bg-surface border-glass-edge rounded-[14px] shadow-[inset_0_1px_0_var(--glass-hi),var(--lift)]' : 'mt-[18px]',
+    'rate max-w-[80ch] py-3 px-4 rounded-xs border border-border text-base',
+    prompt ? 'prompt m-0 w-[min(560px,calc(100vw_-_var(--left,0px)_-_var(--side,0px)_-_32px))] bg-surface border-glass-edge rounded-xl shadow-[inset_0_1px_0_var(--glass-hi),var(--lift)]' : 'mt-4',
   );
 /** A star: grey until it is given or hovered, then gold; larger under a finger. */
 const starClass = (on: boolean) =>
-  cn('star bg-transparent [border:none] py-0 px-[3px] text-[22px] leading-none cursor-pointer disabled:cursor-default pointer-coarse:text-[28px] pointer-coarse:px-[5px]', on ? 'on text-amber-500' : 'text-muted-foreground');
+  cn('star bg-transparent [border:none] py-0 px-1 text-2xl leading-none cursor-pointer disabled:cursor-default pointer-coarse:text-display pointer-coarse:px-1', on ? 'on text-amber-500' : 'text-muted-foreground');
 
 /** Stars and the comment for the card's approved work; `prompt`: the one after the approval, with its title and "Skip". */
 export function Rate({ item, prompt, onClose }: { item: Item; prompt?: boolean; onClose?: () => void }) {
@@ -134,10 +134,10 @@ export function Rate({ item, prompt, onClose }: { item: Item; prompt?: boolean; 
           )}
         </div>
       )}
-      {error && <p className="mt-2 mb-0 text-destructive text-[13.5px]">{error}</p>}
+      {error && <p className="mt-2 mb-0 text-destructive text-sm">{error}</p>}
       {thanked && !error && !prompt && <p className="hint mt-2 mb-0">{t.feedback.thanks}</p>}
       {!prompt && rating > 0 && compare && (
-        <LinkButton type="button" className="rate-compare mt-1.5 text-[13px] leading-[1.25]" title={t.performance.openHint} onClick={compare}>
+        <LinkButton type="button" className="rate-compare mt-1.5 text-sm leading-[1.25]" title={t.performance.openHint} onClick={compare}>
           {t.performance.open}
         </LinkButton>
       )}

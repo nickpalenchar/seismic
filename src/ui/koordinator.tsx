@@ -147,7 +147,7 @@ export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats
       )}
       {/* a command in writing, for when speaking is not possible; its screenshots go to the cards it creates or concerns */}
       <Composer className={tellClass} draft={draft} placeholder={t.voice.typePlaceholder} obeya optimistic onSend={send} />
-      <label className="chat-model flex items-center gap-2 mt-0 mx-0 mb-1.5 text-muted-foreground text-[12px]">{t.koordinator.chatModel}
+      <label className="chat-model flex items-center gap-2 mt-0 mx-0 mb-1.5 text-muted-foreground text-xs">{t.koordinator.chatModel}
         <Select value={(choice?.chat === chat ? choice.model : chatModel) ?? ''} onValueChange={chooseModel}>
           <SelectItem value="">{t.koordinator.projectModel}</SelectItem>
           {AGENT_MODELS.map((model) => <SelectItem key={model} value={model}>{model === 'default' ? t.koordinator.defaultModel : model[0]!.toUpperCase() + model.slice(1)}</SelectItem>)}
@@ -180,7 +180,7 @@ function ReviewHint({ items, repos }: { items: Item[]; repos: RepoRef[] }) {
   }, [used]);
   if (used || closed || !repos.some((r) => r.forge)) return null;
   return (
-    <p className="tell-hint flex items-center gap-1 -mt-0.5 mx-0 mb-2 text-[11px] text-muted-foreground [&_span]:flex-1 [&_span]:min-w-0">
+    <p className="tell-hint flex items-center gap-1 -mt-0.5 mx-0 mb-2 text-2xs text-muted-foreground [&_span]:flex-1 [&_span]:min-w-0">
       <span>{t.review.hint}</span>
       <CloseButton label={t.review.hideHint} size="small" onClick={() => {
           know(REVIEW_KNOWN);
@@ -584,13 +584,13 @@ export function SettingRow({ p, items, repo, onOpen, onConfig, project }: { p: S
   const everyone = repo?.pullRequests ? k.forEveryonePr(branch) : k.forEveryoneMain(branch);
   return (
     <li className={cn(proposalRowClass, 'proposal setting')}>
-      <span className="setting-kind basis-full flex flex-wrap items-center gap-[5px] text-proposal text-[11.5px] font-semibold tracking-[.02em]">
+      <span className="setting-kind basis-full flex flex-wrap items-center gap-1 text-proposal text-xs font-semibold tracking-[.02em]">
         <GearIcon />
         {k.settingKind(repo?.name ?? p.repo)}
       </span>
       <span className="setting-name basis-full flex items-baseline gap-2">
         <span className={proposalTextClass}>{t.config.settings[p.field]}</span>
-        {onConfig && <a className={cn(fromLinkClass, 'ml-auto whitespace-nowrap text-[12px]')} title={k.openConfigHint} onClick={onConfig}>
+        {onConfig && <a className={cn(fromLinkClass, 'ml-auto whitespace-nowrap text-xs')} title={k.openConfigHint} onClick={onConfig}>
           {k.openConfig}
         </a>}
       </span>
@@ -602,9 +602,9 @@ export function SettingRow({ p, items, repo, onOpen, onConfig, project }: { p: S
           </>
         )}
         <span className={settingLabelClass}>{k.settingNew}</span>
-        <span className="setting-new flex flex-col gap-[3px] min-w-0">
+        <span className="setting-new flex flex-col gap-1 min-w-0">
           <Textarea ref={field} className={cn(settingValueClass, 'flex-none resize-none overflow-hidden min-w-0 focus:bg-card')} aria-label={k.settingNew} spellCheck={false} rows={1} value={draft} onChange={(e) => setDraft(e.target.value)} />
-          <span className="setting-edit text-muted-foreground text-[11.5px]">
+          <span className="setting-edit text-muted-foreground text-xs">
             {changed ? (
               <>
                 {k.settingEdited}{' '}
@@ -631,7 +631,7 @@ export function SettingRow({ p, items, repo, onOpen, onConfig, project }: { p: S
         })}
       </span>
       <span className={prefActionsClass}>
-        <span className="take-on basis-full text-muted-foreground text-[12px]">{k.takeOn}</span>
+        <span className="take-on basis-full text-muted-foreground text-xs">{k.takeOn}</span>
         <Button variant="primary" disabled={busy || !draft.trim()} title={k.onMachineHint} onClick={() => take('machine')}>
           {k.onMachine}
         </Button>
@@ -728,7 +728,7 @@ function ReshareBox({ r, items, onOpen }: { r: Reshare; items: Item[]; onOpen: (
             <span className={proposalTextClass}>{s.outdated(r.outdated)}</span>
             <span className={occasionClass}>{s.outdatedHint}</span>
             {/* the list's rows in the type of the row it stands in */}
-            {r.changes && <PageChangeList changes={r.changes} className="basis-full m-0 [&>li]:items-start [&>li]:text-[13px] [&>li]:cursor-default" />}
+            {r.changes && <PageChangeList changes={r.changes} className="basis-full m-0 [&>li]:items-start [&>li]:text-sm [&>li]:cursor-default" />}
             <span className={prefActionsClass}>
               {counts.length > 0 && (
                 <Select value={chosen == null ? '' : String(chosen)} onValueChange={(picked) => setPick(picked ? Number(picked) : 'all')}>

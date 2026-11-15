@@ -159,7 +159,7 @@ const hue = (h: number) => ({ '--h': h }) as React.CSSProperties;
 const worldLayerClass = 'absolute left-0 top-0 overflow-visible pointer-events-none';
 
 /** A line beside the pointer or the marked cards that says how something works: ink on the board's colour. */
-export const hintBubbleClass = 'max-w-[300px] m-0 py-1.5 px-2.5 rounded-[3px] bg-foreground text-background [font:13px/1.35_var(--font)] text-left';
+export const hintBubbleClass = 'max-w-[300px] m-0 py-1.5 px-2.5 rounded-xs bg-foreground text-background font-sans text-sm/[1.35] text-left';
 
 /** The territories, in world coordinates under the cards; `selected`: the cards the colour ring is for. */
 export function TerritoryLayer({ shapes, waves, streaks, selected }: { shapes: Shape[]; waves: Wave[]; streaks: Streak[]; selected: Bounds[] }) {
@@ -245,10 +245,10 @@ export function Marked({ at, below, count, hint, onGroup }: { at: Pt; below: boo
       className={cn('fixed z-40 flex flex-col items-end gap-1.5', below ? '[transform:translate(-100%,12px)]' : '[transform:translate(-100%,calc(-100%_-_12px))]')}
       style={{ left: at.x, top: at.y }}
     >
-      <div className="flex items-center gap-2 py-[3px] pr-[3px] pl-2.5 rounded-[3px] bg-card [box-shadow:var(--shadow)] whitespace-nowrap">
-        <span className="[font:500_13px/1_var(--font)] text-muted-foreground">{t.marked.count(count)}</span>
+      <div className="flex items-center gap-2 py-1 pr-1 pl-2.5 rounded-xs bg-card [box-shadow:var(--shadow)] whitespace-nowrap">
+        <span className="font-sans text-sm/none font-medium text-muted-foreground">{t.marked.count(count)}</span>
         <button
-          className="mgroup flex items-center gap-1.5 py-1 pr-2.5 pl-[7px] [border:0] rounded-[3px] bg-transparent text-foreground [font:600_13px/1_var(--font)] cursor-pointer hover:bg-foreground/8"
+          className="mgroup flex items-center gap-1.5 py-1 pr-2.5 pl-2 [border:0] rounded-xs bg-transparent text-foreground font-sans text-sm/none font-semibold cursor-pointer hover:bg-foreground/8"
           title={t.marked.groupTip}
           onClick={(e) => {
             const r = e.currentTarget.getBoundingClientRect();

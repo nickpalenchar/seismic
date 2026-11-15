@@ -31,7 +31,7 @@ interface ListProps {
 }
 
 /** A list view's body: the list and the hint above it to a readable width, the hint set apart from the list (over `.hint`'s own size). */
-const listBodyClass = `${fullBodyClass} [&>:is(ul,ol,.hint)]:max-w-[760px] [&>.hint]:m-[4px_0_14px] [&>.hint]:text-[13px]!`;
+const listBodyClass = `${fullBodyClass} [&>:is(ul,ol,.hint)]:max-w-[760px] [&>.hint]:m-[4px_0_14px] [&>.hint]:text-sm!`;
 
 /** The view's head: its title, its count and ✕. */
 function Head({ title, n, onClose }: { title: string; n: number; onClose: () => void }) {
@@ -91,7 +91,7 @@ function QueuePage({ items, onOpen, onClose }: { items: Item[]; onOpen: (i: Item
  * A view of the switcher: its icon and name; on medium screens (where the switcher shrinks to fit the main
  * area left of a dock) the views that are not showing keep only their icon.
  */
-const switchButtonClass = 'inline-flex items-center gap-1.5 h-[30px] py-0 px-3.5 [border:0] rounded-[999px] bg-transparent text-muted-foreground text-[13px] leading-none cursor-pointer';
+const switchButtonClass = 'inline-flex items-center gap-1.5 h-[30px] py-0 px-3.5 [border:0] rounded-full bg-transparent text-muted-foreground text-sm leading-none cursor-pointer';
 
 /** Canvas | Parked | Table at the bottom centre, where the microphone was; Table is still to come. */
 export function ViewSwitcher({ shown, onShow }: { shown: SwitchedView | null; onShow: (v: SwitchedView) => void }) {
@@ -104,7 +104,7 @@ export function ViewSwitcher({ shown, onShow }: { shown: SwitchedView | null; on
   return (
     // a click leaves the focus where it was: in a field, typing goes on there; outlined while files are dragged over the row
     <div
-      className="flex gap-0.5 px-[3px] py-[2px] rounded-[999px] bg-glass border border-solid border-glass-edge [box-shadow:var(--lift)] backdrop-blur-glass group-[.dropping]/ptt:outline-2 group-[.dropping]/ptt:outline-dashed group-[.dropping]/ptt:outline-working group-[.dropping]/ptt:outline-offset-[5px]"
+      className="flex gap-0.5 px-1 py-0.5 rounded-full bg-glass border border-glass-edge [box-shadow:var(--lift)] backdrop-blur-glass group-[.dropping]/ptt:outline-2 group-[.dropping]/ptt:outline-dashed group-[.dropping]/ptt:outline-working group-[.dropping]/ptt:outline-offset-[5px]"
       role="group"
       aria-label={t.views.switcher}
       onPointerDown={(e) => e.preventDefault()}

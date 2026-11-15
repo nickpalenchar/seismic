@@ -144,7 +144,7 @@ export function WorkstationRow({ w, host, items, underway, projects, onOpen, onE
   const dot = wsDot(w, host, items, underway);
   if (!w)
     return (
-      <li className="grid grid-cols-[12px_minmax(0,1fr)] items-center gap-x-2 py-[3px]">
+      <li className="grid grid-cols-[12px_minmax(0,1fr)] items-center gap-x-2 py-1">
         <WorkstationMark dot={dot} />
         <span className="hint col-start-2">{t.workstations.freeSlot}</span>
       </li>
@@ -154,11 +154,11 @@ export function WorkstationRow({ w, host, items, underway, projects, onOpen, onE
   const state = w.card ? 'held' : blocked.has(w.path) ? 'blocked' : 'free';
   const there = w.project && projects.find((c) => c.id === w.project);
   return (
-    <li className={cn('grid grid-cols-[12px_minmax(0,1fr)] gap-x-2', item ? 'items-start py-1' : 'items-center py-[3px]')}>
-      <WorkstationMark dot={dot} className={cn('row-start-1', item && (dot.paused ? 'mt-[7px]' : 'mt-[5px]'))} />
+    <li className={cn('grid grid-cols-[12px_minmax(0,1fr)] gap-x-2', item ? 'items-start py-1' : 'items-center py-1')}>
+      <WorkstationMark dot={dot} className={cn('row-start-1', item && (dot.paused ? 'mt-2' : 'mt-1'))} />
       <span className={cn('col-start-2 [overflow-wrap:anywhere]', item ? 'row-start-1 flex min-w-0 items-start gap-1' : 'row-start-1')}>
         {item ? (
-          <button type="button" className="-mx-1.5 -my-0.5 block min-w-0 flex-1 cursor-pointer rounded-[6px] border-0 bg-transparent px-1.5 py-0.5 text-left text-inherit hover:bg-muted focus-visible:bg-muted [&_.f-dot]:hidden" onClick={() => onOpen(item)}>
+          <button type="button" className="-mx-1.5 -my-0.5 block min-w-0 flex-1 cursor-pointer rounded-sm bg-transparent px-1.5 py-0.5 text-left text-inherit hover:bg-muted focus-visible:bg-muted [&_.f-dot]:hidden" onClick={() => onOpen(item)}>
             <CardFace item={item} size="xs" workstation underway={underway[item.id]} />
           </button>
         ) : w.card && there ? (
@@ -183,7 +183,7 @@ export function WorkstationRow({ w, host, items, underway, projects, onOpen, onE
         {item && w.takeable && onTake && (
           <Tooltip content={t.workstations.more}>
             <button
-              className="ml-1.5 inline-flex cursor-pointer items-center rounded-[3px] border-0 bg-transparent px-[3px] py-px align-middle text-muted-foreground opacity-55 hover:bg-muted hover:opacity-100 aria-expanded:bg-muted aria-expanded:opacity-100"
+              className="ml-1.5 inline-flex cursor-pointer items-center rounded-xs bg-transparent px-1 py-px align-middle text-muted-foreground opacity-55 hover:bg-muted hover:opacity-100 aria-expanded:bg-muted aria-expanded:opacity-100"
               aria-label={t.workstations.more}
               aria-expanded={more === w.path}
               onClick={() => onMore(more === w.path ? null : w.path)}
@@ -194,7 +194,7 @@ export function WorkstationRow({ w, host, items, underway, projects, onOpen, onE
         )}
       </span>
       {item && w.takeable && onTake && more === w.path && (
-        <div className="col-start-2 mt-1 mb-0.5 flex flex-col items-start gap-1 rounded-[3px] bg-muted px-2.5 py-2 [--button-bg:var(--surface)]">
+        <div className="col-start-2 mt-1 mb-0.5 flex flex-col items-start gap-1 rounded-xs bg-muted px-2.5 py-2 [--button-bg:var(--surface)]">
           <Button
             size="small"
             onClick={() => {
@@ -252,7 +252,7 @@ export const dotsLayout = (n: number): { rows: 1 | 2 | 3; cols: number } | 'bar'
   n <= 5 ? { rows: 1, cols: n } : n <= 12 ? { rows: 2, cols: Math.ceil(n / 2) } : n <= 18 ? { rows: 3, cols: Math.ceil(n / 3) } : 'bar';
 
 /** The dots' size and spacing by rows, so two and three rows still fit the status bar's pill. */
-const ROWS = { 1: { size: 'size-3', gap: 'gap-[3px]' }, 2: { size: 'size-2.5', gap: 'gap-[2px]' }, 3: { size: 'size-[7px]', gap: 'gap-[1.5px]' } } as const;
+const ROWS = { 1: { size: 'size-3', gap: 'gap-1' }, 2: { size: 'size-2.5', gap: 'gap-0.5' }, 3: { size: 'size-[7px]', gap: 'gap-0.5' } } as const;
 
 /** Where each kind of workstation stands in the bar: at work first, free last, so its shares read as a ratio. */
 const barOrder = (d: WorkstationDot) => (!d.fill ? 3 : d.pulsing ? 0 : d.paused ? 2 : 1);
@@ -337,8 +337,8 @@ export function WorkingRows({ cards, pools, items, underway, projects, onOpen, o
         const tone = cardTone(i, underway[i.id]);
         return (
           <li key={i.id} className="grid grid-cols-[12px_minmax(0,1fr)] items-start gap-x-2 py-1">
-            <WorkstationMark dot={{ className: cn('ws-dot box-border block rounded-full border border-slate-500', PULSING.has(tone) ? pulse : 'bg-c'), style: stateVars(tone) as CSSProperties }} className="mt-[5px]" />
-            <button type="button" className="-mx-1.5 -my-0.5 block min-w-0 cursor-pointer rounded-[6px] border-0 bg-transparent px-1.5 py-0.5 text-left text-inherit hover:bg-muted focus-visible:bg-muted [&_.f-dot]:hidden" onClick={() => onOpen(i)}>
+            <WorkstationMark dot={{ className: cn('ws-dot box-border block rounded-full border border-slate-500', PULSING.has(tone) ? pulse : 'bg-c'), style: stateVars(tone) as CSSProperties }} className="mt-1" />
+            <button type="button" className="-mx-1.5 -my-0.5 block min-w-0 cursor-pointer rounded-sm bg-transparent px-1.5 py-0.5 text-left text-inherit hover:bg-muted focus-visible:bg-muted [&_.f-dot]:hidden" onClick={() => onOpen(i)}>
               <CardFace item={i} size="xs" workstation underway={underway[i.id]} />
             </button>
           </li>

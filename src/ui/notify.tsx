@@ -11,7 +11,7 @@ import { Button } from './components/button';
 
 /** The hint on the phone's list, a frosted box under its bar. */
 const notifyClass =
-  'ph-notify mt-3.5 mx-0 mb-0 py-2.5 px-3 rounded-[8px] border border-solid border-glass-edge bg-card shadow-[inset_0_1px_0_var(--glass-hi),var(--shadow)] backdrop-blur-glass text-[14.5px] flex flex-col items-start gap-2';
+  'ph-notify mt-3.5 mx-0 mb-0 py-2.5 px-3 rounded-md border border-glass-edge bg-card shadow-[inset_0_1px_0_var(--glass-hi),var(--shadow)] backdrop-blur-glass text-base flex flex-col items-start gap-2';
 
 type State = 'none' | 'install' | 'ask' | 'on';
 
