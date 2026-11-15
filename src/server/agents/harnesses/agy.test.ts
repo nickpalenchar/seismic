@@ -257,3 +257,26 @@ test('background tasks in agy\'s transcript show on the card, and one ending bet
   expect(events).toContainEqual({ type: 'background', tasks: [] });
   expect(events).toContainEqual({ type: 'idle', background: 0, more: true });
 });
+
+test.each([true, false])('resume captures history before launching agy (existing transcript: %s)', async (history) => {
+  const repo = workstation();
+  const brain = join(dirname(repo), 'brain');
+  const log = agyTranscriptLog(brain, 'old-conv');
+  mkdirSync(dirname(log), { recursive: true });
+  if (history) appendFileSync(log, `${started('old-conv/task-1', 'old task')}\n`);
+  const events: AgentEvent[] = [];
+  // The resumed process may write before init is received or the first watcher tick runs.
+  const resumeLaunch: typeof launch = (command, args, options) => {
+    appendFileSync(log, `${started('old-conv/task-2', 'new task')}\n`);
+    return launch(command, args, options);
+  };
+  const session = createAgyRuntime(resumeLaunch, () => '/fake/agy', () => brain).start(spec(repo, events, { resume: 'agy:old-conv' }), 'hello');
+  sessions.push(session);
+  await until(() => events.some((e) => e.type === 'idle'));
+  expect(events).toContainEqual({ type: 'background', tasks: [{ id: 'old-conv/task-2', description: 'new task' }] });
+  expect(events.filter((e) => e.type === 'idle').at(-1)).toMatchObject({ background: 1 });
+  appendFileSync(log, `${finished('old-conv/task-2')}\n`);
+  await until(() => events.filter((e) => e.type === 'idle').length >= 3);
+  expect(events).toContainEqual({ type: 'idle', background: 0, more: true });
+  expect(events).toContainEqual({ type: 'background', tasks: [] });
+});

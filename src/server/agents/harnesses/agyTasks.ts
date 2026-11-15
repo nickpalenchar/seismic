@@ -20,19 +20,19 @@ export function agyBrainDir(): string {
 
 export const agyTranscriptLog = (brain: string, conversation: string) => join(brain, conversation, '.system_generated', 'logs', 'transcript.jsonl');
 
-const STARTED = /running as a background task with task id: (\S+)\s*\n\s*Task Description: ([^\n]*)/;
-const FINISHED = /Task id "([^"]+)" finished/;
+const STARTED = /^Created At: [^\n]+\nTool is running as a background task with task id: (\S+)\nTask Description: ([^\n]*)\nTask logs are available at: /;
+const FINISHED = /^<SYSTEM_MESSAGE>\n\[Message\] sender=(\S+) content=Task id "\1" finished/;
 
 /** Applies transcript lines to the tasks running (a line that is no JSON, or no step, is skipped). */
 export function applyLines(running: Map<string, AgyTask>, lines: Iterable<string>): void {
   for (const line of lines) {
-    let step: { type?: unknown; content?: unknown };
+    let step: { source?: unknown; type?: unknown; status?: unknown; content?: unknown };
     try { step = JSON.parse(line); } catch { continue; }
     if (!step || typeof step.content !== 'string') continue;
-    if (step.type === 'SYSTEM_MESSAGE') {
+    if (step.source === 'SYSTEM' && step.type === 'SYSTEM_MESSAGE' && step.status === 'DONE') {
       const ended = FINISHED.exec(step.content);
       if (ended) running.delete(ended[1]!);
-    } else {
+    } else if (step.source === 'MODEL' && step.type === 'GENERIC' && step.status === 'RUNNING') {
       const started = STARTED.exec(step.content);
       if (started) running.set(started[1]!, { id: started[1]!, description: started[2]!.trim() });
     }
@@ -44,18 +44,31 @@ export class TranscriptTail {
   private offset = 0;
   private partial = '';
   private running = new Map<string, AgyTask>();
-  constructor(private file: string, private skip = false) {}
+  private discardPartial = false;
+  constructor(private file: string, skip = false) {
+    // Snapshot history now, before agy can resume. A missing file has an empty history too.
+    if (skip && existsSync(file)) {
+      const fd = openSync(file, 'r');
+      try {
+        this.offset = fstatSync(fd).size;
+        if (this.offset) {
+          const last = Buffer.alloc(1);
+          readSync(fd, last, 0, 1, this.offset - 1);
+          this.discardPartial = last[0] !== 10;
+        }
+      } finally { closeSync(fd); }
+    }
+  }
 
   /**
-   * The lines added since the last call. With `skip` the lines present at the first call are left out:
-   * a resumed conversation's old tasks are not this session's.
+   * The lines added since the last call. A resumed conversation's history boundary was captured at construction.
    */
   read(): string[] {
     if (!existsSync(this.file)) return [];
     const fd = openSync(this.file, 'r');
     try {
       const size = fstatSync(fd).size;
-      if (size < this.offset) { this.offset = 0; this.partial = ''; }
+      if (size < this.offset) { this.offset = 0; this.partial = ''; this.discardPartial = false; }
       if (size === this.offset) return [];
       const buffer = Buffer.alloc(size - this.offset);
       const n = readSync(fd, buffer, 0, buffer.length, this.offset);
@@ -63,9 +76,10 @@ export class TranscriptTail {
       const text = this.partial + buffer.toString('utf8', 0, n);
       const cut = text.lastIndexOf('\n');
       this.partial = cut < 0 ? text : text.slice(cut + 1);
-      const added = cut < 0 ? [] : text.slice(0, cut).split('\n').filter(Boolean);
-      if (this.skip) { this.skip = false; return []; }
-      return added;
+      const added = cut < 0 ? [] : text.slice(0, cut).split('\n');
+      // The rest of a line already present at the resume boundary belongs to history.
+      if (this.discardPartial && cut >= 0) { added.shift(); this.discardPartial = false; }
+      return added.filter(Boolean);
     } finally { closeSync(fd); }
   }
 

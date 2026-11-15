@@ -179,6 +179,8 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
       // An earlier Seismic crashed and its sweep could not end this workstation's old session.
       const left = sessionRegistry()?.unaccounted(spec.cwd);
       if (left?.length) throw new Error(`An earlier session in this workstation left processes that are still running (${left.map((l) => l.label).join('; ')}); Seismic tries to end them when it starts`);
+      // Capture resumed history before launching agy, which can write before its init frame arrives.
+      let tail = spec.resume ? new TranscriptTail(agyTranscriptLog(brain(), spec.resume.slice('agy:'.length)), true) : undefined;
       const closeConfig = { current: () => {} };
       const emit = (event: AgentEvent) => { if (!closing) spec.onEvent(event); };
       const registration: AgyRegistration = {
@@ -200,8 +202,6 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
       let introduced = false;
       let stderr = '';
       let exited = false;
-      // agy's background tasks, from its transcript: a command that outlives its wait is a task of agy's own.
-      let tail: TranscriptTail | undefined;
       let background: AgyTask[] = [];
       let terminate: ReturnType<typeof setTimeout> | undefined;
       let kill: ReturnType<typeof setTimeout> | undefined;
@@ -294,7 +294,7 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
         } catch { stderr = (stderr + line + '\n').slice(-4000); return; }
         if (parsed.event === 'init' && parsed.conversation_id) {
           const id = `agy:${parsed.conversation_id}`;
-          if (!tail) tail = new TranscriptTail(agyTranscriptLog(brain(), parsed.conversation_id), !!spec.resume);
+          if (!tail) tail = new TranscriptTail(agyTranscriptLog(brain(), parsed.conversation_id));
           emit({ type: 'session', id, ...(spec.setting ? { setting: { ...spec.setting, agy: { model: spec.model ?? 'default', effort: spec.effort ?? 'high' } } } : {}), ...(spec.model ? { model: spec.model } : {}) });
         } else if (parsed.event === 'step_update' && parsed.step_update) {
           const s = parsed.step_update;
