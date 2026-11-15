@@ -644,13 +644,11 @@ export class Koordinator {
     });
   }
 
-  /** Cards in progress; with a repository, only those a card of it can collide with. */
+  /** Cards in progress; with a repository, only those a card of it can collide with. A parked card holds nothing while parked. */
   inProgress(repo?: string): Item[] {
     return this.o.board
       .snapshot()
-      // approved work counts until it has landed: a PR not yet merged still holds its files
-      // a prototype never lands, so it collides with nothing
-      .items.filter((i) => ACTIVE.includes(i.state) && i.kind !== 'plan' && !i.idea?.prototypeOf && (!repo || i.repo === repo));
+      .items.filter((i) => running(i) && !inParkingLot(i) && (!repo || i.repo === repo));
   }
 
   /**
@@ -677,7 +675,7 @@ export class Koordinator {
     const items = this.o.board.items();
     const seen = new Set([card.id, ...active.map((i) => i.id), ...ahead.map((i) => i.id)]);
     return items.filter(
-      (i) => i.parent === card.parent && i.kind !== 'plan' && !seen.has(i.id) && !finished(i.state) && !i.archivedAt && !waitsOn(i, card.id, items, true),
+      (i) => i.parent === card.parent && i.kind !== 'plan' && !seen.has(i.id) && !finished(i.state) && !i.archivedAt && !inParkingLot(i) && !waitsOn(i, card.id, items, true),
     );
   }
 
@@ -909,7 +907,9 @@ export class Koordinator {
     const items = this.o.board.items();
     // a card queued behind another that waits itself holds on while that one waits, and once it
     // has started, until it has landed: a card started or judged again here stays in this set
-    const active = new Set([...this.inProgress(), ...items.filter(inQueue)].map((i) => i.id));
+    // parked cards count here too: their waits are kept while they are parked, to hold again once unparked
+    const active = new Set(items.filter((i) => running(i) || inQueue(i)).map((i) => i.id));
+    const parked = new Set(items.filter(inParkingLot).map((i) => i.id));
     // the card waiting longest goes first: one queued later must not take its turn
     const waiting = queueOrder(items).filter(movable);
     // a repository whose workstations are taken by a card waiting longer is not asked again
@@ -980,14 +980,16 @@ export class Koordinator {
       }
       // the waits the Koordinator inferred hold while what they wait for is in progress or queued, or
       // has not landed where it builds on it; the owner's arrows hold beside them while drawn, so
-      // removing one leaves exactly the waits inferred
-      const inferred = q.behind.filter((id) => !q.manualWait?.includes(id) && !items.some((i) => i.id === id && inParkingLot(i)) && (active.has(id) || (q.buildsOn?.includes(id) && unlanded(items.find((i) => i.id === id)))));
+      // removing one leaves exactly the waits inferred. A parked card holds nothing, but its wait
+      // stays on the queue, so it holds again once unparked
+      const inferred = q.behind.filter((id) => !q.manualWait?.includes(id) && (active.has(id) || (q.buildsOn?.includes(id) && unlanded(items.find((i) => i.id === id)))));
       const manualWait = drawnWaits(w, items).filter((id) => !inferred.includes(id));
       const buildsOn = (q.buildsOn ?? []).filter((id) => inferred.includes(id));
       const still = [...inferred, ...manualWait];
-      if (same(still, q.behind) && same(manualWait, q.manualWait ?? []) && same(buildsOn, q.buildsOn ?? [])) continue;
-      if (still.length) {
-        this.setQueue(w.id, { behind: still, reason: inferred.length ? q.reason : this.o.board.t.koordinator.drawn, ...(buildsOn.length && { buildsOn }), ...(manualWait.length && { manualWait }) });
+      const holding = still.filter((id) => !parked.has(id));
+      if (holding.length && same(still, q.behind) && same(manualWait, q.manualWait ?? []) && same(buildsOn, q.buildsOn ?? [])) continue;
+      if (holding.length) {
+        this.setQueue(w.id, { behind: still, reason: inferred.some((id) => !parked.has(id)) ? q.reason : this.o.board.t.koordinator.drawn, ...(buildsOn.length && { buildsOn }), ...(manualWait.length && { manualWait }) });
         // an arrow the owner drew to it while it waited holds it too, which it says
         const drawnNow = manualWait.filter((id) => !q.behind.includes(id));
         if (drawnNow.length) this.logWait(w.id, [], '', drawnNow, (id) => this.nameOf(items.find((i) => i.id === id) ?? this.o.board.card(id)!));
@@ -1161,7 +1163,7 @@ export class Koordinator {
     const words = (item: Item) => new Set(`${item.title} ${item.body}`.toLowerCase().match(/[\p{L}\p{N}]{3,}/gu)?.filter((word) => !['the', 'and', 'for', 'with', 'from', 'add', 'eine', 'einen', 'und', 'für', 'mit', 'der', 'die', 'das'].includes(word)) ?? []);
     const mine = words(card);
     return this.o.board.items().filter((i) => {
-      if (i.id === card.id || i.repo !== card.repo || i.kind !== 'task' || i.idea?.prototypeOf || i.archivedAt || (i.state !== 'planned' && !ACTIVE.includes(i.state))) return false;
+      if (i.id === card.id || i.repo !== card.repo || i.kind !== 'task' || i.idea?.prototypeOf || i.archivedAt || inParkingLot(i) || (i.state !== 'planned' && !ACTIVE.includes(i.state))) return false;
       if (ACTIVE.includes(i.state)) return true;
       const theirs = words(i);
       return [...mine].filter((word) => theirs.has(word)).length >= 2;
@@ -1665,6 +1667,9 @@ const describe = (c: Change) =>
 
 /** The tag a turn of the Koordinator knows a card by. */
 /** A card waited on that still holds back what builds on it: there, and its work not on the main branch yet. */
+/** In progress, parked or not: approved work counts until it has landed (a PR not yet merged still holds its files); a prototype never lands, so it collides with nothing. */
+const running = (i: Item) => ACTIVE.includes(i.state) && i.kind !== 'plan' && !i.idea?.prototypeOf;
+
 const unlanded = (i?: Item) => !!i && !finished(i.state) && !i.archivedAt;
 /** Whether two lists hold the same cards. */
 const same = (a: string[], b: string[]) => a.length === b.length && a.every((id) => b.includes(id));

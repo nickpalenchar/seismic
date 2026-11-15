@@ -581,6 +581,50 @@ describe('Koordinator', () => {
     expect(item(c.id).state).toBe('working');
   });
 
+  test('a parked card is neither in progress nor a possible duplicate: a card like it starts at once', async () => {
+    const parked = card('Export invoices to CSV');
+    board.work(parked.id, { state: 'waiting', hold: { reason: 'parkingLot', since: new Date().toISOString() } });
+    const later = card('Add CSV export for invoices');
+    k.request(later.id);
+    await settle();
+    expect(item(later.id).state).toBe('working');
+    expect(estimates().every((e) => !e.inbox[0]?.includes('Export invoices to CSV'))).toBe(true);
+  });
+
+  test('a wait on a card parked meanwhile holds nothing, and holds again once it is unparked', async () => {
+    const a = card('A');
+    k.request(a.id);
+    await scope(['src/a.ts']);
+    const b = card('B');
+    k.request(b.id);
+    await scope(['src/b.ts']);
+    const c = card('C');
+    k.request(c.id);
+    await scope(['src/a.ts', 'src/b.ts'], ['K1', 'K2']);
+    expect(item(c.id).queue).toMatchObject({ behind: [a.id, b.id] });
+    board.work(a.id, { state: 'waiting', hold: { reason: 'parkingLot', since: new Date().toISOString() } });
+    await settle();
+    expect(item(c.id).queue).toMatchObject({ behind: [a.id, b.id] });
+    board.work(a.id, { hold: null });
+    await settle();
+    await workers.stop(b.id);
+    await settle();
+    expect(item(c.id)).toMatchObject({ state: 'planned', queue: { behind: [a.id] } });
+  });
+
+  test('a card waiting only on a parked one starts', async () => {
+    const a = card('A');
+    k.request(a.id);
+    await scope(['src/a.ts']);
+    const c = card('C');
+    k.request(c.id);
+    await scope(['src/a.ts'], ['K1']);
+    expect(item(c.id).queue).toMatchObject({ behind: [a.id] });
+    board.work(a.id, { state: 'waiting', hold: { reason: 'parkingLot', since: new Date().toISOString() } });
+    await settle();
+    expect(item(c.id).state).toBe('working');
+  });
+
   test('a card keeps its place in the queue while what it waits for changes', async () => {
     const a = card('A');
     k.request(a.id);
