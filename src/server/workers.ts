@@ -1675,7 +1675,11 @@ export class Workers {
         // the card may have moved on during the git calls: look again before writing
         if (!this.catchable(i.id)) continue;
         const e = this.o.board.events(i.id).findLast((x) => x.kind === 'review' && x.author === 'worker');
-        if (e) this.reviews.applyMode(i.id, e.id, this.reviewModeOf(this.o.board.row(i.id), work));
+        if (!e) continue;
+        const mode = this.reviewModeOf(this.o.board.row(i.id), work);
+        // only the project's setting taking reviews away drops one: a git look that found no work (a workstation still being made ready after a restart) says nothing about it
+        if (!mode && this.o.codeReviews?.().on) continue;
+        this.reviews.applyMode(i.id, e.id, mode);
       } catch (err) {
         console.error(`Seismic: the code review setting did not reach card ${i.id}: ${err instanceof Error ? err.message : err}`);
       }
@@ -1704,7 +1708,10 @@ export class Workers {
   startCodeReview(cardId: string) {
     const card = this.card(cardId);
     if (!handedOver(card) || card.review?.landing || this.landing.has(cardId) || this.approving.has(cardId)) throw new BadRequest('notReady', 'the card is not ready for review');
-    this.reviews.start(cardId);
+    // the latest handover is what a review the card lacks is made for
+    const latest = this.o.board.events(cardId).findLast((x) => x.kind === 'review' && x.author === 'worker');
+    if (card.review?.contribution || this.folder || card.idea?.prototypeOf) throw new BadRequest('notReview', 'this work is not reviewed by a code review');
+    this.reviews.start(cardId, latest?.id);
   }
 
   async approve(cardId: string, { direct = false }: { direct?: boolean } = {}) {

@@ -796,6 +796,49 @@ describe('code reviews', () => {
     expect(itemsOf(id)).toHaveLength(3);
   });
 
+  test('a finished review of a card waiting for approval survives a restart', async () => {
+    reviewing('auto');
+    const id = await started();
+    await handOver(id, 'export.ts');
+    await until(() => reviewers().length === 1);
+    await review(id, reviewers()[0]!);
+    workers.shutdown();
+    reviewing('auto');
+    workers.resumeAll();
+    await workers.codeReviewsChanged();
+    expect(itemsOf(id)).toHaveLength(3);
+    expect(board.item(id)!.review?.codeReview?.state).toBe('done');
+  });
+
+  test('a git look that finds no work after a restart does not drop a finished review', async () => {
+    reviewing('auto');
+    const id = await started();
+    await handOver(id, 'export.ts');
+    await until(() => reviewers().length === 1);
+    await review(id, reviewers()[0]!);
+    const hasWork = spaces.hasWork;
+    spaces.hasWork = async () => false;
+    try {
+      await workers.codeReviewsChanged();
+    } finally {
+      spaces.hasWork = hasWork;
+    }
+    expect(itemsOf(id)).toHaveLength(3);
+    expect(board.item(id)!.review?.codeReview?.state).toBe('done');
+  });
+
+  test('a handed-over card without a review gets one on "Start code review", whatever the project setting', async () => {
+    reviewing('auto', false);
+    const id = await started();
+    await handOver(id, 'export.ts');
+    expect(board.item(id)!.review?.codeReview).toBeUndefined();
+    workers.startCodeReview(id);
+    await until(() => reviewers().length === 1);
+    expect(board.item(id)!.review?.codeReview?.mode).toBe('manual');
+    await review(id, reviewers()[0]!);
+    expect(itemsOf(id)).toHaveLength(FINDINGS.length);
+  });
+
   test('a manually started review is pending immediately and resumes after restart', async () => {
     reviewing('manual');
     const id = await started();

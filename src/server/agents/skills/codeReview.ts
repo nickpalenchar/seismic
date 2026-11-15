@@ -175,10 +175,11 @@ export class CodeReviews {
   }
 
   /** "Start code review": a review of the card's latest handover starts, where it has none that stands (or one that failed). */
-  start(cardId: string): void {
+  start(cardId: string, handover?: number): void {
     if (this.shut) throw new BadRequest('notReview', 'the reviewer is shutting down');
-    const c = codeReviewOf(this.o.board.row(cardId));
-    if (!c) throw new BadRequest('notReview', 'the card has no code review: its project reviews no work');
+    // a card without a review (lost, or the project reviews no work) gets one on the owner's word, in manual mode
+    const c = codeReviewOf(this.o.board.row(cardId)) ?? (handover === undefined ? null : ({ mode: 'manual', handover } satisfies StoredCodeReview));
+    if (!c) throw new BadRequest('notReview', 'the card has no handover to review');
     if (c.pending) throw new BadRequest('notReview', 'the review is starting already');
     if (c.review?.handover === c.handover && c.review.state !== 'failed' && !this.items(cardId).some((i) => i.status === 'underReview')) throw new BadRequest('notReview', 'the latest handover is reviewed already');
     this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.codeReviewStarted);
