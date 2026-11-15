@@ -464,7 +464,7 @@ export const stateTextClass = (p: FaceMPlace) => (p.place === 'phone' ? 'state-t
 
 /** M: the pin at the card's corner, in the colour of what the owner is asked (left out where the list says so already, and on a merge's halves). */
 export const pinClass = (f: CardFlags, p: FaceMPlace) =>
-  [f.failed ? '[--pin:var(--destructive)] [--pin-fg:var(--destructive-foreground)]' : f.asking && '[--pin:var(--asking)] [--pin-fg:var(--asking-foreground)]', (p.half || p.place === 'phone') && 'hidden'].filter(Boolean).join(' ') || undefined;
+  [f.proposal ? '[--pin:var(--proposal)] [--pin-fg:var(--proposal-foreground)] w-6 px-0' : f.failed ? '[--pin:var(--destructive)] [--pin-fg:var(--destructive-foreground)]' : f.asking && '[--pin:var(--asking)] [--pin-fg:var(--asking-foreground)]', (p.half || p.place === 'phone') && 'hidden'].filter(Boolean).join(' ') || undefined;
 
 // ---------- the faces in lists, S and XS (their state's colour comes as --c on the face)
 

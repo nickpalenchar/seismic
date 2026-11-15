@@ -84,7 +84,7 @@ export function Title({ item, className, inline, children }: { item: Item; class
 
 /** A pin's fill, in the colour of what the owner is asked (`--pin`). */
 const PIN = 'bg-(--pin)';
-const pinInk = (pin: NonNullable<CardSummary['pin']>) => (pin.failed ? '[--pin:var(--destructive)] [--pin-fg:var(--destructive-foreground)]' : pin.asking ? '[--pin:var(--asking)] [--pin-fg:var(--asking-foreground)]' : '[--pin:var(--waiting)] [--pin-fg:var(--waiting-foreground)]');
+const pinInk = (pin: NonNullable<CardSummary['pin']>) => (pin.mark === '✦' ? '[--pin:var(--proposal)] [--pin-fg:var(--proposal-foreground)] w-[17px] px-0!' : pin.failed ? '[--pin:var(--destructive)] [--pin-fg:var(--destructive-foreground)]' : pin.asking ? '[--pin:var(--asking)] [--pin-fg:var(--asking-foreground)]' : '[--pin:var(--waiting)] [--pin-fg:var(--waiting-foreground)]');
 
 /** The pin while a card needs the owner, inline after a list's title: "!", "?" for a question, "!!" for a failed agent, "✦" for a proposal. */
 export const Pin = ({ pin }: { pin: NonNullable<CardSummary['pin']> }) => (
