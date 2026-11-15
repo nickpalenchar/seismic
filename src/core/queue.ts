@@ -59,7 +59,10 @@ export const asksAhead = (i: Pick<Item, 'kind' | 'state' | 'archivedAt' | 'agent
 /** A card that has not been started: planned and not in the queue (a stopped one too). */
 export const notStarted = (i: Pick<Item, 'state' | 'queue'>) => i.state === 'planned' && !i.queue;
 
-/** Whether `card` waits for `id`, directly or through cards it waits for; with `anyArrow`, counting every arrow the owner drew, held or not. */
+/**
+ * Whether `card` waits for `id`, directly or through cards it waits for; with `anyArrow`, counting
+ * every arrow the owner drew, held or not. A parked card is neither waited for nor passed through.
+ */
 export function waitsOn(card: Item, id: string, items: Item[], anyArrow = false): boolean {
   const next = (c: Item) => (anyArrow ? reliesOn(c) : behind(c, items));
   const byId = new Map(items.map((i) => [i.id, i]));
@@ -67,6 +70,7 @@ export function waitsOn(card: Item, id: string, items: Item[], anyArrow = false)
   const todo = [card];
   while (todo.length) {
     for (const b of next(todo.pop()!)) {
+      if (byId.has(b) && inParkingLot(byId.get(b)!)) continue;
       if (b === id) return true;
       if (seen.has(b)) continue;
       seen.add(b);

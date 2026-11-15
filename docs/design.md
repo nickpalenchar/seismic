@@ -103,9 +103,10 @@ cycling through terminals.
 - **Waits of hours or days are a snooze Seismic holds** (2026-10-17), on a time or another card's
   state; rejected: chained background sleeps in the agent.
 - **A parked card holds nothing back while parked** (2026-11-15): it is neither in progress, a
-  pending workstream nor a possible duplicate, and arrows from it hold nothing. A queued card keeps
-  its wait on it, so the wait holds again once it is unparked; one waiting only on parked cards
-  starts.
+  pending workstream nor a possible duplicate, arrows from it hold nothing, and no chain of waits
+  runs through it. A queued card keeps its wait on it, so the wait holds again once it is unparked
+  (unless that card has come to wait for the queued one meanwhile); one waiting only on parked
+  cards starts.
 - **Approval covers the PR, its monitoring and the merge** (2026-10-05): the owner approves the
   demo, not the code; rejected: leaving the merge to the owner (PRs sat for days).
 - **The worker tends its PR the repository's way** (2026-10-01); rejected: Seismic scripting rebase

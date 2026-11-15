@@ -612,6 +612,22 @@ describe('Koordinator', () => {
     expect(item(c.id)).toMatchObject({ state: 'planned', queue: { behind: [a.id] } });
   });
 
+  test('a queued card is ahead of a new one even when a parked card it waits for has an arrow from the new one', async () => {
+    const q = card('Q');
+    k.request(q.id);
+    await scope(['src/q.ts']);
+    const p = card('P');
+    const c = card('C');
+    board.connect(c.id, p.id);
+    const a = card('A');
+    board.work(a.id, { queue: JSON.stringify({ behind: [q.id, p.id], reason: 'Grund.', since: new Date(Date.now() - 1000).toISOString() }) });
+    board.work(p.id, { hold: { reason: 'parkingLot', since: new Date().toISOString() } });
+    board.work(c.id, { queue: JSON.stringify({ checking: true, since: new Date().toISOString() }) });
+    expect(k.ahead(item(c.id)).map((i) => i.id)).toEqual([a.id]);
+    board.work(p.id, { hold: null });
+    expect(k.ahead(item(c.id)).map((i) => i.id)).toEqual([]);
+  });
+
   test('a card waiting only on a parked one starts', async () => {
     const a = card('A');
     k.request(a.id);

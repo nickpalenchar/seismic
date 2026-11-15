@@ -981,8 +981,12 @@ export class Koordinator {
       // the waits the Koordinator inferred hold while what they wait for is in progress or queued, or
       // has not landed where it builds on it; the owner's arrows hold beside them while drawn, so
       // removing one leaves exactly the waits inferred. A parked card holds nothing, but its wait
-      // stays on the queue, so it holds again once unparked
-      const inferred = q.behind.filter((id) => !q.manualWait?.includes(id) && (active.has(id) || (q.buildsOn?.includes(id) && unlanded(items.find((i) => i.id === id)))));
+      // stays on the queue, so it holds again once unparked, unless that card waits for this one
+      // by then (judged while it was parked, a card may have come to wait behind this one)
+      const inferred = q.behind.filter((id) => {
+        const i = items.find((x) => x.id === id);
+        return !q.manualWait?.includes(id) && (active.has(id) || (q.buildsOn?.includes(id) && unlanded(i))) && !(i && waitsOn(i, w.id, items, true));
+      });
       const manualWait = drawnWaits(w, items).filter((id) => !inferred.includes(id));
       const buildsOn = (q.buildsOn ?? []).filter((id) => inferred.includes(id));
       const still = [...inferred, ...manualWait];

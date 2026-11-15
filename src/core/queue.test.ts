@@ -32,4 +32,12 @@ describe('parked cards in waits', () => {
     expect(waitsOn(b, 'a', [card('a', parked), b])).toBe(false);
     expect(waitsOn(b, 'a', [card('a'), b])).toBe(true);
   });
+  test('no wait is traced through a parked card, arrows held or not', () => {
+    const c = card('c');
+    const p = card('p', { plan: { manualDependsOn: ['c'] } as Item['plan'] });
+    const a = card('a', { queue: { behind: ['p'], reason: '', since: 'x' } as Item['queue'] });
+    expect(waitsOn(a, 'c', [a, { ...p, ...parked }, c], true)).toBe(false);
+    expect(waitsOn(a, 'p', [a, { ...p, ...parked }, c], true)).toBe(false);
+    expect(waitsOn(a, 'c', [a, p, c], true)).toBe(true);
+  });
 });
