@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { Database } from 'bun:sqlite';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { excerpt, excerptOf, excerptText, findTranscript } from './transcript';
 
 const SAMPLE = join(import.meta.dir, 'fixtures', 'transcript.jsonl');
@@ -233,6 +233,29 @@ describe('transcript excerpt', () => {
       expect(findTranscript('agy:c1', null, dir)).toBe(file);
       expect(findTranscript('agy:c2', null, dir)).toBeNull();
       expect(findTranscript('agy:../c1', null, dir)).toBeNull();
+      const dotted = join(dirname(file), 'c1.v2.db');
+      copyFileSync(file, dotted);
+      expect(findTranscript('agy:c1.v2', null, dir)).toBe(dotted);
+    });
+
+    test('reads the steps still in the write-ahead log where no shared memory file can be made', () => {
+      const file = conversation([[15, 3, model('first')]]);
+      const live = new Database(file);
+      live.run('pragma journal_mode = wal');
+      live.run('pragma wal_autocheckpoint = 0');
+      live.query('insert into steps values (?, ?, ?, ?, ?)').run(1, 132, 3, tool('run_command', { CommandLine: 'bun test' }, 'Command exited with code 1.'), null);
+      // the database and its log as agy leaves them mid-run, in a directory this process cannot write
+      const locked = join(dirname(file), 'locked');
+      mkdirSync(locked);
+      copyFileSync(file, join(locked, 'c1.db'));
+      copyFileSync(`${file}-wal`, join(locked, 'c1.db-wal'));
+      live.close();
+      chmodSync(locked, 0o555);
+      try {
+        expect(excerptOf(join(locked, 'c1.db'))?.findings).toMatchObject([{ kind: 'failure', call: { step: 1, tool: 'Bash', before: 'first' } }]);
+      } finally {
+        chmodSync(locked, 0o755);
+      }
     });
 
     test('a database that is none gives no excerpt', () => {

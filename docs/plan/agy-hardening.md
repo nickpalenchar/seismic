@@ -18,7 +18,10 @@ Bring `agy` workers to the Codex level of crash recovery, process cleanup and tr
   tool call (call in 5.4, result text in 140.2.1), with `status` 6 for canceled and 7 for failed
   (reason in `error_details`). `run_command` reads as Bash, `read_file`/`write_file`/`edit_file` as
   Read/Write/Edit, `call_mcp_tool` as `mcp__<server>__<tool>`. A sandboxed process cannot always
-  open a WAL database read-only, so the reader falls back to `?immutable=1`.
+  open a WAL database read-only (it cannot make the shared memory file), so the reader then copies
+  the database with its `-wal` to a temp directory and reads the copy; `?immutable=1` would ignore
+  the log and lose the latest steps. The conversation id pattern is one, `AGY_CONVERSATION_ID`,
+  shared by resuming and lookup.
 - [x] **W3:** Usage limits. Record what `agy` actually reports when a Google account's quota is used up
   (the preview recognises it from the error text) and read the reset time from it.
 - [ ] **W4:** Background commands. Show the agent's background tasks on the card and wake the

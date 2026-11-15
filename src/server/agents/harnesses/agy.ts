@@ -19,6 +19,7 @@ import { messageOf } from '../../../core/text';
 import { which } from '../../path';
 import { OWN_GROUP } from '../../spawn';
 import { cleanEnv, type AgentEvent, type AgentRuntime, type AgentSpec } from '../../runtime';
+import { AGY_CONVERSATION_ID } from '../../transcript';
 import { AGY_SERVER, registerAgyTools, wireTools, type AgyRegistration } from './agyMcp';
 
 /** The installed `agy`, or null: `SEISMIC_AGY` first, else on the search path (which has its installer's directory). */
@@ -62,7 +63,7 @@ function supported(spec: AgentSpec) {
     spec.plugins?.length ? 'Claude plugins' : '',
   ].filter(Boolean);
   if (unsupported.length) throw new Error(`Antigravity does not support: ${unsupported.join(', ')}`);
-  if (spec.resume && !/^agy:[A-Za-z0-9_.-]+$/.test(spec.resume)) throw new Error('Antigravity can only resume an agy: session, not a Claude or Codex one');
+  if (spec.resume && !(spec.resume.startsWith('agy:') && AGY_CONVERSATION_ID.test(spec.resume.slice('agy:'.length)))) throw new Error('Antigravity can only resume an agy: session, not a Claude or Codex one');
 }
 
 /**

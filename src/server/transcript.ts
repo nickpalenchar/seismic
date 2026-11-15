@@ -9,8 +9,8 @@
 // analysis serves all.
 
 import { Database } from 'bun:sqlite';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { copyFileSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { clip } from '../core/text';
 
@@ -101,10 +101,13 @@ function findRollout(thread: string, dirs: string[]): string | null {
  * Codex's rollouts. A Claude session is looked for under the working directory it ran in first (`cwd`,
  * as the SDK names its directory), then in every directory, as the naming may change.
  */
+/** An Antigravity conversation id, as its harness accepts one to resume: a single file name's characters. */
+export const AGY_CONVERSATION_ID = /^[A-Za-z0-9_.-]+$/;
+
 export function findTranscript(sessionId: string, cwd?: string | null, dir?: string): string | null {
   if (sessionId.startsWith('agy:')) {
     const id = sessionId.slice('agy:'.length);
-    if (!/^[\w-]+$/.test(id)) return null;
+    if (!AGY_CONVERSATION_ID.test(id)) return null;
     const file = join(dir ?? agyConversationsDir(), `${id}.db`);
     return existsSync(file) ? file : null;
   }
@@ -283,19 +286,20 @@ const AGY_FAILED = 7;
  */
 function agyRun(file: string): Run {
   const run: Run = { entries: [], results: new Map(), recognised: false };
-  // a live conversation has a write-ahead log to read; where the shared memory file cannot be made (a sandbox), the file is read as it lies
-  let db: Database;
+  type Row = { idx: number; step_type: number; status: number; step_payload: Uint8Array; error_details: Uint8Array | null };
+  const read = (path: string) => {
+    const db = new Database(path, { readonly: true });
+    try {
+      return db.query('select idx, step_type, status, step_payload, error_details from steps order by idx').all() as Row[];
+    } finally {
+      db.close();
+    }
+  };
+  let rows: Row[];
   try {
-    db = new Database(file, { readonly: true });
-    db.query('select 1 from steps limit 1').get();
+    rows = read(file);
   } catch {
-    db = new Database(`file:${file}?immutable=1`, { readonly: true });
-  }
-  let rows: { idx: number; step_type: number; status: number; step_payload: Uint8Array; error_details: Uint8Array | null }[];
-  try {
-    rows = db.query('select idx, step_type, status, step_payload, error_details from steps order by idx').all() as typeof rows;
-  } finally {
-    db.close();
+    rows = readCopy(file, read);
   }
   for (const row of rows) {
     try {
@@ -332,6 +336,30 @@ function agyRun(file: string): Run {
     } catch {}
   }
   return run;
+}
+
+/**
+ * A live conversation's latest steps lie in its write-ahead log, which SQLite reads only through a
+ * shared memory file beside the database. Where that file cannot be made (a sandbox, a directory not
+ * writable), the database and its log are copied to a directory of our own and read there. A copy
+ * taken while agy writes may pair a database with a log of another moment; it is taken again until
+ * both stay unchanged across it, and a conversation that never holds still gives none.
+ */
+function readCopy<T>(file: string, read: (path: string) => T): T {
+  const stamp = () => [file, `${file}-wal`].map((f) => (existsSync(f) ? `${statSync(f).size}:${statSync(f).mtimeMs}` : '-')).join('|');
+  const dir = mkdtempSync(join(tmpdir(), 'seismic-agy-'));
+  try {
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      const before = stamp();
+      const copy = join(dir, `${attempt}.db`);
+      copyFileSync(file, copy);
+      if (existsSync(`${file}-wal`)) copyFileSync(`${file}-wal`, `${copy}-wal`);
+      if (stamp() === before) return read(copy);
+    }
+    throw new Error('the conversation kept changing while it was copied');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 }
 
 /** Antigravity's tool as the Claude tool it matches; the others keep their names, an MCP tool as the SDK names it. */
