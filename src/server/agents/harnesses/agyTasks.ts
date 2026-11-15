@@ -10,6 +10,7 @@
 import { closeSync, existsSync, fstatSync, openSync, readSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { StringDecoder } from 'node:string_decoder';
 
 export interface AgyTask { id: string; description: string }
 
@@ -43,6 +44,7 @@ export function applyLines(running: Map<string, AgyTask>, lines: Iterable<string
 export class TranscriptTail {
   private offset = 0;
   private partial = '';
+  private decoder = new StringDecoder('utf8');
   private running = new Map<string, AgyTask>();
   private discardPartial = false;
   constructor(private file: string, skip = false) {
@@ -68,12 +70,17 @@ export class TranscriptTail {
     const fd = openSync(this.file, 'r');
     try {
       const size = fstatSync(fd).size;
-      if (size < this.offset) { this.offset = 0; this.partial = ''; this.discardPartial = false; }
+      if (size < this.offset) {
+        this.offset = 0;
+        this.partial = '';
+        this.decoder = new StringDecoder('utf8');
+        this.discardPartial = false;
+      }
       if (size === this.offset) return [];
       const buffer = Buffer.alloc(size - this.offset);
       const n = readSync(fd, buffer, 0, buffer.length, this.offset);
       this.offset += n;
-      const text = this.partial + buffer.toString('utf8', 0, n);
+      const text = this.partial + this.decoder.write(buffer.subarray(0, n));
       const cut = text.lastIndexOf('\n');
       this.partial = cut < 0 ? text : text.slice(cut + 1);
       const added = cut < 0 ? [] : text.slice(0, cut).split('\n');

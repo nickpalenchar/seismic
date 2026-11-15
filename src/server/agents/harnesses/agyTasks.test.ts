@@ -73,3 +73,54 @@ test('resume captures missing files and incomplete historical lines at construct
   appendFileSync(file, `${line.slice(60)}\n${started('c/task-3', 'after resume')}\n`);
   expect(partial.tasks()).toEqual([{ id: 'c/task-3', description: 'after resume' }]);
 });
+
+test('UTF-8 task descriptions survive every byte boundary, including one-byte appends', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'agy-tail-'));
+  dirs.push(dir);
+  const file = join(dir, 'transcript.jsonl');
+  const description = 'echo café 日本語 🚀';
+  const bytes = Buffer.from(`${started('c/task-2', description)}\n`);
+  for (let split = 1; split < bytes.length; split++) {
+    writeFileSync(file, bytes.subarray(0, split));
+    const tail = new TranscriptTail(file);
+    expect(tail.tasks()).toEqual([]);
+    appendFileSync(file, bytes.subarray(split));
+    expect(tail.tasks()).toEqual([{ id: 'c/task-2', description }]);
+  }
+  writeFileSync(file, '');
+  const tail = new TranscriptTail(file);
+  for (const byte of bytes) {
+    appendFileSync(file, Buffer.from([byte]));
+    tail.tasks();
+  }
+  expect(tail.tasks()).toEqual([{ id: 'c/task-2', description }]);
+  appendFileSync(file, `${finished('c/task-2')}\n`);
+  expect(tail.tasks()).toEqual([]);
+});
+
+test('resuming in a UTF-8 character skips only the historical line', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'agy-tail-'));
+  dirs.push(dir);
+  const file = join(dir, 'transcript.jsonl');
+  const old = Buffer.from(`${started('c/task-1', 'echo 🚀')}\n`);
+  const split = old.indexOf(Buffer.from('🚀')) + 1;
+  writeFileSync(file, old.subarray(0, split));
+  const tail = new TranscriptTail(file, true);
+  appendFileSync(file, old.subarray(split));
+  expect(tail.tasks()).toEqual([]);
+  appendFileSync(file, `${started('c/task-2', 'echo café 日本語 🚀')}\n`);
+  expect(tail.tasks()).toEqual([{ id: 'c/task-2', description: 'echo café 日本語 🚀' }]);
+});
+
+test('truncation resets pending UTF-8 bytes along with the partial line', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'agy-tail-'));
+  dirs.push(dir);
+  const file = join(dir, 'transcript.jsonl');
+  writeFileSync(file, Buffer.concat([Buffer.from('an old partial line '), Buffer.from('🚀').subarray(0, 2)]));
+  const tail = new TranscriptTail(file);
+  expect(tail.read()).toEqual([]);
+  writeFileSync(file, 'fresh\n');
+  expect(tail.read()).toEqual(['fresh']);
+  appendFileSync(file, `${started('c/task-2', 'echo 日本語 🚀')}\n`);
+  expect(tail.tasks()).toEqual([{ id: 'c/task-2', description: 'echo 日本語 🚀' }]);
+});

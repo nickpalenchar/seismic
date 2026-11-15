@@ -280,3 +280,25 @@ test.each([true, false])('resume captures history before launching agy (existing
   expect(events).toContainEqual({ type: 'idle', background: 0, more: true });
   expect(events).toContainEqual({ type: 'background', tasks: [] });
 });
+
+test('a non-ASCII task description reaches both the card and the completion wake-up prompt intact', async () => {
+  const repo = workstation();
+  const brain = join(dirname(repo), 'brain');
+  const log = agyTranscriptLog(brain, 'old-conv');
+  const inbox = join(dirname(repo), 'inbox.jsonl');
+  const description = 'echo café 日本語 🚀';
+  mkdirSync(dirname(log), { recursive: true });
+  const events: AgentEvent[] = [];
+  const session = createAgyRuntime(scripted(`
+    const fs = require('node:fs');
+    process.stdin.on('data', (chunk) => fs.appendFileSync(${JSON.stringify(inbox)}, chunk));
+    const turn = (n) => { if (n === 1) fs.appendFileSync(${JSON.stringify(log)}, ${JSON.stringify(`${started('old-conv/task-2', description)}\n`)}); };
+  `), () => '/fake/agy', () => brain).start(spec(repo, events, { resume: 'agy:old-conv' }), 'hello');
+  sessions.push(session);
+  await until(() => events.some((e) => e.type === 'idle'));
+  expect(events).toContainEqual({ type: 'background', tasks: [{ id: 'old-conv/task-2', description }] });
+  appendFileSync(log, `${finished('old-conv/task-2')}\n`);
+  await until(() => readFileSync(inbox, 'utf8').split('\n').filter(Boolean).length === 2);
+  const wake = JSON.parse(readFileSync(inbox, 'utf8').trim().split('\n')[1]!);
+  expect(wake.message.content).toBe(`Background commands have ended: ${description}. Inspect their results and continue your task.`);
+});
