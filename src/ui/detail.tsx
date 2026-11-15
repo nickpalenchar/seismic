@@ -3693,7 +3693,7 @@ function Split({ item, main, talk, className, cite }: { item: Item; main: ReactN
     <Tooltip content={toggleLabel}>
       <button type="button" className="split-fold self-end inline-flex items-center justify-center size-[26px] p-0 mb-1.5 bg-transparent text-muted-foreground rounded-sm cursor-pointer hover:bg-[color:--alpha(currentColor/12%)] [.folded>&]:absolute [.folded>&]:top-0 [.folded>&]:right-0 [.folded>&]:m-0 [.folded>&]:z-1 max-[760px]:hidden" aria-label={toggleLabel} aria-expanded={!closed} onClick={() => fold(!closed)}>
         {closed ? <PanelRightOpen size={16} /> : <PanelRightClose size={16} />}
-        {closed && asking && <span className="split-fold-dot absolute top-0.5 right-0.5 size-2 rounded-full bg-orange-500" aria-hidden />}
+        {closed && asking && <span className="split-fold-dot absolute top-0.5 right-0.5 size-2 rounded-full bg-waiting" aria-hidden />}
       </button>
     </Tooltip>
   );
