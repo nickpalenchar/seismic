@@ -1,11 +1,12 @@
-// The setup assistant: what Seismic needs on this machine in one list (Claude Code and its login, git,
-// gh and its login, voice, demos), the needed parts apart from those that can wait, installed at a
-// click where Seismic can, with the command for the rest and a terminal for the logins. On the first
-// start (no project yet) it fills the page and ends with the first project, from a folder or a clone;
-// later the settings open it over the project.
+// The setup assistant, in steps: the agents the owner works with (Claude Code, Codex, Antigravity,
+// picked as several options), each with what it needs on this machine and git beside them; then the
+// features that can wait (pull requests, voice, demos, mobile development); on the first start (no
+// project yet) it fills the page and ends with the first project, from a folder or a clone. Each piece
+// is installed at a click where Seismic can, with the command for the rest and a terminal for the
+// logins. Later the settings open it over the project, without the last step.
 
 import { Fragment, type ReactNode, useEffect, useRef, useState } from 'react';
-import { CLOUD_PRESETS, CLOUD_VOICES, type CloudPreset, type GitSetupPreview, LARGE_FILE, type Language, type MachineItem, type MachineSection, type MachineView, type MobileId, RECOMMENDED_SECTIONS, type SetupItem, type VoiceSetupItem } from '../../../core/types';
+import { CLOUD_PRESETS, CLOUD_VOICES, type CloudPreset, type GitSetupPreview, LARGE_FILE, type Language, type MachineItem, type MachineSection, type MachineSectionId, type MachineView, type MobileId, RECOMMENDED_SECTIONS, type SetupItem, type VoiceSetupItem } from '../../../core/types';
 import { LANGUAGES } from '../../../core/locale';
 import { api, reload } from '../../api';
 import { useCopy } from '../../copy';
@@ -14,7 +15,11 @@ import { failText, fileSize, t } from '../../strings';
 import { projectPath } from '../../address';
 import { Button, CloseButton, LinkButton } from '../../components/button';
 import { RadioGroup, RadioOption } from '../../components/radio';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/tabs';
+import { Checkbox } from '../../components/checkbox';
+import { CheckLabel } from '../../components/check-label';
+import { Badge } from '../../components/badge';
+import { Callout, type CalloutKind, CalloutTitle } from '../../components/callout';
+import { Check, CircleCheck, Info, TriangleAlert } from 'lucide-react';
 import { Input } from '../../components/input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../../components/collapsible';
 import { Select, SelectItem } from '../../components/select';
@@ -226,14 +231,52 @@ export function demoState(i: SetupItem | MachineItem) {
   return (i.id === 'browser' ? i.found?.split(/[\\/]/).at(-1) : i.found) ?? s.there;
 }
 
-const ready = (section: MachineSection | undefined) => !!section && section.items.every((i) => i.state !== 'missing');
+const ready = (items: MachineItem[] | undefined) => !!items?.length && items.every((i) => i.state !== 'missing');
+
+/** The agents the first step offers, in its order; Pi is not there yet. */
+const AGENTS = ['claude', 'codex', 'agy', 'pi'] as const;
+type Agent = (typeof AGENTS)[number];
+/** The section that checks each agent; Claude Code's shares the needed one with git. */
+const AGENT_SECTION: Record<Exclude<Agent, 'pi'>, MachineSectionId> = { claude: 'needed', codex: 'codex', agy: 'agents' };
+const GIT_ITEMS: readonly MachineItem['id'][] = ['git', 'gitUser'];
+/** The assistant's steps: the agents, the features that can wait, and on the first start the first project. */
+type Step = 'agents' | 'recommended' | 'first';
+
+/** The steps as a bar of segments, one per step, filled up to the current one; a step reached before is a click away. */
+function Steps({ steps, at, furthest, onPick }: { steps: readonly Step[]; at: Step; furthest: number; onPick: (s: Step) => void }) {
+  const s = t.setup;
+  const now = steps.indexOf(at);
+  return (
+    <ol aria-label={s.step(now + 1, steps.length)} className={cn('setup-steps grid gap-3 mt-4 mb-1 mx-0 p-0 list-none', steps.length === 3 ? 'grid-cols-3' : 'grid-cols-2')}>
+      {steps.map((step, i) => (
+        <li key={step}>
+          <button
+            type="button"
+            disabled={i > furthest || i === now}
+            aria-current={i === now ? 'step' : undefined}
+            onClick={() => onPick(step)}
+            className="grid w-full gap-1.5 text-left bg-transparent [border:0] p-0 text-foreground cursor-pointer disabled:cursor-default [&:hover:not(:disabled)_.c-label]:underline"
+          >
+            <span className={cn('block h-1.5 rounded-full transition-colors duration-300', i <= now ? 'bg-primary' : 'bg-muted')} aria-hidden />
+            <span className={cn('c-label text-xs', i === now ? 'font-semibold' : 'text-muted-foreground')}>
+              {i + 1}. {s.steps[step]}
+            </span>
+          </button>
+        </li>
+      ))}
+    </ol>
+  );
+}
 
 export function Setup({ first, onClose }: { first?: boolean; onClose?: () => void }) {
   const [view, setView] = useState<MachineView | null>(null);
   const [checking, setChecking] = useState(false);
   const [status, setStatus] = useState('');
   const [terminal, setTerminal] = useState<string | null>(null);
-  const [page, setPage] = useState<'required' | 'recommended'>('required');
+  const [step, setStep] = useState<Step>('agents');
+  const [furthest, setFurthest] = useState(0);
+  // the agents the owner picked; until then those already there, or Claude Code
+  const [picked, setPicked] = useState<Agent[] | null>(null);
   const shown = useRef(false);
   shown.current = !!view;
   const failed = (e: unknown) => setStatus(failText(e, { detail: ['invalid', 'config'] }));
@@ -316,22 +359,63 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
     if (section.id === 'voice') return voiceState(i);
     if (section.id === 'demos') return demoState(i);
     if (section.id === 'mobile') return i.state === 'ok' ? (i.found ?? t.config.setup.there) : i.id === 'simulator' && !i.install ? s.mobile.xcodeFirst : t.config.setup.missing;
-    if (i.state === 'ok') return i.id === 'claudeLogin' || i.id === 'ghLogin' || i.id === 'agyLogin' ? (i.found ? s.loggedInAs(i.found) : s.loggedIn) : (i.found ?? t.config.setup.there);
-    if (i.id === 'claudeLogin' && !i.act) return s.claudeFirst;
-    if (i.id === 'ghLogin' && !i.act) return s.ghFirst;
-    if (i.id === 'agyLogin' && !i.act) return s.agyFirst;
-    if (i.id === 'claudeLogin' || i.id === 'ghLogin' || i.id === 'agyLogin') return s.loggedOut;
+    const login = i.id === 'claudeLogin' || i.id === 'ghLogin' || i.id === 'agyLogin' || i.id === 'codexLogin';
+    if (i.state === 'ok') return login ? (i.found ? s.loggedInAs(i.found) : s.loggedIn) : (i.found ?? t.config.setup.there);
+    if (login && !i.act) return { claudeLogin: s.claudeFirst, ghLogin: s.ghFirst, agyLogin: s.agyFirst, codexLogin: s.codexFirst }[i.id as 'claudeLogin'];
+    if (login) return s.loggedOut;
     if (i.id === 'gitUser') return s.noIdentity;
     return t.config.setup.missing;
   };
 
-  const needed = view?.sections.find((x) => x.id === 'needed');
+  const sectionOf = (id: MachineSectionId) => view?.sections.find((x) => x.id === id);
+  const needed = sectionOf('needed');
   const claude = needed?.items.find((i) => i.id === 'claude');
-  const recommended = view?.sections.some((x) => RECOMMENDED_SECTIONS.includes(x.id)) ?? false;
-  const shownPage = recommended ? page : 'required';
+  const gitItems = needed?.items.filter((i) => GIT_ITEMS.includes(i.id)) ?? [];
+  /** An agent's own pieces, without the git it shares with the others. */
+  const agentItems = (a: Agent) => (a === 'pi' ? [] : (sectionOf(AGENT_SECTION[a])?.items.filter((i) => !GIT_ITEMS.includes(i.id)) ?? []));
+  const chosen = picked ?? (view ? (() => {
+    const there = AGENTS.filter((a) => ready(agentItems(a)));
+    return there.length ? there : (['claude'] as Agent[]);
+  })() : []);
+  // an agent is configured once its own pieces and git are there
+  const configured = chosen.filter((a) => ready(agentItems(a)) && ready(gitItems));
+  const recommended = view?.sections.filter((x) => RECOMMENDED_SECTIONS.includes(x.id)) ?? [];
+  const open = recommended.filter((x) => !ready(x.items));
+  const steps: Step[] = first ? ['agents', 'recommended', 'first'] : ['agents', 'recommended'];
+  const top = useRef<HTMLElement>(null);
+  const go = (to: Step) => {
+    setStep(to);
+    // a new step starts at its top
+    requestAnimationFrame(() => top.current?.scrollIntoView({ block: 'start' }));
+    setFurthest((f) => Math.max(f, steps.indexOf(to)));
+  };
+  const toggle = (a: Agent, on: boolean) => setPicked(on ? AGENTS.filter((x) => x === a || chosen.includes(x)) : chosen.filter((x) => x !== a));
+
+  /** A block of the list: its title, how much of it is still open, its pieces. `canWait`: tagged as one that can wait. */
+  const block = (key: string, section: MachineSection, items: MachineItem[], title: string, hint: string, canWait = false, after?: ReactNode) => (
+    <section key={key} className={cn(projectClass, 'c-setup', `setup-${key}`, '[&>.hint]:mt-0.5 [&>.hint]:mb-1.5 [&>.hint]:mx-0')}>
+      <div className={sectionHeadClass}>
+        <b>{title}</b>
+        {canWait && <span className="setup-tag text-2xs py-px px-2 rounded-xs bg-muted text-muted-foreground">{s.optional}</span>}
+        {section.mb > 0 && <span className="hint">{s.size(fileSize(section.mb * 1e6))}</span>}
+        <span className={cn('setup-ok ml-auto text-xs', ready(items) ? 'on text-approved' : 'text-destructive')}>
+          {!ready(items) ? s.open(items.filter((i) => i.state === 'missing').length) : items.some((i) => i.state === 'later') ? s.readyLater : s.ready}
+        </span>
+      </div>
+      <p className="hint">{hint}</p>
+      <SetupList items={items} name={name(section)} state={state(section)} action={action(section)} />
+      {after}
+    </section>
+  );
+  const recheckButton = (
+    <Button size="small" disabled={checking || running} onClick={recheck}>
+      {checking ? t.config.setup.checking : t.config.setup.recheck}
+    </Button>
+  );
+
   return (
     <SetupShell first={first} onClose={onClose}>
-        <header className={cn('setup-head flex items-center gap-3.5', !first && 'flex-none pr-7')}>
+        <header ref={top} className={cn('setup-head scroll-mt-14 flex items-center gap-3.5', !first && 'flex-none pr-7')}>
           {first && <Sign size={34} />}
           <div>
             <div className="p-kind">{s.kind}</div>
@@ -344,52 +428,136 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
         </header>
         {/* over the project the dialog stays within the window: its head stays, the rest scrolls inside */}
         <div className={cn('setup-body', !first && 'flex-[1_1_auto] min-h-0 overflow-y-auto pt-0 pr-7 pb-6 pl-0')}>
+          <Steps steps={steps} at={step} furthest={furthest} onPick={go} />
           <p className="setup-intro text-muted-foreground text-sm leading-normal mt-3.5 mb-1 mx-0">{first ? s.introFirst : s.intro}</p>
           {!view ? (
             <p className="hint">{checking ? t.config.setup.checking : status}</p>
           ) : (
             <>
-              <p className="hint">{s.platform(platformName(view))}</p>
-              <Tabs value={shownPage} onValueChange={(p) => setPage(p as typeof shownPage)}>
-              {recommended && (
-                  <TabsList variant="pill" className="setup-pages mt-1 mb-2.5 mx-0">
-                    {(['required', 'recommended'] as const).map((p) => (
-                      <TabsTrigger key={p} value={p}>
-                        {s.pages[p]}
-                      </TabsTrigger>
-                    ))}
-                  </TabsList>
+              {step !== 'first' && <p className="hint">{s.platform(platformName(view))}</p>}
+              {step === 'agents' && (
+                <>
+                  <section className={cn(projectClass, 'setup-pick')}>
+                    <div className={sectionHeadClass}>
+                      <b id="setup-pick">{s.pick.title}</b>
+                    </div>
+                    <p className="hint mt-0.5 mb-2">{s.pick.hint}</p>
+                    <div role="group" aria-labelledby="setup-pick" className="grid grid-cols-2 gap-2.5">
+                      {AGENTS.map((a) => {
+                        const soon = a === 'pi';
+                        const on = chosen.includes(a);
+                        return (
+                          <CheckLabel
+                            key={a}
+                            className={cn(
+                              'setup-agent items-start gap-3 rounded-lg border border-solid py-3 px-3.5 transition-colors',
+                              soon ? 'border-border opacity-60 cursor-default' : on ? 'on border-primary bg-primary/5' : 'border-border [&:hover]:border-foreground',
+                            )}
+                          >
+                            <Checkbox className="mt-0.5" checked={on} disabled={soon} onCheckedChange={(c) => toggle(a, c === true)} />
+                            <span className="grid gap-0.5 min-w-0">
+                              <span className="flex items-center gap-2">
+                                <b>{s.agentNames[a]}</b>
+                                {!soon && ready(agentItems(a)) && (
+                                  <Badge variant="secondary" className="text-approved">
+                                    <Check aria-hidden />
+                                    {s.agentReady}
+                                  </Badge>
+                                )}
+                              </span>
+                              <span className="hint">{s.agentHints[a]}</span>
+                            </span>
+                          </CheckLabel>
+                        );
+                      })}
+                    </div>
+                  </section>
+                  {needed &&
+                    chosen.map((a) => {
+                      if (a === 'pi') return null;
+                      const section = sectionOf(AGENT_SECTION[a]);
+                      if (!section) return null;
+                      const hint = a === 'claude' ? s.sections.needed.hint : s.sections[section.id].hint;
+                      return block(
+                        a,
+                        section,
+                        agentItems(a),
+                        s.agentNames[a],
+                        hint,
+                        false,
+                        a === 'claude' && claude?.state === 'ok' && claude.found && !claude.found.startsWith(view.checkedClaude) && <p className="hint">{s.checkedWith(view.checkedClaude)}</p>,
+                      );
+                    })}
+                  {needed && chosen.length > 0 && block('git', needed, gitItems, s.gitBlock.title, s.gitBlock.hint)}
+                  {status && <p className={`hint ${statusClass}`}>{status}</p>}
+                  {recheckButton}
+                  <StepFooter
+                    callout={configured.length ? 'success' : 'info'}
+                    text={!configured.length ? s.proceed.none : configured.length === 1 ? s.proceed.one(s.agentNames[configured[0]!]) : s.proceed.many(configured.length)}
+                  >
+                    <Button variant="primary" disabled={!configured.length} onClick={() => go('recommended')}>
+                      {s.next}
+                    </Button>
+                  </StepFooter>
+                </>
               )}
-              <TabsContent value={shownPage}>
-              {view.sections.filter((x) => RECOMMENDED_SECTIONS.includes(x.id) === (shownPage === 'recommended')).map((section) => (
-                <section key={section.id} className={cn(projectClass, 'c-setup', `setup-${section.id}`, '[&>.hint]:mt-0.5 [&>.hint]:mb-1.5 [&>.hint]:mx-0')}>
-                  <div className={sectionHeadClass}>
-                    <b>{s.sections[section.id].title}</b>
-                    <span className={cn('setup-tag text-2xs py-px px-2 rounded-xs', section.id === 'needed' ? 'needed bg-foreground text-background' : 'bg-muted text-muted-foreground')}>{section.id === 'needed' ? s.needed : s.optional}</span>
-                    {section.mb > 0 && <span className="hint">{s.size(fileSize(section.mb * 1e6))}</span>}
-                    <span className={cn('setup-ok ml-auto text-xs', ready(section) ? 'on text-approved' : 'text-destructive')}>
-                      {!ready(section) ? s.open(section.items.filter((i) => i.state === 'missing').length) : section.items.some((i) => i.state === 'later') ? s.readyLater : s.ready}
-                    </span>
-                  </div>
-                  <p className="hint">{s.sections[section.id].hint}</p>
-                  <SetupList items={section.items} name={name(section)} state={state(section)} action={action(section)} />
-                  {section.id === 'mobile' && <p className="hint">{s.mobile.simulatorSafari}</p>}
-                  {section.id === 'needed' && claude?.state === 'ok' && claude.found && !claude.found.startsWith(view.checkedClaude) && (
-                    <p className="hint">{s.checkedWith(view.checkedClaude)}</p>
+              {step === 'recommended' && (
+                <>
+                  {recommended.map((section) =>
+                    block(section.id, section, section.items, s.sections[section.id].title, s.sections[section.id].hint, true, section.id === 'mobile' && <p className="hint">{s.mobile.simulatorSafari}</p>),
                   )}
-                </section>
-              ))}
-              </TabsContent>
-              </Tabs>
-              {status && <p className={`hint ${statusClass}`}>{status}</p>}
-              <Button size="small" disabled={checking || running} onClick={recheck}>
-                {checking ? t.config.setup.checking : t.config.setup.recheck}
-              </Button>
-              {first && shownPage === 'required' && <FirstProject view={view} ready={ready(needed)} onView={setView} />}
+                  {status && <p className={`hint ${statusClass}`}>{status}</p>}
+                  {recheckButton}
+                  <StepFooter
+                    callout={open.length ? 'warn' : undefined}
+                    text={open.length === 1 ? s.skip.one(s.sections[open[0]!.id].title) : s.skip.many(open.length)}
+                  >
+                    <Button size="small" onClick={() => go('agents')}>
+                      {s.back}
+                    </Button>
+                    {first ? (
+                      <Button variant="primary" onClick={() => go('first')}>
+                        {s.next}
+                      </Button>
+                    ) : (
+                      onClose && (
+                        <Button variant="primary" onClick={onClose}>
+                          {s.done}
+                        </Button>
+                      )
+                    )}
+                  </StepFooter>
+                </>
+              )}
+              {step === 'first' && first && (
+                <>
+                  <FirstProject view={view} ready={configured.length > 0} onView={setView} />
+                  <div className={actionsClass}>
+                    <Button size="small" onClick={() => go('recommended')}>
+                      {s.back}
+                    </Button>
+                  </div>
+                </>
+              )}
             </>
           )}
         </div>
     </SetupShell>
+  );
+}
+
+/** The end of a step: what going on means as a callout (`callout`: its kind; none, no callout), and the buttons. */
+function StepFooter({ callout, text, children }: { callout?: CalloutKind; text: string; children: ReactNode }) {
+  return (
+    <div className="setup-footer mt-5 grid gap-3">
+      {callout && (
+        <Callout kind={callout} className="setup-callout">
+          {callout === 'success' ? <CircleCheck aria-hidden /> : callout === 'warn' ? <TriangleAlert aria-hidden /> : <Info aria-hidden />}
+          <CalloutTitle>{text}</CalloutTitle>
+        </Callout>
+      )}
+      <div className="c-actions flex gap-2 justify-end">{children}</div>
+    </div>
   );
 }
 

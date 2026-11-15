@@ -2085,7 +2085,7 @@ const en = {
     title: 'Setup',
     close: 'Close',
     introFirst:
-      'Seismic checks what it needs on this machine. Claude Code with your login and git are needed; the rest can wait. What installs without admin rights, Seismic installs at a click; for the rest the command is there. Then you create the first project.',
+      'Three steps: the agents you work with, the features that can wait, then your first project. What installs without admin rights, Seismic installs at a click; for the rest the command is there.',
     intro: 'What Seismic needs on this machine. What installs without admin rights, Seismic installs at a click; for the rest the command is there.',
     platform: (platform: string) => `Checked on ${platform}. The list checks again when you come back here from a terminal or an installer.`,
     needed: 'needed',
@@ -2095,11 +2095,12 @@ const en = {
     readyLater: 'works, the rest loads on first use',
     open: (n: number) => `${n} missing`,
     sections: {
-      needed: { title: 'Agents', hint: 'Without Claude Code and git no agent works. Claude Code runs on your Claude subscription; the agents commit under your name.' },
+      needed: { title: 'Claude Code', hint: 'Anthropic’s coding agent, on your Claude subscription.' },
+      codex: { title: 'Codex', hint: 'OpenAI’s coding agent, on your ChatGPT plan. Once it is installed and signed in, tasks and code reviews can run on it, chosen per start or in the configuration.' },
       pr: { title: 'Pull requests', hint: 'Approved work goes out as a pull request on GitHub, unless a repository’s settings say otherwise. Needed only at the first approval.' },
       voice: { title: 'Voice commands', hint: 'Hold Space and say what to do. Seismic confirms in writing: on the card or in Seismic’s panel (button at the top right, key C).' },
       demos: { title: 'Demos', hint: 'Agents show their work as a narrated video. Without it they send a summary.' },
-      agents: { title: 'More agents', hint: 'Antigravity is Google’s coding agent. Once it is installed and signed in with your Google account, tasks and code reviews can run on it, chosen per start or in the configuration. Preview.' },
+      agents: { title: 'Antigravity', hint: 'Antigravity is Google’s coding agent. Once it is installed and signed in with your Google account, tasks and code reviews can run on it, chosen per start or in the configuration. Preview.' },
       mobile: {
         title: 'Mobile development',
         hint: 'To build and check iPhone apps and web apps with a phone view, agents run an iPhone simulator and drive Safari in it. Needs a Mac.',
@@ -2107,6 +2108,8 @@ const en = {
     },
     names: {
       claude: 'Claude Code',
+      codex: 'Codex',
+      codexLogin: 'OpenAI login for Codex',
       agy: 'Antigravity (agy)',
       agyLogin: 'Google login for Antigravity',
       claudeLogin: 'Claude login',
@@ -2115,7 +2118,25 @@ const en = {
       gh: 'GitHub CLI (gh)',
       ghLogin: 'GitHub login',
     },
-    pages: { required: 'Needed', recommended: 'Recommended' },
+    steps: { agents: 'Agents', recommended: 'Recommended features', first: 'First project' },
+    step: (n: number, of: number) => `Step ${n} of ${of}`,
+    pick: { title: 'Which agents do you work with?', hint: 'Pick one or more. What each needs on this machine shows below.' },
+    agentNames: { claude: 'Claude Code', codex: 'Codex', agy: 'Antigravity', pi: 'Pi' },
+    agentHints: { claude: 'Anthropic', codex: 'OpenAI', agy: 'Google · preview', pi: 'Coming soon' },
+    agentReady: 'Ready',
+    gitBlock: { title: 'git', hint: 'Every agent works in a git repository and commits under your name.' },
+    proceed: {
+      none: 'Proceed after configuring an agent',
+      one: (name: string) => `Proceed with ${name} configured`,
+      many: (n: number) => `Proceed with ${n} agents configured`,
+    },
+    skip: {
+      one: (feature: string) => `Proceed without configuring ${feature}`,
+      many: (n: number) => `Proceed without configuring ${n} recommended features`,
+    },
+    next: 'Continue',
+    back: 'Back',
+    done: 'Done',
     mobile: {
       names: { xcode: 'Xcode', simulator: 'iPhone simulator', safaridriver: 'Remote-controlling Safari (safaridriver)', axe: 'Taps in the simulator (AXe)' },
       xcodeFirst: 'install Xcode first',
@@ -2129,6 +2150,7 @@ const en = {
     loggedOut: 'not logged in',
     claudeFirst: 'install Claude Code first',
     ghFirst: 'install gh first',
+    codexFirst: 'install Codex first',
     agyFirst: 'install Antigravity first',
     noIdentity: 'not set',
     checkedWith: (version: string) => `Seismic was checked with Claude Code ${version}. A newer or older version mostly works too; if agents run into trouble, this one helps.`,
@@ -2159,7 +2181,7 @@ const en = {
     first: {
       title: 'First project',
       hint: 'A project belongs to a git repository: agents work in it, each task on a branch of its own. More repositories and projects come later in the configuration.',
-      notReady: 'Something needed above is still missing. The project can be created all the same; agents start once it is there.',
+      notReady: 'No agent is ready yet. The project can be created all the same; agents start once one is.',
       where: 'Where is your project?',
       modes: {
         folder: { title: 'Already on this computer', hint: 'You pick its folder.' },

@@ -102,11 +102,27 @@ describe('what Seismic needs on this machine', () => {
     expect(pr[1]).toEqual({ id: 'ghLogin', state: 'missing' });
     expect(v.checkedClaude).toMatch(/^\d+\.\d+\.\d+$/);
     // what demos need is checked too; without a voice check there is no voice section
-    expect(v.sections.map((s) => s.id)).toEqual(['needed', 'pr', 'agents', 'demos']);
+    expect(v.sections.map((s) => s.id)).toEqual(['needed', 'codex', 'agents', 'pr', 'demos']);
     // Antigravity is optional: not there, its login waits for it
     const agents = section(v, 'agents').items;
     expect(agents[0]).toMatchObject({ id: 'agy', state: 'missing', install: { url: 'https://antigravity.google/docs/cli' }, act: 'install' });
     expect(agents[1]).toEqual({ id: 'agyLogin', state: 'missing' });
+  });
+
+  test('Codex: missing with its npm command, found, signed in or to sign in by a terminal login', async () => {
+    expect(section(await setup().view(), 'codex').items).toEqual([
+      { id: 'codex', state: 'missing', install: { commands: ['npm install -g @openai/codex'], url: 'https://developers.openai.com/codex/cli' } },
+      { id: 'codexLogin', state: 'missing' },
+    ]);
+    fake('codex', 'case "$1" in --version) echo "codex-cli 0.169.0";; login) exit 1;; esac');
+    const machine = setup();
+    expect(section(await machine.view(), 'codex').items).toEqual([
+      { id: 'codex', state: 'ok', found: '0.169.0' },
+      { id: 'codexLogin', state: 'missing', install: { commands: ['codex login'] }, act: 'login' },
+    ]);
+    expect(await machine.login({ section: 'codex', id: 'codexLogin' })).toEqual({ opened: false, command: `${bin}/codex login` });
+    fake('codex', 'case "$1" in --version) echo "codex-cli 0.169.0";; login) echo "Logged in using ChatGPT";; esac');
+    expect(section(await setup().view(), 'codex').items[1]).toEqual({ id: 'codexLogin', state: 'ok' });
   });
 
   test('Antigravity: found, signed in or to sign in by a terminal login', async () => {

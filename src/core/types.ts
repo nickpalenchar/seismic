@@ -3429,13 +3429,15 @@ export interface VoiceSetupView {
 }
 
 /** The setup assistant's list (`src/server/machine.ts`): what Seismic needs on this machine, by what it is for. */
-export type MachineSectionId = 'needed' | 'pr' | 'agents' | 'voice' | 'demos' | 'mobile';
-/** The sections of the recommended page; the others are the required one's. */
-export const RECOMMENDED_SECTIONS: readonly MachineSectionId[] = ['agents', 'mobile'];
+export type MachineSectionId = 'needed' | 'codex' | 'agents' | 'pr' | 'voice' | 'demos' | 'mobile';
+/** The sections of the recommended features, the assistant's second step; the others configure the agents. */
+export const RECOMMENDED_SECTIONS: readonly MachineSectionId[] = ['pr', 'voice', 'demos', 'mobile'];
 /** Claude Code, its login, git and git's name and e-mail for commits. */
 export type NeededId = 'claude' | 'claudeLogin' | 'git' | 'gitUser';
 /** Antigravity (`agy`) and its Google login: another agent for tasks and code reviews. */
 export type AgentsId = 'agy' | 'agyLogin';
+/** Codex and its OpenAI login: another agent for tasks and code reviews. */
+export type CodexId = 'codex' | 'codexLogin';
 /** gh and its login. */
 export type PrId = 'gh' | 'ghLogin';
 /** Mobile development on a Mac: Xcode, an iPhone simulator, `safaridriver --enable`, and AXe. */
@@ -3443,7 +3445,7 @@ export type MobileId = 'xcode' | 'simulator' | 'safaridriver' | 'axe';
 
 /** A piece of the list, as a setup check gives it, and what Seismic does about it at a click. */
 export type MachineItem = Omit<SetupItem, 'id'> & {
-  id: NeededId | PrId | AgentsId | MobileId | VoiceSetupId | SetupId;
+  id: NeededId | CodexId | PrId | AgentsId | MobileId | VoiceSetupId | SetupId;
   /**
    * `install`: Seismic installs it (no admin rights, or Homebrew or winget). `login`: Seismic opens a
    * terminal that logs in. `terminal`: Seismic opens a terminal that runs the command and closes
