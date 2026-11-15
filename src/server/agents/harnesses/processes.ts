@@ -70,8 +70,17 @@ export class WindowsProcessSnapshot {
 
 const windowsSnapshot = new WindowsProcessSnapshot();
 
+let bootId: string | undefined;
+/** Start ticks count from boot, so two boots (or containers restarted over the same pids) can repeat them. */
+function linuxBootId(): string {
+  if (bootId === undefined) {
+    try { bootId = readFileSync('/proc/sys/kernel/random/boot_id', 'utf8').trim(); } catch { bootId = ''; }
+  }
+  return bootId;
+}
+
 /** /proc/<pid>/stat's command is parenthesized and can itself contain spaces and parentheses. */
-export function linuxProcessStat(stat: string): ProcessInfo | undefined {
+export function linuxProcessStat(stat: string, boot = linuxBootId()): ProcessInfo | undefined {
   const open = stat.indexOf(' (');
   const end = stat.lastIndexOf(')');
   if (open < 1 || end <= open) return;
@@ -80,7 +89,7 @@ export function linuxProcessStat(stat: string): ProcessInfo | undefined {
   const fields = stat.slice(end + 1).trim().split(/\s+/);
   const parent = Number(fields[1]), group = Number(fields[2]), born = fields[19];
   if (!Number.isSafeInteger(pid) || pid <= 0 || !Number.isSafeInteger(parent) || parent < 0 || !Number.isSafeInteger(group) || group <= 0 || !born || !/^\d+$/.test(born)) return;
-  return { pid, parent, group, born };
+  return { pid, parent, group, born: boot ? `${boot}:${born}` : born };
 }
 
 /** The rows read, and the processes that refused to be read, for whoever needs one of them. */

@@ -5,7 +5,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { codexConnection } from './codexRpc';
-import { AgentProcesses, linuxProcessStat, processes, processesAsync, sharedSnapshot, tolerateTimeouts, untilIdentified } from './processes';
+import { AgentProcesses, linuxProcessStat, processes, processesAsync, sharedSnapshot, terminate, tolerateTimeouts, untilIdentified } from './processes';
 
 const handlers = { notification() {}, request: async () => ({}) };
 const beat = (file: string) => { try { return Number(readFileSync(file, 'utf8')); } catch { return 0; } };
@@ -17,8 +17,18 @@ function kill(pid: number | undefined) { if (pid) try { process.kill(pid, 'SIGKI
 
 test('Linux stat parsing handles nested parentheses and uses exact process start ticks', () => {
   const stat = '42 (name ) with ( spaces) S 10 42 42 0 -1 0 0 0 0 0 0 0 0 0 20 0 1 0 987654321 0';
-  expect(linuxProcessStat(stat)).toEqual({ pid: 42, parent: 10, group: 42, born: '987654321' });
+  expect(linuxProcessStat(stat, '')).toEqual({ pid: 42, parent: 10, group: 42, born: '987654321' });
   expect(linuxProcessStat('42 (truncated) S 10')).toBeUndefined();
+});
+
+test('Linux identity includes the boot id: the same pid and start ticks on another boot is a different process', () => {
+  const stat = '42 (agent) S 10 42 42 0 -1 0 0 0 0 0 0 0 0 0 20 0 1 0 987654321 0';
+  const a = linuxProcessStat(stat, 'boot-a')!;
+  const b = linuxProcessStat(stat, 'boot-b')!;
+  expect(a.born).toBe('boot-a:987654321');
+  expect(a.born).not.toBe(b.born);
+  const killed = terminate([a], new Map([[42, b]]));
+  expect(killed.signalled).toEqual([]);
 });
 
 test('the snapshot leaves the event loop free and sees the same identities as the blocking one', async () => {
