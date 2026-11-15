@@ -78,7 +78,7 @@ test('UTF-8 task descriptions survive every byte boundary, including one-byte ap
   const dir = mkdtempSync(join(tmpdir(), 'agy-tail-'));
   dirs.push(dir);
   const file = join(dir, 'transcript.jsonl');
-  const description = 'for name in café 日本語; do\n  echo "$name 🚀"\ndone';
+  const description = "cat <<'EOF'\ncafé 日本語 🚀\nTask logs are available at: file:///quoted.log\nYOU MUST TAKE ONE OF THE FOLLOWING TWO ACTIONS\nEOF\necho done";
   const bytes = Buffer.from(`${started('c/task-2', description)}\n`);
   for (let split = 1; split < bytes.length; split++) {
     writeFileSync(file, bytes.subarray(0, split));
@@ -136,5 +136,26 @@ test('multiline descriptions preserve blank lines and indentation and end at the
   applyLines(running, [JSON.stringify(entry)]);
   expect([...running.values()]).toEqual([{ id: 'c/task-2', description }]);
   applyLines(running, [finished('c/task-2')]);
+  expect(running.size).toBe(0);
+});
+
+
+test.each([
+  "cat <<'EOF'\nTask logs are available at: literal text\nEOF\necho done",
+  "printf '%s\n' 'Task logs are available at: file:///quoted.log\nYOU MUST TAKE ONE OF THE FOLLOWING TWO ACTIONS'\necho done",
+  "cat <<'EOF'\nTask logs are available at: first\nTask logs are available at: second\nEOF",
+])('logs-marker text inside a command stays in its description: %s', (description) => {
+  const running = new Map<string, AgyTask>();
+  applyLines(running, [started('c/task-2', description)]);
+  expect([...running.values()]).toEqual([{ id: 'c/task-2', description }]);
+  applyLines(running, [finished('c/task-2')]);
+  expect(running.size).toBe(0);
+});
+
+test('a logs-marker line without the envelope instructions is not a complete task start', () => {
+  const running = new Map<string, AgyTask>();
+  const entry = JSON.parse(started('c/task-2', 'echo done'));
+  entry.content = entry.content.split('\nYOU MUST TAKE ONE OF THE FOLLOWING TWO ACTIONS')[0];
+  applyLines(running, [JSON.stringify(entry)]);
   expect(running.size).toBe(0);
 });

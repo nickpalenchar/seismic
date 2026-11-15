@@ -21,7 +21,8 @@ export function agyBrainDir(): string {
 
 export const agyTranscriptLog = (brain: string, conversation: string) => join(brain, conversation, '.system_generated', 'logs', 'transcript.jsonl');
 
-const STARTED = /^Created At: [^\n]+\nTool is running as a background task with task id: (\S+)\nTask Description: ([\s\S]*?)\nTask logs are available at: /;
+// Match the last complete logs/instructions footer: a command can quote that footer too.
+const STARTED = /^Created At: [^\n]+\nTool is running as a background task with task id: (\S+)\nTask Description: ([\s\S]*)\nTask logs are available at: [^\n]+\nYOU MUST TAKE ONE OF THE FOLLOWING TWO ACTIONS\b/;
 const FINISHED = /^<SYSTEM_MESSAGE>\n\[Message\] sender=(\S+) content=Task id "\1" finished/;
 
 /** Applies transcript lines to the tasks running (a line that is no JSON, or no step, is skipped). */

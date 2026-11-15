@@ -281,7 +281,7 @@ test.each([true, false])('resume captures history before launching agy (existing
   expect(events).toContainEqual({ type: 'background', tasks: [] });
 });
 
-test.each(['echo café 日本語 🚀', 'for name in café 日本語; do\n  echo "$name 🚀"\ndone'])('task description reaches the card and completion prompt intact: %s', async (description) => {
+test.each(['echo café 日本語 🚀', 'for name in café 日本語; do\n  echo "$name 🚀"\ndone', "cat <<'EOF'\ncafé 日本語 🚀\nTask logs are available at: file:///quoted.log\nYOU MUST TAKE ONE OF THE FOLLOWING TWO ACTIONS\nEOF\necho done"])('task description reaches the card and completion prompt intact: %s', async (description) => {
   const repo = workstation();
   const brain = join(dirname(repo), 'brain');
   const log = agyTranscriptLog(brain, 'old-conv');
