@@ -46,6 +46,8 @@ export interface DemoSpec {
   title: string;
   baseUrl: string;
   viewport?: { width: number; height: number };
+  /** A touch screen, as a phone's: the app's phone view needs it (a coarse pointer). */
+  touch?: boolean;
   /**
    * A video for a public page rather than one to share: the page at twice its pixels, as on a
    * Retina screen, nearly lossless frames, and gentle compression. About ten times the file size.
@@ -546,7 +548,7 @@ async function login(spec: DemoSpec, dir: string) {
   const stateFile = path.join(dir, 'state.json');
   if (!spec.login) return undefined;
   const browser = await launch(spec.viewport!);
-  const ctx = await newContext(browser, { viewport: spec.viewport });
+  const ctx = await newContext(browser, { viewport: spec.viewport, hasTouch: !!spec.touch });
   const page = await ctx.newPage();
   try {
     await spec.login(page);
@@ -598,7 +600,7 @@ async function openPage(spec: DemoSpec, viewport: { width: number; height: numbe
   watchStillness();
   const scale = spec.sharp ? 2 : 1;
   const browser = await launch(viewport, scale);
-  const ctx = await newContext(browser, { viewport, storageState, deviceScaleFactor: scale });
+  const ctx = await newContext(browser, { viewport, storageState, deviceScaleFactor: scale, hasTouch: !!spec.touch });
   await ctx.addInitScript({ path: path.join(LIB, 'overlay.js') });
   const page = await ctx.newPage();
   const d = new Director(page, spec.baseUrl, work, paced);

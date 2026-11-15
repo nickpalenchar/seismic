@@ -128,6 +128,10 @@ function NavList(props: ComponentProps<'ul'>) {
  */
 export interface MenuActions {
   onInbox: () => void;
+  /** Agents, Rules and Review rules open nothing yet: with `onConfig` (the desktop) they show as "Coming soon" until given an action; without it (the phone) they stay out. */
+  onAgents?: () => void;
+  onRules?: () => void;
+  onReviewRules?: () => void;
   onPerformance?: () => void;
   onFeedbackLog?: () => void;
   /** The open project's canvases, the one shown marked while no other view covers it. */
@@ -321,6 +325,15 @@ function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean
       {p.pinned ? <PanelLeftClose size={16} strokeWidth={2} aria-hidden /> : <PanelLeft size={16} strokeWidth={2} aria-hidden />}
     </Act>
   );
+  // an entry without an action is a "Coming soon" placeholder where the menu has the configuration, else it stays out
+  const soon = !!p.onConfig;
+  const agentEntries = [
+    { icon: <Users size={16} strokeWidth={2} aria-hidden />, label: m.agents, onClick: p.onAgents },
+    { icon: <ScrollText size={16} strokeWidth={2} aria-hidden />, label: m.rules, onClick: p.onRules },
+    { icon: <FileCheck size={16} strokeWidth={2} aria-hidden />, label: m.reviewRules, onClick: p.onReviewRules },
+  ].filter((e) => e.onClick || soon);
+  // the "Configure agents" page is only offered while it has something on it
+  const hasAgentsPage = agentEntries.length > 0 || !!p.onPerformance || !!p.onFeedbackLog;
   const inbox = (
     <Entry icon={<Inbox size={16} strokeWidth={2} aria-hidden />} label={m.inbox} on={p.showing === 'inbox'} onClick={run(p.onInbox)} />
   );
@@ -337,7 +350,7 @@ function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean
         </div>
         <NavList className={list}>
           {titlebar && inbox}
-          <Entry icon={<Bot size={16} strokeWidth={2} aria-hidden />} label={m.configureAgents} focusRef={configureButton} keep onClick={() => setPage('agents')} end={<ChevronRight size={16} strokeWidth={2} className="ml-auto flex-none text-muted-foreground" aria-hidden />} />
+          {hasAgentsPage && <Entry icon={<Bot size={16} strokeWidth={2} aria-hidden />} label={m.configureAgents} focusRef={configureButton} keep onClick={() => setPage('agents')} end={<ChevronRight size={16} strokeWidth={2} className="ml-auto flex-none text-muted-foreground" aria-hidden />} />}
         </NavList>
         <h3 className="mx-2.5 mt-4 mb-1.5 text-xs font-semibold tracking-[.04em] text-muted-foreground uppercase">{m.projects}</h3>
         <NavList className={list}>
@@ -387,9 +400,7 @@ function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean
           {pin}
         </div>
         <NavList className={list}>
-          <Entry icon={<Users size={16} strokeWidth={2} aria-hidden />} label={m.agents} soon />
-          <Entry icon={<ScrollText size={16} strokeWidth={2} aria-hidden />} label={m.rules} soon />
-          <Entry icon={<FileCheck size={16} strokeWidth={2} aria-hidden />} label={m.reviewRules} soon />
+          {agentEntries.map((e) => <Entry key={e.label} icon={e.icon} label={e.label} soon={!e.onClick} {...(e.onClick ? { onClick: run(e.onClick) } : {})} />)}
           {p.onPerformance && <Entry icon={<ChartLine size={16} strokeWidth={2} aria-hidden />} label={m.performance} onClick={run(p.onPerformance)} />}
           {p.onFeedbackLog && (
             <li>
