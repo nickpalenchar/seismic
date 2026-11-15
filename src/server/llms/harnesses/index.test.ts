@@ -149,3 +149,23 @@ test('the harness check never keeps a caller waiting: it answers with what the l
   await next;
   expect(check.current()).toEqual(['agy']);
 });
+
+test('a check that started earlier but answers later does not overwrite a newer finding', async () => {
+  let clock = 0;
+  let answer: (found: Harness[]) => void = () => {};
+  const check = new HarnessCheck(() => new Promise<Harness[]>((r) => (answer = r)), 60_000, () => clock);
+  // the background check starts, then the setup assistant's starts and answers first: Codex was just signed in
+  const background = check.refresh();
+  clock = 10;
+  check.set(['claude', 'codex'], 10);
+  answer(['claude']);
+  await background;
+  expect(check.current()).toEqual(['claude', 'codex']);
+  // a setup check that started before the latest finding and answers after it changes nothing either
+  clock = 20;
+  check.set(['agy'], 5);
+  expect(check.current()).toEqual(['claude', 'codex']);
+  // one that started later does
+  check.set(['codex'], 20);
+  expect(check.current()).toEqual(['codex']);
+});

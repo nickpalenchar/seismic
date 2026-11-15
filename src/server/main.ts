@@ -356,7 +356,7 @@ const updates = new AppUpdates();
 const sources = own ? new SourceUpdates(own) : undefined;
 // the plans' usage limits in the bar, Claude Code's and Codex's, while the owner has it show them and a page is open
 const usage = [new UsageMeter(() => claudeUsage(home), { on: usageMeterView(home).on }), new UsageMeter(() => codexUsage(), { on: usageMeterView(home).on })];
-const machine = new MachineSetup({ home, config, voice: voiceSetup, onAgents: (found) => harnessCheck.set(found) });
+const machine = new MachineSetup({ home, config, voice: voiceSetup, onAgents: (found, started) => harnessCheck.set(found, started) });
 // the project the assistant created gets a first card that says what to try
 welcome(home, projects.all());
 const shutdown = async (code: number, forced = false) => {

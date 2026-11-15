@@ -33,11 +33,13 @@ export async function connectedHarnesses(connected: Record<Harness, () => Promis
 
 /**
  * The harnesses a worker could start in on this machine, as last found: by its own check (`connectedHarnesses`), or by the
- * setup assistant's (`found`), whichever came last. A caller never waits for a check: one older than `maxAge` starts the
- * next in the background and gets what the last found meanwhile (nothing before the first has answered).
+ * setup assistant's (`set`), whichever started last; one that started earlier but answers later is older news and changes
+ * nothing. A caller never waits for a check: one older than `maxAge` starts the next in the background and gets what the
+ * last found meanwhile (nothing before the first has answered).
  */
 export class HarnessCheck {
   private found: Harness[] = [];
+  /** When the check behind `found` started. */
   private at = -Infinity;
   private running: Promise<Harness[]> | null = null;
 
@@ -51,16 +53,18 @@ export class HarnessCheck {
 
   /** Checks again, or joins the check under way. */
   refresh(): Promise<Harness[]> {
+    const started = this.now();
     this.running ??= this.check()
-      .then((found) => this.set(found), () => this.found)
+      .then((found) => this.set(found, started), () => this.found)
       .finally(() => (this.running = null));
     return this.running;
   }
 
-  /** What a check elsewhere found (the setup assistant's), as fresh as one of its own. */
-  set(found: Harness[]): Harness[] {
+  /** What a check found, its own or one elsewhere (the setup assistant's) that started at `started`; the latest known stands. */
+  set(found: Harness[], started = this.now()): Harness[] {
+    if (started < this.at) return this.found;
     this.found = found;
-    this.at = this.now();
+    this.at = started;
     return found;
   }
 }
