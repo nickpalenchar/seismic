@@ -7,7 +7,7 @@ const ms = (iso: string) => Date.parse(iso);
 let rows = 0;
 /** A card that waits for the owner, with its open wait: since `since`, last changed `updated` (by default when it began). */
 const card = (id: string, since: string, over: Partial<Item> = {}, updated = since): [Item, NeedsYou] => [
-  { id, kind: 'task', state: 'waiting', need: 'demo', title: id, body: '', x: 0, y: 0, source: 'manual', repo: 'r', ...over },
+  { id, kind: 'task', state: 'waiting', need: 'demo', title: id, body: '', x: 0, y: 0, source: 'manual', repo: 'r', canvasVisible: true, ...over },
   { id: ++rows, kind: 'demo', card: id, createdAt: ms(since), lastUpdated: ms(updated) },
 ];
 const talk = (id: number, at: string, unread = true): Talk => ({ id, at, said: 'q', answer: `answer ${id}`, ...(unread ? { unread: true as const } : {}) });

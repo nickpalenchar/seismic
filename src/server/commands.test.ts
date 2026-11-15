@@ -1299,6 +1299,12 @@ describe('canvases by voice', () => {
     const later = board.createCanvas('Later');
     const a = board.create({ title: 'Export', x: 0, y: 0 });
     board.create({ title: 'Dream', x: 0, y: 0, canvas: ideas.id });
+    // Later holds a card in a group, and an archived card, which does not count
+    const g1 = board.create({ title: 'G1', x: 0, y: 0, canvas: later.id });
+    board.createGroup('Pair', [g1.id]);
+    const old = board.create({ title: 'Old', x: 0, y: 0, canvas: later.id });
+    board.work(old.id, { state: 'live' });
+    board.archive([old.id]);
     const k = commander();
     const heard = k.hear('leg Export auf Ideas, mach ein Canvas Billing und lösch Later', { place: { x: 0, y: 0, canvas: ideas.id } });
     await settle();
@@ -1313,6 +1319,10 @@ describe('canvases by voice', () => {
     expect(s.call('act', { actions: [{ do: 'delete_canvas', canvas: 'Ideas' }], confirm: '…' })).toContain('only an empty canvas can be deleted');
     // emptied first in the same act, it goes
     expect(s.call('act', { actions: [{ do: 'move_to_canvas', cards: ['K2'], canvas: 'main' }, { do: 'delete_canvas', canvas: 'Ideas' }, { do: 'new_canvas', text: '7' }], confirm: '…' })).not.toContain('only an empty canvas');
+    // a card moved away and back, or onto the canvas, stands on it by then; one moved away leaves its group behind
+    expect(s.call('act', { actions: [{ do: 'delete_canvas', canvas: 'Later' }], confirm: '…' })).toContain('"Later" still has 1 card on it');
+    expect(s.call('act', { actions: [{ do: 'move_to_canvas', cards: ['K3'], canvas: 'main' }, { do: 'move_to_canvas', cards: ['K3'], canvas: 'Later' }, { do: 'delete_canvas', canvas: 'Later' }], confirm: '…' })).toContain('still has');
+    expect(s.call('act', { actions: [{ do: 'move_to_canvas', cards: ['K3'], canvas: 'main' }, { do: 'move_to_canvas', cards: ['K1'], canvas: 'Later' }, { do: 'delete_canvas', canvas: 'Later' }], confirm: '…' })).toContain('still has');
     expect(s.call('act', { actions: [{ do: 'move_to_canvas', cards: ['K1'], canvas: 'Nope' }], confirm: '…' })).toContain('there is no canvas Nope; the project has "main", "Ideas", "Later"');
     s.call('act', {
       actions: [
@@ -1320,6 +1330,7 @@ describe('canvases by voice', () => {
         { do: 'new_canvas', text: 'Billing', icon: '💶' },
         { do: 'move_to_canvas', cards: ['K1'], canvas: 'billing' },
         { do: 'change_canvas', canvas: '2', icon: '', position: 1 },
+        { do: 'move_to_canvas', cards: ['K3'], canvas: 'main' },
         { do: 'delete_canvas', canvas: 'Later' },
       ],
       confirm: 'Export liegt jetzt auf Ideas, Billing ist da, Later ist weg.',
@@ -1332,6 +1343,7 @@ describe('canvases by voice', () => {
       { do: 'newCanvas', name: 'Billing', icon: '💶' },
       { do: 'moveToCanvas', cards: [a.id], newCanvas: 'Billing' },
       { do: 'changeCanvas', canvas: ideas.id, icon: null, position: 1 },
+      { do: 'moveToCanvas', cards: [g1.id], canvas: board.snapshot().canvases[0]!.id },
       { do: 'deleteCanvas', canvas: later.id },
     ]);
   });

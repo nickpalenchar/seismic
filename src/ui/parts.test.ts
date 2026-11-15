@@ -5,8 +5,8 @@ import type { Item } from '../core/types';
 import { Links, linkPath, linkSpot } from './parts';
 
 test('a follow-up shows the dashed line to its card only while no wait joins the two', () => {
-  const origin: Item = { id: 'o', kind: 'task', state: 'inPr', title: 'Origin', body: '', x: 0, y: 0, source: 'manual', repo: 'shop' };
-  const next: Item = { id: 'n', kind: 'task', state: 'planned', title: 'Follow-up', body: '', x: 0, y: 300, source: 'manual', repo: 'shop', from: 'o' };
+  const origin: Item = { id: 'o', kind: 'task', state: 'inPr', title: 'Origin', body: '', x: 0, y: 0, source: 'manual', repo: 'shop', canvasVisible: true };
+  const next: Item = { id: 'n', kind: 'task', state: 'planned', title: 'Follow-up', body: '', x: 0, y: 300, source: 'manual', repo: 'shop', from: 'o', canvasVisible: true };
   const placed = [origin, next].map((item) => ({ item, b: { x: item.x, y: item.y, w: 300, h: 136 } }));
   const lines = (waits: [string, string][]) => (renderToStaticMarkup(createElement(Links, { placed, waits, standsFor: (id: string) => id })).match(/<path/g) ?? []).length;
   expect(lines([])).toBe(1);

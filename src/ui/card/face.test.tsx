@@ -5,7 +5,7 @@ import type { Item } from '../../core/types';
 import { CardFace, type CardFaceProps } from './face';
 import { cardKind } from './summary';
 
-const card = (more: Partial<Item> = {}): Item => ({ id: 'c', kind: 'task', state: 'planned', title: 'Cart model', body: 'One cart per customer.', x: 0, y: 0, source: 'manual', repo: 'shop', ...more });
+const card = (more: Partial<Item> = {}): Item => ({ id: 'c', kind: 'task', state: 'planned', title: 'Cart model', body: 'One cart per customer.', x: 0, y: 0, source: 'manual', repo: 'shop', canvasVisible: true, ...more });
 /** The class names that name a face's parts and states, without the utilities that give them their look (faceClasses.ts). */
 const HOOK = /^(face|face-s|face-xs|kind|ttl|meta|state|state-text|doing-now|subtle|untitled|ws-no|f-[a-z-]+|pin-dot|asking|failed|proposal|prio|prio-[a-z]+|sugg|bare|lchip|lchip-[a-z]+|unread-dot|[a-z]+-mark)$/;
 const hooks = (html: string) =>

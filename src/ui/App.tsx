@@ -9,7 +9,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { flushSync } from 'react-dom';
 import { Bot, CircleUserRound, ConciergeBell, MessageSquare, FileText, Columns3, type LucideIcon, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { type Bounds, boundsOf, CARD_SIZE, centre, onProject, type Place, PLAN_HEAD, PLAN_PAD, unionBounds } from '../core/layout';
-import { type RightClick, type Canvas, canvasNamedBy, MAIN_CANVAS, type ProjectInfo, type ProjectSnapshot, type CardPatch, type ConfigProblem, finished, type Group, type Item, nameless, withPart, needsYou, openPerGroup, type PendingRestart, type PlanDir, EVICT_HOLD_MS, START_ALL_HOLD_MS, titleFrom, type AppUpdate, type SourceUpdate, unreadAnswers, unreadPerPlan, type Usage, type Waiting, waitingIn, inParkingLot, offCanvas } from '../core/types';
+import { type RightClick, type Canvas, canvasNamedBy, MAIN_CANVAS, type ProjectInfo, type ProjectSnapshot, type CardPatch, type ConfigProblem, finished, type Group, type Item, nameless, withPart, needsYou, openPerGroup, type PendingRestart, type PlanDir, EVICT_HOLD_MS, START_ALL_HOLD_MS, titleFrom, type AppUpdate, type SourceUpdate, unreadAnswers, unreadPerPlan, type Usage, type Waiting, waitingIn, offCanvas } from '../core/types';
 import { NotifyAsk, useDesktopNotifications } from './desktopNotify';
 import { api, ApiError, beforeReload, cardsOn, onNotice, quietAtStart, reportFocus, setProject, useProject } from './api';
 import { GroupNames, growFrom, hintBubbleClass, inside, Lasso, MarkHint, Marked, Ring, TerritoryLayer, useTerritories } from './groups';
@@ -408,18 +408,15 @@ function Project({
     history.replaceState(history.state, '', `${location.pathname}${location.search}${h}`);
     setHash(h);
   }, []);
-  // per canvas, the cards waiting for the owner, and which canvases have none at all (those can go)
+  // per canvas, the cards waiting for the owner, and which canvases hold nothing (those can go; the server says which)
   const perCanvas = useMemo(() => {
     const waiting: Record<string, number> = {};
-    const used = new Set<string>();
     for (const i of items) {
-      if (inParkingLot(i)) continue;
+      if (!i.canvasVisible) continue;
       const c = i.canvas ?? canvases[0]?.id;
-      if (!c) continue;
-      used.add(c);
-      if (needsYou(i)) waiting[c] = (waiting[c] ?? 0) + 1;
+      if (c && needsYou(i)) waiting[c] = (waiting[c] ?? 0) + 1;
     }
-    return { waiting, empty: new Set(canvases.filter((c) => !used.has(c.id)).map((c) => c.id)) };
+    return { waiting, empty: new Set(canvases.filter((c) => !c.inUse).map((c) => c.id)) };
   }, [items, canvases]);
   /** Whether the card is on the canvas shown (one the server has not placed on any yet counts as on the first). */
   const onShown = useCallback((i: Item) => !canvasId || (i.canvas ?? canvases[0]?.id) === canvasId, [canvasId, canvases]);

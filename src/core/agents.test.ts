@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 import { agentStage, agentWork } from './agents';
 import type { Item, ReviewItem } from './types';
 
-const card = (id: string, over: Partial<Item> = {}): Item => ({ id, kind: 'task', state: 'working', title: id, body: '', x: 0, y: 0, source: 'manual', repo: 'r', ...over });
+const card = (id: string, over: Partial<Item> = {}): Item => ({ id, kind: 'task', state: 'working', title: id, body: '', x: 0, y: 0, source: 'manual', repo: 'r', canvasVisible: true, ...over });
 const item = (status: ReviewItem['status']): ReviewItem => ({ number: 1, title: 'f', text: '', severity: 'minor', status, log: [] });
 
 test('a card at work is in the stage its agent is at', () => {

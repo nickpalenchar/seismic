@@ -741,7 +741,7 @@ test('a card gets a part once any of it is set and loses it once all of it is cl
   for (const t of ['card_reviews', 'card_review_items', 'card_review_item_events', 'card_demos', 'card_earlier_demos', 'card_plans', 'card_labels', 'card_holds']) expect(s.db.query(`SELECT COUNT(*) AS n FROM ${t}`).get()).toEqual({ n: 0 });
 });
 
-test('canvases: names unique per project in any case, ordered, a plan moves with its workstreams, a deleted one leaves its archive on main', () =>
+test('canvases: names unique per project in any case, ordered, a plan moves with its workstreams, a deleted one leaves its cards be', () =>
   withPath((path) => {
     const s = new Store(path);
     s.ensureProject('c', 'Shop');
@@ -758,23 +758,15 @@ test('canvases: names unique per project in any case, ordered, a plan moves with
     expect(kid!.canvas_id).toBe(s.canvases.main('c'));
     s.cards.setCanvas([plan!.id], ideas.id);
     expect([s.cards.get(plan!.id)!.canvas_id, s.cards.get(kid!.id)!.canvas_id]).toEqual([ideas.id, ideas.id]);
+    // a deleted canvas leaves its cards as they are and takes its groups along, out of which its cards go
     const [old] = s.addCards([{ project_id: 'c', canvas_id: later.id, kind: 'task', x: 0, y: 0 }]);
-    s.cards.update(old!.id, { archived_at: '2026-11-01' });
-    expect(s.cards.onCanvas(later.id)).toBe(0);
-    s.deleteCanvas(later.id, s.canvases.main('c'));
-    expect(s.cards.get(old!.id)!.canvas_id).toBe(s.canvases.main('c'));
+    const solo = s.groups.add('c', 'Solo', 3, later.id);
+    s.cards.update(old!.id, { archived_at: '2026-11-01', group_id: solo.id });
+    s.deleteCanvas(later.id);
+    expect(s.cards.get(old!.id)!.canvas_id).toBe(later.id);
+    expect(s.cards.get(old!.id)!.group_id).toBeNull();
+    expect(s.groups.get(solo.id)).toBeNull();
     expect(s.canvases.of('c').map((v) => [v.name, v.position])).toEqual([['main', 0], ['Ideas', 1]]);
-    // groups of a deleted canvas merge into main's group of the same name
-    const gone = s.canvases.add('c', 'Gone', null);
-    const keep = s.groups.add('c', 'Billing', 1, s.canvases.main('c'));
-    const dupe = s.groups.add('c', 'billing', 2, gone.id);
-    const solo = s.groups.add('c', 'Solo', 3, gone.id);
-    const [a] = s.addCards([{ project_id: 'c', canvas_id: gone.id, kind: 'task', group_id: dupe.id, x: 0, y: 0 }]);
-    s.cards.update(a!.id, { archived_at: '2026-11-01' });
-    s.deleteCanvas(gone.id, s.canvases.main('c'));
-    expect(s.cards.get(a!.id)!.group_id).toBe(keep.id);
-    expect(s.groups.get(dupe.id)).toBeNull();
-    expect(s.groups.get(solo.id)!.canvasId).toBe(s.canvases.main('c'));
     s.db.close();
   }));
 

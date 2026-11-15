@@ -411,6 +411,13 @@ export interface Item {
   group?: string;
   /** The canvas of the project the card is on (a `Canvas` id); a workstream's is its plan's. */
   canvas?: string;
+  /**
+   * Whether its canvas holds the card, folded away or not (a collapsed plan's workstream, a merge
+   * proposal's partner): false once it is deleted, archived or parked, and for a workstream of a plan
+   * that is archived. An invisible card keeps its `canvas` only to go back there; the server derives
+   * this as it builds the cards, and whether a canvas is empty asks nothing else (`canvasHolds`).
+   */
+  canvasVisible: boolean;
   /** The card's agent and its run: its worker's status, turn and workstation; present while it has any of them. */
   agent?: ItemAgent;
   /** The work handed over for review and its way onto main: the handover, the approval and landing, the pull requests and the code review. */
@@ -788,6 +795,17 @@ export interface Canvas {
   name: string;
   /** An emoji, or `lucide:<name>` for one of Lucide's icons; none until chosen. */
   icon?: string;
+  /** Set while it holds something (`canvasHolds`), so it cannot be deleted. */
+  inUse?: true;
+}
+
+/**
+ * Whether the canvas holds anything: a card on it that its canvas holds (`canvasVisible`), or a group
+ * on it with such a card in it. Only a canvas that holds nothing can be deleted.
+ */
+export function canvasHolds(canvas: string, items: Pick<Item, 'canvas' | 'canvasVisible' | 'group'>[], groups: Pick<Group, 'id' | 'canvas'>[]): boolean {
+  const on = new Set(groups.filter((g) => g.canvas === canvas).map((g) => g.id));
+  return items.some((i) => i.canvasVisible && (i.canvas === canvas || (!!i.group && on.has(i.group))));
 }
 
 /** The canvas every project has, which holds what was there before it had several. */

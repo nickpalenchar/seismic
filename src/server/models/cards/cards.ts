@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, getTableColumns, inArray, isNotNull, isNull, ne, relations, type SQL, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, getTableColumns, inArray, isNotNull, isNull, ne, relations, type SQL, sql } from 'drizzle-orm';
 import { type AnySQLiteColumn, index, real, sqliteTable, text, unique, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import type { AgentSetting, CardKind, CardState, Hold, Need, Queue } from '../../../core/types';
 import { atomic, changes, type Db, now, SHORT } from '../common';
@@ -392,11 +392,6 @@ export class Cards {
       .all();
   }
 
-  /** How many cards are on the canvas: on the project, not archived or deleted. */
-  onCanvas(canvasId: string): number {
-    return this.db.select({ n: count() }).from(cards).where(and(eq(cards.canvasId, canvasId), isNull(cards.deletedAt), isNull(cards.archivedAt))).get()!.n;
-  }
-
   /** The cards in the group, on the project or in the archive. */
   inGroup(groupId: string): string[] {
     return this.db
@@ -498,14 +493,9 @@ export class Cards {
     this.db.update(cards).set({ projectId, canvasId }).where(eq(cards.id, id)).run();
   }
 
-  /** Every card on canvas `from`, archived and deleted ones too, goes to canvas `into`. */
-  moveCanvas(from: string, into: string) {
-    this.db.update(cards).set({ canvasId: into }).where(eq(cards.canvasId, from)).run();
-  }
-
-  /** The cards of group `from` go into group `into`. */
-  moveGroup(from: string, into: string) {
-    this.db.update(cards).set({ groupId: into }).where(eq(cards.groupId, from)).run();
+  /** The cards of the group leave it. */
+  ungroup(groupId: string) {
+    this.db.update(cards).set({ groupId: null }).where(eq(cards.groupId, groupId)).run();
   }
 
   /** The project's deleted cards belong to no group: one that comes back has none any more. */

@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 import { type Item } from '../core/types';
 import { plannedOrder } from './phoneOrder';
 
-const card = (id: string, createdAt?: string, hold?: Item['hold']): Item => ({ id, createdAt, hold, kind: 'task', state: 'planned', title: id, body: '', x: 0, y: 0, source: 'manual', repo: 'r' });
+const card = (id: string, createdAt?: string, hold?: Item['hold']): Item => ({ id, createdAt, hold, kind: 'task', state: 'planned', title: id, body: '', x: 0, y: 0, source: 'manual', repo: 'r', canvasVisible: true });
 const snoozed: Item['hold'] = { reason: 'snoozed', by: 'owner', since: '2026-11-13T00:00:00Z', until: '2026-11-14T00:00:00Z', start: true };
 
 test('recent snoozed plans cannot displace active plans from the first page', () => {

@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 import { activeMergeCard } from './merge';
 import type { Item, Merge } from './types';
 
-const card = (id: string, more: Partial<Item> = {}): Item => ({ id, kind: 'task', state: 'planned', title: id, body: '', x: 0, y: 0, source: 'manual', repo: 'r', ...more });
+const card = (id: string, more: Partial<Item> = {}): Item => ({ id, kind: 'task', state: 'planned', title: id, body: '', x: 0, y: 0, source: 'manual', repo: 'r', canvasVisible: true, ...more });
 
 test('either original card reopens the current merge, while preparing, ready, or failed', () => {
   const original = card('a', { possibleDuplicates: ['b'] });

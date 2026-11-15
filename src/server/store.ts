@@ -194,19 +194,18 @@ export class Store {
     });
   }
 
-  /** The canvas goes; what is left of it (archived and deleted cards, their groups) goes to canvas `into`, where it comes back; a group whose name `into` has already (in any case) is merged into that one. */
-  deleteCanvas(id: string, into: string) {
+  /**
+   * The canvas goes, with its groups, which hold no card it holds any more: their cards leave them.
+   * The cards that keep it as theirs (archived, deleted, parked) stay as they are, to go back to `main`.
+   */
+  deleteCanvas(id: string) {
     this.transaction(() => {
-      this.cards.moveCanvas(id, into);
       for (const g of this.groups.onCanvas(id)) {
-        const kept = this.groups.named(into, g.name);
-        if (!kept) continue;
-        this.cards.moveGroup(g.id, kept);
+        this.cards.ungroup(g.id);
         this.groups.delete(g.id);
       }
-      this.groups.moveCanvas(id, into);
+      const projectId = this.canvases.get(id)?.projectId;
       this.canvases.delete(id);
-      const projectId = this.canvases.get(into)?.projectId;
       this.canvases.order(projectId ? this.canvases.of(projectId).map((c) => c.id) : []);
     });
   }

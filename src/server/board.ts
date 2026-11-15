@@ -10,7 +10,7 @@ import { mergeQuestionTexts } from '../core/merge';
 import { CANVAS_ICON_COLORS, CANVAS_LUCIDE_ICONS, isCanvasIcon } from '../core/canvas-icons';
 import { isLabelValue, type Label, LABELS, LABEL_VALUES, type Labels } from '../core/labels';
 import { createHash } from 'node:crypto';
-import { type ActivityCode, type ActivityEntry, type ActivityWho, type AgentAt, type AgentIdentity, type Harness, type Canvas, CANVAS_NAME_MAX, canvasNameProblem, type CodeReview, type CodeReviewMode, type CardArchiving, type Feedback, MAIN_CANVAS, type ReviewItem, type WorkConfig, type StoppedAt } from '../core/types';
+import { type ActivityCode, type ActivityEntry, type ActivityWho, type AgentAt, type AgentIdentity, type Harness, type Canvas, canvasHolds, CANVAS_NAME_MAX, canvasNameProblem, type CodeReview, type CodeReviewMode, type CardArchiving, type Feedback, MAIN_CANVAS, type ReviewItem, type WorkConfig, type StoppedAt } from '../core/types';
 import { existsSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { arrangeWorkstreams, type Bounds, boundsOf, CARD_SIZE, freeSpotNear, GAP, MERGED_SIZE, type Place, PLAN_HEAD, placePlans, planDirNoteBox, placeWorkstreams, planSize, shapeOf, sizeOf, unionBounds } from '../core/layout';
@@ -928,6 +928,16 @@ export class Board {
     return named ?? this.store.canvases.main(this.project.id);
   }
 
+  /**
+   * The canvas a card goes back to, and its follow-ups and prototypes go on: its own (`canvas`), or
+   * `main` once that is gone; without one, as `canvasFor`. Every read of an invisible card's canvas
+   * goes through here, so a deleted canvas is never read back.
+   */
+  homeCanvas(canvas: string | null | undefined): string {
+    if (!canvas) return this.canvasFor();
+    return this.store.canvases.get(canvas)?.projectId === this.project.id ? canvas : this.store.canvases.main(this.project.id);
+  }
+
   /** The cards on one canvas of the project. */
   private on(canvas: string, items = this.items()): Item[] {
     return items.filter((i) => i.canvas === canvas);
@@ -956,7 +966,7 @@ export class Board {
   private followUpSpot(fromId: string): { x: number; y: number } {
     const from = this.items().find((i) => i.id === fromId);
     // an archived card is not on the project: its follow-ups go where there is room on its canvas
-    if (!from) return this.spotOn(this.store.cards.get(fromId)?.canvas_id ?? this.canvasFor());
+    if (!from) return this.spotOn(this.homeCanvas(this.store.cards.get(fromId)?.canvas_id));
     const items = this.on(from.canvas!);
     const earlier = items.filter((i) => i.from === fromId && i.state !== 'proposal' && !i.idea?.prototypeOf).length;
     return this.nearFree(items, below(boundsOf(from, items), earlier), undefined, true);
@@ -991,7 +1001,7 @@ export class Board {
   propose(fromId: string, p: { title: string; task: string; reason?: string; idea?: boolean; questions?: Question[]; startAt?: string; repo?: string }): Item {
     if (p.repo !== undefined) this.checkRepo(p.repo);
     const from = this.items().find((i) => i.id === fromId);
-    const canvas = from?.canvas ?? this.store.cards.get(fromId)?.canvas_id ?? this.canvasFor();
+    const canvas = from?.canvas ?? this.homeCanvas(this.store.cards.get(fromId)?.canvas_id);
     const items = this.on(canvas);
     const at = from ? this.nearFree(items, below(boundsOf(from, items)), undefined, true) : this.spotOn(canvas);
     const proposal = proposalOf(p);
@@ -1358,10 +1368,11 @@ export class Board {
 
   /** A card whose worker builds a throwaway prototype for the idea; placed below it, beside the prototypes already there. */
   addPrototype(ideaId: string, title: string, body: string, variant?: string): Item {
-    const canvas = this.store.cards.get(ideaId)?.canvas_id ?? this.canvasFor();
+    const canvas = this.homeCanvas(this.store.cards.get(ideaId)?.canvas_id);
     const items = this.on(canvas);
     const idea = items.find((i) => i.id === ideaId);
-    const at = below(idea ? boundsOf(idea, items) : { x: 0, y: 0, w: 0, h: 0 }, items.filter((i) => i.idea?.prototypeOf === ideaId).length);
+    // an archived idea is not on the canvas: its prototype goes where there is room
+    const at = idea ? below(boundsOf(idea, items), items.filter((i) => i.idea?.prototypeOf === ideaId).length) : this.spotOn(canvas);
     const [row] = this.store.addCards([
       {
         project_id: this.project.id,
@@ -1832,7 +1843,7 @@ export class Board {
           const f = merge.followUp;
           const next = this.create({ title: f.title, body: withQuestions(f.task, f.questions.map((n) => proposal.questions[n]!).filter(Boolean), [], this.t), from: other.id, repo: other.repo, images: f.images }, undefined, 'owner');
           // Even an archived survivor keeps its place; the new task is placed beside it.
-          const at = this.nearFree(this.on(keep.canvas_id), { x: other.x + CARD_SIZE.task[0] + 40, y: other.y }, undefined, true);
+          const at = this.nearFree(this.on(this.homeCanvas(keep.canvas_id)), { x: other.x + CARD_SIZE.task[0] + 40, y: other.y }, undefined, true);
           this.store.cards.update(next.id, at);
           this.setManualDependencies([...this.manualDependencies(), [other.id, next.id]]);
         }
@@ -2009,14 +2020,16 @@ export class Board {
   /** Any card of the project as the UI sees it: on the project, or in the archive. */
   card(id: string): Item | undefined {
     this.own(id);
-    const item = this.item(id);
-    if (item || this.archiveItems) return item ?? this.archiveItems!.find((i) => i.id === id);
+    const item = this.item(id) ?? this.archiveItems?.find((i) => i.id === id);
+    if (item) return item;
     // as the project has just read the docs: a plan whose doc went is archived by that
     const row = this.own(id);
     // one card of the archive (a workstream with its plan), without building all of it: sharing pages again asks for one after another
     const parent = row.parent_id ? this.store.cards.get(row.parent_id) : null;
     const archived = row.archived_at ? row : parent?.archived_at && !parent.deleted_at && parent.project_id === this.project.id ? parent : null;
-    return archived ? this.archiveOf([archived]).find((i) => i.id === id) : undefined;
+    if (archived) return this.archiveOf([archived]).find((i) => i.id === id);
+    // a workstream whose key left its plan's doc: on no canvas
+    return parent && !parent.deleted_at ? toItems([parent, row], this.docs ?? [], this.home, this.worked, this.themeNow, true).find((i) => i.id === id) : undefined;
   }
 
   /** What a plan's sheet shows besides the doc: its decisions and those of the idea or task it came from. */
@@ -2182,6 +2195,8 @@ export class Board {
       // keeping and reopening docs archives and brings back their cards
       rows = this.store.cards.onProject(this.project.id);
     }
+    // a card back from the archive, the trash or the parking lot whose canvas went meanwhile is on main
+    if (this.rehome(rows, docs)) rows = this.store.cards.onProject(this.project.id);
     let items = withLivePartners(toItems(rows, docs, this.home, this.worked, this.themeNow));
     this.visibleIds = new Set(items.map((i) => i.id));
     if (this.placeNew(docs, items, all, rows)) {
@@ -2870,9 +2885,37 @@ export class Board {
 
   // ---------------------------------------------------------------- canvases
 
-  /** The project's canvases in the owner's order. */
+  /** The project's canvases in the owner's order; `inUse` on those that hold something. */
   canvases(): Canvas[] {
-    return this.store.canvases.of(this.project.id).map(toCanvas);
+    const items = this.items();
+    const groups = this.store.groups.of(this.project.id).map(toGroup);
+    return this.store.canvases.of(this.project.id).map((c) => ({ ...toCanvas(c), ...(canvasHolds(c.id, items, groups) ? { inUse: true as const } : {}) }));
+  }
+
+  /**
+   * Puts the cards its canvas would hold whose canvas is gone onto `main` (a plan with its workstreams), each
+   * at the free spot there nearest where it stood; returns whether there were any.
+   */
+  private rehome(rows: CardRow[], docs: PlanDoc[]): boolean {
+    const ids = new Set(this.store.canvases.of(this.project.id).map((c) => c.id));
+    // a card off the canvas (parked) keeps the canvas it came from until it comes back
+    const gone = rows.filter((r) => !r.parent_id && heldByCanvas(r) && r.canvas_id && !ids.has(r.canvas_id)).map((r) => r.id);
+    if (!gone.length) return false;
+    const main = this.store.canvases.main(this.project.id);
+    this.store.cards.setCanvas(gone, main);
+    const items = toItems(this.store.cards.onProject(this.project.id), docs, this.home).filter((i) => i.canvas === main);
+    const moving = new Set(gone);
+    const taken = items.filter((i) => !i.parent && !moving.has(i.id)).map((i) => boundsOf(i, items));
+    for (const id of gone) {
+      const item = items.find((i) => i.id === id);
+      if (!item) continue;
+      const at = freeSpotNear(item, sizeOf(item, items), taken);
+      // a plan's workstreams stand relative to it and move along
+      const place = { x: Math.round(at.x), y: Math.round(at.y) };
+      this.store.cards.update(id, place);
+      taken.push(boundsOf({ ...item, ...place }, items));
+    }
+    return true;
   }
 
   /** A new canvas, last in the order, with nothing on it. */
@@ -2912,15 +2955,19 @@ export class Board {
   }
 
   /**
-   * Deletes a canvas without cards on it; never `main`. Its archived cards go to `main`, where they
-   * come back from the archive.
+   * Deletes a canvas that holds nothing (`canvasHolds`); never `main`. The cards it does not hold
+   * (archived, deleted, parked) keep it as theirs and go to `main` once they come back (`homeCanvas`).
    */
   deleteCanvas(id: string) {
     const c = this.ownCanvas(id);
     if (c.name === MAIN_CANVAS) throw new BadRequest('canvasInUse', `the canvas ${MAIN_CANVAS} cannot be deleted`);
-    const n = this.store.cards.onCanvas(id);
-    if (n) throw new BadRequest('canvasInUse', `only an empty canvas can be deleted; ${c.name} has ${n} card${n === 1 ? '' : 's'}`);
-    this.store.deleteCanvas(id, this.store.canvases.main(this.project.id));
+    const items = this.items();
+    const groups = this.store.groups.of(this.project.id).map(toGroup);
+    if (canvasHolds(id, items, groups)) {
+      const n = items.filter((i) => i.canvasVisible && i.canvas === id && !i.parent).length;
+      throw new BadRequest('canvasInUse', `only an empty canvas can be deleted; ${c.name} still has ${n ? `${n} card${n === 1 ? '' : 's'}` : 'a group with cards'} on it`);
+    }
+    this.store.deleteCanvas(id);
     this.changed();
   }
 
@@ -3010,7 +3057,7 @@ export class Board {
     }
     if (n.canvas !== undefined) this.ownCanvas(n.canvas);
     // a follow-up goes on its card's canvas, any other where it says, else where the owner looks
-    const canvas = from ? from.canvas_id : (n.canvas ?? this.canvasFor());
+    const canvas = from ? this.homeCanvas(from.canvas_id) : (n.canvas ?? this.canvasFor());
     const at = from ? this.followUpSpot(from.id) : placed ? { x: n.x!, y: n.y! } : this.spotOn(canvas);
     // a follow-up stays in the repository of the card it comes from unless told otherwise
     const repo = n.repo ?? (from ? (from.repo ?? this.home) : undefined);
@@ -3634,8 +3681,8 @@ export class Board {
    */
   private takePlace(planId: string, ideaId: string, docs: PlanDoc[]) {
     // on the idea's canvas, with its workstreams
-    const ideaCanvas = this.store.cards.get(ideaId)?.canvas_id;
-    if (ideaCanvas && this.store.cards.get(planId)?.canvas_id !== ideaCanvas) this.store.cards.setCanvas([planId], ideaCanvas);
+    const ideaCanvas = this.homeCanvas(this.store.cards.get(ideaId)?.canvas_id);
+    if (this.store.cards.get(planId)?.canvas_id !== ideaCanvas) this.store.cards.setCanvas([planId], ideaCanvas);
     const all = toItems(this.store.cards.onProject(this.project.id), docs, this.home, undefined, this.themeNow);
     const plan = all.find((i) => i.id === planId);
     const idea = all.find((i) => i.id === ideaId);
@@ -3741,7 +3788,15 @@ export function withLivePartners(items: Item[], live = new Set(items.map((i) => 
   });
 }
 
-export function toItems(rows: CardRow[], docs: PlanDoc[], home: string, worked?: Worked, themeNow?: ThemeNow): Item[] {
+/** Whether its canvas holds the card's row: not deleted, archived or parked (a workstream's also asks its plan's). */
+const heldByCanvas = (r: CardRow) => !r.deleted_at && !r.archived_at && r.hold?.reason !== 'parkingLot';
+
+/**
+ * The cards as the UI sees them. `gone`: also the workstream cards whose key left their plan's doc,
+ * which no canvas holds (`canvasVisible` false), each after the others; the project and the archive
+ * leave them out, one asked for by its id (`Board.card`) has them.
+ */
+export function toItems(rows: CardRow[], docs: PlanDoc[], home: string, worked?: Worked, themeNow?: ThemeNow, gone = false): Item[] {
   const work = (r: CardRow) => workOf(r, worked, themeNow);
   const docByFile = new Map(docs.map((d) => [d.file, d]));
   // a plan's group covers its workstreams
@@ -3751,6 +3806,9 @@ export function toItems(rows: CardRow[], docs: PlanDoc[], home: string, worked?:
   const idOfRef = new Map(rows.flatMap((r) => (r.plan_ref ? [[r.plan_ref, r.id]] : [])));
   // a workstream is on its plan's canvas
   const canvasOf = new Map(rows.flatMap((r) => (r.kind === 'plan' ? [[r.id, r.canvas_id]] : [])));
+  // a workstream's canvas holds it while it holds its plan
+  const visible = heldByCanvas;
+  const planVisible = new Map(rows.flatMap((r) => (r.kind === 'plan' ? [[r.id, visible(r)]] : [])));
   const plans: Item[] = [];
   const workstreams: { item: Item; order: number }[] = [];
   const manual: Item[] = [];
@@ -3770,6 +3828,7 @@ export function toItems(rows: CardRow[], docs: PlanDoc[], home: string, worked?:
         source: 'manual',
         repo: r.repo ?? home,
         ...(r.canvas_id ? { canvas: r.canvas_id } : {}),
+        canvasVisible: visible(r),
         createdAt: r.created_at,
         ...worker,
         ...(r.thread ? { thread: threadOf(r) } : {}),
@@ -3806,6 +3865,7 @@ export function toItems(rows: CardRow[], docs: PlanDoc[], home: string, worked?:
         source: 'plan',
         repo: repoOfRef(doc.file, home),
         ...(r.canvas_id ? { canvas: r.canvas_id } : {}),
+        canvasVisible: visible(r),
         plan: {
           file: doc.file,
           goal: doc.goal,
@@ -3821,8 +3881,8 @@ export function toItems(rows: CardRow[], docs: PlanDoc[], home: string, worked?:
     const key = r.plan_ref.slice(hash + 1);
     const order = doc.workstreams.findIndex((w) => w.key === key);
     const w = doc.workstreams[order];
-    if (!w || !r.parent_id) continue;
-    const derived = w.done ? 'live' : w.inReview ? 'inPr' : 'planned';
+    if (!r.parent_id || (!w && !gone)) continue;
+    const derived = w?.done ? 'live' : w?.inReview ? 'inPr' : 'planned';
     // work in progress wins over the doc: a ticked-off workstream may still wait for its merge, and so
     // does a stopped one whose box a plan folder outside the repository ticked
     const state = r.state && (ACTIVE.includes(r.state) || tickedAhead(r)) ? r.state : derived === 'live' ? 'live' : (r.state ?? derived);
@@ -3836,26 +3896,27 @@ export function toItems(rows: CardRow[], docs: PlanDoc[], home: string, worked?:
         kind: r.kind,
         state,
         ...(r.need ? { need: r.need } : {}),
-        title: w.title,
-        body: w.body,
+        title: w?.title ?? r.title ?? '',
+        body: w?.body ?? r.body ?? '',
         x: r.x,
         y: r.y,
         parent: r.parent_id,
         source: 'plan',
         repo: repoOfRef(r.plan_ref, home),
         ...((canvasOf.get(r.parent_id) ?? r.canvas_id) ? { canvas: canvasOf.get(r.parent_id) ?? r.canvas_id } : {}),
+        canvasVisible: !!w && visible(r) && planVisible.get(r.parent_id) === true,
         ...worker,
         ...(groupOf.get(r.parent_id) ? { group: groupOf.get(r.parent_id)! } : {}),
         ...parts({
           idea: r.idea?.builtOn ? { builtOn: r.idea.builtOn } : {},
-          plan: { ...(w.label ? { label: w.label } : {}), ...(buildsOn.length ? { buildsOn } : {}) },
+          plan: { ...(w?.label ? { label: w.label } : {}), ...(buildsOn.length ? { buildsOn } : {}) },
           labels: labelsOf(r),
         }, worker),
       },
     });
   }
   const shown = new Set(plans.map((p) => p.id));
-  const kids = workstreams.filter((w) => shown.has(w.item.parent!));
+  const kids = workstreams.filter((w) => shown.has(w.item.parent!) && w.order >= 0);
   const ordered = plans.flatMap((p) =>
     kids
       .filter((k) => k.item.parent === p.id)
@@ -3864,7 +3925,8 @@ export function toItems(rows: CardRow[], docs: PlanDoc[], home: string, worked?:
   );
   // a card merged with a proposal shows within it, until the owner decides
   const into = new Map(manual.flatMap((i) => (i.idea?.proposal?.merge ? [[i.idea.proposal.merge.with, i.id] as const] : [])));
-  return [...plans, ...ordered, ...(into.size ? manual.map((i) => (into.has(i.id) ? withPart(i, 'idea', { mergingInto: into.get(i.id)! }) : i)) : manual)];
+  const left = workstreams.filter((w) => w.order < 0 && shown.has(w.item.parent!)).map((w) => w.item);
+  return [...plans, ...ordered, ...(into.size ? manual.map((i) => (into.has(i.id) ? withPart(i, 'idea', { mergingInto: into.get(i.id)! }) : i)) : manual), ...left];
 }
 
 /**

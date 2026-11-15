@@ -903,6 +903,136 @@ describe('canvases', () => {
     expect(canvasOf(a.id)).toBe(main);
   });
 
+  const inUse = (id: string) => board.canvases().find((c) => c.id === id)!.inUse;
+  const visible = (id: string) => [...board.snapshot().items, ...board.archived()].find((i) => i.id === id)?.canvasVisible;
+
+  test('every card says whether its canvas holds it: folded away it does; archived, ended, parked or of an archived plan it does not', () => {
+    const later = board.createCanvas('Later');
+    const [plan, w1] = board.snapshot().items;
+    expect(board.snapshot().items.every((i) => i.canvasVisible)).toBe(true);
+    // a collapsed plan's workstreams and a merge proposal's partner are folded away, still on the canvas
+    board.patch(plan!.id, { collapsed: true });
+    expect(visible(w1!.id)).toBe(true);
+    const a = board.create({ title: 'A', x: 0, y: 0, canvas: later.id });
+    const p = board.propose(a.id, { title: 'Same', task: 'T' });
+    store.db.query("UPDATE card_ideas SET proposal = json_set(proposal, '$.merge', json(?)) WHERE card_id = ?").run(JSON.stringify({ with: a.id, task: 'T', outcome: 'covered', parts: [] }), p.id);
+    board.patch(p.id, { x: 10, y: 10 });
+    expect(board.card(a.id)).toMatchObject({ idea: { mergingInto: p.id }, canvasVisible: true });
+    expect(inUse(later.id)).toBe(true);
+    // archived, an ended prototype, parked
+    board.work(a.id, { state: 'live' });
+    board.archive([a.id]);
+    expect(visible(a.id)).toBe(false);
+    const idea = board.create({ idea: true, title: 'Idea', x: 0, y: 0, canvas: later.id });
+    const proto = board.addPrototype(idea.id, 'Prototype', 'P');
+    board.endPrototype(proto.id, 'discarded');
+    expect(visible(proto.id)).toBe(false);
+    const parked = board.create({ title: 'Parked', x: 0, y: 0, canvas: later.id });
+    board.work(parked.id, { hold: { reason: 'parkingLot', since: new Date().toISOString() } });
+    expect(visible(parked.id)).toBe(false);
+    // the workstreams of a plan whose doc went are in the archive with it
+    docs = [];
+    board.docsChanged();
+    expect(visible(plan!.id)).toBe(false);
+    expect(visible(w1!.id)).toBe(false);
+  });
+
+  test('a workstream whose key left the doc is on no canvas', () => {
+    const later = board.createCanvas('Later');
+    const [plan] = board.snapshot().items;
+    board.moveToCanvas([plan!.id], later.id);
+    const w3 = board.snapshot().items.find((i) => i.plan?.label === 'W3')!;
+    docs = [{ ...docA, workstreams: [ws('W1', true), ws('W2')] }];
+    board.docsChanged();
+    expect(board.snapshot().items.find((i) => i.id === w3.id)).toBeUndefined();
+    expect(board.archived().find((i) => i.id === w3.id)).toBeUndefined();
+    expect(store.cards.get(w3.id)!.archived_at).toBeNull();
+    // asked for by its id, it says so
+    expect(board.card(w3.id)).toMatchObject({ id: w3.id, parent: plan!.id, canvasVisible: false });
+    // what is left of the plan is still on it; once that goes too, nothing is
+    expect(inUse(later.id)).toBe(true);
+    docs = [];
+    board.docsChanged();
+    expect(inUse(later.id)).toBeUndefined();
+    board.deleteCanvas(later.id);
+  });
+
+  test('a canvas holding only an ended plan holds nothing and can be deleted, though its workstream rows are not archived', () => {
+    const later = board.createCanvas('Later');
+    const [plan] = board.snapshot().items;
+    board.moveToCanvas([plan!.id], later.id);
+    expect(inUse(later.id)).toBe(true);
+    expect(code(() => board.deleteCanvas(later.id))).toBe('canvasInUse');
+    docs = [{ ...docA, workstreams: [ws('W1', true), ws('W2', true), ws('W3', true)] }];
+    board.docsChanged();
+    expect(board.archived().find((i) => i.id === plan!.id)).toBeDefined();
+    expect(store.cards.children([plan!.id]).every((r) => !r.archived_at)).toBe(true);
+    expect(inUse(later.id)).toBeUndefined();
+    board.deleteCanvas(later.id);
+    expect(board.snapshot().canvases.map((c) => c.name)).toEqual(['main']);
+  });
+
+  test('a group holds its canvas while a card in it is on the canvas; one with only archived cards goes with the canvas', () => {
+    const later = board.createCanvas('Later');
+    const a = board.create({ title: 'A', x: 0, y: 0, canvas: later.id });
+    const b = board.create({ title: 'B', x: 400, y: 0, canvas: later.id });
+    const g = board.createGroup('Billing', [a.id, b.id]);
+    board.work(a.id, { state: 'live' });
+    board.archive([a.id]);
+    expect(inUse(later.id)).toBe(true);
+    board.work(b.id, { state: 'live' });
+    board.archive([b.id]);
+    expect(inUse(later.id)).toBeUndefined();
+    board.deleteCanvas(later.id);
+    expect(board.snapshot().groups.find((x) => x.id === g.id)).toBeUndefined();
+    // the archived cards keep the canvas they came from, out of the group
+    expect([store.cards.get(a.id)!.canvas_id, store.cards.get(a.id)!.group_id]).toEqual([later.id, null]);
+  });
+
+  test('back from the archive, the trash or the parking lot onto a deleted canvas, a card is on main; so are follow-ups and prototypes of one', () => {
+    const main = board.snapshot().canvases[0]!.id;
+    const later = board.createCanvas('Later');
+    const a = board.create({ title: 'A', x: 0, y: 0, canvas: later.id });
+    const gone = board.create({ title: 'Gone', x: 0, y: 0, canvas: later.id });
+    const parked = board.create({ title: 'Parked', x: 0, y: 0, canvas: later.id });
+    const idea = board.create({ idea: true, title: 'Idea', x: 0, y: 0, canvas: later.id });
+    const [plan] = board.snapshot().items;
+    board.moveToCanvas([plan!.id], later.id);
+    board.work(a.id, { state: 'live' });
+    board.archive([a.id]);
+    board.remove(gone.id);
+    board.work(parked.id, { hold: { reason: 'parkingLot', since: new Date().toISOString() } });
+    board.patch(idea.id, { state: 'done' });
+    board.archive([idea.id]);
+    docs = [];
+    board.docsChanged();
+    board.deleteCanvas(later.id);
+    // what the canvas did not hold keeps pointing at it until it comes back
+    board.snapshot();
+    for (const id of [a.id, gone.id, parked.id]) expect(store.cards.get(id)!.canvas_id).toBe(later.id);
+    board.work(parked.id, { hold: null });
+    expect(canvasOf(parked.id)).toBe(main);
+    // made from an archived card whose canvas is gone
+    expect(canvasOf(board.create({ title: 'Next', from: a.id }).id)).toBe(main);
+    expect(canvasOf(board.propose(a.id, { title: 'Proposal', task: 'T' }).id)).toBe(main);
+    expect(board.addPrototype(idea.id, 'Prototype', 'P').canvas).toBe(main);
+    board.unarchive(a.id);
+    board.restore(gone.id);
+    for (const id of [a.id, gone.id, parked.id]) expect(canvasOf(id)).toBe(main);
+    // each at a free spot there, clear of what main holds already
+    const boxes = board.snapshot().items.filter((i) => !i.parent && i.canvas === main).map((i) => boundsOf(i, board.snapshot().items));
+    for (const [n, p] of boxes.entries()) for (const q of boxes.slice(n + 1)) expect(p.x + p.w <= q.x || q.x + q.w <= p.x || p.y + p.h <= q.y || q.y + q.h <= p.y).toBe(true);
+    // a plan whose doc is back, with its workstreams, which keep their places within it
+    const within = store.cards.children([plan!.id]).map((r) => [r.id, r.x, r.y]);
+    docs = [docA];
+    board.docsChanged();
+    const items = board.snapshot().items;
+    expect(items.filter((i) => i.id === plan!.id || i.parent === plan!.id).map((i) => i.canvas)).toEqual([main, main, main, main]);
+    expect(store.cards.children([plan!.id]).map((r) => [r.id, r.x, r.y])).toEqual(within);
+    const back = items.filter((i) => !i.parent && i.canvas === main).map((i) => boundsOf(i, items));
+    for (const [n, p] of back.entries()) for (const q of back.slice(n + 1)) expect(p.x + p.w <= q.x || q.x + q.w <= p.x || p.y + p.h <= q.y || q.y + q.h <= p.y).toBe(true);
+  });
+
   test('a plan written from an idea takes its place on the idea canvas, with its workstreams', () => {
     const ideas = board.createCanvas('Ideas');
     const idea = board.create({ title: 'Idea', x: 100, y: 100, idea: true, canvas: ideas.id });

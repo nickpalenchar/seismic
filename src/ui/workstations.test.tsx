@@ -6,7 +6,7 @@ import { WorkingRows } from './workstations';
 test('working rows keep their activity and separate description after releasing a workstation', () => {
   for (const state of ['working', 'approved', 'live'] as const) {
     const item: Item = {
-      id: 'checkout', kind: 'task', source: 'manual', repo: 'shop', x: 0, y: 0,
+      id: 'checkout', kind: 'task', source: 'manual', repo: 'shop', x: 0, y: 0, canvasVisible: true,
       title: 'Improve checkout', body: 'Keep the checkout easy to use.', state,
       agent: { inTurn: true, doing: 'debugging', statusLine: 'Checking the checkout.', ...(state === 'live' ? { finishing: true } : {}) },
     };

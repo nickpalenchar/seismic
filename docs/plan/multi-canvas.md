@@ -20,7 +20,7 @@ Workstreams keep their name. The workspace level is only reserved as a word; not
 
 **Shared per project:** repositories, settings, demo site, Seismic, the inbox count, the left project picker. **Per canvas:** cards, groups, layout, minimap, edge indicators.
 
-**Tabs and drawer** sit at the bottom right, above the status bar. They show when a project has more than one canvas, plus a small "+". The drawer lists the canvases in order, each with its waiting count in orange, and ends with "+ New canvas". Rename, change icon and reorder sit behind hover. Delete is possible only for an empty canvas, never for "main".
+**Tabs and drawer** sit at the bottom right, above the status bar. They show when a project has more than one canvas, plus a small "+". The drawer lists the canvases in order, each with its waiting count in orange, and ends with "+ New canvas". Rename, change icon and reorder sit behind hover. Delete is possible only for a canvas that holds nothing, never for "main" (see design.md on `canvasVisible`).
 
 **+ Create** sits top right, before the sliders, and replaces the teaching-only "New task". Card creates and unfolds a card at the centre of the view; Canvas opens a dialog asking for a name and an icon; Project does what "New project" does today (a new project with its repositories).
 
