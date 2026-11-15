@@ -176,7 +176,9 @@ cycling through terminals.
   what it needs, git shared below them), the features that can wait, then on the first start the
   first project. Going on from the first step needs one configured agent, which counts only with
   git ready too; the second never blocks, a callout names what is left out. Rejected: tabs
-  "Needed"/"Recommended" with the first project under the needed ones.
+  "Needed"/"Recommended" with the first project under the needed ones. A login done in a shell of
+  its own (over SSH) brings no focus back to the page, so while a login the step waits for is
+  missing the list checks again every five seconds, and each login has its own "Check again".
 - **The look is frost, built on shadcn/ui and Tailwind** (2026-11-05, 2026-11-12); see
   [UI system](design/ui-system.md).
 

@@ -241,6 +241,8 @@ type Agent = (typeof AGENTS)[number];
 /** The section that checks each agent; Claude Code's shares the needed one with git. */
 const AGENT_SECTION: Record<Exclude<Agent, 'pi'>, MachineSectionId> = { claude: 'needed', codex: 'codex', agy: 'agents' };
 const GIT_ITEMS: readonly MachineItem['id'][] = ['git', 'gitUser'];
+/** How often the list checks again while a login it waits for is missing. */
+const LOGIN_POLL_MS = 5000;
 /** The assistant's steps: the agents, the features that can wait, and on the first start the first project. */
 type Step = 'agents' | 'recommended' | 'first';
 
@@ -282,13 +284,19 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
   const shown = useRef(false);
   shown.current = !!view;
   const failed = (e: unknown) => setStatus(failText(e, { detail: ['invalid', 'config'] }));
-  const recheck = () => {
-    setChecking(true);
+  const inFlight = useRef(false);
+  /** `quiet`: the periodic check, which leaves the buttons as they are. */
+  const recheck = (quiet = false) => {
+    inFlight.current = true;
+    if (!quiet) setChecking(true);
     return api
       .setup()
       // a check that fails (the server starting again) keeps the list it had
       .then(setView, (e) => (shown.current ? console.error(e) : failed(e)))
-      .finally(() => setChecking(false));
+      .finally(() => {
+        inFlight.current = false;
+        setChecking(false);
+      });
   };
   useEffect(() => {
     recheck();
@@ -335,7 +343,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
       if (job.error) return <span className="text-destructive m-0 text-sm">{s.failed(job.error.split('\n').at(-1) ?? '')}</span>;
     }
     if (i.act === 'identity') return <Identity onSaved={setView} onError={failed} />;
-    const detail = section.id === 'voice' && i.id === 'recognition' && <RecognitionDetail item={i} busy={running} changed={recheck} />;
+    const detail = section.id === 'voice' && i.id === 'recognition' && <RecognitionDetail item={i} busy={running} changed={() => recheck()} />;
     if (!i.act) return detail || null;
     if (i.act === 'login' || i.act === 'terminal')
       return (
@@ -343,7 +351,10 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
           <Button size="small" onClick={() => act(section, i)}>
             {i.act === 'terminal' ? s.mobile.enable : s.login}
           </Button>
-          {terminal === i.id && <span className="hint">{i.act === 'terminal' ? s.mobile.enableOpen : s.terminalOpen}</span>}
+          <Button size="small" variant="ghost" disabled={checking} onClick={() => recheck()}>
+            {checking ? t.config.setup.checking : t.config.setup.recheck}
+          </Button>
+          {terminal === i.id ? <span className="hint">{i.act === 'terminal' ? s.mobile.enableOpen : s.terminalOpen}</span> : polling && <span className="hint">{s.checksItself}</span>}
         </>
       );
     return (
@@ -403,6 +414,17 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
   useEffect(() => {
     if (gated && step !== 'agents') go('agents');
   }, [gated, step]);
+  // A login done in a shell of its own (over SSH, say) brings no focus back to this page: while a login
+  // the step waits for is missing, the list checks again by itself. On the first step those of the picked
+  // agents; on the others only one the owner opened a terminal for, as they can wait.
+  const awaitsLogin = (i: MachineItem) => i.state === 'missing' && (i.act === 'login' || i.act === 'terminal');
+  const polling =
+    step === 'agents' ? chosen.some((a) => agentItems(a).some(awaitsLogin)) : !!terminal && !!view?.sections.some((x) => x.items.some((i) => i.id === terminal && awaitsLogin(i)));
+  useEffect(() => {
+    if (!polling) return;
+    const timer = setInterval(() => document.visibilityState === 'visible' && !inFlight.current && recheck(true), LOGIN_POLL_MS);
+    return () => clearInterval(timer);
+  }, [polling]);
   const toggle = (a: Agent, on: boolean) => setPicked(on ? AGENTS.filter((x) => x === a || chosen.includes(x)) : chosen.filter((x) => x !== a));
 
   /** A block of the list: its title, how much of it is still open, its pieces. `canWait`: tagged as one that can wait. */
@@ -422,7 +444,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
     </section>
   );
   const recheckButton = (
-    <Button size="small" disabled={checking || running} onClick={recheck}>
+    <Button size="small" disabled={checking || running} onClick={() => recheck()}>
       {checking ? t.config.setup.checking : t.config.setup.recheck}
     </Button>
   );
