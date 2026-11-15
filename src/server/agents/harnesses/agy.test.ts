@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from 'bun:test';
 import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { z } from 'zod';
@@ -61,7 +61,9 @@ test('a second message waits for the turn, a failed turn reports the usage limit
   const session = start(spec(repo, events, { resume: 'agy:old-conv' }), 'FAIL');
   session.send('next');
   await until(() => events.filter((e) => e.type === 'idle').length === 2);
-  expect(events.find((e) => e.type === 'error')).toMatchObject({ message: 'Quota exceeded. Retry in 30s.', limit: { resetsAt: expect.any(Number) } });
+  const error = events.find((e) => e.type === 'error');
+  if (error?.type === 'error') expect(error.limit!.resetsAt!).toBeGreaterThan(Date.now() + 152 * 3_600_000);
+  expect(error).toMatchObject({ message: readFileSync(join(import.meta.dir, '../../fixtures/agy-quota.txt'), 'utf8').trim(), limit: { resetsAt: expect.any(Number) } });
   expect(events.find((e) => e.type === 'session')).toMatchObject({ id: 'agy:old-conv' });
   expect(events.filter((e) => e.type === 'idle')[0]).toMatchObject({ more: true });
 });
@@ -110,4 +112,19 @@ test('parsing: models, limits, native tools', () => {
   expect(agyLimit('RESOURCE_EXHAUSTED: retry in 2 hours', 0)).toEqual({ resetsAt: 7_200_000 });
   expect(agyLimit('boom')).toBeUndefined();
   expect(nativeTool('write_to_file', { path: 'a' }).name).toBe('Edit');
+});
+
+test('real account-quota capture reads the entire reset duration', () => {
+  const message = readFileSync(join(import.meta.dir, '../../fixtures/agy-quota.txt'), 'utf8').trim();
+  const now = Date.UTC(2026, 10, 7, 16, 3, 35, 868);
+  expect(agyLimit(message, now)).toEqual({ resetsAt: now + (152 * 3600 + 12 * 60 + 37) * 1000 });
+  for (const [duration, ms] of [['145h5m46s', 522346000], ['1h2m3s', 3723000], ['12m37s', 757000], ['0s', 0], ['1.5s', 1500]] as const) {
+    expect(agyLimit(`Quota reached. Resets in ${duration}.`, now)).toEqual({ resetsAt: now + ms });
+  }
+  expect(agyLimit('Quota exceeded. Retry in 30s.', now)).toEqual({ resetsAt: now + 30000 });
+  expect(agyLimit('Quota exceeded. Try again in 2 hours 3 minutes.', now)).toEqual({ resetsAt: now + 7380000 });
+  expect(agyLimit('Quota reached.', now)).toEqual({});
+  expect(agyLimit('Quota reached. Resets in unknown.', now)).toEqual({});
+  expect(agyLimit('Quota reached. Resets in 2hgarbage.', now)).toEqual({});
+  expect(agyLimit('Network unavailable. Retry in 30s.', now)).toBeUndefined();
 });

@@ -50,6 +50,6 @@ for await (const chunk of process.stdin) {
         out({ event: 'step_update', step_update: { step_type: 'agent_response', step_index: step++, state: 'ACTIVE', text_delta: `${m[2]} -> ${text} ` } });
       }
     }
-    out(failed ? { event: 'result', result: { status: 'ERROR', error: 'Quota exceeded. Retry in 30s.' } } : { event: 'result', result: { status: 'SUCCESS' } });
+    out(failed ? { event: 'result', result: { status: 'ERROR', error: readFileSync(new URL('./agy-quota.txt', import.meta.url), 'utf8').trim() } } : { event: 'result', result: { status: 'SUCCESS' } });
   }
 }

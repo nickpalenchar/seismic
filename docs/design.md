@@ -198,6 +198,9 @@ Formats to stay compatible with:
   and the older `/c/…` forms keep resolving. Card links in text are stored as such markdown links.
 - The database's version is `PRAGMA user_version`; an older Seismic refuses a newer database; a
   copy is taken before each pending step; a table rebuild keeps its rowids.
+- Antigravity account-quota errors report `RESOURCE_EXHAUSTED (code 429): Individual quota reached.`
+  followed by a relative `Resets in 152h12m37s.` duration; sum every component, with hours above 24
+  allowed. A reset that cannot be read stays unknown (observed CLI logs, 2026-11-14).
 - A session id without a qualifier is Claude's (`codex:` and `agy:` mark the others); a session
   never resumes in another harness, and resumed ones still get their old tool names.
 - A demo directory holds `demo.mp4`, `captions.vtt` (chapter times are read from it) and

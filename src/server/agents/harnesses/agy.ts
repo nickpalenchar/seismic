@@ -139,15 +139,21 @@ export function nativeTool(name: string, parameters: Record<string, unknown> = {
 }
 
 /**
- * When the usage limit that failed a turn lifts (milliseconds), as far as the error says ("retry in
- * 34s", "try again in 2 hours"); `{}` when it names no time. Undefined when it is no usage limit.
+ * When the usage limit lifts (milliseconds). agy's account-quota error uses a Go-style duration:
+ * "Resets in 152h12m37s." (captured in fixtures/agy-quota.txt). Keep the preview's retry wording
+ * too; an unrecognised time stays unknown rather than scheduling an early retry.
  */
 export function agyLimit(message: string, now = Date.now()): { resetsAt?: number } | undefined {
   if (!/quota|rate.?limit|resource.?exhausted|usage limit|too many requests|\b429\b/i.test(message)) return undefined;
-  const m = /(?:in|after)\s+(\d+(?:\.\d+)?)\s*(seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h)\b/i.exec(message);
+  const m = /(?:resets?\s+in|retry\s+(?:in|after)|try again\s+(?:in|after))\s+((?:\d+(?:\.\d+)?\s*(?:hours?|hrs?|h|minutes?|mins?|m|seconds?|secs?|s)\s*)+)(?=$|[.,;)\s])/i.exec(message);
   if (!m) return {};
-  const unit = m[2]![0]!.toLowerCase();
-  return { resetsAt: now + Number(m[1]) * (unit === 'h' ? 3_600_000 : unit === 'm' ? 60_000 : 1000) };
+  let duration = 0;
+  for (const part of m[1]!.matchAll(/(\d+(?:\.\d+)?)\s*([hms])/gi)) {
+    const unit = part[2]!.toLowerCase();
+    duration += Number(part[1]) * (unit === 'h' ? 3_600_000 : unit === 'm' ? 60_000 : 1000);
+  }
+  const resetsAt = now + duration;
+  return Number.isFinite(resetsAt) ? { resetsAt } : {};
 }
 
 /** An `agy` the argument list and environment are given to; injectable for tests. */

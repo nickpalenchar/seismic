@@ -13,7 +13,27 @@ Bring `agy` workers to the Codex level of crash recovery, process cleanup and tr
   sweep ends them. Check what `--sandbox` does with background commands and how `agy` ends them.
 - [ ] **W2:** Transcript reading. Find where `agy` keeps a conversation on disk
   (`~/.gemini/antigravity-cli`) and read it in `transcript.ts`, so the work retrospective covers `agy` sessions.
-- [ ] **W3:** Usage limits. Record what `agy` actually reports when a Google account's quota is used up
+- [x] **W3:** Usage limits. Record what `agy` actually reports when a Google account's quota is used up
   (the preview recognises it from the error text) and read the reset time from it.
 - [ ] **W4:** Background commands. Show the agent's background tasks on the card and wake the
   session when one ends, as for Codex.
+
+## W3 evidence — account quota
+
+Inspected the installed CLI's existing logs on 2026-11-14, without spending the account's
+remaining quota. `~/.gemini/antigravity-cli/log/cli-20261107_110332.log`, line 130,
+records at local time `11:03:35.868688` on November 7:
+
+```text
+agent executor error: generating and executing: RESOURCE_EXHAUSTED (code 429): Individual quota reached. Please upgrade your subscription to increase your limits. Resets in 152h12m37s.
+```
+
+Line 131 repeats the same failure without the `agent executor error:` prefix. Another log,
+`cli-20261107_181023.log`, reports `Resets in 145h5m46s.`. These are actual account failures,
+not the preview's invented `Quota exceeded. Retry in 30s.` example. Only the error text is
+retained in `src/server/fixtures/agy-quota.txt`; no account identifiers or conversation content
+are copied. This capture establishes the error wording, not a live stream-json envelope.
+
+The reset is a relative, compound hours/minutes/seconds duration; hours can exceed 24. Seismic
+adds the entire duration to receipt time and passes it to the existing usage-limit wait path.
+An error without a readable time keeps the existing unknown-reset behaviour.
