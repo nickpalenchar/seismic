@@ -6,9 +6,10 @@
 // rule engine, for Codex run outside Seismic. Exits with 1 when the file does not read or a command
 // given is not covered. Run with Bun (`bun allow-list.ts [--codex] ['<command>' …]`).
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { allowed, bashRules, codexRules } from '../../../../src/server/allow-rules.ts';
+import { writeCodexRules } from '../../../../src/server/codex-rules-file.ts';
 import { repoInfo } from '../../../../src/server/repo.ts';
 
 const SETTINGS = join('.claude', 'settings.json');
@@ -67,9 +68,11 @@ if (commands.length) {
 if (codex) {
   const { file: rulesFile, skipped } = codexRules(text ?? '{}', 'the `allow-list.ts --codex` of the skill `seismic:settings`');
   const out = join(repo.path, CODEX_RULES);
-  mkdirSync(dirname(out), { recursive: true });
-  writeFileSync(out, rulesFile);
-  console.log(`\nwrote ${CODEX_RULES}${skipped.length ? ` (${skipped.length} rule${skipped.length === 1 ? '' : 's'} with a * inside a word have no Codex form; Seismic applies them to its Codex workers itself)` : ''}`);
+  if (writeCodexRules(out, rulesFile) === 'preserved') {
+    console.log(`\npreserved ${CODEX_RULES}: repository-owned rules; no generated rules written`);
+  } else {
+    console.log(`\nwrote ${CODEX_RULES}${skipped.length ? ` (${skipped.length} rule${skipped.length === 1 ? '' : 's'} with a * inside a word have no Codex form; Seismic applies them to its Codex workers itself)` : ''}`);
+  }
 }
 
 process.exit(problem ? 1 : 0);

@@ -14,7 +14,10 @@ repository, starts the app, records a demo with it to prove the recipe, and asks
 cannot find out (a login, test data). It also drafts the allow list of commands agents run there
 without asking (the `Bash` rules of `.claude/settings.json`, which Seismic applies to its Codex
 workers too), from the repository's scripts and documented commands, adding to a list already
-there; with Codex signed in on the machine as well, it asks you which agents to set it up for. You
+there. Agents already configured in the repository stay set up without a question. With multiple
+agent harnesses available, setup asks only which of the remaining harnesses to add; when all are
+already configured, it skips that question. Generated Codex rules are refreshed from the allow
+list; repository-owned Codex rules stay unchanged. You
 review it and trust it under Commands you trust. This page is the reference for what it writes, and for
 writing or changing them yourself.
 
