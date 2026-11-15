@@ -6,7 +6,7 @@
 // cards (`phoneSearch.tsx`), each without the bar. A card opens full screen with an X at the top and
 // no floating bar; its conversation is the panel of `phoneShell.tsx`.
 
-import { Bell, ChevronDown, Menu, Plus, Search, X } from 'lucide-react';
+import { Bell, ChevronDown, Plus, Search, SlidersHorizontal, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { finishedArchivable, halted, inParkingLot, type Item, needsYou, type ProjectInfo, snoozeOf, type Usage, unreadAnswers } from '../core/types';
 import { agentStage, agentWork } from '../core/agents';
@@ -37,7 +37,7 @@ import { PhoneSearch } from './phoneSearch';
 import { gripWordClass, TalkPanel, talkClass } from './phoneTalkPanel';
 import { InboxList } from './inbox';
 import { sendReply } from './quickReply';
-import { PhoneMenu } from './phoneMenu';
+import { PhoneNavSheet } from './nav';
 import { plannedOrder } from './phoneOrder';
 import { ProjectSettingsBody } from './projectSettings/sheet';
 import { settingsSheetClass } from './configClasses';
@@ -125,6 +125,14 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
   };
   const full = SECTIONS.filter((x) => sections[x].length);
   const fold = (x: Section, open: boolean) => setFolded(open ? folded.filter((f) => f !== x) : [...folded, x]);
+  /** A section of the list from the menu: the pages over the list close, it unfolds and scrolls into view. */
+  const showSection = (x: Section) => {
+    setMenuOpen(false);
+    closeNeeds();
+    closeSettings();
+    fold(x, true);
+    requestAnimationFrame(() => document.querySelector(`.ph-next-${x}`)?.scrollIntoView({ block: 'start' }));
+  };
 
   return (
     <HoldToTalk.Provider value={press}>
@@ -232,29 +240,38 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
         </div>
       )}
       {acks}
-      <PhoneMenu
-        open={menuOpen}
-        onOpenChange={setMenuOpen}
-        projects={projects}
-        project={obeyaId}
-        needsYou={needsYouCount(entries)}
-        onProject={(id) => {
-          setObeyaProject(id);
-          closeNeeds();
-          closeSettings();
-          setMenuOpen(false);
-        }}
-        onNeedsYou={() => {
-          setMenuOpen(false);
-          closeSettings();
-          openNeeds();
-        }}
-        onSettings={() => {
-          setMenuOpen(false);
-          closeNeeds();
-          openSettings();
-        }}
-      />
+      {/* the desktop's left menu, behind the logo at the top left, with what the phone has a view for */}
+      {project && (
+        <PhoneNavSheet
+          open={menuOpen}
+          onOpenChange={setMenuOpen}
+          projects={projects}
+          project={project}
+          onProject={(id) => {
+            setObeyaProject(id);
+            closeNeeds();
+            closeSettings();
+            setMenuOpen(false);
+          }}
+          onInbox={() => {
+            setMenuOpen(false);
+            closeSettings();
+            openNeeds();
+          }}
+          onProjectSettings={() => {
+            setMenuOpen(false);
+            closeNeeds();
+            openSettings();
+          }}
+          {...(sections.queued.length ? { onQueue: () => showSection('queued') } : {})}
+          {...(sections.parked.length ? { onParked: () => showSection('parked') } : {})}
+          {...(needsOn ? { showing: 'inbox' as const } : settingsOn ? { showing: 'settings' as const } : {})}
+          canvases={[]}
+          pinned={false}
+          pinnable={false}
+          onPin={() => {}}
+        />
+      )}
       {searching && <PhoneSearch items={items.filter((i) => !i.archivedAt)} query={query} onQuery={setQuery} onOpen={openCard} onClose={closeSearch} />}
       {s.talk && (
         <TalkPanel
@@ -298,7 +315,7 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
           onNew={() => void newCard()}
           onChat={s.openTalk}
           onSearch={openSearch}
-          onMenu={() => setMenuOpen(true)}
+          onSettings={openSettings}
           onNeedsYou={openNeeds}
         />
       )}
@@ -433,14 +450,14 @@ const barButton = 'relative inline-grid size-11 place-items-center rounded-full 
  * and Needs you, whose bell counts what waits across every project. Hidden while the keyboard is up;
  * with the phone turned it stands upright in the microphone's strip at the right.
  */
-function FloatingBar({ needsYou, making, chat, chatWorking, onNew, onChat, onSearch, onMenu, onNeedsYou }: { needsYou: number; making: boolean; chat: number; chatWorking: boolean; onNew: () => void; onChat: () => void; onSearch: () => void; onMenu: () => void; onNeedsYou: () => void }) {
+function FloatingBar({ needsYou, making, chat, chatWorking, onNew, onChat, onSearch, onSettings, onNeedsYou }: { needsYou: number; making: boolean; chat: number; chatWorking: boolean; onNew: () => void; onChat: () => void; onSearch: () => void; /** The project's settings, where ☰ stood: the menu is behind the logo at the top left. */ onSettings: () => void; onNeedsYou: () => void }) {
   return (
     <nav
       className="ph-float fixed z-50 left-1/2 bottom-[calc(14px+env(safe-area-inset-bottom))] -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-glass px-2 py-0.5 shadow-lift backdrop-blur-xl [.ph-kb_.ph-view~&]:hidden ph-landscape:left-auto ph-landscape:right-[calc(10px+env(safe-area-inset-right))] ph-landscape:top-1/2 ph-landscape:bottom-auto ph-landscape:-translate-y-1/2 ph-landscape:translate-x-0 ph-landscape:flex-col ph-landscape:px-1 ph-landscape:py-1"
       aria-label={t.phone.next.menu}
     >
-      <button className={barButton} aria-label={t.phone.next.menu} onClick={onMenu}>
-        <Menu aria-hidden="true" />
+      <button className={barButton} aria-label={t.leftMenu.projectSettings} onClick={onSettings}>
+        <SlidersHorizontal aria-hidden="true" />
       </button>
       <button className={barButton} aria-label={t.phone.next.chat} title={chat ? t.koordinator.unreadCount(chat) : undefined} onClick={onChat}>
         <TalkIcon />

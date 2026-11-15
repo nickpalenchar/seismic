@@ -1,11 +1,12 @@
 // The left menu, behind ☰ and the logo in the bar: the inbox, the agents' configuration (a page of its
 // own that slides in), the projects (the open one with its canvases and views, every other one with the
 // agents' pause) and Seismic's settings and help. It
-// drops down under ☰, or stays docked as a sidebar on the left, the project the rest. The floating
-// row's project switcher lists the projects alone, while the menu is not docked. What waits itself is
-// in the inbox (src/ui/inbox.tsx), on every project at once.
+// drops down under ☰, or stays docked as a sidebar on the left, the project the rest. On the phone the
+// same menu opens over the whole screen from the logo at the top left, with the entries the phone has a
+// view for. The floating row's project switcher lists the projects alone, while the menu is not docked.
+// What waits itself is in the inbox (src/ui/inbox.tsx), on every project at once.
 
-import { Archive, ArrowLeft, Bot, Car, ChartLine, ChevronDown, ChevronRight, FileCheck, GitBranch, Inbox, ListOrdered, Menu as Menu_, PanelLeft, PanelLeftClose, Plus, ScrollText, Settings, SlidersHorizontal, Users } from 'lucide-react';
+import { Archive, ArrowLeft, Bot, Car, ChartLine, ChevronDown, ChevronRight, FileCheck, GitBranch, Inbox, ListOrdered, Menu as Menu_, PanelLeft, PanelLeftClose, Plus, ScrollText, Settings, SlidersHorizontal, Users, X } from 'lucide-react';
 import { type ComponentProps, createContext, type ReactNode, type Ref, useContext, useLayoutEffect, useRef, useState } from 'react';
 import type { Canvas, ProjectInfo } from '../core/types';
 import { projectPath, switchTo } from './address';
@@ -19,6 +20,7 @@ import { Tooltip } from './components/tooltip';
 import { PillButton } from './components/pill';
 import { cn } from 'cn';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from './components/sidebar';
+import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle } from './components/sheet';
 
 // the looks the menu's pieces share, docked or dropped down
 const list = 'm-0 list-none p-0';
@@ -71,8 +73,10 @@ export const saveNavWidth = (width: number) => {
 interface ProjectsProps {
   project: ProjectInfo;
   projects: ProjectInfo[];
-  /** Opens the configuration with a new project added. */
-  onNew: () => void;
+  /** Opens the configuration with a new project added; none where there is no configuration (the phone). */
+  onNew?: () => void;
+  /** Shows another project in place, where its address alone does not (the phone); else a click on it follows its link. */
+  onProject?: (id: string) => void;
 }
 
 /** The floating row's switcher: the project's name, and under it the projects. */
@@ -96,9 +100,9 @@ export function NavPill(p: ProjectsProps) {
         <InMenu.Provider value={ACTIVE}>
           <NavList className={list}>
             {p.projects.map((c) => (
-              <ProjectRow key={c.id} project={c} here={c.id === p.project.id} repos />
+              <ProjectRow key={c.id} project={c} here={c.id === p.project.id} repos onProject={p.onProject} />
             ))}
-            <NewProject onNew={p.onNew} />
+            {p.onNew && <NewProject onNew={p.onNew} />}
           </NavList>
         </InMenu.Provider>
       </MenuContent>
@@ -118,25 +122,28 @@ function NavList(props: ComponentProps<'ul'>) {
   return useContext(InMenu) ? <ul {...props} /> : <SidebarMenu {...props} className={cn('gap-0', props.className)} />;
 }
 
-/** What the menu's entries open; a floating menu closes first. */
+/**
+ * What the menu's entries open; a floating menu closes first. An entry whose action is left out is
+ * not shown: the phone has no canvases, archive, configuration or preferences to open.
+ */
 export interface MenuActions {
   onInbox: () => void;
-  onPerformance: () => void;
-  onFeedbackLog: () => void;
+  onPerformance?: () => void;
+  onFeedbackLog?: () => void;
   /** The open project's canvases, the one shown marked while no other view covers it. */
   canvases: Canvas[];
   canvas?: string;
-  onCanvas: (c: Canvas) => void;
-  onQueue: () => void;
-  onParked: () => void;
-  onArchived: () => void;
+  onCanvas?: (c: Canvas) => void;
+  onQueue?: () => void;
+  onParked?: () => void;
+  onArchived?: () => void;
   onProjectSettings: () => void;
   /** Which of the open project's views is showing, marked in the menu. */
   showing?: 'archived' | 'inbox' | 'parked' | 'queue' | 'settings';
-  /** The configuration: every project, its repositories, Seismic's agents, voice, demos. */
-  onConfig: () => void;
-  onPrefs: () => void;
-  onHelp: () => void;
+  /** The configuration: every project, its repositories, Seismic's agents, voice, demos; with it, the preferences, help and wishes under it. */
+  onConfig?: () => void;
+  onPrefs?: () => void;
+  onHelp?: () => void;
 }
 
 export interface MenuProps extends ProjectsProps, MenuActions {
@@ -264,6 +271,31 @@ export function NavSheet({ on, onOpenChange, width, maxWidth, onWidthChange, onW
   );
 }
 
+/**
+ * The same menu on the phone, behind the logo at the top left: a sheet over the whole screen from
+ * the left, with the entries the phone has a view for (the actions given), a tap closing it.
+ */
+export function PhoneNavSheet({ open, onOpenChange, ...p }: MenuProps & { open: boolean; onOpenChange: (open: boolean) => void }) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="left" showCloseButton={false} className="ph-menu w-full max-w-none gap-0 overflow-y-auto border-0 px-[max(14px,env(safe-area-inset-left))] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] sm:max-w-none" aria-describedby={undefined}>
+        <SheetDescription className="sr-only">{t.leftMenu.button}</SheetDescription>
+        <div className="flex min-h-14 items-center gap-2.5">
+          <Sign size={26} />
+          <SheetTitle className="min-w-0 flex-1 text-xl">{t.phone.next.menuTitle}</SheetTitle>
+          <SheetClose className="inline-grid size-10 shrink-0 cursor-pointer place-items-center rounded-full bg-muted p-0 text-foreground" aria-label={t.phone.next.closeMenu}>
+            <X size={20} strokeWidth={2.25} aria-hidden="true" />
+          </SheetClose>
+        </div>
+        {/* the sidebar's entries are its buttons; a tap on one does its action and closes the sheet */}
+        <SidebarProvider open className="contents text-lg [&_[data-sidebar=menu-button]]:min-h-11 [&_[data-sidebar=menu-button]]:text-base">
+          <MenuBody {...p} />
+        </SidebarProvider>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 /** The menu's two pages, the main one and "Configure agents", the second sliding in over the first. */
 function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean; titlebar?: boolean }) {
   const [page, setPage] = useState<'main' | 'agents'>('main');
@@ -313,34 +345,36 @@ function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean
             c.id === p.project.id ? (
               <li key={c.id}>
                 <NavList className={list}>
-                  <ProjectRow project={c} here bold />
+                  <ProjectRow project={c} here bold onProject={p.onProject} />
                 </NavList>
                 <NavList className={tree}>
-                  {p.canvases.map((v) => (
-                    <Entry key={v.id} icon={<CanvasIcon canvas={v} size={15} />} label={v.name} sub on={!p.showing && v.id === p.canvas} onClick={run(() => p.onCanvas(v))} />
+                  {p.onCanvas && p.canvases.map((v) => (
+                    <Entry key={v.id} icon={<CanvasIcon canvas={v} size={15} />} label={v.name} sub on={!p.showing && v.id === p.canvas} onClick={run(() => p.onCanvas!(v))} />
                   ))}
-                  <Entry icon={<ListOrdered size={16} strokeWidth={2} aria-hidden />} label={m.queue} sub on={p.showing === 'queue'} onClick={run(p.onQueue)} />
-                  <Entry icon={<Car size={16} strokeWidth={2} aria-hidden />} label={m.parked} sub on={p.showing === 'parked'} onClick={run(p.onParked)} />
-                  <Entry icon={<Archive size={16} strokeWidth={2} aria-hidden />} label={m.archived} sub on={p.showing === 'archived'} onClick={run(p.onArchived)} />
+                  {p.onQueue && <Entry icon={<ListOrdered size={16} strokeWidth={2} aria-hidden />} label={m.queue} sub on={p.showing === 'queue'} onClick={run(p.onQueue)} />}
+                  {p.onParked && <Entry icon={<Car size={16} strokeWidth={2} aria-hidden />} label={m.parked} sub on={p.showing === 'parked'} onClick={run(p.onParked)} />}
+                  {p.onArchived && <Entry icon={<Archive size={16} strokeWidth={2} aria-hidden />} label={m.archived} sub on={p.showing === 'archived'} onClick={run(p.onArchived)} />}
                   <Entry icon={<SlidersHorizontal size={16} strokeWidth={2} aria-hidden />} label={m.projectSettings} sub on={p.showing === 'settings'} onClick={run(p.onProjectSettings)} end={<ChevronRight size={16} strokeWidth={2} className="ml-auto flex-none text-muted-foreground" aria-hidden />} />
                 </NavList>
               </li>
             ) : (
-              <ProjectRow key={c.id} project={c} here={false} />
+              <ProjectRow key={c.id} project={c} here={false} onProject={p.onProject} />
             ),
           )}
-          <NewProject onNew={run(p.onNew)} />
+          {p.onNew && <NewProject onNew={p.onNew} />}
         </NavList>
-        <NavList className={cn(list, 'mt-0.5 border-t border-border pt-2.5')}>
-          <Entry icon={<Settings size={16} strokeWidth={2} aria-hidden />} label={m.settings} onClick={run(p.onConfig)} />
-          <li>
-            <NavList className={tree}>
-              <Entry label={m.prefs} sub onClick={run(p.onPrefs)} />
-              <Entry label={m.help} sub onClick={run(p.onHelp)} />
-              <Entry label={t.wish.link} sub onClick={run(() => openWish())} />
-            </NavList>
-          </li>
-        </NavList>
+        {p.onConfig && (
+          <NavList className={cn(list, 'mt-0.5 border-t border-border pt-2.5')}>
+            <Entry icon={<Settings size={16} strokeWidth={2} aria-hidden />} label={m.settings} onClick={run(p.onConfig)} />
+            <li>
+              <NavList className={tree}>
+                {p.onPrefs && <Entry label={m.prefs} sub onClick={run(p.onPrefs)} />}
+                {p.onHelp && <Entry label={m.help} sub onClick={run(p.onHelp)} />}
+                <Entry label={t.wish.link} sub onClick={run(() => openWish())} />
+              </NavList>
+            </li>
+          </NavList>
+        )}
       </div>
       </InMenu.Provider>
       <InMenu.Provider value={!floating ? null : page === 'agents' ? ACTIVE : INACTIVE}>
@@ -356,12 +390,14 @@ function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean
           <Entry icon={<Users size={16} strokeWidth={2} aria-hidden />} label={m.agents} soon />
           <Entry icon={<ScrollText size={16} strokeWidth={2} aria-hidden />} label={m.rules} soon />
           <Entry icon={<FileCheck size={16} strokeWidth={2} aria-hidden />} label={m.reviewRules} soon />
-          <Entry icon={<ChartLine size={16} strokeWidth={2} aria-hidden />} label={m.performance} onClick={run(p.onPerformance)} />
-          <li>
-            <NavList className={tree}>
-              <Entry label={m.feedbackLog} sub onClick={run(p.onFeedbackLog)} />
-            </NavList>
-          </li>
+          {p.onPerformance && <Entry icon={<ChartLine size={16} strokeWidth={2} aria-hidden />} label={m.performance} onClick={run(p.onPerformance)} />}
+          {p.onFeedbackLog && (
+            <li>
+              <NavList className={tree}>
+                <Entry label={m.feedbackLog} sub onClick={run(p.onFeedbackLog)} />
+              </NavList>
+            </li>
+          )}
         </NavList>
       </div>
       </InMenu.Provider>
@@ -438,7 +474,7 @@ function Entry({ icon, label, end, on, soon, sub, keep, onClick, focusRef }: { i
 }
 
 /** A project's row: a click switches there (the open one stays); its agents' pause. */
-function ProjectRow({ project: c, here, repos, bold, onGo }: { project: ProjectInfo; here: boolean; repos?: boolean; bold?: boolean; onGo?: () => void }) {
+function ProjectRow({ project: c, here, repos, bold, onGo, onProject }: { project: ProjectInfo; here: boolean; repos?: boolean; bold?: boolean; onGo?: () => void; onProject?: ((id: string) => void) | undefined }) {
   const menu = useContext(InMenu);
   const link = (
     <a
@@ -453,7 +489,10 @@ function ProjectRow({ project: c, here, repos, bold, onGo }: { project: ProjectI
           leaveMenu();
           closeBarMenus();
         }
-        switchTo(e, projectPath(c.id));
+        if (onProject) {
+          e.preventDefault();
+          onProject(c.id);
+        } else switchTo(e, projectPath(c.id));
       }}
     >
       <ProjectIcon />
