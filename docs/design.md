@@ -327,7 +327,7 @@ Safety rules:
 
 - The first-project request of the setup assistant carries the agents the owner picked and found configured. When Claude Code is
   not among them, the first of Codex and Antigravity becomes the default harness of workers and code reviews in the owner's
-  settings (unless the owner set one before); otherwise nothing changes. The runtime itself still falls back to Claude Code
+  settings (unless the owner set one before), once the project is saved; otherwise nothing changes. The runtime itself still falls back to Claude Code
   where no harness is set, so a machine without it needs this default for a first task started without a choice to run
   (decided 2026-11-15).
 
@@ -337,7 +337,8 @@ Safety rules:
   such a folder (`folderHarness`). A setup card names the harnesses that are installed and signed in on the machine
   (Claude Code, Codex, Antigravity, each checked as the setup assistant does), not Claude Code by default. Those logins are
   checked in the background (`HarnessCheck`: from the server's start, by each setup assistant check, and again once a minute
-  old), never while a card starts: a CLI that hangs would otherwise hold up the whole server (decided 2026-11-15).
+  old), never while a card starts: a CLI that hangs would otherwise hold up the whole server. Of overlapping checks, the
+  one that began last stands, by the order they began in rather than by clock time, which ties (decided 2026-11-15).
 
 ## Chapters
 

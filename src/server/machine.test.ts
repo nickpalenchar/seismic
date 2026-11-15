@@ -11,6 +11,7 @@ import { claudeToken } from './hosts';
 import { cloneName, codexHint, machineHint, MachineSetup, runnable, WELCOME_FILE, welcome } from './machine';
 import { agentSetting, saveAgents } from './settings';
 import { gitRepo } from './testing';
+import { HarnessCheck } from './agents/harnesses';
 import { VoiceSetup } from './voice-setup';
 import { git } from './workstations';
 
@@ -147,7 +148,11 @@ describe('what Seismic needs on this machine', () => {
 
   test('each check tells which agents are installed and signed in', async () => {
     const told: string[][] = [];
-    const machine = new MachineSetup({ home, config: config(), env: { PATH: bin }, platform: 'linux', arch: 'x64', compiled: true, onAgents: (found) => void told.push(found) });
+    // a check of its own that never answers: what it holds is the setup checks' alone
+    const agents = new HarnessCheck(() => new Promise(() => {}), Infinity);
+    const set = agents.set.bind(agents);
+    agents.set = (found, check) => (told.push(found), set(found, check));
+    const machine = new MachineSetup({ home, config: config(), env: { PATH: bin }, platform: 'linux', arch: 'x64', compiled: true, agents });
     fake('codex', 'case "$1" in --version) echo "codex-cli 0.169.0";; login) echo "Logged in using ChatGPT";; esac');
     fake('agy', 'case "$1" in models) exit 1;; esac');
     fake('claude', 'case "$1" in --version) echo "2.1.300 (Claude Code)";; auth) echo \'{"loggedIn": false}\'; exit 1;; esac');
@@ -157,6 +162,7 @@ describe('what Seismic needs on this machine', () => {
     fake('agy', 'case "$1" in models) echo "gemini-x\tGemini";; esac');
     await machine.view();
     expect(told.at(-1)).toEqual(['claude', 'codex', 'agy']);
+    expect(agents.current()).toEqual(['claude', 'codex', 'agy']);
   });
 
   test('offers the official installer for a missing Claude Code, and the logins once logged in', async () => {
@@ -275,6 +281,21 @@ describe('the first project', () => {
     await setup().project({ path: repo, agents: ['codex'] });
     expect(agentSetting(home, 'worker').harness).toBe('agy');
     expect(agentSetting(home, 'review').harness).toBe('codex');
+  });
+
+  test('a first project whose save fails changes no default and leaves no welcome behind', async () => {
+    const repo = gitRepo(join(dir, 'shop'));
+    const failing = config();
+    failing.save = async () => {
+      throw new Error('disk full');
+    };
+    const machine = new MachineSetup({ home, config: failing, env: { PATH: bin }, platform: 'linux', arch: 'x64', compiled: true });
+    await expect(machine.project({ path: repo, agents: ['codex'] })).rejects.toThrow('disk full');
+    expect(agentSetting(home, 'worker').harness).toBeUndefined();
+    expect(existsSync(join(home, WELCOME_FILE))).toBe(false);
+    // tried again with Claude Code there too: nothing of the failed try stands in the way
+    await setup().project({ path: repo, agents: ['claude', 'codex'] });
+    expect(agentSetting(home, 'worker').harness).toBeUndefined();
   });
 
   test('a folder without git is refused where its workers would run in Codex or Antigravity, and nothing is saved', async () => {

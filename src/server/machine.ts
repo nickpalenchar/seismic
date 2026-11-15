@@ -29,6 +29,7 @@ import { repoInfo } from './repo';
 import { COMPILED } from './resources';
 import { agentSetting, saveAgents } from './settings';
 import { claudeExecutable, sdkClaude } from './llms/harnesses/claude';
+import type { HarnessCheck } from './llms/harnesses';
 import { installedAgy } from './llms/harnesses/agy';
 import { installedCodex } from './llms/harnesses/codex';
 import { extendPath, freshPath, which } from './path';
@@ -226,8 +227,8 @@ export interface MachineOptions {
   arch?: string;
   /** Whether this is the compiled binary, which runs the machine's Claude Code rather than the SDK's. */
   compiled?: boolean;
-  /** Told after each check which harnesses are installed and signed in, and when that check started (`HarnessCheck.set`). */
-  onAgents?: (found: Harness[], started: number) => void;
+  /** Told of each check, as it starts and then which harnesses are installed and signed in (`HarnessCheck`). */
+  agents?: Pick<HarnessCheck, 'begin' | 'set'>;
 }
 
 /** What the check found, with how Seismic acts on each piece. */
@@ -266,7 +267,7 @@ export class MachineSetup {
 
   private async check(): Promise<Found> {
     // the logins as of now: a check that started later knows better, whichever answers first
-    const started = Date.now();
+    const begun = this.o.agents?.begin();
     const env = this.env;
     const platform = this.platform;
     // on Windows what was installed since the last check, by Seismic or by hand
@@ -390,7 +391,7 @@ export class MachineSetup {
     const needed = [...claudeItems, ...gitItems];
     const ok = (items: MachineItem[], ...ids: string[]) => ids.every((id) => items.some((i) => i.id === id && i.state === 'ok'));
     const signedIn: Record<Harness, boolean> = { claude: ok(claudeItems, 'claude', 'claudeLogin'), codex: ok(codexItems, 'codex', 'codexLogin'), agy: ok(agyItems, 'agy', 'agyLogin') };
-    this.o.onAgents?.(HARNESSES.filter((h) => signedIn[h]), started);
+    if (begun) this.o.agents!.set(HARNESSES.filter((h) => signedIn[h]), begun);
     // uv by its own installer, which needs no admin rights; the rest as the voice and demo checks say
     const ownUv = (i: MachineItem): MachineItem => (i.id === 'uv' && i.state === 'missing' ? missing({ id: 'uv', install: hint('uv') }) : i);
     const voiceItems = (voice?.items ?? []).map((i): MachineItem => {
@@ -594,9 +595,18 @@ export class MachineSetup {
     const problem = problems.find(blocksSaving);
     if (problem) throw new BadRequest(problem.code === 'notRepo' ? 'notRepo' : 'config', problem.detail);
     const project = resolved.at(-1)!.id;
-    writeFileSync(join(this.o.home, WELCOME_FILE), project);
+    // the welcome goes first, for the project as it starts with the save; a save that fails leaves neither it nor a changed default
+    const welcomeFile = join(this.o.home, WELCOME_FILE);
+    writeFileSync(welcomeFile, project);
+    let saved;
+    try {
+      saved = await this.o.config.save(next);
+    } catch (e) {
+      rmSync(welcomeFile, { force: true });
+      throw e;
+    }
     this.defaultAgent(configured);
-    const { restarting, applied } = await this.o.config.save(next);
+    const { restarting, applied } = saved;
     return { project, branch: folder ? '' : repoInfo(path).branch, opens: restarting || !!applied };
   }
 
