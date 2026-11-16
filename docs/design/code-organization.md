@@ -69,7 +69,7 @@ Not necesarilly "layers", but important to keep organized nonetheless
 
 - `src/server/llms/skills/` what has not moved to `src/server/agents/` yet: the code review, label
   and title suggestions, tag proposals and the work retrospective, with their tests. The old guide
-  readers there (`labelsGuide`, `titlesGuide`) are deprecated for `PluginSkill.getInstructions()`.
+  readers there (`labelsGuide`, `titlesGuide`) are deprecated for `SeismicSkill.getInstructions()`.
 - `src/server/llms/prompts/` the prompts those skills send, one prompt per file, each file
   exporting one value named like the file (`restartNotice.ts` exports `restartNotice`). A prompt
   that takes parameters (a language, a count) is a function of them, so the file needs nothing
@@ -89,9 +89,9 @@ Not necesarilly "layers", but important to keep organized nonetheless
   (chosen per run from the role's setting), skills, MCPs, tools and prompts. A subclass per agent
   (worker, review, ...) supplies the pieces; the base class assembles an `AgentSpec` and starts it on
   a runtime from `src/server/llms/harnesses/`.
-- `src/server/agents/skills/` the skills Seismic ships. `SeismicSkill` is the base class (name,
-  description, hint, instructions); `PluginSkill` is one backed by `plugin/skills/<dir>/SKILL.md`,
-  and `labels.ts`, `titles.ts` hold the instances. An agent declares its skills once
+- `src/server/agents/skills/` the skills Seismic ships. `SeismicSkill` is one skill, built from
+  `plugin/skills/<dir>/SKILL.md` (name, description, hint, instructions); `labels.ts`, `titles.ts`
+  hold the instances. An agent declares its skills once
   (`getSkills()` → `AgentSpec.skills`) and each harness attaches them its own way
   (`attachedSkills.ts`): Claude loads the plugin, Codex and agy are told the files in the system prompt.
 - `src/server/agents/simpleAgents/` the short, single-purpose agent sessions of Seismic's own (the

@@ -1,25 +1,43 @@
 /**
- * The base class of the skills Seismic ships: instructions an agent reads on demand. A subclass says
- * where they come from; an agent lists the skills it uses in `SeismicAgent.getSkills()` and each
- * harness attaches them its own way (`attachedSkills.ts`): Claude loads the plugin, the others are
- * told the file.
+ * A skill Seismic ships: `plugin/skills/<dir>/SKILL.md`, instructions an agent reads on demand. The
+ * front matter names and describes it, the rest is the instructions. An agent lists the skills it
+ * uses in `SeismicAgent.getSkills()` and each harness attaches them its own way
+ * (`attachedSkills.ts`): Claude loads the plugin, the others are told the file.
  */
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { Skill } from '../../../core/types';
+import { SEISMIC_PLUGIN, PLUGIN_NAME } from '../../demo';
 
-export abstract class SeismicSkill {
+const FRONT_MATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
+
+export class SeismicSkill {
   /** As an agent invokes it: `seismic:labels`. */
-  abstract readonly name: string;
+  readonly name: string;
   /** What it does and when to use it, as the skill's own file says. */
-  abstract readonly description: string;
+  readonly description: string;
   /** What to write after the name (`<file>`), when it takes an argument. */
   readonly hint?: string;
-  /** The Claude Code plugin directory the skill is part of, when it is part of one. */
-  readonly plugin?: string;
-  /** The file holding the instructions, when they are a file. */
-  readonly file?: string;
+  /** The Claude Code plugin directory the skill is part of. */
+  readonly plugin: string;
+  /** The file holding the instructions. */
+  readonly file: string;
+  private instructions?: string;
 
-  /** The instructions themselves, for a system prompt that carries them. */
-  abstract getInstructions(): string;
+  constructor(dir: string, plugin = SEISMIC_PLUGIN) {
+    this.plugin = plugin;
+    this.file = join(plugin, 'skills', dir, 'SKILL.md');
+    this.name = `${PLUGIN_NAME}:${dir}`;
+    const m = readFileSync(this.file, 'utf8').match(FRONT_MATTER);
+    const meta = m ? (Bun.YAML.parse(m[1]!) as { description?: string; 'argument-hint'?: string }) : {};
+    this.description = (meta.description ?? '').split('\n')[0]!.trim();
+    this.hint = meta['argument-hint'];
+  }
+
+  /** The file without its front matter, for a system prompt that carries it. */
+  getInstructions(): string {
+    return (this.instructions ??= readFileSync(this.file, 'utf8').replace(FRONT_MATTER, '').trim());
+  }
 
   /** The skill as lists and the UI show it. */
   toListing(): Skill {

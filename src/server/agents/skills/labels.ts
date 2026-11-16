@@ -1,4 +1,4 @@
 /** The skill that judges a card's labels. */
-import { PluginSkill } from './pluginSkill';
+import { SeismicSkill } from './seismicSkill';
 
-export const labelsSkill = new PluginSkill('labels');
+export const labelsSkill = new SeismicSkill('labels');

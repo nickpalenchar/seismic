@@ -1,4 +1,4 @@
 /** The skill that names a card. */
-import { PluginSkill } from './pluginSkill';
+import { SeismicSkill } from './seismicSkill';
 
-export const titlesSkill = new PluginSkill('titles');
+export const titlesSkill = new SeismicSkill('titles');
