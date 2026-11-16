@@ -62,7 +62,8 @@ Not necesarilly "layers", but important to keep organized nonetheless
 
 - `src/server/auth/` authentication logic
 - `src/server/lib/` various helper funcitons
-- `src/server/llms/` what Seismic asks of an LLM (see below)
+- `src/server/llms/` what Seismic asks of an LLM: skills, prompts, harnesses (see below)
+- `src/server/agents/` how Seismic defines its agents (see below)
 
 ### LLMs
 
@@ -81,6 +82,14 @@ Not necesarilly "layers", but important to keep organized nonetheless
 - Files in these directories are named in camelCase.
 - Moving existing code in is done a part at a time: `src/server/` still holds skills and prompts
   that have not moved yet.
+
+### Agents
+
+- `src/server/agents/seismicAgent.ts` the base class `SeismicAgent`: an agent is a role, a model
+  (chosen per run from the role's setting), skills, MCPs, tools and prompts. A subclass per agent
+  (worker, review, ...) supplies the pieces; the base class assembles an `AgentSpec` and starts it on
+  a runtime from `src/server/llms/harnesses/`.
+- `src/server/agents/types.ts` placeholder types for skills and MCPs until they get classes of their own.
 
 ## File header comments
 
