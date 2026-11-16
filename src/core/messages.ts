@@ -25,6 +25,8 @@ const en = {
   decided: 'Decided',
   openQuestions: 'Open questions (decide these yourself as best you can, taking the default when in doubt)',
   vocabulary: 'Seismic, task, follow-up, card, workstream, idea, prototype, park, demo, approve, pull request, agent.',
+  /** An archived card comes back and the canvas it was on is gone: it lands on main. */
+  unarchivedToMain: (title: string, main: string) => `“${title}” was on a canvas that is gone; it is back on ${main}.`,
   archivedLanded: 'Landed and finished: the card is in the archive now.',
   voice: {
     notUnderstood: 'I did not understand that.',

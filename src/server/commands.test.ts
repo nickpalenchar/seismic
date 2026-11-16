@@ -1349,6 +1349,20 @@ describe('canvases by voice', () => {
   });
 });
 
+describe('deleting a canvas that holds only an archived card', () => {
+  test('the precheck lets it through: an archived card is no part of a canvas', async () => {
+    const parked = board.createCanvas('Parked');
+    const old = board.create({ title: 'Old', x: 0, y: 0, canvas: parked.id });
+    board.work(old.id, { state: 'live' });
+    board.archive([old.id]);
+    const k = commander();
+    void k.hear('lösch Parked', { place: { x: 0, y: 0, canvas: board.snapshot().canvases[0]!.id } });
+    await settle();
+    const s = runtime.last;
+    expect(s.call('act', { actions: [{ do: 'delete_canvas', canvas: 'Parked' }], confirm: '…' })).not.toContain('only an empty canvas');
+  });
+});
+
 describe('merging and deleting planned tasks by voice', () => {
   test('the Koordinator merges planned tasks of one repository nobody has worked on, the first staying, and deletes one; it is refused for others', async () => {
     const a = board.create({ title: 'Login error', x: 0, y: 0 });

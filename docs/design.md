@@ -171,7 +171,7 @@ cycling through terminals.
   that. Deleting a canvas leaves its invisible cards their canvas id, and takes its groups along out
   of their cards; a card that comes back (unarchived, restored, unparked, a plan whose doc returns)
   to a canvas that is gone lands on "main", as do follow-ups and prototypes made from it
-  (`homeCanvas`). Rejected: archived cards blocking a delete, or moving to "main" with it.
+  (`homeCanvas`); an unarchived card tells the owner so in a toast. Rejected: archived cards blocking a delete, or moving to "main" with it.
 - **The setup assistant goes in steps** (2026-11-15): agents (several picked at once, each with
   what it needs, git shared below them), the features that can wait, then on the first start the
   first project. Going on from the first step needs one configured agent, which counts only with

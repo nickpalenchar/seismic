@@ -2020,6 +2020,8 @@ export class Board {
     this.store.cards.update(id, { archived_at: null });
     this.changed();
     this.backOnProject(id);
+    // its canvas was deleted while it was archived: `homeCanvas` puts it on main, and the owner is told
+    if (row.canvas_id && this.homeCanvas(row.canvas_id) !== row.canvas_id) this.notify({ cardId: id, level: 'warning', text: this.t.unarchivedToMain(row.title ?? '', MAIN_CANVAS) });
   }
 
   /**

@@ -936,8 +936,12 @@ describe('canvases', () => {
     board.archive([a.id]);
     board.deleteCanvas(later.id);
     expect(board.snapshot().canvases.map((c) => c.name)).toEqual(['main']);
+    const notices: { cardId?: string; text: string }[] = [];
+    board.onNotice((n) => notices.push(n));
     board.unarchive(a.id);
     expect(canvasOf(a.id)).toBe(main);
+    expect(notices).toHaveLength(1);
+    expect(notices[0]).toMatchObject({ cardId: a.id, text: expect.stringContaining('back on main') });
   });
 
   const inUse = (id: string) => board.canvases().find((c) => c.id === id)!.inUse;
