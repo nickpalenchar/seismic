@@ -286,6 +286,22 @@ describe('approving directly onto main where work goes out as a pull request', (
     expect(board.item(c.id)!.review?.pr).toBeUndefined();
   });
 
+  test('a conflict whose worker was stopped: the next start keeps the approval and tells the worker to finish the rebase', async () => {
+    const { c, session, clone } = await handedOver();
+    commitIn(clone, 'same.ts', 'A');
+    await session.call('ready_for_review', { summary: 'S', demo: artifact() });
+    pushElsewhere('same.ts', 'B');
+    await workers.approve(c.id, { direct: true });
+    const approvedAt = board.row(c.id).approved_at;
+    expect(approvedAt).not.toBeNull();
+    await workers.stop(c.id);
+    expect(state(c.id)).toBe('planned');
+    expect(board.row(c.id).approved_at).toBe(approvedAt);
+    await workers.start(c.id);
+    expect(board.row(c.id).approved_at).toBe(approvedAt);
+    expect(runtime.last.inbox.join('\n')).toContain('rebasing the branch onto main conflicted');
+  });
+
   test('a push the remote turns away (a protected branch) stays with the owner, who approves again', async () => {
     const { c, session, clone } = await handedOver();
     commitIn(clone, 'x.ts', 'X');

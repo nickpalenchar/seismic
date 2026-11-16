@@ -765,7 +765,7 @@ export class Workers {
     const contribution = contributionOf(row);
     const pr: PrState | null = contribution ? { url: contribution.url, number: contribution.number, seen: [], reported: [] } : null;
     // a fresh session knows of no app that was stopped
-    this.o.board.work(card.id, { state: 'working', need: null, detail: null, status_line: null, workstation: path, branch, session_id: null, agent_setting: selected ? JSON.stringify(selected) : null, review: { pr }, approved_at: null, parked: null, ...this.o.board.unheld(card.id, AGENT_HOLDS), app: null });
+    this.o.board.work(card.id, { state: 'working', need: null, ...this.keepingConflict(card.id), status_line: null, workstation: path, branch, session_id: null, agent_setting: selected ? JSON.stringify(selected) : null, review: { pr }, parked: null, ...this.o.board.unheld(card.id, AGENT_HOLDS), app: null });
     this.o.board.record(card.id, 'started', 'agent');
     const t = this.o.board.t.worker;
     this.o.board.log(card.id, 'state', 'obeya', this.folder ? t.startedInFolder : contribution ? t.reviewStarted(contribution.number, contribution.author) : t.started(branch));
@@ -1595,6 +1595,16 @@ export class Workers {
     return held
       ? { text: `Before approving, the owner watched your demo video. ${held.text}\n\nThey approved the work as it is all the same: what still matters of these comments, propose as a card of its own (propose_card).`, images: held.images }
       : undefined;
+  }
+
+  /**
+   * What a stop or a start leaves of the card's detail and approval: where its approval could not land
+   * because rebasing onto main conflicted (`landNow`), both stay, so that the worker started next is told
+   * to resolve the conflicts and the work lands without another approval; otherwise both clear.
+   */
+  private keepingConflict(cardId: string): { detail: string | null; approved_at: string | null } {
+    const row = this.o.board.row(cardId);
+    return this.detailOf(cardId).conflict === true && row.approved_at ? { detail: row.detail, approved_at: row.approved_at } : { detail: null, approved_at: null };
   }
 
   private detailOf(cardId: string): Record<string, unknown> {
@@ -3042,7 +3052,7 @@ export class Workers {
     const generation = this.generation.get(cardId);
     const path = this.o.board.row(cardId).workstation;
     const stoppedAt = stoppedAtOf(card);
-    this.o.board.work(cardId, { state: 'planned', need: null, detail: null, review: { pr: null }, approved_at: null, ...this.o.board.unheld(cardId, AGENT_HOLDS), app: null, stopped_at: JSON.stringify(stoppedAt) });
+    this.o.board.work(cardId, { state: 'planned', need: null, ...this.keepingConflict(cardId), review: { pr: null }, ...this.o.board.unheld(cardId, AGENT_HOLDS), app: null, stopped_at: JSON.stringify(stoppedAt) });
     this.o.board.log(cardId, 'state', 'owner', card.review?.pr ? this.o.board.t.worker.stoppedPrOpen(card.review.pr.number) : this.o.board.t.worker.stopped);
     return this.o.workstations.hasWork(cardId).then((keep) => {
       if (keep || this.generation.get(cardId) !== generation || this.o.board.row(cardId).workstation !== path) return;
@@ -3091,7 +3101,7 @@ export class Workers {
         // comments held back for the worker stay in the conversation
         this.takeHeld(cardId);
         this.end(cardId);
-        this.o.board.work(cardId, { state: 'planned', need: null, detail: null, review: { pr: null }, approved_at: null, ...this.o.board.unheld(cardId, AGENT_HOLDS), app: null, stopped_at: JSON.stringify(stoppedAtOf(card)) });
+        this.o.board.work(cardId, { state: 'planned', need: null, ...this.keepingConflict(cardId), review: { pr: null }, ...this.o.board.unheld(cardId, AGENT_HOLDS), app: null, stopped_at: JSON.stringify(stoppedAtOf(card)) });
         this.o.board.record(cardId, 'stopped', 'owner');
       }
       this.bump(cardId);
@@ -5711,6 +5721,10 @@ ${idea.idea.discussion.brief}` : '',
           ? `You are on branch ${branch}, which already holds earlier work on this card, perhaps uncommitted: look at its log, \`git status\` and diff first and go on from there.`
           : `You are on branch ${branch}, fresh from the default branch.`,
     );
+    if (this.detailOf(card.id).conflict === true)
+      parts.push(
+        `The owner approved this work, but it could not land on main: rebasing the branch onto main conflicted, and the rebase may still be under way in your workstation (\`git status\`). Finish it: resolve the conflicts so that main's changes and yours both hold (git rebase --continue), or start the rebase again (git rebase --abort, then git rebase main). Then run the checks and hand over again: the approval holds, and Seismic lands the work without asking the owner again, with the demo already on the card.`,
+      );
     if (this.o.adapter.setup) parts.push(`First run \`${this.o.adapter.setup}\` in the clone.`);
     const isNew = !!this.o.board.row(card.id).idea?.newRepo?.made;
     if (isNew)
