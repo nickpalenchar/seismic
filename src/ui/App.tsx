@@ -2715,12 +2715,11 @@ function Project({
             </Tooltip>
           </div>
         </header>
-        {/* The floating controls stay above both the dim and an open card, including a tall card
-            that reaches this row. Empty space in the row still passes clicks to the dim. */}
+        {/* Under an open card the floating controls lie below the dim and blur with the canvas; a tall card reaches over them. */}
         <div
           id="floating-row"
           ref={rowRef}
-          className={cn('group/row pointer-events-none fixed top-[58px] right-[calc(var(--side,0px)+14px)] left-[calc(var(--left,0px)+48px)] z-24 flex items-center gap-2.5 transition-[right,left] duration-450 ease-[cubic-bezier(.3,.9,.3,1)] resizing:transition-none [&>*]:pointer-events-auto', dim && 'z-41')}
+          className={cn('group/row pointer-events-none fixed top-[58px] right-[calc(var(--side,0px)+14px)] left-[calc(var(--left,0px)+48px)] z-24 flex items-center gap-2.5 transition-[right,left] duration-450 ease-[cubic-bezier(.3,.9,.3,1)] resizing:transition-none [&>*]:pointer-events-auto')}
         >
           {!side.left && <NavPill {...nav} />}
           <div className="right ml-auto flex flex-none items-center gap-2.5 [&>*]:pointer-events-auto">
@@ -2776,7 +2775,7 @@ function Project({
         {/* the status bar along the bottom: the connection (or the restart that waits), whom the microphone speaks to, the workstation pool and the usage limits */}
         <footer
           id="status"
-          className="frost-bar fixed right-[var(--side,0px)] bottom-0 left-[var(--left,0px)] z-45 grid h-[34px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3.5 border-t border-border px-2.5 text-sm transition-[right,left] duration-450 ease-[cubic-bezier(.3,.9,.3,1)] resizing:transition-none"
+          className={cn('frost-bar fixed right-[var(--side,0px)] bottom-0 left-[var(--left,0px)] z-45 grid h-[34px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3.5 border-t border-border px-2.5 text-sm transition-[right,left] duration-450 ease-[cubic-bezier(.3,.9,.3,1)] resizing:transition-none', dim && 'z-29')}
         >
           <div className="flex min-w-0 items-center">
             {!online || frozen ? <ConnectionLost since={downSince} frozen={frozen} /> : restart ? <RestartPill restart={restart} items={items} project={snapshot.project.id} onOpen={(i) => void openFresh(i)} /> : <span className={cn(statusWord, 'text-success')}>{t.online}</span>}
@@ -2801,7 +2800,7 @@ function Project({
         <CanvasTabs project={snapshot.project.id} canvases={canvases} shown={canvasId} waiting={perCanvas.waiting} empty={perCanvas.empty} onShow={(c) => (focusRef.current?.type === 'plan' && closePlan(), setInboxOn(false), showPage(null), showCanvas(c))} />
 
         {/* over the inbox's view, its list stays undimmed beside the card, to work down from there */}
-        <div id="dim" className={cn('fixed inset-x-0 top-[50px] bottom-0 z-30 bg-scrim opacity-0 pointer-events-none [transition:opacity_.2s,left_0s]', dim && 'on opacity-100 pointer-events-auto backdrop-blur-[3px]')} style={inboxOn && !matchMedia(NARROW).matches ? { left: side.left + inboxListWidth() } : undefined} onClick={() => closeCard()} />
+        <div id="dim" className={cn('fixed inset-0 z-30 bg-scrim opacity-0 pointer-events-none [transition:opacity_.2s,left_0s]', dim && 'on opacity-100 pointer-events-auto backdrop-blur-[3px]')} style={inboxOn && !matchMedia(NARROW).matches ? { left: side.left + inboxListWidth() } : undefined} onClick={() => closeCard()} />
         {helpOn && <Help note={helpNote} onClose={() => setHelpOn(false)} />}
         <WishDialog />
         {/* the open card blurs only while it is open in full (`ready`): as it unfolds, folds and hides it is a solid
@@ -2887,6 +2886,7 @@ function Project({
           field={draftFor(where())}
           onDown={() => press(false)}
           instead={<ViewSwitcher shown={switched} onShow={switchTo} />}
+          behind={dim}
         />
 
         {/* the button for Seismic's sidebar, over the room the bar keeps for it: left of the avatar (34px and the
@@ -2970,7 +2970,8 @@ function panelRect(i: Item, inner: HTMLElement, side: Sides, keep = 0) {
   const max = Math.min(fill ? Infinity : Math.max(toMic, SPLIT_MIN), innerHeight - PANEL_TOP_OVER - PANEL_BOTTOM);
   // in the middle of the window below the top bar, ending above the microphone; a panel too tall for
   // the room scrolls, never reaching over the bar
-  const top = (H: number) => Math.max(PANEL_TOP_OVER, Math.min(Math.max(PANEL_TOP, (innerHeight - H) / 2), mic - H));
+  // (a tall panel reaches up over the bar and the pills, and down over the status bar, which lie under the dim)
+  const top = (H: number) => Math.max(PANEL_TOP_OVER, Math.min(Math.max(PANEL_TOP, (innerHeight - H) / 2), innerHeight - PANEL_BOTTOM - H, mic - H));
   // the microphone sits over the bottom of a tall panel: the content gets room below it to scroll
   // up past the microphone, and the panel grows by that room where it can
   const under = (H: number) => Math.max(0, top(H) + H - mic - base);
@@ -2992,10 +2993,10 @@ const NARROW = '(max-width: 760px)';
 
 /** Where a panel starts at the top: below the bar and the floating pills under it (project switcher, view and canvas switchers, ending at 90 px). */
 const PANEL_TOP = 102;
-/** The highest a panel starts, however tall: never over the bar or the pills, which stay usable beside an open card. */
-const PANEL_TOP_OVER = PANEL_TOP;
+/** The highest a panel starts, however tall: over the bar and the pills, which blur under the dim while a card is open. */
+const PANEL_TOP_OVER = 14;
 /** The least room a panel keeps at the bottom of the window, on a window too low to end it above the microphone. */
-const PANEL_BOTTOM = 46;
+const PANEL_BOTTOM = 14;
 /** The least height of a split (an idea, a proposal, a task) and of a panel that scrolls: on a low window the panel reaches under the microphone instead. */
 const SPLIT_MIN = 320;
 

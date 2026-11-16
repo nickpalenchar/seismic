@@ -292,9 +292,10 @@ export function useHeldByTouch<T extends HTMLElement>() {
  * opens, and back beside the microphone when it closes, the paths that still stand in its words too.
  * With `instead` (the desktop's view switcher) that stands where the microphone and its screenshot
  * button would: Space is the only way to talk, the microphone shows only while it listens, and the
- * target line stays hidden.
+ * target line stays hidden. `behind` lowers an idle switcher under the dim of an open card, as the rest of
+ * the floating controls; while it listens, the microphone stays above.
  */
-export function PushToTalk({ phase, level, flat, target, field, onDown, instead }: { phase: Phase; level: number; flat: boolean; target: string | null; field: string | null; onDown: () => void; instead?: ReactNode; hint?: boolean }) {
+export function PushToTalk({ phase, level, flat, target, field, onDown, instead, behind }: { phase: Phase; level: number; flat: boolean; target: string | null; field: string | null; onDown: () => void; instead?: ReactNode; hint?: boolean; behind?: boolean }) {
   const on = useFieldOn(field);
   const key = on ? field! : MIC_DRAFT;
   const shots = useShotInput({ draft: key, off: !takesImages(key) });
@@ -369,7 +370,7 @@ export function PushToTalk({ phase, level, flat, target, field, onDown, instead 
         </Tooltip>
   );
   return (
-    <div id="ptt" className={cn(phase, shots.dropping && 'dropping', instead && 'switching', pttClass, instead && pttSwitchingClass)} {...shots.drop}>
+    <div id="ptt" className={cn(phase, shots.dropping && 'dropping', instead && 'switching', pttClass, instead && pttSwitchingClass, instead && behind && phase === 'idle' && 'z-29')} {...shots.drop}>
       {instead && phase === 'listening' && (
         <div id="mic" className={cn(micClass, 'w-[46px] h-[46px] cursor-default [&_svg]:w-5 [&_svg]:h-5')} style={{ ['--lvl' as string]: 1 + level * 0.45 }} aria-hidden="true">
           <span className={micRingClass} />
