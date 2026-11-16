@@ -2,7 +2,7 @@ import { afterEach, expect, test } from 'bun:test';
 import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { AGENT_DEFAULTS, type Harness } from '../../../core/types';
+import { AGENT_DEFAULTS, HARNESSES, type Harness } from '../../../core/types';
 import { SEISMIC_PLUGIN } from '../../demo';
 import { withAgentSetting, type AgentEvent, type AgentSpec } from '../../runtime';
 import { FakeRuntime, gitRepo } from '../../testing';
@@ -167,4 +167,60 @@ test('a check that started earlier but answers later does not overwrite a newer 
   check.set(['codex'], later);
   check.set(['agy'], earlier);
   expect(check.current()).toEqual(['codex']);
+});
+
+test('a setup check that began before the background check never overwrites its newer finding', async () => {
+  let answer: (found: Harness[]) => void = () => {};
+  const check = new HarnessCheck(() => new Promise<Harness[]>((r) => (answer = r)), 60_000, () => 0);
+  const setup = check.begin();
+  const background = check.refresh();
+  answer(['claude']);
+  await background;
+  // the setup check answers last, with what was true when it began
+  expect(check.set(['claude', 'codex'], setup)).toEqual(['claude']);
+  expect(check.current()).toEqual(['claude']);
+});
+
+test('a finding set without a check of its own is the newest at that moment', async () => {
+  let answer: (found: Harness[]) => void = () => {};
+  const check = new HarnessCheck(() => new Promise<Harness[]>((r) => (answer = r)), 60_000, () => 0);
+  const background = check.refresh();
+  check.set(['codex']);
+  answer(['claude']);
+  expect(await background).toEqual(['codex']);
+  expect(check.current()).toEqual(['codex']);
+});
+
+test('a failed check changes nothing, whichever check it was', async () => {
+  let fail: (e: Error) => void = () => {};
+  const check = new HarnessCheck(() => new Promise<Harness[]>((_, r) => (fail = r)), 60_000, () => 0);
+  check.set(['claude']);
+  // a background check that fails after a setup check began keeps the setup check's finding
+  const background = check.refresh();
+  const setup = check.begin();
+  check.set(['codex'], setup);
+  fail(new Error('no network'));
+  expect(await background).toEqual(['codex']);
+  // a setup check that never reports (it threw) leaves the finding, and a later one still places itself
+  check.begin();
+  expect(check.current()).toEqual(['codex']);
+  const later = check.begin();
+  check.set(['agy'], later);
+  expect(check.current()).toEqual(['agy']);
+  // a failed background check does not block the next
+  const failing = check.refresh();
+  fail(new Error('boom'));
+  expect(await failing).toEqual(['agy']);
+  const again = check.refresh();
+  fail(new Error('boom'));
+  await again;
+});
+
+test('overlapping setup checks answering in every order leave the one that began last', () => {
+  for (const order of [[0, 1, 2], [2, 1, 0], [1, 2, 0], [1, 0, 2], [0, 2, 1], [2, 0, 1]]) {
+    const check = new HarnessCheck(async () => [], 60_000, () => 0);
+    const began = [check.begin(), check.begin(), check.begin()];
+    for (const i of order) check.set([HARNESSES[i]!], began[i]);
+    expect(check.current()).toEqual([HARNESSES[2]]);
+  }
 });
