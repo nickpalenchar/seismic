@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import type { Skill } from '../core/types';
 import { OBEYA_PLUGIN, PLUGIN_NAME } from './demo';
 import { cleanEnv, spawnHere } from './runtime';
-import { claudeExecutable } from './agents/harnesses/claude';
+import { claudeExecutable } from './llms/harnesses/claude';
 
 /**
  * The portable Seismic skills shipped with this app, without starting a Claude process. A damaged

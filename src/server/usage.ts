@@ -10,7 +10,7 @@
 import { query, type SDKControlGetUsageResponse } from '@anthropic-ai/claude-agent-sdk';
 import type { Usage, UsageLimit } from '../core/types';
 import { cleanEnv, spawnHere } from './runtime';
-import { claudeExecutable } from './agents/harnesses/claude';
+import { claudeExecutable } from './llms/harnesses/claude';
 
 /** How often the limits are fetched while the bar shows them: just over the minute Claude Code keeps an answer. */
 export const USAGE_EVERY_MS = 65_000;

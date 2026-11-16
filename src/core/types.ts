@@ -3189,7 +3189,7 @@ export interface MotionView {
 /**
  * One of the usage limits of the plan a harness is logged in with on this machine (Claude Code's
  * Claude plan, Codex's ChatGPT plan), as the harness reports it (src/server/usage.ts,
- * src/server/agents/harnesses/codex.ts): how much of its window is used, and when the window starts anew.
+ * src/server/llms/harnesses/codex.ts): how much of its window is used, and when the window starts anew.
  */
 export interface UsageLimit {
   /** The endpoint's kind of meter: `session` (five hours), `weekly_all`, `weekly_scoped` (one model's), or one Seismic does not know yet. */

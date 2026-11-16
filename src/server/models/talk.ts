@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, getTableColumns, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 import { alias, index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
-import { currentAgent } from '../agents/harnesses/identity';
+import { currentAgent } from '../llms/harnesses/identity';
 import type { Place } from '../../core/layout';
 import type { AgentIdentity, AnswerFile, Talk as TalkView, TalkAfter, TalkMade, TalkMoved, TalkQuote, TalkRef, TalkWait } from '../../core/types';
 import type { Wish } from '../../core/wish';

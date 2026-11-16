@@ -19,7 +19,7 @@ import { Config } from './config';
 import { Store } from './store';
 import { AGENT_DEFAULTS, type ProjectConfig, type ConfigView } from '../core/types';
 import { type AgentRuntime, withAgentSetting } from './runtime';
-import { sdkRuntime } from './agents/harnesses/claude';
+import { sdkRuntime } from './llms/harnesses/claude';
 import { gitRepo } from './testing';
 
 // the sessions need the machine's Claude login, which the test setup hides behind a scratch config

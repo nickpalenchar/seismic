@@ -2,7 +2,7 @@
 // confirms them in one sentence, and runs them after a short delay unless the owner takes them back.
 
 import { z } from 'zod';
-import { currentAgent } from './agents/harnesses/identity';
+import { currentAgent } from './llms/harnesses/identity';
 import { CANVAS_ICON_COLORS, CANVAS_LUCIDE_ICONS, isCanvasIcon } from '../core/canvas-icons';
 import { AGENT_DEFAULTS, type AgentSetting, CANVAS_NAME_MAX, canvasHolds, canvasNameProblem, MAIN_CANVAS, agentListens, answering, askable, type Awaited, awaited, type AwaitedState, blocksSaving, type ProjectConfig, finished, handedOver, type Item, type NextStep, type Notice, openQuestions, pausableNow, plannableAsPlan, halted, untouched, prototypeWorkstream, snoozable, SNOOZE_LIMIT, type Queue, type SpotInput, type Talk, type TalkAfter, type TalkQuote, type TalkRef, isPaused, isPausing, snoozeOf } from '../core/types';
 import { holdsNotes, notStarted } from '../core/queue';
@@ -15,7 +15,7 @@ import { folderPath } from './new-repo';
 import type { TalkWaitRow } from './models/talk';
 import type { Mark, Moment } from './store';
 import { type AgentRuntime, type AgentSession } from './runtime';
-import { failureReason, limitLifts } from './agents/harnesses/claude';
+import { failureReason, limitLifts } from './llms/harnesses/claude';
 import { type Language, LANGUAGES, ownersLanguage } from '../core/locale';
 import { MESSAGES } from '../core/messages';
 import { clip, oneLine, messageOf } from '../core/text';

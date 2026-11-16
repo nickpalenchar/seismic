@@ -3,8 +3,8 @@
 import { LimitAttempts, limitWatch } from './limit-watch';
 import { type PermissionMode, type PermissionUpdate, type SpawnedProcess, type SpawnOptions } from '@anthropic-ai/claude-agent-sdk';
 import { type ChildProcess, spawn } from 'node:child_process';
-import { endSessionsHere } from './agents/harnesses/codexRpc';
-import { agentIdentity } from './agents/harnesses/identity';
+import { endSessionsHere } from './llms/harnesses/codexRpc';
+import { agentIdentity } from './llms/harnesses/identity';
 import { allowed } from './allow-rules';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';

@@ -17,7 +17,7 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { codexConnection } from '../src/server/agents/harnesses/codexRpc';
+import { codexConnection } from '../src/server/llms/harnesses/codexRpc';
 import { killScope, launchInScope, members } from './linux-scope-prototype';
 
 const read = (file: string) => { try { return readFileSync(file, 'utf8').trim(); } catch { return ''; } };

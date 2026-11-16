@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { chmodSync, closeSync, fsyncSync, lstatSync, mkdirSync, openSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { z } from 'zod';
-import { linuxProcessStat } from '../src/server/agents/harnesses/processes';
+import { linuxProcessStat } from '../src/server/llms/harnesses/processes';
 
 const generation = z.string().uuid();
 const identity = z.object({ pid: z.number().int().positive().safe(), boot: z.string().min(1), namespace: z.string().min(1), start: z.string().regex(/^\d+$/) }).strict();

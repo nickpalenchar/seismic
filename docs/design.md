@@ -331,4 +331,4 @@ Safety rules:
   first, React components, frost's own CSS only where its look needs it) and the rules every screen
   follows.
 - [Code organization](design/code-organization.md): how the server code is laid out (layers, and
-  `src/server/agents/` for built-in skills and their prompts) and the file header practice.
+  `src/server/llms/` for built-in skills and their prompts) and the file header practice.

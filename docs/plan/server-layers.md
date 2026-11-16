@@ -29,7 +29,7 @@ Checked in the code on 2026-11-13; counts may be off by a few. Each workstream r
   `/api/c/:project/…`.
 - **No services layer.** Business logic sits in the god files. Integrations are spread across the flat
   folder: git, GitHub/Forgejo (`forge.ts`, `forgejo.ts`, `github-folder.ts`), the agent harnesses
-  (now `agents/harnesses/`: `claude.ts`, `codex.ts`, `agy.ts`), Tailscale, web push, voice.
+  (now `llms/harnesses/`: `claude.ts`, `codex.ts`, `agy.ts`), Tailscale, web push, voice.
 - **Manual dependency injection.** `ProjectRuntime` (`project.ts`) builds `Board`, `Workers` and
   `Koordinator` by hand and passes them dependency objects; one runtime per project.
 - **Many importers.** About 44 files outside `src/server` import from it (`src/extensions`, `scripts`,

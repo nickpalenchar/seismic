@@ -3,7 +3,7 @@ import type { HookInput, SDKResultMessage } from '@anthropic-ai/claude-agent-sdk
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { type AgentEvent, cleanEnv, spawnHere, endAgentsHere, withCodexTrust, withLimitWait, withRepoTrust, withStderr, withTrustedAllow } from './runtime';
-import { askOwner, BOUNDED_WAITS, Inbox, backgroundWork, deniedBy, claudeExecutable, currentToolName, legacyTools, FOREGROUND_SLEEP_LIMIT, failureReason, foregroundSleep, refuseForegroundWait, resetIn, resultFailure, usageLimit } from './agents/harnesses/claude';
+import { askOwner, BOUNDED_WAITS, Inbox, backgroundWork, deniedBy, claudeExecutable, currentToolName, legacyTools, FOREGROUND_SLEEP_LIMIT, failureReason, foregroundSleep, refuseForegroundWait, resetIn, resultFailure, usageLimit } from './llms/harnesses/claude';
 import { readShared } from '../adapters';
 import { commandsOf } from './trust';
 import { gitRepo as repoWith } from './testing';

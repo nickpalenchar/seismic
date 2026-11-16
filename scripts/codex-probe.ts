@@ -5,7 +5,7 @@ import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { z } from 'zod';
-import { codexRuntime } from '../src/server/agents/harnesses/codex';
+import { codexRuntime } from '../src/server/llms/harnesses/codex';
 import type { AgentEvent, AgentSession, AgentSpec } from '../src/server/runtime';
 import { spawnOutput } from '../src/server/spawn';
 

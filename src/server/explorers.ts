@@ -12,7 +12,7 @@ import { type CardEvent, formatQuestion, type Item, type Mock, NEXT_STEPS, type 
 import { type Asked, decisionLog, withPick } from './advisor';
 import { BadRequest, type Board, holdNow, type Message, replyNote, type Unread } from './board';
 import { type AgentEvent, type AgentRuntime, type AgentSession, type AgentTool } from './runtime';
-import { BackgroundWait } from './agents/harnesses/claude';
+import { BackgroundWait } from './llms/harnesses/claude';
 import { imageNote } from './images';
 import { describeTool, SPOKEN } from './workers';
 import { TO_OBEYA, toObeyaTool } from './to-obeya';

@@ -50,14 +50,14 @@ import { adoptOldConfig, Config, CONFIG_FILE, expandConfig, readConfigFile } fro
 import { checkPlugin } from './demo';
 import { UnusableDatabase } from './db';
 import { Store } from './store';
-import { SessionRegistry, useSessionRegistry } from './agents/harnesses/sessionRegistry';
+import { SessionRegistry, useSessionRegistry } from './llms/harnesses/sessionRegistry';
 import { ghForge, routedForge } from './forge';
 import { forgejoForge, originOf } from './forgejo';
 import { fileForge } from './file-forge';
 import { NarrationHost } from './narration';
 import { endAgentsHere } from './runtime';
-import { claudeExecutable, sdkRuntime } from './agents/harnesses/claude';
-import { workerHarnessRuntime } from './agents/harnesses';
+import { claudeExecutable, sdkRuntime } from './llms/harnesses/claude';
+import { workerHarnessRuntime } from './llms/harnesses';
 import { claim, release, restarting, running, takenOver } from './instance';
 import { recordingRuntime, replayRuntime } from './replay';
 import { MachineSetup, welcome } from './machine';
@@ -66,7 +66,7 @@ import { headOf, installDependencies, ownCheckout, reinstallDependencies, RESTAR
 import { AppUpdates } from './app-update';
 import { SourceUpdates } from './source-update';
 import { claudeUsage, UsageMeter } from './usage';
-import { codexUsage } from './agents/harnesses/codex';
+import { codexUsage } from './llms/harnesses/codex';
 import { COMPILED, resource, SELF, VERSION } from './resources';
 import { oldLinuxBun, onGitHub } from './repo';
 import { Access } from './remote';

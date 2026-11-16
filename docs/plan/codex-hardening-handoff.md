@@ -18,13 +18,13 @@ not the initial integration. Other roles remain Claude. Pi is a later phase; do 
 
 ### Nine acceptance findings
 
-1. **PTY cleanup:** new `src/server/agents/harnesses/processes.ts` tracks observed app-server descendants,
+1. **PTY cleanup:** new `src/server/llms/harnesses/processes.ts` tracks observed app-server descendants,
    including separate process groups, using process creation identities to reduce PID-reuse risk.
-   `src/server/agents/harnesses/codexRpc.ts` samples descendants every 500 ms and cleans them on exit. Arbitrary
+   `src/server/llms/harnesses/codexRpc.ts` samples descendants every 500 ms and cleans them on exit. Arbitrary
    unrelated PIDs reported by the protocol are not adopted without ancestry evidence.
 2. **Shutdown:** `endSessionsHere()` now returns a promise; `endAgentsHere()` returns it and
    `src/server/main.ts` awaits shutdown before exiting, allowing TERM/KILL escalation to run.
-3. **Approval identity:** `src/server/agents/harnesses/codex.ts` removes callback ids, timestamps and
+3. **Approval identity:** `src/server/llms/harnesses/codex.ts` removes callback ids, timestamps and
    turn/item ids from persisted permission identity, retaining the command and requested authority.
 4. **Broad approval scope:** reject file approvals carrying `grantRoot` and extended permission
    profiles rather than treating session-wide access as a one-call grant.
@@ -46,7 +46,7 @@ containment is solved.
 
 - `src/core/types.ts`: `AgentIdentity` and optional identity fields on card events and separate
   Koordinator replies/researched answers.
-- New `src/server/agents/harnesses/identity.ts`: AsyncLocalStorage context with snapshot access.
+- New `src/server/llms/harnesses/identity.ts`: AsyncLocalStorage context with snapshot access.
 - `src/server/runtime.ts`: per-session identity in `withAgentSetting`; wraps tool execution,
   permission callbacks and events; updates the identity from resolved session model information.
 - `src/server/db.ts`: additive migrations for `events.agent`, `talk.reply_agent`,
@@ -87,10 +87,10 @@ also passed. Latest focused log: `/tmp/obeya-hardening-last-tests.log`.
 
 The broad set was these 19 files:
 
-- `src/server/agents/harnesses/processes.test.ts`, `src/server/agents/harnesses/identity.test.ts`
-- `src/server/agents/harnesses/codexRpc.test.ts`, `src/server/agents/harnesses/codex.test.ts`
-- `src/server/agents/harnesses/index.test.ts`, `src/server/workers-harness.test.ts`
-- `src/server/runtime.test.ts`, `src/server/settings.test.ts`, `src/server/agents/skills/workRetro.test.ts`
+- `src/server/llms/harnesses/processes.test.ts`, `src/server/llms/harnesses/identity.test.ts`
+- `src/server/llms/harnesses/codexRpc.test.ts`, `src/server/llms/harnesses/codex.test.ts`
+- `src/server/llms/harnesses/index.test.ts`, `src/server/workers-harness.test.ts`
+- `src/server/runtime.test.ts`, `src/server/settings.test.ts`, `src/server/llms/skills/workRetro.test.ts`
 - `src/server/workers.test.ts`, `src/server/project.test.ts`, `src/server/db.test.ts`
 - `src/server/server.test.ts`, `src/server/commands.test.ts`, `src/server/answers.test.ts`
 - `src/ui/message.test.ts`, `src/ui/usage.test.ts`, `src/ui/barFit.test.ts`
@@ -103,7 +103,7 @@ in this task. Earlier full-suite runs also hit timeouts under heavy concurrency.
 
 ### Additional verified checks
 
-- Permanent permission/background regressions in `src/server/agents/harnesses/codex.test.ts`.
+- Permanent permission/background regressions in `src/server/llms/harnesses/codex.test.ts`.
 - Real Workers obsolete-permission serialization regression in `src/server/workers.test.ts`.
 - Legacy session skill ownership regression in `src/server/project.test.ts`.
 - New process tests: separately grouped child's heartbeat stops after app-server death, unrelated

@@ -16,8 +16,8 @@ import { type CardWorkstations, type Change, RECHECK_MS, shortageOf } from './wo
 import { LANGUAGE_NAMES } from '../core/locale';
 import { clip, messageOf } from '../core/text';
 import { type Label, type Labels, suggestable, type SuggestToggles } from '../core/labels';
-import { labelParams, labelsFrom, labelsGuide, labelWords } from './agents/skills/labelSuggestion';
-import { titlesGuide } from './agents/skills/titleSuggestion';
+import { labelParams, labelsFrom, labelsGuide, labelWords } from './llms/skills/labelSuggestion';
+import { titlesGuide } from './llms/skills/titleSuggestion';
 
 /** A workstream as the Koordinator scheduled it, in its turn's order. */
 interface Planned {

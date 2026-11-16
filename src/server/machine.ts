@@ -28,9 +28,9 @@ import { previewGitSetup, setUpGit, withoutGit } from './git-setup';
 import { saveClaudeToken } from './hosts';
 import { repoInfo } from './repo';
 import { COMPILED } from './resources';
-import { claudeExecutable } from './agents/harnesses/claude';
-import { installedAgy } from './agents/harnesses/agy';
-import { installedCodex } from './agents/harnesses/codex';
+import { claudeExecutable } from './llms/harnesses/claude';
+import { installedAgy } from './llms/harnesses/agy';
+import { installedCodex } from './llms/harnesses/codex';
 import { extendPath, freshPath, which } from './path';
 import type { VoiceSetup } from './voice-setup';
 

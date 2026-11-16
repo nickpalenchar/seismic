@@ -1,6 +1,6 @@
 import { and, desc, eq, lt, inArray, isNull, max, sql } from 'drizzle-orm';
 import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
-import { currentAgent } from '../agents/harnesses/identity';
+import { currentAgent } from '../llms/harnesses/identity';
 import type { AgentIdentity, AnswerRef, CardEvent, Mock, Spot } from '../../core/types';
 import type { Wish } from '../../core/wish';
 import { cards } from './cards/cards';

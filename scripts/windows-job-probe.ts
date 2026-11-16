@@ -16,7 +16,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { codexConnection } from '../src/server/agents/harnesses/codexRpc';
+import { codexConnection } from '../src/server/llms/harnesses/codexRpc';
 import { assign, createJob, inAnyJob, inJob, launchInJob } from './windows-job-prototype';
 
 const read = (file: string) => { try { return readFileSync(file, 'utf8').trim(); } catch { return ''; } };

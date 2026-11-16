@@ -62,18 +62,18 @@ Not necesarilly "layers", but important to keep organized nonetheless
 
 - `src/server/auth/` authentication logic
 - `src/server/lib/` various helper funcitons
-- `src/server/agents/` what Seismic asks of its own agents (see below)
+- `src/server/llms/` what Seismic asks of an LLM (see below)
 
-### Agents
+### LLMs
 
-- `src/server/agents/skills/` the built-in skills, registered ones (backed by a `plugin/skills/`
+- `src/server/llms/skills/` the built-in skills, registered ones (backed by a `plugin/skills/`
   skill) and "pseudo skills" that are short agent sessions of Seismic's own (the code review, label
   and title suggestions, tag proposals, the work retrospective, the wish draft), with their tests.
-- `src/server/agents/prompts/` the prompts those skills send, one prompt per file, each file
+- `src/server/llms/prompts/` the prompts those skills send, one prompt per file, each file
   exporting one value named like the file (`restartNotice.ts` exports `restartNotice`). A prompt
   that takes parameters (a language, a count) is a function of them, so the file needs nothing
   from the skill that uses it.
-- `src/server/agents/harnesses/` the harnesses that run an agent session: `claude.ts` (Claude Agent
+- `src/server/llms/harnesses/` the harnesses that run an agent session: `claude.ts` (Claude Agent
   SDK), `codex.ts` with `codexRpc.ts` and `codexExecTools.ts`, `agy.ts` with `agyMcp.ts`, and `index.ts`,
   which picks one for a role. The process bookkeeping they share sits beside them (`processes.ts`,
   `sessionRegistry.ts`, `identity.ts`). The contract they fulfil (`AgentRuntime`, `AgentSpec`) and the
@@ -85,6 +85,6 @@ Not necesarilly "layers", but important to keep organized nonetheless
 ## File header comments
 
 A file's description at the top is a JSDoc block (`/** ... */`), not a run of `//` lines, so editors
-show it. This applies to files that move into the new structure (such as `src/server/agents/`);
+show it. This applies to files that move into the new structure (such as `src/server/llms/`);
 other files keep theirs until they move.
 

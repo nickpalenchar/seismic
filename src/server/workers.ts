@@ -27,9 +27,9 @@ import { imageNote } from './images';
 import { outsidePlanDir, remoteHost } from './repo';
 import type { InputContext } from './koordinator';
 import { type AgentEvent, type AgentRuntime, type AgentSession, type AgentTool, LIMIT_LIFTED, type PermissionAnswer, type PermissionRequest } from './runtime';
-import { BACKGROUND_GRACE, BACKGROUND_LIMIT, failureReason } from './agents/harnesses/claude';
+import { BACKGROUND_GRACE, BACKGROUND_LIMIT, failureReason } from './llms/harnesses/claude';
 import { TO_OBEYA, toObeyaTool } from './to-obeya';
-import { EXEC_LANE_AUTO_NOTE, EXEC_LANE_NOTE, execTools } from './agents/harnesses/codexExecTools';
+import { EXEC_LANE_AUTO_NOTE, EXEC_LANE_NOTE, execTools } from './llms/harnesses/codexExecTools';
 import { type Forward, HOST_DIR, hostName, remote } from './hosts';
 import { runAppCommand } from './app-command';
 import { readingShared } from '../adapters';
@@ -47,7 +47,7 @@ import { type DataSignal, dataModelSignals, isSchemaPage, SIGNALS_NAMED } from '
 import { type Forge, parsePrUrl, sameRepo } from './forge';
 import { clip, messageOf } from '../core/text';
 import { holdsNotes } from '../core/queue';
-import { CodeReviews } from './agents/skills/codeReview';
+import { CodeReviews } from './llms/skills/codeReview';
 
 export interface WorkerOptions {
   board: Board;

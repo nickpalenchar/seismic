@@ -14,7 +14,7 @@ import { Store } from './store';
 import { HostError, hostName, onHost, registerHost, remote, sessionFiles, type SshHost } from './hosts';
 import { runAppCommand } from './app-command';
 import { type AgentEvent } from './runtime';
-import { sdkRuntime } from './agents/harnesses/claude';
+import { sdkRuntime } from './llms/harnesses/claude';
 import { FakeRuntime, fakeSsh, gitRepo, identify, until } from './testing';
 import { Workers } from './workers';
 import { git, gitAsync, HERE, RECHECK_MS, remoteText, VERSION_LIMIT, Workstations } from './workstations';
