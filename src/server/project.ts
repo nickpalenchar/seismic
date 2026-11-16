@@ -5,7 +5,7 @@ import { idSlug as slug } from '../core/project-slug';
 import type { PermissionMode } from '@anthropic-ai/claude-agent-sdk';
 import { existsSync, mkdirSync, realpathSync, statSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
-import { defaultsFor, hasAdapterModule, readingAdapterModule, readingShared, readShared, readSharedFiles, repoValues, type SharedRead, withSettings } from '../adapters';
+import { defaultsFor, hasAdapterModule, readingAdapterModule, readingShared, readShared, readSharedFiles, REPO_SETTINGS_FILE, repoValues, type SharedRead, withSettings } from '../adapters';
 import { Ahead } from './ahead';
 import { Answers, answersDir, answerTag } from './answers';
 import { demoDirectory, readDemoSettings } from '../../plugin/skills/demo/lib/settings.ts';
@@ -1682,7 +1682,7 @@ export class ProjectRuntime {
     this.board.decideSetting(id, where, v);
     const m = this.board.t.retro;
     const name = m.settings[p.field];
-    this.board.notify({ text: !done ? m.onMachine(name, r.ref.name) : 'pr' in done ? m.opened(name, r.ref.name, done.pr) : m.committed(name, r.ref.name, done.branch, done.file ?? '.obeya/settings.json') });
+    this.board.notify({ text: !done ? m.onMachine(name, r.ref.name) : 'pr' in done ? m.opened(name, r.ref.name, done.pr) : m.committed(name, r.ref.name, done.branch, done.file ?? REPO_SETTINGS_FILE) });
     return done;
   }
 
