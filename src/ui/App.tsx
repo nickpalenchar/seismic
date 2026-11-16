@@ -1758,7 +1758,7 @@ function Project({
   useEffect(() => {
     const i = openId && itemOrArchived(openId);
     if (i && unfolded.current) fitPanel(i);
-  }, [side.left, side.right, dock.active, inboxOn]);
+  }, [side.left, side.right, dock.active, inboxOn, ptt.phase]);
 
   /** `c`, moved just far enough that the view outside the sheet shows some content. */
   const kept = (c: Cam) => keepInView(c, contentRef.current, viewNow());
@@ -2948,7 +2948,11 @@ function panelRect(i: Item, inner: HTMLElement, side: Sides, keep = 0) {
   const content = inner.firstElementChild as HTMLElement;
   // heights unrounded: a content half a pixel higher than its panel scrolls it
   const height = (e: HTMLElement) => e.getBoundingClientRect().height;
-  const mic = (document.getElementById('ptt')?.getBoundingClientRect().top ?? innerHeight) - MIC_GAP;
+  // the microphone only counts while it shows: beside the view switcher it shows while it listens, and the idle
+  // switcher lies under the dim, so a tall card reaches over it
+  const ptt = document.getElementById('ptt');
+  const micShown = ptt && (!ptt.classList.contains('switching') || document.getElementById('mic'));
+  const mic = (micShown ? ptt.getBoundingClientRect().top : innerHeight) - MIC_GAP;
   // a split (an idea, a proposal, a task) grows with its taller column up to the room from the top
   // of the window down to the microphone: beyond that its columns scroll, and the panel itself does not
   const fill = content.querySelector<HTMLElement>('.split');
@@ -2972,7 +2976,7 @@ function panelRect(i: Item, inner: HTMLElement, side: Sides, keep = 0) {
   // the room scrolls, never reaching over the bar
   // (a tall panel reaches up over the pills, and down over the status bar, which lie under the dim)
   const top = (H: number) => Math.max(PANEL_TOP_OVER, Math.min(Math.max(PANEL_TOP, (innerHeight - H) / 2), innerHeight - PANEL_BOTTOM - H, mic - H));
-  // the microphone sits over the bottom of a tall panel: the content gets room below it to scroll
+  // the microphone (while it shows) sits over the bottom of a tall panel: the content gets room below it to scroll
   // up past the microphone, and the panel grows by that room where it can
   const under = (H: number) => Math.max(0, top(H) + H - mic - base);
   let H = Math.min(Math.ceil(need), max);
