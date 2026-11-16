@@ -67,9 +67,9 @@ Not necesarilly "layers", but important to keep organized nonetheless
 
 ### LLMs
 
-- `src/server/llms/skills/` the built-in skills, registered ones (backed by a `plugin/skills/`
-  skill) and "pseudo skills" that are short agent sessions of Seismic's own (the code review, label
-  and title suggestions, tag proposals, the work retrospective, the wish draft), with their tests.
+- `src/server/llms/skills/` what has not moved to `src/server/agents/` yet: the code review, label
+  and title suggestions, tag proposals and the work retrospective, with their tests. The old guide
+  readers there (`labelsGuide`, `titlesGuide`) are deprecated for `PluginSkill.getInstructions()`.
 - `src/server/llms/prompts/` the prompts those skills send, one prompt per file, each file
   exporting one value named like the file (`restartNotice.ts` exports `restartNotice`). A prompt
   that takes parameters (a language, a count) is a function of them, so the file needs nothing
@@ -89,7 +89,17 @@ Not necesarilly "layers", but important to keep organized nonetheless
   (chosen per run from the role's setting), skills, MCPs, tools and prompts. A subclass per agent
   (worker, review, ...) supplies the pieces; the base class assembles an `AgentSpec` and starts it on
   a runtime from `src/server/llms/harnesses/`.
-- `src/server/agents/types.ts` placeholder types for skills and MCPs until they get classes of their own.
+- `src/server/agents/skills/` the skills Seismic ships. `SeismicSkill` is the base class (name,
+  description, hint, instructions); `PluginSkill` is one backed by `plugin/skills/<dir>/SKILL.md`,
+  and `labels.ts`, `titles.ts` hold the instances. An agent declares its skills once
+  (`getSkills()` → `AgentSpec.skills`) and each harness attaches them its own way
+  (`attachedSkills.ts`): Claude loads the plugin, Codex and agy are told the files in the system prompt.
+- `src/server/agents/simpleAgents/` the short, single-purpose agent sessions of Seismic's own (the
+  wish draft so far): a function that starts a read-only session, with its test. They are plain
+  functions for now; they differ from other agents only by this directory. What is still in
+  `src/server/llms/skills/` (code review, tag proposals, work retrospective, label helpers) moves
+  here a part at a time.
+- `src/server/agents/types.ts` placeholder types for MCPs until they get a class of their own.
 
 ## File header comments
 

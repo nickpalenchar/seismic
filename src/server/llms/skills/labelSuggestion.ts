@@ -3,8 +3,6 @@
  * short session that judges them, as part of the naming call or a call of its own at the start.
  */
 
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { z } from 'zod';
 import {
   CATEGORIES,
@@ -16,18 +14,19 @@ import {
   PRIORITY_NAMES,
   SUBCATEGORIES,
 } from '../../../core/labels';
-import { OBEYA_PLUGIN } from '../../demo';
+import { labelsSkill } from '../../agents/skills/labels';
 
-/** The labels skill's file in Seismic's plugin. */
-export const LABELS_SKILL_FILE = join(OBEYA_PLUGIN, 'skills', 'labels', 'SKILL.md');
+/**
+ * The labels skill's file in Seismic's plugin.
+ * @deprecated use `labelsSkill.file` (`src/server/agents/skills/labels.ts`).
+ */
+export const LABELS_SKILL_FILE = labelsSkill.file;
 
-let guide: string | undefined;
-/** The skill's instructions without their front matter, for a session's system prompt. */
-export function labelsGuide(): string {
-  return (guide ??= readFileSync(LABELS_SKILL_FILE, 'utf8')
-    .replace(/^---\n[\s\S]*?\n---\n/, '')
-    .trim());
-}
+/**
+ * The skill's instructions without their front matter, for a session's system prompt.
+ * @deprecated use `labelsSkill.getInstructions()` (`src/server/agents/skills/labels.ts`).
+ */
+export const labelsGuide = (): string => labelsSkill.getInstructions();
 
 const names = <K extends string>(keys: readonly K[], of: Record<K, string>) => keys.map((k) => of[k]) as [string, ...string[]];
 const keyOf = <K extends string>(keys: readonly K[], of: Record<K, string>, name: unknown) =>

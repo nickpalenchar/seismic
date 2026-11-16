@@ -45,7 +45,7 @@ import { parseTagLines, tagLines } from '../core/page-tags';
 import { expandHome, readDemoSettings } from '../../plugin/skills/demo/lib/settings.ts';
 import type { UsageMeter } from './usage';
 import { VERSION } from './resources';
-import { footerOf } from './llms/skills/wish';
+import { footerOf } from './agents/simpleAgents/wish';
 import { serving } from './owner';
 import { pageStall, type Stalls } from './stalls';
 

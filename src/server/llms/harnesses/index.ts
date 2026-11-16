@@ -9,6 +9,7 @@ import { claudeConnected } from './claude';
 import { codexConnected, createCodexRuntime } from './codex';
 import { agyConnected, createAgyRuntime } from './agy';
 import { bundledSkills } from '../../skills';
+import { skillListing } from '../../agents/skills/attachedSkills';
 import type { AgentRuntime, AgentSpec } from '../../runtime';
 import { choosesHarness, HARNESS_NAMES, HARNESSES, type Harness } from '../../../core/types';
 
@@ -20,8 +21,9 @@ function portable(spec: AgentSpec, name = 'Codex'): AgentSpec {
   if (spec.watch) throw new Error(`${name} workers do not yet support folders without Git`);
   const git = spawnSync(GIT, ['-C', spec.cwd, 'rev-parse', '--is-inside-work-tree'], { encoding: 'utf8', windowsHide: true });
   if (git.status !== 0 || git.stdout.trim() !== 'true') throw new Error(`${name} workers currently require a local Git workstation`);
-  const skills = bundledSkills().map((s) => `- ${s.name}: ${s.description}\n  ${s.file}`);
-  const { plugins: _, permissionMode: __, ...rest } = spec;
+  const bundled = bundledSkills().map((s) => `- ${s.name}: ${s.description}\n  ${s.file}`);
+  const skills = [...new Set([...bundled, ...skillListing(spec.skills)])];
+  const { plugins: _, skills: ___, permissionMode: __, ...rest } = spec;
   return { ...rest, system: `${spec.system}\n\nSeismic skills are available as files, not Claude slash commands. Read the matching SKILL.md before using a skill, resolving its relative paths against its directory.\n${skills.join('\n')}\nUse the Seismic ask tool for owner questions, not a native terminal dialog.` };
 }
 

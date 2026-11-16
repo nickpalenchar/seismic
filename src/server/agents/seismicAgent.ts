@@ -44,16 +44,19 @@ export abstract class SeismicAgent<Ctx = void> {
   abstract getPrompt(ctx: Ctx): string;
   /** The first message of a run; none lets the session start up and wait. */
   getBriefing(_ctx: Ctx): string | undefined { return undefined; }
+  /** The skills the agent uses; each harness attaches them its own way (`skills/attachedSkills.ts`). */
   getSkills(_ctx: Ctx): AgentSkill[] { return []; }
   getMCPs(_ctx: Ctx): AgentMcp[] { return []; }
   /** In-process tools, reached by the agent as `mcp__seismic__<name>`. */
   getTools(_ctx: Ctx): AgentTool[] { return []; }
 
   toSpec(ctx: Ctx, run: AgentRun): AgentSpec {
+    const skills = this.getSkills(ctx);
     return {
       cwd: run.cwd,
       system: this.getPrompt(ctx),
       tools: this.getTools(ctx),
+      ...(skills.length ? { skills } : {}),
       role: this.role,
       setting: this.getModel(ctx),
       ...(this.readOnly ? { readOnly: true } : {}),

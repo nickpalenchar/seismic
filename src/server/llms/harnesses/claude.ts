@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { basename, join, resolve } from 'node:path';
+import { skillPlugins } from '../../agents/skills/attachedSkills';
 import { LOST, remote, sessionFiles, type SshHost } from '../../hosts';
 import { localBin, which } from '../../path';
 import { filesIn } from '../../files';
@@ -69,12 +70,13 @@ export async function claudeConnected(env: Record<string, string | undefined> = 
 export const sdkRuntime: AgentRuntime = {
   start(spec, firstMessage, images) {
     const inbox = new Inbox();
+    const plugins = [...new Set([...(spec.plugins ?? []), ...skillPlugins(spec.skills)])];
     const there = remote(spec.cwd);
     // a session on another machine: whether its connection was lost, rather than the session failing
     let lost = false;
     // not on this machine's account: on another machine, or here on CLAUDE_CODE_OAUTH_TOKEN
     const token = there || ({ ...cleanEnv(), ...spec.env }).CLAUDE_CODE_OAUTH_TOKEN ? { token: true as const } : {};
-    const files = there ? sessionFiles(there.host.o.home, spec.plugins ?? []) : undefined;
+    const files = there ? sessionFiles(there.host.o.home, plugins) : undefined;
     if (there && files) {
       const dir = there.host.prepare(files);
       inbox.carry = (text, images) => carryImages(there.host, dir, text, images, join(there.host.o.home, 'files'));
@@ -114,7 +116,7 @@ export const sdkRuntime: AgentRuntime = {
             : spawnHere((text) => (stderr = (stderr + text).slice(-STDERR_TAIL))),
         systemPrompt: { type: 'preset', preset: 'claude_code', append: spec.system },
         mcpServers: { seismic: server('seismic', spec.tools), ...(legacy.length ? { [LEGACY_SERVER]: server(LEGACY_SERVER, legacy) } : {}) },
-        ...(spec.plugins?.length ? { plugins: spec.plugins.map((path) => ({ type: 'local' as const, path })) } : {}),
+        ...(plugins.length ? { plugins: plugins.map((path) => ({ type: 'local' as const, path })) } : {}),
         ...(spec.readOnly
           ? { tools: READ_ONLY_TOOLS, allowedTools: [...READ_ONLY_TOOLS, ...ownTools], permissionMode: 'dontAsk' as const }
           : // a worker's own tools are allowed by the hook below: as allowedTools they would have the SDK warn that they pass by canUseTool
