@@ -1350,16 +1350,23 @@ describe('canvases by voice', () => {
 });
 
 describe('deleting a canvas that holds only an archived card', () => {
-  test('the precheck lets it through: an archived card is no part of a canvas', async () => {
+  test('the precheck accepts it and the board deletes it: an archived card is no part of a canvas', async () => {
     const parked = board.createCanvas('Parked');
     const old = board.create({ title: 'Old', x: 0, y: 0, canvas: parked.id });
     board.work(old.id, { state: 'live' });
     board.archive([old.id]);
     const k = commander();
-    void k.hear('lösch Parked', { place: { x: 0, y: 0, canvas: board.snapshot().canvases[0]!.id } });
+    const heard = k.hear('lösch Parked', { place: { x: 0, y: 0, canvas: board.snapshot().canvases[0]!.id } });
     await settle();
     const s = runtime.last;
-    expect(s.call('act', { actions: [{ do: 'delete_canvas', canvas: 'Parked' }], confirm: '…' })).not.toContain('only an empty canvas');
+    const answer = s.call('act', { actions: [{ do: 'delete_canvas', canvas: 'Parked' }], confirm: 'Parked ist weg.' });
+    expect(answer).not.toContain('only an empty canvas');
+    s.emit({ type: 'idle' });
+    k.arm((await heard).token!);
+    await new Promise((r) => setTimeout(r, 40));
+    expect(executed).toEqual([{ do: 'deleteCanvas', canvas: parked.id }]);
+    board.deleteCanvas(parked.id);
+    expect(board.snapshot().canvases.map((c) => c.name)).toEqual(['main']);
   });
 });
 
