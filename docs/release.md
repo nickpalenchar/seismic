@@ -94,7 +94,7 @@ Installed apps install only what is signed with Seismic's own key pair (Tauri's 
   without it no update reaches the apps that are installed, which would then have to install the
   next version by hand.
 - The build workflow signs with the repository secret `TAURI_SIGNING_PRIVATE_KEY`, the file's
-  content (`gh secret set TAURI_SIGNING_PRIVATE_KEY --repo sadilek/obeya < ~/.tauri/seismic.key`),
+  content (`gh secret set TAURI_SIGNING_PRIVATE_KEY --repo nickpalenchar/seismic < ~/.tauri/seismic.key`),
   read on tags only. Without it a release has no updates and `latest.json` names no platform.
 
 A key that is lost or got out is replaced by a new pair whose public key goes into
@@ -104,7 +104,7 @@ new key has to be installed by hand once (say so in its notes).
 ## Signing the Mac apps
 
 The build signs and notarises them with four repository secrets (five with a team key) (Settings → Secrets and variables
-→ Actions, or `gh secret set <NAME> --repo sadilek/obeya`, which reads the value from standard
+→ Actions, or `gh secret set <NAME> --repo nickpalenchar/seismic`, which reads the value from standard
 input). A tag fails on the Macs while one is missing.
 
 ### Membership and agreement
@@ -131,7 +131,7 @@ now and then, and a release fails the same way until it is accepted again.
    signing identity". `openssl pkcs12 -info -noout -in obeya.p12` lists what the file holds: a
    "Certificate bag" and a "Shrouded Keybag".
 3. Secrets:
-   - `APPLE_CERTIFICATE`: the `.p12` in base64, `base64 -i obeya.p12 | gh secret set APPLE_CERTIFICATE --repo sadilek/obeya`
+   - `APPLE_CERTIFICATE`: the `.p12` in base64, `base64 -i obeya.p12 | gh secret set APPLE_CERTIFICATE --repo nickpalenchar/seismic`
    - `APPLE_CERTIFICATE_PASSWORD`: the export's password.
 4. Delete the `.p12` file. The certificate is valid for five years; apps signed and notarised
    before it expires keep opening (the signature carries a timestamp). A new one goes into the
@@ -145,7 +145,7 @@ now and then, and a release fails the same way until it is accepted again.
    Download the `.p8` (Apple offers it once) and note its key ID; for a team key also the Issuer
    ID above the list.
 2. Secrets:
-   - `APPLE_NOTARY_KEY`: the `.p8`'s contents, `gh secret set APPLE_NOTARY_KEY --repo sadilek/obeya < AuthKey_XXXXXXXXXX.p8`
+   - `APPLE_NOTARY_KEY`: the `.p8`'s contents, `gh secret set APPLE_NOTARY_KEY --repo nickpalenchar/seismic < AuthKey_XXXXXXXXXX.p8`
    - `APPLE_NOTARY_KEY_ID`: the key ID.
    - `APPLE_NOTARY_ISSUER`: the Issuer ID, for a team key only.
 3. Keep the `.p8` somewhere safe (`~/.appstoreconnect/private_keys/` is where Apple's tools look)
