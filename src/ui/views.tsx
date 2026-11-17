@@ -33,8 +33,8 @@ interface ListProps {
 /** A list view's body: the list and the hint above it to a readable width, the hint set apart from the list (over `.hint`'s own size). */
 const listBodyClass = `${fullBodyClass} [&>:is(ul,ol,.hint)]:max-w-[760px] [&>.hint]:mt-1 [&>.hint]:mb-3.5 [&>.hint]:mx-0 [&>.hint]:text-sm!`;
 
-/** The parked view's body: the cards in a grid, 2 to a row on medium screens and 3 on large ones (1 on a phone), over the width the other lists keep. */
-const parkedBodyClass = `${fullBodyClass} [&>.hint]:mt-1 [&>.hint]:mb-3.5 [&>.hint]:mx-0 [&>.hint]:text-sm! [&>ul]:grid [&>ul]:grid-cols-1 md:[&>ul]:grid-cols-2 xl:[&>ul]:grid-cols-3 [&>ul]:items-start`;
+/** The parked view's body: the cards in a grid, 2 to a row once the view itself is wide enough and 3 once it is wider (1 when narrow), by the view's own width (a container query), since the menu and dock take width from the viewport. */
+const parkedBodyClass = `${fullBodyClass} @container [&>.hint]:mt-1 [&>.hint]:mb-3.5 [&>.hint]:mx-0 [&>.hint]:text-sm! [&>ul]:grid [&>ul]:grid-cols-1 @xl:[&>ul]:grid-cols-2 @4xl:[&>ul]:grid-cols-3 [&>ul]:items-start`;
 
 /** The view's head: its title, its count and ✕. */
 function Head({ title, n, onClose }: { title: string; n: number; onClose: () => void }) {
