@@ -3219,7 +3219,7 @@ export interface Usage {
   at: string;
 }
 
-/** Whether the bar shows the plan's usage limits (`src/server/settings.ts`); off until the owner turns it on. */
+/** Whether the bar shows the plan's usage limits (`src/server/settings.ts`); on until the owner turns it off. */
 export interface UsageMeterView {
   /** The file it is saved in, under Seismic's home. */
   file: string;
@@ -3233,7 +3233,7 @@ export interface NotificationsView {
   on: boolean | null;
 }
 
-/** Whether approving a card's work asks the owner for feedback on it (`src/server/settings.ts`); on until the owner turns it off. */
+/** Whether approving a card's work asks the owner for feedback on it (`src/server/settings.ts`); off until the owner turns it on. */
 export interface FeedbackPromptView {
   /** The file it is saved in, under Seismic's home. */
   file: string;

@@ -32,7 +32,7 @@ interface Settings {
   remote?: RemoteSetting;
   /** `false`: the bar does not show the plan's usage limits; absent, it does. */
   usageMeter?: false;
-  /** `false`: approving a card's work asks for no feedback on it; absent, it does. */
+  /** `true`: approving a card's work asks for feedback on it; absent, it does not. */
   feedbackPrompt?: true;
   /** Whether a page notifies the owner on the desktop when a card needs them; absent until the owner has been asked. */
   notifications?: boolean;
