@@ -361,6 +361,7 @@ export class ProjectRuntime {
           hosts: r.workstations.pool(r.workers.inTurn(), (c) => r.workers.turnAt(c)).map((h) => ({
             ...h,
             ...reviewingOn(h, r.workers.reviews.busy()),
+            ...(h.here ? exploringIn(r.ref.id, board.items()) : {}),
             // what the owner may take from its card for a card waiting for one, and what goes once the undo window is through
             workstations: h.workstations.map((w) =>
               !w.card ? w : this.koordinator?.evicting(w.card) ? { ...w, leaving: true as const } : r.workers.evictable(w.card) ? { ...w, takeable: true as const } : w,
@@ -3365,6 +3366,12 @@ function sameDir(a: string, b: string): boolean {
 
 /** A workstation as a directory on this machine, for a program that runs here (gh on a pull request's URL); none for one on another machine. */
 const localDir = (workstation: string | null) => (workstation && !hostName(workstation) ? workstation : null);
+
+/** The ideas of a repository whose exploration agent is at work on a reply, in its checkout on this machine (`PoolHost.exploring`). */
+const exploringIn = (repo: string, items: Item[]): Pick<PoolHost, 'exploring'> => {
+  const cards = items.filter((i) => i.repo === repo && i.state === 'idea' && !i.archivedAt && !!i.idea?.discussion?.thinking).map((i) => i.id);
+  return cards.length ? { exploring: cards } : {};
+};
 
 /** The cards held on a machine whose code review's agent is at work and whose worker is not in a turn (`PoolHost.reviewing`). */
 const reviewingOn = (h: PoolHost, reviews: string[]): Pick<PoolHost, 'reviewing'> => {

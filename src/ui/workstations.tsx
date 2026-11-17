@@ -69,26 +69,29 @@ export function wsDot(w: PoolWorkstation | undefined, host: PoolHost, items: Ite
   const tone = item ? cardTone(item, underway[item.id]) : host.busy.includes(w.card) ? 'working' : null;
   if (item?.hold?.reason === 'restart') return { className: 'block text-[var(--restart)]', paused: true, fill: 'var(--restart)' };
   if (!tone) return { className: cn(dot, 'bg-working/35'), fill: 'var(--working-wash)' };
+  // an idea's agent at work on a reply pulses in the idea's colour
+  const pulsing = PULSING.has(tone) || (tone === 'idea' && !!host.exploring?.includes(w.card));
   return {
-    className: cn(dot, PULSING.has(tone) ? pulse : 'bg-c'),
+    className: cn(dot, pulsing ? pulse : 'bg-c'),
     style: stateVars(tone) as CSSProperties,
     fill: stateVars(tone)['--c'],
-    pulsing: PULSING.has(tone),
+    pulsing,
   };
 }
 
 /**
- * How many of a machine's cards have an agent at work: workers in a turn, and the code reviews
- * whose agent is at work on cards held there (one paused for a restart is not). A review holds no
- * slot, so the slot counts leave it out.
+ * How many of a machine's cards have an agent at work: workers in a turn, the code reviews whose
+ * agent is at work on cards held there (one paused for a restart is not), and ideas whose agent
+ * works on a reply. A review or an idea holds no slot, so the slot counts leave them out.
  */
-export const atWorkOn = (h: PoolHost): number => h.busy.length + (h.reviewing?.length ?? 0);
+export const atWorkOn = (h: PoolHost): number => h.busy.length + (h.reviewing?.length ?? 0) + (h.exploring?.length ?? 0);
 
 /**
  * A machine's workstations in the order of its dots: each clone; in worktrees each card's worktree,
  * then an empty circle for each slot no worker is busy in, up to the maximum (none without slots).
  * A waiting card keeps its worktree but its worker has released the slot; a hidden card's worker
- * can still occupy one.
+ * can still occupy one. An idea whose agent is at work stands after the cards, though its agent
+ * works in the repository's checkout and holds neither a workstation nor a slot.
  */
 export const hostSpots = (h: PoolHost, items: Item[]): (PoolWorkstation | undefined)[] => {
   // a card that is stopped, queued, snoozed, parked or not on this project does not show: only cards at work or waiting on the owner here
@@ -98,10 +101,11 @@ export const hostSpots = (h: PoolHost, items: Item[]): (PoolWorkstation | undefi
     return !!i && !stopped(i) && !i.queue && !snoozeOf(i) && !inParkingLot(i);
   };
   const held = h.workstations.filter(shown);
-  if (!h.worktrees) return held;
+  const ideas = (h.exploring ?? []).filter((card) => !held.some((w) => w.card === card)).map((card): PoolWorkstation => ({ path: `idea:${card}`, card })).filter(shown);
+  if (!h.worktrees) return [...held, ...ideas];
   const cards = held.filter((w) => w.card);
   // an empty circle for each slot without a busy worker, the pool's count (hidden cards included), as in the pill's summary
-  return [...cards, ...Array.from({ length: h.uncapped ? 0 : Math.max(0, h.slots - h.busy.length) }, () => undefined)];
+  return [...cards, ...ideas, ...Array.from({ length: h.uncapped ? 0 : Math.max(0, h.slots - h.busy.length) }, () => undefined)];
 };
 
 export const hostDots = (h: PoolHost, items: Item[], underway: Record<string, string>) => hostSpots(h, items).map((w) => wsDot(w, h, items, underway));

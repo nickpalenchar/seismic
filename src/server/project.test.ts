@@ -143,6 +143,17 @@ describe('a project with several repositories', () => {
     expect(project.board.snapshot().workstations![1]).toEqual({ repo: 'api', ...here([], []) });
   });
 
+  test("an idea whose agent is at work on a reply stands on this machine of its repository's pool, holding no clone", () => {
+    const card = project.board.create({ title: 'Export', x: 0, y: 0, repo: 'api', body: 'CSV-Export.' });
+    project.patch(card.id, { state: 'idea' });
+    expect(item(card.id).idea?.discussion?.thinking).toBe(true);
+    const [web, api] = project.board.snapshot().workstations!;
+    expect(web!.hosts[0]!.exploring).toBeUndefined();
+    expect(api!.hosts[0]).toMatchObject({ here: true, cards: [], busy: [], exploring: [card.id] });
+    project.board.setIdea(card.id, { thinking: false });
+    expect(project.board.snapshot().workstations![1]!.hosts[0]!.exploring).toBeUndefined();
+  });
+
   test("a stopped workstream of a repository after the first keeps its clone when Seismic starts again", async () => {
     project.shutdown();
     const config = { name: 'Produkt', repos: [{ path: join(dir, 'web'), clones: 1, settings: { land: 'main' as const } }, { path: join(dir, 'api'), clones: 1, settings: { land: 'main' as const } }] };
