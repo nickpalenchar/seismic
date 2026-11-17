@@ -413,7 +413,7 @@ export const makeGhForge = (
     try {
       return (await run(at, 'pr', 'view', ghUrl(url), '--json', 'mergeCommit', '--jq', '.mergeCommit.oid')).trim() || undefined;
     } catch {
-      // merged all the same: the first fetch after it stands in for the commit (Workers.merged)
+      // merged all the same: the first fetch after it stands in for the commit (WorkerSupervisor.merged)
       return undefined;
     }
   },

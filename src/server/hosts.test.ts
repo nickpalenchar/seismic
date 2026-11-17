@@ -16,7 +16,7 @@ import { runAppCommand } from './app-command';
 import { type AgentEvent } from './runtime';
 import { sdkRuntime } from './llms/harnesses/claude';
 import { FakeRuntime, fakeSsh, gitRepo, identify, until } from './testing';
-import { Workers } from './workers';
+import { WorkerSupervisor } from './workerSupervisor/workerSupervisor';
 import { git, gitAsync, HERE, RECHECK_MS, remoteText, VERSION_LIMIT, Workstations } from './workstations';
 
 let dir: string;
@@ -379,7 +379,7 @@ describe('clones on a host', () => {
   }, 30_000);
 
   test('take a new card on the first machine with a free slot, here first', async () => {
-    let workers!: Workers;
+    let workers!: WorkerSupervisor;
     spaces = new Workstations(store, 'c', {
       mode: 'clones',
       repoPath: join(dir, 'main'),
@@ -390,7 +390,7 @@ describe('clones on a host', () => {
     spaces.ensureClones(origin, 2);
     expect(await spaces.ensureHostClones(host, join(dir, 'far'), origin, 2, () => undefined)).toBeNull();
     const runtime = new FakeRuntime();
-    workers = new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, workstations: 'clones', land: 'pr' } });
+    workers = new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, workstations: 'clones', land: 'pr' } });
     const [a, b, c] = ['A', 'B', 'C'].map((title) => board.create({ title, x: 0, y: 0 }).id) as [string, string, string];
     await workers.start(a);
     expect(board.row(a).workstation).toBe(join(dir, 'ws', '1'));
@@ -490,7 +490,7 @@ describe('a worker on a host', () => {
     const spaces = new Workstations(store, 'c', { mode: 'clones', repoPath: join(dir, 'main'), dir: join(dir, 'ws') });
     expect(await spaces.ensureHostClones(host, join(dir, 'far'), origin, 1, () => undefined)).toBeNull();
     const runtime = new FakeRuntime();
-    const workers = new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, workstations: 'clones', land: 'pr' }, reconnectMs: 20 });
+    const workers = new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, workstations: 'clones', land: 'pr' }, reconnectMs: 20 });
     const card = board.create({ title: 'Weit weg', x: 0, y: 0 });
     await workers.start(card.id);
     const first = runtime.last;
@@ -550,7 +550,7 @@ describe('a worker on a host', () => {
     const spaces = new Workstations(store, 'c', { mode: 'clones', repoPath: join(dir, 'main'), dir: join(dir, 'ws') });
     expect(await spaces.ensureHostClones(host, join(dir, 'far'), origin, 1, () => undefined)).toBeNull();
     const runtime = new FakeRuntime();
-    const workers = new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, workstations: 'clones', land: 'pr' }, reconnectMs: 20 });
+    const workers = new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, workstations: 'clones', land: 'pr' }, reconnectMs: 20 });
     const card = board.create({ title: 'Weit weg', body: 'Eine Wochenansicht.', x: 0, y: 0 });
     await workers.start(card.id);
     // the host goes before the session reports an id: getting it ready failed
@@ -570,7 +570,7 @@ describe('a worker on a host', () => {
 describe('the app of a card on a host', () => {
   let board: Board;
   let runtime: FakeRuntime;
-  let workers: Workers;
+  let workers: WorkerSupervisor;
   let spaces: Workstations;
   let apps: ReturnType<typeof Bun.serve>[];
   /** An app running there (the stand-in's host is this machine), answering with its name. */
@@ -593,7 +593,7 @@ describe('the app of a card on a host', () => {
     spaces = new Workstations(store, 'c', { mode: 'clones', repoPath: join(dir, 'main'), dir: join(dir, 'ws') });
     expect(await spaces.ensureHostClones(host, join(dir, 'far'), origin, 1, () => undefined)).toBeNull();
     runtime = new FakeRuntime();
-    workers = new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, workstations: 'clones', land: 'pr' } });
+    workers = new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, workstations: 'clones', land: 'pr' } });
   });
   afterEach(() => {
     workers.shutdown();
@@ -652,7 +652,7 @@ describe('the app of a card on a host', () => {
 
   test('ends when the card is parked', async () => {
     workers.shutdown();
-    workers = new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, workstations: 'clones', land: 'pr', app: { run: 'true', stop: 'true' } }, parkGrace: 10, tryGrace: 0 });
+    workers = new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, workstations: 'clones', land: 'pr', app: { run: 'true', stop: 'true' } }, parkGrace: 10, tryGrace: 0 });
     const card = board.create({ title: 'Weit weg', x: 0, y: 0 });
     await workers.start(card.id);
     runtime.last.call('app_running', { url: app('da') });

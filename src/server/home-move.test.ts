@@ -9,7 +9,7 @@ import { claim } from './instance';
 import { claudeFolderName, databaseFile, HOME_MOVE_MARKER, moveDefaultHome, rewritePaths } from './home-move';
 import { Store } from './store';
 import { FakeRuntime, gitRepo } from './testing';
-import { Workers } from './workers';
+import { WorkerSupervisor } from './workerSupervisor/workerSupervisor';
 import { git, Workstations } from './workstations';
 
 let user: string;
@@ -158,7 +158,7 @@ test("a worktree of a project's repository follows the move, and a paused worker
     const board = new Board(store, { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: repo, branch: 'main' }] }, () => ({ docs: [], dirs: [] }), undefined, () => true, () => 'en', () => 'en');
     const runtime = new FakeRuntime();
     const spaces = new Workstations(store, 'c', { mode: 'worktrees', repoPath: repo, dir });
-    const workers = new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'worktrees' } });
+    const workers = new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'worktrees' } });
     return { store, board, runtime, spaces, workers };
   };
   const before = build(join(user, 'build.db'), join(h, 'workspaces', 'shop'));

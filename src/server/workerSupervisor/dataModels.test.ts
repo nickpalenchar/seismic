@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'bun:test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { dataModelSignals, isSchemaPage } from './data-models';
-import { artifact } from './testing';
-import { board, eachTest, manual, runtime, workers } from './workers-fixture';
-import { git } from './workstations';
+import { dataModelSignals, isSchemaPage } from '../data-models';
+import { artifact } from '../testing';
+import { board, eachTest, manual, runtime, workers } from './fixture';
+import { git } from '../workstations';
 
 eachTest();
 

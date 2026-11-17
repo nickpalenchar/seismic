@@ -1,17 +1,17 @@
 import { describe, expect, test } from 'bun:test';
-import { skillPlugins } from './llms/skills/attachedSkills';
+import { skillPlugins } from '../llms/skills/attachedSkills';
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { generic } from '../adapters/generic';
-import { needsYou, pausable, type ReviewItem } from '../core/types';
-import { BadRequest, Board } from './board';
-import { SEISMIC_PLUGIN } from './demo';
-import { Images } from './images';
-import { Restarter } from './self-update';
-import { artifact, until } from './testing';
-import { Workers } from './workers';
-import { board, dir, eachTest, flush, main, manual, runtime, setConversation, setLanguage, setWorkers, spaces, state, store, workers } from './workers-fixture';
-import { git } from './workstations';
+import { generic } from '../../adapters/generic';
+import { needsYou, pausable, type ReviewItem } from '../../core/types';
+import { BadRequest, Board } from '../board';
+import { SEISMIC_PLUGIN } from '../demo';
+import { Images } from '../images';
+import { Restarter } from '../self-update';
+import { artifact, until } from '../testing';
+import { WorkerSupervisor } from './workerSupervisor';
+import { board, dir, eachTest, flush, main, manual, runtime, setConversation, setLanguage, setWorkers, spaces, state, store, workers } from './fixture';
+import { git } from '../workstations';
 
 eachTest();
 
@@ -39,7 +39,7 @@ describe('workers', () => {
     rmSync(file);
     board.work(card.id, { session_id: null });
     const launched = runtime.sessions.length;
-    const again = new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' } });
+    const again = new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' } });
     again.resumeAll();
     await until(() => runtime.sessions.length > launched);
     expect(readFileSync(file, 'utf8')).toBe(patch);
@@ -57,7 +57,7 @@ describe('workers', () => {
   });
 
   test('the setup card names the agent harnesses that can work on this machine, for the allow list it drafts; other cards do not', async () => {
-    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, harnesses: () => ['Claude Code', 'Codex'] }));
+    setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, harnesses: () => ['Claude Code', 'Codex'] }));
     const setup = board.setupCard(board.home, 'shop');
     await workers.start(setup.id);
     expect(runtime.last.inbox[0]).toContain('allow list');
@@ -105,7 +105,7 @@ describe('workers', () => {
   test('the screenshots of the task go with it when the worker starts', async () => {
     const images = new Images(join(dir, 'images'));
     const shot = images.save(new Uint8Array([1, 2, 3]), 'image/png');
-    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: generic, imageFiles: (ids = []) => ids.flatMap((i) => images.path(i) ?? []) }));
+    setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: generic, imageFiles: (ids = []) => ids.flatMap((i) => images.path(i) ?? []) }));
     const c = board.create({ title: 'Seite bricht um', x: 0, y: 0, images: [shot] });
     await workers.start(c.id);
     expect(runtime.last.images[0]).toEqual([images.path(shot)!]);
@@ -700,7 +700,7 @@ describe('workers', () => {
   });
 
   test('a worker that cannot start at all goes to the owner with the reason', async () => {
-    setWorkers(new Workers({ board, runtime: { start() { throw new Error('Installed Codex executable unavailable'); } }, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' } }));
+    setWorkers(new WorkerSupervisor({ board, runtime: { start() { throw new Error('Installed Codex executable unavailable'); } }, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' } }));
     const c = manual();
     await workers.start(c.id);
     expect(state(c.id)).toBe('waiting:question');
@@ -737,7 +737,7 @@ describe('workers', () => {
     expect(workers.busyCards()).toEqual([]);
     expect(runtime.last.closed).toBe(true);
     const before = runtime.sessions.length;
-    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' } }));
+    setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' } }));
     workers.resumeAll();
     expect(runtime.sessions.length).toBe(before);
     workers.resume(c.id);
@@ -775,7 +775,7 @@ describe('workers', () => {
   });
 
   test('a worker the usage limit stopped goes on by itself once the limit lifts', async () => {
-    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, limitMargin: 30 }));
+    setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, limitMargin: 30 }));
     const c = manual();
     await workers.start(c.id);
     runtime.last.call('report', { status: 'Exporter steht' });
@@ -804,7 +804,7 @@ describe('workers', () => {
   });
 
   test("a worker the usage limit stopped while it took in the owner's words on its handover stays at them and goes on once it lifts", async () => {
-    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, limitMargin: 30 }));
+    setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, limitMargin: 30 }));
     const c = manual();
     await workers.start(c.id);
     await runtime.last.call('ready_for_review', { summary: 'Studie fertig.', demo: artifact() });
@@ -830,7 +830,7 @@ describe('workers', () => {
   });
 
   test('a worker the usage limit stopped while its background work runs says so, and goes on once it lifts', async () => {
-    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, limitMargin: 30 }));
+    setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, limitMargin: 30 }));
     const c = manual();
     await workers.start(c.id);
     runtime.last.call('report', { status: 'Rendere das Demo-Video' });
@@ -850,7 +850,7 @@ describe('workers', () => {
   });
 
   test('a worker the usage limit stopped is no longer busy once its background work stopped counting', async () => {
-    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, backgroundLimit: 10 }));
+    setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, backgroundLimit: 10 }));
     const c = manual();
     await workers.start(c.id);
     runtime.last.emit({ type: 'background', tasks: [{ id: 'watch', description: 'watch the deploy' }] });
@@ -865,7 +865,7 @@ describe('workers', () => {
   });
 
   test('a worker the usage limit stopped is not woken once stopped', async () => {
-    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, limitMargin: 10 }));
+    setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, limitMargin: 10 }));
     const c = manual();
     await workers.start(c.id);
     runtime.last.emit({ type: 'error', message: "You've hit your session limit", limit: { resetsAt: Date.now() + 20 } });
@@ -879,7 +879,7 @@ describe('workers', () => {
   });
 
   test('a turn in which the worker did nothing does not use up its nudge', async () => {
-    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, backgroundGrace: 5, backgroundLimit: 5 }));
+    setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, backgroundGrace: 5, backgroundLimit: 5 }));
     const c = manual();
     await workers.start(c.id);
     const before = runtime.last.inbox.length;
@@ -897,7 +897,7 @@ describe('workers', () => {
   });
 
   test('a turn in which the worker did nothing counts as ended after a while', async () => {
-    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, backgroundGrace: 5 }));
+    setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, backgroundGrace: 5 }));
     const c = manual();
     await workers.start(c.id);
     runtime.last.emit({ type: 'idle' });
@@ -955,7 +955,7 @@ describe('workers', () => {
   });
 
   test('background work that ends without waking the worker counts as an ended turn after a while', async () => {
-    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, backgroundGrace: 5 }));
+    setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, backgroundGrace: 5 }));
     const c = manual();
     await workers.start(c.id);
     runtime.last.emit({ type: 'text', text: 'Ich warte auf den Server.' });
@@ -977,7 +977,7 @@ describe('workers', () => {
   });
 
   test('background work the session never reports as ended counts as an ended turn after a long while', async () => {
-    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, backgroundGrace: 1000, backgroundLimit: 5 }));
+    setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, backgroundGrace: 1000, backgroundLimit: 5 }));
     const c = manual();
     await workers.start(c.id);
     runtime.last.emit({ type: 'text', text: 'Ich warte auf den Server.' });
@@ -987,7 +987,7 @@ describe('workers', () => {
   });
 
   test('a worker that asks while its background work runs counts as busy until the work wakes it', async () => {
-    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, backgroundGrace: 5, backgroundLimit: 5 }));
+    setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, backgroundGrace: 5, backgroundLimit: 5 }));
     const c = manual();
     await workers.start(c.id);
     runtime.last.call('ask', { question: 'Soll das Video Ton haben?' });
@@ -1002,7 +1002,7 @@ describe('workers', () => {
   });
 
   test('the card shows the background work that keeps its worker in a turn, each since it started, until it ends', async () => {
-    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, backgroundGrace: 1000, backgroundLimit: 1000 }));
+    setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, backgroundGrace: 1000, backgroundLimit: 1000 }));
     const c = manual();
     await workers.start(c.id);
     const s = runtime.last;
@@ -1034,7 +1034,7 @@ describe('workers', () => {
   });
 
   test('a note to a worker waiting for its background work starts a turn of its own', async () => {
-    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, backgroundGrace: 5 }));
+    setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, backgroundGrace: 5 }));
     const c = manual();
     await workers.start(c.id);
     runtime.last.emit({ type: 'idle', background: 1 });
@@ -1047,7 +1047,7 @@ describe('workers', () => {
   });
 
   test('a preference learned while a worker runs reaches it once, with its next tool step', async () => {
-    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, preferences: () => board.preferencesText() }));
+    setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, preferences: () => board.preferencesText() }));
     board.addPreference('Antworten auf Deutsch.');
     const c = manual();
     await workers.start(c.id);
@@ -1066,7 +1066,7 @@ describe('workers', () => {
   });
 
   test('a standing language preference takes precedence over the conversation language', async () => {
-    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, preferences: () => board.preferencesText() }));
+    setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, preferences: () => board.preferencesText() }));
     board.addPreference('Speak and report to me in English only.');
     const c = board.create({ title: 'Anmeldung', body: 'Bitte die Anmeldung reparieren.', x: 0, y: 0 });
     await workers.start(c.id);
@@ -1377,7 +1377,7 @@ describe('workers', () => {
   test('a proposal goes to a repository of another project, waits for the owner there, and its agent can take it back', async () => {
     const tools = new Board(store, { id: 'tools', name: 'Tools', repos: [{ id: 'tool', name: 'Tool', path: '/r/tool', branch: 'main' }, { id: 'docs', name: 'Docs', path: '/r/docs', branch: 'main' }] }, () => ({ docs: [], dirs: [] }));
     const shop = new Board(store, { id: 'shop', name: 'Shop', repos: [{ id: 'docs', name: 'Docs', path: '/r/shop-docs', branch: 'main' }] }, () => ({ docs: [], dirs: [] }));
-    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, otherBoards: () => [board, tools, shop] }));
+    setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, otherBoards: () => [board, tools, shop] }));
     const c = manual();
     await workers.start(c.id);
     // with one repository of its own the worker sees those of the other projects, by project
@@ -1401,7 +1401,7 @@ describe('workers', () => {
     await workers.stop(c.id);
     board.work(c.id, { state: 'live', detail: JSON.stringify({ summary: 'Export gebaut.' }) });
     const q = shop.snapshot().items.find((i) => i.title === 'Doku')!;
-    const there = new Workers({ board: shop, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, otherBoards: () => [board, tools, shop] });
+    const there = new WorkerSupervisor({ board: shop, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, otherBoards: () => [board, tools, shop] });
     shop.accept(q.id);
     await there.start(q.id);
     expect(runtime.last.inbox[0]).toContain('This card follows up on the card “Zählerstände exportieren” on the project “C”. Its worker handed it over with this summary:\n\nExport gebaut.');
@@ -1486,7 +1486,7 @@ describe('workers', () => {
   });
 
   test('the card shows what its worker is doing in its turn: at work, thinking when quiet, debugging after a failed step, the stages of its demo', async () => {
-    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, thinkingAfter: 20 }));
+    setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, thinkingAfter: 20 }));
     const c = manual();
     await workers.start(c.id);
     const doing = () => board.item(c.id)!.agent?.doing;
@@ -1878,7 +1878,7 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
   });
 
   test('a worker that does not come to a safe point in time is paused at once', async () => {
-    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: generic, pauseLimit: 20 }));
+    setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: generic, pauseLimit: 20 }));
     const c = await atWork();
     const session = runtime.last;
     workers.pauseAtSafePoint(c.id);

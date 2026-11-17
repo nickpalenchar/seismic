@@ -7,7 +7,7 @@ import { Board } from '../../../board';
 import { Store } from '../../../store';
 import { artifact, FakeRuntime, type FakeSession, gitRepo } from '../../../testing';
 import { WorkRetro } from './workRetro';
-import { Workers } from '../../../workers';
+import { WorkerSupervisor } from '../../../workerSupervisor/workerSupervisor';
 import { Workstations } from '../../../workstations';
 
 const SAMPLE = join(import.meta.dir, '..', '..', '..', 'fixtures', 'transcript.jsonl');
@@ -18,7 +18,7 @@ let main: string;
 let board: Board;
 let runtime: FakeRuntime;
 let retro: WorkRetro;
-let workers: Workers;
+let workers: WorkerSupervisor;
 /** The transcript file of each session id; the others have none. */
 let files: Record<string, string>;
 
@@ -31,7 +31,7 @@ beforeEach(() => {
   files = {};
   retro = new WorkRetro({ board, runtime, pathFor: () => main, transcript: (id) => files[id] ?? null, every: 3, ramp: [] });
   const workstations = new Workstations(store, 'c', { mode: 'worktrees', repoPath: main, dir: join(dir, 'ws') });
-  workers = new Workers({ board, runtime, workstations, adapter: { ...generic, land: 'main', workstations: 'worktrees' }, onWorkEnded: (id, ws) => retro.ended(id, ws) });
+  workers = new WorkerSupervisor({ board, runtime, workstations, adapter: { ...generic, land: 'main', workstations: 'worktrees' }, onWorkEnded: (id, ws) => retro.ended(id, ws) });
 });
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 

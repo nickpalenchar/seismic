@@ -240,7 +240,7 @@ export const makeForgejoForge = (forgejo: Api, origin: (cwd: string) => Promise<
       try {
         return ((await api(cwd, base, 'GET', pull)) as FjPr).merge_commit_sha || undefined;
       } catch {
-        // merged all the same: the first fetch after it stands in for the commit (Workers.merged)
+        // merged all the same: the first fetch after it stands in for the commit (WorkerSupervisor.merged)
         return undefined;
       }
     },

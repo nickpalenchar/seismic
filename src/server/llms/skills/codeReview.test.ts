@@ -13,9 +13,9 @@ import type { RepoAdapter } from '../../../adapters/types';
 import { type AgentSetting, type CodeReviewSetting, needsYou, type ReviewItem, type ReviewItemEvent, type ReviewItemStatus, type Severity } from '../../../core/types';
 import { described, listed, reopenings } from './codeReview';
 import { artifact, type FakeSession, until } from '../../testing';
-import { Workers } from '../../workers';
+import { WorkerSupervisor } from '../../workerSupervisor/workerSupervisor';
 import { git } from '../../workstations';
-import { board, dir, eachTest, main, manual, runtime, setWorkers, spaces, state, workers } from '../../workers-fixture';
+import { board, dir, eachTest, main, manual, runtime, setWorkers, spaces, state, workers } from '../../workerSupervisor/fixture';
 
 eachTest();
 
@@ -27,7 +27,7 @@ function reviewing(mode: CodeReviewSetting['mode'] = 'auto', on = true, land: Re
   setting = { on, mode };
   followed = [];
   setWorkers(
-    new Workers({
+    new WorkerSupervisor({
       board,
       runtime,
       workstations: spaces,

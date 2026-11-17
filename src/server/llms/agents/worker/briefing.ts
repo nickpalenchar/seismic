@@ -11,10 +11,10 @@ import type { Item, Mock } from '../../../../core/types';
 import { decisionLog } from '../../../advisor';
 import type { Shipped } from '../../../board';
 import { CAPTURED_CHANGES } from '../../../workstations';
-import type { Workers } from '../../../workers';
+import type { WorkerSupervisor } from '../../../workerSupervisor/workerSupervisor';
 
-/** What the briefing needs of the `Workers` that runs the card. */
-export type BriefingHost = Pick<Workers, 'artifacts' | 'captured' | 'demoSkill' | 'demosDir' | 'detailOf' | 'folder' | 'o' | 'prSource' | 'proposalBoards' | 'shares' | 'taskImages'>;
+/** What the briefing needs of the `WorkerSupervisor` that runs the card. */
+export type BriefingHost = Pick<WorkerSupervisor, 'artifacts' | 'captured' | 'demoSkill' | 'demosDir' | 'detailOf' | 'folder' | 'o' | 'prSource' | 'proposalBoards' | 'shares' | 'taskImages'>;
 
 /**
  * `headProblem`: on a review card's start, why its workstation is not on the PR's head (null where

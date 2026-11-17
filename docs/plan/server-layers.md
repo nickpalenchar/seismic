@@ -18,7 +18,7 @@ code, and `docs/design.md` gets the decision. The plan doc goes.
 Checked in the code on 2026-11-13; counts may be off by a few. Each workstream recounts what it touches.
 
 - **Flat folder.** `src/server` holds 99 source files (about 50k lines) with about 100 test files beside
-  them. Six god files hold most of the logic: `workers.ts` (5.9k lines), `board.ts` (4.2k), `project.ts`
+  them. Six god files hold most of the logic: `workerSupervisor/workerSupervisor.ts` (5.9k lines), `board.ts` (4.2k), `project.ts`
   (3.3k), `workstations.ts` (2.5k), `commands.ts` and `koordinator.ts` (1.7k each).
 - **Data layer mostly as wished.** `schemas/` uses Drizzle, one file per table with its schema and a query
   class (`Projects`, `Cards`, …); the card tables sit in `models/cards/`, `schema.ts` collects every table.
@@ -30,7 +30,7 @@ Checked in the code on 2026-11-13; counts may be off by a few. Each workstream r
 - **No services layer.** Business logic sits in the god files. Integrations are spread across the flat
   folder: git, GitHub/Forgejo (`forge.ts`, `forgejo.ts`, `github-folder.ts`), the agent harnesses
   (now `llms/harnesses/`: `claude.ts`, `codex.ts`, `agy.ts`), Tailscale, web push, voice.
-- **Manual dependency injection.** `ProjectRuntime` (`project.ts`) builds `Board`, `Workers` and
+- **Manual dependency injection.** `ProjectRuntime` (`project.ts`) builds `Board`, `WorkerSupervisor` and
   `Koordinator` by hand and passes them dependency objects; one runtime per project.
 - **Many importers.** About 44 files outside `src/server` import from it (`src/extensions`, `scripts`,
   `plugin`, some UI code); every file move touches them.
@@ -82,7 +82,7 @@ and leaves no re-export shims behind.
   now. `server.ts` keeps only the route registry, authentication hooks and the WebSocket.
 - [ ] **W3:** Split `board.ts` into `services/cards/` and related areas (`CardService` and the services for
   what else it holds), one area per change. Routes and callers switch to the new services.
-- [ ] **W4:** Split `workers.ts` into `services/agents/`: sessions, spawning, limits, review and the rest, one
+- [ ] **W4:** Split `workerSupervisor/workerSupervisor.ts` into `services/agents/`: sessions, spawning, limits, review and the rest, one
   piece per change, against the fake runtime in `src/server/testing.ts`.
 - [ ] **W5:** Split `project.ts`, `workstations.ts`, `commands.ts` and `koordinator.ts` into their services
   (`services/projects/`, `services/workstations/`, `services/commands/`, `services/koordinator/`). The
@@ -93,7 +93,7 @@ and leaves no re-export shims behind.
 - [ ] **W7:** LoopBack. Spike on Bun first: `experimentalDecorators`, `emitDecoratorMetadata` and
   `reflect-metadata` in the tsconfig; Bun 1.4 and the compiled binary (`bun build --compile`);
   `verbatimModuleSyntax` (inject by binding key, not by type metadata); moving the hand-wired test fixtures
-  (`workers-fixture.ts`) to a test context. If it fails, hand the owner the fallback to decide. Otherwise
+  (`workerSupervisor/fixture.ts`) to a test context. If it fails, hand the owner the fallback to decide. Otherwise
   introduce `@model`/`@service`/`@route`, an app context and one child context per project in place of the
   wiring in `ProjectRuntime`. Last step: turn the WIP docs into the design chapter, add the decision to
   `docs/design.md` and remove this plan doc.

@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { generic } from '../adapters/generic';
-import { BadRequest, Board } from './board';
-import { artifact, until } from './testing';
-import { Workers } from './workers';
-import { board, dir, doc, eachTest, flush, main, manual, runtime, setDocs, setup, setWorkers, spaces, state, store, workers, ws } from './workers-fixture';
-import { GIT, git, gitOrNull } from './workstations';
+import { generic } from '../../adapters/generic';
+import { BadRequest, Board } from '../board';
+import { artifact, until } from '../testing';
+import { WorkerSupervisor } from './workerSupervisor';
+import { board, dir, doc, eachTest, flush, main, manual, runtime, setDocs, setup, setWorkers, spaces, state, store, workers, ws } from './fixture';
+import { GIT, git, gitOrNull } from '../workstations';
 
 eachTest();
 
@@ -704,7 +704,7 @@ describe('a worktree per card', () => {
 
   test('asked about a live card, its worker is resumed in a fresh workstation, answers, and ends again', async () => {
     const ended: string[] = [];
-    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, onWorkEnded: (id) => void ended.push(id) }));
+    setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, onWorkEnded: (id) => void ended.push(id) }));
     const c = manual();
     await workers.start(c.id);
     commitIn(board.row(c.id).workstation!, 'c.ts', 'C');
@@ -871,7 +871,7 @@ describe('a worktree per card', () => {
     rmSync(dir, { recursive: true, force: true });
     setup({ ...generic, land: 'main', workstations: 'worktrees' });
     const restarting = (b: Board) =>
-      new Workers({ board: b, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'worktrees' }, restartsFor: () => 'obeya' });
+      new WorkerSupervisor({ board: b, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'worktrees' }, restartsFor: () => 'obeya' });
     setWorkers(restarting(board));
     const c = manual();
     await workers.start(c.id);
@@ -1032,7 +1032,7 @@ describe('a worktree per card', () => {
     expect(board.events(c.id).at(-1)).toMatchObject({ author: 'obeya', kind: 'state' });
 
     workers.shutdown();
-    const after = new Workers({ board: new Board(store, board.project, () => ({ docs: [doc], dirs: [] })), runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'worktrees' } });
+    const after = new WorkerSupervisor({ board: new Board(store, board.project, () => ({ docs: [doc], dirs: [] })), runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'worktrees' } });
     after.resumeAll();
     const resumed = runtime.last;
     expect(resumed).not.toBe(s);
@@ -1046,7 +1046,7 @@ describe('a worktree per card', () => {
   });
 
   test('after the landing, a worker waiting for a deploy in the background keeps its workstation until the watcher wakes it', async () => {
-    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'worktrees' }, backgroundGrace: 5 }));
+    setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'worktrees' }, backgroundGrace: 5 }));
     const c = manual();
     await workers.start(c.id);
     const wc = board.row(c.id).workstation!;
@@ -1092,14 +1092,14 @@ describe('a worktree per card', () => {
     expect(s.closed).toBe(false);
     expect(board.item(c.id)!.agent?.finishing).toBe(true);
     workers.shutdown();
-    const after = new Workers({ board: new Board(store, board.project, () => ({ docs: [doc], dirs: [] })), runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'worktrees' } });
+    const after = new WorkerSupervisor({ board: new Board(store, board.project, () => ({ docs: [doc], dirs: [] })), runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'worktrees' } });
     after.resumeAll();
     expect(runtime.last).not.toBe(s);
     expect(runtime.last.spec.resume).toBe('sess-1');
   });
 
   test('a turn after the landing that the usage limit stopped waits for the limit and goes on; the card does not finish', async () => {
-    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'worktrees' }, limitMargin: 30 }));
+    setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'worktrees' }, limitMargin: 30 }));
     const c = manual();
     await workers.start(c.id);
     commitIn(board.row(c.id).workstation!, 'c.ts', 'C');

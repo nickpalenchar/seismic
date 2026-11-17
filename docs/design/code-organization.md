@@ -63,6 +63,9 @@ Not necesarilly "layers", but important to keep organized nonetheless
 - `src/server/auth/` authentication logic
 - `src/server/lib/` various helper funcitons
 - `src/server/llms/` what Seismic asks of an LLM: agents, skills, prompts, harnesses (see below)
+- `src/server/workerSupervisor/` the `WorkerSupervisor`: runs every card's worker session (leasing workstations,
+  landing approved work, restarts, the owner's questions) with the tests that go with it. The worker agent itself
+  (prompt, tools, briefing) is `llms/agents/worker/`; the supervisor is not an agent.
 
 ### LLMs
 

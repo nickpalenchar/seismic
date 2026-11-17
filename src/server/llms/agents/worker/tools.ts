@@ -1,6 +1,6 @@
 /**
  * The worker's tools: what it reaches Seismic through (`report`, `reply`, `ask`, `ready_for_review`
- * and the rest), as the card's state allows them. They act on the card through the `Workers` that
+ * and the rest), as the card's state allows them. They act on the card through the `WorkerSupervisor` that
  * runs it (`WorkerHost`).
  */
 import { unheardNow } from './contextUpdate';
@@ -23,10 +23,10 @@ import { dimensions, outside, tagsOf } from '../../../../core/page-tags';
 import { type DataSignal, dataModelSignals } from '../../../data-models';
 import { parsePrUrl, sameRepo } from '../../../forge';
 import { clip } from '../../../../core/text';
-import type { LandedState, Live, OwnCommits, Workers } from '../../../workers';
+import type { LandedState, Live, OwnCommits, WorkerSupervisor } from '../../../workerSupervisor/workerSupervisor';
 
-/** What the worker's tools and prompt need of the `Workers` that runs the card. */
-export type WorkerHost = Pick<Workers, 'restart' | 'pageNews' | 'takeUnheard' | 'live' | 'artifacts' | 'cardTitled' | 'close' | 'dataModels' | 'demoHere' | 'demoLanguage' | 'demoSkill' | 'disputeItems' | 'earlier' | 'execLane' | 'folder' | 'followUpTask' | 'heldAt' | 'inWorktree' | 'landResolved' | 'landingOf' | 'live' | 'namedFiles' | 'o' | 'otherBoards' | 'owedTasks' | 'ownCommits' | 'probeClash' | 'proposalBoards' | 'proposalRepo' | 'report' | 'requestChanges' | 'resubmitItems' | 'retract' | 'reviewModeOf' | 'reviews' | 'setFindings' | 'shares' | 'showsFiles' | 'toOwner'>;
+/** What the worker's tools and prompt need of the `WorkerSupervisor` that runs the card. */
+export type WorkerHost = Pick<WorkerSupervisor, 'restart' | 'pageNews' | 'takeUnheard' | 'live' | 'artifacts' | 'cardTitled' | 'close' | 'dataModels' | 'demoHere' | 'demoLanguage' | 'demoSkill' | 'disputeItems' | 'earlier' | 'execLane' | 'folder' | 'followUpTask' | 'heldAt' | 'inWorktree' | 'landResolved' | 'landingOf' | 'live' | 'namedFiles' | 'o' | 'otherBoards' | 'owedTasks' | 'ownCommits' | 'probeClash' | 'proposalBoards' | 'proposalRepo' | 'report' | 'requestChanges' | 'resubmitItems' | 'retract' | 'reviewModeOf' | 'reviews' | 'setFindings' | 'shares' | 'showsFiles' | 'toOwner'>;
 
 export function workerTools(self: WorkerHost, cardId: string, live: Live, prototype: boolean): AgentTool[] {
   // the system prompt says which language that is (`ownersLanguage`)
@@ -267,7 +267,7 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
                 }),
               ),
             },
-            run: ({ findings }) => self.setFindings(cardId, findings as Parameters<Workers['setFindings']>[1]),
+            run: ({ findings }) => self.setFindings(cardId, findings as Parameters<WorkerSupervisor['setFindings']>[1]),
           },
           {
             name: 'follow_up_task',

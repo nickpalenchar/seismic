@@ -10,9 +10,9 @@ import { launchChromium } from '../../../../plugin/lib/chromium';
 import { generic } from '../../../adapters/generic';
 import type { CardAction } from '../../../core/types';
 import { artifact, until } from '../../testing';
-import { Workers } from '../../workers';
+import { WorkerSupervisor } from '../../workerSupervisor/workerSupervisor';
 import { git } from '../../workstations';
-import { board, dir, eachTest, main, manual, runtime, setWorkers, spaces, state, workers } from '../../workers-fixture';
+import { board, dir, eachTest, main, manual, runtime, setWorkers, spaces, state, workers } from '../../workerSupervisor/fixture';
 
 eachTest();
 let browser: Browser;
@@ -31,7 +31,7 @@ for (const scenario of ['running', 'fixing', 'verifying', 'unsent', 'unsentDurin
   for (const direct of [true, false]) {
     test(`${direct ? 'Straight to main' : 'Approve (PR)'} on a PR card: ${scenario} confirmation cancels safely and preserves the approval route`, async () => {
       const unsent = scenario === 'unsent' || scenario === 'unsentDuringReview';
-      setWorkers(new Workers({ board, runtime, workstations: spaces,
+      setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces,
         adapter: { ...generic, land: 'pr', direct: true, workstations: 'clones' },
         codeReviews: () => ({ on: true, mode: 'auto' }),
       }));

@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { artifact, identify, until } from './testing';
-import { board, dir, eachTest, main, manual, runtime, setWorkers, setup, spaces, workers } from './workers-fixture';
-import { git } from './workstations';
-import { cardTalk } from '../ui/talk';
-import { generic } from '../adapters/generic';
-import { Workers } from './workers';
+import { artifact, identify, until } from '../testing';
+import { board, dir, eachTest, main, manual, runtime, setWorkers, setup, spaces, workers } from './fixture';
+import { git } from '../workstations';
+import { cardTalk } from '../../ui/talk';
+import { generic } from '../../adapters/generic';
+import { WorkerSupervisor } from './workerSupervisor';
 
 eachTest();
 afterEach(() => workers.shutdown());
@@ -204,7 +204,7 @@ test('an overlap notice already being read survives replacing the workers at res
   await until(() => reading);
   expect(workers.busyCards()).toContain(a.id);
   workers.shutdown();
-  setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' } }));
+  setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' } }));
   release();
   await until(() => !!board.row(b.id).unheard);
   workers.message(b.id, 'Please continue after the restart.');

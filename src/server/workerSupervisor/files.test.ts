@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'bun:test';
 import { mkdirSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { pagePolicy } from '../core/frame';
-import { serveCardFile } from './demo';
-import { artifact } from './testing';
-import { board, eachTest, main, manual, runtime, spaces, workers } from './workers-fixture';
-import { git } from './workstations';
+import { pagePolicy } from '../../core/frame';
+import { serveCardFile } from '../demo';
+import { artifact } from '../testing';
+import { board, eachTest, main, manual, runtime, spaces, workers } from './fixture';
+import { git } from '../workstations';
 
 eachTest();
 

@@ -14,7 +14,7 @@ import { Store } from './store';
 import type { ContributionInfo, Forge, PrStatus } from './forge';
 import { PrWatcher } from './pr-watcher';
 import { artifact, FakeRuntime, gitRepo, identify, until } from './testing';
-import { Workers } from './workers';
+import { WorkerSupervisor } from './workerSupervisor/workerSupervisor';
 import { git, Workstations } from './workstations';
 
 const URL_ = 'https://github.com/acme/app/pull/5';
@@ -58,7 +58,7 @@ let main: string;
 let origin: string;
 let board: Board;
 let runtime: FakeRuntime;
-let workers: Workers;
+let workers: WorkerSupervisor;
 let watcher: PrWatcher;
 let fake: ReturnType<typeof fakeForge>;
 let approvals: string[];
@@ -94,7 +94,7 @@ beforeEach(() => {
   approvals = [];
   followed = [];
   const settings: RepoAdapter = { ...generic, land: 'main', workstations: 'clones', checks: ['bun test'] };
-  workers = new Workers({ board, runtime, workstations, adapter: settings, forge: fake.forge, repoPath: main, remote: origin, pulls: workstations, pushHold: 10, pushSettle: 1, onApproval: (id) => (approvals.push(id), null), onFollowUpTask: (task, review) => followed.push([task, review]) });
+  workers = new WorkerSupervisor({ board, runtime, workstations, adapter: settings, forge: fake.forge, repoPath: main, remote: origin, pulls: workstations, pushHold: 10, pushSettle: 1, onApproval: (id) => (approvals.push(id), null), onFollowUpTask: (task, review) => followed.push([task, review]) });
   watcher = new PrWatcher(board, workers, fake.forge, () => main, () => settings);
 });
 afterEach(() => {

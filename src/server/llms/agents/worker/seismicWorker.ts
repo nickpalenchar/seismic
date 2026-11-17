@@ -1,12 +1,12 @@
 /**
  * The worker: one agent per card while it is worked on, doing the implementation, the checks and the
  * demo. What it is (its role, model, skills, permission) is defined here, with its system prompt
- * (`system.ts`) and its tools (`tools.ts`); the `Workers` that runs the card hands in the card's state
+ * (`system.ts`) and its tools (`tools.ts`); the `WorkerSupervisor` that runs the card hands in the card's state
  * as the context.
  */
 import type { AgentSetting, Item } from '../../../../core/types';
 import { EXEC_LANE_AUTO_NOTE, EXEC_LANE_NOTE } from '../../harnesses/codexExecTools';
-import type { Live } from '../../../workers';
+import type { Live } from '../../../workerSupervisor/workerSupervisor';
 import { ownerPermission } from '../permission';
 import { SeismicAgent } from '../seismicAgent';
 import { SEISMIC_SKILLS } from '../../skills/registry';
@@ -15,7 +15,7 @@ import { workerSystemPrompt } from './systemPrompt';
 import { workerTools, type WorkerHost } from './tools';
 
 export interface WorkerContext {
-  /** The `Workers` that runs the card. */
+  /** The `WorkerSupervisor` that runs the card. */
   host: WorkerHost;
   cardId: string;
   card?: Item;

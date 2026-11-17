@@ -29,7 +29,7 @@
 //
 // With idle workers, --say and --artifact act as a card's agent (by its key in staged.json), for a
 // check of what the owner sees while an agent works: through the server, which runs the agent's own
-// tools (`Workers.standIn`), so an open page gets the line at once, unread marker and notification
+// tools (`WorkerSupervisor.standIn`), so an open page gets the line at once, unread marker and notification
 // as from a real agent. --say adds a line of the kind a stage file's `events` give: `say` (the
 // agent's words between its steps), `report` (its status line), `talk` (a reply), `question` (it
 // asks, and the card waits for the owner), `review` (a handover that keeps the card's demo); besides
@@ -1344,7 +1344,7 @@ async function stagedCard(port: number, key: string): Promise<Item> {
   return ((await r.json()) as ProjectSnapshot).items.find((i) => i.id === id) ?? fail(`card ${key} is not on the project`);
 }
 
-/** The card's agent says or does `act`, through the server (`Workers.standIn`); returns what the agent would have read back. */
+/** The card's agent says or does `act`, through the server (`WorkerSupervisor.standIn`); returns what the agent would have read back. */
 async function standIn(port: number, key: string, act: { say: string } | { tool: string; args: Record<string, unknown> } | { end: true } | { step: unknown }): Promise<string> {
   const { base, headers, id } = cardOf(port, key);
   const r = await fetch(`${base}/cards/${id}/stand-in`, { method: 'POST', headers: { ...headers, 'content-type': 'application/json' }, body: JSON.stringify(act) }).catch(() =>

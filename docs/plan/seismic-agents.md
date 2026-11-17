@@ -45,7 +45,7 @@ and `docs/design.md`, and this doc goes.
   `llms/agents/agentJobs/` too.
 - [ ] `codeReview` and `workRetro` split into a service (board state, counters, owner decisions; the
   pure review-item functions to `core/`) and the agent sessions they start. `codeReview` imports
-  `DueRestart` from `workers.ts`, the wrong direction.
+  `DueRestart` from `workerSupervisor/workerSupervisor.ts`, the wrong direction.
 - [ ] Inline prompts (`tagProposal`'s `system()` and `brief()`, `wish`'s `brief()`) into `llms/prompts/`
   (one prompt per file).
 - [ ] `osName` in `wish.ts` duplicates the platform names of `ui/views/setup/setup.tsx`; one helper in
@@ -54,22 +54,22 @@ and `docs/design.md`, and this doc goes.
 ## The worker as a `SeismicAgent`
 
 Done: `SeismicWorker` (`agents/worker/seismicWorker.ts`) defines the worker's role, model, skills (all five)
-and permission; `launch()` in `workers.ts` starts it with `seismicWorker.start(...)`. `SeismicAgent` gained
+and permission; `launch()` in `workerSupervisor/workerSupervisor.ts` starts it with `seismicWorker.start(...)`. `SeismicAgent` gained
 `getSessionOptions()` (`at`, `dirs`, `untrusted`, `env`, `contextUpdate`, `askOwner`, `watch`) and
 `AgentRun.images`.
 
 - [x] The worker's system prompt (`agents/worker/systemPrompt.ts`), tools (`tools.ts`) and briefing (`briefing.ts`:
-  `workerBriefing` with the review, folder and prototype variants) moved out of `workers.ts`; `SeismicWorker`
-  calls them with the card's state (`WorkerContext`). They reach `Workers` through `WorkerHost` and `BriefingHost`,
+  `workerBriefing` with the review, folder and prototype variants) moved out of `workerSupervisor/workerSupervisor.ts`; `SeismicWorker`
+  calls them with the card's state (`WorkerContext`). They reach `WorkerSupervisor` through `WorkerHost` and `BriefingHost`,
   `Pick`s of the members they use, which are public now (about 40 methods plus `o`, `live`, `folder`, `shares`).
-  The constants and helpers they share with `workers.ts` (`END_TURN`, `landedOf`, `snoozedUntil`, the proposal
+  The constants and helpers they share with `workerSupervisor/workerSupervisor.ts` (`END_TURN`, `landedOf`, `snoozedUntil`, the proposal
   questions and others) are the `WorkerConfig` class (`src/server/worker-config.ts`, one default instance `workerConfig`, to be injected
-  later); `agents/worker/*` import `workers.ts` for types only.
+  later); `agents/worker/*` import `workerSupervisor/workerSupervisor.ts` for types only.
 - [x] The parts of the worker's `contextUpdate` (`agents/worker/contextUpdate.ts`: the owner's words that waited, the
   demo page's news, preferences, decisions of its plan, a restart or pause still due) are functions of the card's
-  state and `Workers` (`ContextHost`); the restart and pause notices and `DueRestart` moved to
+  state and `WorkerSupervisor` (`ContextHost`); the restart and pause notices and `DueRestart` moved to
   `agents/worker/restartNotices.ts`.
-- [ ] `WorkerHost` still lists about 40 members of `Workers` (made public for the moved code); it shrinks once the
+- [ ] `WorkerHost` still lists about 40 members of `WorkerSupervisor` (made public for the moved code); it shrinks once the
   card-state helpers they reach move into their own classes.
 - [ ] The trust flags `claudeHeld` and `codexConfig`, `onLimit` and `permissionMode`-like extras of the other
   agents go through `getSessionOptions()` as each agent moves.

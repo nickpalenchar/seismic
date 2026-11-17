@@ -2,7 +2,7 @@ import { eq, relations, sql } from 'drizzle-orm';
 import { index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import type { CardFile } from '../../../core/files';
 import type { StoredDemo, StoredShare } from '../../board';
-import type { PageHeard } from '../../workers';
+import type { PageHeard } from '../../workerSupervisor/workerSupervisor';
 import { atomic, type Db } from '../common';
 import { cards } from './cards';
 import { setPart } from './part';

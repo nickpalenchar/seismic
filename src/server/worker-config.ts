@@ -1,5 +1,5 @@
 /**
- * What the worker's tools, its briefing and `Workers` agree on: limits, the texts a tool answers
+ * What the worker's tools, its briefing and `WorkerSupervisor` agree on: limits, the texts a tool answers
  * with, and the small readers and formatters of what the worker is told. A class with one default
  * instance (`workerConfig`), so a caller that is handed one can be given another.
  */
@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { MESSAGES } from '../core/messages';
 import type { Demo, Snooze } from '../core/types';
 import { type Asked, toQuestion, withPick } from './advisor';
-import type { LandedState } from './workers';
+import type { LandedState } from './workerSupervisor/workerSupervisor';
 
 export class WorkerConfig {
   /** How many files a worker may name as its result at a handover. */

@@ -9,14 +9,14 @@ import { Store } from './store';
 import { Koordinator, overlaps } from './koordinator';
 import { move, queueOrder, reach } from '../core/queue';
 import { artifact, FakeRuntime, type FakeSession, gitRepo } from './testing';
-import { Workers } from './workers';
+import { WorkerSupervisor } from './workerSupervisor/workerSupervisor';
 import { git, HERE, parseChanges, Workstations } from './workstations';
 import { withLimitWait } from './runtime';
 
 let dir: string;
 let board: Board;
 let runtime: FakeRuntime;
-let workers: Workers;
+let workers: WorkerSupervisor;
 let workstations: Workstations;
 let k: Koordinator;
 let docs: PlanDoc[];
@@ -35,7 +35,7 @@ beforeEach(() => {
   const adapter = { ...generic, land: 'main' as const, workstations: 'worktrees' as const, softPaths: ['docs/'] };
   workstations = new Workstations(store, 'c', { mode: 'worktrees', repoPath: main, dir: join(dir, 'ws') });
   runtime = new FakeRuntime();
-  workers = new Workers({ board, runtime, workstations, adapter });
+  workers = new WorkerSupervisor({ board, runtime, workstations, adapter });
   k = new Koordinator({ board, runtime, home: () => main, repoFor: () => ({ workers, workstations, adapter, path: main }), holdMs: 0, restarting: () => restarting, suggestsMerges: () => merges });
 });
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
@@ -1112,7 +1112,7 @@ describe('Koordinator waits for a free workstation', () => {
     });
     workstations.ensureClones(main, n);
     clones = workstations.list().map((w) => w.path);
-    workers = new Workers({ board, runtime, workstations, adapter });
+    workers = new WorkerSupervisor({ board, runtime, workstations, adapter });
     k = new Koordinator({ board, runtime, home: () => main, repoFor: () => ({ workers, workstations, adapter, path: main }), holdMs: 0 });
   }
 
@@ -1240,7 +1240,7 @@ describe('Koordinator waits for a free workstation', () => {
     board = new Board(store, { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: main, branch: 'main' }] }, () => ({ docs, dirs: [] }));
     workstations = new Workstations(store, 'c', { mode: 'worktrees', repoPath: main, dir: join(dir, 'ws'), machines: [{ host: null, slots: 1 }], busy: () => workers.busyOn(null) });
     const adapter = { ...generic, land: 'main' as const, workstations: 'worktrees' as const };
-    workers = new Workers({ board, runtime, workstations, adapter });
+    workers = new WorkerSupervisor({ board, runtime, workstations, adapter });
     k = new Koordinator({ board, runtime, home: () => main, repoFor: () => ({ workers, workstations, adapter, path: main }), holdMs: 0 });
     expect(workstations.pooled).toBe(true);
     const a = card('A');
@@ -1872,7 +1872,7 @@ describe('preference memory', () => {
   test('workers get the rules, and what the owner tells them is offered for learning', async () => {
     board.addPreference('Tests immer auf Deutsch benennen.');
     const heard: string[] = [];
-    const w = new Workers({
+    const w = new WorkerSupervisor({
       board,
       runtime,
       workstations,

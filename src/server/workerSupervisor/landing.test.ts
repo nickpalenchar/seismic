@@ -1,15 +1,15 @@
 import { beforeEach, describe, expect, test } from 'bun:test';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { generic } from '../adapters/generic';
-import type { PlanDoc } from '../core/plan-doc';
-import { needsYou, stopped } from '../core/types';
-import { kindOf } from '../core/waits';
-import { artifact, identify, until } from './testing';
-import { Board } from './board';
-import { Workers } from './workers';
-import { board, dir, doc, eachTest, flush, main, manual, merged, origin, runtime, setDocs, setup, setWorkers, spaces, state, store, workers, ws } from './workers-fixture';
-import { git } from './workstations';
+import { generic } from '../../adapters/generic';
+import type { PlanDoc } from '../../core/plan-doc';
+import { needsYou, stopped } from '../../core/types';
+import { kindOf } from '../../core/waits';
+import { artifact, identify, until } from '../testing';
+import { Board } from '../board';
+import { WorkerSupervisor } from './workerSupervisor';
+import { board, dir, doc, eachTest, flush, main, manual, merged, origin, runtime, setDocs, setup, setWorkers, spaces, state, store, workers, ws } from './fixture';
+import { git } from '../workstations';
 
 /** How often the Activity log says the owner approved the card. */
 const approvals = (id: string) => board.activityRows(['c'], undefined, 100).filter((r) => r.cardId === id && r.code === 'approved').length;
@@ -133,7 +133,7 @@ describe('a card whose own branch changes how work lands', () => {
   test('the settings of this machine go first', async () => {
     rmSync(dir, { recursive: true, force: true });
     setup({ ...generic, land: 'pr', workstations: 'clones' });
-    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'pr', workstations: 'clones' }, machineSettings: () => ({ land: 'pr' }) }));
+    setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'pr', workstations: 'clones' }, machineSettings: () => ({ land: 'pr' }) }));
     const c = await settingUp({ land: 'main', checks: ['bun test'] });
     expect(board.item(c.id)!.review?.lands).toBeUndefined();
     await workers.approve(c.id);
@@ -324,7 +324,7 @@ describe('approving directly onto main where work goes out as a pull request', (
   });
 
   test('without `direct` in the settings the approval is refused; where work lands on main anyway it is a plain approval', async () => {
-    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'pr', workstations: 'clones' } }));
+    setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'pr', workstations: 'clones' } }));
     const { c, session, clone } = await handedOver();
     commitIn(clone, 'x.ts', 'X');
     await session.call('ready_for_review', { summary: 'S', demo: artifact() });
@@ -366,7 +366,7 @@ describe('the landed commit names the demo’s page', () => {
     landings = [];
     const onApproval = (id: string) => (approvals.push(id), board.item(id)!.title === 'Ohne Seite' ? null : PAGE);
     const onLanded = (id: string) => void landings.push([id, board.row(id).shipped]);
-    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter, onApproval, onLanded }));
+    setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter, onApproval, onLanded }));
   }
   /** A handed-over card whose last commit has a trailer of its own. */
   async function handedOver(title = 'Zählerstände exportieren', commit = true) {
@@ -443,7 +443,7 @@ describe('the landing message names the demo’s page', () => {
     setup(adapter);
     site = true;
     onApproval = (id) => board.work(id, { demo: { share: { slug: 's', state: 'publishing', next: [{ dir: demoDir(id) }] } } });
-    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter, shares: () => site, onApproval: (id) => (onApproval(id), null) }));
+    setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter, shares: () => site, onApproval: (id) => (onApproval(id), null) }));
   }
   async function handedOver(commit = true) {
     const c = manual();
@@ -573,7 +573,7 @@ describe('the worker hears what became of its demo’s page', () => {
   beforeEach(() => {
     rmSync(dir, { recursive: true, force: true });
     setup({ ...generic, land: 'main', workstations: 'clones' });
-    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, shares: () => true, onApproval: () => null }));
+    setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, shares: () => true, onApproval: () => null }));
   });
   async function handedOver() {
     const c = manual();
@@ -643,7 +643,7 @@ describe('the worker hears what became of its demo’s page', () => {
 
 describe('a prototype built on in a clone', () => {
   test('the idea takes over the clone and the branch, renamed; the clone is busy until it is done', async () => {
-    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' } }));
+    setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' } }));
     const idea = board.create({ idea: true, title: 'Logo', x: 0, y: 0 });
     const prototype = board.addPrototype(idea.id, 'Prototyp: Logo', 'zeigen');
     await workers.start(prototype.id);
@@ -720,7 +720,7 @@ describe('a workstream whose plan doc keeps it open after its work landed', () =
   });
 
   describe('awaiting a restart', () => {
-    const restarting = (b: Board) => new Workers({ board: b, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, restartsFor: () => 'obeya' });
+    const restarting = (b: Board) => new WorkerSupervisor({ board: b, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, restartsFor: () => 'obeya' });
     /** Lands W1 with its doc gone; its worker waits for the restart. */
     const landWaiting = async () => {
       setWorkers(restarting(board));
@@ -893,7 +893,7 @@ describe('a workstation its card will not work in again goes back to the pool', 
     await stoppedWithWork(w.id);
     // the doc was ticked off while an Seismic ran that did not free it; this one starts on the same database
     const fresh = new Board(store, { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: main, branch: 'main' }] }, () => ({ docs: [{ ...doc, workstreams: [{ ...ws('W1'), done: true }, ws('W2')] }], dirs: [] }));
-    new Workers({ board: fresh, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' } }).resumeAll();
+    new WorkerSupervisor({ board: fresh, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' } }).resumeAll();
     expect(spaces.leasedBy(w.id)).toBeNull();
     expect(fresh.item(w.id)!.state).toBe('live');
   });
@@ -966,7 +966,7 @@ describe('a workstation its card will not work in again goes back to the pool', 
   /** An Seismic started anew on the same database, which settles the leases as it starts. */
   const restart = () => {
     const fresh = new Board(store, { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: main, branch: 'main' }] }, () => ({ docs: [doc], dirs: [] }));
-    new Workers({ board: fresh, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' } }).resumeAll();
+    new WorkerSupervisor({ board: fresh, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' } }).resumeAll();
     return fresh;
   };
 

@@ -1,20 +1,20 @@
-// What the tests of the workers share (workers.test.ts and workers-*.test.ts, split so that
+// What the tests of the worker supervisor share (workerSupervisor.test.ts and the other tests of this directory, split so that
 // `bun test --parallel` runs them side by side): a checkout with a clone, a board and the workers
 // on it, set up afresh for each test. Tests read the bindings below; they replace one with its setter.
 
 import { afterEach, beforeEach } from 'bun:test';
-import type { PageTags } from '../core/types';
+import type { PageTags } from '../../core/types';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { generic } from '../adapters/generic';
-import type { RepoAdapter } from '../adapters/types';
-import type { PlanDoc } from '../core/plan-doc';
-import { Board } from './board';
-import { Store } from './store';
-import { FakeRuntime, gitRepo, identify } from './testing';
-import { Workers } from './workers';
-import { GIT, git, Workstations } from './workstations';
+import { generic } from '../../adapters/generic';
+import type { RepoAdapter } from '../../adapters/types';
+import type { PlanDoc } from '../../core/plan-doc';
+import { Board } from '../board';
+import { Store } from '../store';
+import { FakeRuntime, gitRepo, identify } from '../testing';
+import { WorkerSupervisor } from './workerSupervisor';
+import { GIT, git, Workstations } from '../workstations';
 
 export const ws = (key: string) => ({ key, label: key, title: `Title ${key}`, body: 'Body', done: false, inReview: false });
 export const doc: PlanDoc = { file: 'docs/plan/a.md', title: 'A', goal: 'Goal', workstreams: [ws('W1')], markdown: '' };
@@ -24,7 +24,7 @@ export let main: string;
 export let board: Board;
 export let docs: PlanDoc[];
 export let runtime: FakeRuntime;
-export let workers: Workers;
+export let workers: WorkerSupervisor;
 export let spaces: Workstations;
 export let store: Store;
 /** With `setup(adapter, true)`: the bare repository the clones come from and push to. */
@@ -37,7 +37,7 @@ export let language: 'en';
 /** The owner's conversation language in these tests; the fixture's interface language where none is set. */
 export let conversation: 'en' | undefined;
 
-export const setWorkers = (w: Workers) => void (workers = w);
+export const setWorkers = (w: WorkerSupervisor) => void (workers = w);
 export const setDocs = (d: PlanDoc[]) => void (docs = d);
 export const setLanguage = (l: 'en') => void (language = l);
 export const setConversation = (l: 'en') => void (conversation = l);
@@ -65,7 +65,7 @@ export function setup(adapter: RepoAdapter, withOrigin = false, share?: { tags?:
   }
   runtime = new FakeRuntime();
   merged = [];
-  workers = new Workers({
+  workers = new WorkerSupervisor({
     board,
     runtime,
     workstations,

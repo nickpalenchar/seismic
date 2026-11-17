@@ -20,7 +20,7 @@ import { imageNote } from './images';
 import type { PlanAgents } from './plan-agents';
 import type { AgentRuntime } from './runtime';
 import { TO_OBEYA, toObeyaTool } from './to-obeya';
-import { describeTool, SPOKEN } from './workers';
+import { describeTool, SPOKEN } from './workerSupervisor/workerSupervisor';
 import { clip, messageOf } from '../core/text';
 
 export interface AnswerOptions {

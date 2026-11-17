@@ -4,14 +4,14 @@ import { AGENT_DEFAULTS, type AgentSetting, type WorkConfig } from '../core/type
 import { BadRequest, Board } from './board';
 import { attribute, checkedFeedback, workConfig } from './feedback';
 import { artifact } from './testing';
-import { Workers } from './workers';
-import { board, docs, eachTest, flush, manual, runtime, setWorkers, spaces, store, workers } from './workers-fixture';
+import { WorkerSupervisor } from './workerSupervisor/workerSupervisor';
+import { board, docs, eachTest, flush, manual, runtime, setWorkers, spaces, store, workers } from './workerSupervisor/fixture';
 
 eachTest();
 const opus: AgentSetting = { model: 'opus', effort: 'high' };
 const codex: AgentSetting = { ...AGENT_DEFAULTS.worker, harness: 'codex', codex: { model: 'default', effort: 'low' } };
 function using(choice: () => AgentSetting) {
-  setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, workstations: 'clones', land: 'main' }, agentSetting: choice }));
+  setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, workstations: 'clones', land: 'main' }, agentSetting: choice }));
 }
 const handOver = () => runtime.last.call('ready_for_review', { summary: 'Done.', demo: artifact() });
 const approve = (id: string) => board.work(id, { approved_at: new Date().toISOString() });

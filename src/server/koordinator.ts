@@ -12,7 +12,7 @@ import { type CardEvent, EVICT_HOLD_MS, finished, inParkingLot, mergeRank, type 
 import { ACTIVE, BadRequest, type Board, contributionOf } from './board';
 import type { Utterance } from './store';
 import { type AgentRuntime, type AgentTool, waitQuietly } from './runtime';
-import type { Workers } from './workers';
+import type { WorkerSupervisor } from './workerSupervisor/workerSupervisor';
 import { type CardWorkstations, type Change, RECHECK_MS, shortageOf } from './workstations';
 import { LANGUAGE_NAMES } from '../core/locale';
 import { clip, messageOf } from '../core/text';
@@ -61,7 +61,7 @@ export interface Scope {
 
 /** What the Koordinator needs of the repository a card belongs to. */
 export interface RepoHands {
-  workers: Workers;
+  workers: WorkerSupervisor;
   workstations: CardWorkstations;
   adapter: RepoAdapter;
   /** Where the Koordinator reads (scopes, questions): the repository's read checkout. */
@@ -161,7 +161,7 @@ export class Koordinator {
   /**
    * The owner takes the card's clone from it for the cards waiting for one (the Workstations list):
    * after a few seconds in which `keep` takes that back, its worker stops and the clone is free
-   * (`Workers.evict`), for the card that waits longest. A card whose worker was on it waits in the
+   * (`WorkerSupervisor.evict`), for the card that waits longest. A card whose worker was on it waits in the
    * queue behind those waiting already, and goes on on its branch once a workstation is free again; a
    * card stopped before stays planned.
    */
@@ -172,7 +172,7 @@ export class Koordinator {
       this.evictions.delete(cardId);
       const now = this.o.board.item(cardId);
       if (!now) return this.o.board.changed();
-      let workers: Workers;
+      let workers: WorkerSupervisor;
       try {
         workers = this.o.repoFor(now).workers;
         if (!workers.evictable(cardId)) return this.o.board.changed();

@@ -64,7 +64,7 @@ try {
   showRepo = true;
   assert.deepEqual(await (await asOwner(() => server).fetch(url)).json(), { settings: { example: 'route value' } });
 } finally { server.stop(true); }
-const fixture = await import('../../server/workers-fixture');
+const fixture = await import('../../server/workerSupervisor/fixture');
 const { git } = await import('../../server/workstations');
 fixture.setup({ ...generic, land: 'main', workstations: 'clones', ...{ example: 'worker value' } });
 try {

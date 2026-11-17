@@ -32,7 +32,7 @@ not the initial integration. Other roles remain Claude. Pi is a later phase; do 
 6. **Partial completion:** any ended background task wakes inspection even while a server remains.
 7. **Polling:** unchanged background polls no longer emit idle repeatedly and reset worker timeout.
 8. **Obsolete permissions:** request resolution/turn completion abort and settle callbacks;
-   `src/server/workers.ts` withdraws obsolete questions while session close preserves restartable
+   `src/server/workerSupervisor/workerSupervisor.ts` withdraws obsolete questions while session close preserves restartable
    questions. A subsequent queued permission can proceed.
 9. **Legacy skills:** `src/server/project.ts` respects an existing unqualified Claude session before
    consulting today's Codex default when choosing the skill menu.
@@ -89,9 +89,9 @@ The broad set was these 19 files:
 
 - `src/server/llms/harnesses/processes.test.ts`, `src/server/llms/harnesses/identity.test.ts`
 - `src/server/llms/harnesses/codexRpc.test.ts`, `src/server/llms/harnesses/codex.test.ts`
-- `src/server/llms/harnesses/index.test.ts`, `src/server/workers-harness.test.ts`
+- `src/server/llms/harnesses/index.test.ts`, `src/server/workerSupervisor/harness.test.ts`
 - `src/server/runtime.test.ts`, `src/server/settings.test.ts`, `src/server/llms/agents/agentJobs/workRetro.test.ts`
-- `src/server/workers.test.ts`, `src/server/project.test.ts`, `src/server/db.test.ts`
+- `src/server/workerSupervisor/workerSupervisor.test.ts`, `src/server/project.test.ts`, `src/server/db.test.ts`
 - `src/server/server.test.ts`, `src/server/commands.test.ts`, `src/server/answers.test.ts`
 - `src/ui/message.test.ts`, `src/ui/usage.test.ts`, `src/ui/barFit.test.ts`
 - `plugin/skills/browser/lib/browser.test.ts`
@@ -104,7 +104,7 @@ in this task. Earlier full-suite runs also hit timeouts under heavy concurrency.
 ### Additional verified checks
 
 - Permanent permission/background regressions in `src/server/llms/harnesses/codex.test.ts`.
-- Real Workers obsolete-permission serialization regression in `src/server/workers.test.ts`.
+- Real Workers obsolete-permission serialization regression in `src/server/workerSupervisor/workerSupervisor.test.ts`.
 - Legacy session skill ownership regression in `src/server/project.test.ts`.
 - New process tests: separately grouped child's heartbeat stops after app-server death, unrelated
   PID survives; awaited shutdown terminates an EOF/TERM-ignoring fake app-server.

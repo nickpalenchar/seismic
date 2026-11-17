@@ -17,7 +17,7 @@ export const SEAM_FILES = [
   'src/server/config.ts',
   'src/server/runtime.ts',
   'src/server/server.ts',
-  'src/server/workers.ts',
+  'src/server/workerSupervisor/workerSupervisor.ts',
   'src/ui/App.tsx',
   'src/ui/config.tsx',
   'src/ui/detail.tsx',

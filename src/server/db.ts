@@ -267,7 +267,7 @@ export const MIGRATIONS = [
   // a repository to create for a card before work begins, and that Seismic made it (JSON `StoredNewRepo` in board.ts);
   // an exchange of no one's in the sheet that says a card moved to another canvas (JSON `TalkMoved`)
   'ALTER TABLE cards ADD COLUMN new_repo TEXT; ALTER TABLE talk ADD COLUMN moved TEXT;',
-  // what a card's worker last heard of its demo's page (JSON `PageHeard` in workers.ts)
+  // what a card's worker last heard of its demo's page (JSON `PageHeard` in workerSupervisor/workerSupervisor.ts)
   'ALTER TABLE cards ADD COLUMN page_heard TEXT;',
   // Seismic's reply on a card to what its agent passed on from the owner's words (`to_seismic`)
   'ALTER TABLE events ADD COLUMN forwarded INTEGER;',

@@ -12,7 +12,7 @@ import type { PrWait } from '../core/types';
 
 /** How long reading a PR fails before its card says so. */
 const READ_ERROR_AFTER_MS = 10 * 60_000;
-import type { Workers } from './workers';
+import type { WorkerSupervisor } from './workerSupervisor/workerSupervisor';
 import { messageOf } from '../core/text';
 
 const watched = (state: string | undefined) => state === 'inPr' || state === 'waiting';
@@ -27,7 +27,7 @@ export class PrWatcher {
 
   constructor(
     private board: Board,
-    private workers: Workers,
+    private workers: WorkerSupervisor,
     private forge: Forge,
     /** Where the forge's calls run for a card (its workstation, else the Seismic checkout). */
     private cwd: (cardId: string) => string,

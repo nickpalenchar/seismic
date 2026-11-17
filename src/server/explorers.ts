@@ -13,7 +13,7 @@ import { BadRequest, type Board, holdNow, type Message, replyNote, type Unread }
 import { type AgentEvent, type AgentRuntime, type AgentSession, type AgentTool } from './runtime';
 import { BackgroundWait } from './llms/harnesses/claude';
 import { imageNote } from './images';
-import { describeTool, SPOKEN } from './workers';
+import { describeTool, SPOKEN } from './workerSupervisor/workerSupervisor';
 import { TO_OBEYA, toObeyaTool } from './to-obeya';
 import { clip } from '../core/text';
 import { folderPath } from './new-repo';

@@ -11,7 +11,7 @@ import { Store } from './store';
 import { ghCli, makeGhForge, type Forge, type PrStatus } from './forge';
 import { PrWatcher } from './pr-watcher';
 import { artifact, FakeRuntime, fakeGh, gitRepo, noContributions, until } from './testing';
-import { Workers } from './workers';
+import { WorkerSupervisor } from './workerSupervisor/workerSupervisor';
 import { git, Workstations } from './workstations';
 
 let dir: string;
@@ -19,7 +19,7 @@ let main: string;
 let workstations: Workstations;
 let board: Board;
 let runtime: FakeRuntime;
-let workers: Workers;
+let workers: WorkerSupervisor;
 let status: PrStatus;
 let watcher: PrWatcher;
 /** Merges the watcher made, by commit; a reason in `refuse` makes GitHub refuse them. */
@@ -47,7 +47,7 @@ beforeEach(() => {
   runtime = new FakeRuntime();
   opened = [];
   settings = { ...generic, land: 'pr', workstations: 'clones', prNoise: ['deploy-bot'] };
-  workers = new Workers({ board, runtime, workstations, adapter: settings, onPrOpened: (id) => opened.push(id) });
+  workers = new WorkerSupervisor({ board, runtime, workstations, adapter: settings, onPrOpened: (id) => opened.push(id) });
   status = { state: 'OPEN', mergeable: 'MERGEABLE', mergeState: 'CLEAN', head: 'aaa', author: 'owner', checks: [], comments: [] };
   merges = [];
   refuse = undefined;
@@ -696,7 +696,7 @@ describe('pull requests in several repositories', () => {
   let statuses: Record<string, PrStatus>;
 
   beforeEach(() => {
-    workers = new Workers({ board, runtime, workstations, adapter: settings, remote: 'git@github.com:acme/app.git' });
+    workers = new WorkerSupervisor({ board, runtime, workstations, adapter: settings, remote: 'git@github.com:acme/app.git' });
     const open = (): PrStatus => ({ state: 'OPEN', mergeable: 'MERGEABLE', mergeState: 'CLEAN', head: 'aaa', author: 'owner', checks: [{ name: 'CI', state: 'pending' }], comments: [] });
     statuses = { [URL_]: open(), [OTHER]: { ...open(), head: 'ddd' } };
     const forge: Forge = {

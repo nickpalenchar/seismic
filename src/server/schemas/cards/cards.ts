@@ -4,7 +4,7 @@ import type { AgentSetting, CardKind, CardState, Hold, Need, Queue } from '../..
 import { atomic, changes, type Db, now, SHORT } from '../common';
 import type { Shipped, StoredThread } from '../../board';
 import type { Scope } from '../../koordinator';
-import type { LandedState, Unheard } from '../../workers';
+import type { LandedState, Unheard } from '../../workerSupervisor/workerSupervisor';
 import { groups } from '../groups';
 import { projects } from '../projects';
 import { asDemo, type CardDemo, cardDemos, cardEarlierDemos, type DemoUpdate } from './demos';

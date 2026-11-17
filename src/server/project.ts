@@ -54,7 +54,7 @@ import { isSitePath, siteMissing, siteName, sitePaths } from './site';
 import { demoSite, findSite } from './demo-sites';
 import { dimensions } from '../core/page-tags';
 import type { DueRestart } from './llms/agents/worker/restartNotices';
-import { Workers } from './workers';
+import { WorkerSupervisor } from './workerSupervisor/workerSupervisor';
 import { branchSetting, type CardWorkstations, defaultBranchAsync, type FileAt, type FileVersions, detectingBranch, gitCalls, gitOrNull, type GitSteps, gitSteps, gitStepsSync, isFolder, type Landed, markFolder, readingBranches, together, useBranchSetting, workingChanges, Workstations } from './workstations';
 import { FolderWorkstations } from './folder';
 import { readingTheme, readTheme, type Theme } from './theme';
@@ -159,7 +159,7 @@ export interface RepoRuntime {
   /** Its read checkout: the default branch, where plan docs are read and the agents that only read work. */
   read: ReadTree;
   workstations: CardWorkstations;
-  workers: Workers;
+  workers: WorkerSupervisor;
   planAgents: PlanAgents;
 }
 
@@ -855,7 +855,7 @@ export class ProjectRuntime {
     stops.push(() => read.stop());
     const remoteHosts = !folder && info.remote && adapter.workstations === 'clones' && adapter.land !== 'main' ? (rc.hosts ?? []) : [];
     // the workers set up below say how many are busy where
-    let workers!: Workers;
+    let workers!: WorkerSupervisor;
     let workstations: CardWorkstations;
     if (folder)
       // every card works in the folder itself; what each changed, and its undo, under Seismic's home
@@ -923,7 +923,7 @@ export class ProjectRuntime {
       }
     }
     const planAgents = new PlanAgents(board, deps.runtime, () => read.path, this.preferences);
-    workers = new Workers({
+    workers = new WorkerSupervisor({
       board,
       runtime: deps.workerRuntime ?? deps.runtime,
       agentSetting: () => this.agentFor('worker'),
@@ -1571,7 +1571,7 @@ export class ProjectRuntime {
     return !!item && this.repos.some((r) => r.ref.id === item.repo);
   }
 
-  /** What the card's work changes (`Workers.diff`), for an archived card too. */
+  /** What the card's work changes (`WorkerSupervisor.diff`), for an archived card too. */
   diff(cardId: string, full: boolean): Promise<CardDiff | null> {
     return this.repoOf(this.board.card(cardId) ?? cardId).workers.diff(cardId, full);
   }
@@ -1596,12 +1596,12 @@ export class ProjectRuntime {
     return this.skills.of({ cwd, plugins: idea ? [] : [SEISMIC_PLUGIN], untrusted: (!idea && !!card.review?.contribution) || (await this.claudeHeld(cwd)) });
   }
 
-  /** Whether the app in the card's workstation answers, for the owner to try it by hand (`Workers.appUp`). */
+  /** Whether the app in the card's workstation answers, for the owner to try it by hand (`WorkerSupervisor.appUp`). */
   async appUp(cardId: string): Promise<{ up: boolean }> {
     return { up: await this.repoOf(cardId).workers.appUp(cardId) };
   }
 
-  /** The address of the card's app as the owner opens it, which keeps it running a while (`Workers.openApp`); none once it no longer runs. */
+  /** The address of the card's app as the owner opens it, which keeps it running a while (`WorkerSupervisor.openApp`); none once it no longer runs. */
   openApp(cardId: string): Promise<string | null> {
     return this.repoOf(cardId).workers.openApp(cardId);
   }
@@ -1762,8 +1762,8 @@ export class ProjectRuntime {
   }
 
   /** The owner clicks in the card's panel: a click without words the learner reads counts towards the retrospective. */
-  /** A script acts as the card's agent, in a scratch Seismic whose workers are idle (`Workers.standIn`). */
-  standIn(cardId: string, act: Parameters<Workers['standIn']>[1]) {
+  /** A script acts as the card's agent, in a scratch Seismic whose workers are idle (`WorkerSupervisor.standIn`). */
+  standIn(cardId: string, act: Parameters<WorkerSupervisor['standIn']>[1]) {
     if (!this.deps.idleWorkers) throw new BadRequest('invalid', 'only an Seismic with idle workers (--idle-workers) lets a script stand in for an agent');
     return this.repoOf(cardId).workers.standIn(cardId, act);
   }
@@ -2008,12 +2008,12 @@ export class ProjectRuntime {
     if (!(await openWithSystem(path, path !== dir))) throw new BadRequest('invalid', 'the system has no app to open it with');
   }
 
-  /** A file of the card's work as its left column shows it (`Workers.file`); `local`: on disk, to open it. */
+  /** A file of the card's work as its left column shows it (`WorkerSupervisor.file`); `local`: on disk, to open it. */
   cardFile(cardId: string, path: string, local = false): Promise<FileAt | null> {
     return this.repoOf(this.board.card(cardId) ?? cardId).workers.file(cardId, path, local);
   }
 
-  /** One file of the card's change before and after (`Workers.fileVersions`). */
+  /** One file of the card's change before and after (`WorkerSupervisor.fileVersions`). */
   cardFileVersions(cardId: string, path: string): Promise<FileVersions | null> {
     return this.repoOf(this.board.card(cardId) ?? cardId).workers.fileVersions(cardId, path);
   }

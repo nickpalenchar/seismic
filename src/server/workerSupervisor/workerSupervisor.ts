@@ -1,55 +1,55 @@
-import { normalize, overlaps } from '../core/path-overlap';
-import { workerConfig } from './worker-config';
-import type { LandingNotice } from './workstations';
-import { LimitAttempts, limitWatch } from './limit-watch';
-// Workers: one agent session per card, in a leased clone. Seismic is the mailbox between the
+import { normalize, overlaps } from '../../core/path-overlap';
+import { workerConfig } from '../worker-config';
+import type { LandingNotice } from '../workstations';
+import { LimitAttempts, limitWatch } from '../limit-watch';
+// WorkerSupervisor: one agent session per card, in a leased clone. Seismic is the mailbox between the
 // worker and the owner; every exchange lands in the card's conversation.
 
-import { extensionSettings, type PermissionContext, type PermissionOption, serverExtensions as extensions } from '../extensions/server';
+import { extensionSettings, type PermissionContext, type PermissionOption, serverExtensions as extensions } from '../../extensions/server';
 import type { PermissionUpdate } from '@anthropic-ai/claude-agent-sdk';
 import { z } from 'zod';
-import type { RepoAdapter } from '../adapters/types';
-import type { CardDiff } from '../core/diff';
-import { type Language, LANGUAGES } from '../core/locale';
-import { MESSAGES, type Messages } from '../core/messages';
+import type { RepoAdapter } from '../../adapters/types';
+import type { CardDiff } from '../../core/diff';
+import { type Language, LANGUAGES } from '../../core/locale';
+import { MESSAGES, type Messages } from '../../core/messages';
 import { existsSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, isAbsolute } from 'node:path';
-import { type CardFile, docImages, fileKind, isImage, normalPath, shownFiles } from '../core/files';
-import { DEFAULT_DEMO_DIRECTORY, expandHome } from '../../plugin/skills/demo/lib/settings.ts';
-import { HANDOVER_ARTIFACTS, type HandoverArtifact } from '../../plugin/skills/demo/lib/artifacts.ts';
-import { mmss } from '../../plugin/skills/demo/lib/timeline.ts';
-import { AGENT_DEFAULTS, harnessChoice, type AgentSetting, answering, askable, type Awaited, type BackgroundTask, AGENT_HOLDS, halted, type Hold, isPaused, isPausing, pausable, pausableNow, snoozeOf, type WorkerTurn, type CardLanding, finished, formatQuestion, handedOver, type Item, ownWords, pickedAnswer, type Question, type RepoRef, type RepoSettings, type Share, type Snooze, type Spot, type Superseded, type SpotInput, started, stoppedAtOf } from '../core/types';
-import { ACTIVE, BadRequest, type Board, holdNow, replyNote, type Retracted, type StoredDemo, titleKey } from './board';
-import { DEMO_SKILL, DEMO_SKILL_FILE, demoSkillName, SEISMIC_PLUGIN, placeIn } from './demo';
-import { imageNote } from './images';
-import { outsidePlanDir } from './repo';
-import type { InputContext } from './koordinator';
-import { type AgentEvent, type AgentRuntime, type AgentSession, type AgentTool, LIMIT_LIFTED, type PermissionAnswer, type PermissionRequest } from './runtime';
-import { BACKGROUND_GRACE, BACKGROUND_LIMIT, failureReason } from './llms/harnesses/claude';
-import { execTools } from './llms/harnesses/codexExecTools';
-import { type Forward, HOST_DIR, hostName, remote } from './hosts';
-import { runAppCommand } from './app-command';
-import { readingShared } from '../adapters';
-import { branchName, type CardWorkstations, type FileAt, type FileVersions, gitSteps, ownFile, type Landed, type Lease, type PullStopped, shortageOf, together, WorkstationError, type Workstations } from './workstations';
-import type { FolderWorkstations, UndoReport } from './folder';
-import { contributionOf, type PrState, type Shipped, type StoredContribution } from './board';
-import { type Doing, onTool, onToolDone, shownDoing, THINKING_AFTER } from './doing';
-import { type ChangeRoute, type Clash, needsOwner, type FindingPick, type CodeReviewSetting, type Finding, type FindingStatus, type HeldChanges, type PageTags, PUSH_HOLD_MS, SEVERITIES, type Severity } from '../core/types';
-import { CAPTURED_CHANGES, gitAsync, gitOrNull, writeToGitDir } from './workstations';
-import { defaultBranchCommit } from './read-tree';
-import type { CardRow } from './schemas/cards/cards';
-import { workConfig } from './feedback';
-import { type DataSignal, isSchemaPage, SIGNALS_NAMED } from './data-models';
-import { type Forge, parsePrUrl, sameRepo } from './forge';
-import { clip, messageOf } from '../core/text';
-import { holdsNotes } from '../core/queue';
-import { CodeReviews } from './llms/skills/codeReview';
-import { seismicWorker } from './llms/agents/worker/seismicWorker';
-import { restartStillDue, workerContextUpdate } from './llms/agents/worker/contextUpdate';
-import { type DueRestart, pauseOf, restartNotice, restartWaits } from './llms/agents/worker/restartNotices';
-import { workerBriefing } from './llms/agents/worker/briefing';
-import { workerTools } from './llms/agents/worker/tools';
+import { type CardFile, docImages, fileKind, isImage, normalPath, shownFiles } from '../../core/files';
+import { DEFAULT_DEMO_DIRECTORY, expandHome } from '../../../plugin/skills/demo/lib/settings.ts';
+import { HANDOVER_ARTIFACTS, type HandoverArtifact } from '../../../plugin/skills/demo/lib/artifacts.ts';
+import { mmss } from '../../../plugin/skills/demo/lib/timeline.ts';
+import { AGENT_DEFAULTS, harnessChoice, type AgentSetting, answering, askable, type Awaited, type BackgroundTask, AGENT_HOLDS, halted, type Hold, isPaused, isPausing, pausable, pausableNow, snoozeOf, type WorkerTurn, type CardLanding, finished, formatQuestion, handedOver, type Item, ownWords, pickedAnswer, type Question, type RepoRef, type RepoSettings, type Share, type Snooze, type Spot, type Superseded, type SpotInput, started, stoppedAtOf } from '../../core/types';
+import { ACTIVE, BadRequest, type Board, holdNow, replyNote, type Retracted, type StoredDemo, titleKey } from '../board';
+import { DEMO_SKILL, DEMO_SKILL_FILE, demoSkillName, SEISMIC_PLUGIN, placeIn } from '../demo';
+import { imageNote } from '../images';
+import { outsidePlanDir } from '../repo';
+import type { InputContext } from '../koordinator';
+import { type AgentEvent, type AgentRuntime, type AgentSession, type AgentTool, LIMIT_LIFTED, type PermissionAnswer, type PermissionRequest } from '../runtime';
+import { BACKGROUND_GRACE, BACKGROUND_LIMIT, failureReason } from '../llms/harnesses/claude';
+import { execTools } from '../llms/harnesses/codexExecTools';
+import { type Forward, HOST_DIR, hostName, remote } from '../hosts';
+import { runAppCommand } from '../app-command';
+import { readingShared } from '../../adapters';
+import { branchName, type CardWorkstations, type FileAt, type FileVersions, gitSteps, ownFile, type Landed, type Lease, type PullStopped, shortageOf, together, WorkstationError, type Workstations } from '../workstations';
+import type { FolderWorkstations, UndoReport } from '../folder';
+import { contributionOf, type PrState, type Shipped, type StoredContribution } from '../board';
+import { type Doing, onTool, onToolDone, shownDoing, THINKING_AFTER } from '../doing';
+import { type ChangeRoute, type Clash, needsOwner, type FindingPick, type CodeReviewSetting, type Finding, type FindingStatus, type HeldChanges, type PageTags, PUSH_HOLD_MS, SEVERITIES, type Severity } from '../../core/types';
+import { CAPTURED_CHANGES, gitAsync, gitOrNull, writeToGitDir } from '../workstations';
+import { defaultBranchCommit } from '../read-tree';
+import type { CardRow } from '../schemas/cards/cards';
+import { workConfig } from '../feedback';
+import { type DataSignal, isSchemaPage, SIGNALS_NAMED } from '../data-models';
+import { type Forge, parsePrUrl, sameRepo } from '../forge';
+import { clip, messageOf } from '../../core/text';
+import { holdsNotes } from '../../core/queue';
+import { CodeReviews } from '../llms/skills/codeReview';
+import { seismicWorker } from '../llms/agents/worker/seismicWorker';
+import { restartStillDue, workerContextUpdate } from '../llms/agents/worker/contextUpdate';
+import { type DueRestart, pauseOf, restartNotice, restartWaits } from '../llms/agents/worker/restartNotices';
+import { workerBriefing } from '../llms/agents/worker/briefing';
+import { workerTools } from '../llms/agents/worker/tools';
 
 export interface WorkerOptions {
   board: Board;
@@ -566,7 +566,7 @@ const IN_WORKTREE =
 /** How long taking a card's workstation waits for its ended session to finish its step before git keeps its work. */
 const EVICT_SESSION_WAIT = 30_000;
 
-export class Workers {
+export class WorkerSupervisor {
   live = new Map<string, Live>();
   private limitAttempts = new Map<string, LimitAttempts>();
   /** Turns a script plays for cards without a session in a scratch Seismic (`standIn` steps), shown as their workers'. */

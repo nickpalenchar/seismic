@@ -289,7 +289,7 @@ function sandboxed(file: FileAt, name: string, req: Request, page: boolean, down
 const attachment = (name: string) => `attachment; filename*=UTF-8''${encodeURIComponent(name)}`;
 
 /**
- * A file a card's work made or changed (`Workers.file`), as its left column loads it: sandboxed as an
+ * A file a card's work made or changed (`WorkerSupervisor.file`), as its left column loads it: sandboxed as an
  * HTML artifact's files are, a page telling its frame its height. A PDF comes as a PDF for the
  * browser's viewer, which shows none in a sandboxed frame or under a CSP sandbox: without the
  * sandbox, with a policy that allows it nothing beyond, and `nosniff`, which keeps a file named

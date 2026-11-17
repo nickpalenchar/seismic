@@ -10,8 +10,8 @@ import { ProjectRuntime } from '../../server/project';
 import { Store } from '../../server/store';
 import { FakeRuntime, gitRepo, noForge, until } from '../../server/testing';
 import { commandsOf } from '../../server/trust';
-import { Workers } from '../../server/workers';
-import { board, eachTest, flush, manual, runtime, setWorkers, spaces, workers } from '../../server/workers-fixture';
+import { WorkerSupervisor } from '../../server/workerSupervisor/workerSupervisor';
+import { board, eachTest, flush, manual, runtime, setWorkers, spaces, workers } from '../../server/workerSupervisor/fixture';
 import { git } from '../../server/workstations';
 import { alwaysRules } from './server';
 
@@ -27,7 +27,7 @@ describe('a permission question', () => {
       added.push(cwd);
       return { committed: 'abc', branch: 'main' } as T;
     };
-    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, asOwner }));
+    setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, asOwner }));
     const c = manual();
     await workers.start(c.id);
     const suggestions = [{ type: 'addRules', behavior: 'allow', destination: 'localSettings', rules: [{ toolName: 'Bash', ruleContent: 'bun run:*' }] }];
@@ -51,7 +51,7 @@ describe('a permission question', () => {
     expect(board.events(c.id).at(-1)!.text).toBe('Allowed once; bun run * could not be added to the allow list: .claude/settings.json has changes of its own');
     await workers.stop(c.id);
 
-    setWorkers(new Workers({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'pr', workstations: 'clones' }, asOwner }));
+    setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'pr', workstations: 'clones' }, asOwner }));
     const pr = manual();
     await workers.start(pr.id);
     void runtime.last.spec.askOwner!({ name: 'Bash', input: { command: 'bun run lint' }, suggestions }, new AbortController().signal);

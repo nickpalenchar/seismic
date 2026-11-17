@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'bun:test';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { BadRequest } from './board';
-import { identify } from './testing';
-import { board, eachTest, main, manual, runtime, spaces, state, workers } from './workers-fixture';
-import { git } from './workstations';
+import { BadRequest } from '../board';
+import { identify } from '../testing';
+import { board, eachTest, main, manual, runtime, spaces, state, workers } from './fixture';
+import { git } from '../workstations';
 
 eachTest();
 

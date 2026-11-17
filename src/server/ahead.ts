@@ -13,7 +13,7 @@ import { BadRequest, type Board, holdNow, replyNote } from './board';
 import { imageNote } from './images';
 import type { AgentRuntime } from './runtime';
 import { TO_OBEYA, toObeyaTool } from './to-obeya';
-import { describeTool, SPOKEN } from './workers';
+import { describeTool, SPOKEN } from './workerSupervisor/workerSupervisor';
 
 export interface AheadOptions {
   board: Board;

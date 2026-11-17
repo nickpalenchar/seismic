@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { artifact } from './testing';
-import { board, eachTest, flush, manual, runtime, store, workers } from './workers-fixture';
+import { board, eachTest, flush, manual, runtime, store, workers } from './workerSupervisor/fixture';
 import { git } from './workstations';
 
 eachTest();
