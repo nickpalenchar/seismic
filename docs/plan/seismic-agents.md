@@ -65,8 +65,12 @@ and permission; `launch()` in `workers.ts` starts it with `seismicWorker.start(.
   The constants and helpers they share with `workers.ts` (`END_TURN`, `landedOf`, `snoozedUntil`, the proposal
   questions and others) are the `WorkerConfig` class (`src/server/worker-config.ts`, one default instance `workerConfig`, to be injected
   later); `agents/worker/*` import `workers.ts` for types only.
-- [ ] Still in `workers.ts`: the parts of `contextUpdate` (`restartStillDue`, `pageNewsNow`, `unheardNow` and the
-  like), and `WorkerHost` can shrink once the card-state helpers they reach move into their own module.
+- [x] The parts of the worker's `contextUpdate` (`agents/worker/contextUpdate.ts`: the owner's words that waited, the
+  demo page's news, preferences, decisions of its plan, a restart or pause still due) are functions of the card's
+  state and `Workers` (`ContextHost`); the restart and pause notices and `DueRestart` moved to
+  `agents/worker/restartNotices.ts`.
+- [ ] `WorkerHost` still lists about 40 members of `Workers` (made public for the moved code); it shrinks once the
+  card-state helpers they reach move into their own classes.
 - [ ] The trust flags `claudeHeld` and `codexConfig`, `onLimit` and `permissionMode`-like extras of the other
   agents go through `getSessionOptions()` as each agent moves.
 - [ ] The same for the other agents (`review`, `koordinator`, `explorer`, `chores`) after the worker.

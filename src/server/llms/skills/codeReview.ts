@@ -17,7 +17,7 @@ import type { CardWorkstations } from '../../workstations';
 import { harnessChoice, type AgentSetting, type AgentIdentity, type ChangeRoute, type CodeReviewMode, needsOwner, type ReviewItem, type ReviewItemStatus, type ReviewItemWho, type Severity, SEVERITIES } from '../../../core/types';
 import { LANGUAGE_NAMES } from '../../../core/locale';
 import { clip, messageOf } from '../../../core/text';
-import type { DueRestart } from '../../workers';
+import type { DueRestart } from '../agents/worker/restartNotices';
 import { restartNotice } from '../prompts/restartNotice';
 import { reviewResumed } from '../prompts/reviewResumed';
 import { reviewSystem } from '../prompts/reviewSystem';

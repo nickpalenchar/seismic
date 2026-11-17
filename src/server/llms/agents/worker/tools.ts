@@ -3,6 +3,7 @@
  * and the rest), as the card's state allows them. They act on the card through the `Workers` that
  * runs it (`WorkerHost`).
  */
+import { unheardNow } from './contextUpdate';
 import { workerConfig } from '../../../worker-config';
 import { z } from 'zod';
 import { LANGUAGE_NAMES } from '../../../../core/locale';
@@ -25,7 +26,7 @@ import { clip } from '../../../../core/text';
 import type { LandedState, Live, OwnCommits, Workers } from '../../../workers';
 
 /** What the worker's tools and prompt need of the `Workers` that runs the card. */
-export type WorkerHost = Pick<Workers, 'artifacts' | 'cardTitled' | 'close' | 'dataModels' | 'demoHere' | 'demoLanguage' | 'demoSkill' | 'disputeItems' | 'earlier' | 'execLane' | 'folder' | 'followUpTask' | 'heldAt' | 'inWorktree' | 'landResolved' | 'landingOf' | 'live' | 'namedFiles' | 'o' | 'otherBoards' | 'owedTasks' | 'ownCommits' | 'probeClash' | 'proposalBoards' | 'proposalRepo' | 'report' | 'requestChanges' | 'resubmitItems' | 'retract' | 'reviewModeOf' | 'reviews' | 'setFindings' | 'shares' | 'showsFiles' | 'toOwner' | 'unheardNow'>;
+export type WorkerHost = Pick<Workers, 'restart' | 'pageNews' | 'takeUnheard' | 'live' | 'artifacts' | 'cardTitled' | 'close' | 'dataModels' | 'demoHere' | 'demoLanguage' | 'demoSkill' | 'disputeItems' | 'earlier' | 'execLane' | 'folder' | 'followUpTask' | 'heldAt' | 'inWorktree' | 'landResolved' | 'landingOf' | 'live' | 'namedFiles' | 'o' | 'otherBoards' | 'owedTasks' | 'ownCommits' | 'probeClash' | 'proposalBoards' | 'proposalRepo' | 'report' | 'requestChanges' | 'resubmitItems' | 'retract' | 'reviewModeOf' | 'reviews' | 'setFindings' | 'shares' | 'showsFiles' | 'toOwner'>;
 
 export function workerTools(self: WorkerHost, cardId: string, live: Live, prototype: boolean): AgentTool[] {
   // the system prompt says which language that is (`ownersLanguage`)
@@ -58,7 +59,7 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
    * call meanwhile, `change` what follows if their words change it.
    */
   const ending = (plain: string, stands: string, change?: string): string => {
-    const words = self.unheardNow(cardId, live);
+    const words = unheardNow(self, cardId, live);
     if (!words) return plain;
     return `${stands} The owner wrote to you while you worked, and their words reach you only now, with this result: take them in as at any other step. Answer them with reply where they call for an answer, and do what they ask${change ? `; ${change}` : ''}. Then end your turn.\n\n${words}`;
   };

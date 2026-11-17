@@ -11,7 +11,7 @@ import { z } from 'zod';
 import type { RepoAdapter } from '../adapters/types';
 import type { CardDiff } from '../core/diff';
 import { type Language, LANGUAGES } from '../core/locale';
-import { MESSAGES, type Messages, type Pause } from '../core/messages';
+import { MESSAGES, type Messages } from '../core/messages';
 import { existsSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, isAbsolute } from 'node:path';
@@ -19,9 +19,8 @@ import { type CardFile, docImages, fileKind, isImage, normalPath, shownFiles } f
 import { DEFAULT_DEMO_DIRECTORY, expandHome } from '../../plugin/skills/demo/lib/settings.ts';
 import { HANDOVER_ARTIFACTS, type HandoverArtifact } from '../../plugin/skills/demo/lib/artifacts.ts';
 import { mmss } from '../../plugin/skills/demo/lib/timeline.ts';
-import { AGENT_DEFAULTS, harnessChoice, type AgentSetting, answering, askable, type Awaited, type BackgroundTask, AGENT_HOLDS, halted, type Hold, isPaused, isPausing, pausable, pausableNow, snoozeOf, type WorkerTurn, type CardLanding, finished, formatQuestion, handedOver, type Item, ownWords, pickedAnswer, type Question, type RepoRef, type RepoSettings, type RestartReason, type Share, type Snooze, type Spot, type Superseded, type SpotInput, started, stoppedAtOf } from '../core/types';
+import { AGENT_DEFAULTS, harnessChoice, type AgentSetting, answering, askable, type Awaited, type BackgroundTask, AGENT_HOLDS, halted, type Hold, isPaused, isPausing, pausable, pausableNow, snoozeOf, type WorkerTurn, type CardLanding, finished, formatQuestion, handedOver, type Item, ownWords, pickedAnswer, type Question, type RepoRef, type RepoSettings, type Share, type Snooze, type Spot, type Superseded, type SpotInput, started, stoppedAtOf } from '../core/types';
 import { ACTIVE, BadRequest, type Board, holdNow, replyNote, type Retracted, type StoredDemo, titleKey } from './board';
-import { decisionLog } from './advisor';
 import { DEMO_SKILL, DEMO_SKILL_FILE, demoSkillName, SEISMIC_PLUGIN, placeIn } from './demo';
 import { imageNote } from './images';
 import { outsidePlanDir } from './repo';
@@ -47,6 +46,8 @@ import { clip, messageOf } from '../core/text';
 import { holdsNotes } from '../core/queue';
 import { CodeReviews } from './llms/skills/codeReview';
 import { seismicWorker } from './llms/agents/worker/seismicWorker';
+import { restartStillDue, workerContextUpdate } from './llms/agents/worker/contextUpdate';
+import { type DueRestart, pauseOf, restartNotice, restartWaits } from './llms/agents/worker/restartNotices';
 import { workerBriefing } from './llms/agents/worker/briefing';
 import { workerTools } from './llms/agents/worker/tools';
 
@@ -431,16 +432,7 @@ interface AskedPermission {
   extra?: { extension: number; label: Record<Language, string>; data?: unknown }[];
 }
 
-/** A restart that waits for workers to finish their turns: why, and when it goes ahead at the latest. */
-export interface DueRestart {
-  reason: RestartReason;
-  deadline: number;
-  /** Only the agents of these workers' repository restart, for a change to its configuration; Seismic runs on. */
-  repo?: boolean;
-}
 
-/** What the worker pauses for, as the card's log says it. */
-const pauseOf = (due: DueRestart): Pause => (due.reason === 'stop' ? 'stop' : due.repo ? 'repo' : 'restart');
 
 /** The owner may pause the demo video for a while; a browser gone away leaves no other sign. */
 const HOLD_GRACE = 10 * 60_000;
@@ -491,61 +483,13 @@ const RESTARTED =
 const REPO_RESTARTED =
   "Seismic restarted this repository's agents to apply a change to its configuration. Whatever you had running then was stopped with it: background commands, servers you started, and a command still running in your turn (its result shows exit code 137). Run again what you still need. If you had paused for the restart, go on from there.";
 
-const DUE_WHY: Record<RestartReason, string> = {
-  code: 'restart (new code landed on main)',
-  config: 'restart (the owner saved a new configuration)',
-  repository: "restart (a repository's settings changed on its default branch)",
-  owner: 'restart (the owner restarts it)',
-  rebuild: 'restart (the owner rebuilds it: its dependencies are installed again)',
-  stop: 'stop (the owner is shutting it down)',
-  update: 'restart (the owner installs a new version of the app)',
-  takeover: 'restart (the app takes over this Seismic, which ran without it)',
-};
 
-/** Why Seismic restarts the agents of one repository alone: where they work changed, which they start again with. */
-const REPO_WHY: Partial<Record<RestartReason, string>> = {
-  config: 'the owner changed its configuration',
-  repository: 'its settings changed on its default branch',
-};
 
-/** What is about to happen, who it stops, and when the worker goes on, for the messages below. */
-const dueText = (due: DueRestart) =>
-  due.repo
-    ? {
-        what: `restart this repository's agents (${REPO_WHY[due.reason] ?? REPO_WHY.config}), you among them,`,
-        whom: 'none of them',
-        thing: "restart of this repository's agents",
-        back: 'once it has restarted them',
-      }
-    : { what: `${DUE_WHY[due.reason]} and stops whatever its workers run at that moment.`, whom: 'no worker', thing: DUE_WHY[due.reason], back: 'once it runs again' };
 
-/** How long Seismic waits for the restart at most, as the messages below say it. */
-const minutesLeft = (due: DueRestart) => {
-  const minutes = Math.max(1, Math.round((due.deadline - Date.now()) / 60_000));
-  return `at most ${minutes} more minute${minutes === 1 ? '' : 's'}`;
-};
 
-/** What is about to happen and how long Seismic waits for it, as the messages to a worker in a turn begin. */
-const dueOpening = (due: DueRestart) => {
-  const d = dueText(due);
-  return `Seismic is about to ${due.repo ? `${d.what} which stops whatever you run at that moment.` : d.what} It waits until ${d.whom} is in the middle of a turn, ${minutesLeft(due)}`;
-};
 
-/** Tells a worker that Seismic is about to restart or stop, so that it pauses at a safe point instead of being cut off. */
-const restartNotice = (due: DueRestart) =>
-  `${dueOpening(due)}. Pause at the next safe point: finish the step you are in, start nothing long (a test run, a demo render, a measurement), and end your turn, without handing over if you are not done. Background commands still running keep Seismic waiting: let those you need finish, stop the others (a scratch server you can start again). One that finishes before the restart wakes you for a turn that keeps Seismic waiting too: take in its result and end that turn as well. Seismic resumes you ${dueText(due).back}, and you go on from there.`;
 
-/**
- * Tells a worker whose turn a message starts while a restart is due (a conflict after an approval,
- * an answer, a card started) that the turn keeps Seismic waiting: it takes the message in and leaves
- * what it asks for until Seismic resumes it, instead of judging a step short enough to do first.
- */
-const restartWaits = (due: DueRestart) =>
-  `${dueOpening(due)}, and this turn keeps it waiting. Take in this message, leave the work it asks for until Seismic resumes you, and end your turn, without handing over. Seismic resumes you ${dueText(due).back}, and you do that work then.`;
 
-/** Tells a worker that paused for the restart, and was woken before it (by its background work, a message), that Seismic still waits for it. */
-const stillDue = (due: DueRestart) =>
-  `Seismic still waits for the ${dueText(due).thing} you paused for, ${minutesLeft(due)}, and this turn keeps it waiting. Take in what started it (a background command that finished, a message), leave the work it leads to until Seismic resumes you, and end your turn.`;
 
 /** How long a worker asked to pause at a safe point has for it at most, as a due restart waits for it. */
 const PAUSE_LIMIT = 15 * 60_000;
@@ -556,9 +500,6 @@ const pauseNotice = (limit: number) => {
   return `The owner pauses you now: they want you to stop for the time being, at a safe point rather than in the middle of a step. Finish the step you are in, start nothing long (a test run, a demo render, a measurement), and end your turn, without handing over if you are not done. Stop the background commands still running (a scratch server you can start again): one you let finish keeps the owner waiting. Seismic pauses you wherever you are after at most ${minutes} minute${minutes === 1 ? '' : 's'}. Pausing ends your session; once the owner lets you go on, you go on from there.`;
 };
 
-/** Tells a worker that paused for the owner, and was woken by its background work before it could, that they still wait for it. */
-const PAUSE_STILL =
-  'The owner still waits for you to pause, and this turn keeps them waiting. Take in what started it (a background command that finished), leave the work it leads to until the owner lets you go on, and end your turn.';
 
 /** Tells a worker about to pause at a safe point that the owner let it go on after all. */
 const PAUSE_TAKEN_BACK = 'The owner no longer wants you to pause: go on with your work.';
@@ -653,7 +594,7 @@ export class Workers {
   /** Bumped whenever a card's work starts, stops or ends: replies and tool calls from before are stale. */
   private generation = new Map<string, number>();
   /** The restart that waits for workers, if one does. */
-  private restart: DueRestart | null = null;
+  restart: DueRestart | null = null;
   /** Cards that wait for the owner, until their grace runs out and Seismic stops their app. */
   private parking = new Map<string, ReturnType<typeof setTimeout>>();
   /** When the owner last opened a card's app to try it by hand, by card. */
@@ -2431,7 +2372,7 @@ export class Workers {
    * tool step (no turn of its own: nothing waits on it), so it knows where its demo is when the
    * owner asks, and where Seismic links it once the work lands.
    */
-  private pageNews(cardId: string): string | undefined {
+  pageNews(cardId: string): string | undefined {
     const card = this.o.board.item(cardId);
     if (!card || card.idea?.prototypeOf || !card.demo?.latest) return;
     const now = pageHeardOf(card.demo.share);
@@ -3736,8 +3677,7 @@ export class Workers {
             ...(dirs.length ? { dirs } : {}),
             ...(review ? { untrusted: true } : {}),
             ...(env ? { env } : {}),
-            contextUpdate: () =>
-              [this.restartStillDue(cardId, live), this.pauseStillDue(live), ...(!reviewOnly ? [this.pageNewsNow(cardId, live), this.unheardNow(cardId, live), this.decisionsUpdate(cardId, live)] : []), this.preferencesUpdate(live)].filter(Boolean).join('\n\n') || undefined,
+            contextUpdate: () => workerContextUpdate(this, cardId, live, reviewOnly),
             askOwner: (request, signal) => this.askOwner(cardId, live, request, signal),
             ...(this.folder ? { watch: this.folder.watch(cardId) } : {}),
           },
@@ -3889,7 +3829,7 @@ export class Workers {
   }
 
   /** The owner's words Seismic held for the worker, taken out: they are read from now on. */
-  private takeUnheard(cardId: string, nextTurn = true): Unheard[] {
+  takeUnheard(cardId: string, nextTurn = true): Unheard[] {
     const all = this.unheard(cardId);
     const unheard = all.filter((u) => nextTurn || !u.nextTurn);
     if (!unheard.length) return [];
@@ -3911,17 +3851,6 @@ export class Workers {
     return { text: [text, ...unheard.map((u) => u.text)].filter(Boolean).join('\n\n---\n\n'), images: [...images, ...unheard.flatMap((u) => u.images)] };
   }
 
-  /**
-   * The owner's words that waited for the worker's next step, passed with that step's result. A
-   * tool result carries no images: the worker opens the screenshots' files itself.
-   */
-  unheardNow(cardId: string, live: Live): string | undefined {
-    if (this.live.get(cardId) !== live) return;
-    const unheard = this.takeUnheard(cardId, false);
-    if (!unheard.length) return;
-    const images = unheard.flatMap((u) => u.images);
-    return [...unheard.map((u) => u.text), ...(images.length ? [`The screenshots cannot come with a tool result: read their files to see them (${images.join(', ')}).`] : [])].join('\n\n---\n\n');
-  }
 
   /**
    * The worker's turn ended before a step took in the owner's words that waited for it: they start
@@ -3937,36 +3866,15 @@ export class Workers {
     return true;
   }
 
-  /** What became of the demo's page since the worker last heard of it, passed with its next tool result. */
-  private pageNewsNow(cardId: string, live: Live): string | undefined {
-    if (this.live.get(cardId) !== live) return;
-    return this.pageNews(cardId);
-  }
 
-  /** Preferences the owner gave or changed since the worker last heard them, passed with its next tool result. */
-  private preferencesUpdate(live: Live): string | undefined {
-    const now = this.o.preferences?.() ?? '';
-    if (now === live.preferences) return;
-    live.preferences = now;
-    return now ? `The owner's preferences changed while you work; they now read:\n\n${now}` : 'The owner withdrew their standing preferences; none apply any more.';
-  }
 
-  /** Decisions taken in the card's plan since the worker last heard of them, passed with its next tool result; those on its own card it heard as answers. */
-  private decisionsUpdate(cardId: string, live: Live): string | undefined {
-    if (!live.plan) return;
-    const fresh = this.o.board.decisions(live.plan.id).filter((d) => d.id > live.plan!.decision);
-    if (!fresh.length) return;
-    live.plan.decision = fresh.at(-1)!.id;
-    const others = fresh.filter((d) => d.cardId !== cardId);
-    return others.length ? `Decisions taken in this plan while you work:\n${decisionLog(others)}` : undefined;
-  }
 
   /**
    * A message that starts a turn while a restart is due tells the worker of it, once: that the
    * work the message asks for waits until Seismic resumes it (workers in a turn heard of it already).
    */
   private withRestart(cardId: string, live: Live, text: string): string {
-    const still = this.restartStillDue(cardId, live);
+    const still = restartStillDue(this, cardId, live);
     if (still) return `${text}\n\n${still}`;
     if (!this.restart || live.toldRestart) return text;
     this.tellRestart(cardId, live);
@@ -3974,24 +3882,7 @@ export class Workers {
     return `${text}\n\n${restartWaits(this.restart)}`;
   }
 
-  /**
-   * A turn that starts after the worker paused for the restart, before it happened, hears once that
-   * Seismic still waits: with its message, or with its first tool step when nothing of Seismic's started
-   * it (a background command that finished, which the worker would otherwise go on from).
-   */
-  private restartStillDue(cardId: string, live: Live): string | undefined {
-    if (!this.restart || !live.restartPaused) return;
-    live.restartPaused = false;
-    this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.worker.restartStillDue(pauseOf(this.restart)));
-    return stillDue(this.restart);
-  }
 
-  /** A turn that the worker's background work starts after it ended one for the owner's pause hears once, with its first tool step, that the owner still waits. */
-  private pauseStillDue(live: Live): string | undefined {
-    if (!live.pauseHeld) return;
-    live.pauseHeld = false;
-    return PAUSE_STILL;
-  }
 
   private tellRestart(cardId: string, live: Live) {
     live.toldRestart = true;
