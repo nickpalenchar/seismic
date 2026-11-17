@@ -79,10 +79,11 @@ describe('a worktree per card', () => {
     await started;
     expect(runtime.sessions).toHaveLength(0);
     expect(board.item(c.id)!.agent?.statusLine).toBeUndefined();
-    expect(spaces.list().map((w) => w.card_id)).toEqual([null]);
+    // nothing was made in it, so the worktree goes with its row once git has removed it
+    await until(() => spaces.list().length === 0);
     expect(workers.inTurn()).toEqual([]);
 
-    // started again, its worktree is there: its worker starts at once
+    // started again, its worktree is added again from the branch: its worker starts once git is done
     await workers.start(c.id);
     expect(runtime.last.spec.cwd).toBe(board.row(c.id).workstation!);
 

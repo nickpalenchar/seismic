@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Board } from './board';
@@ -208,6 +208,52 @@ describe('a workstation git frees', () => {
     const again = spaces.lease(a, 'seismic/a');
     expect(again.ready).not.toBeNull();
     expect(await abandoned).toBe(true);
+    expect(await again.ready!).toBe(path);
+    expect(spaces.leasedBy(a)).toBe(path);
+    expect(git(path, 'branch', '--show-current')).toBe('seismic/a');
+  });
+
+  test('a worktree given back clean goes with its row and keeps its branch, and the next lease adds it again from the branch', async () => {
+    const { repo, spaces, card } = setup('worktrees');
+    const a = card('A');
+    const { path, ready } = spaces.lease(a, 'seismic/a');
+    await ready;
+    // what git ignores (installed dependencies) does not make it dirty
+    writeFileSync(join(path, '.gitignore'), 'node_modules/\n');
+    git(path, 'add', '.gitignore');
+    git(path, '-c', 'user.name=T', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'ignore');
+    mkdirSync(join(path, 'node_modules'));
+    writeFileSync(join(path, 'node_modules', 'dep.js'), 'x');
+    spaces.release(a);
+    await until(() => spaces.list().length === 0);
+    expect(existsSync(path)).toBe(false);
+    expect(git(repo, 'branch', '--list', 'seismic/a')).toContain('seismic/a');
+    expect(git(repo, 'worktree', 'list').split('\n')).toHaveLength(1);
+    const again = spaces.lease(a, 'seismic/a');
+    expect(await again.ready!).toBe(path);
+    expect(git(path, 'branch', '--show-current')).toBe('seismic/a');
+    expect(git(path, 'log', '--format=%s', '-1')).toBe('ignore');
+  });
+
+  test('a worktree given back with uncommitted changes stays on disk, with its changes, and the card lets go of it', async () => {
+    const { spaces, card } = setup('worktrees');
+    const a = card('A');
+    const { path, ready } = spaces.lease(a, 'seismic/a');
+    await ready;
+    writeFileSync(join(path, 'notes.txt'), 'mine\n');
+    spaces.release(a);
+    await until(() => spaces.leasedBy(a) === null);
+    expect(readFileSync(join(path, 'notes.txt'), 'utf8')).toBe('mine\n');
+    expect(spaces.list()).toEqual([{ path, card_id: null }]);
+  });
+
+  test('a card that takes its worktree again straight after giving it back gets it made again once git is done', async () => {
+    const { spaces, card } = setup('worktrees');
+    const a = card('A');
+    const { path, ready } = spaces.lease(a, 'seismic/a');
+    await ready;
+    spaces.release(a);
+    const again = spaces.lease(a, 'seismic/a');
     expect(await again.ready!).toBe(path);
     expect(spaces.leasedBy(a)).toBe(path);
     expect(git(path, 'branch', '--show-current')).toBe('seismic/a');

@@ -113,6 +113,13 @@ cycling through terminals.
   and force-push, which clashed with repositories that merge `main` in.
 - **Work that changed nothing ends `done`, read from the workstation** (2026-10-02), not from the
   worker's word.
+- **A worktree given back clean is removed, its branch kept** (2026-11-17): a card's worktree is
+  cheap to make again (`git worktree add` from the branch), while a folder left behind costs hundreds
+  of megabytes of dependencies and nothing ever came back for it. Files git ignores do not make it
+  dirty (they are what a new worktree installs again); uncommitted changes do, and that worktree
+  stays as it is. A card that stops *with* commits on its branch still keeps its worktree: the diff
+  and changed-files views read from it. Rejected: keeping every worktree until the card lands, which
+  left a folder per stopped card.
 - **What Seismic suggests by itself is switched per project** (2026-11-14): new cards from the work
   retrospective, merges from the duplicate check at a card's start, and labels. Off takes the tool
   and its instructions out of the agent's session rather than telling it to refrain.

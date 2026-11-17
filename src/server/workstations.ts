@@ -9,7 +9,7 @@
 import { existsSync, mkdirSync, readdirSync, realpathSync, renameSync, statSync } from 'node:fs';
 import { lstat, readlink, rm, writeFile } from 'node:fs/promises';
 import { hostname } from 'node:os';
-import { basename, dirname, join, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { type CardDiff, cardDiff } from '../core/diff';
 import type { BlockedClone, PoolHost, WorkstationShortage } from '../core/types';
 import type { Store } from './store';
@@ -1268,7 +1268,13 @@ export class Workstations implements CardWorkstations {
     }
   }
 
-  /** Frees the workstation for other cards; a worktree stays until the card's work has landed. A clone the configuration no longer names leaves the pool. */
+  /**
+   * Frees the workstation for other cards. A worktree with nothing in it that git does not already
+   * hold (no uncommitted changes; files git ignores, such as installed dependencies, do not count)
+   * goes with its row, its branch staying: the card's next lease adds it again from the branch. One
+   * with uncommitted changes stays, as does a worktree outside Seismic's own folder. A clone the
+   * configuration no longer names leaves the pool.
+   */
   release(cardId: string) {
     const path = this.leasedBy(cardId);
     if (!path) return;
@@ -1276,7 +1282,22 @@ export class Workstations implements CardWorkstations {
       this.releasing.add(cardId);
       return;
     }
-    this.free(path);
+    if (this.cloned(path) || !this.ownTree(path)) return this.free(path);
+    void this.abandon(path).then(
+      (removed) => {
+        // uncommitted changes, or git failed to remove it: the folder stays, as before, and the card lets go of it
+        if (!removed && this.leasedBy(cardId) === path) this.free(path);
+      },
+      () => {
+        if (this.leasedBy(cardId) === path) this.free(path);
+      },
+    );
+  }
+
+  /** Whether `path` is a worktree Seismic made itself, in its own folder for them. */
+  private ownTree(path: string): boolean {
+    const rel = relative(this.o.dir, path);
+    return rel !== '' && !rel.startsWith('..') && !isAbsolute(rel) && !rel.includes(sep);
   }
 
   /**
