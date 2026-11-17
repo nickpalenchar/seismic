@@ -33,6 +33,9 @@ interface ListProps {
 /** A list view's body: the list and the hint above it to a readable width, the hint set apart from the list (over `.hint`'s own size). */
 const listBodyClass = `${fullBodyClass} [&>:is(ul,ol,.hint)]:max-w-[760px] [&>.hint]:mt-1 [&>.hint]:mb-3.5 [&>.hint]:mx-0 [&>.hint]:text-sm!`;
 
+/** The parked view's body: the cards in a grid, 2 to a row on medium screens and 3 on large ones (1 on a phone), over the width the other lists keep. */
+const parkedBodyClass = `${fullBodyClass} [&>.hint]:mt-1 [&>.hint]:mb-3.5 [&>.hint]:mx-0 [&>.hint]:text-sm! [&>ul]:grid [&>ul]:grid-cols-1 md:[&>ul]:grid-cols-2 xl:[&>ul]:grid-cols-3 [&>ul]:items-start`;
+
 /** The view's head: its title, its count and ✕. */
 function Head({ title, n, onClose }: { title: string; n: number; onClose: () => void }) {
   return (
@@ -53,7 +56,7 @@ export function ParkedView({ on, items, open, underway, onOpen, onClose, els }: 
   return (
     <FullPage id="parked-full" title={t.views.parked}>
       <Head title={t.views.parked} n={parked.length} onClose={onClose} />
-      <div className={listBodyClass}>
+      <div className={parkedBodyClass}>
         <p className="hint">{parked.length ? t.views.parkedHint : t.agents.noneParked}</p>
         <ul className={entryListClass}>
           {parked.map((i) => (
