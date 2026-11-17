@@ -3,8 +3,9 @@
 > **Paused.** Seismic is a permanent fork and distributes nothing for now: no app releases, no site,
 > no hero video, no update checks (decided 2026-11-13, `docs/design.md`). This page, the
 > release skill, `scripts/hero-video/` and `scripts/site-shots.ts` stay as they were, for when Seismic
-> distributes its own app; their accounts, domain and voice (`sadilek`, seismic.im, ElevenLabs) are
-> the upstream's and have to be replaced then. `scripts/hero-video/publish.ts` refuses to upload until `DISTRIBUTION` in
+> distributes its own app; their domain, signing keys and voice (seismic.im, the Apple and updater keys,
+> ElevenLabs) are the upstream's and have to be replaced then. GitHub is reached as the account that
+> owns the checkout's origin (`scripts/gh.ts`), `nickpalenchar` for nickpalenchar/seismic. `scripts/hero-video/publish.ts` refuses to upload until `DISTRIBUTION` in
 > `scripts/distribution.ts` is switched on.
 
 How a version of the app goes out, and the owner's steps it depends on. The constraints the builds
@@ -21,7 +22,7 @@ released, and the site's screenshots are taken again with it. When the owner say
 Release", the project skill `.claude/skills/release/SKILL.md` goes through these steps in this
 order, on an Seismic card or in a terminal; it adds when to ask the owner and what to look at.
 The scripts that talk to GitHub act on the checkout's origin as the account that owns it
-(`sadilek` for nickpalenchar/seismic, with its gh login, without switching the account gh has active);
+(`nickpalenchar` for nickpalenchar/seismic, with its gh login, without switching the account gh has active);
 other gh calls go through `bun scripts/gh.ts <gh args…>`, which does the same, since the
 machine's active account may lack the admin rights a workflow run or a rerun needs.
 
@@ -236,9 +237,9 @@ Paused with the rest of this page; they served the site, the hero video and rele
   onto the current `main` (moving the tag if it is already set), so commits that landed while the
   release was being prepared go into it too.
 - gh calls against this repository's GitHub repository go through `bun scripts/gh.ts <gh args…>`:
-  it runs gh on the checkout's origin as the account that owns it (`sadilek` for nickpalenchar/seismic),
+  it runs gh on the checkout's origin as the account that owns it (`nickpalenchar` for nickpalenchar/seismic),
   since the machine's active gh account may be another without admin rights.
-- gh calls against the repository's GitHub repository went through `bun scripts/gh.ts <gh args…>`: it runs gh on the checkout's origin as the account that owns it (`sadilek` for nickpalenchar/seismic), since the machine's active gh account may be another without admin rights.
+- gh calls against the repository's GitHub repository went through `bun scripts/gh.ts <gh args…>`: it runs gh on the checkout's origin as the account that owns it (`nickpalenchar` for nickpalenchar/seismic), since the machine's active gh account may be another without admin rights.
 - The test "names what stands in the way: site-media as the latest, a missing secret, GitHub ahead,
   a tag taken, a draft left over" in `scripts/release-status.test.ts` clones real git repositories
   and may time out while iterating: skip it locally (`--test-name-pattern` or by file), and run the

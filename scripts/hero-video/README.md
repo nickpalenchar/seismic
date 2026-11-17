@@ -89,8 +89,8 @@ node scripts/hero-video/publish.ts --poster-only  # only takes the poster; uploa
 
 It reads the render from `~/demos/seismic-hero/` (or `HERO_OUT`), creates the release the first
 time (a pre-release, so that it never becomes the latest release, whose installers the README
-links) and replaces its assets after that, and acts as the GitHub account `sadilek` (with the
-token of its gh login) without switching the account gh has active.
+links) and replaces its assets after that, and acts as the GitHub account that owns the checkout's origin (`nickpalenchar` for
+nickpalenchar/seismic, with the token of its gh login) without switching the account gh has active.
 
 The poster (`site/img/hero-poster.jpg`) is the video's first frame, slightly dimmed, without a
 play button: the big play button over it is a `<button>` in `site/index.html`, whose script
