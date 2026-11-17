@@ -11,7 +11,7 @@ import { ownerPermission } from '../permission';
 import { SeismicAgent } from '../seismicAgent';
 import { SEISMIC_SKILLS } from '../../skills/registry';
 import type { AgentPermission, SessionOptions } from '../types';
-import { workerSystem } from './system';
+import { workerSystemPrompt } from './systemPrompt';
 import { workerTools, type WorkerHost } from './tools';
 
 export interface WorkerContext {
@@ -49,7 +49,7 @@ export class SeismicWorker extends SeismicAgent<WorkerContext> {
     const { setting, live, review, notes } = ctx;
     const lane = setting.harness && setting.harness !== 'claude' && !live.host && !review ? `\n\n${live.autoReview ? EXEC_LANE_AUTO_NOTE : EXEC_LANE_NOTE}` : '';
     const claudeMd = notes ? `\n\nThe repository's CLAUDE.md, as its default branch has it:\n\n${notes}` : '';
-    return `${workerSystem(ctx.host, ctx.preferences, ctx.prototype, ctx.card)}${lane}${claudeMd}`;
+    return `${workerSystemPrompt(ctx.host, ctx.preferences, ctx.prototype, ctx.card)}${lane}${claudeMd}`;
   }
 
   override getBriefing(ctx: WorkerContext) {

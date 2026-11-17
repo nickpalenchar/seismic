@@ -7,7 +7,7 @@ import { type Item } from '../../../core/types';
 import { TO_OBEYA } from '../../to-obeya';
 import type { WorkerHost } from './tools';
 
-export function workerSystem(self: Pick<WorkerHost, 'o' | 'folder' | 'demoLanguage'>, preferences: string, prototype = false, card?: Item): string {
+export function workerSystemPrompt(self: Pick<WorkerHost, 'o' | 'folder' | 'demoLanguage'>, preferences: string, prototype = false, card?: Item): string {
   const language = ownersLanguage(self.o.board.conversation());
   const folder = !!self.folder;
   return `

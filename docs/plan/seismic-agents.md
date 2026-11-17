@@ -52,14 +52,14 @@ and permission; `launch()` in `workers.ts` starts it with `seismicWorker.start(.
 `getSessionOptions()` (`at`, `dirs`, `untrusted`, `env`, `contextUpdate`, `askOwner`, `watch`) and
 `AgentRun.images`.
 
-- [x] The worker's system prompt (`agents/worker/system.ts`) and tools (`agents/worker/tools.ts`) moved out of
-  `workers.ts`; `SeismicWorker` calls them with the card's state (`WorkerContext`). They reach `Workers` through
-  `WorkerHost`, a `Pick` of the members they use, which are public now (about 35 methods plus `o`, `live`,
-  `folder`, `shares`); `tools.ts` imports a few constants and helpers back from `workers.ts` (`END_TURN`,
-  `landedOf`, `snoozedUntil` and others), a circular import that only runs after both modules have loaded.
-- [ ] The rest of `Workers` the worker needs moves out with them (W4 of `docs/plan/server-layers.md`): `briefing()`,
-  the parts of `contextUpdate`, and the helpers `tools.ts` imports from `workers.ts`, so the import cycle goes
-  and `WorkerHost` can shrink.
+- [x] The worker's system prompt (`agents/worker/systemPrompt.ts`), tools (`tools.ts`) and briefing (`briefing.ts`:
+  `workerBriefing` with the review, folder and prototype variants) moved out of `workers.ts`; `SeismicWorker`
+  calls them with the card's state (`WorkerContext`). They reach `Workers` through `WorkerHost` and `BriefingHost`,
+  `Pick`s of the members they use, which are public now (about 40 methods plus `o`, `live`, `folder`, `shares`).
+  The constants and helpers they share with `workers.ts` (`END_TURN`, `landedOf`, `snoozedUntil`, the proposal
+  questions and others) are in `agents/worker/shared.ts`; `agents/worker/*` import `workers.ts` for types only.
+- [ ] Still in `workers.ts`: the parts of `contextUpdate` (`restartStillDue`, `pageNewsNow`, `unheardNow` and the
+  like), and `WorkerHost` can shrink once the card-state helpers they reach move into their own module.
 - [ ] The trust flags `claudeHeld` and `codexConfig`, `onLimit` and `permissionMode`-like extras of the other
   agents go through `getSessionOptions()` as each agent moves.
 - [ ] The same for the other agents (`review`, `koordinator`, `explorer`, `chores`) after the worker.

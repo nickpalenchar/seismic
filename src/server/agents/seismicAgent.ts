@@ -9,7 +9,7 @@
  *   readonly name = 'worker';
  *   readonly description = 'Works one card: implementation, checks, demo.';
  *   getModel(ctx) { return ctx.setting; }
- *   getPrompt(ctx) { return workerSystem(ctx); }
+ *   getPrompt(ctx) { return workerSystemPrompt(ctx); }
  *   getBriefing(ctx) { return briefing(ctx.card); }
  *   getTools(ctx) { return workerTools(ctx); }
  * }

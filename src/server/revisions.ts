@@ -14,7 +14,7 @@ import type { AgentRuntime } from './runtime';
 import { readSession } from './koordinator';
 import { toObeyaTool } from './to-obeya';
 import { messageOf } from '../core/text';
-import { PROPOSAL_QUESTIONS, proposalQuestions, proposalTask } from './workers';
+import { PROPOSAL_QUESTIONS, proposalQuestions, proposalTask } from './agents/worker/shared';
 
 export interface RevisionOptions {
   board: Board;

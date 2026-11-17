@@ -21,7 +21,8 @@ import { dimensions, outside, tagsOf } from '../../../core/page-tags';
 import { type DataSignal, dataModelSignals } from '../../data-models';
 import { parsePrUrl, sameRepo } from '../../forge';
 import { clip } from '../../../core/text';
-import { AFTER_LANDING, APP_URL, demoQuestion, END_TURN, landedOf, type LandedState, type Live, MAX_RESULT_FILES, type OwnCommits, PROPOSAL_QUESTIONS, proposalQuestions, proposalTask, snoozedUntil, type Workers } from '../../workers';
+import type { LandedState, Live, OwnCommits, Workers } from '../../workers';
+import { AFTER_LANDING, APP_URL, demoQuestion, END_TURN, landedOf, MAX_RESULT_FILES, PROPOSAL_QUESTIONS, proposalQuestions, proposalTask, snoozedUntil } from './shared';
 
 /** What the worker's tools and prompt need of the `Workers` that runs the card. */
 export type WorkerHost = Pick<Workers, 'artifacts' | 'cardTitled' | 'close' | 'dataModels' | 'demoHere' | 'demoLanguage' | 'demoSkill' | 'disputeItems' | 'earlier' | 'execLane' | 'folder' | 'followUpTask' | 'heldAt' | 'inWorktree' | 'landResolved' | 'landingOf' | 'live' | 'namedFiles' | 'o' | 'otherBoards' | 'owedTasks' | 'ownCommits' | 'probeClash' | 'proposalBoards' | 'proposalRepo' | 'report' | 'requestChanges' | 'resubmitItems' | 'retract' | 'reviewModeOf' | 'reviews' | 'setFindings' | 'shares' | 'showsFiles' | 'toOwner' | 'unheardNow'>;
