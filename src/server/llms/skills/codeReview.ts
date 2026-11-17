@@ -18,7 +18,7 @@ import { LANGUAGE_NAMES } from '../../../core/locale';
 import { clip, messageOf } from '../../../core/text';
 import type { DueRestart } from '../agents/worker/restartNotices';
 import { restartNotice } from '../prompts/restartNotice';
-import { seismicReviewer } from '../agents/review/seismicReviewer';
+import { reviewerAgent } from '../agents/review/reviewerAgent';
 
 /** How much of the diff the review agent gets in its brief; it reads the files themselves beyond that. */
 const DIFF_LIMIT = 150_000;
@@ -440,7 +440,7 @@ export class CodeReviews {
       if (!recorded && !error && r?.run === run && r.told) return this.pause(cardId, run);
       this.finish(cardId, run, recorded, error);
     };
-    session = seismicReviewer.start(
+    session = reviewerAgent.start(
       this.o.runtime,
       {
         setting,

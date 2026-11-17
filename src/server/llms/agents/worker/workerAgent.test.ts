@@ -3,7 +3,7 @@ import { AGENT_DEFAULTS, type AgentSetting } from '../../../../core/types';
 import type { Live } from '../../../workerSupervisor/workerSupervisor';
 import { setOwnerPermission } from '../permission';
 import { SEISMIC_SKILLS } from '../../skills/registry';
-import { seismicWorker, type WorkerContext } from './seismicWorker';
+import { workerAgent, type WorkerContext } from './workerAgent';
 
 afterEach(() => setOwnerPermission('auto'));
 
@@ -12,21 +12,21 @@ const codex: AgentSetting = { model: 'opus', effort: 'high', harness: 'codex', c
 const context = (setting: AgentSetting = AGENT_DEFAULTS.worker, autoReview = false) => ({ setting, live: { autoReview } as Live }) as WorkerContext;
 
 test('the worker is the worker role on the card’s pinned setting, with every skill', () => {
-  expect(seismicWorker.role).toBe('worker');
-  expect(seismicWorker.getModel(context(codex))).toBe(codex);
-  expect(seismicWorker.getSkills()).toEqual([...SEISMIC_SKILLS]);
+  expect(workerAgent.role).toBe('worker');
+  expect(workerAgent.getModel(context(codex))).toBe(codex);
+  expect(workerAgent.getSkills()).toEqual([...SEISMIC_SKILLS]);
 });
 
 test('a Claude worker follows the owner’s permission mode', () => {
   setOwnerPermission('acceptEdits');
-  expect(seismicWorker.getPermissionMode(context())).toBe('acceptEdits');
+  expect(workerAgent.getPermissionMode(context())).toBe('acceptEdits');
 });
 
 test('a Codex worker asks, reviews automatically where the owner’s setting says, and bypasses only if the owner bypasses all', () => {
-  expect(seismicWorker.getPermissionMode(context(codex))).toBe('ask');
-  expect(seismicWorker.getPermissionMode(context(codex, true))).toBe('auto');
+  expect(workerAgent.getPermissionMode(context(codex))).toBe('ask');
+  expect(workerAgent.getPermissionMode(context(codex, true))).toBe('auto');
   setOwnerPermission('acceptEdits');
-  expect(seismicWorker.getPermissionMode(context(codex))).toBe('ask');
+  expect(workerAgent.getPermissionMode(context(codex))).toBe('ask');
   setOwnerPermission('dangerouslyBypassPermissions');
-  expect(seismicWorker.getPermissionMode(context(codex))).toBe('dangerouslyBypassPermissions');
+  expect(workerAgent.getPermissionMode(context(codex))).toBe('dangerouslyBypassPermissions');
 });

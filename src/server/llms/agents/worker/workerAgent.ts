@@ -36,7 +36,7 @@ export interface WorkerContext {
   message: string;
 }
 
-export class SeismicWorker extends SeismicAgent<WorkerContext> {
+export class WorkerAgent extends SeismicAgent<WorkerContext> {
   readonly role = 'worker' as const;
   readonly name = 'worker';
   readonly description = 'Works one card: implementation, checks, demo.';
@@ -72,11 +72,11 @@ export class SeismicWorker extends SeismicAgent<WorkerContext> {
    * Codex's automatic review is the owner's setting, not their `--permission-mode`: without it a Codex
    * worker asks, unless the owner bypasses permissions for all.
    */
-  override getPermissionMode(ctx: WorkerContext): AgentPermission {
+  override getPermissionMode(ctx: WorkerContext): AgentPermission | undefined {
     if (ctx.setting.harness !== 'codex') return super.getPermissionMode(ctx);
     if (ctx.live.autoReview) return 'auto';
     return ownerPermission() === 'dangerouslyBypassPermissions' ? 'dangerouslyBypassPermissions' : 'ask';
   }
 }
 
-export const seismicWorker = new SeismicWorker();
+export const workerAgent = new WorkerAgent();

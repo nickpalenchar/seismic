@@ -45,7 +45,7 @@ import { type Forge, parsePrUrl, sameRepo } from '../forge';
 import { clip, messageOf } from '../../core/text';
 import { holdsNotes } from '../../core/queue';
 import { CodeReviews } from '../llms/skills/codeReview';
-import { seismicWorker } from '../llms/agents/worker/seismicWorker';
+import { workerAgent } from '../llms/agents/worker/workerAgent';
 import { restartStillDue, workerContextUpdate } from '../llms/agents/worker/contextUpdate';
 import { type DueRestart, pauseOf, restartNotice, restartWaits } from '../llms/agents/worker/restartNotices';
 import { workerBriefing } from '../llms/agents/worker/briefing';
@@ -3659,7 +3659,7 @@ export class WorkerSupervisor {
     const review = !!contributionOf(row);
     const notes = review ? this.mainNotes() : '';
     try {
-      live.session = seismicWorker.start(
+      live.session = workerAgent.start(
         this.o.runtime,
         {
           host: this,

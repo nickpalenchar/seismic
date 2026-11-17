@@ -4,7 +4,7 @@
  * base class assembles an `AgentSpec` and starts it on a runtime (`src/server/llms/harnesses/`).
  *
  * ```ts
- * class SeismicWorker extends SeismicAgent<WorkerContext> {
+ * class WorkerAgent extends SeismicAgent<WorkerContext> {
  *   readonly role = 'worker';
  *   readonly name = 'worker';
  *   readonly description = 'Works one card: implementation, checks, demo.';
@@ -44,9 +44,11 @@ export abstract class SeismicAgent<Ctx = void> {
   /**
    * What the agent may do without asking the owner: what the owner's `--permission-mode` says, unless
    * the agent overrides it. Read-only agents get no tools that change files or run commands. Each
-   * harness maps it its own way (`permission.ts`).
+   * harness maps it its own way (`permission.ts`). None leaves it to the harness, which follows the
+   * owner's mode as it did before agents declared one (Codex asks, its automatic review being the
+   * owner's own setting).
    */
-  getPermissionMode(_ctx: Ctx): AgentPermission { return ownerPermission(); }
+  getPermissionMode(_ctx: Ctx): AgentPermission | undefined { return ownerPermission(); }
   /** Appended to the harness's default system prompt. */
   abstract getPrompt(ctx: Ctx): string;
   /** The first message of a run; none lets the session start up and wait. */
@@ -71,7 +73,7 @@ export abstract class SeismicAgent<Ctx = void> {
       ...(skills.length ? { skills } : {}),
       role: this.role,
       ...(setting ? { setting } : {}),
-      permission,
+      ...(permission ? { permission } : {}),
       ...(run.resume ? { resume: run.resume } : {}),
       onEvent: run.onEvent,
     };

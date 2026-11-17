@@ -4,19 +4,17 @@
 // brief holds the substance and the replies only the turns, so the two never say the same; how
 // the agent got to a reply (what it read and thought) folds away under that reply.
 
-import { z } from 'zod';
-import { type Language, ownersLanguage, repositoryLanguage } from '../core/locale';
-import { MESSAGES } from '../core/messages';
-import { type CardEvent, formatQuestion, type Item, type Mock, NEXT_STEPS, type NextStep, type PlannedPrototype, type Question, type SettledPart, isPaused, isPausing } from '../core/types';
-import { type Asked, decisionLog, withPick } from './advisor';
+import { type Language } from '../core/locale';
+import { type CardEvent, formatQuestion, type Item, type Mock, type NextStep, type Question, isPaused, isPausing } from '../core/types';
+import { decisionLog } from './advisor';
 import { BadRequest, type Board, holdNow, type Message, replyNote, type Unread } from './board';
-import { type AgentEvent, type AgentRuntime, type AgentSession, type AgentTool } from './runtime';
+import { type AgentEvent, type AgentRuntime, type AgentSession } from './runtime';
+import { explorerAgent } from './llms/agents/explorer/explorerAgent';
+import { MAX_VARIANTS } from './llms/agents/explorer/tools';
 import { BackgroundWait } from './llms/harnesses/claude';
 import { imageNote } from './images';
 import { describeTool, SPOKEN } from './workerSupervisor/workerSupervisor';
-import { TO_OBEYA, toObeyaTool } from './to-obeya';
 import { clip } from '../core/text';
-import { folderPath } from './new-repo';
 
 export interface ExplorerOptions {
   board: Board;
@@ -42,7 +40,7 @@ export interface ExplorerOptions {
   backgroundLimit?: number;
 }
 
-interface Live {
+export interface Live {
   session: AgentSession;
   /** The messages the running turn answers. */
   current: Message[];
@@ -63,9 +61,9 @@ interface Live {
 }
 
 export class Explorers {
-  private live = new Map<string, Live>();
+  live = new Map<string, Live>();
 
-  constructor(private o: ExplorerOptions) {}
+  constructor(readonly o: ExplorerOptions) {}
 
   /**
    * The owner says something about the idea, maybe with screenshot files and in reply to a message
@@ -283,21 +281,26 @@ export class Explorers {
       { grace: this.o.backgroundGrace, limit: this.o.backgroundLimit },
     );
     this.live.set(card.id, live);
-    live.session = this.o.runtime.start(
+    live.session = explorerAgent.start(
+      this.o.runtime,
       {
-        cwd,
-        role: 'explorer',
-        at: { card: card.id },
-        system: system(this.o.board.conversation(), this.o.board.language(), this.o.repoLanguage?.(card) ?? 'en', !!this.o.toObeya) + (preferences ? `\n\n${preferences}` : ''),
-        tools: this.tools(card.id, live),
-        contextUpdate: () => [this.buildNote(card.id, live), this.preferencesUpdate(live)].filter(Boolean).join('\n\n') || undefined,
-        ...(resume ? { resume } : {}),
-        // the idea's agent waits for the usage limit, on the card, and the owner's words wait with it
-        onLimit: (until, retry) => this.o.board.waitsForLimit({ card: card.id }, until, retry),
-        onEvent: (e) => this.onEvent(card.id, live, e),
+        host: this,
+        cardId: card.id,
+        live,
+        conversation: this.o.board.conversation(),
+        ui: this.o.board.language(),
+        repository: this.o.repoLanguage?.(card) ?? 'en',
+        toObeya: !!this.o.toObeya,
+        preferences,
+        message,
+        options: {
+          at: { card: card.id },
+          contextUpdate: () => [this.buildNote(card.id, live), this.preferencesUpdate(live)].filter(Boolean).join('\n\n') || undefined,
+          // the idea's agent waits for the usage limit, on the card, and the owner's words wait with it
+          onLimit: (until, retry) => this.o.board.waitsForLimit({ card: card.id }, until, retry),
+        },
       },
-      message,
-      images,
+      { cwd, onEvent: (e) => this.onEvent(card.id, live, e), ...(resume ? { resume } : {}), images },
     );
   }
 
@@ -401,109 +404,13 @@ export class Explorers {
    * waits for that, and the agent's reply to its result gives them the turn.
    * Its questions stand in the conversation too, and stay there once answered, with the options picked.
    */
-  private answer(cardId: string, text: string, questions: Question[] = [], next?: NextStep, mocks: Mock[] = []) {
+  answer(cardId: string, text: string, questions: Question[] = [], next?: NextStep, mocks: Mock[] = []) {
     this.o.board.log(cardId, 'talk', 'explorer', text, { mocks });
     for (const q of questions) this.o.board.log(cardId, 'question', 'explorer', formatQuestion(q, this.o.board.language()));
     const building = this.o.board.items().some((i) => i.idea?.prototypeOf === cardId && (i.state === 'planned' || i.state === 'working'));
     this.o.board.setIdea(cardId, { yourTurn: questions.length > 0 || !building, questions, next });
   }
 
-  private tools(cardId: string, live: Live): AgentTool[] {
-    const current = (tools: AgentTool[]): AgentTool[] =>
-      tools.map((t) => ({ ...t, run: (args) => (this.live.get(cardId) === live ? t.run(args) : 'This conversation has ended. End your turn.') }));
-    // the examples in the language the owner talks in by default, the names of the card's parts in the interface's
-    const language = this.o.board.conversation();
-    const OWNER_LANGUAGE = "the owner's language";
-    const MOCKS = mocks(OWNER_LANGUAGE);
-    const t = this.o.board.t.idea;
-    return current([
-      {
-        name: 'reply',
-        description: `Your turn in the conversation, shown on the card beside the brief (markdown, in ${OWNER_LANGUAGE}): a few sentences that do not repeat the brief. questions: the questions you ask now, each with its answer options (multiple: true when several may be chosen together); the card shows them under your reply for the owner to pick from, so the reply does not repeat them; pick: the options you would choose yourself if you had to decide (one, or several when multiple), and pick_why: why, in one short sentence in ${OWNER_LANGUAGE}. next: what you would do next in the owner's place, always: answer (the open questions come first), build, splitOff (with a part marked with plan_split), planDoc, prototype, park or drop, with why in one short sentence in ${OWNER_LANGUAGE}; the card marks that click for the owner. mocks: only when the owner asked to see something the brief has no place for; ${MOCKS}. Call it once per message, then end your turn.`,
-        schema: {
-          text: z.string(),
-          questions: z
-            .array(
-              z.object({
-                question: z.string(),
-                options: z.array(z.string()).max(6),
-                multiple: z.boolean().optional(),
-                pick: z.array(z.string()).optional(),
-                pick_why: z.string().optional(),
-              }),
-            )
-            .max(4)
-            .optional(),
-          next: z.object({ step: z.enum(NEXT_STEPS), why: z.string() }).optional(),
-          mocks: MOCK_SCHEMA,
-        },
-        run: ({ text, questions, next, mocks }) => {
-          if (live.replied) return 'Already replied. End your turn now.';
-          live.replied = true;
-          const asked = ((questions as Asked[] | undefined) ?? []).map(withPick).filter((q) => q.text);
-          this.answer(cardId, clip(String(text), 12000), asked, nextStep(next, asked, !!this.o.board.idea(cardId).split), mocksOf(mocks));
-          return 'Shown to the owner. End your turn now; their next message arrives as a new one.';
-        },
-      },
-      {
-        name: 'update_brief',
-        description: `Replace the brief of the idea ("${t.briefName}"), in ${OWNER_LANGUAGE} markdown, whenever the conversation changed it. Always the whole text, standing on its own. mocks: how the brief's variants look, one per variant, shown under the brief; ${MOCKS}. The whole list whenever it changes; leave it out to keep the mocks as they are, an empty list removes them.`,
-        schema: { brief: z.string(), mocks: MOCK_SCHEMA },
-        run: ({ brief, mocks }) => {
-          this.o.board.setIdea(cardId, { brief: clip(String(brief).trim(), 20000), ...(mocks === undefined ? {} : { mocks: mocksOf(mocks) }) });
-          this.o.board.log(cardId, 'activity', 'explorer', t.briefUpdated);
-          return 'Brief updated.';
-        },
-      },
-      {
-        name: 'plan_prototypes',
-        description: `The throwaway prototypes the brief plans, one per variant to be seen side by side: the whole list each time, empty when none are planned any more. When the owner clicks "${t.prototypeButton}", the card offers them, all chosen, and starts one worker per variant at once; without this list it starts one prototype of the idea as it stands. approach: the variant in a few words, in ${OWNER_LANGUAGE} (${WORDS[language].approach}); it becomes the prototype's title. show: that prototype's task, in ${OWNER_LANGUAGE}: what it builds and what its demo shows, for this variant only; its worker also reads the brief.`,
-        schema: { prototypes: z.array(z.object({ approach: z.string(), show: z.string() })).max(MAX_VARIANTS) },
-        run: ({ prototypes }) => {
-          const variants = plannedPrototypes(prototypes);
-          this.o.board.setIdea(cardId, { variants });
-          this.o.board.log(cardId, 'activity', 'explorer', variants.length ? t.plansPrototypes(variants.map((v) => v.approach).join(', ')) : t.plansNoPrototypes);
-          return variants.length ? `Planned ${variants.length} prototype${variants.length > 1 ? 's' : ''}.` : 'No prototypes planned.';
-        },
-      },
-      {
-        name: 'plan_split',
-        description: `When part of the idea is settled and part is still open (to be discussed further, or prototyped), the part to build now: the owner splits it off with "${t.splitOffButton}" as a task of its own, which a worker starts on at once, and the idea stays with what is open. title: that task's title, a few words in ${OWNER_LANGUAGE}. brief: its worker's task, in ${OWNER_LANGUAGE} markdown, standing on its own and holding only what is settled; what is still open is no part of it. The whole value each time; both empty when no part is settled apart from the rest any more.`,
-        schema: { title: z.string(), brief: z.string() },
-        run: ({ title, brief }) => {
-          const part = settledPart(title, brief);
-          this.o.board.setIdea(cardId, { split: part });
-          this.o.board.log(cardId, 'activity', 'explorer', part ? t.plansSplit(part.title) : t.plansNoSplit);
-          return part ? `Marked “${part.title}” to split off.` : 'No task marked to split off.';
-        },
-      },
-      {
-        name: 'plan_repo',
-        description: `When the owner wants the idea built in a repository that does not exist yet ("in a new repo under ~/dev/super59"): path, its folder (absolute or from ~), and project: true for a project of its own (the default), false where the owner wants the repository on this project beside the others. The card's repository picker then shows it, and its button builds it there: Seismic creates the folder and a local git repository (no remote, nothing published), a project named after it, moves this idea there with all it holds (brief, conversation, mocks, decisions) and builds it there; the worker hears the repository is new and sets it up (CLAUDE.md, Seismic's settings). The whole value each time; an empty path when it is to be built in an existing repository again. What the owner picked on the card stands: you do not change it.`,
-        schema: { path: z.string(), project: z.boolean().optional() },
-        run: ({ path, project }) => {
-          const p = clip(String(path ?? '').trim(), 1000);
-          if (p && !folderPath(p)) return `${p} is no folder: give it absolute or from ~.`;
-          const set = this.o.board.setNewRepo(cardId, p ? { path: p, project: project !== false, by: 'agent' } : null, 'agent');
-          const now = this.o.board.newRepo(cardId);
-          if (!set) return `The owner picked the repository on the card themselves${now?.path ? ` (a new one at ${now.path})` : ''}; it stays as they chose.`;
-          this.o.board.log(cardId, 'activity', 'explorer', p ? t.plansRepo(p) : t.plansNoRepo);
-          return p ? `The card now builds it in a new repository at ${p}${project === false ? ' on this project' : ', with a project of its own'}.` : 'No new repository: it is built where the card says.';
-        },
-      },
-      {
-        name: 'record_decision',
-        description: `The owner decided something in the conversation: record it in the decision log (question and answer in ${OWNER_LANGUAGE}, short).`,
-        schema: { question: z.string(), answer: z.string() },
-        run: ({ question, answer }) => {
-          this.o.board.decide({ plan_id: null, card_id: cardId, question: clip(String(question), 500), answer: clip(String(answer), 500), by: 'owner' });
-          this.o.board.log(cardId, 'state', 'explorer', t.decision(clip(String(question), 200), clip(String(answer), 200)));
-          return 'Recorded.';
-        },
-      },
-      ...(this.o.toObeya ? [toObeyaTool((request) => this.o.toObeya!(cardId, request))] : []),
-    ]);
-  }
 
   /**
    * The first message of a session from scratch: the card and the decisions, and for an idea discussed
@@ -566,58 +473,11 @@ export class Explorers {
   }
 }
 
-/** The words of the card the idea's agent writes into: the parts of the brief, and examples in the owner's language. */
-const WORDS: Record<Language, { parts: [string, string, string, string, string, string]; changed: string; pointer: string; approach: string }> = {
-  en: { parts: ['Goal', 'Today', 'Variants', 'Decisions', 'Open questions', 'Effort'], changed: 'Added variants A to C', pointer: 'Two open questions, see the brief', approach: '"A Plasma fields"' },
-};
 
-const system = (language: Language, ui: Language, repository: Language, toObeya: boolean) => {
-  const w = WORDS[language];
-  const [goal, today, variants, decisions, open, effort] = w.parts.map((p) => `**${p}**`);
-  return `
-You are the exploration agent of one idea on Seismic, a project on which the owner directs coding agents like an engineering director directs a team. The owner wants to think the idea through with you before anything is planned or built. It is one long conversation; it may go on days later.
-
-Your sources are the code, the repository's docs and plan docs, and what the messages give you (decisions taken so far, the owner's preferences). You have the tools a worker has: what the discussion depends on beyond the text (the git history, files on this machine and their dates, a release, pull request or CI run on GitHub with gh, a page on the web), check rather than guess. Nothing you do yourself starts work.${toObeya ? `\n\n${TO_OBEYA}` : ''}
-
-The card shows the brief ("${MESSAGES[ui].idea.briefName}") and the conversation side by side. The brief holds the substance, the conversation only the turns: nothing stands in both.
-
-How to work:
-- Put what you find and propose into the brief, not into your reply: what the code does today, variants with their trade-offs and what each would cost (what it touches, roughly how much agent work, the risks), decisions, open questions, effort.
-- Ground it in the code and the plan; say when you are guessing.
-- Ask what you need to know, one or two questions at a time, under ${open} in the brief, numbered, and pass the same questions to reply as questions, with two to five short answer options each when the answer is a choice; when options can be combined, set multiple instead of offering combinations as options. The card shows them as choices under your reply; the owner picks or writes their own answer. A question without options gets a written answer.
-- Your reply is your turn in the conversation, a few sentences at most: react to what the owner said, name in a few words what changed in the brief ("${w.changed}", not the variants again, and no finding from it summed up), and say what you need from them next by pointing to the open questions ("${w.pointer}"), without repeating them. Only what has no place in the brief (an explanation the owner asked for, a remark on the side) is said in the reply itself.
-- Do not confirm recorded decisions one by one; the brief shows them.
-- When a variant is something to look at (a layout, a card, a dialog), show it with a mock in the brief: a few lines of HTML the card shows beside the brief. A mock is a sketch of how it looks, not working code; a prototype is for what a sketch cannot show.
-
-Tools, within a turn in this order:
-- record_decision: when the owner decided something in the message. General preferences (how they like to work) are not decisions; Seismic learns those on its own.
-- update_brief: keep the brief current whenever the conversation changed it. It has these parts, as short bold-labelled paragraphs or lists: ${goal}, ${today} (what the code does today, when it matters), ${variants} (open and dropped ones, each with why), ${decisions}, ${open}, and ${effort} once you can say. An answered question leaves the open questions; what it decided goes where it belongs. Whoever opens the card later reads only the brief, so it must stand on its own. When the owner builds the idea as it stands, the brief is the worker's task.
-- plan_prototypes: whenever the brief plans prototypes you have not passed to it yet, or the plan changes (which variants are to be seen side by side, and what each is to show). The owner then starts them all with one click, one worker per variant.
-- plan_split: whenever part of the idea is settled while the rest is still open, or that split changes or goes: the part to build now, as one worker's task.
-- plan_repo: whenever the owner says the idea is to be built in a repository that does not exist yet, or where that changes.
-- reply, last: your turn in the conversation. Exactly once per message, then end your turn.
-
-The owner decides on the card whether to build the idea, build its settled part, turn it into a plan doc, have a throwaway prototype built, park it or drop it. With every reply, say through next what you would do in their place if you had to decide, and why; the card marks that click, so the owner sees at a glance where to go on:
-- answer: an open question has to be settled before anything else makes sense. Then give your own pick for each question too, so the owner can follow it or overrule it.
-- build: the brief is clear enough to be one worker's task, and what is still open is a judgement call the worker can make. Building ends this conversation: the brief becomes the task, and the idea's prototypes, planned and running, are dropped. Where you marked a new repository with plan_repo, building creates it first and the idea moves there.
-- splitOff: part of the idea is settled and part is still open (to be discussed further, or prototyped). The part you marked with plan_split becomes a task of its own, which a worker starts on at once; the idea stays with this conversation, its open part and its prototypes, planned and running. Without a part marked with plan_split, the card has no such click.
-- planDoc: it is too big for one card (several workstreams, or an order to work in). The idea's prototypes stay, for the workstream that builds on them.
-- prototype: only seeing it will settle it (a layout, how it feels, a risky approach), and a throwaway build costs less than guessing.
-- park or drop: it is not worth it now, or no longer.
-Give your pick on every question with options, whatever next is. Do not hold the idea back with questions you could settle as well as the owner: settle them in the brief and say so. Several prototypes may try different approaches side by side, one per variant you planned with plan_prototypes; you hear each one's result, and the questions their workers asked with the owner's answers, which belong in the brief like answers given here. Once one convinces, the owner builds the idea on that prototype's branch.
-Owner-facing text (your replies, the brief, its mocks, prototypes and split-off part, the decisions you record) is in the owner's language. ${ownersLanguage(language)} ${repositoryLanguage(repository)}
-`.trim();
-};
 
 const OWN_TOOLS = ['reply', 'update_brief', 'plan_prototypes', 'plan_split', 'plan_repo', 'record_decision', 'to_seismic'];
 
-/** At most this many prototypes are planned for one idea. */
-const MAX_VARIANTS = 6;
 
-/** How a mock is written, for both tools that take them. */
-const mocks = (language: string) =>
-  `each with a title (the variant in a few words, in ${language}) and html: a few lines of self-contained HTML with inline styles (no files, no network), shown in a sandboxed frame that may leave it only 240 px of width, so nothing in it is wider`;
-const MOCK_SCHEMA = z.array(z.object({ title: z.string(), html: z.string() })).max(MAX_VARIANTS).optional();
 
 /** How many messages of the conversation so far a session from scratch reads. */
 const EARLIER_MESSAGES = 20;
@@ -662,43 +522,8 @@ const UNREAD_NOTE: Record<Unread['why'], string> = {
     'The owner paused you while you worked on a reply and has now let you go on. Pausing ended your session at once: whatever you had running was stopped with it (a command still running shows exit code 137). These messages are still unanswered; take them in with the one after them:',
 };
 
-/** The prototypes as the agent planned them: each with an approach of its own, and a task. */
-function plannedPrototypes(list: unknown): PlannedPrototype[] {
-  const seen = new Set<string>();
-  const out: PlannedPrototype[] = [];
-  for (const p of (list as { approach?: unknown; show?: unknown }[] | undefined) ?? []) {
-    const approach = clip(String(p.approach ?? '').replace(/\s+/g, ' ').trim(), 60);
-    const show = clip(String(p.show ?? '').trim(), 4000);
-    if (!approach || !show || seen.has(approach.toLowerCase())) continue;
-    seen.add(approach.toLowerCase());
-    out.push({ approach, show });
-  }
-  return out.slice(0, MAX_VARIANTS);
-}
 
-/** The mocks as the agent wrote them: each with a title and some HTML, at most one per variant. */
-function mocksOf(list: unknown): Mock[] {
-  return ((list as { title?: unknown; html?: unknown }[] | undefined) ?? [])
-    .map((m) => ({ title: clip(String(m.title ?? '').replace(/\s+/g, ' ').trim(), 80), html: String(m.html ?? '').trim() }))
-    .filter((m) => m.html && m.html.length <= MOCK_MAX)
-    .slice(0, MAX_VARIANTS);
-}
 
-/** A mock is a sketch, not a page: longer ones are left out rather than cut off mid-tag. */
-const MOCK_MAX = 20000;
 
-/** The part to build now as the agent marked it: both a title and a brief, or no split. */
-function settledPart(title: unknown, brief: unknown): SettledPart | undefined {
-  const part = { title: clip(String(title ?? '').replace(/\s+/g, ' ').trim(), 160), brief: clip(String(brief ?? '').trim(), 20000) };
-  return part.title && part.brief ? part : undefined;
-}
 
-/** The step the agent suggests; answering needs questions to answer, building the settled part a part marked. */
-function nextStep(next: unknown, asked: Question[], split: boolean): NextStep | undefined {
-  const n = next as { step?: unknown; why?: unknown } | undefined;
-  if (!n || !NEXT_STEPS.includes(n.step as NextStep['step'])) return undefined;
-  if (n.step === 'answer' && !asked.length) return undefined;
-  if (n.step === 'splitOff' && !split) return undefined;
-  return { step: n.step as NextStep['step'], why: clip(String(n.why ?? '').trim(), 400) };
-}
 

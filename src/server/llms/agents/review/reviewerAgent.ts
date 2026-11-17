@@ -40,7 +40,7 @@ export interface ReviewerContext {
   record: (given: Recorded) => string | undefined;
 }
 
-export class SeismicReviewer extends SeismicAgent<ReviewerContext> {
+export class ReviewerAgent extends SeismicAgent<ReviewerContext> {
   readonly role = 'review' as const;
   readonly name = 'review';
   readonly description = "Reviews a card's work: reads its diff and records graded findings.";
@@ -109,4 +109,4 @@ export class SeismicReviewer extends SeismicAgent<ReviewerContext> {
   }
 }
 
-export const seismicReviewer = new SeismicReviewer();
+export const reviewerAgent = new ReviewerAgent();

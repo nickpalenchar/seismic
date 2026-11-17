@@ -41,7 +41,7 @@ and `docs/design.md`, and this doc goes.
   timeout and usage-limit hook. A job is built per run, so its tools keep their state in fields.
 - [ ] The Koordinator's sessions in `koordinator.ts`, `merges.ts`, `revisions.ts` and `share.ts` still call
   `readSession` directly; they become jobs with the Koordinator (then `readSession.ts` goes).
-- [x] The code review's agent session is `SeismicReviewer` (`llms/agents/review/seismicReviewer.ts`: role `review`,
+- [x] The code review's agent session is `ReviewerAgent` (`llms/agents/review/reviewerAgent.ts`: role `review`,
   read-only, the `review` tool, the brief); `CodeReviews` (`llms/skills/codeReview.ts`) stays the service that
   decides when it runs and hands in the card's state as the context.
 - [ ] The label helpers (`labelParams`, `labelsFrom`, `labelWords`, in `llms/skills/`) are the Koordinator's
@@ -56,13 +56,13 @@ and `docs/design.md`, and this doc goes.
 
 ## The worker as a `SeismicAgent`
 
-Done: `SeismicWorker` (`agents/worker/seismicWorker.ts`) defines the worker's role, model, skills (all five)
-and permission; `launch()` in `workerSupervisor/workerSupervisor.ts` starts it with `seismicWorker.start(...)`. `SeismicAgent` gained
+Done: `WorkerAgent` (`agents/worker/workerAgent.ts`) defines the worker's role, model, skills (all five)
+and permission; `launch()` in `workerSupervisor/workerSupervisor.ts` starts it with `workerAgent.start(...)`. `SeismicAgent` gained
 `getSessionOptions()` (`at`, `dirs`, `untrusted`, `env`, `contextUpdate`, `askOwner`, `watch`) and
 `AgentRun.images`.
 
 - [x] The worker's system prompt (`agents/worker/systemPrompt.ts`), tools (`tools.ts`) and briefing (`briefing.ts`:
-  `workerBriefing` with the review, folder and prototype variants) moved out of `workerSupervisor/workerSupervisor.ts`; `SeismicWorker`
+  `workerBriefing` with the review, folder and prototype variants) moved out of `workerSupervisor/workerSupervisor.ts`; `WorkerAgent`
   calls them with the card's state (`WorkerContext`). They reach `WorkerSupervisor` through `WorkerHost` and `BriefingHost`,
   `Pick`s of the members they use, which are public now (about 40 methods plus `o`, `live`, `folder`, `shares`).
   The constants and helpers they share with `workerSupervisor/workerSupervisor.ts` (`END_TURN`, `landedOf`, `snoozedUntil`, the proposal
@@ -76,7 +76,12 @@ and permission; `launch()` in `workerSupervisor/workerSupervisor.ts` starts it w
   card-state helpers they reach move into their own classes.
 - [ ] The trust flags `claudeHeld` and `codexConfig`, `onLimit` and `permissionMode`-like extras of the other
   agents go through `getSessionOptions()` as each agent moves.
-- [ ] The same for the other agents (`review`, `koordinator`, `explorer`, `chores`) after the worker.
+- [x] The exploration agent is `ExplorerAgent` (`llms/agents/explorer/`: `systemPrompt.ts`, `tools.ts`, the agent
+  class); `Explorers` hands in the idea's state and reaches it through `ExplorerHost`. It has no permission of its
+  own (`getPermissionMode()` may return none: the harness follows the owner's mode as before, which for Codex is
+  "ask", not its automatic review).
+- [ ] The same for the other agents (`koordinator`, `chores`); the Koordinator's briefing and `contextUpdate`
+  parts move out of `explorers.ts`-style hosts the same way.
 
 ## Permission mode
 
@@ -98,7 +103,7 @@ is `dontAsk` plus the read-only tool list, Codex's `read-only` sandbox, agy's `R
   account) but a headless session has nobody to answer a prompt, so `ask` and `acceptEdits` need a check
   before they map.
 - [ ] Codex's `auto` (its automatic review) is the owner's `codexAutoReview` setting, not the flag: a
-  Codex session without a permission asks, except under `dangerouslyBypassPermissions`. A `SeismicWorker`
+  Codex session without a permission asks, except under `dangerouslyBypassPermissions`. A `WorkerAgent`
   on Codex has to override `getPermissionMode()` for that.
 - [ ] `acceptEdits` on Codex is the same as `ask` (a workspace-write sandbox already lets edits through).
 
