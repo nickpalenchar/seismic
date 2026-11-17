@@ -962,7 +962,8 @@ function Project({
     addressCloses(undefined);
     setSheetOn(false);
     if (toArchive && archivedRef.current.some((i) => i.id === f.id) && !itemsRef.current.some((i) => i.id === f.id)) setAOn(true);
-    await fly(back(f), 600);
+    // a full-page view hides the project: the camera stays
+    if (!fullPage.ref.current) await fly(back(f), 600);
     recover();
   }
 
