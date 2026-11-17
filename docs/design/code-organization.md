@@ -62,19 +62,19 @@ Not necesarilly "layers", but important to keep organized nonetheless
 
 - `src/server/auth/` authentication logic
 - `src/server/lib/` various helper funcitons
-- `src/server/llms/` what Seismic asks of an LLM: skills, prompts, harnesses (see below)
-- `src/server/agents/` how Seismic defines its agents (see below)
-- `src/server/skills/` the skills Seismic ships, beside the agents that use them. `SeismicSkill` is one skill, built from
+- `src/server/llms/` what Seismic asks of an LLM: agents, skills, prompts, harnesses (see below)
+
+### LLMs
+
+- `src/server/llms/skills/` the skills Seismic ships. `SeismicSkill` is one skill, built from
   `plugin/skills/<dir>/SKILL.md` (name, description, hint, instructions); `browser.ts`, `demo.ts`, `labels.ts`,
   `settings.ts`, `titles.ts` hold the instances an agent imports, and `registry.ts` lists them all. An agent
   declares its skills once (`getSkills()` → `AgentSpec.skills`) and each harness attaches them its own way
   (`attachedSkills.ts`): Claude loads the plugin, Codex and agy are told the files in the system prompt.
-
-### LLMs
-
-- `src/server/llms/skills/` what has not moved to `src/server/agents/` yet: the code review, label
-  and title suggestions, tag proposals and the work retrospective, with their tests. The old guide
-  readers there (`labelsGuide`, `titlesGuide`) are deprecated for `SeismicSkill.getInstructions()`.
+  Not yet moved out into agents: the code review, label and title suggestions, tag proposals and the work
+  retrospective, with their tests; the old guide readers there (`labelsGuide`, `titlesGuide`) are deprecated
+  for `SeismicSkill.getInstructions()`.
+- `src/server/llms/agents/` how Seismic defines its agents (see below).
 - `src/server/llms/prompts/` the prompts those skills send, one prompt per file, each file
   exporting one value named like the file (`restartNotice.ts` exports `restartNotice`). A prompt
   that takes parameters (a language, a count) is a function of them, so the file needs nothing
@@ -88,18 +88,18 @@ Not necesarilly "layers", but important to keep organized nonetheless
 - Moving existing code in is done a part at a time: `src/server/` still holds skills and prompts
   that have not moved yet.
 
-### Agents
+### Agents (`src/server/llms/agents/`)
 
-- `src/server/agents/seismicAgent.ts` the base class `SeismicAgent`: an agent is a role, a model
+- `src/server/llms/agents/seismicAgent.ts` the base class `SeismicAgent`: an agent is a role, a model
   (chosen per run from the role's setting), skills, MCPs, tools and prompts. A subclass per agent
   (worker, review, ...) supplies the pieces; the base class assembles an `AgentSpec` and starts it on
   a runtime from `src/server/llms/harnesses/`.
-- `src/server/agents/simpleAgents/` the short, single-purpose agent sessions of Seismic's own (the
+- `src/server/llms/agents/simpleAgents/` the short, single-purpose agent sessions of Seismic's own (the
   wish draft so far): a function that starts a read-only session, with its test. They are plain
   functions for now; they differ from other agents only by this directory. What is still in
   `src/server/llms/skills/` (code review, tag proposals, work retrospective, label helpers) moves
   here a part at a time.
-- `src/server/agents/types.ts` placeholder types for MCPs until they get a class of their own.
+- `src/server/llms/agents/types.ts` placeholder types for MCPs until they get a class of their own.
 
 ## File header comments
 

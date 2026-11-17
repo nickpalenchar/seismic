@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
-import { AGENT_DEFAULTS } from '../../core/types';
-import { FakeRuntime } from '../testing';
+import { AGENT_DEFAULTS } from '../../../core/types';
+import { FakeRuntime } from '../../testing';
 import { SeismicAgent } from './seismicAgent';
 import { ownerPermission, setOwnerPermission } from './permission';
 import { labelsSkill } from '../skills/labels';

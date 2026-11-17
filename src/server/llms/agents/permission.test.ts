@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from 'bun:test';
-import { agyArgs, READ_ONLY_PERMISSIONS } from '../llms/harnesses/agy';
+import { agyArgs, READ_ONLY_PERMISSIONS } from '../harnesses/agy';
 import { autoReviewRun, bypassRun, claudeMode, ownerPermission, parsePermissionFlag, readOnlyRun, setOwnerPermission } from './permission';
 
 afterEach(() => setOwnerPermission('auto'));

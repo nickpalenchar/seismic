@@ -14,7 +14,7 @@ import {
   PRIORITY_NAMES,
   SUBCATEGORIES,
 } from '../../../core/labels';
-import { labelsSkill } from '../../skills/labels';
+import { labelsSkill } from './labels';
 
 /**
  * The labels skill's file in Seismic's plugin.

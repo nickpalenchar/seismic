@@ -6,7 +6,7 @@ import { mergeRank, type Item, type Merge } from '../core/types';
 import type { Board } from './board';
 import { readSession } from './koordinator';
 import type { AgentRuntime } from './runtime';
-import { proposalTask } from './agents/worker/shared';
+import { proposalTask } from './llms/agents/worker/shared';
 
 export interface MergeOptions {
   board: Board;

@@ -45,10 +45,10 @@ import { type Forge, parsePrUrl, sameRepo } from './forge';
 import { clip, messageOf } from '../core/text';
 import { holdsNotes } from '../core/queue';
 import { CodeReviews } from './llms/skills/codeReview';
-import { seismicWorker } from './agents/worker/seismicWorker';
-import { AFTER_LANDING, APP_URL, landedOf, snoozedUntil } from './agents/worker/shared';
-import { workerBriefing } from './agents/worker/briefing';
-import { workerTools } from './agents/worker/tools';
+import { seismicWorker } from './llms/agents/worker/seismicWorker';
+import { AFTER_LANDING, APP_URL, landedOf, snoozedUntil } from './llms/agents/worker/shared';
+import { workerBriefing } from './llms/agents/worker/briefing';
+import { workerTools } from './llms/agents/worker/tools';
 
 export interface WorkerOptions {
   board: Board;

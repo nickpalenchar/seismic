@@ -7,9 +7,9 @@
 
 import { tmpdir } from 'node:os';
 import { z } from 'zod';
-import { issueFooter, withoutFooter } from '../../../core/wish';
-import type { AgentRuntime } from '../../runtime';
-import { wishSystem } from '../../llms/prompts/wishSystem';
+import { issueFooter, withoutFooter } from '../../../../core/wish';
+import type { AgentRuntime } from '../../../runtime';
+import { wishSystem } from '../../prompts/wishSystem';
 
 export interface WishInput {
   /** What the owner wrote or said now. */

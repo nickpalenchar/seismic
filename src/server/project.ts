@@ -42,7 +42,7 @@ import { harnessNames } from './llms/harnesses';
 import { bashRules } from './allow-rules';
 import { type TagCard, tagCards } from './llms/skills/tagProposal';
 import { commandsOf, heldGroups, withoutHeld } from './trust';
-import { seismicSkills } from './skills/registry';
+import { seismicSkills } from './llms/skills/registry';
 import { Skills } from './skills';
 
 /** The skill lists of all projects: several share a repository, and the user's skills are the same on each. */
@@ -59,7 +59,7 @@ import { FolderWorkstations } from './folder';
 import { readingTheme, readTheme, type Theme } from './theme';
 import { claudeToken, githubToken, hostName, registerHost } from './hosts';
 import { clip, messageOf, oneLine } from '../core/text';
-import { type WishDraft, type WishInput, writeWish } from './agents/simpleAgents/wish';
+import { type WishDraft, type WishInput, writeWish } from './llms/agents/simpleAgents/wish';
 
 export type { ProjectConfig, RepoConfig };
 

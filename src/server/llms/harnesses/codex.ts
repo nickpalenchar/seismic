@@ -1,7 +1,7 @@
 /**
  * Native installed Codex app-server adapter. Worker routing and portability live separately.
  */
-import { autoReviewRun, bypassRun, readOnlyRun } from '../../agents/permission';
+import { autoReviewRun, bypassRun, readOnlyRun } from '../agents/permission';
 import { bothNames, seismicEnv } from '../../../core/env';
 import { basename, dirname, isAbsolute, join } from 'node:path';
 import { homedir } from 'node:os';

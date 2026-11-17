@@ -4,9 +4,9 @@
  * (`system.ts`) and its tools (`tools.ts`); the `Workers` that runs the card hands in the card's state
  * as the context.
  */
-import type { AgentSetting, Item } from '../../../core/types';
-import { EXEC_LANE_AUTO_NOTE, EXEC_LANE_NOTE } from '../../llms/harnesses/codexExecTools';
-import type { Live } from '../../workers';
+import type { AgentSetting, Item } from '../../../../core/types';
+import { EXEC_LANE_AUTO_NOTE, EXEC_LANE_NOTE } from '../../harnesses/codexExecTools';
+import type { Live } from '../../../workers';
 import { ownerPermission } from '../permission';
 import { SeismicAgent } from '../seismicAgent';
 import { SEISMIC_SKILLS } from '../../skills/registry';

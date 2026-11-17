@@ -1,4 +1,4 @@
-import { titlesSkill } from '../../skills/titles';
+import { titlesSkill } from './titles';
 
 /**
  * The title skill's instructions, shared by the plugin and the automatic naming session.

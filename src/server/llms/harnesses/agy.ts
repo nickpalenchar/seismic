@@ -7,7 +7,7 @@
  * (`codexExecTools.ts`). Seismic's tools reach it over a localhost MCP endpoint (`agyMcp.ts`) that the
  * session's `.agents/mcp_config.json` names. Routing and portability checks: `index.ts`.
  */
-import { readOnlyRun } from '../../agents/permission';
+import { readOnlyRun } from '../agents/permission';
 import { seismicEnv } from '../../../core/env';
 import { spawn, spawnSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';

@@ -3,15 +3,15 @@
  * card is: a review of a contributor's pull request, a prototype, work in a folder without git, or
  * an ordinary card.
  */
-import { hostName } from '../../hosts';
-import { contributionOf, type StoredContribution } from '../../board';
-import { dimensions } from '../../../core/page-tags';
+import { hostName } from '../../../hosts';
+import { contributionOf, type StoredContribution } from '../../../board';
+import { dimensions } from '../../../../core/page-tags';
 import { basename } from 'node:path';
-import type { Item, Mock } from '../../../core/types';
-import { decisionLog } from '../../advisor';
-import type { Shipped } from '../../board';
-import { CAPTURED_CHANGES } from '../../workstations';
-import type { Workers } from '../../workers';
+import type { Item, Mock } from '../../../../core/types';
+import { decisionLog } from '../../../advisor';
+import type { Shipped } from '../../../board';
+import { CAPTURED_CHANGES } from '../../../workstations';
+import type { Workers } from '../../../workers';
 
 /** What the briefing needs of the `Workers` that runs the card. */
 export type BriefingHost = Pick<Workers, 'artifacts' | 'captured' | 'demoSkill' | 'demosDir' | 'detailOf' | 'folder' | 'o' | 'prSource' | 'proposalBoards' | 'shares' | 'taskImages'>;

@@ -18,8 +18,8 @@
  * Session options (where it shows, trust flags, hooks that carry news and ask the owner) come from
  * `getSessionOptions`.
  */
-import type { AgentRole, AgentSetting } from '../../core/types';
-import type { AgentEvent, AgentRuntime, AgentSession, AgentSpec, AgentTool } from '../runtime';
+import type { AgentRole, AgentSetting } from '../../../core/types';
+import type { AgentEvent, AgentRuntime, AgentSession, AgentSpec, AgentTool } from '../../runtime';
 import { ownerPermission } from './permission';
 import type { AgentMcp, AgentPermission, AgentSkill, SessionOptions } from './types';
 

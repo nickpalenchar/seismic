@@ -2,11 +2,11 @@
  * Texts and small helpers the worker's tools and `Workers` share.
  */
 import { z } from 'zod';
-import { type Snooze } from '../../../core/types';
-import { type Asked, toQuestion, withPick } from '../../advisor';
-import { MESSAGES } from '../../../core/messages';
-import type { Demo } from '../../../core/types';
-import type { LandedState } from '../../workers';
+import { type Snooze } from '../../../../core/types';
+import { type Asked, toQuestion, withPick } from '../../../advisor';
+import { MESSAGES } from '../../../../core/messages';
+import type { Demo } from '../../../../core/types';
+import type { LandedState } from '../../../workers';
 
 /** What the card's row stores while landed work's worker finishes; null while nothing has landed. */
 export const landedOf = (row: { landed: string | null }): LandedState | null => (row.landed ? (JSON.parse(row.landed) as LandedState) : null);

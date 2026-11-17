@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
-import { withLimitWait } from '../../runtime';
-import { FakeRuntime } from '../../testing';
+import { withLimitWait } from '../../../runtime';
+import { FakeRuntime } from '../../../testing';
 import { footerOf, writeWish } from './wish';
 
 const settle = () => new Promise((r) => setTimeout(r, 5));

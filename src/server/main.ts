@@ -44,7 +44,7 @@ import { chmodSync, existsSync, mkdirSync, rmSync, statSync, writeFileSync } fro
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { parsePermissionFlag, setOwnerPermission } from './agents/permission';
+import { parsePermissionFlag, setOwnerPermission } from './llms/agents/permission';
 import type { DeveloperView, RestartReason } from '../core/types';
 import { type ProjectConfig, Projects } from './project';
 import { adoptOldConfig, Config, CONFIG_FILE, expandConfig, readConfigFile } from './config';

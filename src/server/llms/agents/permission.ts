@@ -4,7 +4,7 @@
  * `AgentPermission`.
  */
 import type { PermissionMode } from '@anthropic-ai/claude-agent-sdk';
-import type { AgentSpec } from '../runtime';
+import type { AgentSpec } from '../../runtime';
 import type { AgentPermission } from './types';
 
 let owner: AgentPermission = 'auto';

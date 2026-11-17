@@ -4,24 +4,24 @@
  * runs it (`WorkerHost`).
  */
 import { z } from 'zod';
-import { LANGUAGE_NAMES } from '../../../core/locale';
-import { type CardFile } from '../../../core/files';
-import { answering, AWAITED_STATES, awaited, isPausing, type CardLanding, type DemoKind, type DemoPage, formatQuestion, type Snooze, SNOOZE_LIMIT } from '../../../core/types';
-import { BadRequest, type StoredDemo, titleKey } from '../../board';
-import { type Asked, withPick } from '../../advisor';
-import { checkArtifact, readChapters } from '../../demo';
-import { artifactFiles } from '../../demo-page';
-import { remoteHost } from '../../repo';
-import { type AgentTool } from '../../runtime';
-import { toObeyaTool } from '../../to-obeya';
-import { hostName } from '../../hosts';
-import { contributionOf, type PrState, type StoredContribution } from '../../board';
-import { type PageTags, SEVERITIES } from '../../../core/types';
-import { dimensions, outside, tagsOf } from '../../../core/page-tags';
-import { type DataSignal, dataModelSignals } from '../../data-models';
-import { parsePrUrl, sameRepo } from '../../forge';
-import { clip } from '../../../core/text';
-import type { LandedState, Live, OwnCommits, Workers } from '../../workers';
+import { LANGUAGE_NAMES } from '../../../../core/locale';
+import { type CardFile } from '../../../../core/files';
+import { answering, AWAITED_STATES, awaited, isPausing, type CardLanding, type DemoKind, type DemoPage, formatQuestion, type Snooze, SNOOZE_LIMIT } from '../../../../core/types';
+import { BadRequest, type StoredDemo, titleKey } from '../../../board';
+import { type Asked, withPick } from '../../../advisor';
+import { checkArtifact, readChapters } from '../../../demo';
+import { artifactFiles } from '../../../demo-page';
+import { remoteHost } from '../../../repo';
+import { type AgentTool } from '../../../runtime';
+import { toObeyaTool } from '../../../to-obeya';
+import { hostName } from '../../../hosts';
+import { contributionOf, type PrState, type StoredContribution } from '../../../board';
+import { type PageTags, SEVERITIES } from '../../../../core/types';
+import { dimensions, outside, tagsOf } from '../../../../core/page-tags';
+import { type DataSignal, dataModelSignals } from '../../../data-models';
+import { parsePrUrl, sameRepo } from '../../../forge';
+import { clip } from '../../../../core/text';
+import type { LandedState, Live, OwnCommits, Workers } from '../../../workers';
 import { AFTER_LANDING, APP_URL, demoQuestion, END_TURN, landedOf, MAX_RESULT_FILES, PROPOSAL_QUESTIONS, proposalQuestions, proposalTask, snoozedUntil } from './shared';
 
 /** What the worker's tools and prompt need of the `Workers` that runs the card. */

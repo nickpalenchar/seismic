@@ -6,7 +6,7 @@ import { AGENT_DEFAULTS, HARNESSES, type Harness } from '../../../core/types';
 import { SEISMIC_PLUGIN } from '../../demo';
 import { withAgentSetting, type AgentEvent, type AgentSpec } from '../../runtime';
 import { FakeRuntime, gitRepo } from '../../testing';
-import { connectedHarnesses, HarnessCheck, harnessNames, workerHarnessRuntime } from './';
+import { connectedHarnesses, HarnessCheck, harnessNames, workerHarnessRuntime } from '.';
 import { createCodexRuntime } from './codex';
 
 const dirs: string[] = [];

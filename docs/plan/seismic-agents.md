@@ -14,12 +14,12 @@ and `docs/design.md`, and this doc goes.
 ## Done
 
 - [x] `src/server/agents` renamed to `src/server/llms` (harnesses, skills, prompts).
-- [x] `SeismicAgent` base class (`src/server/agents/seismicAgent.ts`): role, `getModel`, `getPrompt`,
+- [x] `SeismicAgent` base class (`src/server/llms/agents/seismicAgent.ts`): role, `getModel`, `getPrompt`,
   `getBriefing`, `getSkills`, `getMCPs`, `getTools`, `readOnly`, `toSpec`, `start`.
-- [x] `SeismicSkill` (`src/server/skills/seismicSkill.ts`), instances `labels` and `titles`.
+- [x] `SeismicSkill` (`src/server/llms/skills/seismicSkill.ts`), instances `labels` and `titles`.
 - [x] `AgentSpec.skills`; `attachedSkills.ts` (`skillPlugins` for Claude, `skillListing` for Codex and agy),
   called from the harnesses.
-- [x] `wish` moved to `src/server/agents/simpleAgents/`.
+- [x] `wish` moved to `src/server/llms/agents/simpleAgents/`.
 
 ## Open: skills
 
@@ -34,9 +34,9 @@ and `docs/design.md`, and this doc goes.
 ## Open: simple agents
 
 - [ ] `tagProposal`, `workRetro`, `codeReview` and the label helpers (`labelParams`, `labelsFrom`,
-  `labelWords`) move from `llms/skills/` to `agents/simpleAgents/`; `llms/skills/` is then deleted.
+  `labelWords`) move from `llms/skills/` (which holds the `SeismicSkill`s now) to `llms/agents/simpleAgents/`.
 - [ ] `readSession` leaves `koordinator.ts` (used by `tagProposal`, `workRetro`) for a shared one-shot
-  session helper under `agents/`.
+  session helper under `llms/agents/`.
 - [ ] `codeReview` and `workRetro` split into a service (board state, counters, owner decisions; the
   pure review-item functions to `core/`) and the agent sessions they start. `codeReview` imports
   `DueRestart` from `workers.ts`, the wrong direction.
