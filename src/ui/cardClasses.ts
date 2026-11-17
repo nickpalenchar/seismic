@@ -53,7 +53,7 @@ export const titleClass =
   'p-title text-display mt-0.5 mb-1.5 leading-[1.12] [font-family:var(--font)] font-[650] tracking-[-.018em] phone:text-2xl!';
 
 /** The title's field: one line that wraps, clear of the panel's ✕. */
-export const titleFieldClass = cn(titleClass, 'block w-[calc(100%-40px)] resize-none overflow-hidden placeholder:font-normal placeholder:italic');
+export const titleFieldClass = cn(titleClass, 'text-display! block w-[calc(100%-40px)] resize-none overflow-hidden placeholder:font-normal placeholder:italic');
 
 /** The card's state line under its title, in the state's colour (`--c`, set per state with the card faces' rules). */
 export const stateClass =
