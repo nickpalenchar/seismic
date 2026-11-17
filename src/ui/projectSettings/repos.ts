@@ -43,7 +43,7 @@ export interface ProjectRepos {
   confirm: (i: number) => void;
   discard: (i: number) => void;
   /** Reads them again, with their check: after git was set up, commands were trusted, settings were taken over for everyone. */
-  reload: () => void;
+  reload: () => Promise<void>;
   /** Whether the repository at `i` holds an edit not saved yet: waiting for its save, being saved, refused, or waiting to restart agents. */
   unsaved: (i: number) => boolean;
   /**
@@ -80,7 +80,7 @@ export function useProjectRepos(project: string, on: boolean, covered: boolean):
   };
 
   const load = () => {
-    api.projectRepos(project).then((v) => {
+    return api.projectRepos(project).then((v) => {
       setView(v);
       // an edit not saved yet stays over what is read: the owner still sees, and can save or discard, what they changed
       const list = v.project.repos.map((r) => now.current.edited.get(r.path) ?? r);

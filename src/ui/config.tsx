@@ -352,7 +352,7 @@ export function ConfigDialog({ on, page, onClose, onAsk, onTalk, onProblems, onC
   // a path that became a repository here (git set up in its folder): its problem goes
   const recheck = () => {
     const n = ++seq.current;
-    api.checkConfig(draft).then((v) => n === seq.current && take(v, draft), console.error);
+    return api.checkConfig(draft).then((v) => void (n === seq.current && take(v, draft)), console.error);
   };
   // problems of no one project (none at all, the file broken): counted at the heading over them
   const overall = problems.filter((p) => p.project === undefined);
@@ -696,7 +696,7 @@ interface ProjectsProps {
   busy: boolean;
   focus: ConfigFocus | null;
   onAsk: Ask;
-  onRecheck: () => void;
+  onRecheck: () => Promise<void>;
   /** Changes the project at `i`, or removes it (`null`). */
   onProject: (i: number, c: ProjectConfig | null) => void;
   /** Moves the project at `from` to `to`: the order every list of projects shows (the switcher, the phone). */
@@ -2422,7 +2422,7 @@ interface ProjectProps {
   focus: ConfigFocus | null;
   /** Has the Koordinator create a task that fixes a problem; only for the configuration as saved, which is what it reads. */
   ask?: Ask;
-  onRecheck: () => void;
+  onRecheck: () => Promise<void>;
   onReload: () => Promise<void>;
   /** Saves the dialog's changes before settings are taken over for everyone; none where saving restarts Seismic. */
   prepare?: () => Promise<boolean>;
@@ -2601,7 +2601,7 @@ interface RepoProps {
   where: string;
   ask?: (text: string) => void;
   /** Checks the configuration again: git was set up in the repository's folder. */
-  onRecheck: () => void;
+  onRecheck: () => Promise<void>;
   takeover: Takeover;
   onChange: (r: RepoConfig | null) => void;
 }
@@ -2678,7 +2678,7 @@ function RepoRow({ repo, gitOnly, home, resolved, projectId, problems, focus, wh
  * What is wrong with a repository, each problem with what fixes it where it can be fixed here:
  * setting up git in a folder without it, trusting the repository's commands.
  */
-export function RepoProblems({ repo, resolved, problems, where, ask, onRecheck, gitOnly, onFolder }: { repo: RepoConfig; resolved: ResolvedProject['repos'][number] | undefined; problems: ConfigProblem[]; where: string; ask?: ((text: string) => void) | undefined; onRecheck: () => void; /** The harness that needs git which the workers run in (`GitSetup`). */ gitOnly?: 'codex' | 'agy' | undefined; /** Keeps the folder without git; none where that is chosen in Configuration only. */ onFolder?: () => void }) {
+export function RepoProblems({ repo, resolved, problems, where, ask, onRecheck, gitOnly, onFolder }: { repo: RepoConfig; resolved: ResolvedProject['repos'][number] | undefined; problems: ConfigProblem[]; where: string; ask?: ((text: string) => void) | undefined; onRecheck: () => Promise<void>; /** The harness that needs git which the workers run in (`GitSetup`). */ gitOnly?: 'codex' | 'agy' | undefined; /** Keeps the folder without git; none where that is chosen in Configuration only. */ onFolder?: () => void }) {
   // a path without a repository that is a folder: git can be set up there
   const noGit = useFolderWithoutGit(problems.some((p) => p.code === 'notRepo') ? repo.path.trim() : '');
   return (
@@ -3407,7 +3407,7 @@ const CodeDiff = lazy(() => import('./diff-code'));
  * with what it does and its lines as last trusted against those on the main branch now, and the
  * button that trusts them; the dialog checks again after it.
  */
-export function TrustCommands({ path, trust, onDone }: { path: string; trust: RepoTrust; onDone: () => void | Promise<unknown> }) {
+export function TrustCommands({ path, trust, onDone }: { path: string; trust: RepoTrust; onDone: () => Promise<void> }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const c = t.config.trust;
