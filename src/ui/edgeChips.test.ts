@@ -6,7 +6,7 @@ test('off-screen pointers stack without overlap in a fixed card order', () => {
   const cam = { x: 0, y: 0, s: 1 }, side = { left: 0, right: 0 };
   const first = edgeChipPositions(targets, cam, side, 800, 600);
   expect(first.map((p) => p.id)).toEqual(['a', 'b', 'c']);
-  expect(first.map((p) => p.y)).toEqual([74, 74 + CHIP_HEIGHT, 74 + 2 * CHIP_HEIGHT]);
+  expect(first.map((p) => p.y)).toEqual([113, 113 + CHIP_HEIGHT, 113 + 2 * CHIP_HEIGHT]);
   expect(edgeChipPositions([...targets].reverse(), cam, side, 800, 600)).toEqual(first);
 });
 

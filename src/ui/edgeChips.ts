@@ -4,13 +4,15 @@ import type { Cam, Sides } from './camera';
 export const CHIP_WIDTH = 300;
 export const CHIP_HEIGHT = 30;
 const COLUMN_GAP = 6;
+/** Centre of the topmost row: a chip's top edge lies below the floating row of buttons (it ends at 92px). */
+const TOP_ROW = 92 + COLUMN_GAP + CHIP_HEIGHT / 2;
 
 /** A screen rectangle the pointers keep clear of (the minimap). */
 export type Keepout = { x: number; y: number; w: number; h: number };
 
 /** Screen positions for off-screen card pointers. Card IDs give ties a lasting order; `avoid` is kept uncovered. */
 export function edgeChipPositions(targets: { id: string; b: Bounds }[], cam: Cam, side: Sides, width: number, height: number, avoid?: Keepout) {
-  const top = 74, bottom = height - 60;
+  const top = TOP_ROW, bottom = height - 60;
   const left = side.left + 30, right = width - side.right - 30;
   const chipWidth = Math.min(CHIP_WIDTH, Math.max(0, right - left));
   const candidates = targets.flatMap(({ id, b }) => {
