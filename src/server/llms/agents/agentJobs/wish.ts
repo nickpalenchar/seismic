@@ -8,7 +8,9 @@
 import { tmpdir } from 'node:os';
 import { z } from 'zod';
 import { issueFooter, withoutFooter } from '../../../../core/wish';
-import type { AgentRuntime } from '../../../runtime';
+import type { AgentRuntime, AgentTool } from '../../../runtime';
+import { SeismicAgent } from '../seismicAgent';
+import type { AgentPermission, SessionOptions } from '../types';
 import { wishSystem } from '../../prompts/wishSystem';
 
 export interface WishInput {
@@ -43,6 +45,69 @@ function brief(w: WishInput, shots: number): string {
   return parts.join('\n\n');
 }
 
+/** The session that writes the draft: it answers through the `issue` tool. */
+class WishSession extends SeismicAgent<void> {
+  readonly role = 'chores' as const;
+  readonly name = 'wish';
+  readonly description = "Writes the owner's wish or bug up as a GitHub issue for Seismic's makers.";
+
+  constructor(
+    private o: {
+      w: WishInput;
+      footer: string;
+      imageCount: number;
+      /** Settles the draft. */
+      end: (d: WishDraft) => void;
+      /** The owner's own words as the draft. */
+      fallback: () => WishDraft;
+    },
+  ) {
+    super();
+  }
+
+  getModel() {
+    return undefined;
+  }
+
+  override getPermissionMode(): AgentPermission {
+    return 'readOnly';
+  }
+
+  getPrompt() {
+    return wishSystem;
+  }
+
+  override getBriefing() {
+    return brief(this.o.w, this.o.imageCount);
+  }
+
+  // the owner is waiting for the draft: their words stand in it, and the draft says when the job can write it
+  override getSessionOptions(): SessionOptions {
+    return {
+      onLimit: (until) => {
+        if (until != null) this.o.end({ ...this.o.fallback(), limitedUntil: new Date(until).toISOString() });
+      },
+    };
+  }
+
+  override getTools(): AgentTool[] {
+    return [
+      {
+        name: 'issue',
+        description: 'The issue: its title and its body (markdown), in English.',
+        schema: { title: z.string(), body: z.string() },
+        run: (a) => {
+          const title = String(a.title).replace(/\s+/g, ' ').trim().slice(0, 200);
+          const body = withoutFooter(String(a.body).trim());
+          if (!title || !body) return 'Both title and body, please.';
+          this.o.end({ title, body: `${body}\n\n${this.o.footer}` });
+          return 'Recorded. End your turn now.';
+        },
+      },
+    ];
+  }
+}
+
 /** The issue's title and body, the body ending with `footer`. */
 export function writeWish(runtime: AgentRuntime, w: WishInput, footer: string, images: string[] = []): Promise<WishDraft> {
   const said = w.said.trim();
@@ -61,37 +126,13 @@ export function writeWish(runtime: AgentRuntime, w: WishInput, footer: string, i
       resolve(d);
     };
     const timer = setTimeout(() => end(fallback()), WRITE_MS);
-    const session = runtime.start(
-      {
-        cwd: tmpdir(),
-        permission: 'readOnly',
-        role: 'chores',
-        system: wishSystem,
-        // the owner is waiting for the draft: their words stand in it, and the draft says when the job can write it
-        onLimit: (until) => {
-          if (until != null) end({ ...fallback(), limitedUntil: new Date(until).toISOString() });
-        },
-        tools: [
-          {
-            name: 'issue',
-            description: 'The issue: its title and its body (markdown), in English.',
-            schema: { title: z.string(), body: z.string() },
-            run: (a) => {
-              const title = String(a.title).replace(/\s+/g, ' ').trim().slice(0, 200);
-              const body = withoutFooter(String(a.body).trim());
-              if (!title || !body) return 'Both title and body, please.';
-              end({ title, body: `${body}\n\n${footer}` });
-              return 'Recorded. End your turn now.';
-            },
-          },
-        ],
-        onEvent: (e) => {
-          if (e.type === 'idle' || e.type === 'error') end(fallback());
-        },
-      },
-      brief({ ...w, said }, images.length),
+    const session = new WishSession({ w: { ...w, said }, footer, imageCount: images.length, end, fallback }).start(runtime, undefined, {
+      cwd: tmpdir(),
       images,
-    );
+      onEvent: (e) => {
+        if (e.type === 'idle' || e.type === 'error') end(fallback());
+      },
+    });
   });
 }
 

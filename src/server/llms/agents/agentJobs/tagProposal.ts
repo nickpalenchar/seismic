@@ -12,8 +12,8 @@ import { dimensions, parseTagLines, tagLines } from '../../../../core/page-tags'
 import { messageOf } from '../../../../core/text';
 import { finished, type Item, type PageTags, type TagProposalJob } from '../../../../core/types';
 import { BadRequest } from '../../../board';
-import { readSession } from './readSession';
-import type { AgentRuntime } from '../../../runtime';
+import { SeismicJob } from '../seismicJob';
+import type { AgentRuntime, AgentTool } from '../../../runtime';
 
 /** A card as the session reads it. */
 export interface TagCard {
@@ -58,15 +58,28 @@ export interface TagRun {
 /** The longest brief: the newest cards first, the rest left out. */
 const BRIEF_MAX = 80_000;
 
-/** The proposal of a read-only session; it settles with why it has none. */
-export async function proposeTags(o: TagRun): Promise<{ tags: PageTags; why: string }> {
-  let out: { tags: PageTags; why: string } | null = null;
-  let tried = '';
-  const error = await readSession(o.runtime, {
-    cwd: o.cwd,
-    role: 'chores',
-    system: system(o.language, o.owner),
-    tools: (finish) => [
+/** The proposal session: what the session proposes is kept in `out`; `tried` says why a try was refused. */
+class TagProposalSession extends SeismicJob {
+  readonly name = 'tagProposal';
+  readonly description = "Proposes the vocabulary of tags for a demo site from the repository and its cards.";
+  out: { tags: PageTags; why: string } | null = null;
+  tried = '';
+
+  constructor(private o: TagRun) {
+    super();
+  }
+
+  getPrompt() {
+    return system(this.o.language, this.o.owner);
+  }
+
+  getBrief() {
+    return brief(this.o);
+  }
+
+  getJobTools(): AgentTool[] {
+    const o = this.o;
+    return [
       {
         name: 'tags',
         description: `The vocabulary of tags: its dimensions, each with its values, in ${LANGUAGE_NAMES[o.language]}; and why, in ${LANGUAGE_NAMES[o.owner]}.`,
@@ -75,18 +88,23 @@ export async function proposeTags(o: TagRun): Promise<{ tags: PageTags; why: str
           why: z.string().describe('At most three short sentences on why these dimensions and values.'),
         },
         run: ({ tags, why }) => {
-          if (out) return 'Already proposed.';
+          if (this.out) return 'Already proposed.';
           const clean = cleaned(tags);
-          if (!clean) return (tried = 'No dimension with values. Call tags again with two to four dimensions, each with its values.');
-          out = { tags: clean, why: String(why ?? '').trim().slice(0, 600) };
-          return finish('Recorded. End your turn now.');
+          if (!clean) return (this.tried = 'No dimension with values. Call tags again with two to four dimensions, each with its values.');
+          this.out = { tags: clean, why: String(why ?? '').trim().slice(0, 600) };
+          return this.finish('Recorded. End your turn now.');
         },
       },
-    ],
-    brief: brief(o),
-  });
-  if (out) return out;
-  throw new Error(error ?? (tried ? 'the proposal had no dimension with values' : 'the agent proposed nothing'));
+    ];
+  }
+}
+
+/** The proposal of a read-only session; it settles with why it has none. */
+export async function proposeTags(o: TagRun): Promise<{ tags: PageTags; why: string }> {
+  const job = new TagProposalSession(o);
+  const error = await job.run(o.runtime, { cwd: o.cwd });
+  if (job.out) return job.out;
+  throw new Error(error ?? (job.tried ? 'the proposal had no dimension with values' : 'the agent proposed nothing'));
 }
 
 /** The tags as the field takes them: no colon in a dimension, no comma in a value, nothing empty; none where nothing is left. */

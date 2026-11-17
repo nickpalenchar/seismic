@@ -35,6 +35,12 @@ and `docs/design.md`, and this doc goes.
 
 - [x] `readSession` (`llms/agents/agentJobs/readSession.ts`) left `koordinator.ts`; `tagProposal` and `workRetro`
   moved to `llms/agents/agentJobs/`.
+- [x] The agent jobs are classes: `SeismicJob` (`llms/agents/seismicJob.ts`: read-only, role `chores`, the `finish`
+  handshake, `run()` settling with the error that ended it) for `tagProposal` (`TagProposalSession`) and `workRetro`
+  (`FrictionNotesSession`, `RetroSession`); `wish` (`WishSession`) extends `SeismicAgent` since it settles on its own
+  timeout and usage-limit hook. A job is built per run, so its tools keep their state in fields.
+- [ ] The Koordinator's sessions in `koordinator.ts`, `merges.ts`, `revisions.ts` and `share.ts` still call
+  `readSession` directly; they become jobs with the Koordinator (then `readSession.ts` goes).
 - [ ] `codeReview` and the label helpers (`labelParams`, `labelsFrom`, `labelWords`, in `llms/skills/`) move to
   `llms/agents/agentJobs/` too.
 - [ ] `codeReview` and `workRetro` split into a service (board state, counters, owner decisions; the

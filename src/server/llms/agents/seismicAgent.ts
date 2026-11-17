@@ -39,8 +39,8 @@ export abstract class SeismicAgent<Ctx = void> {
   abstract readonly name: string;
   abstract readonly description: string;
 
-  /** The model, effort and harness for this run: by the role's setting and whatever else the context says. */
-  abstract getModel(ctx: Ctx): AgentSetting;
+  /** The model, effort and harness for this run: by the role's setting and whatever else the context says; none leaves it to the role's setting. */
+  abstract getModel(ctx: Ctx): AgentSetting | undefined;
   /**
    * What the agent may do without asking the owner: what the owner's `--permission-mode` says, unless
    * the agent overrides it. Read-only agents get no tools that change files or run commands. Each
@@ -62,6 +62,7 @@ export abstract class SeismicAgent<Ctx = void> {
   toSpec(ctx: Ctx, run: AgentRun): AgentSpec {
     const skills = this.getSkills(ctx);
     const permission = this.getPermissionMode(ctx);
+    const setting = this.getModel(ctx);
     return {
       ...this.getSessionOptions(ctx),
       cwd: run.cwd,
@@ -69,7 +70,7 @@ export abstract class SeismicAgent<Ctx = void> {
       tools: this.getTools(ctx),
       ...(skills.length ? { skills } : {}),
       role: this.role,
-      setting: this.getModel(ctx),
+      ...(setting ? { setting } : {}),
       permission,
       ...(run.resume ? { resume: run.resume } : {}),
       onEvent: run.onEvent,

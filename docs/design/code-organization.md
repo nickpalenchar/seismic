@@ -94,9 +94,9 @@ Not necesarilly "layers", but important to keep organized nonetheless
   (worker, review, ...) supplies the pieces; the base class assembles an `AgentSpec` and starts it on
   a runtime from `src/server/llms/harnesses/`.
 - `src/server/llms/agents/agentJobs/` the agent jobs: short, single-purpose agent sessions of Seismic's own
-  (the wish draft, tag proposals, the work retrospective): a function that starts a read-only session
-  (`readSession.ts`), with its test. They are plain
-  functions for now; they differ from other agents only by this directory. What is still in
+  (the wish draft, tag proposals, the work retrospective): a class that extends `SeismicJob`
+  (`src/server/llms/agents/seismicJob.ts`: a read-only session of the role `chores` that answers through its tools),
+  built per run, with its test. What is still in
   `src/server/llms/skills/` (code review, label helpers) moves here a part at a time.
 - `src/server/llms/agents/types.ts` placeholder types for MCPs until they get a class of their own.
 

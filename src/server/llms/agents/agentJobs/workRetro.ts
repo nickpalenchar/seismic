@@ -12,7 +12,7 @@ import { z } from 'zod';
 import { type CardEvent, PROPOSED_SETTINGS, type ProposedSetting } from '../../../../core/types';
 import type { Board } from '../../../board';
 import type { FrictionNote } from '../../../schemas/friction';
-import { readSession } from './readSession';
+import { SeismicJob } from '../seismicJob';
 import { type AgentRuntime, type AgentTool, waitQuietly } from '../../../runtime';
 import { remote } from '../../../hosts';
 import { type Excerpt, excerptOf, excerptText, findTranscript } from '../../../transcript';
@@ -133,29 +133,12 @@ export class WorkRetro {
     const notes: FrictionNote[] = [];
     const settings = this.settingsText(card.repo);
     const ownerLanguage = `${LANGUAGE_NAMES[this.o.board.conversation()]} unless an explicit standing preference names another language`;
-    await readSession(this.o.runtime, {
-      cwd: this.o.pathFor(card.repo),
+    await new FrictionNotesSession({
       system: [retroNotesSystem(ownerLanguage), this.o.board.preferencesText()].filter(Boolean).join('\n\n'),
-      role: 'chores',
-      // nobody waits for it
-      onLimit: waitQuietly,
       brief: `The card: "${card.title}".${settings ? `\n\n${settings}` : ''}\n\nThe excerpt of its worker's ${runs.length > 1 ? `${runs.length} runs` : 'run'}:\n\n${text}`,
-      tools: (finish): AgentTool[] => [
-        {
-          name: 'note',
-          description: `Note one piece of friction worth preventing (in ${ownerLanguage}, a sentence each): what went wrong, what it cost, what would have prevented it.`,
-          schema: { what: z.string(), cost: z.string(), fix: z.string() },
-          run: ({ what, cost, fix }) => {
-            if (notes.length >= MAX_NOTES) return finish(`At most ${MAX_NOTES} notes. End your turn now.`);
-            const n = { what: clip(String(what).trim(), 600), cost: clip(String(cost).trim(), 300), fix: clip(String(fix).trim(), 600) };
-            if (!n.what) return 'Empty note ignored.';
-            notes.push(n);
-            return notes.length < MAX_NOTES ? 'Noted.' : finish('Noted. That was the last one; end your turn now.');
-          },
-        },
-        { name: 'done', description: 'Nothing (more) worth noting.', schema: {}, run: () => finish('Fine. End your turn now.') },
-      ],
-    });
+      ownerLanguage,
+      notes,
+    }).run(this.o.runtime, { cwd: this.o.pathFor(card.repo), onLimit: waitQuietly }); // nobody waits for it
     this.o.board.addFriction(card.repo, card.id, notes);
     // the owner sees on the card what was noted; a card deleted meanwhile has no log to show it
     if (notes.length && this.o.board.item(card.id))
@@ -203,85 +186,27 @@ export class WorkRetro {
     const settings = this.settingsText(repo);
     const ownerLanguage = `${LANGUAGE_NAMES[b.conversation()]} unless an explicit standing preference names another language`;
     const withCards = this.o.proposesCards?.() !== false;
-    let made = 0;
-    const basisOf = (cards: unknown): { ids: string[] } | string => {
-      const ids = [...new Set((Array.isArray(cards) ? cards : []).map((t) => tags.get(String(t))).filter((x): x is string => !!x))];
-      if (ids.length < 2) return 'Not recorded: a proposal rests on friction on at least two cards; pass their tags in cards. Without two, propose nothing.';
-      return { ids };
-    };
-    await readSession(this.o.runtime, {
-      cwd: this.o.pathFor(repo),
+    const session = new RetroSession({
       system: [retroSystem(ownerLanguage, b.language(), this.o.repoLanguage?.(repo) ?? 'en', WORK_RETRO_PROPOSALS, withCards), b.preferencesText()].filter(Boolean).join('\n\n'),
-      role: 'chores',
-      onLimit: waitQuietly,
       brief: [
-        `The repository: ${name}. The friction noted on its cards since the last work retrospective, card by card:\n\n${byCard.join('\n\n')}`,
-        settings,
-        dismissed.length ? `Proposals of earlier work retrospectives the owner dismissed (do not propose them again, in other words either):\n${list(dismissed)}` : '',
-        before.length ? `Proposed before and waiting or taken (do not propose them again):\n${list(before)}` : '',
-      ]
-        .filter(Boolean)
-        .join('\n\n'),
-      tools: (f): AgentTool[] => {
-        const after = () => (made < WORK_RETRO_PROPOSALS ? 'Proposed.' : f('Proposed. That was the last one; end your turn now.'));
-        const card: AgentTool = {
-          name: 'card',
-          description: `Propose a feature card that prevents the friction: a script, a skill, a fix to a tool. title, body and basis in ${ownerLanguage}; cards: the tags of the cards it rests on (at least two).`,
-          schema: { title: z.string(), body: z.string(), basis: z.string(), cards: z.array(z.string()) },
-          run: ({ title, body, basis, cards }) => {
-            if (made >= WORK_RETRO_PROPOSALS) return f(`At most ${WORK_RETRO_PROPOSALS} proposals. End your turn now.`);
-            const t = clip(String(title).trim(), 200);
-            if (!t) return 'Not recorded: the title is missing.';
-            const on = basisOf(cards);
-            if (typeof on === 'string') return on;
-            const why = clip(String(basis).trim(), 600);
-            const p = b.proposeRetro(repo, { title: t, body: `${String(body).trim()}\n\n${b.t.retro.occasion(why)}`, basis: why });
-            b.log(p.id, 'state', 'koordinator', b.t.retro.from(name, why, on.ids.map((id) => b.t.quote(titles.get(id) ?? '')).join(', ')));
-            made++;
-            return after();
-          },
-        };
-        return [
-          ...(withCards ? [card] : []),
-          {
-            name: 'rule',
-            description: `Propose a line for the repository's CLAUDE.md, for knowledge the workers lacked: rule short and in ${LANGUAGE_NAMES[this.o.repoLanguage?.(repo) ?? 'en']}, the repository's language; basis in ${ownerLanguage}; cards: the tags of the cards it rests on (at least two).`,
-            schema: { rule: z.string(), basis: z.string(), cards: z.array(z.string()) },
-            run: ({ rule, basis, cards }) => {
-              if (made >= WORK_RETRO_PROPOSALS) return f(`At most ${WORK_RETRO_PROPOSALS} proposals. End your turn now.`);
-              const r = clip(String(rule).trim(), 500);
-              if (!r) return 'Not recorded: the rule is missing.';
-              const on = basisOf(cards);
-              if (typeof on === 'string') return on;
-              if (b.preferences('proposed').some((p) => p.text === r && p.target === repo)) return 'Already proposed.';
-              b.proposePreference(r, { review: true, quote: clip(String(basis).trim(), 300) }, undefined, repo);
-              made++;
-              return after();
-            },
-          },
-          {
-            name: 'setting',
-            description: `Propose a value for one of the repository's settings that Seismic gives every worker: ${PROPOSED_SETTINGS.join(', ')}. value: a string for setup and run, a list of strings for checks and softPaths; basis in ${ownerLanguage}; cards: the tags of the cards it rests on (at least two).`,
-            schema: { field: z.enum(PROPOSED_SETTINGS), value: z.union([z.string(), z.array(z.string())]), basis: z.string(), cards: z.array(z.string()) },
-            run: ({ field, value, basis, cards }) => {
-              if (made >= WORK_RETRO_PROPOSALS) return f(`At most ${WORK_RETRO_PROPOSALS} proposals. End your turn now.`);
-              const k = String(field) as ProposedSetting;
-              if (!PROPOSED_SETTINGS.includes(k)) return `Not recorded: field is one of ${PROPOSED_SETTINGS.join(', ')}.`;
-              const v = settingValue(k, value);
-              if (v === null) return 'Not recorded: the value is missing.';
-              const on = basisOf(cards);
-              if (typeof on === 'string') return on;
-              if (b.settingProposals(repo).some((p) => p.state === 'proposed' && p.field === k)) return `Not recorded: a value for ${k} already waits for the owner.`;
-              b.proposeSetting({ repo, field: k, value: v, basis: clip(String(basis).trim(), 600), cards: on.ids });
-              made++;
-              return after();
-            },
-          },
-          { name: 'done', description: 'Nothing (more) to propose.', schema: {}, run: () => f('Fine. End your turn now.') },
-        ];
-      },
+  `The repository: ${name}. The friction noted on its cards since the last work retrospective, card by card:\n\n${byCard.join('\n\n')}`,
+  settings,
+  dismissed.length ? `Proposals of earlier work retrospectives the owner dismissed (do not propose them again, in other words either):\n${list(dismissed)}` : '',
+  before.length ? `Proposed before and waiting or taken (do not propose them again):\n${list(before)}` : '',
+]
+  .filter(Boolean)
+  .join('\n\n'),
+      b,
+      repo,
+      name,
+      tags,
+      titles,
+      ownerLanguage,
+      repoLanguage: this.o.repoLanguage?.(repo) ?? 'en',
+      withCards,
     });
-    if (told) b.notify({ text: b.t.retro.done(name, made) });
+    await session.run(this.o.runtime, { cwd: this.o.pathFor(repo), onLimit: waitQuietly });
+    if (told) b.notify({ text: b.t.retro.done(name, session.made) });
   }
 
   /** The repository's settings a retrospective may propose a value for, as they apply now, for a session's brief; empty where they cannot be read. */
@@ -299,6 +224,144 @@ export class WorkRetro {
   /** Settles once what is queued now has run (tests). */
   idle(): Promise<unknown> {
     return this.chain;
+  }
+}
+
+/** The session that reads one card's runs and notes its friction. */
+class FrictionNotesSession extends SeismicJob {
+  readonly name = 'frictionNotes';
+  readonly description = "Notes the friction in a card's worker runs.";
+
+  constructor(private o: { system: string; brief: string; ownerLanguage: string; notes: FrictionNote[] }) {
+    super();
+  }
+
+  getPrompt() {
+    return this.o.system;
+  }
+
+  getBrief() {
+    return this.o.brief;
+  }
+
+  getJobTools(): AgentTool[] {
+    const { notes, ownerLanguage } = this.o;
+    const finish = (r: string) => this.finish(r);
+    return [
+      {
+        name: 'note',
+        description: `Note one piece of friction worth preventing (in ${ownerLanguage}, a sentence each): what went wrong, what it cost, what would have prevented it.`,
+        schema: { what: z.string(), cost: z.string(), fix: z.string() },
+        run: ({ what, cost, fix }) => {
+          if (notes.length >= MAX_NOTES) return finish(`At most ${MAX_NOTES} notes. End your turn now.`);
+          const n = { what: clip(String(what).trim(), 600), cost: clip(String(cost).trim(), 300), fix: clip(String(fix).trim(), 600) };
+          if (!n.what) return 'Empty note ignored.';
+          notes.push(n);
+          return notes.length < MAX_NOTES ? 'Noted.' : finish('Noted. That was the last one; end your turn now.');
+        },
+      },
+      { name: 'done', description: 'Nothing (more) worth noting.', schema: {}, run: () => finish('Fine. End your turn now.') },
+    ];
+  }
+}
+
+/** The session that reads the friction noted since the last retrospective and proposes cards, CLAUDE.md lines and setting values. */
+class RetroSession extends SeismicJob {
+  readonly name = 'workRetro';
+  readonly description = "Proposes what would prevent the friction noted on a repository's cards.";
+  /** How many proposals it made. */
+  made = 0;
+
+  constructor(
+    private o: {
+      system: string;
+      brief: string;
+      b: Board;
+      repo: string;
+      name: string;
+      /** The tags the brief calls the cards by, and the cards' titles. */
+      tags: Map<string, string>;
+      titles: Map<string, string>;
+      ownerLanguage: string;
+      repoLanguage: Language;
+      withCards: boolean;
+    },
+  ) {
+    super();
+  }
+
+  getPrompt() {
+    return this.o.system;
+  }
+
+  getBrief() {
+    return this.o.brief;
+  }
+
+  getJobTools(): AgentTool[] {
+    const { b, repo, name, tags, titles, ownerLanguage, repoLanguage, withCards } = this.o;
+    const f = (r: string) => this.finish(r);
+    const basisOf = (cards: unknown): { ids: string[] } | string => {
+      const ids = [...new Set((Array.isArray(cards) ? cards : []).map((t) => tags.get(String(t))).filter((x): x is string => !!x))];
+      if (ids.length < 2) return 'Not recorded: a proposal rests on friction on at least two cards; pass their tags in cards. Without two, propose nothing.';
+      return { ids };
+    };
+    const after = () => (this.made < WORK_RETRO_PROPOSALS ? 'Proposed.' : f('Proposed. That was the last one; end your turn now.'));
+    const card: AgentTool = {
+      name: 'card',
+      description: `Propose a feature card that prevents the friction: a script, a skill, a fix to a tool. title, body and basis in ${ownerLanguage}; cards: the tags of the cards it rests on (at least two).`,
+      schema: { title: z.string(), body: z.string(), basis: z.string(), cards: z.array(z.string()) },
+      run: ({ title, body, basis, cards }) => {
+        if (this.made >= WORK_RETRO_PROPOSALS) return f(`At most ${WORK_RETRO_PROPOSALS} proposals. End your turn now.`);
+        const t = clip(String(title).trim(), 200);
+        if (!t) return 'Not recorded: the title is missing.';
+        const on = basisOf(cards);
+        if (typeof on === 'string') return on;
+        const why = clip(String(basis).trim(), 600);
+        const p = b.proposeRetro(repo, { title: t, body: `${String(body).trim()}\n\n${b.t.retro.occasion(why)}`, basis: why });
+        b.log(p.id, 'state', 'koordinator', b.t.retro.from(name, why, on.ids.map((id) => b.t.quote(titles.get(id) ?? '')).join(', ')));
+        this.made++;
+        return after();
+      },
+    };
+    return [
+      ...(withCards ? [card] : []),
+      {
+        name: 'rule',
+        description: `Propose a line for the repository's CLAUDE.md, for knowledge the workers lacked: rule short and in ${LANGUAGE_NAMES[repoLanguage]}, the repository's language; basis in ${ownerLanguage}; cards: the tags of the cards it rests on (at least two).`,
+        schema: { rule: z.string(), basis: z.string(), cards: z.array(z.string()) },
+        run: ({ rule, basis, cards }) => {
+          if (this.made >= WORK_RETRO_PROPOSALS) return f(`At most ${WORK_RETRO_PROPOSALS} proposals. End your turn now.`);
+          const r = clip(String(rule).trim(), 500);
+          if (!r) return 'Not recorded: the rule is missing.';
+          const on = basisOf(cards);
+          if (typeof on === 'string') return on;
+          if (b.preferences('proposed').some((p) => p.text === r && p.target === repo)) return 'Already proposed.';
+          b.proposePreference(r, { review: true, quote: clip(String(basis).trim(), 300) }, undefined, repo);
+          this.made++;
+          return after();
+        },
+      },
+      {
+        name: 'setting',
+        description: `Propose a value for one of the repository's settings that Seismic gives every worker: ${PROPOSED_SETTINGS.join(', ')}. value: a string for setup and run, a list of strings for checks and softPaths; basis in ${ownerLanguage}; cards: the tags of the cards it rests on (at least two).`,
+        schema: { field: z.enum(PROPOSED_SETTINGS), value: z.union([z.string(), z.array(z.string())]), basis: z.string(), cards: z.array(z.string()) },
+        run: ({ field, value, basis, cards }) => {
+          if (this.made >= WORK_RETRO_PROPOSALS) return f(`At most ${WORK_RETRO_PROPOSALS} proposals. End your turn now.`);
+          const k = String(field) as ProposedSetting;
+          if (!PROPOSED_SETTINGS.includes(k)) return `Not recorded: field is one of ${PROPOSED_SETTINGS.join(', ')}.`;
+          const v = settingValue(k, value);
+          if (v === null) return 'Not recorded: the value is missing.';
+          const on = basisOf(cards);
+          if (typeof on === 'string') return on;
+          if (b.settingProposals(repo).some((p) => p.state === 'proposed' && p.field === k)) return `Not recorded: a value for ${k} already waits for the owner.`;
+          b.proposeSetting({ repo, field: k, value: v, basis: clip(String(basis).trim(), 600), cards: on.ids });
+          this.made++;
+          return after();
+        },
+      },
+      { name: 'done', description: 'Nothing (more) to propose.', schema: {}, run: () => f('Fine. End your turn now.') },
+    ];
   }
 }
 
