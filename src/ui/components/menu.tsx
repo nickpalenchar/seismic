@@ -17,7 +17,7 @@ import { type ComponentProps, type ReactNode, useEffect, useRef } from 'react';
 import { uiPortal } from './ui';
 
 /** Make room for another bar interaction opened from a keyboard shortcut. */
-export const closeBarMenus = () => dispatchEvent(new Event('obeya:close-bar-menus'));
+export const closeBarMenus = () => dispatchEvent(new Event('seismic:close-bar-menus'));
 
 /** While `open`, `close` when a shortcut asks the bar's menus to make room; menus and popovers take it. */
 export function useCloseBarMenus(open: boolean, close: () => void) {
@@ -26,8 +26,8 @@ export function useCloseBarMenus(open: boolean, close: () => void) {
   useEffect(() => {
     if (!open) return;
     const dismiss = () => latest.current();
-    addEventListener('obeya:close-bar-menus', dismiss);
-    return () => removeEventListener('obeya:close-bar-menus', dismiss);
+    addEventListener('seismic:close-bar-menus', dismiss);
+    return () => removeEventListener('seismic:close-bar-menus', dismiss);
   }, [open]);
 }
 

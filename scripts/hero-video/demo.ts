@@ -1,4 +1,4 @@
-// The hero video for obeya.si, recorded with Seismic's own demo pipeline (`plugin/skills/demo`): a
+// The hero video for seismic.im, recorded with Seismic's own demo pipeline (`plugin/skills/demo`): a
 // scratch Seismic with Tipjar, a small tip calculator, and real workers. The owner arranges the wall,
 // an idea said into the microphone becomes a task, a message mixed of typing, pasting and speaking
 // goes to Seismic in its sidebar, the agent builds the first task and records its demo, the owner
@@ -17,13 +17,13 @@ import { KEY_HEADER, ownerHeaders } from '../../src/server/owner.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '../..');
 /** Where the video, its stills and the work files go: outside the repository. */
-const OUT = process.env.HERO_OUT ?? path.join(demoDirectory(), 'obeya-hero');
+const OUT = process.env.HERO_OUT ?? path.join(demoDirectory(), 'seismic-hero');
 const base = `http://127.0.0.1:${PORT}`;
 /** HERO_SHORT: the scenes up to Seismic’s sidebar and its preferences, without agents, to check them in a few minutes. */
 const SHORT = !!process.env.HERO_SHORT;
 /**
  * HERO_RECORD: the take's agents are recorded into that directory as they work; HERO_REPLAY: the
- * agents of such a recording play back instead of real ones (`scratch-obeya.ts`, `--record`, `--replay`).
+ * agents of such a recording play back instead of real ones (`scratch-seismic.ts`, `--record`, `--replay`).
  */
 const RECORD = process.env.HERO_RECORD;
 const REPLAY = process.env.HERO_REPLAY;
@@ -31,7 +31,7 @@ if (RECORD && SHORT) throw new Error('HERO_SHORT records no agents: record a who
 /** The screenshot pasted into the message: Tipjar with a comma in the bill. */
 const SHOT = path.join(OUT, 'tipjar-comma.png');
 
-/** What scratch-obeya.ts staged: its directory and the ids of the cards by their keys. */
+/** What scratch-seismic.ts staged: its directory and the ids of the cards by their keys. */
 let staged: { url: string; dir: string; cards: Record<string, string> };
 /** The scratch Seismic's owner key, for the API. */
 const owner = () => ownerHeaders(path.join(staged.dir, 'home'));
@@ -40,7 +40,7 @@ function stage() {
   const file = path.join(OUT, 'stage.json');
   writeStage(file);
   const agents = RECORD ? ['--record', RECORD] : REPLAY ? ['--replay', REPLAY] : SHORT ? [] : ['--real-workers'];
-  const printed = execFileSync('bun', [path.join(ROOT, 'scripts/scratch-obeya.ts'), file, ...agents], {
+  const printed = execFileSync('bun', [path.join(ROOT, 'scripts/scratch-seismic.ts'), file, ...agents], {
     env: { ...process.env, SEISMIC_HOME: undefined, OBEYA_HOME: undefined },
     encoding: 'utf8',
   });
@@ -689,13 +689,13 @@ await runDemo(
       // Seismic's sidebar opens with the proposed rules folded: the video shows the chat first
       const snap = (await (await fetch(`${base}/api/c/tipjar/project`, { headers: owner() })).json()) as { preferences: { id: number; state: string }[] };
       const proposed = snap.preferences.filter((p) => p.state === 'proposed').map((p) => p.id);
-      await d.page.addInitScript((ids) => localStorage.setItem('obeya-ksheet-tipjar', JSON.stringify({ proposalsClosed: ids })), proposed);
+      await d.page.addInitScript((ids) => localStorage.setItem('seismic-ksheet-tipjar', JSON.stringify({ proposalsClosed: ids })), proposed);
       // an owner who knows double-click, `?` and moving marked cards: the bar's New task and ? buttons
       // have gone (`help.tsx`), and no hint stands beside the cards the lasso marks
       await d.page.addInitScript(() => {
-        localStorage.setItem('obeya-double-click-known', '1');
-        localStorage.setItem('obeya-help-key-known', '1');
-        localStorage.setItem('obeya-move-marked-known', '1');
+        localStorage.setItem('seismic-double-click-known', '1');
+        localStorage.setItem('seismic-help-key-known', '1');
+        localStorage.setItem('seismic-move-marked-known', '1');
       });
       await d.goto('/p/tipjar');
       await d.page.addStyleTag({ content: 'bun-hmr { display: none !important; }' });
@@ -709,8 +709,8 @@ await runDemo(
       await d.page.evaluate(() => {
         const k = 0.86;
         const [cx, cy] = [innerWidth / 2, innerHeight / 2 + 30];
-        const c = JSON.parse(localStorage.getItem('obeya-cam-tipjar') ?? 'null') as { s: number; x: number; y: number } | null;
-        if (c) localStorage.setItem('obeya-cam-tipjar', JSON.stringify({ s: c.s * k, x: cx - (cx - c.x) * k, y: cy - (cy - c.y) * k - 25 }));
+        const c = JSON.parse(localStorage.getItem('seismic-cam-tipjar') ?? 'null') as { s: number; x: number; y: number } | null;
+        if (c) localStorage.setItem('seismic-cam-tipjar', JSON.stringify({ s: c.s * k, x: cx - (cx - c.x) * k, y: cy - (cy - c.y) * k - 25 }));
       });
       await d.page.reload();
       await d.page.addStyleTag({ content: 'bun-hmr { display: none !important; }' });
@@ -721,7 +721,7 @@ await runDemo(
     scenes: scenes.slice(0, SHORT ? 7 : undefined),
     report: {
       summary:
-        'The hero video for obeya.si: on a scratch project with the example app Tipjar, the owner groups and moves cards, an idea said into the microphone becomes a task, a message typed, pasted and spoken goes to Seismic in its sidebar, a real agent builds the task and records its demo, and the approval lands the change on main.',
+        'The hero video for seismic.im: on a scratch project with the example app Tipjar, the owner groups and moves cards, an idea said into the microphone becomes a task, a message typed, pasted and spoken goes to Seismic in its sidebar, a real agent builds the task and records its demo, and the approval lands the change on main.',
       meta: { Stack: `Scratch Seismic on port ${PORT} from this checkout, ${REPLAY ? `the agents played back from ${REPLAY}` : 'real workers'}, Seismic and Whisper real` },
     },
   },

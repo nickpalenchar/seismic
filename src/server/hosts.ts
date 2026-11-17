@@ -54,7 +54,7 @@ const PATH_PREFIX = '$HOME/.local/bin:$HOME/.bun/bin';
 
 /** Seismic's directory on a host, in its home: the plugin, the demo settings, the owner's screenshots, voices. */
 export const HOST_DIR = '.seismic/remote';
-/** `HOST_DIR` before the rename: only its pid files are still read (migration shim, docs/plan/seismic-rename.md). */
+/** `HOST_DIR` before the rename: only its pid files are still read (migration shim). */
 export const OLD_HOST_DIR = '.obeya/remote';
 /** The variable that marks a session's process on a host as that session (its pid file names the mark). */
 const SESSION_MARK = 'SEISMIC_REMOTE_SESSION';
@@ -77,7 +77,7 @@ function exports(env: Record<string, string | undefined>): string {
  * then connects on its own.
  */
 function socketDir(): string | null {
-  const dir = `/tmp/obeya-ssh-${process.getuid?.() ?? 0}`;
+  const dir = `/tmp/seismic-ssh-${process.getuid?.() ?? 0}`;
   try {
     mkdirSync(dir, { mode: 0o700 });
   } catch (e) {
@@ -144,7 +144,7 @@ export class SshHost {
   argv(command: string[] | string, o: { cwd?: string; env?: boolean; forward?: string; local?: string } = {}): string[] {
     const line = typeof command === 'string' ? command : `exec ${command.map(sh).join(' ')}`;
     const script = [
-      o.env ? 'IFS= read -r obeya_env; eval "$obeya_env"; unset obeya_env;' : '',
+      o.env ? 'IFS= read -r seismic_env; eval "$seismic_env"; unset seismic_env;' : '',
       `PATH="${PATH_PREFIX}:$PATH"; export PATH;`,
       o.cwd ? `cd ${sh(o.cwd)} && { ${line}
 }` : line,
@@ -284,7 +284,7 @@ export class SshHost {
     if (projects[dir]?.hasTrustDialogAccepted) return;
     projects[dir] = { ...projects[dir], hasTrustDialogAccepted: true };
     // written whole and moved into place, so a session reading it meanwhile sees the old or the new file
-    const w = await this.run('cat > "$HOME/.claude.json.obeya" && mv "$HOME/.claude.json.obeya" "$HOME/.claude.json"', { input: JSON.stringify(config, null, 2) });
+    const w = await this.run('cat > "$HOME/.claude.json.seismic" && mv "$HOME/.claude.json.seismic" "$HOME/.claude.json"', { input: JSON.stringify(config, null, 2) });
     if (w.code !== 0) throw new HostError(`${this.name}: ${w.stderr.trim()}`);
   }
 

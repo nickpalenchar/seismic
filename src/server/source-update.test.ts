@@ -20,7 +20,7 @@ const commit = (repo: string, file: string, text: string) => {
 };
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'obeya-source-'));
+  dir = mkdtempSync(join(tmpdir(), 'seismic-source-'));
   up = gitRepo(join(dir, 'up'), { 'src/a.ts': 'a\n', 'docs/design.md': 'design\n' });
   clone = join(dir, 'clone');
   git(dir, 'clone', '--quiet', up, clone);
@@ -65,7 +65,7 @@ test('docs alone do not count, as for the self-update', async () => {
 
 test('a branch that follows nothing, or a detached HEAD, has nothing to pull', async () => {
   commit(up, 'src/a.ts', 'b\n');
-  git(clone, 'switch', '--quiet', '-c', 'obeya/card');
+  git(clone, 'switch', '--quiet', '-c', 'seismic/card');
   const s = new SourceUpdates(clone);
   await s.check();
   expect(s.current()).toBeNull();

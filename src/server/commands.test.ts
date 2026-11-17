@@ -365,7 +365,7 @@ describe('the Koordinator remembers', () => {
 
   test('a question on a live card an agent worked on is a note: it resumes that agent', async () => {
     const a = board.create({ title: 'Export', x: 0, y: 0 });
-    board.work(a.id, { state: 'live', branch: 'obeya/export-1' });
+    board.work(a.id, { state: 'live', branch: 'seismic/export-1' });
     const k = commander();
     const heard = k.hear('Wie lade ich das hoch?', { card: a.id });
     await settle();
@@ -404,7 +404,7 @@ describe('the Koordinator remembers', () => {
     await new Promise((r) => setTimeout(r, 40));
     expect(executed).toEqual([{ do: 'planDoc', card: a.id }]);
 
-    board.work(a.id, { branch: 'obeya/mandanten' });
+    board.work(a.id, { branch: 'seismic/mandanten' });
     const again = k.hear('plane das als Projekt', { card: a.id });
     await settle();
     expect(await runtime.last.call('act', { actions: [{ do: 'plan_doc', card: 'K1' }], confirm: '…' })).toContain('only an idea, or a planned task of the owner');
@@ -655,7 +655,7 @@ describe('the Koordinator remembers', () => {
   test('a new session, after a restart, starts from the stored conversation and the project history', async () => {
     const a = board.create({ title: 'Export', x: 0, y: 0 });
     await say(commander(), 'starte Export', 'act', { actions: [{ do: 'start', card: 'K1' }], confirm: '“Export” startet.' });
-    board.log(a.id, 'state', 'obeya', 'Agent gestartet auf obeya/export.');
+    board.log(a.id, 'state', 'seismic', 'Agent gestartet auf seismic/export.');
     board.log(a.id, 'activity', 'worker', 'Read src/app.ts');
 
     // Seismic restarts: a new Commander on the same store
@@ -664,7 +664,7 @@ describe('the Koordinator remembers', () => {
     expect(brief).toContain('Your conversation with the owner in this chat before this session');
     expect(brief).toContain('the owner: "starte Export" → you: "“Export” startet."');
     expect(brief).toContain('K1 "Export": new card');
-    expect(brief).toContain('K1 "Export": Agent gestartet auf obeya/export.');
+    expect(brief).toContain('K1 "Export": Agent gestartet auf seismic/export.');
     // the worker's steps are no history the Koordinator needs
     expect(brief).not.toContain('Read src/app.ts');
   });
@@ -1107,7 +1107,7 @@ describe('what the owner says to the Koordinator is offered for learning', () =>
 });
 
 describe("the Koordinator and Seismic's configuration", () => {
-  const view = { file: '/h/projects.json', source: 'file', projects: [{ name: 'Seismic', repos: [{ path: '/r' }] }], running: ['obeya'] } as unknown as ConfigView;
+  const view = { file: '/h/projects.json', source: 'file', projects: [{ name: 'Seismic', repos: [{ path: '/r' }] }], running: ['seismic'] } as unknown as ConfigView;
   const config = {
     view: () => view,
     check: async (input: unknown) => {
@@ -1125,7 +1125,7 @@ describe("the Koordinator and Seismic's configuration", () => {
     const k = withConfig();
     const heard = k.hear('welche Leinwände gibt es?', {});
     await settle();
-    expect(JSON.parse(await runtime.last.call('config', {}))).toMatchObject({ file: '/h/projects.json', running: ['obeya'], problems: [] });
+    expect(JSON.parse(await runtime.last.call('config', {}))).toMatchObject({ file: '/h/projects.json', running: ['seismic'], problems: [] });
     runtime.last.call('reply', { confirm: 'Eine: Seismic.' });
     runtime.last.emit({ type: 'idle' });
     expect(await heard).toEqual({ confirm: 'Eine: Seismic.', talk: 1 });
@@ -1376,9 +1376,9 @@ describe('merging and deleting planned tasks by voice', () => {
     const b = board.create({ title: 'Sign in again', x: 400, y: 0 });
     const c = board.create({ title: 'Same again', x: 800, y: 0 });
     const started = board.create({ title: 'Started', x: 1200, y: 0 });
-    board.work(started.id, { state: 'working', branch: 'obeya/started' });
+    board.work(started.id, { state: 'working', branch: 'seismic/started' });
     const stopped = board.create({ title: 'Stopped', x: 1600, y: 0 });
-    board.work(stopped.id, { branch: 'obeya/stopped' });
+    board.work(stopped.id, { branch: 'seismic/stopped' });
     const k = commander();
     const heard = k.hear('fass Login error und Sign in again zusammen und lösch Same again', {});
     await settle();
@@ -1612,7 +1612,7 @@ describe('a step the Koordinator takes once a card gets somewhere', () => {
     k.arm(heard.token!);
     await until(() => board.snapshot().talk[0]!.waits);
     expect(board.snapshot().talk[0]!.waits).toEqual([{ card: a.id, title: 'Export', state: 'waitsForOwner' }]);
-    board.work(a.id, { state: 'planned', branch: 'obeya/export' });
+    board.work(a.id, { state: 'planned', branch: 'seismic/export' });
     k.due(board.snapshot().items);
     await until(() => runtime.last.inbox.length === 2);
     expect(runtime.last.inbox.at(-1)).toContain('the card "Export" was stopped by the owner');

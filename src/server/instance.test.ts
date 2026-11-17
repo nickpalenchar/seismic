@@ -8,7 +8,7 @@ import { gitRepo, until } from './testing';
 
 let dir: string;
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'obeya-instance-'));
+  dir = mkdtempSync(join(tmpdir(), 'seismic-instance-'));
 });
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 

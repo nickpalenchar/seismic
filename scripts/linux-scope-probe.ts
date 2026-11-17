@@ -56,12 +56,12 @@ if (mode === 'driver') {
   const codex = (process.env.SEISMIC_CODEX ?? process.env.OBEYA_CODEX) ?? Bun.which('codex');
   if (!codex) throw new Error('codex is not installed');
   const scoped = kind!.endsWith('-scope');
-  const unit = `obeya-probe-${randomUUID()}.scope`;
+  const unit = `seismic-probe-${randomUUID()}.scope`;
   const app = [codex, 'app-server', '--listen', 'stdio://'];
   const [command, ...args] = scoped ? [Bun.which('systemd-run')!, '--user', '--scope', '--quiet', '--collect', `--unit=${unit}`, '--', ...app] : app;
   const c = codexConnection({ command: command!, args, cwd: repo, env: { ...process.env } }, { notification() {}, request: async () => ({}) });
   writeFileSync(join(dir!, 'agent.pid'), String(c.pid));
-  await c.request('initialize', { clientInfo: { name: 'obeya-probe', title: 'Seismic probe', version: '0' }, capabilities: { experimentalApi: true } });
+  await c.request('initialize', { clientInfo: { name: 'seismic-probe', title: 'Seismic probe', version: '0' }, capabilities: { experimentalApi: true } });
   c.notify('initialized', {});
   if (scoped) writeFileSync(join(dir!, 'scope.json'), JSON.stringify({ unit, cgroup: unitCgroup(unit) }));
   const started = await c.request<{ thread: { id: string } }>('thread/start', { cwd: repo, approvalPolicy: 'never', sandbox: 'danger-full-access' });
@@ -86,7 +86,7 @@ function jobState(repo: string, pids: Record<string, number>) {
 }
 
 async function codexCase(kind: string) {
-  const dir = mkdtempSync(join(tmpdir(), `obeya-scope-${kind}-`));
+  const dir = mkdtempSync(join(tmpdir(), `seismic-scope-${kind}-`));
   const repo = join(dir, 'repo');
   mkdirSync(repo);
   writeFileSync(join(repo, 'job.py'), JOB);
@@ -130,9 +130,9 @@ async function codexCase(kind: string) {
 }
 
 async function breakaway() {
-  const dir = mkdtempSync(join(tmpdir(), 'obeya-scope-breakaway-'));
-  const svc = `obeya-escape-${randomUUID()}.service`;
-  const escape = `obeya-escape-${randomUUID()}`;
+  const dir = mkdtempSync(join(tmpdir(), 'seismic-scope-breakaway-'));
+  const svc = `seismic-escape-${randomUUID()}.service`;
+  const escape = `seismic-escape-${randomUUID()}`;
   const canary = spawn('sleep', ['1000'], { stdio: 'ignore' });
   // each way out writes the pid of the process that tried it
   const ways: Record<string, string> = {
@@ -176,8 +176,8 @@ async function breakaway() {
 async function nested() {
   const out: Record<string, unknown> = { kind: 'nested', status: 'measured' };
   for (const how of ['scope', 'service'] as const) {
-    const dir = mkdtempSync(join(tmpdir(), `obeya-scope-nested-${how}-`));
-    const outer = `obeya-host-${randomUUID()}.${how}`;
+    const dir = mkdtempSync(join(tmpdir(), `seismic-scope-nested-${how}-`));
+    const outer = `seismic-host-${randomUUID()}.${how}`;
     const caller = `
       import { launchInScope } from ${JSON.stringify(join(import.meta.dir, 'linux-scope-prototype.ts'))};
       import { writeFileSync, readFileSync } from 'node:fs';
@@ -196,7 +196,7 @@ async function nested() {
         continue;
       }
       session = JSON.parse(read(join(dir, 'session.json')));
-      // a terminal closing, or `systemctl --user stop obeya`: the caller's unit ends
+      // a terminal closing, or `systemctl --user stop seismic`: the caller's unit ends
       spawnSync('systemctl', ['--user', 'stop', outer]);
       await Bun.sleep(1000);
       out[how] = {

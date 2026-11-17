@@ -10,7 +10,7 @@ import type { ClaudeFile, RepoCommands, RepoSettings, SharedSettings, TrustGroup
 
 const GROUPS: TrustGroup[] = ['app', 'claude', 'codex'];
 
-/** The commands of a repository's `.obeya/settings.json` and Claude Code and Codex settings as read; a group it has none of is left out. */
+/** The commands of a repository's `.seismic/settings.json` and Claude Code and Codex settings as read; a group it has none of is left out. */
 export function commandsOf(read: Pick<SharedRead, 'settings' | 'claude' | 'codex'> | undefined): RepoCommands {
   const out: RepoCommands = {};
   const { stop, keep } = read?.settings?.app ?? {};
@@ -59,7 +59,7 @@ export function withoutHeld(s: SharedSettings | undefined, held: TrustGroup[]): 
 }
 
 /**
- * The repository's `.obeya/settings.json` now holds this machine's values (`after`, taken over
+ * The repository's `.seismic/settings.json` now holds this machine's values (`after`, taken over
  * for everyone, see `Config.takenOver`): a group of commands that holds only what the owner set
  * here (`mine`) or confirmed before is theirs and needs no confirming. Returns what is trusted then,
  * or null where that changes nothing.

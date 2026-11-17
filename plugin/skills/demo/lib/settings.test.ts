@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { demoDirectory, describeDemoSettings, inLanguage, narrationPerson, readDemoSettings, referenceOf, repositoryLanguage, tidyDemoSettings, withVoice, writeDemoSettings } from './settings.ts';
 
 let home: string;
-beforeEach(() => (home = mkdtempSync(join(tmpdir(), 'obeya-demo-settings-'))));
+beforeEach(() => (home = mkdtempSync(join(tmpdir(), 'seismic-demo-settings-'))));
 afterEach(() => rmSync(home, { recursive: true, force: true }));
 
 describe('demo settings', () => {
@@ -63,15 +63,15 @@ describe('demo settings', () => {
     mkdirSync(join(repo, '.git'), { recursive: true });
     mkdirSync(join(repo, 'src', 'deep'), { recursive: true });
     expect(repositoryLanguage({}, join(repo, 'src', 'deep'))).toBeUndefined();
-    mkdirSync(join(repo, '.obeya'));
-    writeFileSync(join(repo, '.obeya', 'settings.json'), JSON.stringify({ demo: { language: 'en' } }));
-    expect(repositoryLanguage({}, join(repo, 'src', 'deep'))).toEqual({ language: 'en', from: 'repository', file: join(repo, '.obeya', 'settings.json') });
-    expect(repositoryLanguage({ DEMO_LANGUAGE: 'en' }, join(repo, 'src'))).toEqual({ language: 'en', from: 'obeya' });
+    mkdirSync(join(repo, '.seismic'));
+    writeFileSync(join(repo, '.seismic', 'settings.json'), JSON.stringify({ demo: { language: 'en' } }));
+    expect(repositoryLanguage({}, join(repo, 'src', 'deep'))).toEqual({ language: 'en', from: 'repository', file: join(repo, '.seismic', 'settings.json') });
+    expect(repositoryLanguage({ DEMO_LANGUAGE: 'en' }, join(repo, 'src'))).toEqual({ language: 'en', from: 'seismic' });
     // a language Seismic does not speak is none
-    writeFileSync(join(repo, '.obeya', 'settings.json'), JSON.stringify({ demo: { language: 'fr' } }));
+    writeFileSync(join(repo, '.seismic', 'settings.json'), JSON.stringify({ demo: { language: 'fr' } }));
     expect(repositoryLanguage({ DEMO_LANGUAGE: 'fr' }, repo)).toBeUndefined();
     const saved = { language: 'en', voice: 'qwen3', ownVoice: true, references: { en: '/en.wav' } } as const;
-    const text = describeDemoSettings(saved, undefined, { language: 'en', from: 'obeya' });
+    const text = describeDemoSettings(saved, undefined, { language: 'en', from: 'seismic' });
     expect(text).toContain('in English');
     expect(text).toContain('clone of /en.wav');
   });

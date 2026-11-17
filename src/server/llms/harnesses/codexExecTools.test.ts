@@ -12,7 +12,7 @@ let asked: PermissionRequest[];
 let answer: { allow: true } | { allow: false; message: string };
 
 beforeEach(() => {
-  root = realpathSync(mkdtempSync(join(tmpdir(), 'obeya-exec-')));
+  root = realpathSync(mkdtempSync(join(tmpdir(), 'seismic-exec-')));
   workstation = join(root, 'ws');
   gitRepo(workstation);
   asked = [];

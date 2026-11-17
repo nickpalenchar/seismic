@@ -10,8 +10,8 @@ import { loadLanguageAndTheme } from './theme';
 
 upgradeAddress();
 await loadLanguageAndTheme();
-if (window.obeyaApp) window.obeyaHandOver = handOver;
-if (window.obeyaApp?.handedOver) await takeHandOver();
+if (window.seismicApp) window.seismicHandOver = handOver;
+if (window.seismicApp?.handedOver) await takeHandOver();
 takeAppDrops();
 pinAboveKeyboard();
 createRoot(document.getElementById('root')!).render(

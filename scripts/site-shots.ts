@@ -1,5 +1,5 @@
 // PAUSED until Seismic distributes its own app (docs/release.md): the site is unpublished.
-// The screenshots on obeya.si (`site/img/`), taken again from a scratch Seismic in English: the Tipjar
+// The screenshots on seismic.im (`site/img/`), taken again from a scratch Seismic in English: the Tipjar
 // app of the hero video as the repository, cards in the states the page talks about, and a demo of
 // a Tipjar change on the card whose demo the page shows, so that the picture is of a demo and not of
 // Seismic itself. The same wall on a phone (`phone.png`, `phone-demo.png`) shows the phone view: the project with its agents at work, and a demo opened from Needs you.
@@ -58,25 +58,25 @@ const stageFile = join(dir, 'stage.json');
 writeStage(stageFile);
 const stage = JSON.parse(readFileSync(stageFile, 'utf8'));
 stage.port = PORT;
-stage.dir = `/tmp/obeya-scratch-${PORT}`;
+stage.dir = `/tmp/seismic-scratch-${PORT}`;
 stage.cards = [
   { key: 'P', plan: 'docs/plan/tipjar-2.md', x: 40, y: 100 },
-  { key: 'W2', workstream: 'W2', state: 'working', statusLine: 'Reading the receipt photo', branch: 'obeya/scan-receipt' },
+  { key: 'W2', workstream: 'W2', state: 'working', statusLine: 'Reading the receipt photo', branch: 'seismic/scan-receipt' },
   { key: 'W3', workstream: 'W3', queue: { behind: ['W2'], reason: 'The link shares the bill that W2 fills in from the receipt.' } },
   { key: 'S', title: 'Split the bill', body: 'Tipjar shows what each person at the table pays.', state: 'waiting', need: 'demo', x: 780, y: 100,
-    branch: 'obeya/split-the-bill',
+    branch: 'seismic/split-the-bill',
     events: [
-      { kind: 'state', author: 'obeya', text: 'Agent started on obeya/split-the-bill.', ago: '25m' },
+      { kind: 'state', author: 'seismic', text: 'Agent started on seismic/split-the-bill.', ago: '25m' },
       { kind: 'review', author: 'worker', text: 'Below the tip there is a People field now, and the result says what each person pays, rounded up to the cent so the shares always cover the bill.', ago: '3m' },
     ],
     summary: 'Below the tip there is a People field now, and the result says what each person pays, rounded up to the cent so the shares always cover the bill.',
     demo: { dir: demo, chapters } },
-  { key: 'C', title: 'Run the tests on every push', body: 'A GitHub Actions workflow runs bun test on every push.', state: 'working', statusLine: 'Writing the workflow', branch: 'obeya/ci', x: 1100, y: 100 },
+  { key: 'C', title: 'Run the tests on every push', body: 'A GitHub Actions workflow runs bun test on every push.', state: 'working', statusLine: 'Writing the workflow', branch: 'seismic/ci', x: 1100, y: 100 },
   { key: 'I', title: 'App icon', body: 'An icon for the home screen.', state: 'waiting', need: 'question', x: 780, y: 260,
-    branch: 'obeya/app-icon',
-    events: [{ kind: 'state', author: 'obeya', text: 'Agent started on obeya/app-icon.', ago: '12m' }],
+    branch: 'seismic/app-icon',
+    events: [{ kind: 'state', author: 'seismic', text: 'Agent started on seismic/app-icon.', ago: '12m' }],
     question: { text: 'Which of the three drafts should become the icon?', options: ['The jar', 'The coin', 'The receipt'] } },
-  { key: 'R', title: 'Round to whole dollars', body: 'A switch rounds each share up to the dollar.', state: 'approved', branch: 'obeya/round-up', x: 1100, y: 260 },
+  { key: 'R', title: 'Round to whole dollars', body: 'A switch rounds each share up to the dollar.', state: 'approved', branch: 'seismic/round-up', x: 1100, y: 260 },
   { key: 'D', title: 'Dark mode', body: 'Tipjar follows the system’s dark mode.', state: 'live', createdAgo: '1d', x: 780, y: 420 },
   { key: 'T', title: 'Settle up after a trip', body: 'Several bills over a weekend, several people: who owes whom at the end.', state: 'idea', x: 1100, y: 420,
     row: { idea: { status: 'open', brief: 'Settle a whole trip, not one bill.', thinking: false, yourTurn: true, questions: [], next: { step: 'planDoc', why: 'Several parts that build on each other.' }, variants: [], mocks: [] } } },
@@ -84,7 +84,7 @@ stage.cards = [
 stage.groups = [];
 writeFileSync(stageFile, JSON.stringify(stage, null, 1));
 
-const staged = JSON.parse(execFileSync('bun', [join(ROOT, 'scripts', 'scratch-obeya.ts'), stageFile], { encoding: 'utf8' }).trim().split('\n').at(-1)!);
+const staged = JSON.parse(execFileSync('bun', [join(ROOT, 'scripts', 'scratch-seismic.ts'), stageFile], { encoding: 'utf8' }).trim().split('\n').at(-1)!);
 const base = `http://127.0.0.1:${PORT}`;
 await fetch(`${base}/api/language`, { method: 'PUT', headers: ownerHeaders(join(staged.dir, 'home')), body: JSON.stringify({ language: 'en' }) });
 console.log('staged', staged.url);
@@ -113,7 +113,7 @@ try {
   await shots(page, staged.cards as Record<string, string>);
 } finally {
   await browser.close();
-  if (!process.argv.includes('--keep')) execFileSync('bun', [join(ROOT, 'scripts', 'scratch-obeya.ts'), '--stop', String(PORT)]);
+  if (!process.argv.includes('--keep')) execFileSync('bun', [join(ROOT, 'scripts', 'scratch-seismic.ts'), '--stop', String(PORT)]);
 }
 
 type Box = { x: number; y: number; width: number; height: number };

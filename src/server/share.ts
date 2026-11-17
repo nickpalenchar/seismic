@@ -93,7 +93,7 @@ export interface ShareSource {
   site: ShareSite | null;
   repo: string;
   title: string;
-  /** Its theme for the pages (`.obeya/theme.css`, theme.ts), asked for once a page goes out; none where it has none. */
+  /** Its theme for the pages (`.seismic/theme.css`, theme.ts), asked for once a page goes out; none where it has none. */
   theme?: () => Theme | null;
   /**
    * The demo site the project names, as its settings say, though this machine no longer has it
@@ -239,7 +239,7 @@ export class Sharing {
       return trailer;
     } catch (e) {
       // the work lands all the same
-      this.o.board.log(cardId, 'error', 'obeya', `${this.o.board.t.share.notShared}: ${messageOf(e)}`);
+      this.o.board.log(cardId, 'error', 'seismic', `${this.o.board.t.share.notShared}: ${messageOf(e)}`);
       return null;
     }
   }
@@ -266,7 +266,7 @@ export class Sharing {
       else this.onPage(cardId);
     } else if (!target && !declined && this.publishesOnApproval(card)) {
       const gone = this.siteGone(card);
-      if (gone) this.o.board.log(cardId, 'error', 'obeya', `${this.o.board.t.share.notShared}: ${gone}`);
+      if (gone) this.o.board.log(cardId, 'error', 'seismic', `${this.o.board.t.share.notShared}: ${gone}`);
     }
     // the page as it is about to be, or as it is
     const page = this.stored(cardId);
@@ -326,7 +326,7 @@ export class Sharing {
     const demo = this.demo(cardId);
     const s = this.stored(cardId);
     if (!demo || (s?.url && sharedDemos(s).some((d) => sameDemo(d, refOf(demo))))) return;
-    this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.share.notOnApproval);
+    this.o.board.log(cardId, 'state', 'seismic', this.o.board.t.share.notOnApproval);
   }
 
   /** The card's latest demo goes on its page as an approval puts it there, unless it is there already or the page is busy. */
@@ -340,7 +340,7 @@ export class Sharing {
     if (now.some((d) => sameDemo(d, ref))) return;
     const add = demo.follows === 'supplements';
     this.set(cardId, { ...this.fresh(card, s), state: 'publishing', next: (add ? this.beside(cardId, now, ref) : [ref]).map(refOf) });
-    this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.share.approved(!now.length ? 'share' : add ? 'add' : 'replace'));
+    this.o.board.log(cardId, 'state', 'seismic', this.o.board.t.share.approved(!now.length ? 'share' : add ? 'add' : 'replace'));
     void serial(() => this.publish(cardId));
   }
 
@@ -383,7 +383,7 @@ export class Sharing {
     if (typeof chapters === 'string') throw new BadRequest('invalid', chapters);
     const { page: _, ...rest } = demo;
     this.o.board.work(cardId, { demo: { latest: { ...rest, chapters } } });
-    this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.share.rebuilt(this.languageOf(demo.dir, this.card(cardId))));
+    this.o.board.log(cardId, 'state', 'seismic', this.o.board.t.share.rebuilt(this.languageOf(demo.dir, this.card(cardId))));
   }
 
   /**
@@ -562,7 +562,7 @@ export class Sharing {
       if (!now || now.merge !== s.merge || now.state) continue;
       const { merge: _, ...rest } = now;
       this.set(r.id, next ? { ...rest, merge: next } : rest);
-      if (!next && s.url) this.o.board.log(r.id, 'state', 'obeya', this.o.board.t.share.mergedOnline(s.url));
+      if (!next && s.url) this.o.board.log(r.id, 'state', 'seismic', this.o.board.t.share.mergedOnline(s.url));
     }
   }
 
@@ -585,7 +585,7 @@ export class Sharing {
       const { merge: _, ...rest } = now;
       if (state === 'merged') {
         this.set(r.id, rest);
-        this.o.board.log(r.id, 'state', 'obeya', this.o.board.t.share.mergedOnline(now.url!));
+        this.o.board.log(r.id, 'state', 'seismic', this.o.board.t.share.mergedOnline(now.url!));
       } else if (state === 'closed') {
         const open = await target.openPr?.();
         if (open && open !== pr) this.set(r.id, { ...rest, merge: open });
@@ -622,7 +622,7 @@ export class Sharing {
     const ids = this.shares()
       .filter(({ s }) => missing.includes(pathOf(s)))
       .map(({ r }) => r.id);
-    const log = (kind: 'activity' | 'state' | 'error', text: string) => ids.forEach((id) => this.o.board.log(id, kind, 'obeya', text));
+    const log = (kind: 'activity' | 'state' | 'error', text: string) => ids.forEach((id) => this.o.board.log(id, kind, 'seismic', text));
     const t = this.o.board.t.share;
     const r = await target.repair(shared, (text) => log('activity', text));
     this.lost(target.key, r.gone);
@@ -651,7 +651,7 @@ export class Sharing {
       const card = r && this.find(r.id);
       if (!r || !s?.url || s.state || !card || this.target(card)?.key !== key) continue;
       this.set(r.id, { slug: s.slug, ...(s.token ? { token: s.token } : {}) });
-      this.o.board.log(r.id, 'state', 'obeya', this.o.board.t.share.withdrawnElsewhere(g.machine));
+      this.o.board.log(r.id, 'state', 'seismic', this.o.board.t.share.withdrawnElsewhere(g.machine));
     }
   }
 
@@ -689,7 +689,7 @@ export class Sharing {
     const failed = s.again ? t.notAgain : s.retag ? t.notShared : s.refresh ? t.notLinked : t.notShared;
     const back = (why: string, out = '') => {
       this.set(cardId, atRest(this.currentChoice(cardId, s)));
-      this.o.board.log(cardId, 'error', 'obeya', [`${failed}: ${why}`, out].filter(Boolean).join('\n\n'));
+      this.o.board.log(cardId, 'error', 'seismic', [`${failed}: ${why}`, out].filter(Boolean).join('\n\n'));
       this.settled(cardId, { why });
       return false;
     };
@@ -703,14 +703,14 @@ export class Sharing {
         if (gone) return back(gone);
         if (s.again) return back(t.demoGone);
         this.set(cardId, atRest(this.currentChoice(cardId, s)));
-        this.o.board.log(cardId, 'activity', 'obeya', t.linkLater);
+        this.o.board.log(cardId, 'activity', 'seismic', t.linkLater);
         this.settled(cardId, s.url ? { url: s.url } : { why: t.noDemo });
         return null;
       }
       // an update of the page alone (its pull request's link, its commit) is no share: it does not put out pages waiting for a pull request
       if (!s.again && !s.retag && (await this.putsOutWaiting(target))) {
         this.set(cardId, atRest(this.currentChoice(cardId, s)));
-        this.o.board.log(cardId, 'activity', 'obeya', t.linkLater);
+        this.o.board.log(cardId, 'activity', 'seismic', t.linkLater);
         this.settled(cardId, { url: s.url! });
         return null;
       }
@@ -753,14 +753,14 @@ export class Sharing {
       ...(Object.keys(tags).length ? { tags } : {}),
       ...(theme ? { theme } : {}),
     };
-    const r = await target.publish(input, (text) => this.o.board.log(cardId, 'activity', 'obeya', text));
+    const r = await target.publish(input, (text) => this.o.board.log(cardId, 'activity', 'seismic', text));
     this.lost(target.key, r.gone);
     if ('why' in r) return back(r.why, r.said);
     const { url } = r;
     this.set(cardId, { slug: s.slug, url, demos, ...(pr ? { pr } : {}), ...(commit ? { commit: commit.url } : {}), version: pagesVersion(), ...(theme ? { theme: theme.hash } : {}), ...kept(this.currentChoice(cardId, s)), ...placeOf(s), ...(r.merge ? { merge: r.merge } : {}) });
-    if (r.said) this.o.board.log(cardId, 'activity', 'obeya', r.said);
-    this.o.board.log(cardId, 'state', 'obeya', s.again ? t.sharedAgain(url) : s.retag ? t.retagged(url) : s.refresh ? (pr ? t.linksPr(url) : t.linksCommit(url)) : t.shared(url));
-    if (r.merge) this.o.board.log(cardId, 'state', 'obeya', t.waitingForMerge(r.merge));
+    if (r.said) this.o.board.log(cardId, 'activity', 'seismic', r.said);
+    this.o.board.log(cardId, 'state', 'seismic', s.again ? t.sharedAgain(url) : s.retag ? t.retagged(url) : s.refresh ? (pr ? t.linksPr(url) : t.linksCommit(url)) : t.shared(url));
+    if (r.merge) this.o.board.log(cardId, 'state', 'seismic', t.waitingForMerge(r.merge));
     await this.pendingIn(target, r.merge ?? null, cardId);
     this.settled(cardId, { url });
     if (pr) await this.linkPr(cardId, pr, url, target.repo, first.shown.kind);
@@ -791,9 +791,9 @@ export class Sharing {
         const at = await this.o.forge.comment(cwd, pr, t.prComment(kind === 'html', url));
         const now = contributionOf(this.o.board.row(cardId));
         if (now) this.o.board.work(cardId, { review: { contribution: { ...now, linked: url } } });
-        this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.share.prCommented(n, at || pr));
+        this.o.board.log(cardId, 'state', 'seismic', this.o.board.t.share.prCommented(n, at || pr));
       } catch (e) {
-        this.o.board.log(cardId, 'error', 'obeya', this.o.board.t.share.prNotCommented(n, messageOf(e)));
+        this.o.board.log(cardId, 'error', 'seismic', this.o.board.t.share.prNotCommented(n, messageOf(e)));
       } finally {
         this.commenting.delete(key);
       }
@@ -803,9 +803,9 @@ export class Sharing {
       const body = withDemoLink(await this.o.forge.body(cwd, pr), url, kind, this.o.board.t);
       if (body === null) return;
       await this.o.forge.setBody(cwd, pr, body);
-      this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.share.prLinked(n, pr));
+      this.o.board.log(cardId, 'state', 'seismic', this.o.board.t.share.prLinked(n, pr));
     } catch (e) {
-      this.o.board.log(cardId, 'error', 'obeya', this.o.board.t.share.prNotLinked(n, messageOf(e)));
+      this.o.board.log(cardId, 'error', 'seismic', this.o.board.t.share.prNotLinked(n, messageOf(e)));
     }
   }
 
@@ -815,7 +815,7 @@ export class Sharing {
     if (s?.state !== 'withdrawing' || !card) return;
     const back = (why: string, out = '') => {
       this.set(cardId, atRest(this.currentChoice(cardId, s)));
-      this.o.board.log(cardId, 'error', 'obeya', [why, out].filter(Boolean).join('\n\n'));
+      this.o.board.log(cardId, 'error', 'seismic', [why, out].filter(Boolean).join('\n\n'));
     };
     const target = this.target(card);
     const t = this.o.board.t.share;
@@ -823,13 +823,13 @@ export class Sharing {
       const gone = this.siteGone(card);
       return back(gone ? t.notWithdrawn(gone) : t.notWithdrawnNoShare);
     }
-    const r = await target.withdraw(pathOf(s), this.others(cardId, target.key), (text) => this.o.board.log(cardId, 'activity', 'obeya', text));
+    const r = await target.withdraw(pathOf(s), this.others(cardId, target.key), (text) => this.o.board.log(cardId, 'activity', 'seismic', text));
     this.lost(target.key, r.gone);
     if (r.why) return back(r.why, r.said);
     await this.pendingIn(target, r.merge ?? null, cardId);
     this.set(cardId, { slug: s.slug, ...kept(this.currentChoice(cardId, s)), ...(target.prState ? placeOf(s) : {}) });
-    if (r.said) this.o.board.log(cardId, 'activity', 'obeya', r.said);
-    this.o.board.log(cardId, 'state', 'obeya', t.withdrawn);
+    if (r.said) this.o.board.log(cardId, 'activity', 'seismic', r.said);
+    this.o.board.log(cardId, 'state', 'seismic', t.withdrawn);
   }
 
   /**
@@ -1030,7 +1030,7 @@ export class Sharing {
     if (row.demo?.earlier.length) this.o.board.work(cardId, { demo: { earlier: row.demo.earlier.map(page) } });
     const s = this.stored(cardId);
     this.setTagFields(cardId, this.card(cardId), { tags: without(s?.tags) ?? {}, auto: { ...s?.auto, ...tags } });
-    this.o.board.log(cardId, 'activity', 'obeya', this.o.board.t.share.tagsChosen(shownTags(tags, tags).map(([d, v]) => `${d}: ${v.join(', ')}`).join(' · ') || '–'));
+    this.o.board.log(cardId, 'activity', 'seismic', this.o.board.t.share.tagsChosen(shownTags(tags, tags).map(([d, v]) => `${d}: ${v.join(', ')}`).join(' · ') || '–'));
   }
 
   /** The vocabulary of tags for the card's page: its project's; none where it names none. */
@@ -1317,14 +1317,16 @@ function statOr(path: string): number | null {
 }
 
 /** Marks the line Seismic put into a pull request's description, so it is found again. */
-export const DEMO_MARKER = '<!-- obeya:demo -->';
+export const DEMO_MARKER = '<!-- seismic:demo -->';
+/** The marker of descriptions written before the rename, found and replaced as well (migration shim). */
+const OLD_DEMO_MARKER = '<!-- obeya:demo -->';
 
 /** The description with a line linking the demo's page; null when it links the page already. */
 export function withDemoLink(body: string, url: string, kind: DemoKind = 'video', t: Messages = MESSAGES.en): string | null {
   if (body.includes(url)) return null;
   const line = `${t.share.prLine(kind === 'html')}: ${url} ${DEMO_MARKER}`;
   const lines = body.split('\n');
-  const i = lines.findIndex((l) => l.includes(DEMO_MARKER));
+  const i = lines.findIndex((l) => l.includes(DEMO_MARKER) || l.includes(OLD_DEMO_MARKER));
   if (i >= 0) {
     lines[i] = line;
     return lines.join('\n');

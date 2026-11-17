@@ -89,7 +89,7 @@ export function gitRepo(path: string, files: Record<string, string> = { 'README.
   const key = JSON.stringify(files);
   let template = templates.get(key);
   if (!template) {
-    templateDir ??= mkdtempSync(join(tmpdir(), 'obeya-template-'));
+    templateDir ??= mkdtempSync(join(tmpdir(), 'seismic-template-'));
     template = join(templateDir, String(templates.size));
     git(templateDir, 'init', '--quiet', '--template=', '-b', 'main', template);
     identify(template);
@@ -209,7 +209,7 @@ kill $proxy 2>/dev/null
 
 /** A demo for a handover in a test that is not about demos: an HTML artifact in a directory of its own. */
 export function artifact(): StoredDemo {
-  const dir = mkdtempSync(join(tmpdir(), 'obeya-artifact-'));
+  const dir = mkdtempSync(join(tmpdir(), 'seismic-artifact-'));
   writeFileSync(join(dir, 'index.html'), '<p>Ergebnis</p>\n');
   // as a worker's handover stores an artifact: without chapters
   return { kind: 'html', dir } as StoredDemo;

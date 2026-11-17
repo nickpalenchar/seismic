@@ -732,6 +732,9 @@ export const MIGRATIONS = [
   `UPDATE cards SET canvas_id = (SELECT p.canvas_id FROM cards p WHERE p.id = cards.parent_id)
     WHERE parent_id IS NOT NULL AND canvas_id IS NOT (SELECT p.canvas_id FROM cards p WHERE p.id = cards.parent_id)
       AND (SELECT p.canvas_id FROM cards p WHERE p.id = cards.parent_id) IS NOT NULL;`,
+  // the author and the actor of what Seismic itself did were `obeya` before the rename
+  `UPDATE events SET author = 'seismic' WHERE author = 'obeya';
+   UPDATE activity SET who = 'seismic' WHERE who = 'obeya';`,
 ];
 
 /**

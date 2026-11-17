@@ -43,7 +43,7 @@ describe('parking: the app of a card that waits for the owner', () => {
     expect(runtime.last.inbox[0]).toContain('While the card waits for the owner, Seismic stops the app in your workstation');
     await until(() => board.row(c.id).parked);
     expect(stopped(c.id)).toBe(true);
-    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', author: 'obeya', text: board.t.worker.parked });
+    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', author: 'seismic', text: board.t.worker.parked });
     workers.message(c.id, 'Bitte noch die Spalte umbenennen.');
     expect(runtime.last.inbox.at(-1)).toContain('Bitte noch die Spalte umbenennen.');
     expect(runtime.last.inbox.at(-1)).toContain('Seismic stopped the app in your workstation (`echo stopped >> parked.log`)');
@@ -256,7 +256,7 @@ describe('handing over with a demo', () => {
     await workers.start(c.id);
     expect(skillPlugins(runtime.last.spec.skills)).toEqual([SEISMIC_PLUGIN]);
     // a demo's narration finds Seismic, which holds the voice across renders
-    expect(runtime.last.spec.env).toEqual({ OBEYA_URL: 'http://127.0.0.1:4417' });
+    expect(runtime.last.spec.env).toEqual({ SEISMIC_URL: 'http://127.0.0.1:4417' });
     expect(existsSync(DEMO_SKILL_FILE)).toBe(true);
     // a session that does not know the skill reads its file
     expect(runtime.last.inbox[0]).toContain(`recorded with the demo skill (\`${demoSkillName()}\`; if your session does not know it, read its file ${DEMO_SKILL_FILE} and follow that)`);
@@ -266,7 +266,7 @@ describe('handing over with a demo', () => {
     rmSync(dir, { recursive: true, force: true });
     setup({ ...generic, land: 'main', workstations: 'clones', demo: { language: 'en' } });
     await workers.start(manual().id);
-    expect(runtime.last.spec.env).toEqual({ OBEYA_URL: 'http://127.0.0.1:4417', DEMO_LANGUAGE: 'en' });
+    expect(runtime.last.spec.env).toEqual({ SEISMIC_URL: 'http://127.0.0.1:4417', DEMO_LANGUAGE: 'en' });
     // named in its instructions too: an HTML artifact is written without the skill, which reads it
     expect(runtime.last.spec.system).toContain("A demo (its narration, report, or an HTML artifact's words) is in English, whatever language the owner talks in. This repository's settings name English for its demos, which holds over the narration language of the demo settings.");
     expect(runtime.last.spec.system).toContain('Speak to the owner in English throughout this conversation');
@@ -487,7 +487,7 @@ describe('handing over with a demo', () => {
     runtime.last.emit({ type: 'idle' });
     expect(state(c.id)).toBe('waiting:demo');
     expect(board.item(c.id)!.review?.answered).toBeUndefined();
-    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', author: 'obeya', text: board.t.worker.unanswered });
+    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', author: 'seismic', text: board.t.worker.unanswered });
     // a session that ends before its turn does
     workers.message(c.id, 'Und jetzt?');
     runtime.last.close();

@@ -37,7 +37,7 @@ to its agent. Something it notices beyond its task becomes a proposed card, not 
 Every change comes with a demo: a narrated video of the change in the running app, 30–60 s for a
 small one, 1½–3 min for a larger one; something to look at rather than watch (layout drafts,
 variants side by side) as an HTML page. The demo skill in [`plugin/`](plugin/) records them on a
-scratch Seismic that `bun scripts/scratch-obeya.ts <stage.json>` stages with its cards in about a
+scratch Seismic that `bun scripts/scratch-seismic.ts <stage.json>` stages with its cards in about a
 second. Demo videos and voice recordings never go into git.
 
 ## The code

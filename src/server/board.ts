@@ -1110,7 +1110,7 @@ export class Board {
         idea: { proposal: proposalOf({}) },
       },
     ]);
-    this.record(row!.id, 'proposed', 'obeya');
+    this.record(row!.id, 'proposed', 'seismic');
     this.changed();
     return this.itemOf(row!);
   }
@@ -1201,7 +1201,7 @@ export class Board {
         idea: { proposal: { ...proposalOf({ reason }), finish: true } satisfies Proposal },
       },
     ]);
-    this.log(row!.id, 'changes', 'obeya', diff);
+    this.log(row!.id, 'changes', 'seismic', diff);
     this.setSetting(key, row!.id);
     this.changed();
   }
@@ -2139,7 +2139,7 @@ export class Board {
     if (!row || row.workstation !== path) return this.changed();
     const working = row.state === 'working';
     this.work(cardId, { workstation: null, app: null, parked: null, ...(working ? { state: 'planned', ...this.unheld(cardId, AGENT_HOLDS) } : {}) });
-    if (!row.deleted_at) this.log(cardId, 'state', 'obeya', this.t.worker.workstationGone(path, working));
+    if (!row.deleted_at) this.log(cardId, 'state', 'seismic', this.t.worker.workstationGone(path, working));
   }
 
   /** A card's landed work is done, its worker gone: a card whose plan doc is a plan now gives way to it. */
@@ -2158,7 +2158,7 @@ export class Board {
     const r = this.store.cards.get(cardId);
     if (!r || r.deleted_at || r.archived_at || r.plan_ref || r.kind !== 'task' || r.idea?.prototypeOf || !r.state || !finished(r.state) || r.workstation) return false;
     this.store.cards.update(cardId, { archived_at: new Date().toISOString() });
-    this.log(cardId, 'state', 'obeya', this.t.archivedLanded);
+    this.log(cardId, 'state', 'seismic', this.t.archivedLanded);
     return true;
   }
 
@@ -2418,7 +2418,7 @@ export class Board {
     if (!s) return null;
     this.work(cardId, { hold: awakeHold(s) });
     const why = this.t.worker.wokeWhy;
-    this.log(cardId, 'state', woke === 'owner' ? 'owner' : 'obeya', this.t.worker.woke(typeof woke === 'object' ? (s.on ? why.card(s.on.title, woke.met, s.on.state) : why.time) : why[woke]));
+    this.log(cardId, 'state', woke === 'owner' ? 'owner' : 'seismic', this.t.worker.woke(typeof woke === 'object' ? (s.on ? why.card(s.on.title, woke.met, s.on.state) : why.time) : why[woke]));
     return s;
   }
 
@@ -2548,7 +2548,7 @@ export class Board {
     if (iso !== undefined && 'card' in at && !this.limits.has(key)) {
       const harness = this.atWork.get(key)?.agent.harness ?? this.agentSettingHarness(at.card);
       const again = this.limitsCleared.has(key) ? undefined : (l: { code: ActivityCode; harness: string | null }) => l.code === 'usageLimit' && l.harness === (harness ?? null);
-      this.record(at.card, 'usageLimit', 'obeya', { ...(harness ? { harness } : {}), ...(again ? { again } : {}) });
+      this.record(at.card, 'usageLimit', 'seismic', { ...(harness ? { harness } : {}), ...(again ? { again } : {}) });
     }
     if (iso !== undefined) {
       this.limits.set(key, iso);
@@ -3257,7 +3257,7 @@ export class Board {
       const items = r.review?.items;
       if (items?.some((i) => i.card && gone.has(i.card))) this.store.updateCard(r.id, { review: { items: items.map((i) => (i.card && gone.has(i.card) ? { ...i, card: keep } : i)) } });
     }
-    this.log(keep, 'state', 'obeya', this.t.voice.merged(rest.map((r) => r.title ?? '')));
+    this.log(keep, 'state', 'seismic', this.t.voice.merged(rest.map((r) => r.title ?? '')));
     this.changed();
   }
 
@@ -3624,7 +3624,7 @@ export class Board {
       ...at,
       ...(done ? { archived_at: new Date().toISOString() } : {}),
     });
-    this.log(row.id, 'state', 'obeya', why);
+    this.log(row.id, 'state', 'seismic', why);
   }
 
   /** A free spot for a card at the right of the plan, near its top. */
@@ -3748,7 +3748,7 @@ export class Board {
     if (!r || r.deleted_at || r.archived_at || (r.state !== 'live' && r.state !== 'done') || (r.landed && r.workstation)) return false;
     if (!this.store.cards.plans(this.project.id).some((p) => p.from_id === ideaId && !p.archived_at)) return false;
     this.store.cards.update(ideaId, { archived_at: new Date().toISOString() });
-    this.log(ideaId, 'state', 'obeya', r.idea?.discussion ? this.t.idea.becamePlan : this.t.idea.taskBecamePlan);
+    this.log(ideaId, 'state', 'seismic', r.idea?.discussion ? this.t.idea.becamePlan : this.t.idea.taskBecamePlan);
     return true;
   }
 }

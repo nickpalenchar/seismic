@@ -1,4 +1,4 @@
-// The project the hero video starts on, as a stage file for `scripts/scratch-obeya.ts`: the Tipjar app
+// The project the hero video starts on, as a stage file for `scripts/scratch-seismic.ts`: the Tipjar app
 // beside this file as the repository, a plan doc with three workstreams, and cards in the states the
 // video talks about. Positions are chosen so that the card the video creates lands in view and nothing
 // sits under the microphone or the minimap.
@@ -21,9 +21,9 @@ export function writeStage(file: string) {
   const rest = Object.fromEntries(Object.entries(all).filter(([p]) => !p.startsWith('docs/plan/')));
   const stage = {
     port: PORT,
-    dir: `/tmp/obeya-scratch-${PORT}`,
+    dir: `/tmp/seismic-scratch-${PORT}`,
     name: 'Tipjar',
-    // the repository's settings (.obeya/settings.json) among the files: work lands on main
+    // the repository's settings (.seismic/settings.json) among the files: work lands on main
     files: rest,
     plans,
     cards: [

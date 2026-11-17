@@ -316,7 +316,7 @@ async function commitOf(repo: string, parent: string, files: string[], message: 
     gitPaths(repo, '--literal-pathspecs', 'ls-tree', '-r', '-z', parent, '--', ...files).then(entries),
   ]);
   const fileMode = (await gitRun(repo, ['config', '--bool', 'core.fileMode'])).stdout.trim() !== 'false';
-  const path = resolve(repo, await gitAsync(repo, 'rev-parse', '--git-path', `obeya-fold-${process.pid}-${Date.now()}`));
+  const path = resolve(repo, await gitAsync(repo, 'rev-parse', '--git-path', `seismic-fold-${process.pid}-${Date.now()}`));
   const git = async (...args: string[]) => {
     const r = await spawnOutput([GIT, '-C', repo, '--literal-pathspecs', ...args], { env: { ...process.env, GIT_INDEX_FILE: path } });
     if (r.code !== 0) throw new WorkstationError(`git ${args.join(' ')} in ${repo}: ${(r.stderr || r.stdout).trim()}`);
@@ -566,7 +566,7 @@ function onPath<T>(path: string, fn: () => Promise<T>): Promise<T> {
  * The trailer of the commit in which Seismic keeps the work a card had not committed when its
  * workstation was taken from it (`evict`); the card's next lease takes that commit apart again.
  */
-const SAVED = 'Obeya-Kept: uncommitted work';
+const SAVED = 'Seismic-Kept: uncommitted work';
 
 /** The name of a clone Seismic makes, its number (`ensureClones`); a card's worktree is named by the card's id, 8 characters. */
 const CLONE_NAME = /^\d{1,4}$/;
@@ -1299,7 +1299,7 @@ export class Workstations implements CardWorkstations {
       if (this.leasedBy(cardId) !== path) return null;
       if (await gitAsync(path, 'status', '--porcelain')) {
         await gitAsync(path, 'add', '--all');
-        await gitAsync(path, '-c', 'user.name=Seismic', '-c', 'user.email=obeya@localhost', '-c', 'core.hooksPath=/dev/null', 'commit', '--quiet', '--no-verify', '-m', `Uncommitted work, kept by Seismic as the card's workstation went to another card\n\n${SAVED}`);
+        await gitAsync(path, '-c', 'user.name=Seismic', '-c', 'user.email=seismic@localhost', '-c', 'core.hooksPath=/dev/null', 'commit', '--quiet', '--no-verify', '-m', `Uncommitted work, kept by Seismic as the card's workstation went to another card\n\n${SAVED}`);
       }
       // given back meanwhile (a stop that had asked git before) and perhaps taken by another card, which waits for this
       if (this.leasedBy(cardId) === path) this.free(path);
@@ -2343,7 +2343,7 @@ export async function workingChanges(path: string): Promise<{ files: string[]; d
   };
   const files = porcelainFiles(await run(['status', '--porcelain', '-z', '--untracked-files=all', '--ignore-submodules=none']));
   if (!files.length) return { files, diff: '' };
-  const index = (await run(['rev-parse', '--path-format=absolute', '--git-path', `obeya-capture-${crypto.randomUUID()}`])).trim();
+  const index = (await run(['rev-parse', '--path-format=absolute', '--git-path', `seismic-capture-${crypto.randomUUID()}`])).trim();
   const env = { GIT_INDEX_FILE: index };
   try {
     // Parent patches contain only gitlinks, never a submodule's files or its local commits.
@@ -2393,7 +2393,7 @@ export async function workingChanges(path: string): Promise<{ files: string[]; d
  * the files git tracks, so the clone stays clean, and on the machine its worker runs on. Too large
  * for a prompt, the patch reaches the worker as this file (`git rev-parse --git-path` names it there).
  */
-export const CAPTURED_CHANGES = 'obeya-captured-changes.patch';
+export const CAPTURED_CHANGES = 'seismic-captured-changes.patch';
 
 /** Writes `text` into the git directory of the workstation at `path` as `name`, on its machine; returns the file's absolute path there. */
 export async function writeToGitDir(path: string, name: string, text: string): Promise<string> {
@@ -2511,7 +2511,7 @@ export async function defaultBranchAsync(path: string): Promise<string> {
 
 /**
  * The folders without git in the configuration (`RepoConfig.git` false), by path: they have no
- * branch, and what Seismic reads of them (`.obeya/settings.json`, plan docs) it reads as the folder has
+ * branch, and what Seismic reads of them (`.seismic/settings.json`, plan docs) it reads as the folder has
  * it. Marked whenever a configuration is resolved.
  */
 const folders = new Set<string>();

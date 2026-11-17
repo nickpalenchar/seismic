@@ -63,7 +63,7 @@ const ProjectName = ({ name }: { name: string }) => (
 /** "Go to card", or "Go to Seismic" on Seismic's answer: on every entry, last and never primary. */
 const GoTo = ({ e, onGo }: { e: InboxEntry; onGo: (e: InboxEntry) => void }) => (
   <Button type="button" onClick={() => onGo(e)}>
-    {e.card ? t.inbox.goToCard : t.inbox.goToObeya}
+    {e.card ? t.inbox.goToCard : t.inbox.goToSeismic}
   </Button>
 );
 
@@ -148,7 +148,7 @@ const setting: Renderer = (e, p) => {
 /** Seismic's answer, which is no card, in the same lines as a card's entry. */
 const answer: Renderer = (e, { unread, onGo, onRead }) => (
   <li className={cn(entryClass, unread ? 'unread' : 'read')} onClick={(ev) => readOnButton(ev, () => onRead(e))}>
-    <div className="face face-s obeya-answer c-waiting">
+    <div className="face face-s seismic-answer c-waiting">
       <div className="f-top">
         <span className="f-where">
           <ProjectName name={e.projectName} /> · {when(e.since)}
@@ -162,7 +162,7 @@ const answer: Renderer = (e, { unread, onGo, onRead }) => (
           </button>
         </span>
       </div>
-      <div className="f-state">{t.phone.obeyaAnswered}</div>
+      <div className="f-state">{t.phone.seismicAnswered}</div>
       {e.text && <div className="f-text">{plain(e.text)}</div>}
       <div className={repliesClass}>
         <GoTo e={e} onGo={onGo} />

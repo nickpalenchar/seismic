@@ -3,8 +3,8 @@
 // is Seismic's (for Qwen3-TTS with `--qwen`). The key lies in `.voice/elevenlabs.key` of the main
 // checkout, gitignored. `--qwen` renders in the owner's voice cloned by Qwen3-TTS instead (the
 // reference `.voice/qwen-reference-en.wav` there), which costs no credits: for trying a change out,
-// into `obeya-hero-qwen` in the demo directory (`~/demos` unless the demo settings name another).
-// `--record` records the take's agents (real ones) into a directory, `obeya-hero-recording` there
+// into `seismic-hero-qwen` in the demo directory (`~/demos` unless the demo settings name another).
+// `--record` records the take's agents (real ones) into a directory, `seismic-hero-recording` there
 // unless named; `--replay` plays such a recording back instead of
 // running agents, the same take in minutes (the README says when which). Other arguments go on to
 // the demo (`--narration`, `--dry`).
@@ -20,7 +20,7 @@ const VOICE = 'IErGHDQU4vPqicCi8dwR';
 const qwen = process.argv.includes('--qwen');
 /** The owner's demo directory: the take's own home below names it too, so its agents' demos go there. */
 const DEMOS = demoDirectory();
-const OUT = process.env.HERO_OUT ?? path.join(DEMOS, qwen ? 'obeya-hero-qwen' : 'obeya-hero');
+const OUT = process.env.HERO_OUT ?? path.join(DEMOS, qwen ? 'seismic-hero-qwen' : 'seismic-hero');
 const common = spawnSync('git', ['-C', import.meta.dirname, 'rev-parse', '--path-format=absolute', '--git-common-dir'], { encoding: 'utf8' }).stdout.trim();
 const voiceDir = path.join(path.dirname(common), '.voice');
 const keyFile = path.join(voiceDir, 'elevenlabs.key');
@@ -36,7 +36,7 @@ const recording = (flag: string) => {
   const i = process.argv.indexOf(`--${flag}`);
   if (i < 0) return undefined;
   const given = process.argv[i + 1];
-  return path.resolve(given && !given.startsWith('--') ? given : path.join(DEMOS, 'obeya-hero-recording'));
+  return path.resolve(given && !given.startsWith('--') ? given : path.join(DEMOS, 'seismic-hero-recording'));
 };
 const record = recording('record');
 const replay = recording('replay');

@@ -64,7 +64,7 @@ import type { Messages } from '../core/messages';
 import { dimensions } from '../core/page-tags';
 import type { PageTags } from '../core/types';
 import { readDemoSettings } from '../../plugin/skills/demo/lib/settings.ts';
-import { ARTIFACT_DIR, artifactFiles, artifactPageHtml, credit, day, demoPageHtml, esc, OBEYA_URL, ON_DISK, PAGE_STYLE, type PageCommit, paragraphs, PAGE_WORDS, type PageLanguage, type StackedDemo, stackedPageHtml, themeStyle } from './demo-page';
+import { ARTIFACT_DIR, artifactFiles, artifactPageHtml, credit, day, demoPageHtml, esc, SEISMIC_URL, ON_DISK, PAGE_STYLE, type PageCommit, paragraphs, PAGE_WORDS, type PageLanguage, type StackedDemo, stackedPageHtml, themeStyle } from './demo-page';
 import { demoFile } from './demo-file';
 import type { Theme } from './theme';
 import { artifactCopy } from './artifact-copy';
@@ -175,6 +175,7 @@ export function parseEnv(text: string): Record<string, string> {
 class Refused extends Error {}
 
 /** The site's manifest, at its root: every page with its files, the pages withdrawn, and the projects' paths. */
+/** The manifest keeps its name from before the rename: published sites and other machines read it by that path (docs/design.md). */
 export const MANIFEST = 'obeya-site.json';
 
 /** A page in the manifest, or a withdrawn one (a tombstone). Only the machine whose card it is changes a page, so its revision counts up. */
@@ -1192,7 +1193,7 @@ ${d.by ? `<author><name>${xml(d.by)}</name></author>\n` : ''}${Object.entries(d.
 <id>${xml(base)}</id>
 <updated>${xml(updated)}</updated>
 <author><name>${xml(site.title)}</name></author>
-<generator uri="${OBEYA_URL}">Seismic</generator>
+<generator uri="${SEISMIC_URL}">Seismic</generator>
 ${pages.map(entry).join('')}</feed>
 `;
 }

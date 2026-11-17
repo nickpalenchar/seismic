@@ -393,7 +393,7 @@ class HttpVoice:
         self.tag = f"{service}|{self._url}|{model}|{self._voice}|{self._style if service in ('gemini', 'openai') else ''}"
 
     def _post(self, url: str, body: bytes, headers: dict) -> bytes:
-        request = urllib.request.Request(url, data=body, headers={"User-Agent": "obeya-demo", **headers})
+        request = urllib.request.Request(url, data=body, headers={"User-Agent": "seismic-demo", **headers})
         for attempt in range(6):
             try:
                 with urllib.request.urlopen(request, timeout=180) as response:

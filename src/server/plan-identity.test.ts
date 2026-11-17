@@ -41,7 +41,7 @@ const read = (d: PlanDoc) => {
 const work = (id: string, title: string, fields: Parameters<Store['cards']['update']>[1] = {}) => {
   const branch = branchName(title, id);
   store.cards.update(id, { session_id: 's', ...fields });
-  board.log(id, 'state', 'obeya', `Agent gestartet auf ${branch}.`);
+  board.log(id, 'state', 'seismic', `Agent gestartet auf ${branch}.`);
   board.docsChanged();
 };
 
@@ -173,7 +173,7 @@ describe('a doc in a plan folder outside the repository', () => {
 
   test('a stopped card leaves once it gave its workstation back, under the title and text the doc had', () => {
     const [, b] = read(outside(OLD));
-    work(b!.id, '3B Auth zusammenführen', { state: 'planned', branch: `obeya/3b-auth-zusammenfuhren-${b!.id.slice(0, 6)}`, workstation: '/ws/1' });
+    work(b!.id, '3B Auth zusammenführen', { state: 'planned', branch: `seismic/3b-auth-zusammenfuhren-${b!.id.slice(0, 6)}`, workstation: '/ws/1' });
     const t = Date.now();
     read(outside([OLD[0]!, OLD[2]!]));
     setSystemTime(new Date(t + LEAVE_AFTER_MS + 1000));
@@ -280,7 +280,7 @@ describe('cards of a doc read by an older Seismic, as workers left it', () => {
 });
 
 describe('planHistory', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'obeya-plan-history-'));
+  const dir = mkdtempSync(join(tmpdir(), 'seismic-plan-history-'));
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
   test('reads every workstream a doc was given, the newest first', () => {

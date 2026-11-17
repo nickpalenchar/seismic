@@ -36,8 +36,8 @@ export interface Entry {
 export type Manifest = Map<string, Entry>;
 
 /** What the folder's file manager, sync client or office suite keep there for themselves; never a card's change. */
-const SKIPPED = new Set(['.DS_Store', '.git', '.Trash', '.Trashes', '.localized', '.tmp.drivedownload', '.tmp.driveupload', 'Thumbs.db', 'desktop.ini', 'Icon\r', '.obeya-restore']);
-const skipped = (name: string) => SKIPPED.has(name) || name.startsWith('~$') || name.startsWith('.~lock.') || name.startsWith('.obeya-restore-');
+const SKIPPED = new Set(['.DS_Store', '.git', '.Trash', '.Trashes', '.localized', '.tmp.drivedownload', '.tmp.driveupload', 'Thumbs.db', 'desktop.ini', 'Icon\r', '.seismic-restore']);
+const skipped = (name: string) => SKIPPED.has(name) || name.startsWith('~$') || name.startsWith('.~lock.') || name.startsWith('.seismic-restore-');
 
 /**
  * A file the provider keeps only in the cloud (macOS: no blocks on disk for a file with a size).
@@ -895,7 +895,7 @@ export class FolderWorkstations implements CardWorkstations {
     const put = async (copy: string, path: string) => {
       touch(path);
       const dst = join(this.root, path);
-      const tmp = join(dst, '..', `.obeya-restore-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+      const tmp = join(dst, '..', `.seismic-restore-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
       await copyKeeping(copy, tmp);
       await rename(tmp, dst);
     };

@@ -46,7 +46,7 @@ describe("a repository's commands", () => {
 });
 
 describe("a workstation's Codex configuration", () => {
-  const dir = mkdtempSync(join(tmpdir(), 'obeya-codex-trust-'));
+  const dir = mkdtempSync(join(tmpdir(), 'seismic-codex-trust-'));
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
   test('is held on the default branch like the others, until the owner trusts it', () => {

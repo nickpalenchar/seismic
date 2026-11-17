@@ -44,7 +44,7 @@ const URL_ = `http://localhost:${server.port}/`;
 
 const SECRET = 's3cr3tdirectory000000000';
 /** A site of the list, unlisted, deploying with the stand-in in place of wrangler. */
-const entry = (extra: Partial<DemoSiteEntry> = {}): DemoSiteEntry => ({ url: URL_.replace(/\/$/, ''), deploy: `deploy.ts {dir} ${dir}`, host: 'cloudflare', project: 'obeya-ada', secret: SECRET, ...extra });
+const entry = (extra: Partial<DemoSiteEntry> = {}): DemoSiteEntry => ({ url: URL_.replace(/\/$/, ''), deploy: `deploy.ts {dir} ${dir}`, host: 'cloudflare', project: 'seismic-ada', secret: SECRET, ...extra });
 /** The unlisted site as a target. */
 const unlisted = (at = home, machine = 'a') =>
   siteTarget({ title: 'Demos', url: URL_, deploy: `deploy.ts {dir} ${dir}` }, repo, at, MESSAGES.en.share, { machine, checkWaits: [0, 10, 10], by: 'Ada Lovelace', unlisted: { secret: SECRET } });
@@ -53,7 +53,7 @@ const deployed = () => join(dir, 'deployed');
 const page = (slug: string, extra: Partial<SharePage> = {}): SharePage => ({ slug, title: `Title ${slug}`, text: 'One sentence.', kind: 'video', chapters: [[0, 'Before']], pr: null, language: 'en', dir: demo, shared: [], ...extra });
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'obeya-personal-'));
+  dir = mkdtempSync(join(tmpdir(), 'seismic-personal-'));
   home = join(dir, 'home');
   repo = join(dir, 'repo');
   mkdirSync(repo);
@@ -177,7 +177,7 @@ describe("sharing on the project's site", () => {
   });
 
   test('a listed site: no random part, an overview of the path listing the page, none at the root', async () => {
-    const { secret: _, ...listed } = entry({ host: 'github', project: 'ada/obeya-demos' });
+    const { secret: _, ...listed } = entry({ host: 'github', project: 'ada/seismic-demos' });
     writeSites(home, [listed]);
     source = projectSite(listed, 'team/shop');
     const id = card();
@@ -227,8 +227,8 @@ describe("sharing on the project's site", () => {
 
 describe("this machine's list of demo sites", () => {
   test('takes the personal site kept before as its first site, into its own file with the next change', () => {
-    writeFileSync(join(home, 'personal-site.json'), JSON.stringify({ host: 'github', url: 'https://ada.github.io/obeya-demos/', project: 'ada/obeya-demos', secret: SECRET, private: ['/x'] }));
-    expect(readSites(home)).toEqual([{ url: 'https://ada.github.io/obeya-demos', deploy: 'obeya:github-pages ada/obeya-demos', host: 'github', project: 'ada/obeya-demos', secret: SECRET, maxFile: 100 * 1024 * 1024 }]);
+    writeFileSync(join(home, 'personal-site.json'), JSON.stringify({ host: 'github', url: 'https://ada.github.io/seismic-demos/', project: 'ada/seismic-demos', secret: SECRET, private: ['/x'] }));
+    expect(readSites(home)).toEqual([{ url: 'https://ada.github.io/seismic-demos', deploy: 'seismic:github-pages ada/seismic-demos', host: 'github', project: 'ada/seismic-demos', secret: SECRET, maxFile: 100 * 1024 * 1024 }]);
     writeSites(home, [...readSites(home), { url: 'https://demos.example.dev', deploy: 'true' }]);
     expect(existsSync(join(home, 'personal-site.json'))).toBe(false);
     expect(JSON.parse(readFileSync(join(home, SITES_FILE), 'utf8')).sites).toHaveLength(2);
@@ -236,8 +236,8 @@ describe("this machine's list of demo sites", () => {
   });
 
   test("a personal site's connection code from before adds it to the list", () => {
-    const old = 'obeya-site:' + Buffer.from(JSON.stringify({ host: 'cloudflare', url: 'https://obeya-ada.pages.dev', project: 'obeya-ada', secret: SECRET, credentials: { CLOUDFLARE_API_TOKEN: 't' } })).toString('base64url');
-    expect(connect(home, old).site).toMatchObject({ url: 'https://obeya-ada.pages.dev', deploy: expect.stringContaining('--project-name obeya-ada'), secret: SECRET, env: expect.stringMatching(/cloudflare\.env$/) });
+    const old = 'seismic-site:' + Buffer.from(JSON.stringify({ host: 'cloudflare', url: 'https://seismic-ada.pages.dev', project: 'seismic-ada', secret: SECRET, credentials: { CLOUDFLARE_API_TOKEN: 't' } })).toString('base64url');
+    expect(connect(home, old).site).toMatchObject({ url: 'https://seismic-ada.pages.dev', deploy: expect.stringContaining('--project-name seismic-ada'), secret: SECRET, env: expect.stringMatching(/cloudflare\.env$/) });
     expect(() => connect(home, 'something else')).toThrow('not a connection code');
   });
 
@@ -259,7 +259,7 @@ describe("this machine's list of demo sites", () => {
     expect(changed).toBe(1);
     setup.seen();
     expect(setup.view().job).toBeUndefined();
-    expect(setup.code('https://demos.example.dev').code).toStartWith('obeya-site:');
+    expect(setup.code('https://demos.example.dev').code).toStartWith('seismic-site:');
     setup.remove({ url: 'https://demos.example.dev' });
     expect(readSites(home)).toEqual([]);
   });
@@ -290,26 +290,26 @@ describe('setting up at GitHub', () => {
     calls = [];
     answers = [
       ['api user', { code: 0, out: JSON.stringify({ login: 'ada', plan: { name: 'pro' } }) }],
-      ['api repos/ada/obeya-demos', { code: 1, out: '', err: 'Not Found (HTTP 404)' }],
+      ['api repos/ada/seismic-demos', { code: 1, out: '', err: 'Not Found (HTTP 404)' }],
       ['repo view', { code: 0, out: 'PRIVATE\n' }],
       ['auth token', { code: 0, out: 'gho_secret\n' }],
-      ['api -X POST repos/ada/obeya-demos/pages', { code: 0, out: JSON.stringify({ html_url: 'https://ada.github.io/obeya-demos/' }) }],
+      ['api -X POST repos/ada/seismic-demos/pages', { code: 0, out: JSON.stringify({ html_url: 'https://ada.github.io/seismic-demos/' }) }],
     ];
   });
   const gh = () => calls.filter((c) => c[0] === 'gh').map((c) => c.slice(1).join(' '));
 
   test('an unlisted site lives in a private repository, created as private and checked to be', async () => {
-    const r = await setupGithub({ name: 'obeya-demos', private: true, log: () => {}, x, wait: [] });
-    expect(r).toEqual({ url: 'https://ada.github.io/obeya-demos/', project: 'ada/obeya-demos' });
+    const r = await setupGithub({ name: 'seismic-demos', private: true, log: () => {}, x, wait: [] });
+    expect(r).toEqual({ url: 'https://ada.github.io/seismic-demos/', project: 'ada/seismic-demos' });
     const create = calls.find((c) => c[1] === 'repo' && c[2] === 'create')!;
     expect(create).toContain('--private');
     expect(calls.flat()).not.toContain('--public');
-    expect(gh()).toContain('repo view ada/obeya-demos --json visibility --jq .visibility');
+    expect(gh()).toContain('repo view ada/seismic-demos --json visibility --jq .visibility');
   });
 
   test('a free account is refused before anything is created, with Cloudflare offered', async () => {
     answers[0] = ['api user', { code: 0, out: JSON.stringify({ login: 'ada', plan: { name: 'free' } }) }];
-    const r = setupGithub({ name: 'obeya-demos', private: true, log: () => {}, x, wait: [] });
+    const r = setupGithub({ name: 'seismic-demos', private: true, log: () => {}, x, wait: [] });
     await expect(r).rejects.toBeInstanceOf(SetupRefused);
     await expect(r).rejects.toMatchObject({ offer: 'cloudflare', message: expect.stringContaining('GitHub Pro') });
     expect(gh().some((c) => c.startsWith('repo create'))).toBe(false);
@@ -318,19 +318,19 @@ describe('setting up at GitHub', () => {
   test('Pages refused for the private repository: the reason, and Cloudflare offered', async () => {
     answers[4] = ['api -X POST', { code: 1, out: '', err: 'gh: Your current plan does not support GitHub Pages for this repository. (HTTP 422)' }];
     answers[0] = ['api user', { code: 0, out: JSON.stringify({ login: 'ada' }) }];
-    await expect(setupGithub({ name: 'obeya-demos', private: true, log: () => {}, x, wait: [] })).rejects.toMatchObject({ offer: 'cloudflare', message: expect.stringContaining('does not support GitHub Pages') });
+    await expect(setupGithub({ name: 'seismic-demos', private: true, log: () => {}, x, wait: [] })).rejects.toMatchObject({ offer: 'cloudflare', message: expect.stringContaining('does not support GitHub Pages') });
   });
 
   test('a repository GitHub did not make private is not used', async () => {
     answers[2] = ['repo view', { code: 0, out: 'PUBLIC\n' }];
-    await expect(setupGithub({ name: 'obeya-demos', private: true, log: () => {}, x, wait: [] })).rejects.toThrow('not private');
+    await expect(setupGithub({ name: 'seismic-demos', private: true, log: () => {}, x, wait: [] })).rejects.toThrow('not private');
     expect(calls.some((c) => c[0] === 'git')).toBe(false);
   });
 
   test('a name taken gets a number, and is never reused', async () => {
-    answers.splice(1, 1, ['api repos/ada/obeya-demos-2', { code: 1, out: '' }], ['api repos/ada/obeya-demos', { code: 0, out: '{}' }]);
-    answers.push(['api -X POST repos/ada/obeya-demos-2/pages', { code: 0, out: JSON.stringify({ html_url: 'https://ada.github.io/obeya-demos-2/' }) }]);
-    expect((await setupGithub({ name: 'obeya-demos', private: true, log: () => {}, x, wait: [] })).project).toBe('ada/obeya-demos-2');
+    answers.splice(1, 1, ['api repos/ada/seismic-demos-2', { code: 1, out: '' }], ['api repos/ada/seismic-demos', { code: 0, out: '{}' }]);
+    answers.push(['api -X POST repos/ada/seismic-demos-2/pages', { code: 0, out: JSON.stringify({ html_url: 'https://ada.github.io/seismic-demos-2/' }) }]);
+    expect((await setupGithub({ name: 'seismic-demos', private: true, log: () => {}, x, wait: [] })).project).toBe('ada/seismic-demos-2');
   });
 
   test('a public repository, as chosen: any account, no check of the plan, a listed site', async () => {
@@ -347,7 +347,7 @@ describe('setting up at GitHub', () => {
     const setup = new SiteSetup({ home, changed: () => {}, x, wait: [], check: async () => null });
     setup.add({ host: 'github' });
     for (let i = 0; i < 100 && setup.view().job?.running; i++) await Bun.sleep(5);
-    expect(setup.view().sites[0]).toMatchObject({ host: 'github', url: 'https://ada.github.io/obeya-demos', listed: false });
+    expect(setup.view().sites[0]).toMatchObject({ host: 'github', url: 'https://ada.github.io/seismic-demos', listed: false });
     expect(calls.find((c) => c[2] === 'create')).toContain('--private');
     expect(readSites(home)[0]!.secret).toMatch(/^[a-z0-9]{25,}$/);
   });
@@ -359,7 +359,7 @@ test('the deploy of an unlisted site to GitHub Pages refuses a repository that i
     calls.push(argv);
     return argv.includes('view') ? { code: 0, out: 'PUBLIC\n', err: '' } : { code: 0, out: 'tok\n', err: '' };
   };
-  await expect(githubPagesDeploy(join(dir, 'site'), 'ada/obeya-demos', join(dir, 'git'), x, { private: true })).rejects.toThrow('not private');
+  await expect(githubPagesDeploy(join(dir, 'site'), 'ada/seismic-demos', join(dir, 'git'), x, { private: true })).rejects.toThrow('not private');
   expect(calls.some((c) => c[0] === 'git')).toBe(false);
 });
 
@@ -384,20 +384,20 @@ test('the deploy to GitHub Pages pushes one commit without history, with gh’s 
     return exec(argv, { ...o, env: { ...o?.env, GIT_CONFIG_GLOBAL: join(dir, 'gitconfig') } });
   };
   writeFileSync(join(dir, 'gitconfig'), `[core]\n\texcludesFile = ${join(dir, 'ignore')}\n[commit]\n\tgpgsign = true\n`);
-  const said = await githubPagesDeploy(site, 'ada/obeya-demos', join(dir, 'git'), x);
+  const said = await githubPagesDeploy(site, 'ada/seismic-demos', join(dir, 'git'), x);
   expect(said).toContain('a/b/demo.mp4');
   expect(said).toContain('.nojekyll');
   expect(said).toContain('commits 1');
   const [push] = pushes;
-  expect(push!.argv.slice(-4)).toEqual(['--force', '--no-verify', 'https://github.com/ada/obeya-demos.git', 'HEAD:main']);
+  expect(push!.argv.slice(-4)).toEqual(['--force', '--no-verify', 'https://github.com/ada/seismic-demos.git', 'HEAD:main']);
   expect(push!.argv.join(' ')).not.toContain('gho_secret');
   expect(push!.env.GIT_CONFIG_VALUE_0).toBe(`AUTHORIZATION: basic ${Buffer.from('x-access-token:gho_secret').toString('base64')}`);
   // its repository is made afresh each time and goes afterwards
   expect(existsSync(join(dir, 'git'))).toBe(false);
   // a site on a domain of its own keeps it: its CNAME goes with every push, and goes once the domain does
-  expect(await githubPagesDeploy(site, 'ada/obeya-demos', join(dir, 'git'), x, { domain: 'demos.example.dev' })).toContain('CNAME');
+  expect(await githubPagesDeploy(site, 'ada/seismic-demos', join(dir, 'git'), x, { domain: 'demos.example.dev' })).toContain('CNAME');
   expect(readFileSync(join(site, 'CNAME'), 'utf8')).toBe('demos.example.dev\n');
-  expect(await githubPagesDeploy(site, 'ada/obeya-demos', join(dir, 'git'), x)).not.toContain('CNAME');
+  expect(await githubPagesDeploy(site, 'ada/seismic-demos', join(dir, 'git'), x)).not.toContain('CNAME');
   await expect(githubPagesDeploy(site, 'not a repository', join(dir, 'git'), x)).rejects.toThrow('expected <owner>/<repository>');
 });
 
@@ -437,7 +437,7 @@ describe('setting up at Cloudflare', () => {
     let first = true;
     const r = await setupCloudflare({
       home,
-      name: 'obeya-ada',
+      name: 'seismic-ada',
       account: 'demos.example.dev',
       wait: [],
       log: () => {},
@@ -446,24 +446,24 @@ describe('setting up at Cloudflare', () => {
           first = false;
           return { code: 1, out: 'A project with this name already exists. [code: 8000002]' };
         }
-        return { code: 0, out: "✨ Successfully created the 'obeya-ada-x1y2' project. It will be available at https://obeya-ada-x1y2.pages.dev/ once you create your first deployment." };
+        return { code: 0, out: "✨ Successfully created the 'seismic-ada-x1y2' project. It will be available at https://seismic-ada-x1y2.pages.dev/ once you create your first deployment." };
       }),
     });
-    expect(r).toMatchObject({ url: 'https://obeya-ada-x1y2.pages.dev', env: { CLOUDFLARE_API_TOKEN: 'tok', CLOUDFLARE_ACCOUNT_ID: 'acc' } });
-    expect(r.project).toMatch(/^obeya-ada-[a-z0-9]{1,4}$/);
+    expect(r).toMatchObject({ url: 'https://seismic-ada-x1y2.pages.dev', env: { CLOUDFLARE_API_TOKEN: 'tok', CLOUDFLARE_ACCOUNT_ID: 'acc' } });
+    expect(r.project).toMatch(/^seismic-ada-[a-z0-9]{1,4}$/);
     expect(calls.some((c) => c.includes('login'))).toBe(false);
   });
 
   test('another account by its API token: no login, the token for the new site', async () => {
-    const r = await setupCloudflare({ home, name: 'obeya-ada', token: { CLOUDFLARE_API_TOKEN: 'another-token-0123456789' }, log: () => {}, wait: [], x: x(() => ({ code: 0, out: 'created https://obeya-ada.pages.dev/' })) });
+    const r = await setupCloudflare({ home, name: 'seismic-ada', token: { CLOUDFLARE_API_TOKEN: 'another-token-0123456789' }, log: () => {}, wait: [], x: x(() => ({ code: 0, out: 'created https://seismic-ada.pages.dev/' })) });
     expect(calls.some((c) => c.includes('login') || c.includes('whoami'))).toBe(false);
     expect(r.env).toEqual({ CLOUDFLARE_API_TOKEN: 'another-token-0123456789' });
   });
 
   test('without one, logs in through the browser with wrangler', async () => {
-    const r = await setupCloudflare({ home, name: 'obeya-ada', log: () => {}, wait: [], x: x((args) => (args === 'whoami' ? { code: 0, out: 'You are not authenticated. Please run `wrangler login`.' } : { code: 0, out: 'created https://obeya-ada.pages.dev/' })) });
-    expect(calls.map((c) => c.slice(3, 7).join(' '))).toEqual(['whoami', 'login', 'pages project create obeya-ada', 'pages deploy ' + calls[3]![5] + ' --project-name']);
+    const r = await setupCloudflare({ home, name: 'seismic-ada', log: () => {}, wait: [], x: x((args) => (args === 'whoami' ? { code: 0, out: 'You are not authenticated. Please run `wrangler login`.' } : { code: 0, out: 'created https://seismic-ada.pages.dev/' })) });
+    expect(calls.map((c) => c.slice(3, 7).join(' '))).toEqual(['whoami', 'login', 'pages project create seismic-ada', 'pages deploy ' + calls[3]![5] + ' --project-name']);
     expect(calls[2]).toContain('--force');
-    expect(r).toEqual({ url: 'https://obeya-ada.pages.dev', project: 'obeya-ada' });
+    expect(r).toEqual({ url: 'https://seismic-ada.pages.dev', project: 'seismic-ada' });
   });
 });

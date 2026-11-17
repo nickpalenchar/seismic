@@ -3,7 +3,7 @@
 @font-face { font-family: "Plex Condensed"; font-style: normal; font-weight: 400; font-display: swap; src: url(fonts/ibm-plex-sans-condensed-latin-400-normal.woff2) format("woff2"); }
 @font-face { font-family: "Plex Condensed"; font-style: normal; font-weight: 600; font-display: swap; src: url(fonts/ibm-plex-sans-condensed-latin-600-normal.woff2) format("woff2"); }
 /* Noto Serif JP, cut down to the three characters of 大部屋 */
-@font-face { font-family: "Seismic Kanji"; font-weight: 700; font-display: swap; src: url(fonts/obeya-kanji.woff2) format("woff2"); }
+@font-face { font-family: "Seismic Kanji"; font-weight: 700; font-display: swap; src: url(fonts/seismic-kanji.woff2) format("woff2"); }
 
 :root {
   /* the canvas's palette: card stock on a warm board, the states as inks */

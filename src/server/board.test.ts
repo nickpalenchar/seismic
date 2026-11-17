@@ -393,7 +393,7 @@ describe('the note on the plan directory', () => {
 describe('the archive of plans', () => {
   test('an archived plan shows its doc as last read: goal, workstreams with text and state', () => {
     const w2 = board.snapshot().items.find((i) => i.plan?.label === 'W2')!;
-    board.work(w2.id, { state: 'live', branch: 'obeya/w2' });
+    board.work(w2.id, { state: 'live', branch: 'seismic/w2' });
     docs = [{ ...docA, goal: 'Neues Ziel', workstreams: [ws('W1', true), { ...ws('W2', true), body: 'Zuletzt so' }, ws('W3')] }];
     board.docsChanged();
     board.snapshot();
@@ -408,7 +408,7 @@ describe('the archive of plans', () => {
       ['W3', 'planned', 'Body W3', p!.archivedAt],
     ]);
     // a workstream of an archived plan still opens, with its log
-    expect(board.card(w2.id)).toMatchObject({ id: w2.id, agent: { branch: 'obeya/w2' }, parent: p!.id });
+    expect(board.card(w2.id)).toMatchObject({ id: w2.id, agent: { branch: 'seismic/w2' }, parent: p!.id });
     expect(board.events(w2.id)).toEqual([]);
     expect(() => board.unarchive(p!.id)).toThrow(expect.objectContaining({ code: 'planCard' }));
   });
@@ -605,7 +605,7 @@ describe('archive', () => {
 
   test('a stopped task goes into the archive with its conversation, unless its workstation holds work or it waits to start', () => {
     const c = board.create({ title: 'Frage', body: 'Stimmt die Rechnung?', x: 50, y: 60 });
-    board.work(c.id, { branch: 'obeya/frage-1', workstation: '/tmp/clone-1' });
+    board.work(c.id, { branch: 'seismic/frage-1', workstation: '/tmp/clone-1' });
     board.log(c.id, 'talk', 'worker', 'Sie stimmt.');
     board.log(c.id, 'state', 'owner', 'Gestoppt.');
     expect(() => board.archive([c.id])).toThrow(expect.objectContaining({ code: 'holdsWork' }));
@@ -616,7 +616,7 @@ describe('archive', () => {
     expect(board.archiveDone()).toEqual([]);
     board.archive([c.id]);
     expect(board.snapshot().items.some((i) => i.id === c.id)).toBe(false);
-    expect(board.archived()).toMatchObject([{ id: c.id, state: 'planned', agent: { branch: 'obeya/frage-1' } }]);
+    expect(board.archived()).toMatchObject([{ id: c.id, state: 'planned', agent: { branch: 'seismic/frage-1' } }]);
     expect(board.events(c.id).map((e) => e.text)).toEqual(['Sie stimmt.', 'Gestoppt.']);
     board.unarchive(c.id);
     expect(board.snapshot().items.find((i) => i.id === c.id)).toMatchObject({ x: 50, y: 60, state: 'planned' });
@@ -1290,7 +1290,7 @@ describe('needs you', () => {
 describe('a demo on the card', () => {
   test('a video without a poster says so, for the player to show its first frame; one with a poster does not', () => {
     const dir = (files: string[]) => {
-      const d = mkdtempSync(join(tmpdir(), 'obeya-demo-'));
+      const d = mkdtempSync(join(tmpdir(), 'seismic-demo-'));
       for (const f of files) writeFileSync(join(d, f), f);
       return d;
     };
@@ -1298,7 +1298,7 @@ describe('a demo on the card', () => {
     const c = board.create({ title: 'Video', x: 0, y: 0 });
     board.work(c.id, {
       state: 'working',
-      branch: 'obeya/video',
+      branch: 'seismic/video',
       demo: { latest: { kind: 'video', dir: framed, chapters: [[0, 'Danach']], handover: 2 }, earlier: [{ kind: 'video', dir: bare, chapters: [[0, 'Vorher']], handover: 1 }] },
     });
     const item = board.item(c.id)!;

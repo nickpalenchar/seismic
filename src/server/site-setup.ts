@@ -97,7 +97,7 @@ export class SiteSetup {
     this.run(host, async (log) => {
       let entry: DemoSiteEntry;
       if (host === 'cloudflare') {
-        const name = `obeya-${slug(this.o.user ?? '') || 'demos'}`.slice(0, 50);
+        const name = `seismic-${slug(this.o.user ?? '') || 'demos'}`.slice(0, 50);
         const r = await setupCloudflare({ home: this.o.home, name, log, ...(account ? { account } : {}), ...(token ? { token } : {}), ...(this.o.x ? { x: this.o.x } : {}), ...(this.o.wait ? { wait: this.o.wait } : {}) });
         entry = { url: r.url.replace(/\/+$/, ''), deploy: hostDeploy(host, r.project), host, project: r.project };
         if (r.env) writeEnv(this.o.home, (entry.env = envFileFor(r.url, host)), r.env);
@@ -276,9 +276,9 @@ function tokenOf(input: unknown): Record<string, string> | undefined {
   return { CLOUDFLARE_API_TOKEN: token.trim(), ...(id ? { CLOUDFLARE_ACCOUNT_ID: id } : {}) };
 }
 
-/** The name of a repository Seismic creates: the owner's, else `obeya-demos`. */
+/** The name of a repository Seismic creates: the owner's, else `seismic-demos`. */
 function repoName(name: unknown): string {
-  if (name === undefined || name === '') return 'obeya-demos';
+  if (name === undefined || name === '') return 'seismic-demos';
   if (typeof name !== 'string' || !/^[A-Za-z0-9._-]{1,100}$/.test(name.trim()) || /^\.+$/.test(name.trim())) throw new BadRequest('invalid', 'a repository’s name is letters, digits, ., - and _');
   return name.trim();
 }

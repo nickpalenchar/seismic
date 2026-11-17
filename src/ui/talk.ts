@@ -92,7 +92,7 @@ const place = (e: CardEvent, prev: CardEvent | undefined): 'owner' | 'agent' | '
     case 'denied':
       return 'line';
     case 'state':
-      return e.author === 'explorer' || (e.author === 'obeya' && !MILESTONE.test(e.text) && !limitLine(e) && !wokeLine(e) && !unansweredLine(e) && !waitLine(e)) ? 'step' : 'line';
+      return e.author === 'explorer' || (e.author === 'seismic' && !MILESTONE.test(e.text) && !limitLine(e) && !wokeLine(e) && !unansweredLine(e) && !waitLine(e)) ? 'step' : 'line';
     default:
       return 'step';
   }
@@ -284,15 +284,15 @@ export const snoozeLine = (e: CardEvent) => e.kind === 'state' && (e.author === 
 const wokeLine = (e: CardEvent) => e.kind === 'state' && LANGUAGES.some((l) => e.text.startsWith(MESSAGES[l].worker.woke('\0').split('\0')[0]!) || e.text.startsWith(`${MESSAGES[l].worker.woke('').replace(/: $/, '')} (`));
 
 /** Seismic's line that the agent stopped without answering the owner's words: they write again. */
-const unansweredLine = (e: CardEvent) => e.kind === 'state' && e.author === 'obeya' && LANGUAGES.some((l) => e.text === MESSAGES[l].worker.unanswered);
+const unansweredLine = (e: CardEvent) => e.kind === 'state' && e.author === 'seismic' && LANGUAGES.some((l) => e.text === MESSAGES[l].worker.unanswered);
 
 /** Seismic's line that the card waits for others before it starts, and why. */
-const waitLine = (e: CardEvent) => e.kind === 'state' && e.author === 'obeya' && LANGUAGES.some((l) => e.text.startsWith(MESSAGES[l].koordinator.waitsFor('\0', '').split('\0')[0]!));
+const waitLine = (e: CardEvent) => e.kind === 'state' && e.author === 'seismic' && LANGUAGES.some((l) => e.text.startsWith(MESSAGES[l].koordinator.waitsFor('\0', '').split('\0')[0]!));
 
 /** Seismic's line that the usage limit stopped the agent's turn, and when it goes on. */
 const limitLine = (e: CardEvent) =>
   e.kind === 'state' &&
-  e.author === 'obeya' &&
+  e.author === 'seismic' &&
   LANGUAGES.some((l) =>
     [MESSAGES[l].worker.limitResumes, MESSAGES[l].worker.limitRetries].some((says) => {
       const [before, after] = says('\0').split('\0') as [string, string];
@@ -533,7 +533,7 @@ export const koordinatorReads = (events: CardEvent[]) => {
  * (not while the usage limit holds it). Words asked in a plan's sheet went straight to its plan
  * agent: Seismic never replies to them, only their answer is awaited.
  */
-export const obeyaWorks = (talk: Exchange[]) =>
+export const seismicWorks = (talk: Exchange[]) =>
   talk.some((x) => (x.reply === undefined && !x.heldUntil && !x.askedIn) || (x.question !== undefined && x.answer === undefined && !x.movedTo && !x.limitedUntil));
 
 /**

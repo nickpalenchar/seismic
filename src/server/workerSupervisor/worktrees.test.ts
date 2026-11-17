@@ -31,7 +31,7 @@ describe('a worktree per card', () => {
     expect(board.item(c.id)!.state).toBe('planned');
     expect(board.row(c.id)).toMatchObject({ workstation: null, branch: 'main', status_line: null });
     expect(spaces.list()).toEqual([]);
-    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'error', author: 'obeya', text: expect.stringContaining('git worktree add') });
+    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'error', author: 'seismic', text: expect.stringContaining('git worktree add') });
     expect(runtime.sessions).toHaveLength(0);
   });
 
@@ -119,7 +119,7 @@ describe('a worktree per card', () => {
     await workers.freed();
     expect(git(main, 'log', '--format=%s', '-3').split('\n')).toEqual(['B', 'A', 'init']);
     expect(git(main, 'worktree', 'list').split('\n')).toHaveLength(1);
-    expect(git(main, 'branch', '--list', 'obeya/*')).toBe('');
+    expect(git(main, 'branch', '--list', 'seismic/*')).toBe('');
   });
 
   test('a repository on master without a remote: cards start from master and land there', async () => {
@@ -257,7 +257,7 @@ describe('a worktree per card', () => {
     await workers.freed();
     expect(git(main, 'log', '--format=%s', '-3').split('\n')).toEqual(['Logo mit Tests', 'Prototyp Wortmarke', 'init']);
     expect(git(main, 'worktree', 'list').split('\n')).toHaveLength(1);
-    expect(git(main, 'branch', '--list', 'obeya/*')).toBe('');
+    expect(git(main, 'branch', '--list', 'seismic/*')).toBe('');
   });
 
   test('a rebase conflict goes back to the worker with the files; a blocked checkout stays with the owner', async () => {
@@ -520,7 +520,7 @@ describe('a worktree per card', () => {
     expect(sb.inbox.at(-1)).toContain('Seismic is about to restart (new code landed on main)');
     expect(sb.inbox.at(-1)).toContain('leave the work it asks for until Seismic resumes you, and end your turn, without handing over');
     expect(sb.inbox.at(-1)).not.toContain('finish the step you are in');
-    expect(board.events(b.id).at(-1)).toMatchObject({ kind: 'state', author: 'obeya', text: 'Seismic waits to restart; the agent goes on after the restart.' });
+    expect(board.events(b.id).at(-1)).toMatchObject({ kind: 'state', author: 'seismic', text: 'Seismic waits to restart; the agent goes on after the restart.' });
     // it ends the turn at once: paused, the approval still held for the handover after the restart
     sb.emit({ type: 'idle' });
     expect(workers.busyCards()).not.toContain(b.id);
@@ -568,7 +568,7 @@ describe('a worktree per card', () => {
     sb.emit({ type: 'idle' });
     await until(() => state(b.id) === 'live');
     expect(git(main, 'show', 'HEAD:same.ts')).toBe('A and B');
-    expect(board.events(b.id).at(-1)).toMatchObject({ kind: 'state', author: 'obeya', text: 'Landed on main after the approval.' });
+    expect(board.events(b.id).at(-1)).toMatchObject({ kind: 'state', author: 'seismic', text: 'Landed on main after the approval.' });
     expect(board.row(b.id).approved_at).toBeNull();
   });
 
@@ -871,7 +871,7 @@ describe('a worktree per card', () => {
     rmSync(dir, { recursive: true, force: true });
     setup({ ...generic, land: 'main', workstations: 'worktrees' });
     const restarting = (b: Board) =>
-      new WorkerSupervisor({ board: b, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'worktrees' }, restartsFor: () => 'obeya' });
+      new WorkerSupervisor({ board: b, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'worktrees' }, restartsFor: () => 'seismic' });
     setWorkers(restarting(board));
     const c = manual();
     await workers.start(c.id);
@@ -1029,7 +1029,7 @@ describe('a worktree per card', () => {
     expect(workers.busyCards()).toEqual([]);
     expect(board.item(c.id)!.agent?.finishing).toBe(true);
     expect(board.row(c.id).workstation).toBe(wc);
-    expect(board.events(c.id).at(-1)).toMatchObject({ author: 'obeya', kind: 'state' });
+    expect(board.events(c.id).at(-1)).toMatchObject({ author: 'seismic', kind: 'state' });
 
     workers.shutdown();
     const after = new WorkerSupervisor({ board: new Board(store, board.project, () => ({ docs: [doc], dirs: [] })), runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'worktrees' } });

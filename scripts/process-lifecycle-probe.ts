@@ -45,7 +45,7 @@ if (mode === 'driver') {
   if (!codex) throw new Error('codex is not installed');
   const c = codexConnection({ command: codex, args: ['app-server', '--listen', 'stdio://'], cwd: repo, env: { ...process.env } }, { notification() {}, request: async () => ({}) });
   writeFileSync(join(dir!, 'agent.pid'), String(c.pid));
-  await c.request('initialize', { clientInfo: { name: 'obeya-probe', title: 'Seismic probe', version: '0' }, capabilities: { experimentalApi: true } });
+  await c.request('initialize', { clientInfo: { name: 'seismic-probe', title: 'Seismic probe', version: '0' }, capabilities: { experimentalApi: true } });
   c.notify('initialized', {});
   const started = await c.request<{ thread: { id: string } }>('thread/start', { cwd: repo, approvalPolicy: 'never', sandbox: 'danger-full-access' });
   await c.request('thread/shellCommand', { threadId: started.thread.id, command: JOBS.map((j) => `python3 job.py ${j} &`).join(' ') + ' wait' });
@@ -58,7 +58,7 @@ if (mode === 'driver') {
 }
 
 async function run(kind: string) {
-  const dir = mkdtempSync(join(tmpdir(), `obeya-lifecycle-${kind}-`));
+  const dir = mkdtempSync(join(tmpdir(), `seismic-lifecycle-${kind}-`));
   const repo = join(dir, 'repo');
   mkdirSync(repo);
   writeFileSync(join(repo, 'job.py'), JOB);

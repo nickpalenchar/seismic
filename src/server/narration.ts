@@ -238,7 +238,7 @@ export function parseClipRequest(input: unknown): ClipRequest | string {
   let { out } = input as Record<string, unknown>;
   if (typeof text !== 'string' || !text.trim()) return 'text is missing';
   if (script !== undefined && typeof script !== 'string') return 'script must be a string when given';
-  if (inline === true) out = join(tmpdir(), `obeya-clip-${crypto.randomUUID()}.wav`);
+  if (inline === true) out = join(tmpdir(), `seismic-clip-${crypto.randomUUID()}.wav`);
   else if (inline !== undefined) return 'inline must be true when given';
   if (typeof out !== 'string' || !isAbsolute(out) || !out.toLowerCase().endsWith('.wav')) return 'out must be an absolute path to a .wav';
   const back = { ...(inline === true ? { inline: true } : {}), ...(script ? { script } : {}) };

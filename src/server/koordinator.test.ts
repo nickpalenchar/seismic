@@ -26,7 +26,7 @@ let merges = true;
 beforeEach(() => {
   restarting = false;
   merges = true;
-  dir = mkdtempSync(join(tmpdir(), 'obeya-k-'));
+  dir = mkdtempSync(join(tmpdir(), 'seismic-k-'));
   const main = join(dir, 'main');
   gitRepo(main);
   const store = new Store(':memory:');
@@ -218,7 +218,7 @@ describe('Koordinator', () => {
     const later = card('Add CSV export for invoices');
     k.request(later.id);
     await scope(['src/export.ts'], [], 'Same export.', [], ['K1']);
-    board.work(later.id, { branch: 'obeya/add-csv-export' });
+    board.work(later.id, { branch: 'seismic/add-csv-export' });
     board.archive([later.id]);
     expect(board.archived().find((i) => i.id === later.id)?.possibleDuplicates).toEqual([earlier.id]);
     board.remove(earlier.id);
@@ -232,7 +232,7 @@ describe('Koordinator', () => {
     await scope(['src/export.ts'], [], 'Same export.', [], ['K1']);
     const idea = card('Idea: CSV export');
     board.work(idea.id, { state: 'idea' });
-    board.work(later.id, { branch: 'obeya/add-csv-export', idea: { prototypeOf: idea.id }, archived_at: new Date().toISOString() });
+    board.work(later.id, { branch: 'seismic/add-csv-export', idea: { prototypeOf: idea.id }, archived_at: new Date().toISOString() });
     const shown = () => board.items().find((i) => i.id === idea.id)?.idea?.prototypes?.find((p) => p.id === later.id);
     expect(shown()?.possibleDuplicates).toEqual([earlier.id]);
     board.remove(earlier.id);
@@ -365,7 +365,7 @@ describe('Koordinator', () => {
     expect(warned).toMatchObject([{ cardId: b.id, level: 'warning' }]);
     expect(item(b.id)).toMatchObject({ state: 'planned', queue: { behind: [a.id], reason: 'Beide ändern decide() in src/a.ts.' } });
     // the wait is in the Activity log once, with the card it waits for
-    expect(activity(b.id)).toEqual([{ code: 'waitsForCard', who: 'obeya', otherId: a.id }]);
+    expect(activity(b.id)).toEqual([{ code: 'waitsForCard', who: 'seismic', otherId: a.id }]);
 
     const wa = board.row(a.id).workstation!;
     writeFileSync(join(wa, 'a.ts'), 'a');
@@ -1126,7 +1126,7 @@ describe('Koordinator waits for a free workstation', () => {
     await scope(['src/b.ts']);
     expect(item(b.id)).toMatchObject({ state: 'planned', queue: { workstation: 'none' } });
     expect(board.events(b.id).at(-1)).toMatchObject({ kind: 'state', text: expect.stringContaining('starts as soon as one is free') });
-    expect(activity(b.id)).toEqual([{ code: 'waitsForWorkstation', who: 'obeya', otherId: null }]);
+    expect(activity(b.id)).toEqual([{ code: 'waitsForWorkstation', who: 'seismic', otherId: null }]);
     expect(board.events(b.id).some((e) => e.kind === 'error')).toBe(false);
 
     await workers.stop(a.id);
@@ -1379,7 +1379,7 @@ describe('Koordinator waits for a free workstation', () => {
     await until(() => item(a.id).state === 'working');
     expect(board.row(a.id)).toMatchObject({ workstation: clones[0]!, kept_in: null });
     expect(git(at, 'status', '--porcelain')).toBe('?? a.ts');
-    expect(git(at, 'log', '-1', '--format=%B')).not.toContain('Obeya-Kept');
+    expect(git(at, 'log', '-1', '--format=%B')).not.toContain('Seismic-Kept');
   });
 
   test("a card whose clone was taken goes on once one is free, whatever arrows the owner drew meanwhile", async () => {

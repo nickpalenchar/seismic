@@ -16,7 +16,7 @@ function agent(dir: string, id: string, heard: { calls: Record<string, unknown>[
   return {
     cwd: join(dir, 'home', 'workspaces', 'tipjar', id.slice(0, 8)),
     role: 'koordinator',
-    system: o.system ?? `You work on the card ${id}, on the branch obeya/split-the-bill-${id.slice(0, 6)}.`,
+    system: o.system ?? `You work on the card ${id}, on the branch seismic/split-the-bill-${id.slice(0, 6)}.`,
     tools: [
       {
         name: 'report',
@@ -41,7 +41,7 @@ async function recordTwoTurns(root: string, rec: string) {
   const session = recordingRuntime(fake, rec, join(root, 'a', 'home')).start(agent(join(root, 'a'), THEN, then), `Start on ${THEN}.`);
   const s = fake.last;
   s.emit({ type: 'session', id: 'the-session' });
-  s.emit({ type: 'text', text: `On obeya/split-the-bill-${THEN.slice(0, 6)} in ${join(root, 'a', 'home', 'workspaces', 'tipjar', THEN.slice(0, 8))}` });
+  s.emit({ type: 'text', text: `On seismic/split-the-bill-${THEN.slice(0, 6)} in ${join(root, 'a', 'home', 'workspaces', 'tipjar', THEN.slice(0, 8))}` });
   s.emit({ type: 'tool', name: 'mcp__seismic__report', input: { status: `Building ${THEN}` } });
   expect(await s.call('report', { status: `Building ${THEN}` })).toBe(`Shown on ${THEN}.`);
   s.emit({ type: 'idle' });
@@ -63,7 +63,7 @@ test('a recorded session plays back with the ids and paths of the staging, its s
   await until(() => now.events.some((e) => e.type === 'idle'));
   expect(now.events).toEqual([
     { type: 'session', id: 'the-session' },
-    { type: 'text', text: `On obeya/split-the-bill-${NOW.slice(0, 6)} in ${join(root, 'b', 'home', 'workspaces', 'tipjar', NOW.slice(0, 8))}` },
+    { type: 'text', text: `On seismic/split-the-bill-${NOW.slice(0, 6)} in ${join(root, 'b', 'home', 'workspaces', 'tipjar', NOW.slice(0, 8))}` },
     { type: 'tool', name: 'mcp__seismic__report', input: { status: `Building ${NOW}` } },
     { type: 'idle' },
   ]);
@@ -86,7 +86,7 @@ test('changed instructions or a changed tool refuse the playback, with why', asy
   const rec = join(root, 'rec');
   await recordTwoTurns(root, rec);
   const cases: [Parameters<typeof agent>[3], RegExp][] = [
-    [{ system: `You work carefully on the card ${NOW}, on the branch obeya/split-the-bill-${NOW.slice(0, 6)}.` }, /instructions of the koordinator changed .*line 1/],
+    [{ system: `You work carefully on the card ${NOW}, on the branch seismic/split-the-bill-${NOW.slice(0, 6)}.` }, /instructions of the koordinator changed .*line 1/],
     [{ schema: { status: z.string(), at: z.number() } }, /schema of the koordinator's tool report changed/],
     // the recording no longer fits what the tool takes now
     [{ refuse: true }, /report refuses now what it took in the recording: Not shown/],
@@ -142,7 +142,7 @@ test('a handover plays the recorded commits into the workstation of today and it
   const a = join(root, 'a');
   gitRepo(join(a, 'ws'), { 'calc.js': 'export const tip = 0.15;\n' });
   identify(join(a, 'ws'));
-  git(join(a, 'ws'), 'checkout', '-q', '-b', 'obeya/split');
+  git(join(a, 'ws'), 'checkout', '-q', '-b', 'seismic/split');
   const fake = new FakeRuntime();
   const then: Record<string, unknown>[] = [];
   recordingRuntime(fake, rec, join(a, 'home')).start(worker(a, then), 'Build it.');
@@ -161,7 +161,7 @@ test('a handover plays the recorded commits into the workstation of today and it
   gitRepo(join(b, 'ws'), { 'calc.js': 'export const tip = 0.15;\n' });
   identify(join(b, 'ws'));
   git(join(b, 'ws'), 'commit', '-q', '--amend', '--no-edit', '--date=2001-01-01T00:00:00');
-  git(join(b, 'ws'), 'checkout', '-q', '-b', 'obeya/split');
+  git(join(b, 'ws'), 'checkout', '-q', '-b', 'seismic/split');
   const now: Record<string, unknown>[] = [];
   const events: AgentEvent[] = [];
   replayRuntime(rec, { home: join(b, 'home'), log: () => {} }).start(worker(b, now, events), 'Build it.');
@@ -183,10 +183,10 @@ test('a gap plays back as recorded, what the take cut out of it in a moment; wit
 
 test('the ids a text held then and holds now stand for each other, their starts too', () => {
   const swap = new Swap();
-  swap.path('/tmp/obeya-scratch-4481', '/tmp/obeya-scratch-4502');
-  swap.learn(`card ${THEN} in /tmp/obeya-scratch-4481/home, commit 1a2b3c4d`, `card ${NOW} in /tmp/obeya-scratch-4502/home, commit 9f8e7d6c`);
-  expect(swap.text(`obeya/split-the-bill-${THEN.slice(0, 6)} at /tmp/obeya-scratch-4481/home/workspaces/tipjar/${THEN.slice(0, 8)}, after 1a2b3c4d`)).toBe(
-    `obeya/split-the-bill-${NOW.slice(0, 6)} at /tmp/obeya-scratch-4502/home/workspaces/tipjar/${NOW.slice(0, 8)}, after 9f8e7d6c`,
+  swap.path('/tmp/seismic-scratch-4481', '/tmp/seismic-scratch-4502');
+  swap.learn(`card ${THEN} in /tmp/seismic-scratch-4481/home, commit 1a2b3c4d`, `card ${NOW} in /tmp/seismic-scratch-4502/home, commit 9f8e7d6c`);
+  expect(swap.text(`seismic/split-the-bill-${THEN.slice(0, 6)} at /tmp/seismic-scratch-4481/home/workspaces/tipjar/${THEN.slice(0, 8)}, after 1a2b3c4d`)).toBe(
+    `seismic/split-the-bill-${NOW.slice(0, 6)} at /tmp/seismic-scratch-4502/home/workspaces/tipjar/${NOW.slice(0, 8)}, after 9f8e7d6c`,
   );
   // words are no ids, and texts that differ in more than their ids teach nothing
   expect(swap.text('a decade of facade')).toBe('a decade of facade');

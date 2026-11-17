@@ -54,7 +54,7 @@ const [site, out] = process.argv.slice(2);
 mkdirSync('.wrangler/cache', { recursive: true });
 writeFileSync('.wrangler/cache/pages.json', '{}');
 const { pages } = JSON.parse(readFileSync(site + '/obeya-site.json', 'utf8'));
-appendFileSync(out + '/calls', JSON.stringify({ pages, home: process.env.OBEYA_HOME, cwd: process.cwd(), repo: process.env.OBEYA_REPO }) + '\\n');
+appendFileSync(out + '/calls', JSON.stringify({ pages, home: process.env.SEISMIC_HOME, cwd: process.cwd(), repo: process.env.SEISMIC_REPO }) + '\\n');
 while (existsSync(out + '/hold')) await Bun.sleep(10);
 if (existsSync(out + '/fail')) { console.error('upload refused: token expired'); process.exit(2); }
 console.error('Uploading 3 files');
@@ -78,7 +78,7 @@ const SITE_URL = `http://localhost:${server.port}/`;
 let publish: DemoSite['publish'];
 /** The site's vocabulary of tags (`demo.site.tags`); none without. */
 let vocabulary: DemoSite['tags'];
-/** The repository's theme (`.obeya/theme.css`); none without. */
+/** The repository's theme (`.seismic/theme.css`); none without. */
 let theme: Theme | null;
 /** The site's address as the project names it: another host for the same server, once a test moves it. */
 let siteUrl: string;
@@ -92,7 +92,7 @@ beforeEach(() => {
   publish = undefined;
   vocabulary = undefined;
   theme = null;
-  dir = mkdtempSync(join(tmpdir(), 'obeya-share-'));
+  dir = mkdtempSync(join(tmpdir(), 'seismic-share-'));
   writeFileSync(join(dir, 'deploy.ts'), DEPLOY);
   board = new Board(new Store(':memory:'), { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: dir, branch: 'main' }] }, () => ({ docs: [], dirs: [] }));
   runtime = new FakeRuntime();
@@ -1545,7 +1545,7 @@ describe('exporting a demo, where the repository has no demo site', () => {
     // the artifact in a sandboxed frame, telling the page its height
     expect(one).toContain('srcdoc="&lt;!doctype html&gt;&lt;html&gt;&lt;head&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;meta http-equiv=&quot;Content-Security-Policy&quot;');
     expect(one).toContain('&lt;html lang=&quot;en&quot;&gt;&lt;body&gt;&lt;h2&gt;Graph&lt;/h2&gt;');
-    expect(one).toContain('obeyaHeight');
+    expect(one).toContain('seismicHeight');
     expect(one).toContain('sandbox="allow-scripts" ');
     // with no files beside it, it loads nothing but what it holds; the page around shows no frame from elsewhere
     expect(one).toContain(`content=&quot;default-src data: blob:; script-src 'unsafe-inline'`);
@@ -1564,7 +1564,7 @@ describe('exporting a demo, where the repository has no demo site', () => {
     expect(readFileSync(join(at, 'index.html'), 'utf8')).toContain(`if (location.protocol === 'file:') f.sandbox.add('allow-same-origin');\n  f.src = "artifact/index.html";`);
     expect(readFileSync(join(at, 'index.html'), 'utf8')).toContain('>Open in its own window</a>');
     expect(readFileSync(join(at, 'artifact/data/chart.js'), 'utf8')).toBe('draw()');
-    expect(readFileSync(join(at, 'artifact/index.html'), 'utf8')).toMatch(/<h2>Graph<\/h2><script>[\s\S]*obeyaHeight[\s\S]*<\/script><\/body>/);
+    expect(readFileSync(join(at, 'artifact/index.html'), 'utf8')).toMatch(/<h2>Graph<\/h2><script>[\s\S]*seismicHeight[\s\S]*<\/script><\/body>/);
     // from disk, `'self'` may not match its files: `file:` does
     expect(readFileSync(join(at, 'artifact/index.html'), 'utf8')).toContain(`content="default-src 'self' file: data: blob:;`);
     expect(existsSync(join(at, 'artifact/.DS_Store'))).toBe(false);

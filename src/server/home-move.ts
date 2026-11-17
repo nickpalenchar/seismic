@@ -1,5 +1,5 @@
 // The home moves from `~/.obeya` to `~/.seismic` (and `~/.obeya-dev` to `~/.seismic-dev`), once, at
-// startup before anything resumes (docs/plan/seismic-rename.md, W2). One rename on one disk, so the
+// startup before anything resumes. One rename on one disk, so the
 // gigabytes of worker checkouts are not copied; what pointed at the old path follows:
 //   1. the folder and its database files (`obeya.db` and `-wal`/`-shm`) are renamed, the database closed;
 //   2. `~/.obeya` becomes a symlink to the new home (a junction on Windows), for whatever still names it;
@@ -11,7 +11,7 @@
 //      resumes by its id (`thread/resume` with the cwd it is given), so nothing moves for it.
 // A marker file in the new home records that the steps after the rename are not done; each is
 // idempotent, so a start after a crash finishes them. Migration shim: it goes with the code that
-// still reads `.obeya` names (docs/plan/seismic-rename.md).
+// still reads `.obeya` names (docs/design.md).
 
 import { Database } from 'bun:sqlite';
 import { spawnSync } from 'node:child_process';

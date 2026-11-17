@@ -157,8 +157,8 @@ host also exited after agent failure, unlike the Seismic server, so these result
 behavior of a still-running server. All observed test-owned processes were explicitly cleaned up.
 The Codex owner-death result is an observation of this run, not a crash-containment guarantee;
 the Claude result makes crash cleanup relevant to both harnesses. No `app.keep` or real card was
-involved. Probe and detailed output: `/tmp/obeya-runtime-owner-crash.ts` and
-`/tmp/obeya-{owner,agent}-crash-{codex,claude}.log` on the test machine.
+involved. Probe and detailed output: `/tmp/seismic-runtime-owner-crash.ts` and
+`/tmp/seismic-{owner,agent}-crash-{codex,claude}.log` on the test machine.
 
 Real Codex card probes (2026-10-31) used a scratch server and trusted settings whose `app.keep`
 logs and succeeds, while `app.stop` logs and signals the test app. A Python heartbeat launched as
@@ -181,8 +181,8 @@ of waiting for Codex's normal EOF/TERM/KILL escalation; a synthetic macOS test c
 grouped child and unrelated canary. Ordinary shutdown still waits for escalation. The card probe
 above had no busy worker at shutdown, so it does not verify graceful waiting or this forced path
 with a real card. All scratch servers stopped and
-test-owned PIDs were cleaned up. Probe source and last report: `/tmp/obeya-keep-card-probe.ts`,
-`/tmp/obeya-keep-card-report.json` on the test machine.
+test-owned PIDs were cleaned up. Probe source and last report: `/tmp/seismic-keep-card-probe.ts`,
+`/tmp/seismic-keep-card-report.json` on the test machine.
 
 W1 closing pass (2026-11-01, macOS, Codex CLI 0.162.0, scratch directories, no model turn;
 `scripts/process-lifecycle-probe.ts`). The probe drives the installed app-server through Seismic's
@@ -299,7 +299,7 @@ Validated (macOS 26, Bun 1.3.14; Linux ARM64 container with `--init`, same tests
   PTY observed through the tracker) is recovered from its record, and an orderly close removes it.
   Linux passes the same tests and `agent-processes.test.ts`.
 - Real Claude Code 2.1.316 and Codex CLI 0.162.0 (`scripts/harness-crash-probe.ts`, case
-  `obeya-restart`: the W2 setup, then SIGKILL of the server and a start of Seismic again on the same
+  `seismic-restart`: the W2 setup, then SIGKILL of the server and a start of Seismic again on the same
   home): Codex: the app the worker started stayed alive after the crash (as in W2) and the next
   start logged `recovered (ended <app pid>)`, the app stopped, the canary lived, the record was gone.
   Claude: nothing recorded, nothing recovered, the app kept running (unchanged from W2). Repetitions:
@@ -466,7 +466,7 @@ a probe with a real Codex CLI 0.162.0 app-server, no model turn and no login
 Linux side in a Docker container that boots systemd; `.github/workflows/process-boundary.yml` runs
 both on native GitHub runners (by hand, or on a push to a `boundary-probe/` branch).
 
-How they work. *Linux:* `systemd-run --user --scope --unit=obeya-<random>.scope` has the user manager
+How they work. *Linux:* `systemd-run --user --scope --unit=seismic-<random>.scope` has the user manager
 move systemd-run's own process into the new cgroup before it execs the command in place (same pid,
 same stdio, the environment kept), so the launch is gated by construction. A shell in between writes
 the cgroup it finds itself in to a private fd 3, closes it and execs the agent; no line on fd 3 means

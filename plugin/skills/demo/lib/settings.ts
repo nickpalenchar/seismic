@@ -1,8 +1,8 @@
 // The demo settings: in which language a demo is narrated and by which voice, so the person it
 // speaks in follows, and the directory demos go into. Seismic's settings sheet edits them; they live in `demo.json` under Seismic's home
-// (`SEISMIC_HOME`, else `~/.obeya`), where a session without Seismic finds them as well. Missing
+// (`SEISMIC_HOME`, else `~/.seismic`), where a session without Seismic finds them as well. Missing
 // entries take the defaults; the language without one is the owner's conversation language. A
-// repository may name the language of its own demos (`demo.language` of its `.obeya/settings.json`):
+// repository may name the language of its own demos (`demo.language` of its `.seismic/settings.json`):
 // Seismic gives it to its workers as `DEMO_LANGUAGE`, and a session without Seismic finds it in the
 // repository it runs in.
 //
@@ -78,7 +78,7 @@ export const DEMO_SETTINGS_FILE = 'demo.json';
 export const DEFAULT_DEMO_DIRECTORY = '~/demos';
 
 /** Seismic's home, where its settings live. */
-export function obeyaHome(): string {
+export function seismicHome(): string {
   return (process.env.SEISMIC_HOME ?? process.env.OBEYA_HOME) || path.join(os.homedir(), fs.existsSync(path.join(os.homedir(), '.seismic')) ? '.seismic' : '.obeya');
 }
 
@@ -129,7 +129,7 @@ export function tidyArtifacts(v: unknown): HandoverArtifact[] | undefined {
 export const referenceOf = (s: Pick<DemoSettings, 'language' | 'references'>): string | undefined => s.references?.[s.language];
 
 /** The settings as saved, or the defaults where nothing is: then the narration is in the owner's conversation language. */
-export function readDemoSettings(home = obeyaHome()): DemoSettings {
+export function readDemoSettings(home = seismicHome()): DemoSettings {
   const file = path.join(home, DEMO_SETTINGS_FILE);
   const language = conversationLanguageIn(home);
   if (!fs.existsSync(file)) return { ...DEFAULT_DEMO_SETTINGS, language };
@@ -141,7 +141,7 @@ export function readDemoSettings(home = obeyaHome()): DemoSettings {
 }
 
 /** Where a repository's language for its demos comes from: Seismic, or the repository's own settings. */
-export type LanguageSource = 'obeya' | 'repository';
+export type LanguageSource = 'seismic' | 'repository';
 
 /**
  * The language a repository names for its demos (`demo.language` of its settings): from Seismic,
@@ -150,7 +150,7 @@ export type LanguageSource = 'obeya' | 'repository';
  */
 export function repositoryLanguage(env: Record<string, string | undefined> = process.env, cwd = process.cwd()): { language: NarrationLanguage; from: LanguageSource; file?: string } | undefined {
   const given = LANGUAGES.find((l) => l === env.DEMO_LANGUAGE);
-  if (given) return { language: given, from: 'obeya' };
+  if (given) return { language: given, from: 'seismic' };
   for (let dir = path.resolve(cwd); ; dir = path.dirname(dir)) {
     if (fs.existsSync(path.join(dir, '.git'))) {
       // `.seismic/` first, then `.obeya/` (a repository from before the rename)
@@ -172,9 +172,9 @@ export function inLanguage(s: DemoSettings, language: NarrationLanguage | undefi
 }
 
 /** The settings a demo rendered here is narrated with: those saved, in the language of the repository (`repositoryLanguage`). */
-export const demoSettingsHere = (home = obeyaHome()): DemoSettings => inLanguage(readDemoSettings(home), repositoryLanguage()?.language);
+export const demoSettingsHere = (home = seismicHome()): DemoSettings => inLanguage(readDemoSettings(home), repositoryLanguage()?.language);
 
-export function writeDemoSettings(settings: DemoSettings, home = obeyaHome()) {
+export function writeDemoSettings(settings: DemoSettings, home = seismicHome()) {
   fs.mkdirSync(home, { recursive: true });
   fs.writeFileSync(path.join(home, DEMO_SETTINGS_FILE), `${JSON.stringify(tidyDemoSettings(settings), null, 2)}\n`);
 }
@@ -219,7 +219,7 @@ export function describeDemoSettings(saved: DemoSettings, override: string | und
       ? `person: first — the voice is the owner's own, so the narration speaks as the owner ("I added …")`
       : `person: third — the voice is not the owner's, so the narration presents the work without "I" or "we" ("The card now shows …")`,
     `voice: ${s.voice}${s.voiceName ? ` (${s.voiceName})` : ''}${clip ? ` (clone of ${clip})` : ''}`,
-    `from: ${path.join(obeyaHome(), DEMO_SETTINGS_FILE)}${override ? ' (voice from DEMO_VOICE)' : ''}`,
+    `from: ${path.join(seismicHome(), DEMO_SETTINGS_FILE)}${override ? ' (voice from DEMO_VOICE)' : ''}`,
     `directory: ${demoDirectory(saved)} — every demo goes into a directory of its own in it`,
   ].join('\n');
 }

@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { browserPaths, checkSetup, describeSetup, installHint, linuxFamily, type SetupCheck } from './setup.ts';
 
 let dir: string;
-beforeEach(() => (dir = mkdtempSync(join(tmpdir(), 'obeya-demo-setup-'))));
+beforeEach(() => (dir = mkdtempSync(join(tmpdir(), 'seismic-demo-setup-'))));
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 /** A directory of fake programs, each printing `out`, first on the PATH (the system's after it, for `cat`). */

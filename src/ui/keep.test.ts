@@ -9,27 +9,27 @@ const kept = (at: number): Kept => ({ at, card: 'c1', sheet: 'koordinator', scro
 
 test('what a reload kept comes back once, on its project', () => {
   const s = store();
-  keep(s, 'obeya', kept(1000));
+  keep(s, 'seismic', kept(1000));
   expect(takeKept(s, 'shop', 2000)).toBeNull();
-  expect(takeKept(s, 'obeya', 2000)).toEqual(kept(1000));
-  expect(takeKept(s, 'obeya', 2000)).toBeNull();
+  expect(takeKept(s, 'seismic', 2000)).toEqual(kept(1000));
+  expect(takeKept(s, 'seismic', 2000)).toBeNull();
 });
 
 test('a page loaded long after starts afresh', () => {
   const s = store();
-  keep(s, 'obeya', kept(1000));
-  expect(takeKept(s, 'obeya', 1000 + 10 * 60_000)).toBeNull();
+  keep(s, 'seismic', kept(1000));
+  expect(takeKept(s, 'seismic', 1000 + 10 * 60_000)).toBeNull();
 });
 
 test("Seismic's sheet left open over a draft opens again on its project, closed or empty it stays closed", () => {
   const s = store();
-  leaveSheet(s, 'obeya', true);
+  leaveSheet(s, 'seismic', true);
   expect(takeSheetLeft(s, 'shop')).toBe(false);
-  expect(takeSheetLeft(s, 'obeya')).toBe(true);
-  expect(takeSheetLeft(s, 'obeya')).toBe(false);
-  leaveSheet(s, 'obeya', true);
-  leaveSheet(s, 'obeya', false);
-  expect(takeSheetLeft(s, 'obeya')).toBe(false);
+  expect(takeSheetLeft(s, 'seismic')).toBe(true);
+  expect(takeSheetLeft(s, 'seismic')).toBe(false);
+  leaveSheet(s, 'seismic', true);
+  leaveSheet(s, 'seismic', false);
+  expect(takeSheetLeft(s, 'seismic')).toBe(false);
 });
 
 test('a box whose content is still too short is put back for longer, but not for ever', () => {

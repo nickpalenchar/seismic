@@ -11,7 +11,7 @@
 //   - the new version finds nothing newer;
 //   - `POST /api/stop` ends it.
 // On Windows the installer starts the new version as the desktop's user, without this script's
-// environment, so it runs on the default home (~/.obeya): run it there only where no Seismic uses it.
+// environment, so it runs on the default home (~/.seismic): run it there only where no Seismic uses it.
 //
 //   bun scripts/check-update.ts [--dir <dir>] [--reuse] [--keep]
 //
@@ -43,7 +43,7 @@ function run(cmd: string[], cwd = ROOT, more: Record<string, string> = {}) {
 // ---------------------------------------------------------------- two versions, one key pair
 // without symlinks (macOS's /tmp is one): Tauri refuses to run from a path that has one
 const dir = (() => {
-  const d = resolve(opt('dir') ?? mkdtempSync(join(tmpdir(), 'obeya-update-check-')));
+  const d = resolve(opt('dir') ?? mkdtempSync(join(tmpdir(), 'seismic-update-check-')));
   mkdirSync(d, { recursive: true });
   return realpathSync(d);
 })();
@@ -66,7 +66,7 @@ const one = (sub: string, end: string) => {
   if (!f) throw new Error(`no ${end} in ${join(BUNDLE, sub)}`);
   return f;
 };
-const UPDATE = { darwin: 'Obeya.app.tar.gz', windows: 'Obeya-setup.exe', linux: 'Obeya.AppImage' }[os];
+const UPDATE = { darwin: 'Seismic.app.tar.gz', windows: 'Seismic-setup.exe', linux: 'Seismic.AppImage' }[os];
 
 if (!reuse) {
   run([process.execPath, 'x', 'tauri', 'signer', 'generate', '--ci', '-f', '-w', join(dir, 'check.key')], join(ROOT, 'app'));
@@ -82,11 +82,11 @@ if (!reuse) {
     mkdirSync(to, { recursive: true });
     const signing: Record<string, string> = version === NEW ? { TAURI_SIGNING_PRIVATE_KEY: readFileSync(join(dir, 'check.key'), 'utf8'), TAURI_SIGNING_PRIVATE_KEY_PASSWORD: '' } : {};
     run([process.execPath, 'scripts/build-app.ts', '--bundles', bundles, '--config', config(version)], ROOT, signing);
-    if (os === 'darwin') cpSync(join(BUNDLE, 'macos', 'Obeya.app'), join(to, 'Obeya.app'), { recursive: true, verbatimSymlinks: true });
-    if (os === 'windows') cpSync(one('nsis', '-setup.exe'), join(to, 'Obeya-setup.exe'));
-    if (os === 'linux') cpSync(one('appimage', '.AppImage'), join(to, 'Obeya.AppImage'));
+    if (os === 'darwin') cpSync(join(BUNDLE, 'macos', 'Seismic.app'), join(to, 'Seismic.app'), { recursive: true, verbatimSymlinks: true });
+    if (os === 'windows') cpSync(one('nsis', '-setup.exe'), join(to, 'Seismic-setup.exe'));
+    if (os === 'linux') cpSync(one('appimage', '.AppImage'), join(to, 'Seismic.AppImage'));
     if (version === NEW) {
-      const update = os === 'darwin' ? join(BUNDLE, 'macos', 'Obeya.app.tar.gz') : os === 'windows' ? one('nsis', '-setup.exe') : one('appimage', '.AppImage');
+      const update = os === 'darwin' ? join(BUNDLE, 'macos', 'Seismic.app.tar.gz') : os === 'windows' ? one('nsis', '-setup.exe') : one('appimage', '.AppImage');
       cpSync(update, join(to, UPDATE));
       cpSync(`${update}.sig`, join(to, `${UPDATE}.sig`));
     }
@@ -127,21 +127,21 @@ mkdirSync(installed);
 let program: string;
 /** What tells the versions apart once installed: the shell's program (the AppImage on Linux); on Windows its file version. */
 let shell: string;
-const ofNew: string | null = os === 'darwin' ? join(made.new, 'Obeya.app', 'Contents', 'MacOS', 'obeya') : os === 'windows' ? null : join(made.new, 'Obeya.AppImage');
+const ofNew: string | null = os === 'darwin' ? join(made.new, 'Seismic.app', 'Contents', 'MacOS', 'seismic') : os === 'windows' ? null : join(made.new, 'Seismic.AppImage');
 const fileVersion = (exe: string) =>
   Bun.spawnSync(['powershell', '-NoProfile', '-Command', `(Get-Item '${exe}').VersionInfo.ProductVersion`]).stdout.toString().trim();
 /** Whether the installed program is the new version's. */
 const isNew = () => (ofNew ? hash(shell) === hash(ofNew) : fileVersion(shell) === NEW);
 if (os === 'darwin') {
-  cpSync(join(made.old, 'Obeya.app'), join(installed, 'Obeya.app'), { recursive: true, verbatimSymlinks: true });
-  program = shell = join(installed, 'Obeya.app', 'Contents', 'MacOS', 'obeya');
+  cpSync(join(made.old, 'Seismic.app'), join(installed, 'Seismic.app'), { recursive: true, verbatimSymlinks: true });
+  program = shell = join(installed, 'Seismic.app', 'Contents', 'MacOS', 'seismic');
 } else if (os === 'windows') {
   // the NSIS installer installs for this user, where the update's installer puts it again
-  run([join(made.old, 'Obeya-setup.exe'), '/S']);
-  program = shell = join(process.env.LOCALAPPDATA ?? '', 'Obeya', 'obeya.exe');
+  run([join(made.old, 'Seismic-setup.exe'), '/S']);
+  program = shell = join(process.env.LOCALAPPDATA ?? '', 'Seismic', 'seismic.exe');
 } else {
-  cpSync(join(made.old, 'Obeya.AppImage'), join(installed, 'Obeya.AppImage'));
-  program = shell = join(installed, 'Obeya.AppImage');
+  cpSync(join(made.old, 'Seismic.AppImage'), join(installed, 'Seismic.AppImage'));
+  program = shell = join(installed, 'Seismic.AppImage');
 }
 const before = hash(shell);
 
@@ -190,7 +190,7 @@ try {
       expect(asked?.updating, `the server answered ${JSON.stringify(asked)}`);
       const code = await exited(app!, 120_000);
       expect(code !== null, 'the old app did not end');
-      if (os === 'windows') homeNow = join(homedir(), '.obeya');
+      if (os === 'windows') homeNow = join(homedir(), '.seismic');
       // the Windows installer is still at work when the old app has ended
       await until(`the installed program as ${NEW}'s`, 120_000, () => existsSync(shell) && hash(shell) !== before && isNew()).catch((e) => {
         throw os === 'windows' ? new Error(`${e.message} (its version: ${fileVersion(shell)})`) : e;
@@ -214,7 +214,7 @@ try {
 } finally {
   if (app && app.exitCode === null) app.kill();
   releases.stop(true);
-  if (os === 'windows') Bun.spawnSync([join(process.env.LOCALAPPDATA ?? '', 'Obeya', 'uninstall.exe'), '/S']);
+  if (os === 'windows') Bun.spawnSync([join(process.env.LOCALAPPDATA ?? '', 'Seismic', 'uninstall.exe'), '/S']);
   if (!args.includes('--keep') && !opt('dir')) rmSync(dir, { recursive: true, force: true });
   else console.log(`kept ${dir}`);
 }

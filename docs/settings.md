@@ -3,7 +3,10 @@
 Seismic runs on any git repository as it is. What it cannot know by itself is how *this* project
 works: how its app starts and stops, which checks a change must pass, how approved work lands, how
 a worker records a demo and where demos are shared. A repository says that in its settings,
-`.obeya/settings.json`, versioned with the code it describes (like `.vscode/settings.json`).
+`.seismic/settings.json`, versioned with the code it describes (like `.vscode/settings.json`).
+A repository set up before Seismic's rename keeps them in `.obeya/settings.json`: Seismic reads
+`.seismic/settings.json` first, then `.obeya/settings.json`, and changes the file the repository has
+(where it has neither, it creates `.seismic/settings.json`). What follows says `.seismic/` for either.
 "Configuration" shows them with the repository on its project's page and changes them without a line of
 code, for one machine or, with "Take over into the repository for everyone", for everyone.
 
@@ -170,7 +173,7 @@ page for something to look at; the worker picks which, and runs the app for it a
   its project's overview). It goes before the narration language of the demo settings (each
   machine's, in "Configuration"), which applies without it. Seismic gives it to its workers as
   `DEMO_LANGUAGE`, which the demo skill reads; a session without Seismic finds it in the repository's
-  `.obeya/settings.json`. A voice that clones a clip uses the clip of this language, so each
+  `.seismic/settings.json`. A voice that clones a clip uses the clip of this language, so each
   machine's demo settings name one per language.
 
 - `artifacts`: which artifacts a handover may bring, a list of `"video"`, `"html"` (an HTML page,
@@ -182,10 +185,10 @@ Where "Share" puts demos for colleagues is not a repository's setting: each proj
 this machine's demo sites (Configuration → Demos) and a path on it, in its settings. A `site` here,
 which repositories named until 2026-11-06, is no longer read and shows as a problem.
 
-The shared pages get a look of the repository's own from `.obeya/theme.css` beside this file, a
+The shared pages get a look of the repository's own from `theme.css` beside this file (in `.seismic/`, else `.obeya/`), a
 stylesheet put into every page after Seismic's own (as the default branch has it): its colour
-variables, fonts, a logo as a `data:`-embedded file of `.obeya/` (a reference to anything outside
-`.obeya/` is dropped). It is a file, not a setting. What it styles is the pages' markup, which
+variables, fonts, a logo as a `data:`-embedded file of `.seismic/` (a reference to anything outside
+`.seismic/` is dropped). It is a file, not a setting. What it styles is the pages' markup, which
 changes only on purpose: the colour variables on `:root` (`--bg`, `--card`, `--ink`, `--muted`,
 `--line`, `--chip`, `--accent`, for light and dark), and on a page `main`, `.top`, `h1`, `.when`,
 `.tags` with `.tag`, `.text`, `.grid` with `.player` and its chapters, `.pr`, `.links`, `.artifact`,
@@ -202,12 +205,12 @@ project is named after its first repository (the name in its `origin` URL, else 
 
 ## Which value applies
 
-Every machine that runs Seismic on the repository reads `.obeya/settings.json`, a fresh clone
-included. Which value applies, highest first:
+Every machine that runs Seismic on the repository reads `.seismic/settings.json` (else
+`.obeya/settings.json`), a fresh clone included. Which value applies, highest first:
 
 1. The one set for this machine in "Configuration" (a repository's settings on its project's page; kept in
    `projects.json` in Seismic's home, never in the repository).
-2. `.obeya/settings.json` **as the default branch has it**.
+2. `.seismic/settings.json` **as the default branch has it**.
 3. What Seismic detects (`land`, the main branch).
 4. Seismic's default.
 
@@ -228,7 +231,7 @@ for everyone" takes the values set for this machine (all but the main branch) in
 shows the file as it will be and where it goes; where work lands on the main branch, Seismic commits
 it there (beside the checkout, which keeps everything else as it is; a change of its own to the
 file is refused), and the values then come from the repository on this machine too. Where work
-goes out as pull requests, Seismic pushes the commit to a branch of its own (`obeya-settings-…`) and
+goes out as pull requests, Seismic pushes the commit to a branch of its own (`seismic-settings-…`) and
 opens a pull request against the main branch; this machine keeps its values until the pull
 request is merged, then they come from the repository. Where work may also go straight to main
 (`direct`), it offers to push the commit straight onto `origin`'s main branch instead (never
@@ -240,7 +243,7 @@ Seismic checks every field of the file. A field it does not know (`check:` for `
 wrong type (`"checks": "pnpm test"` instead of a list) does not count, and a mistake inside one
 (`app.stp` for `stop`) takes the whole field along: Seismic's default stands in
 its place, and the rest of the settings work. Each one shows as a problem at the repository in
-"Configuration", starting with `.obeya/settings.json`, with the field and, for a misspelt one,
+"Configuration", starting with `.seismic/settings.json`, with the field and, for a misspelt one,
 what it probably meant (`check: no such field (did you mean checks?)` under "Details").
 
 A `.obeya/adapter/` on the
@@ -274,7 +277,7 @@ into the repository for everyone".
    not), run the settings skill's check from an Seismic checkout:
 
    ```bash
-   bun ~/dev/obeya/plugin/skills/settings/lib/check.ts
+   bun ~/dev/seismic/plugin/skills/settings/lib/check.ts
    ```
 
    It prints what Seismic makes of them (setup, checks, landing, workstations, the plan docs, the

@@ -199,7 +199,7 @@ export function MenuButton({ docked, dockedOn, onDocked, ...p }: MenuProps & { d
 /** The menu docked as a sidebar on the left, sliding in and out. */
 export function NavSheet({ on, onOpenChange, width, maxWidth, onWidthChange, onWidthEnd, onResizing, ...p }: MenuProps & { on: boolean; onOpenChange: (open: boolean) => void; width: number; maxWidth: number; onWidthChange: (width: number) => void; onWidthEnd: (width: number) => void; onResizing: (active: boolean) => void }) {
   // in the app on a Mac it reaches up to the window's top: the traffic lights sit in its head, which moves the window as the bar does
-  const titlebar = window.obeyaApp?.platform === 'macos';
+  const titlebar = window.seismicApp?.platform === 'macos';
   const grip = useRef<{ x: number; width: number } | null>(null);
   const nextWidth = (width: number) => Math.max(NAV_MIN_W, Math.min(width, NAV_MAX_W, maxWidth));
   const release = (e: React.PointerEvent<HTMLButtonElement>) => {

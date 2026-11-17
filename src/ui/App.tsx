@@ -57,7 +57,7 @@ import { closeWish, keepWish, openWish, useWish, WishDialog } from './wish';
 import { PlanDirNote, planDirBoxes, useHiddenEmptyNotes } from './planDirs';
 import { pastedShots } from './pasteHint';
 import { attachTo, imageFiles } from './shots';
-import { cardDraft, drafted, fieldOn, focusedDraft, keepDrafts, MIC_DRAFT, OBEYA_DRAFT, takesImages } from './draft';
+import { cardDraft, drafted, fieldOn, focusedDraft, keepDrafts, MIC_DRAFT, SEISMIC_DRAFT, takesImages } from './draft';
 import { HoldToTalk, PushToTalk, SPACE_SHOWS_MS, TAP_MS, usePushToTalk, useTold } from './voice';
 import { acksClass, Toasts, useToasts } from './components/toast';
 import { layerOpen } from './components/ui';
@@ -1043,7 +1043,7 @@ function Project({
   );
   // Seismic's sheet left open over a draft comes back with the project; left empty or closed, it stays closed
   useEffect(() => {
-    const away = () => leaveSheet(sessionStorage, snapshot.project.id, kOnRef.current && drafted(OBEYA_DRAFT));
+    const away = () => leaveSheet(sessionStorage, snapshot.project.id, kOnRef.current && drafted(SEISMIC_DRAFT));
     addEventListener('pagehide', away);
     return () => {
       removeEventListener('pagehide', away);
@@ -1460,7 +1460,7 @@ function Project({
     [],
   );
   /** The draft of the field that speaks to `target`, whether or not it is on the page: the open card's, or Seismic's sidebar's. */
-  const draftFor = (target: Where) => (target && 'card' in target ? cardDraft(target.card) : !target && kOnRef.current ? OBEYA_DRAFT : null);
+  const draftFor = (target: Where) => (target && 'card' in target ? cardDraft(target.card) : !target && kOnRef.current ? SEISMIC_DRAFT : null);
   /** The draft a recording for `target` goes out with: its field's, or without one on the page the screenshots beside the mic. */
   const fieldFor = (target: Where) => {
     const key = draftFor(target);
@@ -2357,7 +2357,7 @@ function Project({
       // a screenshot or demo shown large closes first; the card or plan stays open
       if (document.querySelector('.lightbox, .demo-zoom, .artifact-image-close')) return;
       // so does the quote of a message the owner was replying to: in the field with the cursor, the open card's, the sidebar's
-      const quoting = [focusedDraft(), f?.type === 'card' || f?.type === 'plan' ? cardDraft(f.id) : null, kOnRef.current ? OBEYA_DRAFT : null].find((k) => k && fieldOn(k) && replyOn(k));
+      const quoting = [focusedDraft(), f?.type === 'card' || f?.type === 'plan' ? cardDraft(f.id) : null, kOnRef.current ? SEISMIC_DRAFT : null].find((k) => k && fieldOn(k) && replyOn(k));
       if (quoting) return setReply(quoting, null);
       // the archive's list closes after a card unfolded from it
       if (f?.type !== 'card' && fullPage.ref.current) {
@@ -2680,9 +2680,9 @@ function Project({
           ref={barRef}
           className={cn(
             'group/bar frost-bar fixed top-0 right-[var(--side,0px)] left-[var(--left,0px)] z-25 box-border grid h-[50px] grid-cols-[1fr_minmax(150px,440px)_1fr] items-center gap-3.5 border-b border-border px-3.5 transition-[right,left,padding-left] duration-450 ease-[cubic-bezier(.3,.9,.3,1)] resizing:transition-none data-[fit~="3"]:grid-cols-[auto_minmax(34px,440px)_auto]',
-            window.obeyaApp?.platform === 'macos' && !side.left && 'pl-23',
+            window.seismicApp?.platform === 'macos' && !side.left && 'pl-23',
           )}
-          {...(window.obeyaApp?.platform === 'macos' ? { 'data-tauri-drag-region': '' } : {})}
+          {...(window.seismicApp?.platform === 'macos' ? { 'data-tauri-drag-region': '' } : {})}
         >
           <div className="left flex items-center gap-2.5">
             {extensions.map((e, i) => { const Slot = e.slots?.topBar; return Slot ? <Slot key={i} /> : null; })}

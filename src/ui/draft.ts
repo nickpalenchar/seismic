@@ -91,9 +91,9 @@ export const cardDraft = (id: string) => `card:${id}`;
 /** The draft of the comment on a card's approved work, for its feedback (`feedback.tsx`). */
 export const rateDraft = (id: string) => `rate:${id}`;
 /** The draft of the field in Seismic's sidebar. */
-export const OBEYA_DRAFT = 'seismic';
+export const SEISMIC_DRAFT = 'seismic';
 /** The draft of the field under Seismic's conversation of a project, in the phone view, which shows every project. */
-export const obeyaDraft = (project: string) => `${OBEYA_DRAFT}:${project}`;
+export const seismicDraft = (project: string) => `${SEISMIC_DRAFT}:${project}`;
 /** The screenshots beside the microphone, where no field is spoken to. */
 export const MIC_DRAFT = 'mic';
 /** The field of the draft for Seismic's makers (`wish.tsx`). */
@@ -119,7 +119,7 @@ const subscribe = (fn: () => void) => {
 
 type Store = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 /** The drafts that last beyond their field: the cards' (their feedback's comment too), the sidebar's (the phone view's per project) and the microphone's, not those of a field of its own. */
-const lasting = (key: string) => key.startsWith('card:') || key.startsWith('rate:') || key === OBEYA_DRAFT || key.startsWith(`${OBEYA_DRAFT}:`) || key === MIC_DRAFT || key === WISH_DRAFT;
+const lasting = (key: string) => key.startsWith('card:') || key.startsWith('rate:') || key === SEISMIC_DRAFT || key.startsWith(`${SEISMIC_DRAFT}:`) || key === MIC_DRAFT || key === WISH_DRAFT;
 const storeKey = (project: string) => `seismic-drafts-${project}`;
 const markupsKey = (project: string) => `seismic-markups-${project}`;
 let kept: { store: Store; project: string } | null = null;
@@ -239,7 +239,7 @@ export function giveBack(key: string, text: string, images: string[] = []) {
 }
 
 /** Whether the draft's field speaks to Seismic, as the microphone does without one: the sidebar's, the phone view's under Seismic's conversation. */
-export const toObeya = (key: string) => key === OBEYA_DRAFT || key.startsWith(`${OBEYA_DRAFT}:`);
+export const toSeismic = (key: string) => key === SEISMIC_DRAFT || key.startsWith(`${SEISMIC_DRAFT}:`);
 
 /** The screenshots of draft `from` go into draft `to`, after those it has. */
 export function moveImages(from: string, to: string) {

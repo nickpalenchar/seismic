@@ -33,7 +33,7 @@ export interface ExplorerOptions {
   /** The agent answered all it was told and its session ended (`replied`), or its turn ended without (an error, a restart). */
   onReplied?: (cardId: string, replied: boolean) => void;
   /** Passes on to the Koordinator what the owner's words to the idea's agent ask of Seismic (`to_seismic`); without it the agent has no such tool. */
-  toObeya?: (cardId: string, request: string) => Promise<string>;
+  toSeismic?: (cardId: string, request: string) => Promise<string>;
   /** How long an ended turn waits for a sign of the agent once none of its background work runs (any more). */
   backgroundGrace?: number;
   /** How long an ended turn waits at most while the agent's background work still runs. */
@@ -290,7 +290,7 @@ export class Explorers {
         conversation: this.o.board.conversation(),
         ui: this.o.board.language(),
         repository: this.o.repoLanguage?.(card) ?? 'en',
-        toObeya: !!this.o.toObeya,
+        toSeismic: !!this.o.toSeismic,
         preferences,
         message,
         options: {
@@ -338,7 +338,7 @@ export class Explorers {
         if (!e.name.startsWith('mcp__') && !OWN_TOOLS.includes(e.name)) this.o.board.log(cardId, 'activity', 'explorer', describeTool(e.name, e.input, this.o.board.t));
         break;
       case 'error':
-        this.o.board.log(cardId, 'error', 'obeya', e.message, { token: e.token });
+        this.o.board.log(cardId, 'error', 'seismic', e.message, { token: e.token });
         this.interrupt(cardId, 'error');
         this.o.onReplied?.(cardId, false);
         break;

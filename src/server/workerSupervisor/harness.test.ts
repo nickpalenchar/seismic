@@ -78,7 +78,7 @@ async function dirsWith(choice: AgentSetting, demos: () => string) {
 }
 
 test('a Codex worker may write in the demos directory', async () => {
-  const demos = mkdtempSync(join(tmpdir(), 'obeya-demos-'));
+  const demos = mkdtempSync(join(tmpdir(), 'seismic-demos-'));
   try {
     expect(await dirsWith(codex, () => demos)).toEqual([demos]);
   } finally {
@@ -87,11 +87,11 @@ test('a Codex worker may write in the demos directory', async () => {
 });
 
 test('a demos directory that is not there yet is not offered as a place to write', async () => {
-  expect(await dirsWith(codex, () => join(tmpdir(), 'obeya-demos-missing-dir'))).toBeUndefined();
+  expect(await dirsWith(codex, () => join(tmpdir(), 'seismic-demos-missing-dir'))).toBeUndefined();
 });
 
 test('a Claude worker gets no extra directory for the demos', async () => {
-  const demos = mkdtempSync(join(tmpdir(), 'obeya-demos-'));
+  const demos = mkdtempSync(join(tmpdir(), 'seismic-demos-'));
   try {
     expect(await dirsWith(AGENT_DEFAULTS.worker, () => demos)).toBeUndefined();
   } finally {

@@ -36,7 +36,7 @@ describe('the Activity log', () => {
     await workers.approve(c.id);
     await flush();
     expect(log(c.id).slice(0, 2)).toEqual(['agent:started', 'owner:approved']);
-    expect(log(c.id)).toContain('obeya:landed');
+    expect(log(c.id)).toContain('seismic:landed');
   });
 
   test('archived and deleted by the owner, the deleted card still named', () => {
@@ -68,7 +68,7 @@ describe('the Activity log', () => {
     runtime.last.emit({ type: 'idle' });
     board.waitsForLimit({ card: c.id }, Date.now() + 60_000);
     board.waitsForLimit({ card: c.id }, Date.now() + 90_000);
-    expect(log(c.id).filter((l) => l === 'obeya:usageLimit')).toHaveLength(1);
+    expect(log(c.id).filter((l) => l === 'seismic:usageLimit')).toHaveLength(1);
   });
 
   test('usageLimit: a limit that cleared and comes again is a stop of its own', async () => {
@@ -77,7 +77,7 @@ describe('the Activity log', () => {
     board.waitsForLimit({ card: c.id }, Date.now() + 60_000);
     board.waitsForLimit({ card: c.id }, undefined);
     board.waitsForLimit({ card: c.id }, Date.now() + 90_000);
-    expect(log(c.id).filter((l) => l === 'obeya:usageLimit')).toHaveLength(2);
+    expect(log(c.id).filter((l) => l === 'seismic:usageLimit')).toHaveLength(2);
   });
 
   test('deleted: each deletion keeps the title the card had then', () => {

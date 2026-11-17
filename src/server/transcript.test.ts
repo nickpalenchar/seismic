@@ -72,7 +72,7 @@ describe('transcript excerpt', () => {
   });
 
   test('a run without anything gone wrong, a file of another format, or no file gives no excerpt', () => {
-    dir = mkdtempSync(join(tmpdir(), 'obeya-tr-'));
+    dir = mkdtempSync(join(tmpdir(), 'seismic-tr-'));
     const smooth = join(dir, 'smooth.jsonl');
     writeFileSync(
       smooth,
@@ -95,12 +95,12 @@ describe('transcript excerpt', () => {
   });
 
   test('finds a session’s file under its working directory, or in any directory', () => {
-    dir = mkdtempSync(join(tmpdir(), 'obeya-tr-'));
+    dir = mkdtempSync(join(tmpdir(), 'seismic-tr-'));
     const id = '11111111-2222-3333-4444-555555555555';
-    mkdirSync(join(dir, '-Users-me--obeya-workspaces-c-1'));
-    writeFileSync(join(dir, '-Users-me--obeya-workspaces-c-1', `${id}.jsonl`), sample());
-    expect(findTranscript(id, '/Users/me/.obeya/workspaces/c/1', dir)).toBe(join(dir, '-Users-me--obeya-workspaces-c-1', `${id}.jsonl`));
-    expect(findTranscript(id, '/somewhere/else', dir)).toBe(join(dir, '-Users-me--obeya-workspaces-c-1', `${id}.jsonl`));
+    mkdirSync(join(dir, '-Users-me--seismic-workspaces-c-1'));
+    writeFileSync(join(dir, '-Users-me--seismic-workspaces-c-1', `${id}.jsonl`), sample());
+    expect(findTranscript(id, '/Users/me/.seismic/workspaces/c/1', dir)).toBe(join(dir, '-Users-me--seismic-workspaces-c-1', `${id}.jsonl`));
+    expect(findTranscript(id, '/somewhere/else', dir)).toBe(join(dir, '-Users-me--seismic-workspaces-c-1', `${id}.jsonl`));
     expect(findTranscript(id, null, dir)).not.toBeNull();
     expect(findTranscript('22222222-0000-0000-0000-000000000000', null, dir)).toBeNull();
     expect(findTranscript('../../etc/passwd', null, dir)).toBeNull();
@@ -165,7 +165,7 @@ describe('transcript excerpt', () => {
   });
 
   test('finds a Codex session’s rollout by its thread id, in a day directory or the archive', () => {
-    dir = mkdtempSync(join(tmpdir(), 'obeya-tr-'));
+    dir = mkdtempSync(join(tmpdir(), 'seismic-tr-'));
     const thread = '01a1aaaa-0000-7000-8000-000000000001';
     const day = join(dir, 'sessions', '2026', '11', '01');
     mkdirSync(day, { recursive: true });
@@ -197,7 +197,7 @@ describe('transcript excerpt', () => {
     const tool = (name: string, args: unknown, result: string) =>
       new Uint8Array([...field(5, field(4, [...field(1, 'call_1'), ...field(2, name), ...field(3, JSON.stringify(args))])), ...field(140, field(2, field(1, result)))]);
     const conversation = (steps: [number, number, Uint8Array, string?][]) => {
-      dir = mkdtempSync(join(tmpdir(), 'obeya-agy-'));
+      dir = mkdtempSync(join(tmpdir(), 'seismic-agy-'));
       const file = join(dir, 'c1.db');
       const db = new Database(file);
       db.run('create table steps (idx integer primary key, step_type integer, status integer, step_payload blob, error_details blob)');
@@ -216,7 +216,7 @@ describe('transcript excerpt', () => {
         [132, 7, tool('read_file', { Path: '/repo/none.ts' }, ''), 'file does not exist'],
         [132, 7, tool('run_command', { CommandLine: 'rm -rf x' }, ''), 'permission check failed: user denied permission to run command'],
         [132, 6, tool('run_command', { CommandLine: 'bun run slow' }, 'Command exited with code 0.')],
-        [132, 3, tool('call_mcp_tool', { ServerName: 'obeya', ToolName: 'obeya_ask', Arguments: { question: 'q' } }, 'blue')],
+        [132, 3, tool('call_mcp_tool', { ServerName: 'seismic', ToolName: 'seismic_ask', Arguments: { question: 'q' } }, 'blue')],
       ]);
       const e = excerptOf(file)!;
       expect(e.steps).toBe(7);
@@ -288,7 +288,7 @@ describe('transcript excerpt', () => {
     });
 
     test('a database that is none gives no excerpt', () => {
-      dir = mkdtempSync(join(tmpdir(), 'obeya-agy-'));
+      dir = mkdtempSync(join(tmpdir(), 'seismic-agy-'));
       writeFileSync(join(dir, 'c1.db'), 'not sqlite');
       expect(excerptOf(join(dir, 'c1.db'))).toBeNull();
     });

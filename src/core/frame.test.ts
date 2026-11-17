@@ -1,17 +1,17 @@
 import { expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { FRAMES_POLICY, mockPage, pagePolicy, withHeightReport, withMarkReport } from './frame';
+import { FRAMES_POLICY, mockPage, pagePolicy, withHeightReport, withImageViewer, withMarkReport } from './frame';
 
 test('a page reports its height at the end of its body, or of the page without one', () => {
-  expect(withHeightReport('<html><body><h2>Graph</h2></body></html>')).toMatch(/<h2>Graph<\/h2><script>[\s\S]*obeyaHeight[\s\S]*<\/script><\/body><\/html>$/);
-  expect(withHeightReport('<h2>Graph</h2>')).toMatch(/^<h2>Graph<\/h2><script>[\s\S]*obeyaHeight/);
+  expect(withHeightReport('<html><body><h2>Graph</h2></body></html>')).toMatch(/<h2>Graph<\/h2><script>[\s\S]*seismicHeight[\s\S]*<\/script><\/body><\/html>$/);
+  expect(withHeightReport('<h2>Graph</h2>')).toMatch(/^<h2>Graph<\/h2><script>[\s\S]*seismicHeight/);
 });
 
 test('a page on the card says what the owner marks in it, and takes it away when told', () => {
   const page = withMarkReport('<html><body><p>Finding</p></body></html>');
-  expect(page).toMatch(/<p>Finding<\/p><script>[\s\S]*obeyaMarked[\s\S]*obeyaUnmark[\s\S]*<\/script><\/body><\/html>$/);
-  expect(withMarkReport('<p>Finding</p>')).toMatch(/^<p>Finding<\/p><script>[\s\S]*obeyaMarked/);
+  expect(page).toMatch(/<p>Finding<\/p><script>[\s\S]*seismicMarked[\s\S]*seismicUnmark[\s\S]*<\/script><\/body><\/html>$/);
+  expect(withMarkReport('<p>Finding</p>')).toMatch(/^<p>Finding<\/p><script>[\s\S]*seismicMarked/);
 });
 
 const SEALED = /^<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="([^"]*)"><meta http-equiv="x-dns-prefetch-control" content="off">/;
@@ -19,11 +19,11 @@ const SEALED = /^<!doctype html><html><head><meta charset="utf-8"><meta http-equ
 test('a mock of a few lines becomes a page of its own; a whole page stays as it is', () => {
   const few = mockPage('<button>Export</button>');
   expect(few).toMatch(new RegExp(SEALED.source + /<style>body\{[^}]*\}<\/style><\/head><body><button>Export<\/button><script>/.source));
-  expect(few).toContain('obeyaHeight');
-  expect(few).toContain('obeyaMarked');
+  expect(few).toContain('seismicHeight');
+  expect(few).toContain('seismicMarked');
   const whole = '<!doctype html><html lang="de"><body style="margin:0"><p>Ganz</p></body></html>';
   expect(mockPage(whole)).toMatch(new RegExp(SEALED.source + /<!doctype html><html lang="de"><body style="margin:0"><p>Ganz<\/p><script>[\s\S]*<\/script><\/body><\/html>$/.source));
-  expect(mockPage(whole)).toContain('obeyaMarked');
+  expect(mockPage(whole)).toContain('seismicMarked');
 });
 
 test('a mock loads nothing from elsewhere, whatever comes before its own head', () => {
@@ -38,4 +38,11 @@ test('a mock loads nothing from elsewhere, whatever comes before its own head', 
 test("Seismic's page frames only its own addresses", () => {
   const index = readFileSync(join(import.meta.dir, '../ui/index.html'), 'utf8');
   expect(index).toContain(`<meta http-equiv="Content-Security-Policy" content="${FRAMES_POLICY}">`);
+});
+
+test('what a published page tells the page around it carries the name from before the rename too', () => {
+  // a page shared before the rename listens for `obeya…` alone: each message names both, closing an image as much as opening it
+  const sent = [...withImageViewer(withHeightReport('<body></body>')).matchAll(/parent\.postMessage\(\{([^}]*)\}/g)].map((m) => m[1]!);
+  expect(sent.length).toBeGreaterThanOrEqual(4);
+  for (const message of sent) for (const [, name] of message.matchAll(/seismic(\w+):/g)) expect(message).toContain(`obeya${name}:`);
 });

@@ -23,8 +23,8 @@ sleep 1
 
 apt-get install -y "$(ls /out/*.deb)" >/dev/null 2>&1 || dpkg -i /out/*.deb
 status=0
-echo "== the .deb (/usr/bin/obeya)"
-bun scripts/check-app.ts /usr/bin/obeya --screenshot /out/linux-deb.png || status=1
+echo "== the .deb (/usr/bin/seismic)"
+bun scripts/check-app.ts /usr/bin/seismic --screenshot /out/linux-deb.png || status=1
 echo "== the AppImage"
 chmod +x /out/*.AppImage
 bun scripts/check-app.ts "$(ls /out/*.AppImage)" --screenshot /out/linux-appimage.png || status=1

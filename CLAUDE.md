@@ -27,7 +27,7 @@ its lasting decisions and constraints move into the design doc and the plan doc 
 - Code that drives agents is tested against the fake runtime in `src/server/testing.ts` and real
   git repositories in a temp directory (`gitRepo` there; git calls are what makes tests slow).
   Live runs go against a scratch git repository with a plan doc and a scratch `SEISMIC_HOME` (never
-  `~/.obeya` of a running Seismic): `bun scripts/scratch-obeya.ts <stage.json>` stages one with its
+  `~/.seismic` of a running Seismic): `bun scripts/scratch-seismic.ts <stage.json>` stages one with its
   cards in about a second (its header describes the stage file; `--stop <port>` ends it). Its
   workers are idle; with `--real-workers` they are real agents on the machine's Claude login.
 - UI checks run in a headless browser through the `browser` skill of Seismic's plugin
@@ -44,15 +44,15 @@ its lasting decisions and constraints move into the design doc and the plan doc 
 - Voice on this machine: Parakeet through uv, the default, needs nothing set. For Whisper instead:
   `SEISMIC_WHISPER_BACKEND=mlx` with `SEISMIC_WHISPER_PYTHON` naming a Python that has `mlx_whisper`
   (the model is cached). That Python alone, without the backend, fails: it has no `onnx_asr` for Parakeet.
-- The Seismic that plans this repo is the stable clone's, on port 4417 with `~/.obeya`; `bun start`
-  in a `-dev` checkout runs its code on `~/.obeya-dev` and port 4418, beside it. An Seismic restarts
+- The Seismic that plans this repo is the stable clone's, on port 4417 with `~/.seismic`; `bun start`
+  in a `-dev` checkout runs its code on `~/.seismic-dev` and port 4418, beside it. An Seismic restarts
   itself once `main` moves to commits that change code, a commit of yours included (workers resume, the page
   reloads); docs-only commits leave it running. Keep tests off it.
 - UI work follows `docs/design/ui-system.md`: shadcn/ui parts and proven libraries first, React
   components, frost's own CSS only where its look needs it, and the rules every screen follows
   (keyboard paths, toggles, no accent bars, links, undo, discoverability, the phone view, polish).
 - No project-specific logic in the core: what a project needs goes into its settings
-  (`.obeya/settings.json` in that repository), not into this repo. Those settings stay few and
+  (`.seismic/settings.json` in that repository), not into this repo. Those settings stay few and
   generic: each describes something that holds for any kind of app, not one kind of web stack, and
   no two cover the same need; where two overlap, merge them.
 - The extension design (`docs/plan/extensions.md`) is best effort: not every feature fits it

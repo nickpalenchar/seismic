@@ -16,7 +16,7 @@ let project: ProjectRuntime;
 const open = () => new ProjectRuntime({ repos: [{ path: main, clones: 1 }] }, { store, home: dir, runtime, forge: noForge, commandDelayMs: 10, limitMargin: 10 });
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'obeya-revisions-'));
+  dir = mkdtempSync(join(tmpdir(), 'seismic-revisions-'));
   main = join(dir, 'main');
   gitRepo(main);
   store = new Store(':memory:');

@@ -23,7 +23,7 @@ let workers: WorkerSupervisor;
 let files: Record<string, string>;
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'obeya-wr-'));
+  dir = mkdtempSync(join(tmpdir(), 'seismic-wr-'));
   main = gitRepo(join(dir, 'main'));
   const store = new Store(':memory:');
   board = new Board(store, { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: main, branch: 'main' }] }, () => ({ docs: [], dirs: [] }));
@@ -63,7 +63,7 @@ test('friction notes and work proposals follow an English-only preference', asyn
 /** A card that ran in the given sessions and whose work ended. */
 function ran(title: string, ...sessions: string[]) {
   const c = board.create({ title, x: 0, y: 0 });
-  sessions.slice(0, -1).forEach((s) => board.log(c.id, 'state', 'obeya', `Started from scratch. The earlier run (session ${s}) is kept for the work retrospective.`));
+  sessions.slice(0, -1).forEach((s) => board.log(c.id, 'state', 'seismic', `Started from scratch. The earlier run (session ${s}) is kept for the work retrospective.`));
   if (sessions.length) board.work(c.id, { session_id: sessions.at(-1)! });
   retro.ended(c.id);
   return c;

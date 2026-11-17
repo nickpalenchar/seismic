@@ -78,9 +78,9 @@ export async function launchInScope(
   if (!unifiedCgroups()) return { boundary: 'none', reason: 'no cgroup v2 hierarchy at /sys/fs/cgroup' };
   const systemdRun = Bun.which('systemd-run', { PATH: options.env?.PATH ?? process.env.PATH ?? '' });
   if (!systemdRun) return { boundary: 'none', reason: 'no systemd-run' };
-  const unit = `${options.unit ?? `obeya-${randomUUID()}`}.scope`;
+  const unit = `${options.unit ?? `seismic-${randomUUID()}`}.scope`;
   const stdio = options.stdio ?? ['pipe', 'pipe', 'pipe'];
-  const child = spawn(systemdRun, ['--user', '--scope', '--quiet', '--collect', `--unit=${unit}`, '--', '/bin/sh', '-c', GATE, 'obeya-scope-gate', command, ...args], {
+  const child = spawn(systemdRun, ['--user', '--scope', '--quiet', '--collect', `--unit=${unit}`, '--', '/bin/sh', '-c', GATE, 'seismic-scope-gate', command, ...args], {
     cwd: options.cwd, env: options.env, stdio: [...stdio.slice(0, 3), 'pipe'], detached: true,
   });
   const report = child.stdio[3] as NodeJS.ReadableStream;

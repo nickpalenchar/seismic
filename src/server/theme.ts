@@ -1,8 +1,8 @@
-// A repository's theme for its shared demo pages: `.obeya/theme.css` as its default branch has it
+// A repository's theme for its shared demo pages: `.seismic/theme.css` as its default branch has it
 // (like its settings, `readShared`), not as a card's branch does. Seismic manages nothing of it: the
 // file goes into each page after Seismic's own style (demo-page.ts), so it wins, with the files it
 // names (`url()`, `@import`: a logo, a font) as `data:` URLs where their real path lies in
-// `.obeya/`; what else it names, a file elsewhere or an address on the internet, is dropped. A page
+// `.seismic/`; what else it names, a file elsewhere or an address on the internet, is dropped. A page
 // is published with the theme's hash, and is outdated once the hash differs (board.ts).
 
 import { createHash } from 'node:crypto';
@@ -23,11 +23,11 @@ export interface Theme {
   hash: string;
 }
 
-/** Themes as last read from git, by repository and the `.obeya` tree they were read from. */
+/** Themes as last read from git, by repository and the `.seismic` tree they were read from. */
 const read = new Map<string, Theme | null>();
 
 /**
- * The theme of the repository at `repo`: from the git tree of `.obeya/` on its default branch
+ * The theme of the repository at `repo`: from the git tree of `.seismic/` on its default branch
  * (`tree`, as `readShared` notes it; none where it has none), or from a folder without git as the
  * folder has it. Null without a `theme.css`. The server waits for git here; `readingTheme` does not.
  */
@@ -63,7 +63,7 @@ export async function readingTheme(repo: string, tree: string | undefined): Prom
   }
 }
 
-/** The theme from the files of `.obeya/`, each read by its path there; null without a `theme.css`. */
+/** The theme from the files of `.seismic/`, each read by its path there; null without a `theme.css`. */
 function themeOf(file: (path: string) => Buffer | null): Theme | null {
   const text = file(THEME_FILE);
   if (!text) return null;
@@ -124,7 +124,7 @@ async function batch(repo: string, ids: string[]): Promise<Map<string, Buffer>> 
   return got;
 }
 
-/** The files of a folder's `.obeya/`, each where its real path lies inside it (`demoFile`). */
+/** The files of a folder's `.seismic/`, each where its real path lies inside it (`demoFile`). */
 function folderFiles(dir: string): (path: string) => Buffer | null {
   return (path) => {
     const f = demoFile(dir, path);

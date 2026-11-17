@@ -70,7 +70,7 @@ export function initialBranch(): string {
 export function previewGitSetup(path: string): GitSetupPreview {
   needsFolder(path);
   const own = existsSync(join(path, '.gitignore'));
-  const scratch = mkdtempSync(join(tmpdir(), 'obeya-git-setup-'));
+  const scratch = mkdtempSync(join(tmpdir(), 'seismic-git-setup-'));
   try {
     const gitDir = join(scratch, 'git');
     if (!run(['init', '--quiet', '--bare', gitDir]).ok) throw new Error(`git init in ${scratch} failed`);

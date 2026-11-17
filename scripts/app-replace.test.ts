@@ -11,16 +11,16 @@ afterAll(() => fs.rmSync(dir, { recursive: true, force: true }));
 function bundle(name: string, build: string) {
   const at = path.join(dir, name);
   fs.mkdirSync(path.join(at, 'Contents', 'MacOS'), { recursive: true });
-  fs.writeFileSync(path.join(at, 'Contents', 'MacOS', 'obeya'), build);
+  fs.writeFileSync(path.join(at, 'Contents', 'MacOS', 'seismic'), build);
   return at;
 }
-const program = (at: string) => fs.readFileSync(path.join(at, 'Contents', 'MacOS', 'obeya'), 'utf8');
+const program = (at: string) => fs.readFileSync(path.join(at, 'Contents', 'MacOS', 'seismic'), 'utf8');
 
 test.skipIf(process.platform !== 'darwin')('the bundle of a shell that still runs stays on disk until nothing has it open', async () => {
   const to = path.join(dir, 'Seismic (checkout).app');
   bundle('Seismic (checkout).app', 'first');
   // the running shell: a process with its program open, as the system has it while the app runs
-  const shell = Bun.spawn(['tail', '-f', path.join(to, 'Contents', 'MacOS', 'obeya')]);
+  const shell = Bun.spawn(['tail', '-f', path.join(to, 'Contents', 'MacOS', 'seismic')]);
   await Bun.sleep(200);
 
   replace(bundle('second.app', 'second'), to);

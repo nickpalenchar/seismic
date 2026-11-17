@@ -42,7 +42,7 @@ appendFileSync(log, 'end ' + who + '\\n');
 let dir: string;
 let host: NarrationHost;
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'obeya-narration-'));
+  dir = mkdtempSync(join(tmpdir(), 'seismic-narration-'));
   writeFileSync(join(dir, 'voice.ts'), FAKE_VOICE);
 });
 afterEach(() => {

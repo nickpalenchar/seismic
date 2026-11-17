@@ -141,7 +141,7 @@ export const sdkRuntime: AgentRuntime = {
                 async (input) => {
                   const out = refuseForegroundWait(input);
                   if (input.hook_event_name === 'PreToolUse' && 'hookSpecificOutput' in out)
-                    spec.onEvent({ type: 'denied', name: input.tool_name, input: (input.tool_input ?? {}) as Record<string, unknown>, by: 'obeya' });
+                    spec.onEvent({ type: 'denied', name: input.tool_name, input: (input.tool_input ?? {}) as Record<string, unknown>, by: 'seismic' });
                   return out;
                 },
               ],

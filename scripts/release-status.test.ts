@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { draft, expectedAssets, type Gh, nextVersion, report, SECRETS, status } from './release-status';
 
 // a repository with GitHub as a bare remote beside it; gh is a function that answers from a table
-const tmp = mkdtempSync(join(tmpdir(), 'obeya-release-status-'));
+const tmp = mkdtempSync(join(tmpdir(), 'seismic-release-status-'));
 afterAll(() => rmSync(tmp, { recursive: true, force: true }));
 
 function repo(name: string) {
@@ -149,10 +149,10 @@ test('a draft holding every file, and a latest.json of its version for every pla
 });
 
 test('a draft with a file missing, or a latest.json without updates, is not', () => {
-  const assets = expectedAssets().filter((n) => n !== 'Obeya-macOS-x64.dmg').map((name) => ({ name }));
+  const assets = expectedAssets().filter((n) => n !== 'Seismic-macOS-x64.dmg').map((name) => ({ name }));
   const d = draft('v0.2.0', gh([{ tag_name: 'v0.2.0', draft: true, assets }], { files: { 'latest.json': manifest('0.1.0', ['darwin-aarch64']) } }));
   expect(d.problems).toEqual([
-    'Missing: Obeya-macOS-x64.dmg.',
+    'Missing: Seismic-macOS-x64.dmg.',
     'latest.json says version 0.1.0, not v0.2.0.',
     'latest.json names no update for darwin-x86_64, windows-x86_64, linux-x86_64, linux-aarch64 (TAURI_SIGNING_PRIVATE_KEY?).',
   ]);

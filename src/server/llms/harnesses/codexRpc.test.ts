@@ -106,7 +106,7 @@ lines.on('line', line => {
 });
 
 test('missing executable is a normal startup failure, not an unhandled process error', async () => {
-  const c = codexConnection({ command: '/nonexistent-obeya-codex-probe', args: [], cwd: tmpdir(), env: process.env }, handlers);
+  const c = codexConnection({ command: '/nonexistent-seismic-codex-probe', args: [], cwd: tmpdir(), env: process.env }, handlers);
   await expect(c.request('initialize', {})).rejects.toThrow();
   await expect(c.done).rejects.toThrow();
 });

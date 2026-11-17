@@ -43,7 +43,7 @@ const config = (source: 'file' | 'args', started: ProjectConfig[], running: stri
   });
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'obeya-config-'));
+  dir = mkdtempSync(join(tmpdir(), 'seismic-config-'));
   store = new Store(':memory:');
   web = repo('web');
   api = repo('api');
@@ -240,10 +240,10 @@ describe("Seismic's configuration", async () => {
   test('hosts: tidied, only for a repository with clones whose work goes out through its remote, one machine per name', async () => {
     const c = config('file', []);
     Bun.spawnSync(['git', '-C', web, 'remote', 'add', 'origin', 'https://github.com/acme/web.git']);
-    const host = { name: 'Box', ssh: 'me@box.local', root: '~/obeya/web', clones: 2 };
+    const host = { name: 'Box', ssh: 'me@box.local', root: '~/seismic/web', clones: 2 };
     const check = (repos: object[]) => c.check([{ repos }]);
     expect(await check([{ path: web, hosts: [host, { name: ' ', ssh: '', root: '', clones: 1 }] }])).toMatchObject({ problems: [], projects: [{ repos: [{ path: web, hosts: [host] }] }] });
-    expect((await check([{ path: web, hosts: [{ ...host, root: ' ' }] }])).projects[0]!.repos[0]!.hosts).toEqual([{ ...host, root: '~/obeya' }]);
+    expect((await check([{ path: web, hosts: [{ ...host, root: ' ' }] }])).projects[0]!.repos[0]!.hosts).toEqual([{ ...host, root: '~/seismic' }]);
     // slots here and there, 0 included (no new cards there); left out, as many as there are clones
     expect((await check([{ path: web, slots: 0, hosts: [{ ...host, slots: 1 }] }])).projects[0]!.repos[0]).toMatchObject({ slots: 0, hosts: [{ ...host, slots: 1 }] });
     expect((await check([{ path: web, hosts: [host] }])).projects[0]!.repos[0]).not.toHaveProperty('slots');

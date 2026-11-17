@@ -20,7 +20,7 @@ let archived: string[];
 let ideas: string[];
 
 beforeAll(() => {
-  dir = mkdtempSync(join(tmpdir(), 'obeya-board-size-'));
+  dir = mkdtempSync(join(tmpdir(), 'seismic-board-size-'));
   const repo = gitRepo(join(dir, 'app'), { 'docs/plan/plan.md': '# App\n\n## Goal\n\nG.\n\n## Workstreams\n\n- [ ] **W1:** One.\n- [ ] **W2:** Two.\n' });
   store = new Store(join(dir, 'seismic.db'));
   project = new ProjectRuntime({ name: 'App', repos: [{ path: repo, clones: 2 }] }, { store, home: dir, runtime: new FakeRuntime(), forge: noForge });
@@ -85,7 +85,7 @@ test('a project with hundreds of archived and shared cards: a run of changes hol
     for (const id of onProject.slice(round * 30, round * 30 + 30)) {
       board.work(id, { status_line: `Landing ${round}` });
       board.item(id);
-      board.log(id, 'state', 'obeya', 'Landed on main.');
+      board.log(id, 'state', 'seismic', 'Landed on main.');
       board.item(id);
       board.work(id, { landed: JSON.stringify({}) });
       // its page is looked up among the archived ones

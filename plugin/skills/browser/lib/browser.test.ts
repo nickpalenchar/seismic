@@ -12,7 +12,7 @@ const SCRIPT = join(import.meta.dir, 'browser.ts');
 let dir: string;
 let sessions: ChildProcess[];
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'obeya-browser-test-'));
+  dir = mkdtempSync(join(tmpdir(), 'seismic-browser-test-'));
   sessions = [];
 });
 afterEach(() => {
@@ -38,7 +38,7 @@ async function browser(pid: number | null, ...args: string[]): Promise<string> {
   return out.trim();
 }
 
-const state = (pid: number) => join(dir, 'obeya-browser', `${pid}.json`);
+const state = (pid: number) => join(dir, 'seismic-browser', `${pid}.json`);
 const readState = (pid: number) => JSON.parse(readFileSync(state(pid), 'utf8')) as { port: number; pid: number; owner: number };
 
 async function until(check: () => boolean | Promise<boolean>, ms = 10_000) {
@@ -82,11 +82,12 @@ function tone(file: string, seconds = 1, rate = 48_000) {
 }
 
 test('portable agent identity isolates browsers and takes precedence over Claude identity', () => {
+  expect(sessionPid({ SEISMIC_AGENT_PID: '123', CLAUDE_PID: '456' })).toBe(123);
   expect(sessionPid({ OBEYA_AGENT_PID: '123', CLAUDE_PID: '456' })).toBe(123);
   expect(sessionPid({ SEISMIC_AGENT_PID: '789', OBEYA_AGENT_PID: '123' })).toBe(789);
-  expect(stateFile({ OBEYA_AGENT_PID: '123' })).toBe(stateFile({ CLAUDE_PID: '123' }));
-  expect(stateFile({ OBEYA_AGENT_PID: '123' })).not.toBe(stateFile({ OBEYA_AGENT_PID: '456' }));
-  expect(sessionPid({ OBEYA_AGENT_PID: 'invalid' })).toBeNull();
+  expect(stateFile({ SEISMIC_AGENT_PID: '123' })).toBe(stateFile({ CLAUDE_PID: '123' }));
+  expect(stateFile({ SEISMIC_AGENT_PID: '123' })).not.toBe(stateFile({ SEISMIC_AGENT_PID: '456' }));
+  expect(sessionPid({ SEISMIC_AGENT_PID: 'invalid' })).toBeNull();
 });
 
 const PAGE = `data:text/html,<title>-</title><button id=b style="margin:200px" onclick="this.textContent='clicked '+event.isTrusted">go</button>

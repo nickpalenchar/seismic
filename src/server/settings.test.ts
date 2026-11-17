@@ -10,7 +10,7 @@ import { agentSetting, agentsView, conversationLanguage, languageView, ownerLang
 import { FakeRuntime } from './testing';
 
 const homes: string[] = [];
-const scratchHome = () => homes[homes.push(mkdtempSync(join(tmpdir(), 'obeya-settings-'))) - 1]!;
+const scratchHome = () => homes[homes.push(mkdtempSync(join(tmpdir(), 'seismic-settings-'))) - 1]!;
 afterEach(() => homes.splice(0).forEach((h) => rmSync(h, { recursive: true, force: true })));
 
 test('a locale names a language Seismic speaks, or none', () => {
@@ -208,7 +208,7 @@ test("Codex's automatic review decides for Codex workers until the owner turns i
 });
 
 test('the defaults saved while projects were canvases (`canvasDefaults`) still apply and move to `projectDefaults` once saved', () => {
-  const home = mkdtempSync(join(tmpdir(), 'obeya-settings-'));
+  const home = mkdtempSync(join(tmpdir(), 'seismic-settings-'));
   try {
     writeFileSync(join(home, SETTINGS_FILE), JSON.stringify({ theme: 'dark', canvasDefaults: { archive: 'manual' } }));
     expect(projectDefaults(home).archive).toBe('manual');

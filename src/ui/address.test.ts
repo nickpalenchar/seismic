@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import { followedPath, knowProjects, projectNamed, projectPath, cardPath, feedbackLogPath, named, queryWithout, readAddress, upgradeAddress } from './address';
 
-const at = (url: string) => new URL(url, 'http://obeya');
+const at = (url: string) => new URL(url, 'http://seismic');
 
 test('the path names the project and the card open on it', () => {
   expect(readAddress(at('/p/shop'))).toEqual({ project: 'shop' });

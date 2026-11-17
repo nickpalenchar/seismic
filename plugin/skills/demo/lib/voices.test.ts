@@ -9,7 +9,7 @@ let home: string;
 let hub: string;
 const hubBefore = process.env.HF_HUB_CACHE;
 beforeEach(() => {
-  home = mkdtempSync(join(tmpdir(), 'obeya-voices-'));
+  home = mkdtempSync(join(tmpdir(), 'seismic-voices-'));
   hub = join(home, 'hub');
   process.env.HF_HUB_CACHE = hub;
 });
@@ -40,7 +40,7 @@ describe('voices', () => {
     const s = { language: 'en', voice: 'piper' } as const;
     expect(installState(s, home)).toEqual({ installed: false, missing: ['Piper', 'Piper voice en_US-ryan-high'], mb: 265 });
     mkdirSync(join(home, 'voices', 'piper', 'env'), { recursive: true });
-    writeFileSync(join(home, 'voices', 'piper', 'env', '.obeya-installed'), 'piper-tts\n');
+    writeFileSync(join(home, 'voices', 'piper', 'env', '.seismic-installed'), 'piper-tts\n');
     writeFileSync(join(home, 'voices', 'piper', 'en_US-ryan-high.onnx'), '');
     expect(installState(s, home).missing).toEqual(['Piper voice en_US-ryan-high']);
     writeFileSync(join(home, 'voices', 'piper', 'en_US-ryan-high.onnx.json'), '{}');
@@ -65,9 +65,9 @@ describe('voices', () => {
     // an environment from before Qwen3 heard its sentences back lacks the speech recognition
     const tts = onMlx() ? 'mlx-audio' : 'qwen-tts';
     mkdirSync(join(home, 'voices', 'qwen3', 'env'), { recursive: true });
-    writeFileSync(join(home, 'voices', 'qwen3', 'env', '.obeya-installed'), `${tts}\n`);
+    writeFileSync(join(home, 'voices', 'qwen3', 'env', '.seismic-installed'), `${tts}\n`);
     expect(installState({ language: 'en', voice: 'qwen3', voiceName: 'ryan' }, home).installed).toBe(false);
-    writeFileSync(join(home, 'voices', 'qwen3', 'env', '.obeya-installed'), `${tts} onnx-asr[cpu,hub]\n`);
+    writeFileSync(join(home, 'voices', 'qwen3', 'env', '.seismic-installed'), `${tts} onnx-asr[cpu,hub]\n`);
     expect(installState({ language: 'en', voice: 'qwen3', voiceName: 'ryan' }, home)).toEqual({ installed: true, missing: [], mb: 0 });
   });
 

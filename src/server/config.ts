@@ -180,7 +180,7 @@ function tidy(projects: z.infer<typeof configShape>): ProjectConfig[] {
     repos: repos.map((r) => {
       const workstations = (r.workstations ?? []).map((w) => w.trim()).filter(Boolean);
       // a host without a name or a machine is a row still being filled in
-      const hosts = (r.hosts ?? []).map((h) => ({ name: h.name.trim(), ssh: h.ssh.trim(), root: h.root.trim() || '~/obeya', clones: h.clones, ...(h.slots !== undefined ? { slots: h.slots } : {}) })).filter((h) => h.name && h.ssh);
+      const hosts = (r.hosts ?? []).map((h) => ({ name: h.name.trim(), ssh: h.ssh.trim(), root: h.root.trim() || '~/seismic', clones: h.clones, ...(h.slots !== undefined ? { slots: h.slots } : {}) })).filter((h) => h.name && h.ssh);
       const settings = tidySettings(r.settings);
       // a folder without git has neither clones nor other machines: its cards all work in it
       if (r.git === false) return { path: r.path.trim(), git: false as const, ...(settings ? { settings } : {}) };
@@ -424,7 +424,7 @@ export class Config {
   }
 
   /**
-   * The repository's `.obeya/settings.json` changed from `before` to `after`: this machine's values
+   * The repository's `.seismic/settings.json` changed from `before` to `after`: this machine's values
    * that it now holds, and did not before, were taken over for everyone (here, or by whoever
    * merged the same values), so they go from this machine's settings and come from the
    * repository. Saved without anything following; the caller follows.
@@ -480,7 +480,7 @@ export class Config {
 
   /**
    * A value for a repository's setting that the work retrospective proposed, taken by the owner for
-   * the repository at `path` (absolute): on this machine, or into its `.obeya/settings.json` for
+   * the repository at `path` (absolute): on this machine, or into its `.seismic/settings.json` for
    * everyone, the way "For everyone, into the repository" goes, with this value alone. Committed
    * on the main branch, this machine's own value for it goes, so the repository's applies here
    * too; as a pull request, it is set on this machine as well until the pull request is merged
@@ -519,7 +519,7 @@ export class Config {
   /**
    * "For everyone, into the repository": the settings saved for the repository at `path` (as the
    * configuration names it) on this machine, but its main branch, go into its
-   * `.obeya/settings.json`: committed on the main branch where work lands there (they then come
+   * `.seismic/settings.json`: committed on the main branch where work lands there (they then come
    * from the repository, here too), else as a pull request (once it is merged), or with `direct`,
    * where work may also go straight to main, pushed onto `origin`'s main branch.
    */
@@ -548,7 +548,7 @@ export class Config {
   }
 
   /**
-   * `patch` goes into the `.obeya/settings.json` of the repository at `path` for everyone: as a pull
+   * `patch` goes into the `.seismic/settings.json` of the repository at `path` for everyone: as a pull
    * request, or committed on the main branch, after which all of it comes from the repository, here
    * too. The caller follows.
    */
@@ -688,7 +688,7 @@ export class Config {
         c.repos.forEach((r, repo) => {
           const { adapter, read: got } = given[repo]!;
           if (got.adapterModule)
-            problems.push({ code: 'adapterGone', project, repo, detail: `${REPO_ADAPTER_DIR}/ on the main branch is no longer read; what it says belongs in ${REPO_SETTINGS_FILE}` });
+            problems.push({ code: 'adapterGone', project, repo, detail: `${REPO_ADAPTER_DIR}/ on the main branch is no longer read; what it says belongs in ${got.shared.file ?? REPO_SETTINGS_FILE}` });
           if (r.hosts?.length) {
             const why = adapter.land === 'main' ? 'its work lands on the main of this checkout' : !got.info.remote ? 'it has no remote to clone from' : null;
             if (why) problems.push({ code: 'hostRepo', project, repo, detail: `the repository cannot have workers on other machines: ${why}` });
@@ -711,6 +711,7 @@ export class Config {
             ...(got.adapterModule ? { adapterGone: true } : {}),
             values: markHeld(values(), trust),
             ...(trust ? { trust } : {}),
+            settingsFile: got.shared.file ?? REPO_SETTINGS_FILE,
             shareTo: adapter.land === 'main' ? 'main' : 'pr',
             ...(adapter.land === 'pr' && adapter.direct ? { shareDirect: true } : {}),
             ...(leaving.length ? { leaving } : {}),
@@ -839,7 +840,7 @@ export class Config {
     const { sampleText, ...settings } = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>;
     const s = parseDemo(settings);
     const text = typeof sampleText === 'string' ? sampleText.slice(0, 2000) : undefined;
-    const dir = mkdtempSync(join(tmpdir(), 'obeya-voice-'));
+    const dir = mkdtempSync(join(tmpdir(), 'seismic-voice-'));
     try {
       const out = join(dir, 'sample.wav');
       await sample(s, out, this.o.server.home, this.o.narrationUrl, this.o.ttsLock, text).catch((e: Error) => {

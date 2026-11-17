@@ -1,6 +1,6 @@
 // A throwaway Seismic with this checkout's code: in a fresh temp directory, an empty SEISMIC_HOME and a
-// new git repository as its only project, on a free port. Nothing of it touches ~/.obeya,
-// ~/.obeya-dev or a repository another Seismic plans (two Seismics on one repository would make
+// new git repository as its only project, on a free port. Nothing of it touches ~/.seismic,
+// ~/.seismic-dev or a repository another Seismic plans (two Seismics on one repository would make
 // worktrees and land on its main side by side); the directory is removed once the server ends.
 //
 //   bun run start:dev:throwaway [--keep] [--setup] [<main.ts args>]
@@ -10,7 +10,7 @@
 // repository is still made, for the assistant to pick).
 // Further arguments go to src/server/main.ts as with `bun start` (its header describes them);
 // repositories given there replace the scratch one. The server runs with --dev: it does not
-// restart when this checkout commits. For cards staged in given states, see scratch-obeya.ts.
+// restart when this checkout commits. For cards staged in given states, see scratch-seismic.ts.
 
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
@@ -35,7 +35,7 @@ const scratchRepo = (path: string) => {
   mkdirSync(path);
   writeFileSync(join(path, 'README.md'), '# Scratch\n\nA throwaway repository for a throwaway Seismic.\n');
   const git = (...args: string[]) => {
-    const r = Bun.spawnSync(['git', '-c', 'user.name=Seismic', '-c', 'user.email=obeya@localhost', ...args], { cwd: path, stderr: 'pipe' });
+    const r = Bun.spawnSync(['git', '-c', 'user.name=Seismic', '-c', 'user.email=seismic@localhost', ...args], { cwd: path, stderr: 'pipe' });
     if (r.exitCode !== 0) throw new Error(`git ${args.join(' ')}: ${r.stderr.toString()}`);
   };
   git('init', '--quiet', '-b', 'main');
@@ -49,7 +49,7 @@ if (import.meta.main) {
   const setup = args.includes('--setup');
   args = args.filter((a) => a !== '--keep' && a !== '--setup');
 
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'obeya-throwaway-')));
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'seismic-throwaway-')));
   const home = join(dir, 'home');
   const repo = join(dir, 'repo');
   mkdirSync(home, { mode: 0o700 });

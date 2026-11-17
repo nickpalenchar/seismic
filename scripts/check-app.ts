@@ -4,8 +4,8 @@
 //
 //   bun scripts/check-app.ts <the app's program> [--fake-mic] [--screenshot <png>] [--keep]
 //
-// The program is Obeya.app/Contents/MacOS/obeya, obeya.exe where the installer put it, the AppImage,
-// or /usr/bin/obeya from the .deb. On a scratch repository and a scratch home it checks:
+// The program is Seismic.app/Contents/MacOS/seismic, seismic.exe where the installer put it, the AppImage,
+// or /usr/bin/seismic from the .deb. On a scratch repository and a scratch home it checks:
 //   - the app starts its server and its window shows the project, which knows it runs in the app;
 //   - the microphone: the page gets a stream without being asked, and records it as src/ui/recorder.ts
 //     does (MediaRecorder; on Linux Web Audio's samples). --fake-mic gives WebView2 Chromium's fake
@@ -40,7 +40,7 @@ const win = process.platform === 'win32';
 const until: typeof untilEvery = (what, ms, fn) => untilEvery(what, ms, fn, 250);
 
 // ---------------------------------------------------------------- a scratch repository and home
-const dir = mkdtempSync(join(tmpdir(), 'obeya-app-check-'));
+const dir = mkdtempSync(join(tmpdir(), 'seismic-app-check-'));
 const repo = join(dir, 'repo');
 const home = join(dir, 'home');
 mkdirSync(join(repo, 'docs', 'plan'), { recursive: true });
@@ -70,7 +70,7 @@ if (ff.exitCode !== 0) {
 const reports: Record<string, unknown>[] = [];
 const MODULE = `
 const report = (r) => fetch(new URL('/result', import.meta.url), { method: 'POST', body: JSON.stringify(r) });
-const out = { app: window.obeyaApp ?? null, location: location.href, userAgent: navigator.userAgent };
+const out = { app: window.seismicApp ?? null, location: location.href, userAgent: navigator.userAgent };
 try {
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   // what voice.tsx does: a level meter on the stream, and MediaRecorder
@@ -78,7 +78,7 @@ try {
   const analyser = ctx.createAnalyser();
   ctx.createMediaStreamSource(stream).connect(analyser);
   // in the app on Linux the page takes the samples from Web Audio instead (src/ui/recorder.ts)
-  const pcm = window.obeyaApp?.platform === 'linux';
+  const pcm = window.seismicApp?.platform === 'linux';
   const recorder = new MediaRecorder(stream);
   const chunks = [];
   let error = '';
@@ -129,7 +129,7 @@ button?.click();
 await new Promise((r) => setTimeout(r, 1000));
 out.browserButton = [...document.querySelectorAll('button')].some((b) => /^Open in browser$/.test(b.textContent));
 // on a Mac the bar is the title bar: the page may move the window (app/capabilities/window.json)
-if (window.obeyaApp?.platform === 'macos')
+if (window.seismicApp?.platform === 'macos')
   out.drag = await window.__TAURI_INTERNALS__.invoke('plugin:window|start_dragging', { label: 'main' }).then(() => 'allowed', (e) => String(e));
 await report(out);
 `;
@@ -213,7 +213,7 @@ try {
   if (page) {
     await check('the window shows the project, which knows it runs in the app', () => {
       expect(String(page.location).startsWith(url), `the window shows ${page.location}`);
-      expect(page.app, 'window.obeyaApp is missing');
+      expect(page.app, 'window.seismicApp is missing');
       return String(page.userAgent);
     });
     await check('the microphone records', () => {
@@ -256,10 +256,10 @@ try {
   });
 
   // ---------------------------------------------------------------- an Seismic from a terminal on the same home
-  const sidecar = [join(dirname(program), win ? 'obeya-server.exe' : 'obeya-server'), resolve(dirname(program), '..', 'lib', 'Obeya', 'obeya-server')].find((f) => existsSync(f)) ?? '';
+  const sidecar = [join(dirname(program), win ? 'seismic-server.exe' : 'seismic-server'), resolve(dirname(program), '..', 'lib', 'Seismic', 'seismic-server')].find((f) => existsSync(f)) ?? '';
   if (existsSync(sidecar)) {
     reports.length = 0;
-    const resources = [join(dirname(program), 'resources'), resolve(dirname(program), '..', 'Resources', 'resources'), resolve(dirname(program), '..', 'lib', 'Obeya', 'resources')].find((d) => existsSync(d));
+    const resources = [join(dirname(program), 'resources'), resolve(dirname(program), '..', 'Resources', 'resources'), resolve(dirname(program), '..', 'lib', 'Seismic', 'resources')].find((d) => existsSync(d));
     server = Bun.spawn([sidecar, '--port', env.SEISMIC_PORT!], { env: { ...env, ...(resources ? { SEISMIC_RESOURCES: resources } : {}) }, stdout: 'ignore', stderr: 'ignore' });
     const e = await until('the terminal\'s Seismic', 60_000, () => entry()?.pid === server!.pid && entry());
     app = startApp();
@@ -275,7 +275,7 @@ try {
     });
     await fetch(`${e.url}/api/stop`, { method: 'POST', headers: ownerHeaders(home) }).catch(() => {});
     await exited(server, 30_000);
-  } else console.log('- the app beside an Obeya from a terminal: not checked (the AppImage keeps its server inside)');
+  } else console.log('- the app beside an Seismic from a terminal: not checked (the AppImage keeps its server inside)');
 } finally {
   app?.kill();
   server?.kill();

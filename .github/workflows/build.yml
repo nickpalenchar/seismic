@@ -81,11 +81,11 @@ jobs:
         shell: bash
         run: |
           version="$(bun -p "require('./package.json').version")"
-          bun scripts/check-binary.ts "dist/obeya-$version-${{ matrix.target }}/obeya${{ runner.os == 'Windows' && '.exe' || '' }}"
+          bun scripts/check-binary.ts "dist/seismic-$version-${{ matrix.target }}/seismic${{ runner.os == 'Windows' && '.exe' || '' }}"
       - run: bun scripts/release.ts collect ${{ matrix.target }} release
       - uses: actions/upload-artifact@v7
         with:
-          name: obeya-${{ matrix.target }}
+          name: seismic-${{ matrix.target }}
           path: release
           retention-days: 7
           if-no-files-found: error

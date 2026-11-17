@@ -1,12 +1,12 @@
 [package]
-name = "obeya-app"
+name = "seismic-app"
 version = "0.1.0"
 description = "Seismic: a spatial project for directing AI coding agents"
 license = "MIT"
 edition = "2021"
 
 [[bin]]
-name = "obeya"
+name = "seismic"
 path = "src/main.rs"
 
 [build-dependencies]

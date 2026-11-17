@@ -2,10 +2,10 @@
 // a port of its own, so it runs beside the stable Seismic of another checkout (or the app) without
 // meeting its database: one home serves one Seismic (src/server/instance.ts), and a database written
 // by a newer Seismic is refused by an older one. In any other checkout the same command starts
-// Seismic as src/server/main.ts does, on ~/.obeya and port 4417, so the file can travel between
+// Seismic as src/server/main.ts does, on ~/.seismic and port 4417, so the file can travel between
 // the two with a merge.
 //
-//   bun start [<main.ts args>]      # in a -dev checkout: home ~/.obeya-dev, port 4418
+//   bun start [<main.ts args>]      # in a -dev checkout: home ~/.seismic-dev, port 4418
 //   bun run dev [<main.ts args>]    # the same, with hot reload (--hot, --dev)
 //
 // SEISMIC_HOME and SEISMIC_PORT (or --port) still win when set. A first start without arguments on a

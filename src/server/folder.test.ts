@@ -13,7 +13,7 @@ let ws: FolderWorkstations;
 const bytes = (n: number, seed: number) => Uint8Array.from({ length: n }, (_, i) => (i * seed + 7) % 251);
 
 beforeEach(async () => {
-  dir = mkdtempSync(join(tmpdir(), 'obeya-folder-'));
+  dir = mkdtempSync(join(tmpdir(), 'seismic-folder-'));
   folder = join(dir, 'Dokumente');
   mkdirSync(join(folder, 'Steuer'), { recursive: true });
   mkdirSync(join(folder, 'Nachlass'), { recursive: true });

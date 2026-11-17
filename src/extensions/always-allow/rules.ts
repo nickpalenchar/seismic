@@ -1,12 +1,12 @@
 // The rules "Always allow" offers and how they go into the repository's allow list,
 // the `permissions.allow` of its `.claude/settings.json` that Claude Code and Seismic's Codex workers
-// both read, and into `.codex/rules/obeya.rules` where the repository has that generated from the
+// both read, and into `.codex/rules/seismic.rules` where the repository has that generated from the
 // list.
 
 import { codexRules } from '../../server/allow-rules';
 
 export const ALLOW_FILE = '.claude/settings.json';
-export const CODEX_RULES_FILE = '.codex/rules/obeya.rules';
+export const CODEX_RULES_FILE = '.codex/rules/seismic.rules';
 
 /**
  * A rule as the owner reads it on the button: a `Bash` rule as its command pattern, Claude Code's
@@ -38,7 +38,7 @@ export function withAllowed(before: string | undefined, rules: string[]): string
 }
 
 /**
- * `.codex/rules/obeya.rules` made again from the allow list `settingsText`, where the file `before`
+ * `.codex/rules/seismic.rules` made again from the allow list `settingsText`, where the file `before`
  * was made from it (its header names by what, which the new one names again); null where there is
  * none or it is the repository's own.
  */

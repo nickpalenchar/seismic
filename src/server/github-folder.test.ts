@@ -187,7 +187,7 @@ describe('a site in a folder of an existing repository', () => {
     if (r.code !== 0) throw new Error(r.err);
     return r.out.trim();
   };
-  const site = (mode: 'direct' | 'pr'): DemoSite => ({ title: 'Docs demos', url: 'https://acme.github.io/docs/docs/demos', deploy: 'obeya:github-folder acme/docs', git: { branch: 'main', folder: 'docs/demos', mode } });
+  const site = (mode: 'direct' | 'pr'): DemoSite => ({ title: 'Docs demos', url: 'https://acme.github.io/docs/docs/demos', deploy: 'seismic:github-folder acme/docs', git: { branch: 'main', folder: 'docs/demos', mode } });
   const make = (mode: 'direct' | 'pr', home = join(dir, 'home'), machine = 'a') => siteTarget(site(mode), join(dir, 'repo'), home, MESSAGES.en.share, { machine, language: 'en', by: 'Ada', x, gitRemote: `file://${remote}` });
   const page = (slug: string, shared: string[] = []): SharePage => ({ slug, title: `Title ${slug}`, text: 'A sentence. Another.', kind: 'video', chapters: [], pr: null, language: 'en', dir: demo, shared });
   /** A fresh look at the remote's branch. */
@@ -198,7 +198,7 @@ describe('a site in a folder of an existing repository', () => {
   };
 
   beforeEach(async () => {
-    dir = mkdtempSync(join(tmpdir(), 'obeya-folder-'));
+    dir = mkdtempSync(join(tmpdir(), 'seismic-folder-'));
     remote = join(dir, 'remote.git');
     const seed = join(dir, 'seed');
     mkdirSync(join(seed, 'docs'), { recursive: true });
@@ -529,7 +529,7 @@ describe('initializing a site in an existing repository', () => {
     return { code: 0, out: JSON.stringify(argv.includes('--slurp') ? [answers[path]] : answers[path]), err: '' };
   };
   beforeEach(() => {
-    home = mkdtempSync(join(tmpdir(), 'obeya-folder-setup-'));
+    home = mkdtempSync(join(tmpdir(), 'seismic-folder-setup-'));
     calls.length = 0;
     for (const k of Object.keys(answers)) delete answers[k];
     answers['repos/acme/notes/branches/main'] = { protected: false };

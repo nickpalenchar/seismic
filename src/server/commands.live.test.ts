@@ -31,7 +31,7 @@ afterAll(() => void setConfig(scratch));
 
 // each Koordinator works in a directory of its own, removed once all have run
 const cwds: string[] = [];
-const cwd = () => cwds[cwds.push(mkdtempSync(join(tmpdir(), 'obeya-live-'))) - 1]!;
+const cwd = () => cwds[cwds.push(mkdtempSync(join(tmpdir(), 'seismic-live-'))) - 1]!;
 afterAll(() => cwds.forEach((d) => rmSync(d, { recursive: true, force: true })));
 
 const DEMO = { latest: { kind: 'video' as const, dir: '/d', chapters: [], question: 'Alte Projekte nachtragen?' } };
@@ -288,7 +288,7 @@ async function later(text: string) {
     `Kannst du mir ein neues Repo in ${place} und einen entsprechenden Seismic project anlegen? Privater Account, erstmal nicht nach GitHub.`,
     `I can't create a repository myself; Seismic can only put a project on one that already exists. Run \`mkdir -p ${place} && cd ${place} && git init -b main && git commit --allow-empty -m "Start"\`. Tell me once it's there, and I'll add the project “Recipes”.`,
   );
-  const view = { file: '/h/projects.json', source: 'file', projects: [{ name: 'Seismic', repos: [{ path: '/r' }] }], running: ['obeya'] } as unknown as ConfigView;
+  const view = { file: '/h/projects.json', source: 'file', projects: [{ name: 'Seismic', repos: [{ path: '/r' }] }], running: ['seismic'] } as unknown as ConfigView;
   const config = { view: () => view, check: async (projects: unknown) => ({ projects: projects as ProjectConfig[], resolved: [], problems: [] }), checkSaved: async () => ({ projects: view.projects, resolved: [], problems: [] }) };
   const executed: Command[] = [];
   const runtime = withAgentSetting(sdkRuntime, () => AGENT_DEFAULTS.koordinator);

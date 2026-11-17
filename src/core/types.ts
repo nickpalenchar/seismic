@@ -558,7 +558,7 @@ export interface ItemReview {
    */
   rate?: { handover: number; answer?: FeedbackAnswer };
   /**
-   * Waiting for approval, its branch changes how work lands (`.obeya/settings.json`, checked at the
+   * Waiting for approval, its branch changes how work lands (`.seismic/settings.json`, checked at the
    * handover): approving lands it as the branch says, not as the repository does until then.
    */
   lands?: CardLanding;
@@ -1506,7 +1506,7 @@ export interface CardEvent {
    * with who refused it and why.
    */
   kind: 'changes' | 'report' | 'activity' | 'say' | 'closing' | 'question' | 'answer' | 'hint' | 'review' | 'state' | 'error' | 'talk' | 'denied';
-  author: 'worker' | 'owner' | 'plan' | 'koordinator' | 'obeya' | 'explorer';
+  author: 'worker' | 'owner' | 'plan' | 'koordinator' | 'seismic' | 'explorer';
   text: string;
   /** Set on an error the UI words itself; `text` then holds the server's technical detail. */
   code?: ErrorCode;
@@ -1553,7 +1553,7 @@ export interface CardEvent {
 }
 
 /** Seismic's line that a worker started on the card afresh: what it handed over before belongs to an earlier run. */
-export const started = (e: Pick<CardEvent, 'kind' | 'author' | 'text'>) => e.kind === 'state' && e.author === 'obeya' && /^(Agent gestartet|Agent started)/.test(e.text);
+export const started = (e: Pick<CardEvent, 'kind' | 'author' | 'text'>) => e.kind === 'state' && e.author === 'seismic' && /^(Agent gestartet|Agent started)/.test(e.text);
 
 /** The owner's answer as the log holds it: the options picked, then their own words. */
 export const pickedAnswer = (picks: string[], words: string) => [picks.join(', '), words.trim()].filter(Boolean).join('\n\n');
@@ -1627,7 +1627,7 @@ export interface RepoRef {
   direct?: boolean;
   /**
    * How many times what the configuration's problems of the repository are read from changed on
-   * its default branch while the project runs (its `.obeya/settings.json`, a leftover
+   * its default branch while the project runs (its `.seismic/settings.json`, a leftover
    * `.obeya/adapter/`): the page reads the problems again when it changes.
    */
   configRev?: number;
@@ -1955,7 +1955,7 @@ export interface SettingProposal {
 
 /**
  * What became of a setting proposal: waiting, set on this machine, put into the repository's
- * `.obeya/settings.json` for everyone, or rejected.
+ * `.seismic/settings.json` for everyone, or rejected.
  */
 export type SettingProposalState = 'proposed' | 'machine' | 'repository' | 'rejected';
 
@@ -2361,7 +2361,7 @@ export type ErrorCode =
   | 'nothingOutdated'
   /** "Take over into the repository for everyone": this machine sets nothing to take over. */
   | 'noSettings'
-  /** "Take over into the repository for everyone": the checkout on the main branch has changes of its own in `.obeya/settings.json`. */
+  /** "Take over into the repository for everyone": the checkout on the main branch has changes of its own in `.seismic/settings.json`. */
   | 'settingsDirty'
   /** The commands to confirm changed on the default branch since the dialog showed them. */
   | 'trustChanged'
@@ -2411,7 +2411,7 @@ export interface RepoConfig {
    * remote.
    */
   hosts?: HostConfig[];
-  /** The settings the owner set for this machine in the configuration dialog; each goes before the repository's `.obeya/settings.json`. */
+  /** The settings the owner set for this machine in the configuration dialog; each goes before the repository's `.seismic/settings.json`. */
   settings?: RepoSettings;
 }
 
@@ -2673,7 +2673,7 @@ export interface RepoSettings {
 }
 
 /**
- * A repository's settings for everyone who runs Seismic on it, in `.obeya/settings.json` as its
+ * A repository's settings for everyone who runs Seismic on it, in `.seismic/settings.json` as its
  * default branch has it: those for this machine but the main branch,
  * which says where the file is read from.
  */
@@ -2701,7 +2701,7 @@ export function layerSettings<T extends RepoSettings>(under: T | undefined, over
 
 /**
  * Where a repository's setting comes from where this machine sets none, highest first: the
- * repository's `.obeya/settings.json`, the clones the configuration names (`workstations` only),
+ * repository's `.seismic/settings.json`, the clones the configuration names (`workstations` only),
  * detection (main branch, landing), Seismic's default.
  */
 export type SettingSource = 'repository' | 'clones' | 'detected' | 'default';
@@ -2720,7 +2720,7 @@ export interface SettingValue<T> {
  * owner counts as long as the default branch has it so.
  */
 export interface RepoCommands {
-  /** `app.stop` and `app.keep` of `.obeya/settings.json`, which park a waiting card: one without the other could stop what `keep` keeps. */
+  /** `app.stop` and `app.keep` of `.seismic/settings.json`, which park a waiting card: one without the other could stop what `keep` keeps. */
   app?: { stop?: string; keep?: string };
   /** The repository's own Claude Code configuration by file (everything under `.claude/`, `.mcp.json`): hooks, MCP servers, helpers. */
   claude?: Record<string, ClaudeFile>;
@@ -2917,15 +2917,17 @@ export interface ResolvedProject {
     folder?: true;
     /**
      * It still has a `.obeya/adapter/` on its main branch, which Seismic no longer reads: its values
-     * belong in `.obeya/settings.json` (problem `adapterGone`).
+     * belong in its settings file (problem `adapterGone`).
      */
     adapterGone?: boolean;
     /** Its settings without this machine's, with where each comes from. */
     values: RepoValues;
     /** Its commands that wait for the owner to confirm them (problem `untrusted`). */
     trust?: RepoTrust;
+    /** Its settings file for everyone, relative to it: `.seismic/settings.json`, or `.obeya/settings.json` in a repository from before the rename. */
+    settingsFile: string;
     /**
-     * Where "Take over into the repository for everyone" puts `.obeya/settings.json`: a commit on the main
+     * Where "Take over into the repository for everyone" puts its settings file: a commit on the main
      * branch where work lands there, else a pull request.
      */
     shareTo: 'main' | 'pr';
@@ -2989,7 +2991,7 @@ export type ConfigProblemCode =
   | 'noFolder'
   /** A repository the project has already, under this path or another. */
   | 'sameRepo'
-  /** The repository still has a `.obeya/adapter/`, which Seismic no longer reads: its values belong in `.obeya/settings.json`. */
+  /** The repository still has a `.obeya/adapter/`, which Seismic no longer reads: its values belong in `.seismic/settings.json`. */
   | 'adapterGone'
   /** Two projects with the same id. */
   | 'sameId'
@@ -3009,7 +3011,7 @@ export type ConfigProblemCode =
   | 'hostName'
   /** A main branch set for this machine that the repository does not have. */
   | 'noBranch'
-  /** Something in the repository's `.obeya/settings.json` that does not count (fixed there, so it keeps nothing from being saved). */
+  /** Something in the repository's `.seismic/settings.json` that does not count (fixed there, so it keeps nothing from being saved). */
   | 'repoSettings'
   /** Commands of the repository, new or changed on its default branch, that wait for the owner to confirm them (`RepoTrust`). */
   | 'untrusted'
@@ -3070,7 +3072,7 @@ export interface ProjectReposView {
 
 /** What "Take over into the repository for everyone" did with a repository's settings for this machine. */
 export type SettingsShared =
-  /** Committed `.obeya/settings.json` on the main branch (pushed onto `origin`'s, where it went there directly): the settings now come from the repository. */
+  /** Committed `.seismic/settings.json` on the main branch (pushed onto `origin`'s, where it went there directly): the settings now come from the repository. */
   | { committed: string; branch: string; file?: string }
   /** Opened a pull request with it: once it is merged, the settings come from the repository. */
   | { pr: string };
@@ -3546,7 +3548,7 @@ export interface GitSetupPreview {
 
 /**
  * Why Seismic starts again: new code on the checkout it runs from, a configuration the owner saved,
- * a repository's `.obeya/settings.json` changed on its default branch where its agents work, a
+ * a repository's `.seismic/settings.json` changed on its default branch where its agents work, a
  * new version of the app the owner installs, or the Mac app taking over an Seismic that runs without
  * the app that started it (app/src/main.rs, `orphaned`); or why it stops for good (Ctrl-C, SIGTERM).
  */
@@ -3741,7 +3743,7 @@ export const ACTIVITY_CODES = ['created', 'proposed', 'archived', 'deleted', 'st
 export type ActivityCode = (typeof ACTIVITY_CODES)[number];
 
 /** Who did it: the owner, the agent of the card, or Seismic itself. */
-export type ActivityWho = 'owner' | 'agent' | 'obeya';
+export type ActivityWho = 'owner' | 'agent' | 'seismic';
 
 /** One line of the Activity log. The card is shown as it is now, a deleted one marked (`deleted`); a deletion's line names it by the title it had then. */
 export interface ActivityEntry {

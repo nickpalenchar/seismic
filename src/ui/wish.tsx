@@ -151,7 +151,7 @@ async function write(w: Wish, images: string[], { base, seed }: { base?: { title
       ...(w.answer ? { answer: w.answer } : {}),
       ...(before ? { title: before.title, body: before.body } : {}),
       ...(images.length ? { images } : {}),
-      app: !!window.obeyaApp,
+      app: !!window.seismicApp,
     });
     // the draft as it stands now on the project it was asked on: after a switch, the one kept there
     const now = shown(at) ? state.issue : storedIssue(at);

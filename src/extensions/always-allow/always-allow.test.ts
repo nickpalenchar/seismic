@@ -80,13 +80,13 @@ describe('in a project', () => {
   });
 
   test('“Always allow” commits the rule into the allow list on main, trusted, and a Codex worker goes by it at once', async () => {
-    dir = mkdtempSync(join(tmpdir(), 'obeya-always-allow-'));
+    dir = mkdtempSync(join(tmpdir(), 'seismic-always-allow-'));
     const allow = { permissions: { allow: ['Bash(bun test *)'] } };
     const shop = gitRepo(join(dir, 'shop'), {
       'README.md': 'Shop\n',
-      '.obeya/settings.json': JSON.stringify({ land: 'main' }),
+      '.seismic/settings.json': JSON.stringify({ land: 'main' }),
       '.claude/settings.json': `${JSON.stringify(allow, null, 2)}\n`,
-      '.codex/rules/obeya.rules': codexRules(JSON.stringify(allow), '`bun scripts/codex-rules.ts`').file,
+      '.codex/rules/seismic.rules': codexRules(JSON.stringify(allow), '`bun scripts/codex-rules.ts`').file,
     });
     const store = new Store(':memory:');
     store.trustedCommands.trust(shop, commandsOf(readShared(shop)));
@@ -108,7 +108,7 @@ describe('in a project', () => {
     // on main for everyone, the Codex rules made again from the list, and trusted as the owner's
     const main = readShared(shop);
     expect(JSON.parse(main.claude!['.claude/settings.json']!.text)).toEqual({ permissions: { allow: ['Bash(bun test *)', 'Bash(bun run *)'] } });
-    expect(main.codex!['.codex/rules/obeya.rules']!.text).toContain('prefix_rule(pattern=["bun","run"], decision="allow")');
+    expect(main.codex!['.codex/rules/seismic.rules']!.text).toContain('prefix_rule(pattern=["bun","run"], decision="allow")');
     expect(git(shop, 'log', '-1', '--format=%s')).toBe('Allow for agents: Bash(bun run *)');
     expect(git(shop, 'status', '--porcelain')).toBe('');
     expect(store.trustedCommands.get(shop)).toEqual(commandsOf(main));

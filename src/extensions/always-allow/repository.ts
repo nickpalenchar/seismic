@@ -24,7 +24,7 @@ async function must(repoPath: string, args: string[], o?: Parameters<typeof git>
 
 /** A commit with `files` (by path) on top of `parent`, made beside the checkout (its index and files stay as they are). */
 async function commitBeside(repoPath: string, parent: string, files: Record<string, string>, message: string): Promise<string> {
-  const dir = mkdtempSync(join(tmpdir(), 'obeya-allow-'));
+  const dir = mkdtempSync(join(tmpdir(), 'seismic-allow-'));
   try {
     const env = { GIT_INDEX_FILE: join(dir, 'index') };
     await must(repoPath, ['read-tree', parent], { env });
@@ -46,7 +46,7 @@ async function commitBeside(repoPath: string, parent: string, files: Record<stri
 
 /**
  * Commits `rules` into the allow list of the repository's `.claude/settings.json` on its main
- * branch (the local one, where work lands), with `.codex/rules/obeya.rules` made again where the
+ * branch (the local one, where work lands), with `.codex/rules/seismic.rules` made again where the
  * repository has it made from the list: beside the checkout, which, where it is on that branch,
  * then has the files as committed. Refused where the checkout has changes of its own in them. None
  * committed where every rule is in the list already.
@@ -68,7 +68,7 @@ export async function commitAllowed(repoPath: string, rules: string[]): Promise<
   if (onIt && (await git(repoPath, ['status', '--porcelain', '--', ...Object.keys(files)])).out)
     throw new Error(`${Object.keys(files).join(', ')} has changes of its own in ${repoPath}; commit or discard them first`);
   const commit = await commitBeside(repoPath, parent, files, `Allow for agents: ${rules.join(', ')}`);
-  await must(repoPath, ['update-ref', '-m', 'obeya: always allow', `refs/heads/${branch}`, commit, parent]);
+  await must(repoPath, ['update-ref', '-m', 'seismic: always allow', `refs/heads/${branch}`, commit, parent]);
   if (onIt) await must(repoPath, ['checkout', commit, '--', ...Object.keys(files)]);
   return { committed: commit, branch };
 }

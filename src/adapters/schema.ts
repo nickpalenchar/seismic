@@ -1,5 +1,5 @@
 // What a repository's settings may hold (this machine's in the configuration, everyone's in its
-// `.obeya/settings.json`), checked where they are read: a misspelt field (`check:` for `checks:`)
+// `.seismic/settings.json`), checked where they are read: a misspelt field (`check:` for `checks:`)
 // or a wrong type would otherwise be ignored without a word, or break whatever reads it later. Each
 // problem names its field; the field does not count, so Seismic's default stands for it, and the rest
 // of the settings work.
@@ -47,7 +47,7 @@ for (const extension of extensions) for (const [name, field] of Object.entries(e
 export const settingsShape = coreShape.extend(extensionFields).strict() as typeof coreShape;
 
 /**
- * What a repository's `.obeya/settings.json` may hold (`SharedSettings`): the settings for this
+ * What a repository's `.seismic/settings.json` may hold (`SharedSettings`): the settings for this
  * machine but the main branch, which says where the file is read from.
  */
 export const sharedShape = settingsShape.omit({ branch: true });
@@ -61,7 +61,7 @@ const KNOWN: Record<string, string[]> = {
 };
 
 /**
- * Checks what a repository's `.obeya/settings.json` holds, the same way: the settings without the
+ * Checks what a repository's `.seismic/settings.json` holds, the same way: the settings without the
  * fields that are wrong, and one line per problem.
  */
 export function checkShared(made: Record<string, unknown>): { settings: SharedSettings; problems: string[] } {

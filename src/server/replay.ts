@@ -543,7 +543,7 @@ function play(rec: Recorded, spec: AgentSpec, p: Player): AgentSession {
   /** The recorded commits since the worker's call before, onto what the workstation holds now. */
   const commits = async (head: Head) => {
     const cwd = spec.cwd;
-    const ref = `refs/obeya-replay/${head.to}`;
+    const ref = `refs/seismic-replay/${head.to}`;
     await gitAsync(cwd, 'fetch', '-q', join(p.dir, head.bundle), `+HEAD:${ref}`);
     const [name, email] = (await gitAsync(cwd, 'log', '-1', '--format=%an%n%ae', head.to)).split('\n');
     const as = ['-c', `user.name=${name}`, '-c', `user.email=${email}`];
@@ -557,7 +557,7 @@ function play(rec: Recorded, spec: AgentSpec, p: Player): AgentSession {
       }
       // rewritten (an amend; a rebase, which the landing of today did too): what changed, as one commit
       if ((await gitAsync(cwd, 'rev-parse', 'HEAD^{tree}')) === (await gitAsync(cwd, 'rev-parse', `${head.to}^{tree}`))) return;
-      const patch = join(mkdtempSync(join(tmpdir(), 'obeya-replay-')), 'change.patch');
+      const patch = join(mkdtempSync(join(tmpdir(), 'seismic-replay-')), 'change.patch');
       const diff = await gitAsync(cwd, 'diff', '--binary', head.from, head.to);
       if (!diff) return;
       writeFileSync(patch, `${diff}\n`);

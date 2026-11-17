@@ -1,10 +1,11 @@
 # Releasing Seismic
 
 > **Paused.** Seismic is a permanent fork and distributes nothing for now: no app releases, no site,
-> no hero video, no update checks (decided 2026-11-13, `docs/plan/seismic-rename.md`). This page, the
+> no hero video, no update checks (decided 2026-11-13, `docs/design.md`). This page, the
 > release skill, `scripts/hero-video/` and `scripts/site-shots.ts` stay as they were, for when Seismic
-> distributes its own app; their accounts, domain and voice (`sadilek`, obeya.si, ElevenLabs) are
-> the upstream's and have to be replaced then. `scripts/hero-video/publish.ts` refuses to upload until `DISTRIBUTION` in
+> distributes its own app; their domain, signing keys and voice (seismic.im, the Apple and updater keys,
+> ElevenLabs) are the upstream's and have to be replaced then. GitHub is reached as the account that
+> owns the checkout's origin (`scripts/gh.ts`), `nickpalenchar` for nickpalenchar/seismic. `scripts/hero-video/publish.ts` refuses to upload until `DISTRIBUTION` in
 > `scripts/distribution.ts` is switched on.
 
 How a version of the app goes out, and the owner's steps it depends on. The constraints the builds
@@ -21,7 +22,7 @@ released, and the site's screenshots are taken again with it. When the owner say
 Release", the project skill `.claude/skills/release/SKILL.md` goes through these steps in this
 order, on an Seismic card or in a terminal; it adds when to ask the owner and what to look at.
 The scripts that talk to GitHub act on the checkout's origin as the account that owns it
-(`sadilek` for sadilek/obeya, with its gh login, without switching the account gh has active);
+(`nickpalenchar` for nickpalenchar/seismic, with its gh login, without switching the account gh has active);
 other gh calls go through `bun scripts/gh.ts <gh args…>`, which does the same, since the
 machine's active account may lack the admin rights a workflow run or a rerun needs.
 
@@ -35,7 +36,7 @@ machine's active account may lack the admin rights a workflow run or a rerun nee
 2. The narration (`scripts/hero-video/narration.ts`), read against the UI being released: a
    sentence that no longer holds is reworded before the render. Every changed sentence costs
    ElevenLabs credits; the others come from the clip cache in the render's `.work/`, so the render
-   goes to its default directory `obeya-hero/` in the demo directory (`<demos>`: `~/demos` unless
+   goes to its default directory `seismic-hero/` in the demo directory (`<demos>`: `~/demos` unless
    the demo settings name another), not a new one.
 3. The video, rendered whole from the release's code, with real agents whose run is recorded
    (`--record`), about ten minutes (`scripts/hero-video/README.md`), and its stills checked for the
@@ -49,7 +50,7 @@ machine's active account may lack the admin rights a workflow run or a rerun nee
      shows too (`project.png` and the phone's);
    - the video's poster, `node scripts/hero-video/publish.ts --poster-only`
      (it uploads nothing);
-   - a copy of `demo.mp4`, `captions.vtt`, `chapters.vtt` and `review/` in `<demos>/obeya-v<version>/`,
+   - a copy of `demo.mp4`, `captions.vtt`, `chapters.vtt` and `review/` in `<demos>/seismic-v<version>/`,
      so that what goes out in step 8 is the video that was looked at, even if the hero video is
      rendered again meanwhile.
 4. The version in `package.json` (the app, its settings and the release take it from there),
@@ -70,7 +71,7 @@ machine's active account may lack the admin rights a workflow run or a rerun nee
    installer, update and signature, and a `latest.json` of the version that names every platform,
    and prints the notes. A run that fails on the Macs with HTTP 403 needs the owner to accept
    Apple's agreement (Signing the Mac apps).
-8. The video: `HERO_OUT=<demos>/obeya-v<version> node scripts/hero-video/publish.ts` uploads it with
+8. The video: `HERO_OUT=<demos>/seismic-v<version> node scripts/hero-video/publish.ts` uploads it with
    its captions and chapters and runs the Pages workflow, which publishes the poster and the
    screenshots pushed in step 5 along with it.
 9. The owner reads the draft and publishes it as the latest release ("Set as the latest release"
@@ -128,10 +129,10 @@ now and then, and a release fails the same way until it is accepted again.
    offered only for the certificate with its private key (the entry under My Certificates, the
    key folded under it); under Certificates it is greyed out. Exported from the key's row instead,
    the file holds the key without the certificate, and the build fails with "failed to resolve
-   signing identity". `openssl pkcs12 -info -noout -in obeya.p12` lists what the file holds: a
+   signing identity". `openssl pkcs12 -info -noout -in seismic.p12` lists what the file holds: a
    "Certificate bag" and a "Shrouded Keybag".
 3. Secrets:
-   - `APPLE_CERTIFICATE`: the `.p12` in base64, `base64 -i obeya.p12 | bun scripts/gh.ts secret set APPLE_CERTIFICATE`
+   - `APPLE_CERTIFICATE`: the `.p12` in base64, `base64 -i seismic.p12 | bun scripts/gh.ts secret set APPLE_CERTIFICATE`
    - `APPLE_CERTIFICATE_PASSWORD`: the export's password.
 4. Delete the `.p12` file. The certificate is valid for five years; apps signed and notarised
    before it expires keep opening (the signature carries a timestamp). A new one goes into the
@@ -179,7 +180,7 @@ Actions build after an approver has approved its signing request. The owner deci
 2026-10-19 to apply right after v0.5.0. Its conditions
 (<https://signpath.org/terms>) as they bear on Seismic:
 
-- **Every component under an OSI licence, nothing proprietary.** The server (`obeya.exe` in the
+- **Every component under an OSI licence, nothing proprietary.** The server (`seismic.exe` in the
   installer) has Anthropic's Claude Agent SDK compiled into it, whose licence is "© Anthropic PBC.
   All rights reserved"; Claude Code itself is not shipped. The application says so up front. If
   SignPath declines because of it, Seismic would have to talk to the machine's Claude Code without
@@ -188,7 +189,7 @@ Actions build after an approver has approved its signing request. The owner deci
 - **Reputation** for downloadable programs: SignPath's judgement, without a threshold. At the
   application: the repository two weeks old, 7 stars, a handful of downloads per release.
 - **A code signing policy** on the home page and the download and release pages, under that
-  name: `site/code-signing/index.html` (obeya.si/code-signing/), linked from the site's download
+  name: `site/code-signing/index.html` (seismic.im/code-signing/), linked from the site's download
   section and footer, the README's download section and the notes of every release
   (`build.yml`). It has the sentence SignPath prescribes ("Free code signing provided by
   SignPath.io, certificate by SignPath Foundation"), the team's roles and the privacy statement:
@@ -201,7 +202,7 @@ Actions build after an approver has approved its signing request. The owner deci
 After an acceptance: SignPath creates an account for the applicant (turn on MFA there), then the
 build workflow submits the unsigned installer and the programs in it through SignPath's GitHub
 action (`signpath/github-action-submit-signing-request`) and waits for the approved, signed
-result, before the updater's signature is made over it. `obeya.exe` carries Bun's metadata unless
+result, before the updater's signature is made over it. `seismic.exe` carries Bun's metadata unless
 `bun build --compile` sets its own (`--windows-title`, `--windows-version` …). The sentence on the
 policy page, the site, the README and the release notes about the unsigned installer go.
 
@@ -216,7 +217,7 @@ certificate.
 
 Paused with the rest of this page; they served the site, the hero video and releases. Paths and accounts are the upstream's.
 
-- Videos on the site (the hero video, anything for obeya.si) are narrated in the owner's ElevenLabs
+- Videos on the site (the hero video, anything for seismic.im) are narrated in the owner's ElevenLabs
   voice clone (voice ID `IErGHDQU4vPqicCi8dwR`), not the voice of the demo settings; demo videos
   published elsewhere (in a PR or issue comment, say) keep the voice of the demo settings. Its API
   key is in `.voice/elevenlabs.key` of the main checkout (`<main checkout>`, gitignored);
@@ -236,9 +237,9 @@ Paused with the rest of this page; they served the site, the hero video and rele
   onto the current `main` (moving the tag if it is already set), so commits that landed while the
   release was being prepared go into it too.
 - gh calls against this repository's GitHub repository go through `bun scripts/gh.ts <gh args…>`:
-  it runs gh on the checkout's origin as the account that owns it (`sadilek` for sadilek/obeya),
+  it runs gh on the checkout's origin as the account that owns it (`nickpalenchar` for nickpalenchar/seismic),
   since the machine's active gh account may be another without admin rights.
-- gh calls against the repository's GitHub repository went through `bun scripts/gh.ts <gh args…>`: it runs gh on the checkout's origin as the account that owns it (`sadilek` for sadilek/obeya), since the machine's active gh account may be another without admin rights.
+- gh calls against the repository's GitHub repository went through `bun scripts/gh.ts <gh args…>`: it runs gh on the checkout's origin as the account that owns it (`nickpalenchar` for nickpalenchar/seismic), since the machine's active gh account may be another without admin rights.
 - The test "names what stands in the way: site-media as the latest, a missing secret, GitHub ahead,
   a tag taken, a draft left over" in `scripts/release-status.test.ts` clones real git repositories
   and may time out while iterating: skip it locally (`--test-name-pattern` or by file), and run the

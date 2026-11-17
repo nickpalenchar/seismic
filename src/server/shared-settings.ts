@@ -1,5 +1,5 @@
 // "For everyone, into the repository": a repository's settings for this machine go into its
-// `.obeya/settings.json`, which a fresh clone brings with it. Where work lands on the main branch
+// `.seismic/settings.json`, which a fresh clone brings with it. Where work lands on the main branch
 // they are committed there; where it goes through pull requests, the commit goes out as one, or,
 // where work may go straight to main as well, is pushed there. None of them touches what the
 // checkout has beside the file, nor a card's workstation.
@@ -7,7 +7,7 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { parseShared, REPO_DIRS, REPO_SETTINGS_FILE, REPO_SETTINGS_FILES } from '../adapters';
+import { parseShared, REPO_DIRS, REPO_SETTINGS_FILES, settingsFileOf } from '../adapters';
 import { layerSettings, SHARED_FIELDS, type SettingsShared, type SharedSettings } from '../core/types';
 import { BadRequest } from './board';
 import type { Forge } from './forge';
@@ -36,13 +36,11 @@ async function must(repoPath: string, args: string[], o?: Parameters<typeof gitR
   return r.out;
 }
 
-/**
- * The settings file Seismic writes in the repository at `commit`: in `.seismic/` or, where only
- * `.obeya/` exists there, in that; `.seismic/` for a repository with neither.
- */
+/** The settings file Seismic writes in the repository at `commit` (`settingsFileOf`): the one it reads there. */
 async function settingsFileAt(repoPath: string, commit: string): Promise<string> {
-  for (const dir of REPO_DIRS) if ((await gitRun(repoPath, ['rev-parse', '--verify', '--quiet', `${commit}:${dir}`])).code === 0) return `${dir}/settings.json`;
-  return REPO_SETTINGS_FILE;
+  const there = async (path: string) => (await gitRun(repoPath, ['rev-parse', '--verify', '--quiet', `${commit}:${path}`])).code === 0;
+  const [files, dirs] = await Promise.all([Promise.all(REPO_SETTINGS_FILES.map(there)), Promise.all(REPO_DIRS.map(there))]);
+  return settingsFileOf({ file: (f) => files[REPO_SETTINGS_FILES.indexOf(f)]!, dir: (d) => dirs[REPO_DIRS.indexOf(d)]! });
 }
 
 /**
@@ -117,7 +115,7 @@ async function onOrigin(repoPath: string, mine: SharedSettings) {
 }
 
 /**
- * Pushes `mine` in `.obeya/settings.json` straight onto `origin`'s main branch, for a repository
+ * Pushes `mine` in `.seismic/settings.json` straight onto `origin`'s main branch, for a repository
  * whose work goes out as pull requests but may go straight to main (`direct`): a commit on top of
  * it, pushed without force, so a protected branch, or one that moved meanwhile, refuses it.
  */
@@ -129,7 +127,7 @@ export async function pushShared(repoPath: string, mine: SharedSettings): Promis
 }
 
 /**
- * Puts `mine` into the repository's `.obeya/settings.json` as a pull request against `origin`'s
+ * Puts `mine` into the repository's `.seismic/settings.json` as a pull request against `origin`'s
  * main branch: a commit on top of it, pushed to a branch of its own, and the pull request opened.
  */
 export async function proposeShared(repoPath: string, mine: SharedSettings, forge: Forge, now = new Date()): Promise<SettingsShared> {

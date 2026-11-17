@@ -17,7 +17,7 @@ function alive(pid: number) { try { process.kill(pid, 0); return true; } catch {
 function kill(pid: number) { if (pid > 1) try { process.kill(pid, 'SIGKILL'); } catch {} }
 
 test.skipIf(process.platform === 'win32')('liveness EOF stops an observed detached descendant without touching a canary', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'obeya-liveness-prototype-'));
+  const dir = mkdtempSync(join(tmpdir(), 'seismic-liveness-prototype-'));
   const pidFile = join(dir, 'pid');
   const beatFile = join(dir, 'beat');
   const worker = testProcessCode(`import {spawn} from 'node:child_process';import {writeFileSync} from 'node:fs';
@@ -46,7 +46,7 @@ writeFileSync(${JSON.stringify(pidFile)},String(c.pid));setInterval(()=>{},1000)
 
 test.skipIf(process.platform === 'win32')('an agent that exits at once does not leave a same-group child behind', async () => {
   // Before the supervisor's first snapshot sees it: only the agent's group still reaches it.
-  const dir = mkdtempSync(join(tmpdir(), 'obeya-liveness-fast-exit-'));
+  const dir = mkdtempSync(join(tmpdir(), 'seismic-liveness-fast-exit-'));
   const pidFile = join(dir, 'pid');
   const worker = testProcessCode(`import {spawn} from 'node:child_process';import {writeFileSync} from 'node:fs';
 const c=spawn(process.execPath,['-e',${JSON.stringify(testProcessCode())}],{stdio:'ignore'});c.unref();
@@ -68,7 +68,7 @@ writeFileSync(${JSON.stringify(pidFile)},String(c.pid));process.exit(0);`);
 }, 10_000);
 
 test.skipIf(process.platform === 'win32')('a killed supervisor leaves its caller to stop the agent holding its pipes, and what it reported', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'obeya-liveness-sigkill-'));
+  const dir = mkdtempSync(join(tmpdir(), 'seismic-liveness-sigkill-'));
   const agentFile = join(dir, 'agent');
   const leafFile = join(dir, 'leaf');
   const worker = testProcessCode(`import {spawn} from 'node:child_process';import {writeFileSync} from 'node:fs';
@@ -102,7 +102,7 @@ writeFileSync(${JSON.stringify(leafFile)},String(c.pid));process.stdin.resume();
 }, 10_000);
 
 test.skipIf(process.platform === 'win32')('neither the liveness pipe nor the report pipe reaches the agent', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'obeya-liveness-fds-'));
+  const dir = mkdtempSync(join(tmpdir(), 'seismic-liveness-fds-'));
   const result = join(dir, 'fds');
   const s = superviseAgent(['/bin/sh', '-c', `for f in 3 4; do [ -e /dev/fd/$f ] && printf "$f "; done > ${JSON.stringify(result)}; echo done >> ${JSON.stringify(result)}`]);
   try {
@@ -115,7 +115,7 @@ test.skipIf(process.platform === 'win32')('neither the liveness pipe nor the rep
 }, 10_000);
 
 test.skipIf(process.platform === 'win32')('ending one liveness pipe stops only that supervisor\'s agent', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'obeya-liveness-two-'));
+  const dir = mkdtempSync(join(tmpdir(), 'seismic-liveness-two-'));
   const files = [join(dir, 'a'), join(dir, 'b')];
   const sessions = files.map((file) => superviseAgent([process.execPath, '-e', testProcessCode(`require('node:fs').writeFileSync(${JSON.stringify(file)},String(process.pid));setInterval(()=>{},1000);`)]));
   try {
@@ -135,7 +135,7 @@ test.skipIf(process.platform === 'win32')('ending one liveness pipe stops only t
 }, 10_000);
 
 test.skipIf(process.platform !== 'linux')('agent code starts only after its identity is in the registry', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'obeya-gate-registry-'));
+  const dir = mkdtempSync(join(tmpdir(), 'seismic-gate-registry-'));
   const result = join(dir, 'result');
   const worker = testProcessCode(`import {readdirSync,readFileSync,writeFileSync} from 'node:fs';
 const file=readdirSync(${JSON.stringify(dir)}).find(n=>n.endsWith('.json'));
@@ -158,7 +158,7 @@ setInterval(()=>{},1000);`);
 }, 10_000);
 
 test.skipIf(process.platform !== 'linux')('a killed supervisor leaves a report-only record of its observed processes', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'obeya-liveness-registry-'));
+  const dir = mkdtempSync(join(tmpdir(), 'seismic-liveness-registry-'));
   const rootFile = join(dir, 'root');
   const childFile = join(dir, 'child');
   const worker = testProcessCode(`import {spawn} from 'node:child_process';import {writeFileSync} from 'node:fs';

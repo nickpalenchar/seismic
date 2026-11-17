@@ -27,15 +27,15 @@ describe('workers', () => {
     expect(brief).toContain('Finish this work and validate it.');
     // too large for a prompt: the worker reads it from its workstation
     expect(brief).not.toContain('+captured');
-    expect(brief).toContain('git apply --binary "$(git rev-parse --git-path obeya-captured-changes.patch)"');
+    expect(brief).toContain('git apply --binary "$(git rev-parse --git-path seismic-captured-changes.patch)"');
     expect(board.row(card.id).body!.length).toBeLessThan(20000);
     await workers.start(card.id);
     expect(runtime.last.inbox[0]).not.toContain('+captured');
     const at = board.row(card.id).workstation!;
-    expect(readFileSync(git(at, 'rev-parse', '--path-format=absolute', '--git-path', 'obeya-captured-changes.patch'), 'utf8')).toBe(patch);
+    expect(readFileSync(git(at, 'rev-parse', '--path-format=absolute', '--git-path', 'seismic-captured-changes.patch'), 'utf8')).toBe(patch);
     expect(git(at, 'status', '--porcelain')).toBe('');
     // a session that never reported itself starts anew after a restart: the file is put there again first
-    const file = git(at, 'rev-parse', '--path-format=absolute', '--git-path', 'obeya-captured-changes.patch');
+    const file = git(at, 'rev-parse', '--path-format=absolute', '--git-path', 'seismic-captured-changes.patch');
     rmSync(file);
     board.work(card.id, { session_id: null });
     const launched = runtime.sessions.length;
@@ -43,7 +43,7 @@ describe('workers', () => {
     again.resumeAll();
     await until(() => runtime.sessions.length > launched);
     expect(readFileSync(file, 'utf8')).toBe(patch);
-    expect(runtime.last.inbox[0]).toContain('obeya-captured-changes.patch');
+    expect(runtime.last.inbox[0]).toContain('seismic-captured-changes.patch');
     again.shutdown();
   });
 
@@ -788,7 +788,7 @@ describe('workers', () => {
     expect(state(c.id)).toBe('working');
     expect(workers.busyCards()).toEqual([]);
     expect(board.item(c.id)!.agent?.statusLine).toStartWith('Usage limit · continues at ');
-    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', author: 'obeya' });
+    expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', author: 'seismic' });
     expect(board.events(c.id).at(-1)!.text).toContain('goes on by itself');
     await Bun.sleep(60);
     expect(runtime.last.inbox.length).toBe(sent + 1);

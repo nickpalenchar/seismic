@@ -16,7 +16,7 @@ import { Sign } from './logo';
 import { Notify } from './notify';
 import { failText, t } from './strings';
 import { UsagePill } from './usage';
-import { obeyaWorks, runs } from './talk';
+import { seismicWorks, runs } from './talk';
 import { Badge } from './components/badge';
 import { DrawLine } from './components/draw-line';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './components/collapsible';
@@ -32,7 +32,7 @@ import { HoldToTalk } from './voice';
 import { ChatsHead } from './chats';
 import { KoordinatorTalk } from './koordinator';
 import { KoordinatorAgent } from './message';
-import { obeyaDraft } from './draft';
+import { seismicDraft } from './draft';
 import { PhoneSearch } from './phoneSearch';
 import { gripWordClass, TalkPanel, talkClass } from './phoneTalkPanel';
 import { InboxList } from './inbox';
@@ -52,7 +52,7 @@ const PAGE = 20;
 
 export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
   const s = usePhoneShell(loaded);
-  const { projects, snaps, usage, feeds, banner, open, openCard, obeyaId, setObeyaProject, entries, isUnderway, homeRef, newCard, making, made, press, acks, back, showAck } = s;
+  const { projects, snaps, usage, feeds, banner, open, openCard, seismicId, setSeismicProject, entries, isUnderway, homeRef, newCard, making, made, press, acks, back, showAck } = s;
   const [menuOpen, setMenuOpen] = useState(false);
   const [page, showPage, closePage] = usePage();
   const needsOn = page === 'needs';
@@ -64,8 +64,8 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
   const [workingOpen, setWorkingOpen] = useStoredState('seismic-phone-working-open', true);
   const [folded, setFolded] = useStoredState<Section[]>('seismic-phone-folded', FOLDED);
   // how many cards each section shows; back to the first twenty with another project
-  const [shown, setShown] = useState<{ project: string; n: Partial<Record<Section, number>> }>({ project: obeyaId, n: {} });
-  const shownOf = (x: Section) => (shown.project === obeyaId ? shown.n[x] : undefined) ?? PAGE;
+  const [shown, setShown] = useState<{ project: string; n: Partial<Record<Section, number>> }>({ project: seismicId, n: {} });
+  const shownOf = (x: Section) => (shown.project === seismicId ? shown.n[x] : undefined) ?? PAGE;
   // the search page is a step in the browser's history too, so Back from a card found there returns to it
   const [searching, setSearching] = useState(() => !!(history.state as { search?: boolean } | null)?.search);
   const [query, setQuery] = useState('');
@@ -88,13 +88,13 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
     return s.cardScreen(
       null,
       <div className={cn(viewClass, 'inset-x-0 top-0 z-30')} ref={measureTop}>
-        <TopBar projects={projects} project={obeyaId} usage={usage} onClose={() => leaveCard(back, needsOn, closeNeeds)} />
+        <TopBar projects={projects} project={seismicId} usage={usage} onClose={() => leaveCard(back, needsOn, closeNeeds)} />
       </div>,
     );
 
 
-  const snap = snaps[obeyaId];
-  const project = projects.find((c) => c.id === obeyaId)!;
+  const snap = snaps[seismicId];
+  const project = projects.find((c) => c.id === seismicId)!;
   const items = snap?.items ?? [];
   const entriesOf = (i: Item) => ({ item: i, project });
   // what needs the owner waits under the bell, not in the list
@@ -143,7 +143,7 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
     <HoldToTalk.Provider value={press}>
       {feeds}
       <div id="ph-home" className={pageClass} ref={homeRef} inert={needsOn || settingsOn || searching || !!s.talk}>
-        <TopBar projects={projects} project={obeyaId} onProject={setObeyaProject} usage={usage} onMenu={() => setMenuOpen(true)} />
+        <TopBar projects={projects} project={seismicId} onProject={setSeismicProject} usage={usage} onMenu={() => setMenuOpen(true)} />
         {banner}
         <Notify />
         {snap && (
@@ -158,7 +158,7 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
               projects={projects}
               onCard={openCard}
               onElsewhere={(c, card) => {
-                setObeyaProject(c);
+                setSeismicProject(c);
                 s.openId(card);
               }}
             />
@@ -180,7 +180,7 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
                     {cards.length > n && (
                       <button
                         className="mt-3 w-full rounded-lg border border-border bg-transparent py-2.5 text-base text-foreground cursor-pointer"
-                        onClick={() => setShown({ project: obeyaId, n: { ...(shown.project === obeyaId ? shown.n : {}), [x]: n + PAGE } })}
+                        onClick={() => setShown({ project: seismicId, n: { ...(shown.project === seismicId ? shown.n : {}), [x]: n + PAGE } })}
                       >
                         {t.phone.next.loadMore(cards.length - n)}
                       </button>
@@ -213,7 +213,7 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
               onGo={(e) => {
                 if (e.card) return openCard(e.card);
                 // Seismic's own entry: its chat page opens over this one, in its project; Back returns here
-                setObeyaProject(e.project);
+                setSeismicProject(e.project);
                 s.openTalk();
               }}
               onProposalCard={(_project, i) => openCard(i)}
@@ -240,7 +240,7 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
             </button>
           </header>
           <div id="project-settings" className={cn(settingsSheetClass, 'px-5.5 pt-3')}>
-            <ProjectSettingsBody phone project={obeyaId} name={snap.project.name} homePath={snap.project.repos[0]?.path} onAddSite={showAddSite} on={settingsOn} covered={false} />
+            <ProjectSettingsBody phone project={seismicId} name={snap.project.name} homePath={snap.project.repos[0]?.path} onAddSite={showAddSite} on={settingsOn} covered={false} />
           </div>
         </div>
       )}
@@ -253,7 +253,7 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
           projects={projects}
           project={project}
           onProject={(id) => {
-            setObeyaProject(id);
+            setSeismicProject(id);
             closeNeeds();
             closeSettings();
             setMenuOpen(false);
@@ -280,7 +280,7 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
         <TalkPanel
           page
           title={t.koordinator.title}
-          head={snap && <ChatsHead title={<span className={gripWordClass}>{t.koordinator.title}</span>} project={obeyaId} projectName={snap.project.name} chat={snap.chat} chats={snap.chats} talk={snap.talk} onProject={setObeyaProject} onClose={s.closeTalk} />}
+          head={snap && <ChatsHead title={<span className={gripWordClass}>{t.koordinator.title}</span>} project={seismicId} projectName={snap.project.name} chat={snap.chat} chats={snap.chats} talk={snap.talk} onProject={setSeismicProject} onClose={s.closeTalk} />}
           label={t.phone.talkTitle}
           banner={banner}
           onClose={s.closeTalk}
@@ -288,11 +288,11 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
           onLeave={() => s.setClosing(true)}
         >
           {snap && (
-            <div className={talkClass} key={obeyaId}>
+            <div className={talkClass} key={seismicId}>
               <KoordinatorAgent.Provider value={snap.koordinatorAgent}>
                 <KoordinatorTalk
                   on
-                  project={obeyaId}
+                  project={seismicId}
                   talk={snap.talk}
                   chat={snap.chat}
                   chatModel={snap.chatModel}
@@ -301,7 +301,7 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
                   repos={snap.project.repos}
                   onOpen={openCard}
                   onTell={s.tellChat}
-                  draft={obeyaDraft(obeyaId)}
+                  draft={seismicDraft(seismicId)}
                 />
               </KoordinatorAgent.Provider>
             </div>
@@ -314,7 +314,7 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
           needsYou={needsYouCount(entries)}
           making={making || !!made}
           chat={snap ? unreadAnswers(snap.talk) : 0}
-          chatWorking={!!snap && obeyaWorks(snap.talk)}
+          chatWorking={!!snap && seismicWorks(snap.talk)}
           onNew={() => void newCard()}
           onChat={s.openTalk}
           onSearch={openSearch}

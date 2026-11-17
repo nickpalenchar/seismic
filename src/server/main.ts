@@ -1,5 +1,5 @@
-// obeya [--config <projects.json>]
-// obeya <repo>… [--name <project>] [--workstation <path>]… [--clones <n>]
+// seismic [--config <projects.json>]
+// seismic <repo>… [--name <project>] [--workstation <path>]… [--clones <n>]
 //   [--port <n>] [--dev] [--permission-mode <mode>] [--idle-workers | --record <dir> | --replay <dir>]
 //
 // Serves projects at http://127.0.0.1:<port>, to the owner alone (owner.ts): it prints a link that
@@ -30,7 +30,7 @@
 // running one has its port and pid in $SEISMIC_HOME/server.json; while its server starts again, a
 // start waits for it.
 //
-// --idle-workers: no agent works on a started card (a scratch Seismic for a demo, scripts/scratch-obeya.ts).
+// --idle-workers: no agent works on a started card (a scratch Seismic for a demo, scripts/scratch-seismic.ts).
 // --record <dir>: every agent's session is recorded into <dir>; --replay <dir> plays such a recording
 // back instead of running agents (replay.ts; why it refuses goes into $SEISMIC_HOME/replay-refused.txt).
 // SEISMIC_PARK_GRACE=<seconds>: how long a waiting card's app runs on before Seismic stops it
@@ -187,7 +187,7 @@ if (source === 'file' && !values.config && !existsSync(configFile)) {
   started = [];
 } else if (source === 'file') {
   if (!existsSync(configFile)) {
-    console.error(`usage: obeya [--config <file>] | <repo>… [--name <project>] [--workstation <path>]… [--clones <n>]; [--port <n>] [--dev] [--permission-mode <mode>]
+    console.error(`usage: seismic [--config <file>] | <repo>… [--name <project>] [--workstation <path>]… [--clones <n>]; [--port <n>] [--dev] [--permission-mode <mode>]
 (without repositories Seismic reads ${configFile}, which does not exist)`);
     process.exit(2);
   }

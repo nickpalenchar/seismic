@@ -6,7 +6,7 @@ The owner asked to fix the nine findings from the focused Codex acceptance pass,
 agent's model in dialogues, and check the missing Claude usage display without adding Codex usage.
 They now want someone else to finish this work.
 
-Checkout: `/Users/nick/harness/obeya`, branch `feature/codex-support` at `5f4cb43` (`Enable native Codex task workers
+Checkout: `/Users/nick/programming/obeya`, branch `feature/codex-support` at `5f4cb43` (`Enable native Codex task workers
 on the canvas`). **All changes described below are uncommitted. Nothing has been pushed.**
 Ask the owner before committing; this repository commits on main. Do not discard the dirty files.
 Read `CLAUDE.md`, `docs/design.md` and the relevant design chapters before continuing.
@@ -76,14 +76,14 @@ evidence limits and remaining phase 1/Pi gates. Remove this handoff when it is n
 
 ### Latest broad run
 
-`/tmp/obeya-codex-hardening-final-tests.log`: **435 passed, 1 failed, 436 tests, 2513 assertions**.
+`/tmp/seismic-codex-hardening-final-tests.log`: **435 passed, 1 failed, 436 tests, 2513 assertions**.
 The only failure was `src/server/server.test.ts`, voice test:
 `a session that fails again tells the owner why, not that they went unheard`.
 
 Cause: the new reply closure read `decision.agent` when interpretation threw before assignment.
 **Fixed** in `src/server/commands.ts` by using `decision?.agent` in both reply and card-log
 paths. The focused set has since passed with 439 tests and 2523 assertions; typecheck and diff check
-also passed. Latest focused log: `/tmp/obeya-hardening-last-tests.log`.
+also passed. Latest focused log: `/tmp/seismic-hardening-last-tests.log`.
 
 The broad set was these 19 files:
 
@@ -110,8 +110,8 @@ in this task. Earlier full-suite runs also hit timeouts under heavy concurrency.
   PID survives; awaited shutdown terminates an EOF/TERM-ignoring fake app-server.
 - Identity tests verify concurrent Claude/Codex isolation and SQLite persistence of distinct reply
   and answer identities. Shared message SSR tests verify labels and unknown historical identity.
-- Real native probe `/tmp/obeya-codex-background-acceptance.ts`, output
-  `/tmp/obeya-codex-background-hardened.log`: completion of a build while a server remains starts a
+- Real native probe `/tmp/seismic-codex-background-acceptance.ts`, output
+  `/tmp/seismic-codex-background-hardened.log`: completion of a build while a server remains starts a
   new inspection turn; unchanged polls do not keep emitting idle. App-server SIGKILL stopped the
   native Python server's heartbeat (74 → 74; no process remained).
   The script's `modelWoke:false` is misleading: it matches whole text inside individual streaming
@@ -126,36 +126,36 @@ in this task. Earlier full-suite runs also hit timeouts under heavy concurrency.
 The initial post-fix review hit the account limit; subsequent Codex reviews completed. They found
 lost explicit identities and historical answers inheriting unrelated context; those were fixed and
 regression-tested. The final focused attribution review reported no findings:
-`/tmp/obeya-hardening-last-review.log`. Its read-only sandbox could not run temp-directory tests;
+`/tmp/seismic-hardening-last-review.log`. Its read-only sandbox could not run temp-directory tests;
 the focused suite was run outside it.
 
 ## UI verification and scratch resources
 
 Screenshots were opened and visually checked:
 
-- `/tmp/obeya-speakers-desktop-final.png`
-- `/tmp/obeya-speakers-sidebar-final.png`
-- `/tmp/obeya-speakers-phone-final.png` (390 × 844)
-- `/tmp/obeya-speakers-compact-usage.png` (1000 px wide)
+- `/tmp/seismic-speakers-desktop-final.png`
+- `/tmp/seismic-speakers-sidebar-final.png`
+- `/tmp/seismic-speakers-phone-final.png` (390 × 844)
+- `/tmp/seismic-speakers-compact-usage.png` (1000 px wide)
 
 The model is visible on open questions; sidebar reply/answer can show different models. Phone
 horizontal overflow checks passed. Compact Claude usage remains visible at fit 5.
 
 **Stopped:** scratch server PID **49856**, port **4492**, with idle workers.
-Home `/tmp/obeya-scratch-4492/home`, config `/tmp/obeya-scratch-4492/projects.json`.
+Home `/tmp/seismic-scratch-4492/home`, config `/tmp/seismic-scratch-4492/projects.json`.
 This scratch database was seeded with identity fixtures for visual checks; it is not proof that
 those displayed messages came from live model calls. Unit tests cover actual provenance mechanics.
 
-Stopped with `bun scripts/scratch-obeya.ts --stop 4492`; the listener and PID were absent on
+Stopped with `bun scripts/scratch-seismic.ts --stop 4492`; the listener and PID were absent on
 verification. Earlier native probe PIDs 24040, 23111 and 46581 were also absent.
-**Never test against the owner's port 4417 or `~/.obeya`.**
+**Never test against the owner's port 4417 or `~/.seismic`.**
 
 Browser details if needed (read `plugin/skills/browser/SKILL.md` first): existing headless CDP port
 63642, browser PID 20084, owned by this Pi process PID 99849. Every browser CLI call used
 `SEISMIC_AGENT_PID=99849` (the skill falls back to `OBEYA_AGENT_PID` only where that is unset) to
 avoid sharing a worker's browser. That process may have ended by the time
 you resume: use your own identity/new browser rather than assuming it remains valid. The visual
-helper `/tmp/obeya-speakers-visual-check.mjs` attaches to that CDP port. Phone screenshots need a
+helper `/tmp/seismic-speakers-visual-check.mjs` attaches to that CDP port. Phone screenshots need a
 settled camera/unfold (the helper waits 1200 ms); CLI calls reset viewport to its configured desktop
 size. Test login URLs are in local `/tmp` files: do not copy authentication tokens into handoffs,
 commits or final responses. No demo media was added to git.

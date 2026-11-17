@@ -20,7 +20,7 @@ let other: string;
 let project: ProjectRuntime | undefined;
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'obeya-read-'));
+  dir = mkdtempSync(join(tmpdir(), 'seismic-read-'));
   origin = gitRepo(join(dir, 'origin'), { 'docs/plan/export.md': doc('Export') });
   git(origin, 'config', 'receive.denyCurrentBranch', 'ignore');
   checkout = join(dir, 'checkout');
@@ -66,7 +66,7 @@ const plans = (c: ProjectRuntime) =>
 
 describe('the Lesestand', () => {
   test("is a worktree on the default branch: a card's branch in the checkout without the plan doc leaves the plan on the project", () => {
-    git(checkout, 'checkout', '--quiet', '-b', 'obeya/card');
+    git(checkout, 'checkout', '--quiet', '-b', 'seismic/card');
     git(checkout, 'rm', '--quiet', 'docs/plan/export.md');
     git(checkout, 'commit', '--quiet', '-m', 'card');
     const c = open();
@@ -77,7 +77,7 @@ describe('the Lesestand', () => {
     expect(existsSync(join(checkout, 'docs/plan/export.md'))).toBe(false);
     expect(git(checkout, 'status', '--porcelain')).toBe('');
     git(checkout, 'checkout', '--quiet', 'main');
-    git(checkout, 'checkout', '--quiet', 'obeya/card');
+    git(checkout, 'checkout', '--quiet', 'seismic/card');
     c.board.docsChanged();
     expect(plans(c)).toEqual(['Export']);
   });
@@ -85,7 +85,7 @@ describe('the Lesestand', () => {
   test('of a repository on master without a remote is on master, while the checkout is on a card\'s branch', () => {
     checkout = origin;
     git(checkout, 'branch', '-m', 'master');
-    git(checkout, 'checkout', '--quiet', '-b', 'obeya/card');
+    git(checkout, 'checkout', '--quiet', '-b', 'seismic/card');
     git(checkout, 'rm', '--quiet', 'docs/plan/export.md');
     git(checkout, 'commit', '--quiet', '-m', 'card');
     const c = open();
@@ -199,20 +199,20 @@ describe("the seal of a repository's refs", () => {
   test("stays while only the cards' branches move, and breaks once main or origin's main moves, or the refs are packed", () => {
     const seal = () => refsSeal(checkout);
     // the checkout on a card's branch, as a lease leaves it
-    git(checkout, 'checkout', '--quiet', '-b', 'obeya/export-a1');
+    git(checkout, 'checkout', '--quiet', '-b', 'seismic/export-a1');
     const first = seal();
     expect(first).not.toBeNull();
     writeFileSync(join(checkout, 'a.md'), 'a\n');
     git(checkout, 'add', '-A');
     git(checkout, 'commit', '--quiet', '-m', 'A');
-    git(checkout, 'worktree', 'add', '--quiet', '-b', 'obeya/import-b2', join(dir, 'tree'));
+    git(checkout, 'worktree', 'add', '--quiet', '-b', 'seismic/import-b2', join(dir, 'tree'));
     git(checkout, 'checkout', '--quiet', '--detach');
     expect(seal()).toBe(first);
     // a worktree on a card's branch tells the same seal as its checkout
     expect(refsSeal(join(dir, 'tree'))).toBe(first);
 
     git(checkout, 'checkout', '--quiet', 'main');
-    git(checkout, 'merge', '--quiet', '--ff-only', 'obeya/export-a1');
+    git(checkout, 'merge', '--quiet', '--ff-only', 'seismic/export-a1');
     const merged = seal();
     expect(merged).not.toBe(first);
     push({ 'b.md': 'b\n' });
@@ -228,18 +228,18 @@ describe("the seal of a repository's refs", () => {
   });
 
   test("is none where a branch names a card's, which it moves with; a branch of its own with the cards' prefix inside its name counts", () => {
-    git(checkout, 'branch', 'release/obeya/stable');
+    git(checkout, 'branch', 'release/seismic/stable');
     const before = refsSeal(checkout);
-    git(checkout, 'checkout', '--quiet', 'release/obeya/stable');
+    git(checkout, 'checkout', '--quiet', 'release/seismic/stable');
     writeFileSync(join(checkout, 'r.md'), 'r\n');
     git(checkout, 'add', '-A');
     git(checkout, 'commit', '--quiet', '-m', 'R');
     git(checkout, 'checkout', '--quiet', '--detach');
     expect(refsSeal(checkout)).not.toBe(before);
 
-    // `ref: refs/heads/obeya/` and a name that makes the file as long as a commit's hash
-    git(checkout, 'branch', 'obeya/source-c3xxxxxxxxx');
-    git(checkout, 'symbolic-ref', 'refs/heads/trunk', 'refs/heads/obeya/source-c3xxxxxxxxx');
+    // `ref: refs/heads/seismic/` and a name that makes the file as long as a commit's hash
+    git(checkout, 'branch', 'seismic/source-c3xxxxxxxxx');
+    git(checkout, 'symbolic-ref', 'refs/heads/trunk', 'refs/heads/seismic/source-c3xxxxxxxxx');
     expect(refsSeal(checkout)).toBeNull();
   });
 
@@ -260,7 +260,7 @@ describe("a repository's settings for everyone", () => {
 
   test("a new version on the default branch applies without a restart; one that moves where the workers work restarts them", async () => {
     // its `origin` stands in for one on GitHub: the settings say that work goes out as pull requests
-    push({ '.obeya/settings.json': settings({ land: 'pr' }) });
+    push({ '.seismic/settings.json': settings({ land: 'pr' }) });
     git(checkout, 'pull', '--quiet');
     const c = openWatched(checkout);
     const repo = c.repos[0]!;
@@ -268,7 +268,7 @@ describe("a repository's settings for everyone", () => {
     push({ 'docs/plan/import.md': doc('Import') });
     await repo.read.refresh();
     expect(c.repos[0]).toBe(repo);
-    push({ '.obeya/settings.json': settings({ land: 'pr', setup: 'bun install' }) });
+    push({ '.seismic/settings.json': settings({ land: 'pr', setup: 'bun install' }) });
     await repo.read.refresh();
     // the same repository, its workers on, with the new version
     expect(c.repos[0]).toBe(repo);
@@ -276,7 +276,7 @@ describe("a repository's settings for everyone", () => {
     expect(c.pendingRestart()).toBeNull();
 
     // where its workers work changes: with none of them at work, they restart at once, in clones
-    push({ '.obeya/settings.json': settings({ land: 'pr', workstations: 'clones' }) });
+    push({ '.seismic/settings.json': settings({ land: 'pr', workstations: 'clones' }) });
     await repo.read.refresh();
     // the restart reads the repositories first, without holding the server up
     await until(() => c.repos[0] !== repo);
@@ -285,7 +285,7 @@ describe("a repository's settings for everyone", () => {
 
   test('changed by work that lands on the local main applies at once; where it moves the workers, its worker hears that they restart', async () => {
     // a repository without a remote whose settings land work on its main
-    const repo = gitRepo(join(dir, 'local'), { '.obeya/settings.json': settings({ land: 'main', workstations: 'worktrees' }) });
+    const repo = gitRepo(join(dir, 'local'), { '.seismic/settings.json': settings({ land: 'main', workstations: 'worktrees' }) });
     const runtime = new FakeRuntime();
     const c = openWatched(repo, runtime);
     const land = async (title: string, files: Record<string, string>) => {
@@ -307,14 +307,14 @@ describe("a repository's settings for everyone", () => {
     };
     expect((await land('Readme', { 'README.md': 'Local\n' })).told).not.toContain('after_restart');
     runtime.last.emit({ type: 'idle' });
-    const { told } = await land('Checks', { '.obeya/settings.json': settings({ land: 'main', workstations: 'worktrees', checks: ['bun test'] }) });
+    const { told } = await land('Checks', { '.seismic/settings.json': settings({ land: 'main', workstations: 'worktrees', checks: ['bun test'] }) });
     expect(told).not.toContain('after_restart');
     expect(c.repos[0]!.adapter.checks).toEqual(['bun test']);
     runtime.last.emit({ type: 'idle' });
 
     // to clones: the worker in its turn hears of the restart and holds it up until it pauses
     const before = c.repos[0];
-    const clones = await land('Clones', { '.obeya/settings.json': settings({ land: 'main', workstations: 'clones' }) });
+    const clones = await land('Clones', { '.seismic/settings.json': settings({ land: 'main', workstations: 'clones' }) });
     expect(clones.told).toContain('call after_restart');
     expect(clones.told).toContain("restart this repository's agents");
     expect(c.pendingRestart()).toMatchObject({ reason: 'repository', repos: ['local'], cards: [clones.card.id] });
@@ -331,7 +331,7 @@ describe("a repository's settings for everyone", () => {
   });
 
   test('changed by work pushed straight onto the remote main applies once Seismic fetches it, without a restart', async () => {
-    push({ '.obeya/settings.json': settings({ land: 'pr', direct: true, workstations: 'clones' }) });
+    push({ '.seismic/settings.json': settings({ land: 'pr', direct: true, workstations: 'clones' }) });
     git(checkout, 'pull', '--quiet');
     const runtime = new FakeRuntime();
     const c = openWatched(checkout, runtime, 1);
@@ -357,7 +357,7 @@ describe("a repository's settings for everyone", () => {
       return told;
     };
     expect(await pushed('Readme', 'README.md', 'Shop\n')).not.toContain('after_restart');
-    expect(await pushed('Checks', '.obeya/settings.json', settings({ land: 'pr', direct: true, workstations: 'clones', checks: ['bun test'] }))).not.toContain('after_restart');
+    expect(await pushed('Checks', '.seismic/settings.json', settings({ land: 'pr', direct: true, workstations: 'clones', checks: ['bun test'] }))).not.toContain('after_restart');
     await c.repos[0]!.read.refresh();
     expect(c.repos[0]!.workers).toBe(workers);
     expect(c.repos[0]!.adapter.checks).toEqual(['bun test']);

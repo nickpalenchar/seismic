@@ -18,7 +18,7 @@ const open = (clones = 1) =>
   new ProjectRuntime({ repos: [{ path: main, clones, settings: { land: 'pr' } }] }, { store, home: dir, runtime, forge: noForge, commandDelayMs: 10, limitMargin: 10 });
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'obeya-ideas-'));
+  dir = mkdtempSync(join(tmpdir(), 'seismic-ideas-'));
   main = join(dir, 'main');
   gitRepo(main);
   mkdirSync(join(main, 'docs/plan'), { recursive: true });
@@ -547,7 +547,7 @@ describe('an idea', () => {
     // once decided, and on a task someone has worked on, it is refused
     expect(() => project.act(c.id, { action: 'planDoc' })).toThrow(expect.objectContaining({ code: 'notPlannable' }));
     const worked = board().create({ title: 'Schon begonnen', x: 0, y: 0 });
-    board().work(worked.id, { branch: 'obeya/x' });
+    board().work(worked.id, { branch: 'seismic/x' });
     expect(() => project.act(worked.id, { action: 'planDoc' })).toThrow(expect.objectContaining({ code: 'notPlannable' }));
   });
 
@@ -1231,13 +1231,13 @@ describe('a prototype', () => {
 
     // two workstreams mention prototypes: the owner chooses
     expect(() => project.act(film!.id, { action: 'buildPrototype' })).toThrow(expect.objectContaining({ code: 'workstreamMissing' }));
-    board().work(w1!.id, { branch: 'obeya/lizenz' });
+    board().work(w1!.id, { branch: 'seismic/lizenz' });
     expect(() => project.act(film!.id, { action: 'buildPrototype', workstream: w1!.id })).toThrow(expect.objectContaining({ code: 'workstreamStarted' }));
     expect(() => project.act(film!.id, { action: 'buildPrototype', workstream: i.id })).toThrow(expect.objectContaining({ code: 'invalid' }));
 
     const ws = board().row(film!.id).workstation!;
     // once the other one is under way, the plan doc names the workstream to build on the prototype
-    board().work(w3!.id, { branch: 'obeya/aufraeumen' });
+    board().work(w3!.id, { branch: 'seismic/aufraeumen' });
     await project.act(film!.id, { action: 'buildPrototype' });
     // the workstream takes over the prototype's workstation and branch, and starts
     expect(item(w2!.id).idea?.builtOn).toBe(film!.id);

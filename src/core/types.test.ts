@@ -39,7 +39,7 @@ test("a plan's card counts its agent's answers that wait unread, asked in its sh
 });
 
 describe('withClones', () => {
-  const at = (...workstations: ('clones' | 'worktrees')[]): ResolvedProject => ({ id: 'c', name: 'c', repos: workstations.map((w) => ({ id: 'r', workstations: w, values: {} as never, shareTo: 'main' })) });
+  const at = (...workstations: ('clones' | 'worktrees')[]): ResolvedProject => ({ id: 'c', name: 'c', repos: workstations.map((w) => ({ id: 'r', workstations: w, values: {} as never, settingsFile: '.seismic/settings.json', shareTo: 'main' })) });
 
   test('fills in a repository added in clones, once per path', () => {
     const saved = [{ repos: [{ path: '/a' }] }];
@@ -90,7 +90,7 @@ describe('withClones', () => {
 });
 
 test('a stopped task goes into the archive while nothing waits to start it and its workstation holds no work', () => {
-  const stoppedTask = { kind: 'task', state: 'planned', agent: { branch: 'obeya/x' }, source: 'manual' } as const;
+  const stoppedTask = { kind: 'task', state: 'planned', agent: { branch: 'seismic/x' }, source: 'manual' } as const;
   expect(stoppedArchivable(stoppedTask)).toBe(true);
   expect(stoppedArchivable({ ...stoppedTask, agent: undefined })).toBe(false);
   expect(stoppedArchivable({ ...stoppedTask, agent: { ...stoppedTask.agent, workstation: '/clones/1' } })).toBe(false);

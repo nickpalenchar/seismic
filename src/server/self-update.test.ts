@@ -27,7 +27,7 @@ const SECOND = 1_000_000_000;
 const WITHIN_MS: [number, number] = [SECOND + 0.0002, SECOND + 0.0007];
 /** Whether the file system keeps mtimes finer than a millisecond (some keep whole seconds). */
 const fineTimes = (() => {
-  const dir = mkdtempSync(join(tmpdir(), 'obeya-times-'));
+  const dir = mkdtempSync(join(tmpdir(), 'seismic-times-'));
   try {
     const file = join(dir, 'f');
     writeFileSync(file, '');
@@ -40,7 +40,7 @@ const fineTimes = (() => {
 })();
 
 beforeEach(() => {
-  repo = mkdtempSync(join(tmpdir(), 'obeya-self-'));
+  repo = mkdtempSync(join(tmpdir(), 'seismic-self-'));
   gitRepo(repo, { 'src/a.ts': 'a' });
 });
 

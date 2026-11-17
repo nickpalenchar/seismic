@@ -39,7 +39,7 @@ const en = {
     live: 'Live',
     done: 'Done',
   },
-  proposalByObeya: 'Proposed by Seismic',
+  proposalBySeismic: 'Proposed by Seismic',
   capturedChanges: 'Captured working changes',
   /** A card's state in a word or two, where the smallest card face says it (`stateLabel(i, true)`); a state not named here keeps its own words. */
   stateShort: {
@@ -332,7 +332,7 @@ const en = {
   approve: 'Approve',
   approvePr: 'Approve (PR)',
   approveDirect: MESSAGES.en.approveDirect,
-  directHint: (reviewed: boolean) => `Straight to main: ${reviewed ? 'reviewed by Obeya' : 'no review'}, push to origin/main`,
+  directHint: (reviewed: boolean) => `Straight to main: ${reviewed ? 'reviewed by Seismic' : 'no review'}, push to origin/main`,
   approveNoChange: 'Confirm wontfix',
   noChangeHint: 'The agent determined this card needs no change. Confirming wontfix closes the card without a pull request.',
   modelsUnchanged: (why: string) => `The change looks like it alters stored data; the agent says it does not: ${why}`,
@@ -497,7 +497,7 @@ const en = {
     selected: 'Selected: press and hold to copy',
   },
   lastFailure: (at: string) => `Last failed (${at})`,
-  author: { worker: 'Agent', owner: 'You', plan: 'Plan agent', koordinator: 'Seismic', obeya: 'Seismic', explorer: 'Exploration agent' },
+  author: { worker: 'Agent', owner: 'You', plan: 'Plan agent', koordinator: 'Seismic', seismic: 'Seismic', explorer: 'Exploration agent' },
   branch: 'Branch',
   diff: {
     showTree: 'Changed files',
@@ -771,7 +771,7 @@ const en = {
     noIdentity: 'git has no name and e-mail for commits yet. Please enter them in the setup under "Name and e-mail for commits", then try again.',
     gitSetup: 'git could not be set up; the folder is as it was.',
     noSettings: 'Nothing is set for the repository on this machine that could go into the repository.',
-    settingsDirty: '.obeya/settings.json has changes of its own in the checkout. Please commit or discard them first.',
+    settingsDirty: 'The repository’s settings file has changes of its own in the checkout. Please commit or discard them first.',
     trustChanged: 'The commands changed on the main branch meanwhile. Please look at the new version.',
     settingsShare: 'The settings could not be taken over into the repository:',
     setupBusy: 'An installation or a clone is running already. Try again in a moment.',
@@ -1097,7 +1097,7 @@ const en = {
         'Security fix: “Open in its own window” shows the artifact alone on its page instead of its own file, which ran there outside the sandbox, with the demo site’s rights; windows the artifact opens stay in its sandbox.',
       '2026-10-16-offline':
         'Security fix: the artifact loads only its own files and sends nothing to other servers, by fetch, an image, a form or a link alike; it opens no windows any more.',
-      '2026-10-19-credit': 'Every page ends in “Recorded with Seismic”, linking obeya.si.',
+      '2026-10-19-credit': 'Every page ends in “Recorded with Seismic”, linking seismic.im.',
       '2026-10-20-by': 'Every page names who shared it (“Shared by … on …”), and so does the overview.',
       '2026-10-20-inline':
         'The artifact’s images, stylesheets and scripts are inside its page: behind a login (Cloudflare Access) Firefox showed none of them, as it asked for them without the login’s cookie.',
@@ -1111,7 +1111,7 @@ const en = {
       '2026-11-11-domain': 'The “Recorded with Seismic” credit links to seismic.im.',
       '2026-10-30-steady':
         'The artifact’s frame takes the page’s height at once and keeps it: for a page of images as wide as itself, it jumped between two heights for a second as it opened, and a short page stood in a frame too high for it.',
-      theme: 'Theme changed: the repository’s .obeya/theme.css is new, different or removed.',
+      theme: 'Theme changed: the repository’s theme.css is new, different or removed.',
     },
     pages: (n: number) => (n === 1 ? 'one page' : `${n} pages`),
   },
@@ -1188,8 +1188,8 @@ const en = {
     onMachine: 'On this machine',
     onMachineHint: 'Applies at once, on this machine only (settings in the configuration).',
     forEveryone: 'For everyone, into the repository',
-    forEveryoneMain: (branch: string) => `Seismic commits the value into .obeya/settings.json on ${branch}; it then applies to everyone who clones the repository, and here.`,
-    forEveryonePr: (branch: string) => `Seismic opens a pull request against ${branch} that writes the value into .obeya/settings.json; until it is merged, the value applies on this machine.`,
+    forEveryoneMain: (branch: string) => `Seismic commits the value into the repository’s settings file on ${branch}; it then applies to everyone who clones the repository, and here.`,
+    forEveryonePr: (branch: string) => `Seismic opens a pull request against ${branch} that writes the value into the repository’s settings file; until it is merged, the value applies on this machine.`,
     fromRetro: 'From the work retrospective',
     target: 'Belongs in',
     targetPreferences: 'Your preferences',
@@ -1207,7 +1207,7 @@ const en = {
     chatsAll: 'All projects',
     chatsEmpty: 'No earlier chat yet.',
     chatsClose: 'Close',
-    chatByObeya: 'Only messages from Seismic',
+    chatBySeismic: 'Only messages from Seismic',
     chatNow: 'Now',
     chatFresh: 'A new chat: Seismic starts here without the earlier conversation. Earlier chats are under ☰ at the top left.',
     fromReview: 'From the retrospective',
@@ -1395,7 +1395,7 @@ const en = {
     button: (n: number) => (n === 0 ? 'Inbox: nothing waits for you' : n === 1 ? 'Inbox: 1 thing waits for you' : `Inbox: ${n} things wait for you`),
     empty: 'Nothing waits for you.',
     goToCard: 'Go to card',
-    goToObeya: 'Go to Seismic',
+    goToSeismic: 'Go to Seismic',
     filter: 'Show entries',
     all: 'All',
     unread: 'Unread',
@@ -1405,7 +1405,7 @@ const en = {
   },
   phone: {
     forYou: 'Needs you',
-    obeyaAnswered: 'Seismic answered',
+    seismicAnswered: 'Seismic answered',
     since: (when: string) => `since ${when}`,
     back: 'Back',
     talkTitle: 'Conversation with Seismic',
@@ -1462,7 +1462,7 @@ const en = {
     fromArgs: (file: string) =>
       `Seismic is running with the repositories from the command line. Saving creates ${file}; Seismic then starts from it, also in future when it is started without repositories.`,
     koordinator: 'You can also ask Seismic about the configuration or tell it what should change.',
-    askObeya: 'Ask Seismic',
+    askSeismic: 'Ask Seismic',
     sections: { projects: 'Projects', defaults: 'Project defaults', agents: 'Agents and models', voice: 'Voice input', demos: 'Demos', notices: 'Notifications and limits', devices: 'Other devices', advanced: 'Advanced', developer: 'Developer' },
     developer: {
       hint: 'For work on Seismic itself.',
@@ -1658,14 +1658,14 @@ const en = {
     hostsHint: 'Seismic creates the clones there itself and starts the agents there through ssh. The Claude login (claude-token in Seismic’s directory) and the GitHub login go along with each start and are not left there.',
     hostName: 'Name',
     hostSsh: 'ssh target, e.g. me@machine.local',
-    hostRoot: 'Directory there, e.g. ~/obeya/repo',
+    hostRoot: 'Directory there, e.g. ~/seismic/repo',
     hostClones: 'Clones',
     hostSlots: 'Slots',
     addHost: '+ Machine',
     removeHost: 'Remove machine',
     addRepo: '+ Repository',
     settings: {
-      hint: 'What Seismic needs to know about the repository. Applies at once on this machine, without a restart; what you leave unset here comes from the repository (.obeya/settings.json), from what Seismic detects, or is the default.',
+      hint: 'What Seismic needs to know about the repository. Applies at once on this machine, without a restart; what you leave unset here comes from the repository (.seismic/settings.json, or .obeya/settings.json in one from before the rename), from what Seismic detects, or is the default.',
       source: { machine: 'on this machine', repository: 'from the repository', clones: 'clones listed', detected: 'detected', default: 'default' },
       held: 'from the repository, not trusted yet',
       reset: 'Reset',
@@ -1727,7 +1727,7 @@ const en = {
       share: {
         label: 'For everyone',
         button: (n: number) => (n === 1 ? 'Take over into the repository for everyone (one value) …' : `Take over into the repository for everyone (${n} values) …`),
-        hint: 'Writes the values set on this machine to .obeya/settings.json in the repository. Whoever clones it gets them; here they then come from the repository.',
+        hint: (file: string) => `Writes the values set on this machine to ${file} in the repository. Whoever clones it gets them; here they then come from the repository.`,
         hintBranch: 'The main branch you set here stays on this machine: Seismic reads the file from it, so it is not in it.',
         saveFirst: 'The dialog has changes that are not saved yet, and saving restarts Seismic. Save them first at the very bottom of the dialog; then this button writes the saved values into the repository.',
         savesFirst: 'Seismic first saves the changes in this dialog, all of them at once like “Save” at the very bottom.',
@@ -1795,9 +1795,9 @@ const en = {
       hostRepo: 'Agents cannot work on other machines for this repository: that needs clones and work that lands through the remote.',
       hostName: 'A machine of this name connects to another ssh target elsewhere.',
       noBranch: 'The repository has no such main branch, neither here nor on origin.',
-      repoSettings: 'A value in the repository’s .obeya/settings.json does not count; what applies without it stands in its place:',
+      repoSettings: 'A value in the repository’s settings file does not count; what applies without it stands in its place:',
       untrusted: 'New commands added to the repository. Review if they are safe to run.',
-      adapterGone: 'The repository still has a .obeya/adapter/ on its main branch, which Seismic no longer reads. What it says belongs in its settings (.obeya/settings.json); “Have an agent fill them in” moves it there:',
+      adapterGone: 'The repository still has a .obeya/adapter/ on its main branch, which Seismic no longer reads. What it says belongs in its settings file; “Have an agent fill them in” moves it there:',
       projectDown: 'This project is not running: its home repository did not start. Its cards are kept.',
       repoDown: 'This repository did not start and is missing from its project: its agents are not working, its cards are kept.',
       repoBefore: 'This repository’s agents did not start with this configuration: they work on as before the change.',
@@ -2418,7 +2418,7 @@ const en = {
     unsaved: 'Not saved',
     repos: 'Repository',
     updateWithAgent: 'Update with agent',
-    updateWithAgentHint: 'An agent reads the repository and writes these settings into its .obeya/settings.json, for everyone who works on it.',
+    updateWithAgentHint: 'An agent reads the repository and writes these settings into its settings file, for everyone who works on it.',
     enableReviews: 'Enable code reviews',
     enableReviewsHint: 'A separate agent reviews a card’s work (its diff against main) and shows its findings in the card’s “Review” tab. It costs tokens.',
     reviewsOff: 'Enable code reviews for more options.',
@@ -2916,7 +2916,7 @@ export const stateLabel = (i: { kind?: string; thread?: { thinking?: boolean }; 
       : i.state === 'inPr' && !review?.pr
         ? t.openingPr
         : i.state === 'proposal' && (ideaPart?.retro || ideaPart?.proposal?.setup || ideaPart?.proposal?.finish)
-          ? word(t.proposalByObeya, 'proposal')
+          ? word(t.proposalBySeismic, 'proposal')
           : stopped(i)
             ? agent?.stoppedAt ? `${t.stoppedAt} ${stateLabel(stoppedFrom(agent.stoppedAt))}` : t.stoppedState
             : i.state === 'working' || i.state === 'waiting' || i.state === 'proposal'

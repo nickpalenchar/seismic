@@ -38,11 +38,12 @@ test("Whisper's words for silence are told from a command", () => {
 test('every machine hears with Parakeet, unless Whisper is asked for', () => {
   expect(listenBackend({}, 'darwin', 'arm64')).toBe('parakeet');
   expect(listenBackend({}, 'win32', 'x64')).toBe('parakeet');
-  expect(listenBackend({ OBEYA_WHISPER_BACKEND: 'faster' }, 'darwin', 'arm64')).toBe('faster');
+  expect(listenBackend({ SEISMIC_WHISPER_BACKEND: 'faster' }, 'darwin', 'arm64')).toBe('faster');
+  expect(listenBackend({ SEISMIC_WHISPER_BACKEND: 'mlx' }, 'darwin', 'arm64')).toBe('mlx');
+  expect(listenBackend({ SEISMIC_WHISPER_BACKEND: 'whisper' }, 'darwin', 'arm64')).toBe('mlx');
+  expect(listenBackend({ SEISMIC_WHISPER_BACKEND: 'whisper' }, 'linux', 'x64')).toBe('faster');
+  expect(listenBackend({ SEISMIC_WHISPER_BACKEND: 'nope' }, 'linux', 'x64')).toBe('parakeet');
   expect(listenBackend({ OBEYA_WHISPER_BACKEND: 'mlx' }, 'darwin', 'arm64')).toBe('mlx');
-  expect(listenBackend({ OBEYA_WHISPER_BACKEND: 'whisper' }, 'darwin', 'arm64')).toBe('mlx');
-  expect(listenBackend({ OBEYA_WHISPER_BACKEND: 'whisper' }, 'linux', 'x64')).toBe('faster');
-  expect(listenBackend({ OBEYA_WHISPER_BACKEND: 'nope' }, 'linux', 'x64')).toBe('parakeet');
   expect(listenBackend({ SEISMIC_WHISPER_BACKEND: 'faster', OBEYA_WHISPER_BACKEND: 'mlx' }, 'darwin', 'arm64')).toBe('faster');
 });
 
@@ -54,7 +55,7 @@ const hearing = (text: string, ms = 0, loaded = () => {}) => ({
 });
 
 test('the voice check names what is missing, how to install it here, and what "Installieren" fetches', async () => {
-  const home = mkdtempSync(join(tmpdir(), 'obeya-voice-setup-'));
+  const home = mkdtempSync(join(tmpdir(), 'seismic-voice-setup-'));
   try {
     const setup = new VoiceSetup({ home, local: hearing(''), env: { PATH: join(home, 'none') } });
     const view = await setup.view();
@@ -71,7 +72,7 @@ test('the voice check names what is missing, how to install it here, and what "I
     expect(view.fetch.mb).toBe(by.recognition!.mb!);
 
     // a Python of one's own without the package is missing
-    const own = new VoiceSetup({ home, local: { ...hearing(''), backend: 'mlx' }, env: { PATH: join(home, 'none'), OBEYA_WHISPER_PYTHON: join(home, 'python') } });
+    const own = new VoiceSetup({ home, local: { ...hearing(''), backend: 'mlx' }, env: { PATH: join(home, 'none'), SEISMIC_WHISPER_PYTHON: join(home, 'python') } });
     const mac = Object.fromEntries((await own.view()).items.map((i) => [i.id, i]));
     expect(mac.recognition).toMatchObject({ state: 'missing', need: 'mlx-whisper' });
     expect(mac.uv).toBeUndefined();
@@ -81,7 +82,7 @@ test('the voice check names what is missing, how to install it here, and what "I
 });
 
 test('"Installieren" loads the recognition and times it on a short sentence, and says why when it fails', async () => {
-  const home = mkdtempSync(join(tmpdir(), 'obeya-voice-setup-'));
+  const home = mkdtempSync(join(tmpdir(), 'seismic-voice-setup-'));
   try {
     let loaded = 0;
     // uv is there; the package is not in its cache
@@ -112,7 +113,7 @@ test('"Installieren" loads the recognition and times it on a short sentence, and
 });
 
 test('a recognition slower than the sentence lasts counts as too slow', async () => {
-  const home = mkdtempSync(join(tmpdir(), 'obeya-voice-setup-'));
+  const home = mkdtempSync(join(tmpdir(), 'seismic-voice-setup-'));
   try {
     const setup = new VoiceSetup({ home, local: hearing('Starte', 60), clip: join(home, 'clip.ogg'), env: { PATH: home } });
     // a sentence of 4.1 s heard in 60 ms is fast; as if it lasted 0.05 s, the same is slow
@@ -130,7 +131,7 @@ test('a recognition slower than the sentence lasts counts as too slow', async ()
 });
 
 test('a cloud service is tested with the sentence, then hears every recording; a refusal says why', async () => {
-  const home = mkdtempSync(join(tmpdir(), 'obeya-voice-cloud-'));
+  const home = mkdtempSync(join(tmpdir(), 'seismic-voice-cloud-'));
   try {
     writeFileSync(join(home, 'clip.ogg'), 'OggS');
     const sent: { url: string; auth: string | null; form: FormData }[] = [];
@@ -193,7 +194,7 @@ test('a cloud service is tested with the sentence, then hears every recording; a
 
 test('the recognition sidecar ends quietly when Seismic is gone before it has written a recording down', async () => {
   // a fake mlx-whisper that takes a moment for a recording longer than the warm-up's second
-  const dir = mkdtempSync(join(tmpdir(), 'obeya-sidecar-'));
+  const dir = mkdtempSync(join(tmpdir(), 'seismic-sidecar-'));
   try {
     writeFileSync(join(dir, 'mlx_whisper.py'), 'import time\ndef transcribe(audio, **kw):\n    time.sleep(1 if len(audio) > 16000 else 0)\n    return {"text": "Hallo"}\n');
     expect(Bun.spawnSync(['ffmpeg', '-loglevel', 'error', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=3', join(dir, 'speech.wav')]).exitCode).toBe(0);

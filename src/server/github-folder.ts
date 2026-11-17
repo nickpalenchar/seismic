@@ -24,8 +24,8 @@ import { dirname, join } from 'node:path';
 import type { GitFolder, GithubRepo, GithubRepoList, GithubRepoView, PushCheck } from '../core/types';
 import { type Exec, exec } from './site-hosts';
 
-/** The deploy line's word for a site in a folder of an existing repository: `obeya:github-folder <owner>/<repository>`. */
-export const GITHUB_FOLDER = 'obeya:github-folder';
+/** The deploy line's word for a site in a folder of an existing repository: `seismic:github-folder <owner>/<repository>`. */
+export const GITHUB_FOLDER = 'seismic:github-folder';
 /** The rolling branch of pull-request mode. */
 export const DEMOS_BRANCH = 'seismic/demos';
 /** Above this, the site's entry warns of the repository's size: GitHub warns at about 1 GB, and Pages serves at most about 1 GB. */
@@ -228,7 +228,7 @@ export function folderStore(o: FolderStoreOptions): FolderStore {
   let branch = o.git.branch;
   const remote = o.remote ?? `https://github.com/${o.repo}.git`;
   const none = join(o.clone, '.git', 'none');
-  const cfg = ['-c', 'user.name=Seismic', '-c', 'user.email=obeya@localhost', '-c', 'commit.gpgsign=false', '-c', 'core.autocrlf=false', '-c', `core.hooksPath=${none}`, '-c', `core.excludesFile=${none}`, '-c', 'advice.detachedHead=false'];
+  const cfg = ['-c', 'user.name=Seismic', '-c', 'user.email=seismic@localhost', '-c', 'commit.gpgsign=false', '-c', 'core.autocrlf=false', '-c', `core.hooksPath=${none}`, '-c', `core.excludesFile=${none}`, '-c', 'advice.detachedHead=false'];
   const root = join(o.clone, folder);
   /** The branch the last sync checked out, and how the next push goes. */
   let at: { pr: { url: string; number: number; base: string } | null; lease: string | null } = { pr: null, lease: null };
@@ -373,7 +373,7 @@ export function folderStore(o: FolderStoreOptions): FolderStore {
           at = { pr: open, lease: tip };
         }
       }
-      await step(['checkout', '-q', '--force', '-B', 'obeya-work', base], 'git checkout');
+      await step(['checkout', '-q', '--force', '-B', 'seismic-work', base], 'git checkout');
       await step(['clean', '-qfdx'], 'git clean');
       // Reconcile the description with the remote proposal on every audit, without pushing.
       // GitHub's stale body is the durable pending state, so this also works after a restart.

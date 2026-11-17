@@ -66,7 +66,7 @@ export function MadeCover({ made, who, what, at, ev, fresh, items, open, watch }
     </>
   );
   return (
-    <Msg by="obeya" className={['action', fresh && 'fresh'].filter(Boolean).join(' ')} who={head} at={at} ev={ev}>
+    <Msg by="seismic" className={['action', fresh && 'fresh'].filter(Boolean).join(' ')} who={head} at={at} ev={ev}>
       {card && !card.archivedAt ? (
         <a
           className={coverClass(cardLook(card).className)}

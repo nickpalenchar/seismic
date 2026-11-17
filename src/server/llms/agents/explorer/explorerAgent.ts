@@ -21,7 +21,7 @@ export interface ExplorerContext {
   ui: Language;
   repository: Language;
   /** The agent has the tool that passes the owner's words on to the Koordinator. */
-  toObeya: boolean;
+  toSeismic: boolean;
   /** The owner's standing preferences, added to the instructions. */
   preferences: string;
   /** The first message: the briefing and what the owner has said. */
@@ -44,7 +44,7 @@ export class ExplorerAgent extends SeismicAgent<ExplorerContext> {
   }
 
   getPrompt(ctx: ExplorerContext) {
-    return explorerSystemPrompt(ctx.conversation, ctx.ui, ctx.repository, ctx.toObeya) + (ctx.preferences ? `\n\n${ctx.preferences}` : '');
+    return explorerSystemPrompt(ctx.conversation, ctx.ui, ctx.repository, ctx.toSeismic) + (ctx.preferences ? `\n\n${ctx.preferences}` : '');
   }
 
   override getBriefing(ctx: ExplorerContext) {

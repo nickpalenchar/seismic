@@ -91,7 +91,7 @@ export class CodeReviews {
       const now = codeReviewOf(this.o.board.row(i.id));
       if (now?.review?.state !== 'running') continue;
       if (this.waits(i.id)) {
-        this.o.board.log(i.id, 'state', 'obeya', this.o.board.t.worker.codeReviewResumed);
+        this.o.board.log(i.id, 'state', 'seismic', this.o.board.t.worker.codeReviewResumed);
         this.resume(i.id);
       } else this.finish(i.id, null, undefined, this.o.board.t.worker.codeReviewInterrupted);
     }
@@ -389,7 +389,7 @@ export class CodeReviews {
   private tell(cardId: string, r: { session?: AgentSession; told?: boolean }): void {
     r.told = true;
     r.session?.send(restartNotice);
-    this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.worker.codeReviewPaused);
+    this.o.board.log(cardId, 'state', 'seismic', this.o.board.t.worker.codeReviewPaused);
   }
 
   /** The review agent `run` ended its turn for the restart without findings: its session waits to go on after it. */
@@ -510,7 +510,7 @@ export class CodeReviews {
     const done: StoredCodeReview = { ...c, review: { ...review, state: failed ? 'failed' : 'done', ...(failed ? { error: failed } : {}) } };
     this.o.board.work(cardId, { review: { codeReview: done, ...(result.items ? { items: result.items } : {}) } });
     const count = (s: Severity) => result.raised.filter((f) => f.severity === s).length;
-    this.o.board.log(cardId, 'state', 'obeya', failed ? t.codeReviewFailed(failed) : t.codeReviewDone(result.raised.length, Object.fromEntries(SEVERITIES.map((s) => [s, count(s)])) as Record<Severity, number>, result.fixed, result.reopened));
+    this.o.board.log(cardId, 'state', 'seismic', failed ? t.codeReviewFailed(failed) : t.codeReviewDone(result.raised.length, Object.fromEntries(SEVERITIES.map((s) => [s, count(s)])) as Record<Severity, number>, result.fixed, result.reopened));
     // items the worker resubmitted while it ran were not in its brief: the next review verifies them now
     if (!failed) this.verifyLeft(cardId, review.at);
   }

@@ -389,7 +389,7 @@ export function serve(
     return { ...(q.get('card') ? { card: q.get('card')! } : {}), ...(q.get('plan') ? { plan: q.get('plan')! } : {}), ...(place ? { place } : {}) };
   };
   const transcribe = async (c: ProjectRuntime, audio: Blob) => {
-    const dir = mkdtempSync(join(tmpdir(), 'obeya-voice-'));
+    const dir = mkdtempSync(join(tmpdir(), 'seismic-voice-'));
     // by what the browser recorded: a cloud service tells the format by the file's name
     const file = join(dir, `speech.${/mp4|m4a|aac/.test(audio.type) ? 'mp4' : /wav/.test(audio.type) ? 'wav' : /ogg/.test(audio.type) ? 'ogg' : 'webm'}`);
     try {
@@ -538,7 +538,7 @@ export function serve(
         const body = as === 'csv' ? projectCsv(data) : JSON.stringify(data, null, 2);
         return new Response(body, { headers: {
           'content-type': `${as === 'csv' ? 'text/csv' : 'application/json'}; charset=utf-8`,
-          'content-disposition': `attachment; filename="obeya-projects.${as}"`,
+          'content-disposition': `attachment; filename="seismic-projects.${as}"`,
           'cache-control': 'no-store',
         } });
       } },
@@ -736,7 +736,7 @@ export function serve(
       },
       // a demo's narration clip, in the voice Seismic holds loaded across renders (narration.ts)
       '/api/narration/clip': { POST: narration ? clipRoute(narration) : notFound },
-      // "For everyone, into the repository": a repository's settings for this machine into its .obeya/settings.json
+      // "For everyone, into the repository": a repository's settings for this machine into its .seismic/settings.json
       '/api/config/share-settings': { POST: needs(config, async (c, req) => c.shareSettings(await req.json())) },
       // a repository's commands, new or changed on its default branch, confirmed by the owner: they count from now on
       '/api/config/trust': { POST: needs(config, async (c, req) => (c.trust(await req.json()), {})) },
@@ -810,7 +810,7 @@ export function serve(
       // the archive, newest first; posting archives every finished card of the owner's
       '/api/c/:project/archive': { GET: on((c) => c.board.archived()), POST: on((c) => ({ ids: c.board.archiveDone() })) },
       '/api/c/:project/cards/:id/act': { POST: on(async (c, req) => c.press(req.params.id!, (await req.json()) as CardAction)) },
-      // a script acting as the card's agent, in a scratch Seismic whose workers are idle (scripts/scratch-obeya.ts --say)
+      // a script acting as the card's agent, in a scratch Seismic whose workers are idle (scripts/scratch-seismic.ts --say)
       '/api/c/:project/cards/:id/stand-in': { POST: on(async (c, req) => ({ result: await c.standIn(req.params.id!, (await req.json()) as Parameters<typeof c.standIn>[1]) })) },
       '/api/c/:project/cards/:id/events': { GET: on((c, req) => c.board.events(req.params.id!)) },
       // the owner's responses on the card's approved work, and a new one (`{ answer, handover?, facets? }`); the same handover again replaces its answer

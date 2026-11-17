@@ -145,7 +145,7 @@ test('a response is checked before it is kept', () => {
     expect(give(bad)).toThrow(BadRequest);
   expect(give({ answer: { comment: 'x'.repeat(4001) } })).toThrow('at most');
   // a long conversation after the handover does not hide it
-  for (let n = 0; n < 510; n++) board.log(card.id, 'state', 'obeya', `Line ${n}`);
+  for (let n = 0; n < 510; n++) board.log(card.id, 'state', 'seismic', `Line ${n}`);
   expect(board.giveFeedback(card.id, { answer: { rating: 1 } }).handover).toBeGreaterThan(0);
   store.db.run('DELETE FROM feedback');
   expect(board.feedback(card.id)).toEqual([]);

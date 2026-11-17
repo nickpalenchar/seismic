@@ -922,7 +922,7 @@ export function assemble({ outDir, work, list, clips, marks, total, viewport, sh
   const vtt = ['WEBVTT', ''];
   marks.forEach((m, i) => vtt.push(`${vttTime(m.speechStart)} --> ${vttTime(m.speechEnd)}`, untagged(says[i]!), ''));
   fs.writeFileSync(path.join(outDir, 'captions.vtt'), vtt.join('\n'));
-  // The scenes as chapters, for a player outside Seismic (the hero video on obeya.si reads them).
+  // The scenes as chapters, for a player outside Seismic (the hero video on seismic.im reads them).
   const chapters = ['WEBVTT', ''];
   marks.forEach((m, i) => chapters.push(`${vttTime(m.start)} --> ${vttTime(i + 1 < marks.length ? marks[i + 1]!.start : total)}`, m.title, ''));
   fs.writeFileSync(path.join(outDir, 'chapters.vtt'), chapters.join('\n'));

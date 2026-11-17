@@ -159,7 +159,7 @@ describe('the schema-change page', () => {
   });
 
   test('runs under plain Node, and a mistake in the JSON says where it is', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'obeya-schema-'));
+    const dir = mkdtempSync(join(tmpdir(), 'seismic-schema-'));
     try {
       writeFileSync(join(dir, 'm.json'), JSON.stringify(change));
       const out = execFileSync('node', [join(import.meta.dirname, 'schema.ts'), join(dir, 'm.json'), join(dir, 'p.html')], { encoding: 'utf8' });

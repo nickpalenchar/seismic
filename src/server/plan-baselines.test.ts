@@ -8,7 +8,7 @@ import { gitRepo, identify } from './testing';
 import { git, gitOrNull, oldPlanBaselineTag, planBaselineTag, Workstations } from './workstations';
 
 let dir: string;
-beforeEach(() => (dir = mkdtempSync(join(tmpdir(), 'obeya-baseline-'))));
+beforeEach(() => (dir = mkdtempSync(join(tmpdir(), 'seismic-baseline-'))));
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 

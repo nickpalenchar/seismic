@@ -45,7 +45,7 @@ export const setConversation = (l: 'en') => void (conversation = l);
 /** `withOrigin`: clones come from a bare `origin`, as from a remote, instead of from the checkout. */
 /** `share`: the project shares demos on a site, with this vocabulary of tags where it names one. */
 export function setup(adapter: RepoAdapter, withOrigin = false, share?: { tags?: PageTags }) {
-  dir = mkdtempSync(join(tmpdir(), 'obeya-workers-'));
+  dir = mkdtempSync(join(tmpdir(), 'seismic-workers-'));
   main = join(dir, 'main');
   gitRepo(main);
   origin = join(dir, 'origin.git');
@@ -71,7 +71,7 @@ export function setup(adapter: RepoAdapter, withOrigin = false, share?: { tags?:
     workstations,
     adapter,
     onMerged: (cardId) => void merged.push(cardId),
-    env: { OBEYA_URL: 'http://127.0.0.1:4417' },
+    env: { SEISMIC_URL: 'http://127.0.0.1:4417' },
     ...(share ? { shares: () => true, vocabulary: () => share.tags } : {}),
   });
 }

@@ -9,7 +9,7 @@ const DOC = '# P\n\n## Workstreams\n\n- [ ] **W1:** One.\n';
 
 describe('readPlanDocs', () => {
   test('reads the docs that are plans, and the others with their reason; the excluded ones not at all', () => {
-    const repo = mkdtempSync(join(tmpdir(), 'obeya-read-'));
+    const repo = mkdtempSync(join(tmpdir(), 'seismic-read-'));
     try {
       expect(readPlanDocs(repo, generic)).toEqual({ docs: [], others: [] });
       mkdirSync(join(repo, 'docs/plan'), { recursive: true });
@@ -40,7 +40,7 @@ describe('a plan folder outside the repository', () => {
   });
 
   test('is read where it is, not from the repository, its docs by their absolute path; and watched there', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'obeya-outside-'));
+    const root = mkdtempSync(join(tmpdir(), 'seismic-outside-'));
     try {
       const repo = join(root, 'repo');
       const plans = join(root, 'private', 'plans');
@@ -91,7 +91,7 @@ describe('watchPlanDocs', () => {
 
   /** A repository directory with these files, watched from here on (by the watches alone, or as `options` say). */
   function watched(files: string[], options: Parameters<typeof watchPlanDocs>[3] = { poll: 0 }) {
-    const repo = mkdtempSync(join(tmpdir(), 'obeya-watch-'));
+    const repo = mkdtempSync(join(tmpdir(), 'seismic-watch-'));
     for (const f of files) {
       mkdirSync(join(repo, f, '..'), { recursive: true });
       writeFileSync(join(repo, f), DOC);
@@ -162,7 +162,7 @@ describe('watchPlanDocs', () => {
    * at once.
    */
   async function live() {
-    const dir = mkdtempSync(join(tmpdir(), 'obeya-probe-'));
+    const dir = mkdtempSync(join(tmpdir(), 'seismic-probe-'));
     let seen = false;
     const probe = watch(dir, () => (seen = true));
     cleanup.push(() => probe.close(), () => rmSync(dir, { recursive: true, force: true }));
@@ -258,7 +258,7 @@ describe('a remote on GitHub', () => {
   });
 
   test("on another host counts where the GitHub CLI is logged into it, by its hosts.yml where gh keeps it", () => {
-    const dir = mkdtempSync(join(tmpdir(), 'obeya-gh-'));
+    const dir = mkdtempSync(join(tmpdir(), 'seismic-gh-'));
     try {
       const yml = 'github.com:\n    users:\n        t:\n    user: t\n    git_protocol: ssh\ngit.acme.com:\n    user: t\n';
       for (const d of ['own', 'xdg/gh', 'AppData/GitHub CLI']) {

@@ -21,7 +21,7 @@ test.skipIf(!home)(
   async () => {
     await installVoice(piper('en'), (line) => console.log(line), home);
     const ear = new LocalTranscriber();
-    const dir = mkdtempSync(join(tmpdir(), 'obeya-voice-live-'));
+    const dir = mkdtempSync(join(tmpdir(), 'seismic-voice-live-'));
     try {
       const prepared = performance.now();
       await ear.prepare();

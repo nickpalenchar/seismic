@@ -53,10 +53,10 @@ const TEST = 'bun test scripts/linux-scope-prototype.test.ts 2>&1';
 for (const image of images) {
   const base = IMAGES[image];
   if (!base) throw new Error(`unknown image ${image}`);
-  const tag = `obeya-boundary-${image}`;
+  const tag = `seismic-boundary-${image}`;
   const built = sh(['docker', 'build', '-q', '-t', tag, '-'], dockerfile(base));
   if (built.code !== 0) { report(image, '-', 'build', { status: 'blocked', why: built.out.slice(-800) }); continue; }
-  const name = `obeya-boundary-${image}-${process.pid}`;
+  const name = `seismic-boundary-${image}-${process.pid}`;
   try {
     const run = sh(['docker', 'run', '-d', '--name', name, '--privileged', '--cgroupns=private', '--tmpfs', '/run', '--tmpfs', '/run/lock', '-v', `${ROOT}:/w:ro`, tag]);
     if (run.code !== 0) { report(image, '-', 'boot', { status: 'blocked', why: run.out.slice(-800) }); continue; }
@@ -93,7 +93,7 @@ for (const image of images) {
 }
 
 // unprivileged: an ordinary container, as CI or a dev container runs Seismic
-const plain = sh(['docker', 'run', '--rm', '--init', '-u', '1500', '-e', 'HOME=/tmp', '-v', `${ROOT}:/w:ro`, '-w', '/w', `obeya-boundary-${images[0]}`, 'sh', '-c', `grep cgroup /proc/self/mounts; ${TEST}; bun scripts/linux-scope-probe.ts kill`]);
+const plain = sh(['docker', 'run', '--rm', '--init', '-u', '1500', '-e', 'HOME=/tmp', '-v', `${ROOT}:/w:ro`, '-w', '/w', `seismic-boundary-${images[0]}`, 'sh', '-c', `grep cgroup /proc/self/mounts; ${TEST}; bun scripts/linux-scope-probe.ts kill`]);
 report(images[0]!, 'unprivileged', 'mounts', { cgroupfs: plain.out.split('\n').filter((l) => l.startsWith('cgroup')).join('; ') });
 report(images[0]!, 'unprivileged', 'tests', tests(plain.out));
 for (const p of probe(plain.out)) report(images[0]!, 'unprivileged', 'probe', p);

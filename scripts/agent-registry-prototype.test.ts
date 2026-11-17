@@ -23,7 +23,7 @@ test.skipIf(process.platform !== 'linux')('Linux process identity includes boot,
 });
 
 test('an active lease prevents inspection; after release identities are report-only', () => {
-  const root = mkdtempSync(join(tmpdir(), 'obeya-registry-'));
+  const root = mkdtempSync(join(tmpdir(), 'seismic-registry-'));
   const owner = createGeneration(root, sample(42));
   try {
     owner.publish([sample(100), sample(101), sample(102)]);
@@ -38,7 +38,7 @@ test('an active lease prevents inspection; after release identities are report-o
 });
 
 test('different boot, inaccessible identity and corrupt records never authorize inspection', () => {
-  const root = mkdtempSync(join(tmpdir(), 'obeya-registry-'));
+  const root = mkdtempSync(join(tmpdir(), 'seismic-registry-'));
   const owner = createGeneration(root, sample(42));
   try {
     owner.publish([sample(100)]); owner.close();
@@ -50,7 +50,7 @@ test('different boot, inaccessible identity and corrupt records never authorize 
 });
 
 test.skipIf(process.platform === 'win32')('a killed owner releases its generation lease to a later inspector', async () => {
-  const root = mkdtempSync(join(tmpdir(), 'obeya-registry-'));
+  const root = mkdtempSync(join(tmpdir(), 'seismic-registry-'));
   const ready = join(root, 'ready');
   const module = join(import.meta.dir, 'agent-registry-prototype.ts');
   const code = testProcessCode(`

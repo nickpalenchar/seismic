@@ -93,7 +93,7 @@ describe('the files a card names as its result', () => {
     expect(pdf.headers.get('connection-allowlist')).toBe('(response-origin)');
     const page = await serve('docs/page.html');
     expect(page.headers.get('content-security-policy')).toBe(`sandbox allow-scripts; ${pagePolicy('http://127.0.0.1:4417')}`);
-    expect(await page.text()).toContain('obeyaHeight');
+    expect(await page.text()).toContain('seismicHeight');
     const md = await serve('docs/report.md', true);
     expect(md.headers.get('content-disposition')).toContain('report.md');
     expect(md.headers.get('content-security-policy')).toContain('sandbox');

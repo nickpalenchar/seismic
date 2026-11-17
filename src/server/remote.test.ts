@@ -28,8 +28,8 @@ let pushed: string[];
 let pushTimers: (() => void)[];
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'obeya-remote-'));
-  const main = gitRepo(join(dir, 'main'), { 'README.md': 'hi\n', '.obeya/settings.json': '{ "workstations": "clones" }\n' });
+  dir = mkdtempSync(join(tmpdir(), 'seismic-remote-'));
+  const main = gitRepo(join(dir, 'main'), { 'README.md': 'hi\n', '.seismic/settings.json': '{ "workstations": "clones" }\n' });
   ts = join(dir, 'ts');
   store = new Store(':memory:');
   clock = Date.now();

@@ -2,7 +2,7 @@
 // (the `Bash` rules of `.claude/settings.json`, committed or not), the way Seismic applies it to its
 // workers once the owner trusted it: which rules there are, which of them let through more than a
 // command (a whole program, anything at all), and for each command given as an argument whether the
-// list covers it. `--codex` also writes `.codex/rules/obeya.rules`, the list's form for Codex's own
+// list covers it. `--codex` also writes `.codex/rules/seismic.rules`, the list's form for Codex's own
 // rule engine, for Codex run outside Seismic. Exits with 1 when the file does not read or a command
 // given is not covered. Run with Bun (`bun allow-list.ts [--codex] ['<command>' …]`).
 
@@ -13,7 +13,7 @@ import { writeCodexRules } from '../../../../src/server/codex-rules-file.ts';
 import { repoInfo } from '../../../../src/server/repo.ts';
 
 const SETTINGS = join('.claude', 'settings.json');
-const CODEX_RULES = join('.codex', 'rules', 'obeya.rules');
+const CODEX_RULES = join('.codex', 'rules', 'seismic.rules');
 
 /** Why `rule` lets through more than the commands it names, or null. */
 function broad(rule: string): string | null {

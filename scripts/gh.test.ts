@@ -38,54 +38,54 @@ function gh(origin: string | null, args: string[], logins = 'sadilek alice') {
 }
 
 test('reads owner/name from the URLs GitHub hands out, and nothing else', () => {
-  expect(githubRepo('git@github.com:sadilek/obeya.git\n')).toBe('sadilek/obeya');
-  expect(githubRepo('https://github.com/alice/obeya.git')).toBe('alice/obeya');
-  expect(githubRepo('https://github.com/alice/my.obeya')).toBe('alice/my.obeya');
-  expect(githubRepo('ssh://git@github.com/alice/obeya.git')).toBe('alice/obeya');
-  expect(githubRepo('https://x-access-token:abc@github.com/alice/obeya')).toBe('alice/obeya');
-  expect(githubRepo('/Users/alice/dev/obeya')).toBeNull();
-  expect(githubRepo('git@gitlab.com:alice/obeya.git')).toBeNull();
+  expect(githubRepo('git@github.com:sadilek/seismic.git\n')).toBe('sadilek/seismic');
+  expect(githubRepo('https://github.com/alice/seismic.git')).toBe('alice/seismic');
+  expect(githubRepo('https://github.com/alice/my.seismic')).toBe('alice/my.seismic');
+  expect(githubRepo('ssh://git@github.com/alice/seismic.git')).toBe('alice/seismic');
+  expect(githubRepo('https://x-access-token:abc@github.com/alice/seismic')).toBe('alice/seismic');
+  expect(githubRepo('/Users/alice/dev/seismic')).toBeNull();
+  expect(githubRepo('git@gitlab.com:alice/seismic.git')).toBeNull();
 });
 
 test.skipIf(process.platform === 'win32')('runs gh on the origin as its owner, not with the token from the shell', () => {
-  expect(gh('git@github.com:sadilek/obeya.git', ['workflow', 'run', 'build.yml', '--ref', 'main', '-f', 'sign=true'])).toEqual({
+  expect(gh('git@github.com:sadilek/seismic.git', ['workflow', 'run', 'build.yml', '--ref', 'main', '-f', 'sign=true'])).toEqual({
     code: 0,
     stdout: '',
     stderr: '',
     calls: [
       '[] [] auth token --user sadilek',
-      '[token-of-sadilek] [sadilek/obeya] workflow run build.yml --ref main -f sign=true',
+      '[token-of-sadilek] [sadilek/seismic] workflow run build.yml --ref main -f sign=true',
     ],
   });
 });
 
 test.skipIf(process.platform === 'win32')('in a fork, on the fork as the fork\'s owner', () => {
-  expect(gh('https://github.com/alice/obeya.git', ['run', 'list']).calls).toEqual([
+  expect(gh('https://github.com/alice/seismic.git', ['run', 'list']).calls).toEqual([
     '[] [] auth token --user alice',
-    '[token-of-alice] [alice/obeya] run list',
+    '[token-of-alice] [alice/seismic] run list',
   ]);
 });
 
 test.skipIf(process.platform === 'win32')('without a login for the owner (an organisation), gh runs as it would anyway', () => {
-  expect(gh('git@github.com:some-org/obeya.git', ['run', 'list']).calls).toEqual([
+  expect(gh('git@github.com:some-org/seismic.git', ['run', 'list']).calls).toEqual([
     '[] [] auth token --user some-org',
-    '[from-the-shell] [some-org/obeya] run list',
+    '[from-the-shell] [some-org/seismic] run list',
   ]);
 });
 
 test.skipIf(process.platform === 'win32')('passes stdin, stdout, stderr and the exit code through', () => {
-  const r = gh('git@github.com:sadilek/obeya.git', ['run', 'rerun', '123', '--failed']);
+  const r = gh('git@github.com:sadilek/seismic.git', ['run', 'rerun', '123', '--failed']);
   expect(r.code).toBe(3);
   expect(r.stdout).toBe('from stdin\nrerun on stdout\n');
   expect(r.stderr).toBe('rerun on stderr\n');
 });
 
 test.skipIf(process.platform === 'win32')('leaves a repository named in the args to gh, which prefers it to GH_REPO', () => {
-  expect(gh('git@github.com:sadilek/obeya.git', ['run', 'list', '--repo', 'someone/else']).calls[1]).toBe('[token-of-sadilek] [sadilek/obeya] run list --repo someone/else');
+  expect(gh('git@github.com:sadilek/seismic.git', ['run', 'list', '--repo', 'someone/else']).calls[1]).toBe('[token-of-sadilek] [sadilek/seismic] run list --repo someone/else');
 });
 
 test.skipIf(process.platform === 'win32')('without a GitHub origin it says so and runs nothing', () => {
-  for (const origin of [null, '/Users/alice/dev/obeya']) {
+  for (const origin of [null, '/Users/alice/dev/seismic']) {
     const r = gh(origin, ['run', 'list']);
     expect(r.code).toBe(1);
     expect(r.stderr).toContain('is no GitHub repository, which gh would run on');

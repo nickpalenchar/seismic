@@ -9,7 +9,7 @@ export interface Recording {
 }
 
 export function record(stream: MediaStream, ctx: AudioContext): Recording {
-  return window.obeyaApp?.platform === 'linux' ? samples(stream, ctx) : recorder(stream);
+  return window.seismicApp?.platform === 'linux' ? samples(stream, ctx) : recorder(stream);
 }
 
 function recorder(stream: MediaStream): Recording {

@@ -7,8 +7,8 @@ import type { ProjectSnapshot } from '../src/core/types';
 import { ownerHeaders } from '../src/server/owner';
 import { worked } from '../src/ui/talk';
 
-const script = join(import.meta.dir, 'scratch-obeya.ts');
-const tmp = mkdtempSync(join(tmpdir(), 'obeya-stage-'));
+const script = join(import.meta.dir, 'scratch-seismic.ts');
+const tmp = mkdtempSync(join(tmpdir(), 'seismic-stage-'));
 const free = Bun.serve({ port: 0, fetch: () => new Response() });
 const port = free.port!;
 free.stop(true);
@@ -35,7 +35,7 @@ test('stages a scratch Seismic with its cards in the states the stage file gives
         { key: 'P', plan: 'docs/plan/werkzeug.md', x: 0, y: 0 },
         { key: 'W1', workstream: 'W1', state: 'working', statusLine: 'Liest ein' },
         { key: 'A', title: 'Einlesen', x: 500, y: 40, state: 'working', statusLine: 'Tests laufen', createdAgo: '2h' },
-        { key: 'B', title: 'Optionen', queue: { behind: ['A'], reason: 'Beide ändern src/config.ts.' }, events: [{ kind: 'state', author: 'obeya', text: 'wartet', ago: '10m' }] },
+        { key: 'B', title: 'Optionen', queue: { behind: ['A'], reason: 'Beide ändern src/config.ts.' }, events: [{ kind: 'state', author: 'seismic', text: 'wartet', ago: '10m' }] },
         { key: 'C', title: 'Frage', state: 'waiting', need: 'question', question: { text: 'Lang oder kurz?', options: ['Lang', 'Kurz'] } },
         { key: 'D', title: 'Folge', from: 'C' },
         { key: 'H', title: 'Entwürfe', state: 'waiting', need: 'demo', summary: 'Zwei Entwürfe.', demo: { kind: 'html', dir: artifact, chapters: [] } },
@@ -53,7 +53,7 @@ test('stages a scratch Seismic with its cards in the states the stage file gives
   expect((await fetch(staged.url, { redirect: 'manual' })).status).toBe(200);
   // the same from --login
   expect(Bun.spawnSync([process.execPath, script, '--login', String(port), '--dir', dir]).stdout.toString().trim()).toBe(staged.url);
-  // --list finds it outside /tmp/obeya-scratch-<port> too, and --login without --dir
+  // --list finds it outside /tmp/seismic-scratch-<port> too, and --login without --dir
   const line = Bun.spawnSync([process.execPath, script, '--list']).stdout.toString().split('\n').find((l) => l.includes(`"port":${port},`));
   expect(JSON.parse(line!)).toMatchObject({ port, dir, database: join(dir, 'home', 'seismic.db') });
   expect(Bun.spawnSync([process.execPath, script, '--login', String(port)]).stdout.toString().trim()).toBe(staged.url);
@@ -130,7 +130,7 @@ test('without a port, stagings at the same time each pick a free one, and stagin
     expect(one!.port).not.toBe(two!.port);
     for (const s of [one!, two!]) {
       expect(s.port).not.toBe(4417);
-      expect(s.dir).toBe(`/tmp/obeya-scratch-${s.port}`);
+      expect(s.dir).toBe(`/tmp/seismic-scratch-${s.port}`);
       expect((await fetch(s.url, { redirect: 'manual' })).status).toBe(200);
     }
     // --list gives each one's paths, and the stage output the same

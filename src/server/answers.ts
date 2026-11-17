@@ -19,7 +19,7 @@ import { BadRequest, type Board, holdNow, replyNote } from './board';
 import { imageNote } from './images';
 import type { PlanAgents } from './plan-agents';
 import type { AgentRuntime } from './runtime';
-import { TO_OBEYA, toObeyaTool } from './to-obeya';
+import { TO_SEISMIC, toSeismicTool } from './to-seismic';
 import { describeTool, SPOKEN } from './workerSupervisor/workerSupervisor';
 import { clip, messageOf } from '../core/text';
 
@@ -41,7 +41,7 @@ export interface AnswerOptions {
   /** The answer to an exchange is in: the Koordinator hears it with the owner's next command. */
   onAnswer?: (talk: number, question: string, answer: string) => void;
   /** Passes on what the owner's words on a Question card ask of Seismic (`to_seismic`). */
-  toObeya?: (cardId: string, request: string) => Promise<string>;
+  toSeismic?: (cardId: string, request: string) => Promise<string>;
 }
 
 /** Log lines of a card the answering agent reads. */
@@ -110,7 +110,7 @@ export class Answers {
         // under the question in the sheet, and in the conversation of the card it was asked on
         onLimit: (until, retry) => {
           this.o.board.waitsForLimit({ talk: talkId }, until, retry);
-          if (reading && until != null) this.o.board.log(reading, 'state', 'obeya', this.o.board.t.answer.limited(this.o.board.t.when(until)));
+          if (reading && until != null) this.o.board.log(reading, 'state', 'seismic', this.o.board.t.answer.limited(this.o.board.t.when(until)));
         },
         at: { talk: talkId },
         ...(follow
@@ -401,15 +401,15 @@ export class Answers {
     mkdirSync(dir, { recursive: true });
     if (c.by === 'plan') {
       const from = c.asked?.from;
-      const asked = c.asked && { images: c.asked.images, ...(from && this.o.toObeya ? { toObeya: toObeyaTool((request) => this.o.toObeya!(from, request)) } : {}) };
+      const asked = c.asked && { images: c.asked.images, ...(from && this.o.toSeismic ? { toSeismic: toSeismicTool((request) => this.o.toSeismic!(from, request)) } : {}) };
       return this.o.planAgent(c.plan!).inform(c.plan!, `${c.message}\n\n${filesNote(dir)}`, c.onLimit, c.onTool, dir, c.signal, c.onWaiting, asked, c.at);
     }
-    const toObeya = c.card && this.o.toObeya ? this.o.toObeya : undefined;
+    const toSeismic = c.card && this.o.toSeismic ? this.o.toSeismic : undefined;
     const ask = (message: string, images: string[] | undefined, resume?: string) =>
       inform({
         runtime: this.o.runtime,
         cwd: this.o.pathFor(c.about),
-        system: `You are the Koordinator of Seismic, a project on which the owner directs coding agents; the owner knows you simply as Seismic.\n\n${INFORM_RULES}${toObeya ? `\n\n${TO_OBEYA}` : ''}`,
+        system: `You are the Koordinator of Seismic, a project on which the owner directs coding agents; the owner knows you simply as Seismic.\n\n${INFORM_RULES}${toSeismic ? `\n\n${TO_SEISMIC}` : ''}`,
         message: [message, filesNote(dir), this.o.preferences?.() ?? ''].filter(Boolean).join('\n\n'),
         dir,
         onTool: c.onTool,
@@ -419,7 +419,7 @@ export class Answers {
         language: this.o.board.conversation(),
         ...(resume ? { resume } : {}),
         ...(images?.length ? { images } : {}),
-        ...(toObeya ? { tools: [toObeyaTool((request) => toObeya(c.card!, request))] } : {}),
+        ...(toSeismic ? { tools: [toSeismicTool((request) => toSeismic(c.card!, request))] } : {}),
         ...(c.signal ? { signal: c.signal } : {}),
         ...(c.onWaiting ? { onWaiting: c.onWaiting } : {}),
       });

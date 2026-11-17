@@ -2,7 +2,7 @@
 //
 //   bun scripts/studio.ts [db] [--live] [--port <n>] [--local]
 //
-// `db` defaults to $SEISMIC_HOME/obeya.db (~/.obeya/obeya.db). Studio opens a fresh copy of it
+// `db` defaults to $SEISMIC_HOME/seismic.db (~/.seismic/seismic.db). Studio opens a fresh copy of it
 // (VACUUM INTO, so a running Seismic's writes don't get in the way); `--live` opens the database
 // itself, where Studio's edits reach the running Seismic. Studio is drizzle-kit's server on
 // 127.0.0.1 (`--port`, default 4983) with its page at https://local.drizzle.studio, which the
@@ -35,7 +35,7 @@ const has = (name: string) => {
 const port = Number(flag('--port') ?? 4983);
 const live = has('--live');
 const local = has('--local');
-const db = resolve(args[0] ?? join(process.env.SEISMIC_HOME ?? join(homedir(), '.obeya'), 'obeya.db'));
+const db = resolve(args[0] ?? join(process.env.SEISMIC_HOME ?? join(homedir(), '.seismic'), 'seismic.db'));
 if (!existsSync(db)) fail(`no database at ${db}`);
 
 const cache = join(process.platform === 'win32' ? (process.env.LOCALAPPDATA ?? homedir()) : (process.env.XDG_CACHE_HOME ?? join(homedir(), '.cache')), 'seismic-studio');
@@ -59,7 +59,7 @@ if (installed !== JSON.stringify(wanted, null, 2)) {
 
 let file = db;
 if (!live) {
-  file = join(cache, 'obeya-copy.db');
+  file = join(cache, 'seismic-copy.db');
   for (const f of [file, `${file}-wal`, `${file}-shm`]) rmSync(f, { force: true });
   const source = new Database(db, { readonly: true });
   source.run('VACUUM INTO ?', [file]);

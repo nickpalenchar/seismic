@@ -7,8 +7,8 @@
 //   bun scripts/build.ts [<target>…] [--all] [--out <dir>]
 //
 // Targets: darwin-arm64, darwin-x64, linux-x64, linux-arm64, windows-x64; by default this
-// machine's. Each goes into <out>/obeya-<version>-<target>/ (default out: dist/), holding `obeya`
-// (`obeya.exe`) and `resources/`. Bun compiles for another platform too, fetching that platform's
+// machine's. Each goes into <out>/seismic-<version>-<target>/ (default out: dist/), holding `seismic`
+// (`seismic.exe`) and `resources/`. Bun compiles for another platform too, fetching that platform's
 // Bun once. A macOS binary is signed ad hoc on a Mac: as Bun writes it, macOS kills it at start.
 // Claude Code is not part of it: the binary runs the machine's own installation
 // (`claudeExecutable` in src/server/runtime.ts).
@@ -48,7 +48,7 @@ function resources(dir: string) {
   // the director imports it from the plugin, which finds it up the tree as it does in the checkout
   cpSync(join(ROOT, 'node_modules', 'playwright-core'), join(dir, 'node_modules', 'playwright-core'), { recursive: true, dereference: true });
   // the plugin's TypeScript runs on plain Node, which reads it as ES modules by this
-  writeFileSync(join(dir, 'package.json'), `${JSON.stringify({ name: 'obeya-resources', version: pkg.version, private: true, type: 'module' }, null, 2)}\n`);
+  writeFileSync(join(dir, 'package.json'), `${JSON.stringify({ name: 'seismic-resources', version: pkg.version, private: true, type: 'module' }, null, 2)}\n`);
   cpSync(join(ROOT, 'LICENSE'), join(dir, 'LICENSE'));
   // the settings skill reads the reference up the tree, as in the checkout
   cpSync(join(ROOT, 'docs', 'settings.md'), join(dir, 'docs', 'settings.md'));
@@ -63,10 +63,10 @@ function resources(dir: string) {
 const started = Date.now();
 mkdirSync(out, { recursive: true });
 for (const target of targets) {
-  const dir = join(out, `obeya-${pkg.version}-${target}`);
+  const dir = join(out, `seismic-${pkg.version}-${target}`);
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
-  const binary = join(dir, target.startsWith('windows') ? 'obeya.exe' : 'obeya');
+  const binary = join(dir, target.startsWith('windows') ? 'seismic.exe' : 'seismic');
   // Bun (1.3.12) leaves a copy of its runtime in the working directory (`.<hex>.bun-build`): there it goes
   process.chdir(dir);
   // the UI it carries is bundled now, not when it is served: as `bun start` serves it, React's production build,

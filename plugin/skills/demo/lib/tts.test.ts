@@ -58,7 +58,7 @@ open(log, "a").write("end\n")
 
 let dir: string;
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'obeya-tts-'));
+  dir = mkdtempSync(join(tmpdir(), 'seismic-tts-'));
   writeFileSync(join(dir, 'voice.py'), FAKE_VOICE);
   writeFileSync(join(dir, 'spec.json'), JSON.stringify({ kind: 'command', argv: ['false'], serve: ['python', join(dir, 'voice.py')], tag: 'fake', heavy: true }));
   writeFileSync(join(dir, 'jobs.json'), JSON.stringify(['Eins.', 'Zwei.', 'Drei.'].map((text, i) => ({ id: `s${i}`, text }))));

@@ -184,12 +184,12 @@ export class Koordinator {
       const active = now.state !== 'planned';
       if (active && !now.queue) {
         this.setQueue(cardId, { workstation: 'none', begun: true });
-        this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.koordinator.requeued);
+        this.o.board.log(cardId, 'state', 'seismic', this.o.board.t.koordinator.requeued);
       }
       this.giving.add(cardId);
       workers
         .evict(cardId)
-        .catch((e: unknown) => void (this.o.board.item(cardId) && this.o.board.log(cardId, 'error', 'obeya', messageOf(e))))
+        .catch((e: unknown) => void (this.o.board.item(cardId) && this.o.board.log(cardId, 'error', 'seismic', messageOf(e))))
         .finally(() => {
           this.giving.delete(cardId);
           this.scheduleDrain();
@@ -226,7 +226,7 @@ export class Koordinator {
     this.o.board.work(cardId, { agent_setting: setting ? JSON.stringify(setting) : null });
     if (this.o.restarting?.()) {
       this.setQueue(cardId, { restart: true });
-      this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.koordinator.restartPending);
+      this.o.board.log(cardId, 'state', 'seismic', this.o.board.t.koordinator.restartPending);
       return;
     }
     this.setQueue(cardId, { checking: true });
@@ -249,7 +249,7 @@ export class Koordinator {
     const pr = contributionOf(this.o.board.row(reviewId));
     const reason = pr ? t.followsReview(pr.number) : t.buildsOn;
     this.setQueue(taskId, { behind: [reviewId], reason, buildsOn: [reviewId] });
-    this.o.board.log(taskId, 'state', 'obeya', t.waitsFor(this.o.board.t.quote(review.title), reason));
+    this.o.board.log(taskId, 'state', 'seismic', t.waitsFor(this.o.board.t.quote(review.title), reason));
   }
 
   /**
@@ -267,7 +267,7 @@ export class Koordinator {
       for (const w of open) {
         this.o.board.work(w.id, { agent_setting: null });
         this.setQueue(w.id, { restart: true });
-        this.o.board.log(w.id, 'state', 'obeya', this.o.board.t.koordinator.restartPending);
+        this.o.board.log(w.id, 'state', 'seismic', this.o.board.t.koordinator.restartPending);
       }
       return;
     }
@@ -310,7 +310,7 @@ export class Koordinator {
       try {
         on = await this.dependencies(plan, kids);
       } catch (e) {
-        this.o.board.log(planId, 'error', 'obeya', this.o.board.t.koordinator.arrangeFailed(messageOf(e)));
+        this.o.board.log(planId, 'error', 'seismic', this.o.board.t.koordinator.arrangeFailed(messageOf(e)));
         this.o.board.setDeps(planId, { failed: true });
         throw e;
       }
@@ -715,7 +715,7 @@ export class Koordinator {
     try {
       scope = await this.estimate(card, active, ahead, pending, candidates, (until, retry) => this.o.board.waitsForLimit({ card: cardId }, until, retry));
     } catch (e) {
-      this.o.board.log(cardId, 'error', 'obeya', this.o.board.t.koordinator.estimateFailed(messageOf(e)));
+      this.o.board.log(cardId, 'error', 'seismic', this.o.board.t.koordinator.estimateFailed(messageOf(e)));
       scope = { files: [], duplicates: [], conflictsWith: [], buildsOn: [], reason: '' };
     }
     const now = this.o.board.item(cardId);
@@ -771,7 +771,7 @@ export class Koordinator {
     const t = this.o.board.t.koordinator;
     const names = (ids: string[]) => ids.map(name).join(', ');
     const line = inferred.length ? `${t.waitsFor(names(inferred), reason)}${drawn.length ? ` ${t.drawnToo(names(drawn))}` : ''}` : t.waitsFor(names(drawn), t.drawn);
-    this.o.board.log(cardId, 'state', 'obeya', line);
+    this.o.board.log(cardId, 'state', 'seismic', line);
   }
 
   /**
@@ -811,8 +811,8 @@ export class Koordinator {
         const q = this.o.board.item(w.id)?.queue;
         return !!q && 'checking' in q && q.together === key && q.since === w.queue!.since;
       });
-      if (planCard) this.o.board.log(key, 'error', 'obeya', t.togetherFailed(messageOf(e)));
-      else for (const w of left) this.o.board.log(w.id, 'error', 'obeya', t.freedFailed(messageOf(e)));
+      if (planCard) this.o.board.log(key, 'error', 'seismic', t.togetherFailed(messageOf(e)));
+      else for (const w of left) this.o.board.log(w.id, 'error', 'seismic', t.freedFailed(messageOf(e)));
       for (const w of left) {
         this.setQueue(w.id, { checking: true });
         this.serial(() => this.decide(w.id));
@@ -861,7 +861,7 @@ export class Koordinator {
   private startNow(cardId: string, why: string, begun?: boolean) {
     const since = this.o.board.item(cardId)?.queue?.since;
     this.setQueue(cardId, null);
-    this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.koordinator.says(why));
+    this.o.board.log(cardId, 'state', 'seismic', this.o.board.t.koordinator.says(why));
     this.launch(cardId, since, begun);
   }
 
@@ -875,14 +875,14 @@ export class Koordinator {
     const unheld = begun ? { begun: true as const } : {};
     if (this.o.paused?.()) {
       this.setQueue(cardId, { paused: true, ...unheld }, since);
-      this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.koordinator.projectPaused);
+      this.o.board.log(cardId, 'state', 'seismic', this.o.board.t.koordinator.projectPaused);
       return;
     }
     const refused = (e: unknown) => {
       const shortage = e instanceof BadRequest ? shortageOf(e.code) : undefined;
-      if (!shortage) return this.o.board.log(cardId, 'error', 'obeya', messageOf(e), { code: e instanceof BadRequest ? e.code : undefined });
+      if (!shortage) return this.o.board.log(cardId, 'error', 'seismic', messageOf(e), { code: e instanceof BadRequest ? e.code : undefined });
       this.setQueue(cardId, { workstation: shortage, ...unheld }, since);
-      this.o.board.log(cardId, 'state', 'obeya', { none: this.o.board.t.koordinator.noWorkstation, dirty: this.o.board.t.koordinator.dirtyWorkstations, slots: this.o.board.t.koordinator.noSlot }[shortage]);
+      this.o.board.log(cardId, 'state', 'seismic', { none: this.o.board.t.koordinator.noWorkstation, dirty: this.o.board.t.koordinator.dirtyWorkstations, slots: this.o.board.t.koordinator.noSlot }[shortage]);
     };
     try {
       // git makes its workstation ready in the background; what goes wrong there its card says itself, but that the clone
@@ -956,7 +956,7 @@ export class Koordinator {
         // the slots the paused agents freed are not for it: it waits for them to resume
         if (paused) {
           this.setQueue(w.id, { paused: true, ...(begun && { begun }) }, w.queue!.since);
-          this.o.board.log(w.id, 'state', 'obeya', this.o.board.t.koordinator.projectPaused);
+          this.o.board.log(w.id, 'state', 'seismic', this.o.board.t.koordinator.projectPaused);
           continue;
         }
         // a card whose branch a clone keeps takes one on that clone's machine: none there leaves the others to the cards behind it
@@ -976,7 +976,7 @@ export class Koordinator {
       const unmerged = items.find((i) => q.buildsOn?.includes(i.id) && i.state === 'done' && contributionOf(this.o.board.row(i.id))?.closed);
       if (unmerged) {
         this.setQueue(w.id, null);
-        this.o.board.log(w.id, 'state', 'obeya', this.o.board.t.koordinator.reviewClosed(this.o.board.t.quote(unmerged.title)));
+        this.o.board.log(w.id, 'state', 'seismic', this.o.board.t.koordinator.reviewClosed(this.o.board.t.quote(unmerged.title)));
         continue;
       }
       // the waits the Koordinator inferred hold while what they wait for is in progress or queued, or
@@ -1012,7 +1012,7 @@ export class Koordinator {
         const key = `freed:${randomUUID()}`;
         for (const w of group) {
           this.setQueue(w.id, { checking: true, together: key });
-          this.o.board.log(w.id, 'state', 'obeya', this.o.board.t.koordinator.waitedDoneTogether);
+          this.o.board.log(w.id, 'state', 'seismic', this.o.board.t.koordinator.waitedDoneTogether);
         }
         this.serial(() => this.decideAll(key));
         continue;
@@ -1022,7 +1022,7 @@ export class Koordinator {
         this.startNow(w.id, this.o.board.t.koordinator.waitedDone);
       } else {
         this.setQueue(w.id, { checking: true });
-        this.o.board.log(w.id, 'state', 'obeya', this.o.board.t.koordinator.waitedDoneRecheck);
+        this.o.board.log(w.id, 'state', 'seismic', this.o.board.t.koordinator.waitedDoneRecheck);
         this.serial(() => this.decide(w.id));
       }
     }
@@ -1388,15 +1388,15 @@ export class Koordinator {
   /** The repository of a card it was deciding on stopped running on the project: the card is planned again, for the owner to start once it is back. */
   private repoGone(card: Item) {
     this.setQueue(card.id, null);
-    this.o.board.log(card.id, 'state', 'obeya', this.o.board.t.koordinator.repoDown(card.repo));
+    this.o.board.log(card.id, 'state', 'seismic', this.o.board.t.koordinator.repoDown(card.repo));
   }
 
   /** A card keeps the time it came to the Koordinator for as long as it stays queued. */
   private setQueue(cardId: string, q: Wait | null, keep?: string) {
     const since = keep ?? this.o.board.item(cardId)?.queue?.since ?? new Date().toISOString();
     this.o.board.work(cardId, { queue: q ? JSON.stringify({ ...q, since }) : null });
-    if (q && 'behind' in q && q.behind.length) this.o.board.record(cardId, 'waitsForCard', 'obeya', { other: q.behind[0]!, again: (l) => l.code === 'waitsForCard' && q.behind.includes(l.otherId ?? '') });
-    else if (q && 'workstation' in q) this.o.board.record(cardId, 'waitsForWorkstation', 'obeya', { again: (l) => l.code === 'waitsForWorkstation' });
+    if (q && 'behind' in q && q.behind.length) this.o.board.record(cardId, 'waitsForCard', 'seismic', { other: q.behind[0]!, again: (l) => l.code === 'waitsForCard' && q.behind.includes(l.otherId ?? '') });
+    else if (q && 'workstation' in q) this.o.board.record(cardId, 'waitsForWorkstation', 'seismic', { again: (l) => l.code === 'waitsForWorkstation' });
   }
 
   private card(id: string): Item {
@@ -1577,7 +1577,7 @@ const WHO: Record<CardEvent['author'], string> = {
   explorer: 'the idea agent',
   plan: 'the plan agent',
   koordinator: 'you',
-  obeya: 'Seismic',
+  seismic: 'Seismic',
 };
 const STEPS: Partial<Record<CardEvent['kind'], string>> = {
   state: ': ',

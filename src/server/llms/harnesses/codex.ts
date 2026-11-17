@@ -471,7 +471,7 @@ async function checkProjectConfig(connection: CodexConnection, spec: AgentSpec) 
 }
 
 async function discover(connection: CodexConnection, closing: () => boolean): Promise<CodexModel[]> {
-  await connection.request('initialize', { clientInfo: { name: 'obeya', title: 'Seismic', version: '0.1.0' }, capabilities: { experimentalApi: true } });
+  await connection.request('initialize', { clientInfo: { name: 'seismic', title: 'Seismic', version: '0.1.0' }, capabilities: { experimentalApi: true } });
   if (closing()) return [];
   connection.notify('initialized', {});
   const models: CodexModel[] = [];
@@ -554,7 +554,7 @@ export function codexUsage(connect: Connect = connectInstalled): UsageSource {
         });
         connection = c;
         ready = (async () => {
-          await c.request('initialize', { clientInfo: { name: 'obeya', title: 'Seismic', version: '0.1.0' }, capabilities: { experimentalApi: true } });
+          await c.request('initialize', { clientInfo: { name: 'seismic', title: 'Seismic', version: '0.1.0' }, capabilities: { experimentalApi: true } });
           c.notify('initialized', {});
         })();
       }

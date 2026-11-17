@@ -2,7 +2,7 @@
 // event dispatched in the page each animation frame for 4 s, three runs; prints the runs and their mean.
 // The canvas sets `moving` while it pans, so the cards drop their blur as they do for the owner.
 //
-//   bun scripts/pan-fps.ts <sign-in url from scratch-obeya> [label]
+//   bun scripts/pan-fps.ts <sign-in url from scratch-seismic> [label]
 //
 // Stage the cards first, e.g. 100 of them spread over the canvas; compare builds side by side
 // (`--code <commit>` for the before), on the same machine at the same time, since load elsewhere
