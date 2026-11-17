@@ -1,24 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { bundledSkills, type SkillPlace, Skills, skillsOf } from './skills';
-
-describe('bundledSkills', () => {
-  test('lists the shipped skills under the plugin name; a damaged plugin lists what is there', () => {
-    expect(bundledSkills().map((s) => s.name)).toContain('seismic:demo');
-    const plugin = mkdtempSync(join(tmpdir(), 'seismic-plugin-'));
-    try {
-      expect(bundledSkills(plugin)).toEqual([]);
-      mkdirSync(join(plugin, 'skills', 'empty'), { recursive: true });
-      mkdirSync(join(plugin, 'skills', 'titles'), { recursive: true });
-      writeFileSync(join(plugin, 'skills', 'titles', 'SKILL.md'), '---\ndescription: Names cards.\n---\n');
-      expect(bundledSkills(plugin).map((s) => s.name)).toEqual(['seismic:titles']);
-    } finally {
-      rmSync(plugin, { recursive: true, force: true });
-    }
-  });
-});
+import { type SkillPlace, Skills, skillsOf } from './skills';
 
 describe('skillsOf', () => {
   test('keeps the skills and commands of the repository, the user and plugins, and of Claude Code its skills alone, in that order', () => {

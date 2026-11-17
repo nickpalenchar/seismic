@@ -43,7 +43,8 @@ import { harnessNames } from './llms/harnesses';
 import { bashRules } from './allow-rules';
 import { type TagCard, tagCards } from './llms/skills/tagProposal';
 import { commandsOf, heldGroups, withoutHeld } from './trust';
-import { bundledSkills, Skills } from './skills';
+import { seismicSkills } from './agents/skills/registry';
+import { Skills } from './skills';
 
 /** The skill lists of all projects: several share a repository, and the user's skills are the same on each. */
 const sharedSkills = new Skills();
@@ -1595,7 +1596,7 @@ export class ProjectRuntime {
       const row = this.board.row(cardId);
       // Legacy unqualified sessions belong to Claude even after the default changes.
       const setting = row.agent_setting ? JSON.parse(row.agent_setting) : row.session_id ? undefined : this.agentFor('worker');
-      if (setting?.harness === 'codex' || setting?.harness === 'agy') return bundledSkills().map(({ file: _, ...skill }) => skill);
+      if (setting?.harness === 'codex' || setting?.harness === 'agy') return seismicSkills().map((s) => s.toListing());
     }
     return this.skills.of({ cwd, plugins: idea ? [] : [SEISMIC_PLUGIN], untrusted: (!idea && !!card.review?.contribution) || (await this.claudeHeld(cwd)) });
   }

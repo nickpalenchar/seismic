@@ -90,8 +90,8 @@ Not necesarilly "layers", but important to keep organized nonetheless
   (worker, review, ...) supplies the pieces; the base class assembles an `AgentSpec` and starts it on
   a runtime from `src/server/llms/harnesses/`.
 - `src/server/agents/skills/` the skills Seismic ships. `SeismicSkill` is one skill, built from
-  `plugin/skills/<dir>/SKILL.md` (name, description, hint, instructions); `labels.ts`, `titles.ts`
-  hold the instances. An agent declares its skills once
+  `plugin/skills/<dir>/SKILL.md` (name, description, hint, instructions); `browser.ts`, `demo.ts`, `labels.ts`,
+  `settings.ts`, `titles.ts` hold the instances an agent imports, and `registry.ts` lists them all. An agent declares its skills once
   (`getSkills()` → `AgentSpec.skills`) and each harness attaches them its own way
   (`attachedSkills.ts`): Claude loads the plugin, Codex and agy are told the files in the system prompt.
 - `src/server/agents/simpleAgents/` the short, single-purpose agent sessions of Seismic's own (the

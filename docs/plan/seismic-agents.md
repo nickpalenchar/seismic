@@ -23,9 +23,9 @@ and `docs/design.md`, and this doc goes.
 
 ## Open: skills
 
-- [ ] Instances for `browser`, `demo`, `settings` (`demo.ts` has `DEMO_SKILL`, `DEMO_SKILL_FILE` to replace).
-- [ ] One registry of all `SeismicSkill`s; `bundledSkills()` (`skills.ts`) and the Codex/agy listing in
-  `llms/harnesses/index.ts` read it instead of scanning the plugin directory.
+- [x] Instances for `browser`, `demo`, `settings` (`demo.ts` still has `DEMO_SKILL`, `DEMO_SKILL_FILE`; they can use `demoSkill` once their callers move).
+- [x] One registry (`agents/skills/registry.ts`, an explicit list of the instances; a test fails when a plugin
+  folder has none); `project.ts` and the Codex/agy listing in `llms/harnesses/index.ts` read it.
 - [ ] Remove the deprecated `labelsGuide`, `LABELS_SKILL_FILE`, `titlesGuide` once `koordinator.ts` uses
   the skills directly.
 - [ ] Decide whether `getInstructions()` is embedded in the binary (Bun text import) or stays read from
