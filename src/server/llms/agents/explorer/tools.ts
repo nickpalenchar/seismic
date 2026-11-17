@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { type Mock, NEXT_STEPS, type NextStep, type PlannedPrototype, type Question, type SettledPart } from '../../../../core/types';
 import { type Asked, withPick } from '../../../advisor';
 import { type AgentTool } from '../../../runtime';
-import { toObeyaTool } from '../../../to-obeya';
+import { toSeismicTool } from '../../../to-seismic';
 import { clip } from '../../../../core/text';
 import { folderPath } from '../../../new-repo';
 import type { Explorers, Live } from '../../../explorers';
@@ -158,6 +158,6 @@ export function explorerTools(self: ExplorerHost, cardId: string, live: Live): A
         return 'Recorded.';
       },
     },
-    ...(self.o.toObeya ? [toObeyaTool((request) => self.o.toObeya!(cardId, request))] : []),
+    ...(self.o.toSeismic ? [toSeismicTool((request) => self.o.toSeismic!(cardId, request))] : []),
   ]);
 }

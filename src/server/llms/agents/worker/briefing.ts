@@ -88,7 +88,7 @@ ${idea.idea.discussion.brief}` : '',
   const isNew = !!self.o.board.row(card.id).idea?.newRepo?.made;
   if (isNew)
     parts.push(
-      `This repository is new: Seismic created it for this card with a first commit of what its folder held (a default .gitignore, else nothing). It is local only, with no remote. Besides the task, set it up as part of your work: a CLAUDE.md with what the task says about how to work in this repository, and its Seismic settings (\`.obeya/settings.json\`) with the skill \`seismic:settings\`, as the card “${self.o.board.t.adapterSetup.title(basename(self.o.repoPath ?? ''))}” would.`,
+      `This repository is new: Seismic created it for this card with a first commit of what its folder held (a default .gitignore, else nothing). It is local only, with no remote. Besides the task, set it up as part of your work: a CLAUDE.md with what the task says about how to work in this repository, and its Seismic settings (\`.seismic/settings.json\`) with the skill \`seismic:settings\`, as the card “${self.o.board.t.adapterSetup.title(basename(self.o.repoPath ?? ''))}” would.`,
     );
   if (isNew || self.o.board.isSetupCard(card)) {
     const harnesses = self.o.harnesses?.() ?? ['Claude Code'];

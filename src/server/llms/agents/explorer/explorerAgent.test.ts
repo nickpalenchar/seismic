@@ -8,7 +8,7 @@ const host = { o: { board: { conversation: () => 'en', language: () => 'en', t: 
 
 /** Only what the prompt and the options are read from: the tools need a running `Explorers` (`ideas.test.ts` covers them). */
 const context = (over: Partial<ExplorerContext> = {}): ExplorerContext =>
-  ({ conversation: 'en', ui: 'en', repository: 'en', toObeya: false, preferences: '', message: 'Hello.', options: { at: { card: 'c1' } }, ...over }) as ExplorerContext;
+  ({ conversation: 'en', ui: 'en', repository: 'en', toSeismic: false, preferences: '', message: 'Hello.', options: { at: { card: 'c1' } }, ...over }) as ExplorerContext;
 
 test('the explorer is the explorer role with no permission of its own, so the harness follows the owner', () => {
   const spec = explorerAgent.toSpec(context({ host, live: {} as never, cardId: 'c1' }), { cwd: '/w', onEvent: () => {} });

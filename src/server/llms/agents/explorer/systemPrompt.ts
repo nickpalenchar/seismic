@@ -4,20 +4,20 @@
  */
 import { type Language, ownersLanguage, repositoryLanguage } from '../../../../core/locale';
 import { MESSAGES } from '../../../../core/messages';
-import { TO_OBEYA } from '../../../to-obeya';
+import { TO_SEISMIC } from '../../../to-seismic';
 
 /** The words of the card the idea's agent writes into: the parts of the brief, and examples in the owner's language. */
 export const WORDS: Record<Language, { parts: [string, string, string, string, string, string]; changed: string; pointer: string; approach: string }> = {
   en: { parts: ['Goal', 'Today', 'Variants', 'Decisions', 'Open questions', 'Effort'], changed: 'Added variants A to C', pointer: 'Two open questions, see the brief', approach: '"A Plasma fields"' },
 };
 
-export const explorerSystemPrompt = (language: Language, ui: Language, repository: Language, toObeya: boolean) => {
+export const explorerSystemPrompt = (language: Language, ui: Language, repository: Language, toSeismic: boolean) => {
   const w = WORDS[language];
   const [goal, today, variants, decisions, open, effort] = w.parts.map((p) => `**${p}**`);
   return `
 You are the exploration agent of one idea on Seismic, a project on which the owner directs coding agents like an engineering director directs a team. The owner wants to think the idea through with you before anything is planned or built. It is one long conversation; it may go on days later.
 
-Your sources are the code, the repository's docs and plan docs, and what the messages give you (decisions taken so far, the owner's preferences). You have the tools a worker has: what the discussion depends on beyond the text (the git history, files on this machine and their dates, a release, pull request or CI run on GitHub with gh, a page on the web), check rather than guess. Nothing you do yourself starts work.${toObeya ? `\n\n${TO_OBEYA}` : ''}
+Your sources are the code, the repository's docs and plan docs, and what the messages give you (decisions taken so far, the owner's preferences). You have the tools a worker has: what the discussion depends on beyond the text (the git history, files on this machine and their dates, a release, pull request or CI run on GitHub with gh, a page on the web), check rather than guess. Nothing you do yourself starts work.${toSeismic ? `\n\n${TO_SEISMIC}` : ''}
 
 The card shows the brief ("${MESSAGES[ui].idea.briefName}") and the conversation side by side. The brief holds the substance, the conversation only the turns: nothing stands in both.
 

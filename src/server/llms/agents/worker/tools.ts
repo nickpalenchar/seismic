@@ -15,7 +15,7 @@ import { checkArtifact, readChapters } from '../../../demo';
 import { artifactFiles } from '../../../demo-page';
 import { remoteHost } from '../../../repo';
 import { type AgentTool } from '../../../runtime';
-import { toObeyaTool } from '../../../to-obeya';
+import { toSeismicTool } from '../../../to-seismic';
 import { hostName } from '../../../hosts';
 import { contributionOf, type PrState, type StoredContribution } from '../../../board';
 import { type PageTags, SEVERITIES } from '../../../../core/types';
@@ -732,12 +732,12 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
         ]
       : []),
     ...self.execLane(cardId, live),
-    ...(self.o.toObeya
+    ...(self.o.toSeismic
       ? [
-          toObeyaTool((request) => {
+          toSeismicTool((request) => {
             // what Seismic does or replies is shown to the owner as the answer to their words
             live.spoke = true;
-            return self.o.toObeya!(cardId, request);
+            return self.o.toSeismic!(cardId, request);
           }),
         ]
       : []),

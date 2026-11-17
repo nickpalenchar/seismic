@@ -54,7 +54,7 @@ export function decisionsUpdate(self: ContextHost, cardId: string, live: Live): 
 export function restartStillDue(self: ContextHost, cardId: string, live: Live): string | undefined {
   if (!self.restart || !live.restartPaused) return;
   live.restartPaused = false;
-  self.o.board.log(cardId, 'state', 'obeya', self.o.board.t.worker.restartStillDue(pauseOf(self.restart)));
+  self.o.board.log(cardId, 'state', 'seismic', self.o.board.t.worker.restartStillDue(pauseOf(self.restart)));
   return stillDue(self.restart);
 }
 
