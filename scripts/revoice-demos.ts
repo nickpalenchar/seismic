@@ -1,8 +1,8 @@
 // Re-voices the demos of a project's most recently approved cards in another language and shares
 // them, as was done for the 30 last Seismic demos when its demos went public in English.
 //
-//   bun scripts/revoice-demos.ts list [--project obeya] [--count 30] [--language en]
-//   bun scripts/revoice-demos.ts publish <card id>… [--project obeya]
+//   bun scripts/revoice-demos.ts list [--project seismic] [--count 30] [--language en]
+//   bun scripts/revoice-demos.ts publish <card id>… [--project seismic]
 //
 // `list`: the latest demo video of each of the `count` most recently approved cards whose demo kept
 // its frames, newest first, with where it stands: `translate` (re-voicing asks for its words in the
@@ -10,7 +10,7 @@
 // that language already). The re-voicing itself is the demo skill's (`node lib/revoice.ts <dir>
 // <language>`), run by an agent, which translates and checks each.
 // `publish`: for each card whose demo was re-voiced, the Seismic running on SEISMIC_HOME (else
-// ~/.obeya) reads it again (chapters, page) and shares it through its queue, like "Share"; one
+// ~/.seismic) reads it again (chapters, page) and shares it through its queue, like "Share"; one
 // narrated in that language already is shared as it is.
 
 import { Database } from 'bun:sqlite';
@@ -28,13 +28,13 @@ const option = (name: string, fallback: string) => {
   return i >= 0 && args[i + 1] ? args.splice(i, 2)[1]! : fallback;
 };
 const home = (process.env.SEISMIC_HOME ?? process.env.OBEYA_HOME) || join(homedir(), existsSync(join(homedir(), '.seismic')) ? '.seismic' : '.obeya');
-const project = option('project', 'obeya');
+const project = option('project', 'seismic');
 const count = Number(option('count', '30'));
 const languageArg = option('language', 'en');
 const language = LANGUAGES.find((l) => l === languageArg);
 const [command, ...ids] = args;
 if (!language || !Number.isInteger(count) || (command !== 'list' && command !== 'publish') || (command === 'publish' && !ids.length)) {
-  console.error('usage: bun scripts/revoice-demos.ts list [--project obeya] [--count 30] [--language en]\n       bun scripts/revoice-demos.ts publish <card id>… [--project obeya]');
+  console.error('usage: bun scripts/revoice-demos.ts list [--project seismic] [--count 30] [--language en]\n       bun scripts/revoice-demos.ts publish <card id>… [--project seismic]');
   process.exit(2);
 }
 

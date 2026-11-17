@@ -27,34 +27,34 @@ type Release = { platform: string; installers: Asset[]; update: Asset };
 export const RELEASE: Record<string, Release> = {
   'darwin-arm64': {
     platform: 'darwin-aarch64',
-    installers: [{ from: 'dmg', ends: '.dmg', name: 'Obeya-macOS-arm64.dmg' }],
-    update: { from: 'macos', ends: '.app.tar.gz', name: 'Obeya-macOS-arm64.app.tar.gz' },
+    installers: [{ from: 'dmg', ends: '.dmg', name: 'Seismic-macOS-arm64.dmg' }],
+    update: { from: 'macos', ends: '.app.tar.gz', name: 'Seismic-macOS-arm64.app.tar.gz' },
   },
   'darwin-x64': {
     platform: 'darwin-x86_64',
-    installers: [{ from: 'dmg', ends: '.dmg', name: 'Obeya-macOS-x64.dmg' }],
-    update: { from: 'macos', ends: '.app.tar.gz', name: 'Obeya-macOS-x64.app.tar.gz' },
+    installers: [{ from: 'dmg', ends: '.dmg', name: 'Seismic-macOS-x64.dmg' }],
+    update: { from: 'macos', ends: '.app.tar.gz', name: 'Seismic-macOS-x64.app.tar.gz' },
   },
   'windows-x64': {
     platform: 'windows-x86_64',
-    installers: [{ from: 'nsis', ends: '-setup.exe', name: 'Obeya-Windows-x64-setup.exe' }],
-    update: { from: 'nsis', ends: '-setup.exe', name: 'Obeya-Windows-x64-setup.exe' },
+    installers: [{ from: 'nsis', ends: '-setup.exe', name: 'Seismic-Windows-x64-setup.exe' }],
+    update: { from: 'nsis', ends: '-setup.exe', name: 'Seismic-Windows-x64-setup.exe' },
   },
   'linux-x64': {
     platform: 'linux-x86_64',
     installers: [
-      { from: 'appimage', ends: '.AppImage', name: 'Obeya-Linux-x86_64.AppImage' },
-      { from: 'deb', ends: '.deb', name: 'obeya_amd64.deb' },
+      { from: 'appimage', ends: '.AppImage', name: 'Seismic-Linux-x86_64.AppImage' },
+      { from: 'deb', ends: '.deb', name: 'seismic_amd64.deb' },
     ],
-    update: { from: 'appimage', ends: '.AppImage', name: 'Obeya-Linux-x86_64.AppImage' },
+    update: { from: 'appimage', ends: '.AppImage', name: 'Seismic-Linux-x86_64.AppImage' },
   },
   'linux-arm64': {
     platform: 'linux-aarch64',
     installers: [
-      { from: 'appimage', ends: '.AppImage', name: 'Obeya-Linux-aarch64.AppImage' },
-      { from: 'deb', ends: '.deb', name: 'obeya_arm64.deb' },
+      { from: 'appimage', ends: '.AppImage', name: 'Seismic-Linux-aarch64.AppImage' },
+      { from: 'deb', ends: '.deb', name: 'seismic_arm64.deb' },
     ],
-    update: { from: 'appimage', ends: '.AppImage', name: 'Obeya-Linux-aarch64.AppImage' },
+    update: { from: 'appimage', ends: '.AppImage', name: 'Seismic-Linux-aarch64.AppImage' },
   },
 };
 

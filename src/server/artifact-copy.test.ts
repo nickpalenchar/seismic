@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { artifactCopy } from './artifact-copy';
 import { artifactFiles } from './demo-page';
 
-const root = mkdtempSync(join(tmpdir(), 'obeya-artifact-copy-'));
+const root = mkdtempSync(join(tmpdir(), 'seismic-artifact-copy-'));
 afterAll(() => rmSync(root, { recursive: true, force: true }));
 
 let n = 0;
@@ -40,8 +40,8 @@ describe('artifactCopy', () => {
     const { copy } = await copyOf({ 'index.html': '<a href="more/second.html">more</a>', 'more/second.html': '<script>fetch("https://elsewhere.example/")</script>' });
     expect(copy.get('more/second.html')).toStartWith(`<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'self' https://demos.example.com data: blob:;`);
     expect(copy.get('more/second.html')).toContain('<script>fetch("https://elsewhere.example/")</script>');
-    expect(copy.get('more/second.html')).toContain('obeyaCloseImage');
-    expect(copy.get('more/second.html')).not.toContain('obeyaHeight');
+    expect(copy.get('more/second.html')).toContain('seismicCloseImage');
+    expect(copy.get('more/second.html')).not.toContain('seismicHeight');
   });
 
   test('starts with the policy that lets the page load its own files alone, ahead of anything of its own', async () => {
@@ -71,7 +71,7 @@ describe('artifactCopy', () => {
     expect(index).toContain('<script>var classic = 1;</script>');
     expect(index).not.toContain(dir);
     expect(index).not.toMatch(/^\/\/ .*label\.js$/m);
-    expect(index).toContain('obeyaHeight');
+    expect(index).toContain('seismicHeight');
     // scripts and stylesheets load without CORS: no table of files to fetch
     expect(index).not.toContain('const files');
     expect([...copy.keys()]).toEqual(['index.html']);

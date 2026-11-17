@@ -211,7 +211,7 @@ test('three consecutive limit failures exhaust retries, including after a manual
 
 test("agents run the Agent SDK's Claude Code from the checkout, the machine's own from the binary", () => {
   expect(claudeExecutable({ PATH: '' }, false)).toBeUndefined();
-  expect(claudeExecutable({ OBEYA_CLAUDE: '/opt/claude', PATH: '' }, true)).toBe('/opt/claude');
+  expect(claudeExecutable({ SEISMIC_CLAUDE: '/opt/claude', PATH: '' }, true)).toBe('/opt/claude');
   expect(claudeExecutable({ SEISMIC_CLAUDE: '/opt/new', OBEYA_CLAUDE: '/opt/claude', PATH: '' }, true)).toBe('/opt/new');
   // none on the PATH: where the official installer puts it, for the SDK to say it is missing
   expect(claudeExecutable({ PATH: '' }, true, 'linux')).toBe(join(homedir(), '.local', 'bin', 'claude'));
@@ -219,7 +219,7 @@ test("agents run the Agent SDK's Claude Code from the checkout, the machine's ow
 });
 
 test("an agent's environment keeps a machine's Claude login but not another session's marks", () => {
-  const env = cleanEnv({ PATH: '/bin', CLAUDE_CODE_OAUTH_TOKEN: 't', CLAUDE_CODE_ENTRYPOINT: 'cli', CLAUDECODE: '1', OBEYA_SUPERVISED: '1', OBEYA_FROM_APP: '1', BUN_BE_BUN: '1' });
+  const env = cleanEnv({ PATH: '/bin', CLAUDE_CODE_OAUTH_TOKEN: 't', CLAUDE_CODE_ENTRYPOINT: 'cli', CLAUDECODE: '1', SEISMIC_SUPERVISED: '1', SEISMIC_FROM_APP: '1', BUN_BE_BUN: '1' });
   expect(env).toEqual({ PATH: '/bin', CLAUDE_CODE_OAUTH_TOKEN: 't' });
   expect(cleanEnv({ PATH: '/bin', SEISMIC_SUPERVISED: '1', SEISMIC_FROM_APP: '1' })).toEqual({ PATH: '/bin' });
 });
@@ -376,7 +376,7 @@ test('a Codex agent is not asked for a command the owner-confirmed allow list co
   expect((await answer({ cwd: '/other' }, 'Bash', { command: "/bin/zsh -lc 'bun run typecheck'" })).allow).toBe(false);
   expect(asked).toHaveLength(11);
   // setting the shell up in front: sourcing a file the agent cannot write, not one in its writable places
-  const home = mkdtempSync(join(homedir(), '.obeya-runtime-test-'));
+  const home = mkdtempSync(join(homedir(), '.seismic-runtime-test-'));
   try {
     writeFileSync(join(home, 'nvm.sh'), '');
     const nvm = `/bin/zsh -lc 'source ${home}/nvm.sh && nvm use 24 && pnpm -C app install --frozen-lockfile'`;
@@ -395,7 +395,7 @@ test('a Codex agent is not asked for a command the owner-confirmed allow list co
 });
 
 test("a Codex agent loads the repository's .codex only where its workstation has it as the owner trusted it, asked at every start", () => {
-  const dir = mkdtempSync(join(tmpdir(), 'obeya-codex-trust-'));
+  const dir = mkdtempSync(join(tmpdir(), 'seismic-codex-trust-'));
   try {
     const repo = repoWith(join(dir, 'repo'), { '.codex/config.toml': 'model = "x"\n' });
     let trusted = commandsOf(readShared(repo)).codex;

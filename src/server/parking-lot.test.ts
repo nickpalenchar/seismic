@@ -12,7 +12,7 @@ let store: Store;
 let project: ProjectRuntime;
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'obeya-lot-'));
+  dir = mkdtempSync(join(tmpdir(), 'seismic-lot-'));
   const main = join(dir, 'main');
   gitRepo(main);
   mkdirSync(join(main, 'docs/plan'), { recursive: true });

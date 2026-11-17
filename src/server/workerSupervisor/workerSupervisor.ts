@@ -61,7 +61,7 @@ export interface WorkerOptions {
   adapter: RepoAdapter;
   /**
    * The settings the owner set for the repository on this machine, in front of its
-   * `.obeya/settings.json`: how work lands where they say so, whatever a card's branch changes.
+   * `.seismic/settings.json`: how work lands where they say so, whatever a card's branch changes.
    */
   machineSettings?: () => RepoSettings | undefined;
   /** Whether the repository's demos are shared on a page now (its project's demo site, initialized); none when left out. */
@@ -119,12 +119,12 @@ export interface WorkerOptions {
   /** The files of the owner's screenshots, by id; unknown ones are left out. */
   imageFiles?: (ids?: string[]) => string[];
   /**
-   * Whether Seismic starts again for work that landed (`obeya`): it runs from this repository's
+   * Whether Seismic starts again for work that landed (`seismic`): it runs from this repository's
    * checkout and the work changed code; or only this repository's agents do (`repo`): the work
-   * changed where they work (its own adapter, its `.obeya/settings.json`). `pushedFrom` is the
+   * changed where they work (its own adapter, its `.seismic/settings.json`). `pushedFrom` is the
    * workstation work was pushed from straight to the remote's main, which leaves the checkout as it is.
    */
-  restartsFor?: (landed: Landed, pushedFrom?: string) => Promise<'obeya' | 'repo' | false> | 'obeya' | 'repo' | false;
+  restartsFor?: (landed: Landed, pushedFrom?: string) => Promise<'seismic' | 'repo' | false> | 'seismic' | 'repo' | false;
   /** Added to every worker's environment: where Seismic is (`SEISMIC_URL`), for a demo's narration. */
   env?: Record<string, string>;
   /** The narration language of the demo settings, for a repository that names none for its demos; the conversation language when left out. */
@@ -151,7 +151,7 @@ export interface WorkerOptions {
   /** A card's work ended (landed, closed without a change, a prototype discarded or built): its runs can be read now. */
   onWorkEnded?: (cardId: string, workstation: string | null) => void;
   /** Passes on to the Koordinator what the owner's words to a card's worker ask of Seismic (`to_seismic`); without it the worker has no such tool. */
-  toObeya?: (cardId: string, request: string) => Promise<string>;
+  toSeismic?: (cardId: string, request: string) => Promise<string>;
   /** Where pull requests live: a review card's is read, commented on and merged through it. */
   forge?: Forge;
   /** The repository's checkout, where the forge's calls run for a card without a workstation on this machine. */
@@ -674,7 +674,7 @@ export class WorkerSupervisor {
     const { path, ready } = asBadRequest(() => this.o.workstations.lease(card.id, branch, { from: row.kept_in }));
     this.bump(card.id);
     // the run before is not resumed, but the work retrospective still reads it
-    if (row.session_id) this.o.board.log(card.id, 'state', 'obeya', this.o.board.t.worker.restarted(this.o.board.t.worker.earlierRun(row.session_id)));
+    if (row.session_id) this.o.board.log(card.id, 'state', 'seismic', this.o.board.t.worker.restarted(this.o.board.t.worker.earlierRun(row.session_id)));
     // a review card's pull request is watched from the start, afresh
     const contribution = contributionOf(row);
     const pr: PrState | null = contribution ? { url: contribution.url, number: contribution.number, seen: [], reported: [] } : null;
@@ -682,8 +682,8 @@ export class WorkerSupervisor {
     this.o.board.work(card.id, { state: 'working', need: null, ...this.keepingConflict(card.id), status_line: null, workstation: path, branch, session_id: null, agent_setting: selected ? JSON.stringify(selected) : null, review: { pr }, parked: null, ...this.o.board.unheld(card.id, AGENT_HOLDS), app: null });
     this.o.board.record(card.id, 'started', 'agent');
     const t = this.o.board.t.worker;
-    this.o.board.log(card.id, 'state', 'obeya', this.folder ? t.startedInFolder : contribution ? t.reviewStarted(contribution.number, contribution.author) : t.started(branch));
-    if (selected) this.o.board.log(card.id, 'state', 'obeya', t.startedWith(selected.harness === 'codex' && selected.codex ? `Codex · ${selected.codex.model} · ${selected.codex.effort}` : selected.harness === 'agy' && selected.agy ? `Antigravity · ${selected.agy.model} · ${selected.agy.effort}` : `Claude Code · ${selected.model} · ${selected.effort}`));
+    this.o.board.log(card.id, 'state', 'seismic', this.folder ? t.startedInFolder : contribution ? t.reviewStarted(contribution.number, contribution.author) : t.started(branch));
+    if (selected) this.o.board.log(card.id, 'state', 'seismic', t.startedWith(selected.harness === 'codex' && selected.codex ? `Codex · ${selected.codex.model} · ${selected.codex.effort}` : selected.harness === 'agy' && selected.agy ? `Antigravity · ${selected.agy.model} · ${selected.agy.effort}` : `Claude Code · ${selected.model} · ${selected.effort}`));
     const asked = this.o.takeAsked?.(card.id);
     const launch = (headProblem?: string | null) => this.launch(card.id, [workerBriefing(this, card, branch, !!row.branch, headProblem), asked].filter(Boolean).join('\n\n'), undefined, this.taskImages(card));
     // captured working changes go into the workstation it is given, not into the prompt
@@ -736,7 +736,7 @@ export class WorkerSupervisor {
         then();
       } catch (e) {
         console.error(`starting the worker of ${cardId}:`, e);
-        this.o.board.log(cardId, 'error', 'obeya', messageOf(e));
+        this.o.board.log(cardId, 'error', 'seismic', messageOf(e));
       }
     };
     const done: Promise<void> = ready.then(
@@ -753,7 +753,7 @@ export class WorkerSupervisor {
           if (this.o.board.row(cardId).workstation !== path) return;
           undo();
           undone = true;
-          if (!short) this.o.board.log(cardId, 'error', 'obeya', this.o.board.t.worker.workstationFailed(messageOf(e)));
+          if (!short) this.o.board.log(cardId, 'error', 'seismic', this.o.board.t.worker.workstationFailed(messageOf(e)));
         }, true);
         if (short && undone) throw new BadRequest((e as WorkstationError).code, messageOf(e));
       },
@@ -784,7 +784,7 @@ export class WorkerSupervisor {
       (e: unknown) => messageOf(e),
     ).then((problem) => {
       if (this.shut || !this.o.board.item(cardId) || this.generation.get(cardId) !== generation) return;
-      if (problem) this.o.board.log(cardId, 'error', 'obeya', problem);
+      if (problem) this.o.board.log(cardId, 'error', 'seismic', problem);
       then(problem);
     });
   }
@@ -921,8 +921,8 @@ export class WorkerSupervisor {
     const body = clip(task, 19000);
     const of = this.o.board.item(cardId)?.title ?? '';
     const card = this.o.board.create({ title: clip(title, 200), body: c ? (body.includes(c.url) ? body : `${body}\n\n${t.findingTask(c.number, c.url)}`) : `${body}\n\n${t.findingTaskOf(of)}`, from: cardId }, undefined, 'owner');
-    this.o.board.log(card.id, 'state', 'obeya', c ? t.findingTaskMade(c.number) : t.findingTaskMadeOf(of));
-    this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.voice.madeFollowUp(card.title), { made: { card: card.id, title: card.title } });
+    this.o.board.log(card.id, 'state', 'seismic', c ? t.findingTaskMade(c.number) : t.findingTaskMadeOf(of));
+    this.o.board.log(cardId, 'state', 'seismic', this.o.board.t.voice.madeFollowUp(card.title), { made: { card: card.id, title: card.title } });
     if (c) {
       const findings = c.findings!.map((f): Finding => {
         if (!named.includes(f.id)) return f;
@@ -1216,7 +1216,7 @@ export class WorkerSupervisor {
     const { worktree: _, ...landed } = workerConfig.landedOf(row)!;
     this.removeTree(row.workstation);
     this.o.board.work(cardId, { workstation: null, landed: JSON.stringify(landed), status_line: this.o.board.t.worker.waitsForWorkstation });
-    this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.worker.waitsForClone);
+    this.o.board.log(cardId, 'state', 'seismic', this.o.board.t.worker.waitsForClone);
     this.takeClone(cardId);
   }
 
@@ -1237,7 +1237,7 @@ export class WorkerSupervisor {
     const { needsClone: _, ...landed } = workerConfig.landedOf(row)!;
     this.bump(cardId);
     this.o.board.work(cardId, { workstation: lease.path, landed: JSON.stringify(landed), status_line: null, app: null });
-    this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.worker.cloneFree);
+    this.o.board.log(cardId, 'state', 'seismic', this.o.board.t.worker.cloneFree);
     void this.whenReady(
       cardId,
       lease.ready,
@@ -1412,7 +1412,7 @@ export class WorkerSupervisor {
         try {
           this.release(cardId);
         } catch (e) {
-          if (this.o.board.item(cardId)) this.o.board.log(cardId, 'error', 'obeya', messageOf(e));
+          if (this.o.board.item(cardId)) this.o.board.log(cardId, 'error', 'seismic', messageOf(e));
         }
       }, ms),
     );
@@ -1772,7 +1772,7 @@ export class WorkerSupervisor {
         const clash = await this.probeClash(cardId);
         if (this.generation.get(cardId) !== generation || !this.o.board.item(cardId)) return;
         if (clash && !sameClash(shown, clash)) {
-          this.o.board.log(cardId, 'state', 'obeya', t.clashFound(c.number, clash.subject, clash.card?.title));
+          this.o.board.log(cardId, 'state', 'seismic', t.clashFound(c.number, clash.subject, clash.card?.title));
           throw new BadRequest('pullClash', `the pull request collides with unpushed commits on the local main (${clash.commit.slice(0, 7)} ${clash.subject})`);
         }
       }
@@ -1791,7 +1791,7 @@ export class WorkerSupervisor {
         merged = await forge.merge(cwd, c.url, c.reviewed);
       } catch (e) {
         const reason = messageOf(e).replace(/^gh pr merge \S+: /, '');
-        this.o.board.log(cardId, 'error', 'obeya', t.mergeRefused(reason));
+        this.o.board.log(cardId, 'error', 'seismic', t.mergeRefused(reason));
         if (comments) this.deliver(cardId, comments.text, comments.images, true);
         throw new BadRequest('mergeRefused', reason);
       }
@@ -1841,7 +1841,7 @@ export class WorkerSupervisor {
   private moved(cardId: string, c: StoredContribution, head: string): BadRequest {
     const t = this.o.board.t.worker;
     const comments = this.approvalComments(cardId);
-    this.o.board.log(cardId, 'state', 'obeya', c.held ? t.heldMoved(head.slice(0, 7)) : t.unreviewedHead(head.slice(0, 7)));
+    this.o.board.log(cardId, 'state', 'seismic', c.held ? t.heldMoved(head.slice(0, 7)) : t.unreviewedHead(head.slice(0, 7)));
     this.o.board.work(cardId, { state: 'working', need: null, detail: null, status_line: null });
     this.deliver(
       cardId,
@@ -1871,7 +1871,7 @@ export class WorkerSupervisor {
     const ws = this.o.board.row(cardId).workstation;
     const to = pushTarget(c);
     const refuse = (reason: string) => {
-      this.o.board.log(cardId, 'error', 'obeya', t.pushRefused(reason));
+      this.o.board.log(cardId, 'error', 'seismic', t.pushRefused(reason));
       return new BadRequest('pushRefused', reason);
     };
     if (!ws) throw refuse('the card has no workstation');
@@ -1939,7 +1939,7 @@ export class WorkerSupervisor {
       ...(sent ? { state: 'inPr', need: null, detail: null, status_line: null } : {}),
     });
     if (failed) {
-      this.o.board.log(cardId, 'error', 'obeya', t.postFailed(failed));
+      this.o.board.log(cardId, 'error', 'seismic', t.postFailed(failed));
       throw new BadRequest('mergeRefused', `pushed, but the forge refused the text that goes with it (${failed})`);
     }
     this.o.board.log(cardId, 'state', 'owner', `${t.pushedHeld(c.number, held.commits, asks ? c.author : undefined)}${url ? ` ${url}` : ''}`);
@@ -1956,7 +1956,7 @@ export class WorkerSupervisor {
     const t = this.o.board.t.worker;
     this.refuseAsked(cardId, 'meanwhile the pull request was closed without a merge.');
     this.o.board.work(cardId, { review: { contribution: { ...c, closed: true } satisfies StoredContribution } });
-    this.o.board.log(cardId, 'state', 'obeya', t.prClosed);
+    this.o.board.log(cardId, 'state', 'seismic', t.prClosed);
     this.toOwner(cardId, { text: t.contributionClosedQuestion, options: [t.closeCard, t.keepCard] });
     this.deliver(
       cardId,
@@ -1969,7 +1969,7 @@ export class WorkerSupervisor {
    * what came and reviews again; the owner's log gets `note`.
    */
   contributorAnswered(cardId: string, note: string, message: string) {
-    this.o.board.log(cardId, 'state', 'obeya', note);
+    this.o.board.log(cardId, 'state', 'seismic', note);
     const c = contributionOf(this.o.board.row(cardId));
     if (c?.requested) this.o.board.work(cardId, { review: { contribution: { ...c, requested: undefined } satisfies StoredContribution } });
     if (this.o.board.row(cardId).state === 'inPr') this.o.board.work(cardId, { state: 'working', need: null, detail: null, status_line: null });
@@ -2125,7 +2125,7 @@ export class WorkerSupervisor {
 
   /**
    * How the card's work lands: as the repository's settings say, except where its own branch
-   * changes that in `.obeya/settings.json` (the card that sets up the settings, say) and the
+   * changes that in `.seismic/settings.json` (the card that sets up the settings, say) and the
    * settings of this machine do not say otherwise. Then as the branch says: the owner approves the
    * change with the work, and has answered how work lands in the card that makes it. `own` holds
    * what the branch decides.
@@ -2152,7 +2152,7 @@ export class WorkerSupervisor {
    * handover lands without the owner approving again, the same way. What blocks the Seismic checkout,
    * or a push turned away, stays with the owner and needs a new approval.
    */
-  private async land(cardId: string, by: 'owner' | 'obeya', comments?: Comments) {
+  private async land(cardId: string, by: 'owner' | 'seismic', comments?: Comments) {
     if (this.landing.has(cardId)) return;
     this.landing.add(cardId);
     const turn = new AbortController();
@@ -2172,7 +2172,7 @@ export class WorkerSupervisor {
     }
   }
 
-  private async landNow(cardId: string, by: 'owner' | 'obeya', comments?: Comments, signal?: AbortSignal) {
+  private async landNow(cardId: string, by: 'owner' | 'seismic', comments?: Comments, signal?: AbortSignal) {
     const row = this.o.board.row(cardId);
     // only a direct approval is held where work goes out as a pull request
     const direct = (await this.landingOf(cardId)).land === 'pr';
@@ -2203,7 +2203,7 @@ export class WorkerSupervisor {
     if (by === 'owner') this.o.board.record(cardId, 'approved', 'owner');
     if ('code' in result) {
       this.o.board.work(cardId, { state: 'working', need: null, detail: result.code === 'landConflict' ? JSON.stringify({ conflict: true }) : null, approved_at: row.approved_at ?? new Date().toISOString() });
-      this.o.board.log(cardId, 'error', 'obeya', result.detail, { code: result.code });
+      this.o.board.log(cardId, 'error', 'seismic', result.detail, { code: result.code });
       this.deliver(
         cardId,
         [
@@ -2232,12 +2232,12 @@ export class WorkerSupervisor {
       landed: JSON.stringify({ commit: result.to, ...(restarts ? { restarts } : {}), ...(page.waits ? { page: true } : {}) } satisfies LandedState),
       shipped: JSON.stringify({ commit: result.to, base: result.from } satisfies Shipped),
     });
-    this.o.board.record(cardId, 'landed', 'obeya');
+    this.o.board.record(cardId, 'landed', 'seismic');
     const t = this.o.board.t.worker;
     if (direct) this.o.board.log(cardId, 'state', by, by === 'owner' ? t.approvedDirect : t.landedDirect);
     else this.o.board.log(cardId, 'state', by, by === 'owner' ? t.approvedMain : t.landedMain);
     const sw = result.switched;
-    if (sw) this.o.board.log(cardId, 'state', 'obeya', t.switchedToMain(sw.branch, sw.commit));
+    if (sw) this.o.board.log(cardId, 'state', 'seismic', t.switchedToMain(sw.branch, sw.commit));
     if (direct) this.o.onMerged?.(cardId);
     else this.reprobeClashes();
     this.o.onLanded?.(cardId);
@@ -2254,7 +2254,7 @@ export class WorkerSupervisor {
               ? ` ${sw.branch ?? sw.commit} has ${sw.commits === 1 ? 'a commit' : `${sw.commits} commits`} main does not: if ${sw.commits === 1 ? 'it is' : 'they are'} work of yours, made there instead of in your workstation, ${sw.commits === 1 ? 'it' : 'they'} did not land with it; tell the owner.`
               : '')
           : '',
-        restartFor === 'obeya'
+        restartFor === 'seismic'
           ? `Seismic runs from that checkout and starts again with your change as soon as no worker is in the middle of a turn, which stops whatever you run then. ${AFTER_RESTART}`
           : restartFor === 'repo'
             ? `Your change moves where this repository's agents work: Seismic restarts them with it as soon as none of them is in the middle of a turn, you among them, which stops whatever you run then. ${AFTER_RESTART}`
@@ -2283,7 +2283,7 @@ export class WorkerSupervisor {
       if (!files.length || !now || !ACTIVE.includes(now.state)) return;
       const text = `Seismic landed commits on main (${notice.commit.slice(0, 7)}) that touch files you have changed.\n\nLanded commits:\n${notice.subjects.map((s) => `- ${s}`).join('\n')}\n\nOverlapping files:\n${files.map((f) => `- ${f}`).join('\n')}\n\nYou may want to rebase now rather than wait until handover. Decide from your work whether and when to do so.`;
       this.o.board.work(c.id, { unheard: JSON.stringify([...this.unheard(c.id), { nextTurn: true, said: [], text, images: [] }] satisfies Unheard[]) });
-      this.o.board.log(c.id, 'state', 'obeya', this.o.board.t.worker.landingOverlap(notice.subjects, files));
+      this.o.board.log(c.id, 'state', 'seismic', this.o.board.t.worker.landingOverlap(notice.subjects, files));
     }));
   }
 
@@ -2459,7 +2459,7 @@ export class WorkerSupervisor {
    * built, they went to its idea, or the workstream `into`, before (`buildOn`). Git cleans the
    * workstation in the background; it is free once git is done.
    */
-  endPrototype(cardId: string, end: 'discarded' | 'built', by: 'owner' | 'obeya' = 'owner', into?: string) {
+  endPrototype(cardId: string, end: 'discarded' | 'built', by: 'owner' | 'seismic' = 'owner', into?: string) {
     const card = this.card(cardId);
     if (!card.idea?.prototypeOf) throw new BadRequest('notPrototype', 'not a prototype');
     this.o.onWorkEnded?.(cardId, this.o.board.row(cardId).workstation);
@@ -2655,8 +2655,8 @@ export class WorkerSupervisor {
       landed: JSON.stringify({ ...(commit ? { commit } : {}), ...(page.waits ? { page: true } : {}) } satisfies LandedState),
       shipped: JSON.stringify(shipped),
     });
-    this.o.board.record(cardId, 'landed', 'obeya');
-    this.o.board.log(cardId, 'state', 'obeya', note);
+    this.o.board.record(cardId, 'landed', 'seismic');
+    this.o.board.log(cardId, 'state', 'seismic', note);
     this.extensionEvent('landed', cardId);
     this.o.onMerged?.(cardId);
     const review = !!contributionOf(this.o.board.row(cardId));
@@ -2685,13 +2685,13 @@ export class WorkerSupervisor {
     const r = await this.pulls()!.pullMain().catch((e: unknown) => ({ problem: messageOf(e) }));
     if (!this.o.board.card(cardId)) return;
     if ('stopped' in r) return this.resolvePull(cardId, r.stopped);
-    if ('problem' in r) this.o.board.log(cardId, 'error', 'obeya', t.pullFailed(r.problem));
+    if ('problem' in r) this.o.board.log(cardId, 'error', 'seismic', t.pullFailed(r.problem));
     else this.pulled(cardId, r.to);
   }
 
   /** The local main has a review card's merge now: its log says so, the read checkout reads it, and the other review cards look again at what the move means for them. */
   private pulled(cardId: string, commit: string) {
-    this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.worker.pulledMain(commit.slice(0, 7)));
+    this.o.board.log(cardId, 'state', 'seismic', this.o.board.t.worker.pulledMain(commit.slice(0, 7)));
     this.o.onMerged?.(cardId);
     this.reprobeClashes();
   }
@@ -2757,7 +2757,7 @@ export class WorkerSupervisor {
     const r = await this.pulls()!.pushMain().catch((e: unknown) => ({ problem: messageOf(e) }));
     if (!this.o.board.item(cardId)) return;
     if ('problem' in r) {
-      this.o.board.log(cardId, 'error', 'obeya', t.pushFailed(r.problem));
+      this.o.board.log(cardId, 'error', 'seismic', t.pushFailed(r.problem));
       return;
     }
     this.o.onMerged?.(cardId);
@@ -2836,12 +2836,12 @@ export class WorkerSupervisor {
     };
     const resolver = [card?.id, reviewId].find((id) => !!id && takes(id));
     if (!resolver) {
-      this.o.board.log(reviewId, 'error', 'obeya', t.pullUnresolved(stopped.subject, stopped.files.join(', '), t.noResolver));
+      this.o.board.log(reviewId, 'error', 'seismic', t.pullUnresolved(stopped.subject, stopped.files.join(', '), t.noResolver));
       return;
     }
     const own = resolver !== reviewId;
-    this.o.board.log(reviewId, 'state', 'obeya', t.pullStopped(stopped.subject, own ? this.card(resolver).title : null));
-    if (own) this.o.board.log(resolver, 'state', 'obeya', t.resolvingPull(c.number, stopped.subject));
+    this.o.board.log(reviewId, 'state', 'seismic', t.pullStopped(stopped.subject, own ? this.card(resolver).title : null));
+    if (own) this.o.board.log(resolver, 'state', 'seismic', t.resolvingPull(c.number, stopped.subject));
     const message = (path: string) => this.resolveMessage(resolving, own, path);
     const item = this.card(resolver);
     const landed = workerConfig.landedOf(this.o.board.row(resolver));
@@ -2853,7 +2853,7 @@ export class WorkerSupervisor {
     // no workstation to resolve it in: the owner pulls by hand
     const failed = () => {
       if (this.o.board.card(resolver)) this.o.board.work(resolver, { status_line: null });
-      if (this.o.board.card(reviewId)) this.o.board.log(reviewId, 'error', 'obeya', t.pullUnresolved(stopped.subject, stopped.files.join(', '), t.noResolver));
+      if (this.o.board.card(reviewId)) this.o.board.log(reviewId, 'error', 'seismic', t.pullUnresolved(stopped.subject, stopped.files.join(', '), t.noResolver));
     };
     try {
       this.resumeFinished(item, { resolve: resolving }, (path, worktree) => [message(path), ...(worktree ? [IN_WORKTREE] : [])].join('\n\n'), [], undefined, failed);
@@ -2913,8 +2913,8 @@ export class WorkerSupervisor {
         return `Not landed: ${res.detail}. Fix that, then call ready_for_review again.`;
       }
       done();
-      if (this.o.board.card(r.card)) this.o.board.log(r.card, 'error', 'obeya', t.pullFailed(res.detail));
-      this.o.board.log(cardId, 'error', 'obeya', t.pullFailed(res.detail));
+      if (this.o.board.card(r.card)) this.o.board.log(r.card, 'error', 'seismic', t.pullFailed(res.detail));
+      this.o.board.log(cardId, 'error', 'seismic', t.pullFailed(res.detail));
       return `Not landed: ${res.detail}. That is in the Seismic checkout, not in your work: the owner sees it on the card. End your turn.`;
     }
     done();
@@ -2929,14 +2929,14 @@ export class WorkerSupervisor {
 
   /** Passes what happened on the pull request to the worker; the owner's log gets `note`. */
   prEvent(cardId: string, note: string, message: string) {
-    this.o.board.log(cardId, 'state', 'obeya', note);
+    this.o.board.log(cardId, 'state', 'seismic', note);
     this.deliver(cardId, message);
   }
 
   /** The pull request was closed without a merge: the owner decides what happens. */
   prClosed(cardId: string) {
     const t = this.o.board.t.worker;
-    this.o.board.log(cardId, 'state', 'obeya', t.prClosed);
+    this.o.board.log(cardId, 'state', 'seismic', t.prClosed);
     this.toOwner(cardId, {
       text: t.prClosedQuestion,
       options: [t.reopen, t.discardWork],
@@ -3026,13 +3026,13 @@ export class WorkerSupervisor {
       const stop = this.o.adapter.app?.stop;
       if (stop) {
         const result = await runAppCommand(path, stop);
-        if (!result.ok) this.o.board.log(cardId, 'error', 'obeya', this.o.board.t.worker.parkFailed(clip(result.output, 600)));
+        if (!result.ok) this.o.board.log(cardId, 'error', 'seismic', this.o.board.t.worker.parkFailed(clip(result.output, 600)));
       }
       let kept: string | null;
       try {
         kept = await this.o.workstations.evict(cardId);
       } catch (e) {
-        this.o.board.log(cardId, 'error', 'obeya', this.o.board.t.worker.evictFailed(messageOf(e)));
+        this.o.board.log(cardId, 'error', 'seismic', this.o.board.t.worker.evictFailed(messageOf(e)));
         return false;
       }
       // deleted meanwhile: its row stays, to be restored without the clone
@@ -3153,7 +3153,7 @@ export class WorkerSupervisor {
 
   /**
    * A scratch Seismic's idle workers (`--idle-workers`): a script acts as the card's agent
-   * (`scripts/scratch-obeya.ts --say`), for a check of what the owner sees while one works. Its
+   * (`scripts/scratch-seismic.ts --say`), for a check of what the owner sees while one works. Its
    * words go into the conversation as an agent's text does, and its tools (report, reply, ask,
    * ready_for_review, …) run as the agent's do, through the same code; no turn starts or ends by
    * itself, `end` ends the one under way as the agent would. A card without a session (one staged at
@@ -3414,8 +3414,8 @@ export class WorkerSupervisor {
           // a deleted card brought back and started meanwhile works there again: its worktree is made anew
           if (!this.o.board.leaseEnded(id, path)) return;
           this.o.board.freed(id, path);
-          if (ended === 'ticked') this.o.board.log(id, 'state', 'obeya', this.o.board.t.worker.tickedFreed);
-          if (ended === 'gone') this.o.board.log(id, 'state', 'obeya', this.o.board.t.worker.goneFreed);
+          if (ended === 'ticked') this.o.board.log(id, 'state', 'seismic', this.o.board.t.worker.tickedFreed);
+          if (ended === 'gone') this.o.board.log(id, 'state', 'seismic', this.o.board.t.worker.goneFreed);
         },
         (e: unknown) => {
           console.error('freeing the workstation of a card done with it:', e);
@@ -3547,7 +3547,7 @@ export class WorkerSupervisor {
       if (!live.busy || live.toldRestart) continue;
       this.tellRestart(cardId, live);
       live.session.send(restartNotice(due));
-      this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.worker.restartDue(pauseOf(due)));
+      this.o.board.log(cardId, 'state', 'seismic', this.o.board.t.worker.restartDue(pauseOf(due)));
     }
   }
 
@@ -3610,7 +3610,7 @@ export class WorkerSupervisor {
     try {
       return extension.picked(picked.data, {
         ...context,
-        log: (text) => this.o.board.log(cardId, 'activity', 'obeya', text),
+        log: (text) => this.o.board.log(cardId, 'activity', 'seismic', text),
         asOwner: (change) => (asOwner ? asOwner(context.cwd, change) : Promise.reject(new Error('Seismic changes no repository here'))),
       })?.permissions;
     } catch (error) {
@@ -3687,7 +3687,7 @@ export class WorkerSupervisor {
     } catch (e) {
       // the agent could not start at all (Codex not installed, say): the card does not stay at work without one
       this.live.delete(cardId);
-      this.o.board.log(cardId, 'error', 'obeya', messageOf(e));
+      this.o.board.log(cardId, 'error', 'seismic', messageOf(e));
       const card = this.o.board.item(cardId);
       if (card && (card.state === 'working' || card.state === 'inPr') && !workerConfig.landedOf(row)) this.toOwner(cardId, { text: failureReason(clip(messageOf(e), 1200), this.o.board.t), options: [], stuck: true });
       else this.o.board.changed();
@@ -3878,7 +3878,7 @@ export class WorkerSupervisor {
     if (still) return `${text}\n\n${still}`;
     if (!this.restart || live.toldRestart) return text;
     this.tellRestart(cardId, live);
-    this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.worker.restartWaits(pauseOf(this.restart)));
+    this.o.board.log(cardId, 'state', 'seismic', this.o.board.t.worker.restartWaits(pauseOf(this.restart)));
     return `${text}\n\n${restartWaits(this.restart)}`;
   }
 
@@ -3892,7 +3892,7 @@ export class WorkerSupervisor {
   /** The worker ended its turn for the restart: the card says so, and its status line is again the one from before it heard of it. */
   private pausedForRestart(cardId: string, live: Live) {
     if (live.statusBeforeRestart !== undefined) this.o.board.work(cardId, { status_line: live.statusBeforeRestart });
-    this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.worker.paused(pauseOf(this.restart!)));
+    this.o.board.log(cardId, 'state', 'seismic', this.o.board.t.worker.paused(pauseOf(this.restart!)));
   }
 
   private bump(cardId: string) {
@@ -3974,7 +3974,7 @@ export class WorkerSupervisor {
       case 'session': {
         // a session that replaces another (none resumed, say) keeps the one before for the work retrospective
         const before = this.o.board.row(cardId).session_id;
-        if (before && before !== e.id) this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.worker.newSession(this.o.board.t.worker.earlierRun(before)));
+        if (before && before !== e.id) this.o.board.log(cardId, 'state', 'seismic', this.o.board.t.worker.newSession(this.o.board.t.worker.earlierRun(before)));
         // what this session runs on, as asked for and as it resolved, for whom the owner's response on the work credits
         const pinned = this.o.board.row(cardId).agent_setting;
         if (pinned) this.o.board.recordRun(cardId, e.id, workConfig(JSON.parse(pinned) as AgentSetting, e.model ?? (e.setting ? harnessChoice(e.setting).model : undefined), live.guessed));
@@ -4032,17 +4032,17 @@ export class WorkerSupervisor {
               },
               status_line: t.worker.limitPaused,
             });
-            this.o.board.log(cardId, 'state', 'obeya', `${e.message.replace(/\.?\s*$/, '.')} ${t.worker.limitPaused}`);
+            this.o.board.log(cardId, 'state', 'seismic', `${e.message.replace(/\.?\s*$/, '.')} ${t.worker.limitPaused}`);
             this.parkLater(cardId);
             break;
           }
           live.limited = at!;
           this.o.board.waitsForLimit({ card: cardId }, live.limited);
-          this.o.board.log(cardId, 'state', 'obeya', `${e.message.replace(/\.?\s*$/, '.')} ${e.limit.resetsAt ? t.worker.limitResumes(t.when(live.limited)) : t.worker.limitRetries(t.when(live.limited))}`);
+          this.o.board.log(cardId, 'state', 'seismic', `${e.message.replace(/\.?\s*$/, '.')} ${e.limit.resetsAt ? t.worker.limitResumes(t.when(live.limited)) : t.worker.limitRetries(t.when(live.limited))}`);
           break;
         }
         live.failed = e.message;
-        this.o.board.log(cardId, 'error', 'obeya', e.message, { token: e.token });
+        this.o.board.log(cardId, 'error', 'seismic', e.message, { token: e.token });
         break;
       case 'lost':
         this.lost(cardId, live);
@@ -4058,12 +4058,12 @@ export class WorkerSupervisor {
 
   private async landApproved(cardId: string) {
     try {
-      await this.land(cardId, 'obeya');
+      await this.land(cardId, 'seismic');
     } catch (e) {
       // the Seismic checkout is in the way: the card waits for the owner, who approves again
-      if (!(e instanceof BadRequest)) return this.o.board.log(cardId, 'error', 'obeya', messageOf(e));
+      if (!(e instanceof BadRequest)) return this.o.board.log(cardId, 'error', 'seismic', messageOf(e));
       this.o.board.work(cardId, { state: 'waiting', need: this.o.board.row(cardId).demo?.latest ? 'demo' : 'review', status_line: null });
-      this.o.board.log(cardId, 'error', 'obeya', e.message, { code: e.code });
+      this.o.board.log(cardId, 'error', 'seismic', e.message, { code: e.code });
     }
   }
 
@@ -4211,7 +4211,7 @@ export class WorkerSupervisor {
     const { resolve: _, ...rest } = landed;
     this.o.board.work(cardId, { landed: JSON.stringify(rest satisfies LandedState), status_line: null });
     const t = this.o.board.t.worker;
-    if (this.o.board.card(r.card)) this.o.board.log(r.card, 'error', 'obeya', t.pullUnresolved(r.stopped.subject, r.stopped.files.join(', '), t.resolverGaveUp));
+    if (this.o.board.card(r.card)) this.o.board.log(r.card, 'error', 'seismic', t.pullUnresolved(r.stopped.subject, r.stopped.files.join(', '), t.resolverGaveUp));
     this.finish(cardId);
   }
 
@@ -4222,7 +4222,7 @@ export class WorkerSupervisor {
    */
   private failedAfterLanding(cardId: string, live: Live) {
     if (this.restart) {
-      this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.worker.paused(pauseOf(this.restart)));
+      this.o.board.log(cardId, 'state', 'seismic', this.o.board.t.worker.paused(pauseOf(this.restart)));
       return;
     }
     if (!live.nudged) {
@@ -4265,7 +4265,7 @@ export class WorkerSupervisor {
     const answered = spoke || !!before;
     this.o.board.work(cardId, { detail: JSON.stringify({ ...rest, ...(answered ? { answered: true } : {}) }) });
     this.reviews.workerFinished(cardId);
-    if (!answered) this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.worker.unanswered);
+    if (!answered) this.o.board.log(cardId, 'state', 'seismic', this.o.board.t.worker.unanswered);
   }
 
   /**
@@ -4432,7 +4432,7 @@ export class WorkerSupervisor {
     // in a turn, or its ended turn waiting for background work that woke it: that work went with the session
     const busy = live.busy;
     const generation = this.generation.get(cardId);
-    this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.worker.hostLost(there.host.name));
+    this.o.board.log(cardId, 'state', 'seismic', this.o.board.t.worker.hostLost(there.host.name));
     const again = async () => {
       this.reconnecting.delete(cardId);
       const current = () => this.generation.get(cardId) === generation && !this.live.has(cardId);
@@ -4446,7 +4446,7 @@ export class WorkerSupervisor {
       if (!current() || !card || !row.workstation || (!row.session_id && !pending) || snoozeOf(card)) return;
       const working = busy || card.state === 'working' || card.state === 'inPr' || answering(card) || !!row.landed;
       if (!pending && !working) return;
-      this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.worker.hostBack(there.host.name));
+      this.o.board.log(cardId, 'state', 'seismic', this.o.board.t.worker.hostBack(there.host.name));
       if (pending) this.launch(cardId, pending.text, row.session_id ?? undefined, pending.images);
       else this.launch(cardId, hostResumed(there.host.name), row.session_id!);
     };
@@ -4478,18 +4478,18 @@ export class WorkerSupervisor {
     const generation = this.generation.get(cardId);
     if (keep && (await runAppCommand(workstation, keep)).ok) {
       // the session died meanwhile and took the app: it does not keep running
-      if (this.generation.get(cardId) === generation && !this.live.get(cardId)?.ended) this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.worker.parkKept);
+      if (this.generation.get(cardId) === generation && !this.live.get(cardId)?.ended) this.o.board.log(cardId, 'state', 'seismic', this.o.board.t.worker.parkKept);
       return;
     }
     const result = await runAppCommand(workstation, stop);
     // the card's work ended or started afresh meanwhile: its row is no longer this workstation's
     if (this.generation.get(cardId) !== generation) return;
     if (!result.ok) {
-      this.o.board.log(cardId, 'error', 'obeya', this.o.board.t.worker.parkFailed(clip(result.output, 600)));
+      this.o.board.log(cardId, 'error', 'seismic', this.o.board.t.worker.parkFailed(clip(result.output, 600)));
       return;
     }
     this.o.board.work(cardId, { parked: new Date().toISOString(), app: null });
-    this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.worker.parked);
+    this.o.board.log(cardId, 'state', 'seismic', this.o.board.t.worker.parked);
   }
 
   private parkedNote(): string {

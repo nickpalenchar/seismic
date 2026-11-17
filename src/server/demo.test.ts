@@ -7,7 +7,7 @@ import { pagePolicy } from '../core/frame';
 import { artifactFiles } from './demo-page';
 import { checkPlugin, DEMO_SKILL, DEMO_SKILL_FILE, demoSkillName, SEISMIC_PLUGIN, readChapters, serveDemoFile, serveMockFrame } from './demo';
 
-const dir = mkdtempSync(join(tmpdir(), 'obeya-demo-'));
+const dir = mkdtempSync(join(tmpdir(), 'seismic-demo-'));
 writeFileSync(join(dir, 'demo.mp4'), '0123456789');
 writeFileSync(join(dir, 'captions.vtt'), 'WEBVTT\n\n00:00:00.351 --> 00:00:16.271\nEins.\n\n00:01:17.225 --> 00:01:30.025\nZwei.\n');
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
@@ -47,7 +47,7 @@ describe('serveDemoFile', () => {
   });
 
   test('a range of a large video answers with a part of it at a time', async () => {
-    const big = mkdtempSync(join(tmpdir(), 'obeya-demo-big-'));
+    const big = mkdtempSync(join(tmpdir(), 'seismic-demo-big-'));
     try {
       const bytes = Buffer.alloc(20 << 20).map((_, i) => (i * 7 + (i >> 16)) & 255);
       writeFileSync(join(big, 'demo.mp4'), bytes);
@@ -64,7 +64,7 @@ describe('serveDemoFile', () => {
   });
 
   test('a file cut after its size was read answers with only what is left of it', async () => {
-    const cut = mkdtempSync(join(tmpdir(), 'obeya-demo-cut-'));
+    const cut = mkdtempSync(join(tmpdir(), 'seismic-demo-cut-'));
     // its size as it was before a retake cut it
     const sized = (size: number) => (() => ({ size })) as unknown as typeof fs.fstatSync;
     const stat = spyOn(fs, 'fstatSync').mockImplementationOnce(sized(20 << 20));
@@ -115,10 +115,10 @@ describe('serveDemoFile for an HTML artifact', () => {
     expect(proxied.headers.get('content-security-policy')).toContain("default-src 'self' https://mac.tail1.ts.net data: blob:;");
     // an address no policy can name gives no files beside the page
     expect(get('index.html', { 'x-forwarded-proto': 'https; default-src *' }).headers.get('content-security-policy')).toBe(`sandbox allow-scripts; ${pagePolicy()}`);
-    expect(await page.text()).toMatch(/^<img src="img\/a.svg"><script>[\s\S]*obeyaHeight[\s\S]*obeyaMarked/);
+    expect(await page.text()).toMatch(/^<img src="img\/a.svg"><script>[\s\S]*seismicHeight[\s\S]*seismicMarked/);
     const second = await get('second.html', { 'sec-fetch-dest': 'iframe' }).text();
-    expect(second).toContain('obeyaCloseImage');
-    expect(second).not.toContain('obeyaHeight');
+    expect(second).toContain('seismicCloseImage');
+    expect(second).not.toContain('seismicHeight');
     expect(await get('img/a.svg').text()).toContain('<svg');
     expect(get('../demo.mp4').status).toBe(404);
     expect(get('img').status).toBe(404);
@@ -141,7 +141,7 @@ describe('serveDemoFile for an HTML artifact', () => {
     const frame = serveMockFrame();
     expect(frame.headers.get('content-security-policy')).toBe(`sandbox allow-scripts; ${pagePolicy()}`);
     expect(frame.headers.get('connection-allowlist')).toBe('()');
-    expect(await frame.text()).toContain('document.write(e.data.obeyaPage)');
+    expect(await frame.text()).toContain('document.write(e.data.seismicPage)');
   });
 
   test('a link to a file outside the directory is no file of it, for the video or the artifact', async () => {

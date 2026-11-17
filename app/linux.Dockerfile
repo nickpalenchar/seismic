@@ -1,9 +1,9 @@
 # Builds the Linux app (AppImage and .deb) and checks it, where there is no Linux machine: a Mac
 # with Docker builds for its own architecture (arm64 on Apple silicon).
 #
-#   docker build -f app/linux.Dockerfile -t obeya-linux-app app
-#   docker run --rm -v "$PWD":/src:ro -v obeya-cargo:/root/.cargo/registry -v obeya-target:/work/app/target \
-#     -v "$PWD/dist/linux-app":/out obeya-linux-app
+#   docker build -f app/linux.Dockerfile -t seismic-linux-app app
+#   docker run --rm -v "$PWD":/src:ro -v seismic-cargo:/root/.cargo/registry -v seismic-target:/work/app/target \
+#     -v "$PWD/dist/linux-app":/out seismic-linux-app
 #
 # The run copies the checkout into /work (without its node_modules, which are another platform's),
 # builds with scripts/build-app.ts, puts the bundles into /out, installs the .deb and checks both
@@ -20,5 +20,5 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN curl -fsSL https://bun.sh/install | bash -s bun-v1.3.14 && ln -s /root/.bun/bin/bun /usr/local/bin/bun
 RUN curl -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal
 ENV PATH=/root/.cargo/bin:$PATH
-COPY linux-run.sh /usr/local/bin/obeya-linux-run
-CMD ["obeya-linux-run"]
+COPY linux-run.sh /usr/local/bin/seismic-linux-run
+CMD ["seismic-linux-run"]

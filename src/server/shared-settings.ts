@@ -1,5 +1,5 @@
 // "For everyone, into the repository": a repository's settings for this machine go into its
-// `.obeya/settings.json`, which a fresh clone brings with it. Where work lands on the main branch
+// `.seismic/settings.json`, which a fresh clone brings with it. Where work lands on the main branch
 // they are committed there; where it goes through pull requests, the commit goes out as one, or,
 // where work may go straight to main as well, is pushed there. None of them touches what the
 // checkout has beside the file, nor a card's workstation.
@@ -117,7 +117,7 @@ async function onOrigin(repoPath: string, mine: SharedSettings) {
 }
 
 /**
- * Pushes `mine` in `.obeya/settings.json` straight onto `origin`'s main branch, for a repository
+ * Pushes `mine` in `.seismic/settings.json` straight onto `origin`'s main branch, for a repository
  * whose work goes out as pull requests but may go straight to main (`direct`): a commit on top of
  * it, pushed without force, so a protected branch, or one that moved meanwhile, refuses it.
  */
@@ -129,7 +129,7 @@ export async function pushShared(repoPath: string, mine: SharedSettings): Promis
 }
 
 /**
- * Puts `mine` into the repository's `.obeya/settings.json` as a pull request against `origin`'s
+ * Puts `mine` into the repository's `.seismic/settings.json` as a pull request against `origin`'s
  * main branch: a commit on top of it, pushed to a branch of its own, and the pull request opened.
  */
 export async function proposeShared(repoPath: string, mine: SharedSettings, forge: Forge, now = new Date()): Promise<SettingsShared> {

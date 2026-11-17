@@ -217,6 +217,11 @@ Formats to stay compatible with:
   one-time Claude command check.
   A Codex thread resumes by its id from any cwd, so a moved checkout needs nothing for it (checked
   2026-11-14 with Codex 0.169).
+- Names in stored data from before the rename are read beside the new ones: `events.author` and
+  `activity.who` `obeya` became `seismic` in a database step; the deploy words `obeya:github-pages`
+  and `obeya:github-folder` in `demo-sites.json`, the connection-code prefix `obeya-site:`, the
+  `.obeya-installed` marker of an installed voice and the `<!-- seismic:demo -->` marker in a pull
+  request's description still count. A shared site's `obeya-site.json` manifest keeps its name.
 - A plan doc is a plan when its `## Workstreams` section holds a checklist (`- [ ] **W1:** Title. …`);
   a ticked item is live; a workstream is known by its label, else its title, never its place.
 - Card branches are `seismic/<title>-<id>` (`obeya/…` for cards started before the rename; both are
@@ -243,7 +248,7 @@ Formats to stay compatible with:
   old closed proposal or a blocking rule. The default branch is GitHub's at each change, not the
   setup's: shares and the rolling pull request follow a change of it, and are refused where Pages
   no longer serve the folder from it.
-- Commits and PRs carry `Demo-Video:`/`Demo-Page:` trailers and an `<!-- obeya:demo -->` marker.
+- Commits and PRs carry `Demo-Video:`/`Demo-Page:` trailers and an `<!-- seismic:demo -->` marker.
 - Installers have version-less names under `releases/latest/download/` and the updater reads
   `latest.json` there, so every release is "latest"; the `site-media` pre-release never is.
 

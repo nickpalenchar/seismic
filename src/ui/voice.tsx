@@ -14,7 +14,7 @@ import { createContext, type ReactNode, useEffect, useRef, useState } from 'reac
 import type { Place } from '../core/layout';
 import type { Notice } from '../core/types';
 import { ApiError, api, type Heard, holdRestart, shownProject, type Where } from './api';
-import { appended, beginDictation, dictate, draftIn, draftOf, focusedDraft, insertFiles, MIC_DRAFT, moveFiles, moveImages, takesImages, toObeya, updateDraft, useDraft, useFieldOn, uploaded, useFocusedDraft, wordsOf } from './draft';
+import { appended, beginDictation, dictate, draftIn, draftOf, focusedDraft, insertFiles, MIC_DRAFT, moveFiles, moveImages, takesImages, toSeismic, updateDraft, useDraft, useFieldOn, uploaded, useFocusedDraft, wordsOf } from './draft';
 import type { ToastStore } from './components/toast';
 import { toldLines } from './components/told';
 import { type Recording, record } from './recorder';
@@ -300,20 +300,20 @@ export function PushToTalk({ phase, level, flat, target, field, onDown, instead,
   const key = on ? field! : MIC_DRAFT;
   const shots = useShotInput({ draft: key, off: !takesImages(key) });
   // the screenshots and files for Seismic show where Seismic is spoken to: in its field while that is in view, else beside the microphone
-  const obeya = useRef<string | null>(null);
+  const seismic = useRef<string | null>(null);
   const { images: waiting, text: paths } = useDraft(MIC_DRAFT);
   useEffect(() => {
-    if (toObeya(key) && takesImages(key)) {
-      obeya.current = key;
+    if (toSeismic(key) && takesImages(key)) {
+      seismic.current = key;
       moveImages(MIC_DRAFT, key);
       if (paths.trim()) {
         insertFiles(key, wordsOf(paths));
         updateDraft(MIC_DRAFT, { text: '' });
       }
-    } else if (key === MIC_DRAFT && obeya.current) {
-      moveImages(obeya.current, MIC_DRAFT);
-      moveFiles(obeya.current, MIC_DRAFT);
-      obeya.current = null;
+    } else if (key === MIC_DRAFT && seismic.current) {
+      moveImages(seismic.current, MIC_DRAFT);
+      moveFiles(seismic.current, MIC_DRAFT);
+      seismic.current = null;
     }
   }, [key, waiting, paths]);
   const { text } = useDraft(key);

@@ -33,10 +33,10 @@ const DELAY_MS = 200;
 
 // A project in clone mode without any clone registered: every start fails for want of a workstation.
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'obeya-server-'));
+  dir = mkdtempSync(join(tmpdir(), 'seismic-server-'));
   const main = join(dir, 'main');
   // settings of its own that work in clones, none registered; the project is named after the directory
-  gitRepo(main, { 'README.md': 'hi\n', '.obeya/settings.json': '{ "workstations": "clones" }\n' });
+  gitRepo(main, { 'README.md': 'hi\n', '.seismic/settings.json': '{ "workstations": "clones" }\n' });
   runtime = new FakeRuntime();
   project = new ProjectRuntime({ repos: [{ path: main }] }, { store: new Store(':memory:'), home: dir, runtime, forge: noForge, commandDelayMs: DELAY_MS });
   board = project.board;
@@ -857,7 +857,7 @@ describe('screenshots', () => {
     expect(await codeOf(act(c.id, { action: 'message', text: 'x', images: ['0000.png'] } as CardAction))).toBe('invalid');
     expect(await codeOf(upload(png, 'text/html'))).toBe('imageType');
     expect(await codeOf(upload(new Uint8Array(4_000_000)))).toBe('imageTooLarge');
-    expect((await fetch(new URL(api('/images/..%2Fobeya.db'), server.url))).status).toBe(404);
+    expect((await fetch(new URL(api('/images/..%2Fseismic.db'), server.url))).status).toBe(404);
   });
 });
 
@@ -875,7 +875,7 @@ describe('other files', () => {
     const again = (await (await upload(pdf, 'Rechnung März 2026.pdf')).json()) as { path: string };
     expect(again.path).not.toBe(path);
     // a name cannot lead out of its directory
-    const out = (await (await upload(pdf, '../../obeya.db')).json()) as { path: string };
+    const out = (await (await upload(pdf, '../../seismic.db')).json()) as { path: string };
     expect(dirname(dirname(out.path))).toBe(project.files.dir);
   });
 
@@ -997,7 +997,7 @@ describe('a newer version of the app', () => {
     expect(await codeOf(post('/api/app-update/install', ''))).toBe('invalid');
     expect(restarter.due()).toBeNull();
     // the bar leads to Seismic's releases only, whoever reports another address
-    await post('/api/app-update', JSON.stringify({ version: '9.9.9', download: 'https://example.com/obeya.deb' }));
+    await post('/api/app-update', JSON.stringify({ version: '9.9.9', download: 'https://example.com/seismic.deb' }));
     expect(updates.current()).toEqual({ version: '9.9.9' });
   });
 
@@ -1050,7 +1050,7 @@ describe('a newer version of the app', () => {
     expect(await ask()).toEqual({ now: false, kept: false });
     restarter.hold('page1');
 
-    const entries = [['obeya-kept-main', '{"card":"k1"}'], ['obeya-drafts-main', '{"k1":{"text":"half a sentence"}}']];
+    const entries = [['seismic-kept-main', '{"card":"k1"}'], ['seismic-drafts-main', '{"k1":{"text":"half a sentence"}}']];
     expect(await codeOf(post('/api/app-rebuilt/handover', JSON.stringify({ token: '7', entries: [['a', 1]] })))).toBe('invalid');
     await post('/api/app-rebuilt/handover', JSON.stringify({ token: '7', entries }));
     expect(await ask('6')).toEqual({ now: true, kept: false });
@@ -1545,7 +1545,7 @@ describe('freeing and discarding workstations', () => {
     go('checkout');
     await shop.repos[0]!.workers.freed();
     expect(shop.repos[0]!.workstations.list()).toEqual([{ path: clone!.path, card_id: null }]);
-    expect(git(clone!.path, 'branch', '--list', 'obeya/*')).toBe('');
+    expect(git(clone!.path, 'branch', '--list', 'seismic/*')).toBe('');
     expect(git(clone!.path, 'status', '--porcelain')).toBe('');
 
     // a card deleted after it stopped with work committed: git looks whether its worktree holds anything uncommitted before it goes

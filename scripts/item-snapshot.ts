@@ -1,7 +1,7 @@
 // The equality check of a change to the data layer: reads every project of a database as the code of two commits sees it, each on a copy of
 // its own, and says where they differ.
 //   bun scripts/item-snapshot.ts [db] [--before <commit>] [--after <commit>] [--out <dir>]
-// `db` defaults to ~/.obeya/obeya.db, which is only read (through SQLite's own snapshot, as a
+// `db` defaults to ~/.seismic/seismic.db, which is only read (through SQLite's own snapshot, as a
 // running Seismic writes to it); `--before` to `main`, `--after` to this checkout as it is. Each
 // side runs in a checkout of its own (a detached worktree for a commit) on its own copy of one snapshot of the database,
 // and writes what it read to `<out>/<side>.json`: each project's snapshot (the cards as the UI gets
@@ -31,7 +31,7 @@ const flag = (name: string) => {
 };
 const before = flag('--before') ?? 'main';
 const after = flag('--after');
-const out = resolve(flag('--out') ?? mkdtempSync(join(tmpdir(), 'obeya-item-snapshot-')));
+const out = resolve(flag('--out') ?? mkdtempSync(join(tmpdir(), 'seismic-item-snapshot-')));
 const db = resolve(args[0] ?? join(homedir(), '.seismic', 'seismic.db'));
 mkdirSync(out, { recursive: true });
 
@@ -39,7 +39,7 @@ const worktrees: string[] = [];
 /** A checkout of `commit` with this checkout's dependencies; this checkout itself without one. */
 function checkout(commit: string | undefined): string {
   if (!commit) return root;
-  const dir = mkdtempSync(join(tmpdir(), 'obeya-item-snapshot-code-'));
+  const dir = mkdtempSync(join(tmpdir(), 'seismic-item-snapshot-code-'));
   const add = spawnSync('git', ['-C', root, 'worktree', 'add', '--detach', dir, commit], { encoding: 'utf8' });
   if (add.status) throw new Error(add.stderr);
   symlinkSync(join(root, 'node_modules'), join(dir, 'node_modules'));
@@ -237,7 +237,7 @@ async function inner(code: string, path: string, file: string) {
   for (const p of projects) {
     const home = read('setting', 'settings.get', p.id, 'home_repo') ?? 'home';
     const others = (store.db.query('SELECT DISTINCT repo FROM cards WHERE project_id = $p AND repo IS NOT NULL AND repo != $home').all({ p: p.id, home }) as { repo: string }[]).map((r) => r.repo);
-    const repos = [home, ...others].map((id) => ({ id, name: id, path: join(tmpdir(), 'obeya-item-snapshot-none', id), branch: 'main' }));
+    const repos = [home, ...others].map((id) => ({ id, name: id, path: join(tmpdir(), 'seismic-item-snapshot-none', id), branch: 'main' }));
     const docs = (store.db.query(DOCS).all({ p: p.id }) as { plan: string }[]).map((r) => JSON.parse(r.plan));
     const board = new Board(store, { id: p.id, name: p.name, repos }, () => ({ docs, dirs: [] }), undefined, () => true);
     const snapshot = board.snapshot();

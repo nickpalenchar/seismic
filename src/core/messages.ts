@@ -201,7 +201,7 @@ const en = {
       classifier: "auto mode's classifier",
       mode: 'the permission mode',
       hook: 'a hook',
-      obeya: 'Seismic: waiting in the foreground',
+      seismic: 'Seismic: waiting in the foreground',
       owner: 'declined by you',
       other: 'no reason given',
     },
@@ -477,7 +477,7 @@ const en = {
   },
   adapterSetup: {
     title: (repo: string) => `Set up Seismic for ${repo}`,
-    body: "With the skill `seismic:settings`, fill in this repository's settings for everyone (`.obeya/settings.json`, shown in the configuration under “Settings” as “from the repository”): which checks run, how work lands, how an agent runs the app (starting it, after a change, for a demo), how Seismic stops it, and where the plan docs are that Seismic shows as plans. Also draft the allow list of commands agents run here without asking (the `Bash` rules in `.claude/settings.json`), for me to review and trust in the configuration. If the repository still has a `.obeya/adapter/`, move what it says into the settings and delete it. Ask me what you cannot find out in the repository (login, test data).",
+    body: "With the skill `seismic:settings`, fill in this repository's settings for everyone (`.seismic/settings.json`, shown in the configuration under “Settings” as “from the repository”): which checks run, how work lands, how an agent runs the app (starting it, after a change, for a demo), how Seismic stops it, and where the plan docs are that Seismic shows as plans. Also draft the allow list of commands agents run here without asking (the `Bash` rules in `.claude/settings.json`), for me to review and trust in the configuration. If the repository still has a `.obeya/adapter/`, move what it says into the settings and delete it. Ask me what you cannot find out in the repository (login, test data).",
     reason: (repo: string) => `Seismic does not know yet how the app of ${repo} starts, which checks run or how an agent runs it for a demo.`,
   },
   finishChanges: {

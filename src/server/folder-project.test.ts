@@ -15,13 +15,13 @@ let project: ProjectRuntime;
 const bytes = (n: number, seed: number) => Uint8Array.from({ length: n }, (_, i) => (i * seed + 3) % 251);
 
 beforeEach(async () => {
-  dir = mkdtempSync(join(tmpdir(), 'obeya-folder-project-'));
+  dir = mkdtempSync(join(tmpdir(), 'seismic-folder-project-'));
   docs = join(dir, 'Documents');
   mkdirSync(join(docs, 'Scans'), { recursive: true });
   mkdirSync(join(docs, 'Estate'), { recursive: true });
   writeFileSync(join(docs, 'Scans', 'scan-1.pdf'), bytes(4000, 7));
   writeFileSync(join(docs, 'Estate', 'Inventory.md'), '# Estate\n\n- Savings book\n');
-  writeFileSync(join(docs, '.obeya-note.txt'), 'x\n');
+  writeFileSync(join(docs, '.seismic-note.txt'), 'x\n');
   runtime = new FakeRuntime();
   project = new ProjectRuntime({ repos: [{ path: docs, git: false }] }, { store: new Store(':memory:'), home: dir, runtime, forge: noForge });
   await (project.repos[0]!.workstations as FolderWorkstations).read;
@@ -163,7 +163,7 @@ describe('a project over a folder without git', () => {
     const workers = project.repoOf(tidy.id).workers;
     await workers.start(tidy.id);
     const a = runtime.last;
-    await a.use('Bash', { command: 'rm .obeya-note.txt' }, () => rmSync(join(docs, '.obeya-note.txt')));
+    await a.use('Bash', { command: 'rm .seismic-note.txt' }, () => rmSync(join(docs, '.seismic-note.txt')));
     expect(await a.call('ready_for_review', { summary: 'Tidied.' })).toContain('Recorded');
     expect(item(tidy.id).demo?.files).toBeUndefined();
 

@@ -264,7 +264,7 @@ describe('Push', () => {
   });
 
   test('the VAPID key stays in Seismic’s home, readable by the owner alone', async () => {
-    const home = mkdtempSync(join(tmpdir(), 'obeya-push-'));
+    const home = mkdtempSync(join(tmpdir(), 'seismic-push-'));
     const store = new Store(':memory:');
     const key = await new Push({ store, home }).key();
     expect(fromB64u(key)).toHaveLength(65);

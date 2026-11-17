@@ -16,7 +16,7 @@ fs.copyFileSync(path.join(import.meta.dirname, 'publish.ts'), path.join(checkout
 fs.writeFileSync(path.join(checkout, 'scripts', 'distribution.ts'),
   fs.readFileSync(path.join(import.meta.dirname, '..', 'distribution.ts'), 'utf8').replace('DISTRIBUTION = false', 'DISTRIBUTION = true'));
 Bun.spawnSync(['git', 'init', '-q', checkout]);
-Bun.spawnSync(['git', '-C', checkout, 'remote', 'add', 'origin', 'git@github.com:alice/obeya.git']);
+Bun.spawnSync(['git', '-C', checkout, 'remote', 'add', 'origin', 'git@github.com:alice/seismic.git']);
 const out = path.join(dir, 'out');
 fs.mkdirSync(out);
 fs.writeFileSync(path.join(out, 'demo.mp4'), 'video');
@@ -58,22 +58,22 @@ test.skipIf(process.platform === 'win32')('replaces the assets of the release, t
     '[] [] auth token --user alice',
     'ffmpeg -ss 23.099',
     'ffmpeg -to 48.162',
-    '[token-of-alice] [alice/obeya] release view site-media',
-    '[token-of-alice] [alice/obeya] release upload site-media hero.mp4 hero.vtt hero.chapters.vtt hero.loop.gif --clobber',
+    '[token-of-alice] [alice/seismic] release view site-media',
+    '[token-of-alice] [alice/seismic] release upload site-media hero.mp4 hero.vtt hero.chapters.vtt hero.loop.gif --clobber',
     'hero.mp4: video',
     'hero.vtt: WEBVTT',
     'hero.chapters.vtt: WEBVTT',
     'hero.loop.gif: loop',
-    '[token-of-alice] [alice/obeya] workflow run pages.yml',
+    '[token-of-alice] [alice/seismic] workflow run pages.yml',
   ]);
 });
 
 test.skipIf(process.platform === 'win32')('creates the release when it is missing', () => {
   const calls = publish(true);
-  expect(calls[4]).toStartWith('[token-of-alice] [alice/obeya] release create site-media hero.mp4 hero.vtt hero.chapters.vtt hero.loop.gif --title Site media');
+  expect(calls[4]).toStartWith('[token-of-alice] [alice/seismic] release create site-media hero.mp4 hero.vtt hero.chapters.vtt hero.loop.gif --title Site media');
   // a pre-release, so that it never becomes the latest release, whose installers the README links
   expect(calls[4]).toEndWith('--prerelease --latest=false');
-  expect(calls.at(-1)).toBe('[token-of-alice] [alice/obeya] workflow run pages.yml');
+  expect(calls.at(-1)).toBe('[token-of-alice] [alice/seismic] workflow run pages.yml');
 });
 
 test.skipIf(process.platform === 'win32')('--poster-only takes the poster and uploads nothing', () => {

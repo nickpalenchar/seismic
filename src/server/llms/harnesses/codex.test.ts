@@ -65,7 +65,7 @@ test('handshake enables experimental tools; model is discovered and names normal
   const calls: unknown[] = [];
   const { wire, events } = fixture({ effort: 'high', tools: [{ name: 'report', description: 'Report', schema: { text: z.string() }, run: (args) => { calls.push(args); return 'recorded'; } }] });
   await until(() => wire.n === 1);
-  expect(wire.calls[0]).toEqual({ method: 'initialize', params: { clientInfo: { name: 'obeya', title: 'Seismic', version: '0.1.0' }, capabilities: { experimentalApi: true } } });
+  expect(wire.calls[0]).toEqual({ method: 'initialize', params: { clientInfo: { name: 'seismic', title: 'Seismic', version: '0.1.0' }, capabilities: { experimentalApi: true } } });
   expect(wire.notifications).toEqual(['initialized']);
   const start = wire.calls.find((c) => c.method === 'thread/start')!;
   expect(start.params).toMatchObject({ cwd: tmpdir(), developerInstructions: 'Seismic instructions', model: 'codex-test', approvalPolicy: 'on-request', sandbox: 'workspace-write', dynamicTools: [{ type: 'function', name: 'seismic_report' }] });
@@ -77,7 +77,7 @@ test('handshake enables experimental tools; model is discovered and names normal
 });
 
 test('execution tools are exposed and callable with a single Seismic prefix', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'obeya-codex-exec-'));
+  const dir = mkdtempSync(join(tmpdir(), 'seismic-codex-exec-'));
   const workstation = gitRepo(join(dir, 'repo'));
   try {
     const tools = execTools({ workstation, places: () => [], rules: () => ['pwd'], ask: async () => ({ allow: false, message: 'denied' }) });
@@ -427,21 +427,20 @@ test('a completed build wakes Codex while a server stays; unchanged polls do not
   expect(pids[0]).toEqual([5678, 5679]);
 });
 
-test('the sandbox is workspace-write unless OBEYA_CODEX_SANDBOX lifts it', () => {
+test('the sandbox is workspace-write unless SEISMIC_CODEX_SANDBOX lifts it', () => {
   const warn = console.warn;
   const said: string[] = [];
   console.warn = (m: string) => { said.push(m); };
   try {
     expect(codexSandbox({})).toBe('workspace-write');
-    expect(codexSandbox({ OBEYA_CODEX_SANDBOX: 'workspace-write' })).toBe('workspace-write');
+    expect(codexSandbox({ SEISMIC_CODEX_SANDBOX: 'workspace-write' })).toBe('workspace-write');
     expect(said).toEqual([]);
-    expect(codexSandbox({ OBEYA_CODEX_SANDBOX: 'danger-full-access' })).toBe('danger-full-access');
     expect(codexSandbox({ SEISMIC_CODEX_SANDBOX: 'danger-full-access' })).toBe('danger-full-access');
     // the new name wins over the old one
     expect(codexSandbox({ SEISMIC_CODEX_SANDBOX: 'workspace-write', OBEYA_CODEX_SANDBOX: 'danger-full-access' })).toBe('workspace-write');
     // anything else keeps the sandbox, and says so
-    expect(codexSandbox({ OBEYA_CODEX_SANDBOX: 'off' })).toBe('workspace-write');
-    expect(codexSandbox({ OBEYA_CODEX_SANDBOX: 'read-only' })).toBe('workspace-write');
+    expect(codexSandbox({ SEISMIC_CODEX_SANDBOX: 'off' })).toBe('workspace-write');
+    expect(codexSandbox({ SEISMIC_CODEX_SANDBOX: 'read-only' })).toBe('workspace-write');
     expect(said.filter((m) => m.includes('neither'))).toHaveLength(2);
   } finally {
     console.warn = warn;
@@ -449,18 +448,18 @@ test('the sandbox is workspace-write unless OBEYA_CODEX_SANDBOX lifts it', () =>
 });
 
 test('a worker starts its Codex thread without the sandbox where the environment says so', async () => {
-  const was = process.env.OBEYA_CODEX_SANDBOX;
+  const was = process.env.SEISMIC_CODEX_SANDBOX;
   const warn = console.warn;
   console.warn = () => {};
-  process.env.OBEYA_CODEX_SANDBOX = 'danger-full-access';
+  process.env.SEISMIC_CODEX_SANDBOX = 'danger-full-access';
   try {
     const { wire } = fixture();
     await until(() => wire.n === 1);
     expect(wire.calls.find((c) => c.method === 'thread/start')?.params).toMatchObject({ sandbox: 'danger-full-access', approvalPolicy: 'on-request' });
   } finally {
     console.warn = warn;
-    if (was === undefined) delete process.env.OBEYA_CODEX_SANDBOX;
-    else process.env.OBEYA_CODEX_SANDBOX = was;
+    if (was === undefined) delete process.env.SEISMIC_CODEX_SANDBOX;
+    else process.env.SEISMIC_CODEX_SANDBOX = was;
   }
 });
 
@@ -487,7 +486,7 @@ test("a start ends before any thread where Codex would load repository configura
 });
 
 test("Codex is told the trust of the project by its checkout and, from a linked worktree, by the main checkout", () => {
-  const dir = mkdtempSync(join(tmpdir(), 'obeya-codex-roots-'));
+  const dir = mkdtempSync(join(tmpdir(), 'seismic-codex-roots-'));
   try {
     const repo = gitRepo(join(dir, 'repo'));
     git(repo, 'worktree', 'add', '--quiet', '-b', 'card', join(dir, 'ws'));
@@ -500,18 +499,18 @@ test("Codex is told the trust of the project by its checkout and, from a linked 
 });
 
 test('a read-only agent (a code review) runs in the read-only sandbox and asks nobody, whatever the environment lifts for workers', async () => {
-  const was = process.env.OBEYA_CODEX_SANDBOX;
+  const was = process.env.SEISMIC_CODEX_SANDBOX;
   const warn = console.warn;
   console.warn = () => {};
-  process.env.OBEYA_CODEX_SANDBOX = 'danger-full-access';
+  process.env.SEISMIC_CODEX_SANDBOX = 'danger-full-access';
   try {
     const { wire } = fixture({ permission: 'readOnly' });
     await until(() => wire.n === 1);
     expect(wire.calls.find((c) => c.method === 'thread/start')?.params).toMatchObject({ sandbox: 'read-only', approvalPolicy: 'never' });
   } finally {
     console.warn = warn;
-    if (was === undefined) delete process.env.OBEYA_CODEX_SANDBOX;
-    else process.env.OBEYA_CODEX_SANDBOX = was;
+    if (was === undefined) delete process.env.SEISMIC_CODEX_SANDBOX;
+    else process.env.SEISMIC_CODEX_SANDBOX = was;
   }
 });
 

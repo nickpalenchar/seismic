@@ -9,14 +9,14 @@ const root = join(import.meta.dir, '..');
 test('a rule becomes a word prefix, unless a `*` stands inside a word', () => {
   expect(prefixOf('bun test *')).toEqual(['bun', 'test']);
   expect(prefixOf('bun run typecheck')).toEqual(['bun', 'run', 'typecheck']);
-  expect(prefixOf('mkdir -p /tmp/obeya-*')).toBeNull();
-  expect(prefixOf('node /x/obeya-*/demo.ts --dry')).toBeNull();
+  expect(prefixOf('mkdir -p /tmp/seismic-*')).toBeNull();
+  expect(prefixOf('node /x/seismic-*/demo.ts --dry')).toBeNull();
   expect(prefixOf('*')).toBeNull();
 });
 
 test('the committed Codex rules are the ones its allow list gives', () => {
   const { file, skipped } = codexRules(readFileSync(join(root, '.claude', 'settings.json'), 'utf8'));
-  expect(readFileSync(join(root, '.codex', 'rules', 'obeya.rules'), 'utf8')).toBe(file);
+  expect(readFileSync(join(root, '.codex', 'rules', 'seismic.rules'), 'utf8')).toBe(file);
   expect(skipped.length).toBeGreaterThan(0);
   expect(file).not.toContain('decision="prompt"');
 });
@@ -29,7 +29,7 @@ test('the standalone writer and --check preserve repository-owned rules even wit
     const source = readFileSync(join(root, 'scripts', 'codex-rules.ts'), 'utf8');
     writeFileSync(script, source.replaceAll("'../src/server/", `'${root.replaceAll('\\', '/')}/src/server/`));
     mkdirSync(join(dir, '.codex', 'rules'), { recursive: true });
-    const out = join(dir, '.codex', 'rules', 'obeya.rules');
+    const out = join(dir, '.codex', 'rules', 'seismic.rules');
     const custom = '# Repository policy\nprefix_rule(pattern=["make","test"], decision="allow")\n';
     writeFileSync(out, custom);
     for (const args of [[], ['--check']]) {

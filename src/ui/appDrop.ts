@@ -10,7 +10,7 @@ import { api } from './api';
 declare global {
   interface Window {
     /** Called by the app while files are dragged over its window: where (CSS pixels), and at the drop their paths. */
-    obeyaDrag?: (kind: 'over' | 'leave' | 'drop', x: number, y: number, paths?: string[]) => void;
+    seismicDrag?: (kind: 'over' | 'leave' | 'drop', x: number, y: number, paths?: string[]) => void;
   }
 }
 
@@ -47,9 +47,9 @@ export const withBytes = (f: File): Promise<File> => {
 
 /** In the app: the page hears what is dragged over its window and dropped there. */
 export function takeAppDrops() {
-  if (!window.obeyaApp) return;
+  if (!window.seismicApp) return;
   let over: Element | null = null;
-  window.obeyaDrag = (kind, x, y, dropped = []) => {
+  window.seismicDrag = (kind, x, y, dropped = []) => {
     const el = kind === 'leave' ? null : document.elementFromPoint(x, y);
     if (over && over !== el) play('dragleave', over, x, y, some());
     over = kind === 'over' ? el : null;

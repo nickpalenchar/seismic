@@ -301,7 +301,7 @@ function prRef(url: string) {
 
 /** Runs `f` with `body` in a file: a long description as an argument would pass Windows' limit on a command line. */
 export async function withBodyFile<T>(body: string, f: (file: string) => T | Promise<T>): Promise<T> {
-  const dir = mkdtempSync(join(tmpdir(), 'obeya-pr-body-'));
+  const dir = mkdtempSync(join(tmpdir(), 'seismic-pr-body-'));
   try {
     const file = join(dir, 'body.md');
     writeFileSync(file, body);

@@ -55,9 +55,9 @@ declare global {
      * In the app's window (app/src/main.rs); `built`: installed from a checkout, the commit it was built
      * from; `handedOver`: its shell started again, and the page before handed over what a reload keeps.
      */
-    obeyaApp?: { version: string; platform: string; built?: string | null; handedOver?: boolean };
+    seismicApp?: { version: string; platform: string; built?: string | null; handedOver?: boolean };
     /** Called by the app before its shell starts again while the server runs on (`handOver`). */
-    obeyaHandOver?: (token: string) => Promise<void>;
+    seismicHandOver?: (token: string) => Promise<void>;
   }
 }
 
@@ -409,7 +409,7 @@ export function ConfigDialog({ on, page, onClose, onAsk, onTalk, onProblems, onC
           <div className={K.cfgAskClass}>
             <p className={cn('hint', K.cfgAskHintClass)}>{c.koordinator}</p>
             <Button size="small" onClick={onTalk}>
-              {c.askObeya}
+              {c.askSeismic}
             </Button>
           </div>
           <TabsList asChild aria-label={c.title}>
@@ -801,18 +801,18 @@ export function ServerBlock({ server }: { server: ConfigView['server'] }) {
       </Field>
       <Field label={c.restarts}>{!server.restarts ? c.no : server.commit ? c.yes : c.noCheckout}</Field>
       {/* from a checkout, in a browser: how to have the app instead (scripts/app.ts) */}
-      {server.commit && !window.obeyaApp && (
+      {server.commit && !window.seismicApp && (
         <Field label={c.asApp} hint={c.asAppHint}>
           <code>bun run app install</code>
         </Field>
       )}
-      {window.obeyaApp?.built && (
+      {window.seismicApp?.built && (
         <Field label={c.app} hint={c.appBuiltHint}>
-          {c.checkout(window.obeyaApp.built.slice(0, 7))}
+          {c.checkout(window.seismicApp.built.slice(0, 7))}
         </Field>
       )}
       {/* in the app's window (app/src/main.rs), which opens a new window in the default browser */}
-      {window.obeyaApp && (
+      {window.seismicApp && (
         <Button size="small" title={c.openInBrowserHint} onClick={() => window.open(location.href, '_blank')}>
           {c.openInBrowser}
         </Button>
@@ -1922,7 +1922,7 @@ function AddSite({ view, onView, onAdded, onCancel }: { view: DemoSitesView; onV
         </p>
       ) : (
         <Field label={p.connect} hint={p.connectHint}>
-          <Textarea mono className={pathClass} rows={3} spellCheck={false} placeholder="obeya-site:…" aria-label={p.connect} value={code} onChange={(e) => setCode(e.target.value)} />
+          <Textarea mono className={pathClass} rows={3} spellCheck={false} placeholder="seismic-site:…" aria-label={p.connect} value={code} onChange={(e) => setCode(e.target.value)} />
           <div className={K.cfgPersonalActionsClass}>
             <Button
               disabled={!code.trim()}
@@ -2996,7 +2996,7 @@ function RepoSettingsBlock({
   );
 }
 
-/** Whether the repository has settings for everyone (`.obeya/settings.json`): then it is set up. */
+/** Whether the repository has settings for everyone (`.seismic/settings.json`): then it is set up. */
 export const fromRepository = (v: RepoValues) => SHARED_FIELDS.some((k) => (isNested(k) ? Object.values(v[k]).some((f) => f.source === 'repository') : v[k].source === 'repository'));
 
 /**
@@ -3109,7 +3109,7 @@ function TagProposal({ path, current, language, onTags }: { path: string; curren
   );
 }
 
-/** The repository's `.obeya/settings.json` as the dialog shows it: what the file holds now (`values` from the repository) with this machine's settings in front, but the main branch. */
+/** The repository's `.seismic/settings.json` as the dialog shows it: what the file holds now (`values` from the repository) with this machine's settings in front, but the main branch. */
 export function sharedPreview(repo: RepoConfig, values: RepoValues): Record<string, unknown> {
   const file: Record<string, unknown> = {};
   for (const k of SHARED_FIELDS) {
@@ -3132,7 +3132,7 @@ const shareConfirmHint = 'hint mt-1 mx-0 mb-0 max-w-[76ch]';
 
 /**
  * "Take over into the repository for everyone" under a repository's settings: this machine's values (but
- * the main branch) go into its `.obeya/settings.json`, so that everyone who clones it gets them.
+ * the main branch) go into its `.seismic/settings.json`, so that everyone who clones it gets them.
  * It first shows the file as it would be and where it goes (a commit on the main branch, or a pull
  * request), then does it at the owner's word. Only for the configuration as saved.
  */
@@ -3188,7 +3188,7 @@ export function ShareSettings({ repo, values, branch, shareTo, shareDirect, take
             {!saved && <p className={shareConfirmHint}>{c.savesFirst}</p>}
             <p className={shareConfirmHint}>{shareTo === 'main' ? c.toMain(branch) : shareDirect ? c.toPrOrDirect(branch) : c.toPr(branch)}</p>
             <pre className={cn(jsonClass, 'mt-1.5 mb-2 whitespace-pre-wrap')}>
-              <span className={shareConfirmHint}>.obeya/settings.json</span>
+              <span className={shareConfirmHint}>.seismic/settings.json</span>
               {'\n'}
               {JSON.stringify(sharedPreview(repo, values), null, 2)}
             </pre>

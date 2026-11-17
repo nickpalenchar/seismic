@@ -1,5 +1,5 @@
 // Paused with distribution (scripts/distribution.ts): only `--poster-only` runs.
-// Publishes a rendered hero video to obeya.si: uploads `demo.mp4`, `captions.vtt` and
+// Publishes a rendered hero video to seismic.im: uploads `demo.mp4`, `captions.vtt` and
 // `chapters.vtt` from the render's directory as `hero.mp4`, `hero.vtt` and `hero.chapters.vtt` of
 // the release `site-media`, with `hero.loop.gif`, the README's loop cut from the video (creating the
 // release the first time, replacing the assets after that), then runs the Pages workflow, which
@@ -20,7 +20,7 @@ import { ghEnv } from '../gh.ts';
 
 const RELEASE = 'site-media';
 // the demo settings only without HERO_OUT: its test runs this script alone, outside a checkout
-const OUT = process.env.HERO_OUT ?? path.join((await import('../../plugin/skills/demo/lib/settings.ts')).demoDirectory(), 'obeya-hero');
+const OUT = process.env.HERO_OUT ?? path.join((await import('../../plugin/skills/demo/lib/settings.ts')).demoDirectory(), 'seismic-hero');
 const posterOnly = process.argv.includes('--poster-only');
 const poster = posterOnly || process.argv.includes('--poster');
 
@@ -107,7 +107,7 @@ try {
   } else {
     console.log(`Creating the release ${RELEASE} with hero.mp4, hero.vtt, hero.chapters.vtt and hero.loop.gif`);
     run('gh', ['release', 'create', RELEASE, ...files, '--title', 'Site media',
-      '--notes', 'Video for obeya.si, fetched by the Pages workflow.', '--prerelease', '--latest=false'], env);
+      '--notes', 'Video for seismic.im, fetched by the Pages workflow.', '--prerelease', '--latest=false'], env);
   }
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true });

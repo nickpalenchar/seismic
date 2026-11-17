@@ -1,6 +1,6 @@
 // Native Codex spike, deliberately independent of main.ts and the owner's running Seismic.
 // bun scripts/codex-probe.ts [model] — uses the installed Codex login and bills model turns.
-// Keeps its scratch directory (printed at startup) for inspection; never commits or uses ~/.obeya.
+// Keeps its scratch directory (printed at startup) for inspection; never commits or uses ~/.seismic.
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -9,7 +9,7 @@ import { codexRuntime } from '../src/server/llms/harnesses/codex';
 import type { AgentEvent, AgentSession, AgentSpec } from '../src/server/runtime';
 import { spawnOutput } from '../src/server/spawn';
 
-const root = mkdtempSync(join(tmpdir(), 'obeya-codex-probe-'));
+const root = mkdtempSync(join(tmpdir(), 'seismic-codex-probe-'));
 const cwd = join(root, 'repo');
 mkdirSync(cwd);
 const git = await spawnOutput(['git', 'init', '--quiet', '--template=', cwd]);

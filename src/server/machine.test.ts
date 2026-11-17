@@ -23,7 +23,7 @@ let store: Store;
 let applied: string[][];
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'obeya-machine-'));
+  dir = mkdtempSync(join(tmpdir(), 'seismic-machine-'));
   home = join(dir, 'home');
   bin = join(dir, 'bin');
   mkdirSync(home);
@@ -169,7 +169,7 @@ describe('what Seismic needs on this machine', () => {
     fake('git', 'case "$1" in --version) echo "git version 2.45.0";; config) echo "Ada";; esac');
     fake('gh', 'case "$1" in --version) echo "gh version 2.60.0 (2024-10-01)";; auth) echo "  ✓ Logged in to github.com account ada (keyring)";; esac');
     // not where the official installer puts it either
-    const v = await setup({ env: { OBEYA_CLAUDE: join(dir, 'none', 'claude') } }).view();
+    const v = await setup({ env: { SEISMIC_CLAUDE: join(dir, 'none', 'claude') } }).view();
     const needed = section(v, 'needed').items;
     expect(needed[0]).toMatchObject({ id: 'claude', state: 'missing', install: { commands: ['curl -fsSL https://claude.ai/install.sh | bash'] }, act: 'install' });
     expect(needed[1]).toEqual({ id: 'claudeLogin', state: 'missing' });
@@ -333,7 +333,7 @@ describe('the first project', () => {
   });
 
   test('a repository whose settings say clones gets clones', async () => {
-    const repo = gitRepo(join(dir, 'shop'), { 'README.md': 'hi\n', '.obeya/settings.json': '{ "workstations": "clones" }\n' });
+    const repo = gitRepo(join(dir, 'shop'), { 'README.md': 'hi\n', '.seismic/settings.json': '{ "workstations": "clones" }\n' });
     await setup().project({ path: repo });
     expect(JSON.parse(readFileSync(join(home, 'projects.json'), 'utf8'))).toEqual([{ planBaselines: true, archive: 'manual', rightClick: 'groups', suggest: { category: true, complexity: true, priority: true }, suggestLabels: true, suggestCards: true, suggestMerges: true, codeReviews: { on: false, mode: 'auto' }, repos: [{ path: repo, clones: CLONES }] }]);
   });

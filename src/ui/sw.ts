@@ -12,7 +12,7 @@ export function worker() {
     clients: { claim(): Promise<void>; matchAll(o: object): Promise<any[]>; openWindow(url: string): Promise<unknown> };
     registration: { showNotification(title: string, o: object): Promise<void> };
   };
-  const CACHE = 'obeya-shell';
+  const CACHE = 'seismic-shell';
   /** How long the network may take before the kept shell shows: a sleeping machine does not answer at all. */
   const WAIT_MS = 3000;
   /** The page came from what was kept, as the network did not answer: its scripts and styles do too, without waiting again. */

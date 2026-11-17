@@ -173,7 +173,7 @@ test('a reused app-server PID does not make an unrelated process its descendant'
 });
 
 test.skipIf(process.platform === 'win32')('a reported leaf keeps its app-server attributable after supervisor death', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'obeya-ancestor-death-'));
+  const dir = mkdtempSync(join(tmpdir(), 'seismic-ancestor-death-'));
   const appFile = join(dir, 'app');
   const leafFile = join(dir, 'leaf');
   const app = testProcessCode(`import {spawn} from 'node:child_process';import {writeFileSync} from 'node:fs';
@@ -205,7 +205,7 @@ spawn(process.execPath,['-e',${JSON.stringify(app)}],{detached:true,stdio:'ignor
 }, 10_000);
 
 test.skipIf(process.platform === 'win32')('app-server death kills its separately grouped PTY, not an unrelated PID', async () => {
-  const root = mkdtempSync(join(tmpdir(), 'obeya-pty-test-'));
+  const root = mkdtempSync(join(tmpdir(), 'seismic-pty-test-'));
   const file = join(root, 'heartbeat');
   const childCode = testProcessCode(`let n=0;const fs=await import('node:fs');setInterval(()=>fs.writeFileSync(${JSON.stringify(file)},String(++n)),25);`);
   const code = testProcessCode(`import {spawn} from 'node:child_process'; import {createInterface} from 'node:readline';
@@ -234,7 +234,7 @@ setInterval(()=>{},1000);`);
 });
 
 test.skipIf(process.platform === 'win32')('forced shutdown signals an observed detached child and does not wait for escalation', async () => {
-  const root = mkdtempSync(join(tmpdir(), 'obeya-force-test-'));
+  const root = mkdtempSync(join(tmpdir(), 'seismic-force-test-'));
   const file = join(root, 'heartbeat');
   const code = testProcessCode(`import {writeFileSync} from 'node:fs';let n=0;process.on('SIGTERM',()=>{});setInterval(()=>writeFileSync(${JSON.stringify(file)},String(++n)),25);`);
   const server = testProcessCode(`import {spawn} from 'node:child_process';import {createInterface} from 'node:readline';
@@ -264,7 +264,7 @@ process.stdin.on('end',()=>{});process.on('SIGTERM',()=>{});setInterval(()=>{},1
 }, 10_000);
 
 test('shutdown awaits escalation before exiting, including an EOF/TERM-ignoring subprocess', async () => {
-  const root = mkdtempSync(join(tmpdir(), 'obeya-exit-test-'));
+  const root = mkdtempSync(join(tmpdir(), 'seismic-exit-test-'));
   const file = join(root, 'heartbeat');
   const code = testProcessCode(`import {writeFileSync} from 'node:fs';let n=0;process.stdin.resume();process.stdin.on('end',()=>{});process.on('SIGTERM',()=>{});setInterval(()=>writeFileSync(${JSON.stringify(file)},String(++n)),25);`);
   const driver = testProcessCode(`import {codexConnection,endSessionsHere} from ${JSON.stringify(join(import.meta.dir, 'codexRpc.ts'))};

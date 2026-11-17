@@ -56,7 +56,7 @@ export function GithubSetup({ running, onAdd, cancel }: { running: boolean; onAd
   const [picked, setPicked] = useState(() => sessionStorage.getItem(PICKED_KEY) ?? '');
   const [query, setQuery] = useState('');
   const [folder, setFolder] = useState(() => sessionStorage.getItem(FOLDER_KEY) ?? 'docs/demos');
-  const [name, setName] = useState(() => sessionStorage.getItem(NAME_KEY) ?? 'obeya-demos');
+  const [name, setName] = useState(() => sessionStorage.getItem(NAME_KEY) ?? 'seismic-demos');
   const [priv, setPriv] = useState(() => sessionStorage.getItem(PRIVATE_KEY) === '1');
   const [confirming, setConfirming] = useState(false);
   const [confirmBranch, setConfirmBranch] = useState('');

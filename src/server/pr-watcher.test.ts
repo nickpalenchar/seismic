@@ -36,7 +36,7 @@ let language: Language;
 const URL_ = 'https://github.com/acme/app/pull/42';
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'obeya-pr-'));
+  dir = mkdtempSync(join(tmpdir(), 'seismic-pr-'));
   main = join(dir, 'main');
   gitRepo(main);
   const store = new Store(':memory:');

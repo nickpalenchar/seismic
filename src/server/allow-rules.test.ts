@@ -8,7 +8,7 @@ const rules = [
   'bun install',
   'bun test *',
   'bun run typecheck',
-  'mkdir -p /tmp/obeya-*',
+  'mkdir -p /tmp/seismic-*',
   'node /Users/nick/demos/obeya-*/demo.ts',
   'codex exec --sandbox read-only review --base main',
 ];
@@ -26,7 +26,7 @@ test('a plain command, wrapped in the shell Codex runs it in or not, is covered 
   expect(allowed(rules, zsh('bun install'))).toBe(true);
   expect(allowed(rules, zsh('bun test src/server/board.test.ts --parallel'))).toBe(true);
   expect(allowed(rules, 'bun run typecheck')).toBe(true);
-  expect(allowed(rules, ['/bin/zsh', '-lc', 'mkdir -p /tmp/obeya-demo'])).toBe(true);
+  expect(allowed(rules, ['/bin/zsh', '-lc', 'mkdir -p /tmp/seismic-demo'])).toBe(true);
   expect(allowed(rules, zsh('node /Users/nick/demos/obeya-x/demo.ts'))).toBe(true);
   expect(allowed(rules, zsh('codex exec --sandbox read-only review --base main'))).toBe(true);
 });
@@ -55,7 +55,7 @@ test('shell syntax never rides on a rule', () => {
     'bun test *.ts',
     'bun test ~root/x',
     'bun test x & ',
-    'mkdir -p /tmp/obeya-x/../../etc/y',
+    'mkdir -p /tmp/seismic-x/../../etc/y',
     'node /Users/nick/demos/obeya-../../x/demo.ts',
   ]) expect([script, allowed(rules, zsh(script))]).toEqual([script, false]);
 });
@@ -68,8 +68,8 @@ test('only one shell wrapper of the plain form counts', () => {
   expect(allowed(rules, "env FOO=1 /bin/zsh -lc 'bun install'")).toBe(false);
 });
 
-const more = [...rules, 'node /Users/nick/harness/obeya/plugin/skills/browser/lib/browser.ts start', 'node /Users/nick/harness/obeya/plugin/skills/browser/lib/browser.ts open *', 'node /Users/nick/harness/obeya/plugin/skills/browser/lib/browser.ts eval *'];
-const browser = 'node /Users/nick/harness/obeya/plugin/skills/browser/lib/browser.ts';
+const more = [...rules, 'node /Users/nick/programming/obeya/plugin/skills/browser/lib/browser.ts start', 'node /Users/nick/programming/obeya/plugin/skills/browser/lib/browser.ts open *', 'node /Users/nick/programming/obeya/plugin/skills/browser/lib/browser.ts eval *'];
+const browser = 'node /Users/nick/programming/obeya/plugin/skills/browser/lib/browser.ts';
 
 test('a chain is covered where every part of it is', () => {
   expect(allowed(more, zshq(`${browser} start && ${browser} open 'http://127.0.0.1:4484/login?token=abc&next=%2F'`))).toBe(true);
@@ -90,9 +90,9 @@ test('a chain is covered where every part of it is', () => {
 });
 
 test('variables in front of a command and output to a temporary file do not hide what runs', () => {
-  expect(allowed(rules, zsh('TMPDIR=/private/tmp/obeya-x bun test --parallel'))).toBe(true);
-  expect(allowed(rules, zsh('TMPDIR=/private/tmp/obeya-x bun test --parallel > /private/tmp/obeya-x.log 2>&1'))).toBe(true);
-  expect(allowed(rules, zsh('bun test a >> /tmp/obeya-x.log'))).toBe(true);
+  expect(allowed(rules, zsh('TMPDIR=/private/tmp/seismic-x bun test --parallel'))).toBe(true);
+  expect(allowed(rules, zsh('TMPDIR=/private/tmp/seismic-x bun test --parallel > /private/tmp/seismic-x.log 2>&1'))).toBe(true);
+  expect(allowed(rules, zsh('bun test a >> /tmp/seismic-x.log'))).toBe(true);
   expect(plainCommands(zsh('FOO=1 BAR=2 bun test a > /tmp/x.log 2>&1'))).toEqual(['bun test a']);
   // a variable that changes what a program is, a redirect to anywhere else, input, descriptors other than 1 and 2
   for (const script of [
@@ -100,7 +100,7 @@ test('variables in front of a command and output to a temporary file do not hide
     'NODE_OPTIONS=--require=/tmp/x bun test a',
     'SEISMIC_HOME=/other bun test a',
     'SEISMIC_CODEX_SANDBOX=danger-full-access bun test a',
-    'OBEYA_HOME=/other bun test a',
+    'SEISMIC_HOME=/other bun test a',
     'GIT_SSH_COMMAND=x bun test a',
     'bun test a > /etc/passwd',
     'bun test a > ~/x',
@@ -132,8 +132,8 @@ test('a rule and a command name the home directory by ~/ or in full alike; a ~ e
 });
 
 test('sourcing a file the agent cannot change and nvm use need no rule in front of covered commands', () => {
-  const dir = mkdtempSync(join(homedir(), '.obeya-allow-test-'));
-  const temp = mkdtempSync(join(tmpdir(), 'obeya-allow-test-'));
+  const dir = mkdtempSync(join(homedir(), '.seismic-allow-test-'));
+  const temp = mkdtempSync(join(tmpdir(), 'seismic-allow-test-'));
   try {
     const workstation = join(dir, 'workstation');
     const demos = join(dir, 'demos');

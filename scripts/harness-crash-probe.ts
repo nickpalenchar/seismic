@@ -1,10 +1,10 @@
 // What happens to an app a real Claude or Codex worker started when its agent, or Seismic, dies?
-// bun scripts/harness-crash-probe.ts [claude|codex ...] [agent-death|obeya-death|obeya-restart ...] [--out <file>]
-// For each harness and case it stages a scratch Seismic with real workers (scripts/scratch-obeya.ts,
+// bun scripts/harness-crash-probe.ts [claude|codex ...] [agent-death|seismic-death|seismic-restart ...] [--out <file>]
+// For each harness and case it stages a scratch Seismic with real workers (scripts/scratch-seismic.ts,
 // its own repository and SEISMIC_HOME), starts one card whose worker runs `python3 job.py` (a heartbeat
 // that leaves for a session and process group of its own; the launcher exits after three seconds)
 // and asks a question. Once parking has asked the trusted `app.keep` (which logs and keeps the app)
-// it SIGKILLs the worker's agent process or the Seismic server (obeya-restart: and then starts an
+// it SIGKILLs the worker's agent process or the Seismic server (seismic-restart: and then starts an
 // Seismic again on the same home, whose startup sweep ends what the crash left, sessionRegistry.ts),
 // waits, and records what still runs:
 // heartbeat, agent, server, an unrelated canary, the card and the settings commands that ran. Then
@@ -66,7 +66,7 @@ const TASK =
   'question PROBE_READY and no options, and end your turn. Do not stop the heartbeat, edit files, commit or start anything else.';
 
 const HARNESSES = ['claude', 'codex'] as const;
-const CASES = ['agent-death', 'obeya-death', 'obeya-restart'] as const;
+const CASES = ['agent-death', 'seismic-death', 'seismic-restart'] as const;
 type Harness = (typeof HARNESSES)[number];
 type Case = (typeof CASES)[number];
 
@@ -81,12 +81,12 @@ const claudeCli = () => Bun.which('claude', { PATH: plainPath() }) ?? 'claude';
 const probeEnv = () => ({ ...process.env, PATH: plainPath(), SEISMIC_CODEX: codexCli(), SEISMIC_PARK_GRACE: '2' });
 
 async function run(harness: Harness, kind: Case) {
-  const work = mkdtempSync(join(tmpdir(), `obeya-crash-${harness}-${kind}-`));
+  const work = mkdtempSync(join(tmpdir(), `seismic-crash-${harness}-${kind}-`));
   const stage = {
     name: 'Crash probe',
     language: 'en',
     conversation: 'en',
-    files: { 'README.md': '# Crash probe\n', 'job.py': JOB, '.obeya/settings.json': JSON.stringify(SETTINGS, null, 2) + '\n' },
+    files: { 'README.md': '# Crash probe\n', 'job.py': JOB, '.seismic/settings.json': JSON.stringify(SETTINGS, null, 2) + '\n' },
     cards: [{ key: 'probe', title: `${harness} ${kind} probe`, body: TASK }],
     dir: join(work, 'scratch'),
   };
@@ -101,14 +101,14 @@ async function run(harness: Harness, kind: Case) {
   let agent: Proc | undefined;
   let db: Database | undefined;
   try {
-    const out = spawnSync('bun', [join(ROOT, 'scripts/scratch-obeya.ts'), join(work, 'stage.json'), '--real-workers'], { cwd: ROOT, encoding: 'utf8', env: probeEnv(), timeout: 120_000 });
+    const out = spawnSync('bun', [join(ROOT, 'scripts/scratch-seismic.ts'), join(work, 'stage.json'), '--real-workers'], { cwd: ROOT, encoding: 'utf8', env: probeEnv(), timeout: 120_000 });
     if (out.status !== 0) throw new Error(`staging failed: ${out.stderr.trim().slice(-500)}`);
     staged = JSON.parse(out.stdout.trim().split('\n').pop()!);
     const s = staged!;
     const home = join(s.dir, 'home');
     const key = read(join(home, 'owner.key'));
     const api = async (path: string, body?: unknown, method = 'POST') => {
-      const r = await fetch(`http://127.0.0.1:${s.port}${path}`, { method, headers: { 'x-obeya-key': key, 'content-type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+      const r = await fetch(`http://127.0.0.1:${s.port}${path}`, { method, headers: { 'x-seismic-key': key, 'content-type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
       const text = await r.text();
       if (!r.ok) throw new Error(`${path}: ${r.status} ${text}`);
       return text ? JSON.parse(text) : {};
@@ -178,7 +178,7 @@ async function run(harness: Harness, kind: Case) {
       stop: read(join(workstation, 'stop.log')),
       serverLog: read(join(s.dir, 'server.log')).split('\n').filter((l) => /error|exit|died|stopp|kill|park/i.test(l)).slice(-12),
     };
-    if (kind === 'obeya-restart') {
+    if (kind === 'seismic-restart') {
       // the same home, as a supervisor would start it again after the crash
       const log = openSync(join(s.dir, 'server.log'), 'a');
       const again = spawn(process.execPath, ['src/server/main.ts', '--config', join(s.dir, 'projects.json'), '--port', String(s.port), '--dev'], {
@@ -189,7 +189,7 @@ async function run(harness: Harness, kind: Case) {
       s.pid = again.pid!;
       let up = false;
       for (let i = 0; i < 240 && !up && alive(s.pid); i++) {
-        up = await fetch(`http://127.0.0.1:${s.port}/api/projects`, { headers: { 'x-obeya-key': key } }).then((r) => r.ok, () => false);
+        up = await fetch(`http://127.0.0.1:${s.port}/api/projects`, { headers: { 'x-seismic-key': key } }).then((r) => r.ok, () => false);
         if (!up) await Bun.sleep(500);
       }
       await Bun.sleep(3000);
@@ -217,7 +217,7 @@ async function run(harness: Harness, kind: Case) {
     const left: string[] = [];
     if (staged && alive(staged.pid)) {
       seen.push(...descendants(staged.pid));
-      const stop = spawnSync('bun', [join(ROOT, 'scripts/scratch-obeya.ts'), '--stop', String(staged.port), '--dir', staged.dir], { cwd: ROOT, encoding: 'utf8' });
+      const stop = spawnSync('bun', [join(ROOT, 'scripts/scratch-seismic.ts'), '--stop', String(staged.port), '--dir', staged.dir], { cwd: ROOT, encoding: 'utf8' });
       if (stop.status !== 0) left.push(`--stop: ${stop.stderr.trim()}`);
     }
     for (const p of heartbeats(work)) kill(p.pid);

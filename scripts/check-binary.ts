@@ -1,9 +1,9 @@
 // Checks a compiled Seismic (`bun run build`) on this machine, the way someone without Bun or a
-// checkout would use it: a scratch repository with its own settings (`.obeya/settings.json`) and
-// demo site, the binary started as `obeya` starts (supervised), and then what it hands to other
+// checkout would use it: a scratch repository with its own settings (`.seismic/settings.json`) and
+// demo site, the binary started as `seismic` starts (supervised), and then what it hands to other
 // processes. Runs on macOS, Linux and Windows.
 //
-//   bun scripts/check-binary.ts <obeya> [--voice] [--demo] [--worker] [--port <n>] [--keep]
+//   bun scripts/check-binary.ts <seismic> [--voice] [--demo] [--worker] [--port <n>] [--keep]
 //
 // Always: the project answers, the settings show the version and no checkout, the repository's own
 // settings are read, the demo setup finds Playwright among the resources, and a script run with the
@@ -31,7 +31,7 @@ import { opt } from './common';
 const args = process.argv.slice(2);
 const binaryArg = args.find((a, i) => !a.startsWith('--') && args[i - 1] !== '--port');
 if (!binaryArg) {
-  console.error('usage: bun scripts/check-binary.ts <obeya> [--voice] [--demo] [--worker] [--port <n>] [--keep]');
+  console.error('usage: bun scripts/check-binary.ts <seismic> [--voice] [--demo] [--worker] [--port <n>] [--keep]');
   process.exit(2);
 }
 const binary = resolve(binaryArg);
@@ -56,7 +56,7 @@ const json = async <T = any>(path: string, init?: RequestInit & { json?: unknown
 
 // the scratch repository: a plan doc, its own settings with a demo site, and the site's deploy
 // script, which copies the site to `deployed` under Seismic's home, where the site is served from
-const dir = realpathSync(mkdtempSync(join(tmpdir(), 'obeya-check-')));
+const dir = realpathSync(mkdtempSync(join(tmpdir(), 'seismic-check-')));
 const repo = join(dir, 'repo');
 const home = join(dir, 'home');
 const deployed = join(home, 'deployed');
@@ -74,7 +74,7 @@ const siteUrl = `http://127.0.0.1:${host.port}/`;
 const files: Record<string, string> = {
   'README.md': '# Scratch\n',
   'docs/plan/tool.md': '# Tool\n\n## Workstreams\n\n- [ ] **W1:** Configuration.\n',
-  '.obeya/settings.json': `${JSON.stringify({ app: { run: 'Nothing to run.' }, demo: { site: { title: 'Check demos', url: siteUrl, deploy: 'deploy.ts {dir}' } } }, null, 2)}\n`,
+  '.seismic/settings.json': `${JSON.stringify({ app: { run: 'Nothing to run.' }, demo: { site: { title: 'Check demos', url: siteUrl, deploy: 'deploy.ts {dir}' } } }, null, 2)}\n`,
   'deploy.ts': `import { cpSync, rmSync } from 'node:fs';
 const out = (process.env.SEISMIC_HOME ?? process.env.OBEYA_HOME) + '/deployed';
 rmSync(out, { recursive: true, force: true });
@@ -100,7 +100,7 @@ writeFileSync(configFile, JSON.stringify([{ name: 'Check', repos: [{ path: repo,
 writeFileSync(join(home, 'settings.json'), JSON.stringify({ language: 'en' }));
 writeFileSync(join(home, 'demo.json'), JSON.stringify({ language: 'en', voice: 'piper' }));
 
-// the binary, supervised as `obeya` runs without --dev
+// the binary, supervised as `seismic` runs without --dev
 const log = join(dir, 'server.log');
 const env = { ...process.env, SEISMIC_HOME: home, SEISMIC_SUPERVISED: undefined, OBEYA_SUPERVISED: undefined };
 let server: Subprocess | undefined;

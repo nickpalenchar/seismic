@@ -14,7 +14,7 @@ export interface InboxEntry {
   /** The card that waits for the owner; absent for Seismic's answers waiting unread in its sheet. */
   card?: Item;
   /** Seismic's latest unread answer on that project. */
-  obeya?: Talk;
+  seismic?: Talk;
   preference?: Preference;
   setting?: SettingProposal;
   rules?: Preference[];
@@ -89,7 +89,7 @@ function projectEntries(c: { id: string; name: string }, w: Waiting, underway: (
       return p ? [{ ...here, ...context, ...at, key: `${c.id}/setting/${p.id}`, setting: p, text: p.basis }] : [];
     }
     const x = w.talk.find((t) => t.id === row.talk && t.unread);
-    return x ? [{ ...here, ...at, key: `${c.id}/obeya`, obeya: x, text: x.answer ?? x.reply ?? x.question ?? x.said }] : [];
+    return x ? [{ ...here, ...at, key: `${c.id}/seismic`, seismic: x, text: x.answer ?? x.reply ?? x.question ?? x.said }] : [];
   });
 }
 

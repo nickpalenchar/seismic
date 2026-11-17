@@ -8,7 +8,7 @@ import { gitRepo, identify, until } from './testing';
 import { addTrailer, defaultBranch, git, Workstations, namedInRefusal, porcelainFiles, workingChanges } from './workstations';
 
 let dir: string;
-beforeEach(() => (dir = mkdtempSync(join(tmpdir(), 'obeya-branch-'))));
+beforeEach(() => (dir = mkdtempSync(join(tmpdir(), 'seismic-branch-'))));
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 describe('what git names in its refusal', () => {
@@ -37,7 +37,7 @@ describe('the main branch', () => {
     const repo = gitRepo(join(dir, 'repo'));
     git(repo, 'branch', '-m', 'develop');
     expect(defaultBranch(repo)).toBe('develop');
-    git(repo, 'checkout', '--quiet', '-b', 'obeya/export-abc123');
+    git(repo, 'checkout', '--quiet', '-b', 'seismic/export-abc123');
     expect(defaultBranch(repo)).toBe('develop');
     git(repo, 'checkout', '--quiet', '--detach');
     expect(defaultBranch(repo)).toBe('develop');
@@ -73,14 +73,14 @@ describe('a leased clone', () => {
     // its origin is gone: the fetch fails
     git(clone!, 'remote', 'set-url', 'origin', join(dir, 'gone'));
     const [a, b] = [board.create({ title: 'A', x: 0, y: 0 }).id, board.create({ title: 'B', x: 0, y: 0 }).id];
-    const lease = spaces.lease(a, 'obeya/a');
+    const lease = spaces.lease(a, 'seismic/a');
     // taken at once, while git fetches
     expect(spaces.leasedBy(a)).toBe(clone!);
     expect(spaces.leasable()).toBe(false);
     await expect(lease.ready!).rejects.toThrow('fetch');
     expect(spaces.leasedBy(a)).toBeNull();
     expect(spaces.leasable()).toBe(false);
-    expect(() => spaces.lease(b, 'obeya/b')).toThrow(expect.objectContaining({ code: 'noWorkstation' }));
+    expect(() => spaces.lease(b, 'seismic/b')).toThrow(expect.objectContaining({ code: 'noWorkstation' }));
     // the pool says why the free clone goes to no card
     expect(spaces.pool([])[0]!.blocked).toEqual([{ path: clone!, why: 'failed', error: expect.stringContaining('fetch'), made: true }]);
   });
@@ -106,16 +106,16 @@ describe('free clones', () => {
     writeFileSync(join(one, 'stray.txt'), 'x');
     // the first was clean when looked at: a card takes it at once, and git, looking again, finds it dirty
     const a = board.create({ title: 'A', x: 0, y: 0 }).id;
-    const lease = spaces.lease(a, 'obeya/a');
+    const lease = spaces.lease(a, 'seismic/a');
     expect(lease.path).toBe(one);
     expect(await lease.ready!).toBe(two);
     expect(spaces.leasedBy(a)).toBe(two);
-    expect(git(two, 'branch', '--show-current')).toBe('obeya/a');
+    expect(git(two, 'branch', '--show-current')).toBe('seismic/a');
     // the dirty one is free, and known as dirty: no card takes it until it is clean
     expect(spaces.list().find((w) => w.path === one)!.card_id).toBeNull();
     expect(spaces.leasable()).toBe(false);
     const b = board.create({ title: 'B', x: 0, y: 0 }).id;
-    expect(() => spaces.lease(b, 'obeya/b')).toThrow(expect.objectContaining({ code: 'dirtyWorkstations' }));
+    expect(() => spaces.lease(b, 'seismic/b')).toThrow(expect.objectContaining({ code: 'dirtyWorkstations' }));
   });
 
   test('no card gets are named in the pool, with why: the files changed, git failing, the folder gone', async () => {
@@ -144,13 +144,13 @@ describe('free clones', () => {
     spaces.pool([]);
     await until(() => changed() === 2);
     expect(spaces.pool([])[0]!.blocked).toEqual(clones.map((path) => ({ path, why: 'broken', error: expect.stringContaining('index'), made: true })));
-    expect(() => spaces.lease(board.create({ title: 'A', x: 0, y: 0 }).id, 'obeya/a')).toThrow(expect.objectContaining({ code: 'dirtyWorkstations' }));
+    expect(() => spaces.lease(board.create({ title: 'A', x: 0, y: 0 }).id, 'seismic/a')).toThrow(expect.objectContaining({ code: 'dirtyWorkstations' }));
   });
 
   test('where the one taken is dirty now and no other is left, the lease fails with that shortage', async () => {
     const { board, spaces, clones } = setup();
     for (const c of clones) writeFileSync(join(c, 'stray.txt'), 'x');
-    const lease = spaces.lease(board.create({ title: 'A', x: 0, y: 0 }).id, 'obeya/a');
+    const lease = spaces.lease(board.create({ title: 'A', x: 0, y: 0 }).id, 'seismic/a');
     await expect(lease.ready!).rejects.toMatchObject({ code: 'dirtyWorkstations' });
     expect(spaces.list().every((w) => !w.card_id)).toBe(true);
     expect(spaces.leasable()).toBe(false);
@@ -170,75 +170,75 @@ describe('a workstation git frees', () => {
   test('a discarded clone is no other card’s until git has cleaned it; freeing it meanwhile waits for git', async () => {
     const { spaces, card } = setup('clones');
     const a = card('A');
-    const { path, ready } = spaces.lease(a, 'obeya/a');
+    const { path, ready } = spaces.lease(a, 'seismic/a');
     await ready;
     writeFileSync(join(path, 'draft.txt'), 'x');
-    const discarded = spaces.discard(a, 'obeya/a');
+    const discarded = spaces.discard(a, 'seismic/a');
     const abandoned = spaces.abandon(path);
     expect(spaces.leasedBy(a)).toBe(path);
-    expect(() => spaces.lease(card('B'), 'obeya/b')).toThrow(expect.objectContaining({ code: 'noWorkstation' }));
+    expect(() => spaces.lease(card('B'), 'seismic/b')).toThrow(expect.objectContaining({ code: 'noWorkstation' }));
     await discarded;
     expect(await abandoned).toBe(true);
     expect(spaces.list()).toEqual([{ path, card_id: null }]);
     expect(existsSync(join(path, 'draft.txt'))).toBe(false);
-    expect(git(path, 'branch', '--list', 'obeya/a')).toBe('');
+    expect(git(path, 'branch', '--list', 'seismic/a')).toBe('');
   });
 
   test("a card's worktree made again while git removes the one it had is added once git is done", async () => {
     const { repo, spaces, card } = setup('worktrees');
     const a = card('A');
-    const first = spaces.lease(a, 'obeya/a');
+    const first = spaces.lease(a, 'seismic/a');
     await first.ready;
-    const removed = spaces.removeLanded(a, 'obeya/a');
-    const again = spaces.lease(a, 'obeya/a');
+    const removed = spaces.removeLanded(a, 'seismic/a');
+    const again = spaces.lease(a, 'seismic/a');
     expect(again.path).toBe(first.path);
     expect(again.ready).not.toBeNull();
     await removed;
     expect(await again.ready!).toBe(first.path);
-    expect(git(again.path, 'branch', '--show-current')).toBe('obeya/a');
+    expect(git(again.path, 'branch', '--show-current')).toBe('seismic/a');
     expect(git(repo, 'worktree', 'list').split('\n')).toHaveLength(2);
   });
 
   test('a worktree given back and taken again by its card while git removes it (the card deleted and brought back) is made again once git is done', async () => {
     const { spaces, card } = setup('worktrees');
     const a = card('A');
-    const { path, ready } = spaces.lease(a, 'obeya/a');
+    const { path, ready } = spaces.lease(a, 'seismic/a');
     await ready;
     const abandoned = spaces.abandon(path);
-    const again = spaces.lease(a, 'obeya/a');
+    const again = spaces.lease(a, 'seismic/a');
     expect(again.ready).not.toBeNull();
     expect(await abandoned).toBe(true);
     expect(await again.ready!).toBe(path);
     expect(spaces.leasedBy(a)).toBe(path);
-    expect(git(path, 'branch', '--show-current')).toBe('obeya/a');
+    expect(git(path, 'branch', '--show-current')).toBe('seismic/a');
   });
 
   test('a workstation handed over is not, where the card it comes from gave it up while git renamed the branch', async () => {
     const { repo, spaces, card } = setup('worktrees');
     const [a, b] = [card('A'), card('B')];
-    const { path, ready } = spaces.lease(a, 'obeya/a');
+    const { path, ready } = spaces.lease(a, 'seismic/a');
     await ready;
-    const handed = spaces.transfer(a, b, 'obeya/a', 'obeya/b');
-    const discarded = spaces.discard(a, 'obeya/a');
+    const handed = spaces.transfer(a, b, 'seismic/a', 'seismic/b');
+    const discarded = spaces.discard(a, 'seismic/a');
     await expect(handed).rejects.toMatchObject({ message: expect.stringContaining('gave its workstation up meanwhile') });
     await discarded;
     expect(spaces.leasedBy(b)).toBeNull();
     expect(existsSync(path)).toBe(false);
-    expect(git(repo, 'branch', '--list', 'obeya/*')).toBe('');
+    expect(git(repo, 'branch', '--list', 'seismic/*')).toBe('');
   });
 });
 
 describe("a follow-up's temporary worktree", () => {
   test("is at origin's copy of the card's branch where no clone here holds it, else at the default branch, and goes without a trace", async () => {
     const origin = gitRepo(join(dir, 'origin'));
-    git(origin, 'checkout', '--quiet', '-b', 'obeya/pushed-abc123');
+    git(origin, 'checkout', '--quiet', '-b', 'seismic/pushed-abc123');
     git(origin, 'commit', '--quiet', '--allow-empty', '-m', 'pushed');
     const pushed = git(origin, 'rev-parse', 'HEAD');
     git(origin, 'checkout', '--quiet', 'main');
     const checkout = join(dir, 'checkout');
     git(dir, 'clone', '--quiet', origin, checkout);
     const spaces = new Workstations(new Store(':memory:'), 'c', { mode: 'clones', repoPath: checkout, dir: join(dir, 'ws') });
-    const { path: tree, ready } = spaces.followUpTree('card-1234567', 'obeya/pushed-abc123');
+    const { path: tree, ready } = spaces.followUpTree('card-1234567', 'seismic/pushed-abc123');
     await ready;
     expect(tree).toBe(join(dir, 'ws', 'follow-up', 'card-123'));
     expect(git(tree, 'rev-parse', 'HEAD')).toBe(pushed);
@@ -248,7 +248,7 @@ describe("a follow-up's temporary worktree", () => {
     await spaces.removeFollowUpTree(tree);
     expect(existsSync(tree)).toBe(false);
     expect(git(checkout, 'worktree', 'list').split('\n')).toHaveLength(1);
-    const { path: fresh, ready: again } = spaces.followUpTree('card-1234567', 'obeya/gone-def456');
+    const { path: fresh, ready: again } = spaces.followUpTree('card-1234567', 'seismic/gone-def456');
     await again;
     expect(git(fresh, 'rev-parse', 'HEAD')).toBe(git(checkout, 'rev-parse', 'origin/main'));
   });
@@ -557,7 +557,7 @@ describe('clones the configuration no longer names', () => {
     writeFileSync(join(untracked, 'notes.txt'), 'mine\n');
     writeFileSync(join(stashed, 'README.md'), 'stashed\n');
     git(stashed, 'stash', '--quiet');
-    git(unpushed, 'checkout', '--quiet', '-b', 'obeya/card-abc123');
+    git(unpushed, 'checkout', '--quiet', '-b', 'seismic/card-abc123');
     writeFileSync(join(unpushed, 'work.txt'), 'work\n');
     git(unpushed, 'add', '.');
     git(unpushed, 'commit', '--quiet', '-m', 'not pushed');
@@ -575,7 +575,7 @@ describe('clones the configuration no longer names', () => {
     git(changed, 'checkout', '--quiet', '.');
     rmSync(join(untracked, 'notes.txt'));
     git(stashed, 'stash', 'drop', '--quiet');
-    git(unpushed, 'push', '--quiet', 'origin', 'obeya/card-abc123');
+    git(unpushed, 'push', '--quiet', 'origin', 'seismic/card-abc123');
     const next = new Workstations(store, 'c', { mode: 'clones', repoPath: join(dir, 'main'), dir: ws, stop: 'echo "$PWD" >> ../stopped' });
     next.sweep();
     await until(() => paths.every((p) => !existsSync(p)) && !next.pool([])[0]!.kept);
@@ -595,15 +595,15 @@ describe('clones the configuration no longer names', () => {
     git(tagged, 'tag', 'tried');
     git(tagged, 'checkout', '--quiet', 'main');
     git(tagged, 'branch', '--quiet', '-D', 'try');
-    git(deleted, 'checkout', '--quiet', '-b', 'obeya/gone');
+    git(deleted, 'checkout', '--quiet', '-b', 'seismic/gone');
     commit(deleted, 'gone.txt');
-    git(deleted, 'push', '--quiet', 'origin', 'obeya/gone');
-    git(origin, 'branch', '--quiet', '-D', 'obeya/gone');
+    git(deleted, 'push', '--quiet', 'origin', 'seismic/gone');
+    git(origin, 'branch', '--quiet', '-D', 'seismic/gone');
     // a name with a tab or a leading space is its own file, not one main has
     git(odd, 'checkout', '--quiet', '-b', 'odd');
     commit(odd, 'notes\tsecret.txt');
     commit(odd, ' leading.txt');
-    git(squashed, 'checkout', '--quiet', '-b', 'obeya/squashed');
+    git(squashed, 'checkout', '--quiet', '-b', 'seismic/squashed');
     commit(squashed, 'a.txt');
     commit(squashed, 'b.txt');
     // the pull request was squashed onto main, and its branch deleted
@@ -626,7 +626,7 @@ describe('clones the configuration no longer names', () => {
     await Bun.sleep(150);
     expect(spaces.ensureClones(origin, 1)).toEqual([path]);
     const a = board.create({ title: 'A', x: 0, y: 0 }).id;
-    const lease = spaces.lease(a, 'obeya/a');
+    const lease = spaces.lease(a, 'seismic/a');
     expect(lease.path).toBe(path);
     await lease.ready;
     writeFileSync(join(path, 'new.txt'), 'work\n');
@@ -669,7 +669,7 @@ describe('clones the configuration no longer names', () => {
   test('a clone a card holds stays with it until the card gives it back, then goes', async () => {
     const { spaces, paths } = make(2);
     const a = board.create({ title: 'A', x: 0, y: 0 }).id;
-    const lease = spaces.lease(a, 'obeya/a');
+    const lease = spaces.lease(a, 'seismic/a');
     expect(lease.path).toBe(paths[0]!);
     await lease.ready;
     spaces.keepOnly(null, []);
@@ -704,7 +704,7 @@ describe('clones the configuration no longer names', () => {
     git(dir, 'clone', '--quiet', origin, own);
     const { spaces, paths } = make(3);
     const [a, b, c] = ['A', 'B', 'C'].map((title) => board.create({ title, x: 0, y: 0 }).id) as [string, string, string];
-    const held = spaces.lease(a, 'obeya/a');
+    const held = spaces.lease(a, 'seismic/a');
     expect(held.path).toBe(paths[0]!);
     await held.ready;
     spaces.register(own, [origin]);
@@ -712,8 +712,8 @@ describe('clones the configuration no longer names', () => {
     const old = join(dir, 'old-home', 'a7d7c689');
     store.workstations.add('c', old);
     store.workstations.lease(old, b);
-    board.work(a, { state: 'working', workstation: held.path, branch: 'obeya/a' });
-    board.work(b, { state: 'planned', workstation: old, branch: 'obeya/b' });
+    board.work(a, { state: 'working', workstation: held.path, branch: 'seismic/a' });
+    board.work(b, { state: 'planned', workstation: old, branch: 'seismic/b' });
     // the owner moved the listed clone and the held one away; the old home is gone with its worktree
     rmSync(own, { recursive: true });
     rmSync(held.path, { recursive: true });
@@ -724,15 +724,15 @@ describe('clones the configuration no longer names', () => {
     ]);
     expect(spaces.list().map((w) => w.path)).toEqual(paths.slice(1));
     for (const l of lost) board.workstationGone(l.card, l.path);
-    expect(board.row(a)).toMatchObject({ state: 'planned', workstation: null, branch: 'obeya/a' });
+    expect(board.row(a)).toMatchObject({ state: 'planned', workstation: null, branch: 'seismic/a' });
     expect(board.row(b)).toMatchObject({ state: 'planned', workstation: null });
     expect(board.events(a).at(-1)!.text).toContain(held.path);
     // the next start takes a clone that is there
-    const again = spaces.lease(a, 'obeya/a');
+    const again = spaces.lease(a, 'seismic/a');
     expect(paths.slice(1)).toContain(again.path);
     await again.ready;
     expect(existsSync(again.path)).toBe(true);
-    const other = spaces.lease(c, 'obeya/c');
+    const other = spaces.lease(c, 'seismic/c');
     expect(other.path).not.toBe(again.path);
     // settled here, not in a later test: whether it is made does not matter to this one
     await other.ready?.catch(() => {});

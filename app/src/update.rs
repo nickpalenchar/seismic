@@ -64,7 +64,7 @@ fn deb() -> bool {
   matches!(tauri::utils::platform::bundle_type(), Some(BundleType::Deb))
 }
 
-pub fn start(app: &AppHandle, obeya: Arc<Seismic>) -> Arc<Updates> {
+pub fn start(app: &AppHandle, seismic: Arc<Seismic>) -> Arc<Updates> {
   let updates = Arc::new(Updates::default());
   if let Some(checkout) = crate::checkout() {
     let Some(built) = option_env!("SEISMIC_BUILT_TREE").or(option_env!("OBEYA_BUILT_TREE")).filter(|t| !t.is_empty()) else {
@@ -77,7 +77,7 @@ pub fn start(app: &AppHandle, obeya: Arc<Seismic>) -> Arc<Updates> {
   }
   let (a, u) = (app.clone(), updates.clone());
   thread::spawn(move || loop {
-    report(&a, &obeya, &u);
+    report(&a, &seismic, &u);
     thread::sleep(Duration::from_secs(3));
   });
   updates
@@ -91,7 +91,7 @@ fn check_releases(app: &AppHandle, updates: &Arc<Updates>) {
     let wait = match check(&a, &u) {
       Ok(()) => every.unwrap_or(EVERY),
       Err(e) => {
-        eprintln!("obeya: checking for an update failed: {e}");
+        eprintln!("seismic: checking for an update failed: {e}");
         every.unwrap_or(AGAIN)
       }
     };
@@ -113,7 +113,6 @@ fn rebuild(checkout: &Path, built: &str, home: &Path, updates: &Updates) {
         .arg(checkout.join("scripts").join("app.ts"))
         // compiled into the new build in turn
         .env("SEISMIC_BUN", &bun)
-        .env("OBEYA_BUN", &bun)
         .args(["install", "--no-open"])
         .current_dir(checkout)
         .stdin(Stdio::null());
@@ -125,7 +124,7 @@ fn rebuild(checkout: &Path, built: &str, home: &Path, updates: &Updates) {
       if built {
         *updates.rebuilt.lock().unwrap() = true;
       } else {
-        eprintln!("obeya: the shell did not build anew, see {}", log.display());
+        eprintln!("seismic: the shell did not build anew, see {}", log.display());
       }
     }
     thread::sleep(Duration::from_secs(60));
@@ -163,14 +162,14 @@ fn check(app: &AppHandle, updates: &Updates) -> Result<(), String> {
 /// Tells the server of the version that is ready, while it is one the app started in this run. A
 /// new build of the shell where the server runs on without it (started from a terminal) starts
 /// again by itself (`start_again`).
-fn report(app: &AppHandle, obeya: &Seismic, updates: &Updates) {
-  let port = obeya.port.load(Ordering::SeqCst);
-  if port == 0 || obeya.stopping.load(Ordering::SeqCst) {
+fn report(app: &AppHandle, seismic: &Seismic, updates: &Updates) {
+  let port = seismic.port.load(Ordering::SeqCst);
+  if port == 0 || seismic.stopping.load(Ordering::SeqCst) {
     return;
   }
-  if !obeya.child.load(Ordering::SeqCst) {
+  if !seismic.child.load(Ordering::SeqCst) {
     if *updates.rebuilt.lock().unwrap() {
-      start_again(app, obeya, port);
+      start_again(app, seismic, port);
     }
     return;
   }
@@ -191,7 +190,7 @@ fn report(app: &AppHandle, obeya: &Seismic, updates: &Updates) {
 /// owner neither dictates nor watches a video (as the server's restart waits for them, which says
 /// so) and its window allows (`may_relaunch`), after the page handed over what a reload keeps
 /// (src/ui/api.ts, `handOver`), or did not within a few seconds (a page that does not know how).
-fn start_again(app: &AppHandle, obeya: &Seismic, port: u16) {
+fn start_again(app: &AppHandle, seismic: &Seismic, port: u16) {
   let ask = |kept: &str| post(port, "/api/app-rebuilt", &json!({ "kept": kept }));
   let now = |a: &Option<serde_json::Value>| a.as_ref().is_some_and(|a| a["now"] == true);
   if !now(&ask("")) || !crate::may_relaunch(app) {
@@ -199,7 +198,7 @@ fn start_again(app: &AppHandle, obeya: &Seismic, port: u16) {
   }
   let token = format!("{}", crate::now_ms());
   if let Some(w) = main_window(app) {
-    let _ = w.eval(format!("window.obeyaHandOver?.({token:?})"));
+    let _ = w.eval(format!("window.seismicHandOver?.({token:?})"));
   }
   for _ in 0..25 {
     thread::sleep(Duration::from_millis(200));
@@ -210,13 +209,13 @@ fn start_again(app: &AppHandle, obeya: &Seismic, port: u16) {
   }
   // the owner may have begun to speak meanwhile; what was handed over waits for the next try
   if now(&ask("")) && crate::may_relaunch(app) {
-    crate::relaunch(app, obeya);
+    crate::relaunch(app, seismic);
   }
 }
 
 /// The server ended to be updated: installs the update and starts the app again, the new version
 /// if it went in, else this one, after saying why. A new build of the shell is in place already.
-pub fn install(app: &AppHandle, obeya: &Seismic, updates: &Updates) {
+pub fn install(app: &AppHandle, seismic: &Seismic, updates: &Updates) {
   if let Some(w) = main_window(app) {
     let page = if cfg!(windows) { "http://tauri.localhost/index.html?updating" } else { "tauri://localhost/index.html?updating" };
     if let Ok(url) = Url::parse(page) {
@@ -235,5 +234,5 @@ pub fn install(app: &AppHandle, obeya: &Seismic, updates: &Updates) {
         .blocking_show();
     }
   }
-  crate::relaunch(app, obeya);
+  crate::relaunch(app, seismic);
 }

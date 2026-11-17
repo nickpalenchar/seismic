@@ -61,7 +61,7 @@ const HEIGHT_REPORT = `<script>(() => {
     const bar = innerHeight - view.clientHeight;
     const h = view.scrollHeight > view.clientHeight ? Math.max(own, view.scrollHeight) + bar : own === box ? last : own + bar;
     box = own;
-    if (h !== last) { last = h; parent.postMessage({ obeyaHeight: h }, '*'); }
+    if (h !== last) { last = h; parent.postMessage({ seismicHeight: h, obeyaHeight: h }, '*'); }
     if (innerHeight < h) html.style.removeProperty('overflow-y');
   };
   addEventListener('load', say);
@@ -78,7 +78,7 @@ export function withHeightReport(html: string): string {
 /** Install image enlargement on every artifact page, independently of height reporting. */
 const IMAGE_VIEWER = `<script>(() => {
   let viewer, origin;
-  const close = () => { if (!viewer) return; viewer.remove(); viewer = null; if (origin && origin.isConnected) origin.focus({ preventScroll: true }); origin = null; parent.postMessage({ obeyaImage: false }, '*'); };
+  const close = () => { if (!viewer) return; viewer.remove(); viewer = null; if (origin && origin.isConnected) origin.focus({ preventScroll: true }); origin = null; parent.postMessage({ seismicImage: false }, '*'); };
   const open = (img) => {
     if (viewer) return;
     origin = img;
@@ -88,12 +88,12 @@ const IMAGE_VIEWER = `<script>(() => {
     const copy = document.createElement('img'); copy.src = img.currentSrc || img.src; copy.alt = img.alt;
     copy.style.cssText = 'all:initial !important;display:block !important;width:auto !important;height:auto !important;max-width:100% !important;max-height:100% !important;object-fit:contain !important';
     viewer.append(copy); viewer.addEventListener('click', close); document.body.append(viewer);
-    parent.postMessage({ obeyaImage: true }, '*');
+    parent.postMessage({ seismicImage: true, obeyaImage: true }, '*');
   };
-  addEventListener('message', (e) => { if (e.source === parent && e.data && e.data.obeyaCloseImage) close(); });
+  addEventListener('message', (e) => { if (e.source === parent && e.data && (e.data.seismicCloseImage || e.data.obeyaCloseImage)) close(); });
   document.addEventListener('click', (e) => { const img = e.target.closest('img'); if (img && !viewer && !img.closest('a,button')) open(img); });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && viewer) { e.preventDefault(); e.stopPropagation(); close(); } else if (e.key === 'Tab' && viewer) { e.preventDefault(); parent.postMessage({ obeyaImageFocus: true }, '*'); } else if ((e.key === 'Enter' || e.key === ' ') && e.target.tagName === 'IMG' && !e.target.closest('a,button') && !viewer) { e.preventDefault(); open(e.target); } });
-  const prepare = () => document.querySelectorAll('img:not([data-obeya-image])').forEach((img) => { if (img.closest('a,button')) return; img.dataset.obeyaImage = '1'; if (!img.hasAttribute('tabindex')) img.tabIndex = 0; img.style.cursor = 'zoom-in'; img.setAttribute('role', 'button'); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && viewer) { e.preventDefault(); e.stopPropagation(); close(); } else if (e.key === 'Tab' && viewer) { e.preventDefault(); parent.postMessage({ seismicImageFocus: true, obeyaImageFocus: true }, '*'); } else if ((e.key === 'Enter' || e.key === ' ') && e.target.tagName === 'IMG' && !e.target.closest('a,button') && !viewer) { e.preventDefault(); open(e.target); } });
+  const prepare = () => document.querySelectorAll('img:not([data-seismic-image])').forEach((img) => { if (img.closest('a,button')) return; img.dataset.seismicImage = '1'; if (!img.hasAttribute('tabindex')) img.tabIndex = 0; img.style.cursor = 'zoom-in'; img.setAttribute('role', 'button'); });
   new MutationObserver(prepare).observe(document.documentElement, {childList:true, subtree:true});
   addEventListener('load', prepare);
 })();</script>`;
@@ -106,14 +106,14 @@ export function withImageViewer(html: string): string {
  * What the owner marks in the page, sent to Seismic's page around it, where a button beside it quotes
  * it into the card's field (`CiteButton` in src/ui/cite.tsx): the text, its first and last line in
  * the frame's window, and whether it was marked backwards; null once nothing is marked. While the
- * mouse still drags it out, the marking is not said. `{ obeyaUnmark }` from the page around takes the
+ * mouse still drags it out, the marking is not said. `{ seismicUnmark }` from the page around takes the
  * marking away, as a click elsewhere there would on a page of its own.
  */
 const MARK_REPORT = `<script>(() => {
   let last = 'null', down = false;
   const tell = (m) => {
     const now = JSON.stringify(m);
-    if (now !== last) { last = now; parent.postMessage({ obeyaMarked: m }, '*'); }
+    if (now !== last) { last = now; parent.postMessage({ seismicMarked: m }, '*'); }
   };
   const say = () => {
     if (down) return;
@@ -132,7 +132,7 @@ const MARK_REPORT = `<script>(() => {
   addEventListener('blur', () => { if (down) { down = false; say(); } });
   addEventListener('scroll', say, true);
   addEventListener('resize', say);
-  addEventListener('message', (e) => { if (e.source === parent && e.data && e.data.obeyaUnmark) getSelection().removeAllRanges(); });
+  addEventListener('message', (e) => { if (e.source === parent && e.data && e.data.seismicUnmark) getSelection().removeAllRanges(); });
 })();</script>`;
 
 /** The page with its marking report (`MARK_REPORT`), for a page shown on Seismic's own page: at the end of its body, or of the page without one. */
@@ -149,7 +149,7 @@ const CONTENT_HEIGHT_REPORT = `<script>(() => {
   let last = 0;
   const say = () => {
     const h = Math.ceil(document.body.getBoundingClientRect().height) + 16;
-    if (Math.abs(h - last) > 2) { last = h; parent.postMessage({ obeyaHeight: h }, '*'); }
+    if (Math.abs(h - last) > 2) { last = h; parent.postMessage({ seismicHeight: h, obeyaHeight: h }, '*'); }
   };
   addEventListener('load', say);
   new ResizeObserver(say).observe(document.body);

@@ -16,7 +16,7 @@ async function until(check: () => boolean) {
 const exited = (p: ChildProcess) => new Promise((resolve) => p.once('exit', resolve));
 
 test('SIGKILL of a test runner ends its canary, detached child, and orphaned grandchild', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'obeya-test-owner-'));
+  const dir = mkdtempSync(join(tmpdir(), 'seismic-test-owner-'));
   const ready = join(dir, 'pids.json');
   const beat = join(dir, 'heartbeat');
   const marker = join(dir, 'should-not-run');
@@ -100,7 +100,7 @@ test('a late helper rejects an unrelated listener on a reused port', async () =>
 });
 
 test('lifetime pipes do not keep a finished test runner alive', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'obeya-test-finished-'));
+  const dir = mkdtempSync(join(tmpdir(), 'seismic-test-finished-'));
   const ready = join(dir, 'pid');
   const fixture = join(dir, 'finished.test.ts');
   writeFileSync(fixture, testProcessCode(`

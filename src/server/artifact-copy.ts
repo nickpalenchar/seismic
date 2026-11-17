@@ -531,7 +531,7 @@ async function withModules(html: string, dir: string): Promise<string> {
         return path ? bundle(dir, join(dir, path)) : null;
       }
       if (!/(?:\bfrom|\bimport)\s*\(?\s*['"]\.{1,2}\//.test(s.text)) return null;
-      const entry = join(dir, `.obeya-module-${i}.js`);
+      const entry = join(dir, `.seismic-module-${i}.js`);
       return bundle(dir, entry, { [entry]: s.text });
     }),
   );

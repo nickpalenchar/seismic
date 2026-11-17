@@ -17,7 +17,7 @@ let project: ProjectRuntime;
 let server: ReturnType<typeof serve>;
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'obeya-tags-'));
+  dir = mkdtempSync(join(tmpdir(), 'seismic-tags-'));
   repo = gitRepo(join(dir, 'shop'), { 'README.md': 'A shop with a cart and invoices.\n' });
   store = new Store(':memory:');
   runtime = new FakeRuntime();

@@ -1,4 +1,4 @@
-// A forge kept in a JSON file, for a scratch Seismic (scripts/scratch-obeya.ts) whose demo needs pull
+// A forge kept in a JSON file, for a scratch Seismic (scripts/scratch-seismic.ts) whose demo needs pull
 // requests without a real forge: the file holds them as a forge would answer for them, Seismic's
 // comments, reviews and merges go into it, and whoever stages the demo edits it to play the people on
 // the forge (a contributor answering, pushing). A merge squashes the PR's head onto the default

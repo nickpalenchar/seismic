@@ -67,7 +67,7 @@ export function sessionPid(env: NodeJS.ProcessEnv = process.env): number | null 
 /** The session's state file: in the OS temp directory, named by the session's process. */
 export function stateFile(env: NodeJS.ProcessEnv = process.env): string {
   const pid = sessionPid(env);
-  return path.join(os.tmpdir(), 'obeya-browser', `${pid ?? `user-${os.userInfo().username}`}.json`);
+  return path.join(os.tmpdir(), 'seismic-browser', `${pid ?? `user-${os.userInfo().username}`}.json`);
 }
 
 /** What the process holding the browser prints, beside the state: why it did not come up. */

@@ -63,7 +63,7 @@ export interface Job {
 }
 
 /** A named job with kill-on-close, no breakaway. */
-export function createJob(name = `obeya-${randomUUID()}`, killOnClose = true): { job: Job; handle: Pointer } {
+export function createJob(name = `seismic-${randomUUID()}`, killOnClose = true): { job: Job; handle: Pointer } {
   const k = kernel32();
   const handle = k.CreateJobObjectW(null, ptr(wide(`Local\\${name}`))) as Pointer | null;
   if (!handle) throw new Error(`CreateJobObjectW failed (${lastError()})`);

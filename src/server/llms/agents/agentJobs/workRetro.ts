@@ -368,7 +368,7 @@ class RetroSession extends SeismicJob {
 /** The sessions of a card's earlier runs, from its log. */
 export function earlierRuns(events: CardEvent[]): string[] {
   return events.flatMap((e) => {
-    if (e.author !== 'obeya' || e.kind !== 'state') return [];
+    if (e.author !== 'seismic' || e.kind !== 'state') return [];
     // the line that keeps an earlier run (`earlierRun`)
     const m = /\(session ([\w-]+)\) is kept for the work retrospective/.exec(e.text);
     return m ? [m[1]!] : [];

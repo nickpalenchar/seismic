@@ -14,7 +14,7 @@
 // app/target/[<triple>/]release/bundle/.
 //
 // With TAURI_SIGNING_PRIVATE_KEY set (and TAURI_SIGNING_PRIVATE_KEY_PASSWORD, if the key has one),
-// it also signs what Tauri's updater installs, each with a `.sig` beside it: Obeya.app.tar.gz on
+// it also signs what Tauri's updater installs, each with a `.sig` beside it: Seismic.app.tar.gz on
 // macOS (packed here), the NSIS installer on Windows, the AppImage on Linux (a .deb is not updated).
 // It signs them itself: Tauri's own update artifacts need the updater plugin's configuration, and
 // its signature of the AppImage would be of the one without the server.
@@ -95,16 +95,16 @@ for (const name of APPLE) if (!process.env[name]) delete process.env[name];
 const started = Date.now();
 const dist = join(ROOT, 'dist');
 run([process.execPath, 'scripts/build.ts', target, '--out', dist]);
-const built = join(dist, `obeya-${pkg.version}-${target}`);
+const built = join(dist, `seismic-${pkg.version}-${target}`);
 const exe = os === 'windows' ? '.exe' : '';
 
 // where tauri.conf.json takes them from: the sidecar by Tauri's naming, the resources as they are
 mkdirSync(join(APP, 'binaries'), { recursive: true });
-cpSync(join(built, `obeya${exe}`), join(APP, 'binaries', `obeya-server-${triple}${exe}`));
+cpSync(join(built, `seismic${exe}`), join(APP, 'binaries', `seismic-server-${triple}${exe}`));
 rmSync(join(APP, 'staged'), { recursive: true, force: true });
 cpSync(join(built, 'resources'), join(APP, 'staged', 'resources'), { recursive: true });
 // on Linux the server goes among the resources (app/tauri.linux.conf.json), not into usr/bin
-if (os === 'linux') cpSync(join(built, 'obeya'), join(APP, 'staged', 'obeya-server'));
+if (os === 'linux') cpSync(join(built, 'seismic'), join(APP, 'staged', 'seismic-server'));
 
 const cross = target !== here;
 const out = join(APP, 'target', ...(cross ? [triple] : []), args.includes('--debug') ? 'debug' : 'release', 'bundle');
@@ -127,10 +127,10 @@ if (wanted.includes('appimage')) {
   // linuxdeploy sets the library path of every program in the AppDir, which breaks Bun's compiled
   // binary (its code sits after the ELF's end): the AppImage is built without the server, which goes
   // into the AppDir afterwards, and packed again
-  tauri('appimage', '--config', JSON.stringify({ bundle: { resources: { 'staged/obeya-server': null } } }));
-  const appdir = join(out, 'appimage', `Obeya.AppDir`);
-  const server = join(appdir, 'usr', 'lib', 'Obeya', 'obeya-server');
-  cpSync(join(APP, 'staged', 'obeya-server'), server);
+  tauri('appimage', '--config', JSON.stringify({ bundle: { resources: { 'staged/seismic-server': null } } }));
+  const appdir = join(out, 'appimage', `Seismic.AppDir`);
+  const server = join(appdir, 'usr', 'lib', 'Seismic', 'seismic-server');
+  cpSync(join(APP, 'staged', 'seismic-server'), server);
   chmodSync(server, 0o755);
   const cache = join(process.env.XDG_CACHE_HOME ?? join(homedir(), '.cache'), 'tauri');
   const packer = readdirSync(cache).find((f) => f.startsWith('linuxdeploy-plugin-appimage') && f.endsWith('.AppImage'));
@@ -147,15 +147,15 @@ else if (developerId) console.warn('build-app: signed with the Developer ID, but
 
 /** Has Apple notarise the DMG (else the app, zipped) and staples the ticket to the DMG and the app. */
 function notarise() {
-  const tmp = mkdtempSync(join(tmpdir(), 'obeya-notary-'));
+  const tmp = mkdtempSync(join(tmpdir(), 'seismic-notary-'));
   try {
     const given = process.env.APPLE_NOTARY_KEY!;
     const key = given.includes('BEGIN PRIVATE KEY') ? join(tmp, 'key.p8') : given;
     if (key !== given) writeFileSync(key, given);
     const auth = ['--key', key, '--key-id', process.env.APPLE_NOTARY_KEY_ID!, ...(process.env.APPLE_NOTARY_ISSUER ? ['--issuer', process.env.APPLE_NOTARY_ISSUER] : [])];
-    const app = join(out, 'macos', 'Obeya.app');
+    const app = join(out, 'macos', 'Seismic.app');
     const dmg = endingIn(join(out, 'dmg'), '.dmg');
-    const submitted = dmg ?? join(tmp, 'Obeya.zip');
+    const submitted = dmg ?? join(tmp, 'Seismic.zip');
     if (!dmg) run(['ditto', '-c', '-k', '--keepParent', app, submitted]);
     console.log(`$ xcrun notarytool submit ${submitted} --wait`);
     const answer = JSON.parse(output(['xcrun', 'notarytool', 'submit', submitted, ...auth, '--wait', '--timeout', '1h', '--output-format', 'json'])) as { id: string; status: string };
@@ -181,7 +181,7 @@ function notarise() {
       const mounted = join(tmp, 'dmg');
       output(['hdiutil', 'attach', '-nobrowse', '-readonly', '-mountpoint', mounted, submitted]);
       try {
-        assess('--type', 'execute', join(mounted, 'Obeya.app'));
+        assess('--type', 'execute', join(mounted, 'Seismic.app'));
       } finally {
         run(['hdiutil', 'detach', mounted]);
       }
@@ -196,8 +196,8 @@ if (process.env.TAURI_SIGNING_PRIVATE_KEY) {
   const one = (sub: string, end: string) => endingIn(join(out, sub), end) ?? fail(`no ${end} in ${join(out, sub)} to sign for the updater`);
   if (os === 'darwin') {
     // as Tauri packs it: the app at the archive's top, without macOS's ._ files
-    run(['tar', '-czf', 'Obeya.app.tar.gz', 'Obeya.app'], join(out, 'macos'), { COPYFILE_DISABLE: '1' });
-    sign(join(out, 'macos', 'Obeya.app.tar.gz'));
+    run(['tar', '-czf', 'Seismic.app.tar.gz', 'Seismic.app'], join(out, 'macos'), { COPYFILE_DISABLE: '1' });
+    sign(join(out, 'macos', 'Seismic.app.tar.gz'));
   } else if (os === 'windows' && wanted.includes('nsis')) sign(one('nsis', '-setup.exe'));
   else if (wanted.includes('appimage')) sign(one('appimage', '.AppImage'));
 }

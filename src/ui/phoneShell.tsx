@@ -11,7 +11,7 @@ import { api, beforeReload, cardsOn, onNotice, setProject, type Where } from './
 import { inboxEntries, readMark } from '../core/inbox';
 import { useInboxRead } from './inboxRead';
 import { type ActDone, Detail, type Pending, TalkElsewhere, useEvents } from './detail';
-import { cardDraft, fieldOn, focusedDraft, keepDrafts, MIC_DRAFT, obeyaDraft } from './draft';
+import { cardDraft, fieldOn, focusedDraft, keepDrafts, MIC_DRAFT, seismicDraft } from './draft';
 import { plain } from './markdown';
 import { Cards, KoordinatorAgent } from './message';
 import { CardFace, cardLook, shownState, stateVars } from './card';
@@ -37,7 +37,7 @@ import { TalkPanel, talkClass, usePhoneCardPanel } from './phoneTalkPanel';
 /** The phone view keeps its drafts apart from any project's: it shows every project. */
 const DRAFTS = '@phone';
 /** The project in view (whose Seismic is spoken to without a card open), as the owner last picked it. */
-const OBEYA_PROJECT = 'seismic-phone-project';
+const SEISMIC_PROJECT = 'seismic-phone-project';
 /** The card the address names, by its code or its id. */
 const cardInAddress = () => readAddress().card ?? null;
 const talkInAddress = () => new URLSearchParams(location.search).has('talk');
@@ -69,7 +69,7 @@ export function usePhoneShell(loaded: ProjectInfo[]) {
   const addressWith = ({ card, talk }: { card: string | null; talk: boolean }) => {
     const x = card ? allRef.current.find((c) => c.item.id === card) : undefined;
     // a card not known yet (the snapshots still on their way) keeps the address that named it
-    const path = !card ? projectPath(obeyaRef.current) : x ? cardPath(x.project.id, x.item) : location.pathname;
+    const path = !card ? projectPath(seismicRef.current) : x ? cardPath(x.project.id, x.item) : location.pathname;
     const q = queryWithout(location.search, 'c', 'card', 'talk');
     return `${path}${talk ? (q ? `${q}&talk` : '?talk') : q}`;
   };
@@ -240,25 +240,25 @@ export function usePhoneShell(loaded: ProjectInfo[]) {
   const opened = open ? all.find((x) => x.item.id === open) : undefined;
 
   // the project whose Seismic is spoken to without a card open
-  const [obeyaProject, setObeyaProjectState] = useState(() => {
+  const [seismicProject, setSeismicProjectState] = useState(() => {
     const wanted = readAddress().project;
-    return (projectNamed(projects, wanted) ?? projects.find((c) => c.id === localStorage.getItem(OBEYA_PROJECT)) ?? projects[0]!).id;
+    return (projectNamed(projects, wanted) ?? projects.find((c) => c.id === localStorage.getItem(SEISMIC_PROJECT)) ?? projects[0]!).id;
   });
-  const obeyaId = projects.some((c) => c.id === obeyaProject) ? obeyaProject : projects[0]!.id;
-  const obeyaRef = useRef(obeyaId);
-  obeyaRef.current = obeyaId;
-  const setObeyaProject = (id: string) => {
+  const seismicId = projects.some((c) => c.id === seismicProject) ? seismicProject : projects[0]!.id;
+  const seismicRef = useRef(seismicId);
+  seismicRef.current = seismicId;
+  const setSeismicProject = (id: string) => {
     // at once, for the address of the conversation opened next
-    obeyaRef.current = id;
-    setObeyaProjectState(id);
+    seismicRef.current = id;
+    setSeismicProjectState(id);
     try {
-      localStorage.setItem(OBEYA_PROJECT, id);
+      localStorage.setItem(SEISMIC_PROJECT, id);
     } catch {}
     // the view of one project at a time names it in the address, so a reload stays on it
     if (!openRef.current) history.replaceState(history.state, '', addressWith({ card: null, talk: talkRef.current }));
   };
   // every call goes to the API of the project in view: the open card's, else Seismic's
-  setProject(opened?.project.id ?? obeyaId);
+  setProject(opened?.project.id ?? seismicId);
   // and every call about a card to its project's
   for (const c of ordered) cardsOn(c.id, snaps[c.id]!.items.map((i) => i.id));
 
@@ -347,11 +347,11 @@ export function usePhoneShell(loaded: ProjectInfo[]) {
   const warnings = useWarnings(toasts.store, (id) => openId(id));
   const ratePrompt = useRatePrompt(useMemo(() => all.map((x) => x.item), [all]));
   // the reply stands in Seismic's conversation, open in front of the owner: no line above the microphone
-  const told = useTold(toasts.store, () => {}, (h) => talkRef.current && (h.inCard ? openRef.current === h.inCard : !!snapsRef.current[obeyaRef.current]?.talk.some((x) => x.id === h.talk)), (c) => openId(c.id));
+  const told = useTold(toasts.store, () => {}, (h) => talkRef.current && (h.inCard ? openRef.current === h.inCard : !!snapsRef.current[seismicRef.current]?.talk.some((x) => x.id === h.talk)), (c) => openId(c.id));
   const { tellAbout, tellTyped, tellChat } = tellers(byId, told, fail, () => undefined);
   const where = (): Where => (openRef.current ? { card: openRef.current } : null);
   /** The draft of the field that speaks to `target`: the open card's, or the one under Seismic's conversation. */
-  const draftFor = (target: Where) => (target && 'card' in target ? cardDraft(target.card) : obeyaDraft(obeyaRef.current));
+  const draftFor = (target: Where) => (target && 'card' in target ? cardDraft(target.card) : seismicDraft(seismicRef.current));
   const fieldFor = (target: Where) => {
     const key = draftFor(target);
     return fieldOn(key) ? key : MIC_DRAFT;
@@ -515,7 +515,7 @@ export function usePhoneShell(loaded: ProjectInfo[]) {
 
   // the view that shows one project at a time: a card of another project opened makes it the one in view
   useEffect(() => {
-    if (opened && opened.project.id !== obeyaRef.current) setObeyaProject(opened.project.id);
+    if (opened && opened.project.id !== seismicRef.current) setSeismicProject(opened.project.id);
   }, [opened?.project.id]);
 
   /**
@@ -592,7 +592,7 @@ export function usePhoneShell(loaded: ProjectInfo[]) {
     projects, snaps, usage, feeds, banner, all, ordered,
     open, opened, openCard, openId, back, home,
     talk, openTalk, closeTalk, closing, setClosing, leaveTalk,
-    obeyaId, setObeyaProject,
+    seismicId, setSeismicProject,
     entries, inboxRead, isUnderway, setUnderway,
     homeRef, newCard, making, made,
     showAck, tellTyped, tellChat, press, acks, mic, cardScreen,

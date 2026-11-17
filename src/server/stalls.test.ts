@@ -60,7 +60,7 @@ afterEach(() => {
 
 test('a stall the ticks see short is as long as its samples span', () => {
   const lines: string[] = [];
-  home = mkdtempSync(join(tmpdir(), 'obeya-stalls-'));
+  home = mkdtempSync(join(tmpdir(), 'seismic-stalls-'));
   const stalls = new Stalls({ home, log: (l) => lines.push(l) });
   const samples = (spanS: number) => ({ traces: Array.from({ length: 280 }, (_, i) => ({ timestamp: (i * spanS) / 279, frames: [at('render', 'board.ts', 9)] })), intervalMs: 2 });
   // late by 560 ms: up to 100 ms of it may have come before the stall began
@@ -72,7 +72,7 @@ test('a stall the ticks see short is as long as its samples span', () => {
 
 test('a page that stalls again and again the same way gets one entry, and the stalls like it are counted in one line', () => {
   const lines: string[] = [];
-  home = mkdtempSync(join(tmpdir(), 'obeya-stalls-'));
+  home = mkdtempSync(join(tmpdir(), 'seismic-stalls-'));
   stalls = new Stalls({ home, log: (l) => lines.push(l) });
   const t = 1_000_000;
   const where = 'this machine, project main';
@@ -105,7 +105,7 @@ test('a page that stalls again and again the same way gets one entry, and the st
 
 test('a run that goes on all night is logged once an hour', () => {
   const lines: string[] = [];
-  home = mkdtempSync(join(tmpdir(), 'obeya-stalls-'));
+  home = mkdtempSync(join(tmpdir(), 'seismic-stalls-'));
   stalls = new Stalls({ home, log: (l) => lines.push(l) });
   const t = 1_000_000;
   for (let i = 0; i < 3 * 3600; i++) stalls.page({ ms: 900, scripts: [], before: [] }, 'this machine, project main', 'p1', t + i * 1000);
@@ -118,7 +118,7 @@ test('a run that goes on all night is logged once an hour', () => {
 });
 
 test('a synchronous process that holds the server up goes into the log and stalls.log, by its command and the code that ran it', async () => {
-  home = mkdtempSync(join(tmpdir(), 'obeya-stalls-'));
+  home = mkdtempSync(join(tmpdir(), 'seismic-stalls-'));
   const lines: string[] = [];
   stalls = new Stalls({ home, log: (line) => lines.push(line) }).start();
   await Bun.sleep(150);

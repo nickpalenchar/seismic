@@ -1,4 +1,4 @@
-// The paths whose change leaves the running code as it is: docs, the design, the site for obeya.si,
+// The paths whose change leaves the running code as it is: docs, the design, the site for seismic.im,
 // the workflows and the agents' own configuration (an allow rule the owner added, say). The self-update restarts for a change anywhere else; a release's notes list the
 // commits that change something there (scripts/release.ts).
 

@@ -321,10 +321,10 @@ export const PAGE_STYLE = `
 export const themeStyle = (css?: string) => (css ? `<style>${css.replace(/<\/(style)/gi, '<\\/$1')}</style>` : '');
 
 /** Seismic's site, which every page and the overview link at their end. */
-export const OBEYA_URL = 'https://seismic.im';
+export const SEISMIC_URL = 'https://seismic.im';
 
 /** The line every page and the overview end in: what made them, linking Seismic's site. */
-export const credit = (language: PageLanguage) => `<footer class="credit">${PAGE_WORDS[language].recordedWith} <a href="${OBEYA_URL}">Seismic</a></footer>
+export const credit = (language: PageLanguage) => `<footer class="credit">${PAGE_WORDS[language].recordedWith} <a href="${SEISMIC_URL}">Seismic</a></footer>
 `;
 
 // the cues of captions held in the page, for a page opened from disk
@@ -411,9 +411,9 @@ ${credit(language)}</main>
   let steps = alone ? 30 : 0;
   ${IMAGE_FRAME_SCRIPT}
   addEventListener('message', (e) => {
-    if (e.source === f.contentWindow && e.data && typeof e.data.obeyaImage === 'boolean') { imageFrame(f, e.data.obeyaImage); return; }
-    const h = e.source === f.contentWindow && e.data && e.data.obeyaHeight;
-    if (typeof h === 'number' && h > 0 && f.dataset.obeyaPreviousStyle === undefined && steps++ < 30) f.style.height = Math.min(Math.ceil(h), 30000) + 'px';
+    if (e.source === f.contentWindow && e.data && (typeof e.data.seismicImage === 'boolean' || typeof e.data.obeyaImage === 'boolean')) { imageFrame(f, e.data.seismicImage ?? e.data.obeyaImage); return; }
+    const h = e.source === f.contentWindow && e.data && (e.data.seismicHeight ?? e.data.obeyaHeight);
+    if (typeof h === 'number' && h > 0 && f.dataset.seismicPreviousStyle === undefined && steps++ < 30) f.style.height = Math.min(Math.ceil(h), 30000) + 'px';
   });
 </script>
 </body></html>
@@ -424,22 +424,22 @@ const IMAGE_FRAME_SCRIPT = `let imageClose, activeImageFrame, imagePlaceholder;
 const closeImage = () => {
   const f = activeImageFrame;
   if (!f) return;
-  f.setAttribute('style', f.dataset.obeyaPreviousStyle); delete f.dataset.obeyaPreviousStyle;
+  f.setAttribute('style', f.dataset.seismicPreviousStyle); delete f.dataset.seismicPreviousStyle;
   imagePlaceholder.remove(); imagePlaceholder = null;
   imageClose.remove(); imageClose = null; activeImageFrame = null;
-  f.contentWindow.postMessage({ obeyaCloseImage: true }, '*');
+  f.contentWindow.postMessage({ seismicCloseImage: true, obeyaCloseImage: true }, '*');
 };
 const imageFrame = (f, open) => {
   if (open && !activeImageFrame) {
     activeImageFrame = f;
     imagePlaceholder = document.createElement('div'); imagePlaceholder.style.cssText = 'height:' + f.offsetHeight + 'px;width:' + f.offsetWidth + 'px'; f.before(imagePlaceholder);
-    f.dataset.obeyaPreviousStyle = f.getAttribute('style') || ''; f.style.cssText += ';position:fixed;inset:0;width:100vw;height:100vh;z-index:2147483646;border:0';
+    f.dataset.seismicPreviousStyle = f.getAttribute('style') || ''; f.style.cssText += ';position:fixed;inset:0;width:100vw;height:100vh;z-index:2147483646;border:0';
     imageClose = document.createElement('button'); imageClose.innerHTML = ${JSON.stringify(X_ICON_SVG)}; imageClose.setAttribute('aria-label', 'Close');
     imageClose.style.cssText = 'position:fixed;right:16px;top:12px;z-index:2147483647;color:white;background:#222;border:0;display:flex;padding:6px;cursor:pointer'; imageClose.onclick = closeImage; document.body.append(imageClose); imageClose.focus();
   } else if (!open && f === activeImageFrame) closeImage();
 };
 addEventListener('keydown', (e) => { if (!imageClose) return; if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); closeImage(); } else if (e.key === 'Tab') { e.preventDefault(); imageClose.focus(); } }, true);
-addEventListener('message', (e) => { if (activeImageFrame && e.source === activeImageFrame.contentWindow && e.data && e.data.obeyaImageFocus) imageClose.focus(); });`;
+addEventListener('message', (e) => { if (activeImageFrame && e.source === activeImageFrame.contentWindow && e.data && (e.data.seismicImageFocus || e.data.obeyaImageFocus)) imageClose.focus(); });`;
 
 /** What an unlisted page's head says: no index, no referrer (the meta tags hold where a host sends no headers of the site's own, GitHub Pages). */
 const UNLISTED_META = '<meta name="robots" content="noindex, nofollow"><meta name="referrer" content="no-referrer">';
@@ -583,9 +583,9 @@ ${credit(language)}</main>
   ${IMAGE_FRAME_SCRIPT}
   addEventListener('message', (e) => {
     const f = [...steps.keys()].find((f) => f.contentWindow === e.source);
-    if (f && e.data && typeof e.data.obeyaImage === 'boolean') { imageFrame(f, e.data.obeyaImage); return; }
-    const h = f && e.data && e.data.obeyaHeight;
-    if (typeof h === 'number' && h > 0 && f.dataset.obeyaPreviousStyle === undefined && steps.get(f) < 30) { steps.set(f, steps.get(f) + 1); f.style.height = Math.min(Math.ceil(h), 30000) + 'px'; }
+    if (f && e.data && (typeof e.data.seismicImage === 'boolean' || typeof e.data.obeyaImage === 'boolean')) { imageFrame(f, e.data.seismicImage ?? e.data.obeyaImage); return; }
+    const h = f && e.data && (e.data.seismicHeight ?? e.data.obeyaHeight);
+    if (typeof h === 'number' && h > 0 && f.dataset.seismicPreviousStyle === undefined && steps.get(f) < 30) { steps.set(f, steps.get(f) + 1); f.style.height = Math.min(Math.ceil(h), 30000) + 'px'; }
   });
 </script>
 </body></html>

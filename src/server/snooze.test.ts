@@ -16,7 +16,7 @@ let project: ProjectRuntime;
 const open = () => new ProjectRuntime({ repos: [{ path: main, clones: 1, settings: { land: 'main' } }] }, { store, home: dir, runtime, forge: noForge, commandDelayMs: 10 });
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'obeya-snooze-'));
+  dir = mkdtempSync(join(tmpdir(), 'seismic-snooze-'));
   main = join(dir, 'main');
   gitRepo(main);
   mkdirSync(join(main, 'docs/plan'), { recursive: true });
@@ -75,7 +75,7 @@ describe('the agent snoozes itself', () => {
     expect(runtime.last.spec.resume).toBe('sess-1');
     expect(runtime.last.inbox[0]).toContain('the time you snoozed until, to: Check the test result');
     expect(item(id)?.hold?.reason).not.toBe('snoozed');
-    expect(last(id)).toMatchObject({ kind: 'state', author: 'obeya', text: 'Woke up: the time has come' });
+    expect(last(id)).toMatchObject({ kind: 'state', author: 'seismic', text: 'Woke up: the time has come' });
     expect(workers().busyCards()).toEqual([id]);
   });
 
@@ -179,7 +179,7 @@ describe('the agent snoozes until another card gets somewhere', () => {
   /** Another card at work on the project. */
   const other = (title = 'Make the Linux tests green') => {
     const c = board().create({ title, x: 0, y: 0 });
-    board().work(c.id, { state: 'working', branch: 'obeya/linux' });
+    board().work(c.id, { state: 'working', branch: 'seismic/linux' });
     return c.id;
   };
 
@@ -202,7 +202,7 @@ describe('the agent snoozes until another card gets somewhere', () => {
     expect(runtime.last.inbox[0]).toContain('The card “Make the Linux tests green” is done: its work is on main');
     expect(runtime.last.inbox[0]).toContain('to: Move the day');
     expect(item(id)?.hold?.reason).not.toBe('snoozed');
-    expect(last(id)).toMatchObject({ author: 'obeya', text: 'Woke up: “Make the Linux tests green” is done' });
+    expect(last(id)).toMatchObject({ author: 'seismic', text: 'Woke up: “Make the Linux tests green” is done' });
   });
 
   test('until it waits for the owner, at the latest at a time: whichever comes first wakes it', async () => {
@@ -578,7 +578,7 @@ describe('a card that starts later', () => {
 
     // a stopped card, snoozed, archived, and back after its time: nothing starts it
     const d = board().create({ title: 'Gestoppt', x: 0, y: 0 });
-    board().work(d.id, { branch: 'obeya/gestoppt' });
+    board().work(d.id, { branch: 'seismic/gestoppt' });
     const until = later(HOUR);
     project.act(d.id, { action: 'snooze', until });
     board().archive([d.id]);

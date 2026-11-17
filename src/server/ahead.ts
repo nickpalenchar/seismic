@@ -12,7 +12,7 @@ import { inform, Interrupted, type OwnerAnswer } from './advisor';
 import { BadRequest, type Board, holdNow, replyNote } from './board';
 import { imageNote } from './images';
 import type { AgentRuntime } from './runtime';
-import { TO_OBEYA, toObeyaTool } from './to-obeya';
+import { TO_SEISMIC, toSeismicTool } from './to-seismic';
 import { describeTool, SPOKEN } from './workerSupervisor/workerSupervisor';
 
 export interface AheadOptions {
@@ -29,7 +29,7 @@ export interface AheadOptions {
   /** Called with what the owner says, so lasting preferences can be learned. */
   onOwnerInput?: (card: Item, text: string) => void;
   /** Passes on to the Koordinator what the owner's words ask of Seismic (`to_seismic`); without it the agent has no such tool. */
-  toObeya?: (cardId: string, request: string) => Promise<string>;
+  toSeismic?: (cardId: string, request: string) => Promise<string>;
 }
 
 /** The owner's words the agent has not answered yet, as `CardRow.unheard` keeps them, with the lines of the log they carry. */
@@ -188,7 +188,7 @@ export class Ahead {
     }
     const left = this.pending(cardId).filter((p) => !taken.some((t) => t.said.some((id) => p.said.includes(id))));
     this.store(cardId, left);
-    if (failure) this.o.board.log(cardId, 'error', 'obeya', failure);
+    if (failure) this.o.board.log(cardId, 'error', 'seismic', failure);
     else if (answer) {
       const text = clip(answer.text, 12000);
       this.o.board.log(cardId, 'talk', 'koordinator', text, { agent: answer.agent });
@@ -208,12 +208,12 @@ export class Ahead {
 
   /** Asks the agent: its session resumed when there is one, else (or when it cannot be resumed) a fresh one that gets the conversation so far. */
   private async consult(card: Item, words: string, images: string[], resumed: string, signal: AbortSignal): Promise<OwnerAnswer> {
-    const toObeya = this.o.toObeya;
+    const toSeismic = this.o.toSeismic;
     const run = (message: string, shots: string[], resume?: string) =>
       inform({
         runtime: this.o.runtime,
         cwd: this.o.pathFor(card),
-        system: `You are the Koordinator of Seismic, a project on which the owner directs coding agents; the owner knows you simply as Seismic.\n\n${AHEAD_RULES}${toObeya ? `\n\n${TO_OBEYA}` : ''}`,
+        system: `You are the Koordinator of Seismic, a project on which the owner directs coding agents; the owner knows you simply as Seismic.\n\n${AHEAD_RULES}${toSeismic ? `\n\n${TO_SEISMIC}` : ''}`,
         message: [message, this.o.preferences?.() ?? ''].filter(Boolean).join('\n\n'),
         onTool: (name, input) => {
           if (!name.startsWith('mcp__')) this.o.board.log(card.id, 'activity', 'koordinator', describeTool(name, input, this.o.board.t));
@@ -225,7 +225,7 @@ export class Ahead {
         signal,
         ...(resume ? { resume } : {}),
         ...(shots.length ? { images: shots } : {}),
-        ...(toObeya ? { tools: [toObeyaTool((request) => toObeya(card.id, request))] } : {}),
+        ...(toSeismic ? { tools: [toSeismicTool((request) => toSeismic(card.id, request))] } : {}),
       });
     const session = this.sessions.get(card.id);
     const fresh = () => {

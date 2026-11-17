@@ -23,7 +23,7 @@ const idle = (extra = '') => ['-e', testProcessCode(`${extra};setInterval(()=>{}
 const cleanup: (() => void)[] = [];
 afterEach(() => { for (const f of cleanup.splice(0)) try { f(); } catch { /* best effort */ } });
 function scratch() {
-  const dir = mkdtempSync(join(tmpdir(), 'obeya-sessions-'));
+  const dir = mkdtempSync(join(tmpdir(), 'seismic-sessions-'));
   cleanup.push(() => rmSync(dir, { recursive: true, force: true }));
   return join(dir, 'sessions');
 }

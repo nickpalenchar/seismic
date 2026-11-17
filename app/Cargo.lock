@@ -2290,7 +2290,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "obeya-app"
+name = "seismic-app"
 version = "0.1.0"
 dependencies = [
  "serde_json",

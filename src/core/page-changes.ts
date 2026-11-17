@@ -44,7 +44,7 @@ export type KnownChange = (typeof PAGE_CHANGES)[number];
 export type PageChangeId = KnownChange['id'];
 
 /**
- * A page is outdated by its repository's theme too (`.obeya/theme.css`, src/server/theme.ts): once the
+ * A page is outdated by its repository's theme too (`.seismic/theme.css`, src/server/theme.ts): once the
  * theme differs from the one it was published with. That is no change of Seismic's pages, so it has
  * no day, and the card and the Koordinator name it beside them.
  */
@@ -53,7 +53,7 @@ export const THEME_CHANGED = 'theme';
 export type OutdatedBy = PageChangeId | typeof THEME_CHANGED;
 
 /** The sample pages' hash (`pagesHash` in site.ts) the changes above account for. */
-export const PAGES_HASH = { video: 'd9246994a3dd', html: '96b28d234122', stacked: '3467ff29cdff' };
+export const PAGES_HASH = { video: 'd9246994a3dd', html: '1df780f41d85', stacked: 'e722ffe8ae02' };
 
 /** The version a page published now gets: the newest change; '' while there is none. */
 export const pagesVersion = (changes: readonly PageChange[] = PAGE_CHANGES): string => changes.at(-1)?.id ?? '';

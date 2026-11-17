@@ -13,7 +13,7 @@ import { BadRequest, type Board } from './board';
 import { imageNote, MAX_IMAGES } from './images';
 import type { AgentRuntime } from './runtime';
 import { readSession } from './llms/agents/agentJobs/readSession';
-import { toObeyaTool } from './to-obeya';
+import { toSeismicTool } from './to-seismic';
 import { messageOf } from '../core/text';
 
 export interface RevisionOptions {
@@ -25,7 +25,7 @@ export interface RevisionOptions {
   imageFiles?: (ids: string[]) => string[];
   preferences?: () => string;
   /** Passes on to Seismic what the owner's words ask of it (accept the proposal, a rule, another card), with the card in focus. */
-  toObeya?: (cardId: string, request: string) => Promise<string>;
+  toSeismic?: (cardId: string, request: string) => Promise<string>;
   /** The revision is over: the new text stands (`revised`), or the agent ended without one and the old text stays. */
   onRevised?: (cardId: string, revised: boolean) => void;
 }
@@ -126,14 +126,14 @@ export class Revisions {
   private async ask(card: Item, said: Revising, shots: ReturnType<Revisions['shots']>): Promise<Revised | null> {
     let revised: Revised | undefined;
     let passed = false;
-    const toObeya = this.o.toObeya;
+    const toSeismic = this.o.toSeismic;
     const error = await readSession(this.o.runtime, {
       cwd: this.o.pathFor(card),
       role: 'koordinator',
       at: { card: card.id },
       // the proposal waits on, and shows until when
       onLimit: (until, retry) => this.o.board.waitsForLimit({ card: card.id }, until, retry),
-      system: [SYSTEM, this.o.toObeya ? TO_OBEYA : '', this.o.preferences?.() ?? ''].filter(Boolean).join('\n\n'),
+      system: [SYSTEM, this.o.toSeismic ? TO_SEISMIC : '', this.o.preferences?.() ?? ''].filter(Boolean).join('\n\n'),
       tools: (finish) => [
         {
           name: 'revise_proposal',
@@ -165,11 +165,11 @@ export class Revisions {
             return finish('Recorded. End your turn now.');
           },
         },
-        ...(toObeya
+        ...(toSeismic
           ? [
-              toObeyaTool((request) => {
+              toSeismicTool((request) => {
                 passed = true;
-                return toObeya(card.id, request);
+                return toSeismic(card.id, request);
               }),
             ]
           : []),
@@ -227,7 +227,7 @@ function changed(card: Item, p: { title: string; task: string; reason?: string; 
   );
 }
 
-const TO_OBEYA =
+const TO_SEISMIC =
   "Some of the owner's words ask Seismic rather than you: accept the proposal (and start it), dismiss it, a new card, a rule to remember (“Remember …”), an action on another card, a question about the project or another card. Pass those on with to_seismic: Seismic does them as the owner meant, with a confirmation the owner can take back. When that is all they said, revise_proposal is not needed.";
 
 const SYSTEM = `

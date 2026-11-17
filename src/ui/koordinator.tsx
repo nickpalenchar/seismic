@@ -18,7 +18,7 @@ import { type Reply, setReply, talkEv, talkQuote } from './reply';
 import { clock, failText, t } from './strings';
 import { CiteButton } from './cite';
 import { Composer } from './composer';
-import { cardDraft, OBEYA_DRAFT, updateDraft } from './draft';
+import { cardDraft, SEISMIC_DRAFT, updateDraft } from './draft';
 import { Shots } from './shots';
 import { usePageVisible } from './seen';
 import { Conversation as Scroll } from './components/ai/conversation';
@@ -93,7 +93,7 @@ export function KoordinatorSheet({ on, project, projectName, items, repos, talk,
  * field's (the sidebar's, or the phone view's for this project). `on`: the conversation is in view,
  * so the answers waiting in it are read.
  */
-export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats, items, repos, onOpen, onTell, draft = OBEYA_DRAFT }: Pick<Props, 'on' | 'project' | 'talk' | 'chat' | 'chatModel' | 'chats' | 'items' | 'repos' | 'onOpen' | 'onTell'> & { draft?: string }) {
+export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats, items, repos, onOpen, onTell, draft = SEISMIC_DRAFT }: Pick<Props, 'on' | 'project' | 'talk' | 'chat' | 'chatModel' | 'chats' | 'items' | 'repos' | 'onOpen' | 'onTell'> & { draft?: string }) {
   const talk = all.filter((x) => x.chat === undefined || x.chat === chat);
   const fresh = useRead(on, talk, (ids) => api.readTalk(ids));
   const [choice, setChoice] = useState<{ chat: number; model?: AgentModel } | null>(null);
@@ -146,7 +146,7 @@ export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats
         </div>
       )}
       {/* a command in writing, for when speaking is not possible; its screenshots go to the cards it creates or concerns */}
-      <Composer className={tellClass} draft={draft} placeholder={t.voice.typePlaceholder} obeya optimistic onSend={send} />
+      <Composer className={tellClass} draft={draft} placeholder={t.voice.typePlaceholder} seismic optimistic onSend={send} />
       <label className="chat-model flex items-center gap-2 mt-0 mx-0 mb-1.5 text-muted-foreground text-xs">{t.koordinator.chatModel}
         <Select value={(choice?.chat === chat ? choice.model : chatModel) ?? ''} onValueChange={chooseModel}>
           <SelectItem value="">{t.koordinator.projectModel}</SelectItem>

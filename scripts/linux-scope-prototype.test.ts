@@ -18,7 +18,7 @@ async function until(check: () => boolean, ms = 5000) {
 const read = (file: string) => { try { return readFileSync(file, 'utf8').trim(); } catch { return ''; } };
 const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catch { return false; } };
 const kill = (pid: number) => { if (pid > 1) try { process.kill(pid, 'SIGKILL'); } catch { /* gone */ } };
-function scratch() { return mkdtempSync(join(tmpdir(), 'obeya-scope-')); }
+function scratch() { return mkdtempSync(join(tmpdir(), 'seismic-scope-')); }
 function canary() { return spawn(process.execPath, ['-e', testProcessCode()], { stdio: 'ignore' }); }
 // These commands run through a shell, including through a nested setsid shell.
 const quote = (s: string) => "'" + s.replaceAll("'", "'\"'\"'") + "'";

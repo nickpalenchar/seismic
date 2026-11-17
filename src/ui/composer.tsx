@@ -56,7 +56,7 @@ export function Composer({
   action,
   allowEmpty = false,
   noImages = false,
-  obeya,
+  seismic,
   optimistic,
   onText,
   className,
@@ -72,7 +72,7 @@ export function Composer({
   allowEmpty?: boolean;
   noImages?: boolean;
   /** Seismic reads what is typed: it gets ready while the owner types; a text here says so under the field. */
-  obeya?: true | string;
+  seismic?: true | string;
   /** Clear on Send while the caller completes delivery and restores the draft on failure. */
   optimistic?: boolean;
   /** Hears the text as it is typed. */
@@ -201,7 +201,7 @@ export function Composer({
           data-esc={menuOn || undefined}
           onFocus={() => {
             setFocused(true);
-            if (obeya) api.warmVoice();
+            if (seismic) api.warmVoice();
           }}
           onChange={(e) => setText(e.target.value)}
           onSelect={atCursor}
@@ -285,8 +285,8 @@ export function Composer({
         <PromptInputHint tone="working">{t.voice.writing}</PromptInputHint>
       ) : note ? (
         <PromptInputHint tone="warn">{note}</PromptInputHint>
-      ) : typeof obeya === 'string' ? (
-        <PromptInputHint>→ {obeya}</PromptInputHint>
+      ) : typeof seismic === 'string' ? (
+        <PromptInputHint>→ {seismic}</PromptInputHint>
       ) : (
         focused && !!skillList?.length && !knowsSkills() && <PromptInputHint>{t.skills.hint}</PromptInputHint>
       )}

@@ -83,7 +83,7 @@ const deployed = () => join(dir, 'deployed');
 const deploys = () => readFileSync(join(dir, 'deploys'), 'utf8').trim().split('\n');
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'obeya-site-'));
+  dir = mkdtempSync(join(tmpdir(), 'seismic-site-'));
   home = join(dir, 'home');
   repo = join(dir, 'repo');
   mkdirSync(repo);
@@ -312,7 +312,7 @@ describe('a site Seismic keeps', () => {
     expect(readdirSync(at).sort()).toEqual(['artifact', 'index.html', 'meta.json']);
     expect(readFileSync(join(at, 'artifact/data/chart.js'), 'utf8')).toBe('draw()');
     const copy = readFileSync(join(at, 'artifact/index.html'), 'utf8');
-    expect(copy).toContain('obeyaHeight');
+    expect(copy).toContain('seismicHeight');
     // it loads its own files and nothing from elsewhere, its policy first, the site named for Safari
     const origin = new URL(URL_).origin;
     expect(copy).toStartWith(`<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'self' ${origin} data: blob:;`);

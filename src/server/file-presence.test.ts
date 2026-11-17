@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { FilePresence } from './file-presence';
 
 let dir: string;
-beforeEach(() => void (dir = mkdtempSync(join(tmpdir(), 'obeya-presence-'))));
+beforeEach(() => void (dir = mkdtempSync(join(tmpdir(), 'seismic-presence-'))));
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 test('a file is looked at once; the answer stays until a refresh looks again', async () => {

@@ -152,7 +152,7 @@ export function ChatsHead({ title, project, projectName, chat, chats, talk, onPr
                 {shown.map((c) => (
                   <li key={c.id}>
                     <button className={cn(rowClass, c.id === chat && c.project === project && onClass)} onClick={() => go(c)}>
-                      <span className={cn(titleClass, !c.title && 'by-obeya text-muted-foreground italic')}>{c.title ? plain(c.title) : t.koordinator.chatByObeya}</span>
+                      <span className={cn(titleClass, !c.title && 'by-seismic text-muted-foreground italic')}>{c.title ? plain(c.title) : t.koordinator.chatBySeismic}</span>
                       <span className={metaClass}>
                         {when(c.at)}
                         {c.projectName && ` · ${c.projectName}`}

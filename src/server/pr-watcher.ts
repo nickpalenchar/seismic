@@ -115,7 +115,7 @@ export class PrWatcher {
       console.error(`PR ${url}:`, reason);
       const failing = pr.readError ?? { since: Date.now() };
       if (!failing.shown && Date.now() - failing.since >= READ_ERROR_AFTER_MS) {
-        this.board.log(cardId, 'error', 'obeya', this.board.t.pr.unreadable(reason));
+        this.board.log(cardId, 'error', 'seismic', this.board.t.pr.unreadable(reason));
         failing.shown = true;
       }
       this.save(cardId, { ...pr, readError: failing });
@@ -175,7 +175,7 @@ export class PrWatcher {
       return this.workers.merged(cardId, typeof first.merged === 'string' ? first.merged : undefined);
     }
     const left = this.prsOf(cardId).filter((p) => !p.merged && !p.closed);
-    this.board.log(cardId, 'state', 'obeya', this.board.t.pr.mergedOne(prLabel(pr), left.map((p) => (p.url ? prLabel(p) : null))));
+    this.board.log(cardId, 'state', 'seismic', this.board.t.pr.mergedOne(prLabel(pr), left.map((p) => (p.url ? prLabel(p) : null))));
   }
 
   private async react(cardId: string, state: string, pr: PrState, s: PrStatus) {
@@ -259,20 +259,20 @@ export class PrWatcher {
         // the reviewer doubts it: the owner decides, and merges or tells the worker what is missing
         const held = { score: `${low.score}/${low.of}`, by: low.by };
         if (pr.readyHead !== s.head || pr.held?.score !== held.score)
-          this.board.log(cardId, 'state', 'obeya', this.board.t.pr.held(held.by, held.score));
+          this.board.log(cardId, 'state', 'seismic', this.board.t.pr.held(held.by, held.score));
         next.readyHead = s.head;
         next.held = held;
         delete next.mergeError;
         delete next.manual;
       } else if (ready && settings.autoMerge === false) {
         // the repository leaves the merge to the people on the forge: the owner merges there
-        if (pr.readyHead !== s.head || pr.held || !pr.manual) this.board.log(cardId, 'state', 'obeya', this.board.t.pr.readyManual);
+        if (pr.readyHead !== s.head || pr.held || !pr.manual) this.board.log(cardId, 'state', 'seismic', this.board.t.pr.readyManual);
         next.readyHead = s.head;
         next.manual = true;
         delete next.held;
         delete next.mergeError;
       } else if (ready) {
-        if (pr.readyHead !== s.head || pr.held || pr.manual) this.board.log(cardId, 'state', 'obeya', this.board.t.pr.ready);
+        if (pr.readyHead !== s.head || pr.held || pr.manual) this.board.log(cardId, 'state', 'seismic', this.board.t.pr.ready);
         next.readyHead = s.head;
         delete next.held;
         delete next.manual;
@@ -289,7 +289,7 @@ export class PrWatcher {
             return this.save(cardId, next);
           }
           const reason = (messageOf(e)).replace(/^gh pr merge \S+: /, '');
-          if (pr.mergeError !== reason || pr.readyHead !== s.head) this.board.log(cardId, 'state', 'obeya', this.board.t.pr.mergeFailed(reason));
+          if (pr.mergeError !== reason || pr.readyHead !== s.head) this.board.log(cardId, 'state', 'seismic', this.board.t.pr.mergeFailed(reason));
           next.mergeError = reason;
           return this.save(cardId, next);
         }

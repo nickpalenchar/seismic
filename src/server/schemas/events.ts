@@ -62,7 +62,7 @@ export class Events {
   add(e: Omit<CardEvent, 'id' | 'at'> & { at?: string }): CardEvent {
     const at = e.at ?? now();
     // An explicitly absent identity keeps copied historical messages unknown, even inside another agent's context.
-    const agent = 'agent' in e ? e.agent : e.author !== 'owner' && e.author !== 'obeya' ? currentAgent() : undefined;
+    const agent = 'agent' in e ? e.agent : e.author !== 'owner' && e.author !== 'seismic' ? currentAgent() : undefined;
     const { id } = this.db
       .insert(events)
       .values({

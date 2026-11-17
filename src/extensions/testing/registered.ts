@@ -44,7 +44,7 @@ assert.equal(sharedPreview({ path: '/example', settings: { example: 'machine' } 
 assert.equal(sharedPreview({ path: '/example' }, values).example, 'repository');
 const { Config, readConfigFile } = await import('../../server/config');
 const { Store } = await import('../../server/store');
-const configDir = mkdtempSync(join(tmpdir(), 'obeya-extension-config-'));
+const configDir = mkdtempSync(join(tmpdir(), 'seismic-extension-config-'));
 try {
   const file = join(configDir, 'config.json');
   writeFileSync(file, JSON.stringify([{ repos: [{ path: '/example', settings: { example: 'machine' } }] }]));

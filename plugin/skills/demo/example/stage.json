@@ -1,5 +1,5 @@
 {
-  "_comment": "Copy this input file into your demo directory, edit it, then run bun scripts/scratch-obeya.ts <path>/stage.json. The printed staged.json is output, not input. Full schema: ../../../../scripts/scratch-obeya.ts (header). Omit port to choose a free one.",
+  "_comment": "Copy this input file into your demo directory, edit it, then run bun scripts/scratch-seismic.ts <path>/stage.json. The printed staged.json is output, not input. Full schema: ../../../../scripts/scratch-seismic.ts (header). Omit port to choose a free one.",
   "_language": "Use English for the interface and text below to match an English demo.",
   "language": "en",
   "_name": "Name of the scratch project.",

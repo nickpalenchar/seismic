@@ -66,7 +66,7 @@ if (mode === 'driver') {
   const c = codexConnection({ command: command!, args, cwd: repo, env: { ...process.env, ...(made ? { BUN_BE_BUN: '1' } : {}) } }, { notification() {}, request: async () => ({}) });
   if (made) assign(made.handle, c.pid!);
   writeFileSync(join(dir!, 'agent.pid'), String(c.pid));
-  await c.request('initialize', { clientInfo: { name: 'obeya-probe', title: 'Seismic probe', version: '0' }, capabilities: { experimentalApi: true } });
+  await c.request('initialize', { clientInfo: { name: 'seismic-probe', title: 'Seismic probe', version: '0' }, capabilities: { experimentalApi: true } });
   c.notify('initialized', {});
   const started = await c.request<{ thread: { id: string } }>('thread/start', { cwd: repo, approvalPolicy: 'never', sandbox: 'danger-full-access' });
   await c.request('thread/shellCommand', { threadId: started.thread.id, command: `${python} job.py launch` });
@@ -90,7 +90,7 @@ function jobState(repo: string, pids: Record<string, number>, job?: string) {
 }
 
 async function codexCase(kind: string) {
-  const dir = mkdtempSync(join(tmpdir(), `obeya-job-${kind}-`));
+  const dir = mkdtempSync(join(tmpdir(), `seismic-job-${kind}-`));
   const repo = join(dir, 'repo');
   mkdirSync(repo);
   writeFileSync(join(repo, 'job.py'), JOB);
@@ -124,8 +124,8 @@ async function codexCase(kind: string) {
 }
 
 async function escapes() {
-  const dir = mkdtempSync(join(tmpdir(), 'obeya-job-escapes-'));
-  const task = `obeya-escape-${process.pid}`;
+  const dir = mkdtempSync(join(tmpdir(), 'seismic-job-escapes-'));
+  const task = `seismic-escape-${process.pid}`;
   const canary = spawn(process.execPath, ['-e', 'setInterval(()=>{},1000)'], { stdio: 'ignore', windowsHide: true });
   // paths and names come by the environment, so no Windows path is quoted in code within code
   const agent = `

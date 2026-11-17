@@ -10,7 +10,7 @@ let dir: string;
 let project: ProjectRuntime;
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'obeya-activity-'));
+  dir = mkdtempSync(join(tmpdir(), 'seismic-activity-'));
   const main = join(dir, 'main');
   gitRepo(main);
   mkdirSync(join(main, 'docs/plan'), { recursive: true });

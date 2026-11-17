@@ -6,7 +6,7 @@ import { gitRepo } from '../../../../src/server/testing';
 
 let dir: string;
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'obeya-check-'));
+  dir = mkdtempSync(join(tmpdir(), 'seismic-check-'));
 });
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 

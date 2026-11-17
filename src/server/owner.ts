@@ -4,7 +4,7 @@
 // page, the push-to-talk panel). A browser gets the cookie from a link with a token
 // (`/login?token=…`), as Jupyter's: Seismic prints it when it starts, and gives it to whoever holds
 // the key (`POST /api/login-link`: the app's shell, a second start of Seismic,
-// scripts/scratch-obeya.ts). It signs in any number of browsers until the server stops; a link
+// scripts/scratch-seismic.ts). It signs in any number of browsers until the server stops; a link
 // that goes through the system's `open` (the app's "Open in browser"), where other accounts see
 // it in the process list, has a token of its own that signs in one browser.
 // Another program or account on the machine reaches the port but holds neither.
@@ -106,7 +106,7 @@ function onward(next: string, headers: Record<string, string> = {}): Response {
 }
 
 /** A path of Seismic's to go to after signing in; anything else is `/`. */
-const localPath = (next: string | null) => (next && next.startsWith('/') && new URL(next, 'http://obeya').origin === 'http://obeya' ? next : '/');
+const localPath = (next: string | null) => (next && next.startsWith('/') && new URL(next, 'http://seismic').origin === 'http://seismic' ? next : '/');
 
 export class Owner {
   readonly key: string;

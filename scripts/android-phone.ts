@@ -49,7 +49,7 @@
 // `stop` shuts down the emulator `start` booted and removes the port forwards.
 //
 // What this checkout's commands share (the device, its DevTools port, the open page, a recording)
-// is kept in <tmp>/obeya-android-phone-<user>/<hash of the checkout>.json.
+// is kept in <tmp>/seismic-android-phone-<user>/<hash of the checkout>.json.
 
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -347,7 +347,7 @@ interface State {
 }
 
 const CHECKOUT = resolve(import.meta.dir, '..');
-const STATE_DIR = join(tmpdir(), `obeya-android-phone-${userInfo().username}`);
+const STATE_DIR = join(tmpdir(), `seismic-android-phone-${userInfo().username}`);
 const STATE_FILE = join(STATE_DIR, `${createHash('sha1').update(CHECKOUT).digest('hex').slice(0, 12)}.json`);
 
 const readState = (): State | undefined => (existsSync(STATE_FILE) ? (JSON.parse(readFileSync(STATE_FILE, 'utf8')) as State) : undefined);
@@ -519,7 +519,7 @@ class Phone {
     else await this.shell(`settings put system user_rotation ${to === 'portrait' ? 0 : 1}`);
     // what the screen shows, not the window manager's rotation, which turns up to a second earlier
     // (with the keyboard open): the size of a screenshot, read on the device (the header of the raw image)
-    const raw = '/data/local/tmp/obeya-android-phone.raw';
+    const raw = '/data/local/tmp/seismic-android-phone.raw';
     await until(`the screen to turn ${to} (the app in front may hold its orientation)`, 10_000, async () => {
       const [w, h] = (await this.shell(`screencap ${raw} && od -An -tu4 -N8 ${raw}; rm -f ${raw}`)).trim().split(/\s+/).map(Number);
       return w && h && w > h === (to === 'landscape') ? true : undefined;
@@ -546,7 +546,7 @@ class Phone {
 
   async recordStart(file?: string) {
     if (this.state.record && alive(this.state.record.pid)) throw new Fail('a recording runs already: `record stop <file.mp4>` first');
-    const remote = '/sdcard/obeya-android-phone.mp4';
+    const remote = '/sdcard/seismic-android-phone.mp4';
     const sdk = Number(await this.shell('getprop ro.build.version.sdk'));
     // Android 14 records without a limit; before, 180 s at most
     const limit = sdk >= 34 ? 0 : 180;

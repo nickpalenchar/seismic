@@ -102,8 +102,8 @@ describe('a card whose own branch changes how work lands', () => {
     const c = manual();
     await workers.start(c.id);
     const clone = board.row(c.id).workstation!;
-    mkdirSync(join(clone, '.obeya'), { recursive: true });
-    writeFileSync(join(clone, '.obeya/settings.json'), JSON.stringify(settings));
+    mkdirSync(join(clone, '.seismic'), { recursive: true });
+    writeFileSync(join(clone, '.seismic/settings.json'), JSON.stringify(settings));
     git(clone, 'add', '.');
     git(clone, 'commit', '--quiet', '-m', 'Seismic settings');
     await runtime.last.call('ready_for_review', { summary: 'S', demo: artifact() });
@@ -282,7 +282,7 @@ describe('approving directly onto main where work goes out as a pull request', (
     session.emit({ type: 'idle' });
     await until(() => state(c.id) === 'live');
     expect(git(origin, 'log', '--format=%s', 'main').split('\n')).toEqual(['A nach B', 'B', 'init']);
-    expect(board.events(c.id).at(-1)).toMatchObject({ author: 'obeya', text: 'Pushed straight to main after the approval.' });
+    expect(board.events(c.id).at(-1)).toMatchObject({ author: 'seismic', text: 'Pushed straight to main after the approval.' });
     expect(board.item(c.id)!.review?.pr).toBeUndefined();
   });
 
@@ -659,7 +659,7 @@ describe('a prototype built on in a clone', () => {
     expect(git(path, 'log', '--format=%s', '-1')).toBe('Prototyp');
     expect(spaces.leasedBy(idea.id)).toBe(path);
     // the only clone is the idea's now
-    expect(() => spaces.lease(board.create({ title: 'X', x: 0, y: 0 }).id, 'obeya/x')).toThrow('all are leased');
+    expect(() => spaces.lease(board.create({ title: 'X', x: 0, y: 0 }).id, 'seismic/x')).toThrow('all are leased');
     // a prototype without a workstation has nothing to build on
     const bare = board.addPrototype(idea.id, 'Prototyp: leer', 'zeigen');
     expect(() => workers.buildOn(bare.id, board.item(idea.id)!)).toThrow(expect.objectContaining({ code: 'noWorkstation' }));
@@ -720,7 +720,7 @@ describe('a workstream whose plan doc keeps it open after its work landed', () =
   });
 
   describe('awaiting a restart', () => {
-    const restarting = (b: Board) => new WorkerSupervisor({ board: b, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, restartsFor: () => 'obeya' });
+    const restarting = (b: Board) => new WorkerSupervisor({ board: b, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, restartsFor: () => 'seismic' });
     /** Lands W1 with its doc gone; its worker waits for the restart. */
     const landWaiting = async () => {
       setWorkers(restarting(board));
@@ -779,7 +779,7 @@ describe('a workstream whose plan doc keeps it open after its work landed', () =
     runtime.last.emit({ type: 'idle' });
     const commit = git(main, 'rev-parse', 'HEAD');
     expect(board.archived().find((i) => i.id === w.id)).toMatchObject({ state: 'live' });
-    expect(board.events(w.id).at(-1)).toMatchObject({ author: 'obeya', text: 'Part landed; the plan doc keeps the workstream open. The rest continues on a new card.' });
+    expect(board.events(w.id).at(-1)).toMatchObject({ author: 'seismic', text: 'Part landed; the plan doc keeps the workstream open. The rest continues on a new card.' });
     // the handover stays in the log, the summary with it
     expect(board.events(w.id).some((e) => e.text.includes('Approved'))).toBe(true);
 

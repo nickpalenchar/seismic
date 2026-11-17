@@ -27,7 +27,7 @@ export const detectedLand = (repo: RepoInfo): RepoAdapter['land'] => (repo.remot
 const LIVE = SHARED_FIELDS.filter((f) => f !== 'workstations');
 
 /**
- * The repository's settings (`RepoSettings`: its `.obeya/settings.json` with this machine's in
+ * The repository's settings (`RepoSettings`: its `.seismic/settings.json` with this machine's in
  * front) in front of the defaults, each read from `settings` whenever it is asked for, so that a
  * changed value applies without a restart. `workstations` is read once: clones or worktrees are set
  * up when the project starts. Clones the configuration names (`clones`) go before the setting.
@@ -52,7 +52,7 @@ export function withSettings(a: RepoAdapter, settings: () => RepoSettings | unde
 
 /**
  * The repository's settings as they stand without this machine's, with where each comes from: its
- * `.obeya/settings.json` (`shared`), the clones the configuration names, detection, the defaults.
+ * `.seismic/settings.json` (`shared`), the clones the configuration names, detection, the defaults.
  */
 export function repoValues(repo: RepoInfo, clones = false, shared: SharedSettings = {}, detected = detectedBranch(repo.path), artifacts: HandoverArtifact[] = [...HANDOVER_ARTIFACTS]): RepoValues {
   const a = defaultsFor(repo);
@@ -110,7 +110,7 @@ export interface SharedRead {
   /** The repository's own Codex configuration on the default branch, by file (`CODEX_PATHS`); none where it has none. */
   codex?: Record<string, ClaudeFile>;
   /** The git tree of `.seismic/` (else `.obeya/`) on the default branch, which its theme is read from (theme.ts); none where it has none, or the repository is a folder without git. */
-  obeyaTree?: string;
+  seismicTree?: string;
 }
 
 /**
@@ -149,7 +149,7 @@ export function parseShared(text: string): SharedRead {
 }
 
 /**
- * The repository's `.obeya/settings.json` as its default branch has it at `commit` (by
+ * The repository's `.seismic/settings.json` as its default branch has it at `commit` (by
  * `defaultBranchCommit`'s rule), not as the checkout has it, which is on a card's branch most of
  * the time; nothing where the default branch has no such file.
  */
@@ -192,7 +192,7 @@ export function* readingShared(commit: string): GitSteps<SharedRead> {
   ];
   const text = first ?? second;
   const tree = trees.find((t) => t != null);
-  const read: SharedRead = { ...(text != null ? parseShared(text) : { problems: [] }), ...(tree ? { obeyaTree: tree } : {}) };
+  const read: SharedRead = { ...(text != null ? parseShared(text) : { problems: [] }), ...(tree ? { seismicTree: tree } : {}) };
   // `<mode> <type> <object>\t<path>`: a blob's text is read (trimmed, for reading: its object tells
   // contents apart), a submodule's commit stands for what it holds
   const entries = (listed ?? '')

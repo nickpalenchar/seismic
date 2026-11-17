@@ -18,7 +18,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { isMain, lib } from './here.ts';
-import { type DemoSettings, demoSettingsHere, expandHome, type NarrationLanguage, obeyaHome, referenceOf, SERVICES } from './settings.ts';
+import { type DemoSettings, demoSettingsHere, expandHome, type NarrationLanguage, seismicHome, referenceOf, SERVICES } from './settings.ts';
 import { BUILT_IN_CLONES, DEFAULT_STYLE, QWEN3_SPEAKER, QWEN3_SPEAKERS, QWEN3_STOCK_SPEAKER, qwen3Speaker } from './voice-choices.ts';
 
 /** Piper's voices: one per language unless the settings name another. */
@@ -104,10 +104,12 @@ export interface Component {
   install: (log: (line: string) => void) => Promise<void>;
 }
 
-export const voicesHome = (home = obeyaHome()) => path.join(home, 'voices');
+export const voicesHome = (home = seismicHome()) => path.join(home, 'voices');
 const envPython = (dir: string) =>
   path.join(dir, 'env', process.platform === 'win32' ? 'Scripts' : 'bin', process.platform === 'win32' ? 'python.exe' : 'python');
-const INSTALLED = '.obeya-installed';
+const INSTALLED = '.seismic-installed';
+/** The marker's name before the rename: an environment installed then still counts (migration shim). */
+const OLD_INSTALLED = '.obeya-installed';
 
 function piperVoice(s: DemoSettings) {
   const name = s.voiceName || PIPER_VOICES[s.language];
@@ -117,7 +119,7 @@ function piperVoice(s: DemoSettings) {
 }
 
 /** Piper's Python and the voice file of these settings, as installed under Seismic's home. */
-export function piperFiles(s: DemoSettings, home = obeyaHome()) {
+export function piperFiles(s: DemoSettings, home = seismicHome()) {
   const dir = path.join(voicesHome(home), 'piper');
   return { python: envPython(dir), onnx: path.join(dir, `${piperVoice(s).name}.onnx`) };
 }
@@ -164,10 +166,14 @@ function exec(cmd: string, args: string[], log: (line: string) => void, env?: Re
  */
 function pythonEnv(dir: string, packages: string[], label: string, mb: number): Component {
   const marker = path.join(dir, 'env', INSTALLED);
+  const found = () => [marker, path.join(dir, 'env', OLD_INSTALLED)].find((f) => fs.existsSync(f));
   return {
     label,
     mb,
-    installed: () => fs.existsSync(marker) && packages.every((p) => fs.readFileSync(marker, 'utf8').split(/\s+/).includes(p)),
+    installed: () => {
+      const f = found();
+      return !!f && packages.every((p) => fs.readFileSync(f, 'utf8').split(/\s+/).includes(p));
+    },
     install: async (log) => {
       fs.mkdirSync(dir, { recursive: true });
       await exec('uv', ['venv', '--quiet', '--allow-existing', '--python', '3.12', path.join(dir, 'env')], log);
@@ -192,7 +198,7 @@ const PART_WORDS: Record<NarrationLanguage, { piperVoice: (name: string) => stri
 };
 
 /** What the voice of these settings needs installed; empty for a voice that needs nothing from Seismic. */
-export function components(s: DemoSettings, home = obeyaHome()): Component[] {
+export function components(s: DemoSettings, home = seismicHome()): Component[] {
   if (s.voice === 'piper') {
     const dir = path.join(voicesHome(home), 'piper');
     const voice = piperVoice(s);
@@ -228,7 +234,7 @@ export function components(s: DemoSettings, home = obeyaHome()): Component[] {
 }
 
 /** Whether the voice can speak without installing anything more, and how much is missing. */
-export function installState(s: DemoSettings, home = obeyaHome()) {
+export function installState(s: DemoSettings, home = seismicHome()) {
   const missing = components(s, home).filter((c) => !c.installed());
   return { installed: !missing.length, missing: missing.map((c) => c.label), mb: missing.reduce((n, c) => n + c.mb, 0) };
 }
@@ -244,7 +250,7 @@ export function voiceProblem(s: DemoSettings): string | undefined {
 }
 
 /** Installs what the voice is missing, one part after the other. */
-export async function installVoice(s: DemoSettings, log: (line: string) => void = () => {}, home = obeyaHome()) {
+export async function installVoice(s: DemoSettings, log: (line: string) => void = () => {}, home = seismicHome()) {
   for (const c of components(s, home)) {
     if (c.installed()) continue;
     log(`installing ${c.label} (about ${c.mb} MB)`);
@@ -282,10 +288,10 @@ function qwen3Command(voice: HeldVoice, language: NarrationLanguage, home: strin
 }
 
 /** The command Seismic holds a Qwen3 voice with across renders (`src/server/narration.ts`). */
-export const qwen3Serve = (voice: HeldVoice, language: NarrationLanguage, home = obeyaHome()) => [...qwen3Command(voice, language, home), '--serve'];
+export const qwen3Serve = (voice: HeldVoice, language: NarrationLanguage, home = seismicHome()) => [...qwen3Command(voice, language, home), '--serve'];
 
 /** The spec `tts.py` synthesises the voice of these settings with. */
-export function voiceSpec(s: DemoSettings, home = obeyaHome()): VoiceSpec {
+export function voiceSpec(s: DemoSettings, home = seismicHome()): VoiceSpec {
   const keyFile = s.keyFile ? expandHome(s.keyFile) : undefined;
   switch (s.voice) {
     case 'piper': {
@@ -336,16 +342,16 @@ export const SAMPLE_TEXT: Record<NarrationLanguage, string> = {
 
 /**
  * Synthesises one sample with `tts.py`, without listening back, into `out`: `text`, else
- * `SAMPLE_TEXT`. For the settings sheet, so the owner hears a voice before choosing it; with `obeyaUrl`, Seismic holds a voice that
+ * `SAMPLE_TEXT`. For the settings sheet, so the owner hears a voice before choosing it; with `seismicUrl`, Seismic holds a voice that
  * can stay loaded, so the next sample (and the next render) skips loading it. A heavy voice waits
  * for `lock`, the machine's TTS_LOCK unless a test gives its own.
  */
-export function sample(s: DemoSettings, out: string, home = obeyaHome(), obeyaUrl?: string, lockFile = TTS_LOCK, text?: string): Promise<void> {
+export function sample(s: DemoSettings, out: string, home = seismicHome(), seismicUrl?: string, lockFile = TTS_LOCK, text?: string): Promise<void> {
   const spec = voiceSpec(s, home);
   const specFile = `${out}.spec.json`;
   fs.writeFileSync(specFile, JSON.stringify(spec));
   const args = [...ttsArgs(spec, lockFile), '--sample', specFile, s.language, text?.trim() || SAMPLE_TEXT[s.language], out];
-  return exec('uv', args, () => {}, obeyaUrl ? { SEISMIC_URL: obeyaUrl, OBEYA_URL: obeyaUrl } : undefined).finally(() => fs.rmSync(specFile, { force: true }));
+  return exec('uv', args, () => {}, seismicUrl ? { SEISMIC_URL: seismicUrl, OBEYA_URL: seismicUrl } : undefined).finally(() => fs.rmSync(specFile, { force: true }));
 }
 
 /**

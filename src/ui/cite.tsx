@@ -73,10 +73,10 @@ const framedChanged = () => {
   for (const fn of onFramed) fn();
 };
 
-/** Takes the marking away in the frame that has one: the page in it clears it on `{ obeyaUnmark }`. */
+/** Takes the marking away in the frame that has one: the page in it clears it on `{ seismicUnmark }`. */
 function unmarkFrame() {
   if (!framed) return;
-  framed.frame.contentWindow?.postMessage({ obeyaUnmark: true }, '*');
+  framed.frame.contentWindow?.postMessage({ seismicUnmark: true }, '*');
   framed = null;
   framedChanged();
 }
@@ -89,7 +89,7 @@ function hearFrames() {
   if (hearing) return;
   hearing = true;
   addEventListener('message', (e) => {
-    const m = (e.data as { obeyaMarked?: unknown } | null)?.obeyaMarked;
+    const m = (e.data as { seismicMarked?: unknown } | null)?.seismicMarked;
     if (m === undefined) return;
     const frame = [...document.querySelectorAll('iframe')].find((f) => f.contentWindow === e.source);
     if (!frame) return;

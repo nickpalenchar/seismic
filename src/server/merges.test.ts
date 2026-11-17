@@ -18,7 +18,7 @@ let runtime: FakeRuntime;
 let project: ProjectRuntime;
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'obeya-merges-'));
+  dir = mkdtempSync(join(tmpdir(), 'seismic-merges-'));
   main = join(dir, 'main');
   gitRepo(main);
   store = new Store(':memory:');

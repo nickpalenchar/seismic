@@ -21,7 +21,7 @@ let notices: Notice[];
 const PNG = Buffer.from('89504e470d0a1a0a', 'hex');
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'obeya-new-repo-'));
+  dir = mkdtempSync(join(tmpdir(), 'seismic-new-repo-'));
   // git's name and e-mail, which the first commit of a new repository is made under
   globalConfig = process.env.GIT_CONFIG_GLOBAL;
   process.env.GIT_CONFIG_GLOBAL = join(dir, 'gitconfig');
@@ -247,6 +247,6 @@ describe('the Koordinator across projects', () => {
     const follow = docs.run({ do: 'newCard', title: 'Payment', body: 'Payment.', start: false, project: 'shop', from: from.id }) as string;
     expect(shop.board.item(follow)).toMatchObject({ from: from.id, fromElsewhere: { project: 'docs', projectName: 'Docs', title: 'Plan the shop' } });
     // the card it follows up on shows it in its conversation, with the project it went onto
-    expect(docs.board.events(from.id).at(-1)).toMatchObject({ kind: 'state', author: 'obeya', made: { card: follow, title: 'Payment', project: 'shop' } });
+    expect(docs.board.events(from.id).at(-1)).toMatchObject({ kind: 'state', author: 'seismic', made: { card: follow, title: 'Payment', project: 'shop' } });
   });
 });

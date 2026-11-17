@@ -12,7 +12,7 @@ import { createCodexRuntime } from './codex';
 const dirs: string[] = [];
 afterEach(() => { for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true }); });
 function fixture(extra: Partial<AgentSpec> = {}) {
-  const cwd = mkdtempSync(join(tmpdir(), 'obeya-harness-')); dirs.push(cwd);
+  const cwd = mkdtempSync(join(tmpdir(), 'seismic-harness-')); dirs.push(cwd);
   gitRepo(cwd);
   const claude = new FakeRuntime(), codex = new FakeRuntime();
   const events: AgentEvent[] = [];

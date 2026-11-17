@@ -8,7 +8,7 @@
 //
 // install builds the shell with this checkout, the bun that runs it and the version of app/ on HEAD
 // (and the commit, which the settings show) compiled in, and puts it where the system starts apps from: ~/Applications on a Mac (Spotlight,
-// Launchpad, the Dock), the applications menu on Linux (~/.local/share/obeya-checkout and a .desktop
+// Launchpad, the Dock), the applications menu on Linux (~/.local/share/seismic-checkout and a .desktop
 // file in ~/.local/share/applications), the Start menu on Windows (%LOCALAPPDATA%\Programs\Seismic
 // checkout). Started from there, it runs this checkout's server as `bun run app` does. Once app/ on
 // HEAD is another than it was built from, the installed shell runs `install --no-open` itself in the
@@ -33,7 +33,7 @@ const debug = args.includes('--debug');
 const target = join(APP, 'target', 'checkout');
 /** What the installed app is called; its identifier keeps it apart from an installed release of Seismic (permissions, single instance). */
 const NAME = 'Seismic (checkout)';
-const IDENTIFIER = 'si.obeya.checkout';
+const IDENTIFIER = 'im.seismic.checkout';
 
 function fail(msg: string): never {
   console.error(`app: ${msg}`);
@@ -71,7 +71,7 @@ const build = Bun.spawnSync([process.execPath, 'x', 'tauri', 'build', ...bundle,
 if (build.exitCode !== 0) fail('the shell did not build (Rust from https://rustup.rs is needed)');
 
 const built = join(target, debug ? 'debug' : 'release');
-const program = join(built, process.platform === 'win32' ? 'obeya.exe' : 'obeya');
+const program = join(built, process.platform === 'win32' ? 'seismic.exe' : 'seismic');
 
 if (!install) {
   const shell = Bun.spawn([program], {
@@ -97,13 +97,13 @@ if (process.platform === 'darwin') {
   const apps = join(homedir(), 'Applications');
   mkdirSync(apps, { recursive: true });
   const dest = join(apps, `${NAME}.app`);
-  put(join(built, 'bundle', 'macos', 'Obeya.app'), dest);
+  put(join(built, 'bundle', 'macos', 'Seismic.app'), dest);
   console.log(`app: installed ${dest}`);
   start = ['open', dest];
 } else if (process.platform === 'win32') {
   const dir = join(process.env.LOCALAPPDATA ?? join(homedir(), 'AppData', 'Local'), 'Programs', 'Seismic checkout');
   mkdirSync(dir, { recursive: true });
-  const exe = join(dir, 'obeya.exe');
+  const exe = join(dir, 'seismic.exe');
   put(program, exe);
   const menu = join(process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming'), 'Microsoft', 'Windows', 'Start Menu', 'Programs');
   const link = join(menu, `${NAME}.lnk`);
@@ -119,16 +119,16 @@ if (process.platform === 'darwin') {
   start = [exe];
 } else {
   const data = process.env.XDG_DATA_HOME || join(homedir(), '.local', 'share');
-  const dir = join(data, 'obeya-checkout');
+  const dir = join(data, 'seismic-checkout');
   mkdirSync(dir, { recursive: true });
-  const exe = join(dir, 'obeya');
+  const exe = join(dir, 'seismic');
   put(program, exe);
-  const icon = join(dir, 'obeya.png');
+  const icon = join(dir, 'seismic.png');
   copyFileSync(join(APP, 'icons', '128x128@2x.png'), icon);
   const entries = join(data, 'applications');
   mkdirSync(entries, { recursive: true });
-  const desktop = ['[Desktop Entry]', 'Type=Application', `Name=${NAME}`, 'Comment=A project for directing AI coding agents', `Exec="${exe}"`, `Icon=${icon}`, 'Terminal=false', 'Categories=Development;', 'StartupWMClass=obeya', ''];
-  writeFileSync(join(entries, 'obeya-checkout.desktop'), desktop.join('\n'));
+  const desktop = ['[Desktop Entry]', 'Type=Application', `Name=${NAME}`, 'Comment=A project for directing AI coding agents', `Exec="${exe}"`, `Icon=${icon}`, 'Terminal=false', 'Categories=Development;', 'StartupWMClass=seismic', ''];
+  writeFileSync(join(entries, 'seismic-checkout.desktop'), desktop.join('\n'));
   if (Bun.which('update-desktop-database')) Bun.spawnSync(['update-desktop-database', entries]);
   console.log(`app: installed ${exe}, in the applications menu as ${NAME}`);
   start = [exe];

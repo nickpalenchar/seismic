@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { appended, cardDraft, draftIn, findingDraft, pathWord, wordsOf, draftOf, dropDraft, giveBack, insert, insertFiles, keepDrafts, reviewReset, MIC_DRAFT, markupOf, moveFiles, moveImages, OBEYA_DRAFT, setMarkup, updateDraft, withoutWords } from './draft';
+import { appended, cardDraft, draftIn, findingDraft, pathWord, wordsOf, draftOf, dropDraft, giveBack, insert, insertFiles, keepDrafts, reviewReset, MIC_DRAFT, markupOf, moveFiles, moveImages, SEISMIC_DRAFT, setMarkup, updateDraft, withoutWords } from './draft';
 
 const store = () => {
   const m = new Map<string, string>();
@@ -73,12 +73,12 @@ test('words taken back go into an empty field with their screenshots; a field wi
 
 test("the screenshots beside the microphone go into Seismic's field after those it has, the field's words untouched", () => {
   updateDraft(MIC_DRAFT, { images: ['a.png', 'b.png'] });
-  updateDraft(OBEYA_DRAFT, { text: 'Schau mal', images: ['b.png', 'c.png'] });
-  moveImages(MIC_DRAFT, OBEYA_DRAFT);
-  expect(draftOf(OBEYA_DRAFT)).toMatchObject({ text: 'Schau mal', images: ['b.png', 'c.png', 'a.png'] });
+  updateDraft(SEISMIC_DRAFT, { text: 'Schau mal', images: ['b.png', 'c.png'] });
+  moveImages(MIC_DRAFT, SEISMIC_DRAFT);
+  expect(draftOf(SEISMIC_DRAFT)).toMatchObject({ text: 'Schau mal', images: ['b.png', 'c.png', 'a.png'] });
   expect(draftOf(MIC_DRAFT).images).toEqual([]);
   dropDraft(MIC_DRAFT);
-  dropDraft(OBEYA_DRAFT);
+  dropDraft(SEISMIC_DRAFT);
 });
 
 test("a dropped file's path goes after the draft's words without a field on the page, parted by a space", () => {
@@ -93,9 +93,9 @@ test("a dropped file's path goes after the draft's words without a field on the 
 });
 
 test('a path with a space goes in quotes and stays one word', () => {
-  expect(pathWord('/home/o/.obeya/files/a/x.pdf')).toBe('/home/o/.obeya/files/a/x.pdf');
-  const spaced = pathWord('C:\\Users\\John Doe\\.obeya\\files\\a\\x.pdf');
-  expect(spaced).toBe('"C:\\Users\\John Doe\\.obeya\\files\\a\\x.pdf"');
+  expect(pathWord('/home/o/.seismic/files/a/x.pdf')).toBe('/home/o/.seismic/files/a/x.pdf');
+  const spaced = pathWord('C:\\Users\\John Doe\\.seismic\\files\\a\\x.pdf');
+  expect(spaced).toBe('"C:\\Users\\John Doe\\.seismic\\files\\a\\x.pdf"');
   expect(wordsOf(`/o/a.pdf ${spaced}`)).toEqual(['/o/a.pdf', spaced]);
 });
 
@@ -103,19 +103,19 @@ test("the paths of dropped files go back beside the microphone when Seismic's fi
   const spaced = pathWord('/o/John Doe/Plan.pdf');
   // dropped on the microphone, then the sidebar opened
   updateDraft(MIC_DRAFT, { text: `/o/a/Rechnung.pdf ${spaced}` });
-  updateDraft(OBEYA_DRAFT, { text: 'Schau mal' });
-  insertFiles(OBEYA_DRAFT, wordsOf(draftOf(MIC_DRAFT).text));
+  updateDraft(SEISMIC_DRAFT, { text: 'Schau mal' });
+  insertFiles(SEISMIC_DRAFT, wordsOf(draftOf(MIC_DRAFT).text));
   updateDraft(MIC_DRAFT, { text: '' });
-  expect(draftOf(OBEYA_DRAFT).text).toBe(`Schau mal /o/a/Rechnung.pdf ${spaced}`);
+  expect(draftOf(SEISMIC_DRAFT).text).toBe(`Schau mal /o/a/Rechnung.pdf ${spaced}`);
   // the owner writes on and takes one path out by hand: it stays gone
-  updateDraft(OBEYA_DRAFT, (d) => ({ text: `${d.text.replace('/o/a/Rechnung.pdf ', '')} und sag was dazu` }));
+  updateDraft(SEISMIC_DRAFT, (d) => ({ text: `${d.text.replace('/o/a/Rechnung.pdf ', '')} und sag was dazu` }));
   // the written-down draft keeps only the path still in it, so it goes back after a reload too
-  expect(JSON.parse(s.getItem('seismic-drafts-shop')!)[OBEYA_DRAFT].files).toEqual([spaced]);
-  moveFiles(OBEYA_DRAFT, MIC_DRAFT);
-  expect(draftOf(OBEYA_DRAFT)).toMatchObject({ text: 'Schau mal und sag was dazu', files: [] });
+  expect(JSON.parse(s.getItem('seismic-drafts-shop')!)[SEISMIC_DRAFT].files).toEqual([spaced]);
+  moveFiles(SEISMIC_DRAFT, MIC_DRAFT);
+  expect(draftOf(SEISMIC_DRAFT)).toMatchObject({ text: 'Schau mal und sag was dazu', files: [] });
   expect(draftOf(MIC_DRAFT).text).toBe(spaced);
   dropDraft(MIC_DRAFT);
-  dropDraft(OBEYA_DRAFT);
+  dropDraft(SEISMIC_DRAFT);
 });
 
 test('a word taken out of a text takes the space after it, or at the end of a line the one before', () => {
@@ -147,48 +147,48 @@ test('findingDraft hides choices and context of another review until the reset c
 
 test('switching to another project within the page puts its drafts in place of those of the one before, which stay written down', () => {
   updateDraft(cardDraft('a1'), { text: 'on shop' });
-  updateDraft(OBEYA_DRAFT, { text: 'to Seismic on shop' });
-  s.setItem('seismic-drafts-blog', JSON.stringify({ [OBEYA_DRAFT]: { text: 'to Seismic on blog', images: [] } }));
+  updateDraft(SEISMIC_DRAFT, { text: 'to Seismic on shop' });
+  s.setItem('seismic-drafts-blog', JSON.stringify({ [SEISMIC_DRAFT]: { text: 'to Seismic on blog', images: [] } }));
   keepDrafts(s, 'blog');
-  expect(draftOf(OBEYA_DRAFT).text).toBe('to Seismic on blog');
+  expect(draftOf(SEISMIC_DRAFT).text).toBe('to Seismic on blog');
   expect(draftOf(cardDraft('a1')).text).toBe('');
   updateDraft(cardDraft('b1'), { text: 'on blog' });
-  expect(Object.keys(JSON.parse(s.getItem('seismic-drafts-blog')!))).toEqual([OBEYA_DRAFT, cardDraft('b1')]);
+  expect(Object.keys(JSON.parse(s.getItem('seismic-drafts-blog')!))).toEqual([SEISMIC_DRAFT, cardDraft('b1')]);
   // and back: the first project's drafts are there as it left them
   keepDrafts(s, 'shop');
-  expect(draftOf(OBEYA_DRAFT).text).toBe('to Seismic on shop');
+  expect(draftOf(SEISMIC_DRAFT).text).toBe('to Seismic on shop');
   expect(draftOf(cardDraft('a1')).text).toBe('on shop');
   expect(draftOf(cardDraft('b1')).text).toBe('');
 });
 
 test('an upload that ends after a switch to another project goes to the draft of the project it started on', () => {
   keepDrafts(s, 'shop');
-  updateDraft(OBEYA_DRAFT, { text: 'with a shot' });
-  const into = draftIn(OBEYA_DRAFT);
+  updateDraft(SEISMIC_DRAFT, { text: 'with a shot' });
+  const into = draftIn(SEISMIC_DRAFT);
   keepDrafts(s, 'blog');
   expect(into.here()).toBe(false);
   into.update((d) => ({ images: [...d.images, 'img9'] }));
-  expect(draftOf(OBEYA_DRAFT).images).toEqual([]);
-  expect(JSON.parse(s.getItem('seismic-drafts-shop')!)[OBEYA_DRAFT]).toEqual({ text: 'with a shot', images: ['img9'] });
+  expect(draftOf(SEISMIC_DRAFT).images).toEqual([]);
+  expect(JSON.parse(s.getItem('seismic-drafts-shop')!)[SEISMIC_DRAFT]).toEqual({ text: 'with a shot', images: ['img9'] });
   keepDrafts(s, 'shop');
-  expect(draftOf(OBEYA_DRAFT).images).toEqual(['img9']);
-  expect(draftIn(OBEYA_DRAFT).here()).toBe(true);
+  expect(draftOf(SEISMIC_DRAFT).images).toEqual(['img9']);
+  expect(draftIn(SEISMIC_DRAFT).here()).toBe(true);
 });
 
 test('an upload that ends after switching away and back shows in the draft at once', () => {
   keepDrafts(s, 'shop');
-  updateDraft(OBEYA_DRAFT, { text: 'and back', images: [] });
-  const into = draftIn(OBEYA_DRAFT);
+  updateDraft(SEISMIC_DRAFT, { text: 'and back', images: [] });
+  const into = draftIn(SEISMIC_DRAFT);
   keepDrafts(s, 'blog');
   keepDrafts(s, 'shop');
   expect(into.here()).toBe(true);
   into.update((d) => ({ images: [...d.images, 'img7'] }));
-  expect(draftOf(OBEYA_DRAFT)).toMatchObject({ text: 'and back', images: ['img7'] });
+  expect(draftOf(SEISMIC_DRAFT)).toMatchObject({ text: 'and back', images: ['img7'] });
 });
 
 test('a sidebar draft kept under its key from before the rename is found under the new one', () => {
   s.setItem('seismic-drafts-old', JSON.stringify({ obeya: { text: 'from before', images: [] }, 'obeya:shop': { text: 'phone', images: [] } }));
   keepDrafts(s, 'old');
-  expect(draftOf(OBEYA_DRAFT).text).toBe('from before');
-  expect(draftOf(`${OBEYA_DRAFT}:shop`).text).toBe('phone');
+  expect(draftOf(SEISMIC_DRAFT).text).toBe('from before');
+  expect(draftOf(`${SEISMIC_DRAFT}:shop`).text).toBe('phone');
 });

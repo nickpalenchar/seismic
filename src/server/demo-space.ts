@@ -25,7 +25,7 @@ const STALE_MS = 10 * 60_000;
 
 /**
  * The days that apply: the settings', else the default, which only the Seismic in the default home
- * (`~/.obeya`) applies. Another home (a scratch Seismic, a test, a render's own Seismic) shares the demo
+ * (`~/.seismic`) applies. Another home (a scratch Seismic, a test, a render's own Seismic) shares the demo
  * directory without sharing the owner's demo settings, so it deletes only where its own say so.
  */
 export function keepDays(s: Pick<DemoSettings, 'keepFrames'>, home: string): number | null {

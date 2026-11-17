@@ -50,7 +50,7 @@ export function projectData(store: Store, ids: string[]) {
   for (const [name, table] of BY_PROJECT) tables[name] = db.select(stored(table)).from(table).where(inArray(table.projectId, selected)).all();
   const cards = db.select({ id: t.cards.id }).from(t.cards).where(inArray(t.cards.projectId, selected));
   for (const [name, table] of BY_CARD) tables[name] = db.select(stored(table)).from(table).where(inArray(table.cardId, cards)).all();
-  return { format: 'obeya-project-export', version: 1, exportedAt: new Date().toISOString(), tables };
+  return { format: 'seismic-project-export', version: 1, exportedAt: new Date().toISOString(), tables };
 }
 
 export function projectCsv(data: ReturnType<typeof projectData>): string {

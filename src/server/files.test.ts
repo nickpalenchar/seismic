@@ -13,7 +13,7 @@ test("a file's name goes into a path as one word, its extension kept", () => {
 });
 
 test('the stored files a text names are found by their directories, each once', () => {
-  const root = '/home/o/.obeya/files';
+  const root = '/home/o/.seismic/files';
   const a = `${root}/shop/0b8e1c1e-2f4a-4e8e-9d3c-1f2e3d4c5b6a`;
   const b = `${root}/shop/9f8e7d6c-5b4a-4321-8765-0a1b2c3d4e5f`;
   const text = `Schau dir ${a}/Rechnung.pdf an und ${b}/log.txt, nochmal ${a}/Rechnung.pdf. Nicht /tmp/x/${a.slice(-36)}/y`;
@@ -24,7 +24,7 @@ test('the stored files a text names are found by their directories, each once', 
 describe('a file dropped in a browser', () => {
   let home: string;
   beforeEach(() => {
-    home = mkdtempSync(join(tmpdir(), 'obeya-drop-'));
+    home = mkdtempSync(join(tmpdir(), 'seismic-drop-'));
   });
   afterEach(() => rmSync(home, { recursive: true, force: true }));
   const put = (rel: string, body = 'x', at = Date.UTC(2026, 9, 20)) => {
@@ -63,7 +63,7 @@ describe('a file dropped in a browser', () => {
 });
 
 test('the app hands on images by their path, and nothing else', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'obeya-local-'));
+  const dir = mkdtempSync(join(tmpdir(), 'seismic-local-'));
   writeFileSync(join(dir, 'shot.PNG'), 'png');
   writeFileSync(join(dir, 'secret.txt'), 'x');
   expect(localImage(join(dir, 'shot.PNG'))).toEqual({ file: join(dir, 'shot.PNG'), type: 'image/png' });

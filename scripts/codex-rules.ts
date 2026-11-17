@@ -1,4 +1,4 @@
-// Writes `.codex/rules/obeya.rules`, the Codex form of the allow list in `.claude/settings.json`
+// Writes `.codex/rules/seismic.rules`, the Codex form of the allow list in `.claude/settings.json`
 // (one list, two harnesses; `codexRules` in src/server/allow-rules.ts): `bun scripts/codex-rules.ts`; `--check` only tells whether the file
 // is up to date. Codex reads such rules of a project it trusts (`[projects."<path>"]` in
 // ~/.codex/config.toml; for Seismic's workers, once the owner trusts the repository's `.codex/`), takes a command inside `zsh -lc '…'` as the command it is, and asks
@@ -16,7 +16,7 @@ export { prefixOf } from '../src/server/allow-rules';
 export const codexRules = (settingsText: string) => rulesFor(settingsText, '`bun scripts/codex-rules.ts`');
 
 const root = resolve(import.meta.dir, '..');
-const out = join(root, '.codex', 'rules', 'obeya.rules');
+const out = join(root, '.codex', 'rules', 'seismic.rules');
 
 if (import.meta.main) {
   if (existsSync(out) && !isGeneratedCodexRules(readFileSync(out, 'utf8'))) {

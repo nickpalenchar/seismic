@@ -333,15 +333,15 @@ function framed(title: string): Response {
 
 /**
  * The frame an idea's mock is shown in (`MockFrame` in src/ui/detail.tsx): empty, sandboxed and
- * connecting to nothing, until the page around it sends the mock's page (`{ obeyaPage }`), which it
+ * connecting to nothing, until the page around it sends the mock's page (`{ seismicPage }`), which it
  * writes into itself; the policy stays with the document. A mock given as `srcdoc` would get no
  * `Connection-Allowlist`, which only a response can carry.
  */
 const MOCK_FRAME = `<!doctype html><script>addEventListener('message', function once(e) {
-  if (e.source !== parent || typeof (e.data && e.data.obeyaPage) !== 'string') return;
+  if (e.source !== parent || typeof (e.data && e.data.seismicPage) !== 'string') return;
   removeEventListener('message', once);
   document.open();
-  document.write(e.data.obeyaPage);
+  document.write(e.data.seismicPage);
   document.close();
 });</script>`;
 

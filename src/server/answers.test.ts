@@ -27,7 +27,7 @@ const open = () => {
 };
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'obeya-answers-'));
+  dir = mkdtempSync(join(tmpdir(), 'seismic-answers-'));
   main = join(dir, 'main');
   gitRepo(main, { 'docs/plan/pr-loop.md': '# PR-Loop\n\n## Goal\n\nG.\n\n## Workstreams\n\n- [x] **W1:** PR-Phase.\n- [ ] **W4:** Live im Shop. Mit dem Go des Owners.\n' });
   store = new Store(':memory:');
@@ -308,7 +308,7 @@ describe('a look-up the usage limit stops', () => {
     limit(a, 20);
     await settle();
     // in the card's conversation, without the error
-    expect(board().events(w4.id).at(-1)).toMatchObject({ kind: 'state', author: 'obeya' });
+    expect(board().events(w4.id).at(-1)).toMatchObject({ kind: 'state', author: 'seismic' });
     expect(board().events(w4.id).at(-1)!.text).toStartWith('The usage limit is reached. Seismic looks this up by itself at ');
     expect(board().events(w4.id).some((e) => e.text.includes('hit your'))).toBe(false);
     await settle(60);
@@ -428,7 +428,7 @@ describe('a looked-up answer goes on', () => {
     expect(page.headers.get('content-security-policy')).toBe(`sandbox allow-scripts; ${pagePolicy('http://127.0.0.1:4417')}`);
     expect(page.headers.get('connection-allowlist')).toBe('(response-origin)');
     expect(page.headers.get('access-control-allow-origin')).toBe('null');
-    expect(await page.text()).toContain('obeyaHeight');
+    expect(await page.text()).toContain('seismicHeight');
     expect(serve('credits.csv', true).headers.get('content-disposition')).toContain('credits.csv');
     expect(serve('../secret.txt').status).toBe(404);
     expect(() => project.answerDir(thread + 100)).toThrow();
@@ -852,11 +852,11 @@ describe("a question asked in a plan's sheet", () => {
 
     // asked of Seismic with the plan open, or with one of its workstreams open
     await say('was sagt der plan zu W1?', { plan: plan().id }, 'look_up', { question: 'What does the plan say about W1?', confirm: 'Ich schaue im Plan nach.' });
-    const viaObeya = board().talk().at(-1)!;
+    const viaSeismic = board().talk().at(-1)!;
     await say('und hier?', { card: workstream().id }, 'look_up', { question: 'What is left on W4?', confirm: 'Moment.' });
     const onWorkstream = board().talk().at(-1)!;
-    expect(board().planHistory(plan().id).talk.map((x) => x.id)).toEqual([first.talk.id, talk.id, viaObeya.id, onWorkstream.id]);
-    expect(viaObeya.askedIn).toBeUndefined();
+    expect(board().planHistory(plan().id).talk.map((x) => x.id)).toEqual([first.talk.id, talk.id, viaSeismic.id, onWorkstream.id]);
+    expect(viaSeismic.askedIn).toBeUndefined();
   });
 
   test("passes on with to_seismic what asks Seismic, which reads it with the plan open", async () => {

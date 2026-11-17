@@ -16,7 +16,7 @@ where the command is not plain or asks for more than network.
 
 Seismic commits the rule on the main branch itself, beside the checkout as "For everyone, into the repository"
 does (refused where the checkout has changes of its own in the file; the call then runs
-once and the conversation says why the rule did not go in), with `.codex/rules/obeya.rules` made
+once and the conversation says why the rule did not go in), with `.codex/rules/seismic.rules` made
 again where the repository has it made from the list; in a folder without git it goes into the
 folder's files. The owner's click is their trust: a `claude` or `codex` group trusted before stays
 trusted with the rule, so Codex workers go by it at

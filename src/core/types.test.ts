@@ -90,7 +90,7 @@ describe('withClones', () => {
 });
 
 test('a stopped task goes into the archive while nothing waits to start it and its workstation holds no work', () => {
-  const stoppedTask = { kind: 'task', state: 'planned', agent: { branch: 'obeya/x' }, source: 'manual' } as const;
+  const stoppedTask = { kind: 'task', state: 'planned', agent: { branch: 'seismic/x' }, source: 'manual' } as const;
   expect(stoppedArchivable(stoppedTask)).toBe(true);
   expect(stoppedArchivable({ ...stoppedTask, agent: undefined })).toBe(false);
   expect(stoppedArchivable({ ...stoppedTask, agent: { ...stoppedTask.agent, workstation: '/clones/1' } })).toBe(false);

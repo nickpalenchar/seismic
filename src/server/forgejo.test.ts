@@ -152,8 +152,8 @@ test('a server without the Forgejo API (GitHub Enterprise, before gh is logged i
 
 test('a pull request is opened on the Forgejo repository of origin', async () => {
   const { forge, calls } = server({ 'POST repos/acme/app/pulls': { html_url: 'https://codeberg.org/acme/app/pulls/13' } }, 'https://codeberg.org/acme/app.git');
-  expect(await forge.open('/repo', { base: 'main', head: 'obeya-settings', title: 'T', body: 'B' })).toBe('https://codeberg.org/acme/app/pulls/13');
-  expect(calls[0]).toEqual({ base: 'https://codeberg.org', method: 'POST', path: 'repos/acme/app/pulls', body: { base: 'main', head: 'obeya-settings', title: 'T', body: 'B' } });
+  expect(await forge.open('/repo', { base: 'main', head: 'seismic-settings', title: 'T', body: 'B' })).toBe('https://codeberg.org/acme/app/pulls/13');
+  expect(calls[0]).toEqual({ base: 'https://codeberg.org', method: 'POST', path: 'repos/acme/app/pulls', body: { base: 'main', head: 'seismic-settings', title: 'T', body: 'B' } });
 });
 
 test('the server and repository of a remote on Forgejo', async () => {

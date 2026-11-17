@@ -34,7 +34,7 @@ export type AgentEvent =
   | { type: 'toolDone'; name: string; ok: boolean }
   /**
    * A tool call was refused without anyone being asked: by a rule of the settings, auto mode's
-   * classifier, the permission mode, a hook (`obeya`: Seismic's own, `refuseForegroundWait`).
+   * classifier, the permission mode, a hook (`seismic`: Seismic's own, `refuseForegroundWait`).
    * `reason`: the deciding component's own words, when it gave any.
    */
   | { type: 'denied'; name: string; input: Record<string, unknown>; by: DeniedBy; reason?: string }
@@ -65,7 +65,7 @@ export type AgentEvent =
   | { type: 'error'; message: string; limit?: { resetsAt?: number }; ended?: true; token?: true };
 
 /** Who refused a tool call (`SDKPermissionDeniedMessage.decision_reason_type`, sorted). */
-export type DeniedBy = 'rule' | 'classifier' | 'mode' | 'hook' | 'obeya' | 'owner' | 'other';
+export type DeniedBy = 'rule' | 'classifier' | 'mode' | 'hook' | 'seismic' | 'owner' | 'other';
 
 /** A tool call the settings want a person to confirm (an `ask` rule, a safety check). */
 export interface PermissionRequest {

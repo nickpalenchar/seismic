@@ -1,4 +1,4 @@
-// The names stored in other places (repositories, git, browsers) from before the rename keep working beside the new ones (docs/plan/seismic-rename.md, W2).
+// The names stored in other places (repositories, git, browsers) from before the rename keep working beside the new ones.
 
 import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -27,9 +27,9 @@ describe('.seismic/ in repositories', () => {
     expect(readShared(repo({ '.obeya/settings.json': settings('main') })).settings).toEqual({ land: 'main' });
     const both = repo({ '.obeya/settings.json': settings('main'), '.obeya/theme.css': ':root{--a:1}', '.seismic/settings.json': settings('pr'), '.seismic/theme.css': ':root{--a:2}' });
     expect(readShared(both).settings).toEqual({ land: 'pr' });
-    expect(readTheme(both, readShared(both).obeyaTree)!.css).toContain('--a:2');
+    expect(readTheme(both, readShared(both).seismicTree)!.css).toContain('--a:2');
     const old = repo({ '.obeya/theme.css': ':root{--a:3}' });
-    expect(readTheme(old, readShared(old).obeyaTree)!.css).toContain('--a:3');
+    expect(readTheme(old, readShared(old).seismicTree)!.css).toContain('--a:3');
   });
 
   test('Seismic writes its settings to the folder the repository has, and to .seismic/ where it has neither', async () => {

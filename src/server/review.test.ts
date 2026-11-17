@@ -78,7 +78,7 @@ function push(file: string) {
 }
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'obeya-review-'));
+  dir = mkdtempSync(join(tmpdir(), 'seismic-review-'));
   origin = gitRepo(join(dir, 'acme', 'app'));
   main = join(dir, 'main');
   git(dir, 'clone', '--quiet', origin, main);
@@ -148,7 +148,7 @@ function landedLocally(file: string, subject: string) {
   git(main, 'add', '.');
   git(main, 'commit', '--quiet', '-m', subject);
   const card = board.create({ title: 'Poll more often', x: 400, y: 0 });
-  board.work(card.id, { state: 'live', branch: 'obeya/poll-more-often', session_id: 'session-x', shipped: JSON.stringify({ commit: git(main, 'rev-parse', 'HEAD').trim(), base }) });
+  board.work(card.id, { state: 'live', branch: 'seismic/poll-more-often', session_id: 'session-x', shipped: JSON.stringify({ commit: git(main, 'rev-parse', 'HEAD').trim(), base }) });
   return card.id;
 }
 

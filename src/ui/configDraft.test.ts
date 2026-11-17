@@ -21,13 +21,13 @@ test('the projects keep their draft with the ids they had, and each draft its ow
   const s = store();
   type K = { draft: { name: string }[]; origin: (string | null)[] };
   const of = (k: K) => k.draft;
-  const saved = [{ name: 'obeya' }];
-  const k: K = { draft: [{ name: 'Seismic' }], origin: ['obeya'] };
+  const saved = [{ name: 'seismic' }];
+  const k: K = { draft: [{ name: 'Seismic' }], origin: ['seismic'] };
   keepConfigDraft(s, 'projects', k, saved, of);
   expect(keptConfigDraft(s, 'demo', {})).toBeNull();
   expect(keptConfigDraft<K>(s, 'projects', saved, of)).toEqual(k);
   // put back as saved: forgotten
-  keepConfigDraft(s, 'projects', { draft: saved, origin: ['obeya'] }, saved, of);
+  keepConfigDraft(s, 'projects', { draft: saved, origin: ['seismic'] }, saved, of);
   expect(keptConfigDraft<K>(s, 'projects', saved, of)).toBeNull();
 });
 

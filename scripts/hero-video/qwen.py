@@ -7,10 +7,10 @@ The reference is ten seconds of the ElevenLabs voice with their transcript besid
 of the main checkout (gitignored): `qwen-reference-en.wav` and `.txt`. Runs in the environment
 Seismic installs for Qwen3-TTS (the settings sheet does that):
 
-    ~/.obeya/voices/qwen3/env/bin/python scripts/hero-video/qwen.py
+    ~/.seismic/voices/qwen3/env/bin/python scripts/hero-video/qwen.py
 
 Writes `narration-qwen.wav` and `hero-qwen.mp4` into `qwen-vergleich/` beside the video
-(`HERO_OUT`, else `obeya-hero` in the demo directory), with `hero-elevenlabs.mp4` as the original to compare.
+(`HERO_OUT`, else `seismic-hero` in the demo directory), with `hero-elevenlabs.mp4` as the original to compare.
 """
 
 from __future__ import annotations
@@ -77,7 +77,7 @@ def starts(track: np.ndarray, clips: list[np.ndarray]) -> list[int]:
 
 
 def main() -> None:
-    hero = Path(os.environ.get("HERO_OUT") or demo_directory() / "obeya-hero")
+    hero = Path(os.environ.get("HERO_OUT") or demo_directory() / "seismic-hero")
     reference = main_checkout() / ".voice" / "qwen-reference-en.wav"
     if not reference.exists():
         sys.exit(f"no reference at {reference}")

@@ -33,7 +33,12 @@ export const SITE_URL = /^https?:\/\/[A-Za-z0-9.-]+(:\d+)?(\/[A-Za-z0-9._~\/-]*)
 const entryShape = z
   .object({
     url: z.string().regex(SITE_URL),
-    deploy: z.string().trim().min(1),
+    // the deploy words from before the rename (`obeya:github-pages`, `obeya:github-folder`) are read as the current ones (migration shim)
+    deploy: z
+      .string()
+      .trim()
+      .min(1)
+      .transform((d) => d.replace(/^obeya:(github-(?:pages|folder))(?=\s|$)/, 'seismic:$1')),
     // under Seismic's home: the file's values go to the site
     env: z
       .string()
@@ -206,7 +211,9 @@ export function writeEnv(home: string, rel: string, env: Record<string, string>)
   );
 }
 
-const CODE_PREFIX = 'obeya-site:';
+const CODE_PREFIX = 'seismic-site:';
+/** The prefix of codes made before the rename; still accepted (migration shim). */
+const OLD_CODE_PREFIX = 'obeya-site:';
 
 /**
  * The connection code for another machine of the owner's: the site with its secret path and the
@@ -221,10 +228,11 @@ export function connectionCode(home: string, site: DemoSiteEntry): string {
 /** Adds the site a code names to this machine's list; the site, and whether it brought credentials. */
 export function connect(home: string, code: string): { site: DemoSiteEntry; credentials: boolean } {
   const text = code.trim();
-  if (!text.startsWith(CODE_PREFIX)) throw new Error('not a connection code of a demo site');
+  const prefix = [CODE_PREFIX, OLD_CODE_PREFIX].find((p) => text.startsWith(p));
+  if (!prefix) throw new Error('not a connection code of a demo site');
   let raw: Record<string, unknown>;
   try {
-    raw = JSON.parse(Buffer.from(text.slice(CODE_PREFIX.length), 'base64url').toString('utf8'));
+    raw = JSON.parse(Buffer.from(text.slice(prefix.length), 'base64url').toString('utf8'));
   } catch {
     throw new Error('the connection code is incomplete; copy it again');
   }

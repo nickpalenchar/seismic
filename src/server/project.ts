@@ -244,7 +244,7 @@ export class ProjectRuntime {
   private agentFor: (role: AgentRole) => AgentSetting;
   /** By repository's path: what takes back where the main branch the owner set is read. */
   private branchSettings = new Map<string, () => void>();
-  /** By repository's path: its `.obeya/settings.json` as the read checkout last had it. */
+  /** By repository's path: its `.seismic/settings.json` as the read checkout last had it. */
   private shared = new Map<string, SharedRead>();
   /** By repository's path: its commands that do not count until the owner confirms them, as last worked out (`heldOf`). */
   private held = new Map<string, TrustGroup[]>();
@@ -263,7 +263,7 @@ export class ProjectRuntime {
   /** By repository's id: why it does not run as the configuration has it (`StartFailure`). */
   private failed = new Map<string, { detail: string; before?: true }>();
   /** The restart of all of Seismic that waits, if one does: it covers the repositories' too. */
-  private obeyaDue: DueRestart | null = null;
+  private seismicDue: DueRestart | null = null;
   /** The owner paused the project's agents (kept across restarts, `paused` of its stored settings): cards the Koordinator lets start wait until they resume them. */
   private paused = false;
   private pendingListeners = new Set<() => void>();
@@ -374,7 +374,7 @@ export class ProjectRuntime {
       runtime: deps.runtime,
       home: () => this.repos[0]!.read.path,
       paused: () => this.paused,
-      restarting: () => !!this.obeyaDue || !!this.pending,
+      restarting: () => !!this.seismicDue || !!this.pending,
       repoFor: (card) => {
         const r = this.repoOf(card);
         return { workers: r.workers, workstations: r.workstations, adapter: r.adapter, path: r.read.path, folder: !!r.info.folder };
@@ -396,7 +396,7 @@ export class ProjectRuntime {
       onOwnerInput: (card, text) => koordinator.learn(card, 'idea', text),
       imageFiles: this.imageFiles,
       onReplied: (cardId, replied) => this.replied(cardId, replied),
-      toObeya: this.toObeya,
+      toSeismic: this.toSeismic,
     });
     this.explorers.resumeAll();
     this.ahead = new Ahead({
@@ -407,7 +407,7 @@ export class ProjectRuntime {
       startBrief: (card) => this.repoOf(card).workers.startBrief(card),
       imageFiles: this.imageFiles,
       onOwnerInput: (card, text) => koordinator.learn(card, 'note', text),
-      toObeya: this.toObeya,
+      toSeismic: this.toSeismic,
     });
     board.showTurns(() => this.ahead.turnsShown());
     this.ahead.resumeAll();
@@ -421,7 +421,7 @@ export class ProjectRuntime {
       planAgent: (plan) => this.repoOf(plan).planAgents,
       dirOf: (thread) => answersDir(deps.home, id, thread),
       imageFiles: this.imageFiles,
-      toObeya: this.toObeya,
+      toSeismic: this.toSeismic,
       onAnswer: (talk, question, answer) => {
         // looked up for an action: the Koordinator takes it now, hearing the answer with it
         if (this.commander.answerIn(talk)) return;
@@ -459,7 +459,7 @@ export class ProjectRuntime {
       preferences: this.preferences,
       pathFor: (card) => this.repoOf(card).read.path,
       imageFiles: this.imageFiles,
-      toObeya: this.toObeya,
+      toSeismic: this.toSeismic,
       onRevised: (cardId, revised) => this.revised(cardId, revised),
     });
     this.revisions.resume();
@@ -594,7 +594,7 @@ export class ProjectRuntime {
   private preferences = () => this.board.preferencesText();
 
   /** What an agent passes on to Seismic (`forward`). */
-  private toObeya = (cardId: string, request: string) => this.forward(cardId, request);
+  private toSeismic = (cardId: string, request: string) => this.forward(cardId, request);
 
   /** The settings of a repository the work retrospective may propose a value for, as they apply now. */
   private settingsNow = (repo: string): Record<ProposedSetting, string | string[]> | undefined => {
@@ -622,13 +622,13 @@ export class ProjectRuntime {
    * now, the server waiting.
    */
   private themeOf(path: string): Theme | null {
-    if (!this.themes.has(path)) this.setTheme(path, readTheme(path, this.shared.get(path)?.obeyaTree));
+    if (!this.themes.has(path)) this.setTheme(path, readTheme(path, this.shared.get(path)?.seismicTree));
     return this.themes.get(path)!;
   }
 
   /** `themeOf` for the project, which does not wait for it: undefined while it is read. */
   private themeKnown(path: string): Theme | null | undefined {
-    if (!this.themes.has(path) && !this.themeReads.has(path)) this.readThemeOf(path, this.shared.get(path)?.obeyaTree);
+    if (!this.themes.has(path) && !this.themeReads.has(path)) this.readThemeOf(path, this.shared.get(path)?.seismicTree);
     return this.themes.get(path);
   }
 
@@ -873,7 +873,7 @@ export class ProjectRuntime {
         ...(adapter.app?.stop ? { stop: adapter.app.stop } : {}),
         origins: [info.remote, info.path].filter((x): x is string => !!x),
         planOf: (cardId) => this.config.planBaselines !== false ? board.item(cardId)?.parent : undefined,
-        baselineConfigured: (cardId, tag, commit) => board.log(cardId, 'state', 'obeya', board.t.worker.planBaseline(tag, commit)),
+        baselineConfigured: (cardId, tag, commit) => board.log(cardId, 'state', 'seismic', board.t.worker.planBaseline(tag, commit)),
         changed: () => board.changed(),
       });
       const named: string[] = [];
@@ -959,14 +959,14 @@ export class ProjectRuntime {
       // a push leaves the checkout as it is: what it changes applies once the read checkout fetches it
       restartsFor: async (l: Landed, pushedFrom?: string) => {
         if (pushedFrom) return false;
-        if (deps.ownCheckout && sameDir(deps.ownCheckout, info.path) && (await changesCode(info.path, l.from, l.to))) return 'obeya';
+        if (deps.ownCheckout && sameDir(deps.ownCheckout, info.path) && (await changesCode(info.path, l.from, l.to))) return 'seismic';
         const moved = await this.moved(repo);
         if (moved === 'follow') await this.follow();
         return moved === 'due' ? 'repo' : false;
       },
       imageFiles: this.imageFiles,
       onWorkEnded: (cardId, workstation) => this.workRetro.ended(cardId, workstation),
-      toObeya: this.toObeya,
+      toSeismic: this.toSeismic,
       forge: deps.forge,
       repoPath: info.path,
       remote: originUrl(info),
@@ -1096,7 +1096,7 @@ export class ProjectRuntime {
       this.addRepo(r, true);
       this.ran(r.ref.id);
       console.log(`Seismic: ${info.path} is on the project ${this.id} now`);
-      if (this.obeyaDue) r.workers.restartDue(this.obeyaDue);
+      if (this.seismicDue) r.workers.restartDue(this.seismicDue);
       r.workers.resumeAll(true);
     });
     // whose approved cards ask for feedback depends on it
@@ -1132,7 +1132,7 @@ export class ProjectRuntime {
       p = this.pending = { paths: new Set(paths), reason, deadline: Date.now() + patience, waiting: [], stop: () => {} };
     }
     const due = repoDue(p);
-    for (const r of this.repos) if (paths.includes(r.info.path) && !this.obeyaDue) r.workers.restartDue(due);
+    for (const r of this.repos) if (paths.includes(r.info.path) && !this.seismicDue) r.workers.restartDue(due);
     console.log(`Seismic: ${this.retiring ? `the project ${this.id} leaves the configuration; it stops` : `restarting the agents of ${paths.join(', ')}`}${this.pendingBusy().length ? ' once they paused' : ''}`);
     p.waiting = this.pendingBusy();
     this.emitPending();
@@ -1167,7 +1167,7 @@ export class ProjectRuntime {
     if (!p) return;
     this.pending = null;
     p.stop();
-    for (const r of this.repos) if (p.paths.has(r.info.path)) r.workers.restartDue(this.obeyaDue);
+    for (const r of this.repos) if (p.paths.has(r.info.path)) r.workers.restartDue(this.seismicDue);
     this.emitPending();
   }
 
@@ -1203,7 +1203,7 @@ export class ProjectRuntime {
       resolved = this.resolve(this.config, reads);
     } catch (e) {
       console.error(`Seismic: the configuration of the project ${this.id} does not resolve; its repositories run on as they were: ${messageOf(e)}`);
-      for (const r of this.repos) if (p.paths.has(r.info.path)) r.workers.restartDue(this.obeyaDue);
+      for (const r of this.repos) if (p.paths.has(r.info.path)) r.workers.restartDue(this.seismicDue);
       this.emitPending();
       return;
     }
@@ -1263,7 +1263,7 @@ export class ProjectRuntime {
     this.board.project.repos.splice(0, this.board.project.repos.length, ...this.repos.map((r) => r.ref));
     for (const r of started) {
       this.watch(r);
-      if (this.obeyaDue) r.workers.restartDue(this.obeyaDue);
+      if (this.seismicDue) r.workers.restartDue(this.seismicDue);
       r.workers.resumeAll(true);
     }
     this.board.docsChanged();
@@ -1393,7 +1393,7 @@ export class ProjectRuntime {
 
   /**
    * The owner saved settings of the repositories (`RepoSettings`), or committed them for everyone
-   * (`.obeya/settings.json`): they are read where they are used; what the project set up
+   * (`.seismic/settings.json`): they are read where they are used; what the project set up
    * by them follows (`follow`), and a repository whose agents now work elsewhere restarts them.
    */
   settingsChanged(): Promise<void> {
@@ -1405,7 +1405,7 @@ export class ProjectRuntime {
 
   /**
    * The read checkout of the repository moved, or its settings were saved: reads its
-   * `.obeya/settings.json` again from the default branch; the settings apply where they are read.
+   * `.seismic/settings.json` again from the default branch; the settings apply where they are read.
    * Where the repository's agents now work elsewhere (clones or worktrees, set up when they start),
    * they restart once they paused (`due`); where demos are shared may have changed, and so may the
    * configuration's problems of the repository (`configRev`). Says which of these it came to:
@@ -1442,7 +1442,7 @@ export class ProjectRuntime {
    */
   private readSettings(path: string, tries = READ_TRIES): Promise<DefaultRead> {
     const seal = refsSeal(path);
-    const read = gitSteps(path, readingSettings(path)).then(async (r): Promise<DefaultRead> => (seal && tries > 1 && refsSeal(path) !== seal ? this.readSettings(path, tries - 1) : { ...r, theme: await readingTheme(path, r.shared.obeyaTree) }));
+    const read = gitSteps(path, readingSettings(path)).then(async (r): Promise<DefaultRead> => (seal && tries > 1 && refsSeal(path) !== seal ? this.readSettings(path, tries - 1) : { ...r, theme: await readingTheme(path, r.shared.seismicTree) }));
     if (seal) this.readAt(path, seal, read);
     return read;
   }
@@ -1455,7 +1455,7 @@ export class ProjectRuntime {
     const shared = this.reread(r, read.shared);
     // a new theme leaves pages outdated; one read with the settings the server waited for is read now without waiting
     if (read.theme !== undefined) this.setTheme(path, read.theme);
-    else this.readThemeOf(path, read.shared.obeyaTree);
+    else this.readThemeOf(path, read.shared.seismicTree);
     const was = this.held.get(path);
     this.held.delete(path);
     const held = JSON.stringify(this.heldOf(path)) !== JSON.stringify(was ?? []);
@@ -1479,7 +1479,7 @@ export class ProjectRuntime {
 
   /**
    * What the configuration's problems of the repository are read from on its default branch: its
-   * `.obeya/settings.json` as the file has it (a field that does not count included), and whether a
+   * `.seismic/settings.json` as the file has it (a field that does not count included), and whether a
    * leftover `.obeya/adapter/` is there (`adapterModule`, where it was just read), noted for
    * `proposeSetup`.
    */
@@ -1490,7 +1490,7 @@ export class ProjectRuntime {
   }
 
   /**
-   * The repository's `.obeya/settings.json` as its default branch has it now (`now`). Where it
+   * The repository's `.seismic/settings.json` as its default branch has it now (`now`). Where it
    * changed, this machine's values that it now holds as well go (they were taken over for everyone,
    * see `Config.takenOver`). Says whether it changed.
    */
@@ -1667,7 +1667,7 @@ export class ProjectRuntime {
 
   /**
    * The owner takes a setting the work retrospective proposed, as it is or with their `value`: on
-   * this machine, or into the repository's `.obeya/settings.json` for everyone (`Config.takeSetting`).
+   * this machine, or into the repository's `.seismic/settings.json` for everyone (`Config.takeSetting`).
    */
   async takeSetting(id: number, where: unknown, value?: unknown): Promise<SettingsShared | null> {
     if (where !== 'machine' && where !== 'repository') throw new BadRequest('invalid', 'where is machine or repository');
@@ -2061,7 +2061,7 @@ export class ProjectRuntime {
   }
 
   /**
-   * The card whose worker fills in a repository's settings for everyone (`.obeya/settings.json`)
+   * The card whose worker fills in a repository's settings for everyone (`.seismic/settings.json`)
    * with the `settings` skill, for one that has none yet or still has an adapter module; one still
    * open for it is returned rather than a second made, Seismic's proposal of it taken on as planned.
    * It goes right of everything on the project, at the top.
@@ -2076,7 +2076,7 @@ export class ProjectRuntime {
 
   /**
    * Seismic proposes the card that fills in a repository's settings where it knows them not (nothing
-   * of the repository's own in `.obeya/settings.json`, or an adapter module left on its main branch),
+   * of the repository's own in `.seismic/settings.json`, or an adapter module left on its main branch),
    * as the Configuration dialog offers it; a folder without git is left alone.
    */
   private proposeSetup(r: Repo) {
@@ -2152,7 +2152,7 @@ export class ProjectRuntime {
     const asks = card.idea!.proposal!.questions.length;
     if (revised && !asks) return this.accept(cardId, [], true, armed === 'idea');
     const t = this.board.t.proposal;
-    this.board.log(cardId, 'state', 'obeya', !revised ? t.notAcceptedNoRevision : asks > 1 ? t.notAcceptedQuestions : t.notAcceptedQuestion);
+    this.board.log(cardId, 'state', 'seismic', !revised ? t.notAcceptedNoRevision : asks > 1 ? t.notAcceptedQuestions : t.notAcceptedQuestion);
   }
 
   // ---------------------------------------------------------------- ideas
@@ -2288,7 +2288,7 @@ export class ProjectRuntime {
       }
       if (!this.board.item(cardId)) return;
       this.board.setNewRepo(cardId, { ...target, due: undefined });
-      this.board.log(cardId, 'error', 'obeya', t.failed(messageOf(e)), { code: e instanceof BadRequest ? e.code : undefined });
+      this.board.log(cardId, 'error', 'seismic', t.failed(messageOf(e)), { code: e instanceof BadRequest ? e.code : undefined });
     }
   }
 
@@ -2300,7 +2300,7 @@ export class ProjectRuntime {
     const target = this.board.newRepo(cardId)!;
     this.board.patch(cardId, { repo: r.ref.id });
     this.board.setNewRepo(cardId, { path: target.path, project: false, by: target.by, made: true });
-    this.board.log(cardId, 'state', 'obeya', this.board.t.newRepo.joined(target.path.trim(), made));
+    this.board.log(cardId, 'state', 'seismic', this.board.t.newRepo.joined(target.path.trim(), made));
     if (card.state === 'idea') this.decided(card, { answer: this.board.t.newRepo.buildAnswer(target.path.trim()), log: this.board.t.idea.buildLog });
     this.koordinator.request(cardId);
   }
@@ -2326,7 +2326,7 @@ export class ProjectRuntime {
     const at = there.board.freeSpot(there.inView);
     this.deps.store.moveCard(cardId, there.id, at, { idea: { newRepo: { path: target.path, project: true, by: target.by, made: true } } }, at.canvas);
     this.deps.store.dropEmptyGroups(this.id);
-    there.board.log(cardId, 'state', 'obeya', there.board.t.newRepo.movedHere(this.board.project.name, shown, made));
+    there.board.log(cardId, 'state', 'seismic', there.board.t.newRepo.movedHere(this.board.project.name, shown, made));
     const moved = { card: cardId, title: card.title, project: there.id, projectName: there.board.project.name };
     this.board.moved(moved);
     this.commander.tell(`The card "${card.title}" moved to the project "${there.board.project.name}", in its new repository ${shown}, and is built there.`);
@@ -2379,7 +2379,7 @@ export class ProjectRuntime {
     const asks = card.idea.discussion.questions.length;
     if (replied && !asks && card.idea.discussion.status === 'open') return this.build(cardId);
     const t = this.board.t.idea;
-    this.board.log(cardId, 'state', 'obeya', !replied ? t.notBuiltNoReply : asks > 1 ? t.notBuiltQuestions : t.notBuiltQuestion);
+    this.board.log(cardId, 'state', 'seismic', !replied ? t.notBuiltNoReply : asks > 1 ? t.notBuiltQuestions : t.notBuiltQuestion);
   }
 
   /**
@@ -2427,7 +2427,7 @@ export class ProjectRuntime {
 
   /** The idea's prototypes still on the project go into the archive as discarded. */
   private discardPrototypes(ideaId: string) {
-    for (const p of this.board.items().filter((i) => i.idea?.prototypeOf === ideaId)) this.repoOf(p).workers.endPrototype(p.id, 'discarded', 'obeya');
+    for (const p of this.board.items().filter((i) => i.idea?.prototypeOf === ideaId)) this.repoOf(p).workers.endPrototype(p.id, 'discarded', 'seismic');
   }
 
   /** The idea is decided for building: its agent's conversation ends, the brief becomes the task, the other prototypes are discarded. */
@@ -2584,7 +2584,7 @@ export class ProjectRuntime {
         taken.add(title);
         const prototype = this.board.addPrototype(cardId, title, run.task, run.variant || undefined);
         try {
-          void this.repoOf(prototype).workers.start(prototype.id).catch((e: unknown) => this.board.log(prototype.id, 'error', 'obeya', messageOf(e)));
+          void this.repoOf(prototype).workers.start(prototype.id).catch((e: unknown) => this.board.log(prototype.id, 'error', 'seismic', messageOf(e)));
         } catch (e) {
           this.board.remove(prototype.id);
           throw e;
@@ -2654,7 +2654,7 @@ export class ProjectRuntime {
     const { from, ...card } = rest;
     if (!from) return there.run(card);
     const id = there.followUp(card, from);
-    this.board.log(from, 'state', 'obeya', this.board.t.voice.madeFollowUp(c.title), { made: { card: id, title: c.title, project: there.id } });
+    this.board.log(from, 'state', 'seismic', this.board.t.voice.madeFollowUp(c.title), { made: { card: id, title: c.title, project: there.id } });
     return id;
   }
 
@@ -2700,7 +2700,7 @@ export class ProjectRuntime {
         }, undefined, 'owner');
         this.board.log(card.id, 'state', 'owner', this.board.t.voice.created);
         // the card it follows up on shows it in its conversation
-        if (c.from) this.board.log(c.from, 'state', 'obeya', this.board.t.voice.madeFollowUp(card.title), { made: { card: card.id, title: card.title } });
+        if (c.from) this.board.log(c.from, 'state', 'seismic', this.board.t.voice.madeFollowUp(card.title), { made: { card: card.id, title: card.title } });
         // one for later waits until then; a time that passed in the undo window starts it now
         if (c.until && Date.parse(c.until) > Date.now()) this.snooze(card.id, c.until);
         else if (c.start || c.until) this.koordinator.request(card.id);
@@ -2984,7 +2984,7 @@ export class ProjectRuntime {
 
   /** Seismic is about to restart, or no longer is: the workers hear so and pause for it (or for their repository's restart that waits). */
   restartDue(due: DueRestart | null) {
-    this.obeyaDue = due;
+    this.seismicDue = due;
     this.koordinator.restartChanged();
     const p = this.pending;
     for (const r of this.repos) r.workers.restartDue(due ?? (p?.paths.has(r.info.path) ? repoDue(p) : null));
@@ -3148,7 +3148,7 @@ export class ConfigError extends Error {
 /**
  * What resolving a repository reads of it with git (`readingRepo`): where it is and its main
  * branch (`info`), that branch as git tells it whatever the owner set (`detected`), whether its
- * main branch still has an adapter module (`hasAdapterModule`), and its `.obeya/settings.json`
+ * main branch still has an adapter module (`hasAdapterModule`), and its `.seismic/settings.json`
  * there (`readShared`).
  */
 export interface RepoRead {
@@ -3186,7 +3186,7 @@ const READ_TRIES = 5;
 /** What `moved` came to (`moved`). */
 type Moved = 'same' | 'follow' | 'due';
 
-/** What a repository's default branch has of its settings: its `.obeya/settings.json` and Claude Code configuration (`readShared`), and whether an adapter module is still there (`hasAdapterModule`). */
+/** What a repository's default branch has of its settings: its `.seismic/settings.json` and Claude Code configuration (`readShared`), and whether an adapter module is still there (`hasAdapterModule`). */
 interface DefaultRead {
   shared: SharedRead;
   adapterModule: boolean;
@@ -3207,7 +3207,7 @@ export const readRepo = (path: string, folder = false): RepoRead | null => gitSt
 /** `readRepo` without blocking the server. */
 export const readRepoAsync = (path: string, folder = false): Promise<RepoRead | null> => gitSteps(path, readingRepo(path, folder));
 
-/** A folder without git as `resolveProject` reads it: no remote, no branch, its `.obeya/settings.json` as the folder has it. */
+/** A folder without git as `resolveProject` reads it: no remote, no branch, its `.seismic/settings.json` as the folder has it. */
 function readFolder(path: string): RepoRead | null {
   try {
     if (!statSync(path).isDirectory()) return null;
@@ -3219,7 +3219,7 @@ function readFolder(path: string): RepoRead | null {
 
 /**
  * What a project's configuration amounts to, without touching anything: its repositories (home
- * first), each with Seismic's defaults and in front of them the repository's `.obeya/settings.json`
+ * first), each with Seismic's defaults and in front of them the repository's `.seismic/settings.json`
  * (`shared`: where they are read, by the repository's path; as `read` read them when left out) and
  * this machine's settings (`settings`: where a repository's are read; its entry's when left out),
  * each with its id and its settings without this machine's (`values`), and the project's id and

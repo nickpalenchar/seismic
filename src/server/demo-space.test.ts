@@ -8,7 +8,7 @@ import { STALL_MS } from './stalls';
 
 const DAY = 24 * 3600;
 let demos: string;
-beforeEach(() => (demos = mkdtempSync(join(tmpdir(), 'obeya-demo-space-'))));
+beforeEach(() => (demos = mkdtempSync(join(tmpdir(), 'seismic-demo-space-'))));
 afterEach(async () => { await rm(demos, { recursive: true, force: true }); }, 60_000);
 
 /** A rendered demo: video, a clip and its frames in `.work`, everything last written `days` ago. */
@@ -56,7 +56,7 @@ describe('the frames of old demos', () => {
 
   test('behind a link are not touched', async () => {
     // a work directory that is a link, and frames that are one, both to a render outside the demo directory
-    const outside = mkdtempSync(join(tmpdir(), 'obeya-demo-space-outside-'));
+    const outside = mkdtempSync(join(tmpdir(), 'seismic-demo-space-outside-'));
     try {
       const kept = render(join(outside, 'kept'), 30);
       mkdirSync(join(demos, 'linked'));
@@ -94,7 +94,7 @@ test('nested demo directories count their work without following links', async (
   const work = join(demos, 'demo', 'voice', '.work');
   mkdirSync(join(work, 'frames', 'nested'), { recursive: true });
   writeFileSync(join(work, 'frames', 'nested', 'frame.jpg'), 'frame');
-  const outside = mkdtempSync(join(tmpdir(), 'obeya-demo-space-count-outside-'));
+  const outside = mkdtempSync(join(tmpdir(), 'seismic-demo-space-count-outside-'));
   try {
     writeFileSync(join(outside, 'large.wav'), 'x'.repeat(10_000));
     symlinkSync(join(outside, 'large.wav'), join(work, 'linked.wav'));
@@ -142,7 +142,7 @@ test('one large directory fills the global metadata limit, even beside nested wo
 });
 
 test("the days kept: the settings', else the default, which only the Seismic in the default home applies", () => {
-  const own = join(homedir(), '.obeya');
+  const own = join(homedir(), '.seismic');
   expect(keepDays({}, own)).toBe(DEFAULT_KEEP_DAYS);
   expect(keepDays({ keepFrames: 'always' }, own)).toBeNull();
   expect(keepDays({ keepFrames: 3 }, own)).toBe(3);
@@ -167,7 +167,7 @@ test('a settings file that does not read deletes nothing', async () => {
   const work = render(join(demos, 'old'), 20);
   const file = join(demos, 'demo.json');
   writeFileSync(file, '{ not json');
-  const space = new DemoSpace({ home: join(homedir(), '.obeya'), settings: () => ({ language: 'en', voice: 'piper', directory: demos }), file });
+  const space = new DemoSpace({ home: join(homedir(), '.seismic'), settings: () => ({ language: 'en', voice: 'piper', directory: demos }), file });
   await space.sweepSoon();
   expect(existsSync(join(work, 'frames'))).toBe(true);
 });

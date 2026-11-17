@@ -2014,7 +2014,7 @@ function MockFrame({ mock }: { mock: Mock }) {
         ref={frame}
         sandbox="allow-scripts"
         src="/api/mock-frame"
-        onLoad={(e) => e.currentTarget.contentWindow?.postMessage({ obeyaPage: page }, '*')}
+        onLoad={(e) => e.currentTarget.contentWindow?.postMessage({ seismicPage: page }, '*')}
         title={mock.title || t.idea.mock}
         style={{ height }}
       />
@@ -3850,7 +3850,7 @@ function Talk({ item, past, field }: { item: Item; past?: boolean; field?: TalkF
           placeholder={questions.length ? t.ask.words : at ? t.demo.commentAt(mmss(at.at)) : field.placeholder}
           label={questions.length ? t.ask.send : t.send}
           allowEmpty={picked || deciding}
-          obeya={field.listener}
+          seismic={field.listener}
           noImages={field.noImages}
           skills={field.listener ? undefined : item.id}
           chip={

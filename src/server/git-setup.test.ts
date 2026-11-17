@@ -16,7 +16,7 @@ function globalGit(text: string) {
 }
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'obeya-git-setup-test-'));
+  dir = mkdtempSync(join(tmpdir(), 'seismic-git-setup-test-'));
   globalConfig = process.env.GIT_CONFIG_GLOBAL;
   process.env.GIT_CONFIG_GLOBAL = join(dir, 'gitconfig');
   globalGit('[user]\n\tname = Ada Lovelace\n\temail = ada@example.com\n');

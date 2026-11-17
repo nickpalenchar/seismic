@@ -21,7 +21,7 @@ test('concurrent sessions record resolved speaker snapshots, never current defau
       await Bun.sleep(1);
       store.events.add({ cardId, kind: 'report', author: 'worker', text: 'Tool report' });
       store.events.add({ cardId, kind: 'say', author: 'owner', text: 'Owner is not a model' });
-      store.events.add({ cardId, kind: 'report', author: 'obeya', text: 'System is not a model' });
+      store.events.add({ cardId, kind: 'report', author: 'seismic', text: 'System is not a model' });
       return 'ok';
     } }],
     onEvent: (e) => { if (e.type === 'text') store.events.add({ cardId, kind: 'say', author: 'worker', text: e.text }); },
@@ -48,7 +48,7 @@ test('concurrent sessions record resolved speaker snapshots, never current defau
 });
 
 test('speaker metadata survives a database reopen; reply and researched answer can have different models', () => {
-  const root = mkdtempSync(join(tmpdir(), 'obeya-speakers-'));
+  const root = mkdtempSync(join(tmpdir(), 'seismic-speakers-'));
   const path = join(root, 'db');
   let store = new Store(path);
   try {

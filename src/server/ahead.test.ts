@@ -15,7 +15,7 @@ let project: ProjectRuntime;
 const open = () => new ProjectRuntime({ repos: [{ path: main, clones: 1 }] }, { store, home: dir, runtime, forge: noForge, commandDelayMs: 10, limitMargin: 10 });
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'obeya-ahead-'));
+  dir = mkdtempSync(join(tmpdir(), 'seismic-ahead-'));
   main = join(dir, 'main');
   gitRepo(main);
   store = new Store(':memory:');
@@ -140,7 +140,7 @@ describe('asking on a card before its start', () => {
 
   test('a stopped card keeps the notes for its worker: nothing answers them', () => {
     const card = planned();
-    board().work(card.id, { branch: 'obeya/export', session_id: 'earlier' });
+    board().work(card.id, { branch: 'seismic/export', session_id: 'earlier' });
     project.tell(card.id, 'Remember the logo.', [], false);
     expect(runtime.sessions.some((s) => s.spec.tools.some((t) => t.name === 'answer_owner'))).toBe(false);
     expect(board().events(card.id).some((e) => e.kind === 'hint' && e.unread)).toBe(true);

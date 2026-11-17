@@ -7,7 +7,7 @@ import { type Briefing, decisionLog, INFORM_RULES, inform, type OwnerAnswer } fr
 import { type Board, pathOfRef } from './board';
 import { outsidePlanDir } from './repo';
 import type { AgentRuntime, AgentTool } from './runtime';
-import { TO_OBEYA } from './to-obeya';
+import { TO_SEISMIC } from './to-seismic';
 
 export class PlanAgents {
   /** Questions about one plan are answered one after the other, in one session. */
@@ -38,7 +38,7 @@ export class PlanAgents {
     dir?: string,
     signal?: AbortSignal,
     onWaiting?: Briefing['onWaiting'],
-    asked?: { images: string[]; toObeya?: AgentTool },
+    asked?: { images: string[]; toSeismic?: AgentTool },
     at?: AgentAt,
   ): Promise<OwnerAnswer> {
     return this.queued(plan, () =>
@@ -54,8 +54,8 @@ export class PlanAgents {
         ...(signal ? { signal } : {}),
         ...(onWaiting ? { onWaiting } : {}),
         ...(asked?.images.length ? { images: asked.images } : {}),
-        ...(asked?.toObeya ? { tools: [asked.toObeya] } : {}),
-        system: `You are the plan agent of the plan "${plan.title}", directed through Seismic. Its plan doc is ${plan.plan?.file ?? '(none)'}${plan.plan?.file && outsidePlanDir(pathOfRef(plan.plan.file)) ? '' : ' in this repository'}; you know it and the history of its workstreams.\n\n${INFORM_RULES}${asked?.toObeya ? `\n\n${TO_OBEYA}` : ''}`,
+        ...(asked?.toSeismic ? { tools: [asked.toSeismic] } : {}),
+        system: `You are the plan agent of the plan "${plan.title}", directed through Seismic. Its plan doc is ${plan.plan?.file ?? '(none)'}${plan.plan?.file && outsidePlanDir(pathOfRef(plan.plan.file)) ? '' : ' in this repository'}; you know it and the history of its workstreams.\n\n${INFORM_RULES}${asked?.toSeismic ? `\n\n${TO_SEISMIC}` : ''}`,
         message: [message, `Decisions taken in this plan so far:\n${decisionLog(this.board.decisions(plan.id))}`, this.preferences()].filter(Boolean).join('\n\n'),
         language: this.board.conversation(),
       }),

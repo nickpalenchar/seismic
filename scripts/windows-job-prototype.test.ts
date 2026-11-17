@@ -19,7 +19,7 @@ async function until(check: () => boolean, ms = 10_000) {
 const read = (file: string) => { try { return readFileSync(file, 'utf8').trim(); } catch { return ''; } };
 const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catch { return false; } };
 const kill = (pid: number) => { if (pid > 0) try { process.kill(pid); } catch { /* gone */ } };
-const scratch = () => mkdtempSync(join(tmpdir(), 'obeya-job-'));
+const scratch = () => mkdtempSync(join(tmpdir(), 'seismic-job-'));
 const idle = () => spawn(process.execPath, ['-e', testProcessCode()], { stdio: 'ignore', windowsHide: true });
 /** A bun process running `code`, its stdio ignored. */
 const bunArgs = (code: string) => ['-e', testProcessCode(code)];
@@ -35,7 +35,7 @@ async function launch(...args: Parameters<typeof launchInJob>) {
 test.skipIf(!windows)('the agent is in its job from its first instruction', async () => {
   const dir = scratch();
   try {
-    const name = `obeya-test-${randomUUID()}`;
+    const name = `seismic-test-${randomUUID()}`;
     const r = await launch(process.execPath, bunArgs(`import { inJob } from ${PROTOTYPE}; require('node:fs').writeFileSync(${JSON.stringify(join(dir, 'in'))}, String(inJob(${JSON.stringify(name)})));`), { name, stdio: ['ignore', 'ignore', 'pipe'] });
     if (r.boundary !== 'job') throw new Error(r.reason);
     await new Promise((resolve) => r.child.exitCode !== null ? resolve(null) : r.child.once('exit', resolve));

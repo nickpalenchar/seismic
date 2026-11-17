@@ -103,7 +103,7 @@ export function goToMessage(ev: number | string, orElse?: string) {
  * it and its start, a few lines at most. A click on it goes to the message in the conversation
  * (`ev` in `Msg`); `onClear` takes it out of the field.
  */
-export const quoteClass = "quote [--q:var(--muted-foreground)] flex items-start min-w-0 border border-[color:--alpha(var(--q)/30%)] rounded-xs bg-[color:--alpha(var(--q)/8%)] [&.q-by-owner]:[--q:var(--working)] [&.q-by-worker]:[--q:var(--inPr)] [&.q-by-explorer]:[--q:var(--idea)] [&:is(.q-by-koordinator,.q-by-obeya,.q-by-plan)]:[--q:var(--proposal)] [.msg>&]:mt-1 [.msg>&]:mb-1 [[data-slot=prompt-input-body]_&]:flex-[1_1_100%] [[data-slot=prompt-input-body]_&]:mb-0.5 [&.decided]:[--q:var(--waiting)] [&.place]:[--q:var(--working)] [&.place]:items-center [&.place]:gap-2 [&.place]:py-1 [&.place]:pr-0 [&.place]:pl-1.5";
+export const quoteClass = "quote [--q:var(--muted-foreground)] flex items-start min-w-0 border border-[color:--alpha(var(--q)/30%)] rounded-xs bg-[color:--alpha(var(--q)/8%)] [&.q-by-owner]:[--q:var(--working)] [&.q-by-worker]:[--q:var(--inPr)] [&.q-by-explorer]:[--q:var(--idea)] [&:is(.q-by-koordinator,.q-by-seismic,.q-by-plan)]:[--q:var(--proposal)] [.msg>&]:mt-1 [.msg>&]:mb-1 [[data-slot=prompt-input-body]_&]:flex-[1_1_100%] [[data-slot=prompt-input-body]_&]:mb-0.5 [&.decided]:[--q:var(--waiting)] [&.place]:[--q:var(--working)] [&.place]:items-center [&.place]:gap-2 [&.place]:py-1 [&.place]:pr-0 [&.place]:pl-1.5";
 
 export function Quote({ q, onClear }: { q: Quoted; onClear?: () => void }) {
   return (
@@ -226,26 +226,26 @@ export function useReportedHeight(frame: RefObject<HTMLIFrameElement | null>, ca
     let placeholder: HTMLElement | undefined;
     const closeImage = () => {
       const f = frame.current;
-      if (f?.dataset.obeyaPreviousStyle !== undefined) { f.setAttribute('style', f.dataset.obeyaPreviousStyle); delete f.dataset.obeyaPreviousStyle; f.contentWindow?.postMessage({ obeyaCloseImage: true }, '*'); }
+      if (f?.dataset.seismicPreviousStyle !== undefined) { f.setAttribute('style', f.dataset.seismicPreviousStyle); delete f.dataset.seismicPreviousStyle; f.contentWindow?.postMessage({ seismicCloseImage: true }, '*'); }
       placeholder?.remove(); placeholder = undefined;
       closeButton?.remove(); closeButton = undefined;
     };
     const on = (e: MessageEvent) => {
-      const h = e.source === frame.current?.contentWindow && (e.data as { obeyaHeight?: unknown } | null)?.obeyaHeight;
+      const h = e.source === frame.current?.contentWindow && (e.data as { seismicHeight?: unknown } | null)?.seismicHeight;
       const f = frame.current;
-      if (f && e.source === f.contentWindow && typeof e.data?.obeyaImage === 'boolean') {
-        if (e.data.obeyaImage && !closeButton) {
+      if (f && e.source === f.contentWindow && typeof e.data?.seismicImage === 'boolean') {
+        if (e.data.seismicImage && !closeButton) {
           placeholder = document.createElement('div'); placeholder.style.cssText = `height:${f.offsetHeight}px;width:${f.offsetWidth}px;`; f.before(placeholder);
-          f.dataset.obeyaPreviousStyle = f.getAttribute('style') || ''; f.style.cssText += ';position:fixed;inset:0;width:100vw;height:100vh;z-index:2147483646;border:0';
+          f.dataset.seismicPreviousStyle = f.getAttribute('style') || ''; f.style.cssText += ';position:fixed;inset:0;width:100vw;height:100vh;z-index:2147483646;border:0';
           closeButton = document.createElement('button'); closeButton.innerHTML = X_ICON_SVG; closeButton.setAttribute('aria-label', t.close);
           closeButton.style.cssText = 'position:fixed;right:16px;top:12px;z-index:2147483647;color:white;background:black;border:0;display:flex;padding:6px;cursor:pointer';
           closeButton.className = 'artifact-image-close'; closeButton.onclick = closeImage; document.body.append(closeButton); closeButton.focus();
-        } else if (!e.data.obeyaImage) closeImage();
+        } else if (!e.data.seismicImage) closeImage();
         return;
       }
-      if (f && e.source === f.contentWindow && e.data?.obeyaImageFocus && closeButton) { closeButton.focus(); return; }
+      if (f && e.source === f.contentWindow && e.data?.seismicImageFocus && closeButton) { closeButton.focus(); return; }
       // the border is inside the frame's height (border-box): without it the page is a few pixels too high and scrolls
-      if (typeof h === 'number' && h > 0 && f && f.dataset.obeyaPreviousStyle === undefined && steps++ < 30) setHeight(Math.min(Math.ceil(h) + f.offsetHeight - f.clientHeight, cap));
+      if (typeof h === 'number' && h > 0 && f && f.dataset.seismicPreviousStyle === undefined && steps++ < 30) setHeight(Math.min(Math.ceil(h) + f.offsetHeight - f.clientHeight, cap));
     };
     const keys = (e: KeyboardEvent) => { if (!closeButton) return; if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); closeImage(); } else if (e.key === 'Tab') { e.preventDefault(); closeButton.focus(); } };
     addEventListener('message', on);

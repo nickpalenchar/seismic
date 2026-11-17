@@ -4,7 +4,7 @@ import { matching, skillWord, slashAt } from './skills';
 test('a slash at the start of the text or of a word opens the menu, with what follows it', () => {
   expect(slashAt('/', 1)).toEqual({ start: 0, query: '' });
   expect(slashAt('please /se', 10)).toEqual({ start: 7, query: 'se' });
-  expect(slashAt('first line\n/obeya:de', 20)).toEqual({ start: 11, query: 'obeya:de' });
+  expect(slashAt('first line\n/seismic:de', 22)).toEqual({ start: 11, query: 'seismic:de' });
 });
 
 test('a path, a slash inside a word, or a word already ended opens none', () => {

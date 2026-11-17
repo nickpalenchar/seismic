@@ -116,7 +116,7 @@ test('gh runs on the host and as the account that own the repository: of the pul
 });
 
 test('gh is sent to the pull request\'s host, with the token of the owner\'s login there in the variable gh reads for that host', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'obeya-gh-host-'));
+  const dir = mkdtempSync(join(tmpdir(), 'seismic-gh-host-'));
   // as on a machine where gh's login is its own, not the environment's
   const names = ['GH_HOST', 'GH_TOKEN', 'GITHUB_TOKEN', 'GH_ENTERPRISE_TOKEN', 'GITHUB_ENTERPRISE_TOKEN'];
   const saved = names.map((n) => [n, process.env[n]] as const);
