@@ -4,7 +4,7 @@
 
 import { Ellipsis, Pause } from 'lucide-react';
 import type { CSSProperties } from 'react';
-import { useRef, useState } from 'react';
+import { type RefObject, useLayoutEffect, useRef, useState } from 'react';
 import { type BlockedClone, type ClonePool, inParkingLot, type Item, type PoolHost, type PoolWorkstation, type ProjectInfo, snoozeOf, stopped } from '../core/types';
 import { plain } from './markdown';
 import { CardFace, cardTone, stateVars } from './card';
@@ -15,18 +15,17 @@ import { Tooltip } from './components/tooltip';
 
 /** The colours of a card's state that pulse on its workstation's dot: at work, in review, landing. */
 const PULSING = new Set(['working', 'reviewing', 'approved']);
-/** Period of the pulse in ms; `ws-pulse_2.4s` in the classes below. */
-const PULSE_MS = 2400;
 /**
- * The animation delay of a pulsing element: negative, so it starts at the point of the pulse the wall clock is at,
- * and every pulsing dot and bar share, however late each one mounted, is on and off together. Taken when the pulse
- * begins and kept while it runs: a changed delay would shift the running animation against the others.
+ * Puts the pulse animations of an element (its `::before` and `::after`) on the document timeline's origin once the
+ * element is committed, so every pulsing dot and bar share, however late each one mounted, is on and off together.
+ * The start time is set on the running animation, after the commit that started it, so no render has to guess when
+ * that will be, and a re-render changes nothing.
  */
-function usePulsePhase(pulsing: boolean): CSSProperties | undefined {
-  const phase = useRef<string | null>(null);
-  if (!pulsing) phase.current = null;
-  else phase.current ??= `-${Date.now() % PULSE_MS}ms`;
-  return phase.current ? ({ '--ws-phase': phase.current } as CSSProperties) : undefined;
+function usePulseSync(ref: RefObject<HTMLElement | null>, pulsing: boolean) {
+  useLayoutEffect(() => {
+    if (!pulsing) return;
+    for (const a of ref.current?.getAnimations({ subtree: true }) ?? []) if ((a as CSSAnimation).animationName === 'ws-pulse') a.startTime = 0;
+  }, [ref, pulsing]);
 }
 
 /**
@@ -35,11 +34,11 @@ function usePulsePhase(pulsing: boolean): CSSProperties | undefined {
  * stands still. In place of the dot's own fill (`bg-c`).
  */
 const pulse =
-  "relative bg-c-subtle shadow-[0_0_1px_var(--c-subtle)] before:absolute before:-inset-px before:rounded-full before:shadow-[0_0_6px_var(--c)] before:content-[''] before:animate-[ws-pulse_2.4s_ease-in-out_infinite_var(--ws-phase,0s)] after:absolute after:inset-0 after:rounded-full after:bg-c after:content-[''] after:animate-[ws-pulse_2.4s_ease-in-out_infinite_var(--ws-phase,0s)] reduced:border-2 reduced:border-[var(--c)] reduced:bg-transparent reduced:shadow-none reduced:before:hidden reduced:after:animate-none reduced:after:inset-auto reduced:after:top-1/2 reduced:after:left-1/2 reduced:after:size-1 reduced:after:[transform:translate(-50%,-50%)]";
+  "relative bg-c-subtle shadow-[0_0_1px_var(--c-subtle)] before:absolute before:-inset-px before:rounded-full before:shadow-[0_0_6px_var(--c)] before:content-[''] before:animate-[ws-pulse_2.4s_ease-in-out_infinite] after:absolute after:inset-0 after:rounded-full after:bg-c after:content-[''] after:animate-[ws-pulse_2.4s_ease-in-out_infinite] reduced:border-2 reduced:border-[var(--c)] reduced:bg-transparent reduced:shadow-none reduced:before:hidden reduced:after:animate-none reduced:after:inset-auto reduced:after:top-1/2 reduced:after:left-1/2 reduced:after:size-1 reduced:after:[transform:translate(-50%,-50%)]";
 
 /** The pulse of a share of the bar at work: its full fill (`::after`) fades out to its pale fill and back, as a dot's does. */
 const barPulse =
-  "relative bg-c-subtle after:absolute after:inset-0 after:bg-c after:content-[''] after:animate-[ws-pulse_2.4s_ease-in-out_infinite_var(--ws-phase,0s)] reduced:after:animate-none";
+  "relative bg-c-subtle after:absolute after:inset-0 after:bg-c after:content-[''] after:animate-[ws-pulse_2.4s_ease-in-out_infinite] reduced:after:animate-none";
 
 /**
  * A workstation's dot, the same on the pill and in its list: in the colour of its card's state as
@@ -58,9 +57,10 @@ type WorkstationDot = {
 };
 
 export function WorkstationMark({ dot, className }: { dot: WorkstationDot; className?: string }) {
-  const phase = usePulsePhase(!!dot.pulsing);
-  const props = { className: cn('shrink-0', 'size-3', className, dot.className), style: { ...dot.style, ...phase }, 'aria-hidden': true } as const;
-  return dot.paused ? <Pause {...props} size={12} fill="currentColor" strokeWidth={2} /> : <i {...props} />;
+  const ref = useRef<HTMLElement>(null);
+  usePulseSync(ref, !!dot.pulsing);
+  const props = { className: cn('shrink-0', 'size-3', className, dot.className), style: dot.style, 'aria-hidden': true } as const;
+  return dot.paused ? <Pause {...props} size={12} fill="currentColor" strokeWidth={2} /> : <i ref={ref} {...props} />;
 }
 
 export function wsDot(w: PoolWorkstation | undefined, host: PoolHost, items: Item[], underway: Record<string, string>): WorkstationDot {
@@ -271,11 +271,13 @@ const ROWS = { 1: { size: 'size-3', gap: 'gap-1' }, 2: { size: 'size-2.5', gap: 
 
 /** Where each kind of workstation stands in the bar: at work first, free last, so its shares read as a ratio. */
 function BarShare({ dot, n }: { dot: WorkstationDot; n: number }) {
-  const phase = usePulsePhase(!!dot.pulsing);
+  const ref = useRef<HTMLElement>(null);
+  usePulseSync(ref, !!dot.pulsing);
   return (
     <i
+      ref={ref}
       className={cn('block h-full', dot.pulsing && barPulse)}
-      style={{ flexGrow: n, flexBasis: 0, ...(dot.pulsing ? { ...dot.style, ...phase } : dot.fill && ({ '--c': dot.fill, background: dot.fill } as CSSProperties)) }}
+      style={{ flexGrow: n, flexBasis: 0, ...(dot.pulsing ? dot.style : dot.fill && ({ '--c': dot.fill, background: dot.fill } as CSSProperties)) }}
     />
   );
 }
