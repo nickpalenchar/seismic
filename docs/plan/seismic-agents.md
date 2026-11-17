@@ -42,13 +42,12 @@ and `docs/design.md`, and this doc goes.
 - [ ] The Koordinator's sessions in `koordinator.ts`, `merges.ts`, `revisions.ts` and `share.ts` still call
   `readSession` directly; they become jobs with the Koordinator (then `readSession.ts` goes).
 - [x] The code review's agent session is `ReviewerAgent` (`llms/agents/review/reviewerAgent.ts`: role `review`,
-  read-only, the `review` tool, the brief); `CodeReviews` (`llms/skills/codeReview.ts`) stays the service that
+  read-only, the `review` tool, the brief); `CodeReviews` (`workerSupervisor/codeReview.ts`) stays the service that
   decides when it runs and hands in the card's state as the context.
 - [ ] The label helpers (`labelParams`, `labelsFrom`, `labelWords`, in `llms/skills/`) are the Koordinator's
-  and move with it; `CodeReviews` leaves `llms/skills/` for the supervisor's directory.
-- [ ] `codeReview` and `workRetro` split into a service (board state, counters, owner decisions; the
-  pure review-item functions to `core/`) and the agent sessions they start. `codeReview` imports
-  `DueRestart` from `workerSupervisor/workerSupervisor.ts`, the wrong direction.
+  and move with it.
+- [ ] `codeReview` and `workRetro` split further into a service (board state, counters, owner decisions; the
+  pure review-item functions to `core/`) and the agent sessions they start; the sessions are agents already.
 - [ ] Inline prompts (`tagProposal`'s `system()` and `brief()`, `wish`'s `brief()`) into `llms/prompts/`
   (one prompt per file).
 - [ ] `osName` in `wish.ts` duplicates the platform names of `ui/views/setup/setup.tsx`; one helper in

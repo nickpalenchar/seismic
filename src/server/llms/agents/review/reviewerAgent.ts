@@ -1,14 +1,14 @@
 /**
  * The code review agent: a read-only session of the role `review` that reads a card's diff against
  * main and records its verdicts, regressions and new items once, with the `review` tool. The
- * `CodeReviews` service (`llms/skills/codeReview.ts`) decides when it runs and what becomes of what it
+ * `CodeReviews` service (`workerSupervisor/codeReview.ts`) decides when it runs and what becomes of what it
  * records, and hands in the card's state as the context.
  */
 import { z } from 'zod';
 import { type AgentSetting, SEVERITIES } from '../../../../core/types';
 import { clip } from '../../../../core/text';
 import type { AgentTool } from '../../../runtime';
-import type { Given, Recorded } from '../../skills/codeReview';
+import type { Given, Recorded } from '../../../workerSupervisor/codeReview';
 import { reviewResumed } from '../../prompts/reviewResumed';
 import { reviewSystem } from '../../prompts/reviewSystem';
 import { SeismicAgent } from '../seismicAgent';

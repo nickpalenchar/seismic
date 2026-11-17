@@ -44,7 +44,7 @@ import { type DataSignal, isSchemaPage, SIGNALS_NAMED } from '../data-models';
 import { type Forge, parsePrUrl, sameRepo } from '../forge';
 import { clip, messageOf } from '../../core/text';
 import { holdsNotes } from '../../core/queue';
-import { CodeReviews } from '../llms/skills/codeReview';
+import { CodeReviews } from './codeReview';
 import { workerAgent } from '../llms/agents/worker/workerAgent';
 import { restartStillDue, workerContextUpdate } from '../llms/agents/worker/contextUpdate';
 import { type DueRestart, pauseOf, restartNotice, restartWaits } from '../llms/agents/worker/restartNotices';

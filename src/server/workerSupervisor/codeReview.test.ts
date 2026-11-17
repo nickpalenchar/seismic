@@ -8,14 +8,14 @@
 import { describe, expect, test } from 'bun:test';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { generic } from '../../../adapters/generic';
-import type { RepoAdapter } from '../../../adapters/types';
-import { type AgentSetting, type CodeReviewSetting, needsYou, type ReviewItem, type ReviewItemEvent, type ReviewItemStatus, type Severity } from '../../../core/types';
+import { generic } from '../../adapters/generic';
+import type { RepoAdapter } from '../../adapters/types';
+import { type AgentSetting, type CodeReviewSetting, needsYou, type ReviewItem, type ReviewItemEvent, type ReviewItemStatus, type Severity } from '../../core/types';
 import { described, listed, reopenings } from './codeReview';
-import { artifact, type FakeSession, until } from '../../testing';
-import { WorkerSupervisor } from '../../workerSupervisor/workerSupervisor';
-import { git } from '../../workstations';
-import { board, dir, eachTest, main, manual, runtime, setWorkers, spaces, state, workers } from '../../workerSupervisor/fixture';
+import { artifact, type FakeSession, until } from '../testing';
+import { WorkerSupervisor } from './workerSupervisor';
+import { git } from '../workstations';
+import { board, dir, eachTest, main, manual, runtime, setWorkers, spaces, state, workers } from './fixture';
 
 eachTest();
 

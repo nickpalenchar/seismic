@@ -74,7 +74,7 @@ Not necesarilly "layers", but important to keep organized nonetheless
   `settings.ts`, `titles.ts` hold the instances an agent imports, and `registry.ts` lists them all. An agent
   declares its skills once (`getSkills()` → `AgentSpec.skills`) and each harness attaches them its own way
   (`attachedSkills.ts`): Claude loads the plugin, Codex and agy are told the files in the system prompt.
-  Not yet moved out into agents: the code review and the label and title suggestions, with their tests; the old guide readers there (`labelsGuide`, `titlesGuide`) are deprecated
+  Not yet moved out into agents: the label and title suggestions, with their tests; the old guide readers there (`labelsGuide`, `titlesGuide`) are deprecated
   for `SeismicSkill.getInstructions()`.
 - `src/server/llms/agents/` how Seismic defines its agents (see below).
 - `src/server/llms/prompts/` the prompts those skills send, one prompt per file, each file
@@ -100,7 +100,8 @@ Not necesarilly "layers", but important to keep organized nonetheless
   (the wish draft, tag proposals, the work retrospective): a class that extends `SeismicJob`
   (`src/server/llms/agents/seismicJob.ts`: a read-only session of the role `chores` that answers through its tools),
   built per run, with its test. What is still in
-  `src/server/llms/skills/` (code review, label helpers) moves here a part at a time.
+  `src/server/llms/skills/` (label helpers) moves here a part at a time. The code review service
+  (`CodeReviews`) is in `src/server/workerSupervisor/`, beside the supervisor that runs it.
 - `src/server/llms/agents/types.ts` placeholder types for MCPs until they get a class of their own.
 
 ## File header comments
