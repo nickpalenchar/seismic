@@ -15,13 +15,13 @@
  * }
  * ```
  *
- * Not covered yet: trust flags (`untrusted`, `claudeHeld`, `codexConfig`), limit handling, hooks,
- * images, plugin directories. Callers set those on the spec `toSpec` returns.
+ * Session options (where it shows, trust flags, hooks that carry news and ask the owner) come from
+ * `getSessionOptions`.
  */
 import type { AgentRole, AgentSetting } from '../../core/types';
 import type { AgentEvent, AgentRuntime, AgentSession, AgentSpec, AgentTool } from '../runtime';
 import { ownerPermission } from './permission';
-import type { AgentMcp, AgentPermission, AgentSkill } from './types';
+import type { AgentMcp, AgentPermission, AgentSkill, SessionOptions } from './types';
 
 /** What a run needs from its caller. */
 export interface AgentRun {
@@ -29,6 +29,8 @@ export interface AgentRun {
   onEvent: (e: AgentEvent) => void;
   /** Resume this session instead of starting one. */
   resume?: string;
+  /** Files that go with the first message. */
+  images?: string[];
 }
 
 export abstract class SeismicAgent<Ctx = void> {
@@ -52,6 +54,8 @@ export abstract class SeismicAgent<Ctx = void> {
   /** The skills the agent uses; each harness attaches them its own way (`skills/attachedSkills.ts`). */
   getSkills(_ctx: Ctx): AgentSkill[] { return []; }
   getMCPs(_ctx: Ctx): AgentMcp[] { return []; }
+  /** Where the session shows and what it hears of (`SessionOptions`); nothing by default. */
+  getSessionOptions(_ctx: Ctx): SessionOptions { return {}; }
   /** In-process tools, reached by the agent as `mcp__seismic__<name>`. */
   getTools(_ctx: Ctx): AgentTool[] { return []; }
 
@@ -59,6 +63,7 @@ export abstract class SeismicAgent<Ctx = void> {
     const skills = this.getSkills(ctx);
     const permission = this.getPermissionMode(ctx);
     return {
+      ...this.getSessionOptions(ctx),
       cwd: run.cwd,
       system: this.getPrompt(ctx),
       tools: this.getTools(ctx),
@@ -72,6 +77,6 @@ export abstract class SeismicAgent<Ctx = void> {
   }
 
   start(runtime: AgentRuntime, ctx: Ctx, run: AgentRun): AgentSession {
-    return runtime.start(this.toSpec(ctx, run), this.getBriefing(ctx));
+    return runtime.start(this.toSpec(ctx, run), this.getBriefing(ctx), run.images);
   }
 }

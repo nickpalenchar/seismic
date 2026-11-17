@@ -48,6 +48,7 @@ import { type Forge, parsePrUrl, sameRepo } from './forge';
 import { clip, messageOf } from '../core/text';
 import { holdsNotes } from '../core/queue';
 import { CodeReviews } from './llms/skills/codeReview';
+import { seismicWorker } from './agents/worker/seismicWorker';
 
 export interface WorkerOptions {
   board: Board;
@@ -3744,28 +3745,26 @@ export class Workers {
     const review = !!contributionOf(row);
     const notes = review ? this.mainNotes() : '';
     try {
-      live.session = this.o.runtime.start(
+      live.session = seismicWorker.start(
+        this.o.runtime,
         {
-          cwd: row.workstation,
-          role: 'worker',
-          at: { card: cardId },
           setting,
-          ...(dirs.length ? { dirs } : {}),
-          ...(review ? { untrusted: true } : {}),
           system: `${this.system(preferences, !!row.idea?.prototypeOf, this.o.board.item(cardId))}${setting.harness && setting.harness !== 'claude' && !live.host && !review ? `\n\n${live.autoReview ? EXEC_LANE_AUTO_NOTE : EXEC_LANE_NOTE}` : ''}${notes ? `\n\nThe repository's CLAUDE.md, as its default branch has it:\n\n${notes}` : ''}`,
           tools: this.tools(cardId, live, !!row.idea?.prototypeOf),
-          plugins: [SEISMIC_PLUGIN],
-          ...(env ? { env } : {}),
-          contextUpdate: () =>
-            [this.restartStillDue(cardId, live), this.pauseStillDue(live), ...(!reviewOnly ? [this.pageNewsNow(cardId, live), this.unheardNow(cardId, live), this.decisionsUpdate(cardId, live)] : []), this.preferencesUpdate(live)].filter(Boolean).join('\n\n') || undefined,
-          askOwner: (request, signal) => this.askOwner(cardId, live, request, signal),
-          ...(this.folder ? { watch: this.folder.watch(cardId) } : {}),
-          ...(resume ? { resume } : {}),
-          ...(live.autoReview ? { permission: 'auto' as const } : {}),
-          onEvent: (e) => this.onEvent(cardId, live, e),
+          autoReview: !!live.autoReview,
+          message,
+          options: {
+            at: { card: cardId },
+            ...(dirs.length ? { dirs } : {}),
+            ...(review ? { untrusted: true } : {}),
+            ...(env ? { env } : {}),
+            contextUpdate: () =>
+              [this.restartStillDue(cardId, live), this.pauseStillDue(live), ...(!reviewOnly ? [this.pageNewsNow(cardId, live), this.unheardNow(cardId, live), this.decisionsUpdate(cardId, live)] : []), this.preferencesUpdate(live)].filter(Boolean).join('\n\n') || undefined,
+            askOwner: (request, signal) => this.askOwner(cardId, live, request, signal),
+            ...(this.folder ? { watch: this.folder.watch(cardId) } : {}),
+          },
         },
-        message,
-        images,
+        { cwd: row.workstation, onEvent: (e) => this.onEvent(cardId, live, e), ...(resume ? { resume } : {}), images },
       );
     } catch (e) {
       // the agent could not start at all (Codex not installed, say): the card does not stay at work without one

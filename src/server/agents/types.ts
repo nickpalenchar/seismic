@@ -2,6 +2,7 @@
  * Placeholder types for what a `SeismicAgent` returns besides its model. Skills and MCPs get
  * classes of their own later; these only name the slots.
  */
+import type { AgentSpec } from '../runtime';
 import type { SeismicSkill } from './skills/seismicSkill';
 
 /** A skill the agent uses. */
@@ -29,3 +30,10 @@ export interface AgentMcp {
  *   owner's `--permission-mode` never names it.
  */
 export type AgentPermission = 'ask' | 'acceptEdits' | 'auto' | 'dangerouslyBypassPermissions' | 'readOnly';
+
+/**
+ * What an agent's session needs from where and how it runs, beyond what the agent is: where it shows,
+ * what it may touch, the hooks that let it hear of news and ask the owner. Supplied by the caller
+ * (`SeismicAgent.getSessionOptions`). The trust flags and the limit handling go here as agents need them.
+ */
+export type SessionOptions = Pick<AgentSpec, 'at' | 'dirs' | 'untrusted' | 'claudeHeld' | 'codexConfig' | 'env' | 'contextUpdate' | 'askOwner' | 'watch' | 'onLimit'>;

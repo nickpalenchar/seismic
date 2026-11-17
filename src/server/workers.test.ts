@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { skillPlugins } from './agents/skills/attachedSkills';
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { generic } from '../adapters/generic';
@@ -95,7 +96,7 @@ describe('workers', () => {
     expect(runtime.last.inbox[0]).toContain('How to run the app: Start it with `bun run stack`; after an API change, `bun run api:restart`. The URL is in `.stack.env` under WEB_URL.');
     expect(runtime.last.inbox[0]).toContain('Run the app for it as the recipe above says.');
     // a repository without demos gets Seismic's skills all the same: the one that writes its settings among them
-    expect(runtime.last.spec.plugins).toEqual([SEISMIC_PLUGIN]);
+    expect(skillPlugins(runtime.last.spec.skills)).toEqual([SEISMIC_PLUGIN]);
     // the only clone is taken
     const d = manual();
     expect(() => workers.start(d.id)).toThrow(BadRequest);

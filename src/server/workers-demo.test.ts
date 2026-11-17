@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { skillPlugins } from './agents/skills/attachedSkills';
 import { describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -253,7 +254,7 @@ describe('handing over with a demo', () => {
     setup({ ...generic, land: 'main', workstations: 'clones', app: { run: 'bun start' } });
     const c = manual();
     await workers.start(c.id);
-    expect(runtime.last.spec.plugins).toEqual([SEISMIC_PLUGIN]);
+    expect(skillPlugins(runtime.last.spec.skills)).toEqual([SEISMIC_PLUGIN]);
     // a demo's narration finds Seismic, which holds the voice across renders
     expect(runtime.last.spec.env).toEqual({ OBEYA_URL: 'http://127.0.0.1:4417' });
     expect(existsSync(DEMO_SKILL_FILE)).toBe(true);

@@ -1,4 +1,5 @@
 import { expect, test } from 'bun:test';
+import { setOwnerPermission } from './agents/permission';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -137,8 +138,13 @@ test("a Codex worker with Codex's automatic review on starts with it and is told
   expect(spec.tools.find((t) => t.name === 'run')!.description).toContain('escalated permissions');
 });
 
-test("Codex's automatic review leaves a Claude worker as it was", async () => {
-  expect((await autoSpec(AGENT_DEFAULTS.worker)).permission).toBeUndefined();
+test("Codex's automatic review leaves a Claude worker on the owner's permission mode", async () => {
+  setOwnerPermission('acceptEdits');
+  try {
+    expect((await autoSpec(AGENT_DEFAULTS.worker)).permission).toBe('acceptEdits');
+  } finally {
+    setOwnerPermission('auto');
+  }
 });
 
 test('without it, a Codex worker is told the owner is asked', async () => {

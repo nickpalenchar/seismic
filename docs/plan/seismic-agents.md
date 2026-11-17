@@ -45,19 +45,18 @@ and `docs/design.md`, and this doc goes.
 - [ ] `osName` in `wish.ts` duplicates the platform names of `ui/views/setup/setup.tsx`; one helper in
   `core/` (the plugin's copy in `plugin/skills/demo/lib/setup.ts` stays, the plugin is portable).
 
-## Open: the worker as a `SeismicAgent`
+## The worker as a `SeismicAgent`
 
-`launch()` in `workers.ts` builds the worker's spec by hand. To make it a `SeismicAgent`:
+Done: `SeismicWorker` (`agents/worker/seismicWorker.ts`) defines the worker's role, model, skills (all five)
+and permission; `launch()` in `workers.ts` starts it with `seismicWorker.start(...)`. `SeismicAgent` gained
+`getSessionOptions()` (`at`, `dirs`, `untrusted`, `env`, `contextUpdate`, `askOwner`, `watch`) and
+`AgentRun.images`.
 
-- [ ] Hooks on `SeismicAgent` for the spec fields it does not set yet, each defaulting to nothing:
-  `at`, `dirs`, `untrusted` and `claudeHeld` and `codexConfig` (the trust flags), `env`, `contextUpdate`,
-  `askOwner`, `watch`, `autoReview`, `onLimit`, images. (`permissionMode` is not one of them: see below.)
-- [ ] A context type for a run: card id, the card's row, `live` state, the pinned setting.
-- [ ] `SeismicWorker` that gets its `system`, `tools`, `briefing` and `contextUpdate` from `Workers`
-  (through callbacks or by making them public), and `launch()` calling `worker.start(...)`.
-- [ ] `getSkills()` of the worker returns all five skills, replacing `plugins: [SEISMIC_PLUGIN]`.
-- [ ] Move the prompt and tool code out of `workers.ts` into `agents/worker/` (this is workstream W4 of
-  `docs/plan/server-layers.md`).
+- [ ] The worker's system prompt, tools and context updates are still made by `Workers` and passed in as the
+  `WorkerContext`. They move into `agents/worker/` (this is workstream W4 of `docs/plan/server-layers.md`):
+  `system()`, `tools()`, `briefing()`, `contextUpdate`'s parts.
+- [ ] The trust flags `claudeHeld` and `codexConfig`, `onLimit` and `permissionMode`-like extras of the other
+  agents go through `getSessionOptions()` as each agent moves.
 - [ ] The same for the other agents (`review`, `koordinator`, `explorer`, `chores`) after the worker.
 
 ## Permission mode
