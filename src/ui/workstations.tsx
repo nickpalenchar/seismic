@@ -4,7 +4,7 @@
 
 import { Ellipsis, Pause } from 'lucide-react';
 import type { CSSProperties } from 'react';
-import { type RefObject, useLayoutEffect, useRef, useState } from 'react';
+import { type AnimationEvent, useState } from 'react';
 import { type BlockedClone, type ClonePool, inParkingLot, type Item, type PoolHost, type PoolWorkstation, type ProjectInfo, snoozeOf, stopped } from '../core/types';
 import { plain } from './markdown';
 import { CardFace, cardTone, stateVars } from './card';
@@ -16,16 +16,14 @@ import { Tooltip } from './components/tooltip';
 /** The colours of a card's state that pulse on its workstation's dot: at work, in review, landing. */
 const PULSING = new Set(['working', 'reviewing', 'approved']);
 /**
- * Puts the pulse animations of an element (its `::before` and `::after`) on the document timeline's origin once the
- * element is committed, so every pulsing dot and bar share, however late each one mounted, is on and off together.
- * The start time is set on the running animation, after the commit that started it, so no render has to guess when
- * that will be, and a re-render changes nothing.
+ * Puts the pulse animations of an element (its `::before` and `::after`) on the document timeline's origin when they
+ * start, so every pulsing dot and bar share, however late each one mounted, is on and off together. Hooked to
+ * `animationstart`, which fires whenever the browser starts them, not only at the commit that mounted the element:
+ * also when reduced motion is turned off again, or a class change brings the pulse back.
  */
-function usePulseSync(ref: RefObject<HTMLElement | null>, pulsing: boolean) {
-  useLayoutEffect(() => {
-    if (!pulsing) return;
-    for (const a of ref.current?.getAnimations({ subtree: true }) ?? []) if ((a as CSSAnimation).animationName === 'ws-pulse') a.startTime = 0;
-  }, [ref, pulsing]);
+function alignPulse(e: AnimationEvent<HTMLElement>) {
+  if (e.animationName !== 'ws-pulse') return;
+  for (const a of e.currentTarget.getAnimations({ subtree: true })) if ((a as CSSAnimation).animationName === 'ws-pulse') a.startTime = 0;
 }
 
 /**
@@ -57,10 +55,8 @@ type WorkstationDot = {
 };
 
 export function WorkstationMark({ dot, className }: { dot: WorkstationDot; className?: string }) {
-  const ref = useRef<HTMLElement>(null);
-  usePulseSync(ref, !!dot.pulsing);
   const props = { className: cn('shrink-0', 'size-3', className, dot.className), style: dot.style, 'aria-hidden': true } as const;
-  return dot.paused ? <Pause {...props} size={12} fill="currentColor" strokeWidth={2} /> : <i ref={ref} {...props} />;
+  return dot.paused ? <Pause {...props} size={12} fill="currentColor" strokeWidth={2} /> : <i onAnimationStart={alignPulse} {...props} />;
 }
 
 export function wsDot(w: PoolWorkstation | undefined, host: PoolHost, items: Item[], underway: Record<string, string>): WorkstationDot {
@@ -271,11 +267,9 @@ const ROWS = { 1: { size: 'size-3', gap: 'gap-1' }, 2: { size: 'size-2.5', gap: 
 
 /** Where each kind of workstation stands in the bar: at work first, free last, so its shares read as a ratio. */
 function BarShare({ dot, n }: { dot: WorkstationDot; n: number }) {
-  const ref = useRef<HTMLElement>(null);
-  usePulseSync(ref, !!dot.pulsing);
   return (
     <i
-      ref={ref}
+      onAnimationStart={alignPulse}
       className={cn('block h-full', dot.pulsing && barPulse)}
       style={{ flexGrow: n, flexBasis: 0, ...(dot.pulsing ? dot.style : dot.fill && ({ '--c': dot.fill, background: dot.fill } as CSSProperties)) }}
     />
