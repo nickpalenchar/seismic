@@ -21,6 +21,7 @@ import { keepConfigDraft, keptConfigDraft } from './configDraft';
 import { keep } from './keep';
 import { plain } from './markdown';
 import { demoState, GitSetup, platformName, RecognitionDetail, Setup, SetupList, useFolderWithoutGit, useWorkerSetting, voiceState } from './views/setup';
+import { Spinner } from './components/spinner';
 import { idClass, installClass, installHintClass, jsonClass, pathClass, problemClass, removeClass, rowClass, statusClass, trustClass, trustGroupClass } from './setupClasses';
 import { useFitHeight } from './fitHeight';
 import { useCopy } from './copy';
@@ -3406,7 +3407,7 @@ const CodeDiff = lazy(() => import('./diff-code'));
  * with what it does and its lines as last trusted against those on the main branch now, and the
  * button that trusts them; the dialog checks again after it.
  */
-export function TrustCommands({ path, trust, onDone }: { path: string; trust: RepoTrust; onDone: () => void }) {
+export function TrustCommands({ path, trust, onDone }: { path: string; trust: RepoTrust; onDone: () => void | Promise<unknown> }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const c = t.config.trust;
@@ -3415,7 +3416,7 @@ export function TrustCommands({ path, trust, onDone }: { path: string; trust: Re
     setError('');
     try {
       await api.trustCommands(path, trust);
-      onDone();
+      await onDone();
     } catch (e) {
       setError(failText(e));
     } finally {
@@ -3434,7 +3435,8 @@ export function TrustCommands({ path, trust, onDone }: { path: string; trust: Re
         </div>
       ))}
       <Button size="small" disabled={busy} onClick={go}>
-        {c.trust}
+        {busy && <Spinner className="size-3" />}
+        {busy ? c.trusting : c.trust}
       </Button>
       {error && <p className="p-error">{error}</p>}
     </div>

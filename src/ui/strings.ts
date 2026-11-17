@@ -1603,6 +1603,7 @@ const en = {
       claude: 'The repository’s Claude Code configuration (.claude/, .mcp.json): agents run its hooks and MCP servers without asking. Until then they work without it.',
       codex: 'The repository’s Codex configuration (.codex/): Codex workers load its settings, hooks, MCP servers and rules, and run them outside their sandbox. Until then, and in a workstation where it differs, they work without it.',
       trust: 'Trust these commands',
+      trusting: 'Adding changes…',
       blankOnly: (files: string) => `In ${files} only space at the start or end changed, which the view does not show. It can decide whether a hook runs.`,
     },
     adapterSetupHint:
