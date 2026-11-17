@@ -1157,7 +1157,10 @@ export class Koordinator {
   private duplicateCandidates(card: Item): Item[] {
     // the project switched merge suggestions off: nothing to check against, so no duplicate is recorded
     if (!this.suggestsMerges()) return [];
-    const previous = this.o.board.row(card.id).scope;
+    // a card that has begun work (a branch) is started again to go on with it, never merged into another
+    const row = this.o.board.row(card.id);
+    if (row.branch) return [];
+    const previous = row.scope;
     if (previous) {
       try {
         const checked = (JSON.parse(previous) as { duplicateCheck?: { title: string; body: string } }).duplicateCheck;

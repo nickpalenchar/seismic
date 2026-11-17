@@ -82,6 +82,17 @@ async function schedule(entries: [string, string[], string[], string[], string][
 }
 
 describe('Koordinator', () => {
+  test('a stopped card that has begun work is started again without a duplicate check', async () => {
+    merges = true;
+    card('Export invoices to CSV');
+    const later = card('Add CSV export for invoices');
+    board.work(later.id, { branch: 'seismic/add-csv-export' });
+    k.request(later.id);
+    await settle();
+    expect(item(later.id).state).toBe('working');
+    expect(item(later.id).possibleDuplicates).toBeUndefined();
+  });
+
   test('with “Suggest card merges” off a starting card is not checked for duplicates and records none', async () => {
     merges = false;
     card('Export invoices to CSV');
