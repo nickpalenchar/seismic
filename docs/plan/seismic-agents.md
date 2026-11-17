@@ -41,8 +41,11 @@ and `docs/design.md`, and this doc goes.
   timeout and usage-limit hook. A job is built per run, so its tools keep their state in fields.
 - [ ] The Koordinator's sessions in `koordinator.ts`, `merges.ts`, `revisions.ts` and `share.ts` still call
   `readSession` directly; they become jobs with the Koordinator (then `readSession.ts` goes).
-- [ ] `codeReview` and the label helpers (`labelParams`, `labelsFrom`, `labelWords`, in `llms/skills/`) move to
-  `llms/agents/agentJobs/` too.
+- [x] The code review's agent session is `SeismicReviewer` (`llms/agents/review/seismicReviewer.ts`: role `review`,
+  read-only, the `review` tool, the brief); `CodeReviews` (`llms/skills/codeReview.ts`) stays the service that
+  decides when it runs and hands in the card's state as the context.
+- [ ] The label helpers (`labelParams`, `labelsFrom`, `labelWords`, in `llms/skills/`) are the Koordinator's
+  and move with it; `CodeReviews` leaves `llms/skills/` for the supervisor's directory.
 - [ ] `codeReview` and `workRetro` split into a service (board state, counters, owner decisions; the
   pure review-item functions to `core/`) and the agent sessions they start. `codeReview` imports
   `DueRestart` from `workerSupervisor/workerSupervisor.ts`, the wrong direction.

@@ -9,9 +9,8 @@
  * follow-up task", or ignores it, with the card's one Send, as on a review card.
  */
 
-import { z } from 'zod';
 import { BadRequest, type Board, codeReviewOf, type StoredCodeReview } from '../../board';
-import { type AgentRuntime, type AgentSession, type AgentTool, waitQuietly } from '../../runtime';
+import { type AgentRuntime, type AgentSession } from '../../runtime';
 import { gitAsync } from '../../workstations';
 import type { CardWorkstations } from '../../workstations';
 import { harnessChoice, type AgentSetting, type AgentIdentity, type ChangeRoute, type CodeReviewMode, needsOwner, type ReviewItem, type ReviewItemStatus, type ReviewItemWho, type Severity, SEVERITIES } from '../../../core/types';
@@ -19,8 +18,7 @@ import { LANGUAGE_NAMES } from '../../../core/locale';
 import { clip, messageOf } from '../../../core/text';
 import type { DueRestart } from '../agents/worker/restartNotices';
 import { restartNotice } from '../prompts/restartNotice';
-import { reviewResumed } from '../prompts/reviewResumed';
-import { reviewSystem } from '../prompts/reviewSystem';
+import { seismicReviewer } from '../agents/review/seismicReviewer';
 
 /** How much of the diff the review agent gets in its brief; it reads the files themselves beyond that. */
 const DIFF_LIMIT = 150_000;
@@ -423,34 +421,6 @@ export class CodeReviews {
     let recorded: Recorded | undefined;
     let ended = false;
     const patch = diff?.patch && diff.patch.length > DIFF_LIMIT ? `${diff.patch.slice(0, DIFF_LIMIT)}\n… (cut off here: read the rest of the changed files yourself)` : diff?.patch;
-    const tools: AgentTool[] = [
-      {
-        name: 'review',
-        description: `Record your review, once, at the end. verdicts: one for each item your brief lists as under review (the worker says it fixed it): fixed true where the diff and the code now fix it, else false with why (the original problem of the item that is still there), which reopens it for the owner; a different flaw the fix introduced is a new item, not a reason for false. regressions: the items marked fixed whose problem the diff shows again, each with why. items: the new items you found that the list does not hold yet (an empty list where there is none; at most ${MAX_NEW_ITEMS}, so keep the most important and merge or leave out the least), most severe first, each: title (short) and text (a sentence or two) in ${language}, saying what is wrong and why it matters; severity (blocker: crashes the app or exposes a very important secret or unprotected database; critical: a clear exploit, severe degradation or other major consequence; major: a real defect or clear departure from the repository's rules and design docs; minor: worth fixing but not a reason to hold the work; low: a small issue with limited impact; info: a nitpick or something to flag that may or may not be a problem), file and line where it is, security where it is about security, and with: the numbers of the other items one agent would sensibly fix in one go with it (the same cause, the same files), else none. The new items are numbered from ${nextNumber(items)} in the order you give them, which is how with names them.`,
-        schema: {
-          verdicts: z.array(z.object({ number: z.number().int(), fixed: z.boolean(), why: z.string().optional() })),
-          regressions: z.array(z.object({ number: z.number().int(), why: z.string() })),
-          items: z.array(
-            z.object({
-              title: z.string(),
-              text: z.string(),
-              severity: z.enum(SEVERITIES),
-              file: z.string().optional(),
-              line: z.number().int().positive().optional(),
-              security: z.boolean().optional(),
-              with: z.array(z.number().int()).optional(),
-            }),
-          ),
-        },
-        run: (args) => {
-          const given = { verdicts: (args.verdicts ?? []) as Recorded['verdicts'], regressions: (args.regressions ?? []) as Recorded['regressions'], items: (args.items ?? []) as Given[] };
-          const wrong = checkRecorded(this.items(cardId), scope, given);
-          if (wrong) return `Not recorded: ${wrong} Call review again with the whole review.`;
-          recorded = given;
-          return 'Recorded. End your turn now.';
-        },
-      },
-    ];
     let session: AgentSession | undefined;
     const end = (error?: string) => {
       if (ended) return;
@@ -470,16 +440,30 @@ export class CodeReviews {
       if (!recorded && !error && r?.run === run && r.told) return this.pause(cardId, run);
       this.finish(cardId, run, recorded, error);
     };
-    session = this.o.runtime.start(
+    session = seismicReviewer.start(
+      this.o.runtime,
+      {
+        setting,
+        language,
+        preferences: b.preferencesText(),
+        resumed: !!resume,
+        ...(card ? { card: { title: card.title, body: card.body } } : {}),
+        summary: handoverSummary,
+        files: diff?.files ?? [],
+        truncated: !!diff?.truncated,
+        patch,
+        itemsText: listed(items),
+        maxNewItems: MAX_NEW_ITEMS,
+        nextNumber: nextNumber(items),
+        record: (given) => {
+          const wrong = checkRecorded(this.items(cardId), scope, given);
+          if (wrong) return wrong;
+          recorded = given;
+        },
+      },
       {
         cwd: ws,
         ...(resume ? { resume } : {}),
-        permission: 'readOnly',
-        role: 'review',
-        ...(setting ? { setting } : {}),
-        system: [reviewSystem(language), b.preferencesText()].filter(Boolean).join('\n\n'),
-        tools,
-        onLimit: waitQuietly,
         onEvent: (e) => {
           if (e.type === 'session' && this.running.get(cardId)?.run === run) {
             const c = codeReviewOf(b.row(cardId));
@@ -492,17 +476,6 @@ export class CodeReviews {
           else if (e.type === 'error') end(e.message);
         },
       },
-      resume ? reviewResumed : [
-        // the stable parts first (the task does not change between review rounds), the ones that change each round last
-        `<card-title>${card?.title ?? ''}</card-title>`,
-        card?.body ? `<task>\n${clip(card.body, 8000)}\n</task>` : '',
-        handoverSummary ? `<handover-summary>\n${clip(handoverSummary, 8000)}\n</handover-summary>` : '',
-        `<changed-files>\n${diff!.files.map((f) => `- ${f.file} (${f.status}, +${f.added} −${f.removed})`).join('\n')}\n</changed-files>`,
-        `<diff against="main"${diff!.truncated ? ' truncated="true"' : ''}>\n${patch}\n</diff>`,
-        `<review-items>\n${listed(items)}\n</review-items>`,
-      ]
-        .filter(Boolean)
-        .join('\n\n'),
     );
     if (ended) return session.close();
     if (this.running.get(cardId)?.run !== run) return session.close();
@@ -626,8 +599,8 @@ export class CodeReviews {
   }
 }
 
-type Given = { title: string; text: string; severity: Severity; file?: string; line?: number; security?: boolean; with?: number[] };
-type Recorded = { verdicts: { number: number; fixed: boolean; why?: string }[]; regressions: { number: number; why: string }[]; items: Given[] };
+export type Given = { title: string; text: string; severity: Severity; file?: string; line?: number; security?: boolean; with?: number[] };
+export type Recorded = { verdicts: { number: number; fixed: boolean; why?: string }[]; regressions: { number: number; why: string }[]; items: Given[] };
 
 const now = () => new Date().toISOString();
 
