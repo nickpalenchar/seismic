@@ -1,7 +1,7 @@
 // The page's address: `/p/<project>` shows a project, `/p/<project>/c/<code>` a card open on it,
 // the code being the card's short code or its whole id, `/p/<project>/feedback` the Agent Feedback
 // Log, a page of its own opened from that project. What else the page shows (the phone view,
-// the conversation open on the phone) stays in the query.
+// the conversation open on the phone, the view over the canvas as `?view=table`) stays in the query.
 import { projectAt, projectSegment } from '../core/project-slug';
 import type { Item } from '../core/types';
 
@@ -83,6 +83,25 @@ export const cardPath = (project: string, card: Pick<Item, 'id' | 'short'> | str
 /** The card an address names among `items`, by its code or its id. */
 export const named = <T extends Pick<Item, 'id' | 'short'>>(items: T[], code: string): T | undefined =>
   items.find((i) => i.id === code) ?? items.find((i) => i.short === code.toLowerCase());
+
+/** The views over the canvas the address names (`?view=`); the canvas itself is the address without one. */
+export const VIEWS = ['table'] as const;
+export type AddressView = (typeof VIEWS)[number];
+
+/** The view the query names; `unknown` where it names one that does not exist, which the page drops from the address. */
+export function readView(search: string): { view?: AddressView; unknown?: true } {
+  const v = new URLSearchParams(search).get('view');
+  if (v === null) return {};
+  return (VIEWS as readonly string[]).includes(v) ? { view: v as AddressView } : { unknown: true };
+}
+
+/** The query with `view` naming the view shown, or without it for the canvas; the rest stays as it was. */
+export function withView(search: string, view: AddressView | undefined): string {
+  if (!view) return new URLSearchParams(search).has('view') ? queryWithout(search, 'view') : search;
+  if (new URLSearchParams(search).get('view') === view) return search;
+  const rest = queryWithout(search, 'view');
+  return `${rest || '?'}${rest ? '&' : ''}view=${view}`;
+}
 
 /** The query without what the path says now, with flags (`?talk`) kept as bare names. */
 export function queryWithout(search: string, ...names: string[]): string {

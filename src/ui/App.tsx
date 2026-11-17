@@ -44,6 +44,7 @@ import { ConfirmDialog } from './components/dialog';
 import { forcedText } from './queue';
 import { queueOrder } from '../core/queue';
 import { AgentsSheet } from './agents';
+import { TableView } from './table/view';
 import { ParkedView, QueueView, type SwitchedView, ViewSwitcher } from './views';
 import { depsOf, handleAt, manualPrerequisites, nearestHandle, settledAmong, type Side, SIDES, waitsAmong, withoutImplied } from './deps';
 import { anchoredPath, nearestEdge } from './manualLinks';
@@ -66,7 +67,7 @@ import { cardHooks, shownState, stateVars } from './card';
 import { CardView, DepLinks, depHead, depWidth, linkPath, linkSpot, Edges, Links, Minimap, minimapArea, OldBunPill, PlanView, RestartPill, Sheet, SourcePill, TalkIcon, UpdatePill, WorkstationsPill } from './parts';
 import { clock, failText, t } from './strings';
 import { loadNavHidden, loadNavWidth, loadPinned, MenuButton, NAV_PROJECT_MIN, NavPill, NavSheet, saveNavHidden, saveNavWidth, savePinned } from './nav';
-import { projectPath, cardPath, feedbackLogPath, followedPath, goTo, named, knowProjects, projectNamed, queryWithout, readAddress } from './address';
+import { projectPath, cardPath, feedbackLogPath, followedPath, goTo, named, knowProjects, projectNamed, queryWithout, readAddress, readView, withView } from './address';
 import { type QuickReply, sendReply } from './quickReply';
 import { InboxView, inboxListWidth } from './inbox';
 import { NeedsYouSheet } from './needsYou';
@@ -546,8 +547,9 @@ function Project({
   const [csOn, setCsOn, csOnRef] = dock.view('settings');
   // the agents, a docked sheet like the inbox, from the robot in the bar: the queue and the cards at work (agents.tsx)
   const [agentsOn, setAgentsOn, agentsOnRef] = dock.view('agents');
-  // the inbox is a full-page view too, from the left menu; it stays open across projects (per tab) until closed
-  const fullPage = useFullPage<'inbox' | 'archive' | 'parked' | 'queue'>(() => (inboxKept(sessionStorage) ? 'inbox' : null));
+  // the inbox is a full-page view too, from the left menu; it stays open across projects (per tab) until closed;
+  // the Table view is named in the address (`?view=table`), so a link or a reload comes back to it
+  const fullPage = useFullPage<'inbox' | 'archive' | 'parked' | 'queue' | 'table'>(() => (readView(location.search).view === 'table' ? 'table' : inboxKept(sessionStorage) ? 'inbox' : null));
   const [aOn, setArchiveOn, aOnRef] = useLive(false);
   // the archive is a full-page view of the main area: open, it is the view shown
   const setAOn = (on: boolean) => { setArchiveOn(on); if (on) fullPage.show('archive'); else if (fullPage.ref.current === 'archive') fullPage.show(null); };
@@ -560,8 +562,8 @@ function Project({
     } else if (fullPage.ref.current === 'inbox') fullPage.show(null);
   };
   useEffect(() => keepInbox(sessionStorage, inboxOn), [inboxOn]);
-  /** Parked and Queue, full-page views from the switcher and the menu; null goes back to the canvas. The camera stays where it was, an open card open. */
-  const showPage = (id: 'parked' | 'queue' | null) => {
+  /** Parked, Queue and Table, full-page views from the switcher and the menu; null goes back to the canvas. The camera stays where it was, an open card open. */
+  const showPage = (id: 'parked' | 'queue' | 'table' | null) => {
     setArchiveOn(false);
     if (id || fullPage.ref.current) fullPage.show(id);
   };
@@ -653,11 +655,12 @@ function Project({
   const sheetEls = useRef(new Map<string, HTMLElement>()).current;
   // entries of the inbox's view and of "Needs you", where a card opened from them unfolds from
   const inboxEls = useRef(new Map<string, HTMLElement>()).current;
-  // entries of the Parked view, likewise
+  // entries of the Parked view, likewise, and rows of the Table view
   const parkedEls = useRef(new Map<string, HTMLElement>()).current;
-  /** The element a card unfolds from and folds back to: its entry in the inbox's or the Parked view while that shows, on the project, or a row in the sheet it was opened from. */
+  const tableEls = useRef(new Map<string, HTMLElement>()).current;
+  /** The element a card unfolds from and folds back to: its entry in the inbox's, the Parked or the Table view while that shows, on the project, or a row in the sheet it was opened from. */
   const fromEl = (id: string, inPlan: boolean) =>
-    (fullPage.ref.current === 'inbox' ? inboxEls.get(id) : fullPage.ref.current === 'parked' ? parkedEls.get(id) : undefined) ??
+    ({ inbox: inboxEls, parked: parkedEls, table: tableEls } as Partial<Record<string, Map<string, HTMLElement>>>)[fullPage.ref.current ?? '']?.get(id) ??
     els.get(id) ?? (inPlan ? (sheetEls.get(id) ?? archiveEls.get(id)) : (archiveEls.get(id) ?? sheetEls.get(id)));
   // an archived card opened from a plan's sheet, which the archive list may not hold
   const [opened, setOpened] = useState<Item | null>(null);
@@ -947,7 +950,8 @@ function Project({
     setReading(r);
     setSheetOn(true);
     setAOn(false);
-    if (inView) await flyOrJump(camFor(bounds(p), sideNow()), 700, quick);
+    // a full-page view hides the project: the camera stays
+    if (inView && !fullPage.ref.current) await flyOrJump(camFor(bounds(p), sideNow()), 700, quick);
   }
 
   /** Closes the open plan; `toArchive`: back to the archive an archived one was opened from. */
@@ -1123,8 +1127,18 @@ function Project({
     const f = focusRef.current;
     return f ? itemOrArchived(f.id) : undefined;
   };
-  // the hash names the canvas shown, which a card opened there is on too
-  const pathOf = (i: Item | undefined) => `${i ? cardPath(snapshot.project.id, i) : projectPath(snapshot.project.id)}${location.search}${location.hash}`;
+  // the hash names the canvas shown, which a card opened there is on too; the query the view over it
+  const searchNow = () => withView(location.search, fullPage.ref.current === 'table' ? 'table' : undefined);
+  const pathOf = (i: Item | undefined) => `${i ? cardPath(snapshot.project.id, i) : projectPath(snapshot.project.id)}${searchNow()}${location.hash}`;
+  /** The address names the view shown, in place: switching views is no step in the history, as switching canvases is not. */
+  const addressView = () => {
+    const s = searchNow();
+    if (s !== location.search) history.replaceState(history.state, '', `${location.pathname}${s}${location.hash}`);
+  };
+  // an unknown `view=` is dropped as the page comes, the one shown named whenever it changes
+  useEffect(() => {
+    if (!gone.current) addressView();
+  }, [fullPage.active]);
   /** `i` opens over `under` (the plan it is opened from, else the project). */
   function addressOpens(i: Item, under: Item | undefined) {
     if (addressSet.current) return;
@@ -1143,8 +1157,9 @@ function Project({
       return new Promise<void>((done) => {
         stepBack.current = () => {
           // the step before may name what is no longer open (a card opened over its plan, then reloaded without it)
+          // or another view than the one shown now (the owner switched views while the card was open)
           const at = readAddress().card;
-          if (at && !(under && named([under], at))) history.replaceState(history.state, '', pathOf(under));
+          if ((at && !(under && named([under], at))) || location.search !== searchNow()) history.replaceState(history.state, '', pathOf(under));
           done();
         };
         history.back();
@@ -1213,7 +1228,7 @@ function Project({
       const done = stepBack.current;
       stepBack.current = null;
       if (done) done();
-      else address(() => follow.current());
+      else address(() => follow.current().then(addressView));
     };
     addEventListener('popstate', pop);
     return () => removeEventListener('popstate', pop);
@@ -2359,8 +2374,8 @@ function Project({
       // so does the quote of a message the owner was replying to: in the field with the cursor, the open card's, the sidebar's
       const quoting = [focusedDraft(), f?.type === 'card' || f?.type === 'plan' ? cardDraft(f.id) : null, kOnRef.current ? SEISMIC_DRAFT : null].find((k) => k && fieldOn(k) && replyOn(k));
       if (quoting) return setReply(quoting, null);
-      // the archive's list closes after a card unfolded from it
-      if (f?.type !== 'card' && fullPage.ref.current) {
+      // the archive's list closes after a card unfolded from it, a full-page view after a plan opened over it
+      if (!f && fullPage.ref.current) {
         if (fullPage.ref.current === 'archive') setAOn(false);
         else if (fullPage.ref.current === 'inbox') setInboxOn(false);
         else fullPage.show(null);
@@ -2458,11 +2473,11 @@ function Project({
   // another parent, so opening and closing the sidebar only changes its colour; in the bar a hidden
   // copy keeps its room
   // the switcher at the bottom centre, where the microphone was: Canvas, Parked and Table still to come
-  const switched: SwitchedView | null = fullPage.active === 'parked' ? 'parked' : fullPage.active ? null : 'canvas';
+  const switched: SwitchedView | null = fullPage.active === 'parked' || fullPage.active === 'table' ? fullPage.active : fullPage.active ? null : 'canvas';
   const switchTo = (v: SwitchedView) => {
     if (focusRef.current?.type === 'plan') closePlan();
     setInboxOn(false);
-    showPage(v === 'parked' ? 'parked' : null);
+    showPage(v === 'canvas' ? null : v);
   };
   const talkButton = (
     <Tooltip content={t.koordinator.buttonTitle}>
@@ -2771,6 +2786,7 @@ function Project({
           onProposalConfig={(project, repo, setting) => { showRepoClones({ project, repo, field: 'settings', setting }); setCOn(true); }} />
         <ArchiveView on={aOn} onClose={() => setAOn(false)} held={focus?.type === 'card'} archived={archived} done={doneCount} onOpen={open} onArchiveDone={() => archiveDone().catch(console.error)} els={archiveEls} />
         <ParkedView on={fullPage.active === 'parked'} items={items} open={openCardId} underway={(id) => !!underway[id]} onOpen={(i) => void openFresh(i)} onClose={() => showPage(null)} els={parkedEls} />
+        <TableView on={fullPage.active === 'table'} project={snapshot.project.id} items={items} canvases={canvases} groups={snapshot.groups} repos={snapshot.project.repos} open={openCardId ?? (focus?.type === 'plan' ? focus.id : undefined)} onOpen={(i) => void openFresh(i)} onClose={() => showPage(null)} els={tableEls} />
         <QueueView on={fullPage.active === 'queue'} items={items} onOpen={(i) => void openFresh(i)} onClose={() => showPage(null)} />
         {/* the status bar along the bottom: the connection (or the restart that waits), whom the microphone speaks to, the workstation pool and the usage limits */}
         <footer

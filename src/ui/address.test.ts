@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { followedPath, knowProjects, projectNamed, projectPath, cardPath, feedbackLogPath, named, queryWithout, readAddress, upgradeAddress } from './address';
+import { followedPath, knowProjects, projectNamed, projectPath, cardPath, feedbackLogPath, named, queryWithout, readAddress, readView, upgradeAddress, withView } from './address';
 
 const at = (url: string) => new URL(url, 'http://seismic');
 
@@ -157,4 +157,24 @@ test('a name without letters or digits has no slug, so the id addresses the proj
   expect(projectNamed(list, '.')).toBeUndefined();
   expect(projectNamed(list, '..')).toBeUndefined();
   knowProjects([]);
+});
+
+test('the query names the view over the canvas; none or an unknown one is the canvas', () => {
+  expect(readView('?view=table')).toEqual({ view: 'table' });
+  expect(readView('?talk&view=table')).toEqual({ view: 'table' });
+  expect(readView('')).toEqual({});
+  expect(readView('?talk')).toEqual({});
+  expect(readView('?view=gantt')).toEqual({ unknown: true });
+  expect(readView('?view=')).toEqual({ unknown: true });
+});
+
+test('switching views sets or drops `view` and keeps the rest of the query', () => {
+  expect(withView('', 'table')).toBe('?view=table');
+  expect(withView('?talk', 'table')).toBe('?talk&view=table');
+  expect(withView('?view=table', 'table')).toBe('?view=table');
+  expect(withView('?view=gantt&talk', 'table')).toBe('?talk&view=table');
+  expect(withView('?view=table', undefined)).toBe('');
+  expect(withView('?talk&view=table', undefined)).toBe('?talk');
+  expect(withView('?view=gantt', undefined)).toBe('');
+  expect(withView('?talk', undefined)).toBe('?talk');
 });

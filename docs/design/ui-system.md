@@ -13,8 +13,8 @@ When a screen needs a control, take the first of these that does the job:
    `components.json`) into `src/ui/components/`. Once copied it is ours: edit it freely, with
    frost's needs written into it rather than patched over from outside.
 2. **A proven library already in use**: AI Elements for conversations (`components/ai/`), cmdk for
-   command lists, Lucide for every icon, Shiki for code, sonner for toasts, Radix Primitives under
-   the shadcn parts. A new dependency only where none of these covers the need.
+   command lists, Lucide for every icon, Shiki for code, sonner for toasts, TanStack Table under
+   data tables, Radix Primitives under the shadcn parts. A new dependency only where none of these covers the need.
 3. **Tailwind and cva next to the component**, on the tokens of `tailwind.css` (`bg-primary`,
    `text-muted-foreground`, `bg-waiting-subtle`): no one-off pixel values or colours, no inline
    `style={{}}` for looks. A tint over glass is Tailwind's opacity (`bg-waiting/10`), never a
@@ -115,6 +115,15 @@ same style. UI text comes from `src/ui/strings.ts`, never a literal.
   they work, clones, slots, hosts) waits for an inline "Save and restart agents". Rejected: one long
   scroll, and the Configuration dialog's draft with a Save button. Configuration's project page
   still shows the same fields until they are taken out of it.
+- **Data tables are shadcn's Table part on @tanstack/react-table (v8)** (2026-11-17), as shadcn's
+  data-table pattern builds them: the library holds the column model, header sort toggles and
+  column visibility; the rows' order and filters are plain functions of ours (`table/rows.ts`,
+  `manualSorting`), so that enumerations sort by their own order and stay unit-tested. Rejected: a
+  hand-built table, and TanStack's own sorting and filtering (alphabetical enumerations, empty
+  values not last in both directions).
+- **The view over the canvas is in the address as `?view=`** (2026-11-17), only `table` so far:
+  switching replaces the address rather than adding a history step, as switching canvases does;
+  a card's address keeps it, and an unknown value is dropped in place. Parked may join it later.
 - **Phone settings and Needs you share one history step**: switching between them replaces that
   step; closing returns to the project. Pages covering the project make its controls inert.
 - **Clone values parked while choosing worktrees belong to the repository draft**, rather than

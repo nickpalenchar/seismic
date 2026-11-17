@@ -8,11 +8,13 @@
 // to use the caller's), `MenuContent` the panel (a class of the caller's sets its size, padding and
 // corners), `MenuItem` an action (a button; `asChild` for a link or a chip, which then wears the
 // caller's look), `MenuRadioGroup` and `MenuRadioItem` a choice with the current one marked,
+// `MenuCheckboxItem` an option of several that are on or off together (the Table view's columns),
 // `MenuLabel` a heading. The left menu renders the same entries docked as a sidebar, outside any
 // menu: `nav.tsx` decides by context whether an entry is a `MenuItem` or a plain button.
 
 import { cn } from 'cn';
 import { DropdownMenu } from 'radix-ui';
+import { Check } from 'lucide-react';
 import { type ComponentProps, type ReactNode, useEffect, useRef } from 'react';
 import { uiPortal } from './ui';
 
@@ -99,6 +101,19 @@ export function MenuRadioItem({ className, children, ...props }: ComponentProps<
         {children as ReactNode}
       </button>
     </DropdownMenu.RadioItem>
+  );
+}
+
+export function MenuCheckboxItem({ className, children, ...props }: ComponentProps<typeof DropdownMenu.CheckboxItem>) {
+  return (
+    <DropdownMenu.CheckboxItem data-slot="dropdown-menu-checkbox-item" asChild {...props}>
+      <button type="button" className={cn(item, 'gap-2 pl-7 relative', className)}>
+        <DropdownMenu.ItemIndicator className="absolute left-2 inline-flex">
+          <Check size={14} strokeWidth={2.5} aria-hidden />
+        </DropdownMenu.ItemIndicator>
+        {children as ReactNode}
+      </button>
+    </DropdownMenu.CheckboxItem>
   );
 }
 

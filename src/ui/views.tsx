@@ -1,8 +1,8 @@
 // The project's full-page views besides the canvas (src/ui/fullPage.tsx), and the switcher at the
 // bottom centre that moves between them. Parked lists the cards in the parking lot; Queue the tasks
 // waiting for an agent in turn, dragged to their place as in Agent work; a card opened from either
-// unfolds over the view and folds back into its entry. The switcher holds Canvas, Parked and the
-// Table view still to come; switching keeps the canvas's camera, and an open card stays open.
+// unfolds over the view and folds back into its entry. The switcher holds Canvas, Parked and Table
+// (`table/view.tsx`); switching keeps the canvas's camera, and an open card stays open.
 
 import { cn } from 'cn';
 import { Table2, Car, Map as MapIcon } from 'lucide-react';
@@ -14,10 +14,9 @@ import { FullPage, fullBodyClass, fullCloseClass, fullHeadClass, fullTitleClass 
 import { entryListClass } from './inboxClasses';
 import { QueueList, useQueueSort } from './queue';
 import { t } from './strings';
-import { Tooltip } from './components/tooltip';
 
 /** The views the switcher moves between, the canvas being none of the full-page ones. */
-export type SwitchedView = 'canvas' | 'parked';
+export type SwitchedView = 'canvas' | 'parked' | 'table';
 
 interface ListProps {
   on: boolean;
@@ -96,7 +95,7 @@ function QueuePage({ items, onOpen, onClose }: { items: Item[]; onOpen: (i: Item
  */
 const switchButtonClass = 'inline-flex items-center gap-1.5 h-[30px] py-0 px-3.5 [border:0] rounded-full bg-transparent text-muted-foreground text-sm leading-none cursor-pointer';
 
-/** Canvas | Parked | Table at the bottom centre, where the microphone was; Table is still to come. */
+/** Canvas | Parked | Table at the bottom centre, where the microphone was. */
 export function ViewSwitcher({ shown, onShow }: { shown: SwitchedView | null; onShow: (v: SwitchedView) => void }) {
   const button = (v: SwitchedView, label: string, icon: ReactNode) => (
     <button type="button" className={cn(switchButtonClass, shown === v ? 'bg-muted text-foreground font-semibold' : 'hover:text-foreground [@media(max-width:1100px)]:px-2.5')} aria-pressed={shown === v} aria-label={label} onClick={() => onShow(v)}>
@@ -114,13 +113,7 @@ export function ViewSwitcher({ shown, onShow }: { shown: SwitchedView | null; on
     >
       {button('canvas', t.views.canvas, <MapIcon size={15} strokeWidth={2} aria-hidden />)}
       {button('parked', t.views.parked, <Car size={15} strokeWidth={2} aria-hidden />)}
-      {/* not `disabled`: a disabled button shows no tooltip in every browser */}
-      <Tooltip content={t.views.comingSoon}>
-        <button type="button" className={cn(switchButtonClass, 'opacity-45 cursor-default [@media(max-width:1100px)]:px-2.5')} aria-disabled="true" aria-label={`${t.views.table} (${t.views.comingSoon})`}>
-          <Table2 size={15} strokeWidth={2} aria-hidden />
-          <span className="[@media(max-width:1100px)]:hidden">{t.views.table}</span>
-        </button>
-      </Tooltip>
+      {button('table', t.views.table, <Table2 size={15} strokeWidth={2} aria-hidden />)}
     </div>
   );
 }
