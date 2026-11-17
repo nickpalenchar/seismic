@@ -52,9 +52,14 @@ and permission; `launch()` in `workers.ts` starts it with `seismicWorker.start(.
 `getSessionOptions()` (`at`, `dirs`, `untrusted`, `env`, `contextUpdate`, `askOwner`, `watch`) and
 `AgentRun.images`.
 
-- [ ] The worker's system prompt, tools and context updates are still made by `Workers` and passed in as the
-  `WorkerContext`. They move into `agents/worker/` (this is workstream W4 of `docs/plan/server-layers.md`):
-  `system()`, `tools()`, `briefing()`, `contextUpdate`'s parts.
+- [x] The worker's system prompt (`agents/worker/system.ts`) and tools (`agents/worker/tools.ts`) moved out of
+  `workers.ts`; `SeismicWorker` calls them with the card's state (`WorkerContext`). They reach `Workers` through
+  `WorkerHost`, a `Pick` of the members they use, which are public now (about 35 methods plus `o`, `live`,
+  `folder`, `shares`); `tools.ts` imports a few constants and helpers back from `workers.ts` (`END_TURN`,
+  `landedOf`, `snoozedUntil` and others), a circular import that only runs after both modules have loaded.
+- [ ] The rest of `Workers` the worker needs moves out with them (W4 of `docs/plan/server-layers.md`): `briefing()`,
+  the parts of `contextUpdate`, and the helpers `tools.ts` imports from `workers.ts`, so the import cycle goes
+  and `WorkerHost` can shrink.
 - [ ] The trust flags `claudeHeld` and `codexConfig`, `onLimit` and `permissionMode`-like extras of the other
   agents go through `getSessionOptions()` as each agent moves.
 - [ ] The same for the other agents (`review`, `koordinator`, `explorer`, `chores`) after the worker.

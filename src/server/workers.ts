@@ -9,7 +9,7 @@ import type { PermissionUpdate } from '@anthropic-ai/claude-agent-sdk';
 import { z } from 'zod';
 import type { RepoAdapter } from '../adapters/types';
 import type { CardDiff } from '../core/diff';
-import { type Language, LANGUAGE_NAMES, LANGUAGES, ownersLanguage, repositoryLanguage } from '../core/locale';
+import { type Language, LANGUAGES } from '../core/locale';
 import { MESSAGES, type Messages, type Pause } from '../core/messages';
 import { existsSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -18,18 +18,16 @@ import { type CardFile, docImages, fileKind, isImage, normalPath, shownFiles } f
 import { DEFAULT_DEMO_DIRECTORY, expandHome } from '../../plugin/skills/demo/lib/settings.ts';
 import { HANDOVER_ARTIFACTS, type HandoverArtifact } from '../../plugin/skills/demo/lib/artifacts.ts';
 import { mmss } from '../../plugin/skills/demo/lib/timeline.ts';
-import { AGENT_DEFAULTS, harnessChoice, type AgentSetting, answering, askable, type Awaited, AWAITED_STATES, awaited, type BackgroundTask, AGENT_HOLDS, halted, type Hold, isPaused, isPausing, pausable, pausableNow, snoozeOf, type WorkerTurn, type CardLanding, type Demo, type DemoKind, type DemoPage, finished, formatQuestion, handedOver, type Item, type Mock, ownWords, pickedAnswer, type Question, type RepoRef, type RepoSettings, type RestartReason, type Share, type Snooze, SNOOZE_LIMIT, type Spot, type Superseded, type SpotInput, started, stoppedAtOf } from '../core/types';
+import { AGENT_DEFAULTS, harnessChoice, type AgentSetting, answering, askable, type Awaited, type BackgroundTask, AGENT_HOLDS, halted, type Hold, isPaused, isPausing, pausable, pausableNow, snoozeOf, type WorkerTurn, type CardLanding, type Demo, finished, formatQuestion, handedOver, type Item, type Mock, ownWords, pickedAnswer, type Question, type RepoRef, type RepoSettings, type RestartReason, type Share, type Snooze, type Spot, type Superseded, type SpotInput, started, stoppedAtOf } from '../core/types';
 import { ACTIVE, BadRequest, type Board, holdNow, replyNote, type Retracted, type StoredDemo, titleKey } from './board';
 import { type Asked, decisionLog, toQuestion, withPick } from './advisor';
-import { checkArtifact, DEMO_SKILL, DEMO_SKILL_FILE, demoSkillName, SEISMIC_PLUGIN, placeIn, readChapters } from './demo';
-import { artifactFiles } from './demo-page';
+import { DEMO_SKILL, DEMO_SKILL_FILE, demoSkillName, SEISMIC_PLUGIN, placeIn } from './demo';
 import { imageNote } from './images';
-import { outsidePlanDir, remoteHost } from './repo';
+import { outsidePlanDir } from './repo';
 import type { InputContext } from './koordinator';
 import { type AgentEvent, type AgentRuntime, type AgentSession, type AgentTool, LIMIT_LIFTED, type PermissionAnswer, type PermissionRequest } from './runtime';
 import { BACKGROUND_GRACE, BACKGROUND_LIMIT, failureReason } from './llms/harnesses/claude';
-import { TO_OBEYA, toObeyaTool } from './to-obeya';
-import { EXEC_LANE_AUTO_NOTE, EXEC_LANE_NOTE, execTools } from './llms/harnesses/codexExecTools';
+import { execTools } from './llms/harnesses/codexExecTools';
 import { type Forward, HOST_DIR, hostName, remote } from './hosts';
 import { runAppCommand } from './app-command';
 import { readingShared } from '../adapters';
@@ -38,17 +36,18 @@ import type { FolderWorkstations, UndoReport } from './folder';
 import { contributionOf, type PrState, type Shipped, type StoredContribution } from './board';
 import { type Doing, onTool, onToolDone, shownDoing, THINKING_AFTER } from './doing';
 import { type ChangeRoute, type Clash, needsOwner, type FindingPick, type CodeReviewSetting, type Finding, type FindingStatus, type HeldChanges, type PageTags, PUSH_HOLD_MS, SEVERITIES, type Severity } from '../core/types';
-import { dimensions, outside, tagsOf } from '../core/page-tags';
+import { dimensions } from '../core/page-tags';
 import { CAPTURED_CHANGES, gitAsync, gitOrNull, writeToGitDir } from './workstations';
 import { defaultBranchCommit } from './read-tree';
 import type { CardRow } from './models/cards/cards';
 import { workConfig } from './feedback';
-import { type DataSignal, dataModelSignals, isSchemaPage, SIGNALS_NAMED } from './data-models';
+import { type DataSignal, isSchemaPage, SIGNALS_NAMED } from './data-models';
 import { type Forge, parsePrUrl, sameRepo } from './forge';
 import { clip, messageOf } from '../core/text';
 import { holdsNotes } from '../core/queue';
 import { CodeReviews } from './llms/skills/codeReview';
 import { seismicWorker } from './agents/worker/seismicWorker';
+import { workerTools } from './agents/worker/tools';
 
 export interface WorkerOptions {
   board: Board;
@@ -173,7 +172,7 @@ export interface WorkerOptions {
 type Comments = { text: string; images: string[] };
 
 /** A review card's branch against its pull request: its `head`, the PR's head on the forge (`base`), and the worker's own commits between them. */
-interface OwnCommits {
+export interface OwnCommits {
   head: string;
   base: string;
   commits: number;
@@ -228,7 +227,7 @@ interface Resolving {
 const settled = ({ restarts: _, waits: __, ...l }: LandedState): LandedState => l;
 
 /** What the card's row stores while landed work's worker finishes; null while nothing has landed. */
-const landedOf = (row: { landed: string | null }): LandedState | null => (row.landed ? (JSON.parse(row.landed) as LandedState) : null);
+export const landedOf = (row: { landed: string | null }): LandedState | null => (row.landed ? (JSON.parse(row.landed) as LandedState) : null);
 
 /** What `f` returns; a workstation it cannot have is the request's error. */
 /** A path with its links resolved, or as it is where it cannot be (gone). */
@@ -349,7 +348,7 @@ function appRunning(live: Live, url: string) {
 }
 
 /** An app's address as app_running takes it. */
-const APP_URL = /^https?:\/\/[^\s/]+/i;
+export const APP_URL = /^https?:\/\/[^\s/]+/i;
 
 /** Whether all the worker's background work that runs serves its app. */
 function onlyApp(live: Live): boolean {
@@ -359,7 +358,7 @@ function onlyApp(live: Live): boolean {
 /** A step a script takes as a card's agent in a scratch Seismic (`standIn`), as the runtime would tell of it. */
 export type StandInStep = { type: 'tool'; name: string; input?: Record<string, unknown> } | { type: 'toolDone'; name: string; ok?: boolean } | { type: 'text'; text: string };
 
-interface Live {
+export interface Live {
   session: AgentSession;
   /** A Codex worker whose approvals Codex's automatic review decides, not the owner. */
   autoReview?: boolean;
@@ -487,15 +486,15 @@ export function givenAnswers(options: string[], picks: string[]): string[] {
 }
 
 /** The question of a demo report as the demo keeps it: its text, options and the worker's pick, as `ask` takes them. */
-function demoQuestion(q: { text: string } & Omit<Asked, 'question'>): Pick<Demo, 'question' | 'options' | 'multiple' | 'pick'> {
+export function demoQuestion(q: { text: string } & Omit<Asked, 'question'>): Pick<Demo, 'question' | 'options' | 'multiple' | 'pick'> {
   const { text, options, multiple, pick } = withPick({ ...q, question: q.text });
   return { question: text, ...(options.length ? { options } : {}), ...(multiple ? { multiple } : {}), ...(pick ? { pick } : {}) };
 }
 
 /** How many files a worker may name as its result at a handover. */
-const MAX_RESULT_FILES = 12;
+export const MAX_RESULT_FILES = 12;
 
-const END_TURN = 'Recorded. End your turn now without further work; the reply arrives as your next message.';
+export const END_TURN = 'Recorded. End your turn now without further work; the reply arrives as your next message.';
 
 /** How often Seismic asks whether a machine whose connection was lost answers again. */
 const RECONNECT_MS = 30_000;
@@ -585,7 +584,7 @@ const RESUMED =
   'The owner paused you and has now let you go on. Pausing ended your session at once: whatever you had running was stopped with it, background commands, servers you started, and a command still running in your turn (its result shows exit code 137). Run again what you still need, and go on where you stopped.';
 
 /** Until when a worker snoozed, as it hears it: a time, or the card it waits on (and the time at the latest). */
-function snoozedUntil(s: Snooze): string {
+export function snoozedUntil(s: Snooze): string {
   const at = s.until ? MESSAGES.en.at(Date.parse(s.until)) : '';
   if (!s.on) return at;
   const what = s.on.state === 'done' ? 'is done (its work on main, or the card closed without a change)' : 'waits for the owner (a question or a handover)';
@@ -635,7 +634,7 @@ function wokeNote(s: Snooze, timeUp: boolean, owner: boolean, words: boolean, me
 
 const AFTER_RESTART = 'If something that remains needs Seismic to run your change, call after_restart and end your turn: Seismic tells you once it runs it.';
 
-const AFTER_LANDING =
+export const AFTER_LANDING =
   'Your workstation and this session stay until you end a turn with nothing left to wait for (a question, the restart); then both end. Commits you make here no longer land.';
 
 const AFTER_DONE = 'This session stays until you end a turn with nothing left to wait for (a question, say); then it ends.';
@@ -653,7 +652,7 @@ const IN_WORKTREE =
 const EVICT_SESSION_WAIT = 30_000;
 
 export class Workers {
-  private live = new Map<string, Live>();
+  live = new Map<string, Live>();
   private limitAttempts = new Map<string, LimitAttempts>();
   /** Turns a script plays for cards without a session in a scratch Seismic (`standIn` steps), shown as their workers'. */
   private standIns = new Map<string, Live>();
@@ -715,7 +714,7 @@ export class Workers {
   /** The code reviews of the cards' work, where the project reviews work that lands on main. */
   readonly reviews: CodeReviews;
 
-  constructor(private o: WorkerOptions) {
+  constructor(readonly o: WorkerOptions) {
     this.reviews = new CodeReviews({ board: o.board, runtime: o.reviewRuntime ?? o.runtime, workstations: o.workstations, ...(o.reviewAgentSetting ? { agentSetting: o.reviewAgentSetting } : {}), ...(o.repo ? { repo: o.repo } : {}) });
     // what a worker does shows on its card while it is in a turn, and only then can it be paused
     o.board.showTurns(() => this.turnsShown());
@@ -731,12 +730,12 @@ export class Workers {
   }
 
   /** The folder without git the cards work in, where the repository is one. */
-  private get folder(): FolderWorkstations | null {
+  get folder(): FolderWorkstations | null {
     return this.o.workstations.mode === 'folder' ? (this.o.workstations as FolderWorkstations) : null;
   }
 
   /** Whether a video demo here may go to a page for colleagues, which the worker then writes. */
-  private get shares(): boolean {
+  get shares(): boolean {
     return this.o.shares ? this.o.shares() : false;
   }
 
@@ -988,7 +987,7 @@ export class Workers {
    * in the queue for the PR's merge. The findings are settled for the PR and link it; several may
    * link one task.
    */
-  private followUpTask(cardId: string, title: string, task: string, ids: number[]): string {
+  followUpTask(cardId: string, title: string, task: string, ids: number[]): string {
     const c = contributionOf(this.o.board.row(cardId));
     // on a card of the owner's, the findings are the items of its code review
     const code = c ? undefined : this.reviews.items(cardId);
@@ -1023,7 +1022,7 @@ export class Workers {
   }
 
   /** The findings the owner chose as follow-up tasks that have none yet (a review card's, or its code review's), as the worker reads them; none: undefined. */
-  private owedTasks(cardId: string): string | undefined {
+  owedTasks(cardId: string): string | undefined {
     const row = this.o.board.row(cardId);
     const c = contributionOf(row);
     const owed = c ? (c.findings ?? []).filter((f) => f.status === 'open' && f.decided === 'later').map((f) => ({ id: f.id, title: f.title })) : this.reviews.owed(cardId).map((i) => ({ id: i.number, title: i.title }));
@@ -1031,7 +1030,7 @@ export class Workers {
   }
 
   /** The worker resubmits items of the code review of its work, with notes: they go under review. */
-  private resubmitItems(cardId: string, entries: { number: number; note?: string }[]): string {
+  resubmitItems(cardId: string, entries: { number: number; note?: string }[]): string {
     if (!this.reviews.items(cardId).length) return 'Not resubmitted: your work has no code review items.';
     if (!entries.length) return 'Not resubmitted: name the items (items, their numbers).';
     const note = (e: { note?: string }) => (e.note?.trim() ? clip(e.note.trim(), 1000) : undefined);
@@ -1040,7 +1039,7 @@ export class Workers {
   }
 
   /** The worker disputes items it is fixing: back to the owner, reopened. */
-  private disputeItems(cardId: string, entries: { number: number; note: string }[]): string {
+  disputeItems(cardId: string, entries: { number: number; note: string }[]): string {
     if (!this.reviews.items(cardId).length) return 'Not disputed: your work has no code review items.';
     if (entries.some((e) => !e.note?.trim())) return 'Not disputed: every item needs your reasons (note).';
     const { done, refused } = this.reviews.dispute(cardId, entries.map((e) => ({ number: Number(e.number), note: clip(e.note.trim(), 1000) })));
@@ -1052,7 +1051,7 @@ export class Workers {
    * number (a new one gets the next), with what the owner decided while it stays open. `with` names
    * the findings it would make one follow-up task with, kept in both directions and across a chain.
    */
-  private setFindings(cardId: string, given: { id?: number; title: string; text: string; security?: boolean; severity?: Severity; file?: string; line?: number; status?: FindingStatus; url?: string; with?: number[] }[]): string {
+  setFindings(cardId: string, given: { id?: number; title: string; text: string; security?: boolean; severity?: Severity; file?: string; line?: number; status?: FindingStatus; url?: string; with?: number[] }[]): string {
     const c = contributionOf(this.o.board.row(cardId));
     if (!c) return 'Not recorded: this card reviews no pull request.';
     const had = c.findings ?? [];
@@ -1335,7 +1334,7 @@ export class Workers {
   }
 
   /** Whether the card's follow-up runs in a temporary worktree. */
-  private inWorktree(cardId: string): boolean {
+  inWorktree(cardId: string): boolean {
     return !!landedOf(this.o.board.row(cardId))?.worktree;
   }
 
@@ -1459,7 +1458,7 @@ export class Workers {
    * them. A demo from before handovers named theirs gets the last one before now: its time, and the
    * places in it the owner's comments are about.
    */
-  private earlier(cardId: string, row: CardRow): StoredDemo[] {
+  earlier(cardId: string, row: CardRow): StoredDemo[] {
     const replaced = row.demo!.latest!;
     const e = replaced.handover === undefined ? this.o.board.events(cardId).findLast((e) => e.kind === 'review') : undefined;
     return [...row.demo!.earlier, { ...replaced, ...(e ? { handover: e.id, at: e.at } : {}) }];
@@ -1707,7 +1706,7 @@ export class Workers {
   }
 
   /** The mode in which the project reviews this card's work at a handover, or null where it does not: the one rule for handovers and for a changed setting. */
-  private reviewModeOf(row: CardRow, work: boolean, ): CodeReviewSetting['mode'] | null {
+  reviewModeOf(row: CardRow, work: boolean, ): CodeReviewSetting['mode'] | null {
     if (this.folder || row.idea?.prototypeOf || contributionOf(row)) return null;
     const reviews = this.o.codeReviews?.();
     if (!reviews?.on || !work) return null;
@@ -2067,7 +2066,7 @@ export class Workers {
    * for changes; the card waits for them (`inPr`, "Waiting for the contributor") with the review linked
    * in its log. Returns why it was not sent, or nothing.
    */
-  private async requestChanges(cardId: string, body: string, ids: number[] = []): Promise<string | undefined> {
+  async requestChanges(cardId: string, body: string, ids: number[] = []): Promise<string | undefined> {
     const c = contributionOf(this.o.board.row(cardId));
     if (!this.o.forge || !c) return 'Not sent: this card reviews no pull request.';
     if (!body.trim()) return 'Not sent: the review has no text.';
@@ -2113,7 +2112,7 @@ export class Workers {
    * cannot be handed over, where the branch does not build on the PR's head: the contributor pushed
    * since the worker fetched, or the branch was rewritten.
    */
-  private async ownCommits(cardId: string, c: StoredContribution): Promise<OwnCommits | string> {
+  async ownCommits(cardId: string, c: StoredContribution): Promise<OwnCommits | string> {
     const ws = this.o.board.row(cardId).workstation ?? '';
     let head: string;
     try {
@@ -2146,7 +2145,7 @@ export class Workers {
    * before) and the findings decided for the contributor meanwhile, which go in the same text. None
    * where the branch holds no commits of its own; why it cannot be handed over, as the worker reads it.
    */
-  private heldAt(cardId: string, mine: OwnCommits, draft: string | undefined): (HeldChanges & { base: string }) | string | undefined {
+  heldAt(cardId: string, mine: OwnCommits, draft: string | undefined): (HeldChanges & { base: string }) | string | undefined {
     const c = contributionOf(this.o.board.row(cardId))!;
     const asks = (c.findings ?? []).filter((f) => f.status === 'open' && f.decided === 'contributor');
     if (!mine.commits) {
@@ -2378,7 +2377,7 @@ export class Workers {
    * Its worker hears so and may finish what remains, as after a landing. Returns what it hears of
    * its demo's page.
    */
-  private close(cardId: string, by: 'owner' | 'worker', comments?: Comments): string {
+  close(cardId: string, by: 'owner' | 'worker', comments?: Comments): string {
     // a demo, an analysis: what the approval was for goes public as any approved demo
     if (by === 'owner') this.o.onApproval?.(cardId);
     this.bump(cardId);
@@ -2660,7 +2659,7 @@ export class Workers {
    * next time, with its reason for the owner (`unchanged`). Without a declaration (a session from
    * before the field), only the signs count.
    */
-  private dataModels(cardId: string, declared: unknown, why: unknown, named: CardFile[] | undefined, signals: DataSignal[]): { refused: string } | { unchanged?: string } {
+  dataModels(cardId: string, declared: unknown, why: unknown, named: CardFile[] | undefined, signals: DataSignal[]): { refused: string } | { unchanged?: string } {
     const reason = clip(String(why ?? '').replace(/\s+/g, ' ').trim(), 300);
     const section = `${this.demoSkill(cardId)}, its section "A change to persisted data models"`;
     if (declared === 'unchanged' && !reason) return { refused: "Not handed over: data_models 'unchanged' takes its reason, in one line (data_models_reason). Call ready_for_review again with it." };
@@ -2682,7 +2681,7 @@ export class Workers {
     };
   }
 
-  private async namedFiles(cardId: string, files: { path: string; caption: string }[], demoDir?: string): Promise<CardFile[] | string> {
+  async namedFiles(cardId: string, files: { path: string; caption: string }[], demoDir?: string): Promise<CardFile[] | string> {
     const row = this.o.board.row(cardId);
     const ws = (row.workstation ?? '').replace(/^ssh:\/\/[^/]+/, '');
     const roots = [ws, ...(ws && !hostName(row.workstation) ? [realpathOr(ws)] : [])].filter(Boolean);
@@ -2788,7 +2787,7 @@ export class Workers {
    * commit it stops at. Kept on the card for the owner to see before the merge; undefined where it
    * cannot tell (no head reviewed yet, git failed), which leaves what the card shows.
    */
-  private async probeClash(cardId: string): Promise<Clash | null | undefined> {
+  async probeClash(cardId: string): Promise<Clash | null | undefined> {
     const pulls = this.pulls();
     const c = contributionOf(this.o.board.row(cardId));
     if (!pulls || !c?.reviewed) return undefined;
@@ -2986,7 +2985,7 @@ export class Workers {
    * its workstation's `HEAD`, and the review card's log says main has its merge. Returns what the
    * worker hears; what is in its workstation's way it fixes, what is in the checkout's goes to the owner.
    */
-  private async landResolved(cardId: string, r: Resolving): Promise<string> {
+  async landResolved(cardId: string, r: Resolving): Promise<string> {
     const t = this.o.board.t.worker;
     const row = this.o.board.row(cardId);
     const res = await this.pulls()!.landResolution(row.workstation ?? '', { main: r.stopped.main, upstream: r.stopped.upstream });
@@ -3292,7 +3291,7 @@ export class Workers {
       preferences: '',
       standIn: true,
     };
-    const tool = this.tools(cardId, stand, !!card.idea?.prototypeOf).find((t) => t.name === act.tool);
+    const tool = workerTools(this, cardId, stand, !!card.idea?.prototypeOf).find((t) => t.name === act.tool);
     if (!tool) throw new BadRequest('invalid', `the card's agent has no tool ${act.tool}`);
     // as the SDK checks a call against the tool's schema
     const args = z.object(tool.schema).safeParse(act.args ?? {});
@@ -3306,7 +3305,7 @@ export class Workers {
    * The card of the project a worker means by `title`, to wait on: the one by that title (the open
    * one, of several), else the one whose title holds it, if only one does; else why there is none.
    */
-  private cardTitled(cardId: string, title: string): Item | string {
+  cardTitled(cardId: string, title: string): Item | string {
     const items = this.o.board.items().filter((i) => i.id !== cardId && i.kind !== 'plan');
     const key = titleKey(title);
     const exact = items.filter((i) => titleKey(i.title) === key);
@@ -3460,7 +3459,7 @@ export class Workers {
   }
 
   /** Whether the card's change has files its left column shows (`shownFiles`), beside the ones its worker named. */
-  private async showsFiles(cardId: string): Promise<boolean> {
+  async showsFiles(cardId: string): Promise<boolean> {
     return shownFiles(await this.diff(cardId, false).catch(() => null)).length > 0;
   }
 
@@ -3748,10 +3747,15 @@ export class Workers {
       live.session = seismicWorker.start(
         this.o.runtime,
         {
+          host: this,
+          cardId,
+          card: this.o.board.item(cardId),
+          live,
           setting,
-          system: `${this.system(preferences, !!row.idea?.prototypeOf, this.o.board.item(cardId))}${setting.harness && setting.harness !== 'claude' && !live.host && !review ? `\n\n${live.autoReview ? EXEC_LANE_AUTO_NOTE : EXEC_LANE_NOTE}` : ''}${notes ? `\n\nThe repository's CLAUDE.md, as its default branch has it:\n\n${notes}` : ''}`,
-          tools: this.tools(cardId, live, !!row.idea?.prototypeOf),
-          autoReview: !!live.autoReview,
+          preferences,
+          prototype: !!row.idea?.prototypeOf,
+          review,
+          notes,
           message,
           options: {
             at: { card: cardId },
@@ -3937,7 +3941,7 @@ export class Workers {
    * The owner's words that waited for the worker's next step, passed with that step's result. A
    * tool result carries no images: the worker opens the screenshots' files itself.
    */
-  private unheardNow(cardId: string, live: Live): string | undefined {
+  unheardNow(cardId: string, live: Live): string | undefined {
     if (this.live.get(cardId) !== live) return;
     const unheard = this.takeUnheard(cardId, false);
     if (!unheard.length) return;
@@ -4588,7 +4592,7 @@ export class Workers {
    * A demo directory as the server reads it: the worker's own on this machine; from a worker on
    * another machine, its copy here, taken afresh at each handover.
    */
-  private async demoHere(cardId: string, dir: string): Promise<{ dir: string } | { wrong: string }> {
+  async demoHere(cardId: string, dir: string): Promise<{ dir: string } | { wrong: string }> {
     try {
       const there = remote(this.o.board.row(cardId).workstation);
       if (!there) return { dir };
@@ -4683,727 +4687,12 @@ export class Workers {
 
   // ---------------------------------------------------------------- the worker's tools
 
-  private tools(cardId: string, live: Live, prototype: boolean): AgentTool[] {
-    // the system prompt says which language that is (`ownersLanguage`)
-    const language = "the owner's language";
-    // the page goes to colleagues: in the language of the repository's demos where it names one
-    const pageLanguage = LANGUAGE_NAMES[this.demoLanguage()];
-    // whether the repository shares, as the session's tools have it from their start on: the schema drops a page they do not
-    // take, so the handover asks for one only where they take it (where sharing began since, the page is written once shared)
-    const shares = this.shares;
-    // the vocabulary the page's tags come from, where the repository's site names one
-    const vocabulary = shares ? dimensions(this.o.vocabulary?.()) : [];
-    // a proposal may go to another repository than the card's: of this project, or of another project this Seismic runs
-    const repos = this.o.board.project.repos;
-    const ownRepo = this.o.repo ?? this.o.board.home;
-    const others = this.otherBoards().filter((b) => b.project.repos.length);
-    const anotherRepo = repos.length > 1 || others.length > 0;
-    const handOver = () => {
-      live.handedOver = true;
-      live.nudged = false;
-      // a question or a handover after a snooze in the same turn: the card waits for the owner instead
-      if (live.snoozed) {
-        live.snoozed = false;
-        this.o.board.work(cardId, this.o.board.unheld(cardId, ['snoozed']));
-      }
-    };
-    /**
-     * The result of a call that ends the worker's turn (`plain`). The owner's words that waited for
-     * this step come with the result itself, with what to do about them, so that the worker takes
-     * them in before its turn ends rather than ending it in silence: `stands` is what holds of the
-     * call meanwhile, `change` what follows if their words change it.
-     */
-    const ending = (plain: string, stands: string, change?: string): string => {
-      const words = this.unheardNow(cardId, live);
-      if (!words) return plain;
-      return `${stands} The owner wrote to you while you worked, and their words reach you only now, with this result: take them in as at any other step. Answer them with reply where they call for an answer, and do what they ask${change ? `; ${change}` : ''}. Then end your turn.\n\n${words}`;
-    };
-    // a session the owner stopped or replaced may still call its tools: those calls change nothing
-    const current = (tools: AgentTool[]): AgentTool[] =>
-      tools.map((t) => ({ ...t, run: (args) => (this.live.get(cardId) === live || live.standIn ? t.run(args) : 'This session has ended. Stop working and end your turn.') }));
-    // a review card's tools to the contributor's pull request
-    const review = contributionOf(this.o.board.row(cardId));
-    // the tools stand for the whole session, while the project's setting may change under it: every card of the owner's has the tool, which refuses where there are no findings
-    // a card whose work the project reviews makes the follow-up tasks the owner chooses of the review's findings
-    const reviewed = !review && !this.folder && !this.o.board.row(cardId).idea?.prototypeOf;
-    return current([
-      {
-        name: 'report',
-        description: `Show the owner one short status line on your card (in ${language}, at most ~80 characters). Use it at milestones, not for every step.`,
-        schema: { status: z.string() },
-        run: ({ status }) => {
-          const s = clip(String(status), 200);
-          this.o.board.work(cardId, { status_line: s });
-          this.o.board.log(cardId, 'report', 'worker', s);
-          return 'Shown on the card.';
-        },
-      },
-      {
-        name: 'reply',
-        description: `Answer a note or feedback from the owner in your card's conversation: a sentence or two in ${language}, what you change because of it or why nothing. The reply does not end your turn: if work remains, carry on with it; if none does (your work is handed over and the note changes nothing), your turn ends with the reply, and the card goes on waiting for the owner's approval.`,
-        schema: { text: z.string() },
-        run: ({ text }) => {
-          const s = clip(String(text).trim(), 2000);
-          if (!s) return 'Not shown: the reply is empty.';
-          // a reply may end the turn on a handover: what the owner chose for later is made before it
-          const owed = this.owedTasks(cardId);
-          if (owed) return `Not shown: first make the follow-up tasks the owner chose, for ${owed}; then reply.`;
-          this.o.board.log(cardId, 'talk', 'worker', s);
-          live.answered = true;
-          live.spoke = true;
-          return 'Shown to the owner.';
-        },
-      },
-      {
-        name: 'ask',
-        description: `Ask for a decision you should not make yourself: product behaviour, trade-offs, anything irreversible or external. Write the question in ${language} for a reader who has not seen the code, and offer up to four short answer options when they exist; the owner picks one on the card (several when multiple is true) or writes their own. pick: the options you would choose yourself if you had to decide (one, or several when multiple), and pick_why: why, in one short sentence in ${language}; the card marks them for the owner. Then end your turn.`,
-        schema: {
-          question: z.string(),
-          options: z.array(z.string()).max(4).optional(),
-          multiple: z.boolean().optional(),
-          pick: z.array(z.string()).optional(),
-          pick_why: z.string().optional(),
-          demo: z
-            .object({
-              kind: z.enum(['video', 'html']).optional().describe("'video' (the default): a recording made with the demo skill; 'html': a page to look at"),
-              dir: z.string().describe('absolute path: a video holds demo.mp4 and captions.vtt, an HTML artifact holds index.html and the files it loads'),
-              chapters: z.array(z.string()).optional().describe('video only: scene titles, in order'),
-            })
-            .optional()
-            .describe(
-              "what the owner is to look at to answer, when there is something to see (drafts or variants side by side, as an HTML artifact, say): the card shows it beside your question as it shows a handover's demo. It is no handover: the handover still brings its own demo.",
-            ),
-        },
-        run: (args) => {
-          const asked = (shown?: StoredDemo): string => {
-            handOver();
-            const q = withPick(args as unknown as Asked);
-            const e = this.o.board.log(cardId, 'question', 'worker', formatQuestion(q, this.o.board.language()));
-            if (shown) {
-              // the demo it replaces stays with the card, for the owner to go back to
-              const row = this.o.board.row(cardId);
-              this.o.board.work(cardId, { demo: { latest: { ...shown, asked: true, handover: e.id, at: e.at }, ...(row.demo?.latest ? { earlier: this.earlier(cardId, row) } : {}) } });
-            }
-            this.toOwner(cardId, q);
-            return ending(
-              END_TURN,
-              'Recorded: your question waits for the owner on the card, and their answer arrives as your next message.',
-              'if they change your question, ask it anew (the card shows the earlier one as asked again further below)',
-            );
-          };
-          const given = args.demo as { kind?: DemoKind; dir: string; chapters?: string[] } | undefined;
-          if (!given) return asked();
-          // a demo made on another machine is shown from its copy here
-          return this.demoHere(cardId, given.dir).then((here) => {
-            if ('wrong' in here) return `Not asked: the demo could not be copied to the owner's machine (${here.wrong}). Check the directory, then ask again.`;
-            // copying it takes a while, in which the owner may stop or replace the session
-            if (this.live.get(cardId) !== live && !live.standIn) return 'This session has ended. Stop working and end your turn.';
-            const kind = given.kind ?? 'video';
-            if (kind === 'html') {
-              const wrong = checkArtifact(here.dir);
-              if (wrong) return `Not asked: ${wrong}. Fix the artifact, then ask again.`;
-              return asked({ kind, dir: here.dir, chapters: [], ...(artifactFiles(here.dir).length === 1 ? { single: true as const } : {}) });
-            }
-            const chapters = readChapters(here.dir, given.chapters ?? []);
-            if (typeof chapters === 'string') return `Not asked: ${chapters}. Fix the demo, then ask again.`;
-            return asked({ kind, dir: here.dir, chapters });
-          });
-        },
-      },
-      // a prototype makes no cards of its own: what it proposes is building its idea on it
-      prototype
-        ? {
-            name: 'propose_build',
-            description: `Propose that the idea be built on this prototype: a worker then goes on from your branch, takes over what carries and brings it to production quality, and the idea's other prototypes are discarded. Use it when your approach convinced (the owner said so, or it clearly settles the idea). It shows on your card, where the owner accepts it or not. reason: why, in ${language}, a sentence or two.`,
-            schema: { reason: z.string() },
-            run: ({ reason }) => {
-              this.o.board.proposeBuild(cardId, clip(String(reason).trim(), 2000));
-              this.o.board.log(cardId, 'activity', 'worker', this.o.board.t.worker.proposesBuild(clip(String(reason).trim(), 300)));
-              return 'Shown on your card; the owner decides. Continue with your task.';
-            },
-          }
-        : {
-            name: 'propose_card',
-            description: [
-              `Propose a separate card for something you noticed that is outside your task, instead of doing it here, or for a follow-up to your own task that can only be done later (start_at); the owner decides on it.`,
-              `idea: true for something to think through with the owner before anyone builds it (it becomes an idea, discussed with an agent of its own); leave it out for a task that is clear enough to build.`,
-              proposalTask('your card nor your session'),
-              `reason: for the owner only, why you propose it, a sentence or two; it does not go to that agent.`,
-              `questions: what the owner has to decide first (product behaviour, a trade-off), each with up to four short options; keep them out of task. The owner may answer them on the proposal; what they decided and what stays open go to the agent with the task.`,
-              `replaces: the title of an earlier proposal of yours this one takes the place of; Seismic takes that one off the project, or, if the owner has taken it on already, marks it as replaced and offers to remove it.`,
-              `start_at: when the card is to start, ISO 8601 with your timezone's offset (2026-11-04T08:00:00+01:00), for a task that can only be done later (whether a bank has registered a form two weeks on, say): accepted, it waits until then and starts by itself. Its agent then checks what it can and asks the owner for what only they can see.`,
-              ...(anotherRepo
-                ? [
-                    `repo: the repository the change is to be made in, by its id: ${repos.map((r) => `${r.id} (${r.path}${r.id === ownRepo ? ', yours' : ''})`).join(', ')}${others.length ? `; on other projects, where the proposal then waits for the owner: ${others.map((b) => `on “${b.project.name}” ${b.project.repos.map((r) => `${r.id} (${r.path})`).join(', ')}`).join('; ')}` : ''}; yours when left out.`,
-                  ]
-                : []),
-              `Everything in ${language}.`,
-            ].join(' '),
-            schema: {
-              title: z.string(),
-              task: z.string(),
-              reason: z.string(),
-              idea: z.boolean().optional(),
-              questions: PROPOSAL_QUESTIONS.optional(),
-              replaces: z.string().optional(),
-              start_at: z.string().optional(),
-              ...(anotherRepo ? { repo: z.string().optional() } : {}),
-            },
-            run: ({ title, task, reason, idea, questions, replaces, start_at, repo }) => {
-              const wanted = typeof repo === 'string' && repo.trim() ? repo.trim() : undefined;
-              const into = wanted ? this.proposalRepo(wanted) : undefined;
-              if (typeof into === 'string') return into;
-              const board = into?.board ?? this.o.board;
-              const named = typeof start_at === 'string' && start_at.trim() ? start_at.trim() : undefined;
-              const at = named ? Date.parse(named) : NaN;
-              if (named && Number.isNaN(at)) return 'Not proposed: give start_at as ISO 8601 with your timezone offset (2026-11-04T08:00:00+01:00).';
-              if (named && at <= Date.now()) return `Not proposed: start_at has passed (it is ${new Date().toISOString()} now).`;
-              if (named && at > Date.now() + SNOOZE_LIMIT) return 'Not proposed: start_at lies more than a year ahead.';
-              const p = board.propose(cardId, {
-                title: String(title),
-                task: String(task),
-                reason: String(reason),
-                idea: !!idea,
-                questions: proposalQuestions(questions as z.infer<typeof PROPOSAL_QUESTIONS> | undefined),
-                ...(named ? { startAt: new Date(at).toISOString() } : {}),
-                ...(into ? { repo: into.repo } : {}),
-              });
-              const there = board === this.o.board ? undefined : board.project.name;
-              this.o.board.log(cardId, 'activity', 'worker', idea ? this.o.board.t.worker.proposedIdea(p.title, there) : this.o.board.t.worker.proposedCard(p.title, there), {
-                made: { card: p.id, title: p.title, ...(there ? { project: board.project.id } : {}) },
-              });
-              const old = typeof replaces === 'string' && replaces.trim() ? replaces.trim() : undefined;
-              return old ? `Proposed. ${this.retract(cardId, old, { by: p.id, title: p.title })}` : 'Proposed; the owner decides. Continue with your task.';
-            },
-          },
-      // a prototype makes no cards, so it has none to take back
-      ...(prototype
-        ? []
-        : [
-            {
-              name: 'withdraw_proposal',
-              description: [
-                `Take back a card you proposed earlier (propose_card) that turned out wrong or needless, by its title. Still open, it goes from the project at once; if the owner has taken it on already, Seismic marks it as withdrawn and offers to remove it.`,
-                `replaced_by: the title of a proposal of yours that takes its place, when you made one already (a new one names the old with replaces instead).`,
-                `why: for the owner, a sentence, in ${language}.`,
-              ].join(' '),
-              schema: { title: z.string(), why: z.string(), replaced_by: z.string().optional() },
-              run: (args: Record<string, unknown>) => {
-                const { title, why, replaced_by } = args as { title: string; why: string; replaced_by?: string };
-                // the latest by that title, as retract takes the latest it replaces: of two alike, the newer replaces the older
-                const by = replaced_by?.trim()
-                  ? this.proposalBoards()
-                      .map((b) => b.items().findLast((i) => i.from === cardId && (!!i.idea?.proposal || !!i.idea?.proposed) && titleKey(i.title) === titleKey(replaced_by)))
-                      .find(Boolean)
-                  : undefined;
-                if (replaced_by?.trim() && !by) return `No card you proposed is called “${replaced_by.trim()}”. Nothing was withdrawn.`;
-                return this.retract(cardId, String(title).trim(), { ...(by ? { by: by.id, title: by.title } : {}), ...(why?.trim() ? { why: clip(why.trim(), 1000) } : {}) });
-              },
-            },
-          ]),
-      ...(review
-        ? ([
-            {
-              name: 'findings',
-              description: `Record your review's findings for the owner, the whole list as it stands now (you keep it like a brief: call it after your review, and again whenever a finding changes, from the owner's words or a push). Each: a short title, a sentence or two in ${language}, whether it is about security, its severity (blocker: crashes the app or exposes a very important secret or unprotected database; critical: a clear exploit, severe degradation or other major consequence; major: a real defect; minor: worth fixing but not a reason to hold the PR; low: a small issue with limited impact; info: a nitpick or something to flag that may or may not be a problem), the file and line where it is, and its status: open; sent (to the contributor, with the review's url); fixed (by you, committed on your branch; Seismic pushes it with the owner's approval); resolved (a push of the contributor's fixed it, or it no longer applies); dropped (the owner does not pursue it); later (a follow-up task you made with follow_up_task, which Seismic keeps as it is). Give the id of a finding you had; a new one gets the next free number, in the order of the list. with: the ids of the other findings it would make one follow-up task with, should the owner choose that for them: only what one worker would sensibly do in one go (the same cause, the same files), else none. The card shows them beside the demo, bundles together, and the owner decides on each there.`,
-              schema: {
-                findings: z.array(
-                  z.object({
-                    id: z.number().int().positive().optional(),
-                    title: z.string(),
-                    text: z.string(),
-                    security: z.boolean().optional(),
-                    severity: z.enum(SEVERITIES).optional(),
-                    file: z.string().optional(),
-                    line: z.number().int().positive().optional(),
-                    status: z.enum(['open', 'sent', 'fixed', 'resolved', 'dropped', 'later']).optional(),
-                    url: z.string().optional(),
-                    with: z.array(z.number().int()).optional(),
-                  }),
-                ),
-              },
-              run: ({ findings }) => this.setFindings(cardId, findings as Parameters<Workers['setFindings']>[1]),
-            },
-            {
-              name: 'follow_up_task',
-              description: `Make findings the owner chose as follow-up tasks (or asked for in words) a task of its own, beside your card and following up on it, outside this PR; it waits in the queue behind your card and starts once the PR is merged. findings: the numbers of the findings it is made of, one or several that belong together; title: short and precise, in ${language}; task: what is to be done, in ${language}, written for the agent who will take it on and has seen neither this PR nor your review: what is wrong and why, the files concerned, what done looks like, and the PR's link (${review.url}). Seismic marks those findings later, linking the task.`,
-              schema: { findings: z.array(z.number().int()), title: z.string(), task: z.string() },
-              run: ({ findings, title, task }) => this.followUpTask(cardId, String(title).trim(), String(task).trim(), (findings as number[]) ?? []),
-            },
-            {
-              name: 'request_changes',
-              description: `Send change requests to ${review.author} as one review of the pull request that asks for changes, posted with the owner's account. body: in the PR's language, as the owner's words to the contributor; findings: the numbers of the findings it holds, which Seismic marks as sent. Then end your turn: the card waits for ${review.author}.`,
-              schema: { body: z.string(), findings: z.array(z.number().int()).optional() },
-              run: async ({ body, findings }) => {
-                const owed = this.owedTasks(cardId);
-                if (owed) return `Not sent: first make the follow-up tasks the owner chose, for ${owed}; then call request_changes again.`;
-                const own = contributionOf(this.o.board.row(cardId));
-                if (own?.changing || own?.held)
-                  return `Not sent: your own changes to the PR wait for the owner's approval, and a request to ${review.author} goes with them as one message. Write it into pr_draft with your handover (ready_for_review): Seismic posts it once the owner approves.`;
-                const sent = await this.requestChanges(cardId, String(body), (findings as number[] | undefined) ?? []);
-                if (sent) return sent;
-                handOver();
-                return ending(
-                  `Sent. End your turn now: the card waits for ${review.author}, and Seismic passes you what they answer or push.`,
-                  `Sent: the card waits for ${review.author}.`,
-                  'a change request in them goes to the contributor the same way, or to you as their switch says',
-                );
-              },
-            },
-          ] satisfies AgentTool[])
-        : []),
-      ...(reviewed
-        ? ([
-            {
-              name: 'follow_up_task',
-              description: `Make items of the code review of your work that the owner chose as follow-up tasks a task of its own, beside your card and following up on it; it waits in the queue behind your card and starts once your work has landed. findings: the numbers of the items it is made of, one or several that belong together; title: short and precise, in ${language}; task: what is to be done, in ${language}, written for the agent who will take it on and has seen neither your card nor the review: what is wrong and why, the files concerned, what done looks like. Seismic marks those items as follow-ups, linking the task.`,
-              schema: { findings: z.array(z.number().int()), title: z.string(), task: z.string() },
-              run: ({ findings, title, task }) => this.followUpTask(cardId, String(title).trim(), String(task).trim(), (findings as number[]) ?? []),
-            },
-            {
-              name: 'resubmit_review_item',
-              description: `Resubmit items of the code review of your work to the reviewer, each with a note in ${language} on what you did: they go under review, and the next review verifies them. Your handover resubmits all the items you are fixing by itself; use this for an item the owner closed or made a follow-up that your work happens to fix, or to add a note to one, also one under review already.`,
-              schema: { items: z.array(z.object({ number: z.number().int(), note: z.string().optional() })) },
-              run: ({ items }) => this.resubmitItems(cardId, (items as { number: number; note?: string }[]) ?? []),
-            },
-            {
-              name: 'dispute_review_item',
-              description: `Dispute items of the code review of your work that you are fixing and hold wrong, each with your reasons in ${language}: they go back to the owner as reopened, who decides again. Change no code for an item you dispute.`,
-              schema: { items: z.array(z.object({ number: z.number().int(), note: z.string() })) },
-              run: ({ items }) => this.disputeItems(cardId, (items as { number: number; note: string }[]) ?? []),
-            },
-          ] satisfies AgentTool[])
-        : []),
-      {
-        name: 'pr_opened',
-        description:
-          'After the owner approved: report the pull request you opened for this card (its URL); where the work also needed one in another repository, report that one too, a call for each. Then end your turn; Seismic watches them, and the card is live once all are merged.',
-        schema: { url: z.string() },
-        run: ({ url }) => {
-          const row = this.o.board.row(cardId);
-          if (!row.review?.pr) return 'Not recorded: the owner has not approved this card yet. Do not open a pull request before that.';
-          const ref = parsePrUrl(String(url));
-          if (!ref) return 'Not recorded: that is not the URL of a pull request (on GitHub or GitHub Enterprise https://<host>/<owner>/<repo>/pull/<number>, on Forgejo or Gitea such as Codeberg https://<host>/<owner>/<repo>/pulls/<number>).';
-          handOver();
-          const root = row.review.pr;
-          // the card's own is the one in its repository, which the landing is about; one in another
-          // repository is watched beside it, and reported again (opened again after it was closed) as before
-          const host = this.o.remote && remoteHost(this.o.remote)?.toLowerCase().replace(/^ssh\.github\.com$/, 'github.com');
-          const elsewhere = !!this.o.remote && (!sameRepo(this.o.remote, ref.owner, ref.repo) || (!!host && host !== ref.host.toLowerCase()));
-          const known = elsewhere ? root.more?.find((m) => parsePrUrl(m.url ?? '')?.url === ref.url) : undefined;
-          let pr: PrState;
-          // the card's own reported again keeps what was told of it; another in its place starts afresh
-          if (!elsewhere) pr = parsePrUrl(root.url ?? '')?.url === ref.url || !root.url ? { ...root, url: ref.url, number: ref.number } : { url: ref.url, number: ref.number, seen: [], reported: [], ...(root.more ? { more: root.more } : {}) };
-          else if (known) {
-            const { closed: _, ...open } = known;
-            pr = { ...root, more: root.more!.map((m) => (m === known ? { ...open, url: ref.url } : m)) };
-          } else pr = { ...root, more: [...(root.more ?? []), { url: ref.url, number: ref.number, repo: `${ref.owner}/${ref.repo}`, seen: [], reported: [] }] };
-          this.o.board.work(cardId, { review: { pr } });
-          this.o.board.log(cardId, 'state', 'worker', this.o.board.t.worker.prOpened(elsewhere ? `${ref.repo} #${ref.number}` : `#${ref.number}`));
-          this.o.onPrOpened?.(cardId);
-          return ending('Recorded. End your turn now; Seismic watches the pull request.', 'Recorded: Seismic watches the pull request.', 'a change to the work goes onto the pull request');
-        },
-      },
-      {
-        name: 'ready_for_review',
-        description: `Hand the finished work to the owner, after committing it, running the checks and making the demo. The summary (in ${language}) is what this handover tells the owner beyond what the card's conversation already holds: on your first handover, what changed from the user's point of view and what they really need to know (something left open or not verified, a decision you took for them), in a few short paragraphs at most; on a later one, only what your last handover and your replies since have not said yet, often a sentence. Seismic keeps your handovers and replies together as the card's report for whoever reads it later. A problem you noticed outside the task goes to propose_card, not into the summary, as does a follow-up to your task that is due only later (start_at). The demo: a video's directory and chapter titles in scene order, or an HTML artifact's directory, with its report (in the language of its narration); without a new one, the demo already on the card stands. Then end your turn.`,
-        schema: {
-          summary: z.string(),
-          demo: z
-            .object({
-              kind: z
-                .enum(['video', 'html'])
-                .optional()
-                .describe("'video' (the default): a recording made with the demo skill; 'html': a page to look at, for results that are seen rather than watched happening"),
-              dir: z.string().describe('absolute path of the demo: a video holds demo.mp4 and captions.vtt, an HTML artifact holds index.html and the files it loads'),
-              chapters: z.array(z.string()).optional().describe('video only: scene titles, in order'),
-              question: z
-                .object({
-                  text: z.string(),
-                  options: z.array(z.string()).max(4).optional(),
-                  multiple: z.boolean().optional(),
-                  pick: z.array(z.string()).optional(),
-                  pick_why: z.string().optional(),
-                })
-                .optional()
-                .describe(
-                  `only when something needs the owner beyond approve or feedback; the owner can answer it on the card before approving. As with ask: up to four short answer options when they exist, which the owner picks with a click (several when multiple is true) or answers in their own words; pick and pick_why: the options you would choose and why, in one short sentence in ${language}`,
-                ),
-              ...(shares
-                ? {
-                    page: z
-                      .object({
-                        title: z.string(),
-                        text: z.string(),
-                        ...(vocabulary.length
-                          ? {
-                              tags: z
-                                .record(z.string(), z.array(z.string()))
-                                .optional()
-                                .describe(
-                                  `required: for each of these dimensions, the values that fit the change (an empty list where none does), only from those given, so colleagues find the page by them: ${vocabulary.map(([d, v]) => `${d}: ${v.join(', ')}`).join('; ')}`,
-                                ),
-                            }
-                          : {}),
-                      })
-                      .optional()
-                      .describe(
-                        `required: the page on which the owner may share the demo (the video, or the HTML artifact below the text) with colleagues, in ${pageLanguage}. They know the product but have never seen Seismic, this card or the plan doc. title: what changes, in a few words; text: two to five sentences on what changes for the user and why, without findings, tests or internal process${vocabulary.length ? '; tags: see there' : ''}`,
-                      ),
-                    follows: z
-                      .enum(['replaces', 'supplements'])
-                      .optional()
-                      .describe(
-                        "when the card has a demo from an earlier handover: 'replaces' if this one shows the change afresh, so a shared page should show it instead; 'supplements' if it only shows what was corrected or explained since, to stand on the shared page beside the one before",
-                      ),
-                  }
-                : {}),
-            })
-            .optional(),
-          ...(review
-            ? {
-                review: z
-                  .object({
-                    checks: z.array(z.object({ name: z.string(), passed: z.boolean() })),
-                    mergeable: z.boolean().describe('the PR merges into the current default branch without conflicts (your merge probe)'),
-                  })
-                  .optional()
-                  .describe("required: the checks on the PR's head and your merge probe; the findings you record with findings"),
-                pr_draft: z
-                  .string()
-                  .optional()
-                  .describe(
-                    "when your branch holds commits of your own that are not on the PR yet: the text Seismic posts on the PR once the owner approves, after pushing them onto its branch. What you changed and why, in the PR's language, as the owner's words to the contributor, without mentioning Seismic or agents; with findings the owner sends the contributor along with your changes, the request for them in the same text. The card shows it to the owner first, who may edit it there. Without it, the text on the card stands.",
-                  ),
-              }
-            : {}),
-          files: z
-            .array(z.object({ path: z.string(), caption: z.string() }))
-            .max(MAX_RESULT_FILES)
-            .optional()
-            .describe(
-              `the files ${this.folder ? 'in the folder' : 'of your branch'} that are the result for the owner (a document, a report, a spreadsheet, a page; not the code or configuration behind it), each with its path and a one-line caption in ${language}. The card shows them beside the demo: Markdown formatted, a PDF in the browser's viewer, any other file to open on the owner's computer. A page you rendered for review only lies in your demo's directory instead, named by its absolute path there.${this.folder || review || !this.artifacts().includes('schema') ? '' : ' With data_models changed, the first file is the schema-change page the demo skill renders, with a caption.'} Without them, the ones named at your last handover stand.`,
-            ),
-          ...(this.folder || review || !this.artifacts().includes('schema')
-            ? {}
-            : {
-                data_models: z
-                  .enum(['changed', 'unchanged'])
-                  .describe(
-                    "whether your branch alters the data the app persists (tables, columns, indexes, relations, migrations, ORM models; not API types or config schemas): 'changed' brings the schema-change page among files, 'unchanged' its reason in data_models_reason",
-                  ),
-                data_models_reason: z.string().optional().describe(`with data_models 'unchanged': why, in one line in ${language} (the card may show it to the owner)`),
-              }),
-        },
-        run: ({ summary, demo, files, review: results, pr_draft: draft, data_models: declared, data_models_reason: why }) => {
-          // a stopped pull this worker resolved lands as it hands it over, without the owner
-          const resolving = landedOf(this.o.board.row(cardId))?.resolve;
-          if (resolving) return this.landResolved(cardId, resolving);
-          type Demo = { kind?: DemoKind; dir: string; chapters?: string[]; question?: { text: string } & Omit<Asked, 'question'>; page?: DemoPage; follows?: 'replaces' | 'supplements' };
-          const given = demo as Demo | undefined;
-          // whether the branch holds work and decides where it lands, which git tells without blocking the server
-          // a review card hands over the PR's head it reviewed, which is all Seismic ever merges
-          // with the commits of its own on top of the PR's head, which Seismic pushes on the owner's approval
-          const handOverWork = (d: Demo | undefined, named: CardFile[] | undefined, shows: boolean): Promise<string> =>
-            review
-              ? this.ownCommits(cardId, review).then((mine) => (typeof mine === 'string' ? mine : handOverNow(d, named, shows, true, undefined, mine)))
-              : Promise.all([this.o.workstations.hasWork(cardId), this.landingOf(cardId)]).then(async ([work, { own }]) =>
-                  handOverNow(
-                    d,
-                    named,
-                    shows,
-                    work,
-                    own,
-                    undefined,
-                    work && !this.folder ? await this.o.workstations.changedFiles(cardId) : undefined,
-                    // what the branch shows of a data-model change, unless the worker says it has one
-                    work && !this.folder && declared !== 'changed' && this.artifacts().includes('schema') ? dataModelSignals((await this.o.workstations.diff(cardId, true))?.patch ?? '') : [],
-                  ),
-                );
-          const handOverNow = (
-            d: Demo | undefined,
-            named: CardFile[] | undefined,
-            shows: boolean,
-            work: boolean,
-            own: CardLanding | undefined,
-            mine?: OwnCommits,
-            changed?: string[],
-            signals: DataSignal[] = [],
-          ): string => {
-            // reading what the change shows takes a while, in which the owner may stop or replace the session
-            if (this.live.get(cardId) !== live && !live.standIn) return 'This session has ended. Stop working and end your turn.';
-            const s = clip(String(summary), 6000);
-            const row = this.o.board.row(cardId);
-            if (row.landed) return 'Not handed over: your work is on main already.';
-            if (row.review?.pr && !review) return 'Not handed over: the work is in its pull request, where Seismic follows it.';
-            const checked = results as { checks: { name: string; passed: boolean }[]; mergeable: boolean } | undefined;
-            if (review && !checked) return "Not handed over: a review card's handover says what the checks and the merge probe found (review). Call ready_for_review again with it.";
-            if (review && !contributionOf(row)?.findings) return 'Not handed over: record your findings first (findings; an empty list where your review found nothing), then call ready_for_review again.';
-            const owed = this.owedTasks(cardId);
-            if (owed) return `Not handed over: first make the follow-up tasks the owner chose, for ${owed}; then call ready_for_review again.`;
-            // what goes onto the PR with the owner's approval: the worker's own commits and their text, with the requests to the contributor decided meanwhile
-            const held = review && mine ? this.heldAt(cardId, mine, typeof draft === 'string' ? draft : undefined) : undefined;
-            if (typeof held === 'string') return held;
-            // approved work that could not land comes back to be landed, not reviewed: its demo stands
-            const approved = !!row.approved_at;
-            // a handover in answer to the owner's words that brings no new demo is an answer to them, not a demo to watch
-            const answered = !d && !!row.detail && !!(JSON.parse(row.detail) as { answering?: boolean }).answering;
-            // without a new demo, the one on the card stands, unless it only came with a question
-            const asked = !!row.demo?.latest?.asked;
-            const kept = !d && !!row.demo?.latest && !asked;
-            // in a folder without git the card's change list shows what changed, where often nothing can be shown on screen
-            if (!d && !kept && !approved && !this.folder)
-              return `Not handed over: every handover brings a demo${row.demo?.latest ? ' (the one you showed with your question is not one)' : ''}. Record it with ${this.demoSkill(cardId)}, or make an HTML artifact when the result is something to look at, then call ready_for_review again with it.`;
-            const models = review || this.folder || approved || !this.artifacts().includes('schema') ? undefined : this.dataModels(cardId, declared, why, named, signals);
-            if (models && 'refused' in models) return models.refused;
-            let demoJson: string | undefined;
-            if (d) {
-              const allowed = this.artifacts();
-              const kind = d.kind ?? (allowed.includes('video') ? 'video' : 'html');
-              if (!allowed.includes(kind)) return `Not handed over: this repository's settings do not allow ${kind === 'video' ? 'a video' : 'an HTML artifact'} as a demo here. Hand over ${kind === 'video' ? "an HTML artifact (kind 'html')" : 'a video'} instead, then call ready_for_review again.`;
-              // what the worker says of it beside the demo before, for the owner's buttons when the page shows that one
-              const report = { ...(d.question?.text.trim() ? demoQuestion(d.question) : {}), ...(row.demo?.latest && (d.follows === 'replaces' || d.follows === 'supplements') ? { follows: d.follows } : {}) };
-              const tags = vocabulary.length && d.page?.tags && typeof d.page.tags === 'object' ? (d.page.tags as PageTags) : undefined;
-              const page =
-                d.page && d.page.title.trim() && d.page.text.trim() ? { title: clip(d.page.title.trim(), 200), text: clip(d.page.text.trim(), 2000), ...(tags ? { tags: tagsOf(tags, Object.fromEntries(vocabulary)) } : {}) } : undefined;
-              if (shares && !page)
-                return 'Not handed over: a demo here needs its page (title and text) for colleagues, in case the owner shares it. Call ready_for_review again with demo.page.';
-              if (vocabulary.length) {
-                const wrong = tags ? outside(tags, Object.fromEntries(vocabulary)) : [];
-                const lacking = vocabulary.filter(([dim]) => !tags?.[dim]).map(([dim]) => dim);
-                if (wrong.length) return `Not handed over: the page's tags come from the site's alone, and these are not among them: ${wrong.join(', ')}. Call ready_for_review again with demo.page.tags from those its description gives.`;
-                if (lacking.length) return `Not handed over: the page's tags lack ${lacking.join(', ')}. Give each dimension its values (an empty list where none fits), then call ready_for_review again.`;
-              }
-              if (kind === 'html') {
-                const wrong = checkArtifact(d.dir);
-                if (wrong) return `Not handed over: ${wrong}. Fix the artifact, then call ready_for_review again.`;
-                // an artifact that is its index.html alone also goes out as one HTML file
-                const single = artifactFiles(d.dir).length === 1;
-                demoJson = JSON.stringify({ kind, dir: d.dir, chapters: [], ...report, ...(page ? { page } : {}), ...(single ? { single } : {}) });
-              } else {
-                const chapters = readChapters(d.dir, d.chapters ?? []);
-                if (typeof chapters === 'string') return `Not handed over: ${chapters}. Fix the demo, then call ready_for_review again.`;
-                demoJson = JSON.stringify({ kind, dir: d.dir, chapters, ...report, ...(page ? { page } : {}) });
-              }
-            }
-            handOver();
-            if (review && checked) {
-              const now = contributionOf(this.o.board.row(cardId)) ?? review;
-              const { requested: _, held: __, changing: ___, ...rest } = now;
-              const results = { checks: checked.checks.slice(0, 20).map((c) => ({ name: clip(c.name, 60), passed: !!c.passed })), mergeable: !!checked.mergeable };
-              const findings = held && rest.findings?.map((f) => (held.asks.includes(f.id) ? { ...f, withChanges: true as const } : f));
-              this.o.board.work(cardId, {
-                review: { contribution: { ...rest, reviewed: mine?.head, results, ...(held ? { held, ...(findings ? { findings } : {}) } : {}) } satisfies StoredContribution },
-                ...(row.state === 'inPr' ? { state: 'working' } : {}),
-              });
-              // what the pull after the merge would run into on the local main, for the owner to see before approving
-              void this.probeClash(cardId);
-            }
-            const report = this.report(cardId, s);
-            const e = this.o.board.log(cardId, 'review', 'worker', s);
-            // work in a git repository gets its code review where the project reviews work, whatever its landing; the forge's reviewers come after it
-            if (!review && !approved) void this.reviews.handedOver(cardId, e.id, this.reviewModeOf(row, work));
-            // the demo report's question goes with the handover it came with, also once a later one keeps the demo
-            if (demoJson) demoJson = JSON.stringify({ ...(JSON.parse(demoJson) as object), handover: e.id, at: e.at });
-            // the demo it replaces stays with the card, for the owner to go back to; so do a question's drafts, which are no handover's result
-            const demos = (demoJson || asked) && row.demo?.latest ? this.earlier(cardId, row) : undefined;
-            // approved work does not wait for the owner again: it stays with Seismic until its turn has ended
-            this.o.board.work(cardId, {
-              // the worker's last status line is about the work it hands over: it would show again once the card is at work
-              ...(approved ? { status_line: this.o.board.t.worker.landing } : { state: 'waiting', need: d || kept ? 'demo' : 'review', status_line: null }),
-              // approving work that changes nothing makes the card done, which the owner sees before approving; where work
-              // lands that its own branch decides, likewise
-              detail: JSON.stringify({
-                summary: report,
-                ...(work ? (own ? { lands: own } : {}) : { noChange: true }),
-                ...(answered && !approved ? { answered: true } : {}),
-                ...(models?.unchanged ? { modelsUnchanged: models.unchanged } : {}),
-              }),
-              demo: {
-                ...(demoJson ? { latest: JSON.parse(demoJson) as StoredDemo } : asked ? { latest: null } : {}),
-                ...(demos ? { earlier: demos } : {}),
-                // the files named stand until a later handover names others (an empty list named clears them); a folder's card handed
-                // over without a demo shows what it changed, while there are files of it to show
-                ...(named?.length
-                  ? { files: named }
-                  : this.folder && !d && !kept && (named || !row.demo?.files?.length)
-                    ? { files: shows ? [] : null }
-                    : named
-                      ? { files: null }
-                      : {}),
-              },
-            });
-            const card = this.o.board.item(cardId);
-            if (card?.idea?.prototypeOf) this.o.onPrototype?.(card, report, demoJson);
-            if (approved)
-              return ending(
-                'Recorded. End your turn now; once it has ended, Seismic lands your work on main.',
-                'Recorded: once your turn has ended, Seismic lands your work on main.',
-                'a change to the work is to be committed by then',
-              );
-            // what the owner's button does, as Seismic sees the branch: the worker may know of no commit on it but its own
-            const lands =
-              review || this.folder
-                ? ''
-                : !work
-                  ? ' Seismic sees no change on your branch: approving closes the card, and nothing lands.'
-                  : changed?.length
-                    ? ` Approving lands your branch's change to ${changed.length === 1 ? '1 file' : `${changed.length} files`}: ${changed.slice(0, 8).join(', ')}${changed.length > 8 ? ', …' : ''}.`
-                    : '';
-            return ending(`${END_TURN}${lands}`, `Recorded: your handover waits for the owner's approval.${lands}`, 'if they change what you handed over, hand it over again');
-          };
-          // a demo made on another machine is served and shared from its copy here
-          const handOverWith = (named?: CardFile[]): string | Promise<string> => {
-            if (given && hostName(this.o.board.row(cardId).workstation))
-              return this.demoHere(cardId, given.dir).then((here) =>
-                'wrong' in here
-                  ? `Not handed over: the demo could not be copied to the owner's machine (${here.wrong}). Check the directory, then call ready_for_review again.`
-                  : handOverWork(
-                      { ...given, dir: here.dir },
-                      named?.map((f) => (f.dir === given.dir ? { ...f, dir: here.dir } : f)),
-                      false,
-                    ),
-              );
-            // in a folder, what the change has to show decides whether a handover without a demo shows it beside the conversation
-            if (this.folder && !given) return this.showsFiles(cardId).then((shows) => handOverWork(given, named, shows));
-            return handOverWork(given, named, false);
-          };
-          // the files named as the result, checked against what the card changed before anything is handed over
-          if (files !== undefined)
-            return this.namedFiles(cardId, files as { path: string; caption: string }[], given?.dir).then((named) =>
-              typeof named === 'string'
-                ? `Not handed over: ${named}. Name only files your card made or changed, or files in your demo's directory, then call ready_for_review again.`
-                : handOverWith(named),
-            );
-          return handOverWith();
-        },
-      },
-      {
-        name: 'close_unchanged',
-        description: `After the owner approved: your work changed nothing in the repository (no commits, nothing uncommitted), because the task needed no change to the code (a demo, an analysis, an answer). Then nothing lands and there is no pull request to open: this closes the card as done instead. Then end your turn.`,
-        schema: {},
-        run: async () => {
-          const row = this.o.board.row(cardId);
-          if (row.landed) return 'Not recorded: the card is finished already.';
-          // a review card whose pull request was closed lands nothing, whatever its branch holds
-          if (contributionOf(row)?.closed) return [`Recorded: the card is done.`, this.close(cardId, 'worker'), AFTER_LANDING].filter(Boolean).join(' ');
-          const work = await this.o.workstations.hasWork(cardId);
-          const pr = row.review?.pr ?? null;
-          if (!row.approved_at && !(pr && !pr.url)) return 'Not recorded: only work the owner approved can be closed, and only before its pull request is open. Hand it over with ready_for_review first.';
-          if (work)
-            return 'Not recorded: your branch holds commits or uncommitted changes. Work that changes the repository lands (or goes out as a pull request); throw away what is not meant to land first, if nothing is.';
-          const page = this.close(cardId, 'worker');
-          return [`Recorded: the card is done.`, page, AFTER_LANDING].filter(Boolean).join(' ');
-        },
-      },
-      {
-        name: 'after_restart',
-        description: 'Only after your work has landed and Seismic said it starts again for it: what remains needs Seismic to run your change. Then end your turn; Seismic tells you once it runs your change.',
-        schema: {},
-        run: () => {
-          const l = landedOf(this.o.board.row(cardId));
-          if (!l) return 'Not recorded: your work has not landed.';
-          if (!l.restarts) return 'Not recorded: Seismic does not start again for this landing; what runs now is what you get.';
-          this.o.board.work(cardId, { landed: JSON.stringify({ ...l, waits: true } satisfies LandedState) });
-          this.o.board.log(cardId, 'activity', 'worker', this.o.board.t.worker.waitsForRestart);
-          return ending('Recorded. End your turn now.', 'Recorded: Seismic tells you once it runs your change.');
-        },
-      },
-      {
-        name: 'snooze',
-        description: [
-          `Snooze while there is nothing to do until a point in time further off than a background command can wait (a check at midnight, a test that runs for days, a report on the 31st), or until another card on this project gets somewhere (its fix is on main, its demo is ready).`,
-          `until: that time, ISO 8601 with your timezone's offset (2026-10-31T08:00:00+01:00). card: the title of the card to wait on; state: what it is to reach, 'done' (its work is on main, or it closed without a change; the default) or 'waits_for_owner' (it asks the owner or hands its work over). Give until, card or both: Seismic wakes you at whichever comes first, and also when that card can no longer get there (stopped, archived, removed).`,
-          `why: what you do then, in a few words in ${language}, shown on the card. Your session ends with your turn, and whatever you still run in the background with it; workstation and branch stay. Seismic resumes this session then, or earlier with a note from the owner or whatever else comes for you (a review, the landing). For checkpoints one after the other, snooze to the next one each time you wake. Then end your turn.`,
-        ].join(' '),
-        schema: { until: z.string().optional(), why: z.string(), card: z.string().optional(), state: z.enum(['done', 'waits_for_owner']).optional() },
-        run: ({ until, why, card: title, state }) => {
-          const card = this.o.board.item(cardId);
-          if (!card) return 'Not snoozed: the card is gone.';
-          if (live.handedOver) return 'Not snoozed: you asked or handed over in this turn, so the card waits for the owner.';
-          // taking in the owner's words on its handover, it may snooze as they ask (check again in three days): the handover stands meanwhile
-          if (!(card.state === 'working' || card.state === 'inPr' || card.agent?.finishing || answering(card))) return 'Not snoozed: the card waits for the owner; their answer or approval comes as your next message.';
-          if (isPausing(card)) return 'Not snoozed: the owner pauses you; end your turn, and once they let you go on, snooze then if it is still due.';
-          const named = typeof until === 'string' && until.trim() !== '';
-          const at = named ? Date.parse(String(until)) : NaN;
-          if (named && Number.isNaN(at)) return 'Not snoozed: give the time as ISO 8601 with your timezone offset (2026-10-31T08:00:00+01:00).';
-          if (named && at <= Date.now()) return `Not snoozed: that time has passed (it is ${new Date().toISOString()} now).`;
-          if (named && at > Date.now() + SNOOZE_LIMIT) return 'Not snoozed: snooze for a year at most.';
-          let on: Snooze['on'];
-          if (typeof title === 'string' && title.trim()) {
-            const found = this.cardTitled(cardId, title.trim());
-            if (typeof found === 'string') return `Not snoozed: ${found}`;
-            const awaits = state === 'waits_for_owner' ? 'waitsForOwner' : AWAITED_STATES[0];
-            const now = awaited(found, awaits);
-            if (now === 'reached') return `Not snoozed: the card “${found.title}” ${awaits === 'done' ? 'is done already' : 'waits for the owner already'}.`;
-            if (now) return `Not snoozed: the card “${found.title}” cannot get there now (${now}).`;
-            on = { card: found.id, title: found.title, state: awaits };
-          } else if (!named) return 'Not snoozed: give until, card, or both.';
-          const s: Snooze = { ...(named ? { until: new Date(at).toISOString() } : {}), ...(on ? { on } : {}), by: 'agent', ...(String(why).trim() ? { why: clip(String(why).trim(), 200) } : {}) };
-          try {
-            this.o.board.snooze(cardId, s);
-          } catch (e) {
-            if (e instanceof BadRequest && e.code === 'dependencyCycle') return 'Not snoozed: that card already waits for this one, directly or through another card.';
-            throw e;
-          }
-          live.snoozed = true;
-          live.nudged = false;
-          return ending(
-            `Snoozed until ${snoozedUntil(s)}. End your turn now; Seismic resumes this session then.`,
-            `Snoozed until ${snoozedUntil(s)}: Seismic resumes this session then.`,
-            'if they change what you wait for, snooze anew',
-          );
-        },
-      },
-      {
-        name: 'app_running',
-        description: `The app runs in your workstation and opens in a browser: its address as you open it (http://localhost:5173, say), so the owner can open it from the card to try it by hand while it runs. Again each time you start it anew or its address changes; an empty url once you stop it.`,
-        schema: { url: z.string() },
-        run: ({ url }) => {
-          const u = String(url).trim();
-          if (!u) {
-            this.o.board.work(cardId, { app: null });
-            return 'Recorded: the card no longer offers the app.';
-          }
-          if (!APP_URL.test(u)) return 'Not recorded: give the address as http(s)://host:port/….';
-          this.o.board.work(cardId, { app: u });
-          return 'Recorded: the card offers the app to the owner while it answers there.';
-        },
-      },
-      ...(this.inWorktree(cardId)
-        ? [
-            {
-              name: 'need_clone',
-              description: "Only in a follow-up in a temporary worktree: answering the owner needs a full clone (the repository's app or tooling, which may not run here). Then end your turn; Seismic resumes you in the next free clone.",
-              schema: {},
-              run: () => {
-                const l = landedOf(this.o.board.row(cardId));
-                if (!l?.worktree) return 'Not recorded: you work in a full clone already.';
-                this.o.board.work(cardId, { landed: JSON.stringify({ ...l, needsClone: true } satisfies LandedState) });
-                this.o.board.log(cardId, 'activity', 'worker', this.o.board.t.worker.needsClone);
-                return 'Recorded. Tell the owner with reply that you go on once a clone is free, then end your turn: Seismic resumes you in the next free clone.';
-              },
-            } satisfies AgentTool,
-          ]
-        : []),
-      ...this.execLane(cardId, live),
-      ...(this.o.toObeya
-        ? [
-            toObeyaTool((request) => {
-              // what Seismic does or replies is shown to the owner as the answer to their words
-              live.spoke = true;
-              return this.o.toObeya!(cardId, request);
-            }),
-          ]
-        : []),
-    ]);
-  }
 
   /**
    * A Codex worker on this machine gets `seismic_run` and `seismic_git`: Seismic runs what its sandbox
    * keeps from it (`codexExecTools.ts`). Not a review card's worker: its workstation holds a stranger's code.
    */
-  private execLane(cardId: string, live: Live): AgentTool[] {
+  execLane(cardId: string, live: Live): AgentTool[] {
     const row = this.o.board.row(cardId);
     if (!this.usesExecLane(row, live) || !row.workstation) return [];
     const workstation = row.workstation;
@@ -5433,7 +4722,7 @@ export class Workers {
    * the worker started comes with what it said in the conversation after it, its replies and later
    * handovers, `latest` last.
    */
-  private report(cardId: string, latest: string): string {
+  report(cardId: string, latest: string): string {
     const events = this.o.board.events(cardId);
     const since = events.slice(events.findLastIndex(started) + 1).filter((e) => e.author === 'worker' && (e.kind === 'review' || e.kind === 'talk'));
     const first = since.findIndex((e) => e.kind === 'review');
@@ -5499,11 +4788,11 @@ export class Workers {
 
   /** The worker takes back one of its proposals by title, or marks it replaced (`s.by`): what became of it, as the tool's result. */
   /** The boards a card's proposals may be on: this project's, then those of the other projects. */
-  private proposalBoards(): Board[] {
+  proposalBoards(): Board[] {
     return [this.o.board, ...this.otherBoards()];
   }
 
-  private otherBoards(): Board[] {
+  otherBoards(): Board[] {
     return (this.o.otherBoards?.() ?? []).filter((b) => b !== this.o.board);
   }
 
@@ -5511,7 +4800,7 @@ export class Workers {
    * The repository a worker names for its proposal (by id, name or path) and the board of its
    * project: this project's first, then another project's; or why there is none.
    */
-  private proposalRepo(wanted: string): { board: Board; repo: string } | string {
+  proposalRepo(wanted: string): { board: Board; repo: string } | string {
     const w = wanted.toLowerCase();
     const dir = (path: string) => path.replace(/[/\\]+$/, '');
     const named = (r: RepoRef) => r.id.toLowerCase() === w || r.name.toLowerCase() === w || dir(r.path) === dir(wanted);
@@ -5524,7 +4813,7 @@ export class Workers {
     return `Not proposed: Seismic has no repository ${wanted}; give one of ${all.join(', ')}.`;
   }
 
-  private retract(cardId: string, title: string, s: Superseded): string {
+  retract(cardId: string, title: string, s: Superseded): string {
     // the proposal may be on another project: where none of this card's has the title, the next one is asked
     const mine: Extract<Retracted, { kind: 'unknown' }>['mine'] = [];
     let r: Retracted = { kind: 'unknown', mine };
@@ -5540,7 +4829,7 @@ export class Workers {
     return retractedText(r, !!s.by);
   }
 
-  private toOwner(cardId: string, q: Question) {
+  toOwner(cardId: string, q: Question) {
     this.wokenForOwner(cardId);
     this.o.board.work(cardId, { state: 'waiting', need: 'question', detail: JSON.stringify({ question: q }) });
   }
@@ -5580,47 +4869,15 @@ export class Workers {
   // ---------------------------------------------------------------- prompts
 
   /** What a handover on this repository may bring: its settings', else the demo settings', else everything. */
-  private artifacts(): readonly HandoverArtifact[] {
+  artifacts(): readonly HandoverArtifact[] {
     return this.o.adapter.demo?.artifacts ?? this.o.demoArtifacts?.() ?? HANDOVER_ARTIFACTS;
   }
 
   /** The language of the card's demos: the repository's, else the demo settings' narration language. */
-  private demoLanguage(): Language {
+  demoLanguage(): Language {
     return this.o.adapter.demo?.language ?? this.o.demoLanguage?.() ?? this.o.board.conversation();
   }
 
-  private system(preferences: string, prototype = false, card?: Item): string {
-    const language = ownersLanguage(this.o.board.conversation());
-    const folder = !!this.folder;
-    return `
-You are a worker agent directed through Seismic, a project on which the owner directs coding agents like an engineering director directs a team. ${
-      folder
-        ? 'You work on exactly one card, directly in a folder that is not a git repository. Other workers may work on other cards in the same folder at the same time, and so may the owner.'
-        : 'You work on exactly one card, in a workstation of the repository (a clone or worktree) that belongs to that card, on your own branch. Other workers may work on other cards at the same time in their own workstations.'
-    }
-
-The owner does not watch you work and does not read code. They see your card's conversation: your status lines, questions, replies and handovers. Talk to them only through the Seismic tools. Use their names as shown in your tool list (in Claude Code, with the mcp__seismic__ prefix):
-- report: a short status line at milestones.
-- reply: your answer to a note or feedback from the owner, in a sentence or two: what you change because of it, or why nothing.
-- ask: a decision that is not yours (product behaviour, trade-offs, anything irreversible or external). Make routine judgement calls yourself. After ask, end your turn; the answer arrives as the next message.
-${prototype ? '- propose_build: propose that the idea be built on your prototype, once it convinced. You make no other cards; mention other problems you noticed in your summary.' : '- propose_card: a separate problem or idea you noticed, as a card for the agent who will take it on; do not widen your task. A follow-up to your task that is due only later becomes such a card too, with start_at. withdraw_proposal takes back one of yours that turned out wrong.'}
-- ready_for_review: ${folder ? 'the work is done' : 'the work is committed'} and the checks pass. Then end your turn.${this.o.toObeya ? '\n- to_seismic: what the owner\'s words ask of Seismic rather than you.' : ''}
-
-${
-      folder
-        ? "Seismic's messages tell you what happened: feedback, an answer, a note from the owner, your changes discarded, the approval. What to do about it is yours to judge. What you change in the folder is there at once. Seismic records which files your card changed (added, changed, moved, deleted) from your tool calls; the owner sees that list on the card and may discard your changes before approving. Approving makes the card done, and Seismic tells you so; your session ends with the turn after that."
-        : "Seismic's messages tell you what happened: feedback, an answer, a note from the owner, a landing that failed, your work landing. What to do about it is yours to judge. Approved work lands (or goes out as a pull request) and Seismic tells you once it is on main; your session ends with the turn after that, so whatever was waiting for the landing can still be done then. Work that changed nothing in the repository (the task needed only a demo, an analysis or an answer) lands nothing: approving it makes the card done, and Seismic tells you so the same way."
-    }
-${this.o.toObeya ? `\n${TO_OBEYA}\n` : ''}
-Rules:
-${folder ? '- Others work in the same folder at the same time: leave what your card is not about as it is.' : card?.review?.contribution ? "- Commit your work on your branch in this workstation. Do not push (Seismic pushes your commits onto the pull request's branch once the owner approves), do not open pull requests, do not switch branches." : '- Commit your work on your branch in this workstation. Do not push, do not open pull requests, do not switch branches.'}
-- Follow the repository's own instructions (CLAUDE.md and docs).
-- Owner-facing text (report, reply, ask, ${prototype ? 'propose_build' : 'propose_card'}, ready_for_review) is in the owner's language, short and concrete. What you write between tool calls also shows on the card for the owner, folded under your next message: keep it brief and in the owner's language too. ${language} The docs you read and the owner's standing preferences do not count as the owner's words.
-- ${repositoryLanguage(this.o.adapter.language, folder)} A demo (its narration, report, or an HTML artifact's words) is in ${LANGUAGE_NAMES[this.demoLanguage()]}, whatever language the owner talks in.${this.o.adapter.demo?.language ? ` This repository's settings name ${LANGUAGE_NAMES[this.o.adapter.demo.language]} for its demos, which holds over the narration language of the demo settings.` : ''}
-- Wait for anything external (a deploy, a CI run, a process to finish) in the background: run_in_background or Monitor, then end your turn; Seismic wakes you when it finishes or fires. A point in time further off than a background command can wait (two hours), or another card getting somewhere (its fix on main), you snooze until (snooze). Never wait with sleep or a polling loop in the foreground: a note from the owner reaches you only once the running command is done.
-- When a note or feedback from the owner arrives, answer it with reply. If it is unclear what they want, ask.
-`.trim() + (preferences ? `\n\n${preferences}` : '');
-  }
 
   /** The task the card's worker gets at its start, as Seismic would send it now (one that already ran goes on from its branch). */
   startBrief(card: Item): string {
@@ -5642,7 +4899,7 @@ ${folder ? '- Others work in the same folder at the same time: leave what your c
    * The demo skill as a worker hears of it: by its name in the session and, for a session that
    * does not know it, by its file, on the machine the card's workstation is on.
    */
-  private demoSkill(cardId: string): string {
+  demoSkill(cardId: string): string {
     const there = remote(this.o.board.row(cardId).workstation);
     const [name, file] = there ? [DEMO_SKILL, `~/${HOST_DIR}/${basename(SEISMIC_PLUGIN)}/skills/demo/SKILL.md`] : [demoSkillName(), DEMO_SKILL_FILE];
     return `the demo skill (\`${name}\`; if your session does not know it, read its file ${file} and follow that)`;
