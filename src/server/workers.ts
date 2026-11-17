@@ -21,7 +21,7 @@ import { mmss } from '../../plugin/skills/demo/lib/timeline.ts';
 import { AGENT_DEFAULTS, harnessChoice, type AgentSetting, answering, askable, type Awaited, AWAITED_STATES, awaited, type BackgroundTask, AGENT_HOLDS, halted, type Hold, isPaused, isPausing, pausable, pausableNow, snoozeOf, type WorkerTurn, type CardLanding, type Demo, type DemoKind, type DemoPage, finished, formatQuestion, handedOver, type Item, type Mock, ownWords, pickedAnswer, type Question, type RepoRef, type RepoSettings, type RestartReason, type Share, type Snooze, SNOOZE_LIMIT, type Spot, type Superseded, type SpotInput, started, stoppedAtOf } from '../core/types';
 import { ACTIVE, BadRequest, type Board, holdNow, replyNote, type Retracted, type StoredDemo, titleKey } from './board';
 import { type Asked, decisionLog, toQuestion, withPick } from './advisor';
-import { checkArtifact, DEMO_SKILL, DEMO_SKILL_FILE, demoSkillName, OBEYA_PLUGIN, placeIn, readChapters } from './demo';
+import { checkArtifact, DEMO_SKILL, DEMO_SKILL_FILE, demoSkillName, SEISMIC_PLUGIN, placeIn, readChapters } from './demo';
 import { artifactFiles } from './demo-page';
 import { imageNote } from './images';
 import { outsidePlanDir, remoteHost } from './repo';
@@ -3755,7 +3755,7 @@ export class Workers {
           ...(review ? { untrusted: true } : {}),
           system: `${this.system(preferences, !!row.idea?.prototypeOf, this.o.board.item(cardId))}${setting.harness && setting.harness !== 'claude' && !live.host && !review ? `\n\n${live.autoReview ? EXEC_LANE_AUTO_NOTE : EXEC_LANE_NOTE}` : ''}${notes ? `\n\nThe repository's CLAUDE.md, as its default branch has it:\n\n${notes}` : ''}`,
           tools: this.tools(cardId, live, !!row.idea?.prototypeOf),
-          plugins: [OBEYA_PLUGIN],
+          plugins: [SEISMIC_PLUGIN],
           ...(env ? { env } : {}),
           contextUpdate: () =>
             [this.restartStillDue(cardId, live), this.pauseStillDue(live), ...(!reviewOnly ? [this.pageNewsNow(cardId, live), this.unheardNow(cardId, live), this.decisionsUpdate(cardId, live)] : []), this.preferencesUpdate(live)].filter(Boolean).join('\n\n') || undefined,
@@ -5647,7 +5647,7 @@ ${folder ? '- Others work in the same folder at the same time: leave what your c
    */
   private demoSkill(cardId: string): string {
     const there = remote(this.o.board.row(cardId).workstation);
-    const [name, file] = there ? [DEMO_SKILL, `~/${HOST_DIR}/${basename(OBEYA_PLUGIN)}/skills/demo/SKILL.md`] : [demoSkillName(), DEMO_SKILL_FILE];
+    const [name, file] = there ? [DEMO_SKILL, `~/${HOST_DIR}/${basename(SEISMIC_PLUGIN)}/skills/demo/SKILL.md`] : [demoSkillName(), DEMO_SKILL_FILE];
     return `the demo skill (\`${name}\`; if your session does not know it, read its file ${file} and follow that)`;
   }
 

@@ -13,7 +13,7 @@ import { commandsOf } from './trust';
 import { artifact, FakeRuntime, gitRepo, heard, identify, noForge, until } from './testing';
 import { git, gitOrNull, planBaselineTag, HERE } from './workstations';
 import { type SkillPlace, Skills } from './skills';
-import { OBEYA_PLUGIN } from './demo';
+import { SEISMIC_PLUGIN } from './demo';
 import { STALL_MS } from './stalls';
 import { writeSites } from './demo-sites';
 import { MANIFEST, siteKey } from './site';
@@ -1782,7 +1782,7 @@ describe("the skills of a card's agent", () => {
       await c.skillsOf(idea.id);
       const read = c.repos[0]!.read.path;
       expect(asked).toEqual([
-        { cwd: read, plugins: [OBEYA_PLUGIN], untrusted: false },
+        { cwd: read, plugins: [SEISMIC_PLUGIN], untrusted: false },
         // an idea's agent loads no plugins
         { cwd: read, plugins: [], untrusted: false },
       ]);

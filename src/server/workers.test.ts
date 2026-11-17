@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { generic } from '../adapters/generic';
 import { needsYou, pausable, type ReviewItem } from '../core/types';
 import { BadRequest, Board } from './board';
-import { OBEYA_PLUGIN } from './demo';
+import { SEISMIC_PLUGIN } from './demo';
 import { Images } from './images';
 import { Restarter } from './self-update';
 import { artifact, until } from './testing';
@@ -95,7 +95,7 @@ describe('workers', () => {
     expect(runtime.last.inbox[0]).toContain('How to run the app: Start it with `bun run stack`; after an API change, `bun run api:restart`. The URL is in `.stack.env` under WEB_URL.');
     expect(runtime.last.inbox[0]).toContain('Run the app for it as the recipe above says.');
     // a repository without demos gets Seismic's skills all the same: the one that writes its settings among them
-    expect(runtime.last.spec.plugins).toEqual([OBEYA_PLUGIN]);
+    expect(runtime.last.spec.plugins).toEqual([SEISMIC_PLUGIN]);
     // the only clone is taken
     const d = manual();
     expect(() => workers.start(d.id)).toThrow(BadRequest);

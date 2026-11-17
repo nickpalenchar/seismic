@@ -17,7 +17,7 @@ import { resource } from './resources';
  * pipeline that records a demo. A Claude Code session without Seismic reaches the same skill through
  * the plugin or a user skill that points to `plugin/skills/demo`.
  */
-export const OBEYA_PLUGIN = resource('plugin');
+export const SEISMIC_PLUGIN = resource('plugin');
 const MANIFEST = join('.claude-plugin', 'plugin.json');
 
 /** The name in the plugin's manifest; undefined when it is missing, unreadable or names none. */
@@ -38,10 +38,10 @@ export const PLUGIN_NAME = 'seismic';
 export const DEMO_SKILL = `${PLUGIN_NAME}:demo`;
 
 /** The demo skill's instructions, for a session that does not know the skill to read. */
-export const DEMO_SKILL_FILE = join(OBEYA_PLUGIN, 'skills', 'demo', 'SKILL.md');
+export const DEMO_SKILL_FILE = join(SEISMIC_PLUGIN, 'skills', 'demo', 'SKILL.md');
 
 /** What is wrong with the plugin workers load, for the log at start; null when nothing is. */
-export function checkPlugin(dir = OBEYA_PLUGIN): string | null {
+export function checkPlugin(dir = SEISMIC_PLUGIN): string | null {
   for (const f of [MANIFEST, join('skills', 'demo', 'SKILL.md')])
     if (!existsSync(join(dir, f))) return `${join(dir, f)} is missing: workers' sessions have no demo skill`;
   const name = manifestName(dir);

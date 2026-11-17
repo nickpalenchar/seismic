@@ -47,7 +47,7 @@ import { bundledSkills, Skills } from './skills';
 
 /** The skill lists of all projects: several share a repository, and the user's skills are the same on each. */
 const sharedSkills = new Skills();
-import { OBEYA_PLUGIN } from './demo';
+import { SEISMIC_PLUGIN } from './demo';
 import { changesCode, RESTART_PATIENCE_MS, whenIdle } from './self-update';
 import { Sharing, type ShareSite } from './share';
 import { isSitePath, siteMissing, siteName, sitePaths } from './site';
@@ -1597,7 +1597,7 @@ export class ProjectRuntime {
       const setting = row.agent_setting ? JSON.parse(row.agent_setting) : row.session_id ? undefined : this.agentFor('worker');
       if (setting?.harness === 'codex' || setting?.harness === 'agy') return bundledSkills().map(({ file: _, ...skill }) => skill);
     }
-    return this.skills.of({ cwd, plugins: idea ? [] : [OBEYA_PLUGIN], untrusted: (!idea && !!card.review?.contribution) || (await this.claudeHeld(cwd)) });
+    return this.skills.of({ cwd, plugins: idea ? [] : [SEISMIC_PLUGIN], untrusted: (!idea && !!card.review?.contribution) || (await this.claudeHeld(cwd)) });
   }
 
   /** Whether the app in the card's workstation answers, for the owner to try it by hand (`Workers.appUp`). */

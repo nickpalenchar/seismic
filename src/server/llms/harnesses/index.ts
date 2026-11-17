@@ -4,7 +4,7 @@
 import { spawnSync } from 'node:child_process';
 import { GIT } from '../../workstations';
 import { messageOf } from '../../../core/text';
-import { OBEYA_PLUGIN } from '../../demo';
+import { SEISMIC_PLUGIN } from '../../demo';
 import { claudeConnected } from './claude';
 import { codexConnected, createCodexRuntime } from './codex';
 import { agyConnected, createAgyRuntime } from './agy';
@@ -16,7 +16,7 @@ import { choosesHarness, HARNESS_NAMES, HARNESSES, type Harness } from '../../..
 /** Only Seismic's bundled plugin is portable here, by explicit file-based skill instructions. */
 function portable(spec: AgentSpec, name = 'Codex'): AgentSpec {
   if (spec.permissionMode && !['auto', 'default'].includes(spec.permissionMode)) throw new Error(`${name} cannot apply Claude permission mode ${spec.permissionMode}`);
-  if (spec.plugins?.some((p) => p !== OBEYA_PLUGIN)) throw new Error(`${name} supports only the bundled Seismic skills`);
+  if (spec.plugins?.some((p) => p !== SEISMIC_PLUGIN)) throw new Error(`${name} supports only the bundled Seismic skills`);
   if (spec.cwd.startsWith('ssh://')) throw new Error(`${name} workers currently require a local Git workstation`);
   if (spec.watch) throw new Error(`${name} workers do not yet support folders without Git`);
   const git = spawnSync(GIT, ['-C', spec.cwd, 'rev-parse', '--is-inside-work-tree'], { encoding: 'utf8', windowsHide: true });

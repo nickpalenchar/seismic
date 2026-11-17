@@ -6,7 +6,7 @@ import { generic } from '../adapters/generic';
 import type { RepoAdapter } from '../adapters/types';
 import { needsYou } from '../core/types';
 import { BadRequest } from './board';
-import { DEMO_SKILL_FILE, demoSkillName, OBEYA_PLUGIN } from './demo';
+import { DEMO_SKILL_FILE, demoSkillName, SEISMIC_PLUGIN } from './demo';
 import { Images } from './images';
 import { artifact, until } from './testing';
 import { Workers } from './workers';
@@ -253,7 +253,7 @@ describe('handing over with a demo', () => {
     setup({ ...generic, land: 'main', workstations: 'clones', app: { run: 'bun start' } });
     const c = manual();
     await workers.start(c.id);
-    expect(runtime.last.spec.plugins).toEqual([OBEYA_PLUGIN]);
+    expect(runtime.last.spec.plugins).toEqual([SEISMIC_PLUGIN]);
     // a demo's narration finds Seismic, which holds the voice across renders
     expect(runtime.last.spec.env).toEqual({ OBEYA_URL: 'http://127.0.0.1:4417' });
     expect(existsSync(DEMO_SKILL_FILE)).toBe(true);
