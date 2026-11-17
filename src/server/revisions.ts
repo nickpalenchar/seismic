@@ -4,6 +4,7 @@
 // The owner's words on an open proposal come straight to this agent, as to a card's worker, and it
 // passes on what asks Seismic for something (`to_seismic`).
 
+import { workerConfig } from './worker-config';
 import { basename } from 'node:path';
 import { z } from 'zod';
 import { ownersLanguage } from '../core/locale';
@@ -14,7 +15,6 @@ import type { AgentRuntime } from './runtime';
 import { readSession } from './llms/agents/agentJobs/readSession';
 import { toObeyaTool } from './to-obeya';
 import { messageOf } from '../core/text';
-import { PROPOSAL_QUESTIONS, proposalQuestions, proposalTask } from './llms/agents/worker/shared';
 
 export interface RevisionOptions {
   board: Board;
@@ -82,7 +82,7 @@ export class Revisions {
         (r) => {
           // the words only asked Seismic for something: the proposal stays as it was, and what Seismic did stands in its conversation
           if (!r) return this.o.board.revised(cardId) || undefined;
-          const questions = proposalQuestions(r.questions);
+          const questions = workerConfig.proposalQuestions(r.questions);
           // of the screenshots it saw, those it names; naming none of them keeps what went with the task
           const images = r.images && [...new Set(r.images.map((f) => basename(String(f))))].filter((id) => shots.all.includes(id)).slice(0, MAX_IMAGES);
           const p = { title: r.title, task: r.task, ...(r.reason?.trim() ? { reason: r.reason.trim() } : {}), idea: !!r.idea, questions, ...(images ? { images } : {}) };
@@ -139,7 +139,7 @@ export class Revisions {
           name: 'revise_proposal',
           description: [
             `The whole proposal as it is to stand now, in the owner's language. ${ownersLanguage(this.o.board.conversation())}`,
-            `title: short and precise. ${proposalTask('the card it came from nor this conversation')}`,
+            `title: short and precise. ${workerConfig.proposalTask('the card it came from nor this conversation')}`,
             `reason: for the owner only, why it is proposed, a sentence or two (keep it unless what the owner said changes it). idea: true for something to think through with the owner before anyone builds it.`,
             `questions: what the owner still has to decide, each with up to four short options; keep them out of task. A question the owner's words settle goes, and its decision goes into task.`,
             `reply: your turn in the conversation beside the proposal, a sentence or two for the owner: the answer to what they asked (asked which option you would take: your pick and why), and what you changed, without repeating the text.`,
@@ -154,7 +154,7 @@ export class Revisions {
             task: z.string(),
             reason: z.string().optional(),
             idea: z.boolean().optional(),
-            questions: PROPOSAL_QUESTIONS,
+            questions: workerConfig.proposalQuestionsSchema,
             reply: z.string(),
             ...(shots.all.length ? { images: z.array(z.string()).optional() } : {}),
           },

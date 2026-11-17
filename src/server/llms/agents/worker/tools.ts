@@ -3,6 +3,7 @@
  * and the rest), as the card's state allows them. They act on the card through the `Workers` that
  * runs it (`WorkerHost`).
  */
+import { workerConfig } from '../../../worker-config';
 import { z } from 'zod';
 import { LANGUAGE_NAMES } from '../../../../core/locale';
 import { type CardFile } from '../../../../core/files';
@@ -22,7 +23,6 @@ import { type DataSignal, dataModelSignals } from '../../../data-models';
 import { parsePrUrl, sameRepo } from '../../../forge';
 import { clip } from '../../../../core/text';
 import type { LandedState, Live, OwnCommits, Workers } from '../../../workers';
-import { AFTER_LANDING, APP_URL, demoQuestion, END_TURN, landedOf, MAX_RESULT_FILES, PROPOSAL_QUESTIONS, proposalQuestions, proposalTask, snoozedUntil } from './shared';
 
 /** What the worker's tools and prompt need of the `Workers` that runs the card. */
 export type WorkerHost = Pick<Workers, 'artifacts' | 'cardTitled' | 'close' | 'dataModels' | 'demoHere' | 'demoLanguage' | 'demoSkill' | 'disputeItems' | 'earlier' | 'execLane' | 'folder' | 'followUpTask' | 'heldAt' | 'inWorktree' | 'landResolved' | 'landingOf' | 'live' | 'namedFiles' | 'o' | 'otherBoards' | 'owedTasks' | 'ownCommits' | 'probeClash' | 'proposalBoards' | 'proposalRepo' | 'report' | 'requestChanges' | 'resubmitItems' | 'retract' | 'reviewModeOf' | 'reviews' | 'setFindings' | 'shares' | 'showsFiles' | 'toOwner' | 'unheardNow'>;
@@ -130,7 +130,7 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
           }
           self.toOwner(cardId, q);
           return ending(
-            END_TURN,
+            workerConfig.endTurn,
             'Recorded: your question waits for the owner on the card, and their answer arrives as your next message.',
             'if they change your question, ask it anew (the card shows the earlier one as asked again further below)',
           );
@@ -171,7 +171,7 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
           description: [
             `Propose a separate card for something you noticed that is outside your task, instead of doing it here, or for a follow-up to your own task that can only be done later (start_at); the owner decides on it.`,
             `idea: true for something to think through with the owner before anyone builds it (it becomes an idea, discussed with an agent of its own); leave it out for a task that is clear enough to build.`,
-            proposalTask('your card nor your session'),
+            workerConfig.proposalTask('your card nor your session'),
             `reason: for the owner only, why you propose it, a sentence or two; it does not go to that agent.`,
             `questions: what the owner has to decide first (product behaviour, a trade-off), each with up to four short options; keep them out of task. The owner may answer them on the proposal; what they decided and what stays open go to the agent with the task.`,
             `replaces: the title of an earlier proposal of yours this one takes the place of; Seismic takes that one off the project, or, if the owner has taken it on already, marks it as replaced and offers to remove it.`,
@@ -188,7 +188,7 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
             task: z.string(),
             reason: z.string(),
             idea: z.boolean().optional(),
-            questions: PROPOSAL_QUESTIONS.optional(),
+            questions: workerConfig.proposalQuestionsSchema.optional(),
             replaces: z.string().optional(),
             start_at: z.string().optional(),
             ...(anotherRepo ? { repo: z.string().optional() } : {}),
@@ -208,7 +208,7 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
               task: String(task),
               reason: String(reason),
               idea: !!idea,
-              questions: proposalQuestions(questions as z.infer<typeof PROPOSAL_QUESTIONS> | undefined),
+              questions: workerConfig.proposalQuestions(questions as z.infer<typeof workerConfig.proposalQuestionsSchema> | undefined),
               ...(named ? { startAt: new Date(at).toISOString() } : {}),
               ...(into ? { repo: into.repo } : {}),
             });
@@ -423,7 +423,7 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
           : {}),
         files: z
           .array(z.object({ path: z.string(), caption: z.string() }))
-          .max(MAX_RESULT_FILES)
+          .max(workerConfig.maxResultFiles)
           .optional()
           .describe(
             `the files ${self.folder ? 'in the folder' : 'of your branch'} that are the result for the owner (a document, a report, a spreadsheet, a page; not the code or configuration behind it), each with its path and a one-line caption in ${language}. The card shows them beside the demo: Markdown formatted, a PDF in the browser's viewer, any other file to open on the owner's computer. A page you rendered for review only lies in your demo's directory instead, named by its absolute path there.${self.folder || review || !self.artifacts().includes('schema') ? '' : ' With data_models changed, the first file is the schema-change page the demo skill renders, with a caption.'} Without them, the ones named at your last handover stand.`,
@@ -441,7 +441,7 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
       },
       run: ({ summary, demo, files, review: results, pr_draft: draft, data_models: declared, data_models_reason: why }) => {
         // a stopped pull this worker resolved lands as it hands it over, without the owner
-        const resolving = landedOf(self.o.board.row(cardId))?.resolve;
+        const resolving = workerConfig.landedOf(self.o.board.row(cardId))?.resolve;
         if (resolving) return self.landResolved(cardId, resolving);
         type Demo = { kind?: DemoKind; dir: string; chapters?: string[]; question?: { text: string } & Omit<Asked, 'question'>; page?: DemoPage; follows?: 'replaces' | 'supplements' };
         const given = demo as Demo | undefined;
@@ -506,7 +506,7 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
             const kind = d.kind ?? (allowed.includes('video') ? 'video' : 'html');
             if (!allowed.includes(kind)) return `Not handed over: this repository's settings do not allow ${kind === 'video' ? 'a video' : 'an HTML artifact'} as a demo here. Hand over ${kind === 'video' ? "an HTML artifact (kind 'html')" : 'a video'} instead, then call ready_for_review again.`;
             // what the worker says of it beside the demo before, for the owner's buttons when the page shows that one
-            const report = { ...(d.question?.text.trim() ? demoQuestion(d.question) : {}), ...(row.demo?.latest && (d.follows === 'replaces' || d.follows === 'supplements') ? { follows: d.follows } : {}) };
+            const report = { ...(d.question?.text.trim() ? workerConfig.demoQuestion(d.question) : {}), ...(row.demo?.latest && (d.follows === 'replaces' || d.follows === 'supplements') ? { follows: d.follows } : {}) };
             const tags = vocabulary.length && d.page?.tags && typeof d.page.tags === 'object' ? (d.page.tags as PageTags) : undefined;
             const page =
               d.page && d.page.title.trim() && d.page.text.trim() ? { title: clip(d.page.title.trim(), 200), text: clip(d.page.text.trim(), 2000), ...(tags ? { tags: tagsOf(tags, Object.fromEntries(vocabulary)) } : {}) } : undefined;
@@ -594,7 +594,7 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
                 : changed?.length
                   ? ` Approving lands your branch's change to ${changed.length === 1 ? '1 file' : `${changed.length} files`}: ${changed.slice(0, 8).join(', ')}${changed.length > 8 ? ', …' : ''}.`
                   : '';
-          return ending(`${END_TURN}${lands}`, `Recorded: your handover waits for the owner's approval.${lands}`, 'if they change what you handed over, hand it over again');
+          return ending(`${workerConfig.endTurn}${lands}`, `Recorded: your handover waits for the owner's approval.${lands}`, 'if they change what you handed over, hand it over again');
         };
         // a demo made on another machine is served and shared from its copy here
         const handOverWith = (named?: CardFile[]): string | Promise<string> => {
@@ -630,14 +630,14 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
         const row = self.o.board.row(cardId);
         if (row.landed) return 'Not recorded: the card is finished already.';
         // a review card whose pull request was closed lands nothing, whatever its branch holds
-        if (contributionOf(row)?.closed) return [`Recorded: the card is done.`, self.close(cardId, 'worker'), AFTER_LANDING].filter(Boolean).join(' ');
+        if (contributionOf(row)?.closed) return [`Recorded: the card is done.`, self.close(cardId, 'worker'), workerConfig.afterLanding].filter(Boolean).join(' ');
         const work = await self.o.workstations.hasWork(cardId);
         const pr = row.review?.pr ?? null;
         if (!row.approved_at && !(pr && !pr.url)) return 'Not recorded: only work the owner approved can be closed, and only before its pull request is open. Hand it over with ready_for_review first.';
         if (work)
           return 'Not recorded: your branch holds commits or uncommitted changes. Work that changes the repository lands (or goes out as a pull request); throw away what is not meant to land first, if nothing is.';
         const page = self.close(cardId, 'worker');
-        return [`Recorded: the card is done.`, page, AFTER_LANDING].filter(Boolean).join(' ');
+        return [`Recorded: the card is done.`, page, workerConfig.afterLanding].filter(Boolean).join(' ');
       },
     },
     {
@@ -645,7 +645,7 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
       description: 'Only after your work has landed and Seismic said it starts again for it: what remains needs Seismic to run your change. Then end your turn; Seismic tells you once it runs your change.',
       schema: {},
       run: () => {
-        const l = landedOf(self.o.board.row(cardId));
+        const l = workerConfig.landedOf(self.o.board.row(cardId));
         if (!l) return 'Not recorded: your work has not landed.';
         if (!l.restarts) return 'Not recorded: Seismic does not start again for this landing; what runs now is what you get.';
         self.o.board.work(cardId, { landed: JSON.stringify({ ...l, waits: true } satisfies LandedState) });
@@ -693,8 +693,8 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
         live.snoozed = true;
         live.nudged = false;
         return ending(
-          `Snoozed until ${snoozedUntil(s)}. End your turn now; Seismic resumes this session then.`,
-          `Snoozed until ${snoozedUntil(s)}: Seismic resumes this session then.`,
+          `Snoozed until ${workerConfig.snoozedUntil(s)}. End your turn now; Seismic resumes this session then.`,
+          `Snoozed until ${workerConfig.snoozedUntil(s)}: Seismic resumes this session then.`,
           'if they change what you wait for, snooze anew',
         );
       },
@@ -709,7 +709,7 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
           self.o.board.work(cardId, { app: null });
           return 'Recorded: the card no longer offers the app.';
         }
-        if (!APP_URL.test(u)) return 'Not recorded: give the address as http(s)://host:port/….';
+        if (!workerConfig.appUrl.test(u)) return 'Not recorded: give the address as http(s)://host:port/….';
         self.o.board.work(cardId, { app: u });
         return 'Recorded: the card offers the app to the owner while it answers there.';
       },
@@ -721,7 +721,7 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
             description: "Only in a follow-up in a temporary worktree: answering the owner needs a full clone (the repository's app or tooling, which may not run here). Then end your turn; Seismic resumes you in the next free clone.",
             schema: {},
             run: () => {
-              const l = landedOf(self.o.board.row(cardId));
+              const l = workerConfig.landedOf(self.o.board.row(cardId));
               if (!l?.worktree) return 'Not recorded: you work in a full clone already.';
               self.o.board.work(cardId, { landed: JSON.stringify({ ...l, needsClone: true } satisfies LandedState) });
               self.o.board.log(cardId, 'activity', 'worker', self.o.board.t.worker.needsClone);

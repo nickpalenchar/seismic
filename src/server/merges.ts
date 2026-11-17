@@ -1,4 +1,5 @@
 // Read-only comparison of two cards, reviewed by the owner before anything dissolves.
+import { workerConfig } from './worker-config';
 import { z } from 'zod';
 import { ownersLanguage } from '../core/locale';
 import { messageOf } from '../core/text';
@@ -6,7 +7,6 @@ import { mergeRank, type Item, type Merge } from '../core/types';
 import type { Board } from './board';
 import { readSession } from './llms/agents/agentJobs/readSession';
 import type { AgentRuntime } from './runtime';
-import { proposalTask } from './llms/agents/worker/shared';
 
 export interface MergeOptions {
   board: Board;
@@ -183,7 +183,7 @@ export class Merges {
           ownersLanguage(this.o.board.conversation()),
           preserve
             ? 'Preserve the right card. Give outcome covered or followUp, titleCovered for the left title, and parts that reproduce the entire left task exactly, in order, each marked covered true or false. For followUp provide only uncovered work, image IDs and zero-based question indexes relevant to that work. For covered every part is covered and followUp is omitted.'
-            : `Write title and task combining both unworked cards. ${proposalTask('either card nor this conversation')}`,
+            : `Write title and task combining both unworked cards. ${workerConfig.proposalTask('either card nor this conversation')}`,
         ].join(' '),
         schema: preserve ? comparison.shape : combined.shape,
         run: (r) => {

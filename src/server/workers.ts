@@ -1,4 +1,5 @@
 import { normalize, overlaps } from '../core/path-overlap';
+import { workerConfig } from './worker-config';
 import type { LandingNotice } from './workstations';
 import { LimitAttempts, limitWatch } from './limit-watch';
 // Workers: one agent session per card, in a leased clone. Seismic is the mailbox between the
@@ -46,7 +47,6 @@ import { clip, messageOf } from '../core/text';
 import { holdsNotes } from '../core/queue';
 import { CodeReviews } from './llms/skills/codeReview';
 import { seismicWorker } from './llms/agents/worker/seismicWorker';
-import { AFTER_LANDING, APP_URL, landedOf, snoozedUntil } from './llms/agents/worker/shared';
 import { workerBriefing } from './llms/agents/worker/briefing';
 import { workerTools } from './llms/agents/worker/tools';
 
@@ -333,7 +333,7 @@ interface RunningTask extends BackgroundTask {
  */
 function appRunning(live: Live, url: string) {
   // an address app_running refuses changes nothing
-  if (url && !APP_URL.test(url)) return;
+  if (url && !workerConfig.appUrl.test(url)) return;
   for (const t of live.tasks.values()) {
     if (!url) delete t.app;
     else if (!t.earlier) t.app = true;
@@ -592,7 +592,7 @@ const cap = (s: string) => s[0]!.toUpperCase() + s.slice(1);
  */
 function wokeNote(s: Snooze, timeUp: boolean, owner: boolean, words: boolean, met?: Awaited): string {
   const now = MESSAGES.en.at(Date.now());
-  const until = snoozedUntil(s);
+  const until = workerConfig.snoozedUntil(s);
   const why = s.why ? `, to: ${s.why}` : '';
   const ended =
     s.by === 'agent'
@@ -1261,7 +1261,7 @@ export class Workers {
   /** Whether the card's follow-up waits for a full clone, its worker without a workstation. */
   private waitsForClone(cardId: string): boolean {
     const row = this.o.board.row(cardId);
-    return !row.workstation && !!landedOf(row)?.needsClone;
+    return !row.workstation && !!workerConfig.landedOf(row)?.needsClone;
   }
 
   /**
@@ -1272,7 +1272,7 @@ export class Workers {
     this.end(cardId);
     this.bump(cardId);
     const row = this.o.board.row(cardId);
-    const { worktree: _, ...landed } = landedOf(row)!;
+    const { worktree: _, ...landed } = workerConfig.landedOf(row)!;
     this.removeTree(row.workstation);
     this.o.board.work(cardId, { workstation: null, landed: JSON.stringify(landed), status_line: this.o.board.t.worker.waitsForWorkstation });
     this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.worker.waitsForClone);
@@ -1293,7 +1293,7 @@ export class Workers {
       if (!(e instanceof WorkstationError && shortageOf(e.code))) console.error(`a clone for the follow-up on ${cardId}:`, e);
       return false;
     }
-    const { needsClone: _, ...landed } = landedOf(row)!;
+    const { needsClone: _, ...landed } = workerConfig.landedOf(row)!;
     this.bump(cardId);
     this.o.board.work(cardId, { workstation: lease.path, landed: JSON.stringify(landed), status_line: null, app: null });
     this.o.board.log(cardId, 'state', 'obeya', this.o.board.t.worker.cloneFree);
@@ -1309,7 +1309,7 @@ export class Workers {
 
   /** Whether the card's follow-up runs in a temporary worktree. */
   inWorktree(cardId: string): boolean {
-    return !!landedOf(this.o.board.row(cardId))?.worktree;
+    return !!workerConfig.landedOf(this.o.board.row(cardId))?.worktree;
   }
 
   /** Removes a follow-up's temporary worktree; one left behind does no harm. */
@@ -2320,7 +2320,7 @@ export class Workers {
             : '',
         page.text,
         comments?.text ?? '',
-        AFTER_LANDING,
+        workerConfig.afterLanding,
       ]
         .filter(Boolean)
         .join('\n\n'),
@@ -2370,7 +2370,7 @@ export class Workers {
           folder ? 'The owner approved your work. Your changes stay in the folder as they are, and the card is done: they can no longer be undone from the card.' : 'The owner approved your work. It changed nothing in the repository, so nothing lands and there is no pull request: the card is done.',
           page.text,
           comments?.text ?? '',
-          this.folder ? AFTER_DONE : AFTER_LANDING,
+          this.folder ? AFTER_DONE : workerConfig.afterLanding,
         ]
           .filter(Boolean)
           .join('\n\n'),
@@ -2410,7 +2410,7 @@ export class Workers {
    */
   pageSettled(cardId: string, r?: { url: string } | { why: string }) {
     if (!this.o.board.card(cardId)) return;
-    const l = landedOf(this.o.board.row(cardId));
+    const l = workerConfig.landedOf(this.o.board.row(cardId));
     if (!l?.page) return;
     const { page: _, ...rest } = l;
     this.o.board.work(cardId, { landed: JSON.stringify(rest satisfies LandedState) });
@@ -2495,7 +2495,7 @@ export class Workers {
       // the card is done either way; a leftover worktree does no harm
       this.whileFreeing(cardId, row.workstation, reading ? reading.catch(() => {}).then(removeLanded) : removeLanded(), 'freeing a landed workstation');
     }
-    const landed = landedOf(row);
+    const landed = workerConfig.landedOf(row);
     this.o.board.work(cardId, { landed: null, workstation: null, status_line: null, parked: null, ...this.o.board.unheld(cardId, AGENT_HOLDS), app: null, ...(row.state === 'waiting' ? { state: landed?.unchanged ? 'done' : 'live', need: null, detail: null } : {}) });
     this.o.board.workDone(cardId);
     // the work retrospective read the card's runs when its work ended
@@ -2721,7 +2721,7 @@ export class Workers {
     const review = !!contributionOf(this.o.board.row(cardId));
     this.afterLanding(
       cardId,
-      [review ? 'The owner approved your handover, and Seismic merged the pull request; the card is live. Leave the PR as it is: Seismic comments the demo’s link on it.' : 'Your pull request was merged; the card is live.', page.text, comments?.text ?? '', AFTER_LANDING].filter(Boolean).join('\n\n'),
+      [review ? 'The owner approved your handover, and Seismic merged the pull request; the card is live. Leave the PR as it is: Seismic comments the demo’s link on it.' : 'Your pull request was merged; the card is live.', page.text, comments?.text ?? '', workerConfig.afterLanding].filter(Boolean).join('\n\n'),
       comments?.images,
       !!comments,
     );
@@ -2890,7 +2890,7 @@ export class Workers {
     // a card resolving one already is busy with that
     const takes = (id: string) => {
       const i = this.o.board.item(id);
-      const l = i && landedOf(this.o.board.row(id));
+      const l = i && workerConfig.landedOf(this.o.board.row(id));
       return !!i && i.kind === 'task' && !i.idea?.prototypeOf && !i.archivedAt && !l?.resolve && ((!!l && !!i.agent?.finishing) || askable(i));
     };
     const resolver = [card?.id, reviewId].find((id) => !!id && takes(id));
@@ -2903,7 +2903,7 @@ export class Workers {
     if (own) this.o.board.log(resolver, 'state', 'obeya', t.resolvingPull(c.number, stopped.subject));
     const message = (path: string) => this.resolveMessage(resolving, own, path);
     const item = this.card(resolver);
-    const landed = landedOf(this.o.board.row(resolver));
+    const landed = workerConfig.landedOf(this.o.board.row(resolver));
     if (landed && item.agent?.finishing) {
       this.o.board.work(resolver, { landed: JSON.stringify({ ...landed, resolve: resolving } satisfies LandedState), status_line: t.resolvingStatus(c.number) });
       this.deliver(resolver, message(this.o.board.row(resolver).workstation ?? ''));
@@ -2963,7 +2963,7 @@ export class Workers {
     const t = this.o.board.t.worker;
     const row = this.o.board.row(cardId);
     const res = await this.pulls()!.landResolution(row.workstation ?? '', { main: r.stopped.main, upstream: r.stopped.upstream });
-    const landed = landedOf(this.o.board.row(cardId));
+    const landed = workerConfig.landedOf(this.o.board.row(cardId));
     const { resolve: _, ...rest } = landed ?? {};
     const done = () => this.o.board.work(cardId, { landed: JSON.stringify(rest satisfies LandedState), status_line: null });
     if ('code' in res) {
@@ -3360,7 +3360,7 @@ export class Workers {
       // the page reloaded: the owner may watch on, or have gone
       if (i.demo?.held?.length) this.releaseLater(i.id, this.o.holdGrace ?? HOLD_GRACE);
       const row = this.o.board.row(i.id);
-      const landed = landedOf(row);
+      const landed = workerConfig.landedOf(row);
       // a snoozed worker sleeps on until its time, a restart notwithstanding
       const hold = this.o.board.holdOf(i.id);
       if (hold?.reason === 'snoozed' && !hold.waiting) {
@@ -3749,7 +3749,7 @@ export class Workers {
       this.live.delete(cardId);
       this.o.board.log(cardId, 'error', 'obeya', messageOf(e));
       const card = this.o.board.item(cardId);
-      if (card && (card.state === 'working' || card.state === 'inPr') && !landedOf(row)) this.toOwner(cardId, { text: failureReason(clip(messageOf(e), 1200), this.o.board.t), options: [], stuck: true });
+      if (card && (card.state === 'working' || card.state === 'inPr') && !workerConfig.landedOf(row)) this.toOwner(cardId, { text: failureReason(clip(messageOf(e), 1200), this.o.board.t), options: [], stuck: true });
       else this.o.board.changed();
       return;
     }
@@ -4249,7 +4249,7 @@ export class Workers {
       if (card.state === 'working' && row.approved_at) void this.landApproved(cardId);
       return;
     }
-    const landed = landedOf(row);
+    const landed = workerConfig.landedOf(row);
     // in the PR phase a turn ends normally once the PR is open
     if (card.state === 'inPr' && card.review?.pr) return;
     // fixing review items under a handover that waits for approval is work too: the card stays waiting, and only a handover, a resubmission or a dispute settles the items
@@ -4308,7 +4308,7 @@ export class Workers {
    * says what is left to do.
    */
   private unresolved(cardId: string, live: Live, r: Resolving) {
-    const landed = landedOf(this.o.board.row(cardId))!;
+    const landed = workerConfig.landedOf(this.o.board.row(cardId))!;
     if (!r.reminded) {
       this.o.board.work(cardId, { landed: JSON.stringify({ ...landed, resolve: { ...r, reminded: true } } satisfies LandedState) });
       this.setBusy(live, true);
@@ -4836,7 +4836,7 @@ export class Workers {
   /** The card's question is settled: it goes back to its work, in its pull request, or finished (`done` when nothing landed, else `live`). */
   private backToWork(cardId: string) {
     const row = this.o.board.row(cardId);
-    const landed = landedOf(row);
+    const landed = workerConfig.landedOf(row);
     this.o.board.work(cardId, { state: landed ? (landed.unchanged ? 'done' : 'live') : row.review?.pr ? 'inPr' : 'working', need: null, detail: null });
   }
 
