@@ -124,9 +124,10 @@ same style. UI text comes from `src/ui/strings.ts`, never a literal.
 - **The view over the canvas is in the address as `?view=`** (2026-11-17), only `table` so far:
   switching replaces the address rather than adding a history step, as switching canvases does;
   a card's address keeps it, and an unknown value is dropped in place. Parked may join it later.
-- **A card's result tabs (Video, Diff, files) each take their own height** (2026-11-17): the
-  buttons below follow the tab shown. Rejected: a floor at the tallest tab seen, against the
-  buttons moving on a switch; after a long diff it left the video above a screen of empty space.
+- **A card's result tabs (Video, Diff, files) each take their own height** (2026-11-17), with
+  one floor: a tab switched to starts as tall as the one left, up to what the card shows without
+  scrolling, so the card does not shrink while a diff loads. Rejected: a floor at the tallest tab
+  seen; after a long diff it left the video above a screen of empty space.
 - **Phone settings and Needs you share one history step**: switching between them replaces that
   step; closing returns to the project. Pages covering the project make its controls inert.
 - **Clone values parked while choosing worktrees belong to the repository draft**, rather than

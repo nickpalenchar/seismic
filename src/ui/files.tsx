@@ -96,6 +96,28 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
     };
   }, [item.id, rev]);
   const box = useRef<HTMLDivElement>(null);
+  // A tab switched to starts as tall as the one left, up to what the card shows without scrolling,
+  // so the card does not shrink while it loads; past that each tab takes its own height.
+  const left = useRef({ tab: current, floor: 0 });
+  const [floor, setFloor] = useState(0);
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const measure = () => {
+      let scroller = el.parentElement;
+      while (scroller && !/auto|scroll/.test(getComputedStyle(scroller).overflowY)) scroller = scroller.parentElement;
+      const room = scroller ? scroller.clientHeight - (el.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop) : innerHeight;
+      left.current.floor = Math.min(el.offsetHeight, Math.max(0, room));
+    };
+    const watch = new ResizeObserver(measure);
+    watch.observe(el);
+    return () => watch.disconnect();
+  }, [!!tabs.length]);
+  useLayoutEffect(() => {
+    if (left.current.tab === current) return;
+    setFloor(left.current.floor);
+    left.current.tab = current;
+  }, [current]);
   // A video left playing under another tab would go on talking.
   useEffect(() => {
     if (current !== DEMO) demoBox.current?.querySelectorAll('video').forEach((v) => v.pause());
@@ -159,7 +181,7 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
   const count = changedRows.length;
   return (
     <WholeChange.Provider value={readChange}>
-    <Tabs value={current ?? ''} onValueChange={onTab} className="results" ref={box}>
+    <Tabs value={current ?? ''} onValueChange={onTab} className="results" ref={box} style={floor ? { minHeight: floor } : undefined}>
       {/* deliverables stay in front; the change list has its own tab */}
       <TabsList variant="underline" className="result-tabs mb-3.5 phone:[&_[data-slot=tabs-trigger]]:min-h-11">
         {tabs.map((entry) => (
