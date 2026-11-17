@@ -15,17 +15,27 @@ import { Tooltip } from './components/tooltip';
 
 /** The colours of a card's state that pulse on its workstation's dot: at work, in review, landing. */
 const PULSING = new Set(['working', 'reviewing', 'approved']);
+/** Period of the pulse in ms; `ws-pulse_2.4s` in the classes below. */
+const PULSE_MS = 2400;
+/**
+ * The dot's style while pulsing: its state colours and a negative animation delay that puts it at the point of the
+ * pulse the wall clock is at, so every pulsing dot and bar share, however late each one mounted, on and off together.
+ */
+function pulseStyle(tone: Parameters<typeof stateVars>[0]): CSSProperties {
+  return { ...stateVars(tone), '--ws-phase': `-${Date.now() % PULSE_MS}ms` } as CSSProperties;
+}
+
 /**
  * The pulse of a dot at work: its pale fill under its full fill (`::after`) and glow (`::before`, round the outline),
  * which fade out and back (`ws-pulse` in frost.css); under reduced motion a ring in its colour around a dot that
  * stands still. In place of the dot's own fill (`bg-c`).
  */
 const pulse =
-  "relative bg-c-subtle shadow-[0_0_1px_var(--c-subtle)] before:absolute before:-inset-px before:rounded-full before:shadow-[0_0_6px_var(--c)] before:content-[''] before:animate-[ws-pulse_2.4s_ease-in-out_infinite] after:absolute after:inset-0 after:rounded-full after:bg-c after:content-[''] after:animate-[ws-pulse_2.4s_ease-in-out_infinite] reduced:border-2 reduced:border-[var(--c)] reduced:bg-transparent reduced:shadow-none reduced:before:hidden reduced:after:animate-none reduced:after:inset-auto reduced:after:top-1/2 reduced:after:left-1/2 reduced:after:size-1 reduced:after:[transform:translate(-50%,-50%)]";
+  "relative bg-c-subtle shadow-[0_0_1px_var(--c-subtle)] before:absolute before:-inset-px before:rounded-full before:shadow-[0_0_6px_var(--c)] before:content-[''] before:animate-[ws-pulse_2.4s_ease-in-out_infinite_var(--ws-phase,0s)] after:absolute after:inset-0 after:rounded-full after:bg-c after:content-[''] after:animate-[ws-pulse_2.4s_ease-in-out_infinite_var(--ws-phase,0s)] reduced:border-2 reduced:border-[var(--c)] reduced:bg-transparent reduced:shadow-none reduced:before:hidden reduced:after:animate-none reduced:after:inset-auto reduced:after:top-1/2 reduced:after:left-1/2 reduced:after:size-1 reduced:after:[transform:translate(-50%,-50%)]";
 
 /** The pulse of a share of the bar at work: its full fill (`::after`) fades out to its pale fill and back, as a dot's does. */
 const barPulse =
-  "relative bg-c-subtle after:absolute after:inset-0 after:bg-c after:content-[''] after:animate-[ws-pulse_2.4s_ease-in-out_infinite] reduced:after:animate-none";
+  "relative bg-c-subtle after:absolute after:inset-0 after:bg-c after:content-[''] after:animate-[ws-pulse_2.4s_ease-in-out_infinite_var(--ws-phase,0s)] reduced:after:animate-none";
 
 /**
  * A workstation's dot, the same on the pill and in its list: in the colour of its card's state as
@@ -60,7 +70,7 @@ export function wsDot(w: PoolWorkstation | undefined, host: PoolHost, items: Ite
   if (!tone) return { className: cn(dot, 'bg-working/35'), fill: 'var(--working-wash)' };
   return {
     className: cn(dot, PULSING.has(tone) ? pulse : 'bg-c'),
-    style: stateVars(tone) as CSSProperties,
+    style: (PULSING.has(tone) ? pulseStyle(tone) : stateVars(tone)) as CSSProperties,
     fill: stateVars(tone)['--c'],
     pulsing: PULSING.has(tone),
   };
@@ -337,7 +347,7 @@ export function WorkingRows({ cards, pools, items, underway, projects, onOpen, o
         const tone = cardTone(i, underway[i.id]);
         return (
           <li key={i.id} className="grid grid-cols-[12px_minmax(0,1fr)] items-start gap-x-2 py-1">
-            <WorkstationMark dot={{ className: cn('ws-dot box-border block rounded-full border border-slate-500', PULSING.has(tone) ? pulse : 'bg-c'), style: stateVars(tone) as CSSProperties }} className="mt-1" />
+            <WorkstationMark dot={{ className: cn('ws-dot box-border block rounded-full border border-slate-500', PULSING.has(tone) ? pulse : 'bg-c'), style: PULSING.has(tone) ? pulseStyle(tone) : (stateVars(tone) as CSSProperties) }} className="mt-1" />
             <button type="button" className="-mx-1.5 -my-0.5 block min-w-0 cursor-pointer rounded-sm bg-transparent px-1.5 py-0.5 text-left text-inherit hover:bg-muted focus-visible:bg-muted [&_.f-dot]:hidden" onClick={() => onOpen(i)}>
               <CardFace item={i} size="xs" workstation underway={underway[i.id]} />
             </button>
