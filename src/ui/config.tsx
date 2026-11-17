@@ -1078,6 +1078,7 @@ function FeedbackBlock({ on }: { on: boolean }) {
         <CheckLabel>
           <Switch checked={view.on} onCheckedChange={choose} />
           {l.label}
+          <Badge variant="secondary">{l.preview}</Badge>
         </CheckLabel>
         {openPerformance && (
           <Button size="small" className="cfg-perf [:is(#config,#prefs,#project-settings)_&]:mt-2.5" title={t.performance.openHint} onClick={openPerformance}>

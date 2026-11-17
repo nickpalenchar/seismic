@@ -175,13 +175,13 @@ test('the usage limits in the bar: shown until turned off, which alone stands in
   expect(usageMeterView(home).on).toBe(true);
 });
 
-test('feedback after approval: asked for until turned off, which alone stands in the file', () => {
+test('feedback after approval: not asked for until turned on, which alone stands in the file', () => {
   const home = scratchHome();
-  expect(feedbackPromptView(home).on).toBe(true);
+  expect(feedbackPromptView(home).on).toBe(false);
   saveUsageMeter(home, { on: false });
-  expect(saveFeedbackPrompt(home, { on: false }).on).toBe(false);
-  expect(JSON.parse(readFileSync(join(home, SETTINGS_FILE), 'utf8'))).toEqual({ usageMeter: false, feedbackPrompt: false });
   expect(saveFeedbackPrompt(home, { on: true }).on).toBe(true);
+  expect(JSON.parse(readFileSync(join(home, SETTINGS_FILE), 'utf8'))).toEqual({ usageMeter: false, feedbackPrompt: true });
+  expect(saveFeedbackPrompt(home, { on: false }).on).toBe(false);
   expect(JSON.parse(readFileSync(join(home, SETTINGS_FILE), 'utf8'))).toEqual({ usageMeter: false });
   for (const bad of [{ on: 'no' }, {}, null]) expect(() => saveFeedbackPrompt(home, bad)).toThrow();
 });

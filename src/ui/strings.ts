@@ -2329,7 +2329,8 @@ const en = {
     setting: {
       title: 'Feedback after approval',
       label: 'Ask after each approval',
-      hint: 'After you approve a card, Seismic asks how well the agent did: 1 to 5 stars and an optional comment, saved with the harness, model and effort that did the work. Skipping holds nothing up. Turned off, Seismic asks no more; responses already given are kept. Applies at once.',
+      preview: 'Preview',
+      hint: 'After you approve a card, Seismic asks how well the agent did: 1 to 5 stars and an optional comment, saved with the harness, model and effort that did the work. Skipping holds nothing up. Off by default while this is a preview. Turned off, Seismic asks no more; responses already given are kept. Applies at once.',
     },
   },
   notifications: {

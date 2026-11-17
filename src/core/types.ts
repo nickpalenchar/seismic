@@ -3219,7 +3219,7 @@ export interface Usage {
   at: string;
 }
 
-/** Whether the bar shows the plan's usage limits (`src/server/settings.ts`); on until the owner turns it off. */
+/** Whether the bar shows the plan's usage limits (`src/server/settings.ts`); off until the owner turns it on. */
 export interface UsageMeterView {
   /** The file it is saved in, under Seismic's home. */
   file: string;

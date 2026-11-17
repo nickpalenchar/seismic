@@ -33,7 +33,7 @@ interface Settings {
   /** `false`: the bar does not show the plan's usage limits; absent, it does. */
   usageMeter?: false;
   /** `false`: approving a card's work asks for no feedback on it; absent, it does. */
-  feedbackPrompt?: false;
+  feedbackPrompt?: true;
   /** Whether a page notifies the owner on the desktop when a card needs them; absent until the owner has been asked. */
   notifications?: boolean;
   /** Project defaults: what a new project's own settings start as; a setting left out has its built-in value. */
@@ -47,7 +47,7 @@ function read(home: string): Settings {
     const conversationLanguage = LANGUAGES.find((l) => l === o.conversationLanguage);
     const theme = THEMES.find((x) => x === o.theme);
     const motion = MOTIONS.find((x) => x === o.motion);
-    return { ...o, language, conversationLanguage, theme, motion, agents: agentsOf(o.agents), remote: remoteOf(o.remote) ?? undefined, usageMeter: o.usageMeter === false ? false : undefined, codexAutoReview: o.codexAutoReview === false ? false : undefined, feedbackPrompt: o.feedbackPrompt === false ? false : undefined, notifications: typeof o.notifications === 'boolean' ? o.notifications : undefined, projectDefaults: projectSettingsShape.safeParse(renamedBaselines(o.projectDefaults ?? o.canvasDefaults)).data };
+    return { ...o, language, conversationLanguage, theme, motion, agents: agentsOf(o.agents), remote: remoteOf(o.remote) ?? undefined, usageMeter: o.usageMeter === false ? false : undefined, codexAutoReview: o.codexAutoReview === false ? false : undefined, feedbackPrompt: o.feedbackPrompt === true ? true : undefined, notifications: typeof o.notifications === 'boolean' ? o.notifications : undefined, projectDefaults: projectSettingsShape.safeParse(renamedBaselines(o.projectDefaults ?? o.canvasDefaults)).data };
   } catch {
     return {};
   }
@@ -112,13 +112,13 @@ export function saveUsageMeter(home: string, input: unknown): UsageMeterView {
   return usageMeterView(home);
 }
 
-export const feedbackPromptView = (home: string): FeedbackPromptView => ({ file: join(home, SETTINGS_FILE), on: read(home).feedbackPrompt !== false });
+export const feedbackPromptView = (home: string): FeedbackPromptView => ({ file: join(home, SETTINGS_FILE), on: read(home).feedbackPrompt === true });
 
 /** Saves whether approving work asks for feedback on it (`{ on }`); the responses given stay either way. Other settings in the file stay. */
 export function saveFeedbackPrompt(home: string, input: unknown): FeedbackPromptView {
   const on = (input as { on?: unknown } | null)?.on;
   if (typeof on !== 'boolean') throw new BadRequest('invalid', 'on must be true or false');
-  save(home, 'feedbackPrompt', on ? null : false, `feedback ${on ? 'asked for' : 'not asked for'} after approvals,`);
+  save(home, 'feedbackPrompt', on ? true : null, `feedback ${on ? 'asked for' : 'not asked for'} after approvals,`);
   return feedbackPromptView(home);
 }
 
