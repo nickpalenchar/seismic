@@ -9,17 +9,17 @@
  */
 
 import { z } from 'zod';
-import { type CardEvent, PROPOSED_SETTINGS, type ProposedSetting } from '../../../core/types';
-import type { Board } from '../../board';
-import type { FrictionNote } from '../../schemas/friction';
-import { readSession } from '../../koordinator';
-import { type AgentRuntime, type AgentTool, waitQuietly } from '../../runtime';
-import { remote } from '../../hosts';
-import { type Excerpt, excerptOf, excerptText, findTranscript } from '../../transcript';
-import { type Language, LANGUAGE_NAMES } from '../../../core/locale';
-import { clip } from '../../../core/text';
-import { retroNotesSystem } from '../prompts/retroNotesSystem';
-import { retroSystem } from '../prompts/retroSystem';
+import { type CardEvent, PROPOSED_SETTINGS, type ProposedSetting } from '../../../../core/types';
+import type { Board } from '../../../board';
+import type { FrictionNote } from '../../../schemas/friction';
+import { readSession } from './readSession';
+import { type AgentRuntime, type AgentTool, waitQuietly } from '../../../runtime';
+import { remote } from '../../../hosts';
+import { type Excerpt, excerptOf, excerptText, findTranscript } from '../../../transcript';
+import { type Language, LANGUAGE_NAMES } from '../../../../core/locale';
+import { clip } from '../../../../core/text';
+import { retroNotesSystem } from '../../prompts/retroNotesSystem';
+import { retroSystem } from '../../prompts/retroSystem';
 
 export interface WorkRetroOptions {
   board: Board;

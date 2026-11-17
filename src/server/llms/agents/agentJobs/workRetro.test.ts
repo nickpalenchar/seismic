@@ -2,16 +2,16 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { generic } from '../../../adapters/generic';
-import { Board } from '../../board';
-import { Store } from '../../store';
-import { artifact, FakeRuntime, type FakeSession, gitRepo } from '../../testing';
+import { generic } from '../../../../adapters/generic';
+import { Board } from '../../../board';
+import { Store } from '../../../store';
+import { artifact, FakeRuntime, type FakeSession, gitRepo } from '../../../testing';
 import { WorkRetro } from './workRetro';
-import { Workers } from '../../workers';
-import { Workstations } from '../../workstations';
+import { Workers } from '../../../workers';
+import { Workstations } from '../../../workstations';
 
-const SAMPLE = join(import.meta.dir, '..', '..', 'fixtures', 'transcript.jsonl');
-const CODEX = join(import.meta.dir, '..', '..', 'fixtures', 'codex-rollout.jsonl');
+const SAMPLE = join(import.meta.dir, '..', '..', '..', 'fixtures', 'transcript.jsonl');
+const CODEX = join(import.meta.dir, '..', '..', '..', 'fixtures', 'codex-rollout.jsonl');
 
 let dir: string;
 let main: string;

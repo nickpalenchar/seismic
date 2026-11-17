@@ -11,7 +11,7 @@ import { formatQuestion, type Item, type Question, type Revising } from '../core
 import { BadRequest, type Board } from './board';
 import { imageNote, MAX_IMAGES } from './images';
 import type { AgentRuntime } from './runtime';
-import { readSession } from './koordinator';
+import { readSession } from './llms/agents/agentJobs/readSession';
 import { toObeyaTool } from './to-obeya';
 import { messageOf } from '../core/text';
 import { PROPOSAL_QUESTIONS, proposalQuestions, proposalTask } from './llms/agents/worker/shared';

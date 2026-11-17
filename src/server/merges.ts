@@ -4,7 +4,7 @@ import { ownersLanguage } from '../core/locale';
 import { messageOf } from '../core/text';
 import { mergeRank, type Item, type Merge } from '../core/types';
 import type { Board } from './board';
-import { readSession } from './koordinator';
+import { readSession } from './llms/agents/agentJobs/readSession';
 import type { AgentRuntime } from './runtime';
 import { proposalTask } from './llms/agents/worker/shared';
 

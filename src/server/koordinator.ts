@@ -3,11 +3,12 @@ import { normalize, overlaps } from '../core/path-overlap';
 // merge with work in progress. It judges that from what each card will change (estimated before
 // the start) and has changed so far (files and the places in them); sharing a file is not enough.
 
+import { readSession } from './llms/agents/agentJobs/readSession';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { RepoAdapter } from '../adapters/types';
 import { drawnWaits, inQueue, movable, notStarted, queueOrder, reach, waitsOn } from '../core/queue';
-import { type AgentAt, type AgentRole, type CardEvent, EVICT_HOLD_MS, finished, inParkingLot, mergeRank, type Item, nameless, type Preference, START_ALL_HOLD_MS, type Wait, snoozeOf } from '../core/types';
+import { type CardEvent, EVICT_HOLD_MS, finished, inParkingLot, mergeRank, type Item, nameless, type Preference, START_ALL_HOLD_MS, type Wait, snoozeOf } from '../core/types';
 import { ACTIVE, BadRequest, type Board, contributionOf } from './board';
 import type { Utterance } from './store';
 import { type AgentRuntime, type AgentTool, waitQuietly } from './runtime';
@@ -1613,60 +1614,6 @@ const INPUTS: Record<OwnerInput, string> = {
   talk: 'question or remark to you',
   card: 'text of a card they wrote, the task for an agent',
 };
-
-/**
- * A read-only session that reads `brief` (and `images`) and answers through its tools: it ends with
- * its turn, or once a tool calls `finish`. It settles with the error that ended it before a tool
- * called `finish`, if one did. With `onLimit` it waits for the account's usage limit instead of
- * failing on it (`AgentSpec.onLimit`).
- */
-export function readSession(
-  runtime: AgentRuntime,
-  o: {
-    cwd: string;
-    system: string;
-    tools: (finish: (r: string) => string) => AgentTool[];
-    brief: string;
-    role: AgentRole;
-    /** Where it shows at work (`AgentSpec.at`). */
-    at?: AgentAt;
-    images?: string[];
-    onLimit?: (until: number | null | undefined, retry?: () => void) => void;
-  },
-): Promise<string | undefined> {
-  return new Promise((resolve) => {
-    let done = false;
-    const end = (error?: string) => {
-      if (!done) {
-        done = true;
-        resolve(error);
-      }
-    };
-    const finish = (r: string) => {
-      end();
-      return r;
-    };
-    const session = runtime.start(
-      {
-        cwd: o.cwd,
-        permission: 'readOnly',
-        role: o.role,
-        system: o.system,
-        tools: o.tools(finish),
-        ...(o.onLimit ? { onLimit: o.onLimit } : {}),
-        ...(o.at ? { at: o.at } : {}),
-        onEvent: (e) => {
-          if (e.type === 'idle' || e.type === 'error') {
-            session.close();
-            end(e.type === 'error' ? e.message : undefined);
-          }
-        },
-      },
-      o.brief,
-      o.images,
-    );
-  });
-}
 
 /** A changed file with the places changed in it: "src/a.ts (lines 12-20 in function f; 40)", or "(new)". */
 const describe = (c: Change) =>

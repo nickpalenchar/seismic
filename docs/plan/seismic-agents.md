@@ -33,10 +33,10 @@ and `docs/design.md`, and this doc goes.
 
 ## Open: agent jobs
 
-- [ ] `tagProposal`, `workRetro`, `codeReview` and the label helpers (`labelParams`, `labelsFrom`,
-  `labelWords`) move from `llms/skills/` (which holds the `SeismicSkill`s now) to `llms/agents/agentJobs/`.
-- [ ] `readSession` leaves `koordinator.ts` (used by `tagProposal`, `workRetro`) for a shared one-shot
-  session helper under `llms/agents/`.
+- [x] `readSession` (`llms/agents/agentJobs/readSession.ts`) left `koordinator.ts`; `tagProposal` and `workRetro`
+  moved to `llms/agents/agentJobs/`.
+- [ ] `codeReview` and the label helpers (`labelParams`, `labelsFrom`, `labelWords`, in `llms/skills/`) move to
+  `llms/agents/agentJobs/` too.
 - [ ] `codeReview` and `workRetro` split into a service (board state, counters, owner decisions; the
   pure review-item functions to `core/`) and the agent sessions they start. `codeReview` imports
   `DueRestart` from `workers.ts`, the wrong direction.

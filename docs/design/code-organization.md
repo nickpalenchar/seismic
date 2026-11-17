@@ -71,8 +71,7 @@ Not necesarilly "layers", but important to keep organized nonetheless
   `settings.ts`, `titles.ts` hold the instances an agent imports, and `registry.ts` lists them all. An agent
   declares its skills once (`getSkills()` → `AgentSpec.skills`) and each harness attaches them its own way
   (`attachedSkills.ts`): Claude loads the plugin, Codex and agy are told the files in the system prompt.
-  Not yet moved out into agents: the code review, label and title suggestions, tag proposals and the work
-  retrospective, with their tests; the old guide readers there (`labelsGuide`, `titlesGuide`) are deprecated
+  Not yet moved out into agents: the code review and the label and title suggestions, with their tests; the old guide readers there (`labelsGuide`, `titlesGuide`) are deprecated
   for `SeismicSkill.getInstructions()`.
 - `src/server/llms/agents/` how Seismic defines its agents (see below).
 - `src/server/llms/prompts/` the prompts those skills send, one prompt per file, each file
@@ -95,10 +94,10 @@ Not necesarilly "layers", but important to keep organized nonetheless
   (worker, review, ...) supplies the pieces; the base class assembles an `AgentSpec` and starts it on
   a runtime from `src/server/llms/harnesses/`.
 - `src/server/llms/agents/agentJobs/` the agent jobs: short, single-purpose agent sessions of Seismic's own
-  (the wish draft so far): a function that starts a read-only session, with its test. They are plain
+  (the wish draft, tag proposals, the work retrospective): a function that starts a read-only session
+  (`readSession.ts`), with its test. They are plain
   functions for now; they differ from other agents only by this directory. What is still in
-  `src/server/llms/skills/` (code review, tag proposals, work retrospective, label helpers) moves
-  here a part at a time.
+  `src/server/llms/skills/` (code review, label helpers) moves here a part at a time.
 - `src/server/llms/agents/types.ts` placeholder types for MCPs until they get a class of their own.
 
 ## File header comments

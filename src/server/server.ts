@@ -40,7 +40,7 @@ import { Tailscale } from './tailscale';
 import { codexModels } from './llms/harnesses/codex';
 import { agyModels } from './llms/harnesses/agy';
 import { agentsView, projectDefaultsView, feedbackPromptView, languageView, notificationsView, ownerLanguage, saveAgents, saveProjectDefaults, saveCodexAutoReview, saveNotifications, saveFeedbackPrompt, saveLanguage, saveTheme, saveMotion, saveUsageMeter, themeView, motionView, usageMeterView } from './settings';
-import { proposeTags, TagProposals } from './llms/skills/tagProposal';
+import { proposeTags, TagProposals } from './llms/agents/agentJobs/tagProposal';
 import { parseTagLines, tagLines } from '../core/page-tags';
 import { expandHome, readDemoSettings } from '../../plugin/skills/demo/lib/settings.ts';
 import type { UsageMeter } from './usage';

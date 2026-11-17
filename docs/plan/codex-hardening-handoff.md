@@ -90,7 +90,7 @@ The broad set was these 19 files:
 - `src/server/llms/harnesses/processes.test.ts`, `src/server/llms/harnesses/identity.test.ts`
 - `src/server/llms/harnesses/codexRpc.test.ts`, `src/server/llms/harnesses/codex.test.ts`
 - `src/server/llms/harnesses/index.test.ts`, `src/server/workers-harness.test.ts`
-- `src/server/runtime.test.ts`, `src/server/settings.test.ts`, `src/server/llms/skills/workRetro.test.ts`
+- `src/server/runtime.test.ts`, `src/server/settings.test.ts`, `src/server/llms/agents/agentJobs/workRetro.test.ts`
 - `src/server/workers.test.ts`, `src/server/project.test.ts`, `src/server/db.test.ts`
 - `src/server/server.test.ts`, `src/server/commands.test.ts`, `src/server/answers.test.ts`
 - `src/ui/message.test.ts`, `src/ui/usage.test.ts`, `src/ui/barFit.test.ts`

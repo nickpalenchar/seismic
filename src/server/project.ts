@@ -29,7 +29,7 @@ import { Images, MAX_IMAGES } from './images';
 import { makeRepo, newRepoPath, realPath } from './new-repo';
 import { type ContributionInfo, type Forge, parsePrUrl, sameRepo } from './forge';
 import { Koordinator } from './koordinator';
-import { WorkRetro } from './llms/skills/workRetro';
+import { WorkRetro } from './llms/agents/agentJobs/workRetro';
 import { PrWatcher } from './pr-watcher';
 import { branchCommit, readingDefaultBranch, ReadTree, refsSeal } from './read-tree';
 import { Revisions } from './revisions';
@@ -40,7 +40,7 @@ import { boundsOf, GAP, type Place, planDirNoteBox, unionBounds } from '../core/
 import { type AgentRuntime, idleRuntime, withAgentSetting, withCodexTrust, withLimitWait, withRepoTrust, withTrustedAllow } from './runtime';
 import { harnessNames } from './llms/harnesses';
 import { bashRules } from './allow-rules';
-import { type TagCard, tagCards } from './llms/skills/tagProposal';
+import { type TagCard, tagCards } from './llms/agents/agentJobs/tagProposal';
 import { commandsOf, heldGroups, withoutHeld } from './trust';
 import { seismicSkills } from './llms/skills/registry';
 import { Skills } from './skills';

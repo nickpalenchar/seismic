@@ -7,13 +7,13 @@
  */
 
 import { z } from 'zod';
-import { LANGUAGE_NAMES, type Language } from '../../../core/locale';
-import { dimensions, parseTagLines, tagLines } from '../../../core/page-tags';
-import { messageOf } from '../../../core/text';
-import { finished, type Item, type PageTags, type TagProposalJob } from '../../../core/types';
-import { BadRequest } from '../../board';
-import { readSession } from '../../koordinator';
-import type { AgentRuntime } from '../../runtime';
+import { LANGUAGE_NAMES, type Language } from '../../../../core/locale';
+import { dimensions, parseTagLines, tagLines } from '../../../../core/page-tags';
+import { messageOf } from '../../../../core/text';
+import { finished, type Item, type PageTags, type TagProposalJob } from '../../../../core/types';
+import { BadRequest } from '../../../board';
+import { readSession } from './readSession';
+import type { AgentRuntime } from '../../../runtime';
 
 /** A card as the session reads it. */
 export interface TagCard {

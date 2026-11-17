@@ -31,7 +31,7 @@ import { demoFile } from './demo-file';
 import type { Theme } from './theme';
 import { type Forge, landedUrl, parsePrUrl } from './forge';
 import type { AgentRuntime } from './runtime';
-import { readSession } from './koordinator';
+import { readSession } from './llms/agents/agentJobs/readSession';
 import type { CardRow } from './schemas/cards/cards';
 import { branchName, CARD_BRANCH, gitAsync } from './workstations';
 import { originOf } from './forgejo';
