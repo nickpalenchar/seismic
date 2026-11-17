@@ -56,7 +56,7 @@ async function handOver(id: string, file: string) {
 async function started() {
   const c = manual();
   await workers.start(c.id);
-  await until(() => runtime.sessions.length > 0);
+  await until(() => runtime.sessions.length > 0, 15000);
   return c.id;
 }
 

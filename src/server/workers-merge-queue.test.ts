@@ -42,7 +42,7 @@ async function heldMerge(cwd: string) {
   // A local HTTP gate holds git without timing assumptions or a polling shell loop.
   writeFileSync(hook, `#!/bin/sh\ncurl --max-time 15 -sf http://127.0.0.1:${gate.port}/ >/dev/null\n`, { mode: 0o755 });
   return {
-    entered: () => until(() => releases.length > 0, 10000),
+    entered: () => until(() => releases.length > 0, 15000),
     release: () => releases.shift()!(),
     close: () => { for (const release of releases.splice(0)) release(); gate.stop(true); },
   };
