@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, setSystemTime, test } from 'bun:test';
 import { type AgentSetting, type ProjectConfig, type ConfigProblem, type ConfigView, type Notice, waitingOn } from '../core/types';
 import { Board } from './board';
-import type { CardUpdate } from './models/cards/cards';
+import type { CardUpdate } from './schemas/cards/cards';
 import { type Command, Commander } from './commands';
 import { Store } from './store';
 import { FakeRuntime, type FakeSession, until } from './testing';

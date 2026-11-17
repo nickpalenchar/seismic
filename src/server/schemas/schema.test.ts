@@ -41,7 +41,7 @@ function shape(db: Database) {
   );
 }
 
-describe('the Drizzle schema (models/)', () => {
+describe('the Drizzle schema (schemas/)', () => {
   test('describes the database the migrations build from scratch', async () => {
     const migrated = new Store(':memory:').db;
     const ddl = await generateSQLiteMigration(await generateSQLiteDrizzleJson({}), await generateSQLiteDrizzleJson(schema));

@@ -96,16 +96,16 @@ import {
   type TalkMade,
   type WorkerTurn,
 } from '../core/types';
-import type { ActivityRow } from './models/activity';
-import type { CanvasRow } from './models/canvases';
-import type { CardRow, CardUpdate, NewRow } from './models/cards/cards';
-import type { Ideas } from './models/cards/ideas';
-import type { LabelsUpdate } from './models/cards/labels';
-import type { DecisionRow } from './models/decisions';
-import type { Friction, FrictionNote } from './models/friction';
-import type { GroupRow } from './models/groups';
-import type { HeldTalk, TalkWaitRow } from './models/talk';
-import type { Wait } from './models/needs-you';
+import type { ActivityRow } from './schemas/activity';
+import type { CanvasRow } from './schemas/canvases';
+import type { CardRow, CardUpdate, NewRow } from './schemas/cards/cards';
+import type { Ideas } from './schemas/cards/ideas';
+import type { LabelsUpdate } from './schemas/cards/labels';
+import type { DecisionRow } from './schemas/decisions';
+import type { Friction, FrictionNote } from './schemas/friction';
+import type { GroupRow } from './schemas/groups';
+import type { HeldTalk, TalkWaitRow } from './schemas/talk';
+import type { Wait } from './schemas/needs-you';
 import { decidedOn } from '../core/inbox';
 import { kindOf, type NeedsYou } from '../core/waits';
 import type { Mark, Store } from './store';

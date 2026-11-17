@@ -13,7 +13,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Board } from './board';
-import type { CardUpdate } from './models/cards/cards';
+import type { CardUpdate } from './schemas/cards/cards';
 import { type Command, Commander } from './commands';
 import { Config } from './config';
 import { Store } from './store';

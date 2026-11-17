@@ -11,7 +11,7 @@
 import { z } from 'zod';
 import { type CardEvent, PROPOSED_SETTINGS, type ProposedSetting } from '../../../core/types';
 import type { Board } from '../../board';
-import type { FrictionNote } from '../../models/friction';
+import type { FrictionNote } from '../../schemas/friction';
 import { readSession } from '../../koordinator';
 import { type AgentRuntime, type AgentTool, waitQuietly } from '../../runtime';
 import { remote } from '../../hosts';

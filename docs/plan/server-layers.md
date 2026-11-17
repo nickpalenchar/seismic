@@ -4,7 +4,7 @@
 
 Reorganize `src/server` along layers, so every file has an obvious place and the code follows common
 backend practice: `routes/` take requests, `services/` hold the business logic and the integrations,
-`models/` hold the data, with `auth/`, `lib/` and `jobs/` beside them. Dependencies are wired by a DI
+`schemas/` hold the data, with `auth/`, `lib/` and `jobs/` beside them. Dependencies are wired by a DI
 container instead of by hand. The frontend comes later, in a plan of its own. Behaviour stays the same:
 this is a refactor, not a feature, and the URLs do not change, so the UI needs no edits.
 
@@ -20,7 +20,7 @@ Checked in the code on 2026-11-13; counts may be off by a few. Each workstream r
 - **Flat folder.** `src/server` holds 99 source files (about 50k lines) with about 100 test files beside
   them. Six god files hold most of the logic: `workers.ts` (5.9k lines), `board.ts` (4.2k), `project.ts`
   (3.3k), `workstations.ts` (2.5k), `commands.ts` and `koordinator.ts` (1.7k each).
-- **Data layer mostly as wished.** `models/` uses Drizzle, one file per table with its schema and a query
+- **Data layer mostly as wished.** `schemas/` uses Drizzle, one file per table with its schema and a query
   class (`Projects`, `Cards`, …); the card tables sit in `models/cards/`, `schema.ts` collects every table.
   Two things don't fit: `store.ts`, whose transactions span several tables, and `db.ts` (820 lines), which
   holds the migrations.
@@ -40,7 +40,7 @@ Checked in the code on 2026-11-13; counts may be off by a few. Each workstream r
 ## Shape
 
 - **Layers at the top, feature folders inside** (owner's decision, 2026-11-13).
-- `models/`: as today, one file per table, plus `store.ts` (multi-table transactions) and `db.ts`
+- `schemas/`: as today, one file per table, plus `store.ts` (multi-table transactions) and `db.ts`
   (migrations).
 - `services/<area>/`: business logic by area (`cards/`, `agents/`, `projects/`, `demos/`, `voice/` …), the
   god files split into them. Services are named after a noun (`CardService.moveToProject()`: id first,
@@ -75,7 +75,7 @@ and leaves no re-export shims behind.
   with the rules the code already obeys, the rest listed as known exceptions that later workstreams remove).
   Move `access.ts`, `remote.ts`, `owner.ts` and `trust.ts` into `auth/`; `path.ts`, `images.ts` and the like
   into `lib/`; `pr-watcher`, `limit-watch`, stalls, `awake`, `self-update` and the landing queue into
-  `jobs/`. Move `store.ts` and `db.ts` into `models/` if they are not already there.
+  `jobs/`. Move `store.ts` and `db.ts` into `schemas/` if they are not already there.
 - [ ] **W2:** Routes out of `server.ts`. Introduce the `HttpRoute` class and a registry that `server.ts`
   collects, then move the ~134 endpoints into `routes/<area>/` one area at a time (several small cards
   are fine, each landing alone), file paths mirroring the URLs. Routes call into the existing god files for

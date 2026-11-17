@@ -2,11 +2,11 @@ import { Database } from 'bun:sqlite';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
 import { existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
-import { type Db, SHORT } from './models/common';
-import * as schema from './models/schema';
+import { type Db, SHORT } from './schemas/common';
+import * as schema from './schemas/schema';
 
 // The database: its connection and the migrations that bring it up to date. What is stored in it is
-// queried through the models (`models/`), which `Store` (store.ts) puts together.
+// queried through the schemas (`schemas/`), which `Store` (store.ts) puts together.
 
 export { SHORT };
 export type { Db };

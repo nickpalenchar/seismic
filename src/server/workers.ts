@@ -38,7 +38,7 @@ import { type Doing, onTool, onToolDone, shownDoing, THINKING_AFTER } from './do
 import { type ChangeRoute, type Clash, needsOwner, type FindingPick, type CodeReviewSetting, type Finding, type FindingStatus, type HeldChanges, type PageTags, PUSH_HOLD_MS, SEVERITIES, type Severity } from '../core/types';
 import { CAPTURED_CHANGES, gitAsync, gitOrNull, writeToGitDir } from './workstations';
 import { defaultBranchCommit } from './read-tree';
-import type { CardRow } from './models/cards/cards';
+import type { CardRow } from './schemas/cards/cards';
 import { workConfig } from './feedback';
 import { type DataSignal, isSchemaPage, SIGNALS_NAMED } from './data-models';
 import { type Forge, parsePrUrl, sameRepo } from './forge';

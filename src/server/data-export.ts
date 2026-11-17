@@ -1,7 +1,7 @@
 import { inArray, sql } from 'drizzle-orm';
 import type { SQLiteColumn, SQLiteTable } from 'drizzle-orm/sqlite-core';
-import { stored } from './models/common';
-import * as t from './models/schema';
+import { stored } from './schemas/common';
+import * as t from './schemas/schema';
 import type { Store } from './store';
 
 /** The tables that hold a project's records, under their names in the database, by its id or its cards'. */

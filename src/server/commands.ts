@@ -12,7 +12,7 @@ import type { Place } from '../core/layout';
 import { type Config, configShape } from './config';
 import { parsePrUrl } from './forge';
 import { folderPath } from './new-repo';
-import type { TalkWaitRow } from './models/talk';
+import type { TalkWaitRow } from './schemas/talk';
 import type { Mark, Moment } from './store';
 import { type AgentRuntime, type AgentSession } from './runtime';
 import { failureReason, limitLifts } from './llms/harnesses/claude';

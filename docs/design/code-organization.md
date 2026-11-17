@@ -12,7 +12,7 @@ the layer directly below it
 
 ### Data Layer
 
-- relevant paths: `src/server/models/`
+- relevant paths: `src/server/schemas/`
 
 The data layer is the database, sqlite3
 
@@ -21,7 +21,7 @@ The data layer is the database, sqlite3
 
 #### Data Layer Rules
 
-- models should only contain query logic (CRUD operations)
+- schema files should only contain query logic (CRUD operations)
 - a file name should map directly to a table.
 - the file should contain the table schema, basic query operations, and any indexes.
 

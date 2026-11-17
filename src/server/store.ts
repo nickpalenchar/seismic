@@ -3,36 +3,36 @@ import { sql } from 'drizzle-orm';
 import type { CardEvent, TalkAfter, TalkMoved, TalkRef } from '../core/types';
 import { MAIN_CANVAS } from '../core/types';
 import { openDatabase } from './db';
-import { Activity } from './models/activity';
-import { AgentRuns } from './models/agent-runs';
-import { Canvases } from './models/canvases';
-import { type CardRow, Cards, type CardUpdate, type NewRow, type PartsUpdate, type RowUpdate } from './models/cards/cards';
-import { Demos } from './models/cards/demos';
-import { Holds } from './models/cards/holds';
-import { Ideas } from './models/cards/ideas';
-import { Labels } from './models/cards/labels';
-import { Plans } from './models/cards/plans';
-import { Reviews } from './models/cards/reviews';
-import { Chats } from './models/chats';
-import { Commands } from './models/commands';
-import { atomic, type Db, now } from './models/common';
-import { Decisions } from './models/decisions';
-import { Devices } from './models/devices';
-import { Events } from './models/events';
-import { Feedbacks } from './models/feedback';
-import { FolderCards } from './models/folder-cards';
-import { Frictions } from './models/friction';
-import { Groups } from './models/groups';
-import { NeedsYou } from './models/needs-you';
-import { Preferences } from './models/preferences';
-import { Projects } from './models/projects';
-import { SettingProposals } from './models/setting-proposals';
-import { Settings } from './models/settings';
-import { Talk } from './models/talk';
-import { TrustedCommands } from './models/trusted-commands';
-import { Workstations } from './models/workstations';
+import { Activity } from './schemas/activity';
+import { AgentRuns } from './schemas/agent-runs';
+import { Canvases } from './schemas/canvases';
+import { type CardRow, Cards, type CardUpdate, type NewRow, type PartsUpdate, type RowUpdate } from './schemas/cards/cards';
+import { Demos } from './schemas/cards/demos';
+import { Holds } from './schemas/cards/holds';
+import { Ideas } from './schemas/cards/ideas';
+import { Labels } from './schemas/cards/labels';
+import { Plans } from './schemas/cards/plans';
+import { Reviews } from './schemas/cards/reviews';
+import { Chats } from './schemas/chats';
+import { Commands } from './schemas/commands';
+import { atomic, type Db, now } from './schemas/common';
+import { Decisions } from './schemas/decisions';
+import { Devices } from './schemas/devices';
+import { Events } from './schemas/events';
+import { Feedbacks } from './schemas/feedback';
+import { FolderCards } from './schemas/folder-cards';
+import { Frictions } from './schemas/friction';
+import { Groups } from './schemas/groups';
+import { NeedsYou } from './schemas/needs-you';
+import { Preferences } from './schemas/preferences';
+import { Projects } from './schemas/projects';
+import { SettingProposals } from './schemas/setting-proposals';
+import { Settings } from './schemas/settings';
+import { Talk } from './schemas/talk';
+import { TrustedCommands } from './schemas/trusted-commands';
+import { Workstations } from './schemas/workstations';
 
-// What Seismic stores: each table's queries in its model (`models/`), and here what spans several
+// What Seismic stores: each table's queries in its schema file (`schemas/`), and here what spans several
 // of them, each in one transaction.
 
 /**
