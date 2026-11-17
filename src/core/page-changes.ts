@@ -53,7 +53,7 @@ export const THEME_CHANGED = 'theme';
 export type OutdatedBy = PageChangeId | typeof THEME_CHANGED;
 
 /** The sample pages' hash (`pagesHash` in site.ts) the changes above account for. */
-export const PAGES_HASH = { video: 'd9246994a3dd', html: '1df780f41d85', stacked: 'e722ffe8ae02' };
+export const PAGES_HASH = { video: 'd9246994a3dd', html: '3b23512757fe', stacked: 'e722ffe8ae02' };
 
 /** The version a page published now gets: the newest change; '' while there is none. */
 export const pagesVersion = (changes: readonly PageChange[] = PAGE_CHANGES): string => changes.at(-1)?.id ?? '';

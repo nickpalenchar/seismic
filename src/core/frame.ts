@@ -78,7 +78,7 @@ export function withHeightReport(html: string): string {
 /** Install image enlargement on every artifact page, independently of height reporting. */
 const IMAGE_VIEWER = `<script>(() => {
   let viewer, origin;
-  const close = () => { if (!viewer) return; viewer.remove(); viewer = null; if (origin && origin.isConnected) origin.focus({ preventScroll: true }); origin = null; parent.postMessage({ seismicImage: false }, '*'); };
+  const close = () => { if (!viewer) return; viewer.remove(); viewer = null; if (origin && origin.isConnected) origin.focus({ preventScroll: true }); origin = null; parent.postMessage({ seismicImage: false, obeyaImage: false }, '*'); };
   const open = (img) => {
     if (viewer) return;
     origin = img;

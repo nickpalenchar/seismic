@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { FRAMES_POLICY, mockPage, pagePolicy, withHeightReport, withMarkReport } from './frame';
+import { FRAMES_POLICY, mockPage, pagePolicy, withHeightReport, withImageViewer, withMarkReport } from './frame';
 
 test('a page reports its height at the end of its body, or of the page without one', () => {
   expect(withHeightReport('<html><body><h2>Graph</h2></body></html>')).toMatch(/<h2>Graph<\/h2><script>[\s\S]*seismicHeight[\s\S]*<\/script><\/body><\/html>$/);
@@ -38,4 +38,11 @@ test('a mock loads nothing from elsewhere, whatever comes before its own head', 
 test("Seismic's page frames only its own addresses", () => {
   const index = readFileSync(join(import.meta.dir, '../ui/index.html'), 'utf8');
   expect(index).toContain(`<meta http-equiv="Content-Security-Policy" content="${FRAMES_POLICY}">`);
+});
+
+test('what a published page tells the page around it carries the name from before the rename too', () => {
+  // a page shared before the rename listens for `obeya…` alone: each message names both, closing an image as much as opening it
+  const sent = [...withImageViewer(withHeightReport('<body></body>')).matchAll(/parent\.postMessage\(\{([^}]*)\}/g)].map((m) => m[1]!);
+  expect(sent.length).toBeGreaterThanOrEqual(4);
+  for (const message of sent) for (const [, name] of message.matchAll(/seismic(\w+):/g)) expect(message).toContain(`obeya${name}:`);
 });
