@@ -5,7 +5,7 @@
 Every agent Seismic runs is defined the same way: a `SeismicAgent` subclass (role, model, skills,
 MCPs, tools, prompt, briefing) that assembles an `AgentSpec` and starts it on a runtime. Every skill
 is a `SeismicSkill`, built from its `plugin/skills/<dir>/SKILL.md`. Short single-purpose sessions
-(the old "pseudo-skills") are `simpleAgents`: plain functions in their own directory. What the
+(the old "pseudo-skills") are agent jobs, `agentJobs`: plain functions in their own directory. What the
 harnesses do with all this stays in `src/server/llms/`.
 
 When the plan is done, the lasting decisions and constraints go into `docs/design/code-organization.md`
@@ -19,7 +19,7 @@ and `docs/design.md`, and this doc goes.
 - [x] `SeismicSkill` (`src/server/llms/skills/seismicSkill.ts`), instances `labels` and `titles`.
 - [x] `AgentSpec.skills`; `attachedSkills.ts` (`skillPlugins` for Claude, `skillListing` for Codex and agy),
   called from the harnesses.
-- [x] `wish` moved to `src/server/llms/agents/simpleAgents/`.
+- [x] `wish` moved to `src/server/llms/agents/agentJobs/`.
 
 ## Open: skills
 
@@ -31,10 +31,10 @@ and `docs/design.md`, and this doc goes.
 - [ ] Decide whether `getInstructions()` is embedded in the binary (Bun text import) or stays read from
   the resources directory. Skills with scripts (`browser/lib`, `demo/lib`) need real files either way.
 
-## Open: simple agents
+## Open: agent jobs
 
 - [ ] `tagProposal`, `workRetro`, `codeReview` and the label helpers (`labelParams`, `labelsFrom`,
-  `labelWords`) move from `llms/skills/` (which holds the `SeismicSkill`s now) to `llms/agents/simpleAgents/`.
+  `labelWords`) move from `llms/skills/` (which holds the `SeismicSkill`s now) to `llms/agents/agentJobs/`.
 - [ ] `readSession` leaves `koordinator.ts` (used by `tagProposal`, `workRetro`) for a shared one-shot
   session helper under `llms/agents/`.
 - [ ] `codeReview` and `workRetro` split into a service (board state, counters, owner decisions; the

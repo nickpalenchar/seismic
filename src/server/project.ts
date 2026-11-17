@@ -59,7 +59,7 @@ import { FolderWorkstations } from './folder';
 import { readingTheme, readTheme, type Theme } from './theme';
 import { claudeToken, githubToken, hostName, registerHost } from './hosts';
 import { clip, messageOf, oneLine } from '../core/text';
-import { type WishDraft, type WishInput, writeWish } from './llms/agents/simpleAgents/wish';
+import { type WishDraft, type WishInput, writeWish } from './llms/agents/agentJobs/wish';
 
 export type { ProjectConfig, RepoConfig };
 

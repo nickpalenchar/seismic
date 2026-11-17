@@ -94,8 +94,8 @@ Not necesarilly "layers", but important to keep organized nonetheless
   (chosen per run from the role's setting), skills, MCPs, tools and prompts. A subclass per agent
   (worker, review, ...) supplies the pieces; the base class assembles an `AgentSpec` and starts it on
   a runtime from `src/server/llms/harnesses/`.
-- `src/server/llms/agents/simpleAgents/` the short, single-purpose agent sessions of Seismic's own (the
-  wish draft so far): a function that starts a read-only session, with its test. They are plain
+- `src/server/llms/agents/agentJobs/` the agent jobs: short, single-purpose agent sessions of Seismic's own
+  (the wish draft so far): a function that starts a read-only session, with its test. They are plain
   functions for now; they differ from other agents only by this directory. What is still in
   `src/server/llms/skills/` (code review, tag proposals, work retrospective, label helpers) moves
   here a part at a time.
