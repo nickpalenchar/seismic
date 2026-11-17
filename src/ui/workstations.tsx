@@ -4,7 +4,7 @@
 
 import { Ellipsis, Pause } from 'lucide-react';
 import type { CSSProperties } from 'react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { type BlockedClone, type ClonePool, inParkingLot, type Item, type PoolHost, type PoolWorkstation, type ProjectInfo, snoozeOf, stopped } from '../core/types';
 import { plain } from './markdown';
 import { CardFace, cardTone, stateVars } from './card';
@@ -18,11 +18,15 @@ const PULSING = new Set(['working', 'reviewing', 'approved']);
 /** Period of the pulse in ms; `ws-pulse_2.4s` in the classes below. */
 const PULSE_MS = 2400;
 /**
- * The dot's style while pulsing: its state colours and a negative animation delay that puts it at the point of the
- * pulse the wall clock is at, so every pulsing dot and bar share, however late each one mounted, on and off together.
+ * The animation delay of a pulsing element: negative, so it starts at the point of the pulse the wall clock is at,
+ * and every pulsing dot and bar share, however late each one mounted, is on and off together. Taken when the pulse
+ * begins and kept while it runs: a changed delay would shift the running animation against the others.
  */
-function pulseStyle(tone: Parameters<typeof stateVars>[0]): CSSProperties {
-  return { ...stateVars(tone), '--ws-phase': `-${Date.now() % PULSE_MS}ms` } as CSSProperties;
+function usePulsePhase(pulsing: boolean): CSSProperties | undefined {
+  const phase = useRef<string | null>(null);
+  if (!pulsing) phase.current = null;
+  else phase.current ??= `-${Date.now() % PULSE_MS}ms`;
+  return phase.current ? ({ '--ws-phase': phase.current } as CSSProperties) : undefined;
 }
 
 /**
@@ -54,7 +58,8 @@ type WorkstationDot = {
 };
 
 export function WorkstationMark({ dot, className }: { dot: WorkstationDot; className?: string }) {
-  const props = { className: cn('shrink-0', 'size-3', className, dot.className), style: dot.style, 'aria-hidden': true } as const;
+  const phase = usePulsePhase(!!dot.pulsing);
+  const props = { className: cn('shrink-0', 'size-3', className, dot.className), style: { ...dot.style, ...phase }, 'aria-hidden': true } as const;
   return dot.paused ? <Pause {...props} size={12} fill="currentColor" strokeWidth={2} /> : <i {...props} />;
 }
 
@@ -70,7 +75,7 @@ export function wsDot(w: PoolWorkstation | undefined, host: PoolHost, items: Ite
   if (!tone) return { className: cn(dot, 'bg-working/35'), fill: 'var(--working-wash)' };
   return {
     className: cn(dot, PULSING.has(tone) ? pulse : 'bg-c'),
-    style: (PULSING.has(tone) ? pulseStyle(tone) : stateVars(tone)) as CSSProperties,
+    style: stateVars(tone) as CSSProperties,
     fill: stateVars(tone)['--c'],
     pulsing: PULSING.has(tone),
   };
@@ -265,6 +270,16 @@ export const dotsLayout = (n: number): { rows: 1 | 2 | 3; cols: number } | 'bar'
 const ROWS = { 1: { size: 'size-3', gap: 'gap-1' }, 2: { size: 'size-2.5', gap: 'gap-0.5' }, 3: { size: 'size-[7px]', gap: 'gap-0.5' } } as const;
 
 /** Where each kind of workstation stands in the bar: at work first, free last, so its shares read as a ratio. */
+function BarShare({ dot, n }: { dot: WorkstationDot; n: number }) {
+  const phase = usePulsePhase(!!dot.pulsing);
+  return (
+    <i
+      className={cn('block h-full', dot.pulsing && barPulse)}
+      style={{ flexGrow: n, flexBasis: 0, ...(dot.pulsing ? { ...dot.style, ...phase } : dot.fill && ({ '--c': dot.fill, background: dot.fill } as CSSProperties)) }}
+    />
+  );
+}
+
 const barOrder = (d: WorkstationDot) => (!d.fill ? 3 : d.pulsing ? 0 : d.paused ? 2 : 1);
 
 /**
@@ -286,11 +301,7 @@ export function DotsFace({ dots }: { dots: WorkstationDot[] }) {
     return (
       <span className="ws-bar box-border flex h-2.5 w-20 shrink-0 overflow-hidden rounded-full border border-slate-500" aria-hidden>
         {shares.map(({ dot, n }, i) => (
-          <i
-            key={i}
-            className={cn('block h-full', dot.pulsing && barPulse)}
-            style={{ flexGrow: n, flexBasis: 0, ...(dot.pulsing ? dot.style : dot.fill && ({ '--c': dot.fill, background: dot.fill } as CSSProperties)) }}
-          />
+          <BarShare key={i} dot={dot} n={n} />
         ))}
       </span>
     );
@@ -347,7 +358,7 @@ export function WorkingRows({ cards, pools, items, underway, projects, onOpen, o
         const tone = cardTone(i, underway[i.id]);
         return (
           <li key={i.id} className="grid grid-cols-[12px_minmax(0,1fr)] items-start gap-x-2 py-1">
-            <WorkstationMark dot={{ className: cn('ws-dot box-border block rounded-full border border-slate-500', PULSING.has(tone) ? pulse : 'bg-c'), style: PULSING.has(tone) ? pulseStyle(tone) : (stateVars(tone) as CSSProperties) }} className="mt-1" />
+            <WorkstationMark dot={{ className: cn('ws-dot box-border block rounded-full border border-slate-500', PULSING.has(tone) ? pulse : 'bg-c'), style: stateVars(tone) as CSSProperties, pulsing: PULSING.has(tone) }} className="mt-1" />
             <button type="button" className="-mx-1.5 -my-0.5 block min-w-0 cursor-pointer rounded-sm bg-transparent px-1.5 py-0.5 text-left text-inherit hover:bg-muted focus-visible:bg-muted [&_.f-dot]:hidden" onClick={() => onOpen(i)}>
               <CardFace item={i} size="xs" workstation underway={underway[i.id]} />
             </button>
