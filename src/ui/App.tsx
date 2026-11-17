@@ -67,7 +67,7 @@ import { cardHooks, shownState, stateVars } from './card';
 import { CardView, DepLinks, depHead, depWidth, linkPath, linkSpot, Edges, Links, Minimap, minimapArea, OldBunPill, PlanView, RestartPill, Sheet, SourcePill, TalkIcon, UpdatePill, WorkstationsPill } from './parts';
 import { clock, failText, t } from './strings';
 import { loadNavHidden, loadNavWidth, loadPinned, MenuButton, NAV_PROJECT_MIN, NavPill, NavSheet, saveNavHidden, saveNavWidth, savePinned } from './nav';
-import { projectPath, cardPath, feedbackLogPath, followedPath, goTo, named, knowProjects, projectNamed, queryWithout, readAddress, readView, withView } from './address';
+import { projectPath, cardPath, feedbackLogPath, followedPath, goTo, named, knowProjects, projectNamed, queryWithout, readAddress, readView, withView, followedView } from './address';
 import { type QuickReply, sendReply } from './quickReply';
 import { InboxView, inboxListWidth } from './inbox';
 import { NeedsYouSheet } from './needsYou';
@@ -1145,7 +1145,7 @@ function Project({
     address(() => {
       const at = readAddress().card;
       if (at && named([i], at)) return;
-      if (!at || (under && named([under], at))) history.pushState({ step: true }, '', pathOf(i));
+      if (!at || (under && named([under], at))) history.pushState({ step: true, from: location.search }, '', pathOf(i));
       else history.replaceState(history.state, '', pathOf(i));
     });
   }
@@ -1153,7 +1153,10 @@ function Project({
   function addressCloses(under: Item | undefined) {
     if (addressSet.current) return;
     address(() => {
-      if (!(history.state as { step?: true } | null)?.step) return history.replaceState(history.state, '', pathOf(under));
+      const st = history.state as { step?: true; from?: string } | null;
+      if (!st?.step) return history.replaceState(history.state, '', pathOf(under));
+      // the view changed while the card was open: the entry below keeps the address of the view it had, so Back returns to it
+      if (st.from !== undefined && st.from !== searchNow()) return history.replaceState(null, '', pathOf(under));
       return new Promise<void>((done) => {
         stepBack.current = () => {
           // the step before may name what is no longer open (a card opened over its plan, then reloaded without it)
@@ -1204,6 +1207,9 @@ function Project({
   }
   /** Back or Forward: what the address no longer names closes, what it names opens. */
   async function followAddress() {
+    // the view follows the address before it is rewritten from the view shown
+    const view = followedView(location.search, fullPage.ref.current);
+    if (view !== undefined && view !== fullPage.ref.current) showPage(view);
     const code = readAddress().card;
     const i = code ? await namedBy(code) : undefined;
     addressSet.current = true;

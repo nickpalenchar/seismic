@@ -95,6 +95,17 @@ export function readView(search: string): { view?: AddressView; unknown?: true }
   return (VIEWS as readonly string[]).includes(v) ? { view: v as AddressView } : { unknown: true };
 }
 
+/**
+ * The view a followed address (Back, Forward, a link within the page) asks for, given the one `shown`
+ * now: the one it names, null (the canvas) where it names none or an unknown one while the table shows,
+ * undefined where the shown view stays (Inbox, Queue and the like are not in the address).
+ */
+export function followedView(search: string, shown: string | null): AddressView | null | undefined {
+  const { view } = readView(search);
+  if (view) return view;
+  return shown && (VIEWS as readonly string[]).includes(shown) ? null : undefined;
+}
+
 /** The query with `view` naming the view shown, or without it for the canvas; the rest stays as it was. */
 export function withView(search: string, view: AddressView | undefined): string {
   if (!view) return new URLSearchParams(search).has('view') ? queryWithout(search, 'view') : search;

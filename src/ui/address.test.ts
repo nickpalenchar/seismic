@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { followedPath, knowProjects, projectNamed, projectPath, cardPath, feedbackLogPath, named, queryWithout, readAddress, readView, upgradeAddress, withView } from './address';
+import { followedPath, knowProjects, projectNamed, projectPath, cardPath, feedbackLogPath, named, queryWithout, readAddress, readView, followedView, upgradeAddress, withView } from './address';
 
 const at = (url: string) => new URL(url, 'http://seismic');
 
@@ -177,4 +177,15 @@ test('switching views sets or drops `view` and keeps the rest of the query', () 
   expect(withView('?talk&view=table', undefined)).toBe('?talk');
   expect(withView('?view=gantt', undefined)).toBe('');
   expect(withView('?talk', undefined)).toBe('?talk');
+});
+
+test('followedView: the address decides the view while the table is in play', () => {
+  expect(followedView('?view=table', null)).toBe('table');
+  expect(followedView('?view=table', 'table')).toBe('table');
+  expect(followedView('', 'table')).toBeNull();
+  expect(followedView('?view=gantt', 'table')).toBeNull();
+  expect(followedView('?talk', 'table')).toBeNull();
+  expect(followedView('', null)).toBeUndefined();
+  expect(followedView('', 'inbox')).toBeUndefined();
+  expect(followedView('?view=gantt', 'parked')).toBeUndefined();
 });
