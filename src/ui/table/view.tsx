@@ -182,14 +182,15 @@ function TablePage({ project, items, canvases, groups, repos, open, onOpen, onCl
                     key={row.id}
                     ref={(el) => void (el ? els.set(i.id, el) : els.delete(i.id))}
                     tabIndex={0}
+                    data-space-activates
                     className="cursor-pointer outline-none focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-inset"
                     data-state={i.id === open ? 'selected' : undefined}
                     aria-current={i.id === open || undefined}
                     onClick={() => onOpen(i)}
                     onKeyDown={(e) => {
-                      if (e.key !== 'Enter' || e.target !== e.currentTarget) return;
+                      if ((e.key !== 'Enter' && e.code !== 'Space') || e.target !== e.currentTarget) return;
                       e.preventDefault();
-                      onOpen(i);
+                      if (!e.repeat) onOpen(i);
                     }}
                   >
                     {row.getVisibleCells().map((c) => (

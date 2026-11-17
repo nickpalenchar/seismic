@@ -2370,8 +2370,8 @@ function Project({
         if (!e.repeat) link.click();
         return;
       }
-      // Space on a focused switch, checkbox, radio, menu item, the button of a menu or the docked logo does that control's own thing
-      if (e.target instanceof Element && e.target.closest('[role=switch], [role=checkbox], [role=radio], [role=menu], [aria-haspopup=menu], .app-logo')) return;
+      // Space on a focused table row (it opens the card itself), switch, checkbox, radio, menu item, the button of a menu or the docked logo does that control's own thing
+      if (e.target instanceof Element && e.target.closest('[role=switch], [role=checkbox], [role=radio], [role=menu], [aria-haspopup=menu], .app-logo, [data-space-activates]')) return;
       // so does any button, tab, option or disclosure that has focus, however it got it (Tab or a click): Space presses it, as Enter does
       if (e.target instanceof Element && e.target.closest('button, summary, input[type=button], input[type=submit], input[type=file], [role=button], [role=tab], [role=option], [role=menuitem]')) return;
       e.preventDefault();
