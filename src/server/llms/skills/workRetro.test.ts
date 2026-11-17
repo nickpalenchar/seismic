@@ -104,7 +104,7 @@ describe('Work retrospective', () => {
     const a = ran('A', 's1', 's2');
     await settle();
     const s = noteSessions()[0]!;
-    expect(s.spec).toMatchObject({ readOnly: true, role: 'chores', cwd: main });
+    expect(s.spec).toMatchObject({ permission: 'readOnly', role: 'chores', cwd: main });
     // the earlier run's transcript is read too; the later one has none
     expect(s.inbox[0]).toContain('The card: "A"');
     expect(s.inbox[0]).toContain("unknown option '--port=4500'");
@@ -159,7 +159,7 @@ describe('Work retrospective', () => {
     ran('C', 'c');
     await settle();
     const s = retroSessions()[0]! as FakeSession;
-    expect(s.spec).toMatchObject({ readOnly: true, cwd: main });
+    expect(s.spec).toMatchObject({ permission: 'readOnly', cwd: main });
     expect(s.spec.model).toBeUndefined();
     expect(s.inbox[0]).toContain('K1 "A":\n- wrong flag for the dev server');
     expect(s.inbox[0]).toContain('K2 "B":');

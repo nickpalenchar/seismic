@@ -69,7 +69,7 @@ describe('a proposal reworked by what the owner says', () => {
     // the owner's whole words, as said, with how they came
     expect(item.idea?.proposal?.revising).toEqual({ words: 'Nimm auch Excel mit, und UTF-8 ist gesetzt.', spoken: true });
     const r = reviser()!;
-    expect(r.spec.readOnly).toBe(true);
+    expect(r.spec.permission).toBe('readOnly');
     expect(r.inbox[0]).toContain('Der CSV-Export schreibt Umlaute falsch.');
     expect(r.inbox[0]).toContain('Welche Kodierung? (options: UTF-8 / Latin-1)');
     expect(r.inbox[0]).toContain('Beim Export aufgefallen.');

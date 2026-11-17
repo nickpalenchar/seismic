@@ -48,7 +48,7 @@ describe('a proposal merged with another card', () => {
     expect(mergeableWith(board().item(p.id)!, board().item(planned.id)!)).toBe(true);
     project.act(p.id, { action: 'merge', with: planned.id });
     const m = merger()!;
-    expect(m.spec.readOnly).toBe(true);
+    expect(m.spec.permission).toBe('readOnly');
     expect(m.inbox[0]).toContain('The CSV export writes umlauts wrongly.');
     expect(m.inbox[0]).toContain('Dates in the CSV export are off by one day.');
     expect(m.inbox[0]).toContain('Which encoding?');

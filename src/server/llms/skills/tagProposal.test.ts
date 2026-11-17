@@ -75,7 +75,7 @@ describe('a proposal for the tags of a site', () => {
     expect(started.body.job).toEqual({ running: true });
     await until(() => proposer());
     const s = proposer();
-    expect(s.spec.readOnly).toBe(true);
+    expect(s.spec.permission).toBe('readOnly');
     expect(s.spec.cwd).toBe(repo);
     const brief = s.inbox[0]!;
     expect(brief).toContain('Area: Cart');

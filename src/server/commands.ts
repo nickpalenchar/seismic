@@ -807,7 +807,7 @@ export class Commander {
     const config = this.o.config;
     s.agent = this.o.runtime.start({
       cwd: this.o.cwd,
-      readOnly: true,
+      permission: 'readOnly',
       role: 'koordinator',
       ...(this.setting(chat) ? { setting: this.setting(chat) } : {}),
       at: { koordinator: true },

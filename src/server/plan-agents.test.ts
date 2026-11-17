@@ -34,7 +34,7 @@ describe('plan agents', () => {
     await tick();
     const s = runtime.last;
     expect(s.spec).toMatchObject({ cwd: '/repo' });
-    expect(s.spec.readOnly).toBeUndefined();
+    expect(s.spec.permission).toBeUndefined();
     expect(s.inbox[0]).toContain('Was macht W1 als Nächstes?');
     expect(s.inbox[0]).toContain('Trennzeichen? → Semikolon (owner)');
     s.call('answer_owner', { text: 'Es baut den CSV-Export.' });

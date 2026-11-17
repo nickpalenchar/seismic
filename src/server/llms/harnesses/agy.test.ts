@@ -39,7 +39,7 @@ const start = (s: AgentSpec, first?: string) => {
 
 test('flags: full auto inside the sandbox, read-only by permission rules, resume by conversation', () => {
   expect(agyArgs({})).toEqual(['--input-format', 'stream-json', '--output-format', 'stream-json', '--sandbox', '--dangerously-skip-permissions']);
-  expect(agyArgs({ readOnly: true, resume: 'agy:abc', model: 'm', effort: 'high', dirs: ['/d'] })).toEqual(['--input-format', 'stream-json', '--output-format', 'stream-json', '--sandbox', '--settings', JSON.stringify({ permissions: READ_ONLY_PERMISSIONS }), '--add-dir', '/d', '--conversation', 'abc', '--model', 'm', '--effort', 'high']);
+  expect(agyArgs({ permission: 'readOnly', resume: 'agy:abc', model: 'm', effort: 'high', dirs: ['/d'] })).toEqual(['--input-format', 'stream-json', '--output-format', 'stream-json', '--sandbox', '--settings', JSON.stringify({ permissions: READ_ONLY_PERMISSIONS }), '--add-dir', '/d', '--conversation', 'abc', '--model', 'm', '--effort', 'high']);
 });
 
 test('a session runs a turn, calls a Seismic tool over the MCP endpoint and ends idle', async () => {

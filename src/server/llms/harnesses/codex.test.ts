@@ -505,7 +505,7 @@ test('a read-only agent (a code review) runs in the read-only sandbox and asks n
   console.warn = () => {};
   process.env.OBEYA_CODEX_SANDBOX = 'danger-full-access';
   try {
-    const { wire } = fixture({ readOnly: true });
+    const { wire } = fixture({ permission: 'readOnly' });
     await until(() => wire.n === 1);
     expect(wire.calls.find((c) => c.method === 'thread/start')?.params).toMatchObject({ sandbox: 'read-only', approvalPolicy: 'never' });
   } finally {
@@ -516,7 +516,7 @@ test('a read-only agent (a code review) runs in the read-only sandbox and asks n
 });
 
 test("with auto review, Codex's own reviewer decides on approvals, a refusal shows as auto mode's; the owner is asked without it", async () => {
-  const { wire, events } = fixture({ autoReview: true });
+  const { wire, events } = fixture({ permission: 'auto' });
   await until(() => wire.n === 1);
   expect(wire.calls.find((c) => c.method === 'thread/start')?.params).toMatchObject({ approvalPolicy: 'on-request', approvalsReviewer: 'auto_review', sandbox: 'workspace-write' });
   const review = (status: string, action: Record<string, unknown>) =>
@@ -528,7 +528,7 @@ test("with auto review, Codex's own reviewer decides on approvals, a refusal sho
     { type: 'denied', name: 'Bash', input: { command: 'rm -rf ~/x' }, by: 'classifier', reason: 'Deletes files outside the workstation' },
     { type: 'denied', name: 'Network: https://evil.test', input: {}, by: 'classifier', reason: 'Deletes files outside the workstation' },
   ]);
-  for (const spec of [{}, { autoReview: true, readOnly: true }]) {
+  for (const spec of [{}, { permission: 'readOnly' as const }]) {
     const { wire } = fixture(spec);
     await until(() => wire.n === 1);
     expect(wire.calls.find((c) => c.method === 'thread/start')?.params).toMatchObject({ approvalsReviewer: 'user' });

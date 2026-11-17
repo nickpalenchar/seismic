@@ -91,8 +91,6 @@ export interface AgentSpec {
   resume?: string;
   /** Directories outside `cwd` the agent works in as in its own (a looked-up thread's output directory). */
   dirs?: string[];
-  /** Read-only agents get no tools that change files or run commands. */
-  readOnly?: boolean;
   /**
    * The repository's own Claude Code settings in `cwd` wait for the owner to confirm them
    * (`withRepoTrust`): the session reads the user's settings alone, none of the repository's.
@@ -114,13 +112,11 @@ export interface AgentSpec {
   /** Seismic's skills for the session; each harness attaches them its own way (`agents/skills/attachedSkills.ts`). */
   skills?: SeismicSkill[];
   permissionMode?: PermissionMode;
-  /** What the agent may do without asking, as no harness names it (`agents/permission.ts`); wins over `permissionMode`. */
-  permission?: AgentPermission;
   /**
-   * A Codex session's own automatic review (`auto_review`) decides what leaves its sandbox, in
-   * place of the owner: Codex's counterpart of Claude Code's `auto` mode. Claude ignores it.
+   * What the agent may do without asking, as no harness names it (`agents/permission.ts`); wins over
+   * `permissionMode`. Read-only agents get no tools that change files or run commands.
    */
-  autoReview?: boolean;
+  permission?: AgentPermission;
   /** Added to the agent's environment (Seismic's own, cleaned). */
   env?: Record<string, string>;
   /** How much the model thinks; low for quick, small jobs. */

@@ -96,7 +96,7 @@ describe('a question the Koordinator looks up', () => {
     expect(heard).toEqual({ confirm: 'Ich schaue im Plan nach.' });
     const a = answerer();
     // with a worker's tools, in the workers' permission mode, to check what it says
-    expect(a.spec.readOnly).toBeUndefined();
+    expect(a.spec.permission).toBeUndefined();
     expect(a.spec.permissionMode).toBe('acceptEdits');
     expect(a.spec.system).toContain('plan agent of the plan "PR-Loop"');
     expect(a.inbox[0]).toContain('What would the worker do on W4');
@@ -138,7 +138,7 @@ describe('a question the Koordinator looks up', () => {
     const a = answerer();
     expect(a.spec.system).toContain('You are the Koordinator of Seismic, a project on which the owner directs coding agents; the owner knows you simply as Seismic.');
     expect(a.spec.role).toBe('koordinator');
-    expect(a.spec.readOnly).toBeUndefined();
+    expect(a.spec.permission).toBeUndefined();
     expect(a.spec.permissionMode).toBe('acceptEdits');
     expect(a.spec.system).toContain('You have the tools a worker has');
     expect(a.inbox[0]).toContain('Your card: “Login”.');

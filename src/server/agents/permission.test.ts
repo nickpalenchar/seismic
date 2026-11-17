@@ -2,16 +2,14 @@ import { expect, test } from 'bun:test';
 import { agyArgs, READ_ONLY_PERMISSIONS } from '../llms/harnesses/agy';
 import { autoReviewRun, claudeMode, readOnlyRun } from './permission';
 
-test('read-only comes from the old flag or the permission', () => {
+test('read-only comes from the permission', () => {
   expect(readOnlyRun({})).toBe(false);
-  expect(readOnlyRun({ readOnly: true })).toBe(true);
   expect(readOnlyRun({ permission: 'readOnly' })).toBe(true);
   expect(readOnlyRun({ permission: 'auto' })).toBe(false);
 });
 
-test('Codex reviews automatically for auto, or where the setting asks for it', () => {
+test('Codex reviews automatically for auto', () => {
   expect(autoReviewRun({})).toBe(false);
-  expect(autoReviewRun({ autoReview: true })).toBe(true);
   expect(autoReviewRun({ permission: 'auto' })).toBe(true);
   expect(autoReviewRun({ permission: 'ask' })).toBe(false);
 });

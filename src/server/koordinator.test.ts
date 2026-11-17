@@ -346,7 +346,7 @@ describe('Koordinator', () => {
     await scope(['src/a.ts']);
     expect(item(a.id)).toMatchObject({ state: 'working', scope: ['src/a.ts'] });
     expect(item(a.id).queue).toBeUndefined();
-    expect(estimates()[0]!.spec).toMatchObject({ readOnly: true });
+    expect(estimates()[0]!.spec).toMatchObject({ permission: 'readOnly' });
     expect(estimates()[0]!.spec.system).toContain('- Agents speak to me in English only.');
     expect(estimates()[0]!.spec.tools.find((t) => t.name === 'scope')!.description).toContain('unless an explicit standing preference names another language');
   });
@@ -874,7 +874,7 @@ describe('Koordinator names a card the owner left without a title', () => {
     const naming = k.name(a.id);
     void k.name(a.id);
     expect(namings()).toHaveLength(1);
-    expect(namings()[0]!.spec).toMatchObject({ readOnly: true, role: 'chores' });
+    expect(namings()[0]!.spec).toMatchObject({ permission: 'readOnly', role: 'chores' });
     expect(namings()[0]!.inbox[0]).toContain('Der Dialog soll den Cursor ins Textfeld setzen.');
     namings()[0]!.call('title', { title: '  Cursor startet\nim Textfeld ' });
     namings()[0]!.emit({ type: 'idle' });
@@ -1013,7 +1013,7 @@ describe('Koordinator suggests the labels the owner left empty', () => {
     expect(item(a.id).state).toBe('working');
     expect(labellings()).toHaveLength(1);
     const s = labellings()[0]!;
-    expect(s.spec).toMatchObject({ readOnly: true, role: 'chores' });
+    expect(s.spec).toMatchObject({ permission: 'readOnly', role: 'chores' });
     expect(s.inbox[0]).toContain('Add CSV export');
     // only what is empty and the owner never set (not even to none) is asked for
     expect(params(s, 'labels')).toEqual(['subcategory', 'complexity']);
@@ -1950,7 +1950,7 @@ describe('Rückschau', () => {
     expect(board.setting('review_inputs')).toBe('0');
 
     const s = reviews()[0]!;
-    expect(s.spec).toMatchObject({ cwd: board.project.repos[0]!.path, readOnly: true });
+    expect(s.spec).toMatchObject({ cwd: board.project.repos[0]!.path, permission: 'readOnly' });
     const brief = s.inbox[0]!;
     for (const line of [
       '"Export": the owner created the card',

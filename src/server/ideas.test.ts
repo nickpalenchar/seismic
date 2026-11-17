@@ -73,7 +73,7 @@ describe('an idea', () => {
     const s = explorer();
     // it checks what the text does not say (git, gh, the web) in the workers' permission mode
     expect(s.spec).toMatchObject({ permissionMode: 'acceptEdits', cwd: project.repos[0]!.read.path });
-    expect(s.spec.readOnly).toBeUndefined();
+    expect(s.spec.permission).toBeUndefined();
     expect(s.spec.system).toContain('You have the tools a worker has');
     expect(s.spec.system).toContain('Nothing you do yourself starts work.');
     expect(project.repos[0]!.read.path).not.toBe(main);
@@ -612,7 +612,7 @@ describe('an idea', () => {
     project.patch(c.id, { state: 'idea' });
     expect(item(c.id).idea?.discussion).toMatchObject({ status: 'open', brief: '', thinking: true, yourTurn: false, questions: [] });
     const s = explorer();
-    expect(s.spec.readOnly).toBeUndefined();
+    expect(s.spec.permission).toBeUndefined();
     expect(s.inbox[0]).toContain('“Klon lädt sein Modell neu”');
     expect(s.inbox[0]).toContain('Für jeden Clip.');
     expect(s.inbox[0]).toContain('chose to discuss it first');

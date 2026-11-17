@@ -474,7 +474,7 @@ export class CodeReviews {
       {
         cwd: ws,
         ...(resume ? { resume } : {}),
-        readOnly: true,
+        permission: 'readOnly',
         role: 'review',
         ...(setting ? { setting } : {}),
         system: [reviewSystem(language), b.preferencesText()].filter(Boolean).join('\n\n'),

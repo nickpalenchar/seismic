@@ -449,7 +449,7 @@ describe('sharing a demo', () => {
     sharing.share(c.id);
     await until(() => runtime.sessions.length === 1);
     const s = runtime.last;
-    expect(s.spec.readOnly).toBe(true);
+    expect(s.spec.permission).toBe('readOnly');
     expect(s.inbox[0]).toContain('Export gebaut: CSV mit Semikolon.');
     s.call('page', { title: 'Meter readings as CSV', text: 'Landlords download meter readings as CSV.' });
     s.emit({ type: 'idle' });
@@ -491,7 +491,7 @@ describe('the tags of a page', () => {
     sharing.share(c.id);
     await until(() => runtime.sessions.length === 1);
     const s = runtime.last;
-    expect(s.spec.readOnly).toBe(true);
+    expect(s.spec.permission).toBe('readOnly');
     expect(s.inbox[0]).toContain('- Audience: Admins, Customers');
     expect(s.inbox[0]).not.toContain('- Area:');
     expect(s.inbox[0]).toContain('The page: “CSV export”\nLandlords download meter readings as CSV.');

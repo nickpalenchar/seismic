@@ -132,13 +132,13 @@ async function autoSpec(choice: AgentSetting) {
 
 test("a Codex worker with Codex's automatic review on starts with it and is told to ask for escalation, not the owner", async () => {
   const spec = await autoSpec(codex);
-  expect(spec.autoReview).toBe(true);
+  expect(spec.permission).toBe('auto');
   expect(spec.system).toContain('request escalated permissions');
   expect(spec.tools.find((t) => t.name === 'run')!.description).toContain('escalated permissions');
 });
 
 test("Codex's automatic review leaves a Claude worker as it was", async () => {
-  expect((await autoSpec(AGENT_DEFAULTS.worker)).autoReview).toBeUndefined();
+  expect((await autoSpec(AGENT_DEFAULTS.worker)).permission).toBeUndefined();
 });
 
 test('without it, a Codex worker is told the owner is asked', async () => {

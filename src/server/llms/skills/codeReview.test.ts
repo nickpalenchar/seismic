@@ -195,7 +195,7 @@ describe('code reviews', () => {
     const r = reviewers()[0]!;
     expect(r.spec.system).toContain('- Agents speak and write to me in English only.');
     expect(r.spec.tools.find((t) => t.name === 'review')!.description).toContain('unless an explicit standing preference names another language');
-    expect(r.spec.readOnly).toBe(true);
+    expect(r.spec.permission).toBe('readOnly');
     expect(r.spec.cwd).toBe(board.row(id).workstation!);
     expect(r.inbox[0]).toContain('Zählerstände exportieren');
     expect(r.inbox[0]).toContain('+export.ts');

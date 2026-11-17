@@ -91,7 +91,7 @@ export const READ_ONLY_PERMISSIONS = {
  * The flags of a session. Fully automatic inside the sandbox; a read-only agent (a code review) does
  * not skip permissions, so only `READ_ONLY_PERMISSIONS` apply (skipping them would also skip deny rules).
  */
-export function agyArgs(spec: Pick<AgentSpec, 'resume' | 'model' | 'effort' | 'readOnly' | 'permission' | 'dirs'>): string[] {
+export function agyArgs(spec: Pick<AgentSpec, 'resume' | 'model' | 'effort' | 'permission' | 'dirs'>): string[] {
   return [
     '--input-format', 'stream-json',
     '--output-format', 'stream-json',

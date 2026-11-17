@@ -10,7 +10,7 @@ test('a small job writes the issue in English from the owner’s words; the foot
   const draft = writeWish(runtime, { said: 'Die Karten sollen sich nach Datum sortieren lassen.' }, 'Seismic 0.3.0 · macOS · app', ['/i/1.png']);
   await settle();
   const s = runtime.last;
-  expect(s.spec).toMatchObject({ readOnly: true, role: 'chores' });
+  expect(s.spec).toMatchObject({ permission: 'readOnly', role: 'chores' });
   expect(s.spec.system).toContain('in English');
   expect(s.inbox[0]).toContain('“Die Karten sollen sich nach Datum sortieren lassen.”');
   expect(s.inbox[0]).toContain('a screenshot');

@@ -3763,7 +3763,7 @@ export class Workers {
           ...(this.folder ? { watch: this.folder.watch(cardId) } : {}),
           ...(resume ? { resume } : {}),
           ...(this.o.permissionMode ? { permissionMode: this.o.permissionMode } : {}),
-          ...(live.autoReview ? { autoReview: true } : {}),
+          ...(live.autoReview ? { permission: 'auto' as const } : {}),
           onEvent: (e) => this.onEvent(cardId, live, e),
         },
         message,

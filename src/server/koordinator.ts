@@ -1649,7 +1649,7 @@ export function readSession(
     const session = runtime.start(
       {
         cwd: o.cwd,
-        readOnly: true,
+        permission: 'readOnly',
         role: o.role,
         system: o.system,
         tools: o.tools(finish),

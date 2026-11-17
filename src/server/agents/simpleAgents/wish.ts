@@ -64,7 +64,7 @@ export function writeWish(runtime: AgentRuntime, w: WishInput, footer: string, i
     const session = runtime.start(
       {
         cwd: tmpdir(),
-        readOnly: true,
+        permission: 'readOnly',
         role: 'chores',
         system: wishSystem,
         // the owner is waiting for the draft: their words stand in it, and the draft says when the job can write it
