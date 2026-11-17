@@ -87,14 +87,14 @@ pre-release, so it never becomes the latest release, and its tag does not count 
 ## The updater's key
 
 Installed apps install only what is signed with Seismic's own key pair (Tauri's updater, made with
-`tauri signer generate` on 2026-10-08, without a password).
+`tauri signer generate` on 2026-11-17, without a password).
 
 - The public key is in `app/tauri.conf.json` (`plugins.updater.pubkey`); every app carries it.
-- The private key is `~/.tauri/obeya.key` on the owner's Mac. Keep a copy in a password manager:
+- The private key is `~/.tauri/seismic.key` on the owner's Mac. Keep a copy in a password manager:
   without it no update reaches the apps that are installed, which would then have to install the
   next version by hand.
 - The build workflow signs with the repository secret `TAURI_SIGNING_PRIVATE_KEY`, the file's
-  content (`gh secret set TAURI_SIGNING_PRIVATE_KEY --repo sadilek/obeya < ~/.tauri/obeya.key`),
+  content (`gh secret set TAURI_SIGNING_PRIVATE_KEY --repo sadilek/obeya < ~/.tauri/seismic.key`),
   read on tags only. Without it a release has no updates and `latest.json` names no platform.
 
 A key that is lost or got out is replaced by a new pair whose public key goes into
