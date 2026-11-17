@@ -7,6 +7,7 @@
  * (`codexExecTools.ts`). Seismic's tools reach it over a localhost MCP endpoint (`agyMcp.ts`) that the
  * session's `.agents/mcp_config.json` names. Routing and portability checks: `index.ts`.
  */
+import { readOnlyRun } from '../../agents/permission';
 import { seismicEnv } from '../../../core/env';
 import { spawn, spawnSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -90,12 +91,12 @@ export const READ_ONLY_PERMISSIONS = {
  * The flags of a session. Fully automatic inside the sandbox; a read-only agent (a code review) does
  * not skip permissions, so only `READ_ONLY_PERMISSIONS` apply (skipping them would also skip deny rules).
  */
-export function agyArgs(spec: Pick<AgentSpec, 'resume' | 'model' | 'effort' | 'readOnly' | 'dirs'>): string[] {
+export function agyArgs(spec: Pick<AgentSpec, 'resume' | 'model' | 'effort' | 'readOnly' | 'permission' | 'dirs'>): string[] {
   return [
     '--input-format', 'stream-json',
     '--output-format', 'stream-json',
     '--sandbox',
-    ...(spec.readOnly ? ['--settings', JSON.stringify({ permissions: READ_ONLY_PERMISSIONS })] : ['--dangerously-skip-permissions']),
+    ...(readOnlyRun(spec) ? ['--settings', JSON.stringify({ permissions: READ_ONLY_PERMISSIONS })] : ['--dangerously-skip-permissions']),
     ...(spec.dirs ?? []).flatMap((d) => ['--add-dir', d]),
     ...(spec.resume ? ['--conversation', spec.resume.slice('agy:'.length)] : []),
     ...(spec.model ? ['--model', spec.model] : []),

@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { basename, join, resolve } from 'node:path';
+import { claudeMode, readOnlyRun } from '../../agents/permission';
 import { skillPlugins } from '../../agents/skills/attachedSkills';
 import { LOST, remote, sessionFiles, type SshHost } from '../../hosts';
 import { localBin, which } from '../../path';
@@ -117,10 +118,10 @@ export const sdkRuntime: AgentRuntime = {
         systemPrompt: { type: 'preset', preset: 'claude_code', append: spec.system },
         mcpServers: { seismic: server('seismic', spec.tools), ...(legacy.length ? { [LEGACY_SERVER]: server(LEGACY_SERVER, legacy) } : {}) },
         ...(plugins.length ? { plugins: plugins.map((path) => ({ type: 'local' as const, path })) } : {}),
-        ...(spec.readOnly
+        ...(readOnlyRun(spec)
           ? { tools: READ_ONLY_TOOLS, allowedTools: [...READ_ONLY_TOOLS, ...ownTools], permissionMode: 'dontAsk' as const }
           : // a worker's own tools are allowed by the hook below: as allowedTools they would have the SDK warn that they pass by canUseTool
-            { ...(spec.askOwner ? {} : { allowedTools: ownTools }), permissionMode: spec.permissionMode ?? 'auto' }),
+            { ...(spec.askOwner ? {} : { allowedTools: ownTools }), permissionMode: claudeMode(spec) }),
         // without the repository's settings, which Claude Code reads with its CLAUDE.md
         ...(spec.untrusted ? { settingSources: ['user' as const] } : {}),
         ...(spec.resume ? { resume: spec.resume } : {}),

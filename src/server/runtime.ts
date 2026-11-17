@@ -7,6 +7,7 @@ import { endSessionsHere } from './llms/harnesses/codexRpc';
 import { agentIdentity } from './llms/harnesses/identity';
 import { allowed } from './allow-rules';
 import type { SeismicSkill } from './agents/skills/seismicSkill';
+import type { AgentPermission } from './agents/types';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { remote } from './hosts';
@@ -113,6 +114,8 @@ export interface AgentSpec {
   /** Seismic's skills for the session; each harness attaches them its own way (`agents/skills/attachedSkills.ts`). */
   skills?: SeismicSkill[];
   permissionMode?: PermissionMode;
+  /** What the agent may do without asking, as no harness names it (`agents/permission.ts`); wins over `permissionMode`. */
+  permission?: AgentPermission;
   /**
    * A Codex session's own automatic review (`auto_review`) decides what leaves its sandbox, in
    * place of the owner: Codex's counterpart of Claude Code's `auto` mode. Claude ignores it.

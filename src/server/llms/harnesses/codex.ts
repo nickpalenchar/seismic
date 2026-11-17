@@ -1,6 +1,7 @@
 /**
  * Native installed Codex app-server adapter. Worker routing and portability live separately.
  */
+import { autoReviewRun, readOnlyRun } from '../../agents/permission';
 import { bothNames, seismicEnv } from '../../../core/env';
 import { basename, dirname, isAbsolute, join } from 'node:path';
 import { homedir } from 'node:os';
@@ -437,7 +438,8 @@ export function createCodexRuntime(connect: Connect = connectInstalled): AgentRu
             ...(connection.pid ? { 'shell_environment_policy.set': bothNames({ AGENT_PID: String(connection.pid) }) } : {}),
           };
           // a read-only agent (a code review) reads and runs what only reads, and asks nobody
-          const params = { cwd: spec.cwd, model: model.model, developerInstructions: spec.system, approvalPolicy: spec.readOnly ? 'never' : 'on-request', approvalsReviewer: spec.autoReview && !spec.readOnly ? 'auto_review' : 'user', sandbox: spec.readOnly ? 'read-only' : codexSandbox(), config };
+          const readOnly = readOnlyRun(spec);
+          const params = { cwd: spec.cwd, model: model.model, developerInstructions: spec.system, approvalPolicy: readOnly ? 'never' : 'on-request', approvalsReviewer: autoReviewRun(spec) && !readOnly ? 'auto_review' : 'user', sandbox: readOnly ? 'read-only' : codexSandbox(), config };
           const result = threadResult.parse(await connection.request(spec.resume ? 'thread/resume' : 'thread/start', spec.resume ? { ...params, threadId: spec.resume.slice('codex:'.length) } : { ...params, dynamicTools }));
           if (closing) return;
           if (result.model !== model.model) throw new Error(`Codex substituted model ${result.model} for ${model.model}`);
