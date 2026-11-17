@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 import { skillListing, skillPlugins } from './attachedSkills';
 import { labelsSkill } from './labels';
 import { titlesSkill } from './titles';
-import { SEISMIC_PLUGIN } from '../../demo';
+import { SEISMIC_PLUGIN } from '../demo';
 import { SeismicSkill } from './seismicSkill';
 import { SEISMIC_SKILLS, seismicSkills } from './registry';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';

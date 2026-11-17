@@ -10,7 +10,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { basename, join, resolve } from 'node:path';
 import { claudeMode, readOnlyRun } from '../../agents/permission';
-import { skillPlugins } from '../../agents/skills/attachedSkills';
+import { skillPlugins } from '../../skills/attachedSkills';
 import { LOST, remote, sessionFiles, type SshHost } from '../../hosts';
 import { localBin, which } from '../../path';
 import { filesIn } from '../../files';

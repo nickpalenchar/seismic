@@ -9,8 +9,8 @@
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { Skill } from '../../../core/types';
-import { PLUGIN_NAME, SEISMIC_PLUGIN } from '../../demo';
+import type { Skill } from '../../core/types';
+import { PLUGIN_NAME, SEISMIC_PLUGIN } from '../demo';
 
 const FRONT_MATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
 /** The longest description a listing shows. */

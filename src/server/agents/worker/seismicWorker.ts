@@ -9,7 +9,7 @@ import { EXEC_LANE_AUTO_NOTE, EXEC_LANE_NOTE } from '../../llms/harnesses/codexE
 import type { Live } from '../../workers';
 import { ownerPermission } from '../permission';
 import { SeismicAgent } from '../seismicAgent';
-import { SEISMIC_SKILLS } from '../skills/registry';
+import { SEISMIC_SKILLS } from '../../skills/registry';
 import type { AgentPermission, SessionOptions } from '../types';
 import { workerSystem } from './system';
 import { workerTools, type WorkerHost } from './tools';

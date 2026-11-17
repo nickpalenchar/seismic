@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { skillPlugins } from './agents/skills/attachedSkills';
+import { skillPlugins } from './skills/attachedSkills';
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { generic } from '../adapters/generic';

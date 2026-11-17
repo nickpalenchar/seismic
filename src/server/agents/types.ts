@@ -3,7 +3,7 @@
  * classes of their own later; these only name the slots.
  */
 import type { AgentSpec } from '../runtime';
-import type { SeismicSkill } from './skills/seismicSkill';
+import type { SeismicSkill } from '../skills/seismicSkill';
 
 /** A skill the agent uses. */
 export type AgentSkill = SeismicSkill;

@@ -2,7 +2,7 @@ import { afterEach, expect, test } from 'bun:test';
 import { AGENT_DEFAULTS, type AgentSetting } from '../../../core/types';
 import type { Live } from '../../workers';
 import { setOwnerPermission } from '../permission';
-import { SEISMIC_SKILLS } from '../skills/registry';
+import { SEISMIC_SKILLS } from '../../skills/registry';
 import { seismicWorker, type WorkerContext } from './seismicWorker';
 
 afterEach(() => setOwnerPermission('auto'));

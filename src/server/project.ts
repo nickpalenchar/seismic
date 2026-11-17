@@ -42,7 +42,7 @@ import { harnessNames } from './llms/harnesses';
 import { bashRules } from './allow-rules';
 import { type TagCard, tagCards } from './llms/skills/tagProposal';
 import { commandsOf, heldGroups, withoutHeld } from './trust';
-import { seismicSkills } from './agents/skills/registry';
+import { seismicSkills } from './skills/registry';
 import { Skills } from './skills';
 
 /** The skill lists of all projects: several share a repository, and the user's skills are the same on each. */

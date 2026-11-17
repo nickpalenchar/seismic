@@ -8,8 +8,8 @@ import { SEISMIC_PLUGIN } from '../../demo';
 import { claudeConnected } from './claude';
 import { codexConnected, createCodexRuntime } from './codex';
 import { agyConnected, createAgyRuntime } from './agy';
-import { seismicSkills } from '../../agents/skills/registry';
-import { skillListing } from '../../agents/skills/attachedSkills';
+import { seismicSkills } from '../../skills/registry';
+import { skillListing } from '../../skills/attachedSkills';
 import type { AgentRuntime, AgentSpec } from '../../runtime';
 import { choosesHarness, HARNESS_NAMES, HARNESSES, type Harness } from '../../../core/types';
 

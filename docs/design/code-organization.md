@@ -64,6 +64,11 @@ Not necesarilly "layers", but important to keep organized nonetheless
 - `src/server/lib/` various helper funcitons
 - `src/server/llms/` what Seismic asks of an LLM: skills, prompts, harnesses (see below)
 - `src/server/agents/` how Seismic defines its agents (see below)
+- `src/server/skills/` the skills Seismic ships, beside the agents that use them. `SeismicSkill` is one skill, built from
+  `plugin/skills/<dir>/SKILL.md` (name, description, hint, instructions); `browser.ts`, `demo.ts`, `labels.ts`,
+  `settings.ts`, `titles.ts` hold the instances an agent imports, and `registry.ts` lists them all. An agent
+  declares its skills once (`getSkills()` → `AgentSpec.skills`) and each harness attaches them its own way
+  (`attachedSkills.ts`): Claude loads the plugin, Codex and agy are told the files in the system prompt.
 
 ### LLMs
 
@@ -89,11 +94,6 @@ Not necesarilly "layers", but important to keep organized nonetheless
   (chosen per run from the role's setting), skills, MCPs, tools and prompts. A subclass per agent
   (worker, review, ...) supplies the pieces; the base class assembles an `AgentSpec` and starts it on
   a runtime from `src/server/llms/harnesses/`.
-- `src/server/agents/skills/` the skills Seismic ships. `SeismicSkill` is one skill, built from
-  `plugin/skills/<dir>/SKILL.md` (name, description, hint, instructions); `browser.ts`, `demo.ts`, `labels.ts`,
-  `settings.ts`, `titles.ts` hold the instances an agent imports, and `registry.ts` lists them all. An agent declares its skills once
-  (`getSkills()` → `AgentSpec.skills`) and each harness attaches them its own way
-  (`attachedSkills.ts`): Claude loads the plugin, Codex and agy are told the files in the system prompt.
 - `src/server/agents/simpleAgents/` the short, single-purpose agent sessions of Seismic's own (the
   wish draft so far): a function that starts a read-only session, with its test. They are plain
   functions for now; they differ from other agents only by this directory. What is still in

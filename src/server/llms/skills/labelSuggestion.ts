@@ -14,17 +14,17 @@ import {
   PRIORITY_NAMES,
   SUBCATEGORIES,
 } from '../../../core/labels';
-import { labelsSkill } from '../../agents/skills/labels';
+import { labelsSkill } from '../../skills/labels';
 
 /**
  * The labels skill's file in Seismic's plugin.
- * @deprecated use `labelsSkill.file` (`src/server/agents/skills/labels.ts`).
+ * @deprecated use `labelsSkill.file` (`src/server/skills/labels.ts`).
  */
 export const LABELS_SKILL_FILE = labelsSkill.file;
 
 /**
  * The skill's instructions without their front matter, for a session's system prompt.
- * @deprecated use `labelsSkill.getInstructions()` (`src/server/agents/skills/labels.ts`).
+ * @deprecated use `labelsSkill.getInstructions()` (`src/server/skills/labels.ts`).
  */
 export const labelsGuide = (): string => labelsSkill.getInstructions();
 

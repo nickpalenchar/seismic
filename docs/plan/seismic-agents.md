@@ -16,7 +16,7 @@ and `docs/design.md`, and this doc goes.
 - [x] `src/server/agents` renamed to `src/server/llms` (harnesses, skills, prompts).
 - [x] `SeismicAgent` base class (`src/server/agents/seismicAgent.ts`): role, `getModel`, `getPrompt`,
   `getBriefing`, `getSkills`, `getMCPs`, `getTools`, `readOnly`, `toSpec`, `start`.
-- [x] `SeismicSkill` (`src/server/agents/skills/seismicSkill.ts`), instances `labels` and `titles`.
+- [x] `SeismicSkill` (`src/server/skills/seismicSkill.ts`), instances `labels` and `titles`.
 - [x] `AgentSpec.skills`; `attachedSkills.ts` (`skillPlugins` for Claude, `skillListing` for Codex and agy),
   called from the harnesses.
 - [x] `wish` moved to `src/server/agents/simpleAgents/`.
@@ -24,7 +24,7 @@ and `docs/design.md`, and this doc goes.
 ## Open: skills
 
 - [x] Instances for `browser`, `demo`, `settings` (`demo.ts` still has `DEMO_SKILL`, `DEMO_SKILL_FILE`; they can use `demoSkill` once their callers move).
-- [x] One registry (`agents/skills/registry.ts`, an explicit list of the instances; a test fails when a plugin
+- [x] One registry (`skills/registry.ts`, an explicit list of the instances; a test fails when a plugin
   folder has none); `project.ts` and the Codex/agy listing in `llms/harnesses/index.ts` read it.
 - [ ] Remove the deprecated `labelsGuide`, `LABELS_SKILL_FILE`, `titlesGuide` once `koordinator.ts` uses
   the skills directly.

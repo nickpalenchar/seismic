@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { skillPlugins } from './agents/skills/attachedSkills';
+import { skillPlugins } from './skills/attachedSkills';
 import { describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';

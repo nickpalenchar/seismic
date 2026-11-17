@@ -214,7 +214,7 @@ describe('the plugin workers load', () => {
         mkdirSync(join(resources, 'plugin', '.claude-plugin'), { recursive: true });
         writeFileSync(join(resources, 'plugin', '.claude-plugin', 'plugin.json'), manifest);
       }
-      const run = Bun.spawnSync([process.execPath, '-e', `const d = await import(${JSON.stringify(join(import.meta.dir, 'demo.ts'))}); const s = await import(${JSON.stringify(join(import.meta.dir, 'agents/skills/registry.ts'))}); console.log(d.demoSkillName(${JSON.stringify(join(resources, 'no-user-skills'))}), d.checkPlugin() !== null, s.seismicSkills().map(s => s.name).join(','))`], {
+      const run = Bun.spawnSync([process.execPath, '-e', `const d = await import(${JSON.stringify(join(import.meta.dir, 'demo.ts'))}); const s = await import(${JSON.stringify(join(import.meta.dir, 'skills/registry.ts'))}); console.log(d.demoSkillName(${JSON.stringify(join(resources, 'no-user-skills'))}), d.checkPlugin() !== null, s.seismicSkills().map(s => s.name).join(','))`], {
         env: { ...process.env, SEISMIC_RESOURCES: resources },
       });
       expect(run.stderr.toString()).toBe('');

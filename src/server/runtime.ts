@@ -6,7 +6,7 @@ import { type ChildProcess, execFile, spawn } from 'node:child_process';
 import { endSessionsHere } from './llms/harnesses/codexRpc';
 import { agentIdentity } from './llms/harnesses/identity';
 import { allowed } from './allow-rules';
-import type { SeismicSkill } from './agents/skills/seismicSkill';
+import type { SeismicSkill } from './skills/seismicSkill';
 import type { AgentPermission } from './agents/types';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -109,7 +109,7 @@ export interface AgentSpec {
   codexConfig?: boolean;
   /** Directories of local Claude Code plugins loaded into the session (skills, mainly). */
   plugins?: string[];
-  /** Seismic's skills for the session; each harness attaches them its own way (`agents/skills/attachedSkills.ts`). */
+  /** Seismic's skills for the session; each harness attaches them its own way (`skills/attachedSkills.ts`). */
   skills?: SeismicSkill[];
   /**
    * What the agent may do without asking, as no harness names it (`agents/permission.ts`); without
