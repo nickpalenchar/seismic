@@ -96,13 +96,6 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
     };
   }, [item.id, rev]);
   const box = useRef<HTMLDivElement>(null);
-  const [tallest, setTallest] = useState(0);
-  useLayoutEffect(() => {
-    // the Review tab shrinks as findings are decided and fold: its height is no floor for the tabs
-    if (current === REVIEW) return;
-    const h = box.current?.offsetHeight ?? 0;
-    if (h > tallest) setTallest(h);
-  });
   // A video left playing under another tab would go on talking.
   useEffect(() => {
     if (current !== DEMO) demoBox.current?.querySelectorAll('video').forEach((v) => v.pause());
@@ -166,7 +159,7 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
   const count = changedRows.length;
   return (
     <WholeChange.Provider value={readChange}>
-    <Tabs value={current ?? ''} onValueChange={onTab} className="results" ref={box} style={tallest ? { minHeight: tallest } : undefined}>
+    <Tabs value={current ?? ''} onValueChange={onTab} className="results" ref={box}>
       {/* deliverables stay in front; the change list has its own tab */}
       <TabsList variant="underline" className="result-tabs mb-3.5 phone:[&_[data-slot=tabs-trigger]]:min-h-11">
         {tabs.map((entry) => (
