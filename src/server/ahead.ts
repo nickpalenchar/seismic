@@ -4,7 +4,6 @@
 // message in a session that resumes, and the card's conversation is where the owner and it talk. The
 // worker that starts later hears that conversation with its task (`history`).
 
-import type { PermissionMode } from '@anthropic-ai/claude-agent-sdk';
 import { oneAtATime } from '../core/one-at-a-time';
 import { asksAhead } from '../core/queue';
 import { clip, messageOf } from '../core/text';
@@ -27,7 +26,6 @@ export interface AheadOptions {
   imageFiles?: (ids?: string[]) => string[];
   preferences?: () => string;
   /** The workers' permission mode, which the answering agent runs in too. */
-  permissionMode?: PermissionMode;
   /** Called with what the owner says, so lasting preferences can be learned. */
   onOwnerInput?: (card: Item, text: string) => void;
   /** Passes on to the Koordinator what the owner's words ask of Seismic (`to_seismic`); without it the agent has no such tool. */
@@ -228,7 +226,6 @@ export class Ahead {
         ...(resume ? { resume } : {}),
         ...(shots.length ? { images: shots } : {}),
         ...(toObeya ? { tools: [toObeyaTool((request) => toObeya(card.id, request))] } : {}),
-        ...(this.o.permissionMode ? { permissionMode: this.o.permissionMode } : {}),
       });
     const session = this.sessions.get(card.id);
     const fresh = () => {

@@ -62,29 +62,27 @@ and `docs/design.md`, and this doc goes.
 
 ## Permission mode
 
-`--permission-mode` (default `auto`) is one value for the whole server, copied into the spec by six
-classes (`Workers`, `Answers`, `Ahead`, `Advisor`, `Explorers`, `PlanAgents`, via `project.ts`).
+Done: `AgentPermission` (`ask | acceptEdits | auto | dangerouslyBypassPermissions | readOnly`,
+`agents/types.ts`). `--permission-mode` takes the first four (and Claude Code's `default` and
+`bypassPermissions` as aliases; `plan` and `dontAsk` are refused at start) and sets the owner's
+permission once (`agents/permission.ts`). `SeismicAgent.getPermissionMode()` returns it unless the agent
+overrides; `readOnly` is an agent's choice. A spec without a `permission` follows the owner's in the
+Claude harness. `AgentSpec.readOnly`, `autoReview` and `permissionMode` and the six classes' copies of the
+flag are gone.
 
-Done: `AgentPermission` (`inherit | auto | ask | readOnly`, `agents/types.ts`), `SeismicAgent.getPermissionMode()`,
-`AgentSpec.permission`, and the harnesses reading it through `agents/permission.ts` (`readOnlyRun`,
-`autoReviewRun`, `claudeMode`) beside the older spec fields.
+Mapping: `ask` is Claude's `default`; `acceptEdits` Claude's `acceptEdits`; `auto` Claude's `auto`
+(classifier), Codex's `auto_review`; `dangerouslyBypassPermissions` Claude's `bypassPermissions` (with the
+SDK's `allowDangerouslySkipPermissions`), Codex's `danger-full-access` with `never` approvals; `readOnly`
+is `dontAsk` plus the read-only tool list, Codex's `read-only` sandbox, agy's `READ_ONLY_PERMISSIONS`.
 
-Mapping: `auto` is Claude's `auto` (classifier), Codex's `auto_review`, and on agy sandbox plus skipped
-permissions (agy's own `--mode auto` is not available on every account: checked on 2026-11-16, it is
-not on the owner's, so it is not used); `ask` is Claude's `default`, Codex's user approvals, dropped on
-agy (headless, nobody answers); `readOnly` is `dontAsk` plus the read-only tool list, Codex's
-`read-only` sandbox with `never` approvals, agy's `READ_ONLY_PERMISSIONS`.
-
-- [ ] Callers set `readOnly: true`, `autoReview` and `permissionMode` on specs by hand (`commands.ts`,
-  `koordinator.ts`, `codeReview.ts`, `wish.ts`, `workers.ts` and the other five); each moves to
-  `getPermissionMode()` with its agent, then the old fields go.
-- [ ] A runtime wrapper in `runtime.ts` (beside `withAgentSetting`) that resolves `inherit` from the
-  server's flag, replacing the six copies. Sessions that never passed the flag get `auto` today,
-  whatever the flag says: decide whether the wrapper changes that.
-- [ ] `portable()` in `llms/harnesses/index.ts` still throws for Claude mode names Codex cannot apply;
-  with neutral values nothing is left to refuse.
-- [ ] agy's own Auto mode (`--mode auto`) where an account has it, detected by the warning on start;
-  a static allow list (like `READ_ONLY_PERMISSIONS`) as the fallback if skipping permissions is too loose.
+- [ ] agy runs every mode but `readOnly` as it did: sandbox plus skipped permissions. Its own flags exist
+  (`--mode accept-edits`, `--mode auto`; checked on 2026-11-16: `auto` is not available on the owner's
+  account) but a headless session has nobody to answer a prompt, so `ask` and `acceptEdits` need a check
+  before they map.
+- [ ] Codex's `auto` (its automatic review) is the owner's `codexAutoReview` setting, not the flag: a
+  Codex session without a permission asks, except under `dangerouslyBypassPermissions`. A `SeismicWorker`
+  on Codex has to override `getPermissionMode()` for that.
+- [ ] `acceptEdits` on Codex is the same as `ask` (a workspace-write sandbox already lets edits through).
 
 ## Open: other
 

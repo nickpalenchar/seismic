@@ -1,7 +1,7 @@
 // Agent sessions behind a small interface, so the orchestration can be tested without a model.
 
 import { LimitAttempts, limitWatch } from './limit-watch';
-import { type PermissionMode, type PermissionUpdate, type SpawnedProcess, type SpawnOptions } from '@anthropic-ai/claude-agent-sdk';
+import { type PermissionUpdate, type SpawnedProcess, type SpawnOptions } from '@anthropic-ai/claude-agent-sdk';
 import { type ChildProcess, execFile, spawn } from 'node:child_process';
 import { endSessionsHere } from './llms/harnesses/codexRpc';
 import { agentIdentity } from './llms/harnesses/identity';
@@ -111,10 +111,10 @@ export interface AgentSpec {
   plugins?: string[];
   /** Seismic's skills for the session; each harness attaches them its own way (`agents/skills/attachedSkills.ts`). */
   skills?: SeismicSkill[];
-  permissionMode?: PermissionMode;
   /**
-   * What the agent may do without asking, as no harness names it (`agents/permission.ts`); wins over
-   * `permissionMode`. Read-only agents get no tools that change files or run commands.
+   * What the agent may do without asking, as no harness names it (`agents/permission.ts`); without
+   * one it follows the owner's `--permission-mode`. Read-only agents get no tools that change files
+   * or run commands.
    */
   permission?: AgentPermission;
   /** Added to the agent's environment (Seismic's own, cleaned). */

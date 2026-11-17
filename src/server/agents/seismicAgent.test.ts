@@ -2,6 +2,7 @@ import { expect, test } from 'bun:test';
 import { AGENT_DEFAULTS } from '../../core/types';
 import { FakeRuntime } from '../testing';
 import { SeismicAgent } from './seismicAgent';
+import { ownerPermission, setOwnerPermission } from './permission';
 import { labelsSkill } from './skills/labels';
 
 class Probe extends SeismicAgent<{ topic: string }> {
@@ -25,4 +26,22 @@ test('start hands the spec and the briefing to the runtime', () => {
   new Probe().start(runtime, { topic: 'y' }, { cwd: '/w', onEvent: () => {} });
   expect(runtime.sessions).toHaveLength(1);
   expect(runtime.last.spec.system).toBe('Look into y.');
+});
+
+test('an agent follows the owner’s permission unless it overrides', () => {
+  class Plain extends SeismicAgent {
+    readonly role = 'worker' as const;
+    readonly name = 'plain';
+    readonly description = 'A test agent.';
+    getModel() { return AGENT_DEFAULTS.worker; }
+    getPrompt() { return ''; }
+  }
+  setOwnerPermission('acceptEdits');
+  try {
+    expect(new Plain().toSpec(undefined, { cwd: '/w', onEvent: () => {} }).permission).toBe('acceptEdits');
+    expect(new Probe().toSpec({ topic: 'x' }, { cwd: '/w', onEvent: () => {} }).permission).toBe('readOnly');
+  } finally {
+    setOwnerPermission('auto');
+  }
+  expect(ownerPermission()).toBe('auto');
 });

@@ -2,7 +2,6 @@
 // workers, plan agents and PR watcher), the board, the Koordinator and the voice commands.
 
 import { idSlug as slug } from '../core/project-slug';
-import type { PermissionMode } from '@anthropic-ai/claude-agent-sdk';
 import { existsSync, mkdirSync, realpathSync, statSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
 import { defaultsFor, hasAdapterModule, readingAdapterModule, readingShared, readShared, readSharedFiles, REPO_SETTINGS_FILE, repoValues, type SharedRead, withSettings } from '../adapters';
@@ -79,7 +78,6 @@ export interface ProjectDeps {
    */
   idleWorkers?: boolean;
   forge: Forge;
-  permissionMode?: PermissionMode;
   /** Watch plan docs and pull requests; off in tests. */
   watch?: boolean;
   /** Propose the card that fills in a repository's settings where it has none (`proposeSetup`); off in tests not about it. */
@@ -398,7 +396,6 @@ export class ProjectRuntime {
       imageFiles: this.imageFiles,
       onReplied: (cardId, replied) => this.replied(cardId, replied),
       toObeya: this.toObeya,
-      ...(deps.permissionMode ? { permissionMode: deps.permissionMode } : {}),
     });
     this.explorers.resumeAll();
     this.ahead = new Ahead({
@@ -410,7 +407,6 @@ export class ProjectRuntime {
       imageFiles: this.imageFiles,
       onOwnerInput: (card, text) => koordinator.learn(card, 'note', text),
       toObeya: this.toObeya,
-      ...(deps.permissionMode ? { permissionMode: deps.permissionMode } : {}),
     });
     board.showTurns(() => this.ahead.turnsShown());
     this.ahead.resumeAll();
@@ -422,7 +418,6 @@ export class ProjectRuntime {
       pathFor: (card) => (card && this.runs(card) ? this.repoOf(card) : this.repos[0]!).read.path,
       startBrief: (card) => (this.runs(card) ? this.repoOf(card).workers.startBrief(card) : undefined),
       planAgent: (plan) => this.repoOf(plan).planAgents,
-      ...(deps.permissionMode ? { permissionMode: deps.permissionMode } : {}),
       dirOf: (thread) => answersDir(deps.home, id, thread),
       imageFiles: this.imageFiles,
       toObeya: this.toObeya,
@@ -926,7 +921,7 @@ export class ProjectRuntime {
         void ensure();
       }
     }
-    const planAgents = new PlanAgents(board, deps.runtime, () => read.path, this.preferences, deps.permissionMode);
+    const planAgents = new PlanAgents(board, deps.runtime, () => read.path, this.preferences);
     workers = new Workers({
       board,
       runtime: deps.workerRuntime ?? deps.runtime,
@@ -975,7 +970,6 @@ export class ProjectRuntime {
       repoPath: info.path,
       remote: originUrl(info),
       ...(workstations instanceof Workstations ? { pulls: workstations } : {}),
-      ...(deps.permissionMode ? { permissionMode: deps.permissionMode } : {}),
       ...(deps.workerEnv ? { env: deps.workerEnv } : {}),
       demoLanguage: () => readDemoSettings(deps.home).language,
       demoArtifacts: () => readDemoSettings(deps.home).artifacts,

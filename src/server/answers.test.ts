@@ -21,7 +21,7 @@ let project: ProjectRuntime;
 let notices: Notice[];
 
 const open = () => {
-  const c = new ProjectRuntime({ repos: [{ path: main, clones: 1 }] }, { store, home: dir, runtime, forge: noForge, commandDelayMs: 10, permissionMode: 'acceptEdits', limitMargin: 10 });
+  const c = new ProjectRuntime({ repos: [{ path: main, clones: 1 }] }, { store, home: dir, runtime, forge: noForge, commandDelayMs: 10, limitMargin: 10 });
   c.board.onNotice((n) => notices.push(n));
   return c;
 };
@@ -97,7 +97,7 @@ describe('a question the Koordinator looks up', () => {
     const a = answerer();
     // with a worker's tools, in the workers' permission mode, to check what it says
     expect(a.spec.permission).toBeUndefined();
-    expect(a.spec.permissionMode).toBe('acceptEdits');
+    expect(a.spec.permission).toBeUndefined();
     expect(a.spec.system).toContain('plan agent of the plan "PR-Loop"');
     expect(a.inbox[0]).toContain('What would the worker do on W4');
     expect(a.inbox[0]).toContain('The task its worker would get if the owner started it now');
@@ -139,7 +139,7 @@ describe('a question the Koordinator looks up', () => {
     expect(a.spec.system).toContain('You are the Koordinator of Seismic, a project on which the owner directs coding agents; the owner knows you simply as Seismic.');
     expect(a.spec.role).toBe('koordinator');
     expect(a.spec.permission).toBeUndefined();
-    expect(a.spec.permissionMode).toBe('acceptEdits');
+    expect(a.spec.permission).toBeUndefined();
     expect(a.spec.system).toContain('You have the tools a worker has');
     expect(a.inbox[0]).toContain('Your card: “Login”.');
     expect(board().snapshot().talk.at(-1)).toMatchObject({ said: 'was würde der agent bei login machen?', reply: 'Moment, ich lese nach.', question: 'What would the worker do on Login?' });

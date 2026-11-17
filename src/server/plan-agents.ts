@@ -1,7 +1,6 @@
 // Plan agents: one long-lived session per plan that answers the owner's questions about it
 // from the plan doc, the decision log and the repository, with a worker's tools to check what it says.
 
-import type { PermissionMode } from '@anthropic-ai/claude-agent-sdk';
 import type { AgentAt, Item } from '../core/types';
 import { oneAtATime } from '../core/one-at-a-time';
 import { type Briefing, decisionLog, INFORM_RULES, inform, type OwnerAnswer } from './advisor';
@@ -21,7 +20,6 @@ export class PlanAgents {
     private repoPath: () => string,
     private preferences: () => string = () => '',
     /** The workers' permission mode, which the plan agent runs in too. */
-    private permissionMode?: PermissionMode,
   ) {}
 
   /**
@@ -55,7 +53,6 @@ export class PlanAgents {
         ...(dir ? { dir } : {}),
         ...(signal ? { signal } : {}),
         ...(onWaiting ? { onWaiting } : {}),
-        ...(this.permissionMode ? { permissionMode: this.permissionMode } : {}),
         ...(asked?.images.length ? { images: asked.images } : {}),
         ...(asked?.toObeya ? { tools: [asked.toObeya] } : {}),
         system: `You are the plan agent of the plan "${plan.title}", directed through Seismic. Its plan doc is ${plan.plan?.file ?? '(none)'}${plan.plan?.file && outsidePlanDir(pathOfRef(plan.plan.file)) ? '' : ' in this repository'}; you know it and the history of its workstreams.\n\n${INFORM_RULES}${asked?.toObeya ? `\n\n${TO_OBEYA}` : ''}`,

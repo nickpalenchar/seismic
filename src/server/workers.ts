@@ -5,7 +5,7 @@ import { LimitAttempts, limitWatch } from './limit-watch';
 // worker and the owner; every exchange lands in the card's conversation.
 
 import { extensionSettings, type PermissionContext, type PermissionOption, serverExtensions as extensions } from '../extensions/server';
-import type { PermissionMode, PermissionUpdate } from '@anthropic-ai/claude-agent-sdk';
+import type { PermissionUpdate } from '@anthropic-ai/claude-agent-sdk';
 import { z } from 'zod';
 import type { RepoAdapter } from '../adapters/types';
 import type { CardDiff } from '../core/diff';
@@ -66,7 +66,6 @@ export interface WorkerOptions {
   shares?: () => boolean;
   /** The vocabulary of tags the project names for its demo site; none where it names none. */
   vocabulary?: () => PageTags | undefined;
-  permissionMode?: PermissionMode;
   /** The owner's preferences, added to every worker's instructions. */
   preferences?: () => string;
   /** The card starts: what the owner talked over with Seismic's answering agent before it (`Ahead.history`), which goes with the task; its agent ends. */
@@ -3762,7 +3761,6 @@ export class Workers {
           askOwner: (request, signal) => this.askOwner(cardId, live, request, signal),
           ...(this.folder ? { watch: this.folder.watch(cardId) } : {}),
           ...(resume ? { resume } : {}),
-          ...(this.o.permissionMode ? { permissionMode: this.o.permissionMode } : {}),
           ...(live.autoReview ? { permission: 'auto' as const } : {}),
           onEvent: (e) => this.onEvent(cardId, live, e),
         },

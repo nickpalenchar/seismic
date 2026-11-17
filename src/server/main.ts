@@ -44,6 +44,7 @@ import { chmodSync, existsSync, mkdirSync, rmSync, statSync, writeFileSync } fro
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
+import { parsePermissionFlag, setOwnerPermission } from './agents/permission';
 import type { DeveloperView, RestartReason } from '../core/types';
 import { type ProjectConfig, Projects } from './project';
 import { adoptOldConfig, Config, CONFIG_FILE, expandConfig, readConfigFile } from './config';
@@ -107,6 +108,13 @@ const { values, positionals } = parseArgs({
   },
   allowPositionals: true,
 });
+
+try {
+  setOwnerPermission(parsePermissionFlag(values['permission-mode']));
+} catch (e) {
+  console.error(e instanceof Error ? e.message : String(e));
+  process.exit(2);
+}
 
 // the default home moved from ~/.obeya to ~/.seismic (home-move.ts), before anything reads it
 const move = seismicEnv('HOME') ? null : await moveDefaultHome();
@@ -317,7 +325,6 @@ projects = new Projects(
     ...(!values['idle-workers'] ? { workerRuntime: workerHarnessRuntime(runtime, values.record || values.replay ? { start() { throw new Error('Codex workers are not supported in record/replay mode'); } } : undefined, values.record || values.replay ? { start() { throw new Error('Antigravity workers are not supported in record/replay mode'); } } : undefined) } : {}),
     ...(values['idle-workers'] && !values.record && !values.replay ? { idleWorkers: true } : {}),
     forge,
-    permissionMode: values['permission-mode'] as 'auto',
     watch: true,
     setupProposals: true,
     ownCheckout: own,

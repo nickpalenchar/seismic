@@ -12,7 +12,7 @@ let store: Store;
 let runtime: FakeRuntime;
 let project: ProjectRuntime;
 
-const open = () => new ProjectRuntime({ repos: [{ path: main, clones: 1 }] }, { store, home: dir, runtime, forge: noForge, commandDelayMs: 10, permissionMode: 'acceptEdits', limitMargin: 10 });
+const open = () => new ProjectRuntime({ repos: [{ path: main, clones: 1 }] }, { store, home: dir, runtime, forge: noForge, commandDelayMs: 10, limitMargin: 10 });
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'obeya-ahead-'));

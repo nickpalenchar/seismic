@@ -15,14 +15,13 @@ import { choosesHarness, HARNESS_NAMES, HARNESSES, type Harness } from '../../..
 
 /** Only Seismic's bundled plugin is portable here, by explicit file-based skill instructions. */
 function portable(spec: AgentSpec, name = 'Codex'): AgentSpec {
-  if (spec.permissionMode && !['auto', 'default'].includes(spec.permissionMode)) throw new Error(`${name} cannot apply Claude permission mode ${spec.permissionMode}`);
   if (spec.plugins?.some((p) => p !== SEISMIC_PLUGIN)) throw new Error(`${name} supports only the bundled Seismic skills`);
   if (spec.cwd.startsWith('ssh://')) throw new Error(`${name} workers currently require a local Git workstation`);
   if (spec.watch) throw new Error(`${name} workers do not yet support folders without Git`);
   const git = spawnSync(GIT, ['-C', spec.cwd, 'rev-parse', '--is-inside-work-tree'], { encoding: 'utf8', windowsHide: true });
   if (git.status !== 0 || git.stdout.trim() !== 'true') throw new Error(`${name} workers currently require a local Git workstation`);
   const skills = skillListing([...new Map([...seismicSkills(), ...(spec.skills ?? [])].map((s) => [s.name, s] as const)).values()]);
-  const { plugins: _, skills: ___, permissionMode: __, ...rest } = spec;
+  const { plugins: _, skills: __, ...rest } = spec;
   return { ...rest, system: `${spec.system}\n\nSeismic skills are available as files, not Claude slash commands. Read the matching SKILL.md before using a skill, resolving its relative paths against its directory.\n${skills.join('\n')}\nUse the Seismic ask tool for owner questions, not a native terminal dialog.` };
 }
 

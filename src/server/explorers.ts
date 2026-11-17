@@ -4,7 +4,6 @@
 // brief holds the substance and the replies only the turns, so the two never say the same; how
 // the agent got to a reply (what it read and thought) folds away under that reply.
 
-import type { PermissionMode } from '@anthropic-ai/claude-agent-sdk';
 import { z } from 'zod';
 import { type Language, ownersLanguage, repositoryLanguage } from '../core/locale';
 import { MESSAGES } from '../core/messages';
@@ -27,7 +26,6 @@ export interface ExplorerOptions {
   /** The language of what lands in the idea's repository (`language` of its settings); English when left out. */
   repoLanguage?: (card: Item) => Language;
   /** The workers' permission mode: the agent has their tools and runs as they do. */
-  permissionMode?: PermissionMode;
   /** The owner's recorded preferences, as agents read them. */
   preferences?: () => string;
   /** Called with what the owner says, so lasting preferences can be learned. */
@@ -290,7 +288,6 @@ export class Explorers {
         cwd,
         role: 'explorer',
         at: { card: card.id },
-        ...(this.o.permissionMode ? { permissionMode: this.o.permissionMode } : {}),
         system: system(this.o.board.conversation(), this.o.board.language(), this.o.repoLanguage?.(card) ?? 'en', !!this.o.toObeya) + (preferences ? `\n\n${preferences}` : ''),
         tools: this.tools(card.id, live),
         contextUpdate: () => [this.buildNote(card.id, live), this.preferencesUpdate(live)].filter(Boolean).join('\n\n') || undefined,

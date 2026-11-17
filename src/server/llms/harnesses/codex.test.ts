@@ -308,7 +308,7 @@ test('unknown model, unsupported effort and substitution fail explicitly before 
 test('unsupported safety contracts fail before spawning a subprocess', () => {
   const variants: Partial<AgentSpec>[] = [
     { cwd: 'ssh://host/repo' }, { untrusted: true }, { plugins: ['/plugin'] },
-    { dirs: ['relative-root'] }, { env: { PATH: '/session-programs' } }, { env: { Path: 'C:\\session-programs' } }, { watch: { before: async () => {}, after: async () => {} } }, { permissionMode: 'auto' },
+    { dirs: ['relative-root'] }, { env: { PATH: '/session-programs' } }, { env: { Path: 'C:\\session-programs' } }, { watch: { before: async () => {}, after: async () => {} } },
   ];
   for (const variant of variants) expect(() => fixture(variant)).toThrow('does not support');
 });

@@ -3,7 +3,6 @@
 
 import { currentAgent } from './llms/harnesses/identity';
 import type { AgentAt, AgentIdentity } from '../core/types';
-import type { PermissionMode } from '@anthropic-ai/claude-agent-sdk';
 import { existsSync, statSync } from 'node:fs';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { z } from 'zod';
@@ -32,7 +31,6 @@ export interface Briefing {
   /** The owner's conversation language for the answer, unless a standing language preference overrides it. */
   language: Language;
   /** The workers' permission mode: the answering agent has their tools and runs as they do. */
-  permissionMode?: PermissionMode;
   /** The output directory of the thread: the answer may come with files in it. */
   dir?: string;
   /** Tools besides answer_owner (to_seismic, on a Question card). */
@@ -103,7 +101,6 @@ export function inform(b: Briefing): Promise<OwnerAnswer> {
       {
         cwd: b.cwd,
         role: 'koordinator',
-        ...(b.permissionMode ? { permissionMode: b.permissionMode } : {}),
         ...(b.resume ? { resume: b.resume } : {}),
         ...(b.dir ? { dirs: [b.dir] } : {}),
         system: `${b.system}\n\n${ownersLanguage(b.language)}`,

@@ -1,7 +1,7 @@
 /**
  * Native installed Codex app-server adapter. Worker routing and portability live separately.
  */
-import { autoReviewRun, readOnlyRun } from '../../agents/permission';
+import { autoReviewRun, bypassRun, readOnlyRun } from '../../agents/permission';
 import { bothNames, seismicEnv } from '../../../core/env';
 import { basename, dirname, isAbsolute, join } from 'node:path';
 import { homedir } from 'node:os';
@@ -169,7 +169,6 @@ function supported(spec: AgentSpec) {
     spec.plugins?.length ? 'Claude plugins' : '',
     spec.dirs?.some((d) => !isAbsolute(d)) ? 'non-local additional workstation roots' : '',
     spec.watch ? 'before/after mutation hooks' : '',
-    spec.permissionMode && spec.permissionMode !== 'default' ? `permission mode ${spec.permissionMode}` : '',
     // Also covers interpreters selected by a CLI shim's /usr/bin/env shebang.
     Object.keys(spec.env ?? {}).some((key) => key.toLowerCase() === 'path') ? 'per-session executable search path' : '',
   ].filter(Boolean);
@@ -439,7 +438,8 @@ export function createCodexRuntime(connect: Connect = connectInstalled): AgentRu
           };
           // a read-only agent (a code review) reads and runs what only reads, and asks nobody
           const readOnly = readOnlyRun(spec);
-          const params = { cwd: spec.cwd, model: model.model, developerInstructions: spec.system, approvalPolicy: readOnly ? 'never' : 'on-request', approvalsReviewer: autoReviewRun(spec) && !readOnly ? 'auto_review' : 'user', sandbox: readOnly ? 'read-only' : codexSandbox(), config };
+          const bypass = !readOnly && bypassRun(spec);
+          const params = { cwd: spec.cwd, model: model.model, developerInstructions: spec.system, approvalPolicy: readOnly || bypass ? 'never' : 'on-request', approvalsReviewer: autoReviewRun(spec) && !readOnly ? 'auto_review' : 'user', sandbox: readOnly ? 'read-only' : bypass ? 'danger-full-access' : codexSandbox(), config };
           const result = threadResult.parse(await connection.request(spec.resume ? 'thread/resume' : 'thread/start', spec.resume ? { ...params, threadId: spec.resume.slice('codex:'.length) } : { ...params, dynamicTools }));
           if (closing) return;
           if (result.model !== model.model) throw new Error(`Codex substituted model ${result.model} for ${model.model}`);

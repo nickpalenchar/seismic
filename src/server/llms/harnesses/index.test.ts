@@ -23,12 +23,11 @@ function fixture(extra: Partial<AgentSpec> = {}) {
 const setting = { model: 'opus', effort: 'high', harness: 'codex', codex: { model: 'codex-test', effort: 'low' } } as const;
 
 test('routes pinned harness/model independently of current default, with portable bundled skills', () => {
-  const { runtime, spec, claude, codex } = fixture({ setting, plugins: [SEISMIC_PLUGIN], permissionMode: 'auto', contextUpdate: () => 'news' });
+  const { runtime, spec, claude, codex } = fixture({ setting, plugins: [SEISMIC_PLUGIN], contextUpdate: () => 'news' });
   runtime.start(spec, 'build');
   expect(claude.sessions).toHaveLength(0);
   expect(codex.last.spec).toMatchObject({ model: 'codex-test', effort: 'low', setting });
   expect(codex.last.spec.plugins).toBeUndefined();
-  expect(codex.last.spec.permissionMode).toBeUndefined();
   expect(codex.last.spec.system).toContain(join(SEISMIC_PLUGIN, 'skills', 'browser', 'SKILL.md'));
   expect(codex.last.toolStep()).toBe('news');
   runtime.start({ ...spec, setting: AGENT_DEFAULTS.worker, resume: 'legacy-claude' });
@@ -39,7 +38,7 @@ test('mismatched session ownership and unsupported capabilities fail visibly wit
   for (const extra of [
     { setting, resume: 'claude-id' }, { resume: 'codex:thread' },
     { setting, role: 'koordinator' as const }, { setting, plugins: ['/foreign'] },
-    { setting, cwd: 'ssh://host/repo' }, { setting, permissionMode: 'bypassPermissions' as const },
+    { setting, cwd: 'ssh://host/repo' },
     { setting, watch: { before: async () => {}, after: async () => {} } },
   ]) {
     const { runtime, spec, events, claude, codex } = fixture(extra);
@@ -93,7 +92,7 @@ test('an agy worker routes to Antigravity with portable skills; its sessions are
   const { cwd, claude, codex, events } = fixture();
   const agy = new FakeRuntime();
   const runtime = withAgentSetting(workerHarnessRuntime(claude, codex, agy), () => AGENT_DEFAULTS.worker);
-  const spec: AgentSpec = { cwd, system: 'instructions', tools: [], role: 'worker', setting: agySetting, plugins: [SEISMIC_PLUGIN], permissionMode: 'auto', onEvent: (e) => events.push(e) };
+  const spec: AgentSpec = { cwd, system: 'instructions', tools: [], role: 'worker', setting: agySetting, plugins: [SEISMIC_PLUGIN], onEvent: (e) => events.push(e) };
   runtime.start(spec, 'build');
   expect(claude.sessions).toHaveLength(0); expect(codex.sessions).toHaveLength(0);
   expect(agy.last.spec).toMatchObject({ model: 'agy-test', effort: 'low', setting: agySetting });

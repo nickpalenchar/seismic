@@ -121,7 +121,7 @@ export const sdkRuntime: AgentRuntime = {
         ...(readOnlyRun(spec)
           ? { tools: READ_ONLY_TOOLS, allowedTools: [...READ_ONLY_TOOLS, ...ownTools], permissionMode: 'dontAsk' as const }
           : // a worker's own tools are allowed by the hook below: as allowedTools they would have the SDK warn that they pass by canUseTool
-            { ...(spec.askOwner ? {} : { allowedTools: ownTools }), permissionMode: claudeMode(spec) }),
+            { ...(spec.askOwner ? {} : { allowedTools: ownTools }), permissionMode: claudeMode(spec), ...(claudeMode(spec) === 'bypassPermissions' ? { allowDangerouslySkipPermissions: true } : {}) }),
         // without the repository's settings, which Claude Code reads with its CLAUDE.md
         ...(spec.untrusted ? { settingSources: ['user' as const] } : {}),
         ...(spec.resume ? { resume: spec.resume } : {}),

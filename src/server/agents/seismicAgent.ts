@@ -20,6 +20,7 @@
  */
 import type { AgentRole, AgentSetting } from '../../core/types';
 import type { AgentEvent, AgentRuntime, AgentSession, AgentSpec, AgentTool } from '../runtime';
+import { ownerPermission } from './permission';
 import type { AgentMcp, AgentPermission, AgentSkill } from './types';
 
 /** What a run needs from its caller. */
@@ -39,10 +40,11 @@ export abstract class SeismicAgent<Ctx = void> {
   /** The model, effort and harness for this run: by the role's setting and whatever else the context says. */
   abstract getModel(ctx: Ctx): AgentSetting;
   /**
-   * What the agent may do without asking the owner. Read-only agents get no tools that change files
-   * or run commands. Each harness maps it its own way (`permission.ts`).
+   * What the agent may do without asking the owner: what the owner's `--permission-mode` says, unless
+   * the agent overrides it. Read-only agents get no tools that change files or run commands. Each
+   * harness maps it its own way (`permission.ts`).
    */
-  getPermissionMode(_ctx: Ctx): AgentPermission { return 'inherit'; }
+  getPermissionMode(_ctx: Ctx): AgentPermission { return ownerPermission(); }
   /** Appended to the harness's default system prompt. */
   abstract getPrompt(ctx: Ctx): string;
   /** The first message of a run; none lets the session start up and wait. */
@@ -63,7 +65,7 @@ export abstract class SeismicAgent<Ctx = void> {
       ...(skills.length ? { skills } : {}),
       role: this.role,
       setting: this.getModel(ctx),
-      ...(permission !== 'inherit' ? { permission } : {}),
+      permission,
       ...(run.resume ? { resume: run.resume } : {}),
       onEvent: run.onEvent,
     };

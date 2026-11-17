@@ -9,7 +9,6 @@
 // The owner can move a thread onto a Question card of its own, where their words go straight to
 // that agent.
 
-import type { PermissionMode } from '@anthropic-ai/claude-agent-sdk';
 import { oneAtATime } from '../core/one-at-a-time';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -39,7 +38,6 @@ export interface AnswerOptions {
   imageFiles?: (ids?: string[]) => string[];
   preferences?: () => string;
   /** The workers' permission mode, which the answering Koordinator turn runs in too. */
-  permissionMode?: PermissionMode;
   /** The answer to an exchange is in: the Koordinator hears it with the owner's next command. */
   onAnswer?: (talk: number, question: string, answer: string) => void;
   /** Passes on what the owner's words on a Question card ask of Seismic (`to_seismic`). */
@@ -422,7 +420,6 @@ export class Answers {
         ...(resume ? { resume } : {}),
         ...(images?.length ? { images } : {}),
         ...(toObeya ? { tools: [toObeyaTool((request) => toObeya(c.card!, request))] } : {}),
-        ...(this.o.permissionMode ? { permissionMode: this.o.permissionMode } : {}),
         ...(c.signal ? { signal: c.signal } : {}),
         ...(c.onWaiting ? { onWaiting: c.onWaiting } : {}),
       });

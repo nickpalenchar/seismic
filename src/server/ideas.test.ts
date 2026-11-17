@@ -15,7 +15,7 @@ let runtime: FakeRuntime;
 let project: ProjectRuntime;
 
 const open = (clones = 1) =>
-  new ProjectRuntime({ repos: [{ path: main, clones, settings: { land: 'pr' } }] }, { store, home: dir, runtime, forge: noForge, commandDelayMs: 10, permissionMode: 'acceptEdits', limitMargin: 10 });
+  new ProjectRuntime({ repos: [{ path: main, clones, settings: { land: 'pr' } }] }, { store, home: dir, runtime, forge: noForge, commandDelayMs: 10, limitMargin: 10 });
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'obeya-ideas-'));
@@ -72,7 +72,7 @@ describe('an idea', () => {
     project.act(i.id, { action: 'discuss', text: 'Lass uns das durchdenken.' });
     const s = explorer();
     // it checks what the text does not say (git, gh, the web) in the workers' permission mode
-    expect(s.spec).toMatchObject({ permissionMode: 'acceptEdits', cwd: project.repos[0]!.read.path });
+    expect(s.spec).toMatchObject({ cwd: project.repos[0]!.read.path });
     expect(s.spec.permission).toBeUndefined();
     expect(s.spec.system).toContain('You have the tools a worker has');
     expect(s.spec.system).toContain('Nothing you do yourself starts work.');
@@ -558,7 +558,7 @@ describe('an idea', () => {
     project.shutdown();
     project = new ProjectRuntime(
       { repos: [{ path: main, clones: 1, settings: { land: 'pr', planDocs: { dir: plans, exclude: [] } } }] },
-      { store, home: dir, runtime, forge: noForge, commandDelayMs: 10, permissionMode: 'acceptEdits', limitMargin: 10 },
+      { store, home: dir, runtime, forge: noForge, commandDelayMs: 10, limitMargin: 10 },
     );
     const i = idea();
     project.act(i.id, { action: 'planDoc' });
