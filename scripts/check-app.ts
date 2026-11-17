@@ -158,6 +158,7 @@ const env: Record<string, string> = {
   ...(args.includes('--fake-mic') && win ? { WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: '--use-fake-device-for-media-stream' } : {}),
 };
 delete env.SEISMIC_SUPERVISED;
+delete env.OBEYA_SUPERVISED;
 const entry = () => {
   try {
     return JSON.parse(readFileSync(join(home, 'server.json'), 'utf8')) as { pid: number; port: number; url: string; app: boolean };

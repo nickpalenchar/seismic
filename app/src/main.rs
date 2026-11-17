@@ -120,7 +120,7 @@ impl Seismic {
 /// An environment variable of Seismic by its name without the prefix: `SEISMIC_<name>`, else the
 /// name from before the rename, `OBEYA_<name>`.
 pub(crate) fn seismic_env(name: &str) -> Option<std::ffi::OsString> {
-  std::env::var_os(format!("SEISMIC_{name}")).or_else(|| std::env::var_os(format!("SEISMIC_{name}")))
+  std::env::var_os(format!("SEISMIC_{name}")).or_else(|| std::env::var_os(format!("OBEYA_{name}")))
 }
 
 /// The checkout whose server the shell starts, when it runs from one rather than with its sidecar.
@@ -171,10 +171,12 @@ fn answers(port: u16) -> bool {
 
 pub(crate) fn home() -> PathBuf {
   seismic_env("HOME").map(PathBuf::from).unwrap_or_else(|| {
-    // the default home moved from ~/.obeya to ~/.seismic (src/server/home-move.ts), by the server's first start after the rename
+    // the default home moved from ~/.obeya to ~/.seismic (src/server/home-move.ts), by the server's
+    // first start after the rename: until then the old one is the home, so that nothing (the log, the
+    // window's place) makes ~/.seismic before the server moves ~/.obeya there; its symlink then leads on
     let user = std::env::home_dir().unwrap_or_default();
-    let new = user.join(".seismic");
-    if new.exists() { new } else { user.join(".seismic") }
+    let (new, old) = (user.join(".seismic"), user.join(".obeya"));
+    if !new.exists() && old.is_dir() { old } else { new }
   })
 }
 
@@ -336,11 +338,13 @@ fn start_server(app: &AppHandle, home: &Path, port: u16, log: &(fs::File, PathBu
     .args(["--port", &port.to_string()])
     // its entry in the home says so (`orphaned`)
     .env("SEISMIC_FROM_APP", "1")
+    .env("OBEYA_FROM_APP", "1")
     .stdin(Stdio::null())
     .stdout(log.0.try_clone()?)
     .stderr(log.0.try_clone()?);
   if let (Ok(dir), None) = (app.path().resource_dir(), checkout()) {
     cmd.env("SEISMIC_RESOURCES", dir.join("resources"));
+    cmd.env("OBEYA_RESOURCES", dir.join("resources"));
   }
   no_window(&mut cmd);
   cmd.spawn()

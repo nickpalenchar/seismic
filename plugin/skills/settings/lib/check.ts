@@ -7,21 +7,22 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { defaultsFor, parseShared, REPO_ADAPTER_DIR, REPO_SETTINGS_FILE, REPO_SETTINGS_FILES, withSettings } from '../../../../src/adapters/index.ts';
+import { defaultsFor, parseShared, REPO_ADAPTER_DIR, settingsFileOf, withSettings } from '../../../../src/adapters/index.ts';
 import { allTicked, type NotAPlan } from '../../../../src/core/plan-doc.ts';
 import { outsidePlanDir, readPlanDocs, repoInfo } from '../../../../src/server/repo.ts';
 
 const repo = repoInfo(process.cwd());
-const settingsFile = REPO_SETTINGS_FILES.map((f) => join(repo.path, f)).find((f) => existsSync(f)) ?? join(repo.path, REPO_SETTINGS_FILE);
+const file = settingsFileOf({ file: (f) => existsSync(join(repo.path, f)), dir: (d) => existsSync(join(repo.path, d)) });
+const settingsFile = join(repo.path, file);
 if (!existsSync(settingsFile)) {
   console.log(`No ${settingsFile}: write the repository's settings first.`);
   process.exit(1);
 }
-const shared = parseShared(readFileSync(settingsFile, 'utf8'));
+const shared = parseShared(readFileSync(settingsFile, 'utf8'), file);
 const adapter = withSettings(defaultsFor(repo), () => shared.settings);
 const problems = [
   ...shared.problems,
-  ...(existsSync(join(repo.path, REPO_ADAPTER_DIR)) ? [`${REPO_ADAPTER_DIR}/ is no longer read: take over what it says into ${REPO_SETTINGS_FILE} and delete it`] : []),
+  ...(existsSync(join(repo.path, REPO_ADAPTER_DIR)) ? [`${REPO_ADAPTER_DIR}/ is no longer read: take over what it says into ${file} and delete it`] : []),
 ];
 
 const plans = readPlanDocs(repo.path, adapter);

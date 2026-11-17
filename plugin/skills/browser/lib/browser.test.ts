@@ -83,6 +83,7 @@ function tone(file: string, seconds = 1, rate = 48_000) {
 
 test('portable agent identity isolates browsers and takes precedence over Claude identity', () => {
   expect(sessionPid({ SEISMIC_AGENT_PID: '123', CLAUDE_PID: '456' })).toBe(123);
+  expect(sessionPid({ OBEYA_AGENT_PID: '123', CLAUDE_PID: '456' })).toBe(123);
   expect(sessionPid({ SEISMIC_AGENT_PID: '789', OBEYA_AGENT_PID: '123' })).toBe(789);
   expect(stateFile({ SEISMIC_AGENT_PID: '123' })).toBe(stateFile({ CLAUDE_PID: '123' }));
   expect(stateFile({ SEISMIC_AGENT_PID: '123' })).not.toBe(stateFile({ SEISMIC_AGENT_PID: '456' }));

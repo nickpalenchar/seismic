@@ -159,7 +159,7 @@ export const api = {
   retryStart: () => call<{}>('POST', '/api/config/retry'),
   /** Saves it; Seismic then starts again with it where something restarts it. */
   saveConfig: (projects: ProjectConfig[]) => call<ConfigSaved>('PUT', '/api/config', projects),
-  /** "Take over into the repository for everyone": the repository's settings for this machine into its `.seismic/settings.json`. */
+  /** "Take over into the repository for everyone": the repository's settings for this machine into its settings file (`.seismic/settings.json`, else `.obeya/`). */
   shareSettings: (path: string, direct = false) => call<SettingsShared>('POST', '/api/config/share-settings', { path, direct }),
   /** The owner confirms the repository's commands the dialog showed them (the groups `held` of `now`): they count from now on. */
   trustCommands: (path: string, trust: RepoTrust) => call<object>('POST', '/api/config/trust', { path, seen: trust.now, held: trust.held }),

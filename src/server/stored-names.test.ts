@@ -44,6 +44,16 @@ describe('.seismic/ in repositories', () => {
     const kept = repo({ '.obeya/settings.json': '{ "checks": ["x"] }\n' });
     await commitShared(kept, { land: 'pr' });
     expect(readShared(kept).settings).toEqual({ land: 'pr', checks: ['x'] });
+    // a .seismic/ with only its theme: the settings stay in .obeya/settings.json
+    expect(await where({ '.seismic/theme.css': ':root{}', '.obeya/settings.json': '{}\n' })).toEqual(['.obeya/settings.json', '.seismic/theme.css']);
+  });
+
+  test('the settings file named to the owner is the one Seismic reads and writes', () => {
+    expect(readShared(repo({})).file).toBe('.seismic/settings.json');
+    expect(readShared(repo({ '.obeya/theme.css': ':root{}' })).file).toBe('.obeya/settings.json');
+    const old = readShared(repo({ '.obeya/settings.json': '{ "chekcs": [] }\n' }));
+    expect(old.file).toBe('.obeya/settings.json');
+    expect(old.problems[0]).toStartWith('.obeya/settings.json, ');
   });
 });
 

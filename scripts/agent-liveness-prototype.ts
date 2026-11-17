@@ -33,7 +33,9 @@ if (registryRoot) {
 const reportFd = (process.env.SEISMIC_LIVENESS_REPORT_FD ?? process.env.OBEYA_LIVENESS_REPORT_FD) ? Number((process.env.SEISMIC_LIVENESS_REPORT_FD ?? process.env.OBEYA_LIVENESS_REPORT_FD)) : undefined;
 const env = { ...process.env };
 delete env.SEISMIC_PROTO_REGISTRY;
+delete env.OBEYA_PROTO_REGISTRY;
 delete env.SEISMIC_LIVENESS_REPORT_FD;
+delete env.OBEYA_LIVENESS_REPORT_FD;
 // The shell cannot execute agent code until the supervisor releases fd 3. If the supervisor dies
 // first, EOF makes the shell exit; closing the descriptor before exec keeps it out of the agent.
 const child = spawn('/bin/sh', ['-c', 'IFS= read -r gate <&3 || exit 125; exec 3<&-; exec "$@"', 'seismic-gate', ...argv], {

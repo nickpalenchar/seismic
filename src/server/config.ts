@@ -688,7 +688,7 @@ export class Config {
         c.repos.forEach((r, repo) => {
           const { adapter, read: got } = given[repo]!;
           if (got.adapterModule)
-            problems.push({ code: 'adapterGone', project, repo, detail: `${REPO_ADAPTER_DIR}/ on the main branch is no longer read; what it says belongs in ${REPO_SETTINGS_FILE}` });
+            problems.push({ code: 'adapterGone', project, repo, detail: `${REPO_ADAPTER_DIR}/ on the main branch is no longer read; what it says belongs in ${got.shared.file ?? REPO_SETTINGS_FILE}` });
           if (r.hosts?.length) {
             const why = adapter.land === 'main' ? 'its work lands on the main of this checkout' : !got.info.remote ? 'it has no remote to clone from' : null;
             if (why) problems.push({ code: 'hostRepo', project, repo, detail: `the repository cannot have workers on other machines: ${why}` });
@@ -711,6 +711,7 @@ export class Config {
             ...(got.adapterModule ? { adapterGone: true } : {}),
             values: markHeld(values(), trust),
             ...(trust ? { trust } : {}),
+            settingsFile: got.shared.file ?? REPO_SETTINGS_FILE,
             shareTo: adapter.land === 'main' ? 'main' : 'pr',
             ...(adapter.land === 'pr' && adapter.direct ? { shareDirect: true } : {}),
             ...(leaving.length ? { leaving } : {}),

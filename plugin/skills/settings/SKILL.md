@@ -6,7 +6,7 @@ description: Write a repository's Seismic settings (`.seismic/settings.json`) â€
 # Writing a repository's settings
 
 Seismic learns how a project works from the repository's settings for everyone, in
-`.seismic/settings.json`: setup, checks, landing, plan docs, how to run the app. The owner sees and changes them in "Konfiguration". The reference for every field and
+`.seismic/settings.json` (in a repository from before the rename, `.obeya/settings.json`: that one is the file to edit then): setup, checks, landing, plan docs, how to run the app. The owner sees and changes them in "Konfiguration". The reference for every field and
 when a change takes effect is `${CLAUDE_SKILL_DIR}/../../../docs/settings.md`. Read it first; this
 skill is the way to fill it in.
 
@@ -137,7 +137,7 @@ before trusting them.
 
 ## 6. Hand over
 
-Commit `.seismic/` and the allow list (`.claude/settings.json`, `.codex/rules/seismic.rules` where you
+Commit the settings' folder (`.seismic/`, or `.obeya/`) and the allow list (`.claude/settings.json`, `.codex/rules/seismic.rules` where you
 wrote it), nothing else. In the summary say what the settings set and why where it was a judgement
 call (the checks you left out, clones or worktrees), what the owner answered, and
 that they count once they are on the default branch (at once; where they move the workers between

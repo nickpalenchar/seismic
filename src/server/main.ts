@@ -119,8 +119,8 @@ try {
 // the default home moved from ~/.obeya to ~/.seismic (home-move.ts), before anything reads it
 const move = seismicEnv('HOME') ? null : await moveDefaultHome();
 const home = seismicEnv('HOME') ?? move!.home;
-if (move?.moved) console.log(moveNotice(move, join(homedir(), '.seismic')));
-if (move?.skipped && !move.moved) console.error(`Seismic: ${join(homedir(), '.seismic')} stays where it is (${move.skipped})`);
+if (move?.moved) console.log(moveNotice(move, join(homedir(), '.obeya')));
+if (move?.skipped && !move.moved) console.error(`Seismic: ${join(homedir(), '.obeya')} stays where it is (${move.skipped})`);
 for (const p of move?.problems ?? []) console.error(`Seismic: home move: ${p}`);
 // the home holds the logins, the cards and the agents' transcripts: the owner's alone
 mkdirSync(home, { recursive: true, mode: 0o700 });

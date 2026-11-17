@@ -212,6 +212,7 @@ test('three consecutive limit failures exhaust retries, including after a manual
 test("agents run the Agent SDK's Claude Code from the checkout, the machine's own from the binary", () => {
   expect(claudeExecutable({ PATH: '' }, false)).toBeUndefined();
   expect(claudeExecutable({ SEISMIC_CLAUDE: '/opt/claude', PATH: '' }, true)).toBe('/opt/claude');
+  expect(claudeExecutable({ OBEYA_CLAUDE: '/opt/claude', PATH: '' }, true)).toBe('/opt/claude');
   expect(claudeExecutable({ SEISMIC_CLAUDE: '/opt/new', OBEYA_CLAUDE: '/opt/claude', PATH: '' }, true)).toBe('/opt/new');
   // none on the PATH: where the official installer puts it, for the SDK to say it is missing
   expect(claudeExecutable({ PATH: '' }, true, 'linux')).toBe(join(homedir(), '.local', 'bin', 'claude'));
@@ -221,7 +222,7 @@ test("agents run the Agent SDK's Claude Code from the checkout, the machine's ow
 test("an agent's environment keeps a machine's Claude login but not another session's marks", () => {
   const env = cleanEnv({ PATH: '/bin', CLAUDE_CODE_OAUTH_TOKEN: 't', CLAUDE_CODE_ENTRYPOINT: 'cli', CLAUDECODE: '1', SEISMIC_SUPERVISED: '1', SEISMIC_FROM_APP: '1', BUN_BE_BUN: '1' });
   expect(env).toEqual({ PATH: '/bin', CLAUDE_CODE_OAUTH_TOKEN: 't' });
-  expect(cleanEnv({ PATH: '/bin', SEISMIC_SUPERVISED: '1', SEISMIC_FROM_APP: '1' })).toEqual({ PATH: '/bin' });
+  expect(cleanEnv({ PATH: '/bin', SEISMIC_SUPERVISED: '1', SEISMIC_FROM_APP: '1', OBEYA_SUPERVISED: '1', OBEYA_FROM_APP: '1' })).toEqual({ PATH: '/bin' });
 });
 
 test("a denial's reason type is sorted into who refused the call", () => {

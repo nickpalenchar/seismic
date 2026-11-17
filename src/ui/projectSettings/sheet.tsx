@@ -467,7 +467,7 @@ function RepoPart({ section, project, view, save, repos, repoAt, onRepo }: BodyP
               </div>
               {/* its button's label is long for the sheet: it wraps */}
               <div className="mt-4 [&_[data-slot=button]]:h-auto [&_[data-slot=button]]:py-1.5 [&_[data-slot=button]]:whitespace-normal">
-                <ShareSettings repo={repo} values={resolved.values} branch={at.value<string>('branch')} shareTo={resolved.shareTo} shareDirect={!!resolved.shareDirect} takeover={takeover} />
+                <ShareSettings repo={repo} values={resolved.values} branch={at.value<string>('branch')} shareTo={resolved.shareTo} shareDirect={!!resolved.shareDirect} settingsFile={resolved.settingsFile} takeover={takeover} />
               </div>
             </>
           )}

@@ -39,7 +39,7 @@ test("a plan's card counts its agent's answers that wait unread, asked in its sh
 });
 
 describe('withClones', () => {
-  const at = (...workstations: ('clones' | 'worktrees')[]): ResolvedProject => ({ id: 'c', name: 'c', repos: workstations.map((w) => ({ id: 'r', workstations: w, values: {} as never, shareTo: 'main' })) });
+  const at = (...workstations: ('clones' | 'worktrees')[]): ResolvedProject => ({ id: 'c', name: 'c', repos: workstations.map((w) => ({ id: 'r', workstations: w, values: {} as never, settingsFile: '.seismic/settings.json', shareTo: 'main' })) });
 
   test('fills in a repository added in clones, once per path', () => {
     const saved = [{ repos: [{ path: '/a' }] }];

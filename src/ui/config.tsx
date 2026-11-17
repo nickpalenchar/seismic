@@ -2663,6 +2663,7 @@ function RepoRow({ repo, gitOnly, home, resolved, projectId, problems, focus, wh
           values={resolved.values}
           shareTo={resolved.shareTo}
           shareDirect={!!resolved.shareDirect}
+          settingsFile={resolved.settingsFile}
           takeover={takeover}
           onChange={(settings) => onChange(withField(repo, 'settings', settings))}
         />
@@ -2952,6 +2953,7 @@ function RepoSettingsBlock({
   values,
   shareTo,
   shareDirect,
+  settingsFile,
   takeover,
   onChange,
 }: {
@@ -2963,6 +2965,8 @@ function RepoSettingsBlock({
   values: RepoValues;
   shareTo: 'main' | 'pr';
   shareDirect: boolean;
+  /** Its settings file for everyone (`ResolvedProject`), where "Take over into the repository for everyone" writes. */
+  settingsFile: string;
   takeover: Takeover;
   onChange: (s: RepoSettings | undefined) => void;
 }) {
@@ -2991,12 +2995,12 @@ function RepoSettingsBlock({
       {group(t.config.groups.plans, REPO_SETTING_GROUPS.plans)}
       {group(t.config.groups.demos, REPO_SETTING_GROUPS.demos)}
       {/* the folder's settings file is written there like any other file; there is no commit or pull request to make */}
-      {!folder && <ShareSettings repo={repo} values={values} branch={at.value<string>('branch')} shareTo={shareTo} shareDirect={shareDirect} takeover={takeover} />}
+      {!folder && <ShareSettings repo={repo} values={values} branch={at.value<string>('branch')} shareTo={shareTo} shareDirect={shareDirect} settingsFile={settingsFile} takeover={takeover} />}
     </div>
   );
 }
 
-/** Whether the repository has settings for everyone (`.seismic/settings.json`): then it is set up. */
+/** Whether the repository has settings for everyone (its settings file): then it is set up. */
 export const fromRepository = (v: RepoValues) => SHARED_FIELDS.some((k) => (isNested(k) ? Object.values(v[k]).some((f) => f.source === 'repository') : v[k].source === 'repository'));
 
 /**
@@ -3109,7 +3113,7 @@ function TagProposal({ path, current, language, onTags }: { path: string; curren
   );
 }
 
-/** The repository's `.seismic/settings.json` as the dialog shows it: what the file holds now (`values` from the repository) with this machine's settings in front, but the main branch. */
+/** The repository's settings file as the dialog shows it: what the file holds now (`values` from the repository) with this machine's settings in front, but the main branch. */
 export function sharedPreview(repo: RepoConfig, values: RepoValues): Record<string, unknown> {
   const file: Record<string, unknown> = {};
   for (const k of SHARED_FIELDS) {
@@ -3132,11 +3136,11 @@ const shareConfirmHint = 'hint mt-1 mx-0 mb-0 max-w-[76ch]';
 
 /**
  * "Take over into the repository for everyone" under a repository's settings: this machine's values (but
- * the main branch) go into its `.seismic/settings.json`, so that everyone who clones it gets them.
+ * the main branch) go into its settings file (`settingsFile`), so that everyone who clones it gets them.
  * It first shows the file as it would be and where it goes (a commit on the main branch, or a pull
  * request), then does it at the owner's word. Only for the configuration as saved.
  */
-export function ShareSettings({ repo, values, branch, shareTo, shareDirect, takeover }: { repo: RepoConfig; values: RepoValues; branch: string; shareTo: 'main' | 'pr'; shareDirect: boolean; takeover: Takeover }) {
+export function ShareSettings({ repo, values, branch, shareTo, shareDirect, settingsFile, takeover }: { repo: RepoConfig; values: RepoValues; branch: string; shareTo: 'main' | 'pr'; shareDirect: boolean; settingsFile: string; takeover: Takeover }) {
   const c = t.config.settings.share;
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -3180,7 +3184,7 @@ export function ShareSettings({ repo, values, branch, shareTo, shareDirect, take
             <Button type="button" size="small" disabled={!saved && !prepare} onClick={() => setConfirming(true)}>
               {c.button(count)}
             </Button>
-            <p className={shareHint}>{saved || prepare ? `${c.hint}${repo.settings?.branch ? ` ${c.hintBranch}` : ''}` : c.saveFirst}</p>
+            <p className={shareHint}>{saved || prepare ? `${c.hint(settingsFile)}${repo.settings?.branch ? ` ${c.hintBranch}` : ''}` : c.saveFirst}</p>
           </>
         )}
         {confirming && (
@@ -3188,7 +3192,7 @@ export function ShareSettings({ repo, values, branch, shareTo, shareDirect, take
             {!saved && <p className={shareConfirmHint}>{c.savesFirst}</p>}
             <p className={shareConfirmHint}>{shareTo === 'main' ? c.toMain(branch) : shareDirect ? c.toPrOrDirect(branch) : c.toPr(branch)}</p>
             <pre className={cn(jsonClass, 'mt-1.5 mb-2 whitespace-pre-wrap')}>
-              <span className={shareConfirmHint}>.seismic/settings.json</span>
+              <span className={shareConfirmHint}>{settingsFile}</span>
               {'\n'}
               {JSON.stringify(sharedPreview(repo, values), null, 2)}
             </pre>

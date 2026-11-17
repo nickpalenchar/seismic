@@ -2917,15 +2917,17 @@ export interface ResolvedProject {
     folder?: true;
     /**
      * It still has a `.obeya/adapter/` on its main branch, which Seismic no longer reads: its values
-     * belong in `.seismic/settings.json` (problem `adapterGone`).
+     * belong in its settings file (problem `adapterGone`).
      */
     adapterGone?: boolean;
     /** Its settings without this machine's, with where each comes from. */
     values: RepoValues;
     /** Its commands that wait for the owner to confirm them (problem `untrusted`). */
     trust?: RepoTrust;
+    /** Its settings file for everyone, relative to it: `.seismic/settings.json`, or `.obeya/settings.json` in a repository from before the rename. */
+    settingsFile: string;
     /**
-     * Where "Take over into the repository for everyone" puts `.seismic/settings.json`: a commit on the main
+     * Where "Take over into the repository for everyone" puts its settings file: a commit on the main
      * branch where work lands there, else a pull request.
      */
     shareTo: 'main' | 'pr';

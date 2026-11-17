@@ -99,6 +99,15 @@ export const REPO_SETTINGS_FILE = `${REPO_DIR}/settings.json`;
 /** `REPO_SETTINGS_FILE` in each folder that may hold it, in the order they are read. */
 export const REPO_SETTINGS_FILES = REPO_DIRS.map((d) => `${d}/settings.json`);
 
+/**
+ * A repository's settings file, by what it has: the first of `REPO_SETTINGS_FILES` that is there,
+ * else `settings.json` in the first of `REPO_DIRS` that is (`.obeya/` in a repository from before
+ * the rename that has only that), else `REPO_SETTINGS_FILE`. Seismic reads it and writes to it.
+ */
+export function settingsFileOf(has: { file: (f: string) => boolean; dir: (d: string) => boolean }): string {
+  return REPO_SETTINGS_FILES.find(has.file) ?? `${REPO_DIRS.find(has.dir) ?? REPO_DIR}/settings.json`;
+}
+
 /** A repository's `.seismic/settings.json` (else `.obeya/settings.json`) as read: its settings that count, the file's own object, and what does not count. */
 export interface SharedRead {
   settings?: SharedSettings;
@@ -109,6 +118,8 @@ export interface SharedRead {
   claude?: Record<string, ClaudeFile>;
   /** The repository's own Codex configuration on the default branch, by file (`CODEX_PATHS`); none where it has none. */
   codex?: Record<string, ClaudeFile>;
+  /** The settings file, relative to the repository (`settingsFileOf`): where problems are found and a change goes. */
+  file?: string;
   /** The git tree of `.seismic/` (else `.obeya/`) on the default branch, which its theme is read from (theme.ts); none where it has none, or the repository is a folder without git. */
   seismicTree?: string;
 }
@@ -135,17 +146,17 @@ function byHarness(files: [string, ClaudeFile][]): Pick<SharedRead, 'claude' | '
 }
 
 /** Reads the text of a `settings.json`: a field that is unknown or of the wrong type does not count, the rest does. */
-export function parseShared(text: string): SharedRead {
+export function parseShared(text: string, file = REPO_SETTINGS_FILE): SharedRead {
   let made: unknown;
   try {
     made = JSON.parse(text);
   } catch (e) {
-    return { problems: [`${REPO_SETTINGS_FILE} is no JSON: ${messageOf(e)}`] };
+    return { problems: [`${file} is no JSON: ${messageOf(e)}`] };
   }
-  if (!made || typeof made !== 'object' || Array.isArray(made)) return { problems: [`${REPO_SETTINGS_FILE} holds no JSON object`] };
+  if (!made || typeof made !== 'object' || Array.isArray(made)) return { problems: [`${file} holds no JSON object`] };
   const raw = made as Record<string, unknown>;
   const { settings, problems } = checkShared(raw);
-  return { settings, raw, problems: problems.map((p) => `${REPO_SETTINGS_FILE}, ${p}`) };
+  return { settings, raw, problems: problems.map((p) => `${file}, ${p}`) };
 }
 
 /**
@@ -160,8 +171,8 @@ export function readShared(repoPath: string, commit = defaultBranchCommit(repoPa
 
 /** `readShared` of a folder without git: its `.seismic/settings.json` (else `.obeya/`) and Claude Code and Codex configuration as the folder has them. */
 export function readSharedFiles(dir: string): SharedRead {
-  const file = REPO_SETTINGS_FILES.map((f) => join(dir, f)).find((f) => existsSync(f));
-  const read: SharedRead = file ? parseShared(readFileSync(file, 'utf8')) : { problems: [] };
+  const file = settingsFileOf({ file: (f) => existsSync(join(dir, f)), dir: (d) => existsSync(join(dir, d)) });
+  const read: SharedRead = { ...(existsSync(join(dir, file)) ? parseShared(readFileSync(join(dir, file), 'utf8'), file) : { problems: [] }), file };
   const files: string[] = [];
   const add = (rel: string) => {
     const abs = join(dir, rel);
@@ -190,9 +201,11 @@ export function* readingShared(commit: string): GitSteps<SharedRead> {
     ['ls-tree', '-r', '-z', commit, '--', ...CLAUDE_PATHS, ...CODEX_PATHS],
     ...REPO_DIRS.map((d): string[] => ['rev-parse', '--verify', '-q', `${commit}:${d}`]),
   ];
-  const text = first ?? second;
+  const found = [first, second];
+  const file = settingsFileOf({ file: (f) => found[REPO_SETTINGS_FILES.indexOf(f)] != null, dir: (d) => trees[REPO_DIRS.indexOf(d)] != null });
+  const text = found[REPO_SETTINGS_FILES.indexOf(file)];
   const tree = trees.find((t) => t != null);
-  const read: SharedRead = { ...(text != null ? parseShared(text) : { problems: [] }), ...(tree ? { seismicTree: tree } : {}) };
+  const read: SharedRead = { ...(text != null ? parseShared(text, file) : { problems: [] }), file, ...(tree ? { seismicTree: tree } : {}) };
   // `<mode> <type> <object>\t<path>`: a blob's text is read (trimmed, for reading: its object tells
   // contents apart), a submodule's commit stands for what it holds
   const entries = (listed ?? '')

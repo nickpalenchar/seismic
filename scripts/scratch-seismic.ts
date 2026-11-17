@@ -549,10 +549,13 @@ const supervised = args.includes('--restarts');
 const env = {
   ...Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'OBEYA_SUPERVISED' && k !== 'SEISMIC_SUPERVISED')),
   SEISMIC_HOME: home,
+  OBEYA_HOME: home,
   ...(stage.pulls?.length
     ? {
         SEISMIC_FORGE_FILE: join(dir, 'forge.json'),
+        OBEYA_FORGE_FILE: join(dir, 'forge.json'),
         SEISMIC_PR_POLL: String(stage.prPoll ?? 10),
+        OBEYA_PR_POLL: String(stage.prPoll ?? 10),
         ...gitConfig(
           // the forge's repository is the remote's, and with a clone of its own the contributors' too: a push onto a PR's branch moves its head
           [`git@github.com:${stage.forgeRepo ?? `acme/${basename(repo)}`}.git`, ...(stage.forgeClone ? stage.pulls.map((p) => `https://github.com/${p.author}/${basename(stage.forgeRepo ?? `acme/${basename(repo)}`)}.git`) : [])].map(

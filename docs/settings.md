@@ -4,6 +4,9 @@ Seismic runs on any git repository as it is. What it cannot know by itself is ho
 works: how its app starts and stops, which checks a change must pass, how approved work lands, how
 a worker records a demo and where demos are shared. A repository says that in its settings,
 `.seismic/settings.json`, versioned with the code it describes (like `.vscode/settings.json`).
+A repository set up before Seismic's rename keeps them in `.obeya/settings.json`: Seismic reads
+`.seismic/settings.json` first, then `.obeya/settings.json`, and changes the file the repository has
+(where it has neither, it creates `.seismic/settings.json`). What follows says `.seismic/` for either.
 "Configuration" shows them with the repository on its project's page and changes them without a line of
 code, for one machine or, with "Take over into the repository for everyone", for everyone.
 
@@ -182,7 +185,7 @@ Where "Share" puts demos for colleagues is not a repository's setting: each proj
 this machine's demo sites (Configuration → Demos) and a path on it, in its settings. A `site` here,
 which repositories named until 2026-11-06, is no longer read and shows as a problem.
 
-The shared pages get a look of the repository's own from `.seismic/theme.css` beside this file, a
+The shared pages get a look of the repository's own from `theme.css` beside this file (in `.seismic/`, else `.obeya/`), a
 stylesheet put into every page after Seismic's own (as the default branch has it): its colour
 variables, fonts, a logo as a `data:`-embedded file of `.seismic/` (a reference to anything outside
 `.seismic/` is dropped). It is a file, not a setting. What it styles is the pages' markup, which
@@ -202,8 +205,8 @@ project is named after its first repository (the name in its `origin` URL, else 
 
 ## Which value applies
 
-Every machine that runs Seismic on the repository reads `.seismic/settings.json`, a fresh clone
-included. Which value applies, highest first:
+Every machine that runs Seismic on the repository reads `.seismic/settings.json` (else
+`.obeya/settings.json`), a fresh clone included. Which value applies, highest first:
 
 1. The one set for this machine in "Configuration" (a repository's settings on its project's page; kept in
    `projects.json` in Seismic's home, never in the repository).

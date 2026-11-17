@@ -200,6 +200,8 @@ Formats to stay compatible with:
   "-">`) follow, since agents resume their sessions by the checkout's path. A Codex thread resumes
   by its id, given the new cwd. A marker file lets a start after a crash finish the steps. An older
   checkout started afterwards finds no `obeya.db` through the symlink and shows an empty setup.
+  Nothing may create `~/.seismic` before that move, or it is skipped: the desktop app's shell keeps
+  `~/.obeya` as its home (its log, the window's place) until the server has moved it.
   Clones live under `workspaces/<project>/<repo>/<n>`.
 - Old names are still read: `workspaces` in settings and configuration, `--workspace`,
   `canvases.json` (copied once to `projects.json`), `OBEYA_*` beside `SEISMIC_*`, which agents get

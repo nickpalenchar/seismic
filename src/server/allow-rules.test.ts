@@ -100,7 +100,7 @@ test('variables in front of a command and output to a temporary file do not hide
     'NODE_OPTIONS=--require=/tmp/x bun test a',
     'SEISMIC_HOME=/other bun test a',
     'SEISMIC_CODEX_SANDBOX=danger-full-access bun test a',
-    'SEISMIC_HOME=/other bun test a',
+    'OBEYA_HOME=/other bun test a',
     'GIT_SSH_COMMAND=x bun test a',
     'bun test a > /etc/passwd',
     'bun test a > ~/x',

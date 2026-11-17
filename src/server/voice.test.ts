@@ -43,6 +43,7 @@ test('every machine hears with Parakeet, unless Whisper is asked for', () => {
   expect(listenBackend({ SEISMIC_WHISPER_BACKEND: 'whisper' }, 'darwin', 'arm64')).toBe('mlx');
   expect(listenBackend({ SEISMIC_WHISPER_BACKEND: 'whisper' }, 'linux', 'x64')).toBe('faster');
   expect(listenBackend({ SEISMIC_WHISPER_BACKEND: 'nope' }, 'linux', 'x64')).toBe('parakeet');
+  expect(listenBackend({ OBEYA_WHISPER_BACKEND: 'mlx' }, 'darwin', 'arm64')).toBe('mlx');
   expect(listenBackend({ SEISMIC_WHISPER_BACKEND: 'faster', OBEYA_WHISPER_BACKEND: 'mlx' }, 'darwin', 'arm64')).toBe('faster');
 });
 

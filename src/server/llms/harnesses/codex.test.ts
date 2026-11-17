@@ -435,6 +435,7 @@ test('the sandbox is workspace-write unless SEISMIC_CODEX_SANDBOX lifts it', () 
     expect(codexSandbox({})).toBe('workspace-write');
     expect(codexSandbox({ SEISMIC_CODEX_SANDBOX: 'workspace-write' })).toBe('workspace-write');
     expect(said).toEqual([]);
+    expect(codexSandbox({ OBEYA_CODEX_SANDBOX: 'danger-full-access' })).toBe('danger-full-access');
     expect(codexSandbox({ SEISMIC_CODEX_SANDBOX: 'danger-full-access' })).toBe('danger-full-access');
     // the new name wins over the old one
     expect(codexSandbox({ SEISMIC_CODEX_SANDBOX: 'workspace-write', OBEYA_CODEX_SANDBOX: 'danger-full-access' })).toBe('workspace-write');

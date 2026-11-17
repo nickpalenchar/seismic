@@ -7,7 +7,7 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { parseShared, REPO_DIRS, REPO_SETTINGS_FILE, REPO_SETTINGS_FILES } from '../adapters';
+import { parseShared, REPO_DIRS, REPO_SETTINGS_FILES, settingsFileOf } from '../adapters';
 import { layerSettings, SHARED_FIELDS, type SettingsShared, type SharedSettings } from '../core/types';
 import { BadRequest } from './board';
 import type { Forge } from './forge';
@@ -36,13 +36,11 @@ async function must(repoPath: string, args: string[], o?: Parameters<typeof gitR
   return r.out;
 }
 
-/**
- * The settings file Seismic writes in the repository at `commit`: in `.seismic/` or, where only
- * `.obeya/` exists there, in that; `.seismic/` for a repository with neither.
- */
+/** The settings file Seismic writes in the repository at `commit` (`settingsFileOf`): the one it reads there. */
 async function settingsFileAt(repoPath: string, commit: string): Promise<string> {
-  for (const dir of REPO_DIRS) if ((await gitRun(repoPath, ['rev-parse', '--verify', '--quiet', `${commit}:${dir}`])).code === 0) return `${dir}/settings.json`;
-  return REPO_SETTINGS_FILE;
+  const there = async (path: string) => (await gitRun(repoPath, ['rev-parse', '--verify', '--quiet', `${commit}:${path}`])).code === 0;
+  const [files, dirs] = await Promise.all([Promise.all(REPO_SETTINGS_FILES.map(there)), Promise.all(REPO_DIRS.map(there))]);
+  return settingsFileOf({ file: (f) => files[REPO_SETTINGS_FILES.indexOf(f)]!, dir: (d) => dirs[REPO_DIRS.indexOf(d)]! });
 }
 
 /**

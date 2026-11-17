@@ -113,6 +113,7 @@ fn rebuild(checkout: &Path, built: &str, home: &Path, updates: &Updates) {
         .arg(checkout.join("scripts").join("app.ts"))
         // compiled into the new build in turn
         .env("SEISMIC_BUN", &bun)
+        .env("OBEYA_BUN", &bun)
         .args(["install", "--no-open"])
         .current_dir(checkout)
         .stdin(Stdio::null());

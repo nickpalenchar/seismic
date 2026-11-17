@@ -100,7 +100,7 @@ function atHome(rule: string): string {
 export const TEMP_ROOTS: readonly string[] = ['/tmp/', '/private/tmp/'];
 
 /** Variables a command may not set in front of itself: they change what a rule's program is or does. */
-const UNSAFE_VARIABLES = /^(?:PATH|HOME|SHELL|IFS|ENV|BASH_ENV|LD_\w*|DYLD_\w*|NODE_\w*|BUN_\w*|PYTHON\w*|GIT_\w*|SEISMIC_\w*|SEISMIC_\w*|NPM_\w*)$/;
+const UNSAFE_VARIABLES = /^(?:PATH|HOME|SHELL|IFS|ENV|BASH_ENV|LD_\w*|DYLD_\w*|NODE_\w*|BUN_\w*|PYTHON\w*|GIT_\w*|OBEYA_\w*|SEISMIC_\w*|NPM_\w*)$/;
 
 /**
  * The parts of a script that the shell runs one after the other (`&&`, `;`, a new line); null
