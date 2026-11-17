@@ -1206,9 +1206,9 @@ function Project({
     await openAgain({ card: i.id, plan }, false);
   }
   /** Back or Forward: what the address no longer names closes, what it names opens. */
-  async function followAddress() {
+  async function followAddress(search = location.search) {
     // the view follows the address before it is rewritten from the view shown
-    const view = followedView(location.search, fullPage.ref.current);
+    const view = followedView(search, fullPage.ref.current);
     if (view !== undefined && view !== fullPage.ref.current) showPage(view);
     const code = readAddress().card;
     const i = code ? await namedBy(code) : undefined;
@@ -1234,7 +1234,11 @@ function Project({
       const done = stepBack.current;
       stepBack.current = null;
       if (done) done();
-      else address(() => follow.current().then(addressView));
+      else {
+        // the query as it was at the step: a view switched meanwhile may rewrite it before the chain gets to it
+        const search = location.search;
+        address(() => follow.current(search).then(addressView));
+      }
     };
     addEventListener('popstate', pop);
     return () => removeEventListener('popstate', pop);
