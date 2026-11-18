@@ -34,23 +34,24 @@ export async function connectedHarnesses(connected: Record<Harness, () => Promis
 /**
  * The harnesses a worker could start in on this machine, as last found: by its own check (`connectedHarnesses`), or by the
  * setup assistant's (`set`), whichever started last; one that started earlier but answers later is older news and changes
- * nothing. A caller never waits for a check: one older than `maxAge` starts the next in the background and gets what the
- * last found meanwhile (nothing before the first has answered).
+ * nothing. Each harness goes by the check that last found it, as the setup assistant checks one harness at a time. A
+ * caller never waits for a check: one older than `maxAge` starts the next in the background and gets what the last found
+ * meanwhile (nothing before the first has answered).
  */
 export class HarnessCheck {
   private found: Harness[] = [];
-  /** When the check behind `found` started, for its age. */
-  private at = -Infinity;
-  /** The checks in the order they started (`begin`), and the one behind `found`: ties in time cannot reorder them. */
+  /** When the check behind each harness's finding started, for its age. */
+  private at: Record<Harness, number> = { claude: -Infinity, codex: -Infinity, agy: -Infinity };
+  /** The checks in the order they started (`begin`), and the one behind each harness's finding: ties in time cannot reorder them. */
   private begun = 0;
-  private behind = 0;
+  private behind: Record<Harness, number> = { claude: 0, codex: 0, agy: 0 };
   private running: Promise<Harness[]> | null = null;
 
   constructor(private check: () => Promise<Harness[]> = connectedHarnesses, private maxAge = 60_000, private now = Date.now) {}
 
   /** What the last check found; a stale one starts the next. */
   current(): Harness[] {
-    if (this.now() - this.at > this.maxAge) void this.refresh();
+    if (this.now() - Math.min(...HARNESSES.map((h) => this.at[h])) > this.maxAge) void this.refresh();
     return this.found;
   }
 
@@ -70,13 +71,15 @@ export class HarnessCheck {
     return { order: ++this.begun, at: this.now() };
   }
 
-  /** What a check found that began as `check`; the one that began last stands, whichever answers first. */
-  set(found: Harness[], check = this.begin()): Harness[] {
-    if (check.order < this.behind) return this.found;
-    this.found = found;
-    this.behind = check.order;
-    this.at = check.at;
-    return found;
+  /** What a check of the harnesses `of` found that began as `check`; for each, the one that began last stands, whichever answers first. */
+  set(found: Harness[], check = this.begin(), of: readonly Harness[] = HARNESSES): Harness[] {
+    const placed = of.filter((h) => check.order >= this.behind[h]);
+    for (const h of placed) {
+      this.behind[h] = check.order;
+      this.at[h] = check.at;
+    }
+    this.found = HARNESSES.filter((h) => (placed.includes(h) ? found.includes(h) : this.found.includes(h)));
+    return this.found;
   }
 }
 

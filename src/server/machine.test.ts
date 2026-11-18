@@ -151,7 +151,7 @@ describe('what Seismic needs on this machine', () => {
     // a check of its own that never answers: what it holds is the setup checks' alone
     const agents = new HarnessCheck(() => new Promise(() => {}), Infinity);
     const set = agents.set.bind(agents);
-    agents.set = (found, check) => (told.push(found), set(found, check));
+    agents.set = (found, check, of) => (told.push(found), set(found, check, of));
     const machine = new MachineSetup({ home, config: config(), env: { PATH: bin }, platform: 'linux', arch: 'x64', compiled: true, agents });
     fake('codex', 'case "$1" in --version) echo "codex-cli 0.169.0";; login) echo "Logged in using ChatGPT";; esac');
     fake('agy', 'case "$1" in models) exit 1;; esac');
@@ -163,6 +163,20 @@ describe('what Seismic needs on this machine', () => {
     await machine.view();
     expect(told.at(-1)).toEqual(['claude', 'codex', 'agy']);
     expect(agents.current()).toEqual(['claude', 'codex', 'agy']);
+  });
+
+  test('a check of some sections runs and tells only those, so each agent shows as soon as it is known', async () => {
+    const agents = new HarnessCheck(() => new Promise(() => {}), Infinity);
+    agents.set(['claude', 'agy']);
+    const machine = new MachineSetup({ home, config: config(), env: { PATH: bin }, platform: 'linux', arch: 'x64', compiled: true, agents });
+    fake('codex', 'case "$1" in --version) echo "codex-cli 0.169.0";; login) echo "Logged in using ChatGPT";; esac');
+    // Claude Code would answer it is logged out: a check of Codex alone never asks it
+    fake('claude', 'case "$1" in --version) echo "2.1.300 (Claude Code)";; auth) echo \'{"loggedIn": false}\'; exit 1;; esac');
+    const v = await machine.view(['codex']);
+    expect(v.sections.map((x) => x.id)).toEqual(['codex']);
+    expect(section(v, 'codex').items[1]).toEqual({ id: 'codexLogin', state: 'ok' });
+    expect(agents.current()).toEqual(['claude', 'codex', 'agy']);
+    expect((await machine.view(['pr', 'voice', 'demos', 'mobile'])).sections.map((x) => x.id)).toEqual(['pr', 'demos']);
   });
 
   test('offers the official installer for a missing Claude Code, and the logins once logged in', async () => {

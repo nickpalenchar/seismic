@@ -243,6 +243,12 @@ type Agent = (typeof AGENTS)[number];
 /** The section that checks each agent; Claude Code's shares the needed one with git. */
 const AGENT_SECTION: Record<Exclude<Agent, 'pi'>, MachineSectionId> = { claude: 'needed', codex: 'codex', agy: 'agents' };
 const GIT_ITEMS: readonly MachineItem['id'][] = ['git', 'gitUser'];
+/** The checks the list runs side by side, each shown as it answers: an agent's own first, the features that can wait last. */
+const CHECKS: readonly (readonly MachineSectionId[])[] = [['needed'], ['codex'], ['agents'], RECOMMENDED_SECTIONS];
+const SECTION_ORDER: readonly MachineSectionId[] = ['needed', 'codex', 'agents', ...RECOMMENDED_SECTIONS];
+/** The list with what a check of the sections `asked` found in place of what it held of them. */
+const merged = (was: MachineView | null, found: MachineView, asked: readonly MachineSectionId[]): MachineView =>
+  !was ? found : { ...found, sections: SECTION_ORDER.flatMap((id) => (asked.includes(id) ? found : was).sections.filter((x) => x.id === id)) };
 /** How often the list checks again while a login it waits for is missing. */
 const LOGIN_POLL_MS = 15000;
 /** The assistant's steps: the agents, the features that can wait, and on the first start the first project. */
@@ -291,8 +297,8 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
   const [terminal, setTerminal] = useState<string | null>(null);
   const [step, setStep] = useState<Step>('agents');
   const [furthest, setFurthest] = useState(0);
-  // the agents the owner picked; until then those already there, or Claude Code
-  const [picked, setPicked] = useState<Agent[] | null>(null);
+  // the agents the owner ticked or unticked; the others are picked once their check finds them ready
+  const [touched, setTouched] = useState<Partial<Record<Agent, boolean>>>({});
   const shown = useRef(false);
   shown.current = !!view;
   const failed = (e: unknown) => setStatus(failText(e, { detail: ['invalid', 'config'] }));
@@ -314,13 +320,16 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
   const check = (): Promise<void> => {
     setChecking(true);
     const at = version.current;
-    const run = api
-      .setup()
-      .then(
-        (v) => void (at === version.current && setView(v)),
-        // a check that fails (the server starting again) keeps the list it had
-        (e) => void (shown.current ? console.error(e) : failed(e)),
-      )
+    const run = Promise.all(
+      CHECKS.map((asked) =>
+        api.setup(asked).then(
+          (v) => void (at === version.current && setView((was) => merged(was, v, asked))),
+          // a check that fails (the server starting again) keeps the list it had
+          (e) => void (shown.current ? console.error(e) : failed(e)),
+        ),
+      ),
+    )
+      .then(() => {})
       .finally(() => {
         inFlight.current = null;
         if (!again.current) setChecking(false);
@@ -414,15 +423,14 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
   const gitItems = needed?.items.filter((i) => GIT_ITEMS.includes(i.id)) ?? [];
   /** An agent's own pieces, without the git it shares with the others. */
   const agentItems = (a: Agent) => (a === 'pi' ? [] : (sectionOf(AGENT_SECTION[a])?.items.filter((i) => !GIT_ITEMS.includes(i.id)) ?? []));
-  const chosen = picked ?? (view ? (() => {
-    const there = AGENTS.filter((a) => ready(agentItems(a)));
-    return there.length ? there : (['claude'] as Agent[]);
-  })() : []);
+  /** Whether the agent's check has answered yet. */
+  const known = (a: Agent) => a === 'pi' || !!sectionOf(AGENT_SECTION[a]);
+  const chosen = AGENTS.filter((a) => touched[a] ?? (a !== 'pi' && ready(agentItems(a))));
   // an agent is configured once its own pieces and git are there: its Ready badge, the count and the steps after the first all go by this
   const isConfigured = (a: Agent) => ready(agentItems(a)) && ready(gitItems);
   const configured = chosen.filter(isConfigured);
   // without a configured agent only the first step is open, however far the owner got before
-  const gated = !!view && !configured.length;
+  const gated = !configured.length;
   const recommended = view?.sections.filter((x) => RECOMMENDED_SECTIONS.includes(x.id)) ?? [];
   const open = recommended.filter((x) => !ready(x.items));
   const steps: Step[] = first ? ['agents', 'recommended', 'first'] : ['agents', 'recommended'];
@@ -453,7 +461,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
     const timer = setInterval(() => document.visibilityState === 'visible' && !inFlight.current && recheck(), LOGIN_POLL_MS);
     return () => clearInterval(timer);
   }, [polling]);
-  const toggle = (a: Agent, on: boolean) => setPicked(on ? AGENTS.filter((x) => x === a || chosen.includes(x)) : chosen.filter((x) => x !== a));
+  const toggle = (a: Agent, on: boolean) => setTouched((was) => ({ ...was, [a]: on }));
 
   /** A block of the list: its title, how much of it is still open, its pieces. `canWait`: tagged as one that can wait. */
   const block = (key: string, section: MachineSection, items: MachineItem[], title: string, hint: string, canWait = false, after?: ReactNode) => (
@@ -492,115 +500,115 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
         <div ref={body} className={cn('setup-body', !first && 'flex-[1_1_auto] min-h-0 overflow-y-auto pt-0 pr-7 pb-6 pl-0')}>
           <Steps steps={steps} at={step} furthest={gated ? 0 : furthest} onPick={go} />
           <p className="setup-intro text-muted-foreground text-sm leading-normal mt-3.5 mb-1 mx-0">{first ? s.introFirst : s.intro}</p>
-          {!view ? (
-            <p className="hint">{checking ? t.config.setup.checking : status}</p>
-          ) : (
+          {view && step !== 'first' && <p className="hint">{s.platform(platformName(view))}</p>}
+          {step === 'agents' && (
             <>
-              {step !== 'first' && <p className="hint">{s.platform(platformName(view))}</p>}
-              {step === 'agents' && (
-                <>
-                  <section className={cn(projectClass, 'setup-pick')}>
-                    <div className={sectionHeadClass}>
-                      <b id="setup-pick">{s.pick.title}</b>
-                    </div>
-                    <p className="hint mt-0.5 mb-2">{s.pick.hint}</p>
-                    <div role="group" aria-labelledby="setup-pick" className="grid grid-cols-2 gap-2.5">
-                      {AGENTS.map((a) => {
-                        const soon = a === 'pi';
-                        const on = chosen.includes(a);
-                        return (
-                          <CheckLabel
-                            key={a}
-                            className={cn(
-                              'setup-agent items-start gap-3 rounded-lg border border-solid py-3 px-3.5 transition-colors',
-                              soon ? 'border-border opacity-60 cursor-default' : on ? 'on border-primary bg-primary/5' : 'border-border [&:hover]:border-foreground',
-                            )}
-                          >
-                            <Checkbox className="mt-0.5" checked={on} disabled={soon} onCheckedChange={(c) => toggle(a, c === true)} />
-                            <span className="grid gap-0.5 min-w-0">
-                              <span className="flex items-center gap-2">
-                                <b>{s.agentNames[a]}</b>
-                                {!soon && isConfigured(a) && (
-                                  <Badge variant="secondary" className="text-approved">
-                                    <Check aria-hidden />
-                                    {s.agentReady}
-                                  </Badge>
-                                )}
+              <section className={cn(projectClass, 'setup-pick')}>
+                <div className={sectionHeadClass}>
+                  <b id="setup-pick">{s.pick.title}</b>
+                </div>
+                <p className="hint mt-0.5 mb-2">{s.pick.hint}</p>
+                <div role="group" aria-labelledby="setup-pick" className="grid grid-cols-2 gap-2.5">
+                  {AGENTS.map((a) => {
+                    const soon = a === 'pi';
+                    const on = chosen.includes(a);
+                    return (
+                      <CheckLabel
+                        key={a}
+                        className={cn(
+                          'setup-agent items-start gap-3 rounded-lg border border-solid py-3 px-3.5 transition-colors',
+                          soon ? 'border-border opacity-60 cursor-default' : on ? 'on border-primary bg-primary/5' : 'border-border [&:hover]:border-foreground',
+                        )}
+                      >
+                        <Checkbox className="mt-0.5" checked={on} disabled={soon} onCheckedChange={(c) => toggle(a, c === true)} />
+                        <span className="grid gap-0.5 min-w-0">
+                          <span className="flex items-center gap-2">
+                            <b>{s.agentNames[a]}</b>
+                            {!known(a) && (
+                              <span className="setup-checking hint inline-flex items-center gap-1">
+                                <Spinner className="size-3.5" aria-hidden />
+                                {t.config.setup.checking}
                               </span>
-                              <span className="hint">{s.agentHints[a]}</span>
-                            </span>
-                          </CheckLabel>
-                        );
-                      })}
-                    </div>
-                  </section>
-                  {needed &&
-                    chosen.map((a) => {
-                      if (a === 'pi') return null;
-                      const section = sectionOf(AGENT_SECTION[a]);
-                      if (!section) return null;
-                      const hint = a === 'claude' ? s.sections.needed.hint : s.sections[section.id].hint;
-                      return block(
-                        a,
-                        section,
-                        agentItems(a),
-                        s.agentNames[a],
-                        hint,
-                        false,
-                        a === 'claude' && claude?.state === 'ok' && claude.found && !claude.found.startsWith(view.checkedClaude) && <p className="hint">{s.checkedWith(view.checkedClaude)}</p>,
-                      );
-                    })}
-                  {needed && chosen.length > 0 && block('git', needed, gitItems, s.gitBlock.title, s.gitBlock.hint)}
-                  {status && <p className={`hint ${statusClass}`}>{status}</p>}
-                  {recheckButton}
-                  <StepFooter
-                    callout={configured.length ? 'success' : 'info'}
-                    text={!configured.length ? s.proceed.none : configured.length === 1 ? s.proceed.one(s.agentNames[configured[0]!]) : s.proceed.many(configured.length)}
-                  >
-                    <Button variant="primary" disabled={!configured.length} onClick={() => go('recommended')}>
-                      {s.next}
-                    </Button>
-                  </StepFooter>
-                </>
+                            )}
+                            {!soon && isConfigured(a) && (
+                              <Badge variant="secondary" className="text-approved">
+                                <Check aria-hidden />
+                                {s.agentReady}
+                              </Badge>
+                            )}
+                          </span>
+                          <span className="hint">{s.agentHints[a]}</span>
+                        </span>
+                      </CheckLabel>
+                    );
+                  })}
+                </div>
+              </section>
+              {chosen.map((a) => {
+                  if (a === 'pi') return null;
+                  const section = sectionOf(AGENT_SECTION[a]);
+                  if (!section) return null;
+                  const hint = a === 'claude' ? s.sections.needed.hint : s.sections[section.id].hint;
+                  return block(
+                    a,
+                    section,
+                    agentItems(a),
+                    s.agentNames[a],
+                    hint,
+                    false,
+                    a === 'claude' && view && claude?.state === 'ok' && claude.found && !claude.found.startsWith(view.checkedClaude) && <p className="hint">{s.checkedWith(view.checkedClaude)}</p>,
+                  );
+                })}
+              {needed && chosen.length > 0 && block('git', needed, gitItems, s.gitBlock.title, s.gitBlock.hint)}
+              {status && <p className={`hint ${statusClass}`}>{status}</p>}
+              {recheckButton}
+              <StepFooter
+                callout={configured.length ? 'success' : 'info'}
+                text={!configured.length ? s.proceed.none : configured.length === 1 ? s.proceed.one(s.agentNames[configured[0]!]) : s.proceed.many(configured.length)}
+              >
+                <Button variant="primary" disabled={!configured.length} onClick={() => go('recommended')}>
+                  {s.next}
+                </Button>
+              </StepFooter>
+            </>
+          )}
+          {step === 'recommended' && (
+            <>
+              {!recommended.length && <p className="hint">{t.config.setup.checking}</p>}
+              {recommended.map((section) =>
+                block(section.id, section, section.items, s.sections[section.id].title, s.sections[section.id].hint, true, section.id === 'mobile' && <p className="hint">{s.mobile.simulatorSafari}</p>),
               )}
-              {step === 'recommended' && (
-                <>
-                  {recommended.map((section) =>
-                    block(section.id, section, section.items, s.sections[section.id].title, s.sections[section.id].hint, true, section.id === 'mobile' && <p className="hint">{s.mobile.simulatorSafari}</p>),
-                  )}
-                  {status && <p className={`hint ${statusClass}`}>{status}</p>}
-                  {recheckButton}
-                  <StepFooter
-                    callout={open.length ? 'warn' : undefined}
-                    text={open.length === 1 ? s.skip.one(s.sections[open[0]!.id].title) : s.skip.many(open.length)}
-                  >
-                    <Button size="small" onClick={() => go('agents')}>
-                      {s.back}
+              {status && <p className={`hint ${statusClass}`}>{status}</p>}
+              {recheckButton}
+              <StepFooter
+                callout={open.length ? 'warn' : undefined}
+                text={open.length === 1 ? s.skip.one(s.sections[open[0]!.id].title) : s.skip.many(open.length)}
+              >
+                <Button size="small" onClick={() => go('agents')}>
+                  {s.back}
+                </Button>
+                {first ? (
+                  <Button variant="primary" disabled={gated} onClick={() => go('first')}>
+                    {s.next}
+                  </Button>
+                ) : (
+                  onClose && (
+                    <Button variant="primary" onClick={onClose}>
+                      {s.done}
                     </Button>
-                    {first ? (
-                      <Button variant="primary" disabled={gated} onClick={() => go('first')}>
-                        {s.next}
-                      </Button>
-                    ) : (
-                      onClose && (
-                        <Button variant="primary" onClick={onClose}>
-                          {s.done}
-                        </Button>
-                      )
-                    )}
-                  </StepFooter>
-                </>
-              )}
-              {step === 'first' && first && (
-                <>
-                  <FirstProject view={view} ready={configured.length > 0} agents={configured} onView={update} />
-                  <div className={actionsClass}>
-                    <Button size="small" onClick={() => go('recommended')}>
-                      {s.back}
-                    </Button>
-                  </div>
-                </>
-              )}
+                  )
+                )}
+              </StepFooter>
+            </>
+          )}
+          {step === 'first' && first && view && (
+            <>
+              <FirstProject view={view} ready={configured.length > 0} agents={configured} onView={update} />
+              <div className={actionsClass}>
+                <Button size="small" onClick={() => go('recommended')}>
+                  {s.back}
+                </Button>
+              </div>
             </>
           )}
         </div>

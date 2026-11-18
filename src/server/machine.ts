@@ -299,6 +299,9 @@ interface Found {
   logins: Partial<Record<MachineItem['id'], string[]>>;
 }
 
+/** The section that checks each harness. */
+const HARNESS_SECTION: Record<Harness, MachineSectionId> = { claude: 'needed', codex: 'codex', agy: 'agents' };
+
 export class MachineSetup {
   private job?: MachineJob;
 
@@ -311,10 +314,11 @@ export class MachineSetup {
     return this.o.platform ?? process.platform;
   }
 
-  async view(): Promise<MachineView> {
+  /** `only`: the sections to check, so the assistant can show each as soon as it is known; all where left out. */
+  async view(only?: readonly MachineSectionId[]): Promise<MachineView> {
     // as it was before the check: a job that ends meanwhile is followed once more, onto what it installed
     const job = this.job && { ...this.job };
-    const { sections } = await this.check();
+    const { sections } = await this.check(only);
     return {
       platform: this.platform,
       arch: this.o.arch ?? process.arch,
@@ -326,7 +330,8 @@ export class MachineSetup {
     };
   }
 
-  private async check(): Promise<Found> {
+  private async check(only?: readonly MachineSectionId[]): Promise<Found> {
+    const wants = (id: MachineSectionId) => !only || only.includes(id);
     // the logins as of now: a check that started later knows better, whichever answers first
     const begun = this.o.agents?.begin();
     const env = this.env;
@@ -439,20 +444,23 @@ export class MachineSetup {
       return [{ id: 'codex', state: 'ok', found: version }, signedIn ? { id: 'codexLogin', state: 'ok' } : missing({ id: 'codexLogin', install: { commands: [shown([codex === which('codex', env) ? 'codex' : codex, 'login'])] }, act: 'login' })];
     };
 
+    const none = async (): Promise<MachineItem[]> => [];
+    // the demo check also tells what the voice shares with it, so the voice's section is checked with it
     const [claudeItems, gitItems, codexItems, pr, agyItems, voice, demo, mobile] = await Promise.all([
-      agentsPart(),
-      gitPart(),
-      codexPart(),
-      prPart(),
-      agyPart(),
-      this.o.voice ? this.o.voice.view() : null,
-      checkSetup(readDemoSettings(this.o.home), { home: this.o.home, env }),
-      platform === 'darwin' ? mobilePart() : null,
+      wants('needed') ? agentsPart() : none(),
+      wants('needed') ? gitPart() : none(),
+      wants('codex') ? codexPart() : none(),
+      wants('pr') ? prPart() : none(),
+      wants('agents') ? agyPart() : none(),
+      this.o.voice && (wants('voice') || wants('demos')) ? this.o.voice.view() : null,
+      wants('demos') ? checkSetup(readDemoSettings(this.o.home), { home: this.o.home, env }) : null,
+      platform === 'darwin' && wants('mobile') ? mobilePart() : null,
     ]);
     const needed = [...claudeItems, ...gitItems];
     const ok = (items: MachineItem[], ...ids: string[]) => ids.every((id) => items.some((i) => i.id === id && i.state === 'ok'));
     const signedIn: Record<Harness, boolean> = { claude: ok(claudeItems, 'claude', 'claudeLogin'), codex: ok(codexItems, 'codex', 'codexLogin'), agy: ok(agyItems, 'agy', 'agyLogin') };
-    if (begun) this.o.agents!.set(HARNESSES.filter((h) => signedIn[h]), begun);
+    const checked = HARNESSES.filter((h) => wants(HARNESS_SECTION[h]));
+    if (begun && checked.length) this.o.agents!.set(checked.filter((h) => signedIn[h]), begun, checked);
     // uv by its own installer, which needs no admin rights; the rest as the voice and demo checks say
     const ownUv = (i: MachineItem): MachineItem => (i.id === 'uv' && i.state === 'missing' ? missing({ id: 'uv', install: hint('uv') }) : i);
     const voiceItems = (voice?.items ?? []).map((i): MachineItem => {
@@ -460,20 +468,20 @@ export class MachineSetup {
       if (i.state === 'missing' && i.id !== 'recognition') return ownUv(missing(i));
       return i;
     });
-    const demoItems = demo.items
+    const demoItems = (demo?.items ?? [])
       .map((i): MachineItem => (i.id === 'voice' && i.state === 'missing' ? { ...i, act: 'install' } : i.state === 'missing' ? ownUv(missing(i)) : i))
       // what the voice needs too shows once, unless demos need more of it (ffmpeg with libx264)
       .filter((i) => !voiceItems.some((v) => v.id === i.id && v.state === i.state));
     const mb = (items: MachineItem[]) => items.reduce((n, i) => n + (i.state === 'missing' || i.state === 'later' ? (i.mb ?? 0) : 0), 0);
     const sections: MachineSection[] = [
-      { id: 'needed', items: needed, mb: 0 },
-      { id: 'codex', items: codexItems, mb: 0 },
-      { id: 'agents', items: agyItems, mb: 0 },
-      { id: 'pr', items: pr, mb: 0 },
+      { id: 'needed' as const, items: needed, mb: 0 },
+      { id: 'codex' as const, items: codexItems, mb: 0 },
+      { id: 'agents' as const, items: agyItems, mb: 0 },
+      { id: 'pr' as const, items: pr, mb: 0 },
       ...(voice ? [{ id: 'voice' as const, items: voiceItems, mb: voice.fetch.mb }] : []),
-      { id: 'demos', items: demoItems, mb: mb(demoItems) },
+      { id: 'demos' as const, items: demoItems, mb: mb(demoItems) },
       ...(mobile ? [{ id: 'mobile' as const, items: mobile, mb: 0 }] : []),
-    ];
+    ].filter((x) => wants(x.id));
     return { sections, logins };
   }
 

@@ -5,7 +5,7 @@ import { extensionSettings, serverExtensions as extensions } from '../extensions
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir, userInfo } from 'node:os';
 import { join, resolve } from 'node:path';
-import { type ActivityPage, agentListens, type ProjectInfo, type ChatElsewhere, type ProjectSettingsView, type CardAction, type ClientMessage, type CardPatch, type DeveloperView, type Item, type NewCard, type PageTags, type PendingRestart, type ServerMessage, type SpotInput, type TalkRef, isTalkRef, MAX_FILE_BYTES, needsYou, type Waiting, waitingIn } from '../core/types';
+import { type ActivityPage, agentListens, type ProjectInfo, type ChatElsewhere, type ProjectSettingsView, type CardAction, type ClientMessage, type CardPatch, type DeveloperView, type Item, type MachineSectionId, type NewCard, type PageTags, type PendingRestart, type ServerMessage, type SpotInput, type TalkRef, isTalkRef, MAX_FILE_BYTES, needsYou, type Waiting, waitingIn } from '../core/types';
 import { uiRoutes } from './ui';
 import { guarded, LOCAL_HOSTS, refusal } from './access';
 import { BadRequest } from './board';
@@ -695,7 +695,8 @@ export function serve(
         DELETE: needs(setup, (s) => s.useLocal()),
       },
       // the setup assistant: what Seismic needs on this machine, installed, logged in; then the first project
-      '/api/setup': { GET: needs(machine, (m) => m.view()) },
+      // `?sections=needed,codex`: only those sections, each as soon as it is checked
+      '/api/setup': { GET: needs(machine, (m, req) => m.view(new URL(req.url).searchParams.get('sections')?.split(',').filter(Boolean) as MachineSectionId[] | undefined)) },
       '/api/setup/install': { POST: needs(machine, async (m, req) => m.install(await req.json())) },
       '/api/setup/login': { POST: needs(machine, async (m, req) => m.login(await req.json())) },
       '/api/setup/token': { POST: needs(machine, async (m, req) => m.saveToken(await req.json())) },

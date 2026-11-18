@@ -223,3 +223,21 @@ test('overlapping setup checks answering in every order leave the one that began
     expect(check.current()).toEqual([HARNESSES[2]]);
   }
 });
+
+test('a check of some harnesses places only those, each by the check that began last for it', () => {
+  const check = new HarnessCheck(async () => [], 60_000, () => 0);
+  check.set(['claude', 'agy']);
+  // the setup assistant checks Codex alone: Claude Code and Antigravity stay as they were
+  check.set(['codex'], check.begin(), ['codex']);
+  expect(check.current()).toEqual(['claude', 'codex', 'agy']);
+  // Claude Code's check began before Antigravity's but answers after it: both stand
+  const claude = check.begin();
+  const agy = check.begin();
+  check.set([], agy, ['agy']);
+  check.set([], claude, ['claude']);
+  expect(check.current()).toEqual(['codex']);
+  // a full check that began before them changes neither, only Codex
+  const full = { order: 0, at: 0 };
+  check.set(['claude', 'agy'], full);
+  expect(check.current()).toEqual(['codex']);
+});

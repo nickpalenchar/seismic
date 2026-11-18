@@ -228,8 +228,8 @@ export const api = {
   /** Whether Codex's own automatic review decides for Codex workers (`true`) or the owner is asked. */
   saveCodexAutoReview: (on: boolean) => call<AgentsView>('PUT', '/api/agents/codex-auto-review', { on }),
   saveAgents: (role: AgentRole, choice: Partial<AgentSetting>) => saveAgentSettings<AgentsView>('/api/agents', { [role]: choice }),
-  /** The setup assistant's list: what Seismic needs on this machine. */
-  setup: () => call<MachineView>('GET', '/api/setup'),
+  /** The setup assistant's list: what Seismic needs on this machine; `sections`: only those, all where left out. */
+  setup: (sections?: readonly MachineSectionId[]) => call<MachineView>('GET', `/api/setup${sections ? `?sections=${sections.join(',')}` : ''}`),
   setupInstall: (section: MachineSectionId, id: MachineItem['id']) => call<MachineView>('POST', '/api/setup/install', { section, id }),
   /** Opens a terminal that logs in (`token`: Claude's `claude setup-token`); `opened: false` where Seismic found none. */
   setupLogin: (section: MachineSectionId, id: MachineItem['id'], token?: boolean) => call<{ opened: boolean; command: string }>('POST', '/api/setup/login', { section, id, ...(token ? { token } : {}) }),
