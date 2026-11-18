@@ -4091,7 +4091,7 @@ function work(r: CardRow, themeNow?: ThemeNow, there: Present = existsSync): Par
   const contribution = contributionOf(r);
   const codeReview = codeReviewOf(r);
   const share = shareOf(r, themeNow, there);
-  const notOnApproval = r.plan_ref ? !r.demo?.share?.onApproval : r.demo?.share?.notOnApproval;
+  const notOnApproval = r.plan_ref || (detail.noChange && handed) ? !r.demo?.share?.onApproval : r.demo?.share?.notOnApproval;
   const tags = demo && !r.idea?.prototypeOf ? pageTagsOf(r) : {};
   const landed = r.landed ? (JSON.parse(r.landed) as { followUp?: boolean; needsClone?: boolean; resolve?: object }) : null;
   return {

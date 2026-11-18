@@ -1154,6 +1154,13 @@ describe('publishing on approval', () => {
     expect(declinesApproval(plan, { slug: 'x', notOnApproval: true })).toBe(true);
   });
 
+  test('a wontfix card shares with the approval only once “Share on approval” is ticked', () => {
+    const c = board.item(card().id)!;
+    const wontfix = { ...c, review: { ...c.review, noChange: true } } as typeof c;
+    expect(declinesApproval(wontfix, undefined)).toBe(true);
+    expect(declinesApproval(wontfix, { slug: 'x', onApproval: true })).toBe(false);
+  });
+
   test('unticked “Share on approval” keeps the approval from sharing, through sharing now and withdrawing', async () => {
     const c = card('Filter bleiben', { handover: 1 });
     sharing.onApproval(c.id, false);

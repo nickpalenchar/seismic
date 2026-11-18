@@ -251,7 +251,7 @@ export class Sharing {
     const declined = declinesApproval(card, this.stored(cardId));
     if (target && this.publishesOnApproval(card)) {
       const s = this.stored(cardId);
-      // only a switch the owner unticked is said in the log; a plan's card never had it ticked
+      // only a switch the owner unticked is said in the log; a plan's or wontfix card never had it ticked
       if (declined) { if (s?.notOnApproval) this.notOnPage(cardId); }
       // a share under way (one the owner chose) goes out first; the latest demo after it
       else if (s?.state === 'publishing') {
@@ -297,8 +297,8 @@ export class Sharing {
     const card = this.card(cardId);
     if (card.idea?.prototypeOf) throw new BadRequest('noShare', 'prototypes are not shared');
     const { notOnApproval: _, onApproval: __, ...s } = this.stored(cardId) ?? { slug: slugOf(card) };
-    // a plan's card shares only when asked to: ticking is remembered, and so is unticking afterwards, which the log then says
-    this.set(cardId, on ? (planned(card) ? { ...s, onApproval: true } : s) : { ...s, notOnApproval: true });
+    // a plan's or wontfix card shares only when asked to: ticking is remembered, and so is unticking afterwards, which the log then says
+    this.set(cardId, on ? (optIn(card) ? { ...s, onApproval: true } : s) : { ...s, notOnApproval: true });
   }
 
   /**
@@ -1279,8 +1279,10 @@ function picked(given: unknown, lacking: PageTags): PageTags {
 
 /** A card of a plan (the plan itself or one of its workstreams): approving shares its demo only where the owner ticked "Share on approval". */
 const planned = (card: Item) => card.source === 'plan';
-/** Whether approving the card shares nothing: the owner unticked "Share on approval", or never ticked it on a plan's card. */
-export const declinesApproval = (card: Item, s: StoredShare | null | undefined) => (planned(card) ? !s?.onApproval : !!s?.notOnApproval);
+/** A card the agent found needs no change (confirm wontfix) has no work to show: it shares only when the owner ticks "Share on approval" too. */
+const optIn = (card: Item) => planned(card) || !!card.review?.noChange;
+/** Whether approving the card shares nothing: the owner unticked "Share on approval", or never ticked it on a plan's or wontfix card. */
+export const declinesApproval = (card: Item, s: StoredShare | null | undefined) => (optIn(card) ? !s?.onApproval : !!s?.notOnApproval);
 
 /** A share at rest: neither held, nor publishing, nor withdrawing. */
 function atRest({ state: _, refresh: __, again: ___, next: ____, retag: _____, ...s }: StoredShare): StoredShare {
