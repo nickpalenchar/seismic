@@ -8,8 +8,8 @@ import { conversationBox, conversationList, headClass } from './cardClasses';
 import { noteClass } from './components/ai/message';
 import { LoaderCircle, Settings } from 'lucide-react';
 import { Docked, sheetTitleClass } from './docked';
-import { ChatsHead } from './chats';
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { ChatsHead, RecentChats } from './chats';
+import { Fragment, type ReactNode, useEffect, useRef, useState } from 'react';
 import { AGENT_MODELS, type AgentModel, type Chat, type Item, type Preference, type RepoRef, type Reshare, type SettingProposal, type Talk, type TalkQuote, type TalkRef, type TalkWait } from '../core/types';
 import { api } from './api';
 import { Inline, plain } from './markdown';
@@ -104,9 +104,9 @@ export function KoordinatorSheet({ on, entry, project, projectName, items, repos
     // sections that open and close; an open section takes from the conversation down to 200px, below that
     // the sheet scrolls
     <Docked ref={sheet} id="ksheet" on={on} className="flex flex-col [&>*]:flex-none [&>:is(.conv,.talk.fresh-chat)]:flex-[1_1_0] [&>:is(.conv,.talk.fresh-chat)]:min-h-[200px] [&>:is(.conv,.talk.fresh-chat)]:max-h-none [&>:is(.conv,.talk.fresh-chat)]:max-w-none [&>:is(.conv,.talk.fresh-chat)]:mt-0 [&>:is(.conv,.talk.fresh-chat)]:mb-1 [&>:is(.conv,.talk.fresh-chat)]:mx-0">
-      <ChatsHead title={<h2 className={sheetTitleClass}>{t.koordinator.title}</h2>} project={project} projectName={projectName} chat={chat} chats={chats} talk={talk} showRecent disabled={!ready} onProject={onProject} onClose={onClose} />
+      <ChatsHead title={<h2 className={sheetTitleClass}>{t.koordinator.title}</h2>} project={project} projectName={projectName} chat={chat} chats={chats} talk={talk} disabled={!ready} onProject={onProject} onClose={onClose} />
       {ready ? (
-        <KoordinatorTalk on={on} project={project} talk={talk} chat={chat} chatModel={chatModel} chats={chats} items={items} repos={repos} onOpen={onOpen} onTell={onTell} autoOpenUnread={false} />
+        <KoordinatorTalk on={on} project={project} talk={talk} chat={chat} chatModel={chatModel} chats={chats} items={items} repos={repos} onOpen={onOpen} onTell={onTell} autoOpenUnread={false} beforeComposer={<RecentChats project={project} chat={chat} chats={chats} />} />
       ) : opening && 'error' in opening ? (
         <div>
           <p className="p-error" role="alert">{opening.error}</p>
@@ -128,7 +128,7 @@ export function KoordinatorSheet({ on, entry, project, projectName, items, repos
  * field's (the sidebar's, or the phone view's for this project). `on`: the conversation is in view,
  * so the answers waiting in it are read.
  */
-export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats, items, repos, onOpen, onTell, draft = SEISMIC_DRAFT, autoOpenUnread = true }: Pick<Props, 'on' | 'project' | 'talk' | 'chat' | 'chatModel' | 'chats' | 'items' | 'repos' | 'onOpen' | 'onTell'> & { draft?: string; autoOpenUnread?: boolean }) {
+export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats, items, repos, onOpen, onTell, draft = SEISMIC_DRAFT, autoOpenUnread = true, beforeComposer }: Pick<Props, 'on' | 'project' | 'talk' | 'chat' | 'chatModel' | 'chats' | 'items' | 'repos' | 'onOpen' | 'onTell'> & { draft?: string; autoOpenUnread?: boolean; beforeComposer?: ReactNode }) {
   const talk = all.filter((x) => x.chat === undefined || x.chat === chat);
   const fresh = useRead(on, talk, (ids) => api.readTalk(ids));
   const [choice, setChoice] = useState<{ chat: number; model?: AgentModel } | null>(null);
@@ -180,6 +180,7 @@ export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats
           {chats.length > 0 && <p className="hint">{autoOpenUnread ? t.koordinator.chatFresh : t.koordinator.chatFreshDock}</p>}
         </div>
       )}
+      {beforeComposer}
       {/* a command in writing, for when speaking is not possible; its screenshots go to the cards it creates or concerns */}
       <Composer className={tellClass} draft={draft} placeholder={t.voice.typePlaceholder} seismic optimistic onSend={send} />
       <label className="chat-model flex items-center gap-2 mt-0 mx-0 mb-1.5 text-muted-foreground text-xs">{t.koordinator.chatModel}
