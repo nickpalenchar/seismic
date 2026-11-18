@@ -4,7 +4,8 @@
  * branch's diff against main the repository's way and adds graded items to the card's one running
  * list, which its Review tab shows; it also verifies what the worker resubmitted as fixed and
  * reopens what regressed or is not fixed. It starts with each handover (`auto`) or on the owner's
- * "Start code review" (`manual`); a handover that changes the branch makes the review before it
+ * "Start code review" (`manual`), where a handover that resubmits fixes starts the review verifying
+ * them by itself; a handover that changes the branch makes the review before it
  * stale. On an item that needs them the owner decides "Fix it" (the card's worker fixes it) or "As a
  * follow-up task", or ignores it, with the card's one Send, as on a review card.
  */
@@ -95,7 +96,7 @@ export class CodeReviews {
         this.resume(i.id);
       } else this.finish(i.id, null, undefined, this.o.board.t.worker.codeReviewInterrupted);
     }
-    // items waiting under review after a review that is done (resubmitted as it ended, or carried over from an older list): in automatic mode the next review verifies them
+    // items waiting under review after a review that is done (resubmitted as it ended, or carried over from an older list): the next review verifies them, in either mode
     for (const i of this.o.board.items()) {
       if (!i.review?.codeReview || (this.o.repo && i.repo !== this.o.repo) || this.running.has(i.id)) continue;
       const c = codeReviewOf(this.o.board.row(i.id));
@@ -108,9 +109,9 @@ export class CodeReviews {
    * project reviews work, and this work is in a git repository), else null. A review that has run on
    * the card (one the owner started where the project reviews no work, say) stays with its items for
    * the rest of the card's life, and goes on in manual mode; null drops only one that never ran.
-   * What the owner had the worker fix goes under review now: the next review verifies
-   * it. A review of the same commit stands for this handover too, unless it resubmitted items;
-   * otherwise it is stale, and in `auto` a new one starts.
+   * What the owner had the worker fix goes under review now, and a review verifying it starts by
+   * itself, in manual mode too. A review of the same commit stands for this handover too, unless it
+   * resubmitted items; otherwise it is stale, and in `auto` a new one starts.
    */
   async handedOver(cardId: string, handover: number, given: CodeReviewMode | null, resumePending = false): Promise<void> {
     if (this.shut) return;
@@ -123,20 +124,22 @@ export class CodeReviews {
     }
     // A pending lookup has already resubmitted its handover's fixes; a verification lookup has no handover to resubmit.
     const resubmitted = resumePending ? [] : this.resubmit(cardId, this.items(cardId).filter((i) => i.status === 'fixing').map((i) => ({ number: i.number })), 'worker', handover).done;
+    // verifying the fixes is the end of a review the card has: it starts by itself in manual mode too
+    const starts = mode === 'auto' || this.items(cardId).some((i) => i.status === 'underReview');
     // the review starts once git has told the commit; until then the card already counts as under review
     const pendingId = crypto.randomUUID();
-    if (mode === 'auto' && had) {
+    if (starts && had) {
       const { pendingStart: _, ...rest } = had;
       this.save(cardId, { ...rest, mode: resumePending ? had.mode : mode, handover, pending: true, pendingId });
     }
-    else if (mode === 'auto') this.save(cardId, { mode, handover, pending: true, pendingId });
+    else if (starts) this.save(cardId, { mode, handover, pending: true, pendingId });
     this.paused.delete(cardId);
     const ws = this.o.board.row(cardId).workstation;
     // awaited also without a workstation: the handover is recorded before anything starts
     const head = await (ws ? gitAsync(ws, 'rev-parse', 'HEAD').catch(() => undefined) : Promise.resolve(undefined));
     if (this.shut || !this.o.board.item(cardId)) return;
     // a newer handover came while git answered: its own continuation decides, and keeps the card pending until then
-    if (mode === 'auto' && codeReviewOf(this.o.board.row(cardId))?.pendingId !== pendingId) return;
+    if (starts && codeReviewOf(this.o.board.row(cardId))?.pendingId !== pendingId) return;
     const now = codeReviewOf(this.o.board.row(cardId)) ?? had;
     let review = now?.review;
     // a review still running for an earlier commit is stale before it ends: it stops, and leaves nothing
@@ -150,7 +153,7 @@ export class CodeReviews {
     if (review && same) review = { ...review, handover };
     const runs = now?.runs ?? (now?.review ? 1 : undefined);
     this.save(cardId, { mode: mode === 'auto' ? now?.mode ?? mode : mode, handover, ...(runs ? { runs } : {}), ...(review ? { review } : {}) });
-    if (mode === 'auto' && !same) this.begin(cardId, head);
+    if (starts && !same) this.begin(cardId, head);
   }
 
   /**
@@ -572,11 +575,11 @@ export class CodeReviews {
     if (!failed) this.verifyLeft(cardId, review.at);
   }
 
-  /** In automatic mode, items still under review after the review run `at` is done get the next review. */
+  /** Items still under review after the review run `at` is done get the next review, in either mode: verifying them is part of the review. */
   private verifyLeft(cardId: string, at: string): void {
     if (this.shut) return;
     const c = codeReviewOf(this.o.board.row(cardId));
-    if (c?.mode !== 'auto' || c.pending || c.review?.at !== at || !this.waits(cardId) || !this.items(cardId).some((i) => i.status === 'underReview')) return;
+    if (!c || c.pending || c.review?.at !== at || !this.waits(cardId) || !this.items(cardId).some((i) => i.status === 'underReview')) return;
     const pendingId = crypto.randomUUID();
     this.save(cardId, { ...c, pending: true, pendingId });
     const ws = this.o.board.row(cardId).workstation;

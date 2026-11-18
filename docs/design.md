@@ -142,8 +142,10 @@ cycling through terminals.
   rejected: the worker reviewing its own diff. Once a review has run on a card, it and its one list
   of items stay for the card's whole life (2026-11-17): a handover the project would not review (its
   setting off, a review the owner started by hand, no change left on the branch) and turning the
-  setting off keep them, in manual mode, so the next review still verifies the fixes. Rejected:
-  dropping them, which started every later review from an empty list.
+  setting off keep them, in manual mode. Rejected: dropping them, which started every later review
+  from an empty list. Verifying resubmitted fixes is part of the review: in manual mode too, the
+  handover that resubmits them starts the review by itself (2026-11-18); only a review of new work
+  waits for "Start code review".
 - **A model out of usage is the owner's to route around, on the card** (2026-11-17): a worker or
   code review stopped by its model's usage limit shows a callout naming the model, with "Try again",
   "Select new agent" and, for a review, "Skip review". A worker handed to another model of the same
