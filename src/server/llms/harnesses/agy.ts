@@ -15,7 +15,9 @@ import { StringDecoder } from 'node:string_decoder';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { z } from 'zod';
 import { GIT } from '../../workstations';
-import { AGENT_EFFORTS, type CodexModel } from '../../../core/types';
+import { homedir } from 'node:os';
+import { AGENT_EFFORTS, type CodexModel, type Usage, type UsageLimit } from '../../../core/types';
+import type { UsageSource } from '../../usage';
 import { messageOf } from '../../../core/text';
 import { which } from '../../path';
 import { OWN_GROUP } from '../../spawn';
@@ -63,6 +65,83 @@ export async function agyModels(): Promise<CodexModel[]> {
   const models = parseAgyModels(out);
   if (!models.length) throw new Error('Antigravity listed no models');
   return models;
+}
+
+const usageRead = z.object({
+  status: z.string().optional(),
+  command: z.object({
+    data: z.object({
+      groups: z.array(z.object({
+        name: z.string(),
+        buckets: z.array(z.object({ window: z.string().optional(), remaining_fraction: z.number(), reset_time: z.string().nullish() })),
+      })),
+    }),
+  }),
+});
+
+/**
+ * The limits of an `agy -p /usage --output-format json` answer (captured in fixtures/agy-usage.json):
+ * a five-hour and a weekly bucket per group of models sharing them, each with the share remaining.
+ * Every limit is scoped to its group; agy grades none, so Seismic does from the percentage, as for Codex.
+ */
+export function agyUsageOf(answer: unknown, now = new Date()): Usage {
+  const r = usageRead.parse(answer);
+  // within a group, the five-hour bucket ahead of the week's, as Claude and Codex list them
+  const limits = r.command.data.groups.flatMap((g) =>
+    g.buckets.map((b): UsageLimit => {
+      const group = /^\d+h$/i.test(b.window ?? '') ? 'session' : 'weekly';
+      const percent = Math.max(0, Math.min(100, (1 - b.remaining_fraction) * 100));
+      return {
+        kind: `${group}_scoped`,
+        group,
+        scope: g.name,
+        percent,
+        ...(b.reset_time ? { resetsAt: new Date(b.reset_time).toISOString() } : {}),
+        severity: percent >= 95 ? 'critical' : percent >= 80 ? 'warning' : 'normal',
+      };
+    }).sort((a, b) => Number(b.group === 'session') - Number(a.group === 'session')),
+  );
+  return { harness: 'agy', limits, at: now.toISOString() };
+}
+
+/** Runs `agy` with `args`; its exit status and output. */
+export type AgyRun = (executable: string, args: string[]) => Promise<{ status: number; out: string; err: string }>;
+
+const runAgy: AgyRun = async (executable, args) => {
+  const r = Bun.spawn([executable, ...args], { cwd: homedir(), env: cleanEnv() as Record<string, string>, stdin: 'ignore', stdout: 'pipe', stderr: 'pipe', timeout: 25_000 });
+  const [out, err, status] = await Promise.all([new Response(r.stdout).text(), new Response(r.stderr).text(), r.exited]);
+  return { status, out, err };
+};
+
+/**
+ * Antigravity's usage limits, from `agy -p /usage` in print mode, which answers without starting an
+ * agent turn, spending quota or leaving a conversation behind: a process per round, nothing kept
+ * between them. Nothing to show (`null`) while agy is not installed, without starting anything, or
+ * not signed in.
+ */
+export function agyUsage(run: AgyRun = runAgy, executable: () => string | null = installedAgy): UsageSource {
+  let closed = false;
+  return {
+    fetch: async () => {
+      const agy = executable();
+      if (closed || !agy) return null;
+      const { status, out, err } = await run(agy, ['-p', '/usage', '--output-format', 'json']);
+      const answer = (() => {
+        try {
+          return JSON.parse(out) as unknown;
+        } catch {
+          return undefined;
+        }
+      })();
+      if (status === 0 && answer && usageRead.safeParse(answer).success) return agyUsageOf(answer);
+      const said = `${err}\n${out}`.trim();
+      if (/sign.?in|log.?in|not authenticated|unauthenticated|credentials/i.test(said)) return null;
+      throw new Error(`agy /usage failed: ${said.split('\n').pop() || `exit ${status}`}`);
+    },
+    close: () => {
+      closed = true;
+    },
+  };
 }
 
 /** Refuse what agy workers do not do yet, rather than quietly doing it differently. */

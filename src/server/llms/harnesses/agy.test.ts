@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { testProcessCode } from '../../../test-process';
 import { appendFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { agyArgs, READ_ONLY_PERMISSIONS, agyLimit, createAgyRuntime, nativeTool, parseAgyModels } from './agy';
+import { agyArgs, READ_ONLY_PERMISSIONS, agyLimit, agyUsage, agyUsageOf, createAgyRuntime, nativeTool, parseAgyModels } from './agy';
 import { agyTranscriptLog } from './agyTasks';
 import { finished, started } from './agyTasksFixture';
 import { handleMcp, registerAgyTools, wireTools } from './agyMcp';
@@ -119,6 +119,41 @@ test('parsing: models, limits, native tools', () => {
   expect(agyLimit('RESOURCE_EXHAUSTED: retry in 2 hours', 0)).toEqual({ resetsAt: 7_200_000 });
   expect(agyLimit('boom')).toBeUndefined();
   expect(nativeTool('write_to_file', { path: 'a' }).name).toBe('Edit');
+});
+
+test('the usage limits of a real `agy -p /usage` answer, each scoped to its group of models', () => {
+  const answer = JSON.parse(readFileSync(join(import.meta.dir, '../../fixtures/agy-usage.json'), 'utf8'));
+  const [gemini, thirdParty] = answer.command.data.groups;
+  gemini.buckets[1].remaining_fraction = 0.83;
+  thirdParty.buckets[0].remaining_fraction = 0.04;
+  const at = new Date('2026-11-18T17:00:00Z');
+  const usage = agyUsageOf(answer, at);
+  expect(usage.harness).toBe('agy');
+  expect(usage.at).toBe(at.toISOString());
+  expect(usage.limits.map((l) => [l.kind, l.scope, Math.round(l.percent), l.severity])).toEqual([
+    ['session_scoped', 'Gemini Models', 17, 'normal'],
+    ['weekly_scoped', 'Gemini Models', 0, 'normal'],
+    ['session_scoped', 'Claude and GPT models', 0, 'normal'],
+    ['weekly_scoped', 'Claude and GPT models', 96, 'critical'],
+    ['weekly_scoped', 'Gemini 4 Argon', 0, 'normal'],
+  ]);
+  expect(usage.limits[1]!.resetsAt).toBe(new Date(gemini.buckets[0].reset_time).toISOString());
+});
+
+test('agy usage: nothing without agy or signed out, a failure otherwise', async () => {
+  const calls: string[][] = [];
+  const answer = readFileSync(join(import.meta.dir, '../../fixtures/agy-usage.json'), 'utf8');
+  let reply = { status: 0, out: answer, err: '' };
+  const source = agyUsage(async (_, args) => (calls.push(args), reply), () => '/bin/agy');
+  expect((await source.fetch())?.limits).toHaveLength(5);
+  expect(calls[0]).toEqual(['-p', '/usage', '--output-format', 'json']);
+  reply = { status: 1, out: '', err: 'Please sign in to Antigravity first' };
+  expect(await source.fetch()).toBeNull();
+  reply = { status: 1, out: '', err: 'network unreachable' };
+  await expect(source.fetch()).rejects.toThrow('network unreachable');
+  source.close();
+  expect(await source.fetch()).toBeNull();
+  expect(await agyUsage(async () => reply, () => null).fetch()).toBeNull();
 });
 
 test('real account-quota capture reads the entire reset duration', () => {

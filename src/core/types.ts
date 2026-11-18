@@ -3223,20 +3223,20 @@ export interface UsageLimit {
   kind: string;
   /** The endpoint's group of the meter: `session` or `weekly`. */
   group: string;
-  /** What a scoped meter is for, as the endpoint names it: a model (`Fable`) or a surface; for Codex, a limit of its own (a model's). */
+  /** What a scoped meter is for, as the endpoint names it: a model (`Fable`) or a surface; for Codex, a limit of its own (a model's); for Antigravity, the group of models sharing it. */
   scope?: string;
   /** Share of the window used, 0–100. */
   percent: number;
   /** When the window starts anew (ISO time), when the endpoint says. */
   resetsAt?: string;
-  /** The endpoint's grade of the meter: `normal`, `warning` or `critical` (for Codex, which grades none, Seismic's from the percentage). */
+  /** The endpoint's grade of the meter: `normal`, `warning` or `critical` (for Codex and Antigravity, which grade none, Seismic's from the percentage). */
   severity: string;
 }
 
 /** A harness's plan usage limits as last fetched, for the bar while the owner has it show them. */
 export interface Usage {
   /** The harness whose login they belong to. */
-  harness: 'claude' | 'codex';
+  harness: 'claude' | 'codex' | 'agy';
   limits: UsageLimit[];
   /** When they were fetched (ISO time). */
   at: string;

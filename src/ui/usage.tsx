@@ -1,5 +1,5 @@
 // The plans' usage limits in the status bar, a pill per harness signed in here (Claude Code's, and
-// Codex's beside it): behind the harness's mark, the session's and the week's, each as a short meter with how much of it is used, in
+// Codex's and Antigravity's beside it): behind the harness's mark, the session's and the week's, each as a short meter with how much of it is used, in
 // the grade the usage endpoint gives it. A click (a tap on the phone) lists
 // every limit with when it starts anew, where the numbers come from, and the button
 // that hides them again (the setting in Konfiguration → Benachrichtigungen und Limits shows them again).
@@ -69,6 +69,18 @@ function CodexMark() {
   );
 }
 
+/** Antigravity's mark, small: an arch rising to a peak, in Google's blue. */
+function AgyMark() {
+  return (
+    <svg className="block fill-none stroke-sky-500 stroke-[2.6] [stroke-linecap:round] [stroke-linejoin:round]" viewBox="0 0 24 24" width="14" height="14" aria-hidden>
+      <path d="M3.5 20.5C6 15 8.5 3.5 12 3.5s6 11.5 8.5 17" />
+      <path d="M8.5 16.5c1-1.6 2.2-2.5 3.5-2.5s2.5.9 3.5 2.5" />
+    </svg>
+  );
+}
+
+const MARKS = { claude: ClaudeMark, codex: CodexMark, agy: AgyMark };
+
 /**
  * In the status bar; `phone`: at the right end of the phone's bar, a pill of glass; `compact`: only
  * the most used limit, without its name (the phone, with another harness's pill beside it).
@@ -83,6 +95,7 @@ export function UsagePill({ usage, phone, compact }: { usage: Usage; phone?: boo
     api.saveUsageMeter(false).catch((e) => setStatus(failText(e)));
   };
   const groups = headline(usage.limits);
+  const Mark = MARKS[usage.harness];
   const shown = compact ? groups.filter((l) => l === groups.reduce((a, b) => (b.percent > a.percent ? b : a))) : groups;
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -92,7 +105,7 @@ export function UsagePill({ usage, phone, compact }: { usage: Usage; phone?: boo
           aria-label={t.usage.title[usage.harness]}
         >
           <span className="-mr-1.5 flex items-center" title={t.usage.harness[usage.harness]}>
-            {usage.harness === 'codex' ? <CodexMark /> : <ClaudeMark />}
+            <Mark />
           </span>
           {shown.map((l) => (
             <span key={l.group} className="flex items-center gap-1.5" title={compact ? limitName(l) : undefined}>

@@ -1,7 +1,8 @@
 // The usage limits of the Claude plan Claude Code is logged in with on this machine (the five-hour
 // session, the week, a model's week), for the bar while the owner has it show them (the settings'
 // `usageMeter`) and a page of Seismic's is open; Codex's, beside them, come from its app-server
-// (`codexUsage` in codex.ts) on a meter of their own. Claude's come from the data behind Claude Code's
+// (`codexUsage` in codex.ts) and Antigravity's from `agy -p /usage` (`agyUsage` in agy.ts), each on a
+// meter of its own. Claude's come from the data behind Claude Code's
 // `/usage`, which asks the plan's usage endpoint: one idle Claude Code session is asked about every
 // minute and sends no prompt, so it uses none of what it reports. The session keeps an answer for a
 // minute, so the rounds are a little longer apart and each gets a fresh one. A login without plan

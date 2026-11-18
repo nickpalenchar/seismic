@@ -68,6 +68,7 @@ import { AppUpdates } from './app-update';
 import { SourceUpdates } from './source-update';
 import { claudeUsage, UsageMeter } from './usage';
 import { codexUsage } from './llms/harnesses/codex';
+import { agyUsage } from './llms/harnesses/agy';
 import { COMPILED, resource, SELF, VERSION } from './resources';
 import { oldLinuxBun, onGitHub } from './repo';
 import { Access } from './remote';
@@ -362,7 +363,7 @@ const updates = new AppUpdates();
 // run from a clone of Seismic's repository: new commits on its upstream, for the owner to pull
 const sources = own ? new SourceUpdates(own) : undefined;
 // the plans' usage limits in the bar, Claude Code's and Codex's, while the owner has it show them and a page is open
-const usage = [new UsageMeter(() => claudeUsage(home), { on: usageMeterView(home).on }), new UsageMeter(() => codexUsage(), { on: usageMeterView(home).on })];
+const usage = [new UsageMeter(() => claudeUsage(home), { on: usageMeterView(home).on }), new UsageMeter(() => codexUsage(), { on: usageMeterView(home).on }), new UsageMeter(() => agyUsage(), { on: usageMeterView(home).on })];
 const machine = new MachineSetup({ home, config, voice: voiceSetup, agents: harnessCheck });
 // the project the assistant created gets a first card that says what to try
 welcome(home, projects.all());
