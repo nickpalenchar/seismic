@@ -7,7 +7,7 @@
 // Seismic's answers and rule or setting proposals are the inbox's alone.
 
 import { cn } from 'cn';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, ListChecks } from 'lucide-react';
 import { Fragment, useState } from 'react';
 import { counted, type InboxEntry } from '../core/inbox';
 import type { Item } from '../core/types';
@@ -19,6 +19,7 @@ import { t } from './strings';
 import { CheckLabel } from './components/check-label';
 import { Switch } from './components/switch';
 import { Badge } from './components/badge';
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from './components/empty';
 import { emptyInboxClass, entryListClass, inboxBarClass } from './inboxClasses';
 
 type CardOnly = InboxEntry & { card: Item };
@@ -42,7 +43,21 @@ export function NeedsYouSheet({ on, entries, current, open, onGo, onReply, isRea
           {t.needsYou.hideOthers}
         </CheckLabel>
       </div>
-      {here.length ? <ul className={entryListClass}>{here.map(entry)}</ul> : <p className={emptyInboxClass}>{others.length ? t.needsYou.noneHere : t.needsYou.empty}</p>}
+      {here.length ? (
+        <ul className={entryListClass}>{here.map(entry)}</ul>
+      ) : others.length && !hideOthers ? (
+        <p className={emptyInboxClass}>{t.needsYou.noneHere}</p>
+      ) : (
+        <Empty className="needs-you-empty">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <ListChecks aria-hidden />
+            </EmptyMedia>
+            <EmptyTitle>{t.needsYou.emptyTitle}</EmptyTitle>
+            <EmptyDescription>{t.needsYou.emptyText}</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      )}
       {!hideOthers &&
         others.map(({ project, entries: list }) => {
           const open = unfolded.includes(project);
