@@ -19,7 +19,7 @@ import { Button, CloseButton } from './components/button';
 import { Command, CommandInput, CommandItem, CommandList } from './components/command';
 import { Dialog, DialogContent, DialogTitle } from './components/dialog';
 
-type Act = (a: CardAction, done: { close: true; ack: string; next?: string } | { close: false }) => Promise<void>;
+type Act = (a: CardAction, done: { close: true; ack: string; next?: string } | { close: false }, failed?: () => void) => Promise<void>;
 
 /** How many cards the picker lists before a search narrows them. */
 const SHOWN = 30;
@@ -37,19 +37,19 @@ const pickerRank = (i: Item) => i.archivedAt ? 3 : mergeRank(i) <= 1 ? 0 : merge
 const kind = (i: Item) => i.archivedAt ? t.merge.archived : stateLabel(withPart(i, 'idea', { proposal: i.idea?.proposal && { ...i.idea.proposal, merge: undefined } }));
 
 /** "Merge with" on an unworked task: opens the picker of the cards it can be merged with. */
-export function MergeButton({ item, all, act, failure }: { item: Item; all: Item[]; act: Act; failure?: object }) {
+export function MergeButton({ item, all, act }: { item: Item; all: Item[]; act: Act }) {
   const [open, setOpen] = useState(false);
   // a pick stays pending until the merge view arrives, so a delayed snapshot cannot take a second one
   const [picked, setPicked] = useState(false);
   const cards = useContext(Cards);
-  useEffect(() => setPicked(false), [item.idea?.proposal?.merge, failure]);
+  useEffect(() => setPicked(false), [item.idea?.proposal?.merge]);
   if (!canMergeFrom(item)) return null;
   return (
     <>
       <Button title={t.merge.buttonHint} disabled={picked} onClick={() => setOpen(true)}>
         <MergeMark size={13} /> {t.merge.button}
       </Button>
-      {open && <MergePicker item={item} all={all} onClose={() => setOpen(false)} onPick={(other) => { setPicked(true); void act({ action: 'merge', with: other.id }, { close: false }).then(() => { setOpen(false); if (mergeRank(other) < mergeRank(item)) cards.open(other); }); }} />}
+      {open && <MergePicker item={item} all={all} onClose={() => setOpen(false)} onPick={(other) => { let ok = true; setPicked(true); setOpen(false); void act({ action: 'merge', with: other.id }, { close: false }, () => { ok = false; setPicked(false); }).then(() => { if (ok && mergeRank(other) < mergeRank(item)) cards.open(other); }); }} />}
     </>
   );
 }

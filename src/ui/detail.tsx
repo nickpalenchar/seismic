@@ -229,11 +229,9 @@ export function Detail(p: Props) {
   const all = p.all;
   const duplicateMatches = (item.possibleDuplicates ?? []).map((id) => all.find((other) => other.id === id)).filter((other): other is Item => !!other);
   const duplicatePartner = duplicateMatches.find((other) => mergeableWith(item, other)) ?? duplicateMatches[0];
-  // whether the latest action was refused or failed
-  const actionFailed = useRef(false);
-  const run = async (fn: () => Promise<void>, done: ActDone) => {
+  // `failed` tells a caller that keeps a control pending whether its own request was refused
+  const run = async (fn: () => Promise<void>, done: ActDone, failed?: () => void) => {
     setActionError(undefined);
-    actionFailed.current = false;
     const answered = p.flush().then(fn);
     // what takes the server a while (a push onto main) does not hold the card open: the project shows it under way
     if (done.close && done.pending) return p.onDone(done, { card: item.id, title: plain(item.title), answered });
@@ -241,29 +239,29 @@ export function Detail(p: Props) {
       await answered;
       p.onDone(done);
     } catch (e) {
-      actionFailed.current = true;
       if (!(e instanceof ApiError)) console.error(e);
       setActionError({ text: failText(e), mergeRevision: item.idea?.proposal?.merge ? mergeRevision : undefined });
+      failed?.();
     }
   };
   // an approval that posts the text for the PR takes the owner's edit of it as it stands, saved or not
   const [parkedStart, setParkedStart] = useState<{ a: CardAction; done: ActDone } | null>(null);
   const [manualStart, setManualStart] = useState<{ agent?: AgentSetting; names: string } | null>(null);
-  const act = (a: CardAction, done: ActDone): Promise<void> => {
+  const act = (a: CardAction, done: ActDone, failed?: () => void): Promise<void> => {
     // starting a parked card takes it out of the parking lot: the owner confirms first
     if (a.action === 'start' && inParkingLot(item)) {
       setParkedStart({ a, done });
       return Promise.resolve();
     }
-    return actNow(a, done);
+    return actNow(a, done, failed);
   };
-  const actNow = (a: CardAction, done: ActDone) =>
+  const actNow = (a: CardAction, done: ActDone, failed?: () => void) =>
     run(async () => {
       if (a.action === 'approve' || a.action === 'pushChanges') await saveHeld(item.id);
       await api.act(item.id, a);
       // the agent picked in the Start menu is spent once the start is accepted, not before
       if (a.action === 'start' || a.action === 'force' || (a.action === 'accept' && a.start !== false)) updateDraft(cardDraft(item.id), { agent: undefined });
-    }, done);
+    }, done, failed);
   // the repository the card is to be built in, before work on it begins: one of the project's or a new one
   const choice = useRepoChoice(item, p.onEdit);
   // in a folder without git the card's change list takes the place of its branch
@@ -504,7 +502,7 @@ export function Detail(p: Props) {
   const halted = stopped(item) && !item.queue;
   // on a planned card, queued or not: a suggested card it cannot merge with can still be dismissed
   const duplicateActions = duplicatePartner && mergeProposed(item) && <ButtonGroup className="duplicate-merge-actions inline-flex align-middle">
-    <Button className="duplicate-attempt bg-proposal text-proposal-foreground" disabled={attemptingMerge || !mergeableWith(item, duplicatePartner)} onClick={() => { setAttemptingMerge(true); void act({ action: 'merge', with: duplicatePartner.id }, { close: false }).then(() => { if (actionFailed.current) setAttemptingMerge(false); }); }}>{attemptingMerge && <Spinner />}{t.duplicate.attempt}</Button>
+    <Button className="duplicate-attempt bg-proposal text-proposal-foreground" disabled={attemptingMerge || !mergeableWith(item, duplicatePartner)} onClick={() => { setAttemptingMerge(true); void act({ action: 'merge', with: duplicatePartner.id }, { close: false }, () => setAttemptingMerge(false)); }}>{attemptingMerge && <Spinner />}{t.duplicate.attempt}</Button>
     <Button className="duplicate-dismiss bg-proposal/12 text-foreground" onClick={() => act({ action: 'dismissDuplicate' }, { close: false })}>{t.duplicate.dismiss}</Button>
   </ButtonGroup>;
   const duplicateNotice = duplicatePartner && mergeProposed(item) && <div className={questionClass('duplicate-notice')}>
@@ -869,7 +867,7 @@ export function Detail(p: Props) {
       {/* approved work asks how the agent did until answered, and keeps the answer to change */}
       {item.review?.rate && <Rate item={item} />}
 
-      {item.state === 'planned' && item.queue && <div className={actionsClass}>{duplicateActions || <MergeButton item={item} all={all} act={act} failure={actionError} />}</div>}
+      {item.state === 'planned' && item.queue && <div className={actionsClass}>{duplicateActions || <MergeButton item={item} all={all} act={act} />}</div>}
 
       {/* the decisions of a card nobody worked on yet, below what it shows, as on every card */}
       {item.state === 'planned' && !item.idea?.proposal?.merge && !worked && !item.queue && (
@@ -894,7 +892,7 @@ export function Detail(p: Props) {
           {prototypeActions}
           {item.source === 'manual' && !item.idea?.prototypeOf && (
             <>
-              {!duplicatePartner && <MergeButton item={item} all={all} act={act} failure={actionError} />}
+              {!duplicatePartner && <MergeButton item={item} all={all} act={act} />}
               {/* a task with a branch has work already, one decided as a plan goes its way: neither is discussed or planned anew */}
               {plannableAsPlan(item) && (
                 <>
