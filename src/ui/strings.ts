@@ -2230,6 +2230,7 @@ const en = {
       repoLoginButton: 'Log in to GitHub',
       repoNoGh: 'Private on GitHub? Install gh and log in under “Pull requests” in the step before, then try again.',
       repoAgain: 'Check again',
+      repoChecksItself: 'Logged in elsewhere? Seismic looks again by itself every 15 seconds.',
       opens: 'Saved. The project opens here in a moment.',
       startAgain: 'Saved. Please start Seismic again; the project then opens here.',
     },

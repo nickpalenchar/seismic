@@ -404,6 +404,32 @@ describe('the first project', () => {
     await expect(s.repo({ clone: ' ' })).rejects.toMatchObject({ code: 'invalid' });
   });
 
+  test('a GitHub repository is read and cloned with gh\'s login where gh is logged in, through git', async () => {
+    const calls = join(dir, 'git-calls');
+    const loggedIn = join(dir, 'gh-logged-in');
+    fake('gh', `[ "$1 $2" = "auth status" ] && test -f ${loggedIn}`);
+    fake('git', `echo "$@" >> ${calls}; [ "$GIT_TERMINAL_PROMPT" = 0 ] || exit 3; case "$*" in *gh\\ auth\\ git-credential*) exit 0;; esac; echo "fatal: could not read Username for 'https://github.com': terminal prompts disabled" >&2; exit 128`);
+    const s = setup();
+    expect(await s.repo({ clone: 'acme/private-shop' })).toEqual({ readable: false, error: "could not read Username for 'https://github.com': terminal prompts disabled", github: true, ghLogin: false });
+    writeFileSync(loggedIn, '');
+    expect(await s.repo({ clone: 'acme/private-shop' })).toEqual({ readable: true });
+    expect(await s.repo({ clone: 'https://github.com/acme/private-shop' })).toEqual({ readable: true });
+    // not GitHub: no login to offer, and gh's stays out of it
+    expect(await s.repo({ clone: 'https://example.com/acme/shop.git' })).toMatchObject({ readable: false, github: false });
+    // the clone goes the way the check went
+    await s.project({ clone: 'acme/private-shop', into: join(dir, 'code') });
+    for (let i = 0; (await s.view()).job?.running && i < 100; i++) await Bun.sleep(50);
+    // the view's own git calls aside
+    const lines = readFileSync(calls, 'utf8').trim().split('\n').filter((l) => l !== '--version');
+    expect(lines).toEqual([
+      'ls-remote --heads -- https://github.com/acme/private-shop.git',
+      '-c credential.helper= -c credential.helper=!gh auth git-credential ls-remote --heads -- https://github.com/acme/private-shop.git',
+      '-c credential.helper= -c credential.helper=!gh auth git-credential ls-remote --heads -- https://github.com/acme/private-shop',
+      'ls-remote --heads -- https://example.com/acme/shop.git',
+      `-c credential.helper= -c credential.helper=!gh auth git-credential clone --progress -- https://github.com/acme/private-shop.git ${join(dir, 'code', 'private-shop')}`,
+    ]);
+  });
+
   test('names a clone after its repository', () => {
     expect(cloneName('owner/shop')).toBe('shop');
     expect(cloneName('https://github.com/owner/shop.git')).toBe('shop');

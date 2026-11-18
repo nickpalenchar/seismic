@@ -195,6 +195,9 @@ function tried(argv: string[], env: Env, timeout: number): Promise<{ ok: boolean
   });
 }
 
+/** git's options that make gh's login its only credential helper (the empty one drops the others), as `gh repo clone` does. */
+const GH_HELPER_ARGS = ['-c', 'credential.helper=', '-c', 'credential.helper=!gh auth git-credential'];
+
 /** How long reading a repository before its clone may take. */
 const REPO_CHECK_MS = 20_000;
 
@@ -487,9 +490,11 @@ export class MachineSetup {
   }
 
   /** Runs a program for a job, its output's last line shown as it goes. */
-  private run(argv: string[], log: (line: string) => void): Promise<void> {
+  private run(argv: string[], log: (line: string) => void, env: Env = this.env): Promise<void> {
+    // the command as the owner knows it, without git's `-c` options before its verb
+    const named = argv.filter((a, i) => a !== '-c' && argv[i - 1] !== '-c');
     return new Promise((done, fail) => {
-      const p = spawn(argv[0]!, argv.slice(1), { env: this.env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+      const p = spawn(argv[0]!, argv.slice(1), { env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
       let last = '';
       const take = (d: Buffer) => {
         // progress comes with carriage returns; the line is what it shows last
@@ -499,7 +504,7 @@ export class MachineSetup {
       p.stdout.on('data', take);
       p.stderr.on('data', take);
       p.on('error', fail);
-      p.on('close', (code) => (code === 0 ? done() : fail(new Error(`${shown(argv.slice(0, 3))} exited with ${code}${last ? `: ${last}` : ''}`))));
+      p.on('close', (code) => (code === 0 ? done() : fail(new Error(`${shown(named.slice(0, 3))} exited with ${code}${last ? `: ${last}` : ''}`))));
     });
   }
 
@@ -569,21 +574,32 @@ export class MachineSetup {
   }
 
   /**
-   * Whether the repository named for a clone can be read from here, before the owner clones it: through
-   * gh for owner/name where it is logged in (the way the clone goes then), else by `git ls-remote`,
-   * which never asks for a password (a prompt would hang the check).
+   * How a repository named for a clone is reached, the same for its check and its clone: owner/name is
+   * GitHub's over https; a GitHub repository (owner/name or https) goes with gh's login where gh is
+   * logged in (as git's only credential helper, so the check and the clone use the very same one);
+   * anything else as git reaches it, ssh by its keys. Never with a password prompt, which would hang.
+   */
+  private async route(spec: string): Promise<{ argv: (verb: string[]) => string[]; url: string; github: boolean; ghLogin: boolean; env: Env }> {
+    const short = /^[\w.-]+\/[\w.-]+$/.test(spec);
+    const github = short || /^https?:\/\/(www\.)?github\.com\//i.test(spec);
+    const ghLogin = github && (await output('gh', ['auth', 'status'], this.env)) !== null;
+    const url = short ? `https://github.com/${spec}.git` : expandHome(spec);
+    const helper = ghLogin ? GH_HELPER_ARGS : [];
+    const env: Env = { ...this.env, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never', ...(this.env.GIT_SSH_COMMAND ? {} : { GIT_SSH_COMMAND: 'ssh -o BatchMode=yes' }) };
+    return { argv: (verb) => ['git', ...helper, ...verb], url, github, ghLogin, env };
+  }
+
+  /**
+   * Whether the repository named for a clone can be read from here, before the owner clones it: git
+   * lists its branches the way the clone will fetch them (`route`), so readable means its contents,
+   * not just that an API shows it.
    */
   async repo(input: unknown): Promise<SetupRepoCheck> {
     const { clone } = (input ?? {}) as { clone?: unknown };
     const spec = typeof clone === 'string' ? clone.trim() : '';
     if (!spec) throw new BadRequest('invalid', 'a repository to clone');
-    const short = /^[\w.-]+\/[\w.-]+$/.test(spec);
-    // where gh's login can open a private repository: owner/name, and GitHub over https (gh is git's credential helper there); not ssh, which goes by keys
-    const github = short || /^https?:\/\/(www\.)?github\.com\//i.test(spec);
-    const ghLogin = (await output('gh', ['auth', 'status'], this.env)) !== null;
-    const env: Env = { ...this.env, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never', ...(this.env.GIT_SSH_COMMAND ? {} : { GIT_SSH_COMMAND: 'ssh -o BatchMode=yes' }) };
-    const argv = short && ghLogin ? ['gh', 'repo', 'view', spec, '--json', 'name'] : ['git', 'ls-remote', '--heads', '--', short ? `https://github.com/${spec}.git` : expandHome(spec)];
-    const { ok, last } = await tried(argv, env, REPO_CHECK_MS);
+    const { argv, url, github, ghLogin, env } = await this.route(spec);
+    const { ok, last } = await tried(argv(['ls-remote', '--heads', '--', url]), env, REPO_CHECK_MS);
     return ok ? { readable: true } : { readable: false, error: last, github, ghLogin };
   }
 
@@ -599,15 +615,14 @@ export class MachineSetup {
     if (!name) throw new BadRequest('invalid', `no repository in ${spec}`);
     const dest = join(resolve(expandHome(typeof into === 'string' && into.trim() ? into.trim() : homedir())), name);
     if (existsSync(dest)) throw new BadRequest('cloneTarget', `${dest} exists`);
-    // owner/name through gh where it is logged in (private repositories too), else from GitHub by its URL
-    const short = /^[\w.-]+\/[\w.-]+$/.test(spec);
-    const gh = short && (await output('gh', ['auth', 'status'], this.env)) !== null;
-    const argv = gh ? ['gh', 'repo', 'clone', spec, dest, '--', '--progress'] : ['git', 'clone', '--progress', short ? `https://github.com/${spec}.git` : spec, dest];
+    // the way its check reached it: GitHub with gh's login where gh is logged in (private repositories too)
+    const { argv: gitArgv, url, env } = await this.route(spec);
+    const argv = gitArgv(['clone', '--progress', '--', url, dest]);
     console.log(`Seismic: cloning ${spec} into ${dest}`);
     return this.startJob(
       { kind: 'clone' },
       async (log, job) => {
-        await this.run(argv, log);
+        await this.run(argv, log, env);
         ({ project: job.project, branch: job.branch, opens: job.opens } = await this.add(dest, false, configured));
       },
       (e) => {

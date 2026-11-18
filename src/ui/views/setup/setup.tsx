@@ -832,6 +832,9 @@ function FirstProject({ view, ready, agents, onView }: { view: MachineView; read
   );
 }
 
+/** A repository that could not be read and that gh's login may open: GitHub's, with gh logged out. */
+const awaitsLogin = (r: SetupRepoCheck) => !r.readable && r.github && !r.ghLogin;
+
 /**
  * Whether Seismic can read the repository named for a clone: read when the owner leaves the field with
  * another name in it than the one read last, a spinner below it meanwhile, then the result. Where GitHub
@@ -843,22 +846,39 @@ function useRepoCheck(view: MachineView) {
   const [terminal, setTerminal] = useState<'open' | 'none' | null>(null);
   const asked = useRef(0);
   const s = t.setup;
-  const read = (spec: string) => {
+  /** `quiet`: a read again while the login is awaited, which keeps the line as it is until the answer differs. */
+  const read = (spec: string, quiet = false) => {
     const n = ++asked.current;
-    setTerminal(null);
-    setChecked(spec ? { spec, result: 'checking' } : null);
+    if (!quiet) {
+      setTerminal(null);
+      setChecked(spec ? { spec, result: 'checking' } : null);
+    }
     if (!spec) return;
     api.setupRepo(spec).then(
-      (result) => n === asked.current && setChecked({ spec, result }),
-      (e) => n === asked.current && setChecked({ spec, result: { readable: false, error: failText(e), github: false, ghLogin: true } }),
+      (result) => {
+        if (n !== asked.current) return;
+        if (!quiet || result.readable || !awaitsLogin(result)) setTerminal(null);
+        setChecked({ spec, result });
+      },
+      (e) => n === asked.current && !quiet && setChecked({ spec, result: { readable: false, error: failText(e), github: false, ghLogin: true } }),
     );
   };
   const ghLogin = view.sections.find((x) => x.id === 'pr')?.items.find((i) => i.id === 'ghLogin');
   const loggedIn = ghLogin?.state === 'ok';
+  const result = checked?.result;
+  const awaiting = !!result && result !== 'checking' && awaitsLogin(result);
   useEffect(() => {
-    const r = checked?.result;
-    if (loggedIn && r && r !== 'checking' && !r.readable && r.github && !r.ghLogin) read(checked.spec);
+    if (loggedIn && awaiting) read(checked!.spec);
   }, [loggedIn]);
+  // A login done in a terminal of its own (over SSH, say) brings no focus back to this page, and the
+  // step lists no login that the page's own polling would wait for: while the line offers the login,
+  // it reads the repository again by itself, as the logins of the steps before check themselves.
+  useEffect(() => {
+    if (!awaiting) return;
+    const spec = checked!.spec;
+    const timer = setInterval(() => document.visibilityState === 'visible' && read(spec, true), LOGIN_POLL_MS);
+    return () => clearInterval(timer);
+  }, [awaiting, checked?.spec]);
   const login = async () => {
     try {
       const { opened } = await api.setupLogin('pr', 'ghLogin');
@@ -885,7 +905,7 @@ function useRepoCheck(view: MachineView) {
           {s.first.repoReadable}
         </p>
       );
-    const canLogin = r.github && !r.ghLogin;
+    const canLogin = awaitsLogin(r);
     return (
       <div className="setup-repo mt-0.5 mb-1.5">
         <p role="alert" className={cn(firstErrorClass, 'mt-0')}>{s.first.repoUnreadable(r.error)}</p>
@@ -899,7 +919,7 @@ function useRepoCheck(view: MachineView) {
               <Button size="small" variant="ghost" onClick={() => read(checked.spec)}>
                 {s.first.repoAgain}
               </Button>
-              {terminal && <span className="hint">{terminal === 'open' ? s.terminalOpen : s.noTerminal}</span>}
+              <span className="hint">{terminal === 'open' ? s.terminalOpen : terminal === 'none' ? s.noTerminal : s.first.repoChecksItself}</span>
             </span>
           </>
         )}
