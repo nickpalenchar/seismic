@@ -681,7 +681,7 @@ export function Detail(p: Props) {
           <Naming text={t.merge.into} cards={[{ card: all.find((i) => i.id === item.idea?.mergingInto) }]} />
         </p>
       )}
-      {item.idea?.proposal?.merge && <MergeView item={item} partner={all.find((i) => i.id === item.idea!.proposal!.merge!.with)} act={act} failure={actionError} />}
+      {item.idea?.proposal?.merge && <MergeView item={item} partner={all.find((i) => i.id === item.idea!.proposal!.merge!.with)} act={act} error={error} />}
       {item.state === 'proposal' && !item.idea?.proposal?.merge && (
         <ProposalView item={item} all={all} from={p.from} act={act} listener={listener} onRevise={tell('revise')} codexAllowed={!inFolder && !item.review?.contribution}>
           {editable ? (
