@@ -2811,7 +2811,7 @@ function Project({
           <div />
           <div className="flex min-w-0 items-center justify-end gap-1.5">
             {snapshot.workstations && <WorkstationsPill pools={snapshot.workstations} project={snapshot.project} projects={projects} items={items} underway={underway} onOpen={(i) => void openFresh(i)} onElsewhere={(c, card) => goTo(cardPath(c, card))} onTake={takeWorkstation} onKeep={keepWorkstation} />}
-            {snapshot.workstations && online && usage.length > 0 && <span aria-hidden className="mx-1 h-4 w-px shrink-0 bg-border/60" />}
+            {snapshot.workstations && online && usage.some((u) => u.limits.length > 0) && <span aria-hidden className="mx-1 h-4 w-px shrink-0 bg-border/60" />}
             {online && usage.map((u) => <UsagePill key={u.harness} usage={u} />)}
           </div>
         </footer>

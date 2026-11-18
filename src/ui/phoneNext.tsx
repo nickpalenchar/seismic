@@ -358,11 +358,11 @@ function TopBar({ projects, project, onProject, usage, onClose, onMenu }: { proj
         <button className="ph-close ml-auto inline-grid size-10 shrink-0 place-items-center rounded-full bg-muted text-foreground cursor-pointer ph-landscape:size-9" aria-label={t.phone.next.close} onClick={onClose}>
           <X size={20} strokeWidth={2.25} aria-hidden="true" />
         </button>
-      ) : usage.length > 0 && (
+      ) : usage.some((u) => u.limits.length > 0) && (
         <div className="min-w-0 flex-1 overflow-x-auto [direction:rtl] [scrollbar-width:none] [mask-image:linear-gradient(to_right,transparent,black_18px)] [&::-webkit-scrollbar]:hidden">
           <div className="flex w-max items-center gap-1.5 pl-4 [direction:ltr]">
             {usage.map((u) => (
-              <UsagePill key={u.harness} usage={u} phone compact={usage.length > 1} />
+              <UsagePill key={u.harness} usage={u} phone compact={usage.filter((v) => v.limits.length > 0).length > 1} />
             ))}
           </div>
         </div>
