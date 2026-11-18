@@ -1561,15 +1561,15 @@ export class Board {
   }
 
   /** The dock is opening, possibly from an entry for an unread answer. */
-  enterChat(forAnswer: boolean): number {
+  enterChat(forAnswer: boolean) {
     const unread = forAnswer ? this.store.talk.latestUnread(this.project.id) : undefined;
     if (unread?.chat !== undefined) {
       this.openChat(unread.chat);
-      return unread.chat;
+      return { chat: unread.chat, timedOut: false };
     }
-    const id = this.store.chats.enter(this.project.id);
+    const opening = this.store.chats.enter(this.project.id);
     this.changed();
-    return id;
+    return opening;
   }
 
   /** The chats with Seismic on every project of the database, the latest first. */

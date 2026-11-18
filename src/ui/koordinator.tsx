@@ -73,14 +73,16 @@ const tellClass = 'tell mt-1 mx-0 mb-1.5';
 
 export function KoordinatorSheet({ on, entry, project, projectName, items, repos, talk, chat, chatModel, chats, reshare, onOpen, onTell, onProject, onClose }: Props) {
   const sheet = useRef<HTMLElement>(null);
-  const [opening, setOpening] = useState<'ready' | { selected: number } | { error: string } | null>(null);
-  const ready = opening === 'ready';
+  const [opening, setOpening] = useState<{ chat: number; timedOut: boolean; ready: boolean } | { error: string } | null>(null);
+  const selected = opening && 'chat' in opening ? opening : null;
+  const ready = !!selected?.ready;
+  const offerRecent = selected?.timedOut && selected.chat === chat;
   const [attempt, retry] = useState(0);
   useEffect(() => {
     if (!on) return;
     let closed = false;
     api.enterChat(project, entry === 'answer').then(
-      ({ chat: selected }) => { if (!closed) setOpening({ selected }); },
+      (selection) => { if (!closed) setOpening({ ...selection, ready: false }); },
       (e) => { if (!closed) setOpening({ error: failText(e) }); },
     );
     return () => {
@@ -90,10 +92,10 @@ export function KoordinatorSheet({ on, entry, project, projectName, items, repos
   }, [on, project, entry, attempt]);
   useEffect(() => {
     // Another tab can change the current chat while this request is in flight.
-    if (opening && opening !== 'ready' && 'selected' in opening && chat === opening.selected) {
-      setOpening('ready');
+    if (selected && !selected.ready && chat === selected.chat) {
+      setOpening({ ...selected, ready: true });
     }
-  }, [opening, chat]);
+  }, [selected, chat]);
   useEffect(() => {
     if (ready && on && entry === 'type') sheet.current?.querySelector('textarea')?.focus({ preventScroll: true });
   }, [ready, on, entry]);
@@ -105,7 +107,7 @@ export function KoordinatorSheet({ on, entry, project, projectName, items, repos
     <Docked ref={sheet} id="ksheet" on={on} className="flex flex-col [&>*]:flex-none [&>:is(.conv,.talk.fresh-chat)]:flex-[1_1_0] [&>:is(.conv,.talk.fresh-chat)]:min-h-[200px] [&>:is(.conv,.talk.fresh-chat)]:max-h-none [&>:is(.conv,.talk.fresh-chat)]:max-w-none [&>:is(.conv,.talk.fresh-chat)]:mt-0 [&>:is(.conv,.talk.fresh-chat)]:mb-1 [&>:is(.conv,.talk.fresh-chat)]:mx-0">
       <ChatsHead title={<h2 className={sheetTitleClass}>{t.koordinator.title}</h2>} project={project} projectName={projectName} chat={chat} chats={chats} talk={talk} disabled={!ready} onProject={onProject} onClose={onClose} />
       {ready ? (
-        <KoordinatorTalk on={on} project={project} talk={talk} chat={chat} chatModel={chatModel} chats={chats} items={items} repos={repos} onOpen={onOpen} onTell={onTell} autoOpenUnread={false} beforeComposer={<RecentChats key={chat} project={project} draft={SEISMIC_DRAFT} chats={chats} />} />
+        <KoordinatorTalk on={on} project={project} talk={talk} chat={chat} chatModel={chatModel} chats={chats} items={items} repos={repos} onOpen={onOpen} onTell={onTell} autoOpenUnread={false} beforeComposer={offerRecent && <RecentChats project={project} draft={SEISMIC_DRAFT} chats={chats} />} />
       ) : opening && 'error' in opening ? (
         <div>
           <p className="p-error" role="alert">{opening.error}</p>

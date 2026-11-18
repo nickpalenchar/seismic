@@ -35,15 +35,15 @@ export class Chats {
   }
 
   /** Opening the dock resumes a recent chat, or starts afresh after a longer absence. */
-  enter(projectId: string): number {
+  enter(projectId: string): { chat: number; timedOut: boolean } {
     return atomic(this.db, () => {
       const last = this.lastOpened(projectId);
-      if (!last) return this.current(projectId);
-      const idle = Date.now() - Date.parse(last.opened);
-      const id = idle > 20 * 60_000 ? this.start(projectId) : last.id;
+      if (!last) return { chat: this.current(projectId), timedOut: false };
+      const timedOut = Date.now() - Date.parse(last.opened) > 20 * 60_000;
+      const id = timedOut ? this.start(projectId) : last.id;
       // An empty chat is reused by start(), so it needs its opening recorded too.
       if (id === last.id) this.db.update(chats).set({ opened: this.nextOpening(projectId) }).where(eq(chats.id, id)).run();
-      return id;
+      return { chat: id, timedOut };
     });
   }
 

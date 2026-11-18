@@ -1171,7 +1171,7 @@ export function serve(
       '/api/c/:project/chat/enter': {
         POST: on(async (c, req) => {
           const { forAnswer } = (await req.json().catch(() => ({}))) as { forAnswer?: unknown };
-          return { chat: c.board.enterChat(forAnswer === true) };
+          return c.board.enterChat(forAnswer === true);
         }),
       },
       // the owner no longer wants the step the Koordinator waits on a card for ("Stop waiting")

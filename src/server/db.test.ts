@@ -373,22 +373,26 @@ test('entering the chat dock uses time since its last opening and reuses a blank
   try {
     setSystemTime(minutes(0));
     store.db.run("INSERT INTO projects (id, name, created_at) VALUES ('c', 'Shop', '2026-11-01')");
-    const first = store.chats.enter('c');
+    const { chat: first, timedOut } = store.chats.enter('c');
+    expect(timedOut).toBe(false);
     store.addTalk('c', 'First chat', '', null);
 
     setSystemTime(minutes(20));
-    expect(store.chats.enter('c')).toBe(first);
+    expect(store.chats.enter('c')).toEqual({ chat: first, timedOut: false });
     setSystemTime(minutes(39));
-    expect(store.chats.enter('c')).toBe(first);
+    expect(store.chats.enter('c')).toEqual({ chat: first, timedOut: false });
     setSystemTime(new Date(+minutes(59) + 1));
-    const blank = store.chats.enter('c');
+    const { chat: blank, timedOut: blankTimedOut } = store.chats.enter('c');
+    expect(blankTimedOut).toBe(true);
     expect(blank).not.toBe(first);
     expect(store.chats.list('c').map((chat) => chat.id)).toEqual([first]);
 
     setSystemTime(minutes(100));
-    expect(store.chats.enter('c')).toBe(blank);
+    expect(store.chats.enter('c')).toEqual({ chat: blank, timedOut: true });
     expect(store.chats.open('c', first)).toBe(true);
-    expect(store.chats.enter('c')).toBe(first);
+    expect(store.chats.enter('c')).toEqual({ chat: first, timedOut: false });
+    const manual = store.chats.start('c');
+    expect(store.chats.enter('c')).toEqual({ chat: manual, timedOut: false });
   } finally {
     setSystemTime();
     store.db.close();
