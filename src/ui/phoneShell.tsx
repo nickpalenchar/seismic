@@ -556,7 +556,7 @@ export function usePhoneShell(loaded: ProjectInfo[]) {
                   flush={flushEdit}
                   onDelete={() => void deleteOpen()}
                   onDone={onDone}
-                  onTell={(text, images, field, replyTo) => void tellTyped(text, images, { card: i.id }, field, replyTo)}
+                  onTell={(text, images, field, replyTo) => tellTyped(text, images, { card: i.id }, field, replyTo)}
                 />
                 </TalkElsewhere.Provider>
                 </KoordinatorAgent.Provider>

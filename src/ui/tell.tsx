@@ -6,7 +6,7 @@
 import { useRef } from 'react';
 import type { Place } from '../core/layout';
 import { agentListens, type Item, type TalkRef } from '../core/types';
-import { api, ApiError, type Field, type Heard, type Where } from './api';
+import { api, ApiError, refreshCard, type Field, type Heard, type Where } from './api';
 import { clip } from '../core/text';
 import { excerpt, plain } from './markdown';
 import { sent, take, videoOf } from './spot';
@@ -104,12 +104,20 @@ export function tellers(byId: (id: string) => Item | undefined, told: ReturnType
    * them at once either way; above the mic only the Koordinator's confirmation shows, with "Undo".
    */
   const tellTyped = async (text: string, images: string[] | undefined, target: Where, field?: Field, replyTo?: number | TalkRef, destination?: { project: string; chat: number }) => {
-    if (listening(target))
+    const card = listening(target);
+    if (card)
       try {
-        // typed while the card's demo video stands at a place: about that place, and the video plays on
-        const taken = target && 'card' in target ? take(target.card) : null;
-        if (taken) videoOf((target as { card: string }).card)?.play().catch(() => {});
+        const taken = take(card.id);
+        const video = taken && videoOf(card.id);
         await api.command(text, target, { images, field, replyTo, spot: await sent(taken) });
+        // Save the comment before playing on. Otherwise the end of a video can try to release
+        // the comments while this one is still uploading its frame.
+        if (video && (video.ended || videoOf(card.id) !== video)) {
+          void api.act(card.id, { action: 'release' }).catch(() => {});
+        } else if (video) {
+          void video.play().catch(() => {});
+        }
+        if (field === 'feedback' || field === 'demo') await refreshCard(card.id);
       } catch (e) {
         fail(e);
       }

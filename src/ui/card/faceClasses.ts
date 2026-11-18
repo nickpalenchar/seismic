@@ -59,7 +59,7 @@ export function cardFlags(item: Item, underway?: string): CardFlags {
     idea: item.state === 'idea',
     proposal: item.state === 'proposal',
     q: item.kind === 'question',
-    reviewing: item.review?.codeReview?.state === 'running',
+    reviewing: item.review?.codeReview?.state === 'running' && !answering(item),
     parkedOrDropped: d?.status === 'parked' || d?.status === 'dropped',
     dropped: d?.status === 'dropped',
     thinking: !!(d?.thinking || item.idea?.proposal?.revising || item.thread?.thinking || merging(item)),

@@ -2896,7 +2896,7 @@ export const stateLabel = (i: { kind?: string; thread?: { thinking?: boolean }; 
       : t.question.ready
     : ideaPart?.prototypeEnd
     ? t.idea.ended[ideaPart.prototypeEnd]
-    : review?.codeReview?.state === 'running'
+    : review?.codeReview?.state === 'running' && !review.answering
     ? review.codeReview.runs && review.codeReview.runs > 1 ? t.reviewCheck(review.codeReview.runs) : word(t.agentReviewing, 'reviewing')
     : isPaused(i)
     ? word(

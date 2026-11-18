@@ -13,7 +13,7 @@ import { agentListens, answering, askable, type BackgroundTask, buildableOn, typ
 import { mockPage } from '../core/frame';
 import { mmss } from '../../plugin/skills/demo/lib/timeline.ts';
 import { answers, answerText, OTHER, toggleOther } from './answer';
-import { ApiError, api, projectOf, cardAt, type Field, holdRestart, onCardEvent, onCardEventGone, onReconnect } from './api';
+import { ApiError, api, projectOf, cardAt, type Field, holdRestart, onCardEvent, onCardEventGone, onCardRefresh, onReconnect } from './api';
 import { cardPath } from './address';
 import { Naming, smartLink } from './cardLink';
 import { DuplicateMergePreview, MergeButton, MergeView } from './merge';
@@ -91,7 +91,7 @@ export type ActDone = { close: true; ack?: string; undo?: () => unknown; pending
 export type Pending = { card: string; title: string; answered: Promise<void> };
 
 /** Words typed into a field of the card: straight to its agent where one listens, else the Koordinator reads them like spoken ones; the panel does not wait. */
-type Tell = (text: string, images: string[] | undefined, field: Field, replyTo?: number) => void;
+type Tell = (text: string, images: string[] | undefined, field: Field, replyTo?: number) => Promise<void> | void;
 
 interface Props {
   item: Item;
@@ -496,6 +496,7 @@ export function Detail(p: Props) {
   // work waiting for the owner's verdict, with a demo or a summary
   const review = handedOver(item);
   const demoWaits = item.state === 'waiting' && item.need === 'demo';
+  const reviewing = item.review?.codeReview?.state === 'running' && !answering(item);
   // an agent is on the card and can be stopped
   const running = item.state === 'working' || item.state === 'waiting' || !!item.agent?.finishing;
   const archivable = finishedArchivable(item);
@@ -655,9 +656,9 @@ export function Detail(p: Props) {
       </ConfirmDialog>
       <KindLine kind={kind} item={item} />
       {editable ? <ManualTitle item={item} onEdit={p.onEdit} /> : <div className={titleClass}>{shownTitle(item)}</div>}
-      <div className={cn(stateClass, finishingUp(item) && 'finishing', (isPaused(item) || snoozeOf(item) || inParkingLot(item)) && 'paused', (item.hold?.reason === 'restart') && 'restart-paused', item.queue && 'restart' in item.queue && 'restart-paused', item.review?.resolvingConflicts && 'resolving-conflicts', item.review?.codeReview?.state === 'running' && 'reviewing', mergeProposed(item) && 'merge-proposed', item.idea?.proposal?.merge && 'merging')}>
+      <div className={cn(stateClass, finishingUp(item) && 'finishing', (isPaused(item) || snoozeOf(item) || inParkingLot(item)) && 'paused', (item.hold?.reason === 'restart') && 'restart-paused', item.queue && 'restart' in item.queue && 'restart-paused', item.review?.resolvingConflicts && 'resolving-conflicts', reviewing && 'reviewing', mergeProposed(item) && 'merge-proposed', item.idea?.proposal?.merge && 'merging')}>
         {mergeProposed(item) ? <Lightbulb className="merge-mark" size={13} aria-hidden /> : item.idea?.proposal?.merge ? <GitMerge className="merge-mark" size={13} strokeWidth={1.75} aria-hidden /> : asksYou(item) ? <QuestionMark /> : (item.hold?.reason === 'restart') ? <RestartMark /> : item.queue && 'restart' in item.queue ? <HourglassMark /> : inParkingLot(item) ? <Car size={13} aria-hidden /> : item.state === 'proposal' ? '✦' : '●'} {stoppedAtOf(item) ? <StoppedWords stopped={stoppedAtOf(item)!} /> : stateLabel(item)}
-        {item.review?.codeReview?.state === 'running' && <DrawLine color="var(--c)" className="ml-2 motion-reduce:after:animate-none" />}
+        {reviewing && <DrawLine color="var(--c)" className="ml-2 motion-reduce:after:animate-none" />}
         {snoozeOf(item) ? (
           <span className={statusClass}> · {snoozeWho(snoozeOf(item)!)}</span>
         ) : item.review?.resolvingConflicts ? (
@@ -4066,14 +4067,14 @@ export function useEvents(cardId: string): CardEvent[] | null {
     const load = () => {
       const now = { early: [] as CardEvent[], gone: new Set<number>() };
       loading = now;
-      api.events(cardId).then(
+      return api.events(cardId).then(
         (list) => {
           if (!alive || loading !== now) return;
           loading = null;
           // what came meanwhile is newer than what the history says of the same line
-          const fresh = new Map(now.early.map((e) => [e.id, e]));
-          const seen = new Set(list.map((e) => e.id));
-          setEvents([...list.map((e) => fresh.get(e.id) ?? e), ...now.early.filter((e) => !seen.has(e.id))].filter((e) => !now.gone.has(e.id)));
+          const merged = new Map(list.map((e) => [e.id, e]));
+          for (const e of now.early) merged.set(e.id, e);
+          setEvents([...merged.values()].filter((e) => !now.gone.has(e.id)).sort((a, b) => a.id - b.id));
         },
         () => {
           // the connection went again: the next one loads it
@@ -4094,12 +4095,14 @@ export function useEvents(cardId: string): CardEvent[] | null {
       setEvents((cur) => cur && cur.filter((x) => x.id !== id));
     });
     const offBack = onReconnect(load);
+    const offRefresh = onCardRefresh((id) => id === cardId ? load() : undefined);
     load();
     return () => {
       alive = false;
       off();
       offGone();
       offBack();
+      offRefresh();
     };
   }, [cardId]);
   return events;

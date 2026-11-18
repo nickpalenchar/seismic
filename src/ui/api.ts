@@ -309,7 +309,10 @@ export const api = {
   /** Archives every finished card of the owner's on the project. */
   archiveDone: () => call<{ ids: string[] }>('POST', at('/archive')),
   /** An action on the card; `keepalive` for one sent as the page goes. */
-  act: (id: string, a: CardAction, keepalive = false) => call<void>('POST', cardAt(id, '/act'), a, keepalive),
+  act: async (id: string, a: CardAction, keepalive = false) => {
+    await call<void>('POST', cardAt(id, '/act'), a, keepalive);
+    if (a.action === 'message' || (a.action === 'release' && a.now)) await refreshCard(id);
+  },
   /** "Make it a card": a looked-up thread moves onto a Question card, which comes back. */
   threadCard: (thread: number) => call<Item>('POST', at(`/threads/${thread}/card`)),
   /** Opens an answer's file with the system's app, or without `file` the thread's directory. */
@@ -444,6 +447,18 @@ const eventListeners = new Set<(e: CardEvent) => void>();
 export function onCardEvent(fn: (e: CardEvent) => void): () => void {
   eventListeners.add(fn);
   return () => eventListeners.delete(fn);
+}
+
+// A successful feedback request can outlive a gap in the project's WebSocket. Read the saved
+// conversation and card state before clearing the composer, even if the server's push was missed.
+const cardRefreshListeners = new Set<(id: string) => Promise<void> | void>();
+export function onCardRefresh(fn: (id: string) => Promise<void> | void): () => void {
+  cardRefreshListeners.add(fn);
+  return () => cardRefreshListeners.delete(fn);
+}
+
+export async function refreshCard(id: string): Promise<void> {
+  await Promise.allSettled([...cardRefreshListeners].map((fn) => fn(id)));
 }
 
 // A project's WebSocket is open again after it was lost: what was pushed meanwhile never arrived, so
@@ -635,6 +650,14 @@ export function useProject(id = projectId): {
     let hidden = document.visibilityState !== 'visible';
     /** The socket was open before: one that opens now opens again. */
     let opened = false;
+    let snapshotVersion = 0;
+    const offRefresh = onCardRefresh(async (cardId) => {
+      if (projectOf(cardId) !== id) return;
+      const version = ++snapshotVersion;
+      const fresh = await api.project(id);
+      // A newer read or push takes precedence over a response that was still in flight.
+      if (!closed && version === snapshotVersion) setSnapshot(fresh);
+    });
     /** When the oldest ping the server has not answered was sent. */
     let unanswered: number | null = null;
     /** Since when the server counts as frozen; a connection lost meanwhile keeps counting from there. */
@@ -674,8 +697,10 @@ export function useProject(id = projectId): {
           if (server && server !== msg.server) reload();
           server = msg.server;
           setOldBun(msg.oldBun ?? null);
-        } else if (msg.type === 'snapshot') setSnapshot(msg.snapshot);
-        else if (msg.type === 'restart') setRestart(msg.restart);
+        } else if (msg.type === 'snapshot') {
+          snapshotVersion++;
+          setSnapshot(msg.snapshot);
+        } else if (msg.type === 'restart') setRestart(msg.restart);
         else if (msg.type === 'update') setUpdate(msg.update);
         else if (msg.type === 'source') setSource(msg.source);
         else if (msg.type === 'usage') setUsage(msg.usage);
@@ -741,6 +766,7 @@ export function useProject(id = projectId): {
     window.addEventListener('focus', back);
     return () => {
       closed = true;
+      offRefresh();
       clearTimeout(retry);
       clearInterval(beat);
       document.removeEventListener('visibilitychange', back);
