@@ -328,7 +328,7 @@ const en = {
   },
   proposal: {
     acceptAfterRevision: (how: 'start' | 'discuss' | 'asIdea') =>
-      `${{ start: 'Accept and start', discuss: 'Accept and discuss', asIdea: 'Ideate' }[how]} once the proposal is revised; if it still has questions, it stays a proposal.`,
+      `${{ start: 'Accept and start', discuss: 'Accept and discuss', asIdea: 'Discuss first' }[how]} once the proposal is revised; if it still has questions, it stays a proposal.`,
     notAccepting: 'Not accepting it after all.',
     notAcceptedNoRevision: 'Not accepted: the revision did not come.',
     notAcceptedQuestions: 'Not accepted: the proposal still has questions.',
