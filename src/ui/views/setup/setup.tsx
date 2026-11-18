@@ -247,6 +247,11 @@ const GIT_ITEMS: readonly MachineItem['id'][] = ['git', 'gitUser'];
 const CHECKS: readonly (readonly MachineSectionId[])[] = [['needed'], ['codex'], ['agents'], RECOMMENDED_SECTIONS];
 const SECTION_ORDER: readonly MachineSectionId[] = ['needed', 'codex', 'agents', ...RECOMMENDED_SECTIONS];
 /** The list with what a check of the sections `asked` found in place of what it held of them. */
+/** The check that covers a section. */
+const checkOf = (id: MachineSectionId) => CHECKS.findIndex((c) => c.includes(id));
+const ALL_CHECKS = CHECKS.map((_, i) => i);
+/** The agents' own sections, whose blocks each have their own "Check again". */
+const AGENT_SECTIONS: readonly MachineSectionId[] = ['needed', 'codex', 'agents'];
 const merged = (was: MachineView | null, found: MachineView, asked: readonly MachineSectionId[]): MachineView =>
   !was ? found : { ...found, sections: SECTION_ORDER.flatMap((id) => (asked.includes(id) ? found : was).sections.filter((x) => x.id === id)) };
 /** How often the list checks again while a login it waits for is missing. */
@@ -292,7 +297,8 @@ function CheckAgain({ checking, disabled, variant, onClick }: { checking: boolea
 
 export function Setup({ first, onClose }: { first?: boolean; onClose?: () => void }) {
   const [view, setView] = useState<MachineView | null>(null);
-  const [checking, setChecking] = useState(false);
+  // the checks under way, by their index in CHECKS
+  const [checking, setChecking] = useState<readonly number[]>([]);
   const [status, setStatus] = useState('');
   const [terminal, setTerminal] = useState<string | null>(null);
   const [step, setStep] = useState<Step>('agents');
@@ -302,41 +308,46 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
   const shown = useRef(false);
   shown.current = !!view;
   const failed = (e: unknown) => setStatus(failText(e, { detail: ['invalid', 'config'] }));
-  // One check at a time: one asked for while another runs follows it, so the list ends on what the
+  // Each check (an agent's, the features that can wait) runs on its own, so a slow one holds up no other.
+  // Of each, one at a time: one asked for while it runs follows it, so its sections end on what the
   // machine looks like after the last ask. `version` counts the lists set from elsewhere (an install, the
   // identity, the first project), so a check that started before one of them does not overwrite it.
-  const inFlight = useRef<Promise<void> | null>(null);
-  const again = useRef<Promise<void> | null>(null);
+  const flights = useRef(CHECKS.map(() => ({ inFlight: null as Promise<void> | null, again: null as Promise<void> | null })));
   const version = useRef(0);
   const update = (v: MachineView) => {
     version.current++;
     setView(v);
   };
-  /** Settles once a check that started after this call has ended. */
-  const recheck = (): Promise<void> => {
-    if (inFlight.current) return (again.current ??= inFlight.current.then(() => ((again.current = null), check())));
-    return check();
-  };
-  const check = (): Promise<void> => {
-    setChecking(true);
+  /** Checks again (`which`: the checks by their index in CHECKS, all where left out); settles once checks that started after this call have ended. */
+  const recheck = (which: readonly number[] = ALL_CHECKS): Promise<void> =>
+    Promise.all(
+      which.map((i) => {
+        const f = flights.current[i]!;
+        if (f.inFlight) return (f.again ??= f.inFlight.then(() => ((f.again = null), check(i))));
+        return check(i);
+      }),
+    ).then(() => {});
+  const check = (i: number): Promise<void> => {
+    const f = flights.current[i]!;
+    const asked = CHECKS[i]!;
+    setChecking((was) => (was.includes(i) ? was : [...was, i]));
     const at = version.current;
-    const run = Promise.all(
-      CHECKS.map((asked) =>
-        api.setup(asked).then(
-          (v) => void (at === version.current && setView((was) => merged(was, v, asked))),
-          // a check that fails (the server starting again) keeps the list it had
-          (e) => void (shown.current ? console.error(e) : failed(e)),
-        ),
-      ),
-    )
-      .then(() => {})
+    const run = api
+      .setup(asked)
+      .then(
+        (v) => void (at === version.current && setView((was) => merged(was, v, asked))),
+        // a check that fails (the server starting again) keeps the list it had
+        (e) => void (shown.current ? console.error(e) : failed(e)),
+      )
       .finally(() => {
-        inFlight.current = null;
-        if (!again.current) setChecking(false);
+        f.inFlight = null;
+        if (!f.again) setChecking((was) => was.filter((x) => x !== i));
       });
-    inFlight.current = run;
+    f.inFlight = run;
     return run;
   };
+  const isChecking = (id: MachineSectionId) => checking.includes(checkOf(id));
+  const recheckOf = (id: MachineSectionId) => () => recheck([checkOf(id)]);
   useEffect(() => {
     recheck();
     // back from a terminal or an installer: the list checks again
@@ -349,11 +360,14 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
     };
   }, []);
   const running = !!view?.job?.running;
+  // an install follows the check of its own section; a job of no section (the first project) all of them
+  const jobSection = view?.job?.section;
   useEffect(() => {
     if (!running) return;
-    const timer = setInterval(recheck, 1500);
+    const which = jobSection ? [checkOf(jobSection)] : ALL_CHECKS;
+    const timer = setInterval(() => recheck(which), 1500);
     return () => clearInterval(timer);
-  }, [running]);
+  }, [running, jobSection]);
 
   const s = t.setup;
   const act = async (section: MachineSection, i: MachineItem) => {
@@ -382,7 +396,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
       if (job.error) return <span className="text-destructive m-0 text-sm">{s.failed(job.error.split('\n').at(-1) ?? '')}</span>;
     }
     if (i.act === 'identity') return <Identity onSaved={update} onError={failed} />;
-    const detail = section.id === 'voice' && i.id === 'recognition' && <RecognitionDetail item={i} busy={running} changed={recheck} />;
+    const detail = section.id === 'voice' && i.id === 'recognition' && <RecognitionDetail item={i} busy={running} changed={recheckOf('voice')} />;
     if (!i.act) return detail || null;
     if (i.act === 'login' || i.act === 'terminal')
       return (
@@ -390,7 +404,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
           <Button size="small" onClick={() => act(section, i)}>
             {i.act === 'terminal' ? s.mobile.enable : s.login}
           </Button>
-          <CheckAgain variant="ghost" checking={checking} onClick={recheck} />
+          {!AGENT_SECTIONS.includes(section.id) && <CheckAgain variant="ghost" checking={isChecking(section.id)} onClick={recheckOf(section.id)} />}
           {terminal === i.id ? <span className="hint">{i.act === 'terminal' ? s.mobile.enableOpen : s.terminalOpen}</span> : awaitsLogin(i) && <span className="hint">{s.checksItself}</span>}
         </>
       );
@@ -423,8 +437,8 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
   const gitItems = needed?.items.filter((i) => GIT_ITEMS.includes(i.id)) ?? [];
   /** An agent's own pieces, without the git it shares with the others. */
   const agentItems = (a: Agent) => (a === 'pi' ? [] : (sectionOf(AGENT_SECTION[a])?.items.filter((i) => !GIT_ITEMS.includes(i.id)) ?? []));
-  /** Whether the agent's check has answered yet. */
-  const known = (a: Agent) => a === 'pi' || !!sectionOf(AGENT_SECTION[a]);
+  /** Whether the agent's check is under way, the first or a later one. */
+  const checkingAgent = (a: Agent) => a !== 'pi' && (!sectionOf(AGENT_SECTION[a]) || isChecking(AGENT_SECTION[a]));
   const chosen = AGENTS.filter((a) => touched[a] ?? (a !== 'pi' && ready(agentItems(a))));
   // an agent is configured once its own pieces and git are there: its Ready badge, the count and the steps after the first all go by this
   const isConfigured = (a: Agent) => ready(agentItems(a)) && ready(gitItems);
@@ -455,10 +469,13 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
   // checks again by itself, whether or not Seismic could open a terminal for it.
   const awaitsLogin = (i: MachineItem) => i.state === 'missing' && (i.act === 'login' || i.act === 'terminal');
   const shownItems = step === 'agents' ? chosen.flatMap(agentItems) : step === 'recommended' ? recommended.flatMap((x) => x.items) : [];
-  const polling = shownItems.some(awaitsLogin);
+  const shownSections = step === 'agents' ? chosen.flatMap((a) => (a === 'pi' ? [] : [AGENT_SECTION[a]])) : step === 'recommended' ? recommended.map((x) => x.id) : [];
+  // only the checks of the sections that wait for a login, each skipped while it runs already
+  const polling = [...new Set(shownSections.filter((id) => sectionOf(id)?.items.some((i) => shownItems.includes(i) && awaitsLogin(i))).map(checkOf))].sort().join(',');
   useEffect(() => {
     if (!polling) return;
-    const timer = setInterval(() => document.visibilityState === 'visible' && !inFlight.current && recheck(), LOGIN_POLL_MS);
+    const which = polling.split(',').map(Number);
+    const timer = setInterval(() => document.visibilityState === 'visible' && recheck(which.filter((i) => !flights.current[i]!.inFlight)), LOGIN_POLL_MS);
     return () => clearInterval(timer);
   }, [polling]);
   const toggle = (a: Agent, on: boolean) => setTouched((was) => ({ ...was, [a]: on }));
@@ -473,6 +490,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
         <span className={cn('setup-ok ml-auto text-xs', ready(items) ? 'on text-approved' : 'text-destructive')}>
           {!ready(items) ? s.open(items.filter((i) => i.state === 'missing').length) : items.some((i) => i.state === 'later') ? s.readyLater : s.ready}
         </span>
+        {AGENT_SECTIONS.includes(section.id) && <CheckAgain variant="ghost" checking={isChecking(section.id)} disabled={running} onClick={recheckOf(section.id)} />}
       </div>
       <p className="hint">{hint}</p>
       <SetupList items={items} name={name(section)} state={state(section)} action={action(section)} />
@@ -480,7 +498,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
     </section>
   );
   const recheckButton = (
-    <CheckAgain checking={checking} disabled={running} onClick={recheck} />
+    <CheckAgain checking={isChecking('pr')} disabled={running} onClick={recheckOf('pr')} />
   );
 
   return (
@@ -524,7 +542,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
                         <span className="grid gap-0.5 min-w-0">
                           <span className="flex items-center gap-2">
                             <b>{s.agentNames[a]}</b>
-                            {!known(a) && (
+                            {checkingAgent(a) && (
                               <span className="setup-checking hint inline-flex items-center gap-1">
                                 <Spinner className="size-3.5" aria-hidden />
                                 {t.config.setup.checking}
@@ -561,7 +579,6 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
                 })}
               {needed && chosen.length > 0 && block('git', needed, gitItems, s.gitBlock.title, s.gitBlock.hint)}
               {status && <p className={`hint ${statusClass}`}>{status}</p>}
-              {recheckButton}
               <StepFooter
                 callout={configured.length ? 'success' : 'info'}
                 text={!configured.length ? s.proceed.none : configured.length === 1 ? s.proceed.one(s.agentNames[configured[0]!]) : s.proceed.many(configured.length)}
