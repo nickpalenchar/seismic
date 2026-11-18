@@ -747,6 +747,41 @@ describe('workers', () => {
     expect((board.row(c.id).hold as { attempts: number }).attempts).toBe(4);
   });
 
+  test('"Select new agent" hands a worker stopped by the usage limit to another model: same harness resumes, another starts anew', async () => {
+    const c = manual();
+    await workers.start(c.id);
+    runtime.last.emit({ type: 'session', id: 'first' });
+    runtime.last.call('report', { status: 'Exporting' });
+    expect(() => workers.handOff(c.id, { model: 'sonnet', effort: 'high' })).toThrow();
+    for (let n = 0; n < 3; n++) {
+      if (n) workers.resume(c.id);
+      runtime.last.emit({ type: 'error', message: 'Session limit', limit: {} });
+      runtime.last.emit({ type: 'idle' });
+    }
+    expect(board.item(c.id)).toMatchObject({ hold: { reason: 'limit' } });
+    const before = runtime.sessions.length;
+    workers.handOff(c.id, { harness: 'claude', model: 'sonnet', effort: 'high' });
+    await until(() => runtime.sessions.length > before);
+    expect(board.item(c.id)?.hold).toBeUndefined();
+    expect(board.item(c.id)!.agent?.statusLine).toBe('Exporting');
+    expect(runtime.last.spec.resume).toBe('first');
+    expect(runtime.last.spec.setting).toMatchObject({ model: 'sonnet' });
+    expect(runtime.last.inbox[0]).toContain('handed the card to another model');
+    expect(board.events(c.id).some((e) => e.text.startsWith('Handed off to Claude Code · sonnet'))).toBe(true);
+    // waiting for the reset, not paused yet: handed off to another harness, it starts anew from the card's briefing
+    runtime.last.emit({ type: 'error', message: 'Session limit', limit: {} });
+    runtime.last.emit({ type: 'idle' });
+    expect(board.item(c.id)!.agent?.limitedUntil).toBeDefined();
+    const now = runtime.sessions.length;
+    workers.handOff(c.id, { harness: 'codex', model: 'opus', effort: 'high', codex: { model: 'gpt-5.5', effort: 'high' } });
+    await until(() => runtime.sessions.length > now);
+    expect(board.item(c.id)!.agent?.limitedUntil).toBeUndefined();
+    expect(runtime.last.spec.resume).toBeUndefined();
+    expect(runtime.last.spec.setting).toMatchObject({ harness: 'codex' });
+    expect(runtime.last.inbox[0]).toContain(c.title);
+    expect(runtime.last.inbox[0]).toContain('You take this card over from another agent');
+  });
+
   test('a known reset wakes a capped worker only once; successful work clears the retry budget', async () => {
     const c = manual();
     await workers.start(c.id);

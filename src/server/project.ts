@@ -1898,7 +1898,11 @@ export class ProjectRuntime {
       case 'approve':
         return this.repoOf(cardId).workers.approve(cardId, { direct: !!a.direct });
       case 'codeReview':
-        return this.repoOf(cardId).workers.startCodeReview(cardId);
+        return this.repoOf(cardId).workers.startCodeReview(cardId, a.agent === undefined ? undefined : startAgentSetting(a.agent));
+      case 'skipCodeReview':
+        return this.repoOf(cardId).workers.reviews.skip(cardId);
+      case 'handOff':
+        return this.repoOf(cardId).workers.handOff(cardId, startAgentSetting(a.agent));
       case 'stopCodeReview':
         return this.repoOf(cardId).workers.reviews.cancel(cardId);
       case 'reopenReviewItem':

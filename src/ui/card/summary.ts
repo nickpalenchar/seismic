@@ -2,7 +2,7 @@
 // its kind, the line under its title, its state line with its marks, the pin while it
 // needs the owner, and the classes and colour of its state.
 
-import { agentFailed, answering, demoStage, finishingUp, handedOver, type Item, needsYou, openQuestions, type PullRequest, snoozeOf, isPaused, isPausing, inParkingLot } from '../../core/types';
+import { agentFailed, answering, demoStage, finishingUp, handedOver, type Item, needsYou, openQuestions, type PullRequest, snoozeOf, isPaused, isPausing, inParkingLot, reviewLimited } from '../../core/types';
 import { excerpt, plain } from '../markdown';
 import { waitReason } from '../queue';
 import { snoozeWho } from '../snooze';
@@ -155,6 +155,7 @@ export function cardSummary(item: Item, underway?: string): CardSummary {
     (superseded ? (superseded.by ? t.superseded.byShort(plain(superseded.title ?? '')) : t.superseded.withdrawnShort) : undefined) ??
     ((item.hold?.reason === 'limit') ? t.limitPaused : undefined) ??
     (item.agent?.limitedUntil ? t.limitedUntil(clock(item.agent.limitedUntil)) : undefined) ??
+    (reviewLimited(item) ? t.usageOut.reviewShort : undefined) ??
     (item.kind === 'question' && item.thread ? t.question.count(item.thread.answers, item.thread.files) : undefined) ??
     (asked === undefined ? undefined : excerpt(asked)) ??
     (item.queue && 'behind' in item.queue ? excerpt(waitReason(item.queue)) : undefined) ??
@@ -167,7 +168,7 @@ export function cardSummary(item: Item, underway?: string): CardSummary {
     ? []
     : [
         ...((inParkingLot(item) ? ['parked'] : []) as StateMark[]),
-        ...(((item.hold?.reason === 'limit') || item.agent?.limitedUntil ? ['limit'] : []) as StateMark[]),
+        ...(((item.hold?.reason === 'limit') || item.agent?.limitedUntil || reviewLimited(item) ? ['limit'] : []) as StateMark[]),
         ...((snoozeOf(item) ? ['snooze'] : []) as StateMark[]),
         ...(((item.hold?.reason === 'restart') ? ['restart'] : []) as StateMark[]),
         ...((item.queue && 'restart' in item.queue ? ['restartQueue'] : []) as StateMark[]),

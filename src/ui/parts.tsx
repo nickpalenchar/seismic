@@ -7,7 +7,7 @@ import { Docked, sheetTitleClass } from './docked';
 import { memo, type MouseEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import { type Bounds, dependencyOrder, shapeOf } from '../core/layout';
 import { clip } from '../core/text';
-import { agentFailed, type AppUpdate, type ProjectInfo, type ClonePool, finished, finishedArchivable, type Item, merging, needsYou, pausable, type PendingRestart, halted, type PoolHost, type PlanHistory, type SourceUpdate, stoppedArchivable, snoozeOf, isPausing, offCanvas } from '../core/types';
+import { agentFailed, type AppUpdate, type ProjectInfo, type ClonePool, finished, finishedArchivable, type Item, merging, needsYou, pausable, type PendingRestart, halted, type PoolHost, type PlanHistory, type SourceUpdate, stoppedArchivable, snoozeOf, isPausing, offCanvas, reviewLimited, type CardAction } from '../core/types';
 import { CardMore } from './canvases';
 import { PlanTalk } from './koordinator';
 import { api } from './api';
@@ -19,7 +19,8 @@ import { Naming } from './cardLink';
 import { Waiting } from './queue';
 import { asksYou, CardFace, cardFlags, cardLook, depTagClass, ttlClass, hasLabels, HourglassMark, LabelMarks, LabelPicks, mergeStatus, shownState, stateVars } from './card';
 import { scrollBehavior } from './motion';
-import { clock, shortDay, stateLabel, t } from './strings';
+import { clock, failText, shortDay, stateLabel, t } from './strings';
+import { modelName, StartAgent } from './start-agent';
 import { edgeChipPositions } from './edgeChips';
 import { cardPath, switchTo } from './address';
 import { cn } from 'cn';
@@ -72,17 +73,34 @@ export const PlayMark = () => (
   <Play className="btn-mark" size={11} strokeWidth={1.75} fill="currentColor" aria-hidden />
 );
 
-/** The same limit pause and manual retry on every card's conversation. */
-export function LimitNotice({ item }: { item: Item }) {
+/**
+ * The same callout on every card's conversation whose model has no usage left: its worker paused or
+ * waiting for the reset, or its code review stopped. It names the model and offers the ways out:
+ * try again, hand the work to another agent ("Select new agent") and, for a review, skip it.
+ */
+export function LimitNotice({ item, codexAllowed = !item.review?.contribution }: { item: Item; codexAllowed?: boolean }) {
   const limitedUntil = item.agent?.limitedUntil;
-  if (!(item.hold?.reason === 'limit') && !limitedUntil) return null;
+  const paused = item.hold?.reason === 'limit';
+  const review = reviewLimited(item);
+  const [error, setError] = useState('');
+  if (!paused && !limitedUntil && !review) return null;
+  const u = t.usageOut;
+  const run = (a: CardAction) => { setError(''); return api.act(item.id, a).catch((e) => setError(failText(e))); };
+  const model = (review ? modelName(item.review?.codeReview?.agent) : modelName(item.agent?.workerSetting)) ?? u.unknownModel;
   // a light blue of its own, the colour of a card paused at the limit (`.card.limit-paused`); wrapping on a narrow screen
-  return <div className="limit-notice flex items-center gap-3 py-3 px-4 my-3 mx-0 text-info-strong bg-info-subtle border border-info/30 rounded-xs text-base/[1.4] [@media(max-width:600px)]:flex-wrap">
+  return <div role="status" className="limit-notice flex items-start gap-3 py-3 px-4 my-3 mx-0 text-info-strong bg-info-subtle border border-info/30 rounded-xs text-base/[1.4]">
     <HourglassMark />
-    <div className="flex-1">{(item.hold?.reason === 'limit') ? t.limitPaused : t.limitedUntil(clock(limitedUntil!))}
-      {(item.hold?.reason === 'limit') && limitedUntil && <div className="limit-reset mt-1 text-sm">{t.limitedUntil(clock(limitedUntil))}</div>}
+    <div className="flex-1 min-w-0">
+      <div className="limit-title font-semibold">{review ? u.reviewTitle(model) : u.title(model)}</div>
+      <div className="limit-body mt-1 text-sm">{review ? u.reviewBody : u.body}</div>
+      {!review && <div className="limit-reset mt-1 text-sm">{paused ? t.limitPaused : t.limitedUntil(clock(limitedUntil!))}{paused && limitedUntil && ` · ${t.limitedUntil(clock(limitedUntil))}`}</div>}
+      <div className="limit-actions mt-2.5 flex flex-wrap items-start gap-2">
+        <Button onClick={() => void run(review ? { action: 'codeReview' } : { action: 'resume' })}><PlayMark /> {u.tryAgain}</Button>
+        <StartAgent label={u.newAgent} selectionOnly codexAllowed={codexAllowed} hint={review ? u.reviewNewAgentHint : u.newAgentHint} onStart={(agent) => { if (agent) return run(review ? { action: 'codeReview', agent } : { action: 'handOff', agent }).then(() => {}); }} />
+        {review && <Button variant="review-warning" title={u.skipReviewHint} onClick={() => void run({ action: 'skipCodeReview' })}>{u.skipReview}</Button>}
+      </div>
+      {error && <p className="p-error mt-2 mb-0">{error}</p>}
     </div>
-    <button className="flex-[0_0_auto] text-info-strong border border-info/40 rounded-xs bg-surface py-1.5 px-2.5 cursor-pointer [font:inherit] hover:bg-card [@media(max-width:600px)]:ml-6" onClick={() => void api.act(item.id, { action: 'resume' }).catch(console.error)}><PlayMark /> {t.limitTryAgain}</button>
   </div>;
 }
 

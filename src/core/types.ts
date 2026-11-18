@@ -83,6 +83,9 @@ export const demoStage = (d: AgentDoing) => d.endsWith('Demo');
 /** The owner or the usage limit paused the card's agent: it waits to be resumed (the limit's at its reset, too). */
 export const isPaused = (i: Pick<Item, 'hold'>) => i.hold?.reason === 'paused' || i.hold?.reason === 'limit';
 
+/** The card's code review stopped on its model's usage limit: the card waits for the owner to retry it, hand it to another agent or skip it. */
+export const reviewLimited = (i: { review?: { codeReview?: { limited?: true } } }) => !!i.review?.codeReview?.limited;
+
 /** The owner asked the card's agent to pause once it has brought its work to a safe point. */
 export const isPausing = (i: Pick<Item, 'hold'>) => i.hold?.reason === 'pausing';
 
@@ -1240,6 +1243,8 @@ export interface CodeReview {
   items: ReviewItem[];
   /** Why it failed. */
   error?: string;
+  /** It failed on its model's usage limit (the account has no usage left). */
+  limited?: true;
 }
 
 /** How a project's finished cards go into the archive (project setting "Cards archive"). */
@@ -2092,8 +2097,12 @@ export type CardAction =
   /** `direct`: onto the default branch at once, without a pull request, where the repository allows it (`RepoRef.direct`). */
   | { action: 'approve'; direct?: boolean }
   /** A card waiting for approval whose project reviews work on the owner's word ("Start code review"): a review of its latest handover starts. */
-  | { action: 'codeReview' }
+  | { action: 'codeReview'; agent?: AgentSetting }
   | { action: 'stopCodeReview' }
+  /** The card's code review stopped on its model's usage limit: the work waits for approval without it, and "Start code review" can start one later. */
+  | { action: 'skipCodeReview' }
+  /** The card's worker stopped on its model's usage limit: a worker with `agent` takes the card over ("Select new agent"). */
+  | { action: 'handOff'; agent: AgentSetting }
   /** The owner reopens an item of the card's code review that is closed or fixed. */
   | { action: 'reopenReviewItem'; number: number }
   /** In a folder without git, on a card waiting for approval: what it changed there is put back as it was before ("Discard changes"). */
@@ -2234,6 +2243,8 @@ export type ErrorCode =
   | 'noAgent'
   /** Resuming an agent the owner has not paused. */
   | 'notPaused'
+  /** Handing off an agent that no usage limit stopped. */
+  | 'notLimited'
   /** Snoozing a card that is neither at work nor waiting for the owner. */
   | 'notSnoozable'
   /** Waking a card that is not snoozed. */

@@ -428,7 +428,8 @@ export function Detail(p: Props) {
   const reviewed = cr?.state === 'done' && !cr.stale;
   // work handed over with no code review attached (its review was lost, or the project did not review it) can always be reviewed on the owner's word
   const unreviewed = !cr && item.kind === 'task' && handedOver(item) && !inFolder && !item.idea?.prototypeOf && !item.review?.contribution && !item.review?.noChange && !item.review?.landing;
-  const asksReview = unreviewed || (!!cr && cr.mode === 'manual' && (!cr.state || !!cr.stale || cr.state === 'failed' || (cr.state === 'done' && verifying)));
+  // a review skipped (its model had no usage left) leaves none, in either mode; one stopped by the usage limit has its own buttons in the conversation
+  const asksReview = unreviewed || (!!cr && !cr.limited && (!cr.state || (cr.mode === 'manual' && (!!cr.stale || cr.state === 'failed' || (cr.state === 'done' && verifying)))));
   // approval asks first where choices are unsent or a review is still at work, the same for "Straight to main"
   const approveNow = (direct: boolean) =>
     void act(

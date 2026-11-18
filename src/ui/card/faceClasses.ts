@@ -10,7 +10,7 @@
 // the card's static utilities read (`cardLook`'s `style`).
 
 import type { CSSProperties } from 'react';
-import { agentFailed, answering, finishingUp, isPaused, type Item, merging, needsYou, snoozeOf } from '../../core/types';
+import { agentFailed, answering, finishingUp, isPaused, type Item, merging, needsYou, snoozeOf, reviewLimited } from '../../core/types';
 import { mergeProposed } from '../strings';
 import { asksYou } from './summary';
 
@@ -72,7 +72,7 @@ export function cardFlags(item: Item, underway?: string): CardFlags {
     paused: isPaused(item),
     restartPaused: item.hold?.reason === 'restart',
     resolving: !!item.review?.resolvingConflicts,
-    limitPaused: item.hold?.reason === 'limit' || !!item.agent?.limitedUntil,
+    limitPaused: item.hold?.reason === 'limit' || !!item.agent?.limitedUntil || reviewLimited(item),
     snoozed: !!snoozeOf(item),
     mergeProposed: mergeProposed(item),
     queued: !!item.queue,

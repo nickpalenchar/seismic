@@ -362,6 +362,52 @@ describe('code reviews', () => {
     expect(board.item(id)!.review?.codeReview!.state).toBe('running');
   });
 
+  test('a review stopped by the usage limit names its model; it is retried, handed to another agent or skipped', async () => {
+    reviewing('auto', true, 'main', () => ({ model: 'opus', effort: 'high' }));
+    const id = await started();
+    await handOver(id, 'export.ts');
+    await until(() => reviewers().length === 1);
+    reviewers()[0]!.emit({ type: 'error', message: "You've hit your usage limit", limit: {} });
+    await until(() => board.item(id)!.review?.codeReview?.state === 'failed');
+    expect(board.item(id)!.review?.codeReview).toMatchObject({ limited: true, agent: { harness: 'claude', model: 'opus' } });
+    expect(board.item(id)!.state).toBe('waiting');
+    // another agent for this run only: the next one goes back to the group's
+    const other: AgentSetting = { harness: 'claude', model: 'sonnet', effort: 'medium' };
+    workers.startCodeReview(id, other);
+    await until(() => reviewers().length === 2);
+    expect(reviewers()[1]!.spec.setting).toEqual(other);
+    expect(board.item(id)!.review?.codeReview).toMatchObject({ state: 'running', agent: { model: 'sonnet' } });
+    expect(board.item(id)!.review?.codeReview?.limited).toBeUndefined();
+    reviewers()[1]!.emit({ type: 'error', message: "You've hit your usage limit", limit: {} });
+    await until(() => board.item(id)!.review?.codeReview?.state === 'failed');
+    expect(board.item(id)!.review?.codeReview?.limited).toBe(true);
+    // the same model again, once usage is added
+    workers.startCodeReview(id);
+    await until(() => reviewers().length === 3);
+    expect(reviewers()[2]!.spec.setting).toMatchObject({ model: 'opus' });
+    reviewers()[2]!.emit({ type: 'error', message: "You've hit your usage limit", limit: {} });
+    await until(() => board.item(id)!.review?.codeReview?.state === 'failed');
+    // skipped: no review stands, the card waits for approval, and the review can still start later
+    workers.reviews.skip(id);
+    expect(board.item(id)!.review?.codeReview).toMatchObject({ mode: 'auto', items: [] });
+    expect(board.item(id)!.review?.codeReview?.state).toBeUndefined();
+    expect(board.item(id)!.state).toBe('waiting');
+    expect(() => workers.reviews.skip(id)).toThrow();
+    workers.startCodeReview(id);
+    await until(() => reviewers().length === 4);
+  });
+
+  test('a review that failed otherwise cannot be skipped', async () => {
+    reviewing('auto');
+    const id = await started();
+    await handOver(id, 'export.ts');
+    await until(() => reviewers().length === 1);
+    reviewers()[0]!.emit({ type: 'error', message: 'API Error: 500' });
+    await until(() => board.item(id)!.review?.codeReview?.state === 'failed');
+    expect(board.item(id)!.review?.codeReview?.limited).toBeUndefined();
+    expect(() => workers.reviews.skip(id)).toThrow();
+  });
+
   test('review answers can start a fresh worker with only the selected items', async () => {
     reviewing('auto');
     const id = await started();

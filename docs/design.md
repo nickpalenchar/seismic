@@ -132,6 +132,12 @@ cycling through terminals.
   and its instructions out of the agent's session rather than telling it to refrain.
 - **Code reviews are a project setting, by a separate agent, never blocking approval** (2026-11-05);
   rejected: the worker reviewing its own diff.
+- **A model out of usage is the owner's to route around, on the card** (2026-11-17): a worker or
+  code review stopped by its model's usage limit shows a callout naming the model, with "Try again",
+  "Select new agent" and, for a review, "Skip review". A worker handed to another model of the same
+  harness resumes its session; across harnesses it starts afresh from the briefing and its branch,
+  since sessions never cross harnesses. A review's chosen agent holds for that card's run only, not
+  the "Code reviews" setting; skipping drops the stopped run and keeps the review's items.
 - **A repository describes itself as values in `.obeya/settings.json`, read from `main`**
   (2026-10-15); rejected: code adapters per repository.
 - **A repository's commands and agent configuration count only as last trusted by the owner**

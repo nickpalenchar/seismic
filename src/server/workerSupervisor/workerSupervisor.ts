@@ -501,6 +501,18 @@ const pauseNotice = (limit: number) => {
 };
 
 
+/** The agent configuration as the card's conversation names it. */
+const describeSetting = (s: AgentSetting) =>
+  s.harness === 'codex' && s.codex ? `Codex · ${s.codex.model} · ${s.codex.effort}` : s.harness === 'agy' && s.agy ? `Antigravity · ${s.agy.model} · ${s.agy.effort}` : `Claude Code · ${s.model} · ${s.effort}`;
+
+/** Tells a worker that resumes its session on another model, after the usage limit stopped it, why. */
+const HANDED_OFF_SAME =
+  'The usage limit of the model you ran on stopped your last turn, and the owner handed the card to another model: you run on it now, in the same session. Go on where you stopped.';
+
+/** Tells a worker that takes the card over in a new session, after the usage limit stopped the one before it, where things stand. */
+const HANDED_OFF_NEW =
+  "You take this card over from another agent: the usage limit of its model stopped it, and the owner handed the card to you. Its work so far is in this workstation, on the card's branch (commits, and changes not committed yet); look at it before you go on, and finish the task.";
+
 /** Tells a worker about to pause at a safe point that the owner let it go on after all. */
 const PAUSE_TAKEN_BACK = 'The owner no longer wants you to pause: go on with your work.';
 
@@ -683,7 +695,7 @@ export class WorkerSupervisor {
     this.o.board.record(card.id, 'started', 'agent');
     const t = this.o.board.t.worker;
     this.o.board.log(card.id, 'state', 'seismic', this.folder ? t.startedInFolder : contribution ? t.reviewStarted(contribution.number, contribution.author) : t.started(branch));
-    if (selected) this.o.board.log(card.id, 'state', 'seismic', t.startedWith(selected.harness === 'codex' && selected.codex ? `Codex · ${selected.codex.model} · ${selected.codex.effort}` : selected.harness === 'agy' && selected.agy ? `Antigravity · ${selected.agy.model} · ${selected.agy.effort}` : `Claude Code · ${selected.model} · ${selected.effort}`));
+    if (selected) this.o.board.log(card.id, 'state', 'seismic', t.startedWith(describeSetting(selected)));
     const asked = this.o.takeAsked?.(card.id);
     const launch = (headProblem?: string | null) => this.launch(card.id, [workerBriefing(this, card, branch, !!row.branch, headProblem), asked].filter(Boolean).join('\n\n'), undefined, this.taskImages(card));
     // captured working changes go into the workstation it is given, not into the prompt
@@ -1631,14 +1643,48 @@ export class WorkerSupervisor {
   }
 
   /** `direct`: the work goes onto the default branch at once instead of into a pull request, where the repository's settings allow it. */
-  /** "Start code review" on work waiting for the owner's approval: a review of its latest handover starts. */
-  startCodeReview(cardId: string) {
+  /** "Start code review" on work waiting for the owner's approval: a review of its latest handover starts, with `setting` where the owner chose another agent for it. */
+  startCodeReview(cardId: string, setting?: AgentSetting) {
     const card = this.card(cardId);
     if (!handedOver(card) || card.review?.landing || this.landing.has(cardId) || this.approving.has(cardId)) throw new BadRequest('notReady', 'the card is not ready for review');
     // the latest handover is what a review the card lacks is made for
     const latest = this.o.board.events(cardId).findLast((x) => x.kind === 'review' && x.author === 'worker');
     if (card.review?.contribution || this.folder || card.idea?.prototypeOf) throw new BadRequest('notReview', 'this work is not reviewed by a code review');
-    this.reviews.start(cardId, latest?.id);
+    this.reviews.start(cardId, latest?.id, setting);
+    if (setting) this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.codeReviewWith(describeSetting(setting)));
+  }
+
+  /**
+   * "Select new agent" on a worker its model's usage limit stopped (paused after its attempts, or
+   * waiting for the reset): a worker on `setting` takes the card over. In the same harness it
+   * resumes the session, so it keeps what was said and done; in another one it starts afresh from
+   * the card's briefing and its branch, as no session moves across harnesses.
+   */
+  handOff(cardId: string, setting: AgentSetting) {
+    this.card(cardId);
+    const live = this.live.get(cardId);
+    const hold = this.o.board.holdOf(cardId);
+    if (hold?.reason !== 'limit' && !live?.limited) throw new BadRequest('notLimited', 'only an agent stopped by the usage limit is handed off');
+    const row = this.o.board.row(cardId);
+    if (!row.workstation) throw new BadRequest('notReady', 'the card has no workstation');
+    const before = row.agent_setting ? (JSON.parse(row.agent_setting) as AgentSetting) : null;
+    const statusBefore = hold?.reason === 'limit' ? hold.statusBefore : live?.statusBefore;
+    const held = hold?.reason === 'limit' ? hold.held ?? [] : [];
+    if (live) {
+      limitWatch.cancel(live);
+      this.unlimited(cardId, live);
+      this.end(cardId);
+    }
+    this.limitAttempts.delete(cardId);
+    this.o.board.waitsForLimit({ card: cardId }, undefined);
+    const same = (before?.harness ?? 'claude') === (setting.harness ?? 'claude');
+    this.o.board.work(cardId, { hold: null, status_line: statusBefore ?? null, agent_setting: JSON.stringify(setting), ...(same ? {} : { session_id: null }) });
+    this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.handedOff(describeSetting(setting)));
+    // what Seismic held for it while it was paused goes to the agent that takes over
+    const news = held.length ? `\n\nWhile it was paused, Seismic had this for it:\n\n${held.map((h) => h.text).join('\n\n---\n\n')}` : '';
+    const images = held.flatMap((h) => h.images);
+    const note = same && row.session_id ? `${HANDED_OFF_SAME}${news}` : `${HANDED_OFF_NEW}${news}`;
+    this.deliver(cardId, note, images, true);
   }
 
   async approve(cardId: string, { direct = false }: { direct?: boolean } = {}) {

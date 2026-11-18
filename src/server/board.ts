@@ -10,7 +10,7 @@ import { mergeQuestionTexts } from '../core/merge';
 import { CANVAS_ICON_COLORS, CANVAS_LUCIDE_ICONS, isCanvasIcon } from '../core/canvas-icons';
 import { isLabelValue, type Label, LABELS, LABEL_VALUES, type Labels } from '../core/labels';
 import { createHash } from 'node:crypto';
-import { type ActivityCode, type ActivityEntry, type ActivityWho, type AgentAt, type AgentIdentity, type Harness, type Canvas, canvasHolds, CANVAS_NAME_MAX, canvasNameProblem, type CodeReview, type CodeReviewMode, type CardArchiving, type Feedback, MAIN_CANVAS, type ReviewItem, type WorkConfig, type StoppedAt } from '../core/types';
+import { type ActivityCode, type ActivityEntry, type ActivityWho, type AgentAt, type AgentIdentity, type AgentSetting, type Harness, type Canvas, canvasHolds, CANVAS_NAME_MAX, canvasNameProblem, type CodeReview, type CodeReviewMode, type CardArchiving, type Feedback, MAIN_CANVAS, type ReviewItem, type WorkConfig, type StoppedAt } from '../core/types';
 import { existsSync } from 'node:fs';
 import { FilePresence, type Present } from './file-presence';
 import { basename, join } from 'node:path';
@@ -200,7 +200,9 @@ export interface StoredCodeReview {
    * it runs, which goes on after a restart; `scope`: the items under review when its brief was
    * written, the ones it gives verdicts on.
    */
-  review?: { handover: number; head?: string; state: 'running' | 'done' | 'failed'; error?: string; at: string; agent?: AgentIdentity; session?: string; scope?: number[] };
+  review?: { handover: number; head?: string; state: 'running' | 'done' | 'failed'; error?: string; limited?: true; at: string; agent?: AgentIdentity; setting?: AgentSetting; session?: string; scope?: number[] };
+  /** The agent the owner chose for the next run in place of the "Code reviews" group's ("Select new agent"); `review.setting` keeps it for the run. */
+  setting?: AgentSetting;
   /** An automatic review is about to start (git has not told the commit yet): the card shows it as running, so the handover is not announced before the review. */
   pending?: true;
   /** Identifies the lookup so a cancelled or superseded callback cannot start a review. */
@@ -220,7 +222,7 @@ function shownCodeReview(c: StoredCodeReview, items: ReviewItem[]): CodeReview {
     mode: c.mode,
     items,
     ...(c.pending && r?.state !== 'running' && (c.runs || r) ? { runs: (c.runs ?? 1) + 1 } : c.runs ? { runs: c.runs } : {}),
-    ...(c.pending && r?.state !== 'running' ? { state: 'running' as const } : r ? { state: r.state, ...(r.agent ? { agent: r.agent } : {}), ...(r.error ? { error: r.error } : {}), ...(r.handover !== c.handover ? { stale: true as const } : {}) } : {}),
+    ...(c.pending && r?.state !== 'running' ? { state: 'running' as const } : r ? { state: r.state, ...(r.agent ? { agent: r.agent } : {}), ...(r.error ? { error: r.error } : {}), ...(r.limited && r.state === 'failed' ? { limited: true as const } : {}), ...(r.handover !== c.handover ? { stale: true as const } : {}) } : {}),
   };
 }
 

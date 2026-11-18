@@ -172,8 +172,12 @@ export class CodeReviews {
     return row.state === 'waiting' && !row.approved_at;
   }
 
-  /** "Start code review": a review of the card's latest handover starts, where it has none that stands (or one that failed). */
-  start(cardId: string, handover?: number): void {
+  /**
+   * "Start code review": a review of the card's latest handover starts, where it has none that stands
+   * (or one that failed). `setting`: the agent the owner chose for it in place of the "Code reviews"
+   * group's ("Select new agent" on a review stopped by its model's usage limit).
+   */
+  start(cardId: string, handover?: number, setting?: AgentSetting): void {
     if (this.shut) throw new BadRequest('notReview', 'the reviewer is shutting down');
     // a card without a review (lost, or the project reviews no work) gets one on the owner's word, in manual mode
     const c = codeReviewOf(this.o.board.row(cardId)) ?? (handover === undefined ? null : ({ mode: 'manual', handover } satisfies StoredCodeReview));
@@ -181,7 +185,8 @@ export class CodeReviews {
     if (c.pending) throw new BadRequest('notReview', 'the review is starting already');
     if (c.review?.handover === c.handover && c.review.state !== 'failed' && !this.items(cardId).some((i) => i.status === 'underReview')) throw new BadRequest('notReview', 'the latest handover is reviewed already');
     this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.codeReviewStarted);
-    const pending = { ...c, pending: true as const, pendingStart: true as const, pendingId: crypto.randomUUID() };
+    const { setting: _, ...was } = c;
+    const pending = { ...was, ...(setting ? { setting } : {}), pending: true as const, pendingStart: true as const, pendingId: crypto.randomUUID() };
     this.save(cardId, pending);
     this.startPending(cardId, pending);
   }
@@ -194,6 +199,19 @@ export class CodeReviews {
       const now = codeReviewOf(this.o.board.row(cardId));
       if (now?.pending && now.pendingStart && now.pendingId === c.pendingId && now.handover === c.handover && this.waits(cardId)) this.begin(cardId, head);
     });
+  }
+
+  /**
+   * "Skip review" on a review its model's usage limit stopped: the run goes, the work waits for the
+   * owner's approval without it, and "Start code review" offers one later. Its items stay.
+   */
+  skip(cardId: string): void {
+    const c = codeReviewOf(this.o.board.row(cardId));
+    if (!c?.review?.limited || c.review.state !== 'failed' || c.pending) throw new BadRequest('notReview', 'only a review stopped by the usage limit can be skipped');
+    this.stopSession(cardId);
+    const { review: _, setting: __, ...rest } = c;
+    this.save(cardId, rest);
+    this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.codeReviewSkipped);
   }
 
   /** The owner approved, or the card goes: a review still running stops, and leaves nothing. */
@@ -355,12 +373,12 @@ export class CodeReviews {
     if (this.shut || !this.waits(cardId)) return;
     const stored = codeReviewOf(this.o.board.row(cardId));
     if (!stored) return;
-    const { pending: _, pendingStart: __, pendingId: ___, ...c } = stored;
+    const { pending: _, pendingStart: __, pendingId: ___, setting: chosen, ...c } = stored;
     this.stopSession(cardId);
-    const setting = this.o.agentSetting?.();
+    const setting = chosen ?? this.o.agentSetting?.();
     const choice = setting && harnessChoice(setting);
     const agent: AgentIdentity | undefined = setting && { harness: setting.harness ?? 'claude', ...(choice?.model && choice.model !== 'default' ? { model: choice.model } : {}) };
-    this.save(cardId, { ...c, runs: (c.runs ?? (c.review ? 1 : 0)) + 1, review: { handover: c.handover, ...(head ? { head } : {}), state: 'running', at: new Date().toISOString(), ...(agent ? { agent } : {}) } });
+    this.save(cardId, { ...c, runs: (c.runs ?? (c.review ? 1 : 0)) + 1, review: { handover: c.handover, ...(head ? { head } : {}), state: 'running', at: new Date().toISOString(), ...(agent ? { agent } : {}), ...(chosen ? { setting: chosen } : {}) } });
     // a restart that is due would cut it off: it starts once Seismic runs again
     if (this.restart) return void this.paused.add(cardId);
     this.launch(cardId, setting);
@@ -374,7 +392,7 @@ export class CodeReviews {
     if (c?.review?.state !== 'running') return;
     if (this.restart) return void this.paused.add(cardId);
     // a session without the scope of its brief cannot have its verdicts checked against it: the review starts over
-    this.launch(cardId, this.o.agentSetting?.(), c.review.scope ? c.review.session : undefined);
+    this.launch(cardId, c.review.setting ?? this.o.agentSetting?.(), c.review.scope ? c.review.session : undefined);
   }
 
   private launch(cardId: string, setting: AgentSetting | undefined, resume?: string): void {
@@ -422,7 +440,7 @@ export class CodeReviews {
     let ended = false;
     const patch = diff?.patch && diff.patch.length > DIFF_LIMIT ? `${diff.patch.slice(0, DIFF_LIMIT)}\n… (cut off here: read the rest of the changed files yourself)` : diff?.patch;
     let session: AgentSession | undefined;
-    const end = (error?: string) => {
+    const end = (error?: string, limited = false) => {
       if (ended) return;
       ended = true;
       session?.close();
@@ -438,7 +456,7 @@ export class CodeReviews {
         return this.resume(cardId);
       }
       if (!recorded && !error && r?.run === run && r.told) return this.pause(cardId, run);
-      this.finish(cardId, run, recorded, error);
+      this.finish(cardId, run, recorded, error, limited);
     };
     session = reviewerAgent.start(
       this.o.runtime,
@@ -473,7 +491,7 @@ export class CodeReviews {
               this.save(cardId, { ...c, review: { ...c.review, session: e.id, ...(named ? { agent: { harness: c.review.agent?.harness ?? setting?.harness ?? 'claude', model } } : {}) } });
           }
           if (e.type === 'idle') end();
-          else if (e.type === 'error') end(e.message);
+          else if (e.type === 'error') end(e.message, !!e.limit);
         },
       },
     );
@@ -489,7 +507,7 @@ export class CodeReviews {
    * (verdicts on the items under review, regressions, new items), else failed, with why. A run
    * stopped since, and a later review in its place, are left alone.
    */
-  private finish(cardId: string, run: object | null, recorded: Recorded | undefined, error?: string): void {
+  private finish(cardId: string, run: object | null, recorded: Recorded | undefined, error?: string, limited = false): void {
     if (run) {
       if (this.running.get(cardId)?.run !== run) return;
       this.running.delete(cardId);
@@ -507,7 +525,7 @@ export class CodeReviews {
     let result = { items: undefined as ReviewItem[] | undefined, raised: [] as ReviewItem[], fixed: 0, reopened: 0 };
     if (recorded) result = this.apply(cardId, recorded, { handover: review.handover, run: review.at });
     // the list and the run's end are one write: a stop between them would resume a run whose results are already applied
-    const done: StoredCodeReview = { ...c, review: { ...review, state: failed ? 'failed' : 'done', ...(failed ? { error: failed } : {}) } };
+    const done: StoredCodeReview = { ...c, review: { ...review, state: failed ? 'failed' : 'done', ...(failed ? { error: failed } : {}), ...(failed && limited ? { limited: true as const } : {}) } };
     this.o.board.work(cardId, { review: { codeReview: done, ...(result.items ? { items: result.items } : {}) } });
     const count = (s: Severity) => result.raised.filter((f) => f.severity === s).length;
     this.o.board.log(cardId, 'state', 'seismic', failed ? t.codeReviewFailed(failed) : t.codeReviewDone(result.raised.length, Object.fromEntries(SEVERITIES.map((s) => [s, count(s)])) as Record<Severity, number>, result.fixed, result.reopened));
