@@ -5,7 +5,7 @@
 
 import { useRef } from 'react';
 import type { Place } from '../core/layout';
-import { agentListens, type Item, type TalkRef } from '../core/types';
+import { agentListens, handedOver, type Item, type TalkRef } from '../core/types';
 import { api, ApiError, refreshCard, type Field, type Heard, type Where } from './api';
 import { clip } from '../core/text';
 import { excerpt, plain } from './markdown';
@@ -96,7 +96,12 @@ export function tellers(byId: (id: string) => Item | undefined, told: ReturnType
   const tellAbout = (target: Where, request: () => Promise<Heard>) => {
     const i = target ? byId('card' in target ? target.card : target.plan) : undefined;
     const what = i ? `„${plain(i.title)}“` : t.voice.koordinator;
-    return told.tell(listening(target) ? t.voice.transcribing(what) : t.voice.reading(what), toldCard(target), request);
+    const card = listening(target);
+    return told.tell(card ? t.voice.transcribing(what) : t.voice.reading(what), toldCard(target), async () => {
+      const heard = await request();
+      if (card && handedOver(card) && heard.quiet && !heard.unheard) await refreshCard(card.id);
+      return heard;
+    });
   };
   /**
    * Words typed on a card, in its idea or in the Koordinator's conversation: on a card an agent listens on
@@ -117,7 +122,7 @@ export function tellers(byId: (id: string) => Item | undefined, told: ReturnType
         } else if (video) {
           void video.play().catch(() => {});
         }
-        if (field === 'feedback' || field === 'demo') await refreshCard(card.id);
+        if (field === 'feedback' || field === 'demo' || field === 'answer') await refreshCard(card.id);
       } catch (e) {
         fail(e);
       }

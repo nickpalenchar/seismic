@@ -353,6 +353,8 @@ const en = {
     question: 'Your own answer',
     review: 'Feedback – the agent goes on working on it',
     demo: 'Answer or feedback to the agent',
+    savedUpdateFailed: 'Your response was saved. The card couldn’t update.',
+    retryUpdate: 'Retry update',
     revise: 'What should change? – or hold the space bar',
   },
   ask: {

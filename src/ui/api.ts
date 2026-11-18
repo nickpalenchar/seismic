@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { CardDiff } from '../core/diff';
 import { type Place, placeParam } from '../core/layout';
 import type { ProjectReposView, RepoConfig, AccessView, ActivityPage, Pairing, RemoteSetting, CodexModel, AgentRole, AgentSetting, CloudPreset, AgentsView, ProjectConfig, ProjectInfo, ProjectSnapshot, ChatElsewhere, ClientMessage, ConfigSaved, ConfigView, CardAction, ConfigChecked, DemoSettings, Group, DemoSettingsView, DemoVoiceCheck, ProjectDemoSiteState, DemoSitesView, GithubRepoList, GithubRepoView, TagProposalJob, PageTags, NarrationLanguage, FirstProject, GitSetupPreview, MachineItem, MachineSectionId, MachineView, SetupCheck, SetupFolder, VoiceSetupView, CardEvent, CardPatch, Item, Language, LanguageView, NewCard, Notice, OwnerHold, PendingRestart, PlanHistory, RepoTrust, ServerMessage, SettingsShared, Skill, SourceUpdate, SpotInput, TalkRef, AppUpdate, Theme, ThemeView, Motion, MotionView, Usage, UsageMeterView, Waiting, Feedback, FeedbackAnswer, FeedbackPromptView,
@@ -311,7 +311,7 @@ export const api = {
   /** An action on the card; `keepalive` for one sent as the page goes. */
   act: async (id: string, a: CardAction, keepalive = false) => {
     await call<void>('POST', cardAt(id, '/act'), a, keepalive);
-    if (a.action === 'message' || (a.action === 'release' && a.now)) await refreshCard(id);
+    if (a.action === 'message' || a.action === 'answer' || (a.action === 'release' && a.now)) await refreshCard(id);
   },
   /** "Make it a card": a looked-up thread moves onto a Question card, which comes back. */
   threadCard: (thread: number) => call<Item>('POST', at(`/threads/${thread}/card`)),
@@ -452,13 +452,40 @@ export function onCardEvent(fn: (e: CardEvent) => void): () => void {
 // A successful feedback request can outlive a gap in the project's WebSocket. Read the saved
 // conversation and card state before clearing the composer, even if the server's push was missed.
 const cardRefreshListeners = new Set<(id: string) => Promise<void> | void>();
+const cardRefreshes = new Map<string, object>();
+const failedCardRefreshes = new Set<string>();
+const cardRefreshChanges = new Set<() => void>();
+
+function onCardRefreshChange(fn: () => void) {
+  cardRefreshChanges.add(fn);
+  return () => cardRefreshChanges.delete(fn);
+}
+
+export function useCardRefreshFailed(id: string): boolean {
+  return useSyncExternalStore(onCardRefreshChange, () => failedCardRefreshes.has(id), () => false);
+}
+
 export function onCardRefresh(fn: (id: string) => Promise<void> | void): () => void {
   cardRefreshListeners.add(fn);
   return () => cardRefreshListeners.delete(fn);
 }
 
 export async function refreshCard(id: string): Promise<void> {
-  await Promise.allSettled([...cardRefreshListeners].map((fn) => fn(id)));
+  const attempt = {};
+  cardRefreshes.set(id, attempt);
+  // Retry the read alone. The mutation has already succeeded and must never be sent twice.
+  const results = await Promise.allSettled([...cardRefreshListeners].map(async (read) => {
+    try {
+      await read(id);
+    } catch {
+      if (cardRefreshes.get(id) === attempt) await read(id);
+    }
+  }));
+  if (cardRefreshes.get(id) !== attempt) return;
+  cardRefreshes.delete(id);
+  if (results.some((r) => r.status === 'rejected')) failedCardRefreshes.add(id);
+  else failedCardRefreshes.delete(id);
+  for (const fn of cardRefreshChanges) fn();
 }
 
 // A project's WebSocket is open again after it was lost: what was pushed meanwhile never arrived, so
@@ -676,7 +703,10 @@ export function useProject(id = projectId): {
       setTimeout(() => opening.readyState === WebSocket.CONNECTING && opening.close(), GIVE_UP_MS);
       ws.onopen = () => {
         if (document.visibilityState === 'visible') sendHere();
-        if (opened) for (const fn of reconnectListeners) fn();
+        if (opened) {
+          for (const fn of reconnectListeners) fn();
+          for (const cardId of failedCardRefreshes) if (projectOf(cardId) === id) void refreshCard(cardId);
+        }
         opened = true;
         setOnline(true);
         setOfflineSince(null);

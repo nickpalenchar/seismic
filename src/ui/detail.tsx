@@ -13,7 +13,7 @@ import { agentListens, answering, askable, type BackgroundTask, buildableOn, typ
 import { mockPage } from '../core/frame';
 import { mmss } from '../../plugin/skills/demo/lib/timeline.ts';
 import { answers, answerText, OTHER, toggleOther } from './answer';
-import { ApiError, api, projectOf, cardAt, type Field, holdRestart, onCardEvent, onCardEventGone, onCardRefresh, onReconnect } from './api';
+import { ApiError, api, projectOf, cardAt, type Field, holdRestart, onCardEvent, onCardEventGone, onCardRefresh, onReconnect, refreshCard, useCardRefreshFailed } from './api';
 import { cardPath } from './address';
 import { Naming, smartLink } from './cardLink';
 import { DuplicateMergePreview, MergeButton, MergeView } from './merge';
@@ -57,6 +57,7 @@ import { describeAgent, StartAgent, startAgentMain, startAgentModel } from './st
 import type { AgentSetting } from '../core/types';
 import { ButtonGroup } from './components/button-group';
 import { Button, type ButtonVariant, CloseButton, LinkButton } from './components/button';
+import { Callout, CalloutDescription } from './components/callout';
 import { ConfirmDialog } from './components/dialog';
 import { Select, SelectItem } from './components/select';
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from './components/menu';
@@ -696,6 +697,7 @@ export function Detail(p: Props) {
       )}
 
       {error && !item.idea?.proposal?.merge && <p className="p-error" role="alert">{error}</p>}
+      <CardRefreshNotice cardId={item.id} />
       {!item.idea?.proposal?.merge && <>
       {!waits && queueBox}
 
@@ -3808,6 +3810,7 @@ interface TalkField {
  * conversation: it stands quoted above the field, and the words go out with it.
  */
 function Talk({ item, past, field }: { item: Item; past?: boolean; field?: TalkField }) {
+  const elsewhere = useContext(TalkElsewhere);
   const picks = useOpenQuestions(item, past);
   const { questions, picked } = picks;
   const options = questions.some((q) => q.options.length > 0);
@@ -3844,6 +3847,7 @@ function Talk({ item, past, field }: { item: Item; past?: boolean; field?: TalkF
   };
   return (
     <>
+      {elsewhere && <CardRefreshNotice cardId={item.id} />}
       <Conversation
         item={item}
         past={past}
@@ -4076,9 +4080,10 @@ export function useEvents(cardId: string): CardEvent[] | null {
           for (const e of now.early) merged.set(e.id, e);
           setEvents([...merged.values()].filter((e) => !now.gone.has(e.id)).sort((a, b) => a.id - b.id));
         },
-        () => {
+        (error) => {
           // the connection went again: the next one loads it
           if (loading === now) loading = null;
+          throw error;
         },
       );
     };
@@ -4094,9 +4099,10 @@ export function useEvents(cardId: string): CardEvent[] | null {
       loading?.gone.add(id);
       setEvents((cur) => cur && cur.filter((x) => x.id !== id));
     });
-    const offBack = onReconnect(load);
+    const loadInBackground = () => void load().catch(() => {});
+    const offBack = onReconnect(loadInBackground);
     const offRefresh = onCardRefresh((id) => id === cardId ? load() : undefined);
-    load();
+    loadInBackground();
     return () => {
       alive = false;
       off();
@@ -4106,6 +4112,26 @@ export function useEvents(cardId: string): CardEvent[] | null {
     };
   }, [cardId]);
   return events;
+}
+
+/** The send succeeded. Only the reads that let the open card catch up can be retried here. */
+function CardRefreshNotice({ cardId }: { cardId: string }) {
+  const failed = useCardRefreshFailed(cardId);
+  const [retrying, setRetrying] = useState(false);
+  if (!failed) return null;
+  return (
+    <Callout kind="warn" className="mt-3">
+      <CalloutDescription className="flex flex-wrap items-center gap-2">
+        <span>{t.compose.savedUpdateFailed}</span>
+        <Button size="small" disabled={retrying} onClick={async () => {
+          setRetrying(true);
+          try { await refreshCard(cardId); } finally { setRetrying(false); }
+        }}>
+          {t.compose.retryUpdate}
+        </Button>
+      </CalloutDescription>
+    </Callout>
+  );
 }
 
 /** The owner's words for a logged error: the text for its code, else the server's text. */
