@@ -104,28 +104,57 @@ export function agyUsageOf(answer: unknown, now = new Date()): Usage {
   return { harness: 'agy', limits, at: now.toISOString() };
 }
 
-/** Runs `agy` with `args`; its exit status and output. */
-export type AgyRun = (executable: string, args: string[]) => Promise<{ status: number; out: string; err: string }>;
+/** Runs `agy` with `args`; its exit status and output. Aborting `signal` ends it, with whatever it started. */
+export type AgyRun = (executable: string, args: string[], signal: AbortSignal) => Promise<{ status: number; out: string; err: string }>;
 
-const runAgy: AgyRun = async (executable, args) => {
-  const r = Bun.spawn([executable, ...args], { cwd: homedir(), env: cleanEnv() as Record<string, string>, stdin: 'ignore', stdout: 'pipe', stderr: 'pipe', timeout: 25_000 });
-  const [out, err, status] = await Promise.all([new Response(r.stdout).text(), new Response(r.stderr).text(), r.exited]);
-  return { status, out, err };
-};
+/** How long a `/usage` answer may take before its process group is ended. */
+const USAGE_RUN_MS = 25_000;
+
+const runAgy: AgyRun = (executable, args, signal) =>
+  new Promise((resolve, reject) => {
+    // a group of its own, so that ending it ends whatever agy started for the answer too
+    const child = spawn(executable, args, { cwd: homedir(), env: cleanEnv(), stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, detached: OWN_GROUP });
+    const end = () => {
+      try {
+        if (OWN_GROUP && child.pid) process.kill(-child.pid, 'SIGKILL');
+        else child.kill('SIGKILL');
+      } catch {
+        // already gone
+      }
+    };
+    const timer = setTimeout(end, USAGE_RUN_MS);
+    signal.addEventListener('abort', end, { once: true });
+    let out = '';
+    let err = '';
+    child.stdout!.setEncoding('utf8').on('data', (d: string) => (out += d));
+    child.stderr!.setEncoding('utf8').on('data', (d: string) => (err += d));
+    child.once('error', (e) => {
+      clearTimeout(timer);
+      signal.removeEventListener('abort', end);
+      reject(e);
+    });
+    child.once('close', (status) => {
+      clearTimeout(timer);
+      signal.removeEventListener('abort', end);
+      if (signal.aborted) reject(new Error('agy /usage was stopped'));
+      else resolve({ status: status ?? 1, out, err });
+    });
+  });
 
 /**
  * Antigravity's usage limits, from `agy -p /usage` in print mode, which answers without starting an
  * agent turn, spending quota or leaving a conversation behind: a process per round, nothing kept
- * between them. Nothing to show (`null`) while agy is not installed, without starting anything, or
- * not signed in.
+ * between them, and closing the source ends the one under way. Nothing to show (`null`) while agy
+ * is not installed, without starting anything, or not signed in.
  */
 export function agyUsage(run: AgyRun = runAgy, executable: () => string | null = installedAgy): UsageSource {
-  let closed = false;
+  // closing ends a `/usage` run under way, rather than letting it finish for nobody
+  const closing = new AbortController();
   return {
     fetch: async () => {
       const agy = executable();
-      if (closed || !agy) return null;
-      const { status, out, err } = await run(agy, ['-p', '/usage', '--output-format', 'json']);
+      if (closing.signal.aborted || !agy) return null;
+      const { status, out, err } = await run(agy, ['-p', '/usage', '--output-format', 'json'], closing.signal);
       const answer = (() => {
         try {
           return JSON.parse(out) as unknown;
@@ -138,9 +167,7 @@ export function agyUsage(run: AgyRun = runAgy, executable: () => string | null =
       if (/sign.?in|log.?in|not authenticated|unauthenticated|credentials/i.test(said)) return null;
       throw new Error(`agy /usage failed: ${said.split('\n').pop() || `exit ${status}`}`);
     },
-    close: () => {
-      closed = true;
-    },
+    close: () => closing.abort(),
   };
 }
 

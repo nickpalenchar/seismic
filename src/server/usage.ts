@@ -108,11 +108,13 @@ export class UsageMeter {
       if (this.source === source) this.set(usage);
       this.failures = 0;
     } catch (e) {
+      // closed meanwhile (the bar hidden, the last page gone): its fetch was ended, not failed
+      if (this.source !== source) return;
       this.failures++;
       this.skip = Math.min(2 ** (this.failures - 1) - 1, MAX_SKIPPED);
       console.warn(`Seismic: the usage limits could not be fetched: ${e instanceof Error ? e.message : e}`);
       // a new session next round; what was fetched last stands a little longer
-      if (this.source === source) this.source = null;
+      this.source = null;
       source.close();
       if (this.last && Date.now() - Date.parse(this.last.at) > STALE_MS) this.set(null);
     } finally {

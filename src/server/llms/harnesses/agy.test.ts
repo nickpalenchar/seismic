@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from 'bun:test';
 import { spawn, spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { chmodSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { z } from 'zod';
@@ -154,6 +154,34 @@ test('agy usage: nothing without agy or signed out, a failure otherwise', async 
   source.close();
   expect(await source.fetch()).toBeNull();
   expect(await agyUsage(async () => reply, () => null).fetch()).toBeNull();
+});
+
+test.skipIf(process.platform === 'win32')('closing the agy usage source ends a /usage run under way, with what it started', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'agy-usage-'));
+  try {
+    const script = join(dir, 'agy');
+    // an agy that hangs, with a helper of its own, as a slow answer would
+    writeFileSync(script, `#!/bin/sh\nsleep 60 &\necho $! > "${dir}/helper"\necho $$ > "${dir}/agy.pid"\nwait\n`);
+    chmodSync(script, 0o755);
+    const source = agyUsage(undefined, () => script);
+    const fetched = source.fetch();
+    await until(() => existsSync(join(dir, 'helper')) && existsSync(join(dir, 'agy.pid')));
+    const pids = ['agy.pid', 'helper'].map((f) => Number(readFileSync(join(dir, f), 'utf8')));
+    source.close();
+    await expect(fetched).rejects.toThrow('stopped');
+    const alive = (pid: number) => {
+      try {
+        process.kill(pid, 0);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    await until(() => pids.every((pid) => !alive(pid)));
+    expect(await source.fetch()).toBeNull();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('real account-quota capture reads the entire reset duration', () => {

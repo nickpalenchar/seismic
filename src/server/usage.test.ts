@@ -109,6 +109,39 @@ test('fetched only while the bar shows them and a page is open; closed and forgo
   meter.stop();
 });
 
+test('hidden during a fetch: the source is closed at once, which ends its fetch, and that counts as no failure', async () => {
+  let opened = 0;
+  let closed = 0;
+  const open = (): UsageSource => {
+    opened++;
+    let stop: (e: Error) => void = () => {};
+    return {
+      fetch: () => new Promise<Usage | null>((_, reject) => (stop = reject)),
+      close: () => (closed++, stop(new Error('stopped'))),
+    };
+  };
+  const warn = console.warn;
+  const warnings: unknown[] = [];
+  console.warn = (...a: unknown[]) => void warnings.push(a);
+  try {
+    const meter = new UsageMeter(open, { on: true, everyMs: 60_000, lingerMs: 0 });
+    meter.watch();
+    await settle();
+    expect(opened).toBe(1);
+    meter.setOn(false);
+    expect(closed).toBe(1);
+    await settle();
+    expect(warnings).toEqual([]);
+    // shown again, the next fetch goes ahead at once, not after rounds left out
+    meter.setOn(true);
+    await settle();
+    expect(opened).toBe(2);
+    meter.stop();
+  } finally {
+    console.warn = warn;
+  }
+});
+
 test('a page that reloads or goes to another project finds the session and its numbers still there', async () => {
   const f = fakeSource();
   f.answers.push(usage(4));
