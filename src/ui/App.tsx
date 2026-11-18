@@ -539,6 +539,7 @@ function Project({
   const [reading, setReading, readingRef] = useLive<{ mark?: string } | null>(null);
   const { widths: sheetW, resizing } = dock;
   const [kOn, setKOn, kOnRef] = dock.view('seismic');
+  const chatEntry = useRef<'default' | 'type' | 'answer'>('default');
   // what waits for the owner's cards, docked on the right behind the bell (needsYou.tsx)
   const [nyOn, setNyOn, nyOnRef] = dock.view('needs-you');
   // what of the inbox the owner has read (src/ui/inboxRead.ts)
@@ -594,15 +595,15 @@ function Project({
     return { left: !narrow && pinnedRef.current && !navHiddenRef.current && innerWidth - left - right >= NAV_PROJECT_MIN ? left : 0, right };
   };
   /** Opens Seismic's sheet or closes it; an open plan closes. */
-  const toggleKoordinator = () => {
+  const toggleKoordinator = (entry: typeof chatEntry.current = 'default') => {
+    if (!kOn) chatEntry.current = entry;
     setKOn(!kOn);
     if (!kOn) setCsOn(false);
     if (!kOn && focusRef.current?.type === 'plan') closePlan(false);
   };
   /** The sheet as the owner opens it to talk (its button, `C`): the field under the conversation takes the cursor. */
   const talkKoordinator = () => {
-    toggleKoordinator();
-    if (!kOn) requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>('#ksheet .tell textarea')?.focus({ preventScroll: true }));
+    toggleKoordinator('type');
   };
   // the configuration is a dialog over the page: what is open behind it stays as it was
   const toggleConfig = () => (setPrefsOn(false), setCOn(!cOnRef.current));
@@ -1063,7 +1064,8 @@ function Project({
     // (Seismic's answer in another project's navigation) opens Seismic's sheet, once
     const a = readAddress();
     const code = !a.project || projectNamed(projects, a.project)?.id === snapshot.project.id ? a.card : undefined;
-    const talk = new URLSearchParams(location.search).has('talk');
+    const talk = new URLSearchParams(location.search).get('talk');
+    if (talk === 'answer') chatEntry.current = 'answer';
     history.replaceState(history.state, '', `${code ? cardPath(snapshot.project.id, code) : projectPath(snapshot.project.id)}${queryWithout(location.search, 'c', 'card', 'talk', ...(perfAtStart ? LOG_KEYS : []))}${location.hash}`);
     // what comes back is what the address names already; a kept card the address left out (a
     // restart of the app's shell, a link to the project) gets its address once it is open
@@ -1076,9 +1078,9 @@ function Project({
     };
     // an address on another card than the one kept (a card on this project opened from another) opens that one
     if (k && code && named(itemsRef.current, code)?.id !== k.card) k = { ...k, card: code, plan: undefined, scroll: [], drafts: [], video: undefined };
-    if (k && talk) k = { ...k, sheet: 'koordinator' };
+    if (k && talk !== null) k = { ...k, sheet: 'koordinator' };
     if (k) return void reopen(k).catch(console.error).finally(done);
-    if (sheetLeft || talk) {
+    if (sheetLeft || talk !== null) {
       // beside the sheet at once, as the project comes back
       quickSide.current = Date.now() + 2000;
       setKOn(true);
@@ -2219,7 +2221,7 @@ function Project({
     const last = at(attnLast.current);
     const next = list.find((x) => at(key(x)) > last) ?? list[0]!;
     attnLast.current = key(next);
-    if (next === 'k') toggleKoordinator();
+    if (next === 'k') toggleKoordinator('answer');
     else open(next);
   }
   /** The inbox, a full-page view in place of the canvas or the archive; an open plan closes. */
@@ -2284,8 +2286,8 @@ function Project({
    * one on another project opens there, the inbox's view open under it again. Seismic's answer opens its sheet.
    */
   function goToEntry(e: Pick<InboxEntry, 'project' | 'card'>) {
-    if (e.project !== snapshot.project.id) return goTo(e.card ? cardPath(e.project, e.card) : `${projectPath(e.project)}?talk`);
-    if (!e.card) return kOnRef.current || toggleKoordinator();
+    if (e.project !== snapshot.project.id) return goTo(e.card ? cardPath(e.project, e.card) : `${projectPath(e.project)}?talk=answer`);
+    if (!e.card) return kOnRef.current || toggleKoordinator('answer');
     // the entry's own copy opens it when the project no longer lists the card (it just left the inbox)
     void openFresh(byId(e.card.id) ?? e.card);
   }
@@ -2524,7 +2526,7 @@ function Project({
     { id: 'needs-you', besideCard: true, title: t.needsYou.title, icon: ConciergeBell, component: () => (<NeedsYouSheet on={nyOn} entries={entries} current={snapshot.project.id} open={openCardId} onGo={goToEntry} onReply={replyTo} isRead={inboxRead.isRead} onRead={inboxRead.markRead} />) },
     { id: 'agents', besideCard: true, title: t.agents.title, icon: Bot, component: () => (<AgentsSheet on={agentsOn} items={items} open={openId ?? undefined} underway={(id) => !!underway[id]} onOpen={(i) => void openFresh(i)} project={snapshot.project.id} changed={snapshot} onGo={(project, card) => goToEntry({ project, card })} />) },
     { id: 'settings', besideCard: true, title: t.projectSettings.title, icon: SlidersHorizontal, component: () => (<ProjectSettingsSheet project={snapshot.project.id} name={snapshot.project.name} homePath={snapshot.project.repos[0]?.path} onAddSite={() => (showAddSite(), setPrefsOn(false), setCOn(true))} on={csOn} covered={cOn} />) },
-    { id: 'seismic', besideCard: true, title: t.koordinator.title, icon: MessageSquare, buttonCloses: true, component: () => (<KoordinatorSheet on={kOn} onClose={toggleKoordinator} project={snapshot.project.id} projectName={snapshot.project.name} items={items} preferences={snapshot.preferences} settings={snapshot.settingProposals ?? []} repos={snapshot.project.repos} talk={snapshot.talk} chat={snapshot.chat} chatModel={snapshot.chatModel} chats={snapshot.chats} reshare={snapshot.reshare} onOpen={(i) => void openFresh(i)} onTell={tellChat} onProject={(c) => goTo(`${projectPath(c)}?talk`)} onConfig={(repo, setting) => {
+    { id: 'seismic', besideCard: true, title: t.koordinator.title, icon: MessageSquare, buttonCloses: true, component: () => (<KoordinatorSheet on={kOn} onClose={() => toggleKoordinator()} entry={chatEntry.current} project={snapshot.project.id} projectName={snapshot.project.name} items={items} preferences={snapshot.preferences} settings={snapshot.settingProposals ?? []} repos={snapshot.project.repos} talk={snapshot.talk} chat={snapshot.chat} chatModel={snapshot.chatModel} chats={snapshot.chats} reshare={snapshot.reshare} onOpen={(i) => void openFresh(i)} onTell={tellChat} onProject={(c) => goTo(`${projectPath(c)}?talk`)} onConfig={(repo, setting) => {
             showRepoClones({ project: snapshot.project.id, repo, field: 'settings', setting });
             setCOn(true);
           }} />) },

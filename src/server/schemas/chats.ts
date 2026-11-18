@@ -22,12 +22,29 @@ export const chats = sqliteTable(
 export class Chats {
   constructor(private readonly db: Db) {}
 
+  private lastOpened(projectId: string) {
+    return this.db.select({ id: chats.id, opened: chats.opened }).from(chats).where(eq(chats.projectId, projectId)).orderBy(desc(chats.opened), desc(chats.id)).limit(1).get();
+  }
+
   /** The chat new words on the project go into: the one the owner opened last; a first one where there is none. */
   current(projectId: string): number {
-    const r = this.db.select({ id: chats.id }).from(chats).where(eq(chats.projectId, projectId)).orderBy(desc(chats.opened), desc(chats.id)).limit(1).get();
+    const r = this.lastOpened(projectId);
     if (r) return r.id;
     const at = now();
     return this.db.insert(chats).values({ projectId, at, opened: at }).returning({ id: chats.id }).get().id;
+  }
+
+  /** Opening the dock resumes a recent chat, or starts afresh after a longer absence. */
+  enter(projectId: string): number {
+    return atomic(this.db, () => {
+      const last = this.lastOpened(projectId);
+      if (!last) return this.current(projectId);
+      const idle = Date.now() - Date.parse(last.opened);
+      const id = idle > 20 * 60_000 ? this.start(projectId) : last.id;
+      // An empty chat is reused by start(), so it needs its opening recorded too.
+      if (id === last.id) this.db.update(chats).set({ opened: this.nextOpening(projectId) }).where(eq(chats.id, id)).run();
+      return id;
+    });
   }
 
   /** Whether the chat belongs to the project. */
@@ -93,7 +110,7 @@ export class Chats {
       .innerJoin(talk, eq(talk.chat, chats.id))
       .where(projectId ? eq(chats.projectId, projectId) : undefined)
       .groupBy(chats.id)
-      .orderBy(desc(at))
+      .orderBy(desc(at), desc(chats.id))
       .limit(limit)
       .all()
       .map((r) => ({ id: r.id, project: r.project, at: r.at, ...(r.model ? { model: r.model as AgentModel } : {}), ...(r.title ? { title: r.title } : {}), ...(r.unread ? { unread: r.unread } : {}) }));

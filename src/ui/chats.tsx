@@ -13,6 +13,7 @@ import { useStoredState } from './stored';
 import { clock, failText, shortDay, t } from './strings';
 import { SegmentedControl } from './components/segmented';
 import { Tooltip } from './components/tooltip';
+import { Button } from './components/button';
 
 interface Props {
   /** The heading between the two buttons. */
@@ -24,13 +25,15 @@ interface Props {
   chat: number;
   chats: Chat[];
   talk: Talk[];
+  showRecent?: boolean;
+  disabled?: boolean;
   /** A chat of another project was opened there: show that project's conversation. */
   onProject: (project: string) => void;
   /** The sheet's close button, at the head's right end. */
   onClose?: () => void;
 }
 
-export function ChatsHead({ title, project, projectName, chat, chats, talk, onProject, onClose }: Props) {
+export function ChatsHead({ title, project, projectName, chat, chats, talk, showRecent, disabled, onProject, onClose }: Props) {
   const [open, setOpen] = useState(false);
   const [all, setAll] = useStoredState('seismic-chats-all', false);
   const [every, setEvery] = useState<ChatElsewhere[] | null>(null);
@@ -67,6 +70,7 @@ export function ChatsHead({ title, project, projectName, chat, chats, talk, onPr
 
   const go = (c: Chat) => {
     if (c.id === chat && c.project === project) return setOpen(false);
+    setError('');
     api.openChat(c.id, c.project === project ? undefined : c.project).then(
       () => {
         setOpen(false);
@@ -81,13 +85,14 @@ export function ChatsHead({ title, project, projectName, chat, chats, talk, onPr
   };
   const shown: (Chat & { projectName?: string })[] = all ? (every ?? []) : chats;
 
-  return (
+  const header = (
     // on the phone the head is the panel's grip: a press on it drags the panel, one on its buttons does not
     <div className={headClass} ref={head}>
       <Tooltip content={waiting ? `${t.koordinator.chatsOpen} · ${t.koordinator.unreadCount(waiting)}` : t.koordinator.chatsOpen}>
         <button
             className={cn(btnClass, waiting > 0 && "waits after:content-[''] after:absolute after:top-[5px] after:right-[5px] after:size-2 after:rounded-full after:bg-waiting")} aria-label={t.koordinator.chatsOpen}
             aria-expanded={open}
+            disabled={disabled}
             onClick={() => setOpen(!open)}
         >
           <Menu size={18} />
@@ -95,7 +100,7 @@ export function ChatsHead({ title, project, projectName, chat, chats, talk, onPr
       </Tooltip>
       {title}
       <Tooltip content={t.koordinator.newChatHint}>
-        <button className={cn(btnClass, 'chats-new')} aria-label={t.koordinator.newChat} disabled={fresh} onClick={start}>
+        <button className={cn(btnClass, 'chats-new')} aria-label={t.koordinator.newChat} disabled={disabled || fresh} onClick={start}>
           <SquarePen size={17} />
         </button>
       </Tooltip>
@@ -173,6 +178,42 @@ export function ChatsHead({ title, project, projectName, chat, chats, talk, onPr
           head.current.closest('.sheet, .ph-panel')!,
         )}
     </div>
+  );
+
+  return (
+    <>
+      {header}
+      {showRecent && chats.length > 0 && (
+        <div className="mb-3" role="group" aria-label={t.koordinator.recentChats}>
+          <p className="mt-0 mb-1.5 text-xs font-medium text-muted-foreground">{t.koordinator.recentChats}</p>
+          <ul className="m-0 flex list-none flex-col gap-1 p-0">
+            {chats.slice(0, 5).map((c) => {
+              const name = c.title ? plain(c.title) : t.koordinator.chatBySeismic;
+              const date = shortDay(c.at);
+              return (
+                <li key={c.id} className="min-w-0">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="small"
+                    className="w-full justify-between rounded-full border-border px-3 text-xs aria-pressed:border-primary/40 aria-pressed:bg-primary/10"
+                    aria-pressed={c.id === chat}
+                    title={`${name} · ${date}`}
+                    disabled={disabled}
+                    onClick={() => go(c)}
+                  >
+                    <span className="min-w-0 truncate">{name}</span>
+                    {c.unread ? <span className="ml-auto size-2 shrink-0 rounded-full bg-waiting" title={t.koordinator.unreadCount(c.unread)} /> : null}
+                    <time className="shrink-0 font-normal text-muted-foreground" dateTime={c.at}>{date}</time>
+                  </Button>
+                </li>
+              );
+            })}
+          </ul>
+          {!open && error && <p className="p-error" role="alert">{error}</p>}
+        </div>
+      )}
+    </>
   );
 }
 

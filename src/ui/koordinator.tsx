@@ -41,6 +41,7 @@ import { Dialog, DialogContent, DialogTitle } from './components/dialog';
 
 interface Props {
   on: boolean;
+  entry: 'default' | 'type' | 'answer';
   /** The project, whose sections stay open or closed as the owner left them. */
   project: string;
   projectName: string;
@@ -70,14 +71,48 @@ interface Props {
 /** The field to write in under a conversation of the sheets. */
 const tellClass = 'tell mt-1 mx-0 mb-1.5';
 
-export function KoordinatorSheet({ on, project, projectName, items, repos, talk, chat, chatModel, chats, reshare, onOpen, onTell, onProject, onClose }: Props) {
+export function KoordinatorSheet({ on, entry, project, projectName, items, repos, talk, chat, chatModel, chats, reshare, onOpen, onTell, onProject, onClose }: Props) {
+  const sheet = useRef<HTMLElement>(null);
+  const [opening, setOpening] = useState<'ready' | { before: number; selected: number } | { error: string } | null>(null);
+  const ready = opening === 'ready';
+  const [attempt, retry] = useState(0);
+  useEffect(() => {
+    if (!on) return;
+    let closed = false;
+    const before = chat;
+    api.enterChat(project, entry === 'answer').then(
+      ({ chat: selected }) => { if (!closed) setOpening({ before, selected }); },
+      (e) => { if (!closed) setOpening({ error: failText(e) }); },
+    );
+    return () => {
+      closed = true;
+      setOpening(null);
+    };
+  }, [on, project, entry, attempt]);
+  useEffect(() => {
+    // Wait until the live snapshot reflects the choice before showing or reading a conversation.
+    if (opening && opening !== 'ready' && 'selected' in opening && (chat === opening.selected || chat !== opening.before)) {
+      setOpening('ready');
+    }
+  }, [opening, chat]);
+  useEffect(() => {
+    if (ready && on && entry === 'type') sheet.current?.querySelector('textarea')?.focus({ preventScroll: true });
+  }, [ready, on, entry]);
+
   return (
     // a column: the conversation takes the height the sheet has, the field to write in under it, then the
     // sections that open and close; an open section takes from the conversation down to 200px, below that
     // the sheet scrolls
-    <Docked id="ksheet" on={on} className="flex flex-col [&>*]:flex-none [&>:is(.conv,.talk.fresh-chat)]:flex-[1_1_0] [&>:is(.conv,.talk.fresh-chat)]:min-h-[200px] [&>:is(.conv,.talk.fresh-chat)]:max-h-none [&>:is(.conv,.talk.fresh-chat)]:max-w-none [&>:is(.conv,.talk.fresh-chat)]:mt-0 [&>:is(.conv,.talk.fresh-chat)]:mb-1 [&>:is(.conv,.talk.fresh-chat)]:mx-0">
-      <ChatsHead title={<h2 className={sheetTitleClass}>{t.koordinator.title}</h2>} project={project} projectName={projectName} chat={chat} chats={chats} talk={talk} onProject={onProject} onClose={onClose} />
-      <KoordinatorTalk on={on} project={project} talk={talk} chat={chat} chatModel={chatModel} chats={chats} items={items} repos={repos} onOpen={onOpen} onTell={onTell} />
+    <Docked ref={sheet} id="ksheet" on={on} className="flex flex-col [&>*]:flex-none [&>:is(.conv,.talk.fresh-chat)]:flex-[1_1_0] [&>:is(.conv,.talk.fresh-chat)]:min-h-[200px] [&>:is(.conv,.talk.fresh-chat)]:max-h-none [&>:is(.conv,.talk.fresh-chat)]:max-w-none [&>:is(.conv,.talk.fresh-chat)]:mt-0 [&>:is(.conv,.talk.fresh-chat)]:mb-1 [&>:is(.conv,.talk.fresh-chat)]:mx-0">
+      <ChatsHead title={<h2 className={sheetTitleClass}>{t.koordinator.title}</h2>} project={project} projectName={projectName} chat={chat} chats={chats} talk={talk} showRecent disabled={!ready} onProject={onProject} onClose={onClose} />
+      {ready ? (
+        <KoordinatorTalk on={on} project={project} talk={talk} chat={chat} chatModel={chatModel} chats={chats} items={items} repos={repos} onOpen={onOpen} onTell={onTell} autoOpenUnread={false} />
+      ) : opening && 'error' in opening ? (
+        <div>
+          <p className="p-error" role="alert">{opening.error}</p>
+          <Button onClick={() => retry(attempt + 1)}>{t.koordinator.retryChat}</Button>
+        </div>
+      ) : <p className="hint" role="status">{t.koordinator.loadingChat}</p>}
 
       <div className="k-rest border-t border-t-border mt-1 pt-1">
         {reshare && <ReshareBox r={reshare} items={items} onOpen={onOpen} />}
@@ -93,7 +128,7 @@ export function KoordinatorSheet({ on, project, projectName, items, repos, talk,
  * field's (the sidebar's, or the phone view's for this project). `on`: the conversation is in view,
  * so the answers waiting in it are read.
  */
-export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats, items, repos, onOpen, onTell, draft = SEISMIC_DRAFT }: Pick<Props, 'on' | 'project' | 'talk' | 'chat' | 'chatModel' | 'chats' | 'items' | 'repos' | 'onOpen' | 'onTell'> & { draft?: string }) {
+export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats, items, repos, onOpen, onTell, draft = SEISMIC_DRAFT, autoOpenUnread = true }: Pick<Props, 'on' | 'project' | 'talk' | 'chat' | 'chatModel' | 'chats' | 'items' | 'repos' | 'onOpen' | 'onTell'> & { draft?: string; autoOpenUnread?: boolean }) {
   const talk = all.filter((x) => x.chat === undefined || x.chat === chat);
   const fresh = useRead(on, talk, (ids) => api.readTalk(ids));
   const [choice, setChoice] = useState<{ chat: number; model?: AgentModel } | null>(null);
@@ -134,15 +169,15 @@ export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats
   useEffect(() => {
     // opened for an answer that waits in another chat, with none in this one: that chat opens
     const waits = all.findLast((x) => x.unread && x.chat !== undefined && x.chat !== chat);
-    if (on && waits && !talk.some((x) => x.unread)) api.openChat(waits.chat!).catch(console.error);
-  }, [on]);
+    if (autoOpenUnread && on && waits && !talk.some((x) => x.unread)) api.openChat(waits.chat!).catch(console.error);
+  }, [on, autoOpenUnread]);
   return (
     <>
       {talk.length ? <Conversation talk={talk} fresh={fresh} items={items} onOpen={onOpen} draft={draft} pending={waiting} /> : waiting.length ? <div className={cn(conversationList, conversationBox, 'overflow-auto')}>
         {waiting.map((entry) => <PendingMessage key={entry.id} text={entry.text} images={entry.images} />)}
       </div> : (
         <div className={cn(conversationList, conversationBox, 'fresh-chat items-center justify-center text-center [&_.hint]:max-w-[280px] [&_.hint]:m-0')}>
-          {chats.length > 0 && <p className="hint">{t.koordinator.chatFresh}</p>}
+          {chats.length > 0 && <p className="hint">{autoOpenUnread ? t.koordinator.chatFresh : t.koordinator.chatFreshDock}</p>}
         </div>
       )}
       {/* a command in writing, for when speaking is not possible; its screenshots go to the cards it creates or concerns */}

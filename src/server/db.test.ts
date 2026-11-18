@@ -1,4 +1,4 @@
-import { expect, test } from 'bun:test';
+import { expect, setSystemTime, test } from 'bun:test';
 import { Database } from 'bun:sqlite';
 import { mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -364,6 +364,35 @@ test('a chat opened and a new one made in the same millisecond become current in
   const third = store.chats.start('c');
   expect(store.chats.current('c')).toBe(third);
   expect(third).not.toBe(second);
+});
+
+test('entering the chat dock uses time since its last opening and reuses a blank chat', () => {
+  const store = new Store(':memory:');
+  const start = Date.parse('2026-11-17T13:00:00Z');
+  const minutes = (n: number) => new Date(start + n * 60_000);
+  try {
+    setSystemTime(minutes(0));
+    store.db.run("INSERT INTO projects (id, name, created_at) VALUES ('c', 'Shop', '2026-11-01')");
+    const first = store.chats.enter('c');
+    store.addTalk('c', 'First chat', '', null);
+
+    setSystemTime(minutes(20));
+    expect(store.chats.enter('c')).toBe(first);
+    setSystemTime(minutes(39));
+    expect(store.chats.enter('c')).toBe(first);
+    setSystemTime(new Date(+minutes(59) + 1));
+    const blank = store.chats.enter('c');
+    expect(blank).not.toBe(first);
+    expect(store.chats.list('c').map((chat) => chat.id)).toEqual([first]);
+
+    setSystemTime(minutes(100));
+    expect(store.chats.enter('c')).toBe(blank);
+    expect(store.chats.open('c', first)).toBe(true);
+    expect(store.chats.enter('c')).toBe(first);
+  } finally {
+    setSystemTime();
+    store.db.close();
+  }
 });
 
 test('what was said before chats existed becomes one chat per project', () =>

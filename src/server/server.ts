@@ -1168,6 +1168,12 @@ export function serve(
           c.board.setChatModel(model == null ? undefined : model as import('../core/types').AgentModel, chat);
         }),
       },
+      '/api/c/:project/chat/enter': {
+        POST: on(async (c, req) => {
+          const { forAnswer } = (await req.json().catch(() => ({}))) as { forAnswer?: unknown };
+          return { chat: c.board.enterChat(forAnswer === true) };
+        }),
+      },
       // the owner no longer wants the step the Koordinator waits on a card for ("Stop waiting")
       '/api/c/:project/talk/:id/unwait': {
         POST: on(async (c, req) => ({ stopped: c.commander.unwait(Number(req.params.id), String(((await req.json().catch(() => ({}))) as { card?: unknown }).card ?? '')) })),
