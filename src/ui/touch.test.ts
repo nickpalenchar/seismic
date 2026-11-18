@@ -115,14 +115,14 @@ test('a finger that moved before the long press ran out pans and picks nothing u
   expect(log).not.toContain('hold card-a');
 });
 
-test('two taps close together on the empty canvas are a double-tap; on a card they stay taps', () => {
+test('a double-tap uses the second release on the empty canvas; on a card the taps stay separate', () => {
   const { touches, log, wait } = rig();
   touches.down(1, p(100, 100), null);
   touches.up(1, p(100, 100));
   wait(DOUBLE_TAP_MS - 50);
   touches.down(2, p(105, 104), null);
-  touches.up(2, p(105, 104));
-  expect(log).toEqual(['tap canvas', 'double 100,100']);
+  touches.up(2, p(109, 108));
+  expect(log).toEqual(['tap canvas', 'double 109,108']);
   log.length = 0;
   touches.down(3, p(100, 100), 'card-a');
   touches.up(3, p(100, 100));

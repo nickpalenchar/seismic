@@ -41,6 +41,7 @@ export interface TouchHost {
   pan(dx: number, dy: number): void;
   pinch(from: [Pos, Pos], to: [Pos, Pos]): void;
   tap(at: Pos, target: string | null): void;
+  /** Where the second tap ended. */
   doubleTap(at: Pos): void;
   /** A long press: the card is picked up, or on the empty canvas the lasso starts. */
   hold(at: Pos, target: string | null): void;
@@ -163,7 +164,7 @@ export class Touches {
     const last = this.lastTap;
     if (this.target === null && last && now - last.t <= DOUBLE_TAP_MS && dist(at, last.at) <= DOUBLE_TAP_PX) {
       this.lastTap = null;
-      this.host.doubleTap(last.at);
+      this.host.doubleTap(at);
       return;
     }
     this.lastTap = this.target === null ? { at, t: now } : null;
