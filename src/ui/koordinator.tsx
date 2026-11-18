@@ -73,15 +73,14 @@ const tellClass = 'tell mt-1 mx-0 mb-1.5';
 
 export function KoordinatorSheet({ on, entry, project, projectName, items, repos, talk, chat, chatModel, chats, reshare, onOpen, onTell, onProject, onClose }: Props) {
   const sheet = useRef<HTMLElement>(null);
-  const [opening, setOpening] = useState<'ready' | { before: number; selected: number } | { error: string } | null>(null);
+  const [opening, setOpening] = useState<'ready' | { selected: number } | { error: string } | null>(null);
   const ready = opening === 'ready';
   const [attempt, retry] = useState(0);
   useEffect(() => {
     if (!on) return;
     let closed = false;
-    const before = chat;
     api.enterChat(project, entry === 'answer').then(
-      ({ chat: selected }) => { if (!closed) setOpening({ before, selected }); },
+      ({ chat: selected }) => { if (!closed) setOpening({ selected }); },
       (e) => { if (!closed) setOpening({ error: failText(e) }); },
     );
     return () => {
@@ -90,8 +89,8 @@ export function KoordinatorSheet({ on, entry, project, projectName, items, repos
     };
   }, [on, project, entry, attempt]);
   useEffect(() => {
-    // Wait until the live snapshot reflects the choice before showing or reading a conversation.
-    if (opening && opening !== 'ready' && 'selected' in opening && (chat === opening.selected || chat !== opening.before)) {
+    // Another tab can change the current chat while this request is in flight.
+    if (opening && opening !== 'ready' && 'selected' in opening && chat === opening.selected) {
       setOpening('ready');
     }
   }, [opening, chat]);
