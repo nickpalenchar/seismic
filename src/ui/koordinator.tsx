@@ -10,7 +10,8 @@ import { LoaderCircle, Settings } from 'lucide-react';
 import { Docked, sheetTitleClass } from './docked';
 import { ChatsHead, RecentChats } from './chats';
 import { Fragment, type ReactNode, useEffect, useRef, useState } from 'react';
-import { AGENT_MODELS, type AgentModel, type Chat, type Item, type Preference, type RepoRef, type Reshare, type SettingProposal, type Talk, type TalkQuote, type TalkRef, type TalkWait } from '../core/types';
+import { projectAgentSetting, type AgentModel, type Chat, type Item, type Preference, type RepoRef, type Reshare, type SettingProposal, type Talk, type TalkQuote, type TalkRef, type TalkWait } from '../core/types';
+import { ModelOptions } from './agent-options';
 import { api } from './api';
 import { Inline, plain } from './markdown';
 import { AnswerFiles, Body, Continues, Msg, Quote, Reading, ThreadCard } from './message';
@@ -135,6 +136,17 @@ export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats
   const [choice, setChoice] = useState<{ chat: number; model?: AgentModel } | null>(null);
   const [pending, setPending] = useState<{ id: string; project: string; chat: number; text: string; images?: string[] }[]>([]);
   const [error, setError] = useState('');
+  const [fallback, setFallback] = useState<{ project: string; model: AgentModel } | null>(null);
+  useEffect(() => {
+    if (!on) return;
+    let active = true;
+    api.projectSettings(project).then((view) => {
+      if (active) setFallback({ project, model: projectAgentSetting('koordinator', view.agents.koordinator, view.settings.agents).model });
+    }).catch(console.error);
+    return () => { active = false; };
+  }, [on, project]);
+  const defaultModel = fallback?.project === project ? fallback.model : 'default';
+  const model = (choice?.chat === chat ? choice.model : chatModel) ?? defaultModel;
   const modelTask = useRef<Promise<void>>(Promise.resolve());
   const choiceRef = useRef(choice);
   choiceRef.current = choice;
@@ -143,7 +155,7 @@ export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats
     if (choice?.chat === chat && choice.model === chatModel) setChoice(null);
   }, [chat, chatModel, choice]);
   const chooseModel = (picked: string) => {
-    const model = (picked || undefined) as AgentModel | undefined;
+    const model = picked === defaultModel ? undefined : picked as AgentModel;
     const before = choiceRef.current?.chat === chat ? choiceRef.current.model : chatModel;
     setChoice({ chat, model });
     const task = modelTask.current.catch(() => {}).then(() => api.setChatModel(project, chat, model));
@@ -185,9 +197,8 @@ export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats
       {/* a command in writing, for when speaking is not possible; its screenshots go to the cards it creates or concerns */}
       <Composer className={tellClass} draft={draft} placeholder={t.voice.typePlaceholder} seismic optimistic onSend={send} />
       <label className="chat-model flex items-center gap-2 mt-0 mx-0 mb-1.5 text-muted-foreground text-xs">{t.koordinator.chatModel}
-        <Select value={(choice?.chat === chat ? choice.model : chatModel) ?? ''} onValueChange={chooseModel}>
-          <SelectItem value="">{t.koordinator.projectModel}</SelectItem>
-          {AGENT_MODELS.map((model) => <SelectItem key={model} value={model}>{model === 'default' ? t.koordinator.defaultModel : model[0]!.toUpperCase() + model.slice(1)}</SelectItem>)}
+        <Select value={model} disabled={fallback?.project !== project} onValueChange={chooseModel}>
+          <ModelOptions harness="claude" value={model} defaultModel={defaultModel} />
         </Select>
       </label>
       <Dialog open={!!error} onOpenChange={(open) => { if (!open) setError(''); }}>

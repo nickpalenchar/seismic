@@ -1,7 +1,8 @@
 import { cn } from 'cn';
 import { ChevronDown, CircleAlert } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { AGENT_EFFORTS, AGENT_MODELS, harnessChoice, projectAgentSetting, type AgentEffort, type AgentModel, type AgentIdentity, type AgentSetting, type CodexModel, type Harness } from '../core/types';
+import { AGENT_DEFAULTS, AGENT_EFFORTS, harnessChoice, projectAgentSetting, type AgentEffort, type AgentModel, type AgentIdentity, type AgentRole, type AgentSetting, type CodexModel, type Harness } from '../core/types';
+import { catalogDefault, HarnessOptions, modelLabel, ModelOptions } from './agent-options';
 import { ApiError, api } from './api';
 import { updateDraft, useDraft } from './draft';
 import { failText, t } from './strings';
@@ -14,14 +15,16 @@ import { Select, SelectItem } from './components/select';
 export const startAgentMain = 'start-agent-main flex flex-col items-center justify-center gap-0 py-1 leading-[1.15]';
 export const startAgentModel = 'start-agent-model text-2xs font-normal opacity-85 whitespace-nowrap';
 
-/** What a worker on the shown project starts with: its own models over Configuration's. */
-const workerDefault = () => api.shownProjectSettings().then((v) => projectAgentSetting('worker', v.agents.worker, v.settings.agents));
+/** What the role starts with on the shown project. */
+const projectDefault = (role: AgentRole) => api.shownProjectSettings().then((v) => projectAgentSetting(role, v.agents[role], v.settings.agents));
 
-export const describeAgent = (s: AgentSetting, short = false) => {
+export const describeAgent = (s: AgentSetting, short = false, models?: CodexModel[] | null) => {
     const a = t.config.agents;
     const harness = short ? a.harnessesShort : a.harnesses, efforts = short ? a.effortsShort : a.efforts;
-    const o = s.harness === 'codex' || s.harness === 'agy' ? s.harness : null;
-    return o ? `${harness[o]} · ${s[o]?.model ?? (o === 'agy' ? a.agyDefault : a.codexDefault)} · ${efforts[s[o]?.effort ?? 'high']}` : `${harness.claude} · ${a.models[s.model]} · ${efforts[s.effort]}`;
+    const choice = harnessChoice(s);
+    const name = s.harness ?? 'claude';
+    const model = choice.model === 'default' && name !== 'claude' ? catalogDefault(models) : choice.model;
+    return [harness[name], model === 'default' ? null : modelLabel(model, name), efforts[choice.effort]].filter(Boolean).join(' · ');
   };
 
 /** The harness and model an agent runs on, as a callout names it ("Claude · Opus", "Codex · gpt-5.5"); null where the model is not known. */
@@ -30,8 +33,8 @@ export const modelName = (a: AgentSetting | AgentIdentity | undefined): string |
   const c = t.config.agents;
   const harness = a.harness ?? 'claude';
   const model = 'effort' in a ? harnessChoice(a).model : a.model;
-  if (!model || model === 'default') return harness === 'claude' ? c.models.default : harness === 'codex' ? c.codexDefault : c.agyDefault;
-  return `${c.harnessesShort[harness]} · ${(harness === 'claude' ? c.models[model as AgentModel] : undefined) ?? model}`;
+  if (!model || model === 'default') return null;
+  return `${c.harnessesShort[harness]} · ${modelLabel(model, harness)}`;
 };
 
 /** Whether a Codex or Antigravity choice stands in the catalog the harness offers now: its model, and the effort that model supports. */
@@ -41,7 +44,7 @@ const stands = (models: CodexModel[], c: { model: string; effort: AgentEffort })
 };
 
 /** A choice for this start only. The ordinary button continues to use the current default. */
-export function StartAgent({ label, disabled, title, codexAllowed = true, selectionOnly = false, hint, draft, saved, variant = 'primary', suggested = false, onStart }: { variant?: ButtonVariant; suggested?: boolean; label: string; disabled?: boolean; title?: string; codexAllowed?: boolean; selectionOnly?: boolean; hint?: string; draft?: string; saved?: AgentSetting; onStart: (setting?: AgentSetting) => void | Promise<void> }) {
+export function StartAgent({ label, disabled, title, codexAllowed = true, selectionOnly = false, hint, draft, saved, role = 'worker', variant = 'primary', suggested = false, onStart }: { variant?: ButtonVariant; role?: AgentRole; suggested?: boolean; label: string; disabled?: boolean; title?: string; codexAllowed?: boolean; selectionOnly?: boolean; hint?: string; draft?: string; saved?: AgentSetting; onStart: (setting?: AgentSetting) => void | Promise<void> }) {
   const [open, setOpen] = useState(false);
   const [setting, setSetting] = useState<AgentSetting | null>(null);
   const [models, setModels] = useState<CodexModel[] | null>(null);
@@ -142,18 +145,18 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let active = true;
-    workerDefault().then((v) => { if (active) setCurrentDefault(v); }).catch(() => {});
+    projectDefault(role).then((v) => { if (active) setCurrentDefault(v); }).catch(() => {});
     return () => { active = false; };
-  }, []);
+  }, [role]);
   useEffect(() => {
     if (!open) return;
     let active = true;
     touched.current = false;
     ++request.current; setLoading(false);
     setSetting(null); setInitial(null); setError(''); setModels(null); setModelsOf(null);
-    workerDefault().then((v) => { if (active) { setSetting(picked ?? v); setInitial(v); } }).catch((e) => { if (active) setError(e instanceof ApiError ? e.message : failText(e)); });
+    projectDefault(role).then((v) => { if (active) { setSetting(picked ?? v); setInitial(v); } }).catch((e) => { if (active) setError(e instanceof ApiError ? e.message : failText(e)); });
     return () => { active = false; };
-  }, [open, attempt]);
+  }, [open, attempt, role]);
   // the keyboard lands in the menu once it has its choices (Radix returns it to the button that opened it)
   const first = useRef<HTMLButtonElement>(null);
   useEffect(() => { if (open && setting) first.current?.focus({ preventScroll: true }); }, [open, !!setting]);
@@ -166,7 +169,25 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
   const codex = !!other;
   const choice = (other && setting?.[other]) || { model: 'default', effort: 'high' as const };
   const current = modelsOf === other ? models : null;
-  const selected = current?.find((m) => choice.model === 'default' ? m.isDefault : m.model === choice.model);
+  const harness = setting?.harness ?? 'claude';
+  const defaultHarness = initial?.harness ?? 'claude';
+  const accountModel = catalogDefault(current);
+  const model = other ? choice.model === 'default' ? accountModel : choice.model : setting?.model ?? 'default';
+  const baseline = initial && harness === defaultHarness ? harnessChoice(initial).model : other ? 'default' : AGENT_DEFAULTS[role].model;
+  const defaultModel = other && baseline === 'default' ? accountModel : baseline;
+  const selected = current?.find((m) => m.model === model);
+  const summary = picked ?? currentDefault;
+  const summaryHarness = summary?.harness;
+  const [summaryModels, setSummaryModels] = useState<{ harness: Harness; models: CodexModel[] } | null>(null);
+  const needsCatalog = summary && harnessChoice(summary).model === 'default';
+  useEffect(() => {
+    if (!needsCatalog || (summaryHarness !== 'codex' && summaryHarness !== 'agy')) return;
+    let active = true;
+    (summaryHarness === 'agy' ? api.agyModels() : api.codexModels()).then((models) => {
+      if (active) setSummaryModels({ harness: summaryHarness, models });
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [needsCatalog, summaryHarness]);
   const efforts = AGENT_EFFORTS.filter((e) => selected?.supportedReasoningEfforts.some((x) => x.reasoningEffort === e));
   const valid = !!setting && (!codex || (codexAllowed && !!selected && efforts.includes(choice.effort)));
 
@@ -175,7 +196,7 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
 
   const main = <Button variant={selectionOnly ? 'code-review' : variant} className={selectionOnly ? undefined : cn(startAgentMain, 'rounded-l-sm rounded-r-none')} disabled={disabled || starting || (!selectionOnly && (checking || gone))} title={gone ? a.unavailableChoice : title} onClick={selectionOnly ? undefined : () => void startPicked()}>
     <span>{label}</span>
-    {!selectionOnly && (picked ?? currentDefault) && <span className={startAgentModel}>{describeAgent((picked ?? currentDefault)!, true)}</span>}
+    {!selectionOnly && summary && <span className={startAgentModel}>{describeAgent(summary, true, modelsOf === summaryHarness ? models : summaryModels?.harness === summaryHarness ? summaryModels?.models : null)}</span>}
   </Button>;
   return <Popover open={open} onOpenChange={setOpen}><div className="start-agent">
     <PopoverAnchor asChild><div className={cn('start-agent-buttons flex items-stretch', suggested && 'suggested rounded-sm shadow-[0_0_0_2px_var(--background),0_0_0_4px_var(--idea)]')}>
@@ -186,19 +207,19 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
     </div></PopoverAnchor>
     {!open && (startError || (checked?.key === pickedKey && checked.error)) && <p className="p-error" role="status">{startError || checked?.error}</p>}
     <PopoverContent side="top" align="start" aria-label={a.chooseStart} className="w-[min(380px,calc(100vw-16px))] max-h-[min(var(--radix-popover-content-available-height),600px)] p-4 text-sm [&_label]:my-2.5 [&_label]:flex [&_label]:items-center [&_label]:justify-between [&_label]:gap-3 [&_p]:m-0 [&_p]:mb-2.5 [&_[data-slot=select-trigger]]:max-w-[65%] [&_[data-slot=select-trigger]]:min-w-0">
-      {initial && <p className="hint">{a.currentDefault}: {describeAgent(initial)}</p>}
+      {initial && <p className="hint">{a.currentDefault}: {describeAgent(initial, false, modelsOf === initial.harness ? models : summaryModels?.harness === initial.harness ? summaryModels?.models : null)}</p>}
       {setting && <>
         <label>{a.harness}<Select triggerRef={first} value={setting.harness ?? 'claude'} onValueChange={(picked) => choose({ ...setting, harness: picked as Harness, ...(picked !== 'claude' ? { [picked]: setting[picked as 'codex' | 'agy'] ?? { model: 'default', effort: choice.effort } } : {}) })}>
-          <SelectItem value="claude">{a.harnesses.claude}</SelectItem><SelectItem value="codex" disabled={!codexAllowed}>{a.harnesses.codex}{!codexAllowed ? ` (${a.unavailable})` : ''}</SelectItem><SelectItem value="agy" disabled={!codexAllowed}>{a.harnesses.agy}{!codexAllowed ? ` (${a.unavailable})` : ''}</SelectItem>
+          <HarnessOptions defaultHarness={defaultHarness} portable={codexAllowed} />
         </Select></label>
         {!codexAllowed && <p className="hint">{a.codexUnavailableHere}</p>}
-        <label>{a.model}<Select value={codex ? choice.model : setting.model} disabled={codex && (!current || loading)} onValueChange={(picked) => {
+        <label>{a.model}<Select value={model} disabled={codex && (!current || loading)} onValueChange={(picked) => {
           if (!codex) return choose({ ...setting, model: picked as AgentModel });
-          const model = current?.find((m) => picked === 'default' ? m.isDefault : m.model === picked);
-          const supported = AGENT_EFFORTS.filter((x) => model?.supportedReasoningEfforts.some((y) => y.reasoningEffort === x));
+          const next = current?.find((m) => m.model === picked);
+          const supported = AGENT_EFFORTS.filter((x) => next?.supportedReasoningEfforts.some((y) => y.reasoningEffort === x));
           choose({ ...setting, [other!]: { model: picked, effort: supported.includes(choice.effort) ? choice.effort : supported[0] ?? choice.effort } });
         }}>
-          {codex ? <><SelectItem value="default">{other === 'agy' ? a.agyDefault : a.codexDefault}</SelectItem>{choice.model !== 'default' && !current?.some((m) => m.model === choice.model) && <SelectItem value={choice.model}>{choice.model} ({a.unavailable})</SelectItem>}{current?.map((m) => <SelectItem key={m.model} value={m.model}>{m.model}</SelectItem>)}</> : AGENT_MODELS.map((m) => <SelectItem key={m} value={m}>{a.models[m]}</SelectItem>)}
+          <ModelOptions harness={harness} models={current} value={model} defaultModel={defaultModel} />
         </Select></label>
         <label>{a.effort}<Select value={codex ? choice.effort : setting.effort} disabled={codex && (!current || loading)} onValueChange={(picked) => choose(codex ? { ...setting, [other!]: { ...choice, effort: picked as AgentEffort } } : { ...setting, effort: picked as AgentEffort })}>
           {codex && !efforts.includes(choice.effort) && <SelectItem value={choice.effort}>{a.efforts[choice.effort]} ({a.unavailable})</SelectItem>}

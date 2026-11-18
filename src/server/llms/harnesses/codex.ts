@@ -429,7 +429,7 @@ export function createCodexRuntime(connect: Connect = connectInstalled): AgentRu
           await checkProjectConfig(connection, spec);
           if (closing) return;
           const model = spec.model ? models.find((m) => m.model === spec.model) : models.find((m) => m.isDefault);
-          if (!model) throw new Error(`Codex model unavailable: ${spec.model ?? '(account default)'}`);
+          if (!model) throw new Error(spec.model ? `Codex model unavailable: ${spec.model}` : 'Codex did not report an available model.');
           if (spec.effort && !model.supportedReasoningEfforts.some((e) => e.reasoningEffort === spec.effort)) throw new Error(`Codex model ${model.model} does not support effort ${spec.effort}`);
           imageSupport = model.inputModalities.includes('image');
           const config = {

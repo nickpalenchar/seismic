@@ -99,7 +99,7 @@ export function LimitNotice({ item, codexAllowed = !item.review?.contribution }:
       {!review && <div className="limit-reset mt-1 text-sm">{hold ? t.limitPaused : t.limitedUntil(clock(limitedUntil!))}{hold && limitedUntil && ` · ${t.limitedUntil(clock(limitedUntil))}`}</div>}
       <div className="limit-actions mt-2.5 flex flex-wrap items-start gap-2">
         <Button onClick={() => void run(review ? { action: 'codeReview' } : { action: 'resume' })}><PlayMark /> {u.tryAgain}</Button>
-        <StartAgent label={u.newAgent} selectionOnly codexAllowed={codexAllowed} hint={review ? u.reviewNewAgentHint : u.newAgentHint} onStart={(agent) => { if (agent) return run(review ? { action: 'codeReview', agent } : { action: 'handOff', agent }).then(() => {}); }} />
+        <StartAgent label={u.newAgent} role={review ? 'review' : 'worker'} selectionOnly codexAllowed={codexAllowed} hint={review ? u.reviewNewAgentHint : u.newAgentHint} onStart={(agent) => { if (agent) return run(review ? { action: 'codeReview', agent } : { action: 'handOff', agent }).then(() => {}); }} />
         {review && <Button variant="review-warning" title={u.skipReviewHint} onClick={() => void run({ action: 'skipCodeReview' })}>{u.skipReview}</Button>}
       </div>
       {error && <p className="p-error mt-2 mb-0">{error}</p>}

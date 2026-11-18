@@ -10,7 +10,8 @@ import { forwardRef, Fragment, lazy, type ReactNode, Suspense, useContext, useEf
 import { OpenPerformance } from './performance';
 import { allowsDemo, HANDOVER_ARTIFACTS } from '../../plugin/skills/demo/lib/artifacts.ts';
 import { DEFAULT_STYLE, QWEN3_SPEAKER, QWEN3_SPEAKERS, qwen3IsClone, qwen3Speaker, STYLED_VOICES } from '../../plugin/skills/demo/lib/voice-choices.ts';
-import { AGENT_EFFORTS, AGENT_MODELS, AGENT_ROLES, choosesHarness, needsGit, projectAgentSetting, CARD_ARCHIVING, type CardArchiving, RIGHT_CLICK, type RightClick, CODE_REVIEW_MODES, type CodeReviewSetting, HARNESS_ROLES, type AgentEffort, type AgentModel, type AgentRole, type AgentSetting, type CodexModel, type Harness, type AgentsView, blockingProblems, type ProjectConfig, type ProjectDefaults, type ProjectDefaultsView, type ProjectSettings, type ConfigChecked, type DeveloperView, type ConfigProblem, type ConfigProblemCode, type ConfigView, commandLines, type DemoSettings, type HandoverArtifact, type DemoSettingsView, type DemoSpaceView, type DemoVoiceCheck, type FilledClones, type ProjectDemoSite, type ProjectDemoSiteState, type DemoSitesView, type TagProposalJob, type Language, type HostConfig, type LanguageView, type NarrationLanguage, restartsAgents, type RepoConfig, type RepoSettings, type RepoTrust, type RepoValues, type ResolvedProject, type SettingsShared, type SettingValue, layerSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type PageTags, type SetupCheck, START_FAILED, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type FeedbackPromptView, type NotificationsView, type VoiceKind, type VoiceSetupView, withClones } from '../core/types';
+import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_ROLES, choosesHarness, needsGit, projectAgentSetting, CARD_ARCHIVING, type CardArchiving, RIGHT_CLICK, type RightClick, CODE_REVIEW_MODES, type CodeReviewSetting, HARNESS_ROLES, type AgentEffort, type AgentModel, type AgentRole, type AgentSetting, type CodexModel, type Harness, type AgentsView, blockingProblems, type ProjectConfig, type ProjectDefaults, type ProjectDefaultsView, type ProjectSettings, type ConfigChecked, type DeveloperView, type ConfigProblem, type ConfigProblemCode, type ConfigView, commandLines, type DemoSettings, type HandoverArtifact, type DemoSettingsView, type DemoSpaceView, type DemoVoiceCheck, type FilledClones, type ProjectDemoSite, type ProjectDemoSiteState, type DemoSitesView, type TagProposalJob, type Language, type HostConfig, type LanguageView, type NarrationLanguage, restartsAgents, type RepoConfig, type RepoSettings, type RepoTrust, type RepoValues, type ResolvedProject, type SettingsShared, type SettingValue, layerSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type PageTags, type SetupCheck, START_FAILED, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type FeedbackPromptView, type NotificationsView, type VoiceKind, type VoiceSetupView, withClones } from '../core/types';
+import { catalogDefault, HarnessOptions, ModelOptions } from './agent-options';
 import { patchOf } from '../core/diff';
 import { parseTagLines, tagLines } from '../core/page-tags';
 import { LANGUAGES } from '../core/locale';
@@ -1252,11 +1253,10 @@ function AgentsBlock({ on }: { on: boolean }) {
   const [loading, setLoading] = useState(false);
   const loadModels = async () => {
     setLoading(true); setCatalogError('');
-    try {
-      const wanted = (['codex', 'agy'] as const).filter((h) => HARNESS_ROLES.some((r) => view?.agents[r].harness === h));
-      const lists = await Promise.all(wanted.map((h) => (h === 'agy' ? api.agyModels() : api.codexModels())));
-      setCatalogs(Object.fromEntries(wanted.map((h, i) => [h, lists[i]])));
-    } catch (e) { setCatalogError(failText(e)); }
+    const wanted = (['codex', 'agy'] as const).filter((h) => HARNESS_ROLES.some((r) => view?.agents[r].harness === h));
+    const lists = await Promise.allSettled(wanted.map((h) => h === 'agy' ? api.agyModels() : api.codexModels()));
+    setCatalogs(Object.fromEntries(lists.flatMap((result, i) => result.status === 'fulfilled' ? [[wanted[i], result.value]] : [])));
+    setCatalogError(lists.flatMap((result) => result.status === 'rejected' ? [failText(result.reason)] : []).join(' · '));
     setLoading(false);
   };
   const [status, setStatus] = useState('');
@@ -1306,7 +1306,9 @@ function AgentsBlock({ on }: { on: boolean }) {
           const codex = !!other;
           const models = other ? catalogs[other] : undefined;
           const choice = (other && setting[other]) || { model: 'default', effort: 'high' as const };
-          const selected = models?.find((m) => choice.model === 'default' ? m.isDefault : m.model === choice.model);
+          const defaultModel = codex ? catalogDefault(models) : AGENT_DEFAULTS[role].model;
+          const model = codex ? choice.model === 'default' ? defaultModel : choice.model : setting.model;
+          const selected = models?.find((m) => m.model === model);
           const efforts = codex ? AGENT_EFFORTS.filter((e) => !selected || selected.supportedReasoningEfforts.some((x) => x.reasoningEffort === e)) : AGENT_EFFORTS;
           return (
             <Fragment key={role}>
@@ -1315,21 +1317,15 @@ function AgentsBlock({ on }: { on: boolean }) {
                 <span className="hint">{a.roles[role].hint}</span>
               </div>
               <Select className="min-w-0" aria-label={`${a.roles[role].name}: ${a.harness}`} value={choosesHarness(role) ? setting.harness ?? 'claude' : 'claude'} disabled={busy || !choosesHarness(role)} onValueChange={(picked) => choose(role, { harness: picked as Harness })}>
-                <SelectItem value="claude">{a.harnesses.claude}</SelectItem>
-                <SelectItem value="codex">{a.harnesses.codex}</SelectItem>
-                <SelectItem value="agy">{a.harnesses.agy}</SelectItem>
+                <HarnessOptions defaultHarness="claude" />
               </Select>
-              <Select className="min-w-0" aria-label={`${a.roles[role].name}: ${a.model}`} value={codex ? choice.model : setting.model} disabled={busy || (codex && loading)} onValueChange={(picked) => {
+              <Select className="min-w-0" aria-label={`${a.roles[role].name}: ${a.model}`} value={model} disabled={busy || (codex && (loading || !models))} onValueChange={(picked) => {
                 if (!codex) return choose(role, { model: picked as AgentModel });
-                const next = models?.find((m) => picked === 'default' ? m.isDefault : m.model === picked);
+                const next = models?.find((m) => m.model === picked);
                 const supported = AGENT_EFFORTS.filter((x) => next?.supportedReasoningEfforts.some((y) => y.reasoningEffort === x));
-                return choose(role, { [other!]: { model: picked, effort: supported.includes(choice.effort) ? choice.effort : supported[0] ?? choice.effort } });
+                return choose(role, { [other!]: { model: picked === defaultModel ? 'default' : picked, effort: supported.includes(choice.effort) ? choice.effort : supported[0] ?? choice.effort } });
               }}>
-                {codex ? <>
-                  <SelectItem value="default">{other === 'agy' ? a.agyDefault : a.codexDefault}</SelectItem>
-                  {choice.model !== 'default' && !models?.some((m) => m.model === choice.model) && <SelectItem value={choice.model}>{choice.model}</SelectItem>}
-                  {models?.map((m) => <SelectItem key={m.model} value={m.model}>{m.model}</SelectItem>)}
-                </> : AGENT_MODELS.map((m) => <SelectItem key={m} value={m}>{a.models[m]}</SelectItem>)}
+                <ModelOptions harness={other ?? 'claude'} models={models} value={model} defaultModel={defaultModel} />
               </Select>
               <Select className="min-w-0" aria-label={`${a.roles[role].name}: ${a.effort}`} value={codex ? choice.effort : setting.effort} disabled={busy || (codex && loading)} onValueChange={(picked) => choose(role, codex ? { [other!]: { ...choice, effort: picked as AgentEffort } } : { effort: picked as AgentEffort })}>
                 {codex && !efforts.includes(choice.effort) && <SelectItem value={choice.effort}>{a.efforts[choice.effort]}</SelectItem>}
