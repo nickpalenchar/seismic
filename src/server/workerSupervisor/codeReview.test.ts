@@ -959,6 +959,27 @@ describe('code reviews', () => {
     expect(board.item(id)!.review?.codeReview).toMatchObject({ mode: 'manual', state: 'done' });
   });
 
+  test('a fix that takes out the branch\'s last change is still verified, against the code as it is', async () => {
+    reviewing('auto');
+    const id = await started();
+    await handOver(id, 'export.ts');
+    await until(() => reviewers().length === 1);
+    await review(id, reviewers()[0]!, [FINDINGS[1]]);
+    workers.message(id, '', [], false, undefined, undefined, { 1: 'self' });
+    // the fix: the change goes again, and the branch is the same as main
+    const ws = board.row(id).workstation!;
+    git(ws, 'rm', '--quiet', 'export.ts');
+    git(ws, 'commit', '--quiet', '-m', 'Take the export out again');
+    await worker().call('ready_for_review', { summary: 'Took the export out again.', demo: artifact() });
+    worker().emit({ type: 'idle' });
+    await until(() => reviewers().length === 2);
+    expect(statuses(id)).toEqual(['underReview']);
+    expect(reviewers()[1]!.inbox[0]!).toContain('The branch no longer changes anything against main');
+    await review(id, reviewers()[1]!, [], [{ number: 1, fixed: true }]);
+    expect(statuses(id)).toEqual(['fixed']);
+    expect(board.item(id)!.review?.codeReview?.state).toBe('done');
+  });
+
   test('turning code reviews off keeps a review that ran, with its items, in manual mode', async () => {
     reviewing('auto');
     const id = await started();

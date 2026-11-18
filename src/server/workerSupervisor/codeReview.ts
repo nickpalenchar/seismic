@@ -468,13 +468,14 @@ export class CodeReviews {
     const ws = row.workstation;
     const diff = ws && !resume ? await this.o.workstations.diff(cardId, true).catch(() => null) : null;
     if (this.running.get(cardId)?.run !== run) return;
-    if (!ws || (!resume && !diff?.patch)) return this.finish(cardId, run, undefined, b.t.worker.codeReviewNoDiff);
-    const card = b.item(cardId);
-    const handoverSummary = b.summary(cardId);
     const items = this.items(cardId);
     // the items this run verifies: those under review when its brief was written, kept for a resumed session; one resubmitted meanwhile waits for the next review
     const stored = codeReviewOf(b.row(cardId))?.review;
     const scope = resume && stored?.scope ? stored.scope : items.filter((i) => i.status === 'underReview').map((i) => i.number);
+    // a branch that no longer changes anything (the fix took out its last change) still gets its fixes verified, against the code as it is
+    if (!ws || (!resume && (!diff || (!diff.patch && !scope.length)))) return this.finish(cardId, run, undefined, b.t.worker.codeReviewNoDiff);
+    const card = b.item(cardId);
+    const handoverSummary = b.summary(cardId);
     if (!resume && stored?.state === 'running') this.save(cardId, { ...codeReviewOf(b.row(cardId))!, review: { ...stored, scope } });
     const language = `${LANGUAGE_NAMES[b.conversation()]} unless an explicit standing preference names another language`;
     let recorded: Recorded | undefined;

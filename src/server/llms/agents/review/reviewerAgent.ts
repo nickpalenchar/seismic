@@ -67,7 +67,7 @@ export class ReviewerAgent extends SeismicAgent<ReviewerContext> {
       card?.body ? `<task>\n${clip(card.body, 8000)}\n</task>` : '',
       handoverSummary ? `<handover-summary>\n${clip(handoverSummary, 8000)}\n</handover-summary>` : '',
       `<changed-files>\n${files.map((f) => `- ${f.file} (${f.status}, +${f.added} −${f.removed})`).join('\n')}\n</changed-files>`,
-      `<diff against="main"${truncated ? ' truncated="true"' : ''}>\n${patch}\n</diff>`,
+      patch ? `<diff against="main"${truncated ? ' truncated="true"' : ''}>\n${patch}\n</diff>` : '<diff against="main" empty="true">\nThe branch no longer changes anything against main: verify the items under review against the code as it is.\n</diff>',
       `<review-items>\n${itemsText}\n</review-items>`,
     ]
       .filter(Boolean)
