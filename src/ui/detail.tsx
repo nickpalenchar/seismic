@@ -681,7 +681,7 @@ export function Detail(p: Props) {
           <Naming text={t.merge.into} cards={[{ card: all.find((i) => i.id === item.idea?.mergingInto) }]} />
         </p>
       )}
-      {item.idea?.proposal?.merge && <MergeView item={item} partner={all.find((i) => i.id === item.idea!.proposal!.merge!.with)} act={act} error={error} />}
+      {item.idea?.proposal?.merge && <MergeView item={item} partner={all.find((i) => i.id === item.idea!.proposal!.merge!.with)} act={act} failure={actionError} />}
       {item.state === 'proposal' && !item.idea?.proposal?.merge && (
         <ProposalView item={item} all={all} from={p.from} act={act} listener={listener} onRevise={tell('revise')} codexAllowed={!inFolder && !item.review?.contribution}>
           {editable ? (
@@ -869,7 +869,7 @@ export function Detail(p: Props) {
       {/* approved work asks how the agent did until answered, and keeps the answer to change */}
       {item.review?.rate && <Rate item={item} />}
 
-      {item.state === 'planned' && item.queue && <div className={actionsClass}>{duplicateActions || <MergeButton item={item} all={all} act={act} error={error} />}</div>}
+      {item.state === 'planned' && item.queue && <div className={actionsClass}>{duplicateActions || <MergeButton item={item} all={all} act={act} failure={actionError} />}</div>}
 
       {/* the decisions of a card nobody worked on yet, below what it shows, as on every card */}
       {item.state === 'planned' && !item.idea?.proposal?.merge && !worked && !item.queue && (
@@ -894,7 +894,7 @@ export function Detail(p: Props) {
           {prototypeActions}
           {item.source === 'manual' && !item.idea?.prototypeOf && (
             <>
-              {!duplicatePartner && <MergeButton item={item} all={all} act={act} error={error} />}
+              {!duplicatePartner && <MergeButton item={item} all={all} act={act} failure={actionError} />}
               {/* a task with a branch has work already, one decided as a plan goes its way: neither is discussed or planned anew */}
               {plannableAsPlan(item) && (
                 <>
@@ -1402,7 +1402,7 @@ function ProposalView({
             {t.acceptAsIdea}
           </Button>
         )}
-        {!revising && !armed && <MergeButton item={item} all={all} act={act} error={error} />}
+        {!revising && !armed && <MergeButton item={item} all={all} act={act} />}
         <Button onClick={() => act({ action: 'dismiss' }, { close: true, ack: t.dismissed })}>
           {t.dismiss}
         </Button>
