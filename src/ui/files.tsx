@@ -96,27 +96,43 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
     };
   }, [item.id, rev]);
   const box = useRef<HTMLDivElement>(null);
-  // A tab switched to starts as tall as the one left, up to what the card shows without scrolling,
-  // so the card does not shrink while it loads; past that each tab takes its own height.
+  // A tab switched to starts as tall as the one left, up to what the card shows of the tabs, while
+  // it loads (a placeholder marked aria-busy), so the card does not shrink and grow back; once it
+  // has loaded, it takes its own height.
   const left = useRef({ tab: current, floor: 0 });
   const [floor, setFloor] = useState(0);
+  const busy = () => !!box.current?.querySelector('[aria-busy="true"]');
   useEffect(() => {
     const el = box.current;
     if (!el) return;
+    let scroller = el.parentElement;
+    while (scroller && !/auto|scroll/.test(getComputedStyle(scroller).overflowY)) scroller = scroller.parentElement;
     const measure = () => {
-      let scroller = el.parentElement;
-      while (scroller && !/auto|scroll/.test(getComputedStyle(scroller).overflowY)) scroller = scroller.parentElement;
-      const room = scroller ? scroller.clientHeight - (el.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop) : innerHeight;
-      left.current.floor = Math.min(el.offsetHeight, Math.max(0, room));
+      const bottom = scroller ? scroller.getBoundingClientRect().top + scroller.clientTop + scroller.clientHeight : innerHeight;
+      left.current.floor = Math.min(el.offsetHeight, Math.max(0, bottom - el.getBoundingClientRect().top));
     };
-    const watch = new ResizeObserver(measure);
-    watch.observe(el);
-    return () => watch.disconnect();
+    measure();
+    const resized = new ResizeObserver(measure);
+    resized.observe(el);
+    if (scroller) resized.observe(scroller);
+    const target = scroller ?? window;
+    target.addEventListener('scroll', measure, { passive: true });
+    window.addEventListener('resize', measure);
+    const loaded = new MutationObserver(() => {
+      if (!busy()) setFloor(0);
+    });
+    loaded.observe(el, { subtree: true, childList: true, attributes: true, attributeFilter: ['aria-busy'] });
+    return () => {
+      resized.disconnect();
+      loaded.disconnect();
+      target.removeEventListener('scroll', measure);
+      window.removeEventListener('resize', measure);
+    };
   }, [!!tabs.length]);
   useLayoutEffect(() => {
     if (left.current.tab === current) return;
-    setFloor(left.current.floor);
     left.current.tab = current;
+    setFloor(busy() ? left.current.floor : 0);
   }, [current]);
   // A video left playing under another tab would go on talking.
   useEffect(() => {
@@ -556,7 +572,7 @@ function Text({ url, children }: { url: string; children: (text: string) => Reac
       gone = true;
     };
   }, [url]);
-  if (text === null) return <p className="hint">{t.files.loading}</p>;
+  if (text === null) return <p className="hint" aria-busy="true">{t.files.loading}</p>;
   if (text === 'failed') return <p className="hint">{t.files.failed}</p>;
   const cut = text.length > TEXT_CAP;
   return (
@@ -627,7 +643,7 @@ function Changes({ item, path }: { item: Item; path: string }) {
     };
   }, [item.id, read]);
   const part = parts === null || parts === 'failed' ? undefined : parts.find((p) => p.file === path);
-  if (parts === null) return <p className="hint">{t.files.loading}</p>;
+  if (parts === null) return <p className="hint" aria-busy="true">{t.files.loading}</p>;
   return part ? (
     <div className="r-diff">
       <FileDiff part={part} card={item.id} />

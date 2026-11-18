@@ -185,7 +185,7 @@ export function DiffView({ item, file, onClose, onRead }: { item: Item; file?: s
           <CloseButton label={t.diff.close} variant="ghost" className="d-close" onClick={onClose} />
         </div>
         <div className="d-body overflow-auto pt-2 px-6 pb-7 min-h-0">
-          {diff === null && <p className="hint">{t.diff.loading}</p>}
+          {diff === null && <p className="hint" aria-busy="true">{t.diff.loading}</p>}
           {diff === 'failed' && <p className="hint">{t.diff.failed}</p>}
           {folder && !only && folder.undo && <p className="hint">{t.folder.undoHint[folder.undo]}</p>}
           {folder && !only && <ChangeTable changes={shownChanges(folder.changes)} diffed={(c) => all.some((p) => p.file === c.path)} onFile={setOnly} />}
@@ -259,7 +259,7 @@ export function FileDiff({ part, card }: { part: DiffPart; card: string }) {
           </LinkButton>
         </p>
       ) : empty ? null : (
-        <Suspense fallback={<p className="hint">{t.diff.loading}</p>}>
+        <Suspense fallback={<p className="hint" aria-busy="true">{t.diff.loading}</p>}>
           <CodeDiff part={part} card={card} style={style} />
         </Suspense>
       )}

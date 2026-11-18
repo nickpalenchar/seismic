@@ -125,8 +125,9 @@ same style. UI text comes from `src/ui/strings.ts`, never a literal.
   switching replaces the address rather than adding a history step, as switching canvases does;
   a card's address keeps it, and an unknown value is dropped in place. Parked may join it later.
 - **A card's result tabs (Video, Diff, files) each take their own height** (2026-11-17), with
-  one floor: a tab switched to starts as tall as the one left, up to what the card shows without
-  scrolling, so the card does not shrink while a diff loads. Rejected: a floor at the tallest tab
+  one floor: while a tab switched to still loads (a placeholder marked `aria-busy`), it is as tall
+  as the one left, up to what the card shows of the tabs, so the card does not shrink and grow
+  back; once loaded, the floor goes. Rejected: a floor at the tallest tab
   seen; after a long diff it left the video above a screen of empty space.
 - **Phone settings and Needs you share one history step**: switching between them replaces that
   step; closing returns to the project. Pages covering the project make its controls inert.

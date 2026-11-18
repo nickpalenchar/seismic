@@ -44,7 +44,7 @@ export function PdfPages({ url, title }: { url: string; title: string }) {
       void task?.destroy();
     };
   }, [url]);
-  if (doc === null) return <p className="hint">{t.files.loading}</p>;
+  if (doc === null) return <p className="hint" aria-busy="true">{t.files.loading}</p>;
   if (doc === 'failed') return <p className="hint">{t.files.failed}</p>;
   return (
     <div className="r-pdf-pages flex flex-col gap-2" role="document" aria-label={title}>
