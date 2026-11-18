@@ -3107,6 +3107,8 @@ export class Board {
     if (n.canvas !== undefined) this.ownCanvas(n.canvas);
     // a follow-up goes on its card's canvas, any other where it says, else where the owner looks
     const canvas = from ? this.homeCanvas(from.canvas_id) : (n.canvas ?? this.canvasFor());
+    const group = !from && !elsewhere && n.group !== undefined ? this.ownGroup(n.group) : undefined;
+    if (group && group.canvasId !== canvas) throw new BadRequest('invalid', 'a group holds cards of its own canvas only');
     const at = from ? this.followUpSpot(from.id) : placed ? { x: n.x!, y: n.y! } : this.spotOn(canvas);
     // a follow-up stays in the repository of the card it comes from unless told otherwise
     const repo = n.repo ?? (from ? (from.repo ?? this.home) : undefined);
@@ -3121,7 +3123,8 @@ export class Board {
         body: n.body ?? '',
         ...at,
         repo: this.repoColumn(repo),
-        ...(from ? { from_id: from.id, group_id: this.groupOf(from) } : elsewhere ? { from_id: elsewhere } : {}),
+        ...(from || elsewhere ? { from_id: from?.id ?? elsewhere } : {}),
+        group_id: from ? this.groupOf(from) : group?.id,
         images: n.images?.length ? JSON.stringify(n.images) : null,
         ...(n.idea ? { idea: { discussion: { status: 'open', brief: '' } satisfies StoredIdea } } : {}),
       },

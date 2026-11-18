@@ -12,7 +12,7 @@ import { type Bounds, boundsOf, CARD_SIZE, centre, onProject, type Place, PLAN_H
 import { type RightClick, type Canvas, canvasNamedBy, MAIN_CANVAS, type ProjectInfo, type ProjectSnapshot, type CardPatch, type ConfigProblem, finished, type Group, type Item, nameless, withPart, needsYou, openPerGroup, type PendingRestart, type PlanDir, EVICT_HOLD_MS, START_ALL_HOLD_MS, titleFrom, type AppUpdate, type SourceUpdate, unreadAnswers, unreadPerPlan, type Usage, type Waiting, waitingIn, offCanvas } from '../core/types';
 import { NotifyAsk, useDesktopNotifications } from './desktopNotify';
 import { api, ApiError, beforeReload, cardsOn, onNotice, quietAtStart, reportFocus, setProject, useProject } from './api';
-import { GroupNames, growFrom, hintBubbleClass, inside, Lasso, MarkHint, Marked, Ring, TerritoryLayer, useTerritories } from './groups';
+import { groupAt, GroupNames, growFrom, hintBubbleClass, inside, Lasso, MarkHint, Marked, Ring, TerritoryLayer, useTerritories } from './groups';
 import { connectionDotClass, depLayerClass, dotSide, handleColour, manualRemoveClass } from './depsClasses';
 import { buzz, pinchCam, TOUCH_HOLD_KNOWN, Touches } from './touch';
 import { besideSheet, BOTTOM, type Cam, camFor, camKey, centreOn, chase, dragLimit, edgeScroll, FAR, flying, flyTo, keepInView, MAX_ZOOM, midX, MIN_ZOOM, NO_SIDES, overviewCam, placeIn, shows, type Sides, stopFlight, TOP, toWorld } from './camera';
@@ -1000,9 +1000,9 @@ function Project({
   }
 
   /** A new card centred at `world`; `made` runs once it exists, before it opens. */
-  async function createAt(world: Pos, made?: (card: Item) => Promise<unknown>) {
+  async function createAt(world: Pos, { group, made }: { group?: string; made?: (card: Item) => Promise<unknown> } = {}) {
     const [w, h] = CARD_SIZE.task;
-    const card = await api.create({ title: '', x: Math.round(world.x - w / 2), y: Math.round(world.y - h / 2), ...(canvasRef.current ? { canvas: canvasRef.current } : {}) });
+    const card = await api.create({ title: '', x: Math.round(world.x - w / 2), y: Math.round(world.y - h / 2), canvas: canvasRef.current ?? undefined, group });
     await made?.(card);
     beingWritten.add(card.id);
     flushSync(() => {
@@ -1822,7 +1822,7 @@ function Project({
         const across = Math.abs(dx) * h >= Math.abs(dy) * w;
         const toSide: Side = across ? (dx < 0 ? 'right' : 'left') : (dy < 0 ? 'bottom' : 'top');
         const centre = across ? { x: at.x + Math.sign(dx || 1) * w / 2, y: at.y } : { x: at.x, y: at.y + Math.sign(dy) * h / 2 };
-        createAt(centre, (card) => api.dependency(from, card.id, false, false, { fromSide: side, toSide, offset: 0.5 }).catch((err) => showAck(failText(err))))
+        createAt(centre, { made: (card) => api.dependency(from, card.id, false, false, { fromSide: side, toSide, offset: 0.5 }).catch((err) => showAck(failText(err))) })
           .catch(console.error);
         if (!depKnown) {
           know(DEP_KNOWN);
@@ -2081,11 +2081,13 @@ function Project({
     if (!touchyRef.current) newCardAt(e.clientX, e.clientY);
   }
 
-  /** A double-click or double-tap at (x, y) on the empty project makes a new card there. */
+  /** A double-click or double-tap on empty canvas creates a card in the territory at that point. */
   function newCardAt(x: number, y: number) {
     // the pointer capture retargets the event to the viewport, so look at what is under the pointer
     if (focusRef.current || document.elementFromPoint(x, y)?.closest('.item, .plan-dir')) return;
-    createAt(toWorld(camRef.current, x, y));
+    const at = toWorld(camRef.current, x, y);
+    const group = groupAt(viewportRef.current!, at, groups);
+    createAt(at, { group }).catch(fail);
   }
 
   // what the fingers do on the project (touch.ts); the host gets this render's closures

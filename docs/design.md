@@ -58,8 +58,9 @@ cycling through terminals.
 - **Plan and workstream**: a plan is the card backed by a plan doc under `docs/plan/`; each item of
   the doc's workstream checklist is a child card of it.
 - **Group**: a name and a colour that a card belongs to, or not; a plan belongs as a whole. Cards
-  made from a card (a proposal, a follow-up, a prototype) join its group; moving a card never
-  changes its group. A group ends with its last card.
+  made from a card (a proposal, a follow-up, a prototype) join its group. Creating a card by
+  double-clicking or double-tapping the canvas joins the group whose painted territory contains
+  that point. Moving a card never changes its group. A group ends with its last card.
 - **States**: `idea` → `planned` → `working` → `waiting` (a demo ready, or a question) → `approved`
   → `in PR` → `live`, or `done` when the work changed nothing; an agent's `proposal` starts once
   accepted. An idea is `open`, `parked` or `dropped`.

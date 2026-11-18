@@ -161,6 +161,16 @@ const worldLayerClass = 'absolute left-0 top-0 overflow-visible pointer-events-n
 /** A line beside the pointer or the marked cards that says how something works: ink on the board's colour. */
 export const hintBubbleClass = 'max-w-[300px] m-0 py-1.5 px-2.5 rounded-xs bg-foreground text-background font-sans text-sm/[1.35] text-left';
 
+/** The topmost current group whose painted territory contains the world point. */
+export function groupAt(viewport: HTMLElement, at: Pt, groups: Group[]): string | undefined {
+  const paths = viewport.querySelectorAll<SVGPathElement>('#territories path[data-group]');
+  // Use the rendered fill so curved edges, holes and separate pieces match what the owner sees.
+  const group = Array.from(paths).reverse().find((path) =>
+    groups.some((g) => g.id === path.dataset.group) && path.isPointInFill(at),
+  );
+  return group?.dataset.group;
+}
+
 /** The territories, in world coordinates under the cards; `selected`: the cards the colour ring is for. */
 export function TerritoryLayer({ shapes, waves, streaks, selected }: { shapes: Shape[]; waves: Wave[]; streaks: Streak[]; selected: Bounds[] }) {
   return (
@@ -169,7 +179,7 @@ export function TerritoryLayer({ shapes, waves, streaks, selected }: { shapes: S
         // colours only as area and edge, never on the card, so they do not compete with the states' colours;
         // the area deepens zoomed far out
         <g key={g.id} style={hue(g.hue)}>
-          <path className="[fill:hsl(var(--h)_80%_var(--tl)_/_var(--ta))] [transition:fill_.4s] far:[fill:hsl(var(--h)_80%_var(--tl)_/_calc(var(--ta)*1.7))]" d={x.main} fillRule="evenodd" />
+          <path data-group={g.id} className="[fill:hsl(var(--h)_80%_var(--tl)_/_var(--ta))] [transition:fill_.4s] far:[fill:hsl(var(--h)_80%_var(--tl)_/_calc(var(--ta)*1.7))]" d={x.main} fillRule="evenodd" />
           <path className="fill-none [stroke:hsl(var(--h)_90%_var(--tl)_/_var(--tga))] [stroke-width:calc(10px/var(--s))] [stroke-linejoin:round]" d={x.main} />
           <path className="fill-none [stroke:hsl(var(--h)_75%_var(--tel)_/_var(--tea))] [stroke-width:calc(1.8px/var(--s))] [stroke-linejoin:round]" d={x.main} />
           <path className="fill-none [stroke:hsl(var(--h)_70%_var(--tel)_/_.45)] [stroke-width:calc(1.2px/var(--s))] [stroke-dasharray:1_9] [stroke-linecap:round]" d={x.inner} />

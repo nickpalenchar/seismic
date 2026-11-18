@@ -1986,6 +1986,8 @@ export interface NewCard {
   images?: string[];
   /** The canvas it goes on (a `Canvas` id); a follow-up's is its card's, else the project's `main`. */
   canvas?: string;
+  /** An existing group on that canvas. A follow-up inherits its card's group. */
+  group?: string;
 }
 
 /**

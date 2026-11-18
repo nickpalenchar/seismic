@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, setSystemTime, test } from 'bu
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import type { CardAction, ClientMessage, ServerMessage } from '../core/types';
+import type { CardAction, ClientMessage, Item, ServerMessage } from '../core/types';
 import type { Board } from './board';
 import { Projects, ProjectRuntime } from './project';
 import type { Command } from './commands';
@@ -395,6 +395,21 @@ describe('canvases', () => {
 });
 
 describe('groups', () => {
+  test('a card can be created directly in a group on its own canvas', async () => {
+    const canvas = board.createCanvas('Checkout');
+    const member = board.create({ title: 'Existing card', canvas: canvas.id });
+    const group = board.createGroup('Payments', [member.id]);
+    const create = (fields: object) => post(api('/cards'), JSON.stringify({ title: 'New card', ...fields }));
+
+    const response = await create({ canvas: canvas.id, group: group.id, x: 120, y: 240 });
+    expect(response.status).toBe(200);
+    const created = (await response.json()) as Item;
+    expect(created).toMatchObject({ canvas: canvas.id, group: group.id, x: 120, y: 240 });
+    expect(board.snapshot().items.find((i) => i.id === created.id)?.group).toBe(group.id);
+    expect(await codeOf(create({ canvas: canvas.id, group: 'missing' }))).toBe('unknownGroup');
+    expect(await codeOf(create({ canvas: board.snapshot().canvases[0]!.id, group: group.id }))).toBe('invalid');
+  });
+
   test('are created with cards, renamed and assigned, and every page hears of it', async () => {
     const [a, b] = [card(), card()];
     const messages: ServerMessage[] = [];
