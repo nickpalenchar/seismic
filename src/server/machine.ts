@@ -9,14 +9,14 @@
 // repository's folder, or a clone of one. A second page recommends more: on a Mac the pieces of
 // mobile development (Xcode, an iPhone simulator, Safari's remote automation).
 
-import { spawn } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, userInfo } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 // by its path: the package exports no package.json, which Bun imports all the same but TypeScript does not
 import sdk from '../../node_modules/@anthropic-ai/claude-agent-sdk/package.json';
 import { DOCUMENT } from '../core/files';
-import { blocksSaving, CLONES, firstProjectHarness, HARNESS_ROLES, HARNESSES, needsGit, type Harness, type FirstProject, type MachineItem, type MachineJob, type MachineSection, type MachineSectionId, type MachineView, type SetupFolder, type GitSetupPreview } from '../core/types';
+import { blocksSaving, CLONES, firstProjectHarness, HARNESS_ROLES, HARNESSES, needsGit, type Harness, type FirstProject, type MachineItem, type MachineJob, type MachineSection, type MachineSectionId, type MachineView, type SetupFolder, type SetupRepoCheck, type GitSetupPreview } from '../core/types';
 import { expandHome, readDemoSettings } from '../../plugin/skills/demo/lib/settings.ts';
 import { checkSetup, type LinuxFamily, linuxFamily, output } from '../../plugin/skills/demo/lib/setup.ts';
 import { installVoice } from '../../plugin/skills/demo/lib/voices.ts';
@@ -179,6 +179,24 @@ function waited(argv: string[], env: Env): Promise<string | null> {
     p.on('close', (code) => done(code === 0 ? out : null));
   });
 }
+
+/**
+ * Runs a command to its end, at most `timeout` ms: whether it succeeded, and why not in a line: its last
+ * `fatal:` or `error:` line on stderr (git closes with advice after it), else its last line.
+ */
+function tried(argv: string[], env: Env, timeout: number): Promise<{ ok: boolean; last: string }> {
+  return new Promise((done) => {
+    execFile(argv[0]!, argv.slice(1), { env, timeout, maxBuffer: 1 << 22, windowsHide: true }, (error, _stdout, stderr) => {
+      const lines = `${stderr}`.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+      const line = lines.findLast((l) => /^(fatal|error):/i.test(l)) ?? lines.at(-1);
+      const last = line?.replace(/^(fatal|error):\s*/i, '') || (error?.killed ? 'no answer in time' : (error?.message.split('\n')[0] ?? ''));
+      done({ ok: !error, last });
+    });
+  });
+}
+
+/** How long reading a repository before its clone may take. */
+const REPO_CHECK_MS = 20_000;
 
 /** The folder a request names, as an absolute path. */
 function folderOf(input: unknown): string {
@@ -548,6 +566,25 @@ export class MachineSetup {
   /** Sets up git in a folder that has none, with its first commit; the owner saw the preview. */
   gitSetup(input: unknown): { branch: string } {
     return setUpGit(folderOf(input));
+  }
+
+  /**
+   * Whether the repository named for a clone can be read from here, before the owner clones it: through
+   * gh for owner/name where it is logged in (the way the clone goes then), else by `git ls-remote`,
+   * which never asks for a password (a prompt would hang the check).
+   */
+  async repo(input: unknown): Promise<SetupRepoCheck> {
+    const { clone } = (input ?? {}) as { clone?: unknown };
+    const spec = typeof clone === 'string' ? clone.trim() : '';
+    if (!spec) throw new BadRequest('invalid', 'a repository to clone');
+    const short = /^[\w.-]+\/[\w.-]+$/.test(spec);
+    // where gh's login can open a private repository: owner/name, and GitHub over https (gh is git's credential helper there); not ssh, which goes by keys
+    const github = short || /^https?:\/\/(www\.)?github\.com\//i.test(spec);
+    const ghLogin = (await output('gh', ['auth', 'status'], this.env)) !== null;
+    const env: Env = { ...this.env, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never', ...(this.env.GIT_SSH_COMMAND ? {} : { GIT_SSH_COMMAND: 'ssh -o BatchMode=yes' }) };
+    const argv = short && ghLogin ? ['gh', 'repo', 'view', spec, '--json', 'name'] : ['git', 'ls-remote', '--heads', '--', short ? `https://github.com/${spec}.git` : expandHome(spec)];
+    const { ok, last } = await tried(argv, env, REPO_CHECK_MS);
+    return ok ? { readable: true } : { readable: false, error: last, github, ghLogin };
   }
 
   /** The first project: a repository's folder, saved at once; or a clone of one, in the background. */

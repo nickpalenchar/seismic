@@ -394,6 +394,16 @@ describe('the first project', () => {
     await expect(new MachineSetup({ home, config: config() }).project({ clone: origin, into: join(dir, 'code') })).rejects.toMatchObject({ code: 'cloneTarget' });
   });
 
+  test('reads a repository before its clone, and says why one cannot be read', async () => {
+    const origin = gitRepo(join(dir, 'origin', 'shop'));
+    const s = new MachineSetup({ home, config: config() });
+    expect(await s.repo({ clone: origin })).toEqual({ readable: true });
+    const missing = await s.repo({ clone: join(dir, 'origin', 'none') });
+    expect(missing).toMatchObject({ readable: false, github: false });
+    expect(missing.readable || missing.error).toBeTruthy();
+    await expect(s.repo({ clone: ' ' })).rejects.toMatchObject({ code: 'invalid' });
+  });
+
   test('names a clone after its repository', () => {
     expect(cloneName('owner/shop')).toBe('shop');
     expect(cloneName('https://github.com/owner/shop.git')).toBe('shop');

@@ -8,7 +8,7 @@
  */
 
 import { Fragment, type ReactNode, useEffect, useRef, useState } from 'react';
-import { type AgentSetting, CLOUD_PRESETS, CLOUD_VOICES, type CloudPreset, firstProjectHarness, type GitSetupPreview, needsGit, LARGE_FILE, type Language, type MachineItem, type MachineSection, type MachineSectionId, type MachineView, type MobileId, RECOMMENDED_SECTIONS, type SetupItem, type VoiceSetupItem } from '../../../core/types';
+import { type AgentSetting, CLOUD_PRESETS, CLOUD_VOICES, type CloudPreset, firstProjectHarness, type GitSetupPreview, needsGit, LARGE_FILE, type Language, type MachineItem, type MachineSection, type MachineSectionId, type MachineView, type MobileId, RECOMMENDED_SECTIONS, type SetupItem, type SetupRepoCheck, type VoiceSetupItem } from '../../../core/types';
 import { LANGUAGES } from '../../../core/locale';
 import { api, reload } from '../../api';
 import { useCopy } from '../../copy';
@@ -760,6 +760,7 @@ function FirstProject({ view, ready, agents, onView }: { view: MachineView; read
     }
     setBusy(false);
   };
+  const repo = useRepoCheck(view);
   const can = mode === 'folder' ? !!path.trim() : !!clone.trim();
   return (
     <section className={cn(projectClass, 'setup-first border-2')}>
@@ -803,8 +804,9 @@ function FirstProject({ view, ready, agents, onView }: { view: MachineView; read
             <>
               <label className={fieldClass}>
                 <span className={fieldLabelClass}>{s.first.repo}</span>
-                <Input className={cn(pathClass, firstPathClass)} spellCheck={false} placeholder={s.first.repoPlaceholder} value={clone} onChange={(e) => setClone(e.target.value)} />
+                <Input className={cn(pathClass, firstPathClass)} spellCheck={false} placeholder={s.first.repoPlaceholder} value={clone} onChange={(e) => setClone(e.target.value)} onBlur={() => repo.left(clone)} />
               </label>
+              {repo.line(clone)}
               <label className={fieldClass}>
                 <span className={fieldLabelClass}>{s.first.into}</span>
                 <Input className={cn(pathClass, firstPathClass)} spellCheck={false} value={into} onChange={(e) => setInto(e.target.value)} />
@@ -828,6 +830,84 @@ function FirstProject({ view, ready, agents, onView }: { view: MachineView; read
       {status && <p className={firstErrorClass}>{status}</p>}
     </section>
   );
+}
+
+/**
+ * Whether Seismic can read the repository named for a clone: read when the owner leaves the field with
+ * another name in it than the one read last, a spinner below it meanwhile, then the result. Where GitHub
+ * may hide a private repository from a stranger, the line offers gh's login, and reads it again once
+ * the list sees the login (back from the terminal, the page checks the machine again).
+ */
+function useRepoCheck(view: MachineView) {
+  const [checked, setChecked] = useState<{ spec: string; result: SetupRepoCheck | 'checking' } | null>(null);
+  const [terminal, setTerminal] = useState<'open' | 'none' | null>(null);
+  const asked = useRef(0);
+  const s = t.setup;
+  const read = (spec: string) => {
+    const n = ++asked.current;
+    setTerminal(null);
+    setChecked(spec ? { spec, result: 'checking' } : null);
+    if (!spec) return;
+    api.setupRepo(spec).then(
+      (result) => n === asked.current && setChecked({ spec, result }),
+      (e) => n === asked.current && setChecked({ spec, result: { readable: false, error: failText(e), github: false, ghLogin: true } }),
+    );
+  };
+  const ghLogin = view.sections.find((x) => x.id === 'pr')?.items.find((i) => i.id === 'ghLogin');
+  const loggedIn = ghLogin?.state === 'ok';
+  useEffect(() => {
+    const r = checked?.result;
+    if (loggedIn && r && r !== 'checking' && !r.readable && r.github && !r.ghLogin) read(checked.spec);
+  }, [loggedIn]);
+  const login = async () => {
+    try {
+      const { opened } = await api.setupLogin('pr', 'ghLogin');
+      setTerminal(opened ? 'open' : 'none');
+    } catch {
+      setTerminal('none');
+    }
+  };
+  /** The line under the field, for what it holds now; nothing once it differs from what was read. */
+  const line = (value: string) => {
+    if (!checked || checked.spec !== value.trim()) return null;
+    const r = checked.result;
+    if (r === 'checking')
+      return (
+        <p className="setup-repo hint flex items-center gap-1.5 mt-0.5 mb-1.5">
+          <Spinner className="size-3.5" aria-hidden />
+          {s.first.repoChecking}
+        </p>
+      );
+    if (r.readable)
+      return (
+        <p className="setup-repo hint flex items-center gap-1.5 mt-0.5 mb-1.5 text-approved">
+          <Check className="size-3.5" aria-hidden />
+          {s.first.repoReadable}
+        </p>
+      );
+    const canLogin = r.github && !r.ghLogin;
+    return (
+      <div className="setup-repo mt-0.5 mb-1.5">
+        <p role="alert" className={cn(firstErrorClass, 'mt-0')}>{s.first.repoUnreadable(r.error)}</p>
+        {canLogin && ghLogin?.act === 'login' && (
+          <>
+            <p className="hint mt-1 mb-1">{s.first.repoLogin}</p>
+            <span className={rowClass}>
+              <Button size="small" onClick={login}>
+                {s.first.repoLoginButton}
+              </Button>
+              <Button size="small" variant="ghost" onClick={() => read(checked.spec)}>
+                {s.first.repoAgain}
+              </Button>
+              {terminal && <span className="hint">{terminal === 'open' ? s.terminalOpen : s.noTerminal}</span>}
+            </span>
+          </>
+        )}
+        {canLogin && ghLogin?.act !== 'login' && <p className="hint mt-1 mb-0">{s.first.repoNoGh}</p>}
+      </div>
+    );
+  };
+  return { left: (value: string) => value.trim() !== checked?.spec && read(value.trim()), line };
 }
 
 /** What Seismic found at the folder `path` once it stopped changing for a moment: its main branch, or that it has no git; null until then. */

@@ -219,6 +219,12 @@ cycling through terminals.
   its own (over SSH) brings no focus back to the page, so while a login the step waits for is
   missing the list checks again every 15 seconds (also where Seismic opened no terminal and the
   owner ran the command by hand), and each login has its own "Check again".
+  The repository a first project is cloned from is read when its field is left with another value
+  than the one read last (2026-11-18), not while typing: gh where it is logged in, else
+  `git ls-remote`, never with a password prompt (it would hang the check). A GitHub repository that
+  cannot be read while gh is logged out may just be private, so the line offers gh's login and reads
+  again once the login shows. The check informs and does not block the clone: ssh keys or a
+  credential helper may reach what the check could not.
 - **A project has an icon, as a canvas has** (2026-11-19): the same values and the same picker, so a
   mark means the same on both. It is saved in Seismic's configuration beside the project's name, as
   part of what the owner calls the project on this machine, not in the repository's settings, which

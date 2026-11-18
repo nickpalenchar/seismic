@@ -1,7 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { CardDiff } from '../core/diff';
 import { type Place, placeParam } from '../core/layout';
-import type { ProjectReposView, RepoConfig, AccessView, ActivityPage, Pairing, RemoteSetting, CodexModel, AgentRole, AgentSetting, CloudPreset, AgentsView, ProjectConfig, ProjectInfo, ProjectSnapshot, ChatElsewhere, ClientMessage, ConfigSaved, ConfigView, CardAction, ConfigChecked, DemoSettings, Group, DemoSettingsView, DemoVoiceCheck, ProjectDemoSiteState, DemoSitesView, GithubRepoList, GithubRepoView, TagProposalJob, PageTags, NarrationLanguage, FirstProject, GitSetupPreview, MachineItem, MachineSectionId, MachineView, SetupCheck, SetupFolder, VoiceSetupView, CardEvent, CardPatch, Item, Language, LanguageView, NewCard, Notice, OwnerHold, PendingRestart, PlanHistory, RepoTrust, ServerMessage, SettingsShared, Skill, SourceUpdate, SpotInput, TalkRef, AppUpdate, Theme, ThemeView, Motion, MotionView, Usage, UsageMeterView, Waiting, Feedback, FeedbackAnswer, FeedbackPromptView,
+import type { ProjectReposView, RepoConfig, AccessView, ActivityPage, Pairing, RemoteSetting, CodexModel, AgentRole, AgentSetting, CloudPreset, AgentsView, ProjectConfig, ProjectInfo, ProjectSnapshot, ChatElsewhere, ClientMessage, ConfigSaved, ConfigView, CardAction, ConfigChecked, DemoSettings, Group, DemoSettingsView, DemoVoiceCheck, ProjectDemoSiteState, DemoSitesView, GithubRepoList, GithubRepoView, TagProposalJob, PageTags, NarrationLanguage, FirstProject, GitSetupPreview, MachineItem, MachineSectionId, MachineView, SetupCheck, SetupFolder, SetupRepoCheck, VoiceSetupView, CardEvent, CardPatch, Item, Language, LanguageView, NewCard, Notice, OwnerHold, PendingRestart, PlanHistory, RepoTrust, ServerMessage, SettingsShared, Skill, SourceUpdate, SpotInput, TalkRef, AppUpdate, Theme, ThemeView, Motion, MotionView, Usage, UsageMeterView, Waiting, Feedback, FeedbackAnswer, FeedbackPromptView,
   ProjectDefaultsView,
   ProjectSettings, ProjectSettingsView, DeveloperView, NotificationsView, Canvas } from '../core/types';
 import type { Wish } from '../core/wish';
@@ -240,6 +240,8 @@ export const api = {
   setupPick: (prompt: string) => call<{ path: string | null }>('POST', '/api/setup/pick', { prompt }),
   /** The first project from a folder (saved at once) or a clone (the view follows it). */
   setupFolder: (path: string) => call<SetupFolder>('POST', '/api/setup/folder', { path }),
+  /** Whether the repository named for a clone can be read from here. */
+  setupRepo: (clone: string) => call<SetupRepoCheck>('POST', '/api/setup/repo', { clone }),
   setupGitPreview: (path: string) => call<GitSetupPreview>('POST', '/api/setup/git-preview', { path }),
   setupGit: (path: string) => call<{ branch: string }>('POST', '/api/setup/git', { path }),
   setupProject: (input: ({ path: string; git?: false } | { clone: string; into: string }) & { agents?: string[] }) => call<FirstProject | MachineView>('POST', '/api/setup/project', input),

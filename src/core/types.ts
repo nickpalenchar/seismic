@@ -3553,6 +3553,13 @@ export interface SetupFolder {
   folder?: boolean;
 }
 
+/**
+ * A repository named for the first project's clone, read before it is cloned: `readable`, or why not
+ * (git's or gh's line on it). `github`: a GitHub repository gh's login can open (owner/name or https); `ghLogin`: whether gh is logged in
+ * there, so the page can offer the login when GitHub refuses a repository it might not show to strangers.
+ */
+export type SetupRepoCheck = { readable: true } | { readable: false; error: string; github: boolean; ghLogin: boolean };
+
 /** From this size on a file is marked as large in the preview of a first commit. */
 export const LARGE_FILE = 1_000_000;
 

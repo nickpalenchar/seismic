@@ -701,6 +701,7 @@ export function serve(
       '/api/setup/token': { POST: needs(machine, async (m, req) => m.saveToken(await req.json())) },
       '/api/setup/identity': { POST: needs(machine, async (m, req) => m.identity(await req.json())) },
       '/api/setup/folder': { POST: needs(machine, async (m, req) => m.folder(await req.json())) },
+      '/api/setup/repo': { POST: needs(machine, async (m, req) => m.repo(await req.json())) },
       // setting up git in a folder that has none: what the first commit holds, then the commit
       '/api/setup/git-preview': { POST: needs(machine, async (m, req) => m.gitPreview(await req.json())) },
       '/api/setup/git': { POST: needs(machine, async (m, req) => m.gitSetup(await req.json())) },
