@@ -34,8 +34,9 @@ export function NeedsYouSheet({ on, entries, current, open, onGo, onReply, isRea
   const entry = (e: CardOnly) => (
     <Fragment key={e.key}>{renderEntry(e, { unread: !isRead(e), here: e.project === current && e.card.id === open, current, subtle: false, onGo, onReply, onRead })}</Fragment>
   );
+  const showEmpty = !here.length && (!others.length || hideOthers);
   return (
-    <Docked id="needs-you" className="pt-5 px-3.5 pb-8" on={on} label={t.needsYou.title}>
+    <Docked id="needs-you" className={cn('pt-5 px-3.5 pb-8', showEmpty && 'flex flex-col')} on={on} label={t.needsYou.title}>
       <h2 className={`${sheetTitleClass} px-2`}>{t.needsYou.title}</h2>
       <div className={cn(inboxBarClass, 'justify-end')}>
         <CheckLabel>
@@ -45,7 +46,7 @@ export function NeedsYouSheet({ on, entries, current, open, onGo, onReply, isRea
       </div>
       {here.length ? (
         <ul className={entryListClass}>{here.map(entry)}</ul>
-      ) : others.length && !hideOthers ? (
+      ) : !showEmpty ? (
         <p className={emptyInboxClass}>{t.needsYou.noneHere}</p>
       ) : (
         <Empty className="needs-you-empty">
