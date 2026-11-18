@@ -2560,6 +2560,7 @@ const en = {
     worktreeSlots: (name: string, busy: number, slots: number, listed: boolean) => `${name}: ${busy} of ${slots} ${slots === 1 ? 'slot' : 'slots'} at work${listed ? ':' : '.'}`,
     worktreesUncapped: (name: string, busy: number, listed: boolean) => `${name}: ${busy} at work, no slot limit${listed ? ':' : '.'}`,
     uncapped: (busy: number) => (busy ? `${busy} at work` : 'none at work'),
+    checkout: (name: string, busy: number) => `${name}: ${busy} at work in the repository's checkout:`,
     freeSlot: 'free slot',
     offProject: 'a card that is not in the project',
     notOnProject: (title: string) => `${title} (not in the project)`,

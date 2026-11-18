@@ -1650,6 +1650,8 @@ export interface PoolHost {
   name: string;
   /** The machine Seismic runs on. */
   here?: boolean;
+  /** No workstation of the repository is on it: it stands for the repository's checkout on this machine, where its working ideas' agents are (`exploring`), with neither clones nor slots. */
+  checkout?: true;
   /** Its workers work in worktrees: `total` is its slots, and `cards` those of the workers at work. */
   worktrees?: boolean;
   /** How many of its workers may be in a turn at once; a new card goes elsewhere or waits once they are. */

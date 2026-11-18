@@ -55,7 +55,7 @@ import { demoSite, findSite } from './demo-sites';
 import { dimensions } from '../core/page-tags';
 import type { DueRestart } from './llms/agents/worker/restartNotices';
 import { WorkerSupervisor } from './workerSupervisor/workerSupervisor';
-import { branchSetting, type CardWorkstations, defaultBranchAsync, type FileAt, type FileVersions, detectingBranch, gitCalls, gitOrNull, type GitSteps, gitSteps, gitStepsSync, isFolder, type Landed, markFolder, readingBranches, together, useBranchSetting, workingChanges, Workstations } from './workstations';
+import { branchSetting, type CardWorkstations, defaultBranchAsync, type FileAt, type FileVersions, detectingBranch, gitCalls, gitOrNull, type GitSteps, gitSteps, gitStepsSync, HERE, isFolder, type Landed, markFolder, readingBranches, together, useBranchSetting, workingChanges, Workstations } from './workstations';
 import { FolderWorkstations } from './folder';
 import { readingTheme, readTheme, type Theme } from './theme';
 import { claudeToken, githubToken, hostName, registerHost } from './hosts';
@@ -355,19 +355,22 @@ export class ProjectRuntime {
     });
     board.showPools(() =>
       this.repos
-        .filter((r) => r.workstations.mode !== 'folder')
-        .map((r) => ({
-          repo: r.ref.id,
-          hosts: r.workstations.pool(r.workers.inTurn(), (c) => r.workers.turnAt(c)).map((h) => ({
+        .map((r) => {
+          const exploring = exploringIn(r.ref.id, board.items());
+          // a folder without git has no pool: only its working ideas show
+          const pool = r.workstations.mode === 'folder' ? [] : r.workstations.pool(r.workers.inTurn(), (c) => r.workers.turnAt(c));
+          const hosts: PoolHost[] = pool.map((h) => ({
             ...h,
             ...reviewingOn(h, r.workers.reviews.busy()),
-            ...(h.here ? exploringIn(r.ref.id, board.items()) : {}),
+            ...(h.here ? exploring : {}),
             // what the owner may take from its card for a card waiting for one, and what goes once the undo window is through
             workstations: h.workstations.map((w) =>
               !w.card ? w : this.koordinator?.evicting(w.card) ? { ...w, leaving: true as const } : r.workers.evictable(w.card) ? { ...w, takeable: true as const } : w,
             ),
-          })),
-        })),
+          }));
+          return { repo: r.ref.id, hosts: withCheckout(hosts, exploring) };
+        })
+        .filter((p) => p.hosts.length),
     );
     for (const r of this.repos) r.workers.resumeAll();
     const koordinator = (this.koordinator = new Koordinator({
@@ -3372,6 +3375,13 @@ const exploringIn = (repo: string, items: Item[]): Pick<PoolHost, 'exploring'> =
   const cards = items.filter((i) => i.repo === repo && i.state === 'idea' && !i.archivedAt && !!i.idea?.discussion?.thinking).map((i) => i.id);
   return cards.length ? { exploring: cards } : {};
 };
+
+/**
+ * A pool's machines with this one, as the repository's checkout its working ideas' agents are in,
+ * where the pool has no workstation here (clones on other machines alone, a folder without git).
+ */
+export const withCheckout = (hosts: PoolHost[], exploring: Pick<PoolHost, 'exploring'>): PoolHost[] =>
+  exploring.exploring && !hosts.some((h) => h.here) ? [{ name: HERE, here: true, checkout: true, slots: 0, total: 0, cards: [], busy: [], workstations: [], ...exploring }, ...hosts] : hosts;
 
 /** The cards held on a machine whose code review's agent is at work and whose worker is not in a turn (`PoolHost.reviewing`). */
 const reviewingOn = (h: PoolHost, reviews: string[]): Pick<PoolHost, 'reviewing'> => {

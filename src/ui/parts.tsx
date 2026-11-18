@@ -723,7 +723,8 @@ export function WorkstationsPill({ pools, project, projects, items, underway, on
   const free = (p: ClonePool) => p.hosts.reduce((n, h) => n + room(h), 0);
   const total = (p: ClonePool) => p.hosts.reduce((n, h) => n + h.total, 0);
   const blockedIn = (p: ClonePool) => p.hosts.reduce((n, h) => n + blocked(h), 0);
-  const uncapped = (p: ClonePool) => p.hosts.some((h) => h.uncapped);
+  // a pool that is only this machine's checkout (its working ideas, a folder's say) counts what is at work, as one without a cap
+  const uncapped = (p: ClonePool) => p.hosts.some((h) => h.uncapped) || p.hosts.every((h) => h.checkout);
   const full = pools.every((p) => !uncapped(p) && free(p) === 0);
   // the machines a pool names: those with clones, worktrees without a cap, a clone's folder kept, a follow-up's temporary worktree or an idea's agent at work, and every other machine than this one
   const named = (p: ClonePool) => p.hosts.filter((h) => h.total > 0 || h.uncapped || !h.here || h.kept?.length || h.workstations.length || h.exploring?.length);
@@ -776,7 +777,9 @@ export function WorkstationsPill({ pools, project, projects, items, underway, on
             {named(p).map((h) => (
               <div key={h.name} className="flex flex-col gap-1.5">
                 <p>
-                  {h.uncapped
+                  {h.checkout
+                    ? t.workstations.checkout(h.name, atWorkOn(h))
+                    : h.uncapped
                     ? t.workstations.worktreesUncapped(h.name, atWorkOn(h), hostDots(h, items, underway).length > 0)
                     : h.worktrees
                     ? t.workstations.worktreeSlots(h.name, h.busy.length, h.slots, hostDots(h, items, underway).length > 0)

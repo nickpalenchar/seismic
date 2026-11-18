@@ -30,6 +30,9 @@ test('an idea whose agent is at work has a dot after the cards, takes no slot an
   // in clones, after every clone
   const clones = host({ worktrees: false, exploring: ['i'], workstations: [{ path: '/c/1' }] });
   expect(hostSpots(clones, [card('i', { state: 'idea' })]).map((s) => s?.card)).toEqual([undefined, 'i']);
+  // on this machine's checkout alone (no workstation of the repository here), the idea is its one dot
+  const checkout = host({ worktrees: false, checkout: true, slots: 0, total: 0, exploring: ['i'] });
+  expect(hostSpots(checkout, [card('i', { state: 'idea' })]).map((s) => s?.card)).toEqual(['i']);
   // a parked idea's agent shows no dot
   expect(hostSpots(clones, [card('i', { state: 'idea', hold: { reason: 'parkingLot' } as Item['hold'] })]).map((s) => s?.card)).toEqual([undefined]);
 });

@@ -6,7 +6,7 @@ import { boundsOf, CARD_SIZE } from '../core/layout';
 import { suggestable } from '../core/labels';
 import { AGENT_DEFAULTS, type CardAction, type RepoConfig, type RepoSettings } from '../core/types';
 import type { BadRequest, StoredContribution } from './board';
-import { Projects, ProjectRuntime, startProjects } from './project';
+import { Projects, ProjectRuntime, startProjects, withCheckout } from './project';
 import { Store } from './store';
 import { readShared } from '../adapters';
 import { commandsOf } from './trust';
@@ -152,6 +152,15 @@ describe('a project with several repositories', () => {
     expect(api!.hosts[0]).toMatchObject({ here: true, cards: [], busy: [], exploring: [card.id] });
     project.board.setIdea(card.id, { thinking: false });
     expect(project.board.snapshot().workstations![1]!.hosts[0]!.exploring).toBeUndefined();
+  });
+
+  test("a working idea of a repository without a workstation on this machine stands on this machine's checkout, holding no slot", () => {
+    const remote = { name: 'box', slots: 2, total: 2, cards: [], busy: [], workstations: [{ path: '/w/1' }, { path: '/w/2' }] };
+    expect(withCheckout([remote], { exploring: ['i'] })).toEqual([{ name: HERE, here: true, checkout: true, slots: 0, total: 0, cards: [], busy: [], workstations: [], exploring: ['i'] }, remote]);
+    expect(withCheckout([remote], {})).toEqual([remote]);
+    // where this machine has the pool's workstations, the idea stands among them
+    const here = { ...remote, name: HERE, here: true as const, exploring: ['i'] };
+    expect(withCheckout([here], { exploring: ['i'] })).toEqual([here]);
   });
 
   test("a stopped workstream of a repository after the first keeps its clone when Seismic starts again", async () => {

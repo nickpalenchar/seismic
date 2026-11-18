@@ -39,6 +39,15 @@ describe('a project over a folder without git', () => {
     expect(project.repos[0]!.read.path).toBe(docs);
   });
 
+  test('a working idea shows on the workstations of a folder, which has no pool otherwise', () => {
+    expect(project.board.snapshot().workstations).toBeUndefined();
+    const idea = project.board.create({ title: 'Sort by year?', x: 0, y: 0, body: 'Maybe by year.' });
+    project.patch(idea.id, { state: 'idea' });
+    expect(project.board.snapshot().workstations).toEqual([{ repo: 'documents', hosts: [expect.objectContaining({ here: true, checkout: true, slots: 0, total: 0, exploring: [idea.id] })] }]);
+    project.board.setIdea(idea.id, { thinking: false });
+    expect(project.board.snapshot().workstations).toBeUndefined();
+  });
+
   test('two cards work in the folder at once, each with its own changes; undo puts back one card’s, approval ends the other', async () => {
     const sort = project.board.create({ title: 'Sort the scans', x: 0, y: 0 });
     const letter = project.board.create({ title: 'Draft the letter', x: 400, y: 0 });
