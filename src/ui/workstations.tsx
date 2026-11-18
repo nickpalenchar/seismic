@@ -88,27 +88,39 @@ export const atWorkOn = (h: PoolHost): number => h.busy.length + (h.reviewing?.l
 
 /**
  * A machine's workstations in the order of its dots: each clone; in worktrees each card's worktree,
- * then an empty circle for each slot no worker is busy in, up to the maximum (none without slots).
- * A waiting card keeps its worktree but its worker has released the slot; a hidden card's worker
- * can still occupy one. An idea whose agent is at work stands after the cards, though its agent
- * works in the repository's checkout and holds neither a workstation nor a slot.
+ * including those waiting on the owner, then working ideas and empty circles up to the cap.
+ * Hidden slots leave no dot. Only workers in a turn count against the scheduling cap.
  */
 export const hostSpots = (h: PoolHost, items: Item[]): (PoolWorkstation | undefined)[] => {
+  const byId = new Map(items.map((i) => [i.id, i]));
   // a card that is stopped, queued, snoozed, parked or not on this project does not show: only cards at work or waiting on the owner here
   const shown = (w: PoolWorkstation) => {
     if (!w.card) return true;
-    const i = items.find((x) => x.id === w.card);
+    const i = byId.get(w.card);
     return !!i && !stopped(i) && !i.queue && !snoozeOf(i) && !inParkingLot(i);
   };
   const held = h.workstations.filter(shown);
   const ideas = (h.exploring ?? []).filter((card) => !held.some((w) => w.card === card)).map(ideaSpot).filter(shown);
   if (!h.worktrees) return [...held, ...ideas];
-  const cards = held.filter((w) => w.card);
-  // an empty circle for each slot without a busy worker, the pool's count (hidden cards included), as in the pill's summary
-  return [...cards, ...ideas, ...Array.from({ length: h.uncapped ? 0 : Math.max(0, h.slots - h.busy.length) }, () => undefined)];
+  const cards = held.filter((w): w is PoolWorkstation & { card: string } => !!w.card);
+  if (h.uncapped) return [...cards, ...ideas];
+
+  const busy = new Set(h.busy);
+  // A busy worker can be hidden or work outside the pool. Queued and snoozed cards can keep a worktree.
+  const hidden = new Set(busy);
+  for (const { card } of h.workstations) {
+    const i = card && byId.get(card);
+    if (i && (i.queue || snoozeOf(i))) hidden.add(i.id);
+  }
+  for (const { card } of cards) hidden.delete(card);
+  const visibleSlots = Math.max(0, h.slots - hidden.size);
+  // Waiting cards can retain more worktrees than the cap. Keep busy cards visible first in that case.
+  if (cards.length > visibleSlots) cards.sort((a, b) => Number(busy.has(b.card)) - Number(busy.has(a.card)));
+  const spots = [...cards, ...ideas].slice(0, visibleSlots);
+  return [...spots, ...Array.from({ length: visibleSlots - spots.length }, () => undefined)];
 };
 
-/** The spot of an idea whose agent is at work (`PoolHost.exploring`): no workstation of the pool, but a dot and a row as one. */
+/** The spot of an idea whose agent is at work (`PoolHost.exploring`), represented alongside the pool's workstations. */
 const ideaSpot = (card: string): PoolWorkstation => ({ path: `idea:${card}`, card });
 
 export const hostDots = (h: PoolHost, items: Item[], underway: Record<string, string>) => hostSpots(h, items).map((w) => wsDot(w, h, items, underway));

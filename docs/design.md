@@ -131,10 +131,15 @@ cycling through terminals.
 - **An idea's agent works in the repository's checkout, holding no workstation and no slot**
   (2026-11-18): it reads and discusses, so a clone or worktree of its own would be cost without
   use. The Workstations pill still shows it while it works on a reply, as a dot after the cards'
-  in the idea's colour, counted at work but not against the slots; where the repository has no
-  workstation on this machine (clones on other machines alone, a folder without git) the pool gains
+  in the idea's colour when there is room, counted at work and outside the worker scheduling cap.
+  Where the repository has no workstation on this machine (clones on other machines alone, a
+  folder without git) the pool gains
   an entry for this machine's checkout (`PoolHost.checkout`) that holds only those ideas. Rejected:
   leaving working ideas off the pill, which hid agents at work from its count.
+- **A capped worktree display gives each visible worktree one position** (2026-11-18), including
+  those waiting on the owner. Busy worktrees have priority if the display fills. Hidden workers
+  and queued or snoozed cards retaining a worktree use a position without a dot. Working ideas
+  can use the remaining positions.
 - **What Seismic suggests by itself is switched per project** (2026-11-14): new cards from the work
   retrospective, merges from the duplicate check at a card's start, and labels. Off takes the tool
   and its instructions out of the agent's session rather than telling it to refrain.

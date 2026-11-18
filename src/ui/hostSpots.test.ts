@@ -5,10 +5,16 @@ import { atWorkOn, dotsLayout, hostSpots } from './workstations';
 const card = (id: string, more: Partial<Item> = {}) => ({ id, short: id, title: id, body: '', state: 'working', ...more }) as Item;
 const host = (more: Partial<PoolHost>): PoolHost => ({ name: 'here', worktrees: true, slots: 1, total: 1, cards: [], busy: [], workstations: [], ...more });
 
-test('a waiting card keeps its worktree dot, and its released slot shows as an empty circle', () => {
-  const h = host({ cards: ['a'], busy: [], workstations: [{ path: '/w/a', card: 'a' }] });
-  const spots = hostSpots(h, [card('a', { state: 'waiting' })]);
-  expect(spots.map((s) => s?.card)).toEqual(['a', undefined]);
+test('a waiting card uses one position in a capped worktree display', () => {
+  const waiting = { path: '/w/waiting', card: 'waiting' };
+  const h = host({ slots: 10, total: 10, workstations: [waiting] });
+  const review = card('waiting', { state: 'waiting' });
+  expect(hostSpots(h, [review])).toStrictEqual([waiting, ...Array(9).fill(undefined)]);
+
+  const working = { path: '/w/working', card: 'working' };
+  const mixed = { ...h, cards: ['working'], busy: ['working'], workstations: [waiting, working] };
+  const spots = hostSpots(mixed, [review, card('working')]);
+  expect(spots).toStrictEqual([waiting, working, ...Array(8).fill(undefined)]);
 });
 
 test('a hidden card whose worker is busy takes a slot: no empty circle', () => {
@@ -17,15 +23,30 @@ test('a hidden card whose worker is busy takes a slot: no empty circle', () => {
   expect(spots).toEqual([]);
 });
 
+test('a snoozed card with a worktree uses a position even after its turn ends', () => {
+  const h = host({ workstations: [{ path: '/w/a', card: 'a' }] });
+  expect(hostSpots(h, [card('a', { hold: { reason: 'snoozed', by: 'owner', since: '2026-11-18T12:00:00Z' } })])).toStrictEqual([]);
+});
+
+test('busy worktrees have priority when more cards hold worktrees than the cap', () => {
+  const waiting = { path: '/w/waiting', card: 'waiting' };
+  const working = { path: '/w/working', card: 'working' };
+  const h = host({ cards: ['working'], busy: ['working'], workstations: [waiting, working] });
+  const items = [card('waiting', { state: 'waiting' }), card('working')];
+  expect(hostSpots(h, items)).toEqual([working]);
+  expect(hostSpots({ ...h, slots: 0, total: 0, uncapped: true }, items)).toEqual([waiting, working]);
+});
+
 test('a card whose code review agent is at work counts at work beside the workers in a turn', () => {
   expect(atWorkOn(host({ busy: ['a'], reviewing: ['b'] }))).toBe(2);
   expect(atWorkOn(host({ busy: ['a'] }))).toBe(1);
 });
 
-test('an idea whose agent is at work has a dot after the cards, takes no slot and counts at work', () => {
+test('an idea whose agent is at work uses an available dot after the worktrees and counts at work', () => {
   const h = host({ slots: 2, total: 2, cards: ['a'], busy: ['a'], exploring: ['i'], workstations: [{ path: '/w/a', card: 'a' }] });
   const spots = hostSpots(h, [card('a'), card('i', { state: 'idea' })]);
-  expect(spots.map((s) => s?.card)).toEqual(['a', 'i', undefined]);
+  expect(spots.map((s) => s?.card)).toEqual(['a', 'i']);
+  expect(hostSpots({ ...h, slots: 1, total: 1 }, [card('a'), card('i', { state: 'idea' })]).map((s) => s?.card)).toEqual(['a']);
   expect(atWorkOn(h)).toBe(2);
   // in clones, after every clone
   const clones = host({ worktrees: false, exploring: ['i'], workstations: [{ path: '/c/1' }] });
