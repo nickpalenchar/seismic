@@ -1,5 +1,6 @@
 import { ReviewSeverityIcon } from './components/review-severity-icon';
 import { noteClass } from './components/ai/message';
+import { Spinner } from './components/spinner';
 import { Car, Check, GitMerge, Lightbulb, ChevronDown, ChevronLeft, ChevronRight, Pencil, Maximize, MessageSquare, Minimize, PanelRightClose, PanelRightOpen, Play, Plus, Share, ZoomIn, ZoomOut } from 'lucide-react';
 import { clientExtensions as extensions } from '../extensions/client';
 // The unfolded card: what it is, what its worker does, and what the owner decides.
@@ -219,6 +220,8 @@ export function Detail(p: Props) {
   const [picking, setPicking] = useState(false);
   const [confirmReviewApproval, setConfirmReviewApproval] = useState(false);
   const [confirmUnsent, setConfirmUnsent] = useState(false);
+  // "Attempt merge" shows a spinner and stays off until the server has answered
+  const [attemptingMerge, setAttemptingMerge] = useState(false);
   // whether the approval the owner is asked to confirm is "Straight to main"
   const [confirmDirect, setConfirmDirect] = useState(false);
   const unsentPicks = useFindingDraft(item).findings;
@@ -496,7 +499,7 @@ export function Detail(p: Props) {
   const halted = stopped(item) && !item.queue;
   // on a planned card, queued or not: a suggested card it cannot merge with can still be dismissed
   const duplicateActions = duplicatePartner && mergeProposed(item) && <ButtonGroup className="duplicate-merge-actions inline-flex align-middle">
-    <Button className="duplicate-attempt bg-proposal text-proposal-foreground" disabled={!mergeableWith(item, duplicatePartner)} onClick={() => act({ action: 'merge', with: duplicatePartner.id }, { close: false })}>{t.duplicate.attempt}</Button>
+    <Button className="duplicate-attempt bg-proposal text-proposal-foreground" disabled={attemptingMerge || !mergeableWith(item, duplicatePartner)} onClick={() => { setAttemptingMerge(true); void act({ action: 'merge', with: duplicatePartner.id }, { close: false }).finally(() => setAttemptingMerge(false)); }}>{attemptingMerge && <Spinner />}{t.duplicate.attempt}</Button>
     <Button className="duplicate-dismiss bg-proposal/12 text-foreground" onClick={() => act({ action: 'dismissDuplicate' }, { close: false })}>{t.duplicate.dismiss}</Button>
   </ButtonGroup>;
   const duplicateNotice = duplicatePartner && mergeProposed(item) && <div className={questionClass('duplicate-notice')}>
