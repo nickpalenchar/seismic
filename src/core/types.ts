@@ -500,7 +500,7 @@ export interface ItemAgent {
   doing?: AgentDoing;
   /** The harness and model of the card's agent whose session runs now (`AgentAt`), as far as known: its bubble at work names them. */
   identity?: AgentIdentity;
-  /** The selection pinned to the current worker session. */
+  /** The selection pinned to the worker, even before its session has an ID. */
   workerSetting?: AgentSetting;
   /** The worker's background work that runs (a test run, a render, a watcher), the oldest first: while `inTurn`, or after the turn on a card that waits for the owner. */
   background?: BackgroundTask[];
@@ -728,7 +728,7 @@ export interface HeldMessage {
 export type Hold =
   | { reason: 'pausing'; since: string }
   | { reason: 'paused'; since: string; held?: HeldMessage[] }
-  | { reason: 'limit'; since: string; until?: string; attempts: number; statusBefore?: string | null; held?: HeldMessage[] }
+  | { reason: 'limit'; since: string; until?: string; model?: string; attempts: number; statusBefore?: string | null; held?: HeldMessage[] }
   | (Snooze & { reason: 'snoozed'; since: string; held?: HeldMessage[] })
   | { reason: 'parkingLot'; since: string };
 
@@ -745,7 +745,7 @@ export const AGENT_HOLDS: readonly HoldReason[] = ['pausing', 'paused', 'limit',
  */
 export type ItemHold =
   | { reason: 'pausing' | 'paused' | 'parkingLot'; since: string }
-  | { reason: 'limit'; since?: string; until?: string }
+  | { reason: 'limit'; since?: string; until?: string; model?: string }
   | (Snooze & { reason: 'snoozed'; since: string })
   | { reason: 'restart' };
 

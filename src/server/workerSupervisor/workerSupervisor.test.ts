@@ -720,19 +720,22 @@ describe('workers', () => {
 
   test('three refused turns pause, survive restart, and a manual failed attempt pauses immediately', async () => {
     const c = manual();
-    await workers.start(c.id);
+    await workers.start(c.id, { model: 'sonnet', effort: 'medium' });
     const fail = () => {
       runtime.last.emit({ type: 'error', message: 'Session limit', limit: {} });
       runtime.last.emit({ type: 'idle' });
     };
     fail();
     expect(board.item(c.id)!.agent?.limitedUntil).toBeDefined();
+    expect(board.item(c.id)!.agent?.workerSetting).toEqual(runtime.last.spec.setting!);
+    expect(board.row(c.id).session_id).toBeNull();
     workers.resume(c.id);
     fail();
     expect(board.item(c.id)?.hold?.reason).not.toBe('paused');
     workers.resume(c.id);
     fail();
     expect(board.item(c.id)).toMatchObject({ hold: { reason: 'limit' } });
+    expect(board.item(c.id)!.agent?.workerSetting).toEqual({ model: 'sonnet', effort: 'medium' });
     expect(board.item(c.id)!.agent?.limitedUntil).toBeUndefined();
     expect(workers.busyCards()).toEqual([]);
     expect(runtime.last.closed).toBe(true);
@@ -742,6 +745,7 @@ describe('workers', () => {
     expect(runtime.sessions.length).toBe(before);
     workers.resume(c.id);
     await until(() => runtime.sessions.length > before);
+    expect(runtime.last.spec.setting).toEqual({ model: 'sonnet', effort: 'medium' });
     fail();
     expect(board.item(c.id)).toMatchObject({ hold: { reason: 'limit' } });
     expect((board.row(c.id).hold as { attempts: number }).attempts).toBe(4);
@@ -780,11 +784,15 @@ describe('workers', () => {
     expect(runtime.last.spec.setting).toMatchObject({ harness: 'codex' });
     expect(runtime.last.inbox[0]).toContain(c.title);
     expect(runtime.last.inbox[0]).toContain('You take this card over from another agent');
+    runtime.last.emit({ type: 'error', message: 'Session limit', limit: {} });
+    expect(board.item(c.id)!.agent?.workerSetting).toMatchObject({ codex: { model: 'gpt-5.5' } });
+    expect(board.row(c.id).session_id).toBeNull();
   });
 
   test('a known reset wakes a capped worker only once; successful work clears the retry budget', async () => {
     const c = manual();
     await workers.start(c.id);
+    runtime.last.emit({ type: 'session', id: 'named-worker', model: 'claude-opus-test' });
     runtime.last.call('report', { status: 'Exporting' });
     const reset = Date.now() + 60_000;
     for (let n = 0; n < 3; n++) {
@@ -792,7 +800,7 @@ describe('workers', () => {
       runtime.last.emit({ type: 'error', message: 'Session limit', limit: { resetsAt: reset } });
       runtime.last.emit({ type: 'idle' });
     }
-    expect(board.item(c.id)).toMatchObject({ hold: { reason: 'limit' } });
+    expect(board.item(c.id)).toMatchObject({ hold: { reason: 'limit', model: 'claude-opus-test' } });
     const before = runtime.sessions.length;
     workers.wakeLimit(c.id, reset - 1);
     expect(runtime.sessions.length).toBe(before);

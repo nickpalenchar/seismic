@@ -14,6 +14,7 @@ import { type AgentSetting, type CodeReviewSetting, needsYou, type ReviewItem, t
 import { described, listed, reopenings } from './codeReview';
 import { artifact, type FakeSession, until } from '../testing';
 import { WorkerSupervisor } from './workerSupervisor';
+import { withAgentSetting, withLimitWait } from '../runtime';
 import { git } from '../workstations';
 import { board, dir, eachTest, main, manual, runtime, setWorkers, spaces, state, workers } from './fixture';
 
@@ -33,7 +34,7 @@ function reviewing(mode: CodeReviewSetting['mode'] = 'auto', on = true, land: Re
       workstations: spaces,
       adapter: { ...generic, land, direct: land === 'pr', workstations: 'clones' },
       codeReviews: () => setting,
-      ...(reviewAgentSetting ? { reviewAgentSetting } : {}),
+      ...(reviewAgentSetting ? { reviewAgentSetting, reviewRuntime: withLimitWait(withAgentSetting(runtime, reviewAgentSetting)) } : {}),
       onFollowUpTask: (task, of) => followed.push([task, of]),
     }),
   );
@@ -145,7 +146,7 @@ describe('code reviews', () => {
     await handOver(id, 'export.ts');
     expect(state(id)).toBe('waiting:demo');
     await until(() => reviewers().length === 1);
-    expect(board.item(id)!.review?.codeReview).toEqual({ mode: 'auto', state: 'running', runs: 1, items: [] });
+    expect(board.item(id)!.review?.codeReview).toEqual({ mode: 'auto', state: 'running', runs: 1, items: [], agent: { harness: 'claude', model: 'opus' } });
   });
 
   test('work that goes through a pull request gets "Start code review" in manual mode', async () => {
@@ -191,7 +192,7 @@ describe('code reviews', () => {
     await handOver(id, 'export.ts');
     expect(state(id)).toBe('waiting:demo');
     await until(() => reviewers().length === 1);
-    expect(board.item(id)!.review?.codeReview).toEqual({ mode: 'auto', state: 'running', runs: 1, items: [] });
+    expect(board.item(id)!.review?.codeReview).toEqual({ mode: 'auto', state: 'running', runs: 1, items: [], agent: { harness: 'claude', model: 'opus' } });
     const r = reviewers()[0]!;
     expect(r.spec.system).toContain('- Agents speak and write to me in English only.');
     expect(r.spec.tools.find((t) => t.name === 'review')!.description).toContain('unless an explicit standing preference names another language');
@@ -371,7 +372,7 @@ describe('code reviews', () => {
     await until(() => board.item(id)!.review?.codeReview?.state === 'failed');
     expect(board.item(id)!.review?.codeReview).toMatchObject({ limited: true, agent: { harness: 'claude', model: 'opus' } });
     expect(board.item(id)!.state).toBe('waiting');
-    // another agent for this run only: the next one goes back to the group's
+    // another agent for this run and its retries
     const other: AgentSetting = { harness: 'claude', model: 'sonnet', effort: 'medium' };
     workers.startCodeReview(id, other);
     await until(() => reviewers().length === 2);
@@ -384,7 +385,8 @@ describe('code reviews', () => {
     // the same model again, once usage is added
     workers.startCodeReview(id);
     await until(() => reviewers().length === 3);
-    expect(reviewers()[2]!.spec.setting).toMatchObject({ model: 'opus' });
+    expect(reviewers()[2]!.spec.setting).toEqual(other);
+    expect(reviewers()[2]!.spec.model).toBe('sonnet');
     reviewers()[2]!.emit({ type: 'error', message: "You've hit your usage limit", limit: {} });
     await until(() => board.item(id)!.review?.codeReview?.state === 'failed');
     // skipped: no review stands, the card waits for approval, and the review can still start later
@@ -395,6 +397,41 @@ describe('code reviews', () => {
     expect(() => workers.reviews.skip(id)).toThrow();
     workers.startCodeReview(id);
     await until(() => reviewers().length === 4);
+    expect(reviewers()[3]!.spec.model).toBe('opus');
+  });
+
+  test('a limit before a session names the configured default and retries it after a settings change and restart', async () => {
+    const initial: AgentSetting = { model: 'default', effort: 'medium', harness: 'claude' };
+    let selected = initial;
+    reviewing('auto', true, 'main', () => selected);
+    const id = await started();
+    await handOver(id, 'export.ts');
+    await until(() => reviewers().length === 1);
+    const hit = { type: 'error', message: 'API Error: 429', limit: {} } as const;
+    reviewers()[0]!.emit(hit);
+    expect(board.item(id)!.review?.codeReview).toMatchObject({ limited: true, agent: { harness: 'claude', model: 'default' } });
+
+    selected = { model: 'opus', effort: 'high', harness: 'codex', codex: { model: 'gpt-test', effort: 'high' } };
+    workers.startCodeReview(id);
+    workers.shutdown();
+    reviewing('auto', true, 'main', () => selected);
+    workers.reviews.interrupted();
+    await until(() => reviewers().length === 2);
+    expect(reviewers()[1]!.spec.setting).toEqual(initial);
+    expect(reviewers()[1]!.spec.model).toBeUndefined();
+    reviewers()[1]!.emit({ type: 'session', id: 'review-1', model: 'claude-test' });
+
+    // A limit on a resumed session also goes to the card. The retry pins its resolved model.
+    workers.shutdown();
+    reviewing('auto', true, 'main', () => selected);
+    workers.reviews.interrupted();
+    await until(() => reviewers().length === 3);
+    expect(reviewers()[2]!.spec.resume).toBe('review-1');
+    reviewers()[2]!.emit(hit);
+    expect(board.item(id)!.review?.codeReview).toMatchObject({ limited: true, agent: { harness: 'claude', model: 'claude-test' } });
+    workers.startCodeReview(id);
+    await until(() => reviewers().length === 4);
+    expect(reviewers()[3]!.spec).toMatchObject({ setting: initial, model: 'claude-test', effort: 'medium' });
   });
 
   test('a review that failed otherwise cannot be skipped', async () => {

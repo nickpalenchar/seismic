@@ -13,7 +13,7 @@ import { BadRequest, type Board, codeReviewOf, type StoredCodeReview } from '../
 import { type AgentRuntime, type AgentSession } from '../runtime';
 import { gitAsync } from '../workstations';
 import type { CardWorkstations } from '../workstations';
-import { harnessChoice, type AgentSetting, type AgentIdentity, type ChangeRoute, type CodeReviewMode, needsOwner, type ReviewItem, type ReviewItemStatus, type ReviewItemWho, type Severity, SEVERITIES } from '../../core/types';
+import { AGENT_DEFAULTS, harnessChoice, type AgentSetting, type AgentIdentity, type ChangeRoute, type CodeReviewMode, needsOwner, type ReviewItem, type ReviewItemStatus, type ReviewItemWho, type Severity, SEVERITIES } from '../../core/types';
 import { LANGUAGE_NAMES } from '../../core/locale';
 import { clip, messageOf } from '../../core/text';
 import type { DueRestart } from '../llms/agents/worker/restartNotices';
@@ -175,7 +175,8 @@ export class CodeReviews {
   /**
    * "Start code review": a review of the card's latest handover starts, where it has none that stands
    * (or one that failed). `setting`: the agent the owner chose for it in place of the "Code reviews"
-   * group's ("Select new agent" on a review stopped by its model's usage limit).
+   * group's ("Select new agent" on a review stopped by its model's usage limit). Without a new
+   * choice, "Try again" on that limit keeps the stopped run's agent.
    */
   start(cardId: string, handover?: number, setting?: AgentSetting): void {
     if (this.shut) throw new BadRequest('notReview', 'the reviewer is shutting down');
@@ -220,7 +221,7 @@ export class CodeReviews {
     this.stopSession(cardId);
     const c = this.o.board.item(cardId) ? codeReviewOf(this.o.board.row(cardId)) : null;
     if (c?.pending || c?.review?.state === 'running' || (running && c?.review)) {
-      const { pending: _, pendingStart: __, pendingId: ___, review, ...rest } = c;
+      const { pending: _, pendingStart: __, pendingId: ___, setting: ____, review, ...rest } = c;
       if (review?.state !== 'running' && !running) Object.assign(rest, { review });
       else if (review && !rest.runs) rest.runs = 1;
       this.save(cardId, rest);
@@ -373,15 +374,27 @@ export class CodeReviews {
     if (this.shut || !this.waits(cardId)) return;
     const stored = codeReviewOf(this.o.board.row(cardId));
     if (!stored) return;
-    const { pending: _, pendingStart: __, pendingId: ___, setting: chosen, ...c } = stored;
+    const { pending: _, pendingStart, pendingId: __, setting: chosen, ...c } = stored;
     this.stopSession(cardId);
-    const setting = chosen ?? this.o.agentSetting?.();
-    const choice = setting && harnessChoice(setting);
-    const agent: AgentIdentity | undefined = setting && { harness: setting.harness ?? 'claude', ...(choice?.model && choice.model !== 'default' ? { model: choice.model } : {}) };
-    this.save(cardId, { ...c, runs: (c.runs ?? (c.review ? 1 : 0)) + 1, review: { handover: c.handover, ...(head ? { head } : {}), state: 'running', at: new Date().toISOString(), ...(agent ? { agent } : {}), ...(chosen ? { setting: chosen } : {}) } });
+    const retry = pendingStart && !chosen && c.review?.limited ? c.review : undefined;
+    const setting = chosen ?? this.settingFor(retry);
+    const agent: AgentIdentity = { harness: setting.harness ?? 'claude', model: retry?.agent?.model ?? harnessChoice(setting).model };
+    const next: NonNullable<StoredCodeReview['review']> = { handover: c.handover, ...(head ? { head } : {}), state: 'running', at: new Date().toISOString(), agent, setting };
+    this.save(cardId, { ...c, runs: (c.runs ?? (c.review ? 1 : 0)) + 1, review: next });
     // a restart that is due would cut it off: it starts once Seismic runs again
     if (this.restart) return void this.paused.add(cardId);
-    this.launch(cardId, setting);
+    this.launch(cardId, next);
+  }
+
+  private settingFor(review?: StoredCodeReview['review']): AgentSetting {
+    if (review?.setting) return review.setting;
+    const fallback = this.o.agentSetting?.() ?? AGENT_DEFAULTS.review;
+    // Older reviews stored the setting only for overrides and omitted the model for account defaults.
+    if (!review?.agent) return fallback;
+    const { harness, model } = review.agent;
+    const setting = harness === (fallback.harness ?? 'claude') ? fallback : { ...AGENT_DEFAULTS.review, harness };
+    if (model && model !== 'default') return setting;
+    return harness === 'claude' ? { ...setting, model: 'default' } : { ...setting, [harness]: { ...harnessChoice(setting), model: 'default' } };
   }
 
   /** The card's running review goes on: its agent's session where it has one, else a review from the start. */
@@ -389,18 +402,28 @@ export class CodeReviews {
     this.paused.delete(cardId);
     if (this.shut || !this.waits(cardId) || this.running.has(cardId)) return;
     const c = codeReviewOf(this.o.board.row(cardId));
-    if (c?.review?.state !== 'running') return;
+    let review = c?.review;
+    if (!c || review?.state !== 'running') return;
     if (this.restart) return void this.paused.add(cardId);
+    if (!review.setting || !review.agent?.model) {
+      const setting = this.settingFor(review);
+      const agent = { harness: setting.harness ?? 'claude', model: review.agent?.model ?? harnessChoice(setting).model } satisfies AgentIdentity;
+      review = { ...review, setting, agent };
+      this.save(cardId, { ...c, review });
+    }
     // a session without the scope of its brief cannot have its verdicts checked against it: the review starts over
-    this.launch(cardId, c.review.setting ?? this.o.agentSetting?.(), c.review.scope ? c.review.session : undefined);
+    this.launch(cardId, review, review.scope ? review.session : undefined);
   }
 
-  private launch(cardId: string, setting: AgentSetting | undefined, resume?: string): void {
+  private launch(cardId: string, review: NonNullable<StoredCodeReview['review']>, resume?: string): void {
     const run = {};
     this.running.set(cardId, { run });
     // the Workstations pill counts its agent at work
     this.o.board.changed();
-    void this.run(cardId, run, setting, resume).catch((e) => this.finish(cardId, run, undefined, messageOf(e)));
+    const setting = this.settingFor(review);
+    const model = review.agent?.model;
+    const resolvedModel = model && model !== 'default' && model !== harnessChoice(setting).model ? model : undefined;
+    void this.run(cardId, run, setting, resolvedModel, resume).catch((e) => this.finish(cardId, run, undefined, messageOf(e)));
   }
 
   /** The review agent at work hears that a restart is due, and pauses for it. */
@@ -421,7 +444,7 @@ export class CodeReviews {
     if (!this.restart) this.resume(cardId);
   }
 
-  private async run(cardId: string, run: object, setting?: AgentSetting, resume?: string): Promise<void> {
+  private async run(cardId: string, run: object, setting: AgentSetting, resolvedModel: string | undefined, resume?: string): Promise<void> {
     const b = this.o.board;
     const row = b.row(cardId);
     const ws = row.workstation;
@@ -446,7 +469,7 @@ export class CodeReviews {
       session?.close();
       const r = this.running.get(cardId);
       // a session that does not resume (gone, or another harness now): the review starts over
-      if (resume && error && !recorded && r?.run === run) {
+      if (resume && error && !limited && !recorded && r?.run === run) {
         this.running.delete(cardId);
         const c = codeReviewOf(b.row(cardId));
         if (c?.review?.state === 'running') {
@@ -462,6 +485,7 @@ export class CodeReviews {
       this.o.runtime,
       {
         setting,
+        resolvedModel,
         language,
         preferences: b.preferencesText(),
         resumed: !!resume,
@@ -488,7 +512,7 @@ export class CodeReviews {
             const model = e.model ?? (e.setting ? harnessChoice(e.setting).model : undefined);
             const named = model && model !== 'default' && c?.review?.agent?.model !== model;
             if (c?.review?.state === 'running' && (named || c.review.session !== e.id))
-              this.save(cardId, { ...c, review: { ...c.review, session: e.id, ...(named ? { agent: { harness: c.review.agent?.harness ?? setting?.harness ?? 'claude', model } } : {}) } });
+              this.save(cardId, { ...c, review: { ...c.review, session: e.id, ...(named ? { agent: { harness: setting.harness ?? 'claude', model } } : {}) } });
           }
           if (e.type === 'idle') end();
           else if (e.type === 'error') end(e.message, !!e.limit);

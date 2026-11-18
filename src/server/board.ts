@@ -198,10 +198,10 @@ export interface StoredCodeReview {
   /**
    * `head`: the branch's commit it reviewed, where git told it; `session`: its agent's session while
    * it runs, which goes on after a restart; `scope`: the items under review when its brief was
-   * written, the ones it gives verdicts on.
+   * written, the ones it gives verdicts on. `setting`: the effective agent choice for the run.
    */
   review?: { handover: number; head?: string; state: 'running' | 'done' | 'failed'; error?: string; limited?: true; at: string; agent?: AgentIdentity; setting?: AgentSetting; session?: string; scope?: number[] };
-  /** The agent the owner chose for the next run in place of the "Code reviews" group's ("Select new agent"); `review.setting` keeps it for the run. */
+  /** The agent the owner explicitly chose while a manual start is pending ("Select new agent"). */
   setting?: AgentSetting;
   /** An automatic review is about to start (git has not told the commit yet): the card shows it as running, so the handover is not announced before the review. */
   pending?: true;
@@ -3808,7 +3808,7 @@ function awakeHold(h: Hold): Hold | null {
 
 /** What a card's hold shows to the UI and the agents: not what it holds for the agent, nor a limit pause's count. */
 function itemHold(h: Hold): ItemHold {
-  if (h.reason === 'limit') return { reason: 'limit', since: h.since, ...(h.until ? { until: h.until } : {}) };
+  if (h.reason === 'limit') return { reason: 'limit', since: h.since, ...(h.until ? { until: h.until } : {}), ...(h.model ? { model: h.model } : {}) };
   if (h.reason !== 'snoozed') return { reason: h.reason, since: h.since };
   const { held: _, ...shown } = h;
   return shown;
@@ -4091,7 +4091,7 @@ function work(r: CardRow, themeNow?: ThemeNow, there: Present = existsSync): Par
     ...(r.hold ? { hold: itemHold(r.hold) } : {}),
     ...parts({
       agent: {
-        ...((r.session_id || r.queue) && r.agent_setting ? { workerSetting: JSON.parse(r.agent_setting) as ItemAgent['workerSetting'] } : {}),
+        ...((r.session_id || r.queue || (r.workstation && r.state !== 'planned') || r.hold?.reason === 'limit') && r.agent_setting ? { workerSetting: JSON.parse(r.agent_setting) as ItemAgent['workerSetting'] } : {}),
         ...(r.status_line ? { statusLine: r.status_line } : {}),
         ...(r.branch ? { branch: r.branch } : {}),
         ...(r.stopped_at && r.state === 'planned' && r.branch ? { stoppedAt: JSON.parse(r.stopped_at) as StoppedAt } : {}),

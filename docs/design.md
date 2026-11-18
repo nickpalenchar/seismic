@@ -136,8 +136,8 @@ cycling through terminals.
   code review stopped by its model's usage limit shows a callout naming the model, with "Try again",
   "Select new agent" and, for a review, "Skip review". A worker handed to another model of the same
   harness resumes its session; across harnesses it starts afresh from the briefing and its branch,
-  since sessions never cross harnesses. A review's chosen agent holds for that card's run only, not
-  the "Code reviews" setting; skipping drops the stopped run and keeps the review's items.
+  since sessions never cross harnesses. A review keeps its run's agent when retried, even if the
+  "Code reviews" setting changed; skipping drops the stopped run and keeps the review's items.
 - **A repository describes itself as values in `.obeya/settings.json`, read from `main`**
   (2026-10-15); rejected: code adapters per repository.
 - **A repository's commands and agent configuration count only as last trusted by the owner**

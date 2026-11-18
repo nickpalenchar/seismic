@@ -36,4 +36,4 @@ export type AgentPermission = 'ask' | 'acceptEdits' | 'auto' | 'dangerouslyBypas
  * what it may touch, the hooks that let it hear of news and ask the owner. Supplied by the caller
  * (`SeismicAgent.getSessionOptions`). The trust flags and the limit handling go here as agents need them.
  */
-export type SessionOptions = Pick<AgentSpec, 'at' | 'dirs' | 'untrusted' | 'claudeHeld' | 'codexConfig' | 'env' | 'contextUpdate' | 'askOwner' | 'watch' | 'onLimit'>;
+export type SessionOptions = Pick<AgentSpec, 'at' | 'dirs' | 'untrusted' | 'claudeHeld' | 'codexConfig' | 'env' | 'contextUpdate' | 'askOwner' | 'watch' | 'onLimit' | 'resolvedModel'>;

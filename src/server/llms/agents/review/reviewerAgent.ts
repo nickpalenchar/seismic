@@ -13,11 +13,12 @@ import { reviewResumed } from '../../prompts/reviewResumed';
 import { reviewSystem } from '../../prompts/reviewSystem';
 import { SeismicAgent } from '../seismicAgent';
 import type { AgentPermission, SessionOptions } from '../types';
-import { waitQuietly } from '../../../runtime';
 
 export interface ReviewerContext {
   /** The card's pinned harness, model and effort; none leaves it to the "Code reviews" group's. */
   setting: AgentSetting | undefined;
+  /** The exact model an earlier session named, when retrying or resuming that run. */
+  resolvedModel?: string;
   /** The language the findings are written in, with the owner's standing preferences' proviso. */
   language: string;
   /** The owner's standing preferences, added to the instructions. */
@@ -73,9 +74,8 @@ export class ReviewerAgent extends SeismicAgent<ReviewerContext> {
       .join('\n\n');
   }
 
-  // nobody waits for it: a usage limit holds the review until it is over
-  override getSessionOptions(): SessionOptions {
-    return { onLimit: waitQuietly };
+  override getSessionOptions(ctx: ReviewerContext): SessionOptions {
+    return ctx.resolvedModel ? { resolvedModel: ctx.resolvedModel } : {};
   }
 
   override getTools(ctx: ReviewerContext): AgentTool[] {

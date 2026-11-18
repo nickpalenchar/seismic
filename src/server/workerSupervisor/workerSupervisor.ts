@@ -390,6 +390,8 @@ export interface Live {
   /** Set while the worker waits for a usage limit to lift: it then goes on where it stopped. */
   limitHit?: boolean;
   limitReset?: number;
+  /** The model named by this launch, if a session event arrived. */
+  model?: string;
   /** How many of the worker's background tasks run, as the session last said. */
   background: number;
   /** Those tasks by the session's id, as the agent described them and since when Seismic saw them run, the oldest first: on the card while they run. */
@@ -4023,7 +4025,10 @@ export class WorkerSupervisor {
         if (before && before !== e.id) this.o.board.log(cardId, 'state', 'seismic', this.o.board.t.worker.newSession(this.o.board.t.worker.earlierRun(before)));
         // what this session runs on, as asked for and as it resolved, for whom the owner's response on the work credits
         const pinned = this.o.board.row(cardId).agent_setting;
-        if (pinned) this.o.board.recordRun(cardId, e.id, workConfig(JSON.parse(pinned) as AgentSetting, e.model ?? (e.setting ? harnessChoice(e.setting).model : undefined), live.guessed));
+        const model = e.model ?? (e.setting ? harnessChoice(e.setting).model : undefined);
+        if (model && model !== 'default') live.model = model;
+        else if (before !== e.id) live.model = undefined;
+        if (pinned) this.o.board.recordRun(cardId, e.id, workConfig(JSON.parse(pinned) as AgentSetting, model, live.guessed));
         this.o.board.work(cardId, { session_id: e.id, ...(e.setting ? { agent_setting: JSON.stringify(e.setting) } : {}) });
         break;
       }
@@ -4073,6 +4078,7 @@ export class WorkerSupervisor {
                 since: new Date().toISOString(),
                 attempts: attempts.count,
                 ...(live.limitReset ? { until: new Date(live.limitReset).toISOString() } : {}),
+                ...(live.model ? { model: live.model } : {}),
                 statusBefore: before,
                 ...(pending ? { held: [pending] } : {}),
               },

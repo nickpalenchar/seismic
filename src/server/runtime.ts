@@ -123,6 +123,8 @@ export interface AgentSpec {
   effort?: AgentEffort;
   /** The model, when not the default: a smaller one for small, frequent jobs. */
   model?: string;
+  /** A model named by an earlier session, pinned when that run resumes or is retried. */
+  resolvedModel?: string;
   /** The group the agent belongs to, whose model and effort the owner chooses (`withAgentSetting`). */
   role?: AgentRole;
   /** Where the agent shows at work: its harness and model show there while its session lives (`withAgentSetting`). */
@@ -183,15 +185,16 @@ export function withAgentSetting(
     start(spec, firstMessage, images) {
       if (!spec.role) return runtime.start(spec, firstMessage, images);
       const chosen = spec.setting ?? setting(spec.role);
-      const { model, effort } = harnessChoice(chosen);
-      const { model: _, ...rest } = spec;
+      const choice = harnessChoice(chosen);
+      const { model: _, resolvedModel, ...rest } = spec;
+      const model = resolvedModel ?? choice.model;
       const identity: AgentIdentity = { harness: chosen.harness ?? 'claude', ...(model === 'default' ? {} : { model }) };
       const run = <T>(fn: () => T): T => agentIdentity.run(identity, fn);
       const at = shown && spec.at;
       const token = {};
       if (at) shown(at, { ...identity }, token);
       const session = run(() => runtime.start({
-        ...rest, setting: chosen, effort, ...(model === 'default' ? {} : { model }),
+        ...rest, setting: chosen, effort: choice.effort, ...(model === 'default' ? {} : { model }),
         tools: spec.tools.map((tool) => ({ ...tool, run: (args) => run(() => tool.run(args)) })),
         ...(spec.askOwner ? { askOwner: (request, signal) => run(() => spec.askOwner!(request, signal)) } : {}),
         onEvent: (event) => {

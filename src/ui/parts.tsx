@@ -80,20 +80,23 @@ export const PlayMark = () => (
  */
 export function LimitNotice({ item, codexAllowed = !item.review?.contribution }: { item: Item; codexAllowed?: boolean }) {
   const limitedUntil = item.agent?.limitedUntil;
-  const paused = item.hold?.reason === 'limit';
+  const hold = item.hold?.reason === 'limit' ? item.hold : undefined;
   const review = reviewLimited(item);
   const [error, setError] = useState('');
-  if (!paused && !limitedUntil && !review) return null;
+  if (!hold && !limitedUntil && !review) return null;
   const u = t.usageOut;
   const run = (a: CardAction) => { setError(''); return api.act(item.id, a).catch((e) => setError(failText(e))); };
-  const model = (review ? modelName(item.review?.codeReview?.agent) : modelName(item.agent?.workerSetting)) ?? u.unknownModel;
+  const setting = item.agent?.workerSetting;
+  const identity = item.agent?.identity;
+  const worker = hold?.model ? { harness: setting?.harness ?? 'claude', model: hold.model } : identity?.model ? identity : setting ?? identity;
+  const model = modelName(review ? item.review?.codeReview?.agent : worker) ?? u.unknownModel;
   // a light blue of its own, the colour of a card paused at the limit (`.card.limit-paused`); wrapping on a narrow screen
   return <div role="status" className="limit-notice flex items-start gap-3 py-3 px-4 my-3 mx-0 text-info-strong bg-info-subtle border border-info/30 rounded-xs text-base/[1.4]">
     <HourglassMark />
     <div className="flex-1 min-w-0">
       <div className="limit-title font-semibold">{review ? u.reviewTitle(model) : u.title(model)}</div>
       <div className="limit-body mt-1 text-sm">{review ? u.reviewBody : u.body}</div>
-      {!review && <div className="limit-reset mt-1 text-sm">{paused ? t.limitPaused : t.limitedUntil(clock(limitedUntil!))}{paused && limitedUntil && ` · ${t.limitedUntil(clock(limitedUntil))}`}</div>}
+      {!review && <div className="limit-reset mt-1 text-sm">{hold ? t.limitPaused : t.limitedUntil(clock(limitedUntil!))}{hold && limitedUntil && ` · ${t.limitedUntil(clock(limitedUntil))}`}</div>}
       <div className="limit-actions mt-2.5 flex flex-wrap items-start gap-2">
         <Button onClick={() => void run(review ? { action: 'codeReview' } : { action: 'resume' })}><PlayMark /> {u.tryAgain}</Button>
         <StartAgent label={u.newAgent} selectionOnly codexAllowed={codexAllowed} hint={review ? u.reviewNewAgentHint : u.newAgentHint} onStart={(agent) => { if (agent) return run(review ? { action: 'codeReview', agent } : { action: 'handOff', agent }).then(() => {}); }} />

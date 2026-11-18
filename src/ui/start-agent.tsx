@@ -1,7 +1,7 @@
 import { cn } from 'cn';
 import { ChevronDown, CircleAlert } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { AGENT_EFFORTS, AGENT_MODELS, projectAgentSetting, type AgentEffort, type AgentModel, type AgentIdentity, type AgentSetting, type CodexModel, type Harness } from '../core/types';
+import { AGENT_EFFORTS, AGENT_MODELS, harnessChoice, projectAgentSetting, type AgentEffort, type AgentModel, type AgentIdentity, type AgentSetting, type CodexModel, type Harness } from '../core/types';
 import { ApiError, api } from './api';
 import { updateDraft, useDraft } from './draft';
 import { failText, t } from './strings';
@@ -28,12 +28,10 @@ export const describeAgent = (s: AgentSetting, short = false) => {
 export const modelName = (a: AgentSetting | AgentIdentity | undefined): string | null => {
   if (!a) return null;
   const c = t.config.agents;
-  const harness = c.harnessesShort[a.harness ?? 'claude'];
-  if ('effort' in a) {
-    const o = a.harness === 'codex' || a.harness === 'agy' ? a.harness : null;
-    return `${harness} · ${o ? a[o]?.model ?? (o === 'agy' ? c.agyDefault : c.codexDefault) : c.models[a.model]}`;
-  }
-  return a.model ? `${harness} · ${c.models[a.model as AgentModel] ?? a.model}` : harness;
+  const harness = a.harness ?? 'claude';
+  const model = 'effort' in a ? harnessChoice(a).model : a.model;
+  if (!model || model === 'default') return harness === 'claude' ? c.models.default : harness === 'codex' ? c.codexDefault : c.agyDefault;
+  return `${c.harnessesShort[harness]} · ${(harness === 'claude' ? c.models[model as AgentModel] : undefined) ?? model}`;
 };
 
 /** Whether a Codex or Antigravity choice stands in the catalog the harness offers now: its model, and the effort that model supports. */
