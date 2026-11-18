@@ -105,7 +105,7 @@ export function KoordinatorSheet({ on, entry, project, projectName, items, repos
     <Docked ref={sheet} id="ksheet" on={on} className="flex flex-col [&>*]:flex-none [&>:is(.conv,.talk.fresh-chat)]:flex-[1_1_0] [&>:is(.conv,.talk.fresh-chat)]:min-h-[200px] [&>:is(.conv,.talk.fresh-chat)]:max-h-none [&>:is(.conv,.talk.fresh-chat)]:max-w-none [&>:is(.conv,.talk.fresh-chat)]:mt-0 [&>:is(.conv,.talk.fresh-chat)]:mb-1 [&>:is(.conv,.talk.fresh-chat)]:mx-0">
       <ChatsHead title={<h2 className={sheetTitleClass}>{t.koordinator.title}</h2>} project={project} projectName={projectName} chat={chat} chats={chats} talk={talk} disabled={!ready} onProject={onProject} onClose={onClose} />
       {ready ? (
-        <KoordinatorTalk on={on} project={project} talk={talk} chat={chat} chatModel={chatModel} chats={chats} items={items} repos={repos} onOpen={onOpen} onTell={onTell} autoOpenUnread={false} beforeComposer={<RecentChats project={project} chat={chat} chats={chats} />} />
+        <KoordinatorTalk on={on} project={project} talk={talk} chat={chat} chatModel={chatModel} chats={chats} items={items} repos={repos} onOpen={onOpen} onTell={onTell} autoOpenUnread={false} beforeComposer={<RecentChats key={chat} project={project} draft={SEISMIC_DRAFT} chats={chats} />} />
       ) : opening && 'error' in opening ? (
         <div>
           <p className="p-error" role="alert">{opening.error}</p>
@@ -179,7 +179,7 @@ export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats
           {chats.length > 0 && <p className="hint">{autoOpenUnread ? t.koordinator.chatFresh : t.koordinator.chatFreshDock}</p>}
         </div>
       )}
-      {beforeComposer}
+      {!talk.length && !waiting.length && !chats.some((c) => c.id === chat) && beforeComposer}
       {/* a command in writing, for when speaking is not possible; its screenshots go to the cards it creates or concerns */}
       <Composer className={tellClass} draft={draft} placeholder={t.voice.typePlaceholder} seismic optimistic onSend={send} />
       <label className="chat-model flex items-center gap-2 mt-0 mx-0 mb-1.5 text-muted-foreground text-xs">{t.koordinator.chatModel}

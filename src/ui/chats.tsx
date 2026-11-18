@@ -8,6 +8,7 @@ import { createPortal } from 'react-dom';
 import { cn } from 'cn';
 import type { Chat, ChatElsewhere, Talk } from '../core/types';
 import { api } from './api';
+import { useDraft } from './draft';
 import { plain } from './markdown';
 import { useStoredState } from './stored';
 import { clock, failText, shortDay, t } from './strings';
@@ -180,13 +181,18 @@ export function ChatsHead({ title, project, projectName, chat, chats, talk, disa
   );
 }
 
-/** The project's latest sessions, one click away from the composer. */
-export function RecentChats({ project, chat, chats }: { project: string; chat: number; chats: Chat[] }) {
+/** The project's latest sessions, until the owner starts writing in the empty chat. */
+export function RecentChats({ project, draft, chats }: { project: string; draft: string; chats: Chat[] }) {
   const [error, setError] = useState('');
-  if (!chats.length) return null;
+  const { text } = useDraft(draft);
+  const [started, setStarted] = useState(!!text);
+  useEffect(() => {
+    if (text) setStarted(true);
+  }, [text]);
+  if (!chats.length || text || started) return null;
   const resume = (c: Chat) => {
     setError('');
-    if (c.id !== chat) api.openChat(c.id, project).catch((e) => setError(failText(e)));
+    api.openChat(c.id, project).catch((e) => setError(failText(e)));
   };
   return (
     <div className="mb-2 text-center" role="group" aria-label={t.koordinator.recentChats}>
@@ -201,8 +207,7 @@ export function RecentChats({ project, chat, chats }: { project: string; chat: n
                 type="button"
                 variant="outline"
                 size="small"
-                className="max-w-full rounded-full border-border px-3 text-xs aria-pressed:border-primary/40 aria-pressed:bg-primary/10"
-                aria-pressed={c.id === chat}
+                className="max-w-full rounded-full border-border px-3 text-xs"
                 title={`${name} · ${date}`}
                 onClick={() => resume(c)}
               >
