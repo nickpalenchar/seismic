@@ -82,7 +82,7 @@ import { useLib } from '../../plugin/skills/demo/lib/here.ts';
 import { DEMO_SETTINGS_FILE, expandHome, readDemoSettings } from '../../plugin/skills/demo/lib/settings.ts';
 import { DemoSpace } from './demo-space';
 import { qwen3Serve } from '../../plugin/skills/demo/lib/voices.ts';
-import { agentSetting, agentsView, conversationLanguage, feedbackPromptView, ownerLanguage, usageMeterView } from './settings';
+import { agentSetting, agentsView, conversationLanguage, feedbackPromptView, ownerLanguage, remoteSetting, usageMeterView } from './settings';
 import { loginLink } from './owner';
 import { databaseFile, moveDefaultHome, moveNotice } from './home-move';
 import { Stalls } from './stalls';
@@ -417,7 +417,12 @@ const developer: DeveloperView = seismicEnv('SUPERVISED')
 server = serve(projects, { transcriber, setup: voiceSetup }, Number(values.port), values.dev, config, restarter, narration, machine, stop, updates, access, push, sources, usage, stalls, developer);
 claim(home, { pid: seismicEnv('SUPERVISED') ? process.ppid : process.pid, port: server.port!, url: `http://127.0.0.1:${server.port}`, version: VERSION, ...(seismicEnv('FROM_APP') ? { app: true } : {}) });
 // the address as a one-time link that signs a browser in (owner.ts)
-const link = access.owner.link(`http://127.0.0.1:${server.port}`);
+const lanUrl = (port: number) => {
+  const r = remoteSetting(home);
+  return r?.via === 'address' ? `http://${r.address.includes(':') ? `[${r.address}]` : r.address}:${port}` : `http://127.0.0.1:${port}`;
+};
+// (under the other address instead when a --lan throwaway makes that one the owner's too)
+const link = access.owner.link(seismicEnv('LAN_LOGIN') ? lanUrl(server.port!) : `http://127.0.0.1:${server.port}`);
 console.log(`Seismic ${own ? `from ${own}` : VERSION} on ${link} (${source === 'file' ? configFile : 'projects from the command line'}), agents on ${claudeExecutable() ?? 'the Claude Code the Agent SDK brings'}`);
 // from the commit the server started from: a landing since is new code to it, not where it started
 if (own && ranFrom) watchOwnCode(own, ranFrom, (from, to) => restart('code', `${own} moved from ${from.slice(0, 7)} to ${to.slice(0, 7)}`));
