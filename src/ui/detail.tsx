@@ -220,16 +220,20 @@ export function Detail(p: Props) {
   const [picking, setPicking] = useState(false);
   const [confirmReviewApproval, setConfirmReviewApproval] = useState(false);
   const [confirmUnsent, setConfirmUnsent] = useState(false);
-  // "Attempt merge" shows a spinner and stays off until the server has answered
+  // "Attempt merge" shows a spinner and stays off until the merge view arrives (a failed action turns it back on)
   const [attemptingMerge, setAttemptingMerge] = useState(false);
+  useEffect(() => setAttemptingMerge(false), [mergeRevision]);
   // whether the approval the owner is asked to confirm is "Straight to main"
   const [confirmDirect, setConfirmDirect] = useState(false);
   const unsentPicks = useFindingDraft(item).findings;
   const all = p.all;
   const duplicateMatches = (item.possibleDuplicates ?? []).map((id) => all.find((other) => other.id === id)).filter((other): other is Item => !!other);
   const duplicatePartner = duplicateMatches.find((other) => mergeableWith(item, other)) ?? duplicateMatches[0];
+  // whether the latest action was refused or failed
+  const actionFailed = useRef(false);
   const run = async (fn: () => Promise<void>, done: ActDone) => {
     setActionError(undefined);
+    actionFailed.current = false;
     const answered = p.flush().then(fn);
     // what takes the server a while (a push onto main) does not hold the card open: the project shows it under way
     if (done.close && done.pending) return p.onDone(done, { card: item.id, title: plain(item.title), answered });
@@ -237,6 +241,7 @@ export function Detail(p: Props) {
       await answered;
       p.onDone(done);
     } catch (e) {
+      actionFailed.current = true;
       if (!(e instanceof ApiError)) console.error(e);
       setActionError({ text: failText(e), mergeRevision: item.idea?.proposal?.merge ? mergeRevision : undefined });
     }
@@ -499,7 +504,7 @@ export function Detail(p: Props) {
   const halted = stopped(item) && !item.queue;
   // on a planned card, queued or not: a suggested card it cannot merge with can still be dismissed
   const duplicateActions = duplicatePartner && mergeProposed(item) && <ButtonGroup className="duplicate-merge-actions inline-flex align-middle">
-    <Button className="duplicate-attempt bg-proposal text-proposal-foreground" disabled={attemptingMerge || !mergeableWith(item, duplicatePartner)} onClick={() => { setAttemptingMerge(true); void act({ action: 'merge', with: duplicatePartner.id }, { close: false }).finally(() => setAttemptingMerge(false)); }}>{attemptingMerge && <Spinner />}{t.duplicate.attempt}</Button>
+    <Button className="duplicate-attempt bg-proposal text-proposal-foreground" disabled={attemptingMerge || !mergeableWith(item, duplicatePartner)} onClick={() => { setAttemptingMerge(true); void act({ action: 'merge', with: duplicatePartner.id }, { close: false }).then(() => { if (actionFailed.current) setAttemptingMerge(false); }); }}>{attemptingMerge && <Spinner />}{t.duplicate.attempt}</Button>
     <Button className="duplicate-dismiss bg-proposal/12 text-foreground" onClick={() => act({ action: 'dismissDuplicate' }, { close: false })}>{t.duplicate.dismiss}</Button>
   </ButtonGroup>;
   const duplicateNotice = duplicatePartner && mergeProposed(item) && <div className={questionClass('duplicate-notice')}>
@@ -864,7 +869,7 @@ export function Detail(p: Props) {
       {/* approved work asks how the agent did until answered, and keeps the answer to change */}
       {item.review?.rate && <Rate item={item} />}
 
-      {item.state === 'planned' && item.queue && <div className={actionsClass}>{duplicateActions || <MergeButton item={item} all={all} act={act} />}</div>}
+      {item.state === 'planned' && item.queue && <div className={actionsClass}>{duplicateActions || <MergeButton item={item} all={all} act={act} error={error} />}</div>}
 
       {/* the decisions of a card nobody worked on yet, below what it shows, as on every card */}
       {item.state === 'planned' && !item.idea?.proposal?.merge && !worked && !item.queue && (
@@ -889,7 +894,7 @@ export function Detail(p: Props) {
           {prototypeActions}
           {item.source === 'manual' && !item.idea?.prototypeOf && (
             <>
-              {!duplicatePartner && <MergeButton item={item} all={all} act={act} />}
+              {!duplicatePartner && <MergeButton item={item} all={all} act={act} error={error} />}
               {/* a task with a branch has work already, one decided as a plan goes its way: neither is discussed or planned anew */}
               {plannableAsPlan(item) && (
                 <>
@@ -1397,7 +1402,7 @@ function ProposalView({
             {t.acceptAsIdea}
           </Button>
         )}
-        {!revising && !armed && <MergeButton item={item} all={all} act={act} />}
+        {!revising && !armed && <MergeButton item={item} all={all} act={act} error={error} />}
         <Button onClick={() => act({ action: 'dismiss' }, { close: true, ack: t.dismissed })}>
           {t.dismiss}
         </Button>

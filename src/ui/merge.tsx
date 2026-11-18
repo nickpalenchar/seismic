@@ -37,16 +37,19 @@ const pickerRank = (i: Item) => i.archivedAt ? 3 : mergeRank(i) <= 1 ? 0 : merge
 const kind = (i: Item) => i.archivedAt ? t.merge.archived : stateLabel(withPart(i, 'idea', { proposal: i.idea?.proposal && { ...i.idea.proposal, merge: undefined } }));
 
 /** "Merge with" on an unworked task: opens the picker of the cards it can be merged with. */
-export function MergeButton({ item, all, act }: { item: Item; all: Item[]; act: Act }) {
+export function MergeButton({ item, all, act, error }: { item: Item; all: Item[]; act: Act; error?: string }) {
   const [open, setOpen] = useState(false);
+  // a pick stays pending until the merge view arrives, so a delayed snapshot cannot take a second one
+  const [picked, setPicked] = useState(false);
   const cards = useContext(Cards);
+  useEffect(() => setPicked(false), [item.idea?.proposal?.merge, error]);
   if (!canMergeFrom(item)) return null;
   return (
     <>
-      <Button title={t.merge.buttonHint} onClick={() => setOpen(true)}>
+      <Button title={t.merge.buttonHint} disabled={picked} onClick={() => setOpen(true)}>
         <MergeMark size={13} /> {t.merge.button}
       </Button>
-      {open && <MergePicker item={item} all={all} onClose={() => setOpen(false)} onPick={(other) => void act({ action: 'merge', with: other.id }, { close: false }).then(() => { setOpen(false); if (mergeRank(other) < mergeRank(item)) cards.open(other); })} />}
+      {open && <MergePicker item={item} all={all} onClose={() => setOpen(false)} onPick={(other) => { setPicked(true); void act({ action: 'merge', with: other.id }, { close: false }).then(() => { setOpen(false); if (mergeRank(other) < mergeRank(item)) cards.open(other); }); }} />}
     </>
   );
 }
