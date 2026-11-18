@@ -13,7 +13,7 @@ import { barTrigger, DiffTreeLayout, StatusBadge } from './diff-tree';
 import { treeOrder } from './diff-tree-entries';
 import { api, cardFile } from './api';
 import { addedClass, ChangeNote, DiffStyleSwitch, DiffView, diffSizeClass, FileDiff, Lines, MARK, removedClass } from './diff';
-import { Doc, DocImages } from './markdown';
+import { Doc, DocImages, SettlingImage } from './markdown';
 import { useReportedHeight } from './message';
 import { scrollBehavior } from './motion';
 import { PdfPages } from './pdf';
@@ -101,7 +101,7 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
   // has loaded, it takes its own height.
   const left = useRef({ tab: current, floor: 0 });
   const [floor, setFloor] = useState(0);
-  const busy = () => !!box.current?.querySelector('[aria-busy="true"]');
+  const busy = () => !!box.current?.querySelector('[data-slot=tabs-content]:not([hidden]) [aria-busy="true"]');
   useEffect(() => {
     const el = box.current;
     if (!el) return;
@@ -537,7 +537,7 @@ function Shown({ item, file, url, rev, onOpen }: { item: Item; file: ShownFile; 
     case 'image':
       return (
         <a href={url} target="_blank" rel="noreferrer">
-          <img className="r-image block max-w-full border border-border rounded-xs bg-white" src={url} alt={file.caption || file.path} />
+          <SettlingImage className="r-image block max-w-full border border-border rounded-xs bg-white" src={url} alt={file.caption || file.path} />
         </a>
       );
     case 'page':
@@ -587,7 +587,9 @@ function Text({ url, children }: { url: string; children: (text: string) => Reac
 function Page({ url, title }: { url: string; title: string }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const height = useReportedHeight(frame, PAGE_CAP);
-  return <iframe ref={frame} className="r-page w-full min-h-[120px] h-[min(560px,62vh)] border border-border rounded-xs bg-white block" sandbox="allow-scripts" src={url} title={title} style={height ? { height } : undefined} />;
+  // a page that never reports its height still settles a moment after it has loaded
+  const [loaded, setLoaded] = useState(false);
+  return <iframe ref={frame} aria-busy={height === undefined && !loaded} onLoad={() => setTimeout(() => setLoaded(true), 500)} className="r-page w-full min-h-[120px] h-[min(560px,62vh)] border border-border rounded-xs bg-white block" sandbox="allow-scripts" src={url} title={title} style={height ? { height } : undefined} />;
 }
 
 /**

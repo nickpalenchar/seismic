@@ -4,7 +4,7 @@
 // An asterisk opens emphasis only before a non-space and closes it only after one, so `5 * 3` and
 // a list's `* ` stay as they are; neither may touch a word outside, so `a*b*c` stays too.
 
-import { createContext, type ReactNode, useContext } from 'react';
+import { type ComponentProps, createContext, type ReactNode, useContext, useState } from 'react';
 
 const TOKEN = /`([^`]+)`|\*\*(.+?)\*\*(?!\*)|~~(.+?)~~|(?<![\w])_(.+?)_(?![\w])|(?<![\w*])\*(?![\s*])(.+?)(?<![\s*])\*(?![\w*])|\[([^\]]+)\]\(([^)\s]+)\)|(?<![\w/])(https?:\/\/[^\s<>`"]+)|!\[([^\]]*)\]\(\s*<?([^)\s>]+)>?(?:\s+"[^"]*")?\s*\)/g;
 
@@ -62,7 +62,7 @@ function render(md: string, inLink = false, image: Images = null, ref: Refs = nu
     else if (em !== undefined || star !== undefined) out.push(<em key={k++}>{render(em ?? star!, inLink, image, ref)}</em>);
     else if (src !== undefined) {
       const url = image?.(src);
-      out.push(url ? <img key={k++} className="doc-img max-w-full rounded-xs align-middle" src={url} alt={alt} title={alt || undefined} /> : <span key={k++}>{alt}</span>);
+      out.push(url ? <SettlingImage key={k++} className="doc-img max-w-full rounded-xs align-middle" src={url} alt={alt} title={alt || undefined} /> : <span key={k++}>{alt}</span>);
     } else if (bare !== undefined) {
       const url = bareUrl(bare);
       end = m.index + url.length;
@@ -329,6 +329,12 @@ const docClass = [
   '[&_.table-wrap]:overflow-auto [&_.table-wrap]:my-2.5 [&_.table-wrap]:mx-0 [&_table]:border-collapse [&_table]:text-base',
   '[&_:is(th,td)]:text-left [&_:is(th,td)]:align-top [&_:is(th,td)]:py-1 [&_:is(th,td)]:px-2.5 [&_:is(th,td)]:border-b [&_:is(th,td)]:border-b-border [&_th]:font-semibold',
 ].join(' ');
+
+/** An image marked aria-busy until it has loaded or failed: a card's result tabs hold their height until nothing in them is. */
+export function SettlingImage(props: ComponentProps<'img'>) {
+  const [settled, setSettled] = useState(false);
+  return <img {...props} aria-busy={!settled} onLoad={() => setSettled(true)} onError={() => setSettled(true)} />;
+}
 
 /** A markdown document, as plan docs are written. `mark` highlights the item that starts with it (`W3`). */
 export function Doc({ md, mark, markRef }: { md: string; mark?: string; markRef?: (el: HTMLElement | null) => void }) {

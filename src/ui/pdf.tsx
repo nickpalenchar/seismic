@@ -59,8 +59,8 @@ export function PdfPages({ url, title }: { url: string; title: string }) {
 function PdfPage({ doc, n }: { doc: PDFDocumentProxy; n: number }) {
   const box = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
-  // width over height, known before the page is drawn so the pages below do not move
-  const [ratio, setRatio] = useState<number>();
+  // width over height, known before the page is drawn so the pages below do not move; busy until then
+  const [ratio, setRatio] = useState<number | 'failed'>();
   const [near, setNear] = useState(false);
   const [width, setWidth] = useState(0);
 
@@ -69,7 +69,7 @@ function PdfPage({ doc, n }: { doc: PDFDocumentProxy; n: number }) {
     doc.getPage(n).then((p) => {
       const v = p.getViewport({ scale: 1 });
       if (!gone) setRatio(v.width / v.height);
-    }, () => {});
+    }, () => !gone && setRatio('failed'));
     return () => {
       gone = true;
     };
@@ -112,7 +112,7 @@ function PdfPage({ doc, n }: { doc: PDFDocumentProxy; n: number }) {
   }, [doc, n, near, width]);
 
   return (
-    <div ref={box} className="r-pdf-page w-full border border-border rounded-xs bg-white overflow-hidden" style={ratio ? { aspectRatio: String(ratio) } : undefined}>
+    <div ref={box} className="r-pdf-page w-full border border-border rounded-xs bg-white overflow-hidden" aria-busy={ratio === undefined} style={typeof ratio === 'number' ? { aspectRatio: String(ratio) } : undefined}>
       <canvas ref={canvas} />
     </div>
   );
