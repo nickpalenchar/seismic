@@ -28,7 +28,7 @@ import { DiscardChanges, FolderBox, FolderLine, useFolderDiff } from './folder';
 import { asksYou, CardFace, cardKind, cardLook, depTagClass, faceClass, listTitleClass, listTitleTextClass, HourglassMark, LabelMarks, LabelPicks, QuestionMark, RestartMark, shownTitle, StoppedWords, Title } from './card';
 import { DepArrow, LimitNotice, PauseMark, PlayMark } from './parts';
 import { asksAhead, holdsNotes, queueOrder } from '../core/queue';
-import { forcedText, QueueList, scrollerOf, useQueueMove, useQueueSort, waitText, type Behind } from './queue';
+import { forcedText, PlannedDependencies, QueueList, scrollerOf, useQueueMove, useQueueSort, waitText, type Behind } from './queue';
 import { dimensions, shownTags } from '../core/page-tags';
 import { CardRefs, Inline, plain } from './markdown';
 import { quoteClass, Body, Code, Cards, goToMessage, Msg, Quote, Reading, useAnswer, useReportedHeight } from './message';
@@ -539,8 +539,8 @@ export function Detail(p: Props) {
       )}
     </p>
   );
-  // what a card in the queue waits for, with the buttons that start it anyway or take it out of the queue
-  const queueBox = item.state === 'planned' && item.queue && (
+  // What holds a planned card, with queue controls once the owner has requested a start.
+  const queueBox = item.state === 'planned' && item.queue ? (
     <div className={questionClass('queue')}>
       {'checking' in item.queue ? (
         <>
@@ -618,7 +618,7 @@ export function Detail(p: Props) {
         </>
       )}
     </div>
-  );
+  ) : <PlannedDependencies item={item} items={all} />;
   // a decided idea keeps what it was decided on, and how
   const brief = item.idea?.brief !== undefined && (
     <>

@@ -6,10 +6,11 @@
 
 import { GripVertical } from 'lucide-react';
 import { type ReactNode, type RefObject, useState } from 'react';
-import { move, movable, notStarted, queueOrder, reach } from '../core/queue';
+import { drawnWaits, move, movable, notStarted, queueOrder, reach } from '../core/queue';
 import type { Item } from '../core/types';
 import { api } from './api';
 import { CardFace } from './card';
+import { questionClass } from './cardClasses';
 import { Naming } from './cardLink';
 import { plain } from './markdown';
 import { type Drag, useSortable } from './sortable';
@@ -90,6 +91,18 @@ export function Waiting({ ids, items, name, onOpen }: { ids: string[]; items: It
   const waited = waitedOn(ids, items, name);
   const cards = ids.map((id) => ({ card: items.find((x) => x.id === id), title: name?.(id) }));
   return <Naming text={(...names) => t.queue.behind(waited.map((w, k) => ({ ...w, title: names[k]! })))} cards={cards} onOpen={onOpen} />;
+}
+
+/** The prerequisites of a planned card before the owner requests a start. */
+export function PlannedDependencies({ item, items }: { item: Item; items: Item[] }) {
+  if (!notStarted(item)) return null;
+  const ids = drawnWaits(item, items);
+  if (!ids.length) return null;
+  return (
+    <div className={questionClass('queue')}>
+      <Waiting ids={ids} items={[...items, ...(item.plan?.manualArchived ?? [])]} />
+    </div>
+  );
 }
 
 export type Behind = { behind: string[]; reason: string; manualWait?: string[] };
