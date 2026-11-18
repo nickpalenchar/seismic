@@ -9,7 +9,7 @@ import { agentListens, handedOver, type Item, type TalkRef } from '../core/types
 import { api, ApiError, refreshCard, type Field, type Heard, type Where } from './api';
 import { clip } from '../core/text';
 import { excerpt, plain } from './markdown';
-import { sent, take, videoOf } from './spot';
+import { beginSpotSend, sent, take } from './spot';
 import { failText, t } from './strings';
 import type { useTold } from './voice';
 import type { ToastStore } from './components/toast';
@@ -113,14 +113,12 @@ export function tellers(byId: (id: string) => Item | undefined, told: ReturnType
     if (card)
       try {
         const taken = take(card.id);
-        const video = taken && videoOf(card.id);
-        await api.command(text, target, { images, field, replyTo, spot: await sent(taken) });
-        // Save the comment before playing on. Otherwise the end of a video can try to release
-        // the comments while this one is still uploading its frame.
-        if (video && (video.ended || videoOf(card.id) !== video)) {
-          void api.act(card.id, { action: 'release' }).catch(() => {});
-        } else if (video) {
-          void video.play().catch(() => {});
+        const done = taken && beginSpotSend(card.id);
+        try {
+          await api.command(text, target, { images, field, replyTo, spot: await sent(taken) });
+          taken?.resume();
+        } finally {
+          done?.();
         }
         if (field === 'feedback' || field === 'demo' || field === 'answer') await refreshCard(card.id);
       } catch (e) {

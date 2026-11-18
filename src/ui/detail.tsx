@@ -43,7 +43,7 @@ import { type Box, onto, ZOOM_EASE, ZOOM_MS, zoomBox } from './zoomBox';
 import { AttachButton, imageUrl, ShotStrip, Shots, useShotInput } from './shots';
 import { Conversation as Scroll } from './components/ai/conversation';
 import { newRepoWords, type RepoChoice, RepoPick, useRepoChoice } from './repoPick';
-import { dismissPlace, type Place, seekTo, showsVersions, usePlace, videoOf, watch } from './spot';
+import { dismissPlace, finishWatching, type Place, seekTo, showsVersions, usePlace, videoOf, watch } from './spot';
 import { cameInView, useSeen } from './seen';
 import { ClockMark, SnoozeLine, SnoozeMenu, snoozeWho } from './snooze';
 import { clock as time, errorText, failText, mergeProposed, shortDay, snoozeWhen, stateLabel, stoppedAtOf, t } from './strings';
@@ -2163,7 +2163,7 @@ function DemoView({
   // the phone view, which puts the conversation elsewhere, puts the video into full screen itself (fullscreen.ts)
   const fullscreen = useFullscreen(zoom.screen, video, !!elsewhere);
   const seek = useSeekKeys(video);
-  const watching = useWatching(cardId, video, comments && demo.kind !== 'html' ? demo.chapters : null, demo.handover);
+  const watching = useWatching(cardId, video, comments, demo, src('demo.mp4'));
   const current = chapterAt(demo.chapters, now);
   useEffect(() => {
     if (!earlier.length) return;
@@ -2380,23 +2380,28 @@ const handedAt = (at: string) => (new Date(at).toDateString() === new Date().toD
 const STOOD_MS = 3 * 60_000;
 
 /**
- * The card's demo video as the one its words may be about (`chapters` null: they are not): typing in
+ * The card's demo video as the one its words may be about: typing in
  * the card's field pauses it, and the owner's comments on places in it, which Seismic holds back while
  * they watch, go to the agent once they have finished: the video ended, stood for a few minutes, or
  * the card closed. Words without a place, and an approval, take them too (on the server).
  */
-function useWatching(cardId: string, video: RefObject<HTMLVideoElement | null>, chapters: [number, string][] | null, demo?: number) {
-  const on = !!chapters;
-  const release = () => void api.act(cardId, { action: 'release' }).catch(() => {});
+function useWatching(cardId: string, video: RefObject<HTMLVideoElement | null>, comments: boolean, demo: Demo, source: string) {
+  const on = comments && demo.kind !== 'html';
+  const release = () => finishWatching(cardId);
+  const watchedVideo = useRef(false);
   // going to another of the card's demos is no sign the owner has finished watching
   useEffect(() => {
-    const v = video.current;
-    if (!on || !v) return;
-    return watch(cardId, v, chapters, demo);
-  }, [on, demo]);
+    if (!comments) return;
+    return () => {
+      if (watchedVideo.current) release();
+      watchedVideo.current = false;
+    };
+  }, [cardId, comments]);
   useEffect(() => {
     const v = video.current;
     if (!on || !v) return;
+    watchedVideo.current = true;
+    const unwatch = watch(cardId, v, demo.chapters, demo.handover);
     const typed = (e: Event) => {
       if (!v.paused && e.target instanceof HTMLTextAreaElement && e.target.closest('.card-sheet .split-talk .composer, #ph-card-talk .composer')) v.pause();
     };
@@ -2414,9 +2419,9 @@ function useWatching(cardId: string, video: RefObject<HTMLVideoElement | null>, 
       v.removeEventListener('pause', paused);
       v.removeEventListener('play', played);
       removeEventListener('input', typed, true);
-      release();
+      unwatch();
     };
-  }, [on]);
+  }, [cardId, on, source]);
   return { ended: () => on && release() };
 }
 

@@ -20,7 +20,7 @@ import { toldLines } from './components/told';
 import { type Recording, record } from './recorder';
 import { AttachButton, ShotStrip, useShotInput } from './shots';
 import { replyOn, setReply, useReply } from './reply';
-import { sent, take, type Taken } from './spot';
+import { beginSpotSend, sent, take, type Taken } from './spot';
 import { failText, t } from './strings';
 import { CloseButton } from './components/button';
 import { cn } from 'cn';
@@ -169,6 +169,7 @@ export function usePushToTalk(
     const project = shownProject();
     const key = r.into ?? field(r.target);
     const back = draftIn(key);
+    const done = r.spot && length >= TAP_MS && r.target && 'card' in r.target ? beginSpotSend(r.target.card) : undefined;
     void r.recording.stop().then(async (audio) => {
       if (r.into) return into(r.into, r.target, length < TAP_MS ? null : audio, back, project);
       // a tap is not a command
@@ -201,7 +202,10 @@ export function usePushToTalk(
       // into the draft kept for the project it was said on, where the owner has switched to another meanwhile
       back.update((d) => ({ text: [text, d.text].filter((x) => x.trim()).join(' '), images: [...images, ...d.images.filter((id) => !images.includes(id))] }));
       if (back.here() && reply && !replyOn(key)) setReply(key, reply);
-    }).finally(() => setWriting((n) => n - 1));
+    }).finally(() => {
+      done?.();
+      setWriting((n) => n - 1);
+    });
   }
 
   /** A dictation: what was heard goes into the field at its cursor; nothing heard leaves the field as it was, and says so. */

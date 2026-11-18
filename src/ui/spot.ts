@@ -120,16 +120,42 @@ export interface Taken {
   at: number;
   demo?: number;
   upload?: () => Promise<string | undefined>;
+  /** Play on only if the same version still stands at this spot. */
+  resume: () => void;
 }
 
 /** The place of the card's video words said now are about, with its frame; null where there is none. */
 export function take(cardId: string): Taken | null {
   const place = placeOn(cardId);
-  const v = videoOf(cardId);
-  if (!place || !v) return null;
-  const upload = grab(v);
-  const demo = watched!.demo;
-  return { at: place.at, ...(demo !== undefined ? { demo } : {}), ...(upload ? { upload } : {}) };
+  const w = watched;
+  if (!place || !w) return null;
+  const { demo, video } = w;
+  const upload = grab(video);
+  const resume = () => {
+    if (watched === w && video.currentTime === place.at) void video.play().catch(() => {});
+  };
+  return { at: place.at, ...(demo !== undefined ? { demo } : {}), ...(upload ? { upload } : {}), resume };
+}
+
+const sending = new Map<string, { count: number; release: boolean }>();
+
+/** Hold the end-of-viewing release until the card's in-flight timestamped sends have settled. */
+export function beginSpotSend(cardId: string): () => void {
+  const pending = sending.get(cardId) ?? { count: 0, release: false };
+  sending.set(cardId, pending);
+  pending.count++;
+  return () => {
+    if (--pending.count) return;
+    sending.delete(cardId);
+    if (pending.release) finishWatching(cardId);
+  };
+}
+
+/** The viewing session actually ended, independently of which demo version it shows. */
+export function finishWatching(cardId: string): void {
+  const pending = sending.get(cardId);
+  if (pending) pending.release = true;
+  else void api.act(cardId, { action: 'release' }).catch(() => {});
 }
 
 /** What the server gets of a place taken before: its time, the demo it is in, and its frame, uploaded now. */
