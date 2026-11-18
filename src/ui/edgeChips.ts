@@ -6,15 +6,20 @@ export const CHIP_HEIGHT = 30;
 const COLUMN_GAP = 6;
 /** Centre of the topmost row: a chip's top edge lies below the floating row of buttons (it ends at 92px). */
 const TOP_ROW = 92 + COLUMN_GAP + CHIP_HEIGHT / 2;
-/** Centre of the lowest row: a chip's bottom edge stays above the floating view and canvas switchers (they reach 60px up from the window's bottom). */
-const BOTTOM_ROW = 60 + COLUMN_GAP + CHIP_HEIGHT / 2;
+/** The switcher in voice.tsx sits 46px up on desktop, 188px up from 761–1100px,
+ * and 98px up on narrower screens. Its 36px height exceeds the canvas tabs' 78px reach. */
+function bottomControlReach(width: number) {
+  return (width <= 760 ? 98 : width <= 1100 ? 188 : 46) + 36;
+}
 
 /** A screen rectangle the pointers keep clear of (the minimap). */
 export type Keepout = { x: number; y: number; w: number; h: number };
 
 /** Screen positions for off-screen card pointers. Card IDs give ties a lasting order; `avoid` is kept uncovered. */
 export function edgeChipPositions(targets: { id: string; b: Bounds }[], cam: Cam, side: Sides, width: number, height: number, avoid?: Keepout) {
-  const top = TOP_ROW, bottom = height - BOTTOM_ROW;
+  const top = TOP_ROW, bottom = height - bottomControlReach(width) - COLUMN_GAP - CHIP_HEIGHT / 2;
+  // At short window heights the top controls and bottom switcher leave no complete chip row.
+  if (bottom < top) return [];
   const left = side.left + 30, right = width - side.right - 30;
   const chipWidth = Math.min(CHIP_WIDTH, Math.max(0, right - left));
   const candidates = targets.flatMap(({ id, b }) => {

@@ -12,7 +12,7 @@ test('off-screen pointers stack without overlap in a fixed card order', () => {
 
 test('a full stack continues in another column when space allows', () => {
   const targets = Array.from({ length: 20 }, (_, n) => ({ id: String(n).padStart(2, '0'), b: { x: 2000, y: 0, w: 200, h: 100 } }));
-  const chips = edgeChipPositions(targets, { x: 0, y: 0, s: 1 }, { left: 0, right: 0 }, 800, 600);
+  const chips = edgeChipPositions(targets, { x: 0, y: 0, s: 1 }, { left: 0, right: 0 }, 800, 800);
   for (const [index, a] of chips.entries()) for (const b of chips.slice(index + 1)) {
     expect(Math.abs(a.x - b.x) >= 300 || Math.abs(a.y - b.y) >= CHIP_HEIGHT).toBe(true);
   }
@@ -38,4 +38,26 @@ test('a narrow right dock leaves the strip beside the minimap usable', () => {
   const w = Math.min(300, 1000 - 700 - 60);
   for (const c of chips) expect(c.x >= avoid.x + avoid.w || c.y + CHIP_HEIGHT / 2 <= avoid.y || c.y - CHIP_HEIGHT / 2 >= avoid.y + avoid.h).toBe(true);
   expect(w).toBeGreaterThan(0);
+});
+
+test('bottom pointers clear both floating switchers at each layout width', () => {
+  const target = [{ id: 'below', b: { x: 300, y: 2000, w: 100, h: 100 } }];
+  for (const [width, reach] of [[760, 134], [761, 224], [1100, 224], [1101, 82], [1440, 82]] as const) {
+    const [chip] = edgeChipPositions(target, { x: 0, y: 0, s: 1 }, { left: 0, right: 0 }, width, 900);
+    expect(chip!.y + CHIP_HEIGHT / 2).toBeLessThanOrEqual(900 - reach - 6);
+  }
+});
+
+test('a viewport without a complete row returns no invalid edge pointers', () => {
+  const targets = [
+    { id: 'left', b: { x: -500, y: 0, w: 100, h: 100 } },
+    { id: 'right', b: { x: 2000, y: 0, w: 100, h: 100 } },
+    { id: 'above', b: { x: 300, y: -500, w: 100, h: 100 } },
+    { id: 'below', b: { x: 300, y: 2000, w: 100, h: 100 } },
+  ];
+  for (const width of [760, 761, 1100, 1101, 1440]) {
+    expect(edgeChipPositions(targets, { x: 0, y: 0, s: 1 }, { left: 0, right: 0 }, width, 173)).toEqual([]);
+  }
+  const [chip] = edgeChipPositions([targets[0]!], { x: 0, y: 0, s: 1 }, { left: 0, right: 0 }, 1440, 216);
+  expect(Number.isFinite(chip!.y) && Number.isFinite(chip!.angle)).toBe(true);
 });
