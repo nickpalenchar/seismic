@@ -30,3 +30,14 @@ test('working rows keep their activity and separate description after releasing 
     expect(face(render(pools))).toBe(assigned);
   }
 });
+
+test("an idea whose agent is at work pulses in the phone's list as its dot does in the header", () => {
+  const idea: Item = { id: 'gift', kind: 'task', source: 'manual', repo: 'shop', x: 0, y: 0, canvasVisible: true, title: 'Gift wrapping', body: 'Offer gift wrapping.', state: 'idea' };
+  const render = (exploring?: string[]) => renderToStaticMarkup(<WorkingRows
+    cards={[idea]} items={[idea]} underway={{}} projects={[]} onOpen={() => {}} onElsewhere={() => {}} onKeep={() => {}}
+    pools={[{ repo: 'shop', hosts: [{ name: 'local', here: true, slots: 1, total: 1, cards: [], busy: [], workstations: [{ path: '/shop/1' }], ...(exploring ? { exploring } : {}) }] }]}
+  />);
+  expect(render(['gift'])).toContain('animate-[ws-pulse');
+  // its agent done with the reply, the idea stands still
+  expect(render()).not.toContain('animate-[ws-pulse');
+});

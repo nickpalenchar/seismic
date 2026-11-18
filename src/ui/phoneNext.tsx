@@ -106,7 +106,7 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
   // the cards the dots show (`hostSpots`: not stopped, queued, snoozed or parked); rows follow the dots
   const held = new Set((snap?.workstations ?? []).flatMap((p) => p.hosts.flatMap((h) => hostSpots(h, items).flatMap((w) => (w?.card && !w.project ? [w.card] : [])))));
   // a worker still in a turn on a card that left the agent stages (finishing after landing, say) is at work too, as the status bar counts it
-  const busy = new Set((snap?.workstations ?? []).flatMap((p) => p.hosts.flatMap((h) => [...h.busy, ...(h.reviewing ?? [])])));
+  const busy = new Set((snap?.workstations ?? []).flatMap((p) => p.hosts.flatMap((h) => [...h.busy, ...(h.reviewing ?? []), ...(h.exploring ?? [])])));
   const finishing = items.filter((i) => busy.has(i.id) && held.has(i.id) && !onIt.includes(i) && !needsYou(i) && !i.archivedAt);
   // a card waiting for the owner keeps its workstation (an orange dot): it stands in the box as the desktop's list has it, but no agent works on it
   const waits = items.filter((i) => held.has(i.id) && needsYou(i) && !i.archivedAt && !onIt.includes(i));

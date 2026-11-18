@@ -101,12 +101,15 @@ export const hostSpots = (h: PoolHost, items: Item[]): (PoolWorkstation | undefi
     return !!i && !stopped(i) && !i.queue && !snoozeOf(i) && !inParkingLot(i);
   };
   const held = h.workstations.filter(shown);
-  const ideas = (h.exploring ?? []).filter((card) => !held.some((w) => w.card === card)).map((card): PoolWorkstation => ({ path: `idea:${card}`, card })).filter(shown);
+  const ideas = (h.exploring ?? []).filter((card) => !held.some((w) => w.card === card)).map(ideaSpot).filter(shown);
   if (!h.worktrees) return [...held, ...ideas];
   const cards = held.filter((w) => w.card);
   // an empty circle for each slot without a busy worker, the pool's count (hidden cards included), as in the pill's summary
   return [...cards, ...ideas, ...Array.from({ length: h.uncapped ? 0 : Math.max(0, h.slots - h.busy.length) }, () => undefined)];
 };
+
+/** The spot of an idea whose agent is at work (`PoolHost.exploring`): no workstation of the pool, but a dot and a row as one. */
+const ideaSpot = (card: string): PoolWorkstation => ({ path: `idea:${card}`, card });
 
 export const hostDots = (h: PoolHost, items: Item[], underway: Record<string, string>) => hostSpots(h, items).map((w) => wsDot(w, h, items, underway));
 
@@ -346,7 +349,7 @@ export function WorkingRows({ cards, pools, items, underway, projects, onOpen, o
   const spot = (id: string) => {
     for (const p of pools)
       for (const h of p.hosts) {
-        const w = h.workstations.find((x) => x.card === id && !x.project);
+        const w = h.workstations.find((x) => x.card === id && !x.project) ?? (h.exploring?.includes(id) ? ideaSpot(id) : undefined);
         if (w) return { h, w };
       }
   };
