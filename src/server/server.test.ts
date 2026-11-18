@@ -950,7 +950,7 @@ describe('a newer version of the app', () => {
     const gone: string[] = [];
     let busy = [{ project: 'main', card: 'k1' }];
     const restarter = new Restarter({ busy: () => busy, go: (reason) => gone.push(reason), patienceMs: 60_000, intervalMs: 10 });
-    const updates = new AppUpdates(true);
+    const updates = new AppUpdates();
     server.stop(true);
     server = serve([project], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, restarter, undefined, undefined, undefined, updates);
     const messages: ServerMessage[] = [];
@@ -981,15 +981,15 @@ describe('a newer version of the app', () => {
     ws.close();
   });
 
-  test('app updates are switched off: a report shows no update', async () => {
-    const updates = new AppUpdates();
+  test('with app updates switched off, a report shows no update', async () => {
+    const updates = new AppUpdates(false);
     expect(updates.report({ version: '0.2.0' })).toBeNull();
     expect(updates.current()).toBeNull();
   });
 
   test('one the app cannot install (a .deb) is only shown, with where to get it', async () => {
     const restarter = new Restarter({ busy: () => [], go: () => {} });
-    const updates = new AppUpdates(true);
+    const updates = new AppUpdates();
     server.stop(true);
     server = serve([project], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, restarter, undefined, undefined, undefined, updates);
     await post('/api/app-update', JSON.stringify({ version: '0.2.0', download: 'https://github.com/nickpalenchar/seismic/releases/tag/v0.2.0' }));
@@ -1005,7 +1005,7 @@ describe('a newer version of the app', () => {
     const gone: string[] = [];
     let busy = [{ project: 'main', card: 'k1' }];
     const restarter = new Restarter({ busy: () => busy, go: (reason) => gone.push(reason), patienceMs: 60_000, intervalMs: 10 });
-    const updates = new AppUpdates(true);
+    const updates = new AppUpdates();
     server.stop(true);
     server = serve([project], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, restarter, undefined, undefined, undefined, updates);
     expect(await (await post('/api/app-update', JSON.stringify({ rebuilt: true }))).json()).toEqual({ updating: true });

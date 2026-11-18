@@ -42,8 +42,8 @@ pub const EXIT: i32 = 77;
 const EVERY: Duration = Duration::from_secs(6 * 3600);
 /// After a check that failed (offline, say).
 const AGAIN: Duration = Duration::from_secs(30 * 60);
-/// Checking for releases is switched off until Seismic distributes its own app (docs/release.md).
-const CHECK_RELEASES: bool = false;
+/// The switch for checking for releases (docs/release.md), with `UPDATES_ENABLED` in src/server/app-update.ts.
+const CHECK_RELEASES: bool = true;
 /// Where a .deb update is fetched by hand, as the server expects it (`RELEASES` in src/server/app-update.ts).
 const RELEASES: &str = "https://github.com/nickpalenchar/seismic/releases";
 

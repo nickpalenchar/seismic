@@ -33,7 +33,7 @@ function repo(name: string) {
   return { dir, git, commit };
 }
 
-type Release = { tag_name: string; draft?: boolean; prerelease?: boolean; body?: string; assets?: { name: string; updated_at?: string }[] };
+type Release = { tag_name: string; draft?: boolean; prerelease?: boolean; body?: string; assets?: { name: string }[] };
 
 function gh(releases: Release[], { latest = 'v0.1.0', secrets = SECRETS, files = {} as Record<string, string> } = {}): Gh {
   return (args) => {
@@ -46,50 +46,47 @@ function gh(releases: Release[], { latest = 'v0.1.0', secrets = SECRETS, files =
   };
 }
 
-const siteMedia = (prerelease = true): Release => ({ tag_name: 'site-media', prerelease, assets: [{ name: 'hero.mp4', updated_at: '2026-10-12T09:00:00Z' }] });
-
 test('the next version is a minor bump', () => {
   expect(nextVersion('v0.1.0')).toBe('0.2.0');
   expect(nextVersion('0.9.3')).toBe('0.10.0');
   expect(nextVersion('v1.4.2')).toBe('1.5.0');
 });
 
-test('says what the release holds, how far GitHub is behind and how old the video is; nothing in the way', () => {
+test('says what the release holds, whether its changelog is written and how far GitHub is behind; nothing in the way', () => {
   const { dir, git, commit } = repo('ready');
   commit('2026-10-08T10:00:00Z', 'package.json', JSON.stringify({ version: '0.1.0' }));
   git('', 'tag', 'v0.1.0');
   commit('2026-10-10T10:00:00Z', 'src/ui/project.tsx', 'Pin the cards to a wall');
-  git('', 'tag', 'site-media');
   git('', 'push', '-q', 'origin', 'main');
   commit('2026-10-12T12:00:00Z', 'docs/design.md', 'Record the wall');
   commit('2026-10-12T13:00:00Z', 'src/ui/bar.tsx', 'Fit the bar');
   commit('2026-10-12T14:00:00Z', 'src/server/land.ts', 'Land faster');
+  expect(status(dir, gh([{ tag_name: 'v0.1.0' }])).changelog).toBe(false);
+  commit('2026-10-12T15:00:00Z', 'CHANGELOG.md', '# Changelog\n\n## 0.2.0 — 2026-10-12\n\n- Faster\n\n## 0.1.0\n\n- First\n');
 
-  const s = status(dir, gh([{ tag_name: 'v0.1.0' }, siteMedia()]));
+  const s = status(dir, gh([{ tag_name: 'v0.1.0' }]));
   expect(s.problems).toEqual([]);
   expect(s.version).toBe('0.1.0');
   expect(s.tag?.name).toBe('v0.1.0');
   expect(s.propose).toBe('0.2.0');
   // the commits since the tag that change what runs, newest first; the docs commit counts only in all
   expect(s.changes.map((c) => c.subject)).toEqual(['Land faster', 'Fit the bar', 'Pin the cards to a wall']);
-  expect(s.commits).toBe(4);
-  expect(s.github).toEqual({ behind: 3, ahead: 0 });
+  expect(s.commits).toBe(5);
+  expect(s.changelog).toBe(true);
+  expect(s.github).toEqual({ behind: 4, ahead: 0 });
   expect(s.latest).toBe('v0.1.0');
-  expect(s.siteMedia).toEqual({ prerelease: true, latest: false, video: '2026-10-12T09:00:00Z' });
-  // the video went up after the first UI commit and before the second
-  expect(s.ui?.subject).toBe('Fit the bar');
-  expect(s.uiSinceVideo).toBe(1);
   expect(s.missing).toEqual([]);
 
   const text = report(s);
   expect(text).toContain('Propose 0.2.0.');
-  expect(text).toContain('Since then: 4 commits on main, 3 of them change what runs');
-  expect(text).toContain('GitHub: its main lacks 3 of ours.');
-  expect(text).toContain('1 UI commits since the video went up');
+  expect(text).toContain('CHANGELOG.md on main: has the section for 0.2.0.');
+  expect(text).toContain('Since then: 5 commits on main, 3 of them change what runs');
+  expect(text).toContain('GitHub: its main lacks 4 of ours.');
+  expect(text).toContain('Releases: the latest is v0.1.0.');
   expect(text).toEndWith('Nothing in the way.');
 });
 
-test('names what stands in the way: site-media as the latest, a missing secret, GitHub ahead, a tag taken, a draft left over', () => {
+test('names what stands in the way: a missing secret, GitHub ahead, a tag taken, a draft left over', () => {
   const { dir, git, commit } = repo('blocked');
   commit('2026-10-08T10:00:00Z', 'package.json', JSON.stringify({ version: '0.1.0' }));
   git('', 'tag', 'v0.1.0');
@@ -107,7 +104,7 @@ test('names what stands in the way: site-media as the latest, a missing secret, 
   // the version is bumped already
   commit('2026-10-09T12:00:00Z', 'package.json', JSON.stringify({ version: '0.3.0' }));
 
-  const s = status(dir, gh([{ tag_name: 'v0.1.0' }, { tag_name: 'v0.2.0', draft: true }, siteMedia(false)], { latest: 'site-media', secrets: SECRETS.filter((n) => n !== 'APPLE_NOTARY_KEY') }));
+  const s = status(dir, gh([{ tag_name: 'v0.1.0' }, { tag_name: 'v0.2.0', draft: true }], { secrets: SECRETS.filter((n) => n !== 'APPLE_NOTARY_KEY') }));
   expect(s.propose).toBe('0.3.0');
   expect(s.github).toEqual({ behind: null, ahead: null });
   expect(s.missing).toEqual(['APPLE_NOTARY_KEY']);
@@ -115,8 +112,6 @@ test('names what stands in the way: site-media as the latest, a missing secret, 
   expect(s.problems).toEqual([
     'The tag v0.3.0 exists already.',
     "GitHub's main has commits that main here lacks: fetch and see where they come from before pushing.",
-    'site-media is not a pre-release: tick "Set as a pre-release" on it, else it can become the latest release.',
-    'site-media is the latest release: the download links would find no installers there. Mark the last version as the latest.',
     'Drafts left over: v0.2.0.',
     'Secrets missing: APPLE_NOTARY_KEY (docs/release.md).',
   ]);

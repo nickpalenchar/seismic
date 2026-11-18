@@ -1,6 +1,6 @@
 # The hero video for seismic.im
 
-> Paused until Seismic distributes its own app (docs/release.md): it acts for the upstream's accounts, domain and voice.
+> Paused with this repository's site (`SITE` in `scripts/distribution.ts`): seismic.im is built from the seismic-site repository, and releases no longer take a hero video along (docs/release.md).
 
 A real run, recorded with Seismic's own demo pipeline (`plugin/skills/demo`): a scratch Seismic on a
 small tip calculator, the wall arranged (a lasso into a group, a card dragged beside another group), an
@@ -21,8 +21,8 @@ About four minutes, in English, in the owner's ElevenLabs voice, recorded at twi
   square brackets), with the key from `.voice/elevenlabs.key` of the main checkout (gitignored);
   with `--qwen` in the owner's voice cloned by Qwen3-TTS, which costs no credits.
 
-Every release renders it again and puts it out with the release (`docs/release.md` § "A release",
-which the project skill `.claude/skills/release/` goes through).
+Releases rendered it again and put it out with them while the site was this repository's; they no
+longer do (`docs/release.md`).
 
 ## Render
 

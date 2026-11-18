@@ -2,10 +2,10 @@
 // docs/release.md): what a run of `git` and `gh` shows, in one place, with what stands in the way.
 //
 //   bun scripts/release-status.ts
-//       the last version tag and the commits since then that change what runs, the version to
-//       propose, how far GitHub's main is behind, whether `site-media` is still a pre-release and not
-//       the latest release, when the site's video went up next to the last commit to the UI, and
-//       whether the secrets the build workflow signs with are there.
+//       whether distribution is switched on, the last version tag and the commits since then that
+//       change what runs, the version to propose and whether CHANGELOG.md has its section yet, how
+//       far GitHub's main is behind, the latest release and drafts left over, and whether the
+//       secrets the build workflow signs with are there.
 //   bun scripts/release-status.ts draft <tag>
 //       what the build workflow's draft release for <tag> holds: every installer, update and
 //       signature, SHA256SUMS, and a latest.json of the tag's version that names every platform.
@@ -18,13 +18,13 @@
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { distributionPaused } from './distribution';
 import { CHECKOUT, ghEnv } from './gh';
-import { RELEASE, RUNS, type Latest } from './release';
+import { RELEASE, RUNS, section, type Latest } from './release';
 
 const MAIN = 'main';
 /** What the build workflow signs with (docs/release.md); APPLE_NOTARY_ISSUER only with a team key. */
 export const SECRETS = ['APPLE_CERTIFICATE', 'APPLE_CERTIFICATE_PASSWORD', 'APPLE_NOTARY_KEY', 'APPLE_NOTARY_KEY_ID', 'TAURI_SIGNING_PRIVATE_KEY'];
-const UI = 'src/ui';
 
 /** A gh call: its output, or null when it failed. */
 export type Gh = (args: string[]) => string | null;
@@ -43,15 +43,13 @@ export type Status = {
   propose: string;
   /** Whether `v<propose>` is a tag already, here or on GitHub. */
   tagTaken: boolean;
+  /** Whether CHANGELOG.md has a section for `propose` (step 2 writes it). */
+  changelog: boolean;
   /** GitHub's main against ours: commits it lacks, commits only it has (both null: it has some never fetched here). */
   github: { behind: number | null; ahead: number | null } | null;
-  /** The latest release, `site-media`, and drafts left over. */
+  /** The latest release, and drafts left over. */
   latest: string | null;
-  siteMedia: { prerelease: boolean; latest: boolean; video?: string } | null;
   drafts: string[];
-  /** The last commit to the UI, and how many came after the video went up. */
-  ui?: Commit;
-  uiSinceVideo: number;
   /** Secrets the build needs that GitHub does not have (null: they could not be read). */
   missing: string[] | null;
   /** What stands in the way. */
@@ -81,7 +79,7 @@ const newer = (a: string, b: string) => {
   return false;
 };
 
-type GhRelease = { tag_name: string; draft: boolean; prerelease: boolean; body?: string; assets: { name: string; updated_at: string }[] };
+type GhRelease = { tag_name: string; draft: boolean; prerelease: boolean; body?: string; assets: { name: string }[] };
 
 function releases(gh: Gh): GhRelease[] | null {
   const out = gh(['api', 'repos/{owner}/{repo}/releases']);
@@ -90,6 +88,8 @@ function releases(gh: Gh): GhRelease[] | null {
 
 export function status(cwd: string, gh: Gh): Status {
   const problems: string[] = [];
+  const off = distributionPaused('Releasing');
+  if (off) problems.push(off);
   const version = JSON.parse(readFileSync(join(cwd, 'package.json'), 'utf8')).version as string;
 
   const tagName = git(cwd, 'describe', '--tags', '--abbrev=0', '--match', 'v[0-9]*', MAIN);
@@ -103,6 +103,8 @@ export function status(cwd: string, gh: Gh): Status {
   const remoteTags = git(cwd, 'ls-remote', '--tags', 'origin', `refs/tags/v${propose}`);
   const tagTaken = git(cwd, 'rev-parse', '--verify', '--quiet', `refs/tags/v${propose}`) !== null || !!remoteTags;
   if (tagTaken) problems.push(`The tag v${propose} exists already.`);
+  const log = git(cwd, 'show', `${MAIN}:CHANGELOG.md`);
+  const changelog = !!log && section(log, propose) !== null;
 
   // ls-remote reads GitHub's main without fetching it
   const theirs = git(cwd, 'ls-remote', 'origin', `refs/heads/${MAIN}`)?.split('\t')[0];
@@ -117,29 +119,21 @@ export function status(cwd: string, gh: Gh): Status {
   }
 
   const list = releases(gh);
-  const site = list?.find((r) => r.tag_name === 'site-media');
   const latest = list ? (gh(['api', 'repos/{owner}/{repo}/releases/latest', '--jq', '.tag_name']) ?? null) : null;
   const drafts = list?.filter((r) => r.draft).map((r) => r.tag_name) ?? [];
-  const siteMedia = site ? { prerelease: site.prerelease, latest: latest === 'site-media', video: site.assets.find((a) => a.name === 'hero.mp4')?.updated_at } : null;
   if (!list) problems.push(`GitHub's releases could not be read (gh login of the repository's owner?).`);
-  else if (!site) problems.push('There is no release site-media (scripts/hero-video/publish.ts creates it).');
-  else {
-    if (!site.prerelease) problems.push('site-media is not a pre-release: tick "Set as a pre-release" on it, else it can become the latest release.');
-    if (siteMedia!.latest) problems.push('site-media is the latest release: the download links would find no installers there. Mark the last version as the latest.');
-  }
   if (drafts.length) problems.push(`Drafts left over: ${drafts.join(', ')}.`);
-
-  const ui = commits(git(cwd, 'log', '-1', '--format=%h%x09%cI%x09%s', MAIN, '--', UI))[0];
-  const since = siteMedia?.video;
-  const uiSinceVideo = since ? Number(git(cwd, 'rev-list', '--count', `--since=${since}`, MAIN, '--', UI) ?? 0) : 0;
 
   const secrets = gh(['secret', 'list', '--json', 'name', '--jq', '.[].name']);
   const missing = secrets === null ? null : SECRETS.filter((s) => !secrets.split('\n').includes(s));
   if (missing === null) problems.push('The repository secrets could not be read.');
   else if (missing.length) problems.push(`Secrets missing: ${missing.join(', ')} (docs/release.md).`);
 
-  return { version, tag, changes, commits: all, propose, tagTaken, github, latest, siteMedia, drafts, ui, uiSinceVideo, missing, problems };
+  return { version, tag, changes, commits: all, propose, tagTaken, changelog, github, latest, drafts, missing, problems };
 }
+
+/** How many of the commits the report names. */
+const LISTED = 40;
 
 /** A time in the local zone, git's and GitHub's (UTC) alike: 2026-10-12 11:16. */
 const day = (iso?: string) => (iso ? new Date(iso).toLocaleString('sv-SE').slice(0, 16) : '?');
@@ -148,14 +142,13 @@ export function report(s: Status): string {
   const out: string[] = [];
   const bumped = s.propose === s.version ? ' (package.json has it)' : '';
   out.push(`Version: package.json ${s.version}, last tag ${s.tag ? `${s.tag.name} of ${day(s.tag.date)}` : 'none'}. Propose ${s.propose}${bumped}.`);
-  out.push(`Since then: ${s.commits} commits on ${MAIN}, ${s.changes.length} of them change what runs (the release notes):`);
-  for (const c of s.changes) out.push(`  ${c.hash} ${c.date.slice(0, 10)} ${c.subject}`);
+  out.push(`CHANGELOG.md on ${MAIN}: ${s.changelog ? `has the section for ${s.propose}` : `no section for ${s.propose} yet (write it from \`bun scripts/release.ts commits\`)`}.`);
+  out.push(`Since then: ${s.commits} commits on ${MAIN}, ${s.changes.length} of them change what runs (listed under the changelog section in the notes):`);
+  for (const c of s.changes.slice(0, LISTED)) out.push(`  ${c.hash} ${c.date.slice(0, 10)} ${c.subject}`);
+  if (s.changes.length > LISTED) out.push(`  … and ${s.changes.length - LISTED} more (\`bun scripts/release.ts commits\` has them all, with their demos)`);
   if (s.github?.ahead === null) out.push(`GitHub: its ${MAIN} has commits never fetched here.`);
   else if (s.github) out.push(`GitHub: its ${MAIN} lacks ${s.github.behind} of ours${s.github.ahead ? `, and has ${s.github.ahead} that ${MAIN} here lacks` : ''}.`);
-  if (s.siteMedia) {
-    out.push(`Releases: the latest is ${s.latest ?? '?'}; site-media is ${s.siteMedia.prerelease ? '' : 'not '}a pre-release${s.siteMedia.latest ? ' and the latest' : ''}.`);
-    out.push(`Video: published ${day(s.siteMedia.video)}; the last UI commit ${s.ui ? `is of ${day(s.ui.date)} (${s.ui.subject})` : 'is none'}; ${s.uiSinceVideo} UI commits since the video went up.`);
-  }
+  out.push(`Releases: the latest is ${s.latest || 'none'}${s.drafts.length ? `; drafts ${s.drafts.join(', ')}` : ''}.`);
   if (s.missing) out.push(`Secrets: ${SECRETS.map((n) => `${n} ${s.missing!.includes(n) ? 'missing' : 'there'}`).join(', ')}.`);
   out.push(s.problems.length ? `\nIn the way:\n${s.problems.map((p) => `- ${p}`).join('\n')}` : '\nNothing in the way.');
   return out.join('\n');

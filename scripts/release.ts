@@ -1,16 +1,27 @@
-// What a release holds, for the build workflow (.github/workflows/build.yml): each platform's build
-// collects its installers, and the release job adds the checksums and the updater's latest.json.
+// What a release holds, for the build workflow (.github/workflows/build.yml) and the release skill
+// (.claude/skills/release/SKILL.md): each platform's build collects its installers, and the release
+// job adds the checksums, the updater's latest.json and the notes, taken from CHANGELOG.md.
 //
 //   bun scripts/release.ts collect <target> <dir>
 //       copies the installers of <target> (darwin-arm64, …, as in scripts/build.ts) from
 //       app/target/release/bundle/ (scripts/build-app.ts) into <dir> under the release's fixed
 //       names, with the update artifact and its signature when there is one.
-//   bun scripts/release.ts notes <tag> <file>
-//       writes the release's notes: the subjects of the commits since the version tag before, those
-//       that change what runs (not only docs or the site); the first release says that it is one.
-//   bun scripts/release.ts manifest <dir> <tag> <owner/repo> [<notes>]
-//       writes latest.json (the version, what changed for the bar's hover, and per platform the
-//       update's URL in the tag's release and its signature) and SHA256SUMS over everything in <dir>.
+//   bun scripts/release.ts commits [<tag>] [--since <date>]
+//       prints the commits since the version tag before <tag> (without <tag>: since the last version
+//       tag, up to HEAD) that change what runs, grouped by the demo their Demo-Video/Demo-Page
+//       trailers link: the raw material a version's section in CHANGELOG.md is written from.
+//       `--since` narrows them by date (the first release has the whole history before it).
+//   bun scripts/release.ts check <tag>
+//       fails unless <tag> is v<version of package.json> and CHANGELOG.md has a section for it.
+//   bun scripts/release.ts section <tag> <file>
+//       writes the version's section of CHANGELOG.md (without its heading) into <file>.
+//   bun scripts/release.ts notes <tag> <owner/repo> <file>
+//       writes the release's notes: the version's section of CHANGELOG.md, how to install the
+//       unsigned downloads, and every commit since the version tag before, folded.
+//   bun scripts/release.ts manifest <dir> <tag> <owner/repo> [<section>]
+//       writes latest.json (the version, the start of the section for the bar's hover, and per
+//       platform the update's URL in the tag's release and its signature) and SHA256SUMS over
+//       everything in <dir>.
 //
 // The names carry no version: the README and the site link the newest release's installers through
 // `releases/latest/download/<name>`. Without the updater's key (TAURI_SIGNING_PRIVATE_KEY at the
@@ -99,20 +110,135 @@ const git = (cwd: string, ...args: string[]) => {
 /** The paths of the commits that change what runs, as `git log -- <these>` takes them: all but the inert ones. */
 export const RUNS = ['.', ...INERT.dirs.map((d) => `:!${d}`), `:!*${INERT.ending}`];
 
+export type Demo = { kind: 'video' | 'page'; url: string };
+export type Commit = { hash: string; date: string; subject: string; demos: Demo[] };
+
 /**
- * The release's notes: one line per commit since the version tag before `tag` that changes what
- * runs. Other tags (`site-media`, which holds the site's video) do not count; the first release
- * would list the whole history, so it says that it is the first instead.
+ * The version tag before `tag`, or without one the last version tag on HEAD. Other tags
+ * (`site-media`, which held the upstream site's video) do not count.
  */
-export function notes(cwd: string, tag: string): string {
-  const before = git(cwd, 'describe', '--tags', '--abbrev=0', '--match', 'v[0-9]*', `${tag}^`);
-  if (!before) return '- The first release.\n';
-  const subjects = git(cwd, 'log', '--no-merges', '--format=%s', `${before}..${tag}`, '--', ...RUNS) ?? '';
-  const lines = subjects.split('\n').filter(Boolean);
-  return lines.length ? lines.map((l) => `- ${l}`).join('\n') + '\n' : '- Small fixes.\n';
+export function tagBefore(cwd: string, tag?: string): string | null {
+  return git(cwd, 'describe', '--tags', '--abbrev=0', '--match', 'v[0-9]*', tag ? `${tag}^` : 'HEAD');
 }
 
-/** latest.json for Tauri's updater, from the signed update artifacts in `dir`, with the start of `changes` (the notes) for the bar. */
+/**
+ * The commits since the version tag before `tag` (or the last one, up to HEAD) that change what runs,
+ * newest first, each with the demos its trailers link. A trailer naming a file on the machine that
+ * made the demo is no link and stays out.
+ */
+export function commits(cwd: string, tag?: string, since?: string): Commit[] {
+  const before = tagBefore(cwd, tag);
+  const to = tag ?? 'HEAD';
+  const format = '%H%x1f%cs%x1f%s%x1f%(trailers:key=Demo-Video,key=Demo-Page,separator=%x1d)%x1e';
+  const out = git(cwd, 'log', '--no-merges', `--format=${format}`, ...(since ? [`--since=${since}`] : []), before ? `${before}..${to}` : to, '--', ...RUNS) ?? '';
+  return out.split('\x1e').map((r) => r.trim()).filter(Boolean).map((r) => {
+    const [hash, date, subject, trailers] = r.split('\x1f') as [string, string, string, string?];
+    const demos: Demo[] = [];
+    for (const t of (trailers ?? '').split('\x1d')) {
+      const m = /^Demo-(Video|Page):\s*(https?:\/\/\S+)/i.exec(t.trim());
+      if (m && !demos.some((d) => d.url === m[2])) demos.push({ kind: m[1]!.toLowerCase() as Demo['kind'], url: m[2]! });
+    }
+    return { hash, date, subject, demos };
+  });
+}
+
+/** What `commits` prints: the commits grouped by their demo, those without one after them. */
+export function material(list: Commit[], range: string): string {
+  const byDemo = new Map<string, { demo: Demo; commits: Commit[] }>();
+  for (const c of list) for (const d of c.demos) {
+    const entry = byDemo.get(d.url) ?? byDemo.set(d.url, { demo: d, commits: [] }).get(d.url)!;
+    entry.commits.push(c);
+  }
+  const line = (c: Commit) => `  - ${c.date} ${c.hash.slice(0, 8)} ${c.subject}`;
+  const out = [`# ${range}: ${list.length} commits that change what runs, ${byDemo.size} demos`, ''];
+  out.push('## With a demo', '');
+  for (const { demo, commits } of byDemo.values()) out.push(`- ${demo.kind} ${demo.url}`, ...commits.map(line));
+  const without = list.filter((c) => !c.demos.length);
+  out.push('', '## Without a demo', '', ...without.map((c) => line(c).slice(2)));
+  return `${out.join('\n')}\n`;
+}
+
+/** The version of a tag or a version: v0.1.0 → 0.1.0. */
+const version = (tag: string) => tag.replace(/^v/, '');
+
+/**
+ * The section of CHANGELOG.md for `tag`'s version, without its heading (`## 0.1.0 — 2026-11-17`),
+ * up to the next version's; null when there is none.
+ */
+export function section(changelog: string, tag: string): string | null {
+  const v = version(tag).replaceAll('.', '\\.');
+  const m = new RegExp(`^## \\[?v?${v}\\]?(?![\\w.-]).*$`, 'm').exec(changelog);
+  if (!m) return null;
+  const rest = changelog.slice(m.index + m[0].length);
+  const next = /^## /m.exec(rest);
+  const body = (next ? rest.slice(0, next.index) : rest).trim();
+  return body || null;
+}
+
+/** Why `tag` makes no release, or null: it must be v<package.json's version>, with its section in CHANGELOG.md. */
+export function check(cwd: string, tag: string): string | null {
+  const pkg = JSON.parse(readFileSync(join(cwd, 'package.json'), 'utf8')).version as string;
+  if (tag !== `v${pkg}`) return `tag ${tag}, but package.json says v${pkg}`;
+  const file = join(cwd, 'CHANGELOG.md');
+  if (!existsSync(file) || !section(readFileSync(file, 'utf8'), tag)) return `CHANGELOG.md has no section "## ${pkg}" (docs/release.md)`;
+  return null;
+}
+
+/** Goes under the changelog's section in every release. */
+export const INSTALL =
+  'The Mac apps are signed and notarised. The Windows installer and the Linux packages are not signed: ' +
+  'SmartScreen warns about the installer ("More info", then "Run anyway"). Every file\'s SHA-256 is in ' +
+  '`SHA256SUMS`: `sha256sum --check --ignore-missing SHA256SUMS` beside the download, or ' +
+  '`Get-FileHash Seismic-Windows-x64-setup.exe` in PowerShell.';
+
+/** How many commits the folded list names at most; GitHub takes 125,000 characters of notes. */
+const COMMITS_LISTED = 300;
+
+/**
+ * The release's notes: the version's section of CHANGELOG.md, how to install, and the commits since
+ * the version tag before that change what runs, folded, each linked with its demo. The first
+ * release would fold the whole history, so it links it instead.
+ */
+export function notes(cwd: string, tag: string, repo: string, changelog: string): string {
+  const text = section(changelog, tag);
+  if (!text) throw new Error(`CHANGELOG.md has no section for ${tag}`);
+  const out = [text, '', '### Installing', '', INSTALL, ''];
+  const before = tagBefore(cwd, tag);
+  if (!before) {
+    out.push(`[All commits](https://github.com/${repo}/commits/${tag}) up to this first release.`);
+    return `${out.join('\n')}\n`;
+  }
+  const list = commits(cwd, tag);
+  const shown = list.slice(0, COMMITS_LISTED).map((c) => {
+    const demo = c.demos[0] ? ` · [demo](${c.demos[0].url})` : '';
+    return `- ${c.subject} ([${c.hash.slice(0, 7)}](https://github.com/${repo}/commit/${c.hash}))${demo}`;
+  });
+  const compare = `https://github.com/${repo}/compare/${before}...${tag}`;
+  out.push('<details>', `<summary>All commits since ${before} (${list.length})</summary>`, '', ...shown);
+  out.push('', list.length > COMMITS_LISTED ? `… and ${list.length - COMMITS_LISTED} more: [the full comparison](${compare}).` : `[The full comparison](${compare}).`);
+  out.push('', '</details>');
+  return `${out.join('\n')}\n`;
+}
+
+const item = (l: string) => /^\s*[-*] /.test(l);
+
+/** The lines of Markdown with each paragraph and list entry on one, as it reads; blank lines go. */
+function unwrap(text: string): string[] {
+  const out: string[] = [];
+  let open = false;
+  for (const raw of text.trim().split('\n')) {
+    const l = raw.trim();
+    if (!l) open = false;
+    else if (open && !item(l) && !l.startsWith('#')) out[out.length - 1] += ` ${l}`;
+    else {
+      out.push(item(raw) ? raw.trimEnd() : l);
+      open = !l.startsWith('#');
+    }
+  }
+  return out;
+}
+
+/** latest.json for Tauri's updater, from the signed update artifacts in `dir`, with the start of `changes` (the section) for the bar. */
 export function latest(dir: string, tag: string, repo: string, now = new Date(), changes?: string): Latest {
   const platforms: Latest['platforms'] = {};
   for (const { platform, update } of Object.values(RELEASE)) {
@@ -123,9 +249,16 @@ export function latest(dir: string, tag: string, repo: string, now = new Date(),
       signature: readFileSync(sig, 'utf8').trim(),
     };
   }
-  const lines = changes?.trim().split('\n').filter(Boolean) ?? [];
-  const shown = lines.length > NOTES_SHOWN ? [...lines.slice(0, NOTES_SHOWN - 1), `- … and ${lines.length - NOTES_SHOWN + 1} more`] : lines;
-  return { version: tag.replace(/^v/, ''), ...(shown.length ? { notes: shown.join('\n') } : {}), pub_date: now.toISOString().replace(/\.\d+Z$/, 'Z'), platforms };
+  const lines = unwrap(changes ?? '');
+  let shown = lines;
+  if (lines.length > NOTES_SHOWN) {
+    shown = lines.slice(0, NOTES_SHOWN - 1);
+    // a heading cut off from its entries says nothing
+    while (shown.length && /^#/.test(shown.at(-1)!)) shown.pop();
+    const more = lines.slice(shown.length).filter(item).length;
+    if (more) shown.push(`- … and ${more} more`);
+  }
+  return { version: version(tag), ...(shown.length ? { notes: shown.join('\n') } : {}), pub_date: now.toISOString().replace(/\.\d+Z$/, 'Z'), platforms };
 }
 
 /** SHA256SUMS as `sha256sum` writes it, over the files in `dir` (but itself). */
@@ -139,21 +272,47 @@ export function sums(dir: string): string {
 
 if (import.meta.main) {
   const [command, ...rest] = process.argv.slice(2);
+  const cwd = resolve(import.meta.dir, '..');
+  const changelog = () => readFileSync(join(cwd, 'CHANGELOG.md'), 'utf8');
   if (command === 'collect' && rest[1]) {
-    const copied = collect(rest[0]!, resolve(import.meta.dir, '..', 'app', 'target', 'release', 'bundle'), resolve(rest[1]));
+    const copied = collect(rest[0]!, join(cwd, 'app', 'target', 'release', 'bundle'), resolve(rest[1]));
     for (const f of copied) console.log(f);
-  } else if (command === 'notes' && rest[1]) {
-    writeFileSync(rest[1], notes(process.cwd(), rest[0]!));
+  } else if (command === 'commits') {
+    const at = rest.indexOf('--since');
+    const since = at >= 0 ? rest[at + 1] : undefined;
+    const tag = rest.find((a, i) => !a.startsWith('--') && rest[i - 1] !== '--since');
+    const before = tagBefore(cwd, tag);
+    const range = `${before ? `Since ${before}` : 'The whole history'}${since ? ` (from ${since})` : ''} up to ${tag ?? 'HEAD'}`;
+    process.stdout.write(material(commits(cwd, tag, since), range));
+  } else if (command === 'check' && rest[0]) {
+    const why = check(cwd, rest[0]);
+    if (why) {
+      console.error(`::error::${why}`);
+      process.exit(1);
+    }
+    console.log(`${rest[0]} is package.json's version, with its section in CHANGELOG.md`);
+  } else if (command === 'section' && rest[1]) {
+    const text = section(changelog(), rest[0]!);
+    if (!text) {
+      console.error(`CHANGELOG.md has no section for ${rest[0]}`);
+      process.exit(1);
+    }
+    writeFileSync(rest[1], `${text}\n`);
+  } else if (command === 'notes' && rest[2]) {
+    writeFileSync(rest[2], notes(cwd, rest[0]!, rest[1]!, changelog()));
   } else if (command === 'manifest' && rest[2]) {
-    const [dirArg, tag, repo, notesFile] = rest as [string, string, string, string?];
+    const [dirArg, tag, repo, sectionFile] = rest as [string, string, string, string?];
     const dir = resolve(dirArg);
-    const manifest = latest(dir, tag, repo, new Date(), notesFile ? readFileSync(notesFile, 'utf8') : undefined);
+    const manifest = latest(dir, tag, repo, new Date(), sectionFile ? readFileSync(sectionFile, 'utf8') : undefined);
     writeFileSync(join(dir, 'latest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
     writeFileSync(join(dir, 'SHA256SUMS'), sums(dir));
     const named = Object.keys(manifest.platforms);
     console.log(`latest.json: ${named.length ? named.join(', ') : 'no platform (the builds had no updater key)'}`);
   } else {
-    console.error('usage: bun scripts/release.ts collect <target> <dir> | notes <tag> <file> | manifest <dir> <tag> <owner/repo> [<notes>]');
+    console.error(
+      'usage: bun scripts/release.ts collect <target> <dir> | commits [<tag>] [--since <date>] | check <tag> | section <tag> <file>\n' +
+        '         | notes <tag> <owner/repo> <file> | manifest <dir> <tag> <owner/repo> [<section>]',
+    );
     process.exit(2);
   }
 }

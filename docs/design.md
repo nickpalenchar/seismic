@@ -80,11 +80,18 @@ cycling through terminals.
 
 - **Seismic is a permanent fork of Obeya** (2026-11-13): nothing pulls from upstream and nothing points
   to it. Wishes and bug reports become issues on nickpalenchar/seismic. LICENSE keeps Daniel
-  Sadilek's copyright line (MIT requires it); the README credits him in one line. Distribution is
-  switched off until Seismic publishes its own app: no release workflow, no update checks (the shell's
-  `CHECK_RELEASES` in `app/src/update.rs` and `UPDATES_ENABLED` in `src/server/app-update.ts`), no
-  uploads from scripts (`DISTRIBUTION` in `scripts/distribution.ts`, which a publishing script checks first), no
-  site (`site/` stays in the repo, unpublished). `docs/release.md` holds the paused release rules.
+  Sadilek's copyright line (MIT requires it); the README credits him in one line.
+- **Seismic ships its own desktop app from GitHub Releases** (2026-11-17), from v0.1.0 on, with
+  Seismic's own updater key and app identifier: the build workflow drafts a release for every tag
+  `v<version>`, the owner publishes it, and the live seismic.im (built from the separate
+  `seismic-site` repository) links its version-less downloads. macOS signed and notarised; Windows
+  and Linux unsigned, with `SHA256SUMS`. The upstream's machinery came back as it was (switched off
+  on 2026-11-13) without its hero video, site screenshots and Pages site; `site/` here stays
+  unpublished (`SITE` in `scripts/distribution.ts`). Release notes are a curated `CHANGELOG.md`
+  section per version, each entry linking its demo, with the commits folded under it; rejected:
+  commit subjects as notes (hundreds of lines per release, unreadable for users). Kill switches:
+  `DISTRIBUTION` in `scripts/distribution.ts`, `CHECK_RELEASES` in `app/src/update.rs`,
+  `UPDATES_ENABLED` in `src/server/app-update.ts`. `docs/release.md` has the process.
 - **The Koordinator is called Seismic in the UI** (2026-10-09): the owner has one counterpart, not a
   product plus a component in it.
 - **A persistent local store** (SQLite in Seismic's home), not an ephemeral one.
@@ -259,7 +266,11 @@ Formats to stay compatible with:
   no longer serve the folder from it.
 - Commits and PRs carry `Demo-Video:`/`Demo-Page:` trailers and an `<!-- seismic:demo -->` marker.
 - Installers have version-less names under `releases/latest/download/` and the updater reads
-  `latest.json` there, so every release is "latest"; the `site-media` pre-release never is.
+  `latest.json` there, so every release is "latest", and no other release (a pre-release, say) may
+  become it.
+- A tag makes a release only as `v<version of package.json>` with its section in `CHANGELOG.md`
+  (`## <version> — <date>`); the section's first twelve lines (a paragraph or an entry counting as
+  one) are what installed apps show of the update.
 
 Platform quirks:
 

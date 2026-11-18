@@ -5,13 +5,13 @@
 import type { AppUpdate } from '../core/types';
 import { BadRequest } from './board';
 
-/**
- * App updates are switched off until Seismic distributes its own app (docs/release.md): the shell
- * checks nothing (app/src/update.rs), and a report that reaches the server shows no update.
- */
-/** Where the app's releases will be once there are any, as its shell names them (`RELEASES` in app/src/update.rs). */
+/** Where the app's releases are, as its shell names them (`RELEASES` in app/src/update.rs). */
 const RELEASES = 'https://github.com/nickpalenchar/seismic/releases/';
-const UPDATES_ENABLED = false;
+/**
+ * The switch for app updates (docs/release.md), with `CHECK_RELEASES` in app/src/update.rs: off, a
+ * report that reaches the server shows no update.
+ */
+const UPDATES_ENABLED = true;
 
 /** A shell that reported nothing for this long has gone (the app quit), and its update with it. */
 const FRESH_MS = 10_000;
@@ -21,7 +21,7 @@ export class AppUpdates {
   private expiry: ReturnType<typeof setTimeout> | undefined;
   private listeners = new Set<() => void>();
 
-  /** `enabled` is for the tests of the machinery that comes back with distribution. */
+  /** `enabled` is for the tests of the switch. */
   constructor(private enabled = UPDATES_ENABLED) {}
 
   report(input: unknown): AppUpdate | null {

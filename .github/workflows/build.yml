@@ -3,23 +3,40 @@
 # builds the unsigned installers, checks the compiled server (scripts/check-binary.ts: a scratch
 # project answers, with the version, a repository's own adapter, Playwright and the adapter kit
 # from the resources) and runs the tests and the type check; the installers stay a week as the
-# run's artifacts. Releasing is paused until Seismic distributes its own app (docs/release.md): no
-# tag trigger, no signing, no published assets.
+# run's artifacts. A tag v<version of package.json> does the same and then makes a draft release
+# with every installer, SHA256SUMS and latest.json for the updater (scripts/release.ts), its notes
+# the version's section of CHANGELOG.md with the commits since the tag before folded under it; the
+# owner publishes it, and installed apps then offer it (docs/release.md). A tag without its section
+# in CHANGELOG.md fails at once. Update artifacts and their signatures come only with the secret
+# TAURI_SIGNING_PRIVATE_KEY (and TAURI_SIGNING_PRIVATE_KEY_PASSWORD, if the key has one).
+# On a tag, the Macs' app is signed with the Developer ID and notarised, the ticket stapled to the
+# DMG (scripts/build-app.ts), with the secrets APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD,
+# APPLE_NOTARY_KEY, APPLE_NOTARY_KEY_ID and, for a team key, APPLE_NOTARY_ISSUER (docs/release.md);
+# without them a tag fails rather than releasing an app macOS would not open. Run by hand with
+# "sign", the workflow does that on any branch, to try the secrets before a tag. Windows and Linux
+# stay unsigned; SHA256SUMS lists every file of the release.
 name: Build
 
 on:
   push:
     branches: [main]
-    # what leaves the running code as it is (as INERT in src/server/self-update.ts)
+    tags: ['v*']
+    # what leaves the running code as it is (as INERT in src/server/self-update.ts); path filters
+    # do not apply to tags
     paths-ignore: ['docs/**', 'design/**', 'site/**', '**/*.md']
   workflow_dispatch:
+    inputs:
+      sign:
+        description: Sign and notarise the macOS app, as on a tag
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 concurrency:
   group: build-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 jobs:
   test:
@@ -29,6 +46,9 @@ jobs:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with: { bun-version: 1.4.3 }
+      - name: The tag is the version in package.json, with its section in CHANGELOG.md
+        if: startsWith(github.ref, 'refs/tags/')
+        run: bun scripts/release.ts check "$GITHUB_REF_NAME"
       # the demo voice's tests run its sidecars through uv, and ffmpeg makes their WAVs; setup-uv
       # tags only whole versions since v8. No cache: the sidecars' few dependencies come with
       # `uv run --with`, so there is no lock or requirements file to key one on.
@@ -56,6 +76,10 @@ jobs:
           - { os: ubuntu-22.04-arm, target: linux-arm64 }
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
+    env:
+      TAURI_SIGNING_PRIVATE_KEY: ${{ startsWith(github.ref, 'refs/tags/') && secrets.TAURI_SIGNING_PRIVATE_KEY || '' }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      SIGN_MACOS: ${{ startsWith(matrix.target, 'darwin') && (startsWith(github.ref, 'refs/tags/') || inputs.sign) }}
     steps:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
@@ -75,8 +99,19 @@ jobs:
       - name: Windows process snapshot regression
         if: runner.os == 'Windows'
         run: bun test src/server/windows-process-snapshot.test.ts
+      - name: The Apple secrets are there
+        if: env.SIGN_MACOS == 'true'
+        env:
+          HAVE: ${{ secrets.APPLE_CERTIFICATE != '' && secrets.APPLE_CERTIFICATE_PASSWORD != '' && secrets.APPLE_NOTARY_KEY != '' && secrets.APPLE_NOTARY_KEY_ID != '' }}
+        run: '[ "$HAVE" = true ] || { echo "::error::signing needs the secrets APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD, APPLE_NOTARY_KEY and APPLE_NOTARY_KEY_ID (docs/release.md)"; exit 1; }'
       - name: The compiled server and the app around it
         run: bun scripts/build-app.ts
+        env:
+          APPLE_CERTIFICATE: ${{ env.SIGN_MACOS == 'true' && secrets.APPLE_CERTIFICATE || '' }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ env.SIGN_MACOS == 'true' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
+          APPLE_NOTARY_KEY: ${{ env.SIGN_MACOS == 'true' && secrets.APPLE_NOTARY_KEY || '' }}
+          APPLE_NOTARY_KEY_ID: ${{ env.SIGN_MACOS == 'true' && secrets.APPLE_NOTARY_KEY_ID || '' }}
+          APPLE_NOTARY_ISSUER: ${{ env.SIGN_MACOS == 'true' && secrets.APPLE_NOTARY_ISSUER || '' }}
       - name: Smoke test of the compiled server
         shell: bash
         run: |
@@ -87,5 +122,28 @@ jobs:
         with:
           name: seismic-${{ matrix.target }}
           path: release
-          retention-days: 7
+          retention-days: ${{ startsWith(github.ref, 'refs/tags/') && 30 || 7 }}
           if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # the folded commits need the history back to the tag before
+      - uses: actions/checkout@v7
+        with: { fetch-depth: 0 }
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version: 1.4.3 }
+      - uses: actions/download-artifact@v8
+        with: { path: release, pattern: 'seismic-*', merge-multiple: true }
+      # the version's section of CHANGELOG.md: the start of the notes, and what the app's bar shows
+      - run: bun scripts/release.ts section "$GITHUB_REF_NAME" section.md
+      - run: bun scripts/release.ts notes "$GITHUB_REF_NAME" "$GITHUB_REPOSITORY" notes.md
+      - run: bun scripts/release.ts manifest release "$GITHUB_REF_NAME" "$GITHUB_REPOSITORY" section.md
+      - name: Draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --draft --latest --verify-tag --title "Seismic ${GITHUB_REF_NAME#v}" --notes-file notes.md release/*
