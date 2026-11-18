@@ -776,7 +776,7 @@ export class Commander {
   private setting = (chat?: number) => {
     const base = this.o.agentSetting?.();
     const model = this.o.board.chatModel(chat);
-    return model ? { ...(base ?? AGENT_DEFAULTS.koordinator), model } : base;
+    return model && model !== 'default' ? { ...(base ?? AGENT_DEFAULTS.koordinator), model } : base;
   };
 
   private choice = (chat?: number) => JSON.stringify(this.setting(chat) ?? {});

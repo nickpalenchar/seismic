@@ -286,7 +286,7 @@ function agentsOf(input: unknown): Partial<Record<AgentRole, Partial<AgentSettin
   const o = (input && typeof input === 'object' ? input : {}) as Record<string, { model?: unknown; effort?: unknown; harness?: unknown; codex?: unknown; agy?: unknown } | undefined>;
   const agents: Partial<Record<AgentRole, Partial<AgentSetting>>> = {};
   for (const role of AGENT_ROLES) {
-    const model = AGENT_MODELS.find((m) => m === o[role]?.model && m !== AGENT_DEFAULTS[role].model);
+    const model = AGENT_MODELS.find((m) => m === o[role]?.model && m !== 'default' && m !== AGENT_DEFAULTS[role].model);
     const effort = AGENT_EFFORTS.find((e) => e === o[role]?.effort && e !== AGENT_DEFAULTS[role].effort);
     const harness = choosesHarness(role) && (o[role]?.harness === 'codex' || o[role]?.harness === 'agy') ? o[role]!.harness as 'codex' | 'agy' : undefined;
     const codex = choosesHarness(role) ? codexChoice.safeParse(o[role]?.codex) : undefined;

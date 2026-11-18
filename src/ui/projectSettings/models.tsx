@@ -3,7 +3,7 @@
 // of the settings sheet shows every group, "Code reviews" the reviewer's alone.
 
 import { Fragment } from 'react';
-import { AGENT_EFFORTS, AGENT_ROLES, choosesHarness, harnessChoice, type AgentEffort, type AgentModel, type AgentRole, type CodexModel, type Harness, type ProjectAgents, type ProjectSettingsView } from '../../core/types';
+import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_ROLES, choosesHarness, harnessChoice, type AgentEffort, type AgentModel, type AgentRole, type CodexModel, type Harness, type ProjectAgents, type ProjectSettingsView } from '../../core/types';
 import { catalogDefault, HarnessOptions, ModelOptions } from '../agent-options';
 import { agentClass } from '../config';
 import { t } from '../strings';
@@ -65,7 +65,8 @@ export function AgentChoice({ role, view, catalogs, busy, choose }: { role: Agen
   const efforts = other && chosenModel ? AGENT_EFFORTS.filter((e) => chosenModel.supportedReasoningEfforts.some((x) => x.reasoningEffort === e)) : AGENT_EFFORTS;
   const defaultHarness = base.harness ?? 'claude';
   const accountModel = catalogDefault(models);
-  const resolve = (model: string) => other && model === 'default' ? accountModel : model;
+  const claudeDefault = base.model === 'default' ? AGENT_DEFAULTS[role].model : base.model;
+  const resolve = (model: string) => model === 'default' ? other ? accountModel : claudeDefault : model;
   const model = resolve(selected.model);
   const defaultModel = resolve(other ? base.harness === other ? inherited.model : 'default' : base.model);
   return (

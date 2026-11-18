@@ -1060,6 +1060,13 @@ describe('The project settings', () => {
     expect(projectAgentSetting('worker', codex, { worker: { harness: 'claude', model: 'haiku' } })).toMatchObject({ harness: 'claude', model: 'haiku' });
   });
 
+  test('a saved Claude default follows the named setting at its inheritance level', () => {
+    const global = saveAgents(dir, { koordinator: { model: 'default' } }).agents.koordinator;
+    expect(global.model).toBe('opus');
+    const base = { model: 'sonnet', effort: 'medium' } as const;
+    expect(projectAgentSetting('koordinator', base, { koordinator: { model: 'default' } }).model).toBe('sonnet');
+  });
+
   test('Project defaults hold no models: the configuration is their default', async () => {
     expect(projectDefaults(dir).agents).toEqual({});
     expect(() => saveProjectDefaults(dir, { agents: { worker: { model: 'sonnet' } } })).toThrow();

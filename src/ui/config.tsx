@@ -1307,7 +1307,7 @@ function AgentsBlock({ on }: { on: boolean }) {
           const models = other ? catalogs[other] : undefined;
           const choice = (other && setting[other]) || { model: 'default', effort: 'high' as const };
           const defaultModel = codex ? catalogDefault(models) : AGENT_DEFAULTS[role].model;
-          const model = codex ? choice.model === 'default' ? defaultModel : choice.model : setting.model;
+          const model = codex ? choice.model === 'default' ? defaultModel : choice.model : setting.model === 'default' ? defaultModel : setting.model;
           const selected = models?.find((m) => m.model === model);
           const efforts = codex ? AGENT_EFFORTS.filter((e) => !selected || selected.supportedReasoningEfforts.some((x) => x.reasoningEffort === e)) : AGENT_EFFORTS;
           return (

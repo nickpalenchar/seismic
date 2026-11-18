@@ -3742,8 +3742,10 @@ export interface Skill {
  * over it. A project's own model for its workers is one of Claude Code's, so it runs them in Claude Code; an effort alone keeps them where they are.
  */
 export function projectAgentSetting(role: AgentRole, base: AgentSetting, own: ProjectAgents | undefined): AgentSetting {
-  const mine = own?.[role];
-  if (!mine || !Object.keys(mine).length) return base;
+  if (base.model === 'default') base = { ...base, model: AGENT_DEFAULTS[role].model };
+  const configured = own?.[role];
+  if (!configured || !Object.keys(configured).length) return base;
+  const mine = configured.model === 'default' ? { ...configured, model: base.model } : configured;
   if (mine.harness) {
     const selected = mine.harness;
     return { ...base, ...mine, harness: selected,

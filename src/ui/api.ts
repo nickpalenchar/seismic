@@ -7,6 +7,19 @@ import type { ProjectReposView, RepoConfig, AccessView, ActivityPage, Pairing, R
 import type { Wish } from '../core/wish';
 import { noteMessage, watchPageStalls } from './stalls';
 
+const agentSettingsEvents = new EventTarget();
+
+export function onAgentSettingsChange(listener: () => void) {
+  agentSettingsEvents.addEventListener('change', listener);
+  return () => agentSettingsEvents.removeEventListener('change', listener);
+}
+
+async function saveAgentSettings<T>(path: string, body: unknown): Promise<T> {
+  const saved = await call<T>('PUT', path, body);
+  agentSettingsEvents.dispatchEvent(new Event('change'));
+  return saved;
+}
+
 /** A request the server refused; `code` picks the owner's text, the message is the server's detail. */
 export class ApiError extends Error {
   constructor(
@@ -198,7 +211,7 @@ export const api = {
   /** A project's own settings, and Configuration's models they fall back on. */
   projectSettings: (project: string) => call<ProjectSettingsView>('GET', `/api/c/${encodeURIComponent(project)}/settings`),
   /** Saves some of a project's own settings (`{ agents }`, `{ suggest }` …) into the configuration. */
-  saveProjectSettings: (project: string, s: ProjectSettings) => call<ProjectSettingsView>('PUT', `/api/c/${encodeURIComponent(project)}/settings`, s),
+  saveProjectSettings: (project: string, s: ProjectSettings) => saveAgentSettings<ProjectSettingsView>(`/api/c/${encodeURIComponent(project)}/settings`, s),
   /** A project's repositories as configured, with their check, for its settings sheet. */
   projectRepos: (project: string) => call<ProjectReposView>('GET', `/api/c/${encodeURIComponent(project)}/repos`),
   /** "Archive project": the project leaves the configuration and stops, its cards kept. */
@@ -214,7 +227,7 @@ export const api = {
   /** Saves the model or the effort of one group. */
   /** Whether Codex's own automatic review decides for Codex workers (`true`) or the owner is asked. */
   saveCodexAutoReview: (on: boolean) => call<AgentsView>('PUT', '/api/agents/codex-auto-review', { on }),
-  saveAgents: (role: AgentRole, choice: Partial<AgentSetting>) => call<AgentsView>('PUT', '/api/agents', { [role]: choice }),
+  saveAgents: (role: AgentRole, choice: Partial<AgentSetting>) => saveAgentSettings<AgentsView>('/api/agents', { [role]: choice }),
   /** The setup assistant's list: what Seismic needs on this machine. */
   setup: () => call<MachineView>('GET', '/api/setup'),
   setupInstall: (section: MachineSectionId, id: MachineItem['id']) => call<MachineView>('POST', '/api/setup/install', { section, id }),

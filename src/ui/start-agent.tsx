@@ -3,7 +3,7 @@ import { ChevronDown, CircleAlert } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { AGENT_DEFAULTS, AGENT_EFFORTS, harnessChoice, projectAgentSetting, type AgentEffort, type AgentModel, type AgentIdentity, type AgentRole, type AgentSetting, type CodexModel, type Harness } from '../core/types';
 import { catalogDefault, HarnessOptions, modelLabel, ModelOptions } from './agent-options';
-import { ApiError, api } from './api';
+import { ApiError, api, onAgentSettingsChange } from './api';
 import { updateDraft, useDraft } from './draft';
 import { failText, t } from './strings';
 import { Button, type ButtonVariant, LinkButton } from './components/button';
@@ -24,7 +24,7 @@ export const describeAgent = (s: AgentSetting, short = false, models?: CodexMode
     const choice = harnessChoice(s);
     const name = s.harness ?? 'claude';
     const model = choice.model === 'default' && name !== 'claude' ? catalogDefault(models) : choice.model;
-    return [harness[name], model === 'default' ? null : modelLabel(model, name), efforts[choice.effort]].filter(Boolean).join(' · ');
+    return [harness[name], modelLabel(model, name), efforts[choice.effort]].filter(Boolean).join(' · ');
   };
 
 /** The harness and model an agent runs on, as a callout names it ("Claude · Opus", "Codex · gpt-5.5"); null where the model is not known. */
@@ -139,14 +139,26 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
         ++validation.current;
         setChecked({ key: pickedKey, ok: stands(list, picked[harness] ?? { model: 'default', effort: 'high' }) });
       }
-    } catch (e) { if (ticket !== request.current) return; setError(e instanceof ApiError ? e.message : failText(e)); }
+    } catch (e) {
+      if (ticket !== request.current) return;
+      setModels(null);
+      setModelsOf(harness);
+      setError(e instanceof ApiError ? e.message : failText(e));
+    }
     setLoading(false);
   };
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
-    let active = true;
-    projectDefault(role).then((v) => { if (active) setCurrentDefault(v); }).catch(() => {});
-    return () => { active = false; };
+    let revision = 0;
+    const refresh = () => {
+      const request = ++revision;
+      projectDefault(role).then((value) => {
+        if (request === revision) setCurrentDefault(value);
+      }).catch(() => {});
+    };
+    const unsubscribe = onAgentSettingsChange(refresh);
+    refresh();
+    return () => { ++revision; unsubscribe(); };
   }, [role]);
   useEffect(() => {
     if (!open) return;
@@ -172,9 +184,10 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
   const harness = setting?.harness ?? 'claude';
   const defaultHarness = initial?.harness ?? 'claude';
   const accountModel = catalogDefault(current);
-  const model = other ? choice.model === 'default' ? accountModel : choice.model : setting?.model ?? 'default';
   const baseline = initial && harness === defaultHarness ? harnessChoice(initial).model : other ? 'default' : AGENT_DEFAULTS[role].model;
-  const defaultModel = other && baseline === 'default' ? accountModel : baseline;
+  const defaultModel = baseline === 'default' ? other ? accountModel : AGENT_DEFAULTS[role].model : baseline;
+  const storedModel = other ? choice.model : setting?.model ?? 'default';
+  const model = storedModel === 'default' ? other ? accountModel : defaultModel : storedModel;
   const selected = current?.find((m) => m.model === model);
   const summary = picked ?? currentDefault;
   const summaryHarness = summary?.harness;
@@ -217,7 +230,7 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
           if (!codex) return choose({ ...setting, model: picked as AgentModel });
           const next = current?.find((m) => m.model === picked);
           const supported = AGENT_EFFORTS.filter((x) => next?.supportedReasoningEfforts.some((y) => y.reasoningEffort === x));
-          choose({ ...setting, [other!]: { model: picked, effort: supported.includes(choice.effort) ? choice.effort : supported[0] ?? choice.effort } });
+          choose({ ...setting, [other!]: { model: picked === defaultModel && baseline === 'default' ? 'default' : picked, effort: supported.includes(choice.effort) ? choice.effort : supported[0] ?? choice.effort } });
         }}>
           <ModelOptions harness={harness} models={current} value={model} defaultModel={defaultModel} />
         </Select></label>

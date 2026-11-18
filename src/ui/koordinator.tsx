@@ -12,7 +12,7 @@ import { ChatsHead, RecentChats } from './chats';
 import { Fragment, type ReactNode, useEffect, useRef, useState } from 'react';
 import { projectAgentSetting, type AgentModel, type Chat, type Item, type Preference, type RepoRef, type Reshare, type SettingProposal, type Talk, type TalkQuote, type TalkRef, type TalkWait } from '../core/types';
 import { ModelOptions } from './agent-options';
-import { api } from './api';
+import { api, onAgentSettingsChange } from './api';
 import { Inline, plain } from './markdown';
 import { AnswerFiles, Body, Continues, Msg, Quote, Reading, ThreadCard } from './message';
 import { type Reply, setReply, talkEv, talkQuote } from './reply';
@@ -139,14 +139,21 @@ export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats
   const [fallback, setFallback] = useState<{ project: string; model: AgentModel } | null>(null);
   useEffect(() => {
     if (!on) return;
-    let active = true;
-    api.projectSettings(project).then((view) => {
-      if (active) setFallback({ project, model: projectAgentSetting('koordinator', view.agents.koordinator, view.settings.agents).model });
-    }).catch(console.error);
-    return () => { active = false; };
+    let revision = 0;
+    const refresh = () => {
+      const request = ++revision;
+      setFallback(null);
+      api.projectSettings(project).then((view) => {
+        if (request === revision) setFallback({ project, model: projectAgentSetting('koordinator', view.agents.koordinator, view.settings.agents).model });
+      }).catch(console.error);
+    };
+    const unsubscribe = onAgentSettingsChange(refresh);
+    refresh();
+    return () => { ++revision; unsubscribe(); };
   }, [on, project]);
   const defaultModel = fallback?.project === project ? fallback.model : 'default';
-  const model = (choice?.chat === chat ? choice.model : chatModel) ?? defaultModel;
+  const override = choice?.chat === chat ? choice.model : chatModel;
+  const model = !override || override === 'default' ? defaultModel : override;
   const modelTask = useRef<Promise<void>>(Promise.resolve());
   const choiceRef = useRef(choice);
   choiceRef.current = choice;

@@ -14,9 +14,9 @@ export function modelLabel(model: string, harness: Harness) {
 
 function AgentOption({ value, label, isDefault, disabled }: { value: string; label: string; isDefault: boolean; disabled?: boolean }) {
   return <SelectItem value={value} textValue={label} disabled={disabled}>
-    <span className="inline-flex max-w-full items-center gap-1.5 align-middle [.cs-choice_[data-slot=select-trigger]_&]:flex-col [.cs-choice_[data-slot=select-trigger]_&]:items-start [.cs-choice_[data-slot=select-trigger]_&]:gap-0">
+    <span className="inline-flex max-w-full items-center gap-1.5 align-middle">
       <span className="min-w-0 max-w-full truncate">{label}</span>
-      {isDefault && value !== 'default' && <Badge variant="secondary" className="px-1.5 py-0 text-2xs">{t.config.agents.defaultBadge}</Badge>}
+      {isDefault && value !== 'default' && <Badge variant="secondary" className="px-1.5 py-0 text-2xs [.cs-choice_[data-slot=select-trigger]_&]:hidden">{t.config.agents.defaultBadge}</Badge>}
     </span>
   </SelectItem>;
 }
