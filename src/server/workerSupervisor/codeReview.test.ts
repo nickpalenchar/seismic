@@ -922,6 +922,57 @@ describe('code reviews', () => {
     expect(itemsOf(id)).toHaveLength(FINDINGS.length);
   });
 
+  test('a review the owner started where the project reviews no work keeps its items across handovers, and the next one verifies the fixes', async () => {
+    reviewing('auto', false);
+    const id = await started();
+    await handOver(id, 'export.ts');
+    workers.startCodeReview(id);
+    await until(() => reviewers().length === 1);
+    await review(id, reviewers()[0]!);
+    workers.message(id, '', [], false, undefined, undefined, { 1: 'self', 2: 'self' });
+    worker().call('dispute_review_item', { items: [{ number: 2, note: 'The exports are serialized upstream.' }] });
+    await handOver(id, 'fix.ts');
+    await until(() => board.item(id)!.review?.codeReview?.stale === true);
+    // the list and its history stay; the fix waits for the reviewer, and the next review is the owner's to start
+    expect(statuses(id)).toEqual(['underReview', 'reopened', 'raised']);
+    expect(itemsOf(id)[1]!.log.at(-1)).toMatchObject({ who: 'worker', from: 'fixing', to: 'reopened', note: 'The exports are serialized upstream.' });
+    expect(board.item(id)!.review?.codeReview).toMatchObject({ mode: 'manual', runs: 1, state: 'done', stale: true });
+    expect(reviewers()).toHaveLength(1);
+    workers.startCodeReview(id);
+    await until(() => reviewers().length === 2);
+    expect(reviewers()[1]!.inbox[0]!).toContain('- #1 “SQL built from input”');
+    await review(id, reviewers()[1]!, [{ title: 'Missing test', text: 'Nothing covers the fix.', severity: 'minor' }], [{ number: 1, fixed: true }]);
+    expect(statuses(id)).toEqual(['fixed', 'reopened', 'raised', 'raised']);
+    expect(itemsOf(id).map((i) => i.number)).toEqual([1, 2, 3, 4]);
+    expect(board.item(id)!.review?.codeReview?.runs).toBe(2);
+    // a handover that Seismic sees no change in keeps them too, and the review of the same commit stands for it
+    const hasWork = spaces.hasWork;
+    spaces.hasWork = async () => false;
+    try {
+      workers.message(id, 'Once more.');
+      await worker().call('ready_for_review', { summary: 'Nothing new.', demo: artifact() });
+      worker().emit({ type: 'idle' });
+      const last = board.events(id).findLast((e) => e.kind === 'review' && e.author === 'worker')!.id;
+      await until(() => board.row(id).review?.codeReview?.handover === last);
+    } finally {
+      spaces.hasWork = hasWork;
+    }
+    expect(itemsOf(id)).toHaveLength(4);
+    expect(board.item(id)!.review?.codeReview).toMatchObject({ mode: 'manual', state: 'done' });
+  });
+
+  test('turning code reviews off keeps a review that ran, with its items, in manual mode', async () => {
+    reviewing('auto');
+    const id = await started();
+    await handOver(id, 'export.ts');
+    await until(() => reviewers().length === 1);
+    await review(id, reviewers()[0]!);
+    setting = { on: false, mode: 'auto' };
+    await workers.codeReviewsChanged();
+    expect(board.item(id)!.review?.codeReview).toMatchObject({ mode: 'manual', state: 'done' });
+    expect(itemsOf(id)).toHaveLength(3);
+  });
+
   test('a manually started review is pending immediately and resumes after restart', async () => {
     reviewing('manual');
     const id = await started();

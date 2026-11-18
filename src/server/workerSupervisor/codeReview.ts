@@ -105,14 +105,17 @@ export class CodeReviews {
 
   /**
    * The worker handed over (`handover`, its event): `mode` where the work is to be reviewed (the
-   * project reviews work, and this work is in a git repository), else null, which drops a review the card had
-   * with its items. What the owner had the worker fix goes under review now: the next review verifies
+   * project reviews work, and this work is in a git repository), else null. A review that has run on
+   * the card (one the owner started where the project reviews no work, say) stays with its items for
+   * the rest of the card's life, and goes on in manual mode; null drops only one that never ran.
+   * What the owner had the worker fix goes under review now: the next review verifies
    * it. A review of the same commit stands for this handover too, unless it resubmitted items;
    * otherwise it is stale, and in `auto` a new one starts.
    */
-  async handedOver(cardId: string, handover: number, mode: CodeReviewMode | null, resumePending = false): Promise<void> {
+  async handedOver(cardId: string, handover: number, given: CodeReviewMode | null, resumePending = false): Promise<void> {
     if (this.shut) return;
     const had = codeReviewOf(this.o.board.row(cardId));
+    const mode = given ?? (had && this.ran(cardId, had) ? 'manual' : null);
     if (!mode) {
       this.stopSession(cardId);
       if (had) this.o.board.work(cardId, { review: { codeReview: null, items: [] } });
@@ -152,17 +155,29 @@ export class CodeReviews {
 
   /**
    * The project's setting changed under work waiting for approval: `mode` where the work is reviewed
-   * (null: not). Only the mode changes, a review the card had is dropped where there is none now, and
-   * a card without one gets the manual start; findings stay as they are and nothing starts.
+   * (null: not). Only the mode changes, and a card without a review gets the manual start; findings
+   * stay as they are and nothing starts. Where there is no review now, one that has run stays in
+   * manual mode, with its items (one at work stops); one that never ran is dropped.
    */
   applyMode(cardId: string, handover: number, mode: CodeReviewMode | null): void {
     const had = codeReviewOf(this.o.board.row(cardId));
     if (!mode) {
       if (!had) return;
+      if (this.ran(cardId, had)) {
+        this.cancel(cardId);
+        const now = codeReviewOf(this.o.board.row(cardId));
+        if (now && now.mode !== 'manual') this.save(cardId, { ...now, mode: 'manual' });
+        return;
+      }
       this.stopSession(cardId);
       this.o.board.work(cardId, { review: { codeReview: null, items: [] } });
     } else if (mode === 'manual' && !had) this.save(cardId, { mode, handover });
     else if (had && mode === 'manual' && had.mode !== mode) this.save(cardId, { ...had, mode });
+  }
+
+  /** Whether a review has run on the card, or is at work: its record and items are the card's for good. */
+  private ran(cardId: string, c: StoredCodeReview): boolean {
+    return !!c.review || !!c.runs || !!c.pending || this.items(cardId).length > 0;
   }
 
   /** Whether the card's work still waits for the owner's approval: a review that would start after the approval, or after the card stopped, does not. */
