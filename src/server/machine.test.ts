@@ -94,6 +94,9 @@ describe('what Seismic needs on this machine', () => {
     expect(section(v, 'needed').items).toEqual([
       { id: 'claude', state: 'ok', found: '2.1.300' },
       { id: 'claudeLogin', state: 'missing', install: { commands: ['claude auth login'] }, act: 'login' },
+    ]);
+    // git in a section of its own: a slow git holds back no agent's result
+    expect(section(v, 'git').items).toEqual([
       { id: 'git', state: 'ok', found: '2.45.0' },
       expect.objectContaining({ id: 'gitUser', state: 'missing', act: 'identity' }),
     ]);
@@ -104,7 +107,7 @@ describe('what Seismic needs on this machine', () => {
     expect(pr[1]).toEqual({ id: 'ghLogin', state: 'missing' });
     expect(v.checkedClaude).toMatch(/^\d+\.\d+\.\d+$/);
     // what demos need is checked too; without a voice check there is no voice section
-    expect(v.sections.map((s) => s.id)).toEqual(['needed', 'codex', 'agents', 'pr', 'demos']);
+    expect(v.sections.map((s) => s.id)).toEqual(['needed', 'git', 'codex', 'agents', 'pr', 'demos']);
     // Antigravity is optional: not there, its login waits for it
     const agents = section(v, 'agents').items;
     expect(agents[0]).toMatchObject({ id: 'agy', state: 'missing', install: { url: 'https://antigravity.google/docs/cli' }, act: 'install' });
@@ -177,6 +180,12 @@ describe('what Seismic needs on this machine', () => {
     expect(section(v, 'codex').items[1]).toEqual({ id: 'codexLogin', state: 'ok' });
     expect(agents.current()).toEqual(['claude', 'codex', 'agy']);
     expect((await machine.view(['pr', 'voice', 'demos', 'mobile'])).sections.map((x) => x.id)).toEqual(['pr', 'demos']);
+    // Claude Code's section never waits for git: a check of it alone never asks git
+    fake('git', `touch "${join(dir, 'git-asked')}"; exit 1`);
+    const claude = await machine.view(['needed']);
+    expect(claude.sections.map((x) => x.id)).toEqual(['needed']);
+    expect(section(claude, 'needed').items.map((i) => i.id)).toEqual(['claude', 'claudeLogin']);
+    expect(existsSync(join(dir, 'git-asked'))).toBe(false);
   });
 
   test('offers the official installer for a missing Claude Code, and the logins once logged in', async () => {
@@ -187,7 +196,7 @@ describe('what Seismic needs on this machine', () => {
     const needed = section(v, 'needed').items;
     expect(needed[0]).toMatchObject({ id: 'claude', state: 'missing', install: { commands: ['curl -fsSL https://claude.ai/install.sh | bash'] }, act: 'install' });
     expect(needed[1]).toEqual({ id: 'claudeLogin', state: 'missing' });
-    expect(needed[3]).toEqual({ id: 'gitUser', state: 'ok', found: 'Ada <Ada>' });
+    expect(section(v, 'git').items[1]).toEqual({ id: 'gitUser', state: 'ok', found: 'Ada <Ada>' });
     expect(section(v, 'pr').items).toEqual([
       { id: 'gh', state: 'ok', found: '2.60.0' },
       { id: 'ghLogin', state: 'ok', found: 'ada' },
@@ -224,12 +233,12 @@ describe('what Seismic needs on this machine', () => {
     // the registry's PATH, as PowerShell reads it
     fake('powershell', `echo "C:\\Windows;${later}"`);
     const machine = new MachineSetup({ home, config: config(), env: { PATH: bin }, platform: 'win32', arch: 'x64', compiled: true });
-    expect(section(await machine.view(), 'needed').items.find((i) => i.id === 'git')).toMatchObject({ state: 'missing' });
+    expect(section(await machine.view(), 'git').items.find((i) => i.id === 'git')).toMatchObject({ state: 'missing' });
     // the owner installs git by hand and comes back to the window
     mkdirSync(later, { recursive: true });
     writeFileSync(join(later, 'git'), '#!/bin/sh\ncase "$1" in --version) echo "git version 2.51.0.windows.1";; config) echo Ada;; esac\n');
     chmodSync(join(later, 'git'), 0o755);
-    expect(section(await machine.view(), 'needed').items.find((i) => i.id === 'git')).toEqual({ id: 'git', state: 'ok', found: '2.51.0.windows.1' });
+    expect(section(await machine.view(), 'git').items.find((i) => i.id === 'git')).toEqual({ id: 'git', state: 'ok', found: '2.51.0.windows.1' });
   });
 
   test('lists uv above the speech recognition, whose installation waits for it', async () => {

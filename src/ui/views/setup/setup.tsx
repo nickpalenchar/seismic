@@ -240,20 +240,31 @@ const ready = (items: MachineItem[] | undefined) => !!items?.length && items.eve
 /** The agents the first step offers, in its order; Pi is not there yet. */
 const AGENTS = ['claude', 'codex', 'agy', 'pi'] as const;
 type Agent = (typeof AGENTS)[number];
-/** The section that checks each agent; Claude Code's shares the needed one with git. */
+/** The section that checks each agent. */
 const AGENT_SECTION: Record<Exclude<Agent, 'pi'>, MachineSectionId> = { claude: 'needed', codex: 'codex', agy: 'agents' };
-const GIT_ITEMS: readonly MachineItem['id'][] = ['git', 'gitUser'];
-/** The checks the list runs side by side, each shown as it answers: an agent's own first, the features that can wait last. */
-const CHECKS: readonly (readonly MachineSectionId[])[] = [['needed'], ['codex'], ['agents'], RECOMMENDED_SECTIONS];
-const SECTION_ORDER: readonly MachineSectionId[] = ['needed', 'codex', 'agents', ...RECOMMENDED_SECTIONS];
-/** The list with what a check of the sections `asked` found in place of what it held of them. */
+/**
+ * The checks the list runs side by side, each shown as it answers: an agent's own first, git (which
+ * every agent needs, and whose slowness holds back no agent's result), the features that can wait last.
+ */
+const CHECKS: readonly (readonly MachineSectionId[])[] = [['needed'], ['git'], ['codex'], ['agents'], RECOMMENDED_SECTIONS];
+const SECTION_ORDER: readonly MachineSectionId[] = ['needed', 'git', 'codex', 'agents', ...RECOMMENDED_SECTIONS];
 /** The check that covers a section. */
 const checkOf = (id: MachineSectionId) => CHECKS.findIndex((c) => c.includes(id));
 const ALL_CHECKS = CHECKS.map((_, i) => i);
-/** The agents' own sections, whose blocks each have their own "Check again". */
-const AGENT_SECTIONS: readonly MachineSectionId[] = ['needed', 'codex', 'agents'];
-const merged = (was: MachineView | null, found: MachineView, asked: readonly MachineSectionId[]): MachineView =>
-  !was ? found : { ...found, sections: SECTION_ORDER.flatMap((id) => (asked.includes(id) ? found : was).sections.filter((x) => x.id === id)) };
+/** The sections of the first step, whose blocks each have their own "Check again". */
+const OWN_CHECK_SECTIONS: readonly MachineSectionId[] = ['needed', 'git', 'codex', 'agents'];
+/**
+ * The list with what a check of the sections `asked` found in place of what it held of them. The job
+ * comes from `found` only where its check started after the one whose job the list shows (`newer`):
+ * each response carries the job as it was when its check began, so a slow check's answer must not
+ * put back an installation that a later answer saw end.
+ */
+const merged = (was: MachineView | null, found: MachineView, asked: readonly MachineSectionId[], newer: boolean): MachineView => {
+  if (!was) return found;
+  const { job: _, ...rest } = found;
+  const job = newer ? found.job : was.job;
+  return { ...rest, ...(job ? { job } : {}), sections: SECTION_ORDER.flatMap((id) => (asked.includes(id) ? found : was).sections.filter((x) => x.id === id)) };
+};
 /** How often the list checks again while a login it waits for is missing. */
 const LOGIN_POLL_MS = 15000;
 /** The assistant's steps: the agents, the features that can wait, and on the first start the first project. */
@@ -297,8 +308,9 @@ function CheckAgain({ checking, disabled, variant, onClick }: { checking: boolea
 
 export function Setup({ first, onClose }: { first?: boolean; onClose?: () => void }) {
   const [view, setView] = useState<MachineView | null>(null);
-  // the checks under way, by their index in CHECKS
-  const [checking, setChecking] = useState<readonly number[]>([]);
+  // the checks under way, by their index in CHECKS; all of them until the first answers come in, so a
+  // first check that fails (the server starting again) leaves no spinner behind
+  const [checking, setChecking] = useState<readonly number[]>(ALL_CHECKS);
   const [status, setStatus] = useState('');
   const [terminal, setTerminal] = useState<string | null>(null);
   const [step, setStep] = useState<Step>('agents');
@@ -314,8 +326,12 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
   // identity, the first project), so a check that started before one of them does not overwrite it.
   const flights = useRef(CHECKS.map(() => ({ inFlight: null as Promise<void> | null, again: null as Promise<void> | null })));
   const version = useRef(0);
+  // each check in the order it started, and the check whose job the list shows: an older check's answer leaves the job alone
+  const started = useRef(0);
+  const jobFrom = useRef(0);
   const update = (v: MachineView) => {
     version.current++;
+    jobFrom.current = ++started.current;
     setView(v);
   };
   /** Checks again (`which`: the checks by their index in CHECKS, all where left out); settles once checks that started after this call have ended. */
@@ -332,10 +348,16 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
     const asked = CHECKS[i]!;
     setChecking((was) => (was.includes(i) ? was : [...was, i]));
     const at = version.current;
+    const seq = ++started.current;
     const run = api
       .setup(asked)
       .then(
-        (v) => void (at === version.current && setView((was) => merged(was, v, asked))),
+        (v) => {
+          if (at !== version.current) return;
+          const newer = seq >= jobFrom.current;
+          if (newer) jobFrom.current = seq;
+          setView((was) => merged(was, v, asked, newer));
+        },
         // a check that fails (the server starting again) keeps the list it had
         (e) => void (shown.current ? console.error(e) : failed(e)),
       )
@@ -404,7 +426,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
           <Button size="small" onClick={() => act(section, i)}>
             {i.act === 'terminal' ? s.mobile.enable : s.login}
           </Button>
-          {!AGENT_SECTIONS.includes(section.id) && <CheckAgain variant="ghost" checking={isChecking(section.id)} onClick={recheckOf(section.id)} />}
+          {!OWN_CHECK_SECTIONS.includes(section.id) && <CheckAgain variant="ghost" checking={isChecking(section.id)} onClick={recheckOf(section.id)} />}
           {terminal === i.id ? <span className="hint">{i.act === 'terminal' ? s.mobile.enableOpen : s.terminalOpen}</span> : awaitsLogin(i) && <span className="hint">{s.checksItself}</span>}
         </>
       );
@@ -432,13 +454,13 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
   };
 
   const sectionOf = (id: MachineSectionId) => view?.sections.find((x) => x.id === id);
-  const needed = sectionOf('needed');
-  const claude = needed?.items.find((i) => i.id === 'claude');
-  const gitItems = needed?.items.filter((i) => GIT_ITEMS.includes(i.id)) ?? [];
-  /** An agent's own pieces, without the git it shares with the others. */
-  const agentItems = (a: Agent) => (a === 'pi' ? [] : (sectionOf(AGENT_SECTION[a])?.items.filter((i) => !GIT_ITEMS.includes(i.id)) ?? []));
-  /** Whether the agent's check is under way, the first or a later one. */
-  const checkingAgent = (a: Agent) => a !== 'pi' && (!sectionOf(AGENT_SECTION[a]) || isChecking(AGENT_SECTION[a]));
+  const claude = sectionOf('needed')?.items.find((i) => i.id === 'claude');
+  const git = sectionOf('git');
+  const gitItems = git?.items ?? [];
+  /** An agent's own pieces; the git all of them need is a section of its own. */
+  const agentItems = (a: Agent) => (a === 'pi' ? [] : (sectionOf(AGENT_SECTION[a])?.items ?? []));
+  /** Whether the agent's check is under way, the first or a later one; one that failed is over, whatever it left. */
+  const checkingAgent = (a: Agent) => a !== 'pi' && isChecking(AGENT_SECTION[a]);
   const chosen = AGENTS.filter((a) => touched[a] ?? (a !== 'pi' && ready(agentItems(a))));
   // an agent is configured once its own pieces and git are there: its Ready badge, the count and the steps after the first all go by this
   const isConfigured = (a: Agent) => ready(agentItems(a)) && ready(gitItems);
@@ -490,7 +512,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
         <span className={cn('setup-ok ml-auto text-xs', ready(items) ? 'on text-approved' : 'text-destructive')}>
           {!ready(items) ? s.open(items.filter((i) => i.state === 'missing').length) : items.some((i) => i.state === 'later') ? s.readyLater : s.ready}
         </span>
-        {AGENT_SECTIONS.includes(section.id) && <CheckAgain variant="ghost" checking={isChecking(section.id)} disabled={running} onClick={recheckOf(section.id)} />}
+        {OWN_CHECK_SECTIONS.includes(section.id) && <CheckAgain variant="ghost" checking={isChecking(section.id)} disabled={running} onClick={recheckOf(section.id)} />}
       </div>
       <p className="hint">{hint}</p>
       <SetupList items={items} name={name(section)} state={state(section)} action={action(section)} />
@@ -566,7 +588,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
                   if (a === 'pi') return null;
                   const section = sectionOf(AGENT_SECTION[a]);
                   if (!section) return null;
-                  const hint = a === 'claude' ? s.sections.needed.hint : s.sections[section.id].hint;
+                  const hint = s.sections[section.id].hint;
                   return block(
                     a,
                     section,
@@ -577,7 +599,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
                     a === 'claude' && view && claude?.state === 'ok' && claude.found && !claude.found.startsWith(view.checkedClaude) && <p className="hint">{s.checkedWith(view.checkedClaude)}</p>,
                   );
                 })}
-              {needed && chosen.length > 0 && block('git', needed, gitItems, s.gitBlock.title, s.gitBlock.hint)}
+              {git && chosen.length > 0 && block('git', git, gitItems, s.sections.git.title, s.sections.git.hint)}
               {status && <p className={`hint ${statusClass}`}>{status}</p>}
               <StepFooter
                 callout={configured.length ? 'success' : 'info'}
@@ -591,7 +613,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
           )}
           {step === 'recommended' && (
             <>
-              {!recommended.length && <p className="hint">{t.config.setup.checking}</p>}
+              {!recommended.length && isChecking('pr') && <p className="hint">{t.config.setup.checking}</p>}
               {recommended.map((section) =>
                 block(section.id, section, section.items, s.sections[section.id].title, s.sections[section.id].hint, true, section.id === 'mobile' && <p className="hint">{s.mobile.simulatorSafari}</p>),
               )}

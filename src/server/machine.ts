@@ -448,7 +448,7 @@ export class MachineSetup {
     // the demo check also tells what the voice shares with it, so the voice's section is checked with it
     const [claudeItems, gitItems, codexItems, pr, agyItems, voice, demo, mobile] = await Promise.all([
       wants('needed') ? agentsPart() : none(),
-      wants('needed') ? gitPart() : none(),
+      wants('git') ? gitPart() : none(),
       wants('codex') ? codexPart() : none(),
       wants('pr') ? prPart() : none(),
       wants('agents') ? agyPart() : none(),
@@ -456,7 +456,6 @@ export class MachineSetup {
       wants('demos') ? checkSetup(readDemoSettings(this.o.home), { home: this.o.home, env }) : null,
       platform === 'darwin' && wants('mobile') ? mobilePart() : null,
     ]);
-    const needed = [...claudeItems, ...gitItems];
     const ok = (items: MachineItem[], ...ids: string[]) => ids.every((id) => items.some((i) => i.id === id && i.state === 'ok'));
     const signedIn: Record<Harness, boolean> = { claude: ok(claudeItems, 'claude', 'claudeLogin'), codex: ok(codexItems, 'codex', 'codexLogin'), agy: ok(agyItems, 'agy', 'agyLogin') };
     const checked = HARNESSES.filter((h) => wants(HARNESS_SECTION[h]));
@@ -474,7 +473,8 @@ export class MachineSetup {
       .filter((i) => !voiceItems.some((v) => v.id === i.id && v.state === i.state));
     const mb = (items: MachineItem[]) => items.reduce((n, i) => n + (i.state === 'missing' || i.state === 'later' ? (i.mb ?? 0) : 0), 0);
     const sections: MachineSection[] = [
-      { id: 'needed' as const, items: needed, mb: 0 },
+      { id: 'needed' as const, items: claudeItems, mb: 0 },
+      { id: 'git' as const, items: gitItems, mb: 0 },
       { id: 'codex' as const, items: codexItems, mb: 0 },
       { id: 'agents' as const, items: agyItems, mb: 0 },
       { id: 'pr' as const, items: pr, mb: 0 },

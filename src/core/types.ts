@@ -3472,11 +3472,13 @@ export interface VoiceSetupView {
 }
 
 /** The setup assistant's list (`src/server/machine.ts`): what Seismic needs on this machine, by what it is for. */
-export type MachineSectionId = 'needed' | 'codex' | 'agents' | 'pr' | 'voice' | 'demos' | 'mobile';
+export type MachineSectionId = 'needed' | 'git' | 'codex' | 'agents' | 'pr' | 'voice' | 'demos' | 'mobile';
 /** The sections of the recommended features, the assistant's second step; the others configure the agents. */
 export const RECOMMENDED_SECTIONS: readonly MachineSectionId[] = ['pr', 'voice', 'demos', 'mobile'];
-/** Claude Code, its login, git and git's name and e-mail for commits. */
-export type NeededId = 'claude' | 'claudeLogin' | 'git' | 'gitUser';
+/** Claude Code and its login. */
+export type NeededId = 'claude' | 'claudeLogin';
+/** git and its name and e-mail for commits, which every agent needs; its own section, so a slow git never holds back an agent's result. */
+export type GitId = 'git' | 'gitUser';
 /** Antigravity (`agy`) and its Google login: another agent for tasks and code reviews. */
 export type AgentsId = 'agy' | 'agyLogin';
 /** Codex and its OpenAI login: another agent for tasks and code reviews. */
@@ -3488,7 +3490,7 @@ export type MobileId = 'xcode' | 'simulator' | 'safaridriver' | 'axe';
 
 /** A piece of the list, as a setup check gives it, and what Seismic does about it at a click. */
 export type MachineItem = Omit<SetupItem, 'id'> & {
-  id: NeededId | CodexId | PrId | AgentsId | MobileId | VoiceSetupId | SetupId;
+  id: NeededId | GitId | CodexId | PrId | AgentsId | MobileId | VoiceSetupId | SetupId;
   /**
    * `install`: Seismic installs it (no admin rights, or Homebrew or winget). `login`: Seismic opens a
    * terminal that logs in. `terminal`: Seismic opens a terminal that runs the command and closes

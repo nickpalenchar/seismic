@@ -2120,6 +2120,7 @@ const en = {
     open: (n: number) => `${n} missing`,
     sections: {
       needed: { title: 'Claude Code', hint: 'Anthropic’s coding agent, on your Claude subscription.' },
+      git: { title: 'git', hint: 'Every agent works in a git repository and commits under your name.' },
       codex: { title: 'Codex', hint: 'OpenAI’s coding agent, on your ChatGPT plan. Once it is installed and signed in, tasks and code reviews can run on it, chosen per start or in the configuration.' },
       pr: { title: 'Pull requests', hint: 'Approved work goes out as a pull request on GitHub, unless a repository’s settings say otherwise. Needed only at the first approval.' },
       voice: { title: 'Voice commands', hint: 'Hold Space and say what to do. Seismic confirms in writing: on the card or in Seismic’s panel (button at the top right, key C).' },
@@ -2148,7 +2149,6 @@ const en = {
     agentNames: { claude: 'Claude Code', codex: 'Codex', agy: 'Antigravity', pi: 'Pi' },
     agentHints: { claude: 'Anthropic', codex: 'OpenAI', agy: 'Google · preview', pi: 'Coming soon' },
     agentReady: 'Ready',
-    gitBlock: { title: 'git', hint: 'Every agent works in a git repository and commits under your name.' },
     proceed: {
       none: 'Proceed after configuring an agent',
       one: (name: string) => `Proceed with ${name} configured`,
