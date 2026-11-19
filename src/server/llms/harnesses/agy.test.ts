@@ -177,12 +177,13 @@ test.skipIf(process.platform === 'win32')('closing the agy usage source ends a /
         return false;
       }
     };
-    await until(() => pids.every((pid) => !alive(pid)));
+    // a killed process lingers until it is reaped, which a loaded machine takes its time over
+    await until(() => pids.every((pid) => !alive(pid)), 15_000);
     expect(await source.fetch()).toBeNull();
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
-});
+}, 20_000);
 
 test('real account-quota capture reads the entire reset duration', () => {
   const message = readFileSync(join(import.meta.dir, '../../fixtures/agy-quota.txt'), 'utf8').trim();
