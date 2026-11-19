@@ -35,6 +35,7 @@ const bump = () => {
 
 /** The card's demo video is the one its words may be about, while it is shown; returns the end of that. */
 export function watch(cardId: string, video: HTMLVideoElement, chapters: [number, string][], demo?: number): () => void {
+  continueWatching(cardId);
   const w = { cardId, video, chapters, demo };
   watched = w;
   dismissed = null;
@@ -138,6 +139,14 @@ export function take(cardId: string): Taken | null {
 }
 
 const sending = new Map<string, { count: number; release: boolean }>();
+
+/** A viewer who comes back before a send settles keeps the saved comments queued. */
+export function continueWatching(cardId: string): boolean {
+  const pending = sending.get(cardId);
+  if (!pending) return false;
+  pending.release = false;
+  return true;
+}
 
 /** Hold the end-of-viewing release until the card's in-flight timestamped sends have settled. */
 export function beginSpotSend(cardId: string): () => void {

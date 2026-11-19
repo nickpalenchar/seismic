@@ -43,7 +43,7 @@ import { type Box, onto, ZOOM_EASE, ZOOM_MS, zoomBox } from './zoomBox';
 import { AttachButton, imageUrl, ShotStrip, Shots, useShotInput } from './shots';
 import { Conversation as Scroll } from './components/ai/conversation';
 import { newRepoWords, type RepoChoice, RepoPick, useRepoChoice } from './repoPick';
-import { dismissPlace, finishWatching, type Place, seekTo, showsVersions, usePlace, videoOf, watch } from './spot';
+import { continueWatching, dismissPlace, finishWatching, type Place, seekTo, showsVersions, usePlace, videoOf, watch } from './spot';
 import { cameInView, useSeen } from './seen';
 import { ClockMark, SnoozeLine, SnoozeMenu, snoozeWho } from './snooze';
 import { clock as time, errorText, failText, mergeProposed, shortDay, snoozeWhen, stateLabel, stoppedAtOf, t } from './strings';
@@ -2387,11 +2387,21 @@ const STOOD_MS = 3 * 60_000;
  */
 function useWatching(cardId: string, video: RefObject<HTMLVideoElement | null>, comments: boolean, demo: Demo, source: string) {
   const on = comments && demo.kind !== 'html';
-  const release = () => finishWatching(cardId);
   const watchedVideo = useRef(false);
-  // going to another of the card's demos is no sign the owner has finished watching
+  const stood = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const clearStood = () => {
+    clearTimeout(stood.current);
+    stood.current = undefined;
+  };
+  const release = () => {
+    clearStood();
+    finishWatching(cardId);
+  };
+  // The idle deadline belongs to the open viewing session, even when its video changes.
   useEffect(() => {
     if (!comments) return;
+    // A reopened card can inherit an uploading video comment even if it shows a document now.
+    watchedVideo.current = continueWatching(cardId);
     return () => {
       if (watchedVideo.current) release();
       watchedVideo.current = false;
@@ -2405,18 +2415,21 @@ function useWatching(cardId: string, video: RefObject<HTMLVideoElement | null>, 
     const typed = (e: Event) => {
       if (!v.paused && e.target instanceof HTMLTextAreaElement && e.target.closest('.card-sheet .split-talk .composer, #ph-card-talk .composer')) v.pause();
     };
-    let stood: ReturnType<typeof setTimeout> | undefined;
     const paused = () => {
-      clearTimeout(stood);
-      stood = setTimeout(release, STOOD_MS);
+      if (stood.current === undefined && v.paused && !v.ended) stood.current = setTimeout(release, STOOD_MS);
     };
-    const played = () => clearTimeout(stood);
+    const played = () => {
+      clearStood();
+      continueWatching(cardId);
+    };
+    paused();
     v.addEventListener('pause', paused);
+    v.addEventListener('loadedmetadata', paused);
     v.addEventListener('play', played);
     addEventListener('input', typed, true);
     return () => {
-      clearTimeout(stood);
       v.removeEventListener('pause', paused);
+      v.removeEventListener('loadedmetadata', paused);
       v.removeEventListener('play', played);
       removeEventListener('input', typed, true);
       unwatch();

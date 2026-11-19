@@ -40,3 +40,21 @@ test('ending a viewing session waits for all its timestamped sends', () => {
     act.mockRestore();
   }
 });
+
+test('reopening during an upload cancels the old release and allows a later release', () => {
+  const act = spyOn(api, 'act').mockResolvedValue(undefined);
+  const video = new EventTarget() as unknown as HTMLVideoElement;
+  const done = beginSpotSend('card');
+  finishWatching('card');
+  const unwatch = watch('card', video, [], 1);
+  try {
+    done();
+    expect(act).not.toHaveBeenCalled();
+    finishWatching('card');
+    expect(act).toHaveBeenCalledTimes(1);
+    expect(act).toHaveBeenCalledWith('card', { action: 'release' });
+  } finally {
+    unwatch();
+    act.mockRestore();
+  }
+});
