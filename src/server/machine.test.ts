@@ -419,7 +419,7 @@ describe('the first project', () => {
     // the clone goes the way the check went
     await s.project({ clone: 'acme/private-shop', into: join(dir, 'code') });
     for (let i = 0; (await s.view()).job?.running && i < 100; i++) await Bun.sleep(50);
-    // Each check and clone clears askpass and any configured credential helpers.
+    // Background checks and signed-in GitHub clones clear configured helpers.
     const NP = '-c core.askPass= -c credential.interactive=false -c credential.helper= ';
     // the view's own git calls aside
     const lines = readFileSync(calls, 'utf8').trim().split('\n').filter((l) => l !== '--version');
@@ -432,37 +432,52 @@ describe('the first project', () => {
     ]);
   });
 
-  test('configured helpers and askpass are bypassed on checks and clones without a GitHub login', async () => {
+  test('checks skip configured helpers and explicit HTTPS clones can use saved credentials', async () => {
     const realGit = Bun.which('git')!;
+    const githubOrigin = gitRepo(join(dir, 'github-origin'));
+    const otherOrigin = gitRepo(join(dir, 'other-origin'));
     const gitConfig = join(dir, 'gitconfig');
     const prompt = join(bin, 'prompt');
     const prompted = join(dir, 'prompted');
+    const used = join(dir, 'used-helpers');
     fake('prompt', `touch '${prompted}'; exit 1`);
-    writeFileSync(gitConfig, `[core]\n\taskPass = ${prompt}\n[credential]\n\thelper = !${prompt}\n[credential "https://example.com"]\n\thelper = !${prompt}\n`);
+    fake('saved', `echo "$1" >> '${used}'; printf 'username=saved-user\\npassword=test-token\\n'`);
+    const saved = join(bin, 'saved');
+    writeFileSync(gitConfig, `[core]\n\taskPass = ${prompt}\n[credential]\n\thelper = !${saved} global\n[credential "https://example.com"]\n\thelper =\n\thelper = !${saved} scoped\n`);
     fake('gh', 'exit 1');
     // Exercise Git's actual credential lookup without an authenticated server.
     const probe = join(dir, 'credential-probe.ts');
     writeFileSync(probe, `
       const args = process.argv.slice(2);
       const verb = args.findIndex((arg) => arg === 'ls-remote' || arg === 'clone');
-      if (verb < 0) process.exit(1);
-      const url = new URL(args[args.indexOf('--') + 1]);
-      const git = Bun.spawnSync([${JSON.stringify(realGit)}, ...args.slice(0, verb), 'credential', 'fill'], {
+      const git = ${JSON.stringify(realGit)};
+      if (verb < 0) process.exit(Bun.spawnSync([git, ...args], { stdout: 'inherit' }).exitCode);
+      const remote = args.indexOf('--') + 1;
+      const url = new URL(args[remote]);
+      const credential = Bun.spawnSync([git, ...args.slice(0, verb), 'credential', 'fill'], {
         stdin: Buffer.from('protocol=https\\nhost=' + url.hostname + '\\n\\n'),
         stderr: 'inherit',
       });
-      process.exit(git.exitCode);
+      if (credential.exitCode !== 0 || args[verb] !== 'clone') process.exit(credential.exitCode);
+      args[remote] = url.hostname === 'github.com' ? ${JSON.stringify(githubOrigin)} : ${JSON.stringify(otherOrigin)};
+      process.exit(Bun.spawnSync([git, ...args], { stderr: 'inherit' }).exitCode);
     `);
     fake('git', `exec '${process.execPath}' '${probe}' "$@"`);
     const machine = setup({ env: { GIT_CONFIG_GLOBAL: gitConfig, GIT_CONFIG_NOSYSTEM: '1', GIT_ASKPASS: prompt, PATH: `${bin}:${process.env.PATH}` } });
     const authError = expect.stringMatching(/unable to get password|terminal prompts disabled/);
-    for (const clone of ['acme/private-shop', 'https://example.com/acme/shop.git']) {
+    const repos = ['acme/private-shop', 'https://example.com/acme/shop.git'];
+    for (const clone of repos) {
       expect(await machine.repo({ clone })).toMatchObject({ readable: false, error: authError });
+    }
+    expect(existsSync(used)).toBe(false);
+    for (const clone of repos) {
       await machine.project({ clone, into: join(dir, 'code') });
       let view = await machine.view();
       for (let i = 0; view.job?.running && i < 100; i++) await Bun.sleep(50), (view = await machine.view());
-      expect(view.job).toMatchObject({ kind: 'clone', running: false, error: authError });
+      expect(view.job).toMatchObject({ kind: 'clone', running: false, branch: 'main' });
+      expect(existsSync(join(dir, 'code', cloneName(clone), '.git'))).toBe(true);
     }
+    expect(readFileSync(used, 'utf8').trim().split('\n')).toEqual(['global', 'scoped']);
     expect(existsSync(prompted)).toBe(false);
   });
 

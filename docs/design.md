@@ -220,10 +220,11 @@ cycling through terminals.
   missing the list checks again every 15 seconds (also where Seismic opened no terminal and the
   owner ran the command by hand), and each login has its own "Check again".
   The repository a first project is cloned from is read when its field is left with another value
-  than the one read last (2026-11-18), not while typing. Check and clone reach it the same way: by
-  `git ls-remote` and `git clone`, a GitHub repository (owner/name or https) with gh's login as git's
-  only credential helper where gh is logged in. Both commands clear configured helpers and askpass
-  programs and run without a controlling terminal, with SSH in batch mode by default. The read
+  than the one read last (2026-11-18), not while typing. Both `git ls-remote` and `git clone` use
+  gh's login as Git's only credential helper for GitHub (owner/name or HTTPS) when signed in.
+  Otherwise the background check skips configured helpers because they can open dialogs, and
+  an explicit clone uses them so saved HTTPS credentials still work. Both commands disable Git's
+  own prompts and run without a controlling terminal, with SSH in batch mode by default. The read
   reports a timeout even if a child process keeps its output pipe open. Rejected: `gh repo view`,
   which an API token can pass without the contents access a clone needs. A GitHub repository that
   cannot be read while gh is logged out may just be private, so the

@@ -214,8 +214,8 @@ export function tried(argv: string[], env: Env, timeout: number): Promise<{ ok: 
   });
 }
 
-/** Empty values clear Git's configured askpass program and credential helpers, including URL-specific helpers. */
-const NO_PROMPT_ARGS = ['-c', 'core.askPass=', '-c', 'credential.interactive=false', '-c', 'credential.helper='];
+/** Turn off Git's own prompts, including its configured askpass program. */
+const NO_PROMPT_ARGS = ['-c', 'core.askPass=', '-c', 'credential.interactive=false'];
 
 /** A command that must never ask the owner anything runs in a session of its own, without the terminal Seismic was started from (Windows has no such terminal to lose). */
 const NO_TTY = process.platform !== 'win32';
@@ -597,40 +597,39 @@ export class MachineSetup {
   }
 
   /**
-   * How a repository named for a clone is reached, the same for its check and its clone: owner/name is
-   * GitHub's over https; a GitHub repository (owner/name or https) goes with gh's login where gh is
-   * logged in (as git's only credential helper, so the check and the clone use the very same one);
-   * anything else as git reaches it, ssh by its keys. Never with a password prompt, which would hang.
+   * Both check and clone use gh's login for GitHub HTTPS when available. Otherwise an explicit clone
+   * can use Git's configured helpers, while a background check skips them because they can open dialogs.
    */
-  private async route(spec: string): Promise<{ argv: (verb: string[]) => string[]; url: string; github: boolean; ghLogin: boolean; env: Env }> {
+  private async route(spec: string, action: 'check' | 'clone'): Promise<{ argv: (verb: string[]) => string[]; url: string; github: boolean; ghLogin: boolean; env: Env }> {
     const short = /^[\w.-]+\/[\w.-]+$/.test(spec);
     const github = short || /^https?:\/\/(www\.)?github\.com\//i.test(spec);
     const url = short ? `https://github.com/${spec}.git` : expandHome(spec);
-    // Drop configured helpers entirely: arbitrary helpers can ignore the noninteractive settings.
-    // Git and SSH run without askpass or a controlling terminal; the default SSH command uses batch mode.
+    // Git and SSH run without askpass or a controlling terminal. The default SSH command uses batch mode.
     const { GIT_ASKPASS: _git, SSH_ASKPASS: _ssh, ...rest } = this.env;
     const env: Env = {
       ...rest,
       GIT_TERMINAL_PROMPT: '0',
+      GCM_INTERACTIVE: 'never',
       GH_PROMPT_DISABLED: '1',
       SSH_ASKPASS_REQUIRE: 'never',
       ...(this.env.GIT_SSH_COMMAND ? {} : { GIT_SSH_COMMAND: 'ssh -o BatchMode=yes' }),
     };
     const ghLogin = github && (await tried(['gh', 'auth', 'status'], env, 30_000)).ok;
-    const helper = ghLogin ? ['-c', 'credential.helper=!gh auth git-credential'] : [];
+    // An empty helper resets all configured helpers, including URL-specific ones.
+    const helper = action === 'check' || ghLogin ? ['-c', 'credential.helper='] : [];
+    if (ghLogin) helper.push('-c', 'credential.helper=!gh auth git-credential');
     return { argv: (verb) => ['git', ...NO_PROMPT_ARGS, ...helper, ...verb], url, github, ghLogin, env };
   }
 
   /**
-   * Whether the repository named for a clone can be read from here, before the owner clones it: git
-   * lists its branches the way the clone will fetch them (`route`), so readable means its contents,
-   * not just that an API shows it.
+   * Whether Git can list the repository's branches in the background. An explicit clone can also
+   * use saved credentials from configured helpers if this check could not read the repository.
    */
   async repo(input: unknown): Promise<SetupRepoCheck> {
     const { clone } = (input ?? {}) as { clone?: unknown };
     const spec = typeof clone === 'string' ? clone.trim() : '';
     if (!spec) throw new BadRequest('invalid', 'a repository to clone');
-    const { argv, url, github, ghLogin, env } = await this.route(spec);
+    const { argv, url, github, ghLogin, env } = await this.route(spec, 'check');
     const { ok, last } = await tried(argv(['ls-remote', '--heads', '--', url]), env, REPO_CHECK_MS);
     return ok ? { readable: true } : { readable: false, error: last, github, ghLogin };
   }
@@ -647,8 +646,7 @@ export class MachineSetup {
     if (!name) throw new BadRequest('invalid', `no repository in ${spec}`);
     const dest = join(resolve(expandHome(typeof into === 'string' && into.trim() ? into.trim() : homedir())), name);
     if (existsSync(dest)) throw new BadRequest('cloneTarget', `${dest} exists`);
-    // the way its check reached it: GitHub with gh's login where gh is logged in (private repositories too)
-    const { argv: gitArgv, url, env } = await this.route(spec);
+    const { argv: gitArgv, url, env } = await this.route(spec, 'clone');
     const argv = gitArgv(['clone', '--progress', '--', url, dest]);
     console.log(`Seismic: cloning ${spec} into ${dest}`);
     return this.startJob(
