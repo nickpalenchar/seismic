@@ -24,8 +24,8 @@ export const prefTextClass = 'pref-text flex-1 cursor-text min-w-0 [overflow-wra
 /** What a proposal says, which is not edited by a click. */
 export const proposalTextClass = cn(prefTextClass, 'cursor-default font-semibold');
 
-/** A line under the text: where the rule came from, what a run does now. */
-export const occasionClass = 'occasion basis-full text-muted-foreground text-xs [overflow-wrap:anywhere] [&_q]:italic';
+/** A line under the text: where the rule came from, what a run does now. It never grows wider than its row: a card's pill in it shortens its title. */
+export const occasionClass = 'occasion basis-full min-w-0 text-muted-foreground text-xs [overflow-wrap:anywhere] [&_q]:italic';
 
 /** A row's buttons, on a line of their own. */
 export const prefActionsClass = 'pref-actions basis-full flex flex-wrap gap-1.5 mt-0.5';
