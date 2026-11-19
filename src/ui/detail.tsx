@@ -420,10 +420,12 @@ export function Detail(p: Props) {
   // the agent fixing items the owner sent it, and items waiting for the next review, count as part of the review: Approve warns the same way
   const fixing = !!cr?.items.some((r) => r.status === 'fixing');
   const verifying = !!cr?.items.some((r) => r.status === 'underReview');
+  // items under review after a failed review wait for the owner's retry, not for a review at work: approving stops nothing then
+  const awaitsVerdict = verifying && cr?.state !== 'failed';
   // work that changed nothing has nothing to land, but approving it still ends a review verifying fixes before their verdicts
-  const reviewRunning = item.review?.noChange ? verifying : cr?.state === 'running' || fixing || verifying;
+  const reviewRunning = item.review?.noChange ? cr?.state === 'running' || awaitsVerdict : cr?.state === 'running' || fixing || awaitsVerdict;
   const approvalWarningClass = startAgentMain;
-  const approvalWarning = reviewRunning && <span className={startAgentModel}>{cr?.state === 'running' || (verifying && !fixing) ? t.approveDuringReview.reviewing : t.approveDuringReview.fixing}</span>;
+  const approvalWarning = reviewRunning && <span className={startAgentModel}>{cr?.state === 'running' || (awaitsVerdict && !fixing) ? t.approveDuringReview.reviewing : t.approveDuringReview.fixing}</span>;
   // choices on items picked but not sent yet: approving would drop them
   const unsent = Object.keys(unsentPicks ?? {}).filter((id) => cr?.items.some((r) => r.number === Number(id) && needsOwner(r))).length;
   const reviewed = cr?.state === 'done' && !cr.stale;
