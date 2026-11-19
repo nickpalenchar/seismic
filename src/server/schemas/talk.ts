@@ -38,7 +38,6 @@ export const talk = sqliteTable(
     images: text({ mode: 'json' }).$type<string[]>(),
     unread: integer({ mode: 'boolean' }).notNull().default(false),
     sessionId: text('session_id'),
-    agentSetting: text('agent_setting', { mode: 'json' }).$type<AgentSetting>(),
     thread: integer(),
     follows: integer(),
     files: text({ mode: 'json' }).$type<AnswerFile[]>(),
@@ -59,6 +58,7 @@ export const talk = sqliteTable(
     arrived: integer(),
     made: text({ mode: 'json' }).$type<TalkMade[]>(),
     requestId: text('request_id'),
+    agentSetting: text('agent_setting', { mode: 'json' }).$type<AgentSetting>(),
   },
   (t) => [index('talk_chat').on(t.chat, t.id)],
 );
