@@ -1531,7 +1531,7 @@ const en = {
       checkingHarness: 'Checking sign-in',
       harnessDisconnected: 'Sign-in required',
       harnesses: { claude: 'Claude Code', codex: 'Codex', agy: 'Antigravity' },
-      agyScope: 'Preview: Antigravity (agy) uses your personal Google login, fully automatic inside the operating system’s sandbox and without permission questions; read-only roles keep their restrictions. Task workers and code reviews require a local Git checkout. SSH and contribution reviews are not supported yet.',
+      agyScope: 'Preview: Antigravity (agy) uses your personal Google login, fully automatic inside the operating system’s sandbox and without permission questions; read-only roles keep their restrictions. Task workers and code reviews require a local Git checkout. SSH and contribution reviews are not supported yet. Antigravity’s usage limits show in the bar.',
       loadingModels: 'Loading models…',
       reloadModels: 'Reload models',
       codexAutoReview: 'Codex’s automatic review decides permissions',

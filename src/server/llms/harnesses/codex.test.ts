@@ -63,16 +63,16 @@ function fixture(overrides: Partial<AgentSpec> = {}, wire = new Wire(), first: s
 
 test('handshake enables experimental tools; model is discovered and names normalize at dispatch', async () => {
   const calls: unknown[] = [];
-  const { wire, events } = fixture({ effort: 'high', tools: [{ name: 'report', description: 'Report', schema: { text: z.string() }, run: (args) => { calls.push(args); return 'recorded'; } }] });
+  const { wire, events } = fixture({ effort: 'high', tools: [{ name: 'report', description: 'Report', schema: { text: z.string().transform((value) => ({ value })) }, run: (args) => { calls.push(args); return 'recorded'; } }] });
   await until(() => wire.n === 1);
   expect(wire.calls[0]).toEqual({ method: 'initialize', params: { clientInfo: { name: 'seismic', title: 'Seismic', version: '0.1.0' }, capabilities: { experimentalApi: true } } });
   expect(wire.notifications).toEqual(['initialized']);
   const start = wire.calls.find((c) => c.method === 'thread/start')!;
-  expect(start.params).toMatchObject({ cwd: tmpdir(), developerInstructions: 'Seismic instructions', model: 'codex-test', approvalPolicy: 'on-request', sandbox: 'workspace-write', dynamicTools: [{ type: 'function', name: 'seismic_report' }] });
+  expect(start.params).toMatchObject({ cwd: tmpdir(), developerInstructions: 'Seismic instructions', model: 'codex-test', approvalPolicy: 'on-request', sandbox: 'workspace-write', dynamicTools: [{ type: 'function', name: 'seismic_report', inputSchema: { properties: { text: { type: 'string' } } } }] });
   expect(events[0]).toEqual({ type: 'session', id: 'codex:thread-1' });
   const result = await wire.server('item/tool/call', { callId: 'c1', namespace: null, tool: 'seismic_report', arguments: { text: 'done' } });
   expect(result).toEqual({ contentItems: [{ type: 'inputText', text: 'recorded' }], success: true });
-  expect(calls).toEqual([{ text: 'done' }]);
+  expect(calls).toEqual([{ text: { value: 'done' } }]);
   expect(events.at(-1)).toEqual({ type: 'tool', name: 'mcp__seismic__report', input: { text: 'done' } });
 });
 

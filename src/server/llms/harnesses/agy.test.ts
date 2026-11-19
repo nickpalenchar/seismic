@@ -117,11 +117,14 @@ test('the endpoint opens to the session token only', async () => {
 });
 
 test('tool calls validate arguments and report failures to the model', async () => {
-  const t: AgentTool = { name: 'x', description: 'd', schema: { n: z.number() }, run: () => { throw new Error('boom'); } };
+  const t: AgentTool = { name: 'x', description: 'd', schema: { n: z.number().transform(String) }, run: ({ n }) => { throw new Error(`boom ${typeof n}`); } };
   const reg = { tools: wireTools([t]) };
+  expect(await handleMcp(reg, { jsonrpc: '2.0', id: 1, method: 'tools/list' })).toMatchObject({
+    result: { tools: [{ inputSchema: { properties: { n: { type: 'number' } } } }] },
+  });
   const call = (args: unknown) => handleMcp(reg, { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'seismic_x', arguments: args } }) as Promise<{ result: { isError?: boolean; content: { text: string }[] } }>;
   expect((await call({ n: 'no' })).result.isError).toBe(true);
-  expect((await call({ n: 1 })).result.content[0]!.text).toBe('boom');
+  expect((await call({ n: 1 })).result.content[0]!.text).toBe('boom string');
   expect(await handleMcp(reg, { jsonrpc: '2.0', method: 'notifications/initialized' })).toBeNull();
 });
 
