@@ -393,20 +393,25 @@ describe('on another address', () => {
     expect(await there('/').then(() => 'answered', () => 'gone')).toBe('gone');
   });
 
-  test.skipIf(!lan)('the link a --lan start prints signs in a browser there: it pairs it, where a login link would only send it on', async () => {
-    expect(await access.pairingLink()).toBeNull();
+  test.skipIf(!lan)('the login link a --lan start prints signs a browser in at the other address; without --lan it does not', async () => {
+    expect(await access.reachedAt()).toBeNull();
     await turnOn({ via: 'address', address: lan });
-    const there = (path: string, headers: Record<string, string> = {}) => fetch(path.startsWith('http') ? path : `http://${lan}:${server.port}${path}`, { redirect: 'manual', headers: { 'user-agent': IPHONE, ...headers } });
-    // the owner's login link opened at that address signs nothing in
-    const login = await there(access.owner.link(`http://${lan}:${server.port}`));
-    expect(login.headers.get('set-cookie')).toBeNull();
-    const link = (await access.pairingLink())!;
-    expect(link).toStartWith(`http://${lan}:${server.port}/pair?code=`);
-    const signed = await there(link);
-    expect(signed.status).toBe(303);
-    expect((await there('/', { cookie: cookieOf(signed) })).status).toBe(200);
-    // once only
-    expect((await there(link)).status).toBe(401);
+    const at = `http://${lan}:${server.port}`;
+    expect(await access.reachedAt()).toBe(at);
+    const there = (url: string, headers: Record<string, string> = {}) => fetch(url, { redirect: 'manual', headers: { 'user-agent': IPHONE, ...headers } });
+    // an ordinary start: the link signs in only a browser on this machine
+    expect((await there(access.owner.link(at))).headers.get('set-cookie')).toBeNull();
+    // a --lan throwaway: the address counts as this machine's, with the owner's key still needed
+    access.stop();
+    server.stop(true);
+    access = new Access({ store, home: dir, tailscale: new Tailscale(fakeTailscale(ts)), now: () => clock, lanLogin: true });
+    server = serve([project], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, undefined, undefined, undefined, undefined, undefined, access, push);
+    const lanAt = (await access.reachedAt())!;
+    expect(lanAt).toBe(`http://${lan}:${server.port}`);
+    expect((await there(`${lanAt}/api/projects`)).status).toBe(401);
+    const signed = await there(access.owner.link(lanAt));
+    expect(signed.headers.get('set-cookie')).toContain('HttpOnly');
+    expect((await there(`${lanAt}/api/projects`, { cookie: cookieOf(signed) })).status).toBe(200);
   });
 
   test('an address that is not this machine’s is refused with a reason', async () => {

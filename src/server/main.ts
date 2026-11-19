@@ -416,9 +416,9 @@ const developer: DeveloperView = seismicEnv('SUPERVISED')
   : { restart: false, rebuild: false, why: 'dev' };
 server = serve(projects, { transcriber, setup: voiceSetup }, Number(values.port), values.dev, config, restarter, narration, machine, stop, updates, access, push, sources, usage, stalls, developer);
 claim(home, { pid: seismicEnv('SUPERVISED') ? process.ppid : process.pid, port: server.port!, url: `http://127.0.0.1:${server.port}`, version: VERSION, ...(seismicEnv('FROM_APP') ? { app: true } : {}) });
-// the address as a one-time link that signs a browser in (owner.ts); for a --lan throwaway, one that
-// pairs a browser on another device instead, at the address other devices reach it under (remote.ts)
-const link = (seismicEnv('LAN_LOGIN') ? await access.pairingLink() : null) ?? access.owner.link(`http://127.0.0.1:${server.port}`);
+// the address as a one-time link that signs a browser in (owner.ts); for a --lan throwaway, at the
+// address other devices reach it under, which counts as this machine's then (`Access.lanLogin`)
+const link = access.owner.link((seismicEnv('LAN_LOGIN') ? await access.reachedAt() : null) ?? `http://127.0.0.1:${server.port}`);
 console.log(`Seismic ${own ? `from ${own}` : VERSION} on ${link} (${source === 'file' ? configFile : 'projects from the command line'}), agents on ${claudeExecutable() ?? 'the Claude Code the Agent SDK brings'}`);
 // from the commit the server started from: a landing since is new code to it, not where it started
 if (own && ranFrom) watchOwnCode(own, ranFrom, (from, to) => restart('code', `${own} moved from ${from.slice(0, 7)} to ${to.slice(0, 7)}`));
