@@ -89,12 +89,25 @@ function EmojiPickerCategoryHeader({ category, ...props }: EmojiPickerListCatego
 const blockOf = (root: HTMLElement, label: string) => root.querySelector(`[data-category="${CSS.escape(label)}"]`)?.closest<HTMLElement>('[frimousse-category]') ?? null;
 
 /** The category whose block the list shows at its top, of those it lists now. */
+/** What scrolls the list: its viewport, or where a short window grows it to its full height, the nearest box around it that scrolls. */
+function scrollerOf(viewport: HTMLElement): HTMLElement {
+  if (getComputedStyle(viewport).overflowY !== 'visible') return viewport;
+  for (let el = viewport.parentElement; el; el = el.parentElement) if (/auto|scroll/.test(getComputedStyle(el).overflowY)) return el;
+  return viewport;
+}
+
 function categoryAtTop(root: HTMLElement, viewport: HTMLElement): string | undefined {
-  const top = viewport.getBoundingClientRect().top;
+  // the list's top in view: the viewport's, or the scrolling box's once the viewport reaches above it
+  const scroller = scrollerOf(viewport);
+  const top = Math.max(viewport.getBoundingClientRect().top, scroller.getBoundingClientRect().top);
+  const bottom = Math.min(viewport.getBoundingClientRect().bottom, scroller.getBoundingClientRect().bottom);
+  // scrolled to the end, the last categories cannot reach the top: the last one in view counts
+  const end = scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 2 && scroller.scrollTop > 0;
   let at: string | undefined;
   for (const c of CATEGORIES) {
     const block = blockOf(root, c.label);
-    if (block && block.getBoundingClientRect().top - top <= 4) at = c.label;
+    const y = block?.getBoundingClientRect().top;
+    if (y !== undefined && (y - top <= 4 || (end && y < bottom - 4))) at = c.label;
   }
   return at;
 }
@@ -161,6 +174,15 @@ export function EmojiPicker({
   const follow = () => {
     if (root.current && viewport.current) setAt(categoryAtTop(root.current, viewport.current));
   };
+  // whatever scrolls the list (the viewport, or the dialog around it in a short window) moves the tab
+  // selected; a scroll does not bubble, so it is caught on its way down
+  useEffect(() => {
+    const scrolled = (e: Event) => {
+      if (e.target instanceof Node && viewport.current && (e.target === viewport.current || e.target.contains(viewport.current))) follow();
+    };
+    document.addEventListener('scroll', scrolled, { capture: true, passive: true });
+    return () => document.removeEventListener('scroll', scrolled, { capture: true });
+  }, []);
   // what is found starts at another category; frimousse lists it once it is idle (within 100 ms)
   useEffect(() => {
     const later = setTimeout(follow, 150);
@@ -190,7 +212,7 @@ export function EmojiPicker({
           />
         </div>
         <EmojiCategoryTabs root={root} viewport={viewport} at={at ?? (search ? undefined : CATEGORIES[0]!.label)} search={search} onSearch={onSearch} />
-        <EmojiPickerPrimitive.Viewport ref={viewport} className="relative mt-1.5 min-h-0 flex-1 outline-none" data-slot="emoji-picker-viewport" onScroll={follow}>
+        <EmojiPickerPrimitive.Viewport ref={viewport} className="relative mt-1.5 min-h-0 flex-1 outline-none" data-slot="emoji-picker-viewport">
           <EmojiPickerPrimitive.Loading className="absolute inset-0 flex items-center justify-center text-muted-foreground" data-slot="emoji-picker-loading">
             <LoaderIcon className="size-4 animate-spin" />
           </EmojiPickerPrimitive.Loading>
