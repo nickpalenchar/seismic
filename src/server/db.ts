@@ -735,6 +735,7 @@ export const MIGRATIONS = [
   // the author and the actor of what Seismic itself did were `obeya` before the rename
   `UPDATE events SET author = 'seismic' WHERE author = 'obeya';
    UPDATE activity SET who = 'seismic' WHERE who = 'obeya';`,
+  'ALTER TABLE talk ADD COLUMN agent_setting TEXT;',
 ];
 
 /**

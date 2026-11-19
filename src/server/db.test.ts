@@ -35,6 +35,7 @@ const MOVED = [
 /** The database as it was before "Needs you" had a table of its own: the cards' `waiting_since` back, `needs_you` gone. */
 function withoutNeedsYou(db: Database) {
   db.run('DROP TABLE IF EXISTS needs_you');
+  if (db.query("SELECT 1 FROM pragma_table_info('talk') WHERE name = 'agent_setting'").get()) db.run('ALTER TABLE talk DROP COLUMN agent_setting');
   if (db.query("SELECT 1 FROM pragma_table_info('talk') WHERE name = 'request_id'").get()) db.run('ALTER TABLE talk DROP COLUMN request_id');
   if (db.query("SELECT 1 FROM pragma_table_info('talk') WHERE name = 'arrived'").get()) db.run('ALTER TABLE talk DROP COLUMN arrived');
   if (db.query("SELECT 1 FROM pragma_table_info('talk') WHERE name = 'made'").get()) db.run('ALTER TABLE talk DROP COLUMN made');
@@ -920,6 +921,7 @@ test('a workstream that sits on another canvas than its plan\'s, archived or not
     ]);
     s.cards.update(archived!.id, { archived_at: new Date().toISOString() });
     s.db.run('UPDATE cards SET canvas_id = ? WHERE id IN (?, ?)', [main, live!.id, archived!.id]);
+    s.db.run('ALTER TABLE talk DROP COLUMN agent_setting');
     s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('SELECT p.canvas_id FROM cards p'))}`);
     s.db.close();
     const after = new Store(path);

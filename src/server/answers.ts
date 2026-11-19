@@ -91,25 +91,31 @@ export class Answers {
       if (reading && !name.startsWith('mcp__')) this.o.board.log(reading, 'activity', by, describeTool(name, input, this.o.board.t));
     };
     const follow = t.id !== thread;
-    // the session of the answer it continues, else the thread's latest; a thread moved onto a card that is gone has the card's
-    const previous = follow ? this.o.board.threadTalk(thread).findLast((x) => x.session && x.id <= (t.follows ?? t.id)) : undefined;
-    const resume = follow ? previous?.session ?? this.cardSession(root) : undefined;
     // looked up for an action: Seismic takes it with the answer, which brings what it needs
     const step = t.then ? `\n\nSeismic takes this step itself once your answer is in: ${t.then}\nYour answer gives what the step needs.` : '';
     const fresh = `${this.message(root.said, root.question!, about, plan, root.askedIn)}${follow ? '' : step}`;
     // written in the plan's sheet: Seismic did not read the words, so the agent passes on what asks Seismic
     const asked = t.askedIn ? { images: this.o.imageFiles?.(t.images) ?? [], from: t.askedIn } : undefined;
-    this.queue(thread, () =>
-      this.consult({
+    this.queue(thread, () => {
+      // Read the session and its setting together when the queued follow-up is ready to run.
+      const previous = follow ? this.o.board.threadTalk(thread).findLast((x) => x.session && x.id <= (t.follows ?? t.id)) : undefined;
+      const cardSession = follow ? this.cardSession(root) : undefined;
+      const resume = previous?.session ?? cardSession;
+      return this.consult({
         thread,
         by,
         about,
         plan,
         ...(asked ? { asked } : {}),
         onTool,
-        onSession: (id) => this.o.board.talkSession(talkId, id),
+        onSession: (id, setting) => {
+          this.o.board.talkSession(talkId, id, setting);
+          // The owner can move the thread while this turn starts. Keep the card's copy in step.
+          const moved = this.o.board.exchange(talkId)?.movedTo;
+          if (moved && this.o.board.item(moved)?.kind === 'question') this.saveCardSession(moved, id, setting);
+        },
         resolvedModel: previous?.answerAgent?.model,
-        setting: resume && !previous?.session && root.movedTo ? this.o.board.sessionSetting(root.movedTo) : undefined,
+        setting: previous?.setting ?? (resume && resume === cardSession && root.movedTo ? this.o.board.sessionSetting(root.movedTo) : undefined),
         // under the question in the sheet, and in the conversation of the card it was asked on
         onLimit: (until, retry) => {
           this.o.board.waitsForLimit({ talk: talkId }, until, retry);
@@ -125,8 +131,8 @@ export class Answers {
           : { message: fresh }),
       })
         .then((a) => this.deliver(talkId, thread, by, t.question!, a, reading, plan))
-        .catch((e) => this.deliver(talkId, thread, by, t.question!, { text: this.o.board.t.answer.failed(messageOf(e)) }, reading, plan)),
-    ).finally(() => this.busy.delete(talkId));
+        .catch((e) => this.deliver(talkId, thread, by, t.question!, { text: this.o.board.t.answer.failed(messageOf(e)) }, reading, plan));
+    }).finally(() => this.busy.delete(talkId));
   }
 
   /**
@@ -268,8 +274,9 @@ export class Answers {
     const { by, about } = this.agentFor(root);
     const answered = rows.filter((r) => r.answer !== undefined);
     const files = answered.reduce((n, r) => n + (r.files?.length ?? 0), 0);
-    const session = rows.findLast((r) => r.session)?.session;
-    const card = this.o.board.addQuestion(root.question, { talk: thread, answers: answered.length, files }, session, about?.repo, root.cardId ?? root.askedIn);
+    const last = rows.findLast((r) => r.session);
+    const agent = last?.session ? { session: last.session, setting: last.setting } : undefined;
+    const card = this.o.board.addQuestion(root.question, { talk: thread, answers: answered.length, files }, agent, about?.repo, root.cardId ?? root.askedIn);
     for (const r of rows) {
       this.o.board.log(card.id, 'talk', 'owner', r.said, { images: r.images, at: r.at });
       if (r.answer !== undefined) this.o.board.log(card.id, 'talk', r.answerBy ?? by, r.answer, { answer: answerRef(thread, r.files, r.continues), at: r.at, agent: r.answerAgent });
@@ -314,6 +321,7 @@ export class Answers {
     const end = new AbortController();
     this.turnEnds.set(cardId, end);
     let a: OwnerAnswer;
+    let session: { id: string; setting?: AgentSetting } | undefined;
     try {
       a = await this.consult({
         thread: stored.talk,
@@ -326,7 +334,10 @@ export class Answers {
           if (!name.startsWith('mcp__')) this.o.board.log(cardId, 'activity', by, describeTool(name, input, this.o.board.t));
         },
         setting: this.o.board.sessionSetting(cardId),
-        onSession: (id, setting) => this.o.board.work(cardId, { session_id: id, ...(setting ? { agent_setting: JSON.stringify(setting) } : {}) }),
+        onSession: (id, setting) => {
+          this.saveCardSession(cardId, id, setting);
+          session = { id, setting };
+        },
         onLimit: (until, retry) => this.o.board.waitsForLimit({ card: cardId }, until, retry),
         at: { card: cardId },
         resume: this.o.board.row(cardId).session_id ?? undefined,
@@ -371,7 +382,10 @@ export class Answers {
     // the owner asked it to pause once its answer was given: what was asked meanwhile waits for them to let it go on
     if (this.o.board.holdOf(cardId)?.reason === 'pausing') this.halt(cardId);
     this.o.board.notify({ cardId, text, inTalk: true });
-    for (const p of taken) if (p.talk) this.answer(p.talk, root.question, text, by, a.files, a.agent);
+    for (const p of taken) if (p.talk) {
+      if (session) this.o.board.talkSession(p.talk, session.id, session.setting);
+      this.answer(p.talk, root.question, text, by, a.files, a.agent);
+    }
   }
 
   /**
@@ -445,6 +459,10 @@ export class Answers {
     const about = root.about ? this.o.board.item(root.about) : undefined;
     const plan = about?.kind === 'plan' ? about : about?.parent ? this.o.board.item(about.parent) : undefined;
     return { by: plan?.plan?.file ? 'plan' : 'koordinator', about, plan };
+  }
+
+  private saveCardSession(cardId: string, id: string, setting?: AgentSetting) {
+    this.o.board.work(cardId, { session_id: id, agent_setting: setting ? JSON.stringify(setting) : null });
   }
 
   /** The session of the Question card a thread moved onto, archived or deleted since. */

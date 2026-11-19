@@ -1391,13 +1391,13 @@ export class Board {
    * A Question card for a thread of looked-up answers, near the card whose log holds them (`near`)
    * or where there is room: its question as its title, the agent's session going on.
    */
-  addQuestion(title: string, thread: StoredThread, session: string | undefined, repo: string | undefined, near?: string): Item {
+  addQuestion(title: string, thread: StoredThread, agent: { session: string; setting?: AgentSetting } | undefined, repo: string | undefined, near?: string): Item {
     const nearRow = near && this.item(near) ? this.own(near) : undefined;
     const { canvas, ...at } = nearRow ? { ...this.followUpSpot(nearRow.id), canvas: this.source(nearRow.id).canvas } : this.freeSpot();
     const [row] = this.store.addCards([
       { project_id: this.project.id, canvas_id: canvas, kind: 'question', state: 'done', title: clip(oneLine(title), 160), body: '', ...at, repo: this.repoColumn(repo), ...(near && this.item(near) ? { group_id: this.groupOf(this.own(near)) } : {}) },
     ]);
-    this.store.cards.update(row!.id, { thread: JSON.stringify(thread), ...(session ? { session_id: session } : {}) });
+    this.store.cards.update(row!.id, { thread: JSON.stringify(thread), ...(agent ? { session_id: agent.session, agent_setting: agent.setting ? JSON.stringify(agent.setting) : null } : {}) });
     this.changed();
     return this.item(row!.id)!;
   }
@@ -1599,8 +1599,8 @@ export class Board {
   }
 
   /** The session of the agent that looks the exchange's question up. */
-  talkSession(id: number, session: string) {
-    this.store.talk.session(id, session);
+  talkSession(id: number, session: string, setting?: AgentSetting) {
+    this.store.talk.session(id, session, setting);
   }
 
   /** The exchanges of a looked-up thread, oldest first. */

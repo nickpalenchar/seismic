@@ -2,7 +2,7 @@ import { and, asc, desc, eq, getTableColumns, inArray, isNotNull, isNull, sql } 
 import { alias, index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { currentAgent } from '../llms/harnesses/identity';
 import type { Place } from '../../core/layout';
-import type { AgentIdentity, AnswerFile, Talk as TalkView, TalkAfter, TalkMade, TalkMoved, TalkQuote, TalkRef, TalkWait } from '../../core/types';
+import type { AgentIdentity, AgentSetting, AnswerFile, Talk as TalkView, TalkAfter, TalkMade, TalkMoved, TalkQuote, TalkRef, TalkWait } from '../../core/types';
 import type { Wish } from '../../core/wish';
 import { cards } from './cards/cards';
 import { chats } from './chats';
@@ -38,6 +38,7 @@ export const talk = sqliteTable(
     images: text({ mode: 'json' }).$type<string[]>(),
     unread: integer({ mode: 'boolean' }).notNull().default(false),
     sessionId: text('session_id'),
+    agentSetting: text('agent_setting', { mode: 'json' }).$type<AgentSetting>(),
     thread: integer(),
     follows: integer(),
     files: text({ mode: 'json' }).$type<AnswerFile[]>(),
@@ -258,19 +259,19 @@ export class Talk {
   }
 
   /** The session of the agent that looks the exchange's question up. */
-  session(id: number, session: string) {
-    this.db.update(talk).set({ sessionId: session }).where(eq(talk.id, id)).run();
+  session(id: number, session: string, setting?: AgentSetting) {
+    this.db.update(talk).set({ sessionId: session, agentSetting: setting ?? null }).where(eq(talk.id, id)).run();
   }
 
   /** The exchanges of a thread, oldest first, with the session each was looked up in. */
-  thread(projectId: string, thread: number): (TalkView & { about?: string; session?: string })[] {
+  thread(projectId: string, thread: number): (TalkView & { about?: string; session?: string; setting?: AgentSetting })[] {
     return this.db
       .select()
       .from(talk)
       .where(and(eq(talk.projectId, projectId), sql`(${talk.id} = ${thread} OR ${talk.thread} = ${thread})`))
       .orderBy(talk.id)
       .all()
-      .map((r) => ({ ...this.withContinues(r), ...(r.about ? { about: r.about } : {}), ...(r.sessionId ? { session: r.sessionId } : {}) }));
+      .map((r) => ({ ...this.withContinues(r), ...(r.about ? { about: r.about } : {}), ...(r.sessionId ? { session: r.sessionId, setting: r.agentSetting ?? undefined } : {}) }));
   }
 
   /** The thread moved onto a Question card: its exchanges, and every follow-up asked later, are answered there. */

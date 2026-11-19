@@ -10,6 +10,7 @@ import { answersDir } from './answers';
 import { ProjectRuntime } from './project';
 import { serveAnswerFile } from './demo';
 import type { Focus } from './commands';
+import { agentSetting, saveAgents } from './settings';
 import { Store } from './store';
 import { FakeRuntime, noForge, type FakeSession, gitRepo, until } from './testing';
 
@@ -21,7 +22,7 @@ let project: ProjectRuntime;
 let notices: Notice[];
 
 const open = () => {
-  const c = new ProjectRuntime({ repos: [{ path: main, clones: 1 }] }, { store, home: dir, runtime, forge: noForge, commandDelayMs: 10, limitMargin: 10 });
+  const c = new ProjectRuntime({ repos: [{ path: main, clones: 1 }] }, { store, home: dir, runtime, agents: (role) => agentSetting(dir, role), forge: noForge, commandDelayMs: 10, limitMargin: 10 });
   c.board.onNotice((n) => notices.push(n));
   return c;
 };
@@ -332,14 +333,18 @@ async function lookedUp(said: string, question: string, answer: string, session:
 
 describe('a looked-up answer goes on', () => {
   test('a follow-up resumes the agent that found the answer, and stands in the sheet as continuing it', async () => {
+    saveAgents(dir, { koordinator: { effort: 'low', model: 'sonnet' } });
     const first = await lookedUp('stimmen die Septembergutschriften?', 'Are the September credits right?', 'Ja, sie stimmen.', 'look-1');
     expect(board().talk().at(-1)).toMatchObject({ thread: first, answer: 'Ja, sie stimmen.' });
-    const sessions = runtime.sessions.length;
+    saveAgents(dir, { koordinator: { effort: 'high', model: 'opus', harness: 'codex' } });
+    project.shutdown();
+    project = open();
+    const sessions = runtime.sessions.filter((s) => s.spec.tools.some((t) => t.name === 'answer_owner')).length;
     await say('und im Oktober?', {}, 'look_up', { question: 'And the October credits so far?', follows: `A${first}`, confirm: 'Ich schaue nach.' });
     // one agent, resumed: it still has everything it read and computed
     const a = answerer();
-    expect(runtime.sessions.length).toBe(sessions + 1);
-    expect(a.spec.resume).toBe('look-1');
+    expect(runtime.sessions.filter((s) => s.spec.tools.some((t) => t.name === 'answer_owner')).length).toBe(sessions + 1);
+    expect(a.spec).toMatchObject({ resume: 'look-1', model: 'sonnet', effort: 'low', setting: { model: 'sonnet', effort: 'low' } });
     expect(a.inbox[0]).toContain('The owner follows up on your answer. They said: "und im Oktober?"');
     expect(a.inbox[0]).toContain(answersDir(dir, project.id, first));
     expect(a.spec.dirs).toEqual([answersDir(dir, project.id, first)]);
@@ -468,6 +473,22 @@ describe('a thread on a Question card', () => {
     const card = project.answers.toCard(first);
     return { first, card };
   }
+
+  test('moving a thread before its session is identified still pins the session on the Question card', async () => {
+    saveAgents(dir, { koordinator: { effort: 'low', model: 'sonnet' } });
+    await say('Check the credits', {}, 'look_up', { question: 'Are the credits correct?', confirm: 'I will check.' });
+    const first = board().talk().at(-1)!.id;
+    const a = answerer();
+    const card = project.answers.toCard(first);
+    a.emit({ type: 'session', id: 'lookup' });
+    a.call('answer_owner', { text: 'Yes.' });
+    a.emit({ type: 'idle' });
+    await settle();
+    saveAgents(dir, { koordinator: { effort: 'high', model: 'opus' } });
+    project.tell(card.id, 'What about October?', [], false);
+    expect(answerer().spec).toMatchObject({ resume: 'lookup', model: 'sonnet', effort: 'low' });
+    expect(board().threadTalk(first)[0]).toMatchObject({ session: 'lookup', setting: { model: 'sonnet', effort: 'low' } });
+  });
 
   test('"Make it a card" moves the thread with its files onto a card that goes on with the same agent', async () => {
     const { first, card } = await moved();
