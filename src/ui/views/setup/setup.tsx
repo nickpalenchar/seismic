@@ -317,8 +317,9 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
   const [furthest, setFurthest] = useState(0);
   // the agents the owner ticked or unticked; the others are picked once their check finds them ready
   const [touched, setTouched] = useState<Partial<Record<Agent, boolean>>>({});
-  const shown = useRef(false);
-  shown.current = !!view;
+  // the checks whose last run failed (the server starting again, say), by their index in CHECKS, with why:
+  // each shows that with a Check again of its own, as its sections may never have arrived
+  const [broken, setBroken] = useState<Readonly<Partial<Record<number, string>>>>({});
   const failed = (e: unknown) => setStatus(failText(e, { detail: ['invalid', 'config'] }));
   // Each check (an agent's, the features that can wait) runs on its own, so a slow one holds up no other.
   // Of each, one at a time: one asked for while it runs follows it, so its sections end on what the
@@ -353,13 +354,14 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
       .setup(asked)
       .then(
         (v) => {
+          setBroken(({ [i]: _, ...rest }) => rest);
           if (at !== version.current) return;
           const newer = seq >= jobFrom.current;
           if (newer) jobFrom.current = seq;
           setView((was) => merged(was, v, asked, newer));
         },
-        // a check that fails (the server starting again) keeps the list it had
-        (e) => void (shown.current ? console.error(e) : failed(e)),
+        // a check that fails keeps the list it had and says so beside what it checks
+        (e) => setBroken((was) => ({ ...was, [i]: failText(e, { detail: ['invalid', 'config'] }) })),
       )
       .finally(() => {
         f.inFlight = null;
@@ -369,6 +371,20 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
     return run;
   };
   const isChecking = (id: MachineSectionId) => checking.includes(checkOf(id));
+  /** Why the last check of a section failed, while it is not checked again. */
+  const brokenOf = (id: MachineSectionId) => (isChecking(id) ? undefined : broken[checkOf(id)]);
+  /** That a check failed, with its own Check again. */
+  const checkFailed = (id: MachineSectionId) => {
+    const why = brokenOf(id);
+    return (
+      why !== undefined && (
+        <span className="setup-check-failed inline-flex flex-wrap items-center gap-x-1.5">
+          <span className="hint text-destructive">{s.checkFailed(why)}</span>
+          <CheckAgain variant="ghost" checking={false} onClick={recheckOf(id)} />
+        </span>
+      )
+    );
+  };
   const recheckOf = (id: MachineSectionId) => () => recheck([checkOf(id)]);
   useEffect(() => {
     recheck();
@@ -578,6 +594,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
                             )}
                           </span>
                           <span className="hint">{s.agentHints[a]}</span>
+                          {!soon && checkFailed(AGENT_SECTION[a])}
                         </span>
                       </CheckLabel>
                     );
@@ -600,6 +617,11 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
                   );
                 })}
               {git && chosen.length > 0 && block('git', git, gitItems, s.sections.git.title, s.sections.git.hint)}
+              {chosen.length > 0 && brokenOf('git') !== undefined && (
+                <p className="hint">
+                  {s.sections.git.title}: {checkFailed('git')}
+                </p>
+              )}
               {status && <p className={`hint ${statusClass}`}>{status}</p>}
               <StepFooter
                 callout={configured.length ? 'success' : 'info'}
@@ -614,6 +636,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
           {step === 'recommended' && (
             <>
               {!recommended.length && isChecking('pr') && <p className="hint">{t.config.setup.checking}</p>}
+              {brokenOf('pr') !== undefined && <p className="hint text-destructive">{s.checkFailed(brokenOf('pr')!)}</p>}
               {recommended.map((section) =>
                 block(section.id, section, section.items, s.sections[section.id].title, s.sections[section.id].hint, true, section.id === 'mobile' && <p className="hint">{s.mobile.simulatorSafari}</p>),
               )}

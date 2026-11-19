@@ -2196,6 +2196,7 @@ const en = {
     terminalOpen: 'A terminal is open: log in there, then come back here.',
     checksItself: 'Logged in elsewhere? This list checks again by itself every 15 seconds.',
     noTerminal: 'Seismic found no terminal here. Please run the command in a terminal.',
+    checkFailed: (why: string) => `Check failed: ${why}`,
     byHand: 'Or in a terminal:',
     copy: 'Copy',
     copied: 'Copied',
