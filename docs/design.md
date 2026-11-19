@@ -160,7 +160,8 @@ cycling through terminals.
 - **Every agent role has its own harness, model and effort** (2026-11-19). Project choices override the machine's defaults.
   A new choice applies to new sessions. An existing session belongs to the harness that created it. Antigravity processes sharing
   a checkout use the same credential-free workspace MCP file. Each session has its own stdio bridge and tool registration,
-  and holds a checkout lock while it uses the file, so cleanup waits for sessions from every Seismic process.
+  and holds a checkout lock while it uses the file, so cleanup waits for sessions from every Seismic process. The shared
+  config dispatches to each session's own Seismic executable and entry point from its environment.
 - **A repository describes itself as values in `.obeya/settings.json`, read from `main`**
   (2026-10-15); rejected: code adapters per repository.
 - **A repository's commands and agent configuration count only as last trusted by the owner**

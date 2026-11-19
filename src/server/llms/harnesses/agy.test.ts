@@ -10,7 +10,8 @@ import { dirname } from 'node:path';
 import { agyArgs, READ_ONLY_PERMISSIONS, agyLimit, agyUsage, agyUsageOf, createAgyRuntime, nativeTool, parseAgyModels } from './agy';
 import { agyTranscriptLog } from './agyTasks';
 import { finished, started } from './agyTasksFixture';
-import { handleMcp, registerAgyTools, wireTools } from './agyMcp';
+import { AGY_BRIDGE_FLAG, agyBridgeEnv, handleMcp, registerAgyTools, wireTools } from './agyMcp';
+import { installMcpConfig } from './agyMcpConfig';
 import { endSessionsHere } from './codexRpc';
 import { environment, SessionRegistry, useSessionRegistry } from './sessionRegistry';
 import type { AgentEvent, AgentSession, AgentSpec, AgentTool } from '../../runtime';
@@ -158,6 +159,54 @@ test('independent processes keep the checkout config until the last session ends
     second.kill();
     await Promise.all([first.exited, second.exited]);
   }
+});
+
+test('the shared config launches each session from its own installation path', async () => {
+  const repo = workstation();
+  const first = installMcpConfig(repo);
+  const second = installMcpConfig(repo);
+  const config = join(repo, '.agents', 'mcp_config.json');
+  const command = JSON.parse(readFileSync(config, 'utf8')).mcpServers.seismic as { command: string; args: string[] };
+  const module = JSON.stringify(join(import.meta.dir, 'agyMcp.ts'));
+  const run = async (name: string) => {
+    const script = join(dirname(repo), name + '.ts');
+    writeFileSync(script, `
+      import { runAgyMcpBridge } from ${module};
+      if (process.argv.at(-1) !== ${JSON.stringify(AGY_BRIDGE_FLAG)}) process.exit(1);
+      await runAgyMcpBridge();
+    `);
+    const endpoint = registerAgyTools({ tools: wireTools([{ name: 'identity', description: 'Identity', schema: {}, run: () => name }]) });
+    try {
+      const child = Bun.spawn([command.command, ...command.args], {
+        cwd: repo,
+        env: { ...process.env, ...agyBridgeEnv(endpoint, process.execPath, script) },
+        stdin: 'pipe',
+        stdout: 'pipe',
+        stderr: 'inherit',
+        timeout: 3000,
+      });
+      child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'seismic_identity', arguments: {} } }) + '\n');
+      child.stdin.end();
+      const [stdout, status] = await Promise.all([new Response(child.stdout).text(), child.exited]);
+      expect(status).toBe(0);
+      expect(JSON.parse(stdout)).toMatchObject({ result: { content: [{ text: name }] } });
+    } finally {
+      endpoint.dispose();
+    }
+  };
+  try {
+    expect(JSON.stringify(command)).not.toContain(process.execPath);
+    await run('Seismic from one installation');
+  } finally {
+    first();
+    try {
+      expect(existsSync(config)).toBe(true);
+      await run('Seismic from another installation');
+    } finally {
+      second();
+    }
+  }
+  expect(existsSync(config)).toBe(false);
 });
 
 test('the endpoint opens to the session token only', async () => {

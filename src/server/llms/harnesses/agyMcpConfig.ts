@@ -1,15 +1,13 @@
 import { Database } from 'bun:sqlite';
 import { spawnSync } from 'node:child_process';
 import { appendFileSync, existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
-import { COMPILED } from '../../resources';
+import { dirname, join } from 'node:path';
 import { GIT } from '../../workstations';
-import { AGY_BRIDGE_FLAG, AGY_SERVER } from './agyMcp';
+import { AGY_BRIDGE_COMMAND, AGY_SERVER } from './agyMcp';
 
 const configPath = '.agents/mcp_config.json';
 const lockPath = '.agents/.seismic-mcp.lock';
-const bridgeArgs = COMPILED ? [AGY_BRIDGE_FLAG] : [resolve(import.meta.dir, '../../main.ts'), AGY_BRIDGE_FLAG];
-const bridge = JSON.stringify({ mcpServers: { [AGY_SERVER]: { command: process.execPath, args: bridgeArgs } } }, null, 2) + '\n';
+const bridge = JSON.stringify({ mcpServers: { [AGY_SERVER]: AGY_BRIDGE_COMMAND } }, null, 2) + '\n';
 
 function ignoreFiles(cwd: string) {
   const exclude = spawnSync(GIT, ['-C', cwd, 'rev-parse', '--path-format=absolute', '--git-path', 'info/exclude'], { encoding: 'utf8', windowsHide: true });
