@@ -43,6 +43,9 @@ import { RadioGroup, RadioOption } from './components/radio';
 import { SegmentedControl } from './components/segmented';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
 import { Tooltip } from './components/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from './components/popover';
+import { ProjectIcon } from './canvasIcon';
+import { IconPicker, type IconPickerView } from './iconPicker';
 import { qmovesClass } from './queue';
 import { Input, Textarea } from './components/input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './components/collapsible';
@@ -2429,6 +2432,38 @@ interface ProjectProps {
   last?: boolean;
 }
 
+/**
+ * The project's icon beside its name: a button that shows it (the branch while it has none) and opens
+ * the picker in a pane under it, the curated icons first, then the emoji.
+ */
+function ProjectIconField({ icon, onChange }: { icon: string | undefined; onChange: (icon: string | null) => void }) {
+  const [open, setOpen] = useState(false);
+  const [view, setView] = useState<IconPickerView>({});
+  return (
+    // modal: the Configuration dialog's children sit outside its content in React's tree (`keepMounted`), so only a pane that holds the pointer and focus itself keeps a press in it from closing the dialog
+    <Popover modal open={open} onOpenChange={setOpen}>
+      <Tooltip content={t.config.projectIcon}>
+        <PopoverTrigger asChild>
+          <Button type="button" className="cfg-project-icon size-9 flex-none p-0" aria-label={t.config.projectIcon}>
+            <ProjectIcon icon={icon} size={18} />
+          </Button>
+        </PopoverTrigger>
+      </Tooltip>
+      <PopoverContent align="start" className="w-[min(460px,calc(100vw-16px))] px-4 pt-3.5 pb-3">
+        <IconPicker
+          icon={icon ?? null}
+          view={view}
+          panelClassName="h-[340px] flex-none"
+          onChange={({ icon: picked, ...v }) => {
+            setView((was) => ({ ...was, ...v }));
+            if (picked !== undefined) onChange(picked);
+          }}
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 /** A project as its own page: its title with id, order and removal, its name, then each repository with its settings. */
 function ProjectBlock({ n, project, file, checking, resolved, running, pin, saved, problems, focus, ask, onRecheck, onReload, prepare, onChange, onShow, onMove, last }: ProjectProps) {
   const fresh = resolved && !running.includes(resolved.id);
@@ -2479,8 +2514,17 @@ function ProjectBlock({ n, project, file, checking, resolved, running, pin, save
       </header>
       {checking && <p className="hint">{t.config.checking}</p>}
       <Field label={t.config.name} hint={fresh ? t.config.freshHint : undefined}>
+        <div className="flex max-w-[420px] items-center gap-2">
+        <ProjectIconField
+          icon={project.icon}
+          onChange={(icon) => {
+            const { icon: _, ...rest } = project;
+            const kept = pin && !rest.id ? { ...rest, id: pin } : rest;
+            onChange(icon ? { ...kept, icon } : kept);
+          }}
+        />
         <Input
-          className="cfg-name w-full max-w-[420px]"
+          className="cfg-name min-w-0 flex-1"
           aria-label={t.config.name}
           value={project.name ?? ''}
           placeholder={resolved && !project.name ? t.config.nameAuto(resolved.name) : t.config.name}
@@ -2490,6 +2534,7 @@ function ProjectBlock({ n, project, file, checking, resolved, running, pin, save
             onChange(e.target.value ? { ...kept, name: e.target.value } : kept);
           }}
         />
+        </div>
         {problems
           .filter((p) => NAME_PROBLEMS.includes(p.code))
           .map((p, k) => (

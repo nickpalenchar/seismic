@@ -219,6 +219,14 @@ cycling through terminals.
   its own (over SSH) brings no focus back to the page, so while a login the step waits for is
   missing the list checks again every 15 seconds (also where Seismic opened no terminal and the
   owner ran the command by hand), and each login has its own "Check again".
+- **A project has an icon, as a canvas has** (2026-11-19): the same values (`isCanvasIcon`: an
+  emoji, or a curated Lucide icon in a colour of the canvas palette), saved in `projects.json` beside
+  the name (it belongs to this machine's configuration like the name, not to a repository's
+  settings), set beside the name in Configuration and shown in the project switcher, the branch
+  where none is chosen. One picker (`src/ui/iconPicker.tsx`) serves both, icons first, the emoji
+  with a tab per category that jumps to it. Inside Configuration it is a modal popover: that
+  dialog's children sit outside its content in React's tree (`keepMounted`), so a non-modal pane
+  there counts as outside and a press in it closes the dialog.
 - **The look is frost, built on shadcn/ui and Tailwind** (2026-11-05, 2026-11-12); see
   [UI system](design/ui-system.md).
 

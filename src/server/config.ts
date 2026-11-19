@@ -13,6 +13,7 @@ import { dirname, join, resolve } from 'node:path';
 import { z } from 'zod';
 import { readShared, REPO_ADAPTER_DIR, REPO_SETTINGS_FILE } from '../adapters';
 import { renamedField, settingsShape, withoutGone as goneSettings } from '../adapters/schema';
+import { isCanvasIcon } from '../core/canvas-icons';
 import { LANGUAGES } from '../core/locale';
 import { blockingProblems, type ProjectConfig, type ProjectReposView, type RepoConfig, type ConfigChecked, type ConfigProblem, type ConfigSaved, type ConfigView, type RepoSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type SettingsShared, type SharedSettings, type DemoSettingsProblem, type DemoSettingsView, type DemoVoiceCheck, type ResolvedProject, type VoiceInstallJob, layerSettings, type ProposedSetting, type RepoTrust, type RepoValues, settingPatch, commandLines, HARNESS_NAMES, needsGit, projectAgentSetting } from '../core/types';
 import {
@@ -122,6 +123,7 @@ export const configShape = z.array(
       name: z.string().refine((n) => !n.trim() || validProjectName(n), 'A project name needs at least one letter').optional(),
       id: z.string().optional(),
       oldNames: z.array(z.string()).optional(),
+      icon: z.string().refine(isCanvasIcon, 'A project icon is one emoji or one of the icons offered').optional(),
       repos: z.array(
         z
           .object({
@@ -172,10 +174,11 @@ function projectIndex(id: string, projects: ProjectConfig[], resolved: (Resolved
 
 /** The configuration as it is saved: no empty names, clone lists or counts. */
 function tidy(projects: z.infer<typeof configShape>): ProjectConfig[] {
-  return projects.map(({ name, id, oldNames, repos, ...settings }) => ({
+  return projects.map(({ name, id, oldNames, icon, repos, ...settings }) => ({
     ...(name?.trim() ? { name: name.trim() } : {}),
     ...(id?.trim() ? { id: id.trim() } : {}),
     ...withOldNames(oldNames ?? [], name?.trim()),
+    ...(icon ? { icon } : {}),
     ...tidyProjectSettings(settings),
     repos: repos.map((r) => {
       const workstations = (r.workstations ?? []).map((w) => w.trim()).filter(Boolean);

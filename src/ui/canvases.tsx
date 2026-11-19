@@ -3,14 +3,14 @@
 // a canvas and picks its icon, a card's "Move to canvas" menu, and the stubs of waits whose other
 // card lies on another canvas.
 
-import { createContext, type PointerEvent as ReactPointerEvent, type ReactNode, useContext, useEffect, useRef, useState } from 'react';
+import { createContext, type PointerEvent as ReactPointerEvent, useContext, useEffect, useRef, useState } from 'react';
 import { cn } from 'cn';
 import { Car, Clock, GripVertical, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
-import { CANVAS_ICON_COLORS, CANVAS_LUCIDE_ICONS, type CanvasIconColor, lucideIcon, lucideIconValue } from '../core/canvas-icons';
 import type { Bounds } from '../core/layout';
 import { type Canvas, CANVAS_NAME_MAX, canvasNameProblem, type Item, MAIN_CANVAS, parkable, parkableStopping, inParkingLot, offCanvas } from '../core/types';
 import { api } from './api';
-import { CanvasIcon, canvasText, lucideOf } from './canvasIcon';
+import { CanvasIcon, canvasText } from './canvasIcon';
+import { IconPicker, type IconPickerView, pickerLabel as cdLabel } from './iconPicker';
 import { depLineClass } from './depsClasses';
 import { ballClass, captionClass, haloClass, radialClass, ringBackClass, tagClass } from './ringClasses';
 import { know, known } from './known';
@@ -23,9 +23,7 @@ import { Button, CloseButton } from './components/button';
 import { ConfirmDialog, Dialog, DialogContent, DialogTitle } from './components/dialog';
 import { leaveMenu, Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from './components/menu';
 import { Popover, PopoverAnchor, PopoverContent } from './components/popover';
-import { Radio, RadioGroup } from './components/radio';
-import { EmojiPicker } from './components/emoji-picker';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
+import { Tabs, TabsList, TabsTrigger } from './components/tabs';
 import { Tooltip } from './components/tooltip';
 import { Input } from './components/input';
 
@@ -311,12 +309,8 @@ function Drawer({ canvases, shown, waiting, empty, onPick, onEdit, onNew }: { ca
 const tool = 'grid size-[26px] cursor-pointer place-items-center rounded-sm bg-transparent text-muted-foreground hover:bg-surface hover:text-foreground focus-visible:bg-surface focus-visible:text-foreground outline-none';
 
 /** The canvas dialog's parts. */
-const cdLabel = 'text-xs font-semibold text-muted-foreground';
 const cdProblem = (on: boolean) => cn('mx-0 mt-1 mb-3 min-h-[18px] text-xs', on ? 'text-destructive' : 'text-muted-foreground');
-const cdPanel = 'flex h-[clamp(240px,calc(100dvh-400px),520px)] min-h-0 flex-col short:h-auto [&[hidden]]:hidden';
-const colorChoice = 'grid size-7 cursor-pointer place-items-center rounded-full border border-transparent bg-transparent p-0 hover:bg-muted data-[state=checked]:border-foreground';
-const swatch = 'block size-[18px] rounded-full';
-const iconChoice = 'grid h-10 cursor-pointer place-items-center rounded-md border border-transparent bg-transparent p-0 text-foreground hover:bg-muted data-[state=checked]:border-foreground data-[state=checked]:bg-muted short:scroll-mt-2 short:scroll-mb-20';
+const cdPanel = 'h-[clamp(240px,calc(100dvh-400px),520px)] short:h-auto';
 
 /** Why the name can't be taken; none when it can. */
 export function nameProblem(name: string, canvases: Canvas[], self?: string): string | undefined {
@@ -330,24 +324,10 @@ export function nameProblem(name: string, canvases: Canvas[], self?: string): st
 }
 
 /** What the canvas dialog holds until it is saved or cancelled: the name and icon, and how far the owner got picking one. */
-interface CanvasDraft {
+interface CanvasDraft extends IconPickerView {
   name: string;
   icon: string | null;
-  /** The colour the Lucide icons are drawn in (null: the text's). */
-  color?: CanvasIconColor | null;
-  tab?: 'emoji' | 'icons';
-  emojiSearch?: string;
-  iconSearch?: string;
 }
-
-/** The radio value of the text's colour: a radio has no null. */
-const TEXT_COLOR = '\0text';
-
-/** The curated Lucide icons whose name holds every word of `search`. */
-export const iconsMatching = (search: string) => {
-  const words = search.toLowerCase().split(/[\s-]+/).filter(Boolean);
-  return CANVAS_LUCIDE_ICONS.filter((n) => words.every((w) => n.includes(w)));
-};
 
 /**
  * The dialog that makes a canvas (no `canvas`) or changes one: its name, held to the name rule as it
@@ -360,12 +340,7 @@ export function CanvasDialog({ project, canvases, canvas, onClose, onDone }: { p
   const [draft, setDraft] = useStoredState<CanvasDraft | null>(`seismic-canvas-draft-${project}-${canvas?.id ?? 'new'}`, null);
   const name = draft?.name ?? canvas?.name ?? '';
   const icon = draft ? draft.icon : (canvas?.icon ?? null);
-  const lucide = lucideIcon(icon ?? undefined);
-  const color = draft?.color !== undefined ? draft.color : (lucide?.color ?? null);
-  const tab = draft?.tab ?? (icon && !lucide ? 'emoji' : 'icons');
   const set = (p: Partial<CanvasDraft>) => setDraft({ ...draft, name, icon, ...p });
-  const pickColor = (c: CanvasIconColor | null) => set({ color: c, ...(lucide ? { icon: lucideIconValue(lucide.name, c) } : {}) });
-  const matching = iconsMatching(draft?.iconSearch ?? '');
   const [touched, setTouched] = useState(!!draft?.name);
   const [failed, setFailed] = useState<string>();
   const [busy, setBusy] = useState(false);
@@ -394,13 +369,6 @@ export function CanvasDialog({ project, canvases, canvas, onClose, onDone }: { p
     setDraft(null);
     onClose();
   };
-  const choice = (value: string, label: string, mark: ReactNode, className = iconChoice) => (
-    <Tooltip key={value} content={label}>
-      <Radio value={value} className={className} aria-label={label}>
-        {mark}
-      </Radio>
-    </Tooltip>
-  );
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent
@@ -452,51 +420,7 @@ export function CanvasDialog({ project, canvases, canvas, onClose, onDone }: { p
           }}
         />
         <p className={cdProblem(!!(touched && problem))}>{isMain ? t.canvases.mainKeeps : touched && problem ? problem : ' '}</p>
-        <Tabs className="cd-icons flex min-h-0 flex-col short:shrink-0" value={tab} onValueChange={(v) => set({ tab: v as CanvasDraft['tab'] })}>
-          <div className="mb-2 flex shrink-0 items-center gap-2.5">
-            <span className={cn(cdLabel, 'mr-1')}>{t.canvases.icon}</span>
-            <TabsList variant="segmented" aria-label={t.canvases.icon}>
-              <TabsTrigger value="icons">{t.canvases.icons}</TabsTrigger>
-              <TabsTrigger value="emoji">{t.canvases.emojis}</TabsTrigger>
-            </TabsList>
-            <Button type="button" size="small" variant="ghost" className="ml-auto text-muted-foreground aria-pressed:bg-muted aria-pressed:text-foreground aria-pressed:opacity-100" aria-pressed={!icon} disabled={!icon} onClick={() => set({ icon: null })}>
-              {t.canvases.noIcon}
-            </Button>
-          </div>
-          <TabsContent value="icons" className={cdPanel}>
-            <div className="mb-2 shrink-0">
-              <Input
-                className="w-full"
-                value={draft?.iconSearch ?? ''}
-                placeholder={t.canvases.searchIcons}
-                aria-label={t.canvases.searchIcons}
-                onChange={(e) => set({ iconSearch: e.target.value })}
-              />
-            </div>
-            <RadioGroup className="mb-2 flex shrink-0 flex-wrap gap-1" label={t.canvases.color} value={color ?? TEXT_COLOR} onValueChange={(v) => pickColor(v === TEXT_COLOR ? null : (v as CanvasIconColor))}>
-              {choice(TEXT_COLOR, t.canvases.defaultColor, <span className={cn(swatch, 'bg-foreground')} />, colorChoice)}
-              {(Object.keys(CANVAS_ICON_COLORS) as CanvasIconColor[]).map((c) =>
-                choice(c, t.canvases.colors[c], <span className={swatch} style={{ background: CANVAS_ICON_COLORS[c] }} />, colorChoice),
-              )}
-            </RadioGroup>
-            <RadioGroup className="-mx-1 grid min-h-0 flex-1 auto-rows-[40px] grid-cols-[repeat(auto-fill,minmax(40px,1fr))] content-start gap-1 overflow-auto px-1 short:flex-none short:overflow-visible" label={t.canvases.icons} value={lucide?.name ?? ''} onValueChange={(n) => set({ icon: lucideIconValue(n, color) })}>
-              {matching.map((n) => {
-                const L = lucideOf(`lucide:${n}`)!.Icon;
-                return choice(n, n.replace(/-/g, ' '), <L size={20} strokeWidth={2} style={color ? { color: CANVAS_ICON_COLORS[color] } : undefined} aria-hidden />);
-              })}
-            </RadioGroup>
-            {!matching.length && <p className="mx-0 my-6 text-center text-sm text-muted-foreground">{t.canvases.noIconFound}</p>}
-          </TabsContent>
-          <TabsContent value="emoji" className={cdPanel}>
-            <EmojiPicker
-              className="h-full"
-              value={icon && !lucide ? icon : undefined}
-              search={draft?.emojiSearch ?? ''}
-              onSearch={(emojiSearch) => set({ emojiSearch })}
-              onEmojiSelect={({ emoji }) => set({ icon: emoji })}
-            />
-          </TabsContent>
-        </Tabs>
+        <IconPicker className="cd-icons short:shrink-0" icon={icon} view={draft ?? {}} panelClassName={cdPanel} onChange={(c) => set(c)} />
         {failed && <p className={cdProblem(true)}>{failed}</p>}
         <div className="mt-4 flex gap-2 short:sticky short:-bottom-5 short:z-1 short:-mb-5 short:bg-surface short:px-0 short:pt-3 short:pb-5">
           <Button type="submit" variant="primary" disabled={busy || !!problem}>

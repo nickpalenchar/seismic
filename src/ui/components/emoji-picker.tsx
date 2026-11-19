@@ -1,16 +1,31 @@
 // The emoji picker (shadcn's emoji-picker from frimousse's registry, ours from then on): a search
-// field, every emoji of the browser's Emoji version by category in a virtualized list, the skin tone,
-// and a footer naming the emoji under the pointer or the arrow keys. Arrow keys move from the search
+// field, a tab per category that jumps to it in the list and follows the scroll, every emoji of the
+// browser's Emoji version by category in a virtualized list, the skin tone, and a footer naming the emoji under the pointer or the arrow keys. Arrow keys move from the search
 // field through the list, Enter picks. The data is Emojibase's, served by Seismic itself at
 // `/emojibase/<locale>/` (so the picker needs no network), and cached by frimousse in localStorage.
 // `value` marks the emoji chosen already.
 
 import { cn } from 'cn';
 import { type EmojiPickerListCategoryHeaderProps, type EmojiPickerListEmojiProps, type EmojiPickerListRowProps, EmojiPicker as EmojiPickerPrimitive } from 'frimousse';
-import { LoaderIcon, SearchIcon } from 'lucide-react';
-import { type ComponentProps, createContext, useContext, useLayoutEffect, useRef, useState } from 'react';
+import { BikeIcon, FlagIcon, HashIcon, LeafIcon, LightbulbIcon, LoaderIcon, type LucideIcon, PizzaIcon, PlaneIcon, SearchIcon, SmileIcon, UserIcon } from 'lucide-react';
+import { type ComponentProps, createContext, type RefObject, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { t } from '../strings';
 import { inputFieldClassName } from './input';
+import { Tabs, TabsList, TabsTrigger } from './tabs';
+import { Tooltip } from './tooltip';
+
+/** Emojibase's groups the picker lists (all but the skin-tone components), each with the label its data gives it and the icon of its tab. */
+const CATEGORIES: { key: keyof typeof t.canvases.emojiCategories; label: string; Icon: LucideIcon }[] = [
+  { key: 'smileys', label: 'Smileys & emotion', Icon: SmileIcon },
+  { key: 'people', label: 'People & body', Icon: UserIcon },
+  { key: 'nature', label: 'Animals & nature', Icon: LeafIcon },
+  { key: 'food', label: 'Food & drink', Icon: PizzaIcon },
+  { key: 'travel', label: 'Travel & places', Icon: PlaneIcon },
+  { key: 'activities', label: 'Activities', Icon: BikeIcon },
+  { key: 'objects', label: 'Objects', Icon: LightbulbIcon },
+  { key: 'symbols', label: 'Symbols', Icon: HashIcon },
+  { key: 'flags', label: 'Flags', Icon: FlagIcon },
+];
 
 /** An emoji button's width (`size-9`), and the padding of a row (`px-1`). */
 const CELL = 36;
@@ -64,9 +79,60 @@ function EmojiPickerEmoji({ emoji, className, ...props }: EmojiPickerListEmojiPr
 
 function EmojiPickerCategoryHeader({ category, ...props }: EmojiPickerListCategoryHeaderProps) {
   return (
-    <div {...props} className="bg-surface px-1 pb-1.5 pt-3 text-xs font-semibold leading-none text-muted-foreground" data-slot="emoji-picker-category-header">
+    <div {...props} className="bg-surface px-1 pb-1.5 pt-3 text-xs font-semibold leading-none text-muted-foreground" data-slot="emoji-picker-category-header" data-category={category.label}>
       {category.label}
     </div>
+  );
+}
+
+/** Where category `label`'s block starts in the list: its header's box, absolutely placed by frimousse. */
+const blockOf = (root: HTMLElement, label: string) => root.querySelector(`[data-category="${CSS.escape(label)}"]`)?.closest<HTMLElement>('[frimousse-category]') ?? null;
+
+/** The category whose block the list shows at its top, of those it lists now. */
+function categoryAtTop(root: HTMLElement, viewport: HTMLElement): string | undefined {
+  const top = viewport.getBoundingClientRect().top;
+  let at: string | undefined;
+  for (const c of CATEGORIES) {
+    const block = blockOf(root, c.label);
+    if (block && block.getBoundingClientRect().top - top <= 4) at = c.label;
+  }
+  return at;
+}
+
+/**
+ * The tabs over the list, one per category: a click shows the category from its start (out of a
+ * search, which it ends, when the category has nothing found); the one the list shows at its top is
+ * the tab selected.
+ */
+function EmojiCategoryTabs({ root, viewport, at, search, onSearch }: { root: RefObject<HTMLDivElement | null>; viewport: RefObject<HTMLDivElement | null>; at: string | undefined; search: string; onSearch: (search: string) => void }) {
+  const jump = (label: string) => {
+    const go = () => {
+      const r = root.current;
+      const v = viewport.current;
+      const block = r && blockOf(r, label);
+      if (!v || !block) return;
+      // a short window grows the list to its full height: what scrolls then is the dialog around it
+      if (getComputedStyle(v).overflowY === 'visible') block.scrollIntoView({ block: 'start' });
+      else v.scrollTo({ top: block.getBoundingClientRect().top - v.getBoundingClientRect().top + v.scrollTop });
+    };
+    if (!search || (root.current && blockOf(root.current, label))) return go();
+    onSearch('');
+    // frimousse lists everything again once it is idle (within 100 ms)
+    setTimeout(go, 150);
+  };
+  return (
+    <Tabs value={at ?? ''} onValueChange={jump} activationMode="manual" className="mt-1.5 shrink-0">
+      <TabsList variant="underline" className="flex-nowrap justify-between gap-x-0" aria-label={t.canvases.emojiCategory}>
+        {/* the tooltip's trigger takes over `data-state`: the tab selected shows by `aria-selected` */}
+        {CATEGORIES.map((c) => (
+          <Tooltip key={c.key} content={t.canvases.emojiCategories[c.key]}>
+            <TabsTrigger value={c.label} className="grid flex-1 place-items-center py-1.5 aria-selected:border-waiting aria-selected:text-foreground" aria-label={t.canvases.emojiCategories[c.key]}>
+              <c.Icon size={16} strokeWidth={2} aria-hidden />
+            </TabsTrigger>
+          </Tooltip>
+        ))}
+      </TabsList>
+    </Tabs>
   );
 }
 
@@ -80,7 +146,17 @@ export function EmojiPicker({
 }: Omit<ComponentProps<typeof EmojiPickerPrimitive.Root>, 'emojibaseUrl' | 'columns'> & { value?: string; search: string; onSearch: (search: string) => void }) {
   // the rows hold as many emoji as the picker's width does, so none lie beyond its edge on a narrow screen
   const root = useRef<HTMLDivElement>(null);
+  const viewport = useRef<HTMLDivElement>(null);
   const [columns, setColumns] = useState(14);
+  const [at, setAt] = useState<string>();
+  const follow = () => {
+    if (root.current && viewport.current) setAt(categoryAtTop(root.current, viewport.current));
+  };
+  // what is found starts at another category; frimousse lists it once it is idle (within 100 ms)
+  useEffect(() => {
+    const later = setTimeout(follow, 150);
+    return () => clearTimeout(later);
+  }, [search]);
   useLayoutEffect(() => {
     const el = root.current;
     if (!el) return;
@@ -104,7 +180,8 @@ export function EmojiPicker({
             onChange={(e) => onSearch(e.target.value)}
           />
         </div>
-        <EmojiPickerPrimitive.Viewport className="relative mt-1.5 min-h-0 flex-1 outline-none" data-slot="emoji-picker-viewport">
+        <EmojiCategoryTabs root={root} viewport={viewport} at={at ?? (search ? undefined : CATEGORIES[0]!.label)} search={search} onSearch={onSearch} />
+        <EmojiPickerPrimitive.Viewport ref={viewport} className="relative mt-1.5 min-h-0 flex-1 outline-none" data-slot="emoji-picker-viewport" onScroll={follow}>
           <EmojiPickerPrimitive.Loading className="absolute inset-0 flex items-center justify-center text-muted-foreground" data-slot="emoji-picker-loading">
             <LoaderIcon className="size-4 animate-spin" />
           </EmojiPickerPrimitive.Loading>

@@ -1,7 +1,8 @@
 // What shows a canvas (`Canvas.icon`): its emoji, its Lucide icon, or the first letter of its name
-// where it has none; and the Lucide icons the picker offers.
+// where it has none; what shows a project (`ProjectInfo.icon`), the branch where it has none; and the
+// Lucide icons the picker offers.
 
-import { ActivityIcon, AirplayIcon, AlarmClockIcon, AnchorIcon, ApertureIcon, AppleIcon, ArchiveIcon, ArmchairIcon, AtomIcon, AwardIcon, AxeIcon, BabyIcon, BackpackIcon, BadgeCheckIcon, BanknoteIcon, BarcodeIcon, BaselineIcon, BatteryIcon, BeakerIcon, BedIcon, BeerIcon, BellIcon, BikeIcon, BinaryIcon, BirdIcon, BlocksIcon, BluetoothIcon, BoltIcon, BombIcon, BoneIcon, BookIcon, BookOpenIcon, BookmarkIcon, BotIcon, BoxIcon, BoxesIcon, BrainIcon, BrickWallIcon, BriefcaseIcon, BrushIcon, BugIcon, BuildingIcon, Building2Icon, BusIcon, CakeIcon, CalculatorIcon, CalendarIcon, CameraIcon, CandyIcon, CarIcon, CarrotIcon, CastIcon, CastleIcon, CatIcon, ChartBarIcon, ChartLineIcon, ChartPieIcon, CheckCheckIcon, ChefHatIcon, CherryIcon, ChurchIcon, CircleCheckIcon, CircleDollarSignIcon, CitrusIcon, ClapperboardIcon, ClipboardListIcon, ClockIcon, CloudIcon, CloudRainIcon, CloudSunIcon, CodeIcon, CoffeeIcon, CogIcon, CoinsIcon, CompassIcon, ComponentIcon, ConstructionIcon, ContactIcon, ContainerIcon, CookieIcon, CpuIcon, CrownIcon, CuboidIcon, CupSodaIcon, DatabaseIcon, DiamondIcon, Dice5Icon, DnaIcon, DogIcon, DollarSignIcon, DramaIcon, DropletIcon, DrumIcon, DumbbellIcon, EarthIcon, EggIcon, EuroIcon, EyeIcon, FactoryIcon, FeatherIcon, FileCodeIcon, FileTextIcon, FilmIcon, FingerprintPatternIcon, FishIcon, FlagIcon, FlameIcon, FlaskConicalIcon, FlowerIcon, FolderIcon, FolderGitIcon, FootprintsIcon, FuelIcon, Gamepad2Icon, GaugeIcon, GemIcon, GhostIcon, GiftIcon, GitBranchIcon, GitMergeIcon, GitPullRequestIcon, GlassesIcon, GlobeIcon, GoalIcon, GraduationCapIcon, GrapeIcon, Grid3x3Icon, GuitarIcon, HammerIcon, HandHeartIcon, HandshakeIcon, HardDriveIcon, HashIcon, HeadphonesIcon, HeartIcon, HeartPulseIcon, HexagonIcon, HighlighterIcon, HospitalIcon, HourglassIcon, HouseIcon, IceCreamConeIcon, ImageIcon, InboxIcon, InfinityIcon, JoystickIcon, KeyIcon, KeyboardIcon, LampIcon, LandmarkIcon, LanguagesIcon, LaptopIcon, LayersIcon, LayoutDashboardIcon, LayoutGridIcon, LeafIcon, LibraryIcon, LifeBuoyIcon, LightbulbIcon, LinkIcon, ListChecksIcon, ListTodoIcon, LockIcon, MagnetIcon, MailIcon, MapIcon, MapPinIcon, MedalIcon, MegaphoneIcon, MessageCircleIcon, MessageSquareIcon, MicIcon, MicroscopeIcon, MilestoneIcon, MonitorIcon, MoonIcon, MountainIcon, MousePointerIcon, MusicIcon, NavigationIcon, NetworkIcon, NewspaperIcon, NotebookIcon, NutIcon, OrbitIcon, PackageIcon, PaintbrushIcon, PaletteIcon, PaperclipIcon, PartyPopperIcon, PawPrintIcon, PenToolIcon, PencilIcon, PhoneIcon, PianoIcon, PickaxeIcon, PiggyBankIcon, PillIcon, PizzaIcon, PlaneIcon, PlugIcon, PodcastIcon, PopcornIcon, PresentationIcon, PrinterIcon, PuzzleIcon, QrCodeIcon, RadarIcon, RadioIcon, RainbowIcon, ReceiptIcon, RecycleIcon, RocketIcon, RouteIcon, RssIcon, RulerIcon, SailboatIcon, SatelliteIcon, SaveIcon, ScaleIcon, SchoolIcon, ScissorsIcon, ScrollIcon, SearchIcon, SendIcon, ServerIcon, SettingsIcon, ShapesIcon, Share2Icon, ShieldIcon, ShieldCheckIcon, ShipIcon, ShirtIcon, ShoppingBagIcon, ShoppingCartIcon, ShovelIcon, ShrubIcon, SignpostIcon, SirenIcon, SkullIcon, SmartphoneIcon, SmileIcon, SnowflakeIcon, SofaIcon, SparklesIcon, SpeakerIcon, SproutIcon, SquareTerminalIcon, StampIcon, StarIcon, StickerIcon, StoreIcon, SunIcon, SwordsIcon, SyringeIcon, TableIcon, TagIcon, TargetIcon, TentIcon, TerminalIcon, TestTubeIcon, ThermometerIcon, ThumbsUpIcon, TicketIcon, TimerIcon, TornadoIcon, TractorIcon, TrafficConeIcon, TrainFrontIcon, TreePineIcon, TreesIcon, TrophyIcon, TruckIcon, TvIcon, UmbrellaIcon, UniversityIcon, UserIcon, UsersIcon, UtensilsIcon, VaultIcon, VideoIcon, WalletIcon, WandSparklesIcon, WarehouseIcon, WatchIcon, WavesIcon, WebhookIcon, WifiIcon, WindIcon, WineIcon, WorkflowIcon, WrenchIcon, ZapIcon, type LucideIcon } from 'lucide-react';
+import { ActivityIcon, AirplayIcon, AlarmClockIcon, AnchorIcon, ApertureIcon, AppWindowIcon, AppleIcon, ArchiveIcon, ArmchairIcon, AtomIcon, AwardIcon, AxeIcon, BabyIcon, BackpackIcon, BadgeCheckIcon, BanknoteIcon, BarcodeIcon, BaselineIcon, BatteryIcon, BeakerIcon, BedIcon, BeerIcon, BellIcon, BikeIcon, BinaryIcon, BirdIcon, BlocksIcon, BluetoothIcon, BoltIcon, BombIcon, BoneIcon, BookIcon, BookOpenIcon, BookmarkIcon, BotIcon, BoxIcon, BoxesIcon, BrainIcon, BrickWallIcon, BriefcaseIcon, BrushIcon, BugIcon, BuildingIcon, Building2Icon, BusIcon, CakeIcon, CalculatorIcon, CalendarIcon, CameraIcon, CandyIcon, CarIcon, CarrotIcon, CastIcon, CastleIcon, CatIcon, ChartBarIcon, ChartLineIcon, ChartPieIcon, CheckCheckIcon, ChefHatIcon, CherryIcon, ChurchIcon, CircleCheckIcon, CircleDollarSignIcon, CitrusIcon, ClapperboardIcon, ClipboardListIcon, ClockIcon, CloudIcon, CloudRainIcon, CloudSunIcon, CodeIcon, CoffeeIcon, CogIcon, CoinsIcon, CompassIcon, ComponentIcon, ConstructionIcon, ContactIcon, ContainerIcon, CookieIcon, CpuIcon, CrownIcon, CuboidIcon, CupSodaIcon, DatabaseIcon, DiamondIcon, Dice5Icon, DnaIcon, DogIcon, DollarSignIcon, DramaIcon, DropletIcon, DrumIcon, DumbbellIcon, EarthIcon, EggIcon, EuroIcon, EyeIcon, FactoryIcon, FeatherIcon, FileCodeIcon, FileTextIcon, FilmIcon, FingerprintPatternIcon, FishIcon, FlagIcon, FlameIcon, FlaskConicalIcon, FlowerIcon, FolderIcon, FolderGitIcon, FootprintsIcon, FuelIcon, Gamepad2Icon, GaugeIcon, GemIcon, GhostIcon, GiftIcon, GitBranchIcon, GitForkIcon, GitMergeIcon, GitPullRequestIcon, GlassesIcon, GlobeIcon, GoalIcon, GraduationCapIcon, GrapeIcon, Grid3x3Icon, GuitarIcon, HammerIcon, HandHeartIcon, HandshakeIcon, HardDriveIcon, HashIcon, HeadphonesIcon, HeartIcon, HeartPulseIcon, HexagonIcon, HighlighterIcon, HospitalIcon, HotelIcon, HourglassIcon, HouseIcon, IceCreamConeIcon, ImageIcon, InboxIcon, InfinityIcon, JoystickIcon, KanbanIcon, KeyIcon, KeyboardIcon, LampIcon, LandmarkIcon, LanguagesIcon, LaptopIcon, LayersIcon, LayoutDashboardIcon, LayoutGridIcon, LeafIcon, LibraryIcon, LifeBuoyIcon, LightbulbIcon, LinkIcon, ListChecksIcon, ListTodoIcon, LockIcon, MagnetIcon, MailIcon, MapIcon, MapPinIcon, MedalIcon, MegaphoneIcon, MessageCircleIcon, MessageSquareIcon, MicIcon, MicroscopeIcon, MilestoneIcon, MonitorIcon, MoonIcon, MountainIcon, MousePointerIcon, MusicIcon, NavigationIcon, NetworkIcon, NewspaperIcon, NotebookIcon, NutIcon, OrbitIcon, PackageIcon, PaintbrushIcon, PaletteIcon, PaperclipIcon, PartyPopperIcon, PawPrintIcon, PenToolIcon, PencilIcon, PersonStandingIcon, PhoneIcon, PianoIcon, PickaxeIcon, PiggyBankIcon, PillIcon, PizzaIcon, PlaneIcon, PlugIcon, PodcastIcon, PopcornIcon, PresentationIcon, PrinterIcon, PuzzleIcon, QrCodeIcon, RadarIcon, RadioIcon, RainbowIcon, ReceiptIcon, RecycleIcon, RocketIcon, RouteIcon, RssIcon, RulerIcon, SailboatIcon, SatelliteIcon, SaveIcon, ScaleIcon, SchoolIcon, ScissorsIcon, ScrollIcon, SearchIcon, SendIcon, ServerIcon, SettingsIcon, ShapesIcon, Share2Icon, ShieldIcon, ShieldCheckIcon, ShipIcon, ShirtIcon, ShoppingBagIcon, ShoppingCartIcon, ShovelIcon, ShrubIcon, SignpostIcon, SirenIcon, SkullIcon, SmartphoneIcon, SmileIcon, SnowflakeIcon, SofaIcon, SparklesIcon, SpeakerIcon, SproutIcon, SquareTerminalIcon, StampIcon, StarIcon, StickerIcon, StoreIcon, SunIcon, SwordsIcon, SyringeIcon, TableIcon, TagIcon, TargetIcon, TentIcon, TerminalIcon, TestTubeIcon, ThermometerIcon, ThumbsUpIcon, TicketIcon, TimerIcon, TornadoIcon, TractorIcon, TrafficConeIcon, TrainFrontIcon, TreePineIcon, TreesIcon, TrophyIcon, TruckIcon, TvIcon, UmbrellaIcon, UniversityIcon, UserIcon, UserRoundIcon, UsersIcon, UtensilsIcon, VaultIcon, VideoIcon, VolleyballIcon, WalletIcon, WandSparklesIcon, WarehouseIcon, WatchIcon, WavesIcon, WebhookIcon, WifiIcon, WindIcon, WineIcon, WorkflowIcon, WrenchIcon, ZapIcon, type LucideIcon } from 'lucide-react';
 import { CANVAS_ICON_COLORS, CANVAS_LUCIDE_ICONS, lucideIcon } from '../core/canvas-icons';
 import type { Canvas } from '../core/types';
 
@@ -13,6 +14,7 @@ const LUCIDE: Record<CanvasLucideIcon, LucideIcon> = {
   'alarm-clock': AlarmClockIcon,
   'anchor': AnchorIcon,
   'aperture': ApertureIcon,
+  'app-window': AppWindowIcon,
   'apple': AppleIcon,
   'archive': ArchiveIcon,
   'armchair': ArmchairIcon,
@@ -127,6 +129,7 @@ const LUCIDE: Record<CanvasLucideIcon, LucideIcon> = {
   'ghost': GhostIcon,
   'gift': GiftIcon,
   'git-branch': GitBranchIcon,
+  'git-fork': GitForkIcon,
   'git-merge': GitMergeIcon,
   'git-pull-request': GitPullRequestIcon,
   'glasses': GlassesIcon,
@@ -147,6 +150,7 @@ const LUCIDE: Record<CanvasLucideIcon, LucideIcon> = {
   'hexagon': HexagonIcon,
   'highlighter': HighlighterIcon,
   'hospital': HospitalIcon,
+  'hotel': HotelIcon,
   'hourglass': HourglassIcon,
   'house': HouseIcon,
   'ice-cream-cone': IceCreamConeIcon,
@@ -154,6 +158,7 @@ const LUCIDE: Record<CanvasLucideIcon, LucideIcon> = {
   'inbox': InboxIcon,
   'infinity': InfinityIcon,
   'joystick': JoystickIcon,
+  'kanban': KanbanIcon,
   'key': KeyIcon,
   'keyboard': KeyboardIcon,
   'lamp': LampIcon,
@@ -201,6 +206,7 @@ const LUCIDE: Record<CanvasLucideIcon, LucideIcon> = {
   'paw-print': PawPrintIcon,
   'pen-tool': PenToolIcon,
   'pencil': PencilIcon,
+  'person-standing': PersonStandingIcon,
   'phone': PhoneIcon,
   'piano': PianoIcon,
   'pickaxe': PickaxeIcon,
@@ -285,10 +291,12 @@ const LUCIDE: Record<CanvasLucideIcon, LucideIcon> = {
   'umbrella': UmbrellaIcon,
   'university': UniversityIcon,
   'user': UserIcon,
+  'user-round': UserRoundIcon,
   'users': UsersIcon,
   'utensils': UtensilsIcon,
   'vault': VaultIcon,
   'video': VideoIcon,
+  'volleyball': VolleyballIcon,
   'wallet': WalletIcon,
   'wand-sparkles': WandSparklesIcon,
   'warehouse': WarehouseIcon,
@@ -319,3 +327,9 @@ export function CanvasIcon({ canvas, size = 14 }: { canvas: Pick<Canvas, 'name' 
 
 /** A canvas as text in a sentence: its emoji and name (a Lucide icon has no text). */
 export const canvasText = (c: Pick<Canvas, 'name' | 'icon'>) => (c.icon && !c.icon.startsWith('lucide:') ? `${c.icon} ${c.name}` : c.name);
+
+/** A project's mark: its icon, else the branch every project had before it could choose one. */
+export function ProjectIcon({ icon, size = 15 }: { icon?: string | undefined; size?: number }) {
+  if (icon) return <CanvasIcon canvas={{ name: '', icon }} size={size} />;
+  return <GitBranchIcon className="flex-none" size={size} strokeWidth={2} aria-hidden />;
+}

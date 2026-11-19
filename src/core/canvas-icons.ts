@@ -1,40 +1,43 @@
 /**
- * The icons a canvas may carry (`Canvas.icon`): one emoji, or `lucide:<name>` for one of a curated
- * set of Lucide icons (kebab-case names as in lucide-react's icon files), optionally in a colour of
- * the palette: `lucide:<name>:<colour>` (`lucide:rocket:blue`). Without a colour it is drawn in the
- * text's colour.
+ * The icons a canvas or a project may carry (`Canvas.icon`, `ProjectConfig.icon`): one emoji, or
+ * `lucide:<name>` for one of a curated set of Lucide icons (kebab-case names as in lucide-react's icon
+ * files), optionally in a colour of the palette: `lucide:<name>:<colour>` (`lucide:rocket:blue`). Without a colour it is drawn in the
+ * text's colour. The picker shows them in this order: software and tech, projects and planning,
+ * buildings, business, people and sports first, then the others by name.
  */
 export const CANVAS_LUCIDE_ICONS = [
-  'activity', 'airplay', 'alarm-clock', 'anchor', 'aperture', 'apple', 'archive', 'armchair', 'atom', 'award',
-  'axe', 'baby', 'backpack', 'badge-check', 'banknote', 'barcode', 'baseline', 'battery', 'beaker', 'bed',
-  'beer', 'bell', 'bike', 'binary', 'bird', 'blocks', 'bluetooth', 'bolt', 'bomb', 'bone', 'book', 'book-open',
-  'bookmark', 'bot', 'box', 'boxes', 'brain', 'brick-wall', 'briefcase', 'brush', 'bug', 'building',
-  'building-2', 'bus', 'cake', 'calculator', 'calendar', 'camera', 'candy', 'car', 'carrot', 'cast', 'castle',
-  'cat', 'chart-bar', 'chart-line', 'chart-pie', 'check-check', 'chef-hat', 'cherry', 'church', 'circle-check',
-  'circle-dollar-sign', 'citrus', 'clapperboard', 'clipboard-list', 'clock', 'cloud', 'cloud-rain',
-  'cloud-sun', 'code', 'coffee', 'cog', 'coins', 'compass', 'component', 'construction', 'contact',
-  'container', 'cookie', 'cpu', 'crown', 'cuboid', 'cup-soda', 'database', 'diamond', 'dice-5', 'dna', 'dog',
-  'dollar-sign', 'drama', 'droplet', 'drum', 'dumbbell', 'earth', 'egg', 'euro', 'eye', 'factory', 'feather',
-  'file-code', 'file-text', 'film', 'fingerprint-pattern', 'fish', 'flag', 'flame', 'flask-conical', 'flower',
-  'folder', 'folder-git', 'footprints', 'fuel', 'gamepad-2', 'gauge', 'gem', 'ghost', 'gift', 'git-branch',
-  'git-merge', 'git-pull-request', 'glasses', 'globe', 'goal', 'graduation-cap', 'grape', 'grid-3x3', 'guitar',
-  'hammer', 'hand-heart', 'handshake', 'hard-drive', 'hash', 'headphones', 'heart', 'heart-pulse', 'hexagon',
-  'highlighter', 'hospital', 'hourglass', 'house', 'ice-cream-cone', 'image', 'inbox', 'infinity', 'joystick',
-  'key', 'keyboard', 'lamp', 'landmark', 'languages', 'laptop', 'layers', 'layout-dashboard', 'layout-grid',
-  'leaf', 'library', 'life-buoy', 'lightbulb', 'link', 'list-checks', 'list-todo', 'lock', 'magnet', 'mail',
-  'map', 'map-pin', 'medal', 'megaphone', 'message-circle', 'message-square', 'mic', 'microscope', 'milestone',
-  'monitor', 'moon', 'mountain', 'mouse-pointer', 'music', 'navigation', 'network', 'newspaper', 'notebook',
-  'nut', 'orbit', 'package', 'paintbrush', 'palette', 'paperclip', 'party-popper', 'paw-print', 'pen-tool',
-  'pencil', 'phone', 'piano', 'pickaxe', 'piggy-bank', 'pill', 'pizza', 'plane', 'plug', 'podcast', 'popcorn',
-  'presentation', 'printer', 'puzzle', 'qr-code', 'radar', 'radio', 'rainbow', 'receipt', 'recycle', 'rocket',
-  'route', 'rss', 'ruler', 'sailboat', 'satellite', 'save', 'scale', 'school', 'scissors', 'scroll', 'search',
-  'send', 'server', 'settings', 'shapes', 'share-2', 'shield', 'shield-check', 'ship', 'shirt', 'shopping-bag',
-  'shopping-cart', 'shovel', 'shrub', 'signpost', 'siren', 'skull', 'smartphone', 'smile', 'snowflake', 'sofa',
-  'sparkles', 'speaker', 'sprout', 'square-terminal', 'stamp', 'star', 'sticker', 'store', 'sun', 'swords',
-  'syringe', 'table', 'tag', 'target', 'tent', 'terminal', 'test-tube', 'thermometer', 'thumbs-up', 'ticket',
-  'timer', 'tornado', 'tractor', 'traffic-cone', 'train-front', 'tree-pine', 'trees', 'trophy', 'truck', 'tv',
-  'umbrella', 'university', 'user', 'users', 'utensils', 'vault', 'video', 'wallet', 'wand-sparkles',
-  'warehouse', 'watch', 'waves', 'webhook', 'wifi', 'wind', 'wine', 'workflow', 'wrench', 'zap',
+  'code', 'terminal', 'square-terminal', 'file-code', 'git-branch', 'git-fork', 'git-merge',
+  'git-pull-request', 'folder-git', 'bug', 'bot', 'cpu', 'database', 'server', 'hard-drive', 'container',
+  'cloud', 'network', 'webhook', 'workflow', 'component', 'blocks', 'puzzle', 'layers', 'app-window',
+  'layout-dashboard', 'layout-grid', 'monitor', 'laptop', 'smartphone', 'keyboard', 'mouse-pointer', 'wifi',
+  'binary', 'plug', 'settings', 'cog', 'wrench', 'hammer', 'rocket', 'zap', 'sparkles', 'brain', 'atom',
+  'satellite', 'radar', 'gamepad-2', 'joystick', 'kanban', 'list-checks', 'list-todo', 'clipboard-list',
+  'calendar', 'milestone', 'target', 'goal', 'flag', 'route', 'signpost', 'map', 'compass', 'package', 'box',
+  'boxes', 'archive', 'folder', 'notebook', 'book', 'book-open', 'file-text', 'presentation', 'chart-bar',
+  'chart-line', 'chart-pie', 'activity', 'gauge', 'building', 'building-2', 'factory', 'warehouse', 'store',
+  'house', 'hotel', 'hospital', 'school', 'university', 'landmark', 'castle', 'church', 'construction',
+  'brick-wall', 'tent', 'briefcase', 'handshake', 'banknote', 'coins', 'dollar-sign', 'circle-dollar-sign',
+  'euro', 'wallet', 'piggy-bank', 'receipt', 'shopping-cart', 'shopping-bag', 'scale', 'vault', 'megaphone',
+  'mail', 'phone', 'newspaper', 'globe', 'earth', 'languages', 'shield', 'shield-check', 'lock', 'key', 'user',
+  'user-round', 'users', 'contact', 'person-standing', 'baby', 'smile', 'hand-heart', 'heart',
+  'graduation-cap', 'crown', 'trophy', 'medal', 'award', 'dumbbell', 'volleyball', 'bike', 'footprints',
+  'timer', 'swords', 'airplay', 'alarm-clock', 'anchor', 'aperture', 'apple', 'armchair', 'axe', 'backpack',
+  'badge-check', 'barcode', 'baseline', 'battery', 'beaker', 'bed', 'beer', 'bell', 'bird', 'bluetooth',
+  'bolt', 'bomb', 'bone', 'bookmark', 'brush', 'bus', 'cake', 'calculator', 'camera', 'candy', 'car', 'carrot',
+  'cast', 'cat', 'check-check', 'chef-hat', 'cherry', 'circle-check', 'citrus', 'clapperboard', 'clock',
+  'cloud-rain', 'cloud-sun', 'coffee', 'cookie', 'cuboid', 'cup-soda', 'diamond', 'dice-5', 'dna', 'dog',
+  'drama', 'droplet', 'drum', 'egg', 'eye', 'feather', 'film', 'fingerprint-pattern', 'fish', 'flame',
+  'flask-conical', 'flower', 'fuel', 'gem', 'ghost', 'gift', 'glasses', 'grape', 'grid-3x3', 'guitar', 'hash',
+  'headphones', 'heart-pulse', 'hexagon', 'highlighter', 'hourglass', 'ice-cream-cone', 'image', 'inbox',
+  'infinity', 'lamp', 'leaf', 'library', 'life-buoy', 'lightbulb', 'link', 'magnet', 'map-pin',
+  'message-circle', 'message-square', 'mic', 'microscope', 'moon', 'mountain', 'music', 'navigation', 'nut',
+  'orbit', 'paintbrush', 'palette', 'paperclip', 'party-popper', 'paw-print', 'pen-tool', 'pencil', 'piano',
+  'pickaxe', 'pill', 'pizza', 'plane', 'podcast', 'popcorn', 'printer', 'qr-code', 'radio', 'rainbow',
+  'recycle', 'rss', 'ruler', 'sailboat', 'save', 'scissors', 'scroll', 'search', 'send', 'shapes', 'share-2',
+  'ship', 'shirt', 'shovel', 'shrub', 'siren', 'skull', 'snowflake', 'sofa', 'speaker', 'sprout', 'stamp',
+  'star', 'sticker', 'sun', 'syringe', 'table', 'tag', 'test-tube', 'thermometer', 'thumbs-up', 'ticket',
+  'tornado', 'tractor', 'traffic-cone', 'train-front', 'tree-pine', 'trees', 'truck', 'tv', 'umbrella',
+  'utensils', 'video', 'wand-sparkles', 'watch', 'waves', 'wind', 'wine',
 ] as const;
 
 /** The colours a Lucide icon may be drawn in, each legible on the light and the dark theme. */

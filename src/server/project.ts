@@ -1065,15 +1065,15 @@ export class ProjectRuntime {
     const reviewsBefore = JSON.stringify(this.settings().codeReviews);
     const archiveBefore = this.settings().archive;
     this.config = resolved.config;
-    const namesBefore = JSON.stringify([this.board.project.name, this.board.project.oldNames]);
+    const namesBefore = JSON.stringify([this.board.project.name, this.board.project.oldNames, this.board.project.icon]);
     if (resolved.name !== this.board.project.name) {
       this.board.project.name = resolved.name;
       this.deps.store.ensureProject(this.id, resolved.name);
       console.log(`Seismic: the project ${this.id} is called ${resolved.name} now`);
     }
     this.showOldNames();
-    // the pages' switchers and addresses follow the names
-    if (JSON.stringify([this.board.project.name, this.board.project.oldNames]) !== namesBefore) this.board.changed();
+    // the pages' switchers and addresses follow the names and the icon
+    if (JSON.stringify([this.board.project.name, this.board.project.oldNames, this.board.project.icon]) !== namesBefore) this.board.changed();
     // its demo site may be another, or under another path
     this.siteCredentials();
     const changed = this.repos.filter((r) => {
@@ -2886,11 +2886,13 @@ export class ProjectRuntime {
   }
 
   /** This machine's demo sites changed (one added, connected or removed): the cards share on the project's, or export. */
-  /** Its old names on the project the pages list, so that their addresses lead here. */
+  /** Its old names on the project the pages list, so that their addresses lead here, and its icon for the switchers. */
   private showOldNames() {
     const old = this.config.oldNames;
     if (old?.length) this.board.project.oldNames = [...old];
     else delete this.board.project.oldNames;
+    if (this.config.icon) this.board.project.icon = this.config.icon;
+    else delete this.board.project.icon;
   }
 
   demoSitesChanged() {

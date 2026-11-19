@@ -2,7 +2,8 @@ import { expect, test } from 'bun:test';
 import emojis from 'emojibase-data/en/data.json';
 import { CANVAS_ICON_COLORS, CANVAS_LUCIDE_ICONS, isCanvasIcon } from '../core/canvas-icons';
 import { type Canvas, canvasNamedBy, canvasOfHash, type Item } from '../core/types';
-import { iconsMatching, nameProblem, parkedStubsOf, stubsOf } from './canvases';
+import { nameProblem, parkedStubsOf, stubsOf } from './canvases';
+import { iconsMatching } from './iconPicker';
 import { lucideOf } from './canvasIcon';
 import { columnsFor } from './components/emoji-picker';
 

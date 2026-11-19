@@ -1593,6 +1593,8 @@ export interface ProjectInfo {
   name: string;
   /** Names it had before (`ProjectConfig.oldNames`): an address with one of them leads to it. */
   oldNames?: string[];
+  /** Its icon (`ProjectConfig.icon`); none until chosen. */
+  icon?: string;
   /** The repositories on the project; the first is its home. */
   repos: RepoRef[];
   /** How many times which of its repositories do not run as the configuration has them changed: the page reads the configuration's problems again when it changes. */
@@ -2917,6 +2919,8 @@ export interface ProjectConfig extends ProjectSettings {
   id?: string;
   /** Names it had before, newest last: their addresses lead to it, and no other project may take them. */
   oldNames?: string[];
+  /** What shows it in the project switcher, as a canvas's icon is written (`isCanvasIcon`): an emoji, or a Lucide icon in a colour; none until chosen. */
+  icon?: string;
   repos: RepoConfig[];
 }
 

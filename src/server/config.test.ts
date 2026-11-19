@@ -326,6 +326,18 @@ describe("Seismic's configuration", async () => {
     await expect(c.save([{ ...c.current()[0]!, name: 'Shop' }, { name: 'Store', id: 'store2', repos: [{ path: api }] }])).rejects.toThrow('old name');
   });
 
+  test('a project keeps the icon it is given: an emoji or an offered icon, nothing else', async () => {
+    const c = config('file', [{ name: 'Store', repos: [{ path: web }] }], ['store']);
+    await c.save([{ name: 'Store', icon: 'lucide:rocket:blue', repos: [{ path: web }] }]);
+    expect(c.current()[0]).toMatchObject({ name: 'Store', icon: 'lucide:rocket:blue' });
+    await c.save([{ name: 'Store', icon: '🛒', repos: [{ path: web }] }]);
+    expect(JSON.parse(readFileSync(file, 'utf8'))[0].icon).toBe('🛒');
+    await expect(c.save([{ name: 'Store', icon: 'lucide:no-such-icon', repos: [{ path: web }] }])).rejects.toThrow();
+    await expect(c.save([{ name: 'Store', icon: 'ab', repos: [{ path: web }] }])).rejects.toThrow();
+    await c.save([{ name: 'Store', repos: [{ path: web }] }]);
+    expect(c.current()[0]!.icon).toBeUndefined();
+  });
+
   test("a file from before projects chose their demo site reads without a repository's site", async () => {
     const site = { title: 'Demos', url: 'https://demos.example.dev', deploy: 'deploy {dir}' };
     mkdirSync(join(dir, 'home'));
@@ -900,8 +912,8 @@ function wav(seconds: number, rate = 16000) {
 
 describe('Project defaults', () => {
   test('every project setting has a value in Project defaults', () => {
-    // what a project holds beside its identity (names, id) and repositories is a project setting; a new one needs its default
-    const settings = Object.keys(configShape.element.shape).filter((k) => !['name', 'id', 'oldNames', 'repos'].includes(k));
+    // what a project holds beside its identity (names, id, icon) and repositories is a project setting; a new one needs its default
+    const settings = Object.keys(configShape.element.shape).filter((k) => !['name', 'id', 'oldNames', 'icon', 'repos'].includes(k));
     expect(settings.length).toBeGreaterThan(0);
     const defaults = projectDefaults(dir) as Record<string, unknown>;
     for (const k of settings) {

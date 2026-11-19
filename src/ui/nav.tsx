@@ -6,11 +6,11 @@
 // view for. The floating row's project switcher lists the projects alone, while the menu is not docked.
 // What waits itself is in the inbox (src/ui/inbox.tsx), on every project at once.
 
-import { Archive, ArrowLeft, Bot, Car, ChartLine, ChevronDown, ChevronRight, FileCheck, GitBranch, Inbox, ListOrdered, Menu as Menu_, PanelLeft, PanelLeftClose, Plus, ScrollText, Settings, SlidersHorizontal, Users, X } from 'lucide-react';
+import { Archive, ArrowLeft, Bot, Car, ChartLine, ChevronDown, ChevronRight, FileCheck, Inbox, ListOrdered, Menu as Menu_, PanelLeft, PanelLeftClose, Plus, ScrollText, Settings, SlidersHorizontal, Users, X } from 'lucide-react';
 import { type ComponentProps, createContext, type ReactNode, type Ref, useContext, useLayoutEffect, useRef, useState } from 'react';
 import type { Canvas, ProjectInfo } from '../core/types';
 import { projectPath, switchTo } from './address';
-import { CanvasIcon } from './canvasIcon';
+import { CanvasIcon, ProjectIcon } from './canvasIcon';
 import { Sign, Wordmark } from './logo';
 import { closeBarMenus, leaveMenu, Menu, MenuContent, MenuItem, MenuTrigger } from './components/menu';
 import { ProjectAgents } from './parts';
@@ -89,7 +89,7 @@ export function NavPill(p: ProjectsProps) {
       <div className="relative flex-none group-data-[fit~='3']/row:min-w-0 group-data-[fit~='3']/row:flex-[0_1_auto]">
         <MenuTrigger asChild>
           <PillButton size="bar" on={open} className="group-data-[fit~='3']/row:max-w-full group-data-[fit~='3']/row:[&_b]:overflow-hidden group-data-[fit~='3']/row:[&_b]:text-ellipsis" title={t.nav.button}>
-            <ProjectIcon />
+            <ProjectIcon icon={p.project.icon} />
             <b>{p.project.name}</b>
             <span className="text-xs text-muted-foreground group-data-[fit~='1']/row:hidden">{p.project.repos.length > 1 ? t.repos(p.project.repos.length) : home?.branch}</span>
             <ChevronDown size={12} strokeWidth={1.75} className="text-muted-foreground" aria-hidden="true" />
@@ -506,7 +506,7 @@ function ProjectRow({ project: c, here, repos, bold, onGo, onProject }: { projec
         } else switchTo(e, projectPath(c.id));
       }}
     >
-      <ProjectIcon />
+      <ProjectIcon icon={c.icon} />
       {/* a long name and its repositories shorten rather than wrap, the repositories first */}
       <b className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap" title={c.name}>{c.name}</b>
       {repos && <span className="min-w-0 flex-[0_1000_auto] overflow-hidden text-xs text-ellipsis whitespace-nowrap text-muted-foreground">{c.repos.map((r) => r.name).join(', ')}</span>}
@@ -530,8 +530,4 @@ function NewProject({ onNew }: { onNew: () => void }) {
       </Act>
     </Item>
   );
-}
-
-function ProjectIcon() {
-  return <GitBranch size={15} strokeWidth={2} aria-hidden />;
 }
