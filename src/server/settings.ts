@@ -133,7 +133,7 @@ export function saveNotifications(home: string, input: unknown): NotificationsVi
 }
 
 const projectHarnessChoice = z.object({ model: z.string().optional(), effort: z.enum(AGENT_EFFORTS).optional() }).strict().optional();
-const ownAgent = z.object({ model: z.enum(AGENT_MODELS).optional(), effort: z.enum(AGENT_EFFORTS).optional(), harness: z.enum(HARNESSES).optional(), codex: projectHarnessChoice, agy: projectHarnessChoice }).strict().optional();
+const ownAgent = z.object({ model: z.enum(AGENT_MODELS).optional(), effort: z.enum(AGENT_EFFORTS).optional(), harness: z.enum(HARNESSES).nullable().optional(), codex: projectHarnessChoice, agy: projectHarnessChoice }).strict().optional();
 
 /** A project's settings as saved before `projectBaselines` became `planBaselines`: the old key is still read. */
 export function renamedBaselines(saved: unknown): unknown {
@@ -187,7 +187,7 @@ function projectAgents(saved: ProjectAgents | undefined): ProjectAgents {
   const out: ProjectAgents = {};
   for (const role of AGENT_ROLES) {
     const { harness, model, effort, codex, agy } = saved?.[role] ?? {};
-    if (harness || model || effort || codex || agy) out[role] = { ...(harness ? { harness } : {}), ...(model ? { model } : {}), ...(effort ? { effort } : {}), ...(codex ? { codex } : {}), ...(agy ? { agy } : {}) };
+    if (harness || model || effort || codex || agy) out[role] = { ...(harness !== undefined ? { harness } : {}), ...(model ? { model } : {}), ...(effort ? { effort } : {}), ...(codex ? { codex } : {}), ...(agy ? { agy } : {}) };
   }
   return out;
 }

@@ -74,8 +74,7 @@ export function AgentChoice({ role, view, catalogs, busy, choose }: { role: Agen
     <div className="cs-choice grid grid-cols-[minmax(0,1.2fr)_repeat(2,minmax(0,.9fr))] gap-2">
       <Select className={cn(choiceClass, own.harness ? 'own' : 'text-muted-foreground')} aria-label={`${a.roles[role].name}: ${a.harness}`} value={harness} disabled={busy || !choosesHarness(role)} onValueChange={(picked) => {
         const value = picked as Harness;
-        if (value === defaultHarness) return choose(role, null);
-        return choose(role, { harness: value, model: undefined, effort: undefined });
+        return choose(role, { harness: value === defaultHarness ? null : value });
       }}>
         <HarnessOptions defaultHarness={defaultHarness} />
       </Select>
@@ -85,7 +84,7 @@ export function AgentChoice({ role, view, catalogs, busy, choose }: { role: Agen
           const next = { ...own[other], model };
           return choose(role, { [other]: model || own[other]?.effort ? next : undefined });
         }
-        return choose(role, { harness: own.harness ?? (defaultHarness === 'claude' ? undefined : 'claude'), model: picked === defaultModel ? undefined : picked as AgentModel });
+        return choose(role, { harness: own.harness === undefined && defaultHarness !== 'claude' ? 'claude' : own.harness, model: picked === defaultModel ? undefined : picked as AgentModel });
       }}>
         <ModelOptions harness={harness} models={models} value={model} defaultModel={defaultModel} />
       </Select>
@@ -95,7 +94,7 @@ export function AgentChoice({ role, view, catalogs, busy, choose }: { role: Agen
           const next = { ...own[other], effort: effort || undefined };
           return choose(role, { effort: undefined, [other]: own[other]?.model || effort ? next : undefined });
         }
-        return choose(role, { harness: own.harness ?? 'claude', effort: effort || undefined });
+        return choose(role, { effort: effort || undefined });
       }}>
         <SelectItem value="">{a.efforts[other ? base.harness === other ? inherited.effort : base.effort : base.effort]}</SelectItem>
         {efforts.map((x) => <SelectItem key={x} value={x}>{a.efforts[x]}</SelectItem>)}

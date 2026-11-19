@@ -18,10 +18,10 @@ export const startAgentModel = 'start-agent-model text-2xs font-normal opacity-8
 /** What the role starts with on the shown project. */
 const projectDefault = (role: AgentRole) => api.shownProjectSettings().then((v) => projectAgentSetting(role, v.agents[role], v.settings.agents));
 
-/** The role's model for the selected harness, or that harness's own default when it differs. */
+/** The configured Claude model is available even when the role normally uses another harness. */
 function defaultModelFor(role: AgentRole, harness: Harness, inherited: AgentSetting) {
-  if (harness === (inherited.harness ?? 'claude')) return harnessChoice(inherited).model;
-  return harness === 'claude' ? AGENT_DEFAULTS[role].model : 'default';
+  if (harness === 'claude') return inherited.model === 'default' ? AGENT_DEFAULTS[role].model : inherited.model;
+  return harness === inherited.harness ? harnessChoice(inherited).model : 'default';
 }
 
 function resolveStartChoice(role: AgentRole, choice: StartAgentChoice, inherited: AgentSetting): AgentSetting {
@@ -248,7 +248,8 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
       {setting && <>
         <label>{a.harness}<Select triggerRef={first} value={setting.harness ?? 'claude'} onValueChange={(picked) => {
           const previous = picked === 'claude' ? setting.model : setting[picked as 'codex' | 'agy'];
-          choose({ ...setting, harness: picked as Harness, followProjectModel: picked === defaultHarness || !previous ? true : undefined,
+          const follow = picked === defaultHarness || !previous || (picked === 'claude' && previous === initial?.model);
+          choose({ ...setting, harness: picked as Harness, followProjectModel: follow ? true : undefined,
             ...(picked !== 'claude' ? { [picked]: previous ?? { model: 'default', effort: choice.effort } } : {}),
           });
         }}>

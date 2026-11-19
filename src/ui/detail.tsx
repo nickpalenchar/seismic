@@ -2995,7 +2995,7 @@ function ReviewSubmit({ item }: { item: Item }) {
   return (
     <div className={reviewSubmit}>
       <Button type="button" variant="primary" className={startAgentMain} disabled={sending} onClick={() => submit()}><span>{t.codeReview.submitAnswers}</span>{item.agent?.workerSetting && <span className={startAgentModel}>{describeAgent(item.agent.workerSetting, true)}</span>}</Button>
-      <StartAgent label={t.codeReview.submitNewAgent} selectionOnly hint={t.codeReview.newAgentHint} disabled={sending} onStart={(agent) => { if (agent) void submit(agent); }} />
+      <StartAgent label={t.codeReview.submitNewAgent} role="review" selectionOnly hint={t.codeReview.newAgentHint} disabled={sending} onStart={(agent) => { if (agent) void submit(agent); }} />
       {error && <p className="p-error">{error}</p>}
     </div>
   );

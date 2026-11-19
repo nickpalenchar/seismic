@@ -2895,7 +2895,9 @@ export interface ProjectSettings {
 }
 
 /** A project's own harness, model or effort per group; a field left out follows Configuration's "Agents and models". */
-type ProjectAgent = Partial<Omit<AgentSetting, 'codex' | 'agy'>> & {
+type ProjectAgent = Partial<Omit<AgentSetting, 'harness' | 'codex' | 'agy'>> & {
+  /** Explicit inheritance, including when a saved Claude model would otherwise imply Claude Code. */
+  harness?: Harness | null;
   codex?: Partial<NonNullable<AgentSetting['codex']>>;
   agy?: Partial<NonNullable<AgentSetting['agy']>>;
 };
@@ -3749,9 +3751,9 @@ export function projectAgentSetting(role: AgentRole, base: AgentSetting, own: Pr
   if (base.model === 'default') base = { ...base, model: AGENT_DEFAULTS[role].model };
   const configured = own?.[role];
   if (!configured || !Object.keys(configured).length) return base;
-  const { codex, agy, ...fields } = configured;
+  const { codex, agy, harness: requestedHarness, ...fields } = configured;
   const mine = fields.model === 'default' ? { ...fields, model: base.model } : fields;
-  const harness = mine.harness ?? (mine.model && base.harness ? 'claude' : base.harness);
+  const harness = requestedHarness === undefined && mine.model && base.harness ? 'claude' : requestedHarness ?? base.harness;
   const external = (target: 'codex' | 'agy') => {
     const inherited = base.harness === target ? harnessChoice(base) : { model: 'default', effort: base.effort };
     const override = target === 'codex' ? codex : agy;
@@ -3761,7 +3763,7 @@ export function projectAgentSetting(role: AgentRole, base: AgentSetting, own: Pr
     ...(codex || harness === 'codex' ? { codex: external('codex') } : {}),
     ...(agy || harness === 'agy' ? { agy: external('agy') } : {}),
   };
-  if (!mine.harness && (harness === 'codex' || harness === 'agy')) return { ...base, ...portable };
+  if (!requestedHarness && (harness === 'codex' || harness === 'agy')) return { ...base, ...(mine.model ? { model: mine.model } : {}), ...portable };
   return { ...base, ...mine, ...portable, ...(harness ? { harness } : {}) };
 }
 

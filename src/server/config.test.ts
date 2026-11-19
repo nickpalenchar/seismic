@@ -1070,6 +1070,15 @@ describe('The project settings', () => {
     }
   });
 
+  test('explicitly inheriting the harness preserves model and effort overrides', () => {
+    const base = { harness: 'codex', model: 'sonnet', effort: 'high', codex: { model: 'configured', effort: 'medium' } } as const;
+    const overrides = { model: 'haiku', effort: 'low', codex: { model: 'override' } } as const;
+    const inherited = projectAgentSetting('worker', base, { worker: { ...overrides, harness: null } });
+    expect(inherited).toMatchObject({ harness: 'codex', model: 'haiku', codex: { model: 'override', effort: 'low' } });
+    expect(projectAgentSetting('worker', base, { worker: { ...overrides, harness: 'claude' } })).toMatchObject({ harness: 'claude', model: 'haiku', effort: 'low' });
+    expect(projectAgentSetting('worker', base, { worker: overrides }).harness).toBe('claude');
+  });
+
   test('a saved Claude default follows the named setting at its inheritance level', () => {
     const global = saveAgents(dir, { koordinator: { model: 'default' } }).agents.koordinator;
     expect(global.model).toBe('opus');
