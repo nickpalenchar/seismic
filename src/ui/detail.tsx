@@ -420,8 +420,8 @@ export function Detail(p: Props) {
   // the agent fixing items the owner sent it, and items waiting for the next review, count as part of the review: Approve warns the same way
   const fixing = !!cr?.items.some((r) => r.status === 'fixing');
   const verifying = !!cr?.items.some((r) => r.status === 'underReview');
-  // work that changed nothing has nothing to land, so a review still at work does not change what approving does
-  const reviewRunning = !item.review?.noChange && (cr?.state === 'running' || fixing || verifying);
+  // work that changed nothing has nothing to land, but approving it still ends a review verifying fixes before their verdicts
+  const reviewRunning = item.review?.noChange ? verifying : cr?.state === 'running' || fixing || verifying;
   const approvalWarningClass = startAgentMain;
   const approvalWarning = reviewRunning && <span className={startAgentModel}>{cr?.state === 'running' || (verifying && !fixing) ? t.approveDuringReview.reviewing : t.approveDuringReview.fixing}</span>;
   // choices on items picked but not sent yet: approving would drop them
@@ -474,10 +474,10 @@ export function Detail(p: Props) {
           open={confirmReviewApproval}
           onOpenChange={setConfirmReviewApproval}
           title={t.approveDuringReview.title}
-          confirm={{ label: t.approveDuringReview.land, onClick: () => { setConfirmReviewApproval(false); approveNow(confirmDirect); } }}
+          confirm={{ label: item.review?.noChange ? t.approveDuringReview.close : t.approveDuringReview.land, onClick: () => { setConfirmReviewApproval(false); approveNow(confirmDirect); } }}
           cancel={t.approveDuringReview.continue}
         >
-          <p>{t.approveDuringReview.body}</p>
+          <p>{item.review?.noChange ? t.approveDuringReview.noChangeBody : t.approveDuringReview.body}</p>
         </ConfirmDialog>
       )}
       {/* where the owner starts code reviews themselves: beside Approve, in its own colour, until the latest handover is reviewed */}
