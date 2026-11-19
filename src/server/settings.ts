@@ -132,7 +132,8 @@ export function saveNotifications(home: string, input: unknown): NotificationsVi
   return notificationsView(home);
 }
 
-const ownAgent = z.object({ model: z.enum(AGENT_MODELS).optional(), effort: z.enum(AGENT_EFFORTS).optional(), harness: z.enum(HARNESSES).optional(), codex: z.object({ model: z.string(), effort: z.enum(AGENT_EFFORTS) }).strict().optional(), agy: z.object({ model: z.string(), effort: z.enum(AGENT_EFFORTS) }).strict().optional() }).strict().optional();
+const projectHarnessChoice = z.object({ model: z.string().optional(), effort: z.enum(AGENT_EFFORTS).optional() }).strict().optional();
+const ownAgent = z.object({ model: z.enum(AGENT_MODELS).optional(), effort: z.enum(AGENT_EFFORTS).optional(), harness: z.enum(HARNESSES).optional(), codex: projectHarnessChoice, agy: projectHarnessChoice }).strict().optional();
 
 /** A project's settings as saved before `projectBaselines` became `planBaselines`: the old key is still read. */
 export function renamedBaselines(saved: unknown): unknown {

@@ -3,7 +3,7 @@
 // of the settings sheet shows every group, "Code reviews" the reviewer's alone.
 
 import { Fragment } from 'react';
-import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_ROLES, choosesHarness, harnessChoice, type AgentEffort, type AgentModel, type AgentRole, type CodexModel, type Harness, type ProjectAgents, type ProjectSettingsView } from '../../core/types';
+import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_ROLES, choosesHarness, harnessChoice, projectAgentSetting, type AgentEffort, type AgentModel, type AgentRole, type CodexModel, type Harness, type ProjectAgents, type ProjectSettingsView } from '../../core/types';
 import { catalogDefault, HarnessOptions, ModelOptions } from '../agent-options';
 import { agentClass } from '../config';
 import { t } from '../strings';
@@ -56,10 +56,11 @@ export function AgentChoice({ role, view, catalogs, busy, choose }: { role: Agen
   const a = t.config.agents;
   const base = view.agents[role];
   const own = view.settings.agents[role] ?? {};
-  const harness = own.harness ?? (own.model ? 'claude' : base.harness) ?? 'claude';
+  const effective = projectAgentSetting(role, base, view.settings.agents);
+  const harness = effective.harness ?? 'claude';
   const other = harness === 'codex' || harness === 'agy' ? harness : null;
   const inherited = harnessChoice(base);
-  const selected = other ? own[other] ?? (base.harness === other ? { ...inherited, effort: own.effort ?? inherited.effort } : { model: 'default', effort: base.effort }) : { model: own.model ?? base.model, effort: own.effort ?? base.effort };
+  const selected = harnessChoice(effective);
   const models = other ? catalogs[other] : undefined;
   const chosenModel = models?.find((m) => selected.model === 'default' ? m.isDefault : m.model === selected.model);
   const efforts = other && chosenModel ? AGENT_EFFORTS.filter((e) => chosenModel.supportedReasoningEfforts.some((x) => x.reasoningEffort === e)) : AGENT_EFFORTS;
@@ -80,16 +81,20 @@ export function AgentChoice({ role, view, catalogs, busy, choose }: { role: Agen
       </Select>
       <Select className={cn(choiceClass, own.model || (other && own[other]?.model) ? 'own' : 'text-muted-foreground')} aria-label={`${a.roles[role].name}: ${a.model}`} value={model} disabled={busy || (!!other && !models)} onValueChange={(picked) => {
         if (other) {
-          const next = picked === defaultModel ? (base.harness === other ? inherited.model : 'default') : picked;
-          return choose(role, { harness: other, [other]: { ...selected, model: next } });
+          const model = picked === defaultModel ? undefined : picked;
+          const next = { ...own[other], model };
+          return choose(role, { [other]: model || own[other]?.effort ? next : undefined });
         }
-        return choose(role, { model: picked === defaultModel && defaultHarness === 'claude' ? undefined : picked as AgentModel });
+        return choose(role, { harness: own.harness ?? (defaultHarness === 'claude' ? undefined : 'claude'), model: picked === defaultModel ? undefined : picked as AgentModel });
       }}>
         <ModelOptions harness={harness} models={models} value={model} defaultModel={defaultModel} />
       </Select>
-      <Select className={cn(choiceClass, own.effort || (other && own[other]?.effort) ? 'own' : 'text-muted-foreground')} aria-label={`${a.roles[role].name}: ${a.effort}`} value={other ? own[other]?.effort ?? (own.harness ? '' : own.effort ?? '') : own.effort ?? ''} disabled={busy} onValueChange={(picked) => {
+      <Select className={cn(choiceClass, own.effort || (other && own[other]?.effort) ? 'own' : 'text-muted-foreground')} aria-label={`${a.roles[role].name}: ${a.effort}`} value={other ? own[other]?.effort ?? own.effort ?? '' : own.effort ?? ''} disabled={busy} onValueChange={(picked) => {
         const effort = picked as AgentEffort | '';
-        if (other) return choose(role, { harness: other, [other]: { ...selected, effort: effort || (base.harness === other ? inherited.effort : base.effort) } });
+        if (other) {
+          const next = { ...own[other], effort: effort || undefined };
+          return choose(role, { effort: undefined, [other]: own[other]?.model || effort ? next : undefined });
+        }
         return choose(role, { harness: own.harness ?? 'claude', effort: effort || undefined });
       }}>
         <SelectItem value="">{a.efforts[other ? base.harness === other ? inherited.effort : base.effort : base.effort]}</SelectItem>

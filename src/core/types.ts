@@ -2895,7 +2895,11 @@ export interface ProjectSettings {
 }
 
 /** A project's own harness, model or effort per group; a field left out follows Configuration's "Agents and models". */
-export type ProjectAgents = Partial<Record<AgentRole, Partial<AgentSetting>>>;
+type ProjectAgent = Partial<Omit<AgentSetting, 'codex' | 'agy'>> & {
+  codex?: Partial<NonNullable<AgentSetting['codex']>>;
+  agy?: Partial<NonNullable<AgentSetting['agy']>>;
+};
+export type ProjectAgents = Partial<Record<AgentRole, ProjectAgent>>;
 
 /** The project settings sheet: the project's settings as they apply, and Configuration's models it falls back on. */
 export interface ProjectSettingsView {
@@ -3745,15 +3749,20 @@ export function projectAgentSetting(role: AgentRole, base: AgentSetting, own: Pr
   if (base.model === 'default') base = { ...base, model: AGENT_DEFAULTS[role].model };
   const configured = own?.[role];
   if (!configured || !Object.keys(configured).length) return base;
-  const mine = configured.model === 'default' ? { ...configured, model: base.model } : configured;
-  if (mine.harness) {
-    const selected = mine.harness;
-    return { ...base, ...mine, harness: selected,
-      ...(selected === 'codex' || selected === 'agy' ? { [selected]: { ...(base.harness === selected ? harnessChoice(base) : { model: 'default', effort: base.effort }), ...mine[selected] } } : {}) };
-  }
-  // an effort alone keeps Codex and agy workers where they are, with their model and that effort
-  if (base.harness && base.harness !== 'claude' && !mine.model) return { ...base, [base.harness]: { ...harnessChoice(base), effort: mine.effort! } };
-  return { ...base, ...mine, ...(base.harness && base.harness !== 'claude' ? { harness: 'claude' as const } : {}) };
+  const { codex, agy, ...fields } = configured;
+  const mine = fields.model === 'default' ? { ...fields, model: base.model } : fields;
+  const harness = mine.harness ?? (mine.model && base.harness ? 'claude' : base.harness);
+  const external = (target: 'codex' | 'agy') => {
+    const inherited = base.harness === target ? harnessChoice(base) : { model: 'default', effort: base.effort };
+    const override = target === 'codex' ? codex : agy;
+    return { model: override?.model ?? inherited.model, effort: override?.effort ?? (harness === target ? mine.effort : undefined) ?? inherited.effort };
+  };
+  const portable = {
+    ...(codex || harness === 'codex' ? { codex: external('codex') } : {}),
+    ...(agy || harness === 'agy' ? { agy: external('agy') } : {}),
+  };
+  if (!mine.harness && (harness === 'codex' || harness === 'agy')) return { ...base, ...portable };
+  return { ...base, ...mine, ...portable, ...(harness ? { harness } : {}) };
 }
 
 

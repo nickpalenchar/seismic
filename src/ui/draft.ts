@@ -12,6 +12,8 @@ import { useEffect, useSyncExternalStore } from 'react';
 import type { Mark } from './marks';
 import type { Reply } from './reply';
 
+export type StartAgentChoice = AgentSetting & { followProjectModel?: true };
+
 export interface Draft {
   text: string;
   images: string[];
@@ -41,7 +43,7 @@ export interface Draft {
   /** The paths of dropped files among the words (`insertFiles`), which go back beside the microphone with the screenshots (`moveFiles`). */
   files?: string[];
   /** The agent picked in the Start button's menu, for the next start (`start-agent.tsx`). */
-  agent?: AgentSetting;
+  agent?: StartAgentChoice;
 }
 
 /**

@@ -56,13 +56,13 @@ test("the model and effort per group of agents: preset, chosen one group at a ti
     review: { model: 'opus', effort: 'high' },
   });
   saveLanguage(home, { language: 'en' });
-  saveAgents(home, { worker: { model: 'fable', effort: 'xhigh' } });
+  saveAgents(home, { worker: { model: 'fable', effort: 'xhigh' }, chores: { model: 'sonnet' } });
   saveAgents(home, { koordinator: { model: 'haiku' }, chores: { model: 'default' } });
   expect(agentSetting(home, 'worker')).toEqual({ model: 'fable', effort: 'xhigh' });
   expect(agentSetting(home, 'koordinator')).toEqual({ model: 'haiku', effort: 'medium' });
-  expect(agentSetting(home, 'chores')).toEqual({ model: 'default', effort: 'medium' });
+  expect(agentSetting(home, 'chores')).toEqual({ model: 'opus', effort: 'medium' });
   saveAgents(home, { worker: { model: 'opus' } });
-  expect(JSON.parse(readFileSync(join(home, SETTINGS_FILE), 'utf8'))).toEqual({ language: 'en', agents: { koordinator: { model: 'haiku' }, worker: { effort: 'xhigh' }, chores: { model: 'default' } } });
+  expect(JSON.parse(readFileSync(join(home, SETTINGS_FILE), 'utf8'))).toEqual({ language: 'en', agents: { koordinator: { model: 'haiku' }, worker: { effort: 'xhigh' } } });
   // back to the presets: the file keeps no list
   saveAgents(home, { koordinator: { model: 'opus' }, worker: { effort: 'high' }, chores: { model: 'opus' } });
   expect(JSON.parse(readFileSync(join(home, SETTINGS_FILE), 'utf8'))).toEqual({ language: 'en' });

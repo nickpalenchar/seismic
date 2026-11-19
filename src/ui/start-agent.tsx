@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AGENT_DEFAULTS, AGENT_EFFORTS, harnessChoice, projectAgentSetting, type AgentEffort, type AgentModel, type AgentIdentity, type AgentRole, type AgentSetting, type CodexModel, type Harness } from '../core/types';
 import { catalogDefault, HarnessOptions, modelLabel, ModelOptions } from './agent-options';
 import { ApiError, api, onAgentSettingsChange } from './api';
-import { updateDraft, useDraft } from './draft';
+import { updateDraft, useDraft, type StartAgentChoice } from './draft';
 import { failText, t } from './strings';
 import { Button, type ButtonVariant, LinkButton } from './components/button';
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from './components/popover';
@@ -17,6 +17,21 @@ export const startAgentModel = 'start-agent-model text-2xs font-normal opacity-8
 
 /** What the role starts with on the shown project. */
 const projectDefault = (role: AgentRole) => api.shownProjectSettings().then((v) => projectAgentSetting(role, v.agents[role], v.settings.agents));
+
+/** The role's model for the selected harness, or that harness's own default when it differs. */
+function defaultModelFor(role: AgentRole, harness: Harness, inherited: AgentSetting) {
+  if (harness === (inherited.harness ?? 'claude')) return harnessChoice(inherited).model;
+  return harness === 'claude' ? AGENT_DEFAULTS[role].model : 'default';
+}
+
+function resolveStartChoice(role: AgentRole, choice: StartAgentChoice, inherited: AgentSetting): AgentSetting {
+  const { followProjectModel, ...setting } = choice;
+  if (!followProjectModel) return setting;
+  const harness = setting.harness ?? 'claude';
+  const model = defaultModelFor(role, harness, inherited);
+  return harness === 'claude' ? { ...setting, model: model as AgentModel }
+    : { ...setting, [harness]: { ...harnessChoice(setting), model } };
+}
 
 export const describeAgent = (s: AgentSetting, short = false, models?: CodexModel[] | null) => {
     const a = t.config.agents;
@@ -46,7 +61,7 @@ const stands = (models: CodexModel[], c: { model: string; effort: AgentEffort })
 /** A choice for this start only. The ordinary button continues to use the current default. */
 export function StartAgent({ label, disabled, title, codexAllowed = true, selectionOnly = false, hint, draft, saved, role = 'worker', variant = 'primary', suggested = false, onStart }: { variant?: ButtonVariant; role?: AgentRole; suggested?: boolean; label: string; disabled?: boolean; title?: string; codexAllowed?: boolean; selectionOnly?: boolean; hint?: string; draft?: string; saved?: AgentSetting; onStart: (setting?: AgentSetting) => void | Promise<void> }) {
   const [open, setOpen] = useState(false);
-  const [setting, setSetting] = useState<AgentSetting | null>(null);
+  const [setting, setSetting] = useState<StartAgentChoice | null>(null);
   const [models, setModels] = useState<CodexModel[] | null>(null);
   // which harness the catalog in `models` belongs to: after a switch the old one stands until the new one has loaded
   const [modelsOf, setModelsOf] = useState<Harness | null>(null);
@@ -56,15 +71,18 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
   const [currentDefault, setCurrentDefault] = useState<AgentSetting | null>(null);
   // the choice made in the menu for this card: it stays after the menu closes, shows in the button's small text and is what the button starts with.
   // Kept in the card's draft where there is one, so it outlives closing the card.
-  const [local, setLocal] = useState<AgentSetting | null>(null);
+  const [local, setLocal] = useState<StartAgentChoice | null>(null);
   const kept = useDraft(draft ?? '').agent ?? null;
   // what a queued card was started with stands until another is chosen: it is checked and started like a choice made here
-  const picked = (draft ? kept : local) ?? saved ?? null;
-  const setPicked = (s: AgentSetting | null) => draft ? updateDraft(draft, { agent: s ?? undefined }) : setLocal(s);
+  const picked: StartAgentChoice | null = (draft ? kept : local) ?? saved ?? null;
+  const resolvedPicked = picked?.followProjectModel
+    ? currentDefault && resolveStartChoice(role, picked, currentDefault)
+    : picked;
+  const setPicked = (s: StartAgentChoice | null) => draft ? updateDraft(draft, { agent: s ?? undefined }) : setLocal(s);
   // a saved Codex or Antigravity choice is checked against the harness's catalog as it stands: on its own, when it is saved, and again as the button starts with it.
   // One the harness no longer offers stays shown and saved until the owner changes it, and the button does not start it.
   const pickedOther = picked?.harness === 'codex' || picked?.harness === 'agy' ? picked.harness : null;
-  const pickedKey = JSON.stringify(picked);
+  const pickedKey = JSON.stringify(resolvedPicked);
   const [checked, setChecked] = useState<{ key: string; ok: boolean | null; error?: string } | null>(null);
   const validation = useRef(0);
   const [starting, setStarting] = useState(false);
@@ -79,10 +97,10 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
   const standsNow = async (s: AgentSetting & { harness: 'codex' | 'agy' }) =>
     (s.harness === 'agy' ? api.agyModels() : api.codexModels()).then((m) => stands(m, s[s.harness] ?? { model: 'default', effort: 'high' as const }));
   useEffect(() => {
-    if (!picked || !pickedOther || !codexAllowed) return;
+    if (!resolvedPicked || !pickedOther || !codexAllowed) return;
     let active = true;
     const ticket = ++validation.current;
-    standsNow({ ...picked, harness: pickedOther }).then(
+    standsNow({ ...resolvedPicked, harness: pickedOther }).then(
       (ok) => { if (active && ticket === validation.current) setChecked({ key: pickedKey, ok }); },
       (e) => { if (active && ticket === validation.current) setChecked({ key: pickedKey, ok: null, error: e instanceof ApiError ? e.message : failText(e) }); },
     );
@@ -93,7 +111,8 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
   const [startError, setStartError] = useState('');
   // one start at a time, from the main button or the menu: the exact model and effort are checked against a fresh catalog first.
   // `key` names the saved choice the start records its check under. A start is dropped if the saved choice, the harness's availability or the parent's disabled state changed since the click.
-  const start = async (choice: AgentSetting | undefined, key: string | null) => {
+  const start = async (stored: StartAgentChoice | undefined, key: string | null) => {
+    let choice: AgentSetting | undefined = stored;
     const other = choice?.harness === 'codex' || choice?.harness === 'agy' ? choice.harness : null;
     if (startLock.current || latestDisabled.current || (other && !codexAllowed)) return;
     startLock.current = true;
@@ -103,6 +122,8 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
     const ticket = ++validation.current;
     const stale = () => latestKey.current !== pickedKey || (!!other && !latestAllowed.current) || latestDisabled.current;
     try {
+      if (stored?.followProjectModel) choice = resolveStartChoice(role, stored, await projectDefault(role));
+      if (stale()) return;
       if (choice && other) {
         const ok = await standsNow({ ...choice, harness: other });
         if (stale()) return;
@@ -124,7 +145,7 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
   useEffect(() => setStartError(''), [pickedKey]);
   const startPicked = () => start(picked ?? undefined, pickedKey);
   const touched = useRef(false);
-  const choose = (s: AgentSetting) => { touched.current = true; setSetting(s); };
+  const choose = (s: StartAgentChoice) => { touched.current = true; setSetting(s); };
   // the newest model request: an older one that answers late is dropped
   const request = useRef(0);
   const loadModels = async () => {
@@ -135,9 +156,9 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
       const list = await (harness === 'agy' ? api.agyModels() : api.codexModels());
       if (ticket !== request.current) return;
       setModels(list); setModelsOf(harness);
-      if (picked && pickedOther === harness && latestKey.current === pickedKey) {
+      if (resolvedPicked && pickedOther === harness && latestKey.current === pickedKey) {
         ++validation.current;
-        setChecked({ key: pickedKey, ok: stands(list, picked[harness] ?? { model: 'default', effort: 'high' }) });
+        setChecked({ key: pickedKey, ok: stands(list, resolvedPicked[harness] ?? { model: 'default', effort: 'high' }) });
       }
     } catch (e) {
       if (ticket !== request.current) return;
@@ -149,25 +170,28 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
   };
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
+    if (open) {
+      touched.current = false;
+      ++request.current; setLoading(false);
+      setSetting(null); setInitial(null); setError(''); setModels(null); setModelsOf(null);
+    }
     let revision = 0;
     const refresh = () => {
-      const request = ++revision;
+      const ticket = ++revision;
       projectDefault(role).then((value) => {
-        if (request === revision) setCurrentDefault(value);
-      }).catch(() => {});
+        if (ticket !== revision) return;
+        setCurrentDefault(value);
+        if (open) {
+          setSetting((existing) => existing ?? picked ?? { ...value, followProjectModel: true });
+          setInitial(value);
+        }
+      }).catch((e) => {
+        if (open && ticket === revision) setError(e instanceof ApiError ? e.message : failText(e));
+      });
     };
     const unsubscribe = onAgentSettingsChange(refresh);
     refresh();
     return () => { ++revision; unsubscribe(); };
-  }, [role]);
-  useEffect(() => {
-    if (!open) return;
-    let active = true;
-    touched.current = false;
-    ++request.current; setLoading(false);
-    setSetting(null); setInitial(null); setError(''); setModels(null); setModelsOf(null);
-    projectDefault(role).then((v) => { if (active) { setSetting(picked ?? v); setInitial(v); } }).catch((e) => { if (active) setError(e instanceof ApiError ? e.message : failText(e)); });
-    return () => { active = false; };
   }, [open, attempt, role]);
   // the keyboard lands in the menu once it has its choices (Radix returns it to the button that opened it)
   const first = useRef<HTMLButtonElement>(null);
@@ -184,12 +208,12 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
   const harness = setting?.harness ?? 'claude';
   const defaultHarness = initial?.harness ?? 'claude';
   const accountModel = catalogDefault(current);
-  const baseline = initial && harness === defaultHarness ? harnessChoice(initial).model : other ? 'default' : AGENT_DEFAULTS[role].model;
+  const baseline = initial ? defaultModelFor(role, harness, initial) : 'default';
   const defaultModel = baseline === 'default' ? other ? accountModel : AGENT_DEFAULTS[role].model : baseline;
-  const storedModel = other ? choice.model : setting?.model ?? 'default';
+  const storedModel = setting?.followProjectModel ? baseline : other ? choice.model : setting?.model ?? 'default';
   const model = storedModel === 'default' ? other ? accountModel : defaultModel : storedModel;
   const selected = current?.find((m) => m.model === model);
-  const summary = picked ?? currentDefault;
+  const summary = resolvedPicked ?? currentDefault;
   const summaryHarness = summary?.harness;
   const [summaryModels, setSummaryModels] = useState<{ harness: Harness; models: CodexModel[] } | null>(null);
   const needsCatalog = summary && harnessChoice(summary).model === 'default';
@@ -207,7 +231,7 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
   // only a choice that can start is kept, so the main button never starts one the menu would refuse
   useEffect(() => { if (touched.current && setting && valid && (!codex || !loading)) setPicked(setting); }, [setting, valid, loading]);
 
-  const main = <Button variant={selectionOnly ? 'code-review' : variant} className={selectionOnly ? undefined : cn(startAgentMain, 'rounded-l-sm rounded-r-none')} disabled={disabled || starting || (!selectionOnly && (checking || gone))} title={gone ? a.unavailableChoice : title} onClick={selectionOnly ? undefined : () => void startPicked()}>
+  const main = <Button variant={selectionOnly ? 'code-review' : variant} className={selectionOnly ? undefined : cn(startAgentMain, 'rounded-l-sm rounded-r-none')} disabled={disabled || starting || (!selectionOnly && (checking || gone || (!!picked?.followProjectModel && !currentDefault)))} title={gone ? a.unavailableChoice : title} onClick={selectionOnly ? undefined : () => void startPicked()}>
     <span>{label}</span>
     {!selectionOnly && summary && <span className={startAgentModel}>{describeAgent(summary, true, modelsOf === summaryHarness ? models : summaryModels?.harness === summaryHarness ? summaryModels?.models : null)}</span>}
   </Button>;
@@ -222,15 +246,21 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
     <PopoverContent side="top" align="start" aria-label={a.chooseStart} className="w-[min(380px,calc(100vw-16px))] max-h-[min(var(--radix-popover-content-available-height),600px)] p-4 text-sm [&_label]:my-2.5 [&_label]:flex [&_label]:items-center [&_label]:justify-between [&_label]:gap-3 [&_p]:m-0 [&_p]:mb-2.5 [&_[data-slot=select-trigger]]:max-w-[65%] [&_[data-slot=select-trigger]]:min-w-0">
       {initial && <p className="hint">{a.currentDefault}: {describeAgent(initial, false, modelsOf === initial.harness ? models : summaryModels?.harness === initial.harness ? summaryModels?.models : null)}</p>}
       {setting && <>
-        <label>{a.harness}<Select triggerRef={first} value={setting.harness ?? 'claude'} onValueChange={(picked) => choose({ ...setting, harness: picked as Harness, ...(picked !== 'claude' ? { [picked]: setting[picked as 'codex' | 'agy'] ?? { model: 'default', effort: choice.effort } } : {}) })}>
+        <label>{a.harness}<Select triggerRef={first} value={setting.harness ?? 'claude'} onValueChange={(picked) => {
+          const previous = picked === 'claude' ? setting.model : setting[picked as 'codex' | 'agy'];
+          choose({ ...setting, harness: picked as Harness, followProjectModel: picked === defaultHarness || !previous ? true : undefined,
+            ...(picked !== 'claude' ? { [picked]: previous ?? { model: 'default', effort: choice.effort } } : {}),
+          });
+        }}>
           <HarnessOptions defaultHarness={defaultHarness} portable={codexAllowed} />
         </Select></label>
         {!codexAllowed && <p className="hint">{a.codexUnavailableHere}</p>}
         <label>{a.model}<Select value={model} disabled={codex && (!current || loading)} onValueChange={(picked) => {
-          if (!codex) return choose({ ...setting, model: picked as AgentModel });
+          const followProjectModel = picked === defaultModel ? true : undefined;
+          if (!codex) return choose({ ...setting, followProjectModel, model: picked as AgentModel });
           const next = current?.find((m) => m.model === picked);
           const supported = AGENT_EFFORTS.filter((x) => next?.supportedReasoningEfforts.some((y) => y.reasoningEffort === x));
-          choose({ ...setting, [other!]: { model: picked === defaultModel && baseline === 'default' ? 'default' : picked, effort: supported.includes(choice.effort) ? choice.effort : supported[0] ?? choice.effort } });
+          choose({ ...setting, followProjectModel, [other!]: { model: picked, effort: supported.includes(choice.effort) ? choice.effort : supported[0] ?? choice.effort } });
         }}>
           <ModelOptions harness={harness} models={current} value={model} defaultModel={defaultModel} />
         </Select></label>
