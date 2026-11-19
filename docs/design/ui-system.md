@@ -13,7 +13,7 @@ When a screen needs a control, take the first of these that does the job:
    `components.json`) into `src/ui/components/`. Once copied it is ours: edit it freely, with
    frost's needs written into it rather than patched over from outside.
 2. **A proven library already in use**: AI Elements for conversations (`components/ai/`), cmdk for
-   command lists, Lucide for every icon, Shiki for code, sonner for toasts, TanStack Table under
+   command lists, Lucide for every icon (devicons for brand logos), Shiki for code, sonner for toasts, TanStack Table under
    data tables, Radix Primitives under the shadcn parts. A new dependency only where none of these covers the need.
 3. **Tailwind and cva next to the component**, on the tokens of `tailwind.css` (`bg-primary`,
    `text-muted-foreground`, `bg-waiting-subtle`): no one-off pixel values or colours, no inline
@@ -57,7 +57,10 @@ same style. UI text comes from `src/ui/strings.ts`, never a literal.
 - **Contrast**: marks at least 3:1 against glass, state text at least 4.5:1, in both modes, measured
   by `frost.test.ts`.
 - **Type and icons**: Inter, self-hosted; the system monospace for code; Lucide icons only, never
-  typographic stand-ins (▾, ✕).
+  typographic stand-ins (▾, ✕). The one exception is a brand: a harness (Claude Code, Codex,
+  Antigravity) is shown by its own logo from `@dev.icons/react` (devicons.io), never a drawn
+  stand-in, since Lucide has no brand marks (2026-11-19; first in the usage pills, which show each
+  limit as its logo and percentage without a meter).
 
 ## Rules every screen follows
 
