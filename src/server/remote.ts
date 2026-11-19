@@ -369,6 +369,16 @@ export class Access implements Gate {
     return this.livePairing()!;
   }
 
+  /**
+   * A link that pairs whichever browser opens it first, at the address other devices reach Seismic
+   * under, once the network is made as the setting says; `null` while they do not reach it. A login
+   * link would not do there: it signs in only a browser on this machine (`loginRoute`).
+   */
+  async pairingLink(): Promise<string | null> {
+    await this.applying;
+    return this.address() ? this.pair().url : null;
+  }
+
   /** Pairs the device that brings the current code; its cookie, or `null` for a wrong or expired code. */
   /** `counts`: a wrong code spends one of the tries; one another site sent the browser here with spends none. */
   redeem(code: string, userAgent: string, counts = true): { token: string; device: DeviceView } | null {

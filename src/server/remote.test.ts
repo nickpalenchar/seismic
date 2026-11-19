@@ -393,6 +393,22 @@ describe('on another address', () => {
     expect(await there('/').then(() => 'answered', () => 'gone')).toBe('gone');
   });
 
+  test.skipIf(!lan)('the link a --lan start prints signs in a browser there: it pairs it, where a login link would only send it on', async () => {
+    expect(await access.pairingLink()).toBeNull();
+    await turnOn({ via: 'address', address: lan });
+    const there = (path: string, headers: Record<string, string> = {}) => fetch(path.startsWith('http') ? path : `http://${lan}:${server.port}${path}`, { redirect: 'manual', headers: { 'user-agent': IPHONE, ...headers } });
+    // the owner's login link opened at that address signs nothing in
+    const login = await there(access.owner.link(`http://${lan}:${server.port}`));
+    expect(login.headers.get('set-cookie')).toBeNull();
+    const link = (await access.pairingLink())!;
+    expect(link).toStartWith(`http://${lan}:${server.port}/pair?code=`);
+    const signed = await there(link);
+    expect(signed.status).toBe(303);
+    expect((await there('/', { cookie: cookieOf(signed) })).status).toBe(200);
+    // once only
+    expect((await there(link)).status).toBe(401);
+  });
+
   test('an address that is not this machine’s is refused with a reason', async () => {
     expect((await turnOn({ via: 'address', address: '203.0.113.9' })).problem).toMatchObject({ code: 'listen' });
   });
