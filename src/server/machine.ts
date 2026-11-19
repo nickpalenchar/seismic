@@ -184,29 +184,38 @@ function waited(argv: string[], env: Env): Promise<string | null> {
  * Runs a command to its end, at most `timeout` ms: whether it succeeded, and why not in a line: its last
  * `fatal:` or `error:` line on stderr (git closes with advice after it), else its last line.
  */
-function tried(argv: string[], env: Env, timeout: number): Promise<{ ok: boolean; last: string }> {
+export function tried(argv: string[], env: Env, timeout: number): Promise<{ ok: boolean; last: string }> {
   return new Promise((done) => {
     const p = spawn(argv[0]!, argv.slice(1), { env, windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'], detached: NO_TTY });
     let stderr = '';
-    let late = false;
-    const timer = setTimeout(() => ((late = true), p.kill()), timeout);
+    const timer = setTimeout(() => {
+      // A descendant can keep stderr open after git exits. Report the timeout independently of close.
+      done({ ok: false, last: 'no answer in time' });
+      p.stderr.destroy();
+      if (!p.pid) return;
+      if (NO_TTY) {
+        try { process.kill(-p.pid, 'SIGKILL'); } catch { /* the process group has already exited */ }
+      } else {
+        // Windows has no Unix process group to signal. End the tree without waiting for taskkill.
+        const killer = spawn('taskkill.exe', ['/PID', String(p.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' });
+        killer.on('error', () => p.kill('SIGKILL'));
+        killer.unref();
+      }
+    }, timeout);
     p.stderr.on('data', (d) => (stderr += d));
     const end = (ok: boolean, why: string) => {
       clearTimeout(timer);
       const lines = stderr.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
       const line = lines.findLast((l) => /^(fatal|error):/i.test(l)) ?? lines.at(-1);
-      done({ ok, last: late ? 'no answer in time' : (line?.replace(/^(fatal|error):\s*/i, '') || why) });
+      done({ ok, last: line?.replace(/^(fatal|error):\s*/i, '') || why });
     };
     p.on('error', (e) => end(false, e.message));
-    p.on('close', (code) => end(code === 0 && !late, `${argv[0]} exited with ${code}`));
+    p.on('close', (code) => end(code === 0, `${argv[0]} exited with ${code}`));
   });
 }
 
-/** git's options that make gh's login its only credential helper (the empty one drops the others), as `gh repo clone` does. */
-const GH_HELPER_ARGS = ['-c', 'credential.helper=', '-c', 'credential.helper=!gh auth git-credential'];
-
-/** git's options that leave it no askpass program (an empty one ends the search for one) and its credential helpers no dialog. */
-const NO_PROMPT_ARGS = ['-c', 'core.askPass=', '-c', 'credential.interactive=false'];
+/** Empty values clear Git's configured askpass program and credential helpers, including URL-specific helpers. */
+const NO_PROMPT_ARGS = ['-c', 'core.askPass=', '-c', 'credential.interactive=false', '-c', 'credential.helper='];
 
 /** A command that must never ask the owner anything runs in a session of its own, without the terminal Seismic was started from (Windows has no such terminal to lose). */
 const NO_TTY = process.platform !== 'win32';
@@ -596,21 +605,19 @@ export class MachineSetup {
   private async route(spec: string): Promise<{ argv: (verb: string[]) => string[]; url: string; github: boolean; ghLogin: boolean; env: Env }> {
     const short = /^[\w.-]+\/[\w.-]+$/.test(spec);
     const github = short || /^https?:\/\/(www\.)?github\.com\//i.test(spec);
-    const ghLogin = github && (await output('gh', ['auth', 'status'], this.env)) !== null;
     const url = short ? `https://github.com/${spec}.git` : expandHome(spec);
-    const helper = ghLogin ? GH_HELPER_ARGS : [];
-    // no way to ask: no terminal prompt, no askpass program (git's from the environment or its config,
-    // ssh's), credential helpers told not to ask (Git Credential Manager by both its names), ssh in batch
-    // mode where no ssh command of the owner's is set; and the process has no controlling terminal
-    // (`NO_TTY`) that git or ssh could open by themselves
+    // Drop configured helpers entirely: arbitrary helpers can ignore the noninteractive settings.
+    // Git and SSH run without askpass or a controlling terminal; the default SSH command uses batch mode.
     const { GIT_ASKPASS: _git, SSH_ASKPASS: _ssh, ...rest } = this.env;
     const env: Env = {
       ...rest,
       GIT_TERMINAL_PROMPT: '0',
-      GCM_INTERACTIVE: 'never',
+      GH_PROMPT_DISABLED: '1',
       SSH_ASKPASS_REQUIRE: 'never',
       ...(this.env.GIT_SSH_COMMAND ? {} : { GIT_SSH_COMMAND: 'ssh -o BatchMode=yes' }),
     };
+    const ghLogin = github && (await tried(['gh', 'auth', 'status'], env, 30_000)).ok;
+    const helper = ghLogin ? ['-c', 'credential.helper=!gh auth git-credential'] : [];
     return { argv: (verb) => ['git', ...NO_PROMPT_ARGS, ...helper, ...verb], url, github, ghLogin, env };
   }
 

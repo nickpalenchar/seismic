@@ -8,7 +8,7 @@ import type { ProjectRuntime } from './project';
 import { Config } from './config';
 import { Store } from './store';
 import { claudeToken } from './hosts';
-import { cloneName, codexHint, machineHint, MachineSetup, runnable, WELCOME_FILE, welcome } from './machine';
+import { cloneName, codexHint, machineHint, MachineSetup, runnable, tried, WELCOME_FILE, welcome } from './machine';
 import { agentSetting, saveAgents } from './settings';
 import { gitRepo } from './testing';
 import { HarnessCheck } from './llms/harnesses';
@@ -419,17 +419,56 @@ describe('the first project', () => {
     // the clone goes the way the check went
     await s.project({ clone: 'acme/private-shop', into: join(dir, 'code') });
     for (let i = 0; (await s.view()).job?.running && i < 100; i++) await Bun.sleep(50);
-    // each call leaves git no way to ask: no askpass program, credential helpers told not to ask
-    const NP = '-c core.askPass= -c credential.interactive=false ';
+    // Each check and clone clears askpass and any configured credential helpers.
+    const NP = '-c core.askPass= -c credential.interactive=false -c credential.helper= ';
     // the view's own git calls aside
     const lines = readFileSync(calls, 'utf8').trim().split('\n').filter((l) => l !== '--version');
     expect(lines).toEqual([
       `${NP}ls-remote --heads -- https://github.com/acme/private-shop.git`,
-      `${NP}-c credential.helper= -c credential.helper=!gh auth git-credential ls-remote --heads -- https://github.com/acme/private-shop.git`,
-      `${NP}-c credential.helper= -c credential.helper=!gh auth git-credential ls-remote --heads -- https://github.com/acme/private-shop`,
+      `${NP}-c credential.helper=!gh auth git-credential ls-remote --heads -- https://github.com/acme/private-shop.git`,
+      `${NP}-c credential.helper=!gh auth git-credential ls-remote --heads -- https://github.com/acme/private-shop`,
       `${NP}ls-remote --heads -- https://example.com/acme/shop.git`,
-      `${NP}-c credential.helper= -c credential.helper=!gh auth git-credential clone --progress -- https://github.com/acme/private-shop.git ${join(dir, 'code', 'private-shop')}`,
+      `${NP}-c credential.helper=!gh auth git-credential clone --progress -- https://github.com/acme/private-shop.git ${join(dir, 'code', 'private-shop')}`,
     ]);
+  });
+
+  test('configured helpers and askpass are bypassed on checks and clones without a GitHub login', async () => {
+    const realGit = Bun.which('git')!;
+    const gitConfig = join(dir, 'gitconfig');
+    const prompt = join(bin, 'prompt');
+    const prompted = join(dir, 'prompted');
+    fake('prompt', `touch '${prompted}'; exit 1`);
+    writeFileSync(gitConfig, `[core]\n\taskPass = ${prompt}\n[credential]\n\thelper = !${prompt}\n[credential "https://example.com"]\n\thelper = !${prompt}\n`);
+    fake('gh', 'exit 1');
+    // Exercise Git's actual credential lookup without an authenticated server.
+    const probe = join(dir, 'credential-probe.ts');
+    writeFileSync(probe, `
+      const args = process.argv.slice(2);
+      const verb = args.findIndex((arg) => arg === 'ls-remote' || arg === 'clone');
+      if (verb < 0) process.exit(1);
+      const url = new URL(args[args.indexOf('--') + 1]);
+      const git = Bun.spawnSync([${JSON.stringify(realGit)}, ...args.slice(0, verb), 'credential', 'fill'], {
+        stdin: Buffer.from('protocol=https\\nhost=' + url.hostname + '\\n\\n'),
+        stderr: 'inherit',
+      });
+      process.exit(git.exitCode);
+    `);
+    fake('git', `exec '${process.execPath}' '${probe}' "$@"`);
+    const machine = setup({ env: { GIT_CONFIG_GLOBAL: gitConfig, GIT_CONFIG_NOSYSTEM: '1', GIT_ASKPASS: prompt, PATH: `${bin}:${process.env.PATH}` } });
+    const authError = expect.stringMatching(/unable to get password|terminal prompts disabled/);
+    for (const clone of ['acme/private-shop', 'https://example.com/acme/shop.git']) {
+      expect(await machine.repo({ clone })).toMatchObject({ readable: false, error: authError });
+      await machine.project({ clone, into: join(dir, 'code') });
+      let view = await machine.view();
+      for (let i = 0; view.job?.running && i < 100; i++) await Bun.sleep(50), (view = await machine.view());
+      expect(view.job).toMatchObject({ kind: 'clone', running: false, error: authError });
+    }
+    expect(existsSync(prompted)).toBe(false);
+  });
+
+  test.skipIf(process.platform === 'win32')('a command times out even when a child keeps stderr open', async () => {
+    fake('holds-stderr', '/bin/sleep 10 >&2 & exit 0');
+    expect(await tried([join(bin, 'holds-stderr')], {}, 100)).toEqual({ ok: false, last: 'no answer in time' });
   });
 
   test('names a clone after its repository', () => {

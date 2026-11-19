@@ -222,10 +222,11 @@ cycling through terminals.
   The repository a first project is cloned from is read when its field is left with another value
   than the one read last (2026-11-18), not while typing. Check and clone reach it the same way: by
   `git ls-remote` and `git clone`, a GitHub repository (owner/name or https) with gh's login as git's
-  only credential helper where gh is logged in, never with a password prompt (it would hang the
-  check): no terminal prompt, no askpass program of git's or ssh's, helpers told not to ask, ssh in
-  batch mode, and no controlling terminal for git or ssh to open. Rejected: `gh repo view`, which an API token can pass without the contents access a clone
-  needs. A GitHub repository that cannot be read while gh is logged out may just be private, so the
+  only credential helper where gh is logged in. Both commands clear configured helpers and askpass
+  programs and run without a controlling terminal, with SSH in batch mode by default. The read
+  reports a timeout even if a child process keeps its output pipe open. Rejected: `gh repo view`,
+  which an API token can pass without the contents access a clone needs. A GitHub repository that
+  cannot be read while gh is logged out may just be private, so the
   line offers gh's login and, a login in a terminal of its own bringing no focus back, reads again
   every 15 seconds until it shows. The check informs and does not block the clone.
 - **A project has an icon, as a canvas has** (2026-11-19): the same values and the same picker, so a
