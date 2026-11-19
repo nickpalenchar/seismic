@@ -377,8 +377,8 @@ export function CanvasDialog({ project, canvases, canvas, onClose, onDone }: { p
         glass
         className={cn(
           'box-border flex w-[600px] flex-col overflow-hidden px-6 pt-6 pb-5 short:overflow-y-auto [&>:not(.cd-icons)]:shrink-0',
-          // a short window: the emoji picker's list grows to its full height, so the dialog is the one thing that scrolls (also when searching or switching tabs with the keyboard up)
-          'short:[&_[data-slot=emoji-picker-viewport]]:flex-none short:[&_[data-slot=emoji-picker-viewport]]:!overflow-visible short:[&_[data-slot=emoji-picker-viewport]]:![contain:none] short:[&_[data-slot=emoji-picker-emoji]]:scroll-mt-2 short:[&_[data-slot=emoji-picker-emoji]]:scroll-mb-20',
+          // a short window: the icon grid and the emoji picker's list grow to its full height, so the dialog is the one thing that scrolls (also when searching or switching tabs with the keyboard up)
+          'short:[&_[data-slot=icon-grid]]:flex-none short:[&_[data-slot=icon-grid]]:overflow-visible short:[&_[data-slot=icon-grid]>*]:scroll-mt-2 short:[&_[data-slot=icon-grid]>*]:scroll-mb-20 short:[&_[data-slot=emoji-picker-viewport]]:flex-none short:[&_[data-slot=emoji-picker-viewport]]:!overflow-visible short:[&_[data-slot=emoji-picker-viewport]]:![contain:none] short:[&_[data-slot=emoji-picker-emoji]]:scroll-mt-2 short:[&_[data-slot=emoji-picker-emoji]]:scroll-mb-20',
         )}
         layerClassName="items-start pt-[8vh]"
         onOpenAutoFocus={(e) => {

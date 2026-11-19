@@ -102,10 +102,19 @@ function categoryAtTop(root: HTMLElement, viewport: HTMLElement): string | undef
 /**
  * The tabs over the list, one per category: a click shows the category from its start (out of a
  * search, which it ends, when the category has nothing found); the one the list shows at its top is
- * the tab selected.
+ * the tab selected. Only the latest jump lands: one still waiting for the search to clear is dropped
+ * by another, by a new search, or when the picker goes.
  */
 function EmojiCategoryTabs({ root, viewport, at, search, onSearch }: { root: RefObject<HTMLDivElement | null>; viewport: RefObject<HTMLDivElement | null>; at: string | undefined; search: string; onSearch: (search: string) => void }) {
+  // a jump that waits for the search to clear; a newer jump, a new search or leaving drops it
+  const pending = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const drop = () => clearTimeout(pending.current);
+  useEffect(() => {
+    if (search) drop();
+  }, [search]);
+  useEffect(() => drop, []);
   const jump = (label: string) => {
+    drop();
     const go = () => {
       const r = root.current;
       const v = viewport.current;
@@ -118,7 +127,7 @@ function EmojiCategoryTabs({ root, viewport, at, search, onSearch }: { root: Ref
     if (!search || (root.current && blockOf(root.current, label))) return go();
     onSearch('');
     // frimousse lists everything again once it is idle (within 100 ms)
-    setTimeout(go, 150);
+    pending.current = setTimeout(go, 150);
   };
   return (
     <Tabs value={at ?? ''} onValueChange={jump} activationMode="manual" className="mt-1.5 shrink-0">

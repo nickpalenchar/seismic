@@ -28,7 +28,7 @@ export type IconPickerChange = Partial<IconPickerView> & { icon?: string | null 
 export const pickerLabel = 'text-xs font-semibold text-muted-foreground';
 const colorChoice = 'grid size-7 cursor-pointer place-items-center rounded-full border border-transparent bg-transparent p-0 hover:bg-muted data-[state=checked]:border-foreground';
 const swatch = 'block size-[18px] rounded-full';
-const iconChoice = 'grid h-10 cursor-pointer place-items-center rounded-md border border-transparent bg-transparent p-0 text-foreground hover:bg-muted data-[state=checked]:border-foreground data-[state=checked]:bg-muted short:scroll-mt-2 short:scroll-mb-20';
+const iconChoice = 'grid h-10 cursor-pointer place-items-center rounded-md border border-transparent bg-transparent p-0 text-foreground hover:bg-muted data-[state=checked]:border-foreground data-[state=checked]:bg-muted';
 
 /** The radio value of the text's colour: a radio has no null. */
 const TEXT_COLOR = '\0text';
@@ -41,7 +41,9 @@ export const iconsMatching = (search: string) => {
 
 /**
  * The picker: `icon` is the one chosen (null: none), `view` what it shows; `onChange` gets each change.
- * `panelClassName` sizes the tabs' panels (they scroll inside it).
+ * `panelClassName` sizes the tabs' panels: their lists scroll inside them, the one scrollbar there
+ * is. A container that scrolls as a whole instead (the canvas dialog in a short window) lets the
+ * lists grow to their full height itself (`data-slot` `icon-grid`, `emoji-picker-viewport`).
  */
 export function IconPicker({ icon, view, onChange, className, panelClassName }: { icon: string | null; view: IconPickerView; onChange: (c: IconPickerChange) => void; className?: string; panelClassName: string }) {
   const lucide = lucideIcon(icon ?? undefined);
@@ -85,7 +87,7 @@ export function IconPicker({ icon, view, onChange, className, panelClassName }: 
             choice(c, t.canvases.colors[c], <span className={swatch} style={{ background: CANVAS_ICON_COLORS[c] }} />, colorChoice),
           )}
         </RadioGroup>
-        <RadioGroup className="-mx-1 grid min-h-0 flex-1 auto-rows-[40px] grid-cols-[repeat(auto-fill,minmax(40px,1fr))] content-start gap-1 overflow-auto px-1 short:flex-none short:overflow-visible" label={t.canvases.icons} value={lucide?.name ?? ''} onValueChange={(n) => onChange({ icon: lucideIconValue(n, color) })}>
+        <RadioGroup data-slot="icon-grid" className="-mx-1 grid min-h-0 flex-1 auto-rows-[40px] grid-cols-[repeat(auto-fill,minmax(40px,1fr))] content-start gap-1 overflow-auto px-1" label={t.canvases.icons} value={lucide?.name ?? ''} onValueChange={(n) => onChange({ icon: lucideIconValue(n, color) })}>
           {matching.map((n) => {
             const L = lucideOf(`lucide:${n}`)!.Icon;
             return choice(n, n.replace(/-/g, ' '), <L size={20} strokeWidth={2} style={color ? { color: CANVAS_ICON_COLORS[color] } : undefined} aria-hidden />);

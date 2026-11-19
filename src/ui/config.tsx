@@ -2449,11 +2449,13 @@ function ProjectIconField({ icon, onChange }: { icon: string | undefined; onChan
           </Button>
         </PopoverTrigger>
       </Tooltip>
-      <PopoverContent align="start" className="w-[min(460px,calc(100vw-16px))] px-4 pt-3.5 pb-3">
+      {/* as tall as the screen has room for, up to its full size: the icon or emoji list inside shrinks and scrolls, the pane never does */}
+      <PopoverContent align="start" className="flex w-[min(460px,calc(100vw-16px))] flex-col !overflow-hidden px-4 pt-3.5 pb-3">
         <IconPicker
+          className="min-h-0 flex-[0_1_auto]"
           icon={icon ?? null}
           view={view}
-          panelClassName="h-[340px] flex-none"
+          panelClassName="!flex-[0_1_340px]"
           onChange={({ icon: picked, ...v }) => {
             setView((was) => ({ ...was, ...v }));
             if (picked !== undefined) onChange(picked);
