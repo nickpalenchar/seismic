@@ -87,7 +87,7 @@ export async function handleMcp(reg: AgyRegistration, message: unknown): Promise
   }
   if (m.method === 'ping') return rpc(m.id, {});
   if (m.method === 'tools/list') {
-    return rpc(m.id, { tools: [...reg.tools].map(([name, { tool, schema }]) => ({ name, description: tool.description, inputSchema: z.toJSONSchema(schema) })) });
+    return rpc(m.id, { tools: [...reg.tools].map(([name, { tool, schema }]) => ({ name, description: tool.description, inputSchema: z.toJSONSchema(schema, { io: 'input' }) })) });
   }
   if (m.method === 'tools/call') {
     const entry = typeof m.params?.name === 'string' ? reg.tools.get(m.params.name) : undefined;

@@ -186,7 +186,7 @@ export function createCodexRuntime(connect: Connect = connectInstalled): AgentRu
       supported(spec);
       const tools = new Map(spec.tools.map((t) => [wirePrefix + t.name, { tool: t, schema: z.object(t.schema).strict() }]));
       if (tools.size !== spec.tools.length) throw new Error('Duplicate Seismic tool name');
-      const dynamicTools = [...tools].map(([name, { tool, schema }]) => ({ type: 'function', name, description: tool.description, inputSchema: z.toJSONSchema(schema) }));
+      const dynamicTools = [...tools].map(([name, { tool, schema }]) => ({ type: 'function', name, description: tool.description, inputSchema: z.toJSONSchema(schema, { io: 'input' }) }));
       const queue: { text: string; images: string[] }[] = [];
       const completed = new Set<string>();
       const toolResults = new Map<string, Promise<unknown>>();
