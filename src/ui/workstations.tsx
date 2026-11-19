@@ -113,8 +113,9 @@ export const hostSpots = (h: PoolHost, items: Item[]): (PoolWorkstation | undefi
     if (i && (i.queue || snoozeOf(i))) hidden.add(i.id);
   }
   for (const { card } of cards) hidden.delete(card);
-  const visibleSlots = Math.max(0, h.slots - hidden.size);
-  // Waiting cards can retain more worktrees than the cap. Keep busy cards visible first in that case.
+  const visibleBusy = cards.filter((w) => busy.has(w.card)).length;
+  // Show active work first. Hidden reservations use only the space left after visible workers.
+  const visibleSlots = Math.min(h.slots, Math.max(visibleBusy, h.slots - hidden.size));
   if (cards.length > visibleSlots) cards.sort((a, b) => Number(busy.has(b.card)) - Number(busy.has(a.card)));
   const spots = [...cards, ...ideas].slice(0, visibleSlots);
   return [...spots, ...Array.from({ length: visibleSlots - spots.length }, () => undefined)];

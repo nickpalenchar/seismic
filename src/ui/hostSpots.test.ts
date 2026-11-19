@@ -37,6 +37,25 @@ test('busy worktrees have priority when more cards hold worktrees than the cap',
   expect(hostSpots({ ...h, slots: 0, total: 0, uncapped: true }, items)).toEqual([waiting, working]);
 });
 
+test('hidden worktrees reserve space after visible workers', () => {
+  const working = { path: '/w/working', card: 'working' };
+  const waiting = { path: '/w/waiting', card: 'waiting' };
+  const h = host({
+    busy: ['working', 'outside'],
+    workstations: [waiting, { path: '/w/queued', card: 'queued' }, { path: '/w/snoozed', card: 'snoozed' }, working],
+  });
+  const items = [
+    card('waiting', { state: 'waiting' }),
+    card('queued', { queue: { workstation: 'slots' } as Item['queue'] }),
+    card('snoozed', { hold: { reason: 'snoozed', by: 'owner', since: '2026-11-18T12:00:00Z' } }),
+    card('working'),
+  ];
+  expect(hostSpots(h, items)).toStrictEqual([working]);
+  expect(hostSpots({ ...h, busy: ['working'] }, items)).toStrictEqual([working]);
+  expect(hostSpots({ ...h, slots: 4, total: 4 }, items)).toStrictEqual([working]);
+  expect(hostSpots({ ...h, slots: 6, total: 6 }, items)).toStrictEqual([waiting, working, undefined]);
+});
+
 test('a card whose code review agent is at work counts at work beside the workers in a turn', () => {
   expect(atWorkOn(host({ busy: ['a'], reviewing: ['b'] }))).toBe(2);
   expect(atWorkOn(host({ busy: ['a'] }))).toBe(1);
