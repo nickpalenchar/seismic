@@ -73,7 +73,7 @@ test('handshake enables experimental tools; model is discovered and names normal
   const result = await wire.server('item/tool/call', { callId: 'c1', namespace: null, tool: 'seismic_report', arguments: { text: 'done' } });
   expect(result).toEqual({ contentItems: [{ type: 'inputText', text: 'recorded' }], success: true });
   expect(calls).toEqual([{ text: { value: 'done' } }]);
-  expect(events.at(-1)).toEqual({ type: 'tool', name: 'mcp__seismic__report', input: { text: 'done' } });
+  expect(events.at(-1)).toEqual({ type: 'tool', name: 'mcp__seismic__report', input: { text: { value: 'done' } } });
 });
 
 test('execution tools are exposed and callable with a single Seismic prefix', async () => {
