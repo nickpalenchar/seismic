@@ -620,8 +620,9 @@ export class MachineSetup {
    */
   private async route(spec: string, action: 'check' | 'clone'): Promise<{ argv: (verb: string[]) => string[]; url: string; github: boolean; ghLogin: boolean; env: Env }> {
     const short = /^[\w.-]+\/[\w.-]+$/.test(spec);
-    const github = short || /^https?:\/\/(www\.)?github\.com\//i.test(spec);
-    const url = short ? `https://github.com/${spec}.git` : expandHome(spec);
+    const githubOrigin = /^https?:\/\/(?:www\.)?github\.com\//i;
+    const github = short || githubOrigin.test(spec);
+    const url = short ? `https://github.com/${spec}.git` : expandHome(spec.replace(githubOrigin, 'https://github.com/'));
     // Git and SSH run without askpass or a controlling terminal. The default SSH command uses batch mode.
     const { GIT_ASKPASS: _git, SSH_ASKPASS: _ssh, ...rest } = this.env;
     const env: Env = {
@@ -634,7 +635,7 @@ export class MachineSetup {
     const ghLogin = github && (await tried(['gh', 'auth', 'status'], env, 30_000)).ok;
     // An empty helper resets all configured helpers, including URL-specific ones.
     const helper = action === 'check' || ghLogin ? ['-c', 'credential.helper='] : [];
-    if (ghLogin) helper.push('-c', 'credential.helper=!gh auth git-credential');
+    if (ghLogin) helper.push('-c', 'credential.https://github.com.helper=!gh auth git-credential');
     return { argv: (verb) => ['git', ...NO_PROMPT_ARGS, ...helper, ...verb], url, github, ghLogin, env };
   }
 

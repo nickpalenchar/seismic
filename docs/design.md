@@ -221,7 +221,8 @@ cycling through terminals.
   owner ran the command by hand), and each login has its own "Check again".
   The repository a first project is cloned from is read when its field is left with another value
   than the one read last (2026-11-18), not while typing. Both `git ls-remote` and `git clone` use
-  gh's login as Git's only credential helper for GitHub (owner/name or HTTPS) when signed in.
+  gh's login as Git's only credential helper for GitHub when signed in. Both normalize GitHub web
+  URLs and owner/name to HTTPS and scope the helper to https://github.com.
   Otherwise the background check skips configured helpers because they can open dialogs, and
   an explicit clone uses them so saved HTTPS credentials still work. Both commands disable Git's
   own prompts and run without a controlling terminal. The default SSH command runs in batch mode,

@@ -415,10 +415,11 @@ describe('the first project', () => {
     writeFileSync(loggedIn, '');
     expect(await s.repo({ clone: 'acme/private-shop' })).toEqual({ readable: true });
     expect(await s.repo({ clone: 'https://github.com/acme/private-shop' })).toEqual({ readable: true });
+    expect(await s.repo({ clone: 'http://github.com/acme/private-shop.git' })).toEqual({ readable: true });
     // not GitHub: no login to offer, and gh's stays out of it
     expect(await s.repo({ clone: 'https://example.com/acme/shop.git' })).toMatchObject({ readable: false, github: false });
     // the clone goes the way the check went
-    await s.project({ clone: 'acme/private-shop', into: join(dir, 'code') });
+    await s.project({ clone: 'HTTP://www.GitHub.com/acme/private-shop.git', into: join(dir, 'code') });
     for (let i = 0; (await s.view()).job?.running && i < 100; i++) await Bun.sleep(50);
     // Background checks and signed-in GitHub clones clear configured helpers.
     const NP = '-c core.askPass= -c credential.interactive=false -c credential.helper= ';
@@ -426,10 +427,11 @@ describe('the first project', () => {
     const lines = readFileSync(calls, 'utf8').trim().split('\n').filter((l) => l !== '--version');
     expect(lines).toEqual([
       `${NP}ls-remote --heads -- https://github.com/acme/private-shop.git`,
-      `${NP}-c credential.helper=!gh auth git-credential ls-remote --heads -- https://github.com/acme/private-shop.git`,
-      `${NP}-c credential.helper=!gh auth git-credential ls-remote --heads -- https://github.com/acme/private-shop`,
+      `${NP}-c credential.https://github.com.helper=!gh auth git-credential ls-remote --heads -- https://github.com/acme/private-shop.git`,
+      `${NP}-c credential.https://github.com.helper=!gh auth git-credential ls-remote --heads -- https://github.com/acme/private-shop`,
+      `${NP}-c credential.https://github.com.helper=!gh auth git-credential ls-remote --heads -- https://github.com/acme/private-shop.git`,
       `${NP}ls-remote --heads -- https://example.com/acme/shop.git`,
-      `${NP}-c credential.helper=!gh auth git-credential clone --progress -- https://github.com/acme/private-shop.git ${join(dir, 'code', 'private-shop')}`,
+      `${NP}-c credential.https://github.com.helper=!gh auth git-credential clone --progress -- https://github.com/acme/private-shop.git ${join(dir, 'code', 'private-shop')}`,
     ]);
   });
 
