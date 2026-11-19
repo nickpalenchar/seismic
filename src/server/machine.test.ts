@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CLONES, type MachineView } from '../core/types';
@@ -480,6 +480,44 @@ describe('the first project', () => {
     }
     expect(readFileSync(used, 'utf8').trim().split('\n')).toEqual(['global', 'scoped']);
     expect(existsSync(prompted)).toBe(false);
+  });
+
+  test.skipIf(process.platform === 'win32').each(['configured', 'conditional', 'GIT_SSH', 'GIT_SSH_COMMAND', 'default'])('checks and clones use the %s SSH transport', async (transport) => {
+    const origin = gitRepo(join(dir, 'origin'));
+    const calls = join(dir, 'ssh-calls');
+    const gitConfig = join(dir, 'gitconfig');
+    const script = (name: string) => `echo "${name} $*" >> '${calls}'; exec git upload-pack '${origin}'`;
+    fake('ssh', script('default'));
+    fake('custom-ssh', script('custom'));
+    const custom = join(bin, 'custom-ssh');
+    const env: Record<string, string> = { PATH: `${bin}:${process.env.PATH}`, GIT_CONFIG_GLOBAL: gitConfig, GIT_CONFIG_NOSYSTEM: '1' };
+    const remote = 'ssh://git@example.invalid/team/shop.git';
+    let configText = '[ssh]\n\tvariant = simple\n';
+    const sshConfig = `[core]\n\tsshCommand = '${custom}' --identity team-key\n`;
+    if (transport === 'configured' || transport === 'GIT_SSH_COMMAND') configText += sshConfig;
+    if (transport === 'conditional') {
+      const included = join(dir, 'clone-config');
+      writeFileSync(included, sshConfig);
+      configText += `[includeIf "gitdir:${realpathSync(dir)}/code/shop/"]\n\tpath = ${included}\n`;
+    }
+    if (transport === 'GIT_SSH') env.GIT_SSH = custom;
+    if (transport === 'GIT_SSH_COMMAND') env.GIT_SSH_COMMAND = `'${custom}' --jump bastion`;
+    // An HTTPS URL rewritten to SSH must use the same transport selection.
+    const clone = transport === 'configured' ? 'https://example.invalid/team/shop.git' : remote;
+    if (clone !== remote) configText += `[url "${remote}"]\n\tinsteadOf = ${clone}\n`;
+    writeFileSync(gitConfig, configText);
+    const machine = setup({ env });
+    expect(await machine.repo({ clone })).toEqual({ readable: true });
+    await machine.project({ clone, into: join(dir, 'code') });
+    let view = await machine.view();
+    for (let i = 0; view.job?.running && i < 100; i++) await Bun.sleep(50), (view = await machine.view());
+    expect(view.job).toMatchObject({ kind: 'clone', running: false, branch: 'main' });
+    const args = { configured: 'custom --identity team-key', conditional: 'default -o BatchMode=yes', GIT_SSH: 'custom', GIT_SSH_COMMAND: 'custom --jump bastion', default: 'default -o BatchMode=yes' }[transport];
+    const cloneArgs = transport === 'conditional' ? 'custom --identity team-key' : args;
+    expect(readFileSync(calls, 'utf8').trim().split('\n')).toEqual([
+      `${args} git@example.invalid git-upload-pack '/team/shop.git'`,
+      `${cloneArgs} git@example.invalid git-upload-pack '/team/shop.git'`,
+    ]);
   });
 
   test.skipIf(process.platform === 'win32')('a command times out even when a child keeps stderr open', async () => {

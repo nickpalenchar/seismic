@@ -224,7 +224,8 @@ cycling through terminals.
   gh's login as Git's only credential helper for GitHub (owner/name or HTTPS) when signed in.
   Otherwise the background check skips configured helpers because they can open dialogs, and
   an explicit clone uses them so saved HTTPS credentials still work. Both commands disable Git's
-  own prompts and run without a controlling terminal, with SSH in batch mode by default. The read
+  own prompts and run without a controlling terminal. The default SSH command runs in batch mode,
+  and Git keeps any SSH transport selected through its configuration or environment. The read
   reports a timeout even if a child process keeps its output pipe open. Rejected: `gh repo view`,
   which an API token can pass without the contents access a clone needs. A GitHub repository that
   cannot be read while gh is logged out may just be private, so the

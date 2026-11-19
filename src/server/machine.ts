@@ -10,8 +10,8 @@
 // mobile development (Xcode, an iPhone simulator, Safari's remote automation).
 
 import { spawn } from 'node:child_process';
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { homedir, userInfo } from 'node:os';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { homedir, tmpdir, userInfo } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 // by its path: the package exports no package.json, which Bun imports all the same but TypeScript does not
 import sdk from '../../node_modules/@anthropic-ai/claude-agent-sdk/package.json';
@@ -216,6 +216,24 @@ export function tried(argv: string[], env: Env, timeout: number): Promise<{ ok: 
 
 /** Turn off Git's own prompts, including its configured askpass program. */
 const NO_PROMPT_ARGS = ['-c', 'core.askPass=', '-c', 'credential.interactive=false'];
+
+/**
+ * Git consults GIT_SSH after core.sshCommand. Even config Git loads after initializing a clone
+ * can still select the transport. Git for Windows also runs extensionless scripts via their shebang.
+ */
+async function withBatchSsh<T>(env: Env, run: (env: Env) => Promise<T>): Promise<T> {
+  if (env.GIT_SSH !== undefined || env.GIT_SSH_COMMAND !== undefined) return run(env);
+  const dir = mkdtempSync(join(tmpdir(), 'seismic-ssh-'));
+  try {
+    // Keep the basename so Git recognizes this fallback as OpenSSH and passes its usual options.
+    const ssh = join(dir, 'ssh');
+    writeFileSync(ssh, '#!/bin/sh\nexec ssh -o BatchMode=yes "$@"\n', { mode: 0o700 });
+    return await run({ ...env, GIT_SSH: ssh });
+  } finally {
+    // A timed-out child on Windows may still have the script open as its tree is being stopped.
+    try { rmSync(dir, { recursive: true, force: true }); } catch { /* keep the Git result */ }
+  }
+}
 
 /** A command that must never ask the owner anything runs in a session of its own, without the terminal Seismic was started from (Windows has no such terminal to lose). */
 const NO_TTY = process.platform !== 'win32';
@@ -612,7 +630,6 @@ export class MachineSetup {
       GCM_INTERACTIVE: 'never',
       GH_PROMPT_DISABLED: '1',
       SSH_ASKPASS_REQUIRE: 'never',
-      ...(this.env.GIT_SSH_COMMAND ? {} : { GIT_SSH_COMMAND: 'ssh -o BatchMode=yes' }),
     };
     const ghLogin = github && (await tried(['gh', 'auth', 'status'], env, 30_000)).ok;
     // An empty helper resets all configured helpers, including URL-specific ones.
@@ -631,7 +648,9 @@ export class MachineSetup {
     if (!spec) throw new BadRequest('invalid', 'a repository to clone');
     const { argv, url, github, ghLogin, env } = await this.route(spec, 'check');
     // Git's credential diagnostics need to be recognizable regardless of the machine's locale.
-    const { ok, last } = await tried(argv(['ls-remote', '--heads', '--', url]), { ...env, LC_ALL: 'C' }, REPO_CHECK_MS);
+    const { ok, last } = await withBatchSsh({ ...env, LC_ALL: 'C' }, (gitEnv) =>
+      tried(argv(['ls-remote', '--heads', '--', url]), gitEnv, REPO_CHECK_MS),
+    );
     if (ok) return { readable: true };
     const needsPassword = /^(unable to get password from user|could not read (username|password) for .+: terminal prompts disabled)$/i.test(last);
     return { readable: false, error: last, github, ghLogin, ...(needsPassword ? { needsPassword: true } : {}) };
@@ -655,7 +674,7 @@ export class MachineSetup {
     return this.startJob(
       { kind: 'clone' },
       async (log, job) => {
-        await this.run(argv, log, env, true);
+        await withBatchSsh(env, (gitEnv) => this.run(argv, log, gitEnv, true));
         ({ project: job.project, branch: job.branch, opens: job.opens } = await this.add(dest, false, configured));
       },
       (e) => {
