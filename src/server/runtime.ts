@@ -14,7 +14,7 @@ import { remote } from './hosts';
 import type { z } from 'zod';
 import { OWN_GROUP } from './spawn';
 import type { ToolWatch } from './folder';
-import { harnessChoice, type AgentAt, type AgentEffort, type AgentIdentity, type AgentRole, type AgentSetting, type ClaudeFile } from '../core/types';
+import { harnessChoice, type AgentAt, type AgentEffort, type AgentIdentity, type AgentRole, type AgentSetting, type ClaudeFile, type Harness } from '../core/types';
 import { codexAsTrusted } from './trust';
 import { messageOf } from '../core/text';
 
@@ -170,6 +170,11 @@ export interface AgentRuntime {
   start(spec: AgentSpec, firstMessage?: string, images?: string[]): AgentSession;
 }
 
+/** Earlier Claude sessions have no prefix. */
+export function sessionHarness(id: string): Harness {
+  return id.startsWith('codex:') ? 'codex' : id.startsWith('agy:') ? 'agy' : 'claude';
+}
+
 /**
  * A runtime that starts each agent of a group with its group's model and effort (`agentSetting`),
  * asked at every start; Claude Code's default model is no model given. `shown` hears the identity
@@ -184,7 +189,7 @@ export function withAgentSetting(
   return {
     start(spec, firstMessage, images) {
       if (!spec.role) return runtime.start(spec, firstMessage, images);
-      const chosen = spec.setting ?? setting(spec.role);
+      const chosen = spec.setting ?? { ...setting(spec.role), ...(spec.resume ? { harness: sessionHarness(spec.resume) } : {}) };
       const choice = harnessChoice(chosen);
       const { model: _, resolvedModel, ...rest } = spec;
       const model = resolvedModel ?? choice.model;
@@ -205,7 +210,7 @@ export function withAgentSetting(
               if (at) shown(at, { ...identity }, token);
             }
           }
-          run(() => spec.onEvent(event));
+          run(() => spec.onEvent(event.type === 'session' && !event.setting ? { ...event, setting: chosen } : event));
         },
       }, firstMessage, images));
       if (at) {

@@ -2,7 +2,7 @@ import { cn } from 'cn';
 import { ChevronDown, CircleAlert } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { AGENT_DEFAULTS, AGENT_EFFORTS, harnessChoice, projectAgentSetting, type AgentEffort, type AgentModel, type AgentIdentity, type AgentRole, type AgentSetting, type CodexModel, type Harness } from '../core/types';
-import { catalogDefault, HarnessOptions, modelLabel, ModelOptions } from './agent-options';
+import { catalogDefault, HarnessOptions, modelLabel, ModelOptions, useConnectedHarnesses } from './agent-options';
 import { ApiError, api, onAgentSettingsChange } from './api';
 import { updateDraft, useDraft, type StartAgentChoice } from './draft';
 import { failText, t } from './strings';
@@ -61,6 +61,7 @@ const stands = (models: CodexModel[], c: { model: string; effort: AgentEffort })
 /** A choice for this start only. The ordinary button continues to use the current default. */
 export function StartAgent({ label, disabled, title, codexAllowed = true, selectionOnly = false, hint, draft, saved, role = 'worker', variant = 'primary', suggested = false, onStart }: { variant?: ButtonVariant; role?: AgentRole; suggested?: boolean; label: string; disabled?: boolean; title?: string; codexAllowed?: boolean; selectionOnly?: boolean; hint?: string; draft?: string; saved?: AgentSetting; onStart: (setting?: AgentSetting) => void | Promise<void> }) {
   const [open, setOpen] = useState(false);
+  const connected = useConnectedHarnesses(open);
   const [setting, setSetting] = useState<StartAgentChoice | null>(null);
   const [models, setModels] = useState<CodexModel[] | null>(null);
   // which harness the catalog in `models` belongs to: after a switch the old one stands until the new one has loaded
@@ -253,7 +254,7 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
             ...(picked !== 'claude' ? { [picked]: previous ?? { model: 'default', effort: choice.effort } } : {}),
           });
         }}>
-          <HarnessOptions defaultHarness={defaultHarness} portable={codexAllowed} />
+          <HarnessOptions defaultHarness={defaultHarness} portable={codexAllowed} connected={connected} />
         </Select></label>
         {!codexAllowed && <p className="hint">{a.codexUnavailableHere}</p>}
         <label>{a.model}<Select value={model} disabled={codex && (!current || loading)} onValueChange={(picked) => {

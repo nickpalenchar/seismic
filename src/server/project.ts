@@ -293,9 +293,9 @@ export class ProjectRuntime {
     this.agentFor = agents;
     // the agents other than workers and Seismic's chat wait for the usage limit through it, each where it shows;
     // each names its harness and model where it shows at work
-    const runtime = (r: AgentRuntime) => withLimitWait(withRepoTrust(withAgentSetting(withCodexTrust(withTrustedAllow(r, this.allowRules), this.codexTrusted), agents, (at, agent, session) => this.board?.showAtWork(at, agent, session)), this.claudeHeld), deps.limitMargin);
+    const runtime = (r: AgentRuntime) => withLimitWait(withAgentSetting(withRepoTrust(withCodexTrust(withTrustedAllow(r, this.allowRules), this.codexTrusted), this.claudeHeld), agents, (at, agent, session) => this.board?.showAtWork(at, agent, session)), deps.limitMargin);
     const workerRuntime = deps.workerRuntime ?? (deps.idleWorkers ? idleRuntime : undefined);
-    // code reviews run where workers do (Claude Code or Codex), and also where workers are idle, as the other agents do
+    // Code reviews still run in scratch instances whose task workers are idle.
     this.reviewRuntime = runtime(deps.workerRuntime ?? deps.runtime);
     deps = { ...deps, runtime: runtime(deps.runtime), ...(workerRuntime ? { workerRuntime: runtime(workerRuntime) } : {}) };
     this.deps = deps;
@@ -2043,7 +2043,7 @@ export class ProjectRuntime {
     if (card.thread?.thinking) throw new BadRequest('ideaThinking', 'its agent is still reading; discuss it further once the answer is there');
     if (!this.runs(card)) throw repoDown(card);
     // a paused agent's question goes into the discussion with the rest of the thread
-    this.board.work(cardId, { kind: 'task', state: 'idea', session_id: null, ...this.board.unheld(cardId, ['paused', 'pausing', 'limit']), idea: { discussion: { status: 'open', brief: '' } } });
+    this.board.work(cardId, { kind: 'task', state: 'idea', session_id: null, agent_setting: null, ...this.board.unheld(cardId, ['paused', 'pausing', 'limit']), idea: { discussion: { status: 'open', brief: '' } } });
     this.board.log(cardId, 'state', 'owner', this.board.t.answer.asIdea);
     this.explorers.tell(cardId, this.answers.opening(cardId));
   }
@@ -2443,7 +2443,7 @@ export class ProjectRuntime {
     const { brief, questions } = this.board.idea(idea.id);
     this.explorers.close(idea.id);
     this.discardPrototypes(idea.id);
-    this.board.work(idea.id, { state: 'planned', ...(brief.trim() ? { body: withQuestions(brief, questions ?? [], [], this.board.t) } : {}) });
+    this.board.work(idea.id, { state: 'planned', session_id: null, agent_setting: null, ...(brief.trim() ? { body: withQuestions(brief, questions ?? [], [], this.board.t) } : {}) });
     // the screenshots the owner showed in the discussion belong to what is built
     const shown = this.board.events(idea.id).flatMap((e) => (e.kind === 'talk' && e.author === 'owner' ? (e.images ?? []) : []));
     if (shown.length) this.addTaskImages(idea.id, shown);
@@ -2468,6 +2468,8 @@ export class ProjectRuntime {
     this.explorers.close(cardId);
     this.board.work(cardId, {
       state: 'planned',
+      session_id: null,
+      agent_setting: null,
       ...outside?.row,
       body: [
         t.planDocTask(dir, false, outside?.file),

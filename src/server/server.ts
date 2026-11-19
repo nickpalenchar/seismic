@@ -654,6 +654,7 @@ export function serve(
         PUT: needs(config, async (c, req) => saveAgents(c.home, await req.json())),
       },
       '/api/agents/codex-auto-review': { PUT: needs(config, async (c, req) => saveCodexAutoReview(c.home, await req.json())) },
+      '/api/agents/harnesses': { GET: needs(machine, (m) => m.connectedHarnesses()) },
       '/api/agents/codex-models': { GET: needs(config, async () => codexModels()) },
       '/api/agents/agy-models': { GET: needs(config, async () => agyModels()) },
       // this machine's demo sites: listed, added (set up at a host or entered by hand, once a publish there
@@ -1166,8 +1167,8 @@ export function serve(
         POST: on(async (c, req) => {
           const { model, chat } = (await req.json().catch(() => ({}))) as { model?: unknown; chat?: number };
           if (typeof chat !== 'number' || !Number.isSafeInteger(chat) || !c.board.hasChat(chat)) throw new BadRequest('invalid', 'chat must belong to this project');
-          if (model !== null && model !== undefined && (typeof model !== 'string' || !['default', 'fable', 'opus', 'sonnet', 'haiku'].includes(model))) throw new BadRequest('invalid', 'unknown model');
-          c.board.setChatModel(model == null ? undefined : model as import('../core/types').AgentModel, chat);
+          if (model !== null && model !== undefined && (typeof model !== 'string' || !['default', 'fable', 'opus', 'sonnet', 'haiku'].includes(model) && !/^(?:codex|agy):[A-Za-z0-9_.:/-]{1,200}$/.test(model))) throw new BadRequest('invalid', 'unknown model');
+          c.board.setChatModel(model == null ? undefined : model as import('../core/types').ChatModel, chat);
         }),
       },
       '/api/c/:project/chat/enter': {

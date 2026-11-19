@@ -102,7 +102,7 @@ test("a setting a start carries wins over its group's, and its model and effort 
   expect(fake.last.spec).toMatchObject({ model: 'gpt-test', effort: 'medium', setting: codex });
 });
 
-test('worker harness choices retain separate Claude and Codex options and reject unsupported roles', () => {
+test('harness choices retain separate Claude and Codex options and reject invalid choices', () => {
   const home = scratchHome();
   const codex = { model: 'codex-test', effort: 'low' as const };
   saveAgents(home, { worker: { harness: 'codex', codex } });
@@ -117,10 +117,13 @@ test('worker harness choices retain separate Claude and Codex options and reject
   expect(fake.last.spec).toMatchObject({ model: 'codex-test', effort: 'low' });
   runtime.start({ ...spec, setting: AGENT_DEFAULTS.worker });
   expect(fake.last.spec).toMatchObject({ model: 'opus', effort: 'high' });
-  for (const bad of [{ worker: { harness: 'pi' } }, { koordinator: { harness: 'codex' } }, { explorer: { codex } }, { worker: { codex: { ...codex, effort: 'ultra' } } }, { worker: { codex: { ...codex, model: '' } } }]) expect(() => saveAgents(home, bad)).toThrow();
+  saveAgents(home, { koordinator: { harness: 'codex', codex }, explorer: { codex } });
+  expect(agentSetting(home, 'koordinator')).toMatchObject({ harness: 'codex', codex });
+  expect(agentSetting(home, 'explorer')).toMatchObject({ codex });
+  for (const bad of [{ worker: { harness: 'pi' } }, { worker: { codex: { ...codex, effort: 'ultra' } } }, { worker: { codex: { ...codex, model: '' } } }]) expect(() => saveAgents(home, bad)).toThrow();
 });
 
-test('agy is a third worker harness with its own model and effort, kept apart from the others', () => {
+test('agy is a third harness with its own model and effort, kept apart from the others', () => {
   const home = scratchHome();
   const agy = { model: 'agy-test', effort: 'medium' as const };
   saveAgents(home, { review: { harness: 'agy', agy } });
@@ -129,7 +132,10 @@ test('agy is a third worker harness with its own model and effort, kept apart fr
   expect(agentSetting(home, 'review')).toMatchObject({ harness: 'codex', agy, codex: { model: 'c' } });
   expect(startAgentSetting({ model: 'opus', effort: 'high', harness: 'agy', agy })).toEqual({ model: 'opus', effort: 'high', harness: 'agy', agy });
   expect(() => startAgentSetting({ model: 'opus', effort: 'high', harness: 'agy' })).toThrow();
-  for (const bad of [{ koordinator: { harness: 'agy' } }, { explorer: { agy } }, { worker: { agy: { ...agy, effort: 'ultra' } } }]) expect(() => saveAgents(home, bad)).toThrow();
+  saveAgents(home, { chores: { harness: 'agy', agy }, explorer: { agy } });
+  expect(agentSetting(home, 'chores')).toMatchObject({ harness: 'agy', agy });
+  expect(agentSetting(home, 'explorer')).toMatchObject({ agy });
+  expect(() => saveAgents(home, { chores: { agy: { ...agy, effort: 'ultra' } } })).toThrow();
 });
 
 test('light or dark: as the system until chosen, beside the other settings, and back to the system with null', () => {

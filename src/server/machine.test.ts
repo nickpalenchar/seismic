@@ -284,12 +284,14 @@ describe('the first project', () => {
     expect(agentSetting(home, 'worker').harness).toBeUndefined();
   });
 
-  test('with only Codex configured, workers and reviews default to Codex', async () => {
+  test('with only Codex configured, all roles default to Codex', async () => {
     const repo = gitRepo(join(dir, 'shop'));
     await setup().project({ path: repo, agents: ['codex'] });
     expect(agentSetting(home, 'worker').harness).toBe('codex');
     expect(agentSetting(home, 'review').harness).toBe('codex');
-    expect(agentSetting(home, 'koordinator').harness).toBeUndefined();
+    expect(agentSetting(home, 'koordinator').harness).toBe('codex');
+    expect(agentSetting(home, 'explorer').harness).toBe('codex');
+    expect(agentSetting(home, 'chores').harness).toBe('codex');
   });
 
   test('with Codex and Antigravity configured, Codex comes first', async () => {

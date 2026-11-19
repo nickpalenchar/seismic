@@ -3,9 +3,10 @@
  * from an in-process MCP server and Codex over its app-server protocol; `agy` can only connect to an
  * MCP server of its own: here a localhost HTTP endpoint (Streamable HTTP, JSON replies), one for the
  * whole server, on a port of its own. Each session registers its tools under a token of its own that
- * the session's `.agents/mcp_config.json` hands to `agy` as a bearer header (`agy.ts`).
+ * its stdio bridge forwards as a bearer header. The workspace configuration has no credentials.
  */
 import { randomBytes } from 'node:crypto';
+import { createInterface } from 'node:readline';
 import { z } from 'zod';
 import { messageOf } from '../../../core/text';
 import type { AgentTool } from '../../runtime';
@@ -13,6 +14,38 @@ import type { AgentTool } from '../../runtime';
 /** The name `agy` knows the server by, and the prefix of every tool, so none clashes with one of its own. */
 export const AGY_SERVER = 'seismic';
 export const AGY_TOOL_PREFIX = 'seismic_';
+export const AGY_BRIDGE_FLAG = '--agy-mcp-bridge';
+
+export const agyBridgeEnv = ({ url, token }: AgyEndpoint) => ({ SEISMIC_AGY_MCP_URL: url, SEISMIC_AGY_MCP_TOKEN: token });
+
+/** agy starts this stdio MCP subprocess with the credentials inherited from its own session. */
+export async function runAgyMcpBridge() {
+  const { SEISMIC_AGY_MCP_URL: url, SEISMIC_AGY_MCP_TOKEN: token } = process.env;
+  if (!url || !/^http:\/\/127\.0\.0\.1:\d+\/mcp$/.test(url) || !token) throw new Error('Missing Antigravity session endpoint');
+  const forward = async (line: string) => {
+    let message: { id?: unknown };
+    try { message = JSON.parse(line); } catch { return; }
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}` },
+        body: line,
+        redirect: 'error',
+      });
+      if (!response.ok) throw new Error('Endpoint unavailable');
+      if (response.status !== 202) console.log(JSON.stringify(await response.json()));
+    } catch {
+      if (message?.id !== undefined) console.log(JSON.stringify(rpcError(message.id, -32603, 'Antigravity session endpoint unavailable')));
+    }
+  };
+  const pending = new Set<Promise<void>>();
+  for await (const line of createInterface({ input: process.stdin })) {
+    const reply = forward(line);
+    pending.add(reply);
+    void reply.finally(() => pending.delete(reply));
+  }
+  await Promise.all(pending);
+}
 
 export interface AgyRegistration {
   /** The tools of the session, by the name they have on the wire. */

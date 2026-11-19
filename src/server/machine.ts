@@ -16,7 +16,7 @@ import { dirname, join, resolve } from 'node:path';
 // by its path: the package exports no package.json, which Bun imports all the same but TypeScript does not
 import sdk from '../../node_modules/@anthropic-ai/claude-agent-sdk/package.json';
 import { DOCUMENT } from '../core/files';
-import { blocksSaving, CLONES, firstProjectHarness, HARNESS_ROLES, HARNESSES, needsGit, type Harness, type FirstProject, type MachineItem, type MachineJob, type MachineSection, type MachineSectionId, type MachineView, type SetupFolder, type SetupRepoCheck, type GitSetupPreview } from '../core/types';
+import { blocksSaving, CLONES, firstProjectHarness, AGENT_ROLES, HARNESSES, needsGit, type Harness, type FirstProject, type MachineItem, type MachineJob, type MachineSection, type MachineSectionId, type MachineView, type SetupFolder, type SetupRepoCheck, type GitSetupPreview } from '../core/types';
 import { expandHome, readDemoSettings } from '../../plugin/skills/demo/lib/settings.ts';
 import { checkSetup, type LinuxFamily, linuxFamily, output } from '../../plugin/skills/demo/lib/setup.ts';
 import { installVoice } from '../../plugin/skills/demo/lib/voices.ts';
@@ -29,7 +29,7 @@ import { repoInfo } from './repo';
 import { COMPILED } from './resources';
 import { agentSetting, agentsAsNow, saveAgents } from './settings';
 import { claudeExecutable, sdkClaude } from './llms/harnesses/claude';
-import type { HarnessCheck } from './llms/harnesses';
+import { connectedHarnesses, type HarnessCheck } from './llms/harnesses';
 import { installedAgy } from './llms/harnesses/agy';
 import { installedCodex } from './llms/harnesses/codex';
 import { extendPath, freshPath, which } from './path';
@@ -289,7 +289,7 @@ export interface MachineOptions {
   /** Whether this is the compiled binary, which runs the machine's Claude Code rather than the SDK's. */
   compiled?: boolean;
   /** Told of each check, as it starts and then which harnesses are installed and signed in (`HarnessCheck`). */
-  agents?: Pick<HarnessCheck, 'begin' | 'set'>;
+  agents?: Pick<HarnessCheck, 'begin' | 'set' | 'refresh'>;
 }
 
 /** What the check found, with how Seismic acts on each piece. */
@@ -303,6 +303,8 @@ interface Found {
 const HARNESS_SECTION: Record<Harness, MachineSectionId> = { claude: 'needed', codex: 'codex', agy: 'agents' };
 
 export class MachineSetup {
+  connectedHarnesses() { return this.o.agents?.refresh() ?? connectedHarnesses(); }
+
   private job?: MachineJob;
 
   constructor(private o: MachineOptions) {}
@@ -733,13 +735,13 @@ export class MachineSetup {
   }
 
   /**
-   * The agents the assistant found configured decide what a task started without a choice runs on: Claude Code when it is among
+   * The agents the assistant found configured decide what new sessions run on: Claude Code when it is among
    * them (nothing changes), else the first of Codex and Antigravity. An agent the owner chose before stays.
    */
   private defaultAgent(configured: Harness[]) {
     const first = firstProjectHarness(configured);
     if (!first) return;
-    const saved = Object.fromEntries(HARNESS_ROLES.filter((r) => !agentSetting(this.o.home, r).harness).map((r) => [r, { harness: first }]));
+    const saved = Object.fromEntries(AGENT_ROLES.filter((r) => !agentSetting(this.o.home, r).harness).map((r) => [r, { harness: first }]));
     if (Object.keys(saved).length) saveAgents(this.o.home, saved);
   }
 }

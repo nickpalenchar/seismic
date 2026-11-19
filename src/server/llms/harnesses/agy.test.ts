@@ -87,6 +87,24 @@ test('the MCP registration stays out of git and goes with the session', async ()
   expect(existsSync(join(repo, '.agents', 'mcp_config.json'))).toBe(false);
 });
 
+test('concurrent sessions in the same checkout keep their tools separate', async () => {
+  const repo = workstation();
+  const tool = (text: string): AgentTool => ({ name: 'reply', description: 'reply', schema: {}, run: () => text });
+  const first: AgentEvent[] = [], second: AgentEvent[] = [];
+  const a = start(spec(repo, first, { tools: [tool('first session')] }), 'CALL reply {}');
+  const b = start(spec(repo, second, { tools: [tool('second session')] }), 'CALL reply {}');
+  await until(() => first.some((e) => e.type === 'idle') && second.some((e) => e.type === 'idle'));
+  expect(first).toContainEqual(expect.objectContaining({ type: 'text', text: expect.stringContaining('first session') }));
+  expect(second).toContainEqual(expect.objectContaining({ type: 'text', text: expect.stringContaining('second session') }));
+  a.close();
+  await a.done;
+  const config = join(repo, '.agents', 'mcp_config.json');
+  expect(readFileSync(config, 'utf8')).not.toContain('Bearer');
+  b.close();
+  await b.done;
+  expect(existsSync(config)).toBe(false);
+});
+
 test('the endpoint opens to the session token only', async () => {
   const endpoint = registerAgyTools({ tools: wireTools([]) });
   const body = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' });

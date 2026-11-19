@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+import { api } from './api';
 import { AGENT_MODELS, type CodexModel, type Harness } from '../core/types';
 import { Badge } from './components/badge';
 import { SelectItem } from './components/select';
@@ -21,11 +23,27 @@ function AgentOption({ value, label, isDefault, disabled }: { value: string; lab
   </SelectItem>;
 }
 
-export function HarnessOptions({ defaultHarness, portable = true }: { defaultHarness: Harness; portable?: boolean }) {
+export function useConnectedHarnesses(on: boolean) {
+  const [connected, setConnected] = useState<Harness[]>();
+  useEffect(() => {
+    setConnected(undefined);
+    if (!on) return;
+    let active = true;
+    api.connectedHarnesses().then(
+      (harnesses) => { if (active) setConnected(harnesses); },
+      () => { if (active) setConnected([]); },
+    );
+    return () => { active = false; };
+  }, [on]);
+  return connected;
+}
+
+export function HarnessOptions({ defaultHarness, connected, portable = true }: { defaultHarness: Harness; connected?: Harness[]; portable?: boolean }) {
   const a = t.config.agents;
   return (Object.keys(a.harnesses) as Harness[]).map((harness) => {
-    const disabled = !portable && harness !== 'claude';
-    return <AgentOption key={harness} value={harness} label={a.harnesses[harness] + (disabled ? ` (${a.unavailable})` : '')} isDefault={harness === defaultHarness} disabled={disabled} />;
+    const unavailable = !portable && harness !== 'claude';
+    const status = unavailable ? a.unavailable : !connected ? a.checkingHarness : !connected.includes(harness) ? a.harnessDisconnected : '';
+    return <AgentOption key={harness} value={harness} label={a.harnesses[harness] + (status ? ` (${status})` : '')} isDefault={harness === defaultHarness} disabled={!!status} />;
   });
 }
 

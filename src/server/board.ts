@@ -10,7 +10,7 @@ import { mergeQuestionTexts } from '../core/merge';
 import { CANVAS_ICON_COLORS, CANVAS_LUCIDE_ICONS, isCanvasIcon } from '../core/canvas-icons';
 import { isLabelValue, type Label, LABELS, LABEL_VALUES, type Labels } from '../core/labels';
 import { createHash } from 'node:crypto';
-import { type ActivityCode, type ActivityEntry, type ActivityWho, type AgentAt, type AgentIdentity, type AgentSetting, type Harness, type Canvas, canvasHolds, CANVAS_NAME_MAX, canvasNameProblem, type CodeReview, type CodeReviewMode, type CardArchiving, type Feedback, MAIN_CANVAS, type ReviewItem, type WorkConfig, type StoppedAt } from '../core/types';
+import { type ActivityCode, type ActivityEntry, type ActivityWho, type AgentAt, type AgentIdentity, type AgentSetting, type ChatModel, type Harness, type Canvas, canvasHolds, CANVAS_NAME_MAX, canvasNameProblem, type CodeReview, type CodeReviewMode, type CardArchiving, type Feedback, MAIN_CANVAS, type ReviewItem, type WorkConfig, type StoppedAt } from '../core/types';
 import { existsSync } from 'node:fs';
 import { FilePresence, type Present } from './file-presence';
 import { basename, join } from 'node:path';
@@ -1548,7 +1548,7 @@ export class Board {
 
   chatModel(chat?: number) { return this.store.chats.model(this.project.id, chat); }
 
-  setChatModel(model?: import('../core/types').AgentModel, chat = this.chat()) {
+  setChatModel(model?: ChatModel, chat = this.chat()) {
     this.store.chats.setModel(this.project.id, model, chat);
     this.changed();
   }
@@ -2533,6 +2533,12 @@ export class Board {
 
   /** The places whose usage limit cleared since Seismic started: a limit there again is a stop of its own, logged even right after the last one. */
   private limitsCleared = new Set<string>();
+
+  /** The configuration captured alongside the card's current session. */
+  sessionSetting(cardId: string): AgentSetting | undefined {
+    const row = this.store.cards.get(cardId);
+    return row?.session_id && row.agent_setting ? JSON.parse(row.agent_setting) as AgentSetting : undefined;
+  }
 
   /** The harness a card's agent setting names, when it names one. */
   private agentSettingHarness(cardId: string): Harness | undefined {

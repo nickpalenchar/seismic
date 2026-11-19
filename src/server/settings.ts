@@ -12,7 +12,7 @@ import { join } from 'node:path';
 import { chosenConversationLanguage, chosenLanguage, conversationLanguageIn, OWNER_SETTINGS_FILE as SETTINGS_FILE, ownerLanguageIn, ownerSettingsWritten, systemLanguage } from '../../plugin/skills/demo/lib/language.ts';
 import { suggestToggles } from '../core/labels';
 import { type Language, LANGUAGES } from '../core/locale';
-import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_MODELS, AGENT_ROLES, type AgentRole, type AgentSetting, type AgentsView, type LanguageView, type RemoteSetting, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type FeedbackPromptView, type NotificationsView, type ProjectAgents, type ProjectDefaults, type ProjectDefaultsView, type ProjectSettings, type ProjectDemoSite, choosesHarness, HARNESSES, CODE_REVIEW_MODES, CARD_ARCHIVING, RIGHT_CLICK, type CodeReviewSetting } from '../core/types';
+import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_MODELS, AGENT_ROLES, type AgentRole, type AgentSetting, type AgentsView, type LanguageView, type RemoteSetting, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type FeedbackPromptView, type NotificationsView, type ProjectAgents, type ProjectDefaults, type ProjectDefaultsView, type ProjectSettings, type ProjectDemoSite, HARNESSES, CODE_REVIEW_MODES, CARD_ARCHIVING, RIGHT_CLICK, type CodeReviewSetting } from '../core/types';
 import { BadRequest } from './board';
 
 interface Settings {
@@ -289,9 +289,9 @@ function agentsOf(input: unknown): Partial<Record<AgentRole, Partial<AgentSettin
   for (const role of AGENT_ROLES) {
     const model = AGENT_MODELS.find((m) => m === o[role]?.model && m !== 'default' && m !== AGENT_DEFAULTS[role].model);
     const effort = AGENT_EFFORTS.find((e) => e === o[role]?.effort && e !== AGENT_DEFAULTS[role].effort);
-    const harness = choosesHarness(role) && (o[role]?.harness === 'codex' || o[role]?.harness === 'agy') ? o[role]!.harness as 'codex' | 'agy' : undefined;
-    const codex = choosesHarness(role) ? codexChoice.safeParse(o[role]?.codex) : undefined;
-    const agy = choosesHarness(role) ? codexChoice.safeParse(o[role]?.agy) : undefined;
+    const harness = HARNESSES.find((h) => h !== 'claude' && h === o[role]?.harness);
+    const codex = codexChoice.safeParse(o[role]?.codex);
+    const agy = codexChoice.safeParse(o[role]?.agy);
     if (model || effort || harness || codex?.success || agy?.success) agents[role] = { ...(model ? { model } : {}), ...(effort ? { effort } : {}), ...(harness ? { harness } : {}), ...(codex?.success ? { codex: codex.data } : {}), ...(agy?.success ? { agy: agy.data } : {}) };
   }
   return agents;
@@ -321,9 +321,9 @@ export function saveAgents(home: string, input: unknown): AgentsView {
     if (!AGENT_ROLES.some((r) => r === role)) throw new BadRequest('invalid', `agents are one of ${AGENT_ROLES.join(', ')}`);
     const { model, effort, harness, codex, agy, ...other } = (choice && typeof choice === 'object' ? choice : {}) as Record<string, unknown>;
     if (Object.keys(other).length) throw new BadRequest('invalid', 'unknown agent setting');
-    if (harness !== undefined && (!choosesHarness(role as AgentRole) || !(HARNESSES as readonly string[]).includes(String(harness)))) throw new BadRequest('invalid', 'only workers and code reviews can select claude, codex or agy');
-    if (agy !== undefined && (!choosesHarness(role as AgentRole) || !codexChoice.safeParse(agy).success)) throw new BadRequest('invalid', 'agy needs a model id and a supported effort (low, medium, high, xhigh, max)');
-    if (codex !== undefined && (!choosesHarness(role as AgentRole) || !codexChoice.safeParse(codex).success)) throw new BadRequest('invalid', 'codex needs a model id and a supported effort (low, medium, high, xhigh, max)');
+    if (harness !== undefined && !HARNESSES.some((h) => h === harness)) throw new BadRequest('invalid', 'harness must be claude, codex or agy');
+    if (agy !== undefined && !codexChoice.safeParse(agy).success) throw new BadRequest('invalid', 'agy needs a model id and a supported effort (low, medium, high, xhigh, max)');
+    if (codex !== undefined && !codexChoice.safeParse(codex).success) throw new BadRequest('invalid', 'codex needs a model id and a supported effort (low, medium, high, xhigh, max)');
     if (model !== undefined && !AGENT_MODELS.some((m) => m === model)) throw new BadRequest('invalid', `model must be one of ${AGENT_MODELS.join(', ')}`);
     if (effort !== undefined && !AGENT_EFFORTS.some((e) => e === effort)) throw new BadRequest('invalid', `effort must be one of ${AGENT_EFFORTS.join(', ')}`);
     agents[role] = { ...agents[role]!, ...(model !== undefined ? { model } : {}), ...(effort !== undefined ? { effort } : {}), ...(harness !== undefined ? { harness } : {}), ...(codex !== undefined ? { codex: codexChoice.parse(codex) } : {}), ...(agy !== undefined ? { agy: codexChoice.parse(agy) } : {}) };

@@ -13,7 +13,7 @@ import { oneAtATime } from '../core/one-at-a-time';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { type AnswerFile, type AnswerRef, type CardEvent, type Item, pausable, pausableNow, type Talk, type TalkRef, isPaused, isPausing } from '../core/types';
-import type { AgentAt, AgentIdentity } from '../core/types';
+import type { AgentAt, AgentIdentity, AgentSetting } from '../core/types';
 import { type Briefing, INFORM_RULES, inform, Interrupted, type OwnerAnswer } from './advisor';
 import { BadRequest, type Board, holdNow, replyNote } from './board';
 import { imageNote } from './images';
@@ -92,7 +92,8 @@ export class Answers {
     };
     const follow = t.id !== thread;
     // the session of the answer it continues, else the thread's latest; a thread moved onto a card that is gone has the card's
-    const resume = follow ? (this.o.board.threadTalk(thread).findLast((x) => x.session && x.id <= (t.follows ?? t.id))?.session ?? this.cardSession(root)) : undefined;
+    const previous = follow ? this.o.board.threadTalk(thread).findLast((x) => x.session && x.id <= (t.follows ?? t.id)) : undefined;
+    const resume = follow ? previous?.session ?? this.cardSession(root) : undefined;
     // looked up for an action: Seismic takes it with the answer, which brings what it needs
     const step = t.then ? `\n\nSeismic takes this step itself once your answer is in: ${t.then}\nYour answer gives what the step needs.` : '';
     const fresh = `${this.message(root.said, root.question!, about, plan, root.askedIn)}${follow ? '' : step}`;
@@ -107,6 +108,8 @@ export class Answers {
         ...(asked ? { asked } : {}),
         onTool,
         onSession: (id) => this.o.board.talkSession(talkId, id),
+        resolvedModel: previous?.answerAgent?.model,
+        setting: resume && !previous?.session && root.movedTo ? this.o.board.sessionSetting(root.movedTo) : undefined,
         // under the question in the sheet, and in the conversation of the card it was asked on
         onLimit: (until, retry) => {
           this.o.board.waitsForLimit({ talk: talkId }, until, retry);
@@ -322,7 +325,8 @@ export class Answers {
         onTool: (name, input) => {
           if (!name.startsWith('mcp__')) this.o.board.log(cardId, 'activity', by, describeTool(name, input, this.o.board.t));
         },
-        onSession: (id) => this.o.board.work(cardId, { session_id: id }),
+        setting: this.o.board.sessionSetting(cardId),
+        onSession: (id, setting) => this.o.board.work(cardId, { session_id: id, ...(setting ? { agent_setting: JSON.stringify(setting) } : {}) }),
         onLimit: (until, retry) => this.o.board.waitsForLimit({ card: cardId }, until, retry),
         at: { card: cardId },
         resume: this.o.board.row(cardId).session_id ?? undefined,
@@ -391,7 +395,9 @@ export class Answers {
     /** The turn waits for the agent's background work, or no longer (`Briefing.onWaiting`). */
     onWaiting?: Briefing['onWaiting'];
     onTool: (name: string, input: Record<string, unknown>) => void;
-    onSession: (id: string) => void;
+    setting?: AgentSetting;
+    resolvedModel?: string;
+    onSession: (id: string, setting?: AgentSetting) => void;
     /** Where it shows that it waits for the usage limit. */
     onLimit: (until: number | null | undefined, retry?: () => void) => void;
     /** Where it shows at work. */
@@ -417,7 +423,7 @@ export class Answers {
         onLimit: c.onLimit,
         at: c.at,
         language: this.o.board.conversation(),
-        ...(resume ? { resume } : {}),
+        ...(resume ? { resume, setting: c.setting, resolvedModel: c.resolvedModel } : {}),
         ...(images?.length ? { images } : {}),
         ...(toSeismic ? { tools: [toSeismicTool((request) => toSeismic(c.card!, request))] } : {}),
         ...(c.signal ? { signal: c.signal } : {}),

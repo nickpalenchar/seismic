@@ -1,19 +1,20 @@
 // A stand-in for Antigravity (`agy`) in stream-json mode, for tests and scratch runs of Seismic
 // (SEISMIC_AGY pointing at a wrapper that runs it). Each user frame is a script, one directive per line:
-//   CALL <tool> <json>  calls a Seismic tool over the MCP endpoint named in .agents/mcp_config.json
+//   CALL <tool> <json>  calls a Seismic tool over its session’s MCP endpoint
 //   RUN <command>       shows a native shell step
 //   FAIL                ends the turn with a usage-limit error
 // Anything else is answered with a line of text. Its argv is echoed on the first text, as `ARGV <json>`.
+
 import { readFileSync } from 'node:fs';
 
 const args = process.argv.slice(2);
 const at = args.indexOf('--conversation');
 const conversation = at >= 0 ? args[at + 1] : 'conv-1';
 const out = (frame: unknown) => process.stdout.write(`${JSON.stringify(frame)}\n`);
-const config = JSON.parse(readFileSync('.agents/mcp_config.json', 'utf8')).mcpServers.seismic as { serverUrl: string; headers: Record<string, string> };
+const { SEISMIC_AGY_MCP_URL: url, SEISMIC_AGY_MCP_TOKEN: token } = process.env;
 let rpcId = 0;
 const rpc = async (method: string, params: unknown) => {
-  const res = await fetch(config.serverUrl, { method: 'POST', headers: { 'content-type': 'application/json', ...config.headers }, body: JSON.stringify({ jsonrpc: '2.0', id: ++rpcId, method, params }) });
+  const res = await fetch(url!, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify({ jsonrpc: '2.0', id: ++rpcId, method, params }) });
   return res.json() as Promise<{ result?: { content?: { text: string }[] }; error?: { message: string } }>;
 };
 let step = 0;

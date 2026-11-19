@@ -58,7 +58,8 @@ import { fileForge } from './file-forge';
 import { NarrationHost } from './narration';
 import { endAgentsHere } from './runtime';
 import { claudeExecutable, sdkRuntime } from './llms/harnesses/claude';
-import { HarnessCheck, workerHarnessRuntime } from './llms/harnesses';
+import { HarnessCheck, harnessRuntime } from './llms/harnesses';
+import { AGY_BRIDGE_FLAG, runAgyMcpBridge } from './llms/harnesses/agyMcp';
 import { claim, release, restarting, running, takenOver } from './instance';
 import { recordingRuntime, replayRuntime } from './replay';
 import { MachineSetup, welcome } from './machine';
@@ -87,6 +88,11 @@ import { loginLink } from './owner';
 import { databaseFile, moveDefaultHome, moveNotice } from './home-move';
 import { Stalls } from './stalls';
 import { hideConsoleWindows } from './spawn';
+
+if (Bun.argv[2] === AGY_BRIDGE_FLAG) {
+  await runAgyMcpBridge();
+  process.exit(0);
+}
 
 // before anything starts a program: git and the rest flash no window on Windows
 hideConsoleWindows();
@@ -313,7 +319,11 @@ const config = new Config({
       }
     : {}),
 });
-const runtime = agentRuntime();
+const claude = agentRuntime();
+const recordOnlyClaude = (name: string) => values.record || values.replay
+  ? { start() { throw new Error(`${name} sessions are not supported in record/replay mode`); } }
+  : undefined;
+const runtime = harnessRuntime(claude, recordOnlyClaude('Codex'), recordOnlyClaude('Antigravity'));
 // which agents are signed in on this machine, for a setup card's allow list: checked in the background from the start, never while a card starts
 const harnessCheck = new HarnessCheck();
 void harnessCheck.refresh();
@@ -323,7 +333,6 @@ projects = new Projects(
     store,
     home,
     runtime,
-    ...(!values['idle-workers'] ? { workerRuntime: workerHarnessRuntime(runtime, values.record || values.replay ? { start() { throw new Error('Codex workers are not supported in record/replay mode'); } } : undefined, values.record || values.replay ? { start() { throw new Error('Antigravity workers are not supported in record/replay mode'); } } : undefined) } : {}),
     ...(values['idle-workers'] && !values.record && !values.replay ? { idleWorkers: true } : {}),
     forge,
     watch: true,

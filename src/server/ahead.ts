@@ -11,6 +11,7 @@ import { isPaused, isPausing, type Item, type WorkerTurn } from '../core/types';
 import { inform, Interrupted, type OwnerAnswer } from './advisor';
 import { BadRequest, type Board, holdNow, replyNote } from './board';
 import { imageNote } from './images';
+import type { AgentSetting } from '../core/types';
 import type { AgentRuntime } from './runtime';
 import { TO_SEISMIC, toSeismicTool } from './to-seismic';
 import { describeTool, SPOKEN } from './workerSupervisor/workerSupervisor';
@@ -45,7 +46,7 @@ export class Ahead {
   /** Cards whose agent reads right now: what the owner says meanwhile waits for the next turn, unread until then. */
   private reading = new Set<string>();
   /** The session of each card's agent; a fresh one gets the conversation so far, so it need not outlive a restart. */
-  private sessions = new Map<string, string>();
+  private sessions = new Map<string, { id: string; setting?: AgentSetting }>();
   private turns = new Map<string, Promise<unknown>>();
   private ends = new Map<string, AbortController>();
   /** Cards whose agent the owner let go on after a pause: its next turn hears so. */
@@ -209,7 +210,7 @@ export class Ahead {
   /** Asks the agent: its session resumed when there is one, else (or when it cannot be resumed) a fresh one that gets the conversation so far. */
   private async consult(card: Item, words: string, images: string[], resumed: string, signal: AbortSignal): Promise<OwnerAnswer> {
     const toSeismic = this.o.toSeismic;
-    const run = (message: string, shots: string[], resume?: string) =>
+    const run = (message: string, shots: string[], session?: { id: string; setting?: AgentSetting }) =>
       inform({
         runtime: this.o.runtime,
         cwd: this.o.pathFor(card),
@@ -218,12 +219,12 @@ export class Ahead {
         onTool: (name, input) => {
           if (!name.startsWith('mcp__')) this.o.board.log(card.id, 'activity', 'koordinator', describeTool(name, input, this.o.board.t));
         },
-        onSession: (id) => this.sessions.set(card.id, id),
+        onSession: (id, setting) => this.sessions.set(card.id, { id, setting }),
         onLimit: (until, retry) => this.o.board.waitsForLimit({ card: card.id }, until, retry),
         at: { card: card.id },
         language: this.o.board.conversation(),
         signal,
-        ...(resume ? { resume } : {}),
+        ...(session ? { resume: session.id, setting: session.setting } : {}),
         ...(shots.length ? { images: shots } : {}),
         ...(toSeismic ? { tools: [toSeismicTool((request) => toSeismic(card.id, request))] } : {}),
       });

@@ -293,6 +293,7 @@ export class Explorers {
         toSeismic: !!this.o.toSeismic,
         preferences,
         message,
+        setting: resume ? this.o.board.sessionSetting(card.id) : undefined,
         options: {
           at: { card: card.id },
           contextUpdate: () => [this.buildNote(card.id, live), this.preferencesUpdate(live)].filter(Boolean).join('\n\n') || undefined,
@@ -326,7 +327,7 @@ export class Explorers {
     live.work.stop();
     switch (e.type) {
       case 'session':
-        this.o.board.work(cardId, { session_id: e.id });
+        this.o.board.work(cardId, { session_id: e.id, ...(e.setting ? { agent_setting: JSON.stringify(e.setting) } : {}) });
         break;
       case 'text':
         live.lastText = e.text;

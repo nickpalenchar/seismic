@@ -4,7 +4,7 @@
 import { z } from 'zod';
 import { currentAgent } from './llms/harnesses/identity';
 import { CANVAS_ICON_COLORS, CANVAS_LUCIDE_ICONS, isCanvasIcon } from '../core/canvas-icons';
-import { AGENT_DEFAULTS, type AgentSetting, CANVAS_NAME_MAX, canvasHolds, canvasNameProblem, MAIN_CANVAS, agentListens, answering, askable, type Awaited, awaited, type AwaitedState, blocksSaving, type ProjectConfig, finished, handedOver, type Item, type NextStep, type Notice, openQuestions, pausableNow, plannableAsPlan, halted, untouched, prototypeWorkstream, snoozable, SNOOZE_LIMIT, type Queue, type SpotInput, type Talk, type TalkAfter, type TalkQuote, type TalkRef, isPaused, isPausing, snoozeOf } from '../core/types';
+import { AGENT_DEFAULTS, chatModelFor, harnessChoice, type AgentModel, type AgentSetting, CANVAS_NAME_MAX, canvasHolds, canvasNameProblem, MAIN_CANVAS, agentListens, answering, askable, type Awaited, awaited, type AwaitedState, blocksSaving, type ProjectConfig, finished, handedOver, type Item, type NextStep, type Notice, openQuestions, pausableNow, plannableAsPlan, halted, untouched, prototypeWorkstream, snoozable, SNOOZE_LIMIT, type Queue, type SpotInput, type Talk, type TalkAfter, type TalkQuote, type TalkRef, isPaused, isPausing, snoozeOf } from '../core/types';
 import { holdsNotes, notStarted } from '../core/queue';
 import { answerTag, fromAnswerTag } from './answers';
 import { BadRequest, type Board, excerpt, replyNote } from './board';
@@ -775,8 +775,11 @@ export class Commander {
 
   private setting = (chat?: number) => {
     const base = this.o.agentSetting?.();
-    const model = this.o.board.chatModel(chat);
-    return model && model !== 'default' ? { ...(base ?? AGENT_DEFAULTS.koordinator), model } : base;
+    const harness = base?.harness ?? 'claude';
+    const model = chatModelFor(harness, this.o.board.chatModel(chat));
+    if (!model) return base;
+    if (base && harness !== 'claude') return { ...base, [harness]: { ...harnessChoice(base), model } };
+    return { ...(base ?? AGENT_DEFAULTS.koordinator), model: model as AgentModel };
   };
 
   private choice = (chat?: number) => JSON.stringify(this.setting(chat) ?? {});

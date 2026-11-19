@@ -4,6 +4,7 @@
  * hands in the idea's state as the context. It has no permission of its own: the harness follows the
  * owner's mode, as for the workers.
  */
+import type { AgentSetting } from '../../../../core/types';
 import type { Language } from '../../../../core/locale';
 import { SeismicAgent } from '../seismicAgent';
 import type { AgentPermission, SessionOptions } from '../types';
@@ -28,6 +29,7 @@ export interface ExplorerContext {
   message: string;
   /** Where it shows, what it hears with its tool steps, how it waits for a usage limit. */
   options: SessionOptions;
+  setting?: AgentSetting;
 }
 
 export class ExplorerAgent extends SeismicAgent<ExplorerContext> {
@@ -35,8 +37,8 @@ export class ExplorerAgent extends SeismicAgent<ExplorerContext> {
   readonly name = 'explorer';
   readonly description = "Talks an idea through with the owner and keeps the idea's brief.";
 
-  getModel() {
-    return undefined;
+  getModel(ctx: ExplorerContext) {
+    return ctx.setting;
   }
 
   override getPermissionMode(): AgentPermission | undefined {

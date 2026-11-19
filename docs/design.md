@@ -157,6 +157,9 @@ cycling through terminals.
   harness resumes its session; across harnesses it starts afresh from the briefing and its branch,
   since sessions never cross harnesses. A review keeps its run's agent when retried, even if the
   "Code reviews" setting changed; skipping drops the stopped run and keeps the review's items.
+- **Every agent role has its own harness, model and effort** (2026-11-19). Project choices override the machine's defaults.
+  A new choice applies to new sessions. An existing session belongs to the harness that created it. Antigravity processes sharing
+  a checkout use the same credential-free workspace MCP file, with a separate stdio bridge and tool registration for each session.
 - **A repository describes itself as values in `.obeya/settings.json`, read from `main`**
   (2026-10-15); rejected: code adapters per repository.
 - **A repository's commands and agent configuration count only as last trusted by the owner**
@@ -403,13 +406,13 @@ Safety rules:
   (never observed) can hold them for as long as it runs.
 
 - The first-project request of the setup assistant carries the agents the owner picked and found configured. When Claude Code is
-  not among them, the first of Codex and Antigravity becomes the default harness of workers and code reviews in the owner's
+  not among them, the first of Codex and Antigravity becomes the default harness of every role in the owner's
   settings (unless the owner set one before), together with the project: written before its save, which a failed write
   stops, and taken back when the save writes nothing; otherwise nothing changes. The runtime itself still falls back to Claude Code
   where no harness is set, so a machine without it needs this default for a first task started without a choice to run
   (decided 2026-11-15).
 
-- Codex and Antigravity workers need a local Git workstation. Where a project's workers run in one of them (Configuration's
+- Codex and Antigravity sessions need a local Git checkout. Where a project's workers run in one of them (Configuration's
   harness, the project's own over it, or the one the first project is about to get), a folder without git is not offered:
   the setup assistant and "+ Repository" show only setting up git, with a note why, and the configuration's check refuses
   such a folder (`folderHarness`). A setup card names the harnesses that are installed and signed in on the machine

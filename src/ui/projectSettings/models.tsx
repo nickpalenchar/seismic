@@ -3,7 +3,7 @@
 // of the settings sheet shows every group, "Code reviews" the reviewer's alone.
 
 import { Fragment } from 'react';
-import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_ROLES, choosesHarness, harnessChoice, projectAgentSetting, type AgentEffort, type AgentModel, type AgentRole, type CodexModel, type Harness, type ProjectAgents, type ProjectSettingsView } from '../../core/types';
+import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_ROLES, harnessChoice, projectAgentSetting, type AgentEffort, type AgentModel, type AgentRole, type CodexModel, type Harness, type ProjectAgents, type ProjectSettingsView } from '../../core/types';
 import { catalogDefault, HarnessOptions, ModelOptions } from '../agent-options';
 import { agentClass } from '../config';
 import { t } from '../strings';
@@ -14,7 +14,7 @@ import { cn } from 'cn';
 const choiceClass = 'min-w-0 w-full';
 
 /** The models of Codex and Antigravity, read once the sheet opens. */
-export type Catalogs = Partial<Record<'codex' | 'agy', CodexModel[]>>;
+export type Catalogs = Partial<Record<'codex' | 'agy', CodexModel[]>> & { connected?: Harness[] };
 
 /** Changes the group's own choice; `null` takes it back to Configuration's. */
 export type Choose = (role: AgentRole, change: Partial<ProjectAgents[AgentRole]> | null) => void;
@@ -72,11 +72,11 @@ export function AgentChoice({ role, view, catalogs, busy, choose }: { role: Agen
   const defaultModel = resolve(other ? base.harness === other ? inherited.model : 'default' : base.model);
   return (
     <div className="cs-choice grid grid-cols-[minmax(0,1.2fr)_repeat(2,minmax(0,.9fr))] gap-2">
-      <Select className={cn(choiceClass, own.harness ? 'own' : 'text-muted-foreground')} aria-label={`${a.roles[role].name}: ${a.harness}`} value={harness} disabled={busy || !choosesHarness(role)} onValueChange={(picked) => {
+      <Select className={cn(choiceClass, own.harness ? 'own' : 'text-muted-foreground')} aria-label={`${a.roles[role].name}: ${a.harness}`} value={harness} disabled={busy} onValueChange={(picked) => {
         const value = picked as Harness;
         return choose(role, { harness: value === defaultHarness ? null : value });
       }}>
-        <HarnessOptions defaultHarness={defaultHarness} />
+        <HarnessOptions defaultHarness={defaultHarness} connected={catalogs.connected} />
       </Select>
       <Select className={cn(choiceClass, own.model || (other && own[other]?.model) ? 'own' : 'text-muted-foreground')} aria-label={`${a.roles[role].name}: ${a.model}`} value={model} disabled={busy || (!!other && !models)} onValueChange={(picked) => {
         if (other) {

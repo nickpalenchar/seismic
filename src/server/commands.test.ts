@@ -706,6 +706,17 @@ describe('the Koordinator remembers', () => {
     expect(entry?.reply).toBe('Delayed answer.');
   });
 
+  test('a chat model only overrides the harness that offered it', async () => {
+    let setting: AgentSetting = { model: 'opus', effort: 'medium', harness: 'codex', codex: { model: 'default', effort: 'low' } };
+    const c = new Commander({ board, runtime, cwd: '/r', execute: () => {}, delayMs: 20, agentSetting: () => setting });
+    board.setChatModel('codex:another-model');
+    await say(c, 'tell me about the project', 'reply', { confirm: 'Here it is.' });
+    expect(runtime.last.spec.setting).toMatchObject({ harness: 'codex', codex: { model: 'another-model', effort: 'low' } });
+    setting = { ...setting, harness: 'claude' };
+    await say(c, 'what else?', 'reply', { confirm: 'Nothing else.' });
+    expect(runtime.last.spec.setting).toMatchObject({ harness: 'claude', model: 'opus' });
+  });
+
   test('a new chat takes a new session that remembers only that chat; going back to the earlier one remembers it again', async () => {
     const c = commander();
     board.setChatModel('sonnet');

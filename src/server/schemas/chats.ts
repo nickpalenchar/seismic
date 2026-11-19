@@ -1,6 +1,6 @@
 import { and, desc, eq, max, ne, notExists, sql } from 'drizzle-orm';
 import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
-import type { AgentModel, Chat } from '../../core/types';
+import type { ChatModel, Chat } from '../../core/types';
 import { atomic, type Db, now } from './common';
 import { projects } from './projects';
 import { talk } from './talk';
@@ -53,11 +53,11 @@ export class Chats {
   }
 
   /** The model chosen for the specified or current chat. */
-  model(projectId: string, chat = this.current(projectId)): AgentModel | undefined {
-    return (this.db.select({ model: chats.model }).from(chats).where(eq(chats.id, chat)).get()!.model as AgentModel | null) ?? undefined;
+  model(projectId: string, chat = this.current(projectId)): ChatModel | undefined {
+    return (this.db.select({ model: chats.model }).from(chats).where(eq(chats.id, chat)).get()!.model as ChatModel | null) ?? undefined;
   }
 
-  setModel(projectId: string, model?: AgentModel, chat = this.current(projectId)): void {
+  setModel(projectId: string, model?: ChatModel, chat = this.current(projectId)): void {
     this.db
       .update(chats)
       .set({ model: model ?? null })
@@ -113,6 +113,6 @@ export class Chats {
       .orderBy(desc(at), desc(chats.id))
       .limit(limit)
       .all()
-      .map((r) => ({ id: r.id, project: r.project, at: r.at, ...(r.model ? { model: r.model as AgentModel } : {}), ...(r.title ? { title: r.title } : {}), ...(r.unread ? { unread: r.unread } : {}) }));
+      .map((r) => ({ id: r.id, project: r.project, at: r.at, ...(r.model ? { model: r.model as ChatModel } : {}), ...(r.title ? { title: r.title } : {}), ...(r.unread ? { unread: r.unread } : {}) }));
   }
 }

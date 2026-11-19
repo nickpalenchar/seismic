@@ -1,5 +1,5 @@
 /**
- * Roles belong to Seismic; a harness supplies the coding loop. Local workers roll out first.
+ * Roles belong to Seismic; a harness supplies the coding loop.
  */
 import { spawnSync } from 'node:child_process';
 import { GIT } from '../../workstations';
@@ -10,16 +10,16 @@ import { codexConnected, createCodexRuntime } from './codex';
 import { agyConnected, createAgyRuntime } from './agy';
 import { seismicSkills } from '../skills/registry';
 import { skillListing } from '../skills/attachedSkills';
-import type { AgentRuntime, AgentSpec } from '../../runtime';
-import { choosesHarness, HARNESS_NAMES, HARNESSES, type Harness } from '../../../core/types';
+import { sessionHarness, type AgentRuntime, type AgentSpec } from '../../runtime';
+import { HARNESS_NAMES, HARNESSES, type Harness } from '../../../core/types';
 
 /** Only Seismic's bundled plugin is portable here, by explicit file-based skill instructions. */
-function portable(spec: AgentSpec, name = 'Codex'): AgentSpec {
+function portable(spec: AgentSpec, name: string): AgentSpec {
   if (spec.plugins?.some((p) => p !== SEISMIC_PLUGIN)) throw new Error(`${name} supports only the bundled Seismic skills`);
-  if (spec.cwd.startsWith('ssh://')) throw new Error(`${name} workers currently require a local Git workstation`);
-  if (spec.watch) throw new Error(`${name} workers do not yet support folders without Git`);
+  if (spec.cwd.startsWith('ssh://')) throw new Error(`${name} sessions currently require a local Git checkout`);
+  if (spec.watch) throw new Error(`${name} does not yet support folder change tracking`);
   const git = spawnSync(GIT, ['-C', spec.cwd, 'rev-parse', '--is-inside-work-tree'], { encoding: 'utf8', windowsHide: true });
-  if (git.status !== 0 || git.stdout.trim() !== 'true') throw new Error(`${name} workers currently require a local Git workstation`);
+  if (git.status !== 0 || git.stdout.trim() !== 'true') throw new Error(`${name} sessions currently require a local Git checkout`);
   const skills = skillListing([...new Map([...seismicSkills(), ...(spec.skills ?? [])].map((s) => [s.name, s] as const)).values()]);
   const { plugins: _, skills: __, ...rest } = spec;
   return { ...rest, system: `${spec.system}\n\nSeismic skills are available as files, not Claude slash commands. Read the matching SKILL.md before using a skill, resolving its relative paths against its directory.\n${skills.join('\n')}\nUse the Seismic ask tool for owner questions, not a native terminal dialog.` };
@@ -86,20 +86,15 @@ export class HarnessCheck {
 /** Harnesses by name, for a prompt; `own` (the harness asking) where none is known, as it runs at least. */
 export const harnessNames = (own: Harness, found: Harness[]) => (found.length ? found : [own]).map((h) => HARNESS_NAMES[h]);
 
-export function workerHarnessRuntime(claude: AgentRuntime, codex: AgentRuntime = createCodexRuntime(), agy: AgentRuntime = createAgyRuntime()): AgentRuntime {
+export function harnessRuntime(claude: AgentRuntime, codex: AgentRuntime = createCodexRuntime(), agy: AgentRuntime = createAgyRuntime()): AgentRuntime {
   return {
     start(spec, firstMessage, images) {
       try {
         const harness = spec.setting?.harness ?? 'claude';
-        const owner = spec.resume?.startsWith('codex:') ? 'codex' : spec.resume?.startsWith('agy:') ? 'agy' : 'claude';
-        if (spec.resume && owner !== harness) throw new Error('Saved session and worker harness disagree; refusing cross-harness resume');
+        if (spec.resume && sessionHarness(spec.resume) !== harness) throw new Error('Saved session and configured harness disagree; refusing cross-harness resume');
         if (harness === 'claude') return claude.start(spec, firstMessage, images);
-        if (harness === 'agy') {
-          if (!spec.role || !choosesHarness(spec.role)) throw new Error('Antigravity is currently available only for card workers and code reviews');
-          return agy.start(portable(spec, 'Antigravity'), firstMessage, images);
-        }
-        if (!spec.role || !choosesHarness(spec.role)) throw new Error('Codex is currently available only for card workers and code reviews');
-        return codex.start(portable(spec), firstMessage, images);
+        const backend = harness === 'agy' ? agy : codex;
+        return backend.start(portable(spec, HARNESS_NAMES[harness]), firstMessage, images);
       } catch (error) {
         // Orchestration attaches the returned session before observing startup errors, just as it
         // does for SDK login/configuration failures. A failed startup must not leave a busy ghost:

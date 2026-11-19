@@ -10,8 +10,8 @@ import { LoaderCircle, Settings } from 'lucide-react';
 import { Docked, sheetTitleClass } from './docked';
 import { ChatsHead, RecentChats } from './chats';
 import { Fragment, type ReactNode, useEffect, useRef, useState } from 'react';
-import { projectAgentSetting, type AgentModel, type Chat, type Item, type Preference, type RepoRef, type Reshare, type SettingProposal, type Talk, type TalkQuote, type TalkRef, type TalkWait } from '../core/types';
-import { ModelOptions } from './agent-options';
+import { chatModelFor, harnessChoice, projectAgentSetting, type AgentSetting, type ChatModel, type CodexModel, type Chat, type Item, type Preference, type RepoRef, type Reshare, type SettingProposal, type Talk, type TalkQuote, type TalkRef, type TalkWait } from '../core/types';
+import { catalogDefault, ModelOptions } from './agent-options';
 import { api, onAgentSettingsChange } from './api';
 import { Inline, plain } from './markdown';
 import { AnswerFiles, Body, Continues, Msg, Quote, Reading, ThreadCard } from './message';
@@ -57,7 +57,7 @@ interface Props {
   talk: Talk[];
   /** The chat the owner talks in now, and the project's chats. */
   chat: number;
-  chatModel?: AgentModel;
+  chatModel?: ChatModel;
   chats: Chat[];
   reshare?: Reshare;
   onOpen: (i: Item) => void;
@@ -133,10 +133,11 @@ export function KoordinatorSheet({ on, entry, project, projectName, items, repos
 export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats, items, repos, onOpen, onTell, draft = SEISMIC_DRAFT, autoOpenUnread = true, beforeComposer }: Pick<Props, 'on' | 'project' | 'talk' | 'chat' | 'chatModel' | 'chats' | 'items' | 'repos' | 'onOpen' | 'onTell'> & { draft?: string; autoOpenUnread?: boolean; beforeComposer?: ReactNode }) {
   const talk = all.filter((x) => x.chat === undefined || x.chat === chat);
   const fresh = useRead(on, talk, (ids) => api.readTalk(ids));
-  const [choice, setChoice] = useState<{ chat: number; model?: AgentModel } | null>(null);
+  const [choice, setChoice] = useState<{ chat: number; model?: ChatModel } | null>(null);
   const [pending, setPending] = useState<{ id: string; project: string; chat: number; text: string; images?: string[] }[]>([]);
   const [error, setError] = useState('');
-  const [fallback, setFallback] = useState<{ project: string; model: AgentModel } | null>(null);
+  const [fallback, setFallback] = useState<{ project: string; setting: AgentSetting } | null>(null);
+  const [models, setModels] = useState<CodexModel[]>();
   useEffect(() => {
     if (!on) return;
     let revision = 0;
@@ -144,16 +145,30 @@ export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats
       const request = ++revision;
       setFallback(null);
       api.projectSettings(project).then((view) => {
-        if (request === revision) setFallback({ project, model: projectAgentSetting('koordinator', view.agents.koordinator, view.settings.agents).model });
+        if (request === revision) setFallback({ project, setting: projectAgentSetting('koordinator', view.agents.koordinator, view.settings.agents) });
       }).catch(console.error);
     };
     const unsubscribe = onAgentSettingsChange(refresh);
     refresh();
     return () => { ++revision; unsubscribe(); };
   }, [on, project]);
-  const defaultModel = fallback?.project === project ? fallback.model : 'default';
+  const setting = fallback?.project === project ? fallback.setting : undefined;
+  const harness = setting?.harness ?? 'claude';
+  useEffect(() => {
+    setModels(undefined);
+    if (!on || harness === 'claude') return;
+    let active = true;
+    (harness === 'codex' ? api.codexModels() : api.agyModels()).then(
+      (models) => { if (active) setModels(models); },
+      console.error,
+    );
+    return () => { active = false; };
+  }, [on, harness]);
+  const configured = setting ? harnessChoice(setting) : undefined;
+  const selectableModels = models?.filter((model) => model.supportedReasoningEfforts.some(({ reasoningEffort }) => reasoningEffort === configured?.effort));
+  const defaultModel = configured?.model === 'default' ? catalogDefault(models) : configured?.model ?? 'default';
   const override = choice?.chat === chat ? choice.model : chatModel;
-  const model = !override || override === 'default' ? defaultModel : override;
+  const model = chatModelFor(harness, override) ?? defaultModel;
   const modelTask = useRef<Promise<void>>(Promise.resolve());
   const choiceRef = useRef(choice);
   choiceRef.current = choice;
@@ -162,7 +177,7 @@ export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats
     if (choice?.chat === chat && choice.model === chatModel) setChoice(null);
   }, [chat, chatModel, choice]);
   const chooseModel = (picked: string) => {
-    const model = picked === defaultModel ? undefined : picked as AgentModel;
+    const model = picked === defaultModel ? undefined : (harness === 'claude' ? picked : `${harness}:${picked}`) as ChatModel;
     const before = choiceRef.current?.chat === chat ? choiceRef.current.model : chatModel;
     setChoice({ chat, model });
     const task = modelTask.current.catch(() => {}).then(() => api.setChatModel(project, chat, model));
@@ -204,8 +219,8 @@ export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats
       {/* a command in writing, for when speaking is not possible; its screenshots go to the cards it creates or concerns */}
       <Composer className={tellClass} draft={draft} placeholder={t.voice.typePlaceholder} seismic optimistic onSend={send} />
       <label className="chat-model flex items-center gap-2 mt-0 mx-0 mb-1.5 text-muted-foreground text-xs">{t.koordinator.chatModel}
-        <Select value={model} disabled={fallback?.project !== project} onValueChange={chooseModel}>
-          <ModelOptions harness="claude" value={model} defaultModel={defaultModel} />
+        <Select value={model} disabled={!setting || (harness !== 'claude' && !models)} onValueChange={chooseModel}>
+          <ModelOptions harness={harness} models={selectableModels} value={model} defaultModel={defaultModel} />
         </Select>
       </label>
       <Dialog open={!!error} onOpenChange={(open) => { if (!open) setError(''); }}>

@@ -2,7 +2,7 @@
 // how an agent's question to the owner is put together.
 
 import { currentAgent } from './llms/harnesses/identity';
-import type { AgentAt, AgentIdentity } from '../core/types';
+import type { AgentAt, AgentIdentity, AgentSetting } from '../core/types';
 import { existsSync, statSync } from 'node:fs';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { z } from 'zod';
@@ -25,7 +25,9 @@ export interface Briefing {
   system: string;
   message: string;
   resume?: string;
-  onSession?: (id: string) => void;
+  setting?: AgentSetting;
+  resolvedModel?: string;
+  onSession?: (id: string, setting?: AgentSetting) => void;
   /** What the agent reads, as it reads it. */
   onTool?: (name: string, input: Record<string, unknown>) => void;
   /** The owner's conversation language for the answer, unless a standing language preference overrides it. */
@@ -102,6 +104,8 @@ export function inform(b: Briefing): Promise<OwnerAnswer> {
         cwd: b.cwd,
         role: 'koordinator',
         ...(b.resume ? { resume: b.resume } : {}),
+        ...(b.setting ? { setting: b.setting } : {}),
+        ...(b.resolvedModel ? { resolvedModel: b.resolvedModel } : {}),
         ...(b.dir ? { dirs: [b.dir] } : {}),
         system: `${b.system}\n\n${ownersLanguage(b.language)}`,
         onLimit: b.onLimit,
@@ -130,7 +134,7 @@ export function inform(b: Briefing): Promise<OwnerAnswer> {
           }
           // a turn may also start without a message (finished background work)
           work.stop();
-          if (e.type === 'session') b.onSession?.(e.id);
+          if (e.type === 'session') b.onSession?.(e.id, e.setting);
           else if (e.type === 'text') last = e.text;
           else if (e.type === 'tool') b.onTool?.(e.name, e.input);
           else if (e.type === 'error' && !answer) {

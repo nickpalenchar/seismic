@@ -10,8 +10,8 @@ import { forwardRef, Fragment, lazy, type ReactNode, Suspense, useContext, useEf
 import { OpenPerformance } from './performance';
 import { allowsDemo, HANDOVER_ARTIFACTS } from '../../plugin/skills/demo/lib/artifacts.ts';
 import { DEFAULT_STYLE, QWEN3_SPEAKER, QWEN3_SPEAKERS, qwen3IsClone, qwen3Speaker, STYLED_VOICES } from '../../plugin/skills/demo/lib/voice-choices.ts';
-import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_ROLES, choosesHarness, needsGit, projectAgentSetting, CARD_ARCHIVING, type CardArchiving, RIGHT_CLICK, type RightClick, CODE_REVIEW_MODES, type CodeReviewSetting, HARNESS_ROLES, type AgentEffort, type AgentModel, type AgentRole, type AgentSetting, type CodexModel, type Harness, type AgentsView, blockingProblems, type ProjectConfig, type ProjectDefaults, type ProjectDefaultsView, type ProjectSettings, type ConfigChecked, type DeveloperView, type ConfigProblem, type ConfigProblemCode, type ConfigView, commandLines, type DemoSettings, type HandoverArtifact, type DemoSettingsView, type DemoSpaceView, type DemoVoiceCheck, type FilledClones, type ProjectDemoSite, type ProjectDemoSiteState, type DemoSitesView, type TagProposalJob, type Language, type HostConfig, type LanguageView, type NarrationLanguage, restartsAgents, type RepoConfig, type RepoSettings, type RepoTrust, type RepoValues, type ResolvedProject, type SettingsShared, type SettingValue, layerSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type PageTags, type SetupCheck, START_FAILED, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type FeedbackPromptView, type NotificationsView, type VoiceKind, type VoiceSetupView, withClones } from '../core/types';
-import { catalogDefault, HarnessOptions, ModelOptions } from './agent-options';
+import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_ROLES, harnessChoice, needsGit, projectAgentSetting, CARD_ARCHIVING, type CardArchiving, RIGHT_CLICK, type RightClick, CODE_REVIEW_MODES, type CodeReviewSetting, type AgentEffort, type AgentModel, type AgentRole, type AgentSetting, type CodexModel, type Harness, type AgentsView, blockingProblems, type ProjectConfig, type ProjectDefaults, type ProjectDefaultsView, type ProjectSettings, type ConfigChecked, type DeveloperView, type ConfigProblem, type ConfigProblemCode, type ConfigView, commandLines, type DemoSettings, type HandoverArtifact, type DemoSettingsView, type DemoSpaceView, type DemoVoiceCheck, type FilledClones, type ProjectDemoSite, type ProjectDemoSiteState, type DemoSitesView, type TagProposalJob, type Language, type HostConfig, type LanguageView, type NarrationLanguage, restartsAgents, type RepoConfig, type RepoSettings, type RepoTrust, type RepoValues, type ResolvedProject, type SettingsShared, type SettingValue, layerSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type PageTags, type SetupCheck, START_FAILED, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type FeedbackPromptView, type NotificationsView, type VoiceKind, type VoiceSetupView, withClones } from '../core/types';
+import { catalogDefault, HarnessOptions, ModelOptions, useConnectedHarnesses } from './agent-options';
 import { patchOf } from '../core/diff';
 import { parseTagLines, tagLines } from '../core/page-tags';
 import { LANGUAGES } from '../core/locale';
@@ -1250,13 +1250,14 @@ export const agentClass = 'cfg-agent flex flex-col py-2 px-0 text-base max-[900p
 
 /** The model and effort of each group of agents: saved on each change, taken by the next agent that starts. */
 function AgentsBlock({ on }: { on: boolean }) {
+  const connected = useConnectedHarnesses(on);
   const [view, setView] = useState<AgentsView | null>(null);
   const [catalogs, setCatalogs] = useState<Partial<Record<'codex' | 'agy', CodexModel[]>>>({});
   const [catalogError, setCatalogError] = useState('');
   const [loading, setLoading] = useState(false);
   const loadModels = async () => {
     setLoading(true); setCatalogError('');
-    const wanted = (['codex', 'agy'] as const).filter((h) => HARNESS_ROLES.some((r) => view?.agents[r].harness === h));
+    const wanted = (['codex', 'agy'] as const).filter((h) => AGENT_ROLES.some((r) => view?.agents[r].harness === h));
     const lists = await Promise.allSettled(wanted.map((h) => h === 'agy' ? api.agyModels() : api.codexModels()));
     setCatalogs(Object.fromEntries(lists.flatMap((result, i) => result.status === 'fulfilled' ? [[wanted[i], result.value]] : [])));
     setCatalogError(lists.flatMap((result) => result.status === 'rejected' ? [failText(result.reason)] : []).join(' · '));
@@ -1267,8 +1268,8 @@ function AgentsBlock({ on }: { on: boolean }) {
   useEffect(() => {
     if (on) api.agents().then(setView, console.error);
   }, [on]);
-  const codexOn = !!view && HARNESS_ROLES.some((r) => view.agents[r].harness === 'codex');
-  const agyOn = !!view && HARNESS_ROLES.some((r) => view.agents[r].harness === 'agy');
+  const codexOn = !!view && AGENT_ROLES.some((r) => view.agents[r].harness === 'codex');
+  const agyOn = !!view && AGENT_ROLES.some((r) => view.agents[r].harness === 'agy');
   useEffect(() => { if (on && (codexOn || agyOn)) void loadModels(); }, [on, codexOn, agyOn]);
   if (!view) return null;
   const a = t.config.agents;
@@ -1305,10 +1306,10 @@ function AgentsBlock({ on }: { on: boolean }) {
         <span className={agentsHeadClass}>{a.effort}</span>
         {AGENT_ROLES.map((role) => {
           const setting = view.agents[role];
-          const other = choosesHarness(role) && (setting.harness === 'codex' || setting.harness === 'agy') ? setting.harness : null;
+          const other = (setting.harness === 'codex' || setting.harness === 'agy') ? setting.harness : null;
           const codex = !!other;
           const models = other ? catalogs[other] : undefined;
-          const choice = (other && setting[other]) || { model: 'default', effort: 'high' as const };
+          const choice = harnessChoice(setting);
           const defaultModel = codex ? catalogDefault(models) : AGENT_DEFAULTS[role].model;
           const model = codex ? choice.model === 'default' ? defaultModel : choice.model : setting.model === 'default' ? defaultModel : setting.model;
           const selected = models?.find((m) => m.model === model);
@@ -1319,8 +1320,8 @@ function AgentsBlock({ on }: { on: boolean }) {
                 {a.roles[role].name}
                 <span className="hint">{a.roles[role].hint}</span>
               </div>
-              <Select className="min-w-0" aria-label={`${a.roles[role].name}: ${a.harness}`} value={choosesHarness(role) ? setting.harness ?? 'claude' : 'claude'} disabled={busy || !choosesHarness(role)} onValueChange={(picked) => choose(role, { harness: picked as Harness })}>
-                <HarnessOptions defaultHarness="claude" />
+              <Select className="min-w-0" aria-label={`${a.roles[role].name}: ${a.harness}`} value={setting.harness ?? 'claude'} disabled={busy} onValueChange={(picked) => choose(role, { harness: picked as Harness })}>
+                <HarnessOptions defaultHarness="claude" connected={connected} />
               </Select>
               <Select className="min-w-0" aria-label={`${a.roles[role].name}: ${a.model}`} value={model} disabled={busy || (codex && (loading || !models))} onValueChange={(picked) => {
                 if (!codex) return choose(role, { model: picked as AgentModel });

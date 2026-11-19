@@ -1726,7 +1726,7 @@ export interface ProjectSnapshot {
   /** The chat the owner talks in now (`Talk.chat`); its exchanges are those the sheet shows. */
   chat: number;
   /** Model chosen for this chat; absent means the project's Seismic setting. */
-  chatModel?: AgentModel;
+  chatModel?: ChatModel;
   /** The project's chats with something said in them, the latest first. */
   chats: Chat[];
   /** The clone pools of the repositories that use clones; none when no repository does. */
@@ -1788,7 +1788,7 @@ export interface Reshare {
 export interface Chat {
   id: number;
   /** Model chosen for this chat; absent means the project's Seismic setting. */
-  model?: AgentModel;
+  model?: ChatModel;
   project: string;
   /** The owner's first words in it; none where it only holds what Seismic said by itself. */
   title?: string;
@@ -3344,19 +3344,25 @@ export interface AccessView {
 /** The agents Seismic runs, grouped as the owner sets their model and effort (`src/server/settings.ts`). */
 export const AGENT_ROLES = ['koordinator', 'worker', 'explorer', 'chores', 'review'] as const;
 export type AgentRole = (typeof AGENT_ROLES)[number];
-/** The groups whose agents may run in another harness than Claude Code: workers, and the code reviews of their work. */
-export const HARNESS_ROLES = ['worker', 'review'] as const satisfies readonly AgentRole[];
-export const choosesHarness = (role: AgentRole): boolean => (HARNESS_ROLES as readonly AgentRole[]).includes(role);
 /** The models offered: Claude Code's default, or one of its aliases, each the newest of its family. */
 export const AGENT_MODELS = ['default', 'fable', 'opus', 'sonnet', 'haiku'] as const;
 export type AgentModel = (typeof AGENT_MODELS)[number];
+/** Claude's original aliases need no prefix. Catalog IDs belong to the harness that offered them. */
+export type ChatModel = AgentModel | `codex:${string}` | `agy:${string}`;
+
+export function chatModelFor(harness: Harness, choice?: ChatModel): string | undefined {
+  if (!choice || choice === 'default') return undefined;
+  const separator = choice.indexOf(':');
+  if (separator < 0) return harness === 'claude' ? choice : undefined;
+  return choice.slice(0, separator) === harness ? choice.slice(separator + 1) : undefined;
+}
 export const AGENT_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const;
 export type AgentEffort = (typeof AGENT_EFFORTS)[number];
 /** The model and effort a group of agents runs with. */
 export interface AgentSetting {
   model: AgentModel;
   effort: AgentEffort;
-  /** Absent means Claude. Only local Git workers and code reviews (`HARNESS_ROLES`) offer another harness. */
+  /** Absent means Claude Code. */
   harness?: Harness;
   /** Codex choices are separate from Claude aliases, which survive switching back. */
   codex?: { model: string; effort: AgentEffort };
@@ -3364,7 +3370,7 @@ export interface AgentSetting {
   agy?: { model: string; effort: AgentEffort };
 }
 
-/** The coding agents a worker or code review can run in: Claude Code (the default), Codex and Antigravity (`agy`), the latter two in preview. */
+/** The harnesses Seismic agents can run in: Claude Code (the default), Codex and Antigravity (`agy`), the latter two in preview. */
 export const HARNESSES = ['claude', 'codex', 'agy'] as const;
 export type Harness = (typeof HARNESSES)[number];
 /** Each harness by its name in what Seismic tells (prompts, problems); the UI has its own in its strings. */
@@ -3374,7 +3380,7 @@ export const HARNESS_NAMES: Record<Harness, string> = { claude: 'Claude Code', c
 export const needsGit = (harness: Harness | undefined): harness is 'codex' | 'agy' => harness === 'codex' || harness === 'agy';
 
 /**
- * The harness the setup assistant's first project gives workers and code reviews where the owner set none, from the agents found
+ * The harness the setup assistant's first project gives agent roles where the owner set none, from the agents found
  * configured (`MachineSetup.defaultAgent`): none (Claude Code stays) where Claude Code is among them, else the first of the others.
  */
 export const firstProjectHarness = (configured: readonly string[]): Harness | undefined =>

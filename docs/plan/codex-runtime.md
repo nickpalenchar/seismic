@@ -64,8 +64,8 @@ Harden the local Codex worker preview and complete its remaining acceptance and 
 - [ ] **W11:** Feature parity. SSH, non-Git folder undo, contributor reviews and record/replay, each with its own parity tests
   before removing the current refusal. User/repository skill discovery is separate from bundled
   file-based skills already supplied to Codex.
-- [ ] **W12:** Other harness roles. Harness selection for other roles once their permission/read-only/continuation contracts are
-  implemented. Keeping the Koordinator on Claude is a rollout boundary, not an architectural need.
+- [x] **W12:** Other harness roles. All roles can choose a signed-in harness and its model and effort. Resumed sessions keep
+  their harness, and the existing read-only and repository-trust rules apply when the agent starts.
 - [ ] **W13:** Pi adapter. Implement the phase 2 adapter and its supported role contracts after the phase 1 gates.
 
 ## Verified checkpoint

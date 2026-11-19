@@ -92,6 +92,7 @@ export function ProjectSettingsBody({ project, name, homePath, on, covered, onAd
   }, [on, covered, project]);
   useEffect(() => {
     if (!on) return;
+    void api.connectedHarnesses().then((connected) => setCatalogs((current) => ({ ...current, connected })), console.error);
     void api.codexModels().then((codex) => setCatalogs((current) => ({ ...current, codex })), console.error);
     void api.agyModels().then((agy) => setCatalogs((current) => ({ ...current, agy })), console.error);
   }, [on]);
