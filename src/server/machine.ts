@@ -630,8 +630,11 @@ export class MachineSetup {
     const spec = typeof clone === 'string' ? clone.trim() : '';
     if (!spec) throw new BadRequest('invalid', 'a repository to clone');
     const { argv, url, github, ghLogin, env } = await this.route(spec, 'check');
-    const { ok, last } = await tried(argv(['ls-remote', '--heads', '--', url]), env, REPO_CHECK_MS);
-    return ok ? { readable: true } : { readable: false, error: last, github, ghLogin };
+    // Git's credential diagnostics need to be recognizable regardless of the machine's locale.
+    const { ok, last } = await tried(argv(['ls-remote', '--heads', '--', url]), { ...env, LC_ALL: 'C' }, REPO_CHECK_MS);
+    if (ok) return { readable: true };
+    const needsPassword = /^(unable to get password from user|could not read (username|password) for .+: terminal prompts disabled)$/i.test(last);
+    return { readable: false, error: last, github, ghLogin, ...(needsPassword ? { needsPassword: true } : {}) };
   }
 
   /** The first project: a repository's folder, saved at once; or a clone of one, in the background. */

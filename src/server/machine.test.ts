@@ -400,6 +400,7 @@ describe('the first project', () => {
     expect(await s.repo({ clone: origin })).toEqual({ readable: true });
     const missing = await s.repo({ clone: join(dir, 'origin', 'none') });
     expect(missing).toMatchObject({ readable: false, github: false });
+    expect(missing).not.toHaveProperty('needsPassword');
     expect(missing.readable || missing.error).toBeTruthy();
     await expect(s.repo({ clone: ' ' })).rejects.toMatchObject({ code: 'invalid' });
   });
@@ -410,7 +411,7 @@ describe('the first project', () => {
     fake('gh', `[ "$1 $2" = "auth status" ] && test -f ${loggedIn}`);
     fake('git', `echo "$@" >> ${calls}; [ "$GIT_TERMINAL_PROMPT" = 0 ] && [ -z "$GIT_ASKPASS$SSH_ASKPASS" ] && [ "$SSH_ASKPASS_REQUIRE" = never ] || exit 3; case "$*" in *gh\\ auth\\ git-credential*) exit 0;; esac; echo "fatal: could not read Username for 'https://github.com': terminal prompts disabled" >&2; exit 128`);
     const s = setup({ env: { GIT_ASKPASS: '/usr/bin/a-dialog', SSH_ASKPASS: '/usr/bin/a-dialog' } });
-    expect(await s.repo({ clone: 'acme/private-shop' })).toEqual({ readable: false, error: "could not read Username for 'https://github.com': terminal prompts disabled", github: true, ghLogin: false });
+    expect(await s.repo({ clone: 'acme/private-shop' })).toEqual({ readable: false, error: "could not read Username for 'https://github.com': terminal prompts disabled", github: true, ghLogin: false, needsPassword: true });
     writeFileSync(loggedIn, '');
     expect(await s.repo({ clone: 'acme/private-shop' })).toEqual({ readable: true });
     expect(await s.repo({ clone: 'https://github.com/acme/private-shop' })).toEqual({ readable: true });
@@ -467,7 +468,7 @@ describe('the first project', () => {
     const authError = expect.stringMatching(/unable to get password|terminal prompts disabled/);
     const repos = ['acme/private-shop', 'https://example.com/acme/shop.git'];
     for (const clone of repos) {
-      expect(await machine.repo({ clone })).toMatchObject({ readable: false, error: authError });
+      expect(await machine.repo({ clone })).toMatchObject({ readable: false, error: authError, needsPassword: true });
     }
     expect(existsSync(used)).toBe(false);
     for (const clone of repos) {

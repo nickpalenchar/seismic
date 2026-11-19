@@ -27,6 +27,7 @@ import { Input } from '../../components/input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../../components/collapsible';
 import { Select, SelectItem } from '../../components/select';
 import { Dialog, DialogContent, DialogTitle } from '../../components/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '../../components/popover';
 import { cn } from 'cn';
 import { installClass, installHintClass, pathClass, projectClass, rowClass, setupItemClass, setupListClass, statusClass } from '../../setupClasses';
 
@@ -931,7 +932,21 @@ function useRepoCheck(view: MachineView) {
     const canLogin = awaitsLogin(r);
     return (
       <div className="setup-repo mt-0.5 mb-1.5">
-        <p role="alert" className={cn(firstErrorClass, 'mt-0')}>{s.first.repoUnreadable(r.error)}</p>
+        {r.needsPassword ? (
+          <div className="flex items-center gap-1 text-warning text-xs">
+            <span role="status">{s.first.repoNeedsPassword}</span>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button type="button" variant="ghost" className="size-6 p-0 text-warning" aria-label={s.first.repoPasswordInfo}>
+                  <Info aria-hidden />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="z-90" aria-label={s.first.repoPasswordInfo}>{s.first.repoPasswordDetail}</PopoverContent>
+            </Popover>
+          </div>
+        ) : (
+          <p role="alert" className={cn(firstErrorClass, 'mt-0')}>{s.first.repoUnreadable(r.error)}</p>
+        )}
         {canLogin && ghLogin?.act === 'login' && (
           <>
             <p className="hint mt-1 mb-1">{s.first.repoLogin}</p>
