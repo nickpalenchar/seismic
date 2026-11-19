@@ -122,9 +122,10 @@ export const viewClass =
  * The list and an open card: the page scrolls, with the microphone's room under its end, and fades
  * out under the microphone (not with the phone turned, nor while the keyboard is up: the field has its
  * own microphone then). Under a panel lower than the screen it scrolls on until all of it can stand
- * above the panel (`--ph-panel`: the panel's height).
+ * above the panel (`--ph-panel`: the panel's height). It scrolls only up and down: whatever comes out
+ * wider than the screen (a row of label chips, a long word) is cut off, never panned to sideways.
  */
-export const pageClass = `${viewClass} inset-0 overflow-y-auto pb-[calc(157px+env(safe-area-inset-bottom))] ph-landscape:pb-[calc(24px+env(safe-area-inset-bottom))] [&:has(~.ph-panel)]:pb-[max(calc(157px+env(safe-area-inset-bottom)),calc(var(--ph-panel,0px)+20px))] ph-landscape:[&:has(~.ph-panel)]:pb-[max(calc(24px+env(safe-area-inset-bottom)),calc(var(--ph-panel,0px)+20px))] after:content-[''] after:fixed after:inset-x-0 after:bottom-0 after:h-[calc(87px+env(safe-area-inset-bottom))] after:z-4 after:bg-[linear-gradient(transparent,var(--background)_65%)] after:pointer-events-none ph-landscape:after:hidden [.ph-kb_&]:after:hidden`;
+export const pageClass = `${viewClass} inset-0 overflow-y-auto overflow-x-hidden pb-[calc(157px+env(safe-area-inset-bottom))] ph-landscape:pb-[calc(24px+env(safe-area-inset-bottom))] [&:has(~.ph-panel)]:pb-[max(calc(157px+env(safe-area-inset-bottom)),calc(var(--ph-panel,0px)+20px))] ph-landscape:[&:has(~.ph-panel)]:pb-[max(calc(24px+env(safe-area-inset-bottom)),calc(var(--ph-panel,0px)+20px))] after:content-[''] after:fixed after:inset-x-0 after:bottom-0 after:h-[calc(87px+env(safe-area-inset-bottom))] after:z-4 after:bg-[linear-gradient(transparent,var(--background)_65%)] after:pointer-events-none ph-landscape:after:hidden [.ph-kb_&]:after:hidden`;
 
 /**
  * The bar at a view's top, across the screen and sticking while the page scrolls under it; with the

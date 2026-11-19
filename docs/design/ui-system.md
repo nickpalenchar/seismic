@@ -93,6 +93,8 @@ same style. UI text comes from `src/ui/strings.ts`, never a literal.
   list stays desktop-only). What it shows follows the desktop: same controls, icons, button states
   and card layout, departing only where the small screen requires. A tap on a button while the
   keyboard is open does what the button does on the first tap, never just closing the keyboard.
+  Its pages scroll only up and down: what comes out wider than the screen is clipped, never a
+  sideways pan (decided 2026-11-19, after the Needs you page could slide sideways).
 - **Polish before handover**: look closely at screenshots of new UI and fix what is off (text
   vertically centred with neighbouring buttons, enough padding to the edges of its block, controls
   such as a remove × where the eye expects them).
