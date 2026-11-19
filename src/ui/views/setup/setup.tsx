@@ -846,22 +846,33 @@ function useRepoCheck(view: MachineView) {
   const [terminal, setTerminal] = useState<'open' | 'none' | null>(null);
   const asked = useRef(0);
   const s = t.setup;
-  /** `quiet`: a read again while the login is awaited, which keeps the line as it is until the answer differs. */
-  const read = (spec: string, quiet = false) => {
+  // the read under way, if any: a quiet one waits for it rather than superseding it
+  const pending = useRef<Promise<unknown> | null>(null);
+  /**
+   * `quiet`: a read again while the login is awaited, which keeps the line as it is until the answer
+   * differs, and is left out while another read runs (the newest read wins, so polls that each
+   * superseded the one before would never let an answer through when a read takes longer than a poll).
+   */
+  const read = (spec: string, quiet = false): Promise<unknown> => {
+    if (quiet && pending.current) return pending.current;
     const n = ++asked.current;
     if (!quiet) {
       setTerminal(null);
       setChecked(spec ? { spec, result: 'checking' } : null);
     }
-    if (!spec) return;
-    api.setupRepo(spec).then(
+    if (!spec) return (pending.current = null), Promise.resolve();
+    const run = api.setupRepo(spec).then(
       (result) => {
         if (n !== asked.current) return;
         if (!quiet || result.readable || !awaitsLogin(result)) setTerminal(null);
         setChecked({ spec, result });
       },
       (e) => n === asked.current && !quiet && setChecked({ spec, result: { readable: false, error: failText(e), github: false, ghLogin: true } }),
-    );
+    ).finally(() => {
+      if (pending.current === run) pending.current = null;
+    });
+    pending.current = run;
+    return run;
   };
   const ghLogin = view.sections.find((x) => x.id === 'pr')?.items.find((i) => i.id === 'ghLogin');
   const loggedIn = ghLogin?.state === 'ok';
@@ -873,11 +884,23 @@ function useRepoCheck(view: MachineView) {
   // A login done in a terminal of its own (over SSH, say) brings no focus back to this page, and the
   // step lists no login that the page's own polling would wait for: while the line offers the login,
   // it reads the repository again by itself, as the logins of the steps before check themselves.
+  // The next poll is set only once the one before has settled, so polls never pile up behind a slow read.
   useEffect(() => {
     if (!awaiting) return;
     const spec = checked!.spec;
-    const timer = setInterval(() => document.visibilityState === 'visible' && read(spec, true), LOGIN_POLL_MS);
-    return () => clearInterval(timer);
+    let timer: ReturnType<typeof setTimeout>;
+    let stopped = false;
+    const next = () => {
+      timer = setTimeout(async () => {
+        if (document.visibilityState === 'visible') await read(spec, true).catch(() => {});
+        if (!stopped) next();
+      }, LOGIN_POLL_MS);
+    };
+    next();
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
   }, [awaiting, checked?.spec]);
   const login = async () => {
     try {
