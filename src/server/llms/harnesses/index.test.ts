@@ -70,8 +70,15 @@ test('rejects a bare local folder even when no watch hooks were supplied', async
   const { runtime, spec, cwd, events, codex, claude } = fixture({ setting });
   rmSync(join(cwd, '.git'), { recursive: true, force: true });
   await runtime.start(spec).done;
-  expect(events).toContainEqual(expect.objectContaining({ type: 'error', message: 'Codex sessions currently require a local Git checkout' }));
+  expect(events).toContainEqual(expect.objectContaining({ type: 'error', message: 'Codex workers and code reviews require a local Git checkout' }));
   expect(codex.sessions).toHaveLength(0); expect(claude.sessions).toHaveLength(0);
+});
+
+test('a small job can run in a local directory outside Git', () => {
+  const { runtime, spec, cwd, codex } = fixture({ setting, role: 'chores', permission: 'readOnly' });
+  rmSync(join(cwd, '.git'), { recursive: true, force: true });
+  runtime.start(spec, 'draft a wish');
+  expect(codex.last.spec).toMatchObject({ cwd, role: 'chores', permission: 'readOnly' });
 });
 
 test('an unavailable Codex backend never falls back to Claude (including record/replay)', async () => {

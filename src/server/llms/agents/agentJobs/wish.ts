@@ -5,10 +5,12 @@
  * then opens it on GitHub (`src/core/wish.ts`); nothing goes out from here.
  */
 
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { z } from 'zod';
 import { issueFooter, withoutFooter } from '../../../../core/wish';
-import type { AgentRuntime, AgentTool } from '../../../runtime';
+import type { AgentRuntime, AgentSession, AgentTool } from '../../../runtime';
 import { SeismicAgent } from '../seismicAgent';
 import type { AgentPermission, SessionOptions } from '../types';
 import { wishSystem } from '../../prompts/wishSystem';
@@ -116,23 +118,36 @@ export function writeWish(runtime: AgentRuntime, w: WishInput, footer: string, i
     const title = w.title?.trim() || said.replace(/\s+/g, ' ').slice(0, 70);
     return { title, body: `${own}\n\n${footer}`, raw: true };
   };
+  // Antigravity keeps its tool bridge configuration in the working directory.
+  const cwd = mkdtempSync(join(tmpdir(), 'seismic-wish-'));
+  const cleanup = () => {
+    try { rmSync(cwd, { recursive: true, force: true }); } catch { /* the temporary directory can be cleaned later */ }
+  };
   return new Promise((resolve) => {
     let done = false;
+    let session: AgentSession | undefined;
     const end = (d: WishDraft) => {
       if (done) return;
       done = true;
       clearTimeout(timer);
-      session.close();
+      session?.close();
       resolve(d);
     };
     const timer = setTimeout(() => end(fallback()), WRITE_MS);
-    const session = new WishSession({ w: { ...w, said }, footer, imageCount: images.length, end, fallback }).start(runtime, undefined, {
-      cwd: tmpdir(),
-      images,
-      onEvent: (e) => {
-        if (e.type === 'idle' || e.type === 'error') end(fallback());
-      },
-    });
+    try {
+      session = new WishSession({ w: { ...w, said }, footer, imageCount: images.length, end, fallback }).start(runtime, undefined, {
+        cwd,
+        images,
+        onEvent: (e) => {
+          if (e.type === 'idle' || e.type === 'error') end(fallback());
+        },
+      });
+      if (done) session.close();
+      void session.done.then(cleanup, cleanup);
+    } catch {
+      cleanup();
+      end(fallback());
+    }
   });
 }
 
