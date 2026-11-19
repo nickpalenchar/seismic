@@ -9,12 +9,10 @@
  */
 import { readOnlyRun } from '../agents/permission';
 import { seismicEnv } from '../../../core/env';
-import { spawn, spawnSync } from 'node:child_process';
-import { appendFileSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
 import { StringDecoder } from 'node:string_decoder';
-import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { isAbsolute, resolve } from 'node:path';
 import { z } from 'zod';
-import { GIT } from '../../workstations';
 import { homedir } from 'node:os';
 import { AGENT_EFFORTS, type CodexModel, type Usage, type UsageLimit } from '../../../core/types';
 import type { UsageSource } from '../../usage';
@@ -27,8 +25,8 @@ import { agyBrainDir, agyTranscriptLog, TranscriptTail, type AgyTask } from './a
 import { AgentProcesses, onceClosed, tolerateTimeouts, untilIdentified } from './processes';
 import { endAtShutdown, observeEveryTick } from './codexRpc';
 import { sessionRegistry } from './sessionRegistry';
-import { COMPILED } from '../../resources';
-import { AGY_BRIDGE_FLAG, AGY_SERVER, agyBridgeEnv, registerAgyTools, wireTools, type AgyRegistration } from './agyMcp';
+import { installMcpConfig } from './agyMcpConfig';
+import { AGY_SERVER, agyBridgeEnv, registerAgyTools, wireTools, type AgyRegistration } from './agyMcp';
 
 /** The installed `agy`, or null: `SEISMIC_AGY` first, else on the search path (which has its installer's directory). */
 export function installedAgy(env: Record<string, string | undefined> = process.env): string | null {
@@ -209,49 +207,6 @@ export function agyArgs(spec: Pick<AgentSpec, 'resume' | 'model' | 'effort' | 'p
     ...(spec.model ? ['--model', spec.model] : []),
     ...(spec.effort ? ['--effort', spec.effort] : []),
   ];
-}
-
-/** The workstation file `agy` reads MCP servers from; the session writes it and takes it away again. */
-const MCP_CONFIG = join('.agents', 'mcp_config.json');
-const LEGACY_CONFIG = /"serverUrl":\s*"http:\/\/127\.0\.0\.1:\d+\/mcp"/;
-const bridgeArgs = COMPILED ? [AGY_BRIDGE_FLAG] : [resolve(import.meta.dir, '../../main.ts'), AGY_BRIDGE_FLAG];
-const bridge = JSON.stringify({ mcpServers: { [AGY_SERVER]: { command: process.execPath, args: bridgeArgs } } }, null, 2) + '\n';
-const mcpUsers = new Map<string, number>();
-
-/**
- * Registers the endpoint with `agy` for this workstation only (never the owner's own configuration),
- * out of reach of `git add -A` (the repository's `info/exclude`). A file of the repository's own is
- * not overwritten.
- */
-function installMcpConfig(cwd: string): () => void {
-  const file = join(realpathSync(cwd), MCP_CONFIG);
-  const previous = existsSync(file) ? readFileSync(file, 'utf8') : undefined;
-  if (previous !== undefined && previous !== bridge && !LEGACY_CONFIG.test(previous)) throw new Error(`Antigravity cannot start here: the workstation has its own ${MCP_CONFIG}`);
-  if (previous !== bridge) writeMcpConfig(cwd, file);
-  mcpUsers.set(file, (mcpUsers.get(file) ?? 0) + 1);
-  return () => {
-    const remaining = mcpUsers.get(file)! - 1;
-    if (remaining > 0) {
-      mcpUsers.set(file, remaining);
-      return;
-    }
-    mcpUsers.delete(file);
-    try {
-      if (readFileSync(file, 'utf8') === bridge) rmSync(file);
-    } catch { /* the workstation is gone */ }
-  };
-}
-
-function writeMcpConfig(cwd: string, file: string) {
-  const exclude = spawnSync(GIT, ['-C', cwd, 'rev-parse', '--path-format=absolute', '--git-path', 'info/exclude'], { encoding: 'utf8', windowsHide: true });
-  if (exclude.status === 0) {
-    const path = exclude.stdout.trim();
-    const line = `/${MCP_CONFIG.replaceAll('\\', '/')}`;
-    mkdirSync(dirname(path), { recursive: true });
-    if (!existsSync(path) || !readFileSync(path, 'utf8').split('\n').includes(line)) appendFileSync(path, `${existsSync(path) && !readFileSync(path, 'utf8').endsWith('\n') ? '\n' : ''}${line}\n`);
-  }
-  mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(file, bridge, { mode: 0o600 });
 }
 
 const frame = z.object({

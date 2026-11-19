@@ -105,6 +105,61 @@ test('concurrent sessions in the same checkout keep their tools separate', async
   expect(existsSync(config)).toBe(false);
 });
 
+test('independent processes keep the checkout config until the last session ends', async () => {
+  const repo = workstation();
+  const config = join(repo, '.agents', 'mcp_config.json');
+  const module = JSON.stringify(join(import.meta.dir, 'agyMcpConfig.ts'));
+  const code = `
+    import { installMcpConfig } from ${module};
+    const release = installMcpConfig(process.argv[1]);
+    console.log('ready');
+    for await (const chunk of process.stdin) {}
+    release();
+  `;
+  const startHolder = () => Bun.spawn([process.execPath, '-e', code, repo], { stdin: 'pipe', stdout: 'pipe', stderr: 'inherit' });
+  const first = startHolder();
+  const second = startHolder();
+  const stop = async (child: typeof first) => {
+    child.stdin.end();
+    expect(await child.exited).toBe(0);
+  };
+  try {
+    await Promise.all([first, second].map(async (child) => {
+      const { value } = await child.stdout.getReader().read();
+      expect(new TextDecoder().decode(value).trim()).toBe('ready');
+    }));
+    expect(readFileSync(config, 'utf8')).not.toContain('Bearer');
+    await stop(first);
+    expect(existsSync(config)).toBe(true);
+    await stop(second);
+    expect(existsSync(config)).toBe(false);
+    expect(git(repo, 'status', '--porcelain')).toBe('');
+
+    const interrupted = startHolder();
+    try {
+      const { value } = await interrupted.stdout.getReader().read();
+      expect(new TextDecoder().decode(value).trim()).toBe('ready');
+    } finally {
+      interrupted.kill('SIGKILL');
+      await interrupted.exited;
+    }
+    const restarted = startHolder();
+    try {
+      const { value } = await restarted.stdout.getReader().read();
+      expect(new TextDecoder().decode(value).trim()).toBe('ready');
+      await stop(restarted);
+      expect(existsSync(config)).toBe(false);
+    } finally {
+      restarted.kill();
+      await restarted.exited;
+    }
+  } finally {
+    first.kill();
+    second.kill();
+    await Promise.all([first.exited, second.exited]);
+  }
+});
+
 test('the endpoint opens to the session token only', async () => {
   const endpoint = registerAgyTools({ tools: wireTools([]) });
   const body = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' });
