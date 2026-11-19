@@ -16,6 +16,7 @@ import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Language } from '../core/locale';
 import { MESSAGES } from '../core/messages';
+import { seismicEnv } from '../core/env';
 import type { AccessView, DeviceView, Pairing, RemoteProblem, RemoteSetting, TailscaleState } from '../core/types';
 import { LOCAL_HOSTS, hostname, type Gate } from './access';
 import { BadRequest } from './board';
@@ -75,6 +76,8 @@ export interface AccessOptions {
   language?: () => Language;
   now?: () => number;
   platform?: string;
+  /** See `Access.lanLogin`; by default SEISMIC_LAN_LOGIN. */
+  lanLogin?: boolean;
   /** Who is the owner on this machine; by default the key in `home` (made up for a test without one). */
   owner?: Owner;
 }
@@ -91,6 +94,8 @@ export class Access implements Gate {
   private readonly language: () => Language;
   private readonly now: () => number;
   private readonly platform: string;
+  /** Throwaway runs with --lan: a request under the other address counts as local, so the owner's login link works there (it still needs the owner's key). */
+  private readonly lanLogin: boolean;
   private setting: RemoteSetting | null;
   private ts: TailscaleState = { state: 'missing' };
   /** The `tailscale serve` entry Seismic keeps, and the tailnet name it serves at. */
@@ -114,6 +119,7 @@ export class Access implements Gate {
     this.language = o.language ?? (() => 'en');
     this.now = o.now ?? Date.now;
     this.platform = o.platform ?? process.platform;
+    this.lanLogin = o.lanLogin ?? !!seismicEnv('LAN_LOGIN');
     this.owner = o.owner ?? new Owner({ home: o.home, language: this.language });
     this.setting = o.home ? remoteSetting(o.home) : null;
     this.served = this.readServed();
@@ -283,6 +289,7 @@ export class Access implements Gate {
   /** From this machine: loopback, under one of its names, forwarded by no proxy. */
   isLocal(req: Request, server: Bun.Server<unknown>): boolean {
     const ip = server.requestIP(req)?.address;
+    if (this.lanLogin && this.listening && !FORWARDED.some((h) => req.headers.has(h)) && hostname(req.headers.get('host') ?? '') === inUrl(this.listening).toLowerCase()) return true;
     return !!ip && LOOPBACK.has(ip) && !FORWARDED.some((h) => req.headers.has(h)) && LOCAL_HOSTS.includes(hostname(req.headers.get('host') ?? ''));
   }
 
