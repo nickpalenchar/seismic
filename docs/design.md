@@ -223,7 +223,8 @@ cycling through terminals.
   than the one read last (2026-11-18), not while typing. Check and clone reach it the same way: by
   `git ls-remote` and `git clone`, a GitHub repository (owner/name or https) with gh's login as git's
   only credential helper where gh is logged in, never with a password prompt (it would hang the
-  check). Rejected: `gh repo view`, which an API token can pass without the contents access a clone
+  check): no terminal prompt, no askpass program of git's or ssh's, helpers told not to ask, ssh in
+  batch mode, and no controlling terminal for git or ssh to open. Rejected: `gh repo view`, which an API token can pass without the contents access a clone
   needs. A GitHub repository that cannot be read while gh is logged out may just be private, so the
   line offers gh's login and, a login in a terminal of its own bringing no focus back, reads again
   every 15 seconds until it shows. The check informs and does not block the clone.

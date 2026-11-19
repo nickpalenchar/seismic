@@ -9,7 +9,7 @@
 // repository's folder, or a clone of one. A second page recommends more: on a Mac the pieces of
 // mobile development (Xcode, an iPhone simulator, Safari's remote automation).
 
-import { execFile, spawn } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, userInfo } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -186,17 +186,30 @@ function waited(argv: string[], env: Env): Promise<string | null> {
  */
 function tried(argv: string[], env: Env, timeout: number): Promise<{ ok: boolean; last: string }> {
   return new Promise((done) => {
-    execFile(argv[0]!, argv.slice(1), { env, timeout, maxBuffer: 1 << 22, windowsHide: true }, (error, _stdout, stderr) => {
-      const lines = `${stderr}`.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const p = spawn(argv[0]!, argv.slice(1), { env, windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'], detached: NO_TTY });
+    let stderr = '';
+    let late = false;
+    const timer = setTimeout(() => ((late = true), p.kill()), timeout);
+    p.stderr.on('data', (d) => (stderr += d));
+    const end = (ok: boolean, why: string) => {
+      clearTimeout(timer);
+      const lines = stderr.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
       const line = lines.findLast((l) => /^(fatal|error):/i.test(l)) ?? lines.at(-1);
-      const last = line?.replace(/^(fatal|error):\s*/i, '') || (error?.killed ? 'no answer in time' : (error?.message.split('\n')[0] ?? ''));
-      done({ ok: !error, last });
-    });
+      done({ ok, last: late ? 'no answer in time' : (line?.replace(/^(fatal|error):\s*/i, '') || why) });
+    };
+    p.on('error', (e) => end(false, e.message));
+    p.on('close', (code) => end(code === 0 && !late, `${argv[0]} exited with ${code}`));
   });
 }
 
 /** git's options that make gh's login its only credential helper (the empty one drops the others), as `gh repo clone` does. */
 const GH_HELPER_ARGS = ['-c', 'credential.helper=', '-c', 'credential.helper=!gh auth git-credential'];
+
+/** git's options that leave it no askpass program (an empty one ends the search for one) and its credential helpers no dialog. */
+const NO_PROMPT_ARGS = ['-c', 'core.askPass=', '-c', 'credential.interactive=false'];
+
+/** A command that must never ask the owner anything runs in a session of its own, without the terminal Seismic was started from (Windows has no such terminal to lose). */
+const NO_TTY = process.platform !== 'win32';
 
 /** How long reading a repository before its clone may take. */
 const REPO_CHECK_MS = 20_000;
@@ -490,11 +503,12 @@ export class MachineSetup {
   }
 
   /** Runs a program for a job, its output's last line shown as it goes. */
-  private run(argv: string[], log: (line: string) => void, env: Env = this.env): Promise<void> {
+  /** `noTty`: without the terminal Seismic was started from, for a command that must not ask (`NO_TTY`). */
+  private run(argv: string[], log: (line: string) => void, env: Env = this.env, noTty = false): Promise<void> {
     // the command as the owner knows it, without git's `-c` options before its verb
     const named = argv.filter((a, i) => a !== '-c' && argv[i - 1] !== '-c');
     return new Promise((done, fail) => {
-      const p = spawn(argv[0]!, argv.slice(1), { env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+      const p = spawn(argv[0]!, argv.slice(1), { env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], detached: noTty && NO_TTY });
       let last = '';
       const take = (d: Buffer) => {
         // progress comes with carriage returns; the line is what it shows last
@@ -585,8 +599,19 @@ export class MachineSetup {
     const ghLogin = github && (await output('gh', ['auth', 'status'], this.env)) !== null;
     const url = short ? `https://github.com/${spec}.git` : expandHome(spec);
     const helper = ghLogin ? GH_HELPER_ARGS : [];
-    const env: Env = { ...this.env, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never', ...(this.env.GIT_SSH_COMMAND ? {} : { GIT_SSH_COMMAND: 'ssh -o BatchMode=yes' }) };
-    return { argv: (verb) => ['git', ...helper, ...verb], url, github, ghLogin, env };
+    // no way to ask: no terminal prompt, no askpass program (git's from the environment or its config,
+    // ssh's), credential helpers told not to ask (Git Credential Manager by both its names), ssh in batch
+    // mode where no ssh command of the owner's is set; and the process has no controlling terminal
+    // (`NO_TTY`) that git or ssh could open by themselves
+    const { GIT_ASKPASS: _git, SSH_ASKPASS: _ssh, ...rest } = this.env;
+    const env: Env = {
+      ...rest,
+      GIT_TERMINAL_PROMPT: '0',
+      GCM_INTERACTIVE: 'never',
+      SSH_ASKPASS_REQUIRE: 'never',
+      ...(this.env.GIT_SSH_COMMAND ? {} : { GIT_SSH_COMMAND: 'ssh -o BatchMode=yes' }),
+    };
+    return { argv: (verb) => ['git', ...NO_PROMPT_ARGS, ...helper, ...verb], url, github, ghLogin, env };
   }
 
   /**
@@ -622,7 +647,7 @@ export class MachineSetup {
     return this.startJob(
       { kind: 'clone' },
       async (log, job) => {
-        await this.run(argv, log, env);
+        await this.run(argv, log, env, true);
         ({ project: job.project, branch: job.branch, opens: job.opens } = await this.add(dest, false, configured));
       },
       (e) => {

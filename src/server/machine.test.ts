@@ -408,8 +408,8 @@ describe('the first project', () => {
     const calls = join(dir, 'git-calls');
     const loggedIn = join(dir, 'gh-logged-in');
     fake('gh', `[ "$1 $2" = "auth status" ] && test -f ${loggedIn}`);
-    fake('git', `echo "$@" >> ${calls}; [ "$GIT_TERMINAL_PROMPT" = 0 ] || exit 3; case "$*" in *gh\\ auth\\ git-credential*) exit 0;; esac; echo "fatal: could not read Username for 'https://github.com': terminal prompts disabled" >&2; exit 128`);
-    const s = setup();
+    fake('git', `echo "$@" >> ${calls}; [ "$GIT_TERMINAL_PROMPT" = 0 ] && [ -z "$GIT_ASKPASS$SSH_ASKPASS" ] && [ "$SSH_ASKPASS_REQUIRE" = never ] || exit 3; case "$*" in *gh\\ auth\\ git-credential*) exit 0;; esac; echo "fatal: could not read Username for 'https://github.com': terminal prompts disabled" >&2; exit 128`);
+    const s = setup({ env: { GIT_ASKPASS: '/usr/bin/a-dialog', SSH_ASKPASS: '/usr/bin/a-dialog' } });
     expect(await s.repo({ clone: 'acme/private-shop' })).toEqual({ readable: false, error: "could not read Username for 'https://github.com': terminal prompts disabled", github: true, ghLogin: false });
     writeFileSync(loggedIn, '');
     expect(await s.repo({ clone: 'acme/private-shop' })).toEqual({ readable: true });
@@ -419,14 +419,16 @@ describe('the first project', () => {
     // the clone goes the way the check went
     await s.project({ clone: 'acme/private-shop', into: join(dir, 'code') });
     for (let i = 0; (await s.view()).job?.running && i < 100; i++) await Bun.sleep(50);
+    // each call leaves git no way to ask: no askpass program, credential helpers told not to ask
+    const NP = '-c core.askPass= -c credential.interactive=false ';
     // the view's own git calls aside
     const lines = readFileSync(calls, 'utf8').trim().split('\n').filter((l) => l !== '--version');
     expect(lines).toEqual([
-      'ls-remote --heads -- https://github.com/acme/private-shop.git',
-      '-c credential.helper= -c credential.helper=!gh auth git-credential ls-remote --heads -- https://github.com/acme/private-shop.git',
-      '-c credential.helper= -c credential.helper=!gh auth git-credential ls-remote --heads -- https://github.com/acme/private-shop',
-      'ls-remote --heads -- https://example.com/acme/shop.git',
-      `-c credential.helper= -c credential.helper=!gh auth git-credential clone --progress -- https://github.com/acme/private-shop.git ${join(dir, 'code', 'private-shop')}`,
+      `${NP}ls-remote --heads -- https://github.com/acme/private-shop.git`,
+      `${NP}-c credential.helper= -c credential.helper=!gh auth git-credential ls-remote --heads -- https://github.com/acme/private-shop.git`,
+      `${NP}-c credential.helper= -c credential.helper=!gh auth git-credential ls-remote --heads -- https://github.com/acme/private-shop`,
+      `${NP}ls-remote --heads -- https://example.com/acme/shop.git`,
+      `${NP}-c credential.helper= -c credential.helper=!gh auth git-credential clone --progress -- https://github.com/acme/private-shop.git ${join(dir, 'code', 'private-shop')}`,
     ]);
   });
 
