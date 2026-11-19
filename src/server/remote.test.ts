@@ -393,25 +393,23 @@ describe('on another address', () => {
     expect(await there('/').then(() => 'answered', () => 'gone')).toBe('gone');
   });
 
-  test.skipIf(!lan)('the login link a --lan start prints signs a browser in at the other address; without --lan it does not', async () => {
-    expect(await access.reachedAt()).toBeNull();
+  test.skipIf(!lan)('a --lan start prints a link that pairs a browser at the other address; the owner\'s login link signs nothing in there', async () => {
+    expect(await access.pairingLink()).toBeNull();
     await turnOn({ via: 'address', address: lan });
     const at = `http://${lan}:${server.port}`;
-    expect(await access.reachedAt()).toBe(at);
-    const there = (url: string, headers: Record<string, string> = {}) => fetch(url, { redirect: 'manual', headers: { 'user-agent': IPHONE, ...headers } });
-    // an ordinary start: the link signs in only a browser on this machine
+    const there = (url: string, headers: Record<string, string> = {}, init: RequestInit = {}) => fetch(url, { redirect: 'manual', ...init, headers: { 'user-agent': IPHONE, ...headers } });
+    // the owner's key never goes over that plain-HTTP address
     expect((await there(access.owner.link(at))).headers.get('set-cookie')).toBeNull();
-    // a --lan throwaway: the address counts as this machine's, with the owner's key still needed
-    access.stop();
-    server.stop(true);
-    access = new Access({ store, home: dir, tailscale: new Tailscale(fakeTailscale(ts)), now: () => clock, lanLogin: true });
-    server = serve([project], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, undefined, undefined, undefined, undefined, undefined, access, push);
-    const lanAt = (await access.reachedAt())!;
-    expect(lanAt).toBe(`http://${lan}:${server.port}`);
-    expect((await there(`${lanAt}/api/projects`)).status).toBe(401);
-    const signed = await there(access.owner.link(lanAt));
-    expect(signed.headers.get('set-cookie')).toContain('HttpOnly');
-    expect((await there(`${lanAt}/api/projects`, { cookie: cookieOf(signed) })).status).toBe(200);
+    const link = (await access.pairingLink())!;
+    expect(link).toStartWith(`${at}/pair?code=`);
+    const signed = await there(link);
+    expect(signed.status).toBe(303);
+    const cookie = cookieOf(signed);
+    expect(cookie).toStartWith('seismic-device=');
+    expect((await there(`${at}/api/projects`, { cookie })).status).toBe(200);
+    // a paired device: no managing access, and the link pairs only once
+    expect((await there(`${at}/api/access/pair`, { cookie, origin: at, 'sec-fetch-site': 'same-origin' }, { method: 'POST' })).status).toBe(403);
+    expect((await there(link)).status).toBe(401);
   });
 
   test('an address that is not this machine’s is refused with a reason', async () => {
