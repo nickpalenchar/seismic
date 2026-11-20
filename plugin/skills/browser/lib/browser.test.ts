@@ -135,7 +135,7 @@ describe('browser skill', () => {
     expect(await browser(a, 'stop')).toBe('Browser stopped.');
     expect(alive(sa.pid)).toBe(false);
     expect(await answers(sa.port)).toBe(false);
-    await expect(browser(a, 'text')).rejects.toThrow('run `start` first');
+    await expect(browser(a, 'text')).rejects.toThrow("Browser session not initialized");
     expect(await browser(b, 'text')).toBe('b');
     await browser(b, 'stop');
   }, 30_000);
