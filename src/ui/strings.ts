@@ -2574,6 +2574,7 @@ const en = {
   },
   usage: {
     groups: { session: 'Session', weekly: 'Week' } as Record<string, string | undefined>,
+    groupsShort: { session: 'S', weekly: 'W' } as Record<string, string | undefined>,
     harness: { claude: 'Claude Code', codex: 'Codex', agy: 'Antigravity' },
     title: { claude: 'Usage limits of your Claude plan', codex: 'Usage limits of your ChatGPT plan in Codex', agy: 'Usage limits of your Google plan in Antigravity' },
     kinds: { session: 'Session (5 hours)', weekly_all: 'Week, all models' } as Record<string, string | undefined>,

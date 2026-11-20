@@ -74,8 +74,9 @@ export function UsageDetails({ usage }: { usage: Usage }) {
 }
 
 /**
- * In the status bar; `phone`: at the right end of the phone's bar, a pill of glass; `compact`: only
- * the most used limit, without its name (the phone, with another harness's pill beside it).
+ * In the status bar; `phone`: at the right end of the phone's bar, a pill of glass; `compact`: every limit with a
+ * one-letter name, so a weekly limit stays visible beside a higher session one (the phone, with another
+ * harness's pill beside it).
  */
 export function UsagePill({ usage, phone, compact }: { usage: Usage; phone?: boolean; compact?: boolean }) {
   // open by a click (a tap) until one elsewhere or Escape
@@ -87,7 +88,6 @@ export function UsagePill({ usage, phone, compact }: { usage: Usage; phone?: boo
     api.saveUsageMeter(false).catch((e) => setStatus(failText(e)));
   };
   const groups = headline(usage.limits);
-  const shown = compact ? groups.filter((l) => l === groups.reduce((a, b) => (b.percent > a.percent ? b : a))) : groups;
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <Pill variant={phone ? 'glass' : 'flat'} className="relative p-0" id={usage.harness === 'claude' ? 'usage' : `usage-${usage.harness}`}>
@@ -98,9 +98,9 @@ export function UsagePill({ usage, phone, compact }: { usage: Usage; phone?: boo
           <span className="-mr-1.5 flex items-center" title={t.usage.harness[usage.harness]}>
             <HarnessMark harness={usage.harness} />
           </span>
-          {shown.map((l) => (
+          {groups.map((l) => (
             <span key={l.group} className="relative flex items-center gap-1.5" title={compact ? limitName(l) : undefined}>
-              {!compact && <span>{t.usage.groups[l.group] ?? limitName(l)}</span>}
+              <span className={cn(compact && 'text-muted-foreground')}>{(compact ? t.usage.groupsShort[l.group] : t.usage.groups[l.group]) ?? limitName(l)}</span>
               <Percent limit={l} />
               {!phone && <UsageProgress limit={l} className="absolute inset-x-0 top-full h-[3px]" />}
             </span>
