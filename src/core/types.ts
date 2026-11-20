@@ -3462,6 +3462,8 @@ export const AGENT_DEFAULTS: Record<AgentRole, AgentSetting> = {
 export interface AgentsView {
   file: string;
   agents: Record<AgentRole, AgentSetting>;
+  /** The explicitly connected harnesses, when saved. */
+  harnesses?: Harness[];
   /** Codex workers' approvals go to Codex's own automatic review, not the owner. */
   codexAutoReview: boolean;
 }

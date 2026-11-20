@@ -8,10 +8,10 @@
  */
 
 import { Fragment, type ReactNode, useEffect, useId, useRef, useState } from 'react';
-import { type AgentSetting, CLOUD_PRESETS, CLOUD_VOICES, type CloudPreset, firstProjectHarness, type GitSetupPreview, needsGit, LARGE_FILE, type Language, type MachineItem, type MachineSection, type MachineSectionId, type MachineView, type MobileId, RECOMMENDED_SECTIONS, type SetupItem, type SetupRepoCheck, type VoiceSetupItem } from '../../../core/types';
+import { type AgentsView, CLOUD_PRESETS, CLOUD_VOICES, type CloudPreset, firstProjectHarness, type GitSetupPreview, needsGit, LARGE_FILE, type Language, type MachineItem, type MachineSection, type MachineSectionId, type MachineView, type MobileId, RECOMMENDED_SECTIONS, type SetupItem, type SetupRepoCheck, type VoiceSetupItem } from '../../../core/types';
 import { HARNESSES, HARNESS_SECTION, type Harness } from '../../../core/types';
 import { LANGUAGES } from '../../../core/locale';
-import { api, reload } from '../../api';
+import { api, onAgentSettingsChange, reload } from '../../api';
 import { useCopy } from '../../copy';
 import { Sign } from '../../logo';
 import { failText, fileSize, t } from '../../strings';
@@ -881,8 +881,8 @@ function FirstProject({ view, ready, agents, onView }: { view: MachineView; read
   const branch = saved?.branch ?? found?.branch;
   const noGit = !!found?.noGit;
   // Match the first-project check: a previous choice counts only if selected in this run.
-  const worker = useWorkerSetting();
-  const harness = worker ? firstProjectHarness(agents, worker.harness) : undefined;
+  const worker = useWorkerConfiguration();
+  const harness = worker ? firstProjectHarness(agents, worker.agents.worker.harness) : undefined;
   // once Seismic runs with the project (by itself, or started again by the owner), the page opens it
   const opened = useRef(false);
   useEffect(() => {
@@ -1139,13 +1139,20 @@ function useFolder(path: string): { branch?: string; noGit?: boolean } | null {
   return found?.path === path ? found : null;
 }
 
-/** Configuration's setting for workers ("Agents and models"), as saved; null until it has loaded. */
-export function useWorkerSetting(): AgentSetting | null {
-  const [setting, setSetting] = useState<AgentSetting | null>(null);
+/** Configuration's agent settings and explicit harness connections, read together. */
+export function useWorkerConfiguration(): AgentsView | null {
+  const [view, setView] = useState<AgentsView | null>(null);
   useEffect(() => {
-    api.agents().then((v) => setSetting(v.agents.worker), () => {});
+    let revision = 0;
+    const refresh = () => {
+      const at = ++revision;
+      api.agents().then((saved) => { if (at === revision) setView(saved); }, () => {});
+    };
+    refresh();
+    const stop = onAgentSettingsChange(refresh);
+    return () => { ++revision; stop(); };
   }, []);
-  return setting;
+  return view;
 }
 
 /** The path, once Seismic found a folder without git there (where git can be set up); else empty. */

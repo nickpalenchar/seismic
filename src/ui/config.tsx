@@ -21,7 +21,7 @@ import { type AddSiteInput, api, onAgentSettingsChange, reload, type SiteHow } f
 import { keepConfigDraft, keptConfigDraft } from './configDraft';
 import { keep } from './keep';
 import { plain } from './markdown';
-import { demoState, GitSetup, platformName, RecognitionDetail, Setup, SetupList, useFolderWithoutGit, useWorkerSetting, voiceState } from './views/setup';
+import { demoState, GitSetup, platformName, RecognitionDetail, Setup, SetupList, useFolderWithoutGit, useWorkerConfiguration, voiceState } from './views/setup';
 import { Harnesses } from './views/setup/harnesses';
 import type { Usage } from '../core/types';
 import { Spinner } from './components/spinner';
@@ -360,6 +360,14 @@ export function ConfigDialog({ on, page, usage, onClose, onAsk, onTalk, onProble
     const n = ++seq.current;
     return api.checkConfig(draft).then((v) => void (n === seq.current && take(v, draft)), console.error);
   };
+  // A harness change can also change the validity of a folder already in the draft or saved config.
+  useEffect(() => {
+    if (!on || !view) return;
+    return onAgentSettingsChange(() => {
+      checkSaved();
+      if (changed) void recheck();
+    });
+  }, [on, view, changed, draft]);
   // problems of no one project (none at all, the file broken): counted at the heading over them
   const overall = problems.filter((p) => p.project === undefined);
   // a project differs from the saved one with its id, or from the one at its place while ids are unknown; one added always
@@ -2506,8 +2514,8 @@ function ProjectBlock({ n, project, file, checking, resolved, running, pin, save
   const at = Math.min(tab, project.repos.length - 1);
   const repo = project.repos[at];
   // the harness the project's workers run in: one that needs git leaves a folder without it no choice but setting it up
-  const worker = useWorkerSetting();
-  const harness = worker ? projectAgentSetting('worker', worker, project.agents).harness : undefined;
+  const worker = useWorkerConfiguration();
+  const harness = worker ? projectAgentSetting('worker', worker.agents.worker, project.agents, worker.harnesses).harness : undefined;
   const gitOnly = needsGit(harness) ? harness : undefined;
   return (
     <div className="cfg-project pb-2">

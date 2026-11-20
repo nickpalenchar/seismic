@@ -1,6 +1,6 @@
 /** Connected harnesses in Configuration, with their current usage and the setup wizard. */
 import { useEffect, useRef, useState } from 'react';
-import type { Harness, Usage } from '../../../core/types';
+import { HARNESSES, type Harness, type Usage } from '../../../core/types';
 import { api } from '../../api';
 import { Button } from '../../components/button';
 import { ConfirmDialog } from '../../components/dialog';
@@ -16,6 +16,8 @@ export function Harnesses({ usage }: { usage: Usage[] }) {
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
   const addButton = useRef<HTMLButtonElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const allConnected = HARNESSES.every((h) => configured?.includes(h));
   const w = t.config.harnesses;
   const names = t.config.agents.harnesses;
   useEffect(() => {
@@ -29,7 +31,10 @@ export function Harnesses({ usage }: { usage: Usage[] }) {
 
   const back = () => {
     setAdding(false);
-    requestAnimationFrame(() => addButton.current?.focus());
+    requestAnimationFrame(() => {
+      if (addButton.current?.disabled) heading.current?.focus();
+      else addButton.current?.focus();
+    });
   };
   const disconnect = async (harness: Harness) => {
     setBusy(true);
@@ -56,13 +61,14 @@ export function Harnesses({ usage }: { usage: Usage[] }) {
   return (
     <div className="max-w-3xl">
       <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="m-0 text-xl font-semibold">{t.config.sections.harnesses}</h2>
-        <Button ref={addButton} variant="primary" disabled={!configured || busy} onClick={() => {
+        <h2 ref={heading} tabIndex={-1} className="m-0 text-xl font-semibold focus:outline-none">{t.config.sections.harnesses}</h2>
+        <Button ref={addButton} variant="primary" disabled={!configured || busy || allConnected} onClick={() => {
           setError('');
           setAdding(true);
         }}>{w.add}</Button>
       </header>
       {!configured && !error && <p className="hint" role="status">{w.loading}</p>}
+      {allConnected && <p className="hint" role="status">{w.allConnected}</p>}
       {configured?.length === 0 && <p className="hint">{w.empty}</p>}
       {!!configured?.length && <ul className="m-0 grid list-none gap-3 p-0">
         {configured.map((harness) => {

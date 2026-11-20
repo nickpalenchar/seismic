@@ -346,7 +346,12 @@ export function saveFirstHarnesses(home: string, selected: readonly Harness[]) {
 
 export function agentsView(home: string): AgentsView {
   const settings = read(home);
-  return { file: join(home, SETTINGS_FILE), agents: Object.fromEntries(AGENT_ROLES.map((r) => [r, settingFor(settings, r)])) as Record<AgentRole, AgentSetting>, codexAutoReview: settings.codexAutoReview !== false };
+  return {
+    file: join(home, SETTINGS_FILE),
+    agents: Object.fromEntries(AGENT_ROLES.map((r) => [r, settingFor(settings, r)])) as Record<AgentRole, AgentSetting>,
+    ...(settings.harnesses ? { harnesses: settings.harnesses } : {}),
+    codexAutoReview: settings.codexAutoReview !== false,
+  };
 }
 
 /** Saves whether Codex's own automatic review decides for Codex workers (`{ on }`) or the owner is asked; read whenever one starts. Other settings in the file stay. */

@@ -1491,6 +1491,7 @@ const en = {
     harnesses: {
       add: 'Configure new harness',
       empty: 'No harnesses connected.',
+      allConnected: 'All available harnesses are connected.',
       connected: 'Connected',
       loading: 'Loading harnesses…',
       pick: 'Choose harnesses to connect',
