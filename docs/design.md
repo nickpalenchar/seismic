@@ -235,7 +235,8 @@ cycling through terminals.
   by an agent until its check answers or fails (2026-11-18). Each answer carries the installation as
   it was when its check began, so only the answer of the latest check sets it. An agent the owner has not ticked
   or unticked is picked once its check finds it ready and stays off otherwise; one the owner touched
-  keeps their choice whatever the check finds. Rejected: one check of everything before the page
+  keeps their choice whatever the check finds. Reopened setup only offers connected harnesses;
+  new connections are made in Settings → Harnesses. Rejected: one check of everything before the page
   shows (a slow CLI held up the whole page), and picking Claude Code where none is ready.
   The repository a first project is cloned from is read when its field is left with another value
   than the one read last (2026-11-18), not while typing. Both `git ls-remote` and `git clone` use

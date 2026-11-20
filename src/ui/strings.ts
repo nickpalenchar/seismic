@@ -2177,9 +2177,15 @@ const en = {
     seismic: {
       title: 'Select Model for Seismic',
       hint: 'Seismic is the foundational agent that coordinates the work of all the others. Choose the harness with your best usage availability.',
+      noModels: 'No supported models are available for this harness.',
       confirm: 'Confirm',
     },
-    pick: { title: 'Which agents do you work with?', hint: 'Pick one or more. What each needs on this machine shows below.' },
+    pick: {
+      title: 'Which agents do you work with?',
+      hint: 'Pick one or more. What each needs on this machine shows below.',
+      connected: 'Which connected agents do you work with?',
+      connectedHint: 'Pick one or more. To connect another agent, use Harnesses in Settings.',
+    },
     agentNames: { claude: 'Claude Code', codex: 'Codex', agy: 'Antigravity', pi: 'Pi' },
     agentHints: { claude: 'Anthropic', codex: 'OpenAI', agy: 'Google · preview', pi: 'Coming soon' },
     agentReady: 'Ready',

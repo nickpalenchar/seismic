@@ -16,11 +16,10 @@ const ROLE = 'koordinator';
 
 export function SeismicAgentStep({ harnesses, onConfirm, onBack }: { harnesses: readonly Harness[]; onConfirm: () => void; onBack: () => void }) {
   const [view, setView] = useState<AgentsView | null>(null);
-  const [models, setModels] = useState<CodexModel[] | undefined>();
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
   const [attempt, setAttempt] = useState(0);
-  const [loadError, setLoadError] = useState('');
+  const [catalog, setCatalog] = useState<{ key: string; models?: CodexModel[]; error?: string }>();
   const a = t.config.agents;
   const s = t.setup.seismic;
   useEffect(() => {
@@ -30,17 +29,18 @@ export function SeismicAgentStep({ harnesses, onConfirm, onBack }: { harnesses: 
   // a role whose harness was not picked here takes the first picked one, as the first project does
   const harness: Harness = setting && harnesses.includes(setting.harness ?? 'claude') ? setting.harness ?? 'claude' : harnesses[0] ?? 'claude';
   const other = harness === 'codex' || harness === 'agy' ? harness : null;
+  const catalogKey = `${other}:${attempt}`;
+  const loaded = catalog?.key === catalogKey ? catalog : undefined;
+  const models = loaded?.models;
   useEffect(() => {
-    setModels(undefined);
-    setLoadError('');
     if (!other) return;
     let live = true;
     (other === 'agy' ? api.agyModels() : api.codexModels()).then(
-      (list) => { if (live) setModels(list); },
-      (e) => { if (live) setLoadError(failText(e)); },
+      (list) => { if (live) setCatalog({ key: catalogKey, models: other === 'codex' ? list.filter((m) => modelEfforts(m).length > 0) : list }); },
+      (e) => { if (live) setCatalog({ key: catalogKey, error: failText(e) }); },
     );
     return () => { live = false; };
-  }, [other, attempt]);
+  }, [other, catalogKey]);
   if (!setting) return status ? <p className="hint text-destructive">{status}</p> : null;
 
   const choice = other === 'agy' ? agyBaseChoice(setting.agy ?? { model: 'default' }, models) : harnessChoice({ ...setting, harness });
@@ -48,7 +48,9 @@ export function SeismicAgentStep({ harnesses, onConfirm, onBack }: { harnesses: 
   const model = other ? (choice.model === 'default' ? defaultModel : choice.model) : setting.model === 'default' ? defaultModel : setting.model;
   const selected = catalogModel(models, model);
   const efforts = selected ? modelEfforts(selected) : AGENT_EFFORTS;
-  const effort = other ? choice.effort ?? modelEffort(selected) : setting.effort;
+  const effort = other ? modelEffort(selected, choice.effort) : setting.effort;
+  const canConfirm = !other || (!!selected && (other === 'agy' || !!effort));
+  const loadError = loaded?.error ?? (models?.length === 0 ? s.noModels : '');
   const effortLabel = `${a.roles[ROLE].name}: ${a.effort}`;
   const save = async (change: Partial<AgentSetting>) => {
     setBusy(true);
@@ -64,8 +66,11 @@ export function SeismicAgentStep({ harnesses, onConfirm, onBack }: { harnesses: 
     }
   };
   const confirm = async () => {
+    if (!canConfirm) return;
     // saves the harness shown, whether or not the owner touched it
-    const own = other === 'agy' ? { agy: { model: choice.model, effort: choice.effort } } : other ? { codex: { model: choice.model, effort: choice.effort ?? 'high' } } : { model: setting.model, effort: setting.effort };
+    let own: Partial<AgentSetting> = { model: setting.model, effort: setting.effort };
+    if (other === 'agy') own = { agy: { model: choice.model, effort: choice.effort === undefined ? undefined : effort } };
+    if (other === 'codex' && effort) own = { codex: { model: choice.model, effort } };
     if (await save({ harness, ...own })) onConfirm();
   };
 
@@ -81,8 +86,9 @@ export function SeismicAgentStep({ harnesses, onConfirm, onBack }: { harnesses: 
           if (!other) return void save({ harness, model: picked as AgentModel });
           const next = catalogModel(models, picked);
           const id = picked === defaultModel ? 'default' : picked;
-          const nextEffort = other === 'agy' && id === 'default' ? undefined : modelEffort(next, effort);
-          return void save(other === 'agy' ? { harness, agy: { model: id, effort: nextEffort } } : { harness, codex: { model: id, effort: nextEffort ?? choice.effort ?? 'high' } });
+          const nextEffort = modelEffort(next, effort ?? choice.effort);
+          if (other === 'agy') return void save({ harness, agy: { model: id, effort: id === 'default' ? undefined : nextEffort } });
+          if (nextEffort) void save({ harness, codex: { model: id, effort: nextEffort } });
         }}>
           <ModelOptions harness={harness} models={models} value={model} defaultModel={defaultModel} />
         </Select>
@@ -103,7 +109,7 @@ export function SeismicAgentStep({ harnesses, onConfirm, onBack }: { harnesses: 
       )}
       <div className="flex gap-2 mt-4">
         <Button size="small" onClick={onBack}>{t.setup.back}</Button>
-        <Button variant="primary" disabled={busy || (!!other && !models)} onClick={() => void confirm()}>{s.confirm}</Button>
+        <Button variant="primary" disabled={busy || !canConfirm} onClick={() => void confirm()}>{s.confirm}</Button>
       </div>
     </>
   );

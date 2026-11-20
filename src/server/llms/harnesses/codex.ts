@@ -8,7 +8,7 @@ import { homedir } from 'node:os';
 import { realpathSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { GIT } from '../../workstations';
-import type { CodexModel, Usage, UsageLimit } from '../../../core/types';
+import { AGENT_EFFORTS, type CodexModel, type Usage, type UsageLimit } from '../../../core/types';
 import type { UsageSource } from '../../usage';
 import { z } from 'zod';
 import { messageOf } from '../../../core/text';
@@ -27,7 +27,13 @@ const currentName = (name: string) => renamed[name] ?? name.replace(/^obeya_/, w
 const threadResult = z.object({ thread: z.object({ id: z.string().min(1) }), model: z.string() });
 const turnResult = z.object({ turn: z.object({ id: z.string().min(1) }) });
 const modelPage = z.object({
-  data: z.array(z.object({ model: z.string(), isDefault: z.boolean(), supportedReasoningEfforts: z.array(z.object({ reasoningEffort: z.string() })), inputModalities: z.array(z.string()) })),
+  data: z.array(z.object({
+    model: z.string(),
+    isDefault: z.boolean(),
+    supportedReasoningEfforts: z.array(z.object({ reasoningEffort: z.string() })),
+    defaultReasoningEffort: z.enum(AGENT_EFFORTS).optional().catch(undefined),
+    inputModalities: z.array(z.string()),
+  })),
   nextCursor: z.string().nullable(),
 });
 const backgroundPage = z.object({ data: z.array(z.object({ itemId: z.string(), command: z.string(), osPid: z.number().int().positive().nullable().optional() })), nextCursor: z.string().nullable() });

@@ -328,6 +328,25 @@ export function Setup({ first, onClose, wizard }: { first?: boolean; onClose?: (
   const [touched, setTouched] = useState<Partial<Record<Agent, boolean>>>({});
   const [pending, setPending] = useState<Harness[]>([]);
   const [confirming, setConfirming] = useState(false);
+  const [connected, setConnected] = useState<Harness[]>();
+  const [connectionsError, setConnectionsError] = useState('');
+  const [connectionsAttempt, setConnectionsAttempt] = useState(0);
+  const reopened = !first && !wizard;
+  useEffect(() => {
+    if (!reopened) return;
+    let revision = 0;
+    const refresh = () => {
+      const at = ++revision;
+      setConnectionsError('');
+      api.harnesses().then(
+        (saved) => { if (at === revision) setConnected(saved); },
+        (error) => { if (at === revision) setConnectionsError(failText(error)); },
+      );
+    };
+    refresh();
+    const stop = onAgentSettingsChange(refresh);
+    return () => { ++revision; stop(); };
+  }, [reopened, connectionsAttempt]);
   const currentHarness = pending[0];
   const wizardHeading = useRef<HTMLHeadingElement>(null);
   const pickerTitle = useId();
@@ -494,10 +513,12 @@ export function Setup({ first, onClose, wizard }: { first?: boolean; onClose?: (
   const agentItems = (a: Agent) => (a === 'pi' ? [] : (sectionOf(HARNESS_SECTION[a])?.items ?? []));
   /** Whether the agent's check is under way, the first or a later one; one that failed is over, whatever it left. */
   const checkingAgent = (a: Agent) => a !== 'pi' && isChecking(HARNESS_SECTION[a]);
-  const chosen = AGENTS.filter((a) => touched[a] ?? (!wizard && a !== 'pi' && ready(agentItems(a))));
+  // Reopened setup checks the connected harnesses. New connections belong to the Harnesses wizard.
+  const offered = reopened ? connected ?? [] : wizard ? HARNESSES : AGENTS;
+  const chosen = offered.filter((a) => touched[a] ?? (!wizard && a !== 'pi' && ready(agentItems(a))));
   // an agent is configured once its own pieces and git are there: its Ready badge, the count and the steps after the first all go by this
   const isConfigured = (a: Agent) => ready(agentItems(a)) && ready(gitItems);
-  const configured = chosen.filter(isConfigured);
+  const configured = chosen.filter((a): a is Harness => a !== 'pi' && isConfigured(a));
   // without a configured agent only the first step is open, however far the owner got before
   const gated = !configured.length;
   const recommended = view?.sections.filter((x) => RECOMMENDED_SECTIONS.includes(x.id)) ?? [];
@@ -559,11 +580,16 @@ export function Setup({ first, onClose, wizard }: { first?: boolean; onClose?: (
   const picker = (
     <section className={cn(projectClass, 'setup-pick')}>
       <div className={sectionHeadClass}>
-        <b id={pickerTitle}>{wizard ? t.config.harnesses.pick : s.pick.title}</b>
+        <b id={pickerTitle}>{wizard ? t.config.harnesses.pick : reopened ? s.pick.connected : s.pick.title}</b>
       </div>
-      <p className="hint mt-0.5 mb-2">{wizard ? t.config.harnesses.pickHint : s.pick.hint}</p>
+      <p className="hint mt-0.5 mb-2">{wizard ? t.config.harnesses.pickHint : reopened ? s.pick.connectedHint : s.pick.hint}</p>
+      {reopened && !connected && !connectionsError && <p className="hint" role="status">{t.config.harnesses.loading}</p>}
+      {reopened && connected?.length === 0 && <p className="hint">{t.config.harnesses.empty}</p>}
+      {connectionsError && <p className="hint text-destructive" role="alert">
+        {connectionsError} <Button size="small" onClick={() => setConnectionsAttempt((n) => n + 1)}>{t.config.harnesses.retry}</Button>
+      </p>}
       <div role="group" aria-labelledby={pickerTitle} className="grid grid-cols-2 gap-2.5 max-sm:grid-cols-1">
-        {(wizard ? HARNESSES : AGENTS).map((a) => {
+        {offered.map((a) => {
           const soon = a === 'pi';
           const saved = !soon && wizard?.configured.includes(a);
           const on = !!saved || chosen.includes(a);
@@ -598,7 +624,7 @@ export function Setup({ first, onClose, wizard }: { first?: boolean; onClose?: (
           );
         })}
       </div>
-      {HARNESSES.map((h) => (!wizard || !wizard.configured.includes(h)) && brokenOf(HARNESS_SECTION[h]) !== undefined && (
+      {offered.map((h) => h !== 'pi' && !wizard?.configured.includes(h) && brokenOf(HARNESS_SECTION[h]) !== undefined && (
         <p key={h} className="hint">{s.agentNames[h]} {checkFailed(HARNESS_SECTION[h])}</p>
       ))}
     </section>
@@ -725,9 +751,9 @@ export function Setup({ first, onClose, wizard }: { first?: boolean; onClose?: (
               </StepFooter>
             </>
           )}
-          {step === 'seismic' && (
+          {step === 'seismic' && !gated && (
             <SeismicAgentStep
-              harnesses={configured.filter((a): a is Harness => a !== 'pi')}
+              harnesses={configured}
               onBack={() => go('agents')}
               onConfirm={() => go('recommended')}
             />

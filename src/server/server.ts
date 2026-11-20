@@ -62,11 +62,10 @@ const notFound = () => new Response('Not found', { status: 404 });
  * Whether a harness's model catalog is read. One that is not connected has none, except before any
  * harnesses were saved and any project exists: onboarding picks agents there that are saved only with the first project.
  */
-function offersCatalog(home: string, harness: Harness, machine?: MachineSetup): boolean {
-  const saved = savedHarnesses(home);
+function offersCatalog(config: Config, harness: Harness, machine?: MachineSetup): boolean {
+  const saved = savedHarnesses(config.home);
   if (saved) return saved.includes(harness);
-  const inferred = machine?.harnesses();
-  return !inferred?.length || inferred.includes(harness);
+  return !config.current().length || !!machine?.harnesses().includes(harness);
 }
 
 function replyParam(p: string | null): number | TalkRef | undefined {
@@ -671,8 +670,8 @@ export function serve(
         GET: needs(machine, (m) => m.harnesses()),
         PUT: needs(machine, async (m, req) => m.setHarness(await req.json())),
       },
-      '/api/agents/codex-models': { GET: needs(config, (c) => offersCatalog(c.home, 'codex', machine) ? codexModels() : []) },
-      '/api/agents/agy-models': { GET: needs(config, (c) => offersCatalog(c.home, 'agy', machine) ? agyModels() : []) },
+      '/api/agents/codex-models': { GET: needs(config, (c) => offersCatalog(c, 'codex', machine) ? codexModels() : []) },
+      '/api/agents/agy-models': { GET: needs(config, (c) => offersCatalog(c, 'agy', machine) ? agyModels() : []) },
       // this machine's demo sites: listed, added (set up at a host or entered by hand, once a publish there
       // went through), connected with another machine's code, removed from this machine
       '/api/demo-sites': {
