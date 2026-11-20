@@ -131,10 +131,14 @@ function readState(file: string): State | null {
   }
 }
 
+const NOT_STARTED =
+  'Browser session not initialized. Run `bun plugin/skills/browser/lib/browser.ts start` to initialize the browser session, ' +
+  'then `open <url>` to open a tab, then retry your command.';
+
 async function loadState(): Promise<State> {
   const file = stateFile();
   const state = readState(file);
-  if (!state) return fail('No browser running in this session — run `start` first.');
+  if (!state) return fail(NOT_STARTED);
   if (!(await isAlive(state.port))) {
     fs.rmSync(file, { force: true });
     fail('The browser is no longer running (stale state cleaned up) — run `start` again.');
@@ -156,7 +160,7 @@ async function pageTabs(port: number): Promise<Tab[]> {
 
 async function pickTab(port: number, tabId?: string): Promise<Tab> {
   const tabs = await pageTabs(port);
-  if (tabs.length === 0) fail('No open tabs — run `open <url>` first.');
+  if (tabs.length === 0) fail(NOT_STARTED + ' If `start` already ran, the browser has no tab yet: run `open <url>`, then retry.');
   if (!tabId) return tabs[0]!;
   const tab = tabs.find((t) => t.id === tabId || t.id.startsWith(tabId));
   if (!tab) fail(`No tab ${tabId}. Open tabs:\n` + tabs.map((t) => `${t.id}  ${t.url}`).join('\n'));

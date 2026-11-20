@@ -122,7 +122,7 @@ only disconnects.
 - `open`/`nav` wait up to 20 s for full load, then print a warning and continue; slow SPAs may need
   an extra `eval`-based wait for a specific element.
 - Screenshots are PNG; view them with the Read tool.
-- "No browser running in this session" or "stale state cleaned up" just mean: run `start` (again),
+- "Browser session not initialized" or "stale state cleaned up" just mean: run `start` (again),
   as after a restart of the session.
 - A headless page runs `requestAnimationFrame`, so camera flights and animations finish here,
   unlike in a hidden tab of a desktop browser.
