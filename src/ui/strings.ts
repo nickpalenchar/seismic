@@ -2138,7 +2138,7 @@ const en = {
     title: 'Setup',
     close: 'Close',
     introFirst:
-      'Three steps: the agents you work with, the features that can wait, then your first project. What installs without admin rights, Seismic installs at a click; for the rest the command is there.',
+      'Four steps: the agents you work with, the model for Seismic, the features that can wait, then your first project. What installs without admin rights, Seismic installs at a click; for the rest the command is there.',
     intro: 'What Seismic needs on this machine. What installs without admin rights, Seismic installs at a click; for the rest the command is there.',
     platform: (platform: string) => `Checked on ${platform}. The list checks again when you come back here from a terminal or an installer.`,
     needed: 'needed',
@@ -2172,8 +2172,13 @@ const en = {
       gh: 'GitHub CLI (gh)',
       ghLogin: 'GitHub login',
     },
-    steps: { agents: 'Agents', recommended: 'Recommended features', first: 'First project' },
+    steps: { agents: 'Agents', seismic: 'Seismic', recommended: 'Recommended features', first: 'First project' },
     step: (n: number, of: number) => `Step ${n} of ${of}`,
+    seismic: {
+      title: 'Select Model for Seismic',
+      hint: 'Seismic is the foundational agent that coordinates the work of all the others. Choose the harness with your best usage availability.',
+      confirm: 'Confirm',
+    },
     pick: { title: 'Which agents do you work with?', hint: 'Pick one or more. What each needs on this machine shows below.' },
     agentNames: { claude: 'Claude Code', codex: 'Codex', agy: 'Antigravity', pi: 'Pi' },
     agentHints: { claude: 'Anthropic', codex: 'OpenAI', agy: 'Google · preview', pi: 'Coming soon' },

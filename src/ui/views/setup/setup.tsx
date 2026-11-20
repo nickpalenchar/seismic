@@ -1,6 +1,7 @@
 /**
  * The setup assistant, in steps: the agents the owner works with (Claude Code, Codex, Antigravity,
  * picked as several options), each with what it needs on this machine and git beside them; then the
+ * model Seismic itself runs with, confirmed among the picked agents; then the
  * features that can wait (pull requests, voice, demos, mobile development); on the first start (no
  * project yet) it fills the page and ends with the first project, from a folder or a clone. Each piece
  * is installed at a click where Seismic can, with the command for the rest and a terminal for the
@@ -22,6 +23,7 @@ import { Checkbox } from '../../components/checkbox';
 import { CheckLabel } from '../../components/check-label';
 import { Badge } from '../../components/badge';
 import { Spinner } from '../../components/spinner';
+import { SeismicAgentStep } from './seismicAgent';
 import { Callout, CalloutDescription, type CalloutKind, CalloutTitle } from '../../components/callout';
 import { Check, CircleCheck, Info, TriangleAlert } from 'lucide-react';
 import { Input } from '../../components/input';
@@ -268,14 +270,14 @@ const merged = (was: MachineView | null, found: MachineView, asked: readonly Mac
 /** How often the list checks again while a login it waits for is missing. */
 const LOGIN_POLL_MS = 15000;
 /** The assistant's steps: the agents, the features that can wait, and on the first start the first project. */
-type Step = 'agents' | 'recommended' | 'first';
+type Step = 'agents' | 'seismic' | 'recommended' | 'first';
 
 /** The steps as a bar of segments, one per step, filled up to the current one; a step reached before is a click away. */
 function Steps({ steps, at, furthest, onPick }: { steps: readonly Step[]; at: Step; furthest: number; onPick: (s: Step) => void }) {
   const s = t.setup;
   const now = steps.indexOf(at);
   return (
-    <ol aria-label={s.step(now + 1, steps.length)} className={cn('setup-steps grid gap-3 mt-4 mb-1 mx-0 p-0 list-none', steps.length === 3 ? 'grid-cols-3' : 'grid-cols-2')}>
+    <ol aria-label={s.step(now + 1, steps.length)} className={cn('setup-steps grid gap-3 mt-4 mb-1 mx-0 p-0 list-none', steps.length === 4 ? 'grid-cols-4' : 'grid-cols-3')}>
       {steps.map((step, i) => (
         <li key={step}>
           <button
@@ -500,7 +502,7 @@ export function Setup({ first, onClose, wizard }: { first?: boolean; onClose?: (
   const gated = !configured.length;
   const recommended = view?.sections.filter((x) => RECOMMENDED_SECTIONS.includes(x.id)) ?? [];
   const open = recommended.filter((x) => !ready(x.items));
-  const steps: Step[] = first ? ['agents', 'recommended', 'first'] : ['agents', 'recommended'];
+  const steps: Step[] = first ? ['agents', 'seismic', 'recommended', 'first'] : ['agents', 'seismic', 'recommended'];
   const top = useRef<HTMLElement>(null);
   const body = useRef<HTMLDivElement>(null);
   const go = (to: Step) => {
@@ -717,11 +719,18 @@ export function Setup({ first, onClose, wizard }: { first?: boolean; onClose?: (
                 callout={configured.length ? 'success' : 'info'}
                 text={!configured.length ? s.proceed.none : configured.length === 1 ? s.proceed.one(s.agentNames[configured[0]!]) : s.proceed.many(configured.length)}
               >
-                <Button variant="primary" disabled={!configured.length} onClick={() => go('recommended')}>
+                <Button variant="primary" disabled={!configured.length} onClick={() => go('seismic')}>
                   {s.next}
                 </Button>
               </StepFooter>
             </>
+          )}
+          {step === 'seismic' && (
+            <SeismicAgentStep
+              harnesses={configured.filter((a): a is Harness => a !== 'pi')}
+              onBack={() => go('agents')}
+              onConfirm={() => go('recommended')}
+            />
           )}
           {step === 'recommended' && (
             <>
@@ -736,7 +745,7 @@ export function Setup({ first, onClose, wizard }: { first?: boolean; onClose?: (
                 callout={open.length ? 'warn' : undefined}
                 text={open.length === 1 ? s.skip.one(s.sections[open[0]!.id].title) : s.skip.many(open.length)}
               >
-                <Button size="small" onClick={() => go('agents')}>
+                <Button size="small" onClick={() => go('seismic')}>
                   {s.back}
                 </Button>
                 {first ? (
