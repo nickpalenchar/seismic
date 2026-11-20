@@ -25,7 +25,7 @@ export const AGY_WINDOWS_BRIDGE = {
   contents: [
     '@echo off',
     'setlocal DisableDelayedExpansion',
-    'if not defined SEISMIC_AGY_MCP_ENTRY goto bundled',
+    'if "%SEISMIC_AGY_MCP_ENTRY%"=="" goto bundled',
     `"%SEISMIC_AGY_MCP_EXECUTABLE%" "%SEISMIC_AGY_MCP_ENTRY%" ${AGY_BRIDGE_FLAG}`,
     'exit /b %ERRORLEVEL%',
     ':bundled',

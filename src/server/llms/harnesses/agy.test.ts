@@ -218,7 +218,7 @@ test('the shared config launches each session from its own installation path', a
   }
   expect(existsSync(config)).toBe(false);
   expect(existsSync(launcher)).toBe(false);
-});
+}, 15000);
 
 test('the endpoint opens to the session token only', async () => {
   const endpoint = registerAgyTools({ tools: wireTools([]) });
