@@ -2754,6 +2754,15 @@ const en = {
     grip: 'Drag to reorder',
     remove: 'Delete canvas',
     removed: (name: string) => `Canvas “${name}” deleted.`,
+    /** The confirmation before a canvas with parked or snoozed cards is deleted. */
+    deleteTitle: (name: string) => `Delete “${name}”?`,
+    deleteWarning: (parked: number, snoozed: number) => {
+      const part = [parked ? `${parked} parked` : '', snoozed ? `${snoozed} snoozed` : ''].filter(Boolean).join(' and ');
+      return `You have ${part} ${parked + snoozed === 1 ? 'card' : 'cards'} on this canvas. ${parked + snoozed === 1 ? 'It moves' : 'They move'} to the canvas you pick.`;
+    },
+    moveCardsTo: 'Move to',
+    deleteConfirm: 'Move cards and delete canvas',
+    deleteBack: 'Go back',
     dialogNew: 'New canvas',
     dialogEdit: 'Edit canvas',
     name: 'Name',

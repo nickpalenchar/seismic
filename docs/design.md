@@ -207,12 +207,13 @@ cycling through terminals.
 - **A card says whether its canvas holds it (`canvasVisible`), derived as the server builds the
   cards, not stored** (2026-11-15): a stored flag would need updating on every archive, collapse,
   plan-doc change and merge proposal, and would drift. The canvas holds what is folded away (a
-  collapsed plan's workstreams, a merge proposal's partner); it does not hold deleted, archived or
-  parked cards, ended prototypes, or the workstreams of an archived plan or whose key left the doc.
+  collapsed plan's workstreams, a merge proposal's partner); it does not hold deleted, archived,
+  parked or snoozed cards, ended prototypes, or the workstreams of an archived plan or whose key left the doc.
   Rejected: "drawn right now", which would make folding a plan empty its canvas. A canvas is empty
   when no card on it is visible and no group on it holds a visible card (`canvasHolds`); the
   server's delete, the Koordinator's precheck and the drawer's trash (the server's `inUse`) ask only
-  that. Deleting a canvas leaves its invisible cards their canvas id, and takes its groups along out
+  that. Deleting a canvas moves its parked and snoozed cards to the canvas the owner picks in a
+  warning first (`main` by default), leaves its other invisible cards their canvas id, and takes its groups along out
   of their cards; a card that comes back (unarchived, restored, unparked, a plan whose doc returns)
   to a canvas that is gone lands on "main", as do follow-ups and prototypes made from it
   (`homeCanvas`); an unarchived card tells the owner so in a toast. Rejected: archived cards blocking a delete, or moving to "main" with it.

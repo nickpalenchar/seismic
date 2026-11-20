@@ -2943,7 +2943,16 @@ export class Board {
   canvases(): Canvas[] {
     const items = this.items();
     const groups = this.store.groups.of(this.project.id).map(toGroup);
-    return this.store.canvases.of(this.project.id).map((c) => ({ ...toCanvas(c), ...(canvasHolds(c.id, items, groups) ? { inUse: true as const } : {}) }));
+    return this.store.canvases.of(this.project.id).map((c) => {
+      const off = this.offCanvasRows(c.id);
+      const parked = off.filter((r) => r.hold?.reason === 'parkingLot').length;
+      return { ...toCanvas(c), ...(canvasHolds(c.id, items, groups) ? { inUse: true as const } : {}), ...(parked ? { parked } : {}), ...(off.length - parked ? { snoozed: off.length - parked } : {}) };
+    });
+  }
+
+  /** The parked and snoozed cards (not the workstreams) that keep the canvas as theirs. */
+  private offCanvasRows(canvas: string): CardRow[] {
+    return this.store.cards.onProject(this.project.id).filter((r) => r.canvas_id === canvas && !r.parent_id && !r.deleted_at && !r.archived_at && (r.hold?.reason === 'parkingLot' || r.hold?.reason === 'snoozed'));
   }
 
   /**
@@ -3009,10 +3018,11 @@ export class Board {
   }
 
   /**
-   * Deletes a canvas that holds nothing (`canvasHolds`); never `main`. The cards it does not hold
-   * (archived, deleted, parked) keep it as theirs and go to `main` once they come back (`homeCanvas`).
+   * Deletes a canvas that holds nothing (`canvasHolds`); never `main`. Its parked and snoozed cards
+   * go onto the canvas `moveTo` names (`main` without one); the others it does not hold (archived,
+   * deleted) keep it as theirs and go to `main` once they come back (`homeCanvas`).
    */
-  deleteCanvas(id: string) {
+  deleteCanvas(id: string, moveTo?: unknown) {
     const c = this.ownCanvas(id);
     if (c.name === MAIN_CANVAS) throw new BadRequest('canvasInUse', `the canvas ${MAIN_CANVAS} cannot be deleted`);
     const items = this.items();
@@ -3021,7 +3031,20 @@ export class Board {
       const n = items.filter((i) => i.canvasVisible && i.canvas === id && !i.parent).length;
       throw new BadRequest('canvasInUse', `only an empty canvas can be deleted; ${c.name} still has ${n ? `${n} card${n === 1 ? '' : 's'}` : 'a group with cards'} on it`);
     }
+    const off = this.offCanvasRows(id).map((r) => r.id);
+    if (off.length) {
+      const to = moveTo === undefined || moveTo === null ? this.store.canvases.main(this.project.id) : this.ownCanvas(moveTo).id;
+      if (to === id) throw new BadRequest('invalid', 'the cards cannot move to the canvas being deleted');
+      for (const card of off) {
+        const at = this.spotOn(to);
+        this.store.transaction(() => {
+          this.store.cards.setCanvas([card], to);
+          this.store.cards.update(card, { ...at, group_id: null });
+        });
+      }
+    }
     this.store.deleteCanvas(id);
+    this.changedRows();
     this.changed();
   }
 
@@ -3845,8 +3868,8 @@ export function withLivePartners(items: Item[], live = new Set(items.map((i) => 
   });
 }
 
-/** Whether its canvas holds the card's row: not deleted, archived or parked (a workstream's also asks its plan's). */
-const heldByCanvas = (r: CardRow) => !r.deleted_at && !r.archived_at && r.hold?.reason !== 'parkingLot';
+/** Whether its canvas holds the card's row: not deleted, archived, parked or snoozed (a workstream's also asks its plan's). */
+const heldByCanvas = (r: CardRow) => !r.deleted_at && !r.archived_at && r.hold?.reason !== 'parkingLot' && r.hold?.reason !== 'snoozed';
 
 /**
  * The cards as the UI sees them. `gone`: also the workstream cards whose key left their plan's doc,

@@ -298,7 +298,7 @@ export const api = {
   // the project's canvases: a new one, a new name, icon (`null`: none) or place (from 1), deleting an empty one, cards moved onto one
   createCanvas: (name: string, icon?: string) => call<Canvas>('POST', at('/canvases'), { name, ...(icon ? { icon } : {}) }),
   updateCanvas: (id: string, p: { name?: string; icon?: string | null; position?: number }) => call<Canvas>('PATCH', at(`/canvases/${encodeURIComponent(id)}`), p),
-  deleteCanvas: (id: string) => call<void>('DELETE', at(`/canvases/${encodeURIComponent(id)}`)),
+  deleteCanvas: (id: string, moveTo?: string) => call<void>('DELETE', at(`/canvases/${encodeURIComponent(id)}`), moveTo ? { moveTo } : undefined),
   moveToCanvas: (cards: string[], canvas: string) => call<void>('POST', at(`/canvases/${encodeURIComponent(canvas)}/cards`), { cards }),
   /** The card that writes a repository's settings for everyone, on the project it belongs to (not necessarily the shown one). */
   adapterSetup: (project: string, repo: string) => call<Item>('POST', `/api/c/${encodeURIComponent(project)}/adapter-setup`, { repo }),

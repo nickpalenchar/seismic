@@ -800,6 +800,9 @@ export interface Canvas {
   icon?: string;
   /** Set while it holds something (`canvasHolds`), so it cannot be deleted. */
   inUse?: true;
+  /** How many parked and snoozed cards keep it as theirs; they move to another canvas when it is deleted. */
+  parked?: number;
+  snoozed?: number;
 }
 
 /**

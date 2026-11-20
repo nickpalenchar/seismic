@@ -913,6 +913,32 @@ describe('canvases', () => {
     expect(store.cards.get(own.id)!.canvas_id).toBe(later.id);
   });
 
+  test('deleting a canvas moves its parked and snoozed cards to the canvas picked, main by default', () => {
+    const later = board.createCanvas('Later');
+    const other = board.createCanvas('Other');
+    const main = board.snapshot().canvases[0]!.id;
+    const parked = board.create({ title: 'P', x: 0, y: 0 });
+    const snoozed = board.create({ title: 'S', x: 400, y: 0 });
+    const kept = board.create({ title: 'K', x: 800, y: 0 });
+    board.moveToCanvas([parked.id, snoozed.id, kept.id], later.id);
+    board.work(parked.id, { hold: { reason: 'parkingLot', since: new Date().toISOString() } });
+    board.work(snoozed.id, { hold: { reason: 'snoozed', since: new Date().toISOString(), until: new Date(Date.now() + 86_400_000).toISOString(), by: 'owner' } as never });
+    expect(board.canvases().find((c) => c.id === later.id)).toMatchObject({ parked: 1, snoozed: 1, inUse: true });
+    board.moveToCanvas([kept.id], main);
+    expect(board.canvases().find((c) => c.id === later.id)).toMatchObject({ parked: 1, snoozed: 1 });
+    expect(board.canvases().find((c) => c.id === later.id)!.inUse).toBeUndefined();
+    board.deleteCanvas(later.id, other.id);
+    const items = board.snapshot().items;
+    expect(items.find((i) => i.id === parked.id)!.canvas).toBe(other.id);
+    expect(items.find((i) => i.id === snoozed.id)!.canvas).toBe(other.id);
+    const third = board.createCanvas('Third');
+    const lone = board.create({ title: 'L', x: 0, y: 0 });
+    board.moveToCanvas([lone.id], third.id);
+    board.work(lone.id, { hold: { reason: 'parkingLot', since: new Date().toISOString() } });
+    board.deleteCanvas(third.id);
+    expect(board.snapshot().items.find((i) => i.id === lone.id)!.canvas).toBe(main);
+  });
+
   test('moving cards: a workstream takes its plan along, groups stay behind, only an empty canvas can be deleted and its archive goes to main', () => {
     const later = board.createCanvas('Later');
     const main = board.snapshot().canvases[0]!.id;
@@ -1062,7 +1088,9 @@ describe('canvases', () => {
     board.deleteCanvas(later.id);
     // what the canvas did not hold keeps pointing at it until it comes back
     board.snapshot();
-    for (const id of [a.id, gone.id, parked.id]) expect(store.cards.get(id)!.canvas_id).toBe(later.id);
+    for (const id of [a.id, gone.id]) expect(store.cards.get(id)!.canvas_id).toBe(later.id);
+    // a parked card moves along with the canvas
+    expect(store.cards.get(parked.id)!.canvas_id).toBe(main);
     // what is made from a parked card meanwhile goes on main, written there at once
     const fromParked = [board.propose(parked.id, { title: 'From parked', task: 'T' }), board.create({ title: 'After parked', from: parked.id })];
     for (const c of fromParked) expect([c.canvas, store.cards.get(c.id)!.canvas_id]).toEqual([main, main]);
