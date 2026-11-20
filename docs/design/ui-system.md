@@ -138,8 +138,9 @@ same style. UI text comes from `src/ui/strings.ts`, never a literal.
   whenever nothing waits, it moves the focus on as anywhere: through the plans (the title opens
   one), the card faces (Enter or Space opens one, and the focus comes back to it when it folds;
   the camera brings one reached outside the view in), the bars, the canvas tabs and the views.
-  Shift+Tab from the project goes into those controls from the end. An unfolded card takes the focus
-  itself rather than its close button, whose tooltip took the first Esc and which Space pressed.
+  Shift+Tab from the project goes into those controls from the end. If focus is still outside an
+  unfolded card, the panel itself takes focus. Space can then start push-to-talk and Esc can fold
+  the card. Tab moves focus to the Card actions menu.
   The connection dots stay out of the Tab order: an arrow follows the pointer.
 - **Phone settings and Needs you share one history step**: switching between them replaces that
   step; closing returns to the project. Pages covering the project make its controls inert.
