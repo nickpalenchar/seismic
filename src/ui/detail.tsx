@@ -108,8 +108,8 @@ interface Props {
   /** Saves pending edits; actions wait for it, so the worker sees the card as typed. */
   flush: () => Promise<void>;
   onDelete: () => void;
-  /** Closes the card; the card's "⋯" menu offers it. */
-  onClose?: () => void;
+  /** The desktop panel supplies the card menu outside the scrolling detail. */
+  panelMenu?: boolean;
   onDone: (d: ActDone, pending?: Pending) => void;
   /** Reads the plan doc of a workstream's plan, at the workstream; the phone view reads no plan docs. */
   onReadPlan?: (plan: Item, mark?: string) => void;
@@ -289,11 +289,7 @@ export function Detail(p: Props) {
   if (item.kind === 'question' && item.thread)
     return (
       <>
-        <div className="p-kind">
-          {[repo, cardKind(item)].filter(Boolean).join(' · ')}
-          {item.archivedAt ? <LabelMarks item={item} /> : <LabelPicks item={item} />}
-          <CardMore item={item} onClose={p.onClose} />
-        </div>
+        <KindLine kind={[repo, cardKind(item)].filter(Boolean).join(' · ')} item={item} panelMenu={p.panelMenu} />
         <div className={titleClass}>
           <Inline md={item.title} />
         </div>
@@ -304,7 +300,7 @@ export function Detail(p: Props) {
   if (item.state === 'idea' && item.idea?.discussion)
     return (
       <>
-        <KindLine kind={kind} item={item} onClose={p.onClose} />
+        <KindLine kind={kind} item={item} panelMenu={p.panelMenu} />
         {item.archivedAt ? <div className={titleClass}>{shownTitle(item)}</div> : <ManualTitle item={item} onEdit={p.onEdit} />}
         <SupersededBox item={item} all={all} act={act} onDelete={p.onDelete} />
         <RepoDownBox item={item} />
@@ -667,7 +663,7 @@ export function Detail(p: Props) {
       >
         <p>{t.parking.confirmText}</p>
       </ConfirmDialog>
-      <KindLine kind={kind} item={item} onClose={p.onClose} />
+      <KindLine kind={kind} item={item} panelMenu={p.panelMenu} />
       {editable ? <ManualTitle item={item} onEdit={p.onEdit} /> : <div className={titleClass}>{shownTitle(item)}</div>}
       <div className={cn(stateClass, finishingUp(item) && 'finishing', (isPaused(item) || snoozeOf(item) || inParkingLot(item)) && 'paused', (item.hold?.reason === 'restart') && 'restart-paused', item.queue && 'restart' in item.queue && 'restart-paused', item.review?.resolvingConflicts && 'resolving-conflicts', reviewing && 'reviewing', mergeProposed(stated) && 'merge-proposed', item.idea?.proposal?.merge && 'merging')}>
         {mergeProposed(stated) ? <Lightbulb className="merge-mark" size={13} aria-hidden /> : item.idea?.proposal?.merge ? <GitMerge className="merge-mark" size={13} strokeWidth={1.75} aria-hidden /> : asksYou(item) ? <QuestionMark /> : (item.hold?.reason === 'restart') ? <RestartMark /> : item.queue && 'restart' in item.queue ? <HourglassMark /> : inParkingLot(item) ? <Car size={13} aria-hidden /> : item.state === 'proposal' ? '✦' : '●'} {stoppedAtOf(item) ? <StoppedWords stopped={stoppedAtOf(item)!} /> : stateLabel(stated)}
@@ -1531,12 +1527,12 @@ function PrototypeStart({ item, act }: { item: Item; act: (a: CardAction, done: 
 
 /** A workstream as the owner picks it: its label and title. */
 /** The unfolded card's kind line, with its labels to set beside it; an archived card only shows them. */
-function KindLine({ kind, item, onClose }: { kind: string; item: Item; onClose?: () => void }) {
+function KindLine({ kind, item, panelMenu }: { kind: string; item: Item; panelMenu?: boolean }) {
   return (
     <div className="p-kind">
       {kind}
       {item.archivedAt ? <LabelMarks item={item} /> : <LabelPicks item={item} />}
-      <CardMore item={item} onClose={onClose} />
+      {!panelMenu && <CardMore item={item} />}
     </div>
   );
 }

@@ -19,7 +19,7 @@ import { plain } from './markdown';
 import { useSortable } from './sortable';
 import { useStoredState } from './stored';
 import { failText, t } from './strings';
-import { Button, CloseButton } from './components/button';
+import { Button, buttonVariants, CloseButton } from './components/button';
 import { ConfirmDialog, Dialog, DialogContent, DialogTitle } from './components/dialog';
 import { leaveMenu, Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from './components/menu';
 import { Popover, PopoverAnchor, PopoverContent } from './components/popover';
@@ -512,10 +512,9 @@ export function CanvasDialog({ project, canvases, canvas, onClose, onDone }: { p
 }
 
 /**
- * A card's "⋯" (the open card's, a plan's on its container): "Move to canvas" and the project's other
- * canvases; only where there are other canvases. On the canvas (`floating`) its menu is drawn over
- * the page at the button, unscaled by the zoom and above the plan's workstreams, and goes when the
- * canvas moves under it.
+ * A card's "⋯" has park and move actions where available, and Close in the desktop panel.
+ * On the canvas (`floating`) its menu is drawn over the page at the button, unscaled by the zoom
+ * and above the plan's workstreams, and closes when the canvas moves under it.
  */
 export function CardMore({ item, floating, onClose }: { item: Item; floating?: boolean; onClose?: () => void }) {
   const { canvases, move } = useContext(Canvases);
@@ -540,20 +539,24 @@ export function CardMore({ item, floating, onClose }: { item: Item; floating?: b
   const parked = !!inParkingLot(item) && !item.archivedAt;
   if (!onClose && ((!others.length && !canPark && !parked) || item.archivedAt)) return null;
   const actions = !item.archivedAt;
+  const label = !onClose && actions && (canPark || parked) ? t.parking.menu : t.canvases.more;
+  const triggerClass = onClose
+    ? buttonVariants({ size: 'icon' })
+    : cn(prioBtnClass(), 'inline-grid h-5 place-items-center px-1 py-0 text-muted-foreground');
   const parking = (action: 'park' | 'unpark') => {
     void api.act(item.id, { action }).catch(console.error);
   };
   return (
     <span className={`${prioPickClass} card-more`}>
       <Menu open={open} onOpenChange={setOpen}>
-        <Tooltip content={actions && (canPark || parked) ? t.parking.menu : t.canvases.more}>
+        <Tooltip content={label}>
           <MenuTrigger asChild>
-            <button ref={button} className={cn(prioBtnClass(), 'inline-grid h-5 place-items-center px-1 py-0 text-muted-foreground')} aria-label={actions && (canPark || parked) ? t.parking.menu : t.canvases.more}>
+            <button type="button" ref={button} className={triggerClass} aria-label={label}>
               <MoreHorizontal size={14} aria-hidden />
             </button>
           </MenuTrigger>
         </Tooltip>
-        <MenuContent className={prioMenuClass}>
+        <MenuContent className={prioMenuClass} align={onClose ? 'end' : 'start'}>
           {actions && (canPark || parked) && (
             <MenuItem title={canPark ? t.parking.parkHint : undefined} onSelect={() => (stopsToPark ? (leaveMenu(), setConfirm(true)) : parking(canPark ? 'park' : 'unpark'))}>
               <span className={loptClass}>

@@ -17,7 +17,7 @@ import { connectionDotClass, depLayerClass, dotSide, handleColour, manualRemoveC
 import { buzz, pinchCam, TOUCH_HOLD_KNOWN, Touches } from './touch';
 import { besideSheet, BOTTOM, type Cam, camFor, camKey, centreOn, chase, dragLimit, edgeScroll, FAR, flying, flyTo, keepInView, MAX_ZOOM, midX, MIN_ZOOM, NO_SIDES, overviewCam, placeIn, shows, type Sides, stopFlight, TOP, toWorld } from './camera';
 import { plain } from './markdown';
-import { CanvasRing, Canvases, CanvasStubs, CanvasTabs, hiddenCard, parkedStubsOf, stubsOf } from './canvases';
+import { CanvasRing, Canvases, CanvasStubs, CanvasTabs, CardMore, hiddenCard, parkedStubsOf, stubsOf } from './canvases';
 import { canvasText } from './canvasIcon';
 import { clip } from '../core/text';
 import { type ActDone, Detail, type Pending } from './detail';
@@ -780,7 +780,7 @@ function Project({
     if (title && !title.value) (body ?? title).focus();
     // A link in a closing popover can disappear before the card unfolds. Give the opened
     // view a focus destination, also when navigating here from another project: the card itself,
-    // where Tab goes on to its first control and Space speaks, rather than its close button, whose
+    // where Tab goes on to its first control and Space speaks, rather than its menu button, whose
     // tooltip would take the first Esc and which Space would press
     if (!panel.contains(document.activeElement)) panel.focus({ preventScroll: true });
     // the cursor at the end of the text
@@ -2883,11 +2883,16 @@ function Project({
           tabIndex={-1}
           className="group/panel outline-none fixed z-40 overflow-hidden hidden frost-pane [&:not(.ready)]:bg-surface [&:not(.ready)]:backdrop-filter-none [&.anim]:[--ease:cubic-bezier(.3,.9,.3,1)] [&.anim]:transition-[left,top,width,height] [&.anim]:duration-(--unfold) [&.anim]:ease-(--ease) before:content-[''] before:absolute before:left-[30px] before:w-20 before:top-0 before:h-[3px] before:rounded-b-xs before:bg-(--c) before:shadow-[0_0_12px_var(--c)] before:z-1"
         >
+          {openItem && (
+            <div className="invisible absolute right-3.5 top-3 z-2 group-[.ready]/panel:visible">
+              <CardMore key={openItem.id} item={openItem} onClose={() => closeCard()} />
+            </div>
+          )}
           {/* keeps the final width while the panel unfolds, so the content can be measured before it shows; --pb is
               the room below the content, more where the microphone covers the panel's foot (fitPanel) */}
           <div className="inner card-sheet [--pb:26px] absolute left-0 top-0 bottom-0 w-full overflow-auto [scrollbar-gutter:stable] pt-6 px-8 pb-(--pb) opacity-0 transition-opacity duration-[120ms] group-[.ready]/panel:opacity-100" ref={innerRef}>
-            {/* as much room below the last line as above the title */}
-            <div className="content flow-root [&>:last-child]:mb-0">
+            {/* The first line keeps clear of the menu; the last keeps the same room below as above the title. */}
+            <div className="content flow-root [&>:first-child]:pr-6 [&>:last-child]:mb-0">
               {openItem && (
                 <Cards.Provider value={{ items, open: (i) => void openFresh(i) }}>
                 <Detail
@@ -2910,7 +2915,7 @@ function Project({
                   onEdit={onEdit}
                   flush={flushEdit}
                   onDelete={deleteOpen}
-                  onClose={() => closeCard()}
+                  panelMenu
                   onDone={onDone}
                   onTell={(text, images, field, replyTo) => tellTyped(text, images, { card: openItem.id }, field, replyTo)}
                 />
