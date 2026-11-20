@@ -30,7 +30,7 @@ import { ArchiveView } from './archive';
 import { CardSearch } from './cardSearch';
 import { useBarFit } from './barFit';
 import { UsagePill } from './usage';
-import { ConfigDialog, Problem, showAddSite, showProjectsSection, showDevicesSection, showNewProject, showRepoClones } from './config';
+import { ConfigDialog, Problem, showAddSite, showProjectsSection, showDevicesSection, showNewProject } from './config';
 import { PrefsDialog } from './prefs';
 import { PhoneDialog } from './access';
 import { OpenPerformance, PerformanceDialog } from './performance';
@@ -74,6 +74,7 @@ import { InboxView, inboxListWidth } from './inbox';
 import { NeedsYouSheet } from './needsYou';
 import { useInboxRead } from './inboxRead';
 import { ProjectSettingsSheet } from './projectSettings/sheet';
+import { sectionOfSetting, type SettingsFocus, showSettingsAt } from './projectSettings/focus';
 import { type InboxEntry, inboxEntries, needsYouCount, readMark } from '../core/inbox';
 import { beingWritten, split, talkAlone } from './talk';
 import { ACK_MS, noticeLine, tellers, useAck, useWarnings, voiceTarget } from './tell';
@@ -2295,6 +2296,13 @@ function Project({
     setKOn(false);
     if (focusRef.current?.type === 'plan') closePlan(false);
   };
+  /** Opens the project settings of `f.project` at a field: on this page, or on that project's, which it switches to. */
+  const openSettingsAt = (f: SettingsFocus) => {
+    showSettingsAt(f);
+    setCOn(false);
+    if (f.project !== snapshot.project.id) goTo(projectPath(f.project));
+    if (!csOnRef.current) toggleProjectSettings();
+  };
   /** The agents slide out in place of another sheet, and close again. */
   const toggleAgents = () => {
     const open = !agentsOnRef.current;
@@ -2576,10 +2584,7 @@ function Project({
     { id: 'needs-you', besideCard: true, title: t.needsYou.title, icon: ConciergeBell, component: () => (<NeedsYouSheet on={nyOn} entries={entries} current={snapshot.project.id} open={openCardId} onGo={goToEntry} onReply={replyTo} isRead={inboxRead.isRead} onRead={inboxRead.markRead} />) },
     { id: 'agents', besideCard: true, title: t.agents.title, icon: Bot, component: () => (<AgentsSheet on={agentsOn} items={items} open={openId ?? undefined} underway={isUnderway} onOpen={openFreshCard} project={snapshot.project.id} changed={snapshot} onGo={(project, card) => goToEntry({ project, card })} />) },
     { id: 'settings', besideCard: true, title: t.projectSettings.title, icon: SlidersHorizontal, component: () => (<ProjectSettingsSheet project={snapshot.project.id} name={snapshot.project.name} homePath={snapshot.project.repos[0]?.path} onAddSite={() => (showAddSite(), setPrefsOn(false), setCOn(true))} on={csOn} covered={cOn} />) },
-    { id: 'seismic', besideCard: true, title: t.koordinator.title, icon: MessageSquare, buttonCloses: true, component: () => (<KoordinatorSheet on={kOn} onClose={() => toggleKoordinator()} entry={chatEntry.current} project={snapshot.project.id} projectName={snapshot.project.name} items={items} preferences={snapshot.preferences} settings={snapshot.settingProposals ?? []} repos={snapshot.project.repos} talk={snapshot.talk} chat={snapshot.chat} chatModel={snapshot.chatModel} chats={snapshot.chats} reshare={snapshot.reshare} onOpen={(i) => void openFresh(i)} onTell={tellChat} onProject={(c) => goTo(`${projectPath(c)}?talk`)} onConfig={(repo, setting) => {
-            showRepoClones({ project: snapshot.project.id, repo, field: 'settings', setting });
-            setCOn(true);
-          }} />) },
+    { id: 'seismic', besideCard: true, title: t.koordinator.title, icon: MessageSquare, buttonCloses: true, component: () => (<KoordinatorSheet on={kOn} onClose={() => toggleKoordinator()} entry={chatEntry.current} project={snapshot.project.id} projectName={snapshot.project.name} items={items} preferences={snapshot.preferences} settings={snapshot.settingProposals ?? []} repos={snapshot.project.repos} talk={snapshot.talk} chat={snapshot.chat} chatModel={snapshot.chatModel} chats={snapshot.chats} reshare={snapshot.reshare} onOpen={(i) => void openFresh(i)} onTell={tellChat} onProject={(c) => goTo(`${projectPath(c)}?talk`)} onConfig={(repo, setting) => openSettingsAt({ project: snapshot.project.id, repo, section: sectionOfSetting(setting), field: setting as SettingsFocus['field'] })} />) },
     { id: 'plan', slot: 'plan', title: sheetPlan?.title ?? '', icon: Columns3, close: () => void closePlan(), component: planComponent },
     { id: 'plan-doc', slot: 'plan', title: sheetPlan?.title ?? '', icon: FileText, width: 'read', close: () => void closePlan(), escape: () => { if (sheetPlan) void readPlan(sheetPlan, null); }, component: planComponent },
   ];
@@ -2846,7 +2851,7 @@ function Project({
         </div>
         <InboxView on={inboxOn} held={focus?.type === 'card'} onClose={() => setInboxOn(false)} entries={entries} current={snapshot.project.id} open={openCardId} onGo={goToEntry} onReply={replyTo} isRead={inboxRead.isRead} onRead={inboxRead.markRead} els={inboxEls}
           onProposalCard={(project, card) => goToEntry({ project, card })}
-          onProposalConfig={(project, repo, setting) => { showRepoClones({ project, repo, field: 'settings', setting }); setCOn(true); }} />
+          onProposalConfig={(project, repo, setting) => openSettingsAt({ project, repo, section: sectionOfSetting(setting), field: setting as SettingsFocus['field'] })} />
         <ArchiveView on={aOn} onClose={() => setAOn(false)} held={focus?.type === 'card'} archived={archived} done={doneCount} onOpen={open} onArchiveDone={() => archiveDone().catch(console.error)} els={archiveEls} />
         <ParkedView on={fullPage.active === 'parked'} items={items} open={openCardId} underway={isUnderway} onOpen={openFreshCard} onClose={() => showPage(null)} els={parkedEls} />
         <TableView on={fullPage.active === 'table'} project={snapshot.project.id} items={items} canvases={canvases} groups={snapshot.groups} repos={snapshot.project.repos} open={openCardId ?? (focus?.type === 'plan' ? focus.id : undefined)} onOpen={(i) => void openFresh(i)} onClose={() => showPage(null)} els={tableEls} />
@@ -2914,8 +2919,8 @@ function Project({
                   from={openItem.from ? itemOrArchived(openItem.from) : undefined}
                   onReadPlan={(plan, mark) => readPlan(plan, { mark })}
                   onClones={(repo, field) => {
-                    showRepoClones({ project: snapshot.project.id, repo, field });
-                    setCOn(true);
+                    // the project's settings, beside the card, at where the repository's agents work
+                    openSettingsAt({ project: snapshot.project.id, repo, section: 'agents', field });
                   }}
                   onDemoSites={() => {
                     // the project chooses its demo site in its settings
@@ -2943,6 +2948,7 @@ function Project({
           onProblems={setConfigProblems}
           revs={configRevs}
           onConnect={() => (setCOn(false), setPhoneOn(true))}
+          onProjectSettings={(project) => openSettingsAt({ project })}
           onAsk={(text, project) => void told.tell(t.voice.reading(t.voice.koordinator), undefined, () => (project ? api.commandOn(project, text) : api.command(text, null, { place: placeNow() })))}
         />
         <PrefsDialog

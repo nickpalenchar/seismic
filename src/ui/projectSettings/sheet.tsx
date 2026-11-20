@@ -7,6 +7,8 @@
 // configuration (`PUT /api/c/:project/settings`), a repository's into its entry there (`PUT
 // /api/c/:project/repos`), shortly after the last key; what restarts a repository's agents waits for
 // the owner's word. The project's name, old names, order and repositories are in the Configuration dialog.
+// A jump to a field (`showSettingsAt`: a card waiting for a clone, a proposal for a setting) opens its
+// section at its repository and marks the field.
 
 import { Archive, Bot, BrickWall, ChevronLeft, ChevronRight, Film, GitPullRequest, Laptop, Lock, type LucideIcon, MessageSquareCode, Sparkle, Sparkles, TriangleAlert } from 'lucide-react';
 import { type KeyboardEvent, type ReactNode, useEffect, useId, useRef, useState } from 'react';
@@ -30,11 +32,8 @@ import { layerOpen } from '../components/ui';
 import { pathClass, statusClass } from '../setupClasses';
 import { AgentChoice, AgentModels, type Catalogs, chosen } from './models';
 import { type ProjectRepos, useProjectRepos } from './repos';
+import { onSettingsFocus, SECTIONS, type Section, type SettingsFocus, takeSettingsFocus } from './focus';
 import { cn } from 'cn';
-
-/** The sheet's sections, in the order its list shows them; Allowed commands stands apart above the others. */
-const SECTIONS = ['commands', 'agents', 'suggestions', 'environment', 'reviews', 'git', 'archiving', 'demos'] as const;
-type Section = (typeof SECTIONS)[number];
 
 /** Each section's icon on its row. */
 const ICONS: Record<Section, LucideIcon> = { commands: BrickWall, agents: Bot, suggestions: Sparkle, environment: Laptop, reviews: MessageSquareCode, git: GitPullRequest, archiving: Archive, demos: Film };
@@ -112,6 +111,29 @@ export function ProjectSettingsBody({ project, name, homePath, on, covered, onAd
     setBack(null);
     setRepoAt(0);
   }, [project]);
+  // a jump to a field: taken as the sheet shows its project, applied once that project's repositories are read
+  const [jump, setJump] = useState<SettingsFocus | null>(null);
+  const [mark, setMark] = useState<SettingsFocus['field'] | null>(null);
+  useEffect(() => {
+    if (!on) return;
+    const take = () => {
+      const f = takeSettingsFocus(project);
+      if (f) setJump(f);
+    };
+    take();
+    return onSettingsFocus(take);
+  }, [on, project]);
+  useEffect(() => {
+    const resolved = repos.view?.resolved;
+    if (!jump || !resolved || resolved.id !== project) return;
+    setJump(null);
+    const i = resolved.repos.findIndex((r) => r?.id === jump.repo);
+    if (i >= 0) setRepoAt(i);
+    setOpen(jump.section ?? null);
+    setMark(jump.field ?? null);
+    const h = setTimeout(() => setMark(null), 2400);
+    return () => clearTimeout(h);
+  }, [jump, repos.view, project]);
   const l = t.projectSettings;
   const save = async (s: ProjectSettings) => {
     // shown at once; the server's answer, or the view before on a refusal, follows
@@ -139,7 +161,7 @@ export function ProjectSettingsBody({ project, name, homePath, on, covered, onAd
         <SectionView key={open} section={open} onBack={() => shown(null)}>
           {/* under the title, in view however far the section's fields reach */}
           <Said status={said} failed={repos.failed} />
-          <SectionBody section={open} project={project} view={view} repos={repos} repoAt={Math.min(repoAt, Math.max(0, repos.repos.length - 1))} onRepo={setRepoAt} catalogs={catalogs} busy={busy} save={save} choose={choose} homePath={homePath} onAddSite={onAddSite} />
+          <SectionBody section={open} project={project} view={view} repos={repos} repoAt={Math.min(repoAt, Math.max(0, repos.repos.length - 1))} onRepo={setRepoAt} catalogs={catalogs} busy={busy} save={save} choose={choose} homePath={homePath} onAddSite={onAddSite} mark={mark} />
         </SectionView>
       ) : (
         <div className={cn(back && 'animate-[push-back_.22s_ease-out]')}>
@@ -271,7 +293,11 @@ function hostOf(url: string) {
 /** A section's own view, pushed in from the right: Back (and Esc) returns to the list, which has its row focused again. */
 function SectionView({ section, onBack, children }: { section: Section; onBack: () => void; children: ReactNode }) {
   const backButton = useRef<HTMLButtonElement>(null);
-  useEffect(() => backButton.current?.focus({ preventScroll: true }), []);
+  const box = useRef<HTMLDivElement>(null);
+  // Back has the focus, unless the view was opened at a field, which has it already
+  useEffect(() => {
+    if (!box.current?.contains(document.activeElement)) backButton.current?.focus({ preventScroll: true });
+  }, []);
   const keys = (e: KeyboardEvent<HTMLDivElement>) => {
     // what opened over the view (a menu of a choice, in a portal) closes first
     if (e.key !== 'Escape' || layerOpen() || !e.currentTarget.contains(e.target as Node)) return;
@@ -279,7 +305,7 @@ function SectionView({ section, onBack, children }: { section: Section; onBack: 
     onBack();
   };
   return (
-    <div data-esc-back className="cs-view animate-[push-in_.22s_ease-out]" onKeyDown={keys}>
+    <div ref={box} data-esc-back className="cs-view animate-[push-in_.22s_ease-out]" onKeyDown={keys}>
       <Button ref={backButton} variant="ghost" size="small" className="cs-back -ml-2.5 mb-1 text-foreground" onClick={onBack}>
         <ChevronLeft aria-hidden />
         {t.projectSettings.back}
@@ -303,6 +329,8 @@ interface BodyProps {
   choose: (role: AgentRole, change: Partial<ProjectAgents[AgentRole]> | null) => void;
   homePath: string | undefined;
   onAddSite: () => void;
+  /** The field to focus and mark for a moment: the sheet was opened at it. */
+  mark: SettingsFocus['field'] | null;
 }
 
 /** What a section's view holds: the repository's part first, under the switcher, then the project's. */
@@ -371,9 +399,17 @@ function AllowedCommands({ repos }: { repos: ProjectRepos }) {
 }
 
 /** The part of a per-repository view that is the repository's: the switcher, then its settings for the section. */
-function RepoPart({ section, project, view, save, repos, repoAt, onRepo }: BodyProps) {
+function RepoPart({ section, project, view, save, repos, repoAt, onRepo, mark }: BodyProps) {
   const l = t.projectSettings;
   const v = repos.view;
+  const box = useRef<HTMLDivElement>(null);
+  const place = mark === 'clones' || mark === 'slots';
+  useEffect(() => {
+    if (!mark || !box.current) return;
+    const field = place ? box.current.querySelector<HTMLElement>(mark === 'slots' ? '.cfg-slots' : '.cfg-clone-count') : box.current.querySelector<HTMLElement>(`[data-setting="${mark}"]`);
+    field?.scrollIntoView({ block: 'center' });
+    field?.querySelector<HTMLElement>('input, textarea')?.focus({ preventScroll: true });
+  }, [mark, repoAt, !!v?.resolved]);
   if (!v) return <p className="hint">{t.config.loading}</p>;
   const repo = repos.repos[repoAt];
   const resolved = v.resolved?.repos[repoAt];
@@ -411,7 +447,7 @@ function RepoPart({ section, project, view, save, repos, repoAt, onRepo }: BodyP
     const { settings: _, ...rest } = repo;
     repos.edit(repoAt, settings ? { ...rest, settings } : rest);
   };
-  const at = repoSettingsAt(repo.settings, resolved.values, edit);
+  const at = repoSettingsAt(repo.settings, resolved.values, edit, place ? null : mark);
   // what reads the saved configuration (sharing it for everyone, the agent that writes it) saves what waits first
   const takeover: Takeover = { saved: !repos.unsaved(repoAt) && !repos.busy, onReload: async () => repos.reload(), prepare: () => repos.settle(repoAt) };
   const name = repoName(repo, resolved);
@@ -421,14 +457,18 @@ function RepoPart({ section, project, view, save, repos, repoAt, onRepo }: BodyP
         <>
           {switcher}
           {!folder && <AdapterSetup stacked project={project} repo={resolved.id} takeover={takeover} icon={<Sparkles aria-hidden />} label={l.updateWithAgent} hint={l.updateWithAgentHint} />}
-          <RepoSettingRows at={at} keys={folder ? REPO_SETTING_GROUPS.app : [...REPO_SETTING_GROUPS.app, 'softPaths']} />
+          <div ref={box}>
+            <RepoSettingRows at={at} keys={folder ? REPO_SETTING_GROUPS.app : [...REPO_SETTING_GROUPS.app, 'softPaths']} />
+          </div>
         </>
       );
     case 'demos':
       return (
         <>
           {switcher}
-          <RepoSettingRows at={at} keys={REPO_SETTING_GROUPS.demos} />
+          <div ref={box}>
+            <RepoSettingRows at={at} keys={REPO_SETTING_GROUPS.demos} />
+          </div>
         </>
       );
     case 'agents':
@@ -436,7 +476,7 @@ function RepoPart({ section, project, view, save, repos, repoAt, onRepo }: BodyP
         <>
           {switcher}
           <RepoProblemsOf problems={problems.filter((x) => sectionOf(x) === 'agents')} repos={repos} at={repoAt} />
-          <Workstations repo={repo} resolved={resolved} onChange={(next) => repos.edit(repoAt, next)} />
+          <Workstations ref={box} flash={place} repo={repo} resolved={resolved} onChange={(next) => repos.edit(repoAt, next)} />
           {repos.restarts(repoAt) && (
             <Callout kind="warn" className="cs-restart mt-3">
               <CalloutDescription>
@@ -456,7 +496,7 @@ function RepoPart({ section, project, view, save, repos, repoAt, onRepo }: BodyP
       );
     case 'git':
       return (
-        <>
+        <div ref={box}>
           {switcher}
           <div className="cs-path py-2">
             <div className="text-muted-foreground text-sm">{l.path}</div>
@@ -483,7 +523,7 @@ function RepoPart({ section, project, view, save, repos, repoAt, onRepo }: BodyP
               </div>
             </>
           )}
-        </>
+        </div>
       );
     default:
       return null;

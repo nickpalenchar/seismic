@@ -117,8 +117,11 @@ same style. UI text comes from `src/ui/strings.ts`, never a literal.
   per-repository views have a switcher of the project's repositories. Every change saves at once, a
   repository's into its own entry of the configuration; what restarts a repository's agents (where
   they work, clones, slots, hosts) waits for an inline "Save and restart agents". Rejected: one long
-  scroll, and the Configuration dialog's draft with a Save button. Configuration's project page
-  still shows the same fields until they are taken out of it.
+  scroll, and the Configuration dialog's draft with a Save button. Each setting has one place
+  (2026-11-20): Configuration's project page keeps only the project's name, old names, order and
+  repositories (paths, folder mode, git setup) with a link that opens the sheet, and jumps to a
+  field (a card waiting for a clone or slot, a proposal for a setting) open the sheet's section at
+  that repository and mark the field.
 - **Data tables are shadcn's Table part on @tanstack/react-table (v8)** (2026-11-17), as shadcn's
   data-table pattern builds them: the library holds the column model, header sort toggles and
   column visibility; the rows' order and filters are plain functions of ours (`table/rows.ts`,

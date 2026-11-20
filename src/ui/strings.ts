@@ -1226,7 +1226,7 @@ const en = {
     settingNew: 'New',
     settingEmpty: '(empty)',
     openConfig: 'To the setting ↗',
-    openConfigHint: 'Opens the configuration at this setting of the repository.',
+    openConfigHint: 'Opens the project settings at this setting of the repository.',
     settingEditable: 'You can change the value here before taking it.',
     settingEdited: 'Changed by you.',
     settingRestore: 'As proposed',
@@ -1512,6 +1512,9 @@ const en = {
     fromArgs: (file: string) =>
       `Seismic is running with the repositories from the command line. Saving creates ${file}; Seismic then starts from it, also in future when it is started without repositories.`,
     koordinator: 'You can also ask Seismic about the configuration or tell it what should change.',
+    inSheet: 'Its settings (agents, suggestions, environment, code reviews, git, archiving, demos) are in Project settings, under the sliders in the bar.',
+    openSheet: 'Open project settings',
+    inSheetLater: 'Once it is saved and runs, they open there.',
     askSeismic: 'Ask Seismic',
     sections: { projects: 'Projects', defaults: 'Project defaults', agents: 'Agents and models', harnesses: 'Harnesses', voice: 'Voice input', demos: 'Demos', notices: 'Notifications and limits', devices: 'Other devices', advanced: 'Advanced', developer: 'Developer' },
     harnesses: {

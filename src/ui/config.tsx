@@ -134,22 +134,6 @@ const keptSection = () => {
   return s && SECTIONS.includes(s) ? s : null;
 };
 
-/** A repository's clone count (or its slots, or one of its settings, folded open) to show and focus when the dialog opens. */
-export interface ConfigFocus {
-  project: string;
-  repo: string;
-  field: 'clones' | 'slots' | 'settings';
-  /** With `settings`: the setting to show. */
-  setting?: string;
-}
-const FOCUS_KEY = 'seismic-config-focus';
-
-/** Opens the dialog next time at a repository's clone count or slots, as from a card waiting for a free clone or slot. */
-export const showRepoClones = (f: ConfigFocus) => {
-  showProjectsSection();
-  sessionStorage.setItem(FOCUS_KEY, JSON.stringify(f));
-};
-
 /** The projects' draft as written down, with the id each project had when loaded. */
 type KeptProjects = { draft: ProjectConfig[]; origin: (string | null)[] };
 const ofKept = (k: KeptProjects) => k.draft;
@@ -189,7 +173,7 @@ function checkedMoved(c: Checked, n: number, from: number, to: number): Checked 
   };
 }
 
-export function ConfigDialog({ on, page, usage, onClose, onAsk, onTalk, onProblems, onConnect, revs }: { on: boolean; /** The project the page shows: the one Projects shows first. */ page?: string; usage: Usage[]; onClose: () => void; onAsk: Ask; onTalk: () => void; onProblems: (n: number) => void; onConnect: () => void; revs: string }) {
+export function ConfigDialog({ on, page, usage, onClose, onAsk, onTalk, onProblems, onConnect, onProjectSettings, revs }: { on: boolean; /** The project the page shows: the one Projects shows first. */ page?: string; usage: Usage[]; onClose: () => void; onAsk: Ask; onTalk: () => void; onProblems: (n: number) => void; onConnect: () => void; /** Closes the dialog and opens the settings sheet of the running project with this id. */ onProjectSettings: (project: string) => void; revs: string }) {
   const [setupOn, setSetupOn] = useState(false);
   const [view, setView] = useState<ConfigView | null>(null);
   const [draft, setDraft] = useState<ProjectConfig[]>([]);
@@ -257,10 +241,7 @@ export function ConfigDialog({ on, page, usage, onClose, onAsk, onTalk, onProble
     }, console.error);
   };
 
-  // the field to show once the projects are there; a new object each time, so a second jump to the same one still scrolls
-  const [focus, setFocus] = useState<ConfigFocus | null>(null);
-
-  // the project Projects shows, by its place in the draft; until one is chosen, the field to show's or the page's, once their ids are known
+  // the project Projects shows, by its place in the draft; until one is chosen, the page's, once its id is known
   const [pick, setPickState] = useState<number | null>(keptProject);
   const setPick = (i: number | null) => {
     if (i === null) sessionStorage.removeItem(PROJECT_KEY);
@@ -301,14 +282,10 @@ export function ConfigDialog({ on, page, usage, onClose, onAsk, onTalk, onProble
     const s = keptSection();
     if (s) setSectionState(s);
     setAddingSiteState(!!sessionStorage.getItem(ADD_SITE_KEY));
-    const f = sessionStorage.getItem(FOCUS_KEY);
-    sessionStorage.removeItem(FOCUS_KEY);
-    const fo = f ? (JSON.parse(f) as ConfigFocus) : null;
-    setFocus(fo);
-    // the project with the field to show, else the one this tab showed last, else the page's
+    // the one this tab showed last, else the page's
     const kept = keptProject();
-    wanted.current = fo?.project ?? (kept === null ? (page ?? null) : null);
-    setPickState(fo ? null : kept);
+    wanted.current = kept === null ? (page ?? null) : null;
+    setPickState(kept);
     setSaved(null);
     getSetting('projectDefaults').then(setDefaults, console.error);
     getConfiguration().then((v) => {
@@ -382,7 +359,6 @@ export function ConfigDialog({ on, page, usage, onClose, onAsk, onTalk, onProble
   const projectName = (x: ProjectConfig, i: number) => x.name?.trim() || checked?.resolved[i]?.name || c.project(i + 1);
   const showProject = (i: number) => {
     wanted.current = null;
-    setFocus(null);
     setSection('projects');
     setPick(i);
   };
@@ -505,8 +481,8 @@ export function ConfigDialog({ on, page, usage, onClose, onAsk, onTalk, onProble
                 checked={checked}
                 changed={changed}
                 busy={busy}
-                focus={focus}
                 onAsk={onAsk}
+                onProjectSettings={onProjectSettings}
                 onRecheck={recheck}
                 onProject={setProject}
                 onMove={moveProject}
@@ -535,12 +511,6 @@ export function ConfigDialog({ on, page, usage, onClose, onAsk, onTalk, onProble
                   return applies;
                 }}
                 onReset={() => load(view, saved)}
-                onReload={async () => {
-                  const v = await getConfiguration();
-                  setView(v);
-                  load(v, null);
-                  checkSaved();
-                }}
                 status={status}
                 json={json}
                 onJson={() => setJson(!json)}
@@ -718,8 +688,8 @@ interface ProjectsProps {
   checked: Checked | null;
   changed: boolean;
   busy: boolean;
-  focus: ConfigFocus | null;
   onAsk: Ask;
+  onProjectSettings: (project: string) => void;
   onRecheck: () => Promise<void>;
   /** Changes the project at `i`, or removes it (`null`). */
   onProject: (i: number, c: ProjectConfig | null) => void;
@@ -728,21 +698,17 @@ interface ProjectsProps {
   /** Saves the draft; says whether it was saved and applies without a restart. */
   onSave: () => Promise<boolean>;
   onReset: () => void;
-  /** Reads the saved configuration again: the server changed it (settings taken over for everyone). */
-  onReload: () => Promise<void>;
   status: string;
   json: boolean;
   onJson: () => void;
 }
 
 /** One project of the configuration with its repositories; all projects are saved together, with the bar at the bottom. */
-function Projects({ view, draft, origin, projectChanged, n, projectKey, checked, changed, busy, focus, onAsk, onRecheck, onProject, onMove, onShow, onSave, onReset, onReload, status, json, onJson }: ProjectsProps) {
+function Projects({ view, draft, origin, projectChanged, n, projectKey, checked, changed, busy, onAsk, onProjectSettings, onRecheck, onProject, onMove, onShow, onSave, onReset, status, json, onJson }: ProjectsProps) {
   const c = t.config;
   const problems = checked?.problems ?? [];
   // only the problems of changed projects (and of none in particular) keep a save from going through
   const blocking = blockingProblems(problems, projectChanged);
-  // "For everyone" takes over what is saved: with changes in the dialog it saves them first, where that applies without a restart
-  const prepare = changed && view.source === 'file' && !view.restarting && !blocking.length ? onSave : undefined;
   // a project with a problem has no id yet: which running project goes is only known once all resolve
   const resolved = checked?.resolved ?? [];
   const gone = resolved.every(Boolean) ? view.running.filter((id) => !resolved.some((r) => r?.id === id)) : [];
@@ -768,13 +734,10 @@ function Projects({ view, draft, origin, projectChanged, n, projectKey, checked,
           resolved={checked?.resolved[n] ?? null}
           running={view.running}
           pin={origin[n] && view.running.includes(origin[n]) ? origin[n] : undefined}
-          saved={!projectChanged(n)}
-          problems={problems.filter((p) => p.project === n)}
-          focus={focus}
+          problems={problems.filter((p) => p.project === n && !SHEET_PROBLEMS.includes(p.code))}
           ask={changed ? undefined : onAsk}
+          onProjectSettings={onProjectSettings}
           onRecheck={onRecheck}
-          onReload={onReload}
-          {...(prepare ? { prepare } : {})}
           onChange={(y) => onProject(n, y)}
           onShow={onShow}
         />
@@ -2450,16 +2413,11 @@ interface ProjectProps {
   running: string[];
   /** The id of the running project this one is: a new name keeps it. */
   pin?: string;
-  /** The configuration shown is the one saved: a running project is the one shown. */
-  saved: boolean;
   problems: ConfigProblem[];
-  focus: ConfigFocus | null;
   /** Has the Koordinator create a task that fixes a problem; only for the configuration as saved, which is what it reads. */
   ask?: Ask;
+  onProjectSettings: (project: string) => void;
   onRecheck: () => Promise<void>;
-  onReload: () => Promise<void>;
-  /** Saves the dialog's changes before settings are taken over for everyone; none where saving restarts Seismic. */
-  prepare?: () => Promise<boolean>;
   onChange: (c: ProjectConfig | null) => void;
   /** Moves it one place up or down; none while it is the only project. */
   onMove?: (earlier: boolean) => void;
@@ -2501,19 +2459,18 @@ function ProjectIconField({ icon, onChange }: { icon: string | undefined; onChan
   );
 }
 
-/** A project as its own page: its title with id, order and removal, its name, then each repository with its settings. */
-function ProjectBlock({ n, project, file, checking, resolved, running, pin, saved, problems, focus, ask, onRecheck, onReload, prepare, onChange, onShow, onMove, last }: ProjectProps) {
+/**
+ * A project as its own page: its title with id, order and removal, its name, then its repositories.
+ * Its settings are in its settings sheet, which a line under the title opens.
+ */
+function ProjectBlock({ n, project, file, checking, resolved, running, pin, problems, ask, onProjectSettings, onRecheck, onChange, onShow, onMove, last }: ProjectProps) {
   const fresh = resolved && !running.includes(resolved.id);
   // the Koordinator of the project with the problem, where it runs: a card for it goes there
   const askHere = ask && ((text: string) => ask(text, resolved && running.includes(resolved.id) ? resolved.id : undefined));
   const here = t.config.project(n + 1);
   const setRepo = (i: number, r: RepoConfig | null) => onChange({ ...project, repos: r ? project.repos.map((x, j) => (j === i ? r : x)) : project.repos.filter((_, j) => j !== i) });
-  // the repository shown: the home one, or the one with the field to show
+  // the repository shown: the home one at first
   const [tab, setAt] = useState(0);
-  useEffect(() => {
-    const i = focus && resolved?.id === focus.project ? resolved.repos.findIndex((r) => r?.id === focus.repo) : -1;
-    if (i >= 0) setAt(i);
-  }, [focus, resolved?.id]);
   const at = Math.min(tab, project.repos.length - 1);
   const repo = project.repos[at];
   // the harness the project's workers run in: one that needs git leaves a folder without it no choice but setting it up
@@ -2547,7 +2504,16 @@ function ProjectBlock({ n, project, file, checking, resolved, running, pin, save
           <RemoveButton label={t.config.removeProject} onClick={() => onChange(null)} />
         </div>
         <p className={K.cfgHeadFileClass}>{file}</p>
-        <p className={K.cfgHeadHintClass}>{t.config.settings.hint}</p>
+        <p className={cn(K.cfgHeadHintClass, 'cfg-in-sheet')}>
+          {t.config.inSheet}{' '}
+          {resolved && running.includes(resolved.id) ? (
+            <LinkButton type="button" className="cfg-open-sheet" onClick={() => onProjectSettings(resolved.id)}>
+              {t.config.openSheet}
+            </LinkButton>
+          ) : (
+            t.config.inSheetLater
+          )}
+        </p>
       </header>
       {checking && <p className="hint">{t.config.checking}</p>}
       <Field label={t.config.name} hint={fresh ? t.config.freshHint : undefined}>
@@ -2588,24 +2554,6 @@ function ProjectBlock({ n, project, file, checking, resolved, running, pin, save
           }}
         />
       )}
-      <SuggestField value={project.suggest} onChange={(suggest) => onChange({ ...project, suggest })} />
-      <SuggestionField which="labels" value={project.suggestLabels} onChange={(suggestLabels) => onChange({ ...project, suggestLabels })} />
-      <SuggestionField which="cards" value={project.suggestCards} onChange={(suggestCards) => onChange({ ...project, suggestCards })} />
-      <SuggestionField which="merges" value={project.suggestMerges} onChange={(suggestMerges) => onChange({ ...project, suggestMerges })} />
-      <PlanBaselineField value={project.planBaselines} onChange={(planBaselines) => onChange({ ...project, planBaselines })} />
-      <CardArchiveField value={project.archive} onChange={(archive) => onChange({ ...project, archive })} />
-      <RightClickField value={project.rightClick} onChange={(rightClick) => onChange({ ...project, rightClick })} />
-      <CodeReviewField value={project.codeReviews} onChange={(codeReviews) => onChange({ ...project, codeReviews })} />
-      <ProjectSiteField
-        project={resolved && running.includes(resolved.id) ? resolved.id : undefined}
-        value={project.demoSite}
-        homePath={project.repos[0]?.path}
-        language={resolved?.repos[0]?.values.demo.language.value ?? null}
-        onChange={(demoSite) => {
-          const { demoSite: _, ...rest } = project;
-          onChange(demoSite ? { ...rest, demoSite } : rest);
-        }}
-      />
       {problems
         .filter((p) => p.repo === undefined && !NAME_PROBLEMS.includes(p.code))
         .map((p, k) => (
@@ -2645,13 +2593,10 @@ function ProjectBlock({ n, project, file, checking, resolved, running, pin, save
           gitOnly={gitOnly}
           home={at === 0}
           resolved={resolved?.repos[at]}
-          {...(resolved ? { projectId: resolved.id } : {})}
           problems={problems.filter((p) => p.repo === at)}
-          {...(focus && resolved?.id === focus.project && resolved.repos[at]?.id === focus.repo ? { focus } : {})}
           where={`${here}, ${t.config.repoAt(repo.path)}`}
           ask={askHere}
           onRecheck={onRecheck}
-          takeover={{ saved, onReload, ...(prepare ? { prepare } : {}) }}
           onChange={(x) => {
             setRepo(at, x);
             if (!x) setAt(Math.max(0, at - 1));
@@ -2670,17 +2615,12 @@ interface RepoProps {
   gitOnly?: 'codex' | 'agy' | undefined;
   home: boolean;
   resolved?: ResolvedProject['repos'][number];
-  /** The project the repository is on, as checked: where a card for it goes, once the dialog's changes are saved. */
-  projectId?: string;
   problems: ConfigProblem[];
-  /** Its clone count or slots to scroll to and focus: the dialog was opened from a card waiting for a free clone or slot. */
-  focus?: ConfigFocus;
   /** Where it is, for a request to the Koordinator. */
   where: string;
   ask?: (text: string) => void;
   /** Checks the configuration again: git was set up in the repository's folder. */
   onRecheck: () => Promise<void>;
-  takeover: Takeover;
   onChange: (r: RepoConfig | null) => void;
 }
 
@@ -2704,21 +2644,10 @@ function withField<K extends keyof RepoConfig>(repo: RepoConfig, k: K, v: RepoCo
   return next;
 }
 
-function RepoRow({ repo, gitOnly, home, resolved, projectId, problems, focus, where, ask, onRecheck, takeover, onChange }: RepoProps) {
-  const clonesBox = useRef<HTMLDivElement>(null);
-  const [flash, setFlash] = useState(false);
-  useEffect(() => {
-    const box = clonesBox.current;
-    if (!focus || focus.field === 'settings' || !box) return;
-    box.scrollIntoView({ block: 'center' });
-    box.querySelector<HTMLInputElement>(focus.field === 'slots' ? '.cfg-slots input' : '.cfg-clone-count input')?.focus({ preventScroll: true });
-    setFlash(true);
-    const h = setTimeout(() => setFlash(false), 2400);
-    return () => clearTimeout(h);
-  }, [focus]);
-  // a folder without git has neither clones nor slots: every card works in the folder itself
+function RepoRow({ repo, gitOnly, home, resolved, problems, where, ask, onRecheck, onChange }: RepoProps) {
+  // a folder without git: its agents work in the folder itself
   const folder = repo.git === false;
-  // a repository of the project: its path, what is wrong with it, then where its agents work and its settings, each group under a heading
+  // a repository of the project: its path and what is wrong with it; its settings are in the project's settings sheet
   return (
     <section className="cfg-repo mt-2 pt-2.5 border-t border-t-border [&>.c-row]:mt-1.5 [&>.c-row]:mb-1 [&>.c-row]:max-w-[900px]">
       <Field label={t.config.path} hint={home || folder ? [...(home ? [t.config.home] : []), ...(folder ? [t.config.folderMode] : [])].join(' · ') : undefined}>
@@ -2732,22 +2661,6 @@ function RepoRow({ repo, gitOnly, home, resolved, projectId, problems, focus, wh
         </div>
       </Field>
       <RepoProblems repo={repo} resolved={resolved} problems={problems} where={where} ask={ask} onRecheck={onRecheck} gitOnly={gitOnly} onFolder={() => onChange({ path: repo.path, git: false, ...(repo.settings ? { settings: repo.settings } : {}) })} />
-      {/* a repository without settings of its own, or with an adapter module that said them: a card on its project writes them, also before the project is saved */}
-      {projectId && resolved && !folder && (resolved.adapterGone || !fromRepository(resolved.values)) && <AdapterSetup project={projectId} repo={resolved.id} takeover={takeover} />}
-      <Workstations ref={clonesBox} flash={flash} repo={repo} resolved={resolved} onChange={onChange} />
-      {resolved && (
-        <RepoSettingsBlock
-          show={focus?.field === 'settings' ? focus : undefined}
-          folder={folder}
-          repo={repo}
-          values={resolved.values}
-          shareTo={resolved.shareTo}
-          shareDirect={!!resolved.shareDirect}
-          settingsFile={resolved.settingsFile}
-          takeover={takeover}
-          onChange={(settings) => onChange(withField(repo, 'settings', settings))}
-        />
-      )}
     </section>
   );
 }
@@ -3020,66 +2933,6 @@ export function RepoSettingRow({ k, at }: { k: SettingKey; at: RepoSettingsAt })
   );
 }
 
-/**
- * A repository's settings for this machine, below where its agents work, in groups under a heading
- * each (branch and landing, app and checks, plans and language, demos): each shows the value that
- * applies and where it comes from; changing one sets it on this machine, "Reset"
- * takes it back to its source. Saved with the configuration; they apply at once.
- */
-function RepoSettingsBlock({
-  show,
-  folder,
-  repo,
-  values,
-  shareTo,
-  shareDirect,
-  settingsFile,
-  takeover,
-  onChange,
-}: {
-  /** The setting to scroll to and mark: the dialog was opened from a proposal for it. */
-  show: ConfigFocus | undefined;
-  /** A folder without git: what is about branches, landing and workstations does not apply. */
-  folder: boolean;
-  repo: RepoConfig;
-  values: RepoValues;
-  shareTo: 'main' | 'pr';
-  shareDirect: boolean;
-  /** Its settings file for everyone (`ResolvedProject`), where "Take over into the repository for everyone" writes. */
-  settingsFile: string;
-  takeover: Takeover;
-  onChange: (s: RepoSettings | undefined) => void;
-}) {
-  const box = useRef<HTMLDivElement>(null);
-  const [shown, setShown] = useState<string | null>(null);
-  useEffect(() => {
-    if (!show) return;
-    setShown(show.setting ?? null);
-    const h = setTimeout(() => setShown(null), 2400);
-    return () => clearTimeout(h);
-  }, [show]);
-  useEffect(() => {
-    if (shown) box.current?.querySelector(`[data-setting="${shown}"]`)?.scrollIntoView({ block: 'center' });
-  }, [shown]);
-  const at = repoSettingsAt(repo.settings, values, onChange, shown);
-  const group = (title: string, keys: readonly SettingKey[]) => (
-    <div className={K.cfgGroupClass()}>
-      <h5 className={K.cfgGroupHeadClass}>{title}</h5>
-      <RepoSettingRows at={at} keys={keys} />
-    </div>
-  );
-  return (
-    <div className="cfg-settings" ref={box}>
-      {!folder && group(t.config.groups.landing, REPO_SETTING_GROUPS.landing)}
-      {group(t.config.groups.app, REPO_SETTING_GROUPS.app)}
-      {group(t.config.groups.plans, REPO_SETTING_GROUPS.plans)}
-      {group(t.config.groups.demos, REPO_SETTING_GROUPS.demos)}
-      {/* the folder's settings file is written there like any other file; there is no commit or pull request to make */}
-      {!folder && <ShareSettings repo={repo} values={values} branch={at.value<string>('branch')} shareTo={shareTo} shareDirect={shareDirect} settingsFile={settingsFile} takeover={takeover} />}
-    </div>
-  );
-}
-
 /** Whether the repository has settings for everyone (its settings file): then it is set up. */
 export const fromRepository = (v: RepoValues) => SHARED_FIELDS.some((k) => (isNested(k) ? Object.values(v[k]).some((f) => f.source === 'repository') : v[k].source === 'repository'));
 
@@ -3306,6 +3159,13 @@ function slotsOf(value: string): number | undefined {
  * Removes an entry of the configuration (a project, a repository, a host): a waste bin, so that it
  * does not pass for the dialog's close button, shown while the pointer or focus is on its entry.
  */
+/**
+ * Problems of a repository the project's settings sheet shows with what fixes them there (commands to
+ * trust, settings the repository's file gets wrong): Configuration leaves them to it. They keep no save
+ * from going through; those that do show here, where the save waits.
+ */
+const SHEET_PROBLEMS: ConfigProblemCode[] = ['untrusted', 'adapterGone', 'repoSettings'];
+
 /** Problems of a project's name, shown at the name. */
 const NAME_PROBLEMS: ConfigProblemCode[] = ['nameTaken', 'oldNameTaken'];
 
