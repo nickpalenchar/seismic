@@ -50,8 +50,12 @@ const config = () =>
     apply: (_, ids) => void applied.push(ids.map((id) => id ?? '?')),
   });
 
+/**
+ * A HOME of the test's own: the tests that put the machine's PATH on it check its real tools, and gh
+ * without a HOME keeps its state under the working directory, the checkout.
+ */
 const setup = (o: { compiled?: boolean; env?: Record<string, string> } = {}) =>
-  new MachineSetup({ home, config: config(), env: { PATH: bin, ...o.env }, platform: 'linux', arch: 'x64', compiled: o.compiled ?? true });
+  new MachineSetup({ home, config: config(), env: { PATH: bin, HOME: home, ...o.env }, platform: 'linux', arch: 'x64', compiled: o.compiled ?? true });
 
 const section = (v: MachineView, id: string) => v.sections.find((s) => s.id === id)!;
 
@@ -463,9 +467,12 @@ describe('the first project', () => {
   test('a gh logged in only to another host does not count as a github.com login', async () => {
     const calls = join(dir, 'git-calls');
     // gh reports the Enterprise login without a host; with --hostname github.com it fails
-    fake('gh', `[ "$1 $2" = "auth status" ] || exit 1; case "$*" in *"--hostname github.com"*) exit 1;; esac; exit 0`);
+    fake('gh', `case "$*" in --version) echo "gh version 2.60.0 (2024-10-01)";; *"--hostname github.com"*) exit 1;; "auth status") echo "  ✓ Logged in to ghe.acme.com account ada";; *) exit 1;; esac`);
     fake('git', `echo "$@" >> ${calls}; echo "fatal: could not read Username for 'https://github.com': terminal prompts disabled" >&2; exit 128`);
     const s = setup({});
+    // the setup's own GitHub login agrees, and offers github.com's login that the repository line asks for
+    expect(section(await s.view(['pr']), 'pr').items[1]).toEqual({ id: 'ghLogin', state: 'missing', install: { commands: ['gh auth login --hostname github.com'] }, act: 'login' });
+    expect(await s.login({ section: 'pr', id: 'ghLogin' })).toMatchObject({ command: 'gh auth login --hostname github.com' });
     expect(await s.repo({ clone: 'acme/private-shop' })).toMatchObject({ readable: false, github: true, ghLogin: false });
     await s.project({ clone: 'acme/private-shop', into: join(dir, 'code') }).catch(() => {});
     for (let i = 0; (await s.view()).job?.running && i < 100; i++) await Bun.sleep(50);

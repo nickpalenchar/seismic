@@ -233,7 +233,9 @@ cycling through terminals.
   shows (a slow CLI held up the whole page), and picking Claude Code where none is ready.
   The repository a first project is cloned from is read when its field is left with another value
   than the one read last (2026-11-18), not while typing. Both `git ls-remote` and `git clone` use
-  gh's login as Git's only credential helper for GitHub when signed in. Both normalize GitHub web
+  gh's login as Git's only credential helper for GitHub when signed in to github.com itself
+  (`gh auth status --hostname github.com`, the same check as the setup's GitHub login item: a
+  plain `gh auth status` also passes on a GitHub Enterprise login alone). Both normalize GitHub web
   URLs and owner/name to HTTPS and scope the helper to https://github.com.
   Otherwise the background check skips configured helpers because they can open dialogs, and
   an explicit clone uses them so saved HTTPS credentials still work. Both commands disable Git's

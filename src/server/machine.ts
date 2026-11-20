@@ -217,6 +217,9 @@ export function tried(argv: string[], env: Env, timeout: number): Promise<{ ok: 
 /** Turn off Git's own prompts, including its configured askpass program. */
 const NO_PROMPT_ARGS = ['-c', 'core.askPass=', '-c', 'credential.interactive=false'];
 
+/** Whether gh is logged in to github.com itself: a plain `gh auth status` also passes on an Enterprise host's login alone. */
+const GH_LOGIN_STATUS = ['auth', 'status', '--hostname', 'github.com'];
+
 /**
  * Git consults GIT_SSH after core.sshCommand. Even config Git loads after initializing a clone
  * can still select the transport. Git for Windows also runs extensionless scripts via their shebang.
@@ -395,10 +398,11 @@ export class MachineSetup {
     const prPart = async (): Promise<MachineItem[]> => {
       const gh = (await output('gh', ['--version'], env))?.match(/gh version (\S+)/)?.[1];
       if (!gh) return [missing({ id: 'gh', install: hint('gh') }), { id: 'ghLogin', state: 'missing' }];
-      const auth = await output('gh', ['auth', 'status'], env);
+      // github.com's login, as a clone from GitHub asks for it (`route`): one on an Enterprise host alone is none
+      const auth = await output('gh', GH_LOGIN_STATUS, env);
       if (auth) return [{ id: 'gh', state: 'ok', found: gh }, { id: 'ghLogin', state: 'ok', found: auth.match(/account (\S+)/)?.[1] ?? '' }];
-      logins.ghLogin = ['gh', 'auth', 'login'];
-      return [{ id: 'gh', state: 'ok', found: gh }, missing({ id: 'ghLogin', install: { commands: ['gh auth login'] }, act: 'login' })];
+      logins.ghLogin = ['gh', 'auth', 'login', '--hostname', 'github.com'];
+      return [{ id: 'gh', state: 'ok', found: gh }, missing({ id: 'ghLogin', install: { commands: ['gh auth login --hostname github.com'] }, act: 'login' })];
     };
 
     /** Mobile development on a Mac: Xcode, an iPhone simulator, and Safari that Seismic's agents may drive. */
@@ -642,7 +646,7 @@ export class MachineSetup {
       GH_PROMPT_DISABLED: '1',
       SSH_ASKPASS_REQUIRE: 'never',
     };
-    const ghLogin = github && (await tried(['gh', 'auth', 'status', '--hostname', 'github.com'], env, 30_000)).ok;
+    const ghLogin = github && (await tried(['gh', ...GH_LOGIN_STATUS], env, 30_000)).ok;
     // An empty helper resets all configured helpers, including URL-specific ones.
     const helper = action === 'check' || ghLogin ? ['-c', 'credential.helper='] : [];
     if (ghLogin) helper.push('-c', 'credential.https://github.com.helper=!gh auth git-credential');
