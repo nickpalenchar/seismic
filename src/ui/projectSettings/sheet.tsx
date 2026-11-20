@@ -407,8 +407,16 @@ function RepoPart({ section, project, view, save, repos, repoAt, onRepo, mark }:
   useEffect(() => {
     if (!mark || !box.current) return;
     const field = place ? box.current.querySelector<HTMLElement>(mark === 'slots' ? '.cfg-slots' : '.cfg-clone-count') : box.current.querySelector<HTMLElement>(`[data-setting="${mark}"]`);
-    field?.scrollIntoView({ block: 'center' });
-    field?.querySelector<HTMLElement>('input, textarea')?.focus({ preventScroll: true });
+    if (!field) return;
+    const take = () => {
+      if (field.contains(document.activeElement)) return;
+      field.scrollIntoView({ block: 'center' });
+      field.querySelector<HTMLElement>('input, textarea')?.focus({ preventScroll: true });
+    };
+    take();
+    // a sheet that slides in takes the focus only once it is there
+    const h = setTimeout(take, 350);
+    return () => clearTimeout(h);
   }, [mark, repoAt, !!v?.resolved]);
   if (!v) return <p className="hint">{t.config.loading}</p>;
   const repo = repos.repos[repoAt];
