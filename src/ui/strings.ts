@@ -691,6 +691,7 @@ const en = {
     unknownGroup: 'This group no longer exists.',
     unknownCanvas: 'This canvas no longer exists.',
     canvasInUse: 'Only an empty canvas can be deleted, and never “main”.',
+    canvasCardCountsChanged: 'The number of parked or snoozed cards changed. Check the canvas and try again.',
     plan: 'A plan is worked on through its workstreams, not as a whole.',
     dependencyCycle: 'No arrow: the two cards would wait for each other, because the first already waits for the second, directly or through other cards.',
     planDependency: 'No arrow: plans and their workstreams take their order from the plan doc.',
@@ -2756,6 +2757,7 @@ const en = {
     removed: (name: string) => `Canvas “${name}” deleted.`,
     /** The confirmation before a canvas with parked or snoozed cards is deleted. */
     deleteTitle: (name: string) => `Delete “${name}”?`,
+    deleteEmpty: 'This canvas now has no parked or snoozed cards.',
     deleteWarning: (parked: number, snoozed: number) => {
       const part = [parked ? `${parked} parked` : '', snoozed ? `${snoozed} snoozed` : ''].filter(Boolean).join(' and ');
       return `You have ${part} ${parked + snoozed === 1 ? 'card' : 'cards'} on this canvas. ${parked + snoozed === 1 ? 'It moves' : 'They move'} to the canvas you pick.`;

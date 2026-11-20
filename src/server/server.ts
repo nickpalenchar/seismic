@@ -792,7 +792,10 @@ export function serve(
       },
       '/api/c/:project/canvases/:id': {
         PATCH: on(async (c, req) => c.board.updateCanvas(req.params.id!, ((await req.json()) ?? {}) as { name?: unknown; icon?: unknown; position?: unknown })),
-        DELETE: on(async (c, req) => c.board.deleteCanvas(req.params.id!, (((await req.json().catch(() => null)) ?? {}) as { moveTo?: unknown }).moveTo)),
+        DELETE: on(async (c, req) => {
+          const { moveTo, expected } = ((await req.json().catch(() => null)) ?? {}) as { moveTo?: unknown; expected?: { parked?: unknown; snoozed?: unknown } };
+          return c.board.deleteCanvas(req.params.id!, moveTo, expected);
+        }),
       },
       '/api/c/:project/canvases/:id/cards': {
         POST: on(async (c, req) => c.board.moveToCanvas((((await req.json()) ?? {}) as { cards?: unknown }).cards, req.params.id!)),

@@ -3038,7 +3038,7 @@ export class Board {
    * go onto the canvas `moveTo` names (`main` without one); the others it does not hold (archived,
    * deleted) keep it as theirs and go to `main` once they come back (`homeCanvas`).
    */
-  deleteCanvas(id: string, moveTo?: unknown) {
+  deleteCanvas(id: string, moveTo?: unknown, expected?: { parked?: unknown; snoozed?: unknown }) {
     const c = this.ownCanvas(id);
     if (c.name === MAIN_CANVAS) throw new BadRequest('canvasInUse', `the canvas ${MAIN_CANVAS} cannot be deleted`);
     const items = this.items();
@@ -3048,11 +3048,16 @@ export class Board {
       throw new BadRequest('canvasInUse', `only an empty canvas can be deleted; ${c.name} still has ${n ? `${n} card${n === 1 ? '' : 's'}` : 'a group with cards'} on it`);
     }
     this.store.transaction(() => {
-      const off = this.offCanvasRows().filter((r) => r.canvas_id === id).map((r) => r.id);
+      const off = this.offCanvasRows().filter((r) => r.canvas_id === id);
+      if (expected !== undefined) {
+        const parked = off.filter((r) => r.hold?.reason === 'parkingLot').length;
+        if (expected?.parked !== parked || expected?.snoozed !== off.length - parked)
+          throw new BadRequest('canvasCardCountsChanged', 'the number of parked or snoozed cards on this canvas changed');
+      }
       if (off.length) {
         const to = moveTo === undefined || moveTo === null ? this.store.canvases.main(this.project.id) : this.ownCanvas(moveTo).id;
         if (to === id) throw new BadRequest('invalid', 'the cards cannot move to the canvas being deleted');
-        this.placeOnCanvas(off, to, items);
+        this.placeOnCanvas(off.map((r) => r.id), to, items);
       }
       this.store.deleteCanvas(id);
     });

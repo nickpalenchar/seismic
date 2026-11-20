@@ -2238,6 +2238,7 @@ export type ErrorCode =
   | 'unknownCanvas'
   /** Deleting a canvas that still has cards, or `main`. */
   | 'canvasInUse'
+  | 'canvasCardCountsChanged'
   | 'plan'
   /** An arrow between cards that would make them wait for each other, directly or through other cards. */
   | 'dependencyCycle'

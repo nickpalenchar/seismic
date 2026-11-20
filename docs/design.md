@@ -212,11 +212,13 @@ cycling through terminals.
   Rejected: "drawn right now", which would make folding a plan empty its canvas. A canvas is empty
   when no card on it is visible and no group on it holds a visible card (`canvasHolds`); the
   server's delete, the Koordinator's precheck and the drawer's trash (the server's `inUse`) ask only
-  that. Deleting a canvas moves its parked and snoozed cards to the canvas the owner picks in a
-  warning first (`main` by default), leaves its other invisible cards their canvas id, and takes its groups along out
-  of their cards; a card that comes back (unarchived, restored, unparked, a plan whose doc returns)
-  to a canvas that is gone lands on "main", as do follow-ups and prototypes made from it
-  (`homeCanvas`); an unarchived card tells the owner so in a toast. Rejected: archived cards blocking a delete, or moving to "main" with it.
+  that. Deleting a canvas moves its parked and snoozed cards to the destination picked in the
+  warning (`main` by default). They appear there when unparked or woken. The warning follows the
+  canvas's current counts, and deletion requires the counts shown at confirmation to still match.
+  Deletion removes the canvas's groups and leaves its other invisible cards their canvas id. When
+  an archived or deleted card comes back, or a plan doc returns, a missing canvas falls back to
+  `main`, as do follow-ups and prototypes made from those cards (`homeCanvas`). An unarchived card
+  tells the owner so in a toast. Rejected: archived cards blocking a delete, or moving to `main` with it.
 - **The setup assistant goes in steps** (2026-11-15): agents (several picked at once, each with
   what it needs, git shared below them), the features that can wait, then on the first start the
   first project. Going on from the first step needs one configured agent, which counts only with

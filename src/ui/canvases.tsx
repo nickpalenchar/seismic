@@ -68,7 +68,7 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow, o
 }) {
   const [drawer, setDrawer] = useState(false);
   const [dialog, setDialog] = useState<{ edit?: string } | null>(null);
-  const [deleting, setDeleting] = useState<Canvas>();
+  const [deleting, setDeleting] = useState<Pick<Canvas, 'id' | 'name'>>();
   const [isKnown, setKnown] = useState(() => known(KNOWN));
   const leave = useRef<ReturnType<typeof setTimeout>>(undefined);
   const box = useRef<HTMLDivElement>(null);
@@ -201,11 +201,22 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow, o
         }}
       >
         {keyed && <p className="hint m-0 px-2 pt-1 pb-1.5">{t.canvases.drawerKey}</p>}
-        <Drawer canvases={canvases} shown={shown} waiting={waiting} empty={empty} onPick={pick} onEdit={(c) => (open(false), setDialog({ edit: c.id }))} onNew={startNew} onRemove={(c) => void api.deleteCanvas(c.id).catch(onDeleteError)} onMoveAway={(c) => (open(false), setDeleting(c))} />
+        <Drawer
+          canvases={canvases}
+          shown={shown}
+          waiting={waiting}
+          empty={empty}
+          onPick={pick}
+          onEdit={(c) => (open(false), setDialog({ edit: c.id }))}
+          onNew={startNew}
+          onRemove={(c) => void api.deleteCanvas(c.id, { parked: 0, snoozed: 0 }).catch(onDeleteError)}
+          onMoveAway={(c) => (open(false), setDeleting({ id: c.id, name: c.name }))}
+        />
       </PopoverContent>
       {deleting && (
         <DeleteCanvasDialog
-          canvas={deleting}
+          target={deleting}
+          canvas={canvases.find((c) => c.id === deleting.id)}
           others={canvases.filter((c) => c.id !== deleting.id)}
           onClose={() => setDeleting(undefined)}
         />
@@ -313,17 +324,21 @@ function Drawer({ canvases, shown, waiting, empty, onPick, onEdit, onNew, onRemo
 }
 
 /** The warning before deleting a canvas that still has parked or snoozed cards: they move to the canvas picked, `main` to begin with. */
-function DeleteCanvasDialog({ canvas, others, onClose }: { canvas: Canvas; others: Canvas[]; onClose: () => void }) {
+function DeleteCanvasDialog({ target, canvas, others, onClose }: { target: Pick<Canvas, 'id' | 'name'>; canvas?: Canvas; others: Canvas[]; onClose: () => void }) {
   const [to, setTo] = useState((others.find((c) => c.name === MAIN_CANVAS) ?? others[0])?.id ?? '');
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState<string>();
-  const available = others.some((c) => c.id === to);
+  const parked = canvas?.parked ?? 0;
+  const snoozed = canvas?.snoozed ?? 0;
+  const moving = parked + snoozed > 0;
+  const available = !moving || others.some((c) => c.id === to);
+  const problem = !canvas ? t.error.unknownCanvas : !available ? t.canvases.chooseAnother : failed;
   const remove = async () => {
-    if (busy || !available) return;
+    if (busy || !canvas || !available) return;
     setFailed(undefined);
     setBusy(true);
     try {
-      await api.deleteCanvas(canvas.id, to);
+      await api.deleteCanvas(canvas.id, { parked, snoozed }, moving ? to : undefined);
       onClose();
     } catch (err) {
       setFailed(failText(err));
@@ -334,29 +349,33 @@ function DeleteCanvasDialog({ canvas, others, onClose }: { canvas: Canvas; other
     <ConfirmDialog
       open
       onOpenChange={(open) => !open && onClose()}
-      title={t.canvases.deleteTitle(canvas.name)}
+      title={t.canvases.deleteTitle(canvas?.name ?? target.name)}
       busy={busy}
       confirm={{
-        label: busy ? <><Spinner className="size-3" aria-hidden />{t.canvases.deleteWorking}</> : t.canvases.deleteConfirm,
+        label: busy ? <><Spinner className="size-3" aria-hidden />{t.canvases.deleteWorking}</> : moving ? t.canvases.deleteConfirm : t.canvases.remove,
         variant: 'review-warning',
         keepOpen: true,
-        disabled: !available,
+        disabled: !canvas || !available,
         onClick: remove,
       }}
       cancel={t.canvases.deleteBack}
     >
-      <p>{t.canvases.deleteWarning(canvas.parked ?? 0, canvas.snoozed ?? 0)}</p>
-      <label className={cn(cdLabel, 'mb-1.5')} htmlFor="canvas-move-to">
-        {t.canvases.moveCardsTo}
-      </label>
-      <Select id="canvas-move-to" className="mb-5 w-full" aria-label={t.canvases.moveCardsTo} value={available ? to : ''} onValueChange={setTo} disabled={busy}>
-        {others.map((c) => (
-          <SelectItem key={c.id} value={c.id} textValue={c.name}>
-            {c.name}
-          </SelectItem>
-        ))}
-      </Select>
-      {(failed || !available) && <p role="alert" className="text-sm text-destructive">{!available ? t.canvases.chooseAnother : failed}</p>}
+      {canvas && <p aria-live="polite">{moving ? t.canvases.deleteWarning(parked, snoozed) : t.canvases.deleteEmpty}</p>}
+      {moving && (
+        <>
+          <label className={cn(cdLabel, 'mb-1.5')} htmlFor="canvas-move-to">
+            {t.canvases.moveCardsTo}
+          </label>
+          <Select id="canvas-move-to" className="mb-5 w-full" aria-label={t.canvases.moveCardsTo} value={available ? to : ''} onValueChange={setTo} disabled={busy}>
+            {others.map((c) => (
+              <SelectItem key={c.id} value={c.id} textValue={c.name}>
+                {c.name}
+              </SelectItem>
+            ))}
+          </Select>
+        </>
+      )}
+      {problem && !busy && <p role="alert" className="text-sm text-destructive">{problem}</p>}
     </ConfirmDialog>
   );
 }

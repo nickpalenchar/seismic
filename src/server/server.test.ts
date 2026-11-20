@@ -371,6 +371,29 @@ describe('liveness', () => {
 });
 
 describe('canvases', () => {
+  test('deletion with counts refuses changes before moving any hidden cards', async () => {
+    const source = board.createCanvas('Source');
+    const target = board.createCanvas('Target');
+    const a = board.create({ title: 'A', canvas: source.id });
+    const b = board.create({ title: 'B', canvas: source.id });
+    const since = new Date().toISOString();
+    board.work(a.id, { hold: { reason: 'parkingLot', since } });
+    board.work(b.id, { hold: { reason: 'snoozed', since, by: 'owner', until: new Date(Date.now() + 60_000).toISOString() } });
+
+    const remove = (parked: number, snoozed: number, moveTo?: string) =>
+      fetch(new URL(api(`/canvases/${source.id}`), server.url), {
+        method: 'DELETE',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ expected: { parked, snoozed }, moveTo }),
+      });
+    expect(await codeOf(remove(0, 0))).toBe('canvasCardCountsChanged');
+    expect(await codeOf(remove(2, 0, target.id))).toBe('canvasCardCountsChanged');
+    expect(board.canvases().find((c) => c.id === source.id)).toMatchObject({ parked: 1, snoozed: 1 });
+    expect(board.canvases().find((c) => c.id === target.id)?.parked).toBeUndefined();
+    expect((await remove(1, 1, target.id)).status).toBe(204);
+    expect(board.canvases().find((c) => c.id === target.id)).toMatchObject({ parked: 1, snoozed: 1 });
+  });
+
   test('are created, renamed, reordered, given cards and deleted once empty; main stays', async () => {
     const a = card();
     const send = (method: string, path: string, body?: unknown) =>

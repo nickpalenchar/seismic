@@ -196,7 +196,7 @@ export class Store {
 
   /**
    * The canvas goes, with its groups, which hold no card it holds any more: their cards leave them.
-   * The cards that keep it as theirs (archived, deleted, parked) stay as they are, to go back to `main`.
+   * This leaves card locations alone. The board moves parked and snoozed cards before calling this.
    */
   deleteCanvas(id: string) {
     this.transaction(() => {

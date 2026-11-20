@@ -1114,9 +1114,10 @@ describe('canvases', () => {
       expect([c.repo, c.group]).toEqual(['site', g.id]);
   });
 
-  test('back from the archive, the trash or the parking lot onto a deleted canvas, a card is on main; so are follow-ups and prototypes of one', () => {
+  test('parked cards and their follow-ups use the chosen destination, while archived and trashed cards return to main', () => {
     const main = board.snapshot().canvases[0]!.id;
     const later = board.createCanvas('Later');
+    const destination = board.createCanvas('Destination');
     const a = board.create({ title: 'A', x: 0, y: 0, canvas: later.id });
     const gone = board.create({ title: 'Gone', x: 0, y: 0, canvas: later.id });
     const parked = board.create({ title: 'Parked', x: 0, y: 0, canvas: later.id });
@@ -1131,24 +1132,24 @@ describe('canvases', () => {
     board.archive([idea.id]);
     docs = [];
     board.docsChanged();
-    board.deleteCanvas(later.id);
+    board.deleteCanvas(later.id, destination.id);
     // what the canvas did not hold keeps pointing at it until it comes back
     board.snapshot();
     for (const id of [a.id, gone.id]) expect(store.cards.get(id)!.canvas_id).toBe(later.id);
     // a parked card moves along with the canvas
-    expect(store.cards.get(parked.id)!.canvas_id).toBe(main);
-    // what is made from a parked card meanwhile goes on main, written there at once
+    expect(store.cards.get(parked.id)!.canvas_id).toBe(destination.id);
+    // What is made from a still parked card uses its new canvas.
     const fromParked = [board.propose(parked.id, { title: 'From parked', task: 'T' }), board.create({ title: 'After parked', from: parked.id })];
-    for (const c of fromParked) expect([c.canvas, store.cards.get(c.id)!.canvas_id]).toEqual([main, main]);
+    for (const c of fromParked) expect([c.canvas, store.cards.get(c.id)!.canvas_id]).toEqual([destination.id, destination.id]);
     board.work(parked.id, { hold: null });
-    expect(canvasOf(parked.id)).toBe(main);
+    expect(canvasOf(parked.id)).toBe(destination.id);
     // made from an archived card whose canvas is gone
     expect(canvasOf(board.create({ title: 'Next', from: a.id }).id)).toBe(main);
     expect(canvasOf(board.propose(a.id, { title: 'Proposal', task: 'T' }).id)).toBe(main);
     expect(board.addPrototype(idea.id, 'Prototype', 'P').canvas).toBe(main);
     board.unarchive(a.id);
     board.restore(gone.id);
-    for (const id of [a.id, gone.id, parked.id]) expect(canvasOf(id)).toBe(main);
+    for (const id of [a.id, gone.id]) expect(canvasOf(id)).toBe(main);
     // each at a free spot there, clear of what main holds already
     const boxes = board.snapshot().items.filter((i) => !i.parent && i.canvas === main).map((i) => boundsOf(i, board.snapshot().items));
     for (const [n, p] of boxes.entries()) for (const q of boxes.slice(n + 1)) expect(p.x + p.w <= q.x || q.x + q.w <= p.x || p.y + p.h <= q.y || q.y + q.h <= p.y).toBe(true);
