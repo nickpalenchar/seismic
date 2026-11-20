@@ -23,6 +23,7 @@ import { cleanEnv, type AgentEvent, type AgentRuntime, type AgentSpec } from '..
 import { AGY_CONVERSATION_ID } from '../../transcript';
 import { agyBrainDir, agyTranscriptLog, TranscriptTail, type AgyTask } from './agyTasks';
 import { AgentProcesses, onceClosed, tolerateTimeouts, untilIdentified } from './processes';
+import { windowsJob, type ProcessJob } from './windowsJob';
 import { endAtShutdown, observeEveryTick } from './codexRpc';
 import { sessionRegistry } from './sessionRegistry';
 import { installMcpConfig } from './agyMcpConfig';
@@ -141,38 +142,87 @@ export function agyUsageOf(answer: unknown, now = new Date()): Usage {
 /** Runs `agy` with `args`; its exit status and output. Aborting `signal` ends it, with whatever it started. */
 export type AgyRun = (executable: string, args: string[], signal: AbortSignal) => Promise<{ status: number; out: string; err: string }>;
 
-/** How long a `/usage` answer may take before its process group is ended. */
+/** How long a `/usage` answer may take before everything it runs is ended. */
 const USAGE_RUN_MS = 25_000;
+
+/**
+ * Ends `child` with everything it started. Where it has a group of its own (`OWN_GROUP`) the group is
+ * killed. On Windows, which has none, the job holding the run ends the whole tree at once, whatever
+ * has exited since and whoever the parents in between were. If terminating the job fails, its handle
+ * is closed at once, which ends its members all the same (kill on close, which `windowsJob` makes
+ * sure of), rather than waiting for the run's output to close, which a helper holding it would keep
+ * from happening. Nothing here waits on the process table or holds the event loop.
+ */
+export function endProcessTree(child: { pid?: number; kill: (signal: NodeJS.Signals) => unknown }, job?: ProcessJob, ownGroup = OWN_GROUP) {
+  if (job?.terminate()) return;
+  job?.close();
+  try {
+    if (ownGroup && child.pid) process.kill(-child.pid, 'SIGKILL');
+    else child.kill('SIGKILL');
+  } catch {
+    // already gone
+  }
+}
+
+/** The environment variable through which the Windows launcher is told where `agy` is, so that no path goes through cmd's parser. */
+export const USAGE_LAUNCH_AGY = 'SEISMIC_USAGE_AGY';
+
+/**
+ * How `agy` is started on Windows so that every process of the run is in its job (`windowsJob`): a
+ * `cmd` that waits for a line on stdin before it starts `agy`, which inherits its output. The job
+ * takes `cmd` while it waits, and whatever `cmd` starts afterwards is born into the job, so there is
+ * no moment in which agy, or a helper of agy's, runs outside it. `agy`'s path reaches `cmd` in an
+ * environment variable, quoted: cmd expands it once and parses nothing of it. The arguments are
+ * `agy`'s own (no spaces); `cmd /c` exits with the last command's status, agy's.
+ */
+export function usageLaunch(executable: string, args: string[], env: Record<string, string | undefined>, comSpec = process.env.ComSpec || 'cmd.exe') {
+  if (args.some((a) => /[\s"%&|<>^]/.test(a))) throw new Error(`agy /usage arguments cannot go through cmd: ${args.join(' ')}`);
+  return {
+    command: comSpec,
+    args: ['/d', '/s', '/c', `"set /p _= & "%${USAGE_LAUNCH_AGY}%" ${args.join(' ')}"`],
+    env: { ...env, [USAGE_LAUNCH_AGY]: executable } as Record<string, string | undefined>,
+  };
+}
 
 const runAgy: AgyRun = (executable, args, signal) =>
   new Promise((resolve, reject) => {
-    // a group of its own, so that ending it ends whatever agy started for the answer too
-    const child = spawn(executable, args, { cwd: homedir(), env: cleanEnv(), stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, detached: OWN_GROUP });
-    const end = () => {
-      try {
-        if (OWN_GROUP && child.pid) process.kill(-child.pid, 'SIGKILL');
-        else child.kill('SIGKILL');
-      } catch {
-        // already gone
-      }
-    };
+    // a group of its own on POSIX, a job on Windows: ending it ends whatever agy started for the answer too
+    const job = OWN_GROUP ? undefined : windowsJob();
+    if (!OWN_GROUP && !job) return reject(new Error('agy /usage cannot be held in a job object'));
+    const launch = job ? usageLaunch(executable, args, cleanEnv()) : { command: executable, args, env: cleanEnv() };
+    const child = spawn(launch.command, launch.args, { cwd: homedir(), env: launch.env, stdio: [job ? 'pipe' : 'ignore', 'pipe', 'pipe'], windowsHide: true, detached: OWN_GROUP, windowsVerbatimArguments: !!job });
+    const end = () => endProcessTree(child, job);
     const timer = setTimeout(end, USAGE_RUN_MS);
     signal.addEventListener('abort', end, { once: true });
+    const settle = () => {
+      job?.close();
+      clearTimeout(timer);
+      signal.removeEventListener('abort', end);
+    };
     let out = '';
     let err = '';
     child.stdout!.setEncoding('utf8').on('data', (d: string) => (out += d));
     child.stderr!.setEncoding('utf8').on('data', (d: string) => (err += d));
     child.once('error', (e) => {
-      clearTimeout(timer);
-      signal.removeEventListener('abort', end);
+      settle();
       reject(e);
     });
     child.once('close', (status) => {
-      clearTimeout(timer);
-      signal.removeEventListener('abort', end);
+      settle();
       if (signal.aborted) reject(new Error('agy /usage was stopped'));
       else resolve({ status: status ?? 1, out, err });
     });
+    if (job) {
+      // the launcher waits; agy starts only once the job holds it
+      if (child.pid && job.assign(child.pid)) {
+        child.stdin!.on('error', () => { /* the launcher is gone; its exit says so */ });
+        child.stdin!.end('\r\n');
+      } else {
+        // the launcher has started nothing yet, and the empty job would end nothing: it alone is killed
+        try { child.kill('SIGKILL'); } catch { /* already gone */ }
+        reject(new Error('agy /usage could not be put into its job object'));
+      }
+    }
   });
 
 /**

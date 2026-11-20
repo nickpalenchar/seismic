@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { testProcessCode } from '../../../test-process';
 import { appendFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { agyArgs, agyRun, READ_ONLY_PERMISSIONS, agyLimit, agyUsage, agyUsageOf, createAgyRuntime, nativeTool, parseAgyModels } from './agy';
+import { agyArgs, agyRun, endProcessTree, READ_ONLY_PERMISSIONS, agyLimit, agyUsage, agyUsageOf, createAgyRuntime, nativeTool, parseAgyModels, usageLaunch } from './agy';
 import { agyTranscriptLog } from './agyTasks';
 import { finished, started } from './agyTasksFixture';
 import { AGY_BRIDGE_FLAG, AGY_WINDOWS_BRIDGE, agyBridgeEnv, handleMcp, registerAgyTools, wireTools } from './agyMcp';
@@ -395,6 +395,29 @@ test.skipIf(process.platform === 'win32')('closing the agy usage source ends a /
     rmSync(dir, { recursive: true, force: true });
   }
 }, 20_000);
+
+test('ending a /usage run ends its job on Windows, and if the job refuses closes it at once', () => {
+  const killed: string[] = [];
+  const child = { pid: 4242, kill: (s: string) => killed.push(s) };
+  let terminated = 0;
+  let closed = 0;
+  const job = (ends: boolean) => ({ assign: () => true, terminate: () => { terminated++; return ends; }, close: () => { closed++; } });
+  endProcessTree(child, job(true), false);
+  expect([terminated, closed]).toEqual([1, 0]);
+  expect(killed).toEqual([]);
+  // closing the handle ends the members (kill on close), not only the launcher the child is
+  endProcessTree(child, job(false), false);
+  expect([terminated, closed]).toEqual([2, 1]);
+  expect(killed).toEqual(['SIGKILL']);
+});
+
+test('on Windows agy is started by a launcher that waits before it starts agy, with its path out of cmd\'s parser', () => {
+  const launch = usageLaunch('C:\\Program Files\\Antigravity\\agy.exe', ['-p', '/usage', '--output-format', 'json'], { PATH: 'x' }, 'C:\\Windows\\system32\\cmd.exe');
+  expect(launch.command).toBe('C:\\Windows\\system32\\cmd.exe');
+  expect(launch.args).toEqual(['/d', '/s', '/c', '"set /p _= & "%SEISMIC_USAGE_AGY%" -p /usage --output-format json"']);
+  expect(launch.env).toEqual({ PATH: 'x', SEISMIC_USAGE_AGY: 'C:\\Program Files\\Antigravity\\agy.exe' });
+  expect(() => usageLaunch('agy', ['a b'], {})).toThrow('cannot go through cmd');
+});
 
 test('real account-quota capture reads the entire reset duration', () => {
   const message = readFileSync(join(import.meta.dir, '../../fixtures/agy-quota.txt'), 'utf8').trim();

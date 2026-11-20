@@ -344,7 +344,7 @@ export class AgentProcesses {
       if (!this.owned.size) return;
       // One refused signal (EPERM) must not leave the rest alive: every target is signalled, the
       // identities that could not be are kept for a later attempt, and the first failure is reported.
-      const { signalled, failure } = terminate(this.owned.values(), await this.table());
+      const { signalled, failure } = await terminateAsync(this.owned.values(), await this.table());
       for (const pid of signalled) this.owned.delete(pid);
       if (failure === undefined) this.owned.clear();
       else throw failure;
@@ -360,16 +360,7 @@ export class AgentProcesses {
  * proves nothing about who else is in the group. A recorded process whose pid now shows another birth is not a target.
  */
 export function terminate(owned: Iterable<ProcessInfo>, table: Map<number, ProcessInfo>, signalGroups = true): { signalled: number[]; failure?: unknown } {
-  const targets = new Map<number, ProcessInfo>();
-  for (const info of owned) {
-    const current = table.get(info.pid);
-    if (current && sameBirth(info.born, current.born)) targets.set(current.pid, current);
-  }
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (const p of table.values()) if (targets.has(p.parent) && !targets.has(p.pid)) { targets.set(p.pid, p); changed = true; }
-  }
+  const targets = targetsOf(owned, table);
   const signalled: number[] = [];
   let failure: unknown;
   for (const p of [...targets.values()].reverse()) {
@@ -387,4 +378,42 @@ export function terminate(owned: Iterable<ProcessInfo>, table: Map<number, Proce
     signalled.push(p.pid);
   }
   return { signalled, ...(failure === undefined ? {} : { failure }) };
+}
+
+/** Ends the process `pid` and its tree with `taskkill`, without holding the event loop; the exit status (null: it did not run or timed out). */
+export function taskkillTree(pid: number, timeout = 3000): Promise<number | null> {
+  return new Promise((resolve) => {
+    const child = spawn('taskkill.exe', ['/PID', String(pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' });
+    const timer = setTimeout(() => { child.kill('SIGKILL'); resolve(null); }, timeout);
+    child.once('error', () => { clearTimeout(timer); resolve(null); });
+    child.once('close', (status) => { clearTimeout(timer); resolve(status); });
+  });
+}
+
+/** `terminate` without holding the event loop on Windows, where each `taskkill` takes its time. */
+export async function terminateAsync(owned: Iterable<ProcessInfo>, table: Map<number, ProcessInfo>, signalGroups = true, taskkill: (pid: number) => Promise<number | null> = taskkillTree, windows = process.platform === 'win32'): Promise<{ signalled: number[]; failure?: unknown }> {
+  if (!windows) return terminate(owned, table, signalGroups);
+  const signalled: number[] = [];
+  let failure: unknown;
+  for (const p of [...targetsOf(owned, table).values()].reverse()) {
+    const status = await taskkill(p.pid);
+    // 128: no such process, i.e. it is already gone. Anything else (denied, timed out) is owed.
+    if (status !== 0 && status !== 128) { failure ??= new Error(`taskkill failed for ${p.pid} (${status})`); continue; }
+    signalled.push(p.pid);
+  }
+  return { signalled, ...(failure === undefined ? {} : { failure }) };
+}
+
+function targetsOf(owned: Iterable<ProcessInfo>, table: Map<number, ProcessInfo>): Map<number, ProcessInfo> {
+  const targets = new Map<number, ProcessInfo>();
+  for (const info of owned) {
+    const current = table.get(info.pid);
+    if (current && sameBirth(info.born, current.born)) targets.set(current.pid, current);
+  }
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const p of table.values()) if (targets.has(p.parent) && !targets.has(p.pid)) { targets.set(p.pid, p); changed = true; }
+  }
+  return targets;
 }

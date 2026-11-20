@@ -335,6 +335,10 @@ Platform quirks:
 
 - Windows and Linux must work; macOS-only tools only as an extra. On Windows spawned programs run
   without a window, there is no SIGTERM, and every spawn blocks the server's thread.
+- Windows has no process group: a tree is ended whole only by a job object its first process joins
+  before it starts anything (a launcher that waits on stdin, then starts the program). The process
+  table cannot do it: a helper whose parent has exited has no link left to follow, and a pid of an
+  exited process may already be another's.
 - Safari can leave a hidden element's backdrop blur painted: what hides or unfolds goes solid first.
 - An animation that repaints a card every frame makes zoomed-out cards shimmer: animate transform
   and opacity only.

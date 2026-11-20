@@ -5,7 +5,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { codexConnection } from './codexRpc';
-import { AgentProcesses, linuxProcessStat, processes, processesAsync, sameBirth, sharedSnapshot, terminate, tolerateTimeouts, untilIdentified } from './processes';
+import { AgentProcesses, linuxProcessStat, processes, processesAsync, sameBirth, sharedSnapshot, terminate, terminateAsync, tolerateTimeouts, untilIdentified } from './processes';
 
 const handlers = { notification() {}, request: async () => ({}) };
 const beat = (file: string) => { try { return Number(readFileSync(file, 'utf8')); } catch { return 0; } };
@@ -340,4 +340,18 @@ test('a session is identified only once a snapshot that timed out has been taken
   expect(terminals.observed()).toEqual([{ pid: 4242, born: 'b' }]);
   const refused = new AgentProcesses(root.pid, () => { throw new Error('Cannot inspect agent process ownership'); });
   await expect(untilIdentified(refused, tolerateTimeouts())).rejects.toThrow('Cannot inspect');
+});
+
+test('terminateAsync on Windows ends a recorded process and its descendants with taskkill, helpers of an exited parent included', async () => {
+  const born = 'b';
+  const recorded = { pid: 10, parent: 1, group: 10, born };
+  const table = new Map([[10, recorded], [11, { pid: 11, parent: 10, group: 10, born: 'c' }], [12, { pid: 12, parent: 11, group: 10, born: 'd' }]]);
+  const killed: number[] = [];
+  const r = await terminateAsync([recorded], table, true, async (pid) => { killed.push(pid); return pid === 12 ? 128 : 0; }, true);
+  expect(killed.sort()).toEqual([10, 11, 12]);
+  expect(r.signalled.sort()).toEqual([10, 11, 12]);
+  expect(r.failure).toBeUndefined();
+  const refused = await terminateAsync([recorded], table, true, async () => 5, true);
+  expect(refused.signalled).toEqual([]);
+  expect(refused.failure).toBeInstanceOf(Error);
 });
