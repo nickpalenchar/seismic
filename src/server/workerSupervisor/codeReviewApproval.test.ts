@@ -27,10 +27,10 @@ beforeAll(async () => {
 }, 60_000);
 afterAll(async () => { await browser?.close(); }, 30_000);
 
-for (const scenario of ['running', 'fixing', 'verifying', 'unsent', 'unsentDuringReview'] as const) {
+for (const scenario of ['running', 'fixing', 'verifying', 'unsent', 'unsentDuringReview', 'open'] as const) {
   for (const direct of [true, false]) {
     test(`${direct ? 'Straight to main' : 'Approve (PR)'} on a PR card: ${scenario} confirmation cancels safely and preserves the approval route`, async () => {
-      const unsent = scenario === 'unsent' || scenario === 'unsentDuringReview';
+      const unsent = scenario === 'unsent' || scenario === 'unsentDuringReview' || scenario === 'open';
       setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces,
         adapter: { ...generic, land: 'pr', direct: true, workstations: 'clones' },
         codeReviews: () => ({ on: true, mode: 'auto' }),
@@ -97,7 +97,9 @@ for (const scenario of ['running', 'fixing', 'verifying', 'unsent', 'unsentDurin
         await page.goto(server.url.href);
         const approval = page.getByRole('button', { name: direct ? /^Straight to main/ : /^Approve \(PR\)/ });
         await approval.waitFor();
-        if (unsent) {
+        if (scenario === 'open') {
+          // a raised finding nobody has looked at: no choice picked
+        } else if (unsent) {
           await page.getByRole('tab', { name: /Review/ }).click();
           await page.getByRole('button', { name: 'Fix it', exact: true }).click();
         } else {
@@ -105,7 +107,7 @@ for (const scenario of ['running', 'fixing', 'verifying', 'unsent', 'unsentDurin
           expect(await approval.innerText()).toContain(scenario === 'fixing' ? 'Fixing in progress' : 'Review in progress');
         }
         await approval.click();
-        const dialog = page.getByRole('alertdialog', { name: unsent ? 'Choices not sent yet' : 'Approve without Review?' });
+        const dialog = page.getByRole('alertdialog', { name: unsent ? 'Review findings still open' : 'Approve without Review?' });
         await dialog.waitFor();
         expect(actions).toEqual([]);
         await dialog.getByRole('button', { name: unsent ? 'Go back' : 'Continue review', exact: true }).click();
@@ -116,9 +118,9 @@ for (const scenario of ['running', 'fixing', 'verifying', 'unsent', 'unsentDurin
         expect(board.item(id)!.review?.codeReview).toEqual(before);
         expect(git(origin, 'rev-parse', 'main')).toBe(originalMain);
         expect(await page.locator('body').getAttribute('data-approved')).toBeNull();
-        if (unsent) expect(await page.getByRole('button', { name: 'Fix it', exact: true }).getAttribute('aria-pressed')).toBe('true');
+        if (scenario !== 'open' && unsent) expect(await page.getByRole('button', { name: 'Fix it', exact: true }).getAttribute('aria-pressed')).toBe('true');
         await approval.click();
-        await dialog.getByRole('button', { name: unsent ? 'Approve and close items' : 'Stop Review & land', exact: true }).click();
+        await dialog.getByRole('button', { name: unsent ? 'Approve anyway' : 'Stop Review & land', exact: true }).click();
         await page.locator('body[data-approved="true"]').waitFor();
         expect(actions).toEqual([direct ? { action: 'approve', direct: true } : { action: 'approve' }]);
         expect(state(id)).toBe(direct ? 'live' : 'inPr');

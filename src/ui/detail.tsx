@@ -430,8 +430,10 @@ export function Detail(p: Props) {
   const reviewRunning = item.review?.noChange ? cr?.state === 'running' || awaitsVerdict : cr?.state === 'running' || fixing || awaitsVerdict;
   const approvalWarningClass = startAgentMain;
   const approvalWarning = reviewRunning && <span className={startAgentModel}>{cr?.state === 'running' || (awaitsVerdict && !fixing) ? t.approveDuringReview.reviewing : t.approveDuringReview.fixing}</span>;
-  // choices on items picked but not sent yet: approving would drop them
-  const unsent = Object.keys(unsentPicks ?? {}).filter((id) => cr?.items.some((r) => r.number === Number(id) && needsOwner(r))).length;
+  // items still waiting for the owner, and choices picked on them but not sent yet: approving would leave the first unanswered and drop the second
+  const unsentCount = Object.keys(unsentPicks ?? {}).filter((id) => cr?.items.some((r) => r.number === Number(id) && needsOwner(r))).length;
+  const openItems = cr?.items.filter(needsOwner).length ?? 0;
+  const unsent = openItems;
   const reviewed = cr?.state === 'done' && !cr.stale;
   // work handed over with no code review attached (its review was lost, or the project did not review it) can always be reviewed on the owner's word
   const unreviewed = !cr && item.kind === 'task' && handedOver(item) && !inFolder && !item.idea?.prototypeOf && !item.review?.contribution && !item.review?.noChange && !item.review?.landing;
@@ -472,7 +474,7 @@ export function Detail(p: Props) {
           confirm={{ label: t.unsentChoices.approve, onClick: () => { setConfirmUnsent(false); approveNow(confirmDirect); } }}
           cancel={t.unsentChoices.back}
         >
-          <p>{t.unsentChoices.body(unsent)}</p>
+          <p>{t.unsentChoices.body(openItems, unsentCount)}</p>
         </ConfirmDialog>
       )}
       {reviewRunning && (

@@ -76,7 +76,16 @@ const en = {
   agentReviewing: 'Agent reviewing',
   reviewCheck: (n: number) => `${ordinal(n)} review check`,
   startWithQuestions: { title: 'The agent still has questions', body: (n: number) => n === 1 ? 'The agent still has 1 open question. If you start now, the agent decides it itself as best it can, usually with the default.' : `The agent still has ${n} open questions. If you start now, the agent decides them itself as best it can, usually with the defaults.`, anyway: 'Start anyway', back: 'Go back' },
-  unsentChoices: { title: 'Choices not sent yet', body: (n: number) => n === 1 ? 'You picked a choice for 1 review finding but have not sent it. Approving drops it.' : `You picked choices for ${n} review findings but have not sent them. Approving drops them.`, approve: 'Approve and close items', back: 'Go back' },
+  unsentChoices: {
+    title: 'Review findings still open',
+    body: (open: number, picked: number) => {
+      const items = open === 1 ? '1 review finding still needs you' : `${open} review findings still need you`;
+      const picks = picked === 0 ? '' : picked === 1 ? ' 1 choice you picked is not sent yet and is dropped.' : ` ${picked} choices you picked are not sent yet and are dropped.`;
+      return `${items}. Approving leaves ${open === 1 ? 'it' : 'them'} unanswered.${picks}`;
+    },
+    approve: 'Approve anyway',
+    back: 'Go back',
+  },
   approveDuringReview: { title: 'Approve without Review?', body: 'This will stop the in-progress review and move straight to landing.', land: 'Stop Review & land', noChangeBody: 'This will stop the review still checking the fixes and close the card; nothing lands.', close: 'Stop Review & close', continue: 'Continue review', reviewing: 'Review in progress', fixing: 'Fixing in progress' },
   finishing: 'Live · agent working',
   openingPr: 'Approved · agent opening the PR',
