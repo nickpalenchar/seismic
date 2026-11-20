@@ -2177,6 +2177,8 @@ const en = {
     seismic: {
       title: 'Select Model for Seismic',
       hint: 'Seismic is the foundational agent that coordinates the work of all the others. Choose the harness with your best usage availability.',
+      loadingSettings: 'Loading agent settings…',
+      retrySettings: 'Retry loading settings',
       noModels: 'No supported models are available for this harness.',
       confirm: 'Confirm',
     },

@@ -521,6 +521,8 @@ export function Setup({ first, onClose, wizard }: { first?: boolean; onClose?: (
   const configured = chosen.filter((a): a is Harness => a !== 'pi' && isConfigured(a));
   // without a configured agent only the first step is open, however far the owner got before
   const gated = !configured.length;
+  // Returning to either of the first two steps requires confirmation before going ahead again.
+  const reached = gated ? 0 : step === 'agents' || step === 'seismic' ? Math.min(furthest, 1) : furthest;
   const recommended = view?.sections.filter((x) => RECOMMENDED_SECTIONS.includes(x.id)) ?? [];
   const open = recommended.filter((x) => !ready(x.items));
   const steps: Step[] = first ? ['agents', 'seismic', 'recommended', 'first'] : ['agents', 'seismic', 'recommended'];
@@ -713,7 +715,7 @@ export function Setup({ first, onClose, wizard }: { first?: boolean; onClose?: (
         </header>
         {/* over the project the dialog stays within the window: its head stays, the rest scrolls inside */}
         <div ref={body} className={cn('setup-body', !first && 'flex-[1_1_auto] min-h-0 overflow-y-auto pt-0 pr-7 pb-6 pl-0')}>
-          <Steps steps={steps} at={step} furthest={gated ? 0 : furthest} onPick={go} />
+          <Steps steps={steps} at={step} furthest={reached} onPick={go} />
           <p className="setup-intro text-muted-foreground text-sm leading-normal mt-3.5 mb-1 mx-0">{first ? s.introFirst : s.intro}</p>
           {view && step !== 'first' && <p className="hint">{s.platform(platformName(view))}</p>}
           {step === 'agents' && (
