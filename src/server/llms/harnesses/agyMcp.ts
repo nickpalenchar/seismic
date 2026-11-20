@@ -18,9 +18,26 @@ export const AGY_SERVER = 'seismic';
 export const AGY_TOOL_PREFIX = 'seismic_';
 export const AGY_BRIDGE_FLAG = '--agy-mcp-bridge';
 
+// cmd /c sees only the unquoted relative batch path. The batch file quotes the environment
+// values on a normal command line, so cmd's special /c quote stripping never sees either path.
+export const AGY_WINDOWS_BRIDGE = {
+  path: '.agents/seismic-mcp.cmd',
+  contents: [
+    '@echo off',
+    'setlocal DisableDelayedExpansion',
+    'if not defined SEISMIC_AGY_MCP_ENTRY goto bundled',
+    `"%SEISMIC_AGY_MCP_EXECUTABLE%" "%SEISMIC_AGY_MCP_ENTRY%" ${AGY_BRIDGE_FLAG}`,
+    'exit /b %ERRORLEVEL%',
+    ':bundled',
+    `"%SEISMIC_AGY_MCP_EXECUTABLE%" ${AGY_BRIDGE_FLAG}`,
+    'exit /b %ERRORLEVEL%',
+    '',
+  ].join('\r\n'),
+};
+
 // The shared config starts the same dispatcher regardless of where Seismic is installed.
 export const AGY_BRIDGE_COMMAND = process.platform === 'win32'
-  ? { command: 'cmd.exe', args: ['/d', '/v:off', '/c', '%SEISMIC_AGY_MCP_LAUNCH%'] }
+  ? { command: 'cmd.exe', args: ['/d', '/v:off', '/c', AGY_WINDOWS_BRIDGE.path.replaceAll('/', '\\')] }
   : { command: '/bin/sh', args: [
       '-c',
       'if [ -n "$SEISMIC_AGY_MCP_ENTRY" ]; then set -- "$SEISMIC_AGY_MCP_ENTRY" "$@"; fi; exec "$SEISMIC_AGY_MCP_EXECUTABLE" "$@"',
@@ -38,10 +55,8 @@ export function agyBridgeEnv(
   return {
     SEISMIC_AGY_MCP_URL: url,
     SEISMIC_AGY_MCP_TOKEN: token,
-    ...(process.platform === 'win32'
-      // Disable delayed expansion in cmd so exclamation marks in paths survive as well as spaces.
-      ? { SEISMIC_AGY_MCP_LAUNCH: `"${executable}"${entry ? ` "${entry}"` : ''} ${AGY_BRIDGE_FLAG}` }
-      : { SEISMIC_AGY_MCP_EXECUTABLE: executable, SEISMIC_AGY_MCP_ENTRY: entry ?? '' }),
+    SEISMIC_AGY_MCP_EXECUTABLE: executable,
+    SEISMIC_AGY_MCP_ENTRY: entry ?? '',
   };
 }
 

@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from 'bun:test';
 import { spawn, spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { z } from 'zod';
@@ -10,7 +10,7 @@ import { dirname } from 'node:path';
 import { agyArgs, READ_ONLY_PERMISSIONS, agyLimit, agyUsage, agyUsageOf, createAgyRuntime, nativeTool, parseAgyModels } from './agy';
 import { agyTranscriptLog } from './agyTasks';
 import { finished, started } from './agyTasksFixture';
-import { AGY_BRIDGE_FLAG, agyBridgeEnv, handleMcp, registerAgyTools, wireTools } from './agyMcp';
+import { AGY_BRIDGE_FLAG, AGY_WINDOWS_BRIDGE, agyBridgeEnv, handleMcp, registerAgyTools, wireTools } from './agyMcp';
 import { installMcpConfig } from './agyMcpConfig';
 import { endSessionsHere } from './codexRpc';
 import { environment, SessionRegistry, useSessionRegistry } from './sessionRegistry';
@@ -163,9 +163,13 @@ test('independent processes keep the checkout config until the last session ends
 
 test('the shared config launches each session from its own installation path', async () => {
   const repo = workstation();
+  const windows = process.platform === 'win32';
+  const executable = windows ? join(dirname(repo), 'Seismic Bun & tools.exe') : process.execPath;
+  if (windows) copyFileSync(process.execPath, executable);
   const first = installMcpConfig(repo);
   const second = installMcpConfig(repo);
   const config = join(repo, '.agents', 'mcp_config.json');
+  const launcher = join(repo, AGY_WINDOWS_BRIDGE.path);
   const command = JSON.parse(readFileSync(config, 'utf8')).mcpServers.seismic as { command: string; args: string[] };
   const module = JSON.stringify(join(import.meta.dir, 'agyMcp.ts'));
   const run = async (name: string) => {
@@ -179,11 +183,11 @@ test('the shared config launches each session from its own installation path', a
     try {
       const child = Bun.spawn([command.command, ...command.args], {
         cwd: repo,
-        env: { ...process.env, ...agyBridgeEnv(endpoint, process.execPath, script) },
+        env: { ...process.env, ...agyBridgeEnv(endpoint, executable, script) },
         stdin: 'pipe',
         stdout: 'pipe',
         stderr: 'inherit',
-        timeout: 3000,
+        timeout: 5000,
       });
       child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'seismic_identity', arguments: {} } }) + '\n');
       child.stdin.end();
@@ -195,18 +199,25 @@ test('the shared config launches each session from its own installation path', a
     }
   };
   try {
-    expect(JSON.stringify(command)).not.toContain(process.execPath);
-    await run('Seismic from one installation');
+    expect(JSON.stringify(command)).not.toContain(executable);
+    if (windows) {
+      expect(command.args.at(-1)).toBe('.agents\\seismic-mcp.cmd');
+      expect(existsSync(launcher)).toBe(true);
+      expect(git(repo, 'status', '--porcelain')).toBe('');
+    }
+    await run('Seismic from one installation!');
   } finally {
     first();
     try {
       expect(existsSync(config)).toBe(true);
+      if (windows) expect(existsSync(launcher)).toBe(true);
       await run('Seismic from another installation');
     } finally {
       second();
     }
   }
   expect(existsSync(config)).toBe(false);
+  expect(existsSync(launcher)).toBe(false);
 });
 
 test('the endpoint opens to the session token only', async () => {
