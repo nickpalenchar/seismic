@@ -81,15 +81,16 @@ function Reach({ view, onView }: { view: AccessView; onView: (v: AccessView) => 
           label={a.setting}
           value={via ?? 'off'}
           disabled={busy}
-          onValueChange={(x) => save(x === 'tailscale' ? { via: 'tailscale', ...awake } : x === 'address' ? { via: 'address', address: view.addresses[0] ?? '', ...awake } : null)}
+          onValueChange={(x) => save(x === 'tailscale' ? { via: 'tailscale', ...awake } : x === 'address' ? { via: 'address', address: view.addresses[0] ?? '', ...awake } : x === 'hosts' ? { via: 'hosts', hosts: view.remote?.via === 'hosts' ? view.remote.hosts : [], ...awake } : null)}
           options={[
             { value: 'off', label: a.off },
             { value: 'tailscale', label: a.tailscale },
             { value: 'address', label: a.address },
+            { value: 'hosts', label: a.hosts },
           ]}
         />
         <p className="hint">
-          <Coded text={via === 'tailscale' ? a.tailscaleHint : via === 'address' ? a.addressHint : a.offHint} />
+          <Coded text={via === 'tailscale' ? a.tailscaleHint : via === 'address' ? a.addressHint : via === 'hosts' ? a.hostsHint : a.offHint} />
         </p>
       </Field>
       {via === 'address' && (

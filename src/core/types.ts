@@ -3272,7 +3272,7 @@ export interface FeedbackPromptView {
  * `tailscale serve`, which gives an HTTPS address in the tailnet, or on an address of this machine
  * the owner picks (another VPN's interface), in plain HTTP.
  */
-export type RemoteSetting = ({ via: 'tailscale' } | { via: 'address'; address: string }) & {
+export type RemoteSetting = ({ via: 'tailscale' } | { via: 'address'; address: string } | { via: 'hosts'; hosts: string[] }) & {
   /** `always`: the machine does not idle-sleep while Seismic runs; otherwise only while a worker works. */
   awake?: 'always';
 };

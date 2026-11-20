@@ -417,6 +417,26 @@ describe('on another address', () => {
   });
 });
 
+describe('behind a reverse proxy', () => {
+  const HOST = 'seismic.example.dev';
+  const viaProxy = (path: string, headers: Record<string, string> = {}) =>
+    fetch(new URL(path, server.url), { redirect: 'manual', headers: { host: HOST, 'x-forwarded-for': '100.64.0.7', 'x-forwarded-host': HOST, 'x-forwarded-proto': 'https', 'user-agent': IPHONE, ...headers } });
+
+  test('the listed hosts are answered and pair like a tailnet phone, and no tailscale serve entry is made', async () => {
+    expect((await viaProxy('/')).status).toBe(421);
+    const on = await turnOn({ via: 'hosts', hosts: [HOST.toUpperCase(), 'not a host', HOST] });
+    expect(on.remote).toEqual({ via: 'hosts', hosts: [HOST] });
+    expect(on.address).toBe(`https://${HOST}`);
+    expect((await viaProxy('/')).status).toBe(401);
+    const paired = await viaProxy(`/pair?code=${(await pairing()).code}`);
+    expect((await viaProxy('/', { cookie: cookieOf(paired) })).status).toBe(200);
+    expect(existsSync(join(ts, 'calls')) && readFileSync(join(ts, 'calls'), 'utf8')).not.toContain('serve');
+    expect((await viaProxy('/', { 'x-forwarded-host': 'evil.example' })).status).toBe(421);
+    expect((await turnOn(null)).address).toBeNull();
+    expect((await viaProxy('/')).status).toBe(421);
+  });
+});
+
 test('a device is named by its browser', () => {
   expect(deviceName(IPHONE)).toBe('iPhone · Safari');
   expect(deviceName('Mozilla/5.0 (Linux; Android 14; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Mobile Safari/537.36')).toBe('Android · Chrome');

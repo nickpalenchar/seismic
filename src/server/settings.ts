@@ -344,12 +344,20 @@ export function agentsAsNow(home: string): () => void {
   };
 }
 
+/** A DNS name a reverse proxy serves Seismic under: labels of letters, digits and hyphens, no port, no scheme. */
+const HOSTNAME = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
+
 /** A setting for other devices as the file or the page gives it; `null` for none or one Seismic cannot use. */
 export function remoteOf(input: unknown): RemoteSetting | null {
   const o = (input && typeof input === 'object' ? input : {}) as { via?: unknown; address?: unknown; awake?: unknown };
   const awake = o.awake === 'always' ? { awake: 'always' as const } : {};
   if (o.via === 'tailscale') return { via: 'tailscale', ...awake };
   if (o.via === 'address' && typeof o.address === 'string' && o.address.trim()) return { via: 'address', address: o.address.trim(), ...awake };
+  if (o.via === 'hosts') {
+    const given = (o as { hosts?: unknown }).hosts;
+    const hosts = Array.isArray(given) ? given.filter((h): h is string => typeof h === 'string').map((h) => h.trim().toLowerCase()).filter((h) => HOSTNAME.test(h)) : [];
+    return { via: 'hosts', hosts: [...new Set(hosts)], ...awake };
+  }
   return null;
 }
 
@@ -360,7 +368,7 @@ export const remoteSetting = (home: string): RemoteSetting | null => read(home).
 export function saveRemote(home: string, input: unknown): RemoteSetting | null {
   const given = (input as { remote?: unknown } | null)?.remote;
   const remote = given === null ? null : remoteOf(given);
-  if (given !== null && !remote) throw new BadRequest('invalid', 'remote must be null, { via: "tailscale" } or { via: "address", address }, each with an optional awake: "always"');
-  save(home, 'remote', remote, `other devices ${remote ? `reach it ${remote.via === 'tailscale' ? 'through Tailscale' : `at ${remote.address}`}` : 'do not reach it'},`);
+  if (given !== null && !remote) throw new BadRequest('invalid', 'remote must be null, { via: "tailscale" }, { via: "address", address } or { via: "hosts", hosts }, each with an optional awake: "always"');
+  save(home, 'remote', remote, `other devices ${remote ? `reach it ${remote.via === 'tailscale' ? 'through Tailscale' : remote.via === 'hosts' ? `at ${remote.hosts.join(', ') || 'no host yet'}` : `at ${remote.address}`}` : 'do not reach it'},`);
   return remote;
 }

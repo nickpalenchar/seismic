@@ -379,6 +379,12 @@ Safety rules:
 - A home copied from a running Seismic records that one's `tailscale serve` entry: a Seismic gives
   up only an entry that proxies to its own port or to one where nothing answers, never another
   Seismic's address.
+- `remote: { via: "hosts", hosts: [...] }` is for an owner's own reverse proxy (say Caddy, with a
+  wildcard certificate, in front of several local apps): Seismic neither starts nor removes any
+  `tailscale serve` entry, answers the listed host names (its `Host` and `X-Forwarded-Host` check),
+  and treats what the proxy forwards as remote, so those devices pair like any other. The proxy must
+  pass `Host` through and set `X-Forwarded-For`, `-Host` and `-Proto`. Chosen over a `tailscale serve`
+  entry on port 443 because that port is then free for the proxy (2026-11-20).
 - Landing never loses work: nothing is force-pushed, a direct push only fast-forwards, a merge is
   pinned to the head that was checked; a clone is deleted only when nothing on it would be lost.
 - Approval comes only from the card's button after the demo, never from a list or from words

@@ -1286,8 +1286,10 @@ const en = {
     off: 'Off',
     tailscale: 'Through Tailscale',
     address: 'At an address',
+    hosts: 'Behind a proxy',
     offHint: 'Seismic answers on this computer only.',
     tailscaleHint: 'Tailscale gives Seismic an HTTPS address in your tailnet (`tailscale serve`). The phone needs Tailscale with the same account.',
+    hostsHint: 'Your own reverse proxy on this computer serves Seismic under the host names listed as `hosts` in the settings file, and passes `Host` through unchanged. Seismic does not touch `tailscale serve`.',
     network: 'Network',
     state: {
       missing: 'Tailscale is not installed on this computer.',

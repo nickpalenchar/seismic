@@ -1,7 +1,9 @@
 // Other devices reaching Seismic: the owner's phone over the owner's own private network. Seismic keeps
 // listening on 127.0.0.1; with the setting "Reachable from other devices" on, `tailscale serve`
 // proxies HTTPS at the machine's tailnet name to it (tailscale.ts), or Seismic also listens on an
-// address of this machine the owner picked (another VPN's interface), in plain HTTP.
+// address of this machine the owner picked (another VPN's interface), in plain HTTP, or the owner's own
+// reverse proxy on this machine forwards the hosts they list (`via: "hosts"`) and terminates HTTPS:
+// Seismic then touches no `tailscale serve` entry, and the proxy must pass `Host` through unchanged.
 //
 // A request is local when it comes from loopback under one of this machine's names and no proxy
 // forwarded it; through `tailscale serve` requests come from 127.0.0.1 too, but under the tailnet
@@ -189,7 +191,7 @@ export class Access implements Gate {
           this.problem = { code: 'listen', detail: (e as Error).message };
         }
       }
-      if (!s) this.problem = undefined;
+      if (!s || s.via === 'hosts') this.problem = undefined;
       return;
     }
     if (check || this.ts.state !== 'ready') this.ts = await this.tailscale.state();
@@ -236,12 +238,13 @@ export class Access implements Gate {
     if (s?.via === 'tailscale' && this.served && this.ts.state === 'ready' && this.served.name === this.ts.name && !this.problem)
       return `https://${this.served.name}${this.served.https === 443 ? '' : `:${this.served.https}`}`;
     if (s?.via === 'address' && this.listening === s.address) return `http://${inUrl(s.address)}:${this.port}`;
+    if (s?.via === 'hosts' && s.hosts.length) return `https://${s.hosts[0]}`;
     return null;
   }
 
-  /** The names requests may come under: this machine's, the tailnet name Seismic is served at, the other address. */
+  /** The names requests may come under: this machine's, the tailnet name Seismic is served at, the hosts a reverse proxy serves it under, the other address. */
   hosts(): readonly string[] {
-    return [...LOCAL_HOSTS, ...(this.served && this.setting?.via === 'tailscale' ? [this.served.name] : []), ...(this.listening ? [inUrl(this.listening).toLowerCase()] : [])];
+    return [...LOCAL_HOSTS, ...(this.served && this.setting?.via === 'tailscale' ? [this.served.name] : []), ...(this.setting?.via === 'hosts' ? this.setting.hosts : []), ...(this.listening ? [inUrl(this.listening).toLowerCase()] : [])];
   }
 
   /** The section "From other devices", with what Tailscale says now (and the network made anew if that changed). */
@@ -270,7 +273,7 @@ export class Access implements Gate {
   /** Saves the setting (`{ remote }`), makes the network as it says, and returns the section. */
   async save(input: unknown): Promise<AccessView> {
     const given = (input as { remote?: unknown } | null)?.remote;
-    if (given !== null && !remoteOf(given)) throw new BadRequest('invalid', 'remote must be null, { via: "tailscale" } or { via: "address", address }, each with an optional awake: "always"');
+    if (given !== null && !remoteOf(given)) throw new BadRequest('invalid', 'remote must be null, { via: "tailscale" }, { via: "address", address } or { via: "hosts", hosts }, each with an optional awake: "always"');
     this.setting = this.home ? saveRemote(this.home, input) : remoteOf(given);
     this.problem = undefined;
     if (!this.setting) this.pairing = null;
