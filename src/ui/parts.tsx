@@ -61,6 +61,8 @@ interface CardProps {
   dep?: 'self' | 'before' | 'after';
   /** The pointer came onto the card (its id) or left it (null). */
   onHover: (id: string | null) => void;
+  /** Enter or Space on the focused card opens it, as a click does. */
+  onOpen: (item: Item) => void;
   /** What the server is still doing with the card after the owner's click (pushing it onto main, say). */
   underway?: string;
 }
@@ -241,7 +243,7 @@ export const MergeMark = ({ size = 16 }: { size?: number }) => (
 );
 
 export const CardView = memo(
-  function CardView({ item, partner, b, lifted, dragging, pop, prototyped, showRepo, els, onStart, onArchive, dep, onHover, underway }: CardProps) {
+  function CardView({ item, partner, b, lifted, dragging, pop, prototyped, showRepo, els, onStart, onArchive, dep, onHover, onOpen, underway }: CardProps) {
     const shape = shapeOf(item);
     // a card the Koordinator is checking has nothing to start yet
     const startable = !item.idea?.proposal?.merge && !item.idea?.mergingInto && item.state === 'planned' && (!item.queue || 'behind' in item.queue);
@@ -252,7 +254,8 @@ export const CardView = memo(
       (finishedArchivable(item) || stoppedArchivable(item) || (!!item.idea?.discussion && item.idea.discussion.status !== 'open' && !prototyped));
     const look = cardLook(item, { underway, place: 'canvas', shape, dep, lifted, dragging, pop });
     const cls = [
-      'item absolute',
+      // the focus ring is an outline: the card's frames and glow are its box-shadow
+      'item absolute focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring',
       look.className,
       shape,
       item.idea?.proposal?.merge && 'merged-pair',
@@ -264,6 +267,15 @@ export const CardView = memo(
         data-id={item.id}
         ref={(el) => void (el ? els.set(item.id, el) : els.delete(item.id))}
         style={{ ...look.style, left: b.x, top: b.y, width: b.w, height: b.h, zIndex: 2 }}
+        // reached by Tab like any control; Enter and Space open it (Space is no push-to-talk on a button)
+        tabIndex={0}
+        role="button"
+        aria-label={plain(item.title)}
+        onKeyDown={(e) => {
+          if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return;
+          e.preventDefault();
+          if (!e.repeat) onOpen(item);
+        }}
         onPointerEnter={() => onHover(item.id)}
         onPointerLeave={() => onHover(null)}
       >
@@ -308,7 +320,7 @@ export const CardView = memo(
     );
   },
   (a, b) =>
-    a.item === b.item && a.partner === b.partner && sameBounds(a.b, b.b) && a.lifted === b.lifted && a.dragging === b.dragging && a.pop === b.pop && a.prototyped === b.prototyped && a.showRepo === b.showRepo && a.onStart === b.onStart && a.onArchive === b.onArchive && a.dep === b.dep && a.onHover === b.onHover && a.underway === b.underway,
+    a.item === b.item && a.partner === b.partner && sameBounds(a.b, b.b) && a.lifted === b.lifted && a.dragging === b.dragging && a.pop === b.pop && a.prototyped === b.prototyped && a.showRepo === b.showRepo && a.onStart === b.onStart && a.onArchive === b.onArchive && a.dep === b.dep && a.onHover === b.onHover && a.onOpen === b.onOpen && a.underway === b.underway,
 );
 
 /**
@@ -882,7 +894,19 @@ export const PlanView = memo(
               {collapsed ? <ChevronRight size={12} strokeWidth={1.75} aria-hidden="true" /> : <ChevronDown size={12} strokeWidth={1.75} aria-hidden="true" />}
             </button>
           </Tooltip>
-          <span className="ttl min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-xl leading-[1.15] [font-family:var(--font)] font-[650] tracking-[-.018em]">{plain(item.title)}</span>
+          {/* the keyboard's way to what a click on the head does: Enter or Space opens the plan */}
+          <span
+            className="ttl min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-xl leading-[1.15] [font-family:var(--font)] font-[650] tracking-[-.018em] rounded-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            tabIndex={0}
+            role="button"
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter' && e.key !== ' ') return;
+              e.preventDefault();
+              if (!e.repeat) onOpen(item);
+            }}
+          >
+            {plain(item.title)}
+          </span>
           <span className={`kind text-2xs uppercase tracking-[.08em] text-muted-foreground${labelled ? ' hidden' : ''}`}>{t.kind.plan}</span>
           {labelled && (
             <span className={`head-labels absolute left-11 right-[22px] ${collapsed ? 'top-[40px]' : 'top-[47px]'} flex items-center gap-1.5 overflow-hidden [&_.prio]:text-2xs [&_.lchip]:text-2xs`}>

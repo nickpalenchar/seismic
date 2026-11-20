@@ -259,12 +259,12 @@ function Drawer({ canvases, shown, waiting, empty, onPick, onEdit, onNew }: { ca
           const c = canvases.find((x) => x.id === id)!;
           const n = waiting[c.id] ?? 0;
           return (
-            <li key={c.id} {...sort.row(c.id)} className="group flex items-center gap-0.5 rounded-sm bg-surface hover:bg-muted data-[sorting=dragged]:bg-muted">
+            <li key={c.id} {...sort.row(c.id)} className="group flex items-center gap-0.5 rounded-sm bg-surface hover:bg-muted has-[>button:focus-visible]:bg-muted data-[sorting=dragged]:bg-muted">
               <span className="grid h-[30px] w-4 flex-none cursor-grab touch-none place-items-center text-muted-foreground opacity-0 group-hover:opacity-80" title={t.canvases.grip} {...sort.grip(c.id)}>
                 <GripVertical size={14} aria-hidden />
               </span>
               <button
-                className="flex h-8 min-w-0 flex-1 cursor-pointer items-center gap-2 bg-transparent pr-1.5 pl-0.5 text-left text-sm text-foreground outline-none focus-visible:underline"
+                className="flex h-8 min-w-0 flex-1 cursor-pointer items-center gap-2 bg-transparent pr-1.5 pl-0.5 text-left text-sm text-foreground outline-none"
                 aria-current={c.id === shown || undefined}
                 onClick={() => onPick(c)}
               >

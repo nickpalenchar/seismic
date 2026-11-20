@@ -200,6 +200,8 @@ const KEPT_PROJECTS = 'seismic-phone-projects';
 const DEP_KNOWN = 'seismic-dep-known';
 /** Set once the owner has clicked "Needs you": its label goes, the bell and the count stay. */
 const NEEDS_YOU_KNOWN = 'seismic-needs-you-known';
+/** The keyboard's focus is on a control, reached by Tab rather than left there by a click: Tab goes on from it, as anywhere. */
+const onControl = (t: EventTarget | null) => t instanceof HTMLElement && t !== document.body && t.matches(':focus-visible');
 function keepProjects(list: ProjectInfo[]) {
   try {
     localStorage.setItem(KEPT_PROJECTS, JSON.stringify(list));
@@ -726,6 +728,7 @@ function Project({
   /** Unfolds the card `i`; `quick` without the flight and the unfold, as after a reload. */
   async function open(i: Item, reload = false) {
     i = activeMergeCard(i, itemsRef.current);
+    if (focusRef.current?.type !== 'card') opener.current = onControl(document.activeElement) ? (document.activeElement as HTMLElement) : null;
     // reduced motion opens at once too, but shows the card only at the size its content settles at
     const hold = !reload && reducedMotion();
     const quick = reload || hold;
@@ -777,8 +780,10 @@ function Project({
     const body = panel.querySelector<HTMLElement>('.p-body');
     if (title && !title.value) (body ?? title).focus();
     // A link in a closing popover can disappear before the card unfolds. Give the opened
-    // view a focus destination, also when navigating here from another project.
-    if (!panel.contains(document.activeElement)) panel.querySelector<HTMLElement>('button')?.focus({ preventScroll: true });
+    // view a focus destination, also when navigating here from another project: the card itself,
+    // where Tab goes on to its first control and Space speaks, rather than its close button, whose
+    // tooltip would take the first Esc and which Space would press
+    if (!panel.contains(document.activeElement)) panel.focus({ preventScroll: true });
     // the cursor at the end of the text
     if (body && body === document.activeElement) {
       getSelection()?.selectAllChildren(body);
@@ -876,6 +881,8 @@ function Project({
     if (i && focusRef.current?.type !== 'card') await open(i);
   }
 
+  /** The control the keyboard had reached when the open card unfolded from it, which gets the focus back when it folds. */
+  const opener = useRef<HTMLElement | null>(null);
   /** Folds the open card; `onward` where another opens in its place next, which takes over its address. */
   function closeCard(o: { keepUntitled?: boolean; onward?: boolean } = {}): Promise<void> {
     // a second close while the card folds (the server took it away as the owner acted on it) waits for the first
@@ -898,6 +905,10 @@ function Project({
     await sleep(motionMs(UNFOLD_MS));
     panel.style.display = 'none';
     panel.classList.remove('anim', 'ready');
+    // the focus goes back to what the keyboard opened the card from (its face, a tab), not to the page
+    const back = opener.current;
+    opener.current = null;
+    if (back?.isConnected && (panel.contains(document.activeElement) || document.activeElement === document.body)) back.focus({ preventScroll: true });
     beingWritten.delete(f.id);
     setOpenId(null);
     setFocus(f.plan);
@@ -1868,6 +1879,18 @@ function Project({
     viewportRef.current!.setPointerCapture(e.pointerId);
   }
 
+  /** A card or plan the keyboard reached outside the view: the camera brings it in, as it does a card being opened. */
+  function onCanvasFocus(e: React.FocusEvent) {
+    const el = (e.target as Element).closest<HTMLElement>('.item');
+    const i = el && onControl(e.target) && !focusRef.current ? byId(el.dataset.id!) : undefined;
+    if (!el || !i) return;
+    const r = el.getBoundingClientRect();
+    const v = viewNow();
+    if (r.left >= v.left && r.right <= v.right && r.top >= v.top && r.bottom <= v.bottom) return;
+    const b = bounds(i);
+    fly(viewOn(b.x + b.w / 2, b.y + Math.min(b.h, innerHeight / 2 / camRef.current.s) / 2), 400);
+  }
+
   /** What a finger landed on, for touch.ts: a card or a plan's head by its id, a plan directory's note, or null for the empty project. */
   function touchTarget(target: Element) {
     const note = target.closest<HTMLElement>('.plan-dir');
@@ -2212,10 +2235,15 @@ function Project({
   }
   const attnLast = useRef<string | null>(null);
   /** The next card that needs the owner, in turn, and Seismic's sheet among them while an answer waits there. */
-  function nextAttention() {
+  /** What Tab goes through from the project: the cards that need the owner in their order on it, then Seismic's unread answer. */
+  function attention(): (Item | 'k')[] {
     const koordinator = !kOnRef.current && unreadAnswers(snapshotRef.current.talk) > 0;
+    return [...itemsRef.current.filter(yours), ...(koordinator ? ['k' as const] : [])];
+  }
+  const hasAttention = () => attention().length > 0;
+  function nextAttention() {
     const all = itemsRef.current;
-    const list: (Item | 'k')[] = [...all.filter(yours), ...(koordinator ? ['k' as const] : [])];
+    const list = attention();
     if (!list.length || focusRef.current?.type === 'card') return;
     // the one after the card Tab opened last, by its place on the project: that card may need the owner no longer
     const key = (x: Item | 'k') => (x === 'k' ? 'k' : x.id);
@@ -2409,7 +2437,8 @@ function Project({
       setFocus(null);
       setSheetOn(false);
       fly(kept(overviewCam(all, sideNow())), 700);
-    } else if (e.key === 'Tab') {
+    } else if (e.key === 'Tab' && !e.shiftKey && !onControl(e.target) && hasAttention()) {
+      // from the project itself Tab opens what needs the owner; from a control it moves the focus on, as anywhere
       e.preventDefault();
       nextAttention();
     } else if (e.key === 'n' || e.key === 'c' || e.key === 'a') {
@@ -2575,6 +2604,7 @@ function Project({
           onPointerCancel={onPointerCancel}
           onDoubleClick={onDoubleClick}
           onContextMenu={onContextMenu}
+          onFocus={onCanvasFocus}
         >
           <div id="world" className="absolute top-0 left-0 origin-top-left will-change-transform" style={{ transform: `translate(${cam.x}px,${cam.y}px) scale(${cam.s})` }}>
             <TerritoryLayer {...territories} selected={placed.filter((p) => (ring ? ring.ids : marked).includes(p.item.id)).map((p) => p.b)} />
@@ -2623,6 +2653,7 @@ function Project({
                   dep={depOf(item.id)}
                   underway={underway[item.id] ?? (item.review?.landing ? t.approving : undefined)}
                   onHover={setHoverId}
+                  onOpen={openCard}
                 />
               ),
             )}
@@ -2631,7 +2662,8 @@ function Project({
               const target = connection?.target === item.id;
               const colour = handleColour(states, !!depOf(item.id));
               return <div key={`handles:${item.id}`} data-id={item.id} className={cn('connection-handles absolute z-4', states, target ? 'pointer-events-auto outline-3 outline-solid outline-waiting outline-offset-3 rounded-sm' : 'pointer-events-none')} style={{ left: b.x, top: b.y, width: b.w, height: b.h, ...(colour ? { '--c': colour } : {}) } as React.CSSProperties}>
-              {SIDES.map((side) => { const lit = !connection && (handle?.id === item.id && handle.side === side || touchDots(item.id)); return <Tooltip key={side} content={t.deps.connect}><button className={cn(connectionDotClass, dotSide[side], lit ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none focus-visible:opacity-100 focus-visible:pointer-events-auto')} aria-label={t.deps.connect} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); const p = toWorld(camRef.current, e.clientX, e.clientY); setConnection({ from: item.id, side, ...p }); }} /></Tooltip>; })}
+              {/* a dot draws its arrow to where the pointer goes: four per card would only lengthen the Tab path */}
+              {SIDES.map((side) => { const lit = !connection && (handle?.id === item.id && handle.side === side || touchDots(item.id)); return <Tooltip key={side} content={t.deps.connect}><button tabIndex={-1} className={cn(connectionDotClass, dotSide[side], lit ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none')} aria-label={t.deps.connect} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); const p = toWorld(camRef.current, e.clientX, e.clientY); setConnection({ from: item.id, side, ...p }); }} /></Tooltip>; })}
             </div>; })}
             {planDirs?.map((d, n) => (
               <PlanDirNote
@@ -2842,7 +2874,8 @@ function Project({
         <div
           id="panel"
           ref={panelRef}
-          className="group/panel fixed z-40 overflow-hidden hidden frost-pane [&:not(.ready)]:bg-surface [&:not(.ready)]:backdrop-filter-none [&.anim]:[--ease:cubic-bezier(.3,.9,.3,1)] [&.anim]:transition-[left,top,width,height] [&.anim]:duration-(--unfold) [&.anim]:ease-(--ease) before:content-[''] before:absolute before:left-[30px] before:w-20 before:top-0 before:h-[3px] before:rounded-b-xs before:bg-(--c) before:shadow-[0_0_12px_var(--c)] before:z-1"
+          tabIndex={-1}
+          className="group/panel outline-none fixed z-40 overflow-hidden hidden frost-pane [&:not(.ready)]:bg-surface [&:not(.ready)]:backdrop-filter-none [&.anim]:[--ease:cubic-bezier(.3,.9,.3,1)] [&.anim]:transition-[left,top,width,height] [&.anim]:duration-(--unfold) [&.anim]:ease-(--ease) before:content-[''] before:absolute before:left-[30px] before:w-20 before:top-0 before:h-[3px] before:rounded-b-xs before:bg-(--c) before:shadow-[0_0_12px_var(--c)] before:z-1"
         >
           <CloseButton label={t.close} className="close absolute right-3.5 top-3 z-2" onClick={() => closeCard()} />
           {/* keeps the final width while the panel unfolds, so the content can be measured before it shows; --pb is
