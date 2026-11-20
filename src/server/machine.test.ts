@@ -474,9 +474,14 @@ describe('the first project', () => {
     expect(section(await s.view(['pr']), 'pr').items[1]).toEqual({ id: 'ghLogin', state: 'missing', install: { commands: ['gh auth login --hostname github.com'] }, act: 'login' });
     expect(await s.login({ section: 'pr', id: 'ghLogin' })).toMatchObject({ command: 'gh auth login --hostname github.com' });
     expect(await s.repo({ clone: 'acme/private-shop' })).toMatchObject({ readable: false, github: true, ghLogin: false });
-    await s.project({ clone: 'acme/private-shop', into: join(dir, 'code') }).catch(() => {});
+    // the clone starts, and without gh's helper: an explicit clone keeps the configured ones
+    await s.project({ clone: 'acme/private-shop', into: join(dir, 'code') });
     for (let i = 0; (await s.view()).job?.running && i < 100; i++) await Bun.sleep(50);
-    expect(readFileSync(calls, 'utf8')).not.toContain('gh auth git-credential');
+    const lines = readFileSync(calls, 'utf8').trim().split('\n').filter((l) => l !== '--version');
+    expect(lines).toEqual([
+      '-c core.askPass= -c credential.interactive=false -c credential.helper= ls-remote --heads -- https://github.com/acme/private-shop.git',
+      `-c core.askPass= -c credential.interactive=false clone --progress -- https://github.com/acme/private-shop.git ${join(dir, 'code', 'private-shop')}`,
+    ]);
   });
 
   test('checks skip configured helpers and explicit HTTPS clones can use saved credentials', async () => {
