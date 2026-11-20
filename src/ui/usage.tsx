@@ -1,8 +1,8 @@
 // The plans' usage limits in the status bar, a pill per harness signed in here (Claude Code's, and
 // Codex's and Antigravity's beside it): behind the harness's logo, the session's and the week's, each
-// with how much of it is used. On desktop, a bar sits under the weekly percentage. The popover
-// lists every limit, its reset time and source, and the button that hides the meters
-// (Configuration → Notifications and limits shows them again). On desktop each row has its own bar.
+// with how much of it is used. On desktop, a bar sits under each percentage. The popover lists
+// every limit with its own bar, its reset time and source, and the button that hides the meters
+// (Configuration → Notifications and limits shows them again).
 
 import { cn } from 'cn';
 import { ClaudeCode, CodexIcon, GoogleAntigravityIcon } from '@dev.icons/react';
@@ -82,7 +82,7 @@ export function UsagePill({ usage, phone, compact }: { usage: Usage; phone?: boo
             <span key={l.group} className="relative flex items-center gap-1.5" title={compact ? limitName(l) : undefined}>
               {!compact && <span>{t.usage.groups[l.group] ?? limitName(l)}</span>}
               <Percent limit={l} />
-              {!phone && l.group === 'weekly' && <UsageProgress limit={l} className="absolute inset-x-0 top-full h-[3px]" />}
+              {!phone && <UsageProgress limit={l} className="absolute inset-x-0 top-full h-[3px]" />}
             </span>
           ))}
         </PopoverTrigger>
@@ -93,9 +93,9 @@ export function UsagePill({ usage, phone, compact }: { usage: Usage; phone?: boo
         </p>
         <ul className="m-0 mb-2 list-none p-0">
           {usage.limits.map((l, i) => (
-            <li key={i} className={cn('grid items-center gap-x-2 py-1', phone ? 'grid-cols-[minmax(0,1fr)_42px]' : 'grid-cols-[minmax(0,1fr)_5rem_42px]')}>
+            <li key={i} className="grid grid-cols-[minmax(0,1fr)_5rem_42px] items-center gap-x-2 py-1">
               <span className="wrap-anywhere">{limitName(l)}</span>
-              {!phone && <UsageProgress limit={l} className="h-[7px]" />}
+              <UsageProgress limit={l} className="h-[7px]" />
               <Percent limit={l} className="text-right" />
               {l.resetsAt && <span className="hint col-span-full">{t.usage.resets(snoozeWhen(l.resetsAt))}</span>}
             </li>
