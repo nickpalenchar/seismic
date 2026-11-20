@@ -302,6 +302,29 @@ describe('approving directly onto main where work goes out as a pull request', (
     expect(runtime.last.inbox.join('\n')).toContain('rebasing the branch onto main conflicted');
   });
 
+  test('a worker that hands over with its rebase still under way, then is stopped: the next start still finishes the rebase with the approval kept', async () => {
+    const { c, session, clone } = await handedOver();
+    commitIn(clone, 'same.ts', 'A');
+    await session.call('ready_for_review', { summary: 'S', demo: artifact() });
+    pushElsewhere('same.ts', 'B');
+    await workers.approve(c.id, { direct: true });
+    const approvedAt = board.row(c.id).approved_at;
+    // the worker starts the rebase, stops on the conflict and hands over before finishing it
+    git(clone, 'fetch', '--quiet', 'origin');
+    expect(() => git(clone, 'rebase', '--quiet', 'origin/main')).toThrow();
+    await session.call('ready_for_review', { summary: 'S', demo: artifact() });
+    session.emit({ type: 'idle' });
+    await until(() => board.events(c.id).at(-1)?.code === 'landDirty');
+    expect(board.events(c.id).at(-1)!.text).toContain('a rebase is not finished in the workstation');
+    expect(board.item(c.id)!.review?.resolvingConflicts).toBe(true);
+    await workers.stop(c.id);
+    expect(board.row(c.id).approved_at).toBe(approvedAt);
+    await workers.start(c.id);
+    expect(state(c.id)).toBe('working');
+    expect(board.row(c.id).approved_at).toBe(approvedAt);
+    expect(runtime.last.inbox.join('\n')).toContain('the rebase may still be under way in your workstation');
+  });
+
   test('a push the remote turns away (a protected branch) stays with the owner, who approves again', async () => {
     const { c, session, clone } = await handedOver();
     commitIn(clone, 'x.ts', 'X');

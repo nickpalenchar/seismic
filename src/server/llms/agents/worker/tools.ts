@@ -563,6 +563,8 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
               ...(work ? (own ? { lands: own } : {}) : { noChange: true }),
               ...(answered && !approved ? { answered: true } : {}),
               ...(models?.unchanged ? { modelsUnchanged: models.unchanged } : {}),
+              // approved work that came back from a conflict is still about it until it lands: a stop keeps the approval
+              ...(approved && !!row.detail && (JSON.parse(row.detail) as { conflict?: boolean }).conflict === true ? { conflict: true } : {}),
             }),
             demo: {
               ...(demoJson ? { latest: JSON.parse(demoJson) as StoredDemo } : asked ? { latest: null } : {}),

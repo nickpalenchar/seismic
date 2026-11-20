@@ -255,7 +255,10 @@ async function rebaseOnto(ws: string, upstream: string, base: string): Promise<L
  * it, or null once it is ready. `upstream` names it once the workstation has it (fetched, say).
  */
 async function rebased(ws: string, base: string, upstream: () => Promise<string>): Promise<LandProblem | null> {
-  if (await gitAsync(ws, 'status', '--porcelain')) return { code: 'landDirty', worker: true, detail: 'uncommitted changes in the workstation' };
+  if (await gitAsync(ws, 'status', '--porcelain')) {
+    const busy = await underway(ws);
+    return { code: 'landDirty', worker: true, detail: busy ? `a ${busy} is not finished in the workstation (git status): finish it, or abort it and start it again` : 'uncommitted changes in the workstation' };
+  }
   const onto = await upstream();
   const conflict = await rebaseOnto(ws, onto, base);
   if (conflict) return conflict;

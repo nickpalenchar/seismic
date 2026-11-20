@@ -2250,7 +2250,9 @@ export class WorkerSupervisor {
     }
     if (by === 'owner') this.o.board.record(cardId, 'approved', 'owner');
     if ('code' in result) {
-      this.o.board.work(cardId, { state: 'working', need: null, detail: result.code === 'landConflict' ? JSON.stringify({ conflict: true }) : null, approved_at: row.approved_at ?? new Date().toISOString() });
+      // a handover while that rebase is still under way (or leaves a stray file) is still about the conflict: a stop keeps the approval, and the next worker hears of the rebase
+      const conflict = result.code === 'landConflict' || this.detailOf(cardId).conflict === true;
+      this.o.board.work(cardId, { state: 'working', need: null, detail: conflict ? JSON.stringify({ conflict: true }) : null, approved_at: row.approved_at ?? new Date().toISOString() });
       this.o.board.log(cardId, 'error', 'seismic', result.detail, { code: result.code });
       this.deliver(
         cardId,
