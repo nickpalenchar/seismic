@@ -326,7 +326,7 @@ function DeleteCanvasDialog({ canvas, others, onClose, onDelete }: { canvas: Can
       open
       onOpenChange={(open) => !open && onClose()}
       title={t.canvases.deleteTitle(canvas.name)}
-      confirm={{ label: t.canvases.deleteConfirm, variant: 'destructive', onClick: () => onDelete(to) }}
+      confirm={{ label: t.canvases.deleteConfirm, variant: 'review-warning', onClick: () => onDelete(to) }}
       cancel={t.canvases.deleteBack}
     >
       <p>{t.canvases.deleteWarning(canvas.parked ?? 0, canvas.snoozed ?? 0)}</p>
