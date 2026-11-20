@@ -140,7 +140,7 @@ same style. UI text comes from `src/ui/strings.ts`, never a literal.
   the camera brings one reached outside the view in), the bars, the canvas tabs and the views.
   Shift+Tab from the project goes into those controls from the end. If focus is still outside an
   unfolded card, the panel itself takes focus. Space can then start push-to-talk and Esc can fold
-  the card. Tab moves focus to the Card actions menu.
+  the card. Tab moves focus to the Card actions menu. Esc also folds the card when that menu is open.
   The connection dots stay out of the Tab order: an arrow follows the pointer.
 - **Phone settings and Needs you share one history step**: switching between them replaces that
   step; closing returns to the project. Pages covering the project make its controls inert.

@@ -556,7 +556,16 @@ export function CardMore({ item, floating, onClose }: { item: Item; floating?: b
             </button>
           </MenuTrigger>
         </Tooltip>
-        <MenuContent className={prioMenuClass} align={onClose ? 'end' : 'start'}>
+        <MenuContent
+          className={prioMenuClass}
+          align={onClose ? 'end' : 'start'}
+          onEscapeKeyDown={(event) => {
+            if (!onClose) return;
+            event.preventDefault();
+            setOpen(false);
+            onClose();
+          }}
+        >
           {actions && (canPark || parked) && (
             <MenuItem title={canPark ? t.parking.parkHint : undefined} onSelect={() => (stopsToPark ? (leaveMenu(), setConfirm(true)) : parking(canPark ? 'park' : 'unpark'))}>
               <span className={loptClass}>
