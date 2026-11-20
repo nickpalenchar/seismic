@@ -122,7 +122,7 @@
 // into the database:
 // state, need, statusLine, summary, blocked (files: its approval could not land, since main's checkout has uncommitted changes to them), question (with `permission`, `{ name, input, extra? }`: the tool call it asks
 // to allow, as a worker's permission question has it, `extra` the options extensions added), demo (`kind` defaults to video), queue (`behind` by key; `since` defaults to
-// now), snoozed (`{ on, state?, why? }`: its agent snoozed it until the card with key `on` gets to `state`, done by default), limitPaused (`{ until? }`: paused after three usage-limit refusals, until that ISO time or a manual retry), hold (any other hold as stored, `Hold` in core/types.ts: `{ reason: 'paused' }`, `{ reason: 'snoozed', by: 'owner', until }`, `{ reason: 'parkingLot' }`; `since` defaults to now), scope (files), branch (a working or waiting card without one gets the branch a start would
+// now), snoozed (`{ on, state?, why? }`: its agent snoozed it until the card with key `on` gets to `state`, done by default), limitPaused (`{ until? }`: paused after three usage-limit refusals, until that ISO time or a manual retry), hold (any other hold as stored, `Hold` in core/types.ts: `{ reason: 'paused' }`, `{ reason: 'snoozed', by: 'owner', until }`, `{ reason: 'parkingLot' }`; `since` defaults to now), scope (files), duplicates (keys of the cards the duplicate check found, for a planned card), branch (a working or waiting card without one gets the branch a start would
 // have given it, which every started card has), createdAgo, archivedAgo, events ([{ kind, author, text, ago?, mocks?, spot?, token? }]; an idea's reply with `mocks` needs code that has them, an error's `token` (its session signed in with a token) too;
 // with events of kind `review`, the demos in `row.demos` and then `demo` go with those handovers in order, and a `spot` (a comment's
 // place in a demo video, `{ at, chapter?, demo? }`) names its demo by its place in that order; earlier demos need code that has them),
@@ -235,6 +235,8 @@ interface StageCard {
   /** What holds the card, as stored (`Hold`); `since` defaults to now. */
   hold?: { reason: string; since?: string } & Record<string, unknown>;
   scope?: string[];
+  /** Keys of the cards the duplicate check found for this planned card: it proposes a merge with the first. */
+  duplicates?: string[];
   changes?: { kind: 'added' | 'modified' | 'deleted' | 'moved'; path: string; from?: string }[];
   branch?: string;
   /** Files the card's branch commits (instead of a `scratch.txt`): by path, its text, or `{ from }` a file to copy (a PDF, say). */
@@ -817,6 +819,12 @@ for (const [i, c] of stage.cards.entries()) {
   if (c.limitPaused !== undefined) row.hold = { reason: 'limit', since: new Date().toISOString(), attempts: 3, ...c.limitPaused };
   if (c.hold !== undefined) row.hold = { since: new Date().toISOString(), ...c.hold };
   if (c.scope !== undefined) row.scope = { files: c.scope, reason: '' };
+  if (c.duplicates !== undefined) {
+    const own = snapshot.items.find((x) => x.id === id);
+    const found = c.duplicates.map((k) => ids[k] ?? fail(`card ${c.key ?? i}: duplicates names ${k}, which does not exist`));
+    // the check holds while the card keeps the title and text it was made for
+    row.scope = { files: c.scope ?? [], reason: '', duplicateCheck: { title: c.title ?? own?.title ?? '', body: c.body ?? own?.body ?? '', ids: found } };
+  }
   // a card at work or waiting for the owner has the branch its start gave it, as every started card
   // has: without one the card shows neither its conversation's field nor the question it waits on
   const branch = c.branch ?? (c.state === 'working' || c.state === 'waiting' ? branchName(c.title ?? snapshot.items.find((x) => x.id === id)?.title ?? '', id) : undefined);

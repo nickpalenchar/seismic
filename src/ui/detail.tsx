@@ -224,6 +224,11 @@ export function Detail(p: Props) {
   // "Attempt merge" shows a spinner and stays off until the merge view arrives (a failed action turns it back on)
   const [attemptingMerge, setAttemptingMerge] = useState(false);
   useEffect(() => setAttemptingMerge(false), [mergeRevision]);
+  // "Dismiss merge" takes the suggestion off at once, the one it was for: a refusal brings it back, a new suggestion shows anew
+  const duplicateKey = `${item.id}:${item.possibleDuplicates?.join() ?? ''}`;
+  const [dismissedDuplicate, setDismissedDuplicate] = useState<string>();
+  // the card as its state line shows it: without the suggestion once dismissed
+  const stated = dismissedDuplicate === duplicateKey ? { ...item, possibleDuplicates: undefined } : item;
   // whether the approval the owner is asked to confirm is "Straight to main"
   const [confirmDirect, setConfirmDirect] = useState(false);
   const unsentPicks = useFindingDraft(item).findings;
@@ -507,11 +512,12 @@ export function Detail(p: Props) {
   // a stopped task starts again, or goes into the archive with its conversation, from the row below it
   const halted = stopped(item) && !item.queue;
   // on a planned card, queued or not: a suggested card it cannot merge with can still be dismissed
-  const duplicateActions = duplicatePartner && mergeProposed(item) && <ButtonGroup className="duplicate-merge-actions inline-flex align-middle">
+  const duplicateShown = !!duplicatePartner && mergeProposed(stated);
+  const duplicateActions = duplicatePartner && duplicateShown && <ButtonGroup className="duplicate-merge-actions inline-flex align-middle">
     <Button className="duplicate-attempt bg-proposal text-proposal-foreground" disabled={attemptingMerge || !mergeableWith(item, duplicatePartner)} onClick={() => { setAttemptingMerge(true); void act({ action: 'merge', with: duplicatePartner.id }, { close: false }, () => setAttemptingMerge(false)); }}>{attemptingMerge && <Spinner />}{t.duplicate.attempt}</Button>
-    <Button className="duplicate-dismiss bg-proposal/12 text-foreground" onClick={() => act({ action: 'dismissDuplicate' }, { close: false })}>{t.duplicate.dismiss}</Button>
+    <Button className="duplicate-dismiss bg-proposal/12 text-foreground" onClick={() => { setDismissedDuplicate(duplicateKey); void act({ action: 'dismissDuplicate' }, { close: false }, () => setDismissedDuplicate(undefined)); }}>{t.duplicate.dismiss}</Button>
   </ButtonGroup>;
-  const duplicateNotice = duplicatePartner && mergeProposed(item) && <div className={questionClass('duplicate-notice')}>
+  const duplicateNotice = duplicatePartner && duplicateShown && <div className={questionClass('duplicate-notice')}>
     <h4>{t.duplicate.title}</h4>
     <p>{t.duplicate.detail}</p>
     <DuplicateMergePreview item={item} partner={duplicatePartner} />
@@ -660,8 +666,8 @@ export function Detail(p: Props) {
       </ConfirmDialog>
       <KindLine kind={kind} item={item} />
       {editable ? <ManualTitle item={item} onEdit={p.onEdit} /> : <div className={titleClass}>{shownTitle(item)}</div>}
-      <div className={cn(stateClass, finishingUp(item) && 'finishing', (isPaused(item) || snoozeOf(item) || inParkingLot(item)) && 'paused', (item.hold?.reason === 'restart') && 'restart-paused', item.queue && 'restart' in item.queue && 'restart-paused', item.review?.resolvingConflicts && 'resolving-conflicts', reviewing && 'reviewing', mergeProposed(item) && 'merge-proposed', item.idea?.proposal?.merge && 'merging')}>
-        {mergeProposed(item) ? <Lightbulb className="merge-mark" size={13} aria-hidden /> : item.idea?.proposal?.merge ? <GitMerge className="merge-mark" size={13} strokeWidth={1.75} aria-hidden /> : asksYou(item) ? <QuestionMark /> : (item.hold?.reason === 'restart') ? <RestartMark /> : item.queue && 'restart' in item.queue ? <HourglassMark /> : inParkingLot(item) ? <Car size={13} aria-hidden /> : item.state === 'proposal' ? '✦' : '●'} {stoppedAtOf(item) ? <StoppedWords stopped={stoppedAtOf(item)!} /> : stateLabel(item)}
+      <div className={cn(stateClass, finishingUp(item) && 'finishing', (isPaused(item) || snoozeOf(item) || inParkingLot(item)) && 'paused', (item.hold?.reason === 'restart') && 'restart-paused', item.queue && 'restart' in item.queue && 'restart-paused', item.review?.resolvingConflicts && 'resolving-conflicts', reviewing && 'reviewing', mergeProposed(stated) && 'merge-proposed', item.idea?.proposal?.merge && 'merging')}>
+        {mergeProposed(stated) ? <Lightbulb className="merge-mark" size={13} aria-hidden /> : item.idea?.proposal?.merge ? <GitMerge className="merge-mark" size={13} strokeWidth={1.75} aria-hidden /> : asksYou(item) ? <QuestionMark /> : (item.hold?.reason === 'restart') ? <RestartMark /> : item.queue && 'restart' in item.queue ? <HourglassMark /> : inParkingLot(item) ? <Car size={13} aria-hidden /> : item.state === 'proposal' ? '✦' : '●'} {stoppedAtOf(item) ? <StoppedWords stopped={stoppedAtOf(item)!} /> : stateLabel(stated)}
         {reviewing && <DrawLine color="var(--c)" className="ml-2 motion-reduce:after:animate-none" />}
         {snoozeOf(item) ? (
           <span className={statusClass}> · {snoozeWho(snoozeOf(item)!)}</span>
