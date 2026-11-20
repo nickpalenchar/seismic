@@ -59,8 +59,7 @@ same style. UI text comes from `src/ui/strings.ts`, never a literal.
 - **Type and icons**: Inter, self-hosted; the system monospace for code; Lucide icons only, never
   typographic stand-ins (▾, ✕). The one exception is a brand: a harness (Claude Code, Codex,
   Antigravity) is shown by its own logo from `@dev.icons/react` (devicons.io), never a drawn
-  stand-in, since Lucide has no brand marks (2026-11-19; first in the usage pills, which show each
-  limit as its logo and percentage without a meter).
+  stand-in, since Lucide has no brand marks (2026-11-19; first in the usage pills).
 
 ## Rules every screen follows
 

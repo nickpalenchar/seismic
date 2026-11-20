@@ -1,8 +1,8 @@
 // The plans' usage limits in the status bar, a pill per harness signed in here (Claude Code's, and
 // Codex's and Antigravity's beside it): behind the harness's logo, the session's and the week's, each
-// with how much of it is used, coloured by the grade the usage endpoint gives it. A click (a tap on
-// the phone) lists every limit with when it starts anew, where the numbers come from, and the button
-// that hides them again (the setting in Konfiguration → Benachrichtigungen und Limits shows them again).
+// with how much of it is used and a bar under the weekly percentage. A click (a tap on the phone)
+// lists every limit with its own bar, when it starts anew, where the numbers come from, and the
+// button that hides the meters (Configuration → Notifications and limits shows them again).
 
 import { cn } from 'cn';
 import { ClaudeCode, CodexIcon, GoogleAntigravityIcon } from '@dev.icons/react';
@@ -13,6 +13,7 @@ import { clock, failText, snoozeWhen, t } from './strings';
 import { Button } from './components/button';
 import { Popover, PopoverContent, PopoverTrigger } from './components/popover';
 import { Pill } from './components/pill';
+import { Progress } from './components/progress';
 import { statusFace } from './parts';
 
 /** The limit of a group the bar shows: the one most used, the first of those on a tie. */
@@ -37,6 +38,17 @@ const percent = (n: number) => `${Math.round(n)} %`;
 function Percent({ limit, className }: { limit: UsageLimit; className?: string }) {
   const grade = { critical: 'text-destructive', warning: 'text-waiting-strong' }[limit.severity as string];
   return <b className={cn('font-semibold tabular-nums', grade, className)}>{percent(limit.percent)}</b>;
+}
+
+function UsageProgress({ limit, className }: { limit: UsageLimit; className?: string }) {
+  return (
+    <Progress
+      aria-hidden="true"
+      value={limit.percent}
+      className={cn('bg-muted-foreground/25', className)}
+      indicatorClassName={limit.percent >= 95 ? 'bg-destructive' : undefined}
+    />
+  );
 }
 
 // the harnesses' own logos, from devicons.io
@@ -69,9 +81,10 @@ export function UsagePill({ usage, phone, compact }: { usage: Usage; phone?: boo
             <Mark size={14} className="block" aria-hidden />
           </span>
           {shown.map((l) => (
-            <span key={l.group} className="flex items-center gap-1.5" title={compact ? limitName(l) : undefined}>
+            <span key={l.group} className="relative flex items-center gap-1.5" title={compact ? limitName(l) : undefined}>
               {!compact && <span>{t.usage.groups[l.group] ?? limitName(l)}</span>}
               <Percent limit={l} />
+              {l.group === 'weekly' && <UsageProgress limit={l} className="absolute inset-x-0 top-full h-0.5" />}
             </span>
           ))}
         </PopoverTrigger>
@@ -82,8 +95,9 @@ export function UsagePill({ usage, phone, compact }: { usage: Usage; phone?: boo
         </p>
         <ul className="m-0 mb-2 list-none p-0">
           {usage.limits.map((l, i) => (
-            <li key={i} className="grid grid-cols-[minmax(0,1fr)_42px] items-center gap-x-2 py-1">
-              <span>{limitName(l)}</span>
+            <li key={i} className="grid grid-cols-[minmax(0,1fr)_5rem_42px] items-center gap-x-2 py-1">
+              <span className="wrap-anywhere">{limitName(l)}</span>
+              <UsageProgress limit={l} className="h-1.5" />
               <Percent limit={l} className="text-right" />
               {l.resetsAt && <span className="hint col-span-full">{t.usage.resets(snoozeWhen(l.resetsAt))}</span>}
             </li>
