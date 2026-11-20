@@ -539,7 +539,7 @@ export function CardMore({ item, floating, onClose }: { item: Item; floating?: b
   const parked = !!inParkingLot(item) && !item.archivedAt;
   if (!onClose && ((!others.length && !canPark && !parked) || item.archivedAt)) return null;
   const actions = !item.archivedAt;
-  const label = !onClose && actions && (canPark || parked) ? t.parking.menu : t.canvases.more;
+  const label = onClose || canPark || parked ? t.cardActions : t.canvases.more;
   const triggerClass = onClose
     ? buttonVariants({ size: 'icon' })
     : cn(prioBtnClass(), 'inline-grid h-5 place-items-center px-1 py-0 text-muted-foreground');
