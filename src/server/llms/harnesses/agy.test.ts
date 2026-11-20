@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { testProcessCode } from '../../../test-process';
 import { appendFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { agyArgs, READ_ONLY_PERMISSIONS, agyLimit, agyUsage, agyUsageOf, createAgyRuntime, nativeTool, parseAgyModels } from './agy';
+import { agyArgs, agyRun, READ_ONLY_PERMISSIONS, agyLimit, agyUsage, agyUsageOf, createAgyRuntime, nativeTool, parseAgyModels } from './agy';
 import { agyTranscriptLog } from './agyTasks';
 import { finished, started } from './agyTasksFixture';
 import { AGY_BRIDGE_FLAG, AGY_WINDOWS_BRIDGE, agyBridgeEnv, handleMcp, registerAgyTools, wireTools } from './agyMcp';
@@ -19,6 +19,7 @@ import { gitRepo, until } from '../../testing';
 import { git } from '../../workstations';
 
 const fake = join(import.meta.dir, '..', '..', 'fixtures', 'fake-agy.ts');
+const fixtureModels = () => parseAgyModels(readFileSync(join(import.meta.dir, '../../fixtures/agy-models.txt'), 'utf8'));
 const launch = (_command: string, args: string[], options: Parameters<Parameters<typeof createAgyRuntime>[0] & {}>[2]) => spawn('bun', [fake, ...args], { ...options, stdio: ['pipe', 'pipe', 'pipe'] });
 const sessions: AgentSession[] = [];
 const dirs: string[] = [];
@@ -33,7 +34,7 @@ function workstation() {
 }
 const spec = (cwd: string, events: AgentEvent[], extra: Partial<AgentSpec> = {}): AgentSpec => ({ cwd, system: 'SYSTEM', tools: [], onEvent: (e) => events.push(e), ...extra });
 const start = (s: AgentSpec, first?: string) => {
-  const session = createAgyRuntime(launch as never, () => '/fake/agy').start(s, first);
+  const session = createAgyRuntime(launch, () => '/fake/agy', undefined, async () => fixtureModels()).start(s, first);
   sessions.push(session);
   return session;
 };
@@ -248,6 +249,80 @@ test('unsupported cases fail visibly', () => {
   expect(() => start(spec('ssh://host/x', []))).toThrow('non-local');
   expect(() => start(spec(repo, [], { resume: 'codex:abc' }))).toThrow('agy: session');
   expect(() => start(spec(repo, [], { watch: {} as never }))).toThrow('before/after');
+});
+
+test('the real model list: each model once, with only the efforts agy has for it', () => {
+  const models = fixtureModels();
+  const efforts = Object.fromEntries(models.map((m) => [m.model, m.supportedReasoningEfforts.map((e) => e.reasoningEffort).join(',')]));
+  expect(efforts).toEqual({
+    'gemini-4-neon': 'low,medium,high,xhigh',
+    'gemini-4-argon': 'low,medium,high',
+    'gemini-4-hydrogen': 'low,medium,high,xhigh',
+    'gemini-pro-orchestrator-neon': '',
+    'gemini-pro-orchestrator-g1-pro': '',
+    'gemini-3.8-flash': 'low,medium,high',
+    'claude-opus-5-5': 'low,medium,high',
+    'claude-sonnet-5-5': 'low,medium,high',
+    'gpt-oss-120b': 'medium',
+  });
+  expect(models.filter((m) => m.isDefault).map((m) => [m.model, m.defaultReasoningEffort])).toEqual([['gemini-4-neon', 'high']]);
+  // a suffix the display name does not confirm stays part of the id
+  expect(parseAgyModels('gemini-ultra-high\tGemini Ultra High\n').map((m) => [m.model, m.supportedReasoningEfforts.length])).toEqual([['gemini-ultra-high', 0]]);
+});
+
+test('a session passes a pair agy accepts: base model and effort, none for a model without efforts', async () => {
+  const models = fixtureModels();
+  expect(agyRun({ model: 'gemini-3.8-flash', effort: 'low' }, models)).toEqual({ model: 'gemini-3.8-flash', effort: 'low' });
+  expect(agyRun({ model: 'gemini-3.8-flash-medium', effort: 'high' }, models)).toEqual({ model: 'gemini-3.8-flash', effort: 'medium' });
+  expect(agyRun({ model: 'gemini-pro-orchestrator-neon', effort: 'high' }, models)).toEqual({ model: 'gemini-pro-orchestrator-neon' });
+  expect(agyRun({ effort: 'medium' }, models)).toEqual({ effort: 'medium' });
+  expect(agyRun({ model: 'gpt-oss-120b', effort: 'high' }, models)).toEqual({ model: 'gpt-oss-120b', effort: 'medium' });
+  const account = parseAgyModels('gemini-ultra-medium\tGemini Ultra (Medium)\ngemini-ultra-high\tGemini Ultra High\n');
+  expect(agyRun({}, account)).toEqual({ effort: 'medium' });
+  expect(agyRun({ model: 'gemini-ultra-high', effort: 'high' }, account)).toEqual({ model: 'gemini-ultra-high' });
+  // the stand-in refuses what agy refuses, so the flags above are checked against it
+  const refused = (...args: string[]) => spawnSync('bun', [fake, ...args], { encoding: 'utf8' });
+  expect(refused('--model', 'gemini-3.8-flash-medium', '--effort', 'high').stderr).toContain('conflicts with --effort=high');
+  expect(refused('--model', 'gemini-4-argon', '--effort', 'xhigh').stderr).toContain('available: low, medium, high');
+  expect(refused('--model', 'gemini-pro-orchestrator-neon', '--effort', 'high').stderr).toContain('--effort is not supported');
+});
+
+test('a cold launch waits for the catalog on a resumed worker and keeps its first turn', async () => {
+  const repo = workstation();
+  const events: AgentEvent[] = [];
+  let launched: string[] | undefined;
+  const { promise, resolve } = Promise.withResolvers<ReturnType<typeof fixtureModels>>();
+  const runtime = createAgyRuntime((c, args, options) => {
+    launched = args;
+    return launch(c, args, options);
+  }, () => '/fake/cold-agy', undefined, () => promise);
+  const session = runtime.start(spec(repo, events, { resume: 'agy:old-conv', model: 'gemini-pro-orchestrator-neon', effort: 'high' }));
+  sessions.push(session);
+  session.send('continue');
+  expect(launched).toBeUndefined();
+  resolve(fixtureModels());
+  await until(() => events.some((event) => event.type === 'idle'));
+  expect(events.find((event) => event.type === 'session')).toMatchObject({ id: 'agy:old-conv', model: 'gemini-pro-orchestrator-neon' });
+  expect(events.some((event) => event.type === 'error')).toBe(false);
+  expect(launched).toContain('--model');
+  expect(launched).not.toContain('--effort');
+});
+
+test('shutdown cancels a cold start while model discovery is still pending', async () => {
+  const events: AgentEvent[] = [];
+  const { promise, resolve } = Promise.withResolvers<ReturnType<typeof fixtureModels>>();
+  let launched = false;
+  const runtime = createAgyRuntime((c, args, options) => {
+    launched = true;
+    return launch(c, args, options);
+  }, () => '/fake/cancelled-agy', undefined, () => promise);
+  const session = runtime.start(spec(workstation(), events, { model: 'gemini-pro-orchestrator-neon', effort: 'high' }));
+  await endSessionsHere();
+  await session.done;
+  resolve(fixtureModels());
+  await Bun.sleep(0);
+  expect(launched).toBe(false);
+  expect(events).toEqual([]);
 });
 
 test('parsing: models, limits, native tools', () => {

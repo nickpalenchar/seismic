@@ -399,6 +399,16 @@ Safety rules:
   "running as a background task with task id: X" in a MODEL/GENERIC/RUNNING step, a
   SYSTEM/SYSTEM_MESSAGE/DONE message `Task id "X" finished`, measured
   2026-11-14), shows them on the card, and, as for Codex, wakes the session when one ends between turns.
+- `agy models` lists an id per model and effort (`gemini-4-argon-medium`, display name
+  `Gemini 4 Argon (Medium)`), but `--model` takes the base id and `--effort` the effort; a full id with
+  any other `--effort` is refused, as is an effort the model lacks or any effort for a model without
+  them (the orchestrator) (agy 1.5.11, 2026-11-18). Seismic lists each base model once with the
+  efforts it has, splitting a suffix only where the display name confirms it, and passes no
+  `--effort` for a model without efforts. Saved IDs are kept until the catalog can confirm a legacy
+  variant. A start loads the catalog on first use, including after a restart. An unset effort takes
+  the account's default variant for its default model, or the first supported effort for another
+  model. Rejected: full ids with the effort locked to the suffix (18 entries, a one-choice effort
+  picker), and full ids without `--effort` (effort in the model name for Antigravity only).
 - An agent session (Codex or agy) sends its first turn only once its own identity is durable in the
   session registry (a timed-out first snapshot is taken again), and an observation that fails for good
   after that (not a timed-out snapshot) ends the session and keeps its record for the next start's

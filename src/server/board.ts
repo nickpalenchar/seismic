@@ -41,7 +41,6 @@ import {
   type HeldMessage,
   type HoldReason,
   type ItemHold,
-  type ItemAgent,
   type ItemDemo,
   type ItemIdea,
   type ItemLabels,
@@ -4112,7 +4111,7 @@ function work(r: CardRow, themeNow?: ThemeNow, there: Present = existsSync): Par
     ...(r.hold ? { hold: itemHold(r.hold) } : {}),
     ...parts({
       agent: {
-        ...((r.session_id || r.queue || (r.workstation && r.state !== 'planned') || r.hold?.reason === 'limit') && r.agent_setting ? { workerSetting: JSON.parse(r.agent_setting) as ItemAgent['workerSetting'] } : {}),
+        ...((r.session_id || r.queue || (r.workstation && r.state !== 'planned') || r.hold?.reason === 'limit') && r.agent_setting ? { workerSetting: JSON.parse(r.agent_setting) as AgentSetting } : {}),
         ...(r.status_line ? { statusLine: r.status_line } : {}),
         ...(r.branch ? { branch: r.branch } : {}),
         ...(r.stopped_at && r.state === 'planned' && r.branch ? { stoppedAt: JSON.parse(r.stopped_at) as StoppedAt } : {}),

@@ -275,9 +275,11 @@ function write(home: string, settings: Settings) {
 
 const codexChoice = z.object({ model: z.string().trim().min(1).max(200).regex(/^[A-Za-z0-9_.:/-]+$/), effort: z.enum(AGENT_EFFORTS) }).strict();
 
+const agyChoice = codexChoice.partial({ effort: true });
+
 /** Validate a one-start choice from an untrusted client without changing the defaults. */
 export function startAgentSetting(input: unknown): AgentSetting {
-  const parsed = z.object({ model: z.enum(AGENT_MODELS), effort: z.enum(AGENT_EFFORTS), harness: z.enum(HARNESSES).optional(), codex: codexChoice.optional(), agy: codexChoice.optional() }).strict().safeParse(input);
+  const parsed = z.object({ model: z.enum(AGENT_MODELS), effort: z.enum(AGENT_EFFORTS), harness: z.enum(HARNESSES).optional(), codex: codexChoice.optional(), agy: agyChoice.optional() }).strict().safeParse(input);
   if (!parsed.success || (parsed.data.harness === 'codex' && !parsed.data.codex) || (parsed.data.harness === 'agy' && !parsed.data.agy)) throw new BadRequest('invalid', 'invalid worker harness, model or effort');
   return parsed.data;
 }
@@ -291,7 +293,7 @@ function agentsOf(input: unknown): Partial<Record<AgentRole, Partial<AgentSettin
     const effort = AGENT_EFFORTS.find((e) => e === o[role]?.effort && e !== AGENT_DEFAULTS[role].effort);
     const harness = HARNESSES.find((h) => h !== 'claude' && h === o[role]?.harness);
     const codex = codexChoice.safeParse(o[role]?.codex);
-    const agy = codexChoice.safeParse(o[role]?.agy);
+    const agy = agyChoice.safeParse(o[role]?.agy);
     if (model || effort || harness || codex?.success || agy?.success) agents[role] = { ...(model ? { model } : {}), ...(effort ? { effort } : {}), ...(harness ? { harness } : {}), ...(codex?.success ? { codex: codex.data } : {}), ...(agy?.success ? { agy: agy.data } : {}) };
   }
   return agents;
@@ -322,11 +324,11 @@ export function saveAgents(home: string, input: unknown): AgentsView {
     const { model, effort, harness, codex, agy, ...other } = (choice && typeof choice === 'object' ? choice : {}) as Record<string, unknown>;
     if (Object.keys(other).length) throw new BadRequest('invalid', 'unknown agent setting');
     if (harness !== undefined && !HARNESSES.some((h) => h === harness)) throw new BadRequest('invalid', 'harness must be claude, codex or agy');
-    if (agy !== undefined && !codexChoice.safeParse(agy).success) throw new BadRequest('invalid', 'agy needs a model id and a supported effort (low, medium, high, xhigh, max)');
+    if (agy !== undefined && !agyChoice.safeParse(agy).success) throw new BadRequest('invalid', 'agy needs a model id and accepts an optional effort (low, medium, high, xhigh, max)');
     if (codex !== undefined && !codexChoice.safeParse(codex).success) throw new BadRequest('invalid', 'codex needs a model id and a supported effort (low, medium, high, xhigh, max)');
     if (model !== undefined && !AGENT_MODELS.some((m) => m === model)) throw new BadRequest('invalid', `model must be one of ${AGENT_MODELS.join(', ')}`);
     if (effort !== undefined && !AGENT_EFFORTS.some((e) => e === effort)) throw new BadRequest('invalid', `effort must be one of ${AGENT_EFFORTS.join(', ')}`);
-    agents[role] = { ...agents[role]!, ...(model !== undefined ? { model } : {}), ...(effort !== undefined ? { effort } : {}), ...(harness !== undefined ? { harness } : {}), ...(codex !== undefined ? { codex: codexChoice.parse(codex) } : {}), ...(agy !== undefined ? { agy: codexChoice.parse(agy) } : {}) };
+    agents[role] = { ...agents[role]!, ...(model !== undefined ? { model } : {}), ...(effort !== undefined ? { effort } : {}), ...(harness !== undefined ? { harness } : {}), ...(codex !== undefined ? { codex: codexChoice.parse(codex) } : {}), ...(agy !== undefined ? { agy: agyChoice.parse(agy) } : {}) };
   }
   write(home, { ...settings, agents: agentsOf(agents) });
   console.log(`Seismic: models and effort of the agents saved to ${join(home, SETTINGS_FILE)}`);

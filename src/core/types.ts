@@ -3366,8 +3366,8 @@ export interface AgentSetting {
   harness?: Harness;
   /** Codex choices are separate from Claude aliases, which survive switching back. */
   codex?: { model: string; effort: AgentEffort };
-  /** Antigravity (`agy`) choices, kept apart from the others in the same way. */
-  agy?: { model: string; effort: AgentEffort };
+  /** Antigravity choices. An omitted effort follows the model's default. */
+  agy?: AgyChoice;
 }
 
 /** The harnesses Seismic agents can run in: Claude Code (the default), Codex and Antigravity (`agy`), the latter two in preview. */
@@ -3389,16 +3389,54 @@ export const firstProjectHarness = (configured: readonly string[]): Harness | un
 /** The model and effort of `setting` in the harness it names (Claude's aliases for Claude Code). */
 export function harnessChoice(setting: AgentSetting): { model: string; effort: AgentEffort } {
   const own = setting.harness === 'codex' ? setting.codex : setting.harness === 'agy' ? setting.agy : undefined;
-  return setting.harness && setting.harness !== 'claude' ? (own ?? { model: 'default', effort: setting.effort }) : setting;
+  return setting.harness && setting.harness !== 'claude' ? { model: own?.model ?? 'default', effort: own?.effort ?? setting.effort } : setting;
 }
 
 /** Discovered from the installed Codex account, never a hardcoded model alias. */
 export interface CodexModel {
   model: string;
   isDefault: boolean;
+  /** Empty for a model without efforts (Antigravity's orchestrator): its effort is not passed. */
   supportedReasoningEfforts: { reasoningEffort: string }[];
+  /** The effort the account runs the model with where none is chosen, where the harness says so. */
+  defaultReasoningEffort?: AgentEffort;
   inputModalities: string[];
 }
+
+export type AgyChoice = { model: string; effort?: AgentEffort };
+
+/** Resolve only variant IDs the catalog confirmed with a matching display-name tag. */
+export function agyBaseChoice(choice: AgyChoice, models?: readonly CodexModel[] | null): AgyChoice {
+  if (!models || models.some((m) => m.model === choice.model)) return choice;
+  for (const model of models) {
+    const effort = AGENT_EFFORTS.find((e) => choice.model === `${model.model}-${e}` && model.supportedReasoningEfforts.some((x) => x.reasoningEffort === e));
+    if (effort) return { model: model.model, effort };
+  }
+  return choice;
+}
+
+export function catalogModel(models: readonly CodexModel[] | null | undefined, id: string): CodexModel | undefined {
+  return models?.find((m) => id === 'default' ? m.isDefault : m.model === id);
+}
+
+export function modelEfforts(model: CodexModel | undefined): AgentEffort[] {
+  return AGENT_EFFORTS.filter((e) => model?.supportedReasoningEfforts.some((x) => x.reasoningEffort === e));
+}
+
+/** Keep the chosen effort if supported, otherwise prefer the catalog's default. */
+export function modelEffort(model: CodexModel | undefined, chosen?: AgentEffort): AgentEffort | undefined {
+  const efforts = modelEfforts(model);
+  if (chosen && efforts.includes(chosen)) return chosen;
+  const preferred = model?.defaultReasoningEffort;
+  return preferred && efforts.includes(preferred) ? preferred : efforts[0];
+}
+
+/** A saved setting keeps its original ID until a catalog can identify a legacy variant. */
+export function withAgyBase<T extends { agy?: AgyChoice }>(setting: T, models?: readonly CodexModel[] | null): T {
+  const base = setting.agy && agyBaseChoice(setting.agy, models);
+  return base && base !== setting.agy ? { ...setting, agy: base } : setting;
+}
+
 /** What applies until the owner chooses otherwise: Opus throughout, high effort for workers, exploration agents and code reviews. */
 export const AGENT_DEFAULTS: Record<AgentRole, AgentSetting> = {
   koordinator: { model: 'opus', effort: 'medium' },
@@ -3773,14 +3811,17 @@ export function projectAgentSetting(role: AgentRole, base: AgentSetting, own: Pr
   const { codex, agy, harness: requestedHarness, ...fields } = configured;
   const mine = fields.model === 'default' ? { ...fields, model: base.model } : fields;
   const harness = requestedHarness === undefined && mine.model && base.harness ? 'claude' : requestedHarness ?? base.harness;
-  const external = (target: 'codex' | 'agy') => {
-    const inherited = base.harness === target ? harnessChoice(base) : { model: 'default', effort: base.effort };
-    const override = target === 'codex' ? codex : agy;
-    return { model: override?.model ?? inherited.model, effort: override?.effort ?? (harness === target ? mine.effort : undefined) ?? inherited.effort };
-  };
+  const inheritedCodex = base.harness === 'codex' ? harnessChoice(base) : { model: 'default', effort: base.effort };
+  const inheritedAgy = base.harness === 'agy' ? base.agy : undefined;
   const portable = {
-    ...(codex || harness === 'codex' ? { codex: external('codex') } : {}),
-    ...(agy || harness === 'agy' ? { agy: external('agy') } : {}),
+    ...(codex || harness === 'codex' ? { codex: {
+      model: codex?.model ?? inheritedCodex.model,
+      effort: codex?.effort ?? (harness === 'codex' ? mine.effort : undefined) ?? inheritedCodex.effort,
+    } } : {}),
+    ...(agy || harness === 'agy' ? { agy: {
+      model: agy?.model ?? inheritedAgy?.model ?? 'default',
+      effort: agy?.effort ?? (harness === 'agy' ? mine.effort : undefined) ?? inheritedAgy?.effort,
+    } } : {}),
   };
   if (!requestedHarness && (harness === 'codex' || harness === 'agy')) return { ...base, ...(mine.model ? { model: mine.model } : {}), ...portable };
   return { ...base, ...mine, ...portable, ...(harness ? { harness } : {}) };

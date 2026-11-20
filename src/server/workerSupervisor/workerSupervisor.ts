@@ -505,7 +505,7 @@ const pauseNotice = (limit: number) => {
 
 /** The agent configuration as the card's conversation names it. */
 const describeSetting = (s: AgentSetting) =>
-  s.harness === 'codex' && s.codex ? `Codex · ${s.codex.model} · ${s.codex.effort}` : s.harness === 'agy' && s.agy ? `Antigravity · ${s.agy.model} · ${s.agy.effort}` : `Claude Code · ${s.model} · ${s.effort}`;
+  s.harness === 'codex' && s.codex ? `Codex · ${s.codex.model} · ${s.codex.effort}` : s.harness === 'agy' && s.agy ? `Antigravity · ${s.agy.model}${s.agy.effort ? ` · ${s.agy.effort}` : ''}` : `Claude Code · ${s.model} · ${s.effort}`;
 
 /** Tells a worker that resumes its session on another model, after the usage limit stopped it, why. */
 const HANDED_OFF_SAME =

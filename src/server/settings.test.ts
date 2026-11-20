@@ -6,7 +6,7 @@ import { languageOf } from '../core/locale';
 import { AGENT_DEFAULTS, type AgentSetting } from '../core/types';
 import { withAgentSetting } from './runtime';
 import { OWNER_SETTINGS_FILE as SETTINGS_FILE, systemLanguage } from '../../plugin/skills/demo/lib/language.ts';
-import { agentSetting, agentsView, conversationLanguage, languageView, ownerLanguage, saveAgents, saveCodexAutoReview, saveLanguage, saveTheme, saveMotion, motionView, saveUsageMeter, themeView, usageMeterView, feedbackPromptView, saveFeedbackPrompt, projectDefaults, saveProjectDefaults, notificationsView, saveNotifications, startAgentSetting } from './settings';
+import { agentSetting, agentsView, appliedProjectSettings, conversationLanguage, languageView, ownerLanguage, saveAgents, saveCodexAutoReview, saveLanguage, saveTheme, saveMotion, motionView, saveUsageMeter, themeView, usageMeterView, feedbackPromptView, saveFeedbackPrompt, projectDefaults, saveProjectDefaults, notificationsView, saveNotifications, startAgentSetting } from './settings';
 import { FakeRuntime } from './testing';
 
 const homes: string[] = [];
@@ -121,6 +121,23 @@ test('harness choices retain separate Claude and Codex options and reject invali
   expect(agentSetting(home, 'koordinator')).toMatchObject({ harness: 'codex', codex });
   expect(agentSetting(home, 'explorer')).toMatchObject({ codex });
   for (const bad of [{ worker: { harness: 'pi' } }, { worker: { codex: { ...codex, effort: 'ultra' } } }, { worker: { codex: { ...codex, model: '' } } }]) expect(() => saveAgents(home, bad)).toThrow();
+});
+
+test('Antigravity settings preserve original IDs until a catalog can identify legacy variants', () => {
+  const home = scratchHome();
+  const legacy = { model: 'gemini-4-argon-medium', effort: 'high' } as const;
+  const whole = { model: 'gemini-ultra-high', effort: 'high' } as const;
+  writeFileSync(join(home, SETTINGS_FILE), JSON.stringify({ agents: { worker: { harness: 'agy', agy: legacy } } }));
+  expect(agentSetting(home, 'worker').agy).toEqual(legacy);
+  expect(saveAgents(home, { worker: { agy: whole } }).agents.worker.agy).toEqual(whole);
+  expect(appliedProjectSettings({ agents: { worker: { agy: legacy }, review: { agy: whole } } }).agents).toEqual({ worker: { agy: legacy }, review: { agy: whole } });
+  expect(startAgentSetting({ model: 'opus', effort: 'high', harness: 'agy', agy: whole }).agy).toEqual(whole);
+  const accountDefault = startAgentSetting({ model: 'opus', effort: 'high', harness: 'agy', agy: { model: 'default' } });
+  expect(accountDefault.agy).toEqual({ model: 'default' });
+  const fake = new FakeRuntime();
+  withAgentSetting(fake, () => accountDefault).start({ cwd: '/r', system: '', tools: [], onEvent() {}, role: 'worker' });
+  expect(fake.last.spec.model).toBeUndefined();
+  expect(fake.last.spec.effort).toBeUndefined();
 });
 
 test('agy is a third harness with its own model and effort, kept apart from the others', () => {

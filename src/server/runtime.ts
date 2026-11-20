@@ -199,7 +199,7 @@ export function withAgentSetting(
       const token = {};
       if (at) shown(at, { ...identity }, token);
       const session = run(() => runtime.start({
-        ...rest, setting: chosen, effort: choice.effort, ...(model === 'default' ? {} : { model }),
+        ...rest, setting: chosen, effort: chosen.harness === 'agy' ? chosen.agy?.effort : choice.effort, ...(model === 'default' ? {} : { model }),
         tools: spec.tools.map((tool) => ({ ...tool, run: (args) => run(() => tool.run(args)) })),
         ...(spec.askOwner ? { askOwner: (request, signal) => run(() => spec.askOwner!(request, signal)) } : {}),
         onEvent: (event) => {

@@ -4,10 +4,26 @@
 //   RUN <command>       shows a native shell step
 //   FAIL                ends the turn with a usage-limit error
 // Anything else is answered with a line of text. Its argv is echoed on the first text, as `ARGV <json>`.
-
+// `models` lists the catalog of agy-models.txt (real `agy models` output), and a session refuses a
+// `--model`/`--effort` pair as agy does: an effort the model lacks, one that conflicts with the
+// effort in a full id, any effort for a model without efforts.
 import { readFileSync } from 'node:fs';
 
 const args = process.argv.slice(2);
+const listed = readFileSync(new URL('./agy-models.txt', import.meta.url), 'utf8');
+if (args[0] === 'models') { process.stdout.write(listed); process.exit(0); }
+const flag = (name: string) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : undefined; };
+function refusal(model: string | undefined, effort: string | undefined): string | null {
+  if (!model) return null;
+  const ids = listed.split('\n').map((line) => line.split('\t')[0]!.trim()).filter((id) => id && !id.startsWith('Fetching'));
+  const efforts = ['low', 'medium', 'high', 'xhigh', 'max'].filter((e) => ids.includes(`${model}-${e}`));
+  const why = ids.includes(model)
+    ? effort && /-(low|medium|high|xhigh|max)$/.test(model) && !model.endsWith(`-${effort}`) ? `--model ${model} conflicts with --effort=${effort}` : effort && !/-(low|medium|high|xhigh|max)$/.test(model) ? `--effort is not supported for model "${model}"` : null
+    : !efforts.length ? `unknown model "${model}"` : effort && !efforts.includes(effort) ? `${model} has no "${effort}" effort (available: ${efforts.join(', ')})` : null;
+  return why && `invalid model selection (--model "${model}"${effort ? ` --effort "${effort}"` : ''}): ${why}`;
+}
+const refused = refusal(flag('--model'), flag('--effort'));
+if (refused) { process.stderr.write(`error: ${refused}\n`); process.exit(1); }
 const at = args.indexOf('--conversation');
 const conversation = at >= 0 ? args[at + 1] : 'conv-1';
 const out = (frame: unknown) => process.stdout.write(`${JSON.stringify(frame)}\n`);

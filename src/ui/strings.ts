@@ -1551,6 +1551,7 @@ const en = {
       modelUnavailable: 'Model name unavailable',
       models: { fable: 'Fable', opus: 'Opus', sonnet: 'Sonnet', haiku: 'Haiku' },
       efforts: { low: 'low', medium: 'medium', high: 'high', xhigh: 'very high', max: 'maximum' },
+      noEffort: 'Default',
       effortsShort: { low: 'low', medium: 'med.', high: 'high', xhigh: 'very high', max: 'maximum' },
       harnessesShort: { claude: 'Claude', codex: 'Codex', agy: 'Antigravity' },
     },

@@ -2,11 +2,17 @@ import { useEffect, useState } from 'react';
 import { api } from './api';
 import { AGENT_MODELS, type CodexModel, type Harness } from '../core/types';
 import { Badge } from './components/badge';
-import { SelectItem } from './components/select';
+import { Select, SelectItem } from './components/select';
 import { t } from './strings';
 
 export function catalogDefault(models?: readonly CodexModel[] | null) {
   return models?.find((model) => model.isDefault)?.model ?? 'default';
+}
+
+export function DefaultEffort({ className, label }: { className?: string; label: string }) {
+  return <Select className={className} aria-label={label} value="none" disabled onValueChange={() => {}}>
+    <SelectItem value="none">{t.config.agents.noEffort}</SelectItem>
+  </Select>;
 }
 
 export function modelLabel(model: string, harness: Harness) {

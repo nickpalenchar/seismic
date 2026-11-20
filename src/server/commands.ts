@@ -778,7 +778,8 @@ export class Commander {
     const harness = base?.harness ?? 'claude';
     const model = chatModelFor(harness, this.o.board.chatModel(chat));
     if (!model) return base;
-    if (base && harness !== 'claude') return { ...base, [harness]: { ...harnessChoice(base), model } };
+    if (base && harness === 'agy') return { ...base, agy: { ...base.agy, model } };
+    if (base && harness === 'codex') return { ...base, codex: { ...harnessChoice(base), model } };
     return { ...(base ?? AGENT_DEFAULTS.koordinator), model: model as AgentModel };
   };
 

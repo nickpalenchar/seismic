@@ -14,12 +14,12 @@ import { StringDecoder } from 'node:string_decoder';
 import { isAbsolute, resolve } from 'node:path';
 import { z } from 'zod';
 import { homedir } from 'node:os';
-import { AGENT_EFFORTS, type CodexModel, type Usage, type UsageLimit } from '../../../core/types';
+import { AGENT_EFFORTS, agyBaseChoice, catalogModel, modelEffort, type AgentEffort, type CodexModel, type Usage, type UsageLimit } from '../../../core/types';
 import type { UsageSource } from '../../usage';
 import { messageOf } from '../../../core/text';
 import { which } from '../../path';
 import { OWN_GROUP } from '../../spawn';
-import { answered, cleanEnv, type AgentEvent, type AgentRuntime, type AgentSpec } from '../../runtime';
+import { cleanEnv, type AgentEvent, type AgentRuntime, type AgentSpec } from '../../runtime';
 import { AGY_CONVERSATION_ID } from '../../transcript';
 import { agyBrainDir, agyTranscriptLog, TranscriptTail, type AgyTask } from './agyTasks';
 import { AgentProcesses, onceClosed, tolerateTimeouts, untilIdentified } from './processes';
@@ -36,34 +36,69 @@ export function installedAgy(env: Record<string, string | undefined> = process.e
 
 /** Whether an Antigravity worker could start on this machine: `agy` is installed and signed in (`agy models` answers), as the setup assistant checks it. */
 export async function agyConnected(): Promise<boolean> {
-  const executable = installedAgy();
-  return !!executable && (await answered(executable, ['models'], 15_000)) !== null;
+  try { await agyModels(); return true; } catch { return false; }
 }
 
 /**
- * The models `agy models` lists, as the picker has them. Every model offers all efforts `agy` knows;
- * the first listed, or the one marked as the default, is the account default.
+ * The models `agy models` lists, as the picker has them. `agy` lists an id per model and effort
+ * (`gemini-4-argon-medium  Gemini 4 Argon (Medium)`); those become one model with the efforts it
+ * has, which `--model` and `--effort` take apart. A suffix counts only where the display name
+ * confirms it with the matching tag, so an id that merely ends in `-high` stays whole, as a model
+ * without efforts. The first listed, or the one marked as the default, is the account default,
+ * with its effort as the default effort.
  */
 export function parseAgyModels(output: string): CodexModel[] {
   const entries = output.split('\n').flatMap((line) => {
     const m = /^\s*(?:[-*•>]\s*)?`?([A-Za-z][A-Za-z0-9_.:/-]*)`?(.*)$/.exec(line);
     if (!m || /^(fetching|available|models?|error|usage|name|id)\b/i.test(m[1]!)) return [];
-    return [{ model: m[1]!, isDefault: /\bdefault\b|\bcurrent\b|\(\*\)|\*$/i.test(m[2]!) }];
+    const suffix = /^(.+)-(low|medium|high|xhigh|max)$/.exec(m[1]!);
+    const tag = /\((low|medium|high|xhigh|max)\)/i.exec(m[2]!)?.[1]?.toLowerCase();
+    const split: { model: string; effort?: AgentEffort } = suffix && tag === suffix[2] ? { model: suffix[1]!, effort: suffix[2] as AgentEffort } : { model: m[1]! };
+    return [{ ...split, isDefault: /\bdefault\b|\bcurrent\b|\(\*\)|\*$/i.test(m[2]!) }];
   });
-  const marked = entries.findIndex((e) => e.isDefault);
-  return entries.map((e, i) => ({ ...e, isDefault: i === (marked < 0 ? 0 : marked), supportedReasoningEfforts: AGENT_EFFORTS.map((reasoningEffort) => ({ reasoningEffort })), inputModalities: ['text'] }));
+  const chosen = entries.find((e) => e.isDefault) ?? entries[0];
+  const models = new Map<string, CodexModel>();
+  for (const e of entries) {
+    const model = models.get(e.model) ?? { model: e.model, isDefault: e.model === chosen?.model, supportedReasoningEfforts: [], inputModalities: ['text'] };
+    if (e.effort && !model.supportedReasoningEfforts.some((x) => x.reasoningEffort === e.effort)) model.supportedReasoningEfforts.push({ reasoningEffort: e.effort });
+    models.set(e.model, model);
+  }
+  return [...models.values()].map((m) => ({
+    ...m,
+    supportedReasoningEfforts: AGENT_EFFORTS.filter((e) => m.supportedReasoningEfforts.some((x) => x.reasoningEffort === e)).map((reasoningEffort) => ({ reasoningEffort })),
+    ...(m.isDefault && chosen?.effort ? { defaultReasoningEffort: chosen.effort } : {}),
+  }));
+}
+
+const catalogs = new Map<string, CodexModel[]>();
+const listings = new Map<string, Promise<CodexModel[]>>();
+
+type RunChoice = { model?: string; effort?: AgentEffort };
+
+/** Resolve saved variants, unsupported inherited efforts and the account default before building flags. */
+export function agyRun(choice: RunChoice, models: CodexModel[]): RunChoice {
+  const base = agyBaseChoice({ model: choice.model ?? 'default', effort: choice.effort }, models);
+  const model = catalogModel(models, base.model);
+  const effort = model ? modelEffort(model, base.effort) : base.effort;
+  return { ...(base.model === 'default' ? {} : { model: base.model }), ...(effort ? { effort } : {}) };
 }
 
 /** The account's model catalog, from the CLI; fails visibly where `agy` is missing or not signed in. */
-export async function agyModels(): Promise<CodexModel[]> {
-  const executable = installedAgy();
+export async function agyModels(executable = installedAgy()): Promise<CodexModel[]> {
   if (!executable) throw new Error('Antigravity (agy) is not installed; set SEISMIC_AGY to its path');
-  const r = Bun.spawn([executable, 'models'], { env: cleanEnv() as Record<string, string>, stdout: 'pipe', stderr: 'pipe', timeout: 30000 });
-  const [out, err, status] = await Promise.all([new Response(r.stdout).text(), new Response(r.stderr).text(), r.exited]);
-  if (status !== 0) throw new Error(`Antigravity could not list its models: ${(err || out || 'not signed in?').trim().split('\n').pop()}`);
-  const models = parseAgyModels(out);
-  if (!models.length) throw new Error('Antigravity listed no models');
-  return models;
+  const pending = listings.get(executable);
+  if (pending) return pending;
+  const listing = (async () => {
+    const r = Bun.spawn([executable, 'models'], { env: cleanEnv() as Record<string, string>, stdout: 'pipe', stderr: 'pipe', timeout: 15000 });
+    const [out, err, status] = await Promise.all([new Response(r.stdout).text(), new Response(r.stderr).text(), r.exited]);
+    if (status !== 0) throw new Error(`Antigravity could not list its models: ${(err || out || 'not signed in?').trim().split('\n').pop()}`);
+    const models = parseAgyModels(out);
+    if (!models.length) throw new Error('Antigravity listed no models');
+    catalogs.set(executable, models);
+    return models;
+  })();
+  listings.set(executable, listing);
+  try { return await listing; } finally { listings.delete(executable); }
 }
 
 const usageRead = z.object({
@@ -258,12 +293,9 @@ export function agyLimit(message: string, now = Date.now()): { resetsAt?: number
 type Launch = (command: string, args: string[], options: { cwd: string; env: NodeJS.ProcessEnv }) => ReturnType<typeof spawn>;
 const launchInstalled: Launch = (command, args, options) => spawn(command, args, { ...options, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true, detached: OWN_GROUP });
 
-export function createAgyRuntime(launch: Launch = launchInstalled, executable: () => string | null = installedAgy, brain: () => string = agyBrainDir): AgentRuntime {
-  return {
-    start(spec, firstMessage, images) {
-      supported(spec);
-      const command = executable();
-      if (!command) throw new Error('Antigravity (agy) is not installed; set SEISMIC_AGY to its path');
+export function createAgyRuntime(launch: Launch = launchInstalled, executable: () => string | null = installedAgy, brain: () => string = agyBrainDir, loadModels = agyModels): AgentRuntime {
+  const sessions = {
+    start(command: string, spec: AgentSpec, run: RunChoice, firstMessage?: string, images?: string[]) {
       // An earlier Seismic crashed and its sweep could not end this workstation's old session.
       const left = sessionRegistry()?.unaccounted(spec.cwd);
       if (left?.length) throw new Error(`An earlier session in this workstation left processes that are still running (${left.map((l) => l.label).join('; ')}); Seismic tries to end them when it starts`);
@@ -295,7 +327,7 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
       let kill: ReturnType<typeof setTimeout> | undefined;
       let child: ReturnType<Launch>;
       try {
-        child = launch(command, agyArgs(spec), { cwd: spec.cwd, env: { ...cleanEnv(), ...spec.env, ...agyBridgeEnv(endpoint) } });
+        child = launch(command, agyArgs({ ...spec, model: run.model, effort: run.effort }), { cwd: spec.cwd, env: { ...cleanEnv(), ...spec.env, ...agyBridgeEnv(endpoint) } });
       } catch (error) {
         closeConfig.current();
         endpoint.dispose();
@@ -390,7 +422,7 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
         if (parsed.event === 'init' && parsed.conversation_id) {
           const id = `agy:${parsed.conversation_id}`;
           if (!tail) tail = new TranscriptTail(agyTranscriptLog(brain(), parsed.conversation_id));
-          emit({ type: 'session', id, ...(spec.setting ? { setting: { ...spec.setting, agy: { model: spec.model ?? 'default', effort: spec.effort ?? 'high' } } } : {}), ...(spec.model ? { model: spec.model } : {}) });
+          emit({ type: 'session', id, ...(spec.setting ? { setting: { ...spec.setting, agy: { model: run.model ?? 'default', effort: run.effort } } } : {}), ...(run.model ? { model: run.model } : {}) });
         } else if (parsed.event === 'step_update' && parsed.step_update) {
           const s = parsed.step_update;
           if (s.step_type === 'agent_response' && s.text_delta) emit({ type: 'text', text: s.text_delta });
@@ -473,6 +505,51 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
       recorded.then(() => { ready = true; pump(); }, (error: unknown) => failEnded(`Antigravity could not be put on record: ${messageOf(error)}`));
       if (firstMessage !== undefined) send(firstMessage, images);
       return { send, close: stop, done };
+    },
+  };
+  return {
+    start(spec, firstMessage, images) {
+      supported(spec);
+      const command = executable();
+      if (!command) throw new Error('Antigravity (agy) is not installed; set SEISMIC_AGY to its path');
+      const start = (models: CodexModel[]) => sessions.start(command, spec, agyRun(spec, models), firstMessage, images);
+      const cached = catalogs.get(command);
+      if (cached) return start(cached);
+      if (!spec.setting && !spec.model && !spec.effort) return start([]);
+
+      // A queue or resume can reach this before any picker or connection check. Keep its turns
+      // until the flags are known, and let a close during discovery prevent the launch.
+      let session: ReturnType<AgentRuntime['start']> | undefined;
+      let closed = false;
+      const queued: [string, string[]?][] = [];
+      const cancelled = Promise.withResolvers<void>();
+      const close = () => {
+        closed = true;
+        queued.length = 0;
+        if (session) session.close();
+        else cancelled.resolve();
+      };
+      const preparing = Promise.resolve().then(() => loadModels(command)).then((models) => {
+        if (closed) return;
+        unregister();
+        session = start(models);
+        for (const args of queued.splice(0)) session.send(...args);
+        return session.done;
+      }).catch((error: unknown) => {
+        if (closed) return;
+        spec.onEvent({ type: 'error', message: messageOf(error), ended: true });
+        spec.onEvent({ type: 'idle' });
+      });
+      const done = Promise.race([preparing, cancelled.promise]).finally(() => unregister());
+      const unregister = endAtShutdown(close, { done, force: async () => close() });
+      return {
+        done, close,
+        send(text, images) {
+          if (closed) return;
+          if (session) session.send(text, images);
+          else queued.push([text, images]);
+        },
+      };
     },
   };
 }
