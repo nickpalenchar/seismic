@@ -336,15 +336,12 @@ export function saveHarnesses(home: string, harnesses: readonly Harness[]) {
 /** Save onboarding's selections and fix the starting defaults before the first project opens. */
 export function saveFirstHarnesses(home: string, selected: readonly Harness[]) {
   const settings = read(home);
-  const first = firstProjectHarness(selected);
   const agents = { ...settings.agents };
-  const configured = new Set(selected);
   for (const role of AGENT_ROLES) {
-    const previous = agents[role]?.harness;
-    if (previous && settings.harnesses?.includes(previous) !== false) configured.add(previous);
-    else if (first) agents[role] = { ...agents[role], harness: first };
+    const harness = firstProjectHarness(selected, settingFor(settings, role).harness);
+    if (agents[role] || harness) agents[role] = { ...agents[role], harness };
   }
-  write(home, { ...settings, agents, harnesses: HARNESSES.filter((h) => configured.has(h)) });
+  write(home, { ...settings, agents: agentsOf(agents), harnesses: HARNESSES.filter((h) => selected.includes(h)) });
 }
 
 export function agentsView(home: string): AgentsView {

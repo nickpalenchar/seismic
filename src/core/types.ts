@@ -3393,10 +3393,10 @@ export interface HarnessAvailability {
 export const needsGit = (harness: Harness | undefined): harness is 'codex' | 'agy' => harness === 'codex' || harness === 'agy';
 
 /**
- * The default among configured harnesses: Claude Code (represented by undefined) if present, otherwise the first of the others.
+ * Keep a role's harness if selected. Otherwise prefer Claude Code (represented by undefined), then the first selected harness.
  */
-export const firstProjectHarness = (configured: readonly string[]): Harness | undefined =>
-  configured.includes('claude') ? undefined : HARNESSES.find((h) => configured.includes(h));
+export const firstProjectHarness = (configured: readonly string[], current?: Harness): Harness | undefined =>
+  configured.includes(current ?? 'claude') ? current : configured.includes('claude') ? undefined : HARNESSES.find((h) => configured.includes(h));
 
 /** The model and effort of `setting` in the harness it names (Claude's aliases for Claude Code). */
 export function harnessChoice(setting: AgentSetting): { model: string; effort: AgentEffort } {

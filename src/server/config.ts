@@ -15,7 +15,7 @@ import { readShared, REPO_ADAPTER_DIR, REPO_SETTINGS_FILE } from '../adapters';
 import { renamedField, settingsShape, withoutGone as goneSettings } from '../adapters/schema';
 import { isCanvasIcon } from '../core/canvas-icons';
 import { LANGUAGES } from '../core/locale';
-import { blockingProblems, type ProjectConfig, type ProjectReposView, type RepoConfig, type ConfigChecked, type ConfigProblem, type ConfigSaved, type ConfigView, type RepoSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type SettingsShared, type SharedSettings, type DemoSettingsProblem, type DemoSettingsView, type DemoVoiceCheck, type ResolvedProject, type VoiceInstallJob, layerSettings, type ProposedSetting, type RepoTrust, type RepoValues, settingPatch, commandLines, HARNESS_NAMES, needsGit, projectAgentSetting } from '../core/types';
+import { blockingProblems, type AgentSetting, type Harness, type ProjectConfig, type ProjectReposView, type RepoConfig, type ConfigChecked, type ConfigProblem, type ConfigSaved, type ConfigView, type RepoSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type SettingsShared, type SharedSettings, type DemoSettingsProblem, type DemoSettingsView, type DemoVoiceCheck, type ResolvedProject, type VoiceInstallJob, layerSettings, type ProposedSetting, type RepoTrust, type RepoValues, settingPatch, commandLines, HARNESS_NAMES, needsGit, projectAgentSetting } from '../core/types';
 import {
   absoluteDirectory,
   DEMO_SETTINGS_FILE,
@@ -620,7 +620,7 @@ export class Config {
    * it reads of the repositories with git it reads once for each, all of them at once, without
    * blocking the server meanwhile.
    */
-  async check(input: unknown): Promise<ConfigChecked> {
+  async check(input: unknown, onboarding?: { worker: AgentSetting; harnesses: Harness[] }): Promise<ConfigChecked> {
     // a draft the dialog kept from before may hold a site's language (the dialog never sends a share command)
     const parsed = configShape.safeParse(withoutGone(input, false));
     if (!parsed.success) return { projects: [], resolved: [], problems: [{ code: 'invalid', detail: z.prettifyError(parsed.error) }] };
@@ -652,6 +652,8 @@ export class Config {
     if (!projects.length) problems.push({ code: 'noProject', detail: 'Seismic needs at least one project' });
     // a host's name stands for one machine across the configuration: its workstations are named by it
     const machines = new Map<string, string>();
+    const worker = onboarding?.worker ?? agentSetting(this.o.server.home, 'worker');
+    const harnesses = onboarding?.harnesses ?? savedHarnesses(this.o.server.home);
     const resolved = expanded.map((c, project): ResolvedProject | null => {
       c.repos.forEach((r, repo) =>
         (r.workstations ?? []).forEach((w) => {
@@ -668,7 +670,7 @@ export class Config {
         }),
       );
       // workers that need a Git workstation have none in a folder without git: the project's harness, else Configuration's
-      const harness = projectAgentSetting('worker', agentSetting(this.o.server.home, 'worker'), c.agents, savedHarnesses(this.o.server.home)).harness;
+      const harness = projectAgentSetting('worker', worker, c.agents, harnesses).harness;
       c.repos.forEach((r, repo) => {
         if (r.git === false && needsGit(harness)) problems.push({ code: 'folderHarness', project, repo, detail: folderHarnessDetail(harness) });
       });

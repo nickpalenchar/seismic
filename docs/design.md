@@ -436,12 +436,10 @@ Safety rules:
   control new agent choices and usage polling. Before the first saved list, existing agent defaults and project overrides provide
   the compatibility list because earlier onboarding did not record its selection. A disconnected default falls back to a connected
   harness and a disconnected project override follows the machine setting. Existing sessions keep their harness (2026-11-19).
-- The first-project request of the setup assistant carries the agents the owner picked and found configured. When Claude Code is
-  not among them, the first of Codex and Antigravity becomes the default harness of every role in the owner's
-  settings (unless the owner set one before), together with the project: written before its save, which a failed write
-  stops, and taken back when the save writes nothing; otherwise nothing changes. The runtime itself still falls back to Claude Code
-  where no harness is set, so a machine without it needs this default for a first task started without a choice to run
-  (decided 2026-11-15).
+- The first-project request of the setup assistant carries the complete list of harnesses the owner selected and set up.
+  A previously saved role default carries over only if its harness is selected. Remaining roles default to Claude Code if selected,
+  then Codex, then Antigravity. The repository check uses the same choices as the project will. The list and defaults are written
+  before the project is saved and restored if the save writes nothing (decided 2026-11-15, clarified 2026-11-20).
 
 - Codex and Antigravity workers and code reviews need a local Git checkout. Where a project's workers run in one of them (Configuration's
   harness, the project's own over it, or the one the first project is about to get), a folder without git is not offered:

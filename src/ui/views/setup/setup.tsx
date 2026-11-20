@@ -880,9 +880,9 @@ function FirstProject({ view, ready, agents, onView }: { view: MachineView; read
   }, [job?.running, job?.project]);
   const branch = saved?.branch ?? found?.branch;
   const noGit = !!found?.noGit;
-  // the harness the project's workers will run in: one set before stays, else the first project's from the agents configured
+  // Match the first-project check: a previous choice counts only if selected in this run.
   const worker = useWorkerSetting();
-  const harness = worker ? (worker.harness ?? firstProjectHarness(agents)) : undefined;
+  const harness = worker ? firstProjectHarness(agents, worker.harness) : undefined;
   // once Seismic runs with the project (by itself, or started again by the owner), the page opens it
   const opened = useRef(false);
   useEffect(() => {

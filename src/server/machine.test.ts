@@ -305,12 +305,24 @@ describe('the first project', () => {
     expect(agentSetting(home, 'worker').harness).toBe('codex');
   });
 
-  test('a harness the owner set before stays', async () => {
+  test('a saved default stays when the owner selects that harness during onboarding', async () => {
     const repo = gitRepo(join(dir, 'shop'));
     saveAgents(home, { worker: { harness: 'agy' } });
-    await setup().project({ path: repo, agents: ['codex'] });
+    await setup().project({ path: repo, agents: ['codex', 'agy'] });
     expect(agentSetting(home, 'worker').harness).toBe('agy');
     expect(agentSetting(home, 'review').harness).toBe('codex');
+  });
+
+  test('an unchecked saved default stays out of connections, availability and usage', async () => {
+    const ready = new HarnessCheck(async () => ['claude', 'codex', 'agy']);
+    const metered: string[][] = [];
+    const machine = new MachineSetup({ home, config: config(), agents: ready, onHarnessesChange: (selected) => metered.push(selected) });
+    saveAgents(home, { worker: { harness: 'agy', agy: { model: 'gemini-custom' } } });
+    await machine.project({ path: gitRepo(join(dir, 'shop')), agents: ['codex'] });
+    expect(savedHarnesses(home)).toEqual(['codex']);
+    expect(await machine.harnessAvailability()).toEqual({ configured: ['codex'], ready: ['codex'] });
+    expect(metered).toEqual([['codex']]);
+    expect(agentSetting(home, 'worker')).toMatchObject({ harness: 'codex', agy: { model: 'gemini-custom' } });
   });
 
   test('a first project whose save fails changes no default and leaves no welcome behind', async () => {
@@ -355,12 +367,11 @@ describe('the first project', () => {
     await expect(setup().project({ path: docs, git: false, agents: ['codex'] })).rejects.toMatchObject({ code: 'config', message: expect.stringContaining('Codex works only in a Git repository') });
     expect(agentSetting(home, 'worker').harness).toBeUndefined();
     expect(existsSync(join(home, 'projects.json'))).toBe(false);
-    // set before, the same
+    // A prior harness only affects the Git requirement when selected in this run.
     saveAgents(home, { worker: { harness: 'agy' } });
-    await expect(setup().project({ path: docs, git: false, agents: ['claude'] })).rejects.toMatchObject({ code: 'config', message: expect.stringContaining('Antigravity') });
-    // with Claude Code the folder is a project
-    saveAgents(home, { worker: { harness: 'claude' } });
+    await expect(setup().project({ path: docs, git: false, agents: ['claude', 'agy'] })).rejects.toMatchObject({ code: 'config', message: expect.stringContaining('Antigravity') });
     expect(await setup().project({ path: docs, git: false, agents: ['claude', 'codex'] })).toMatchObject({ project: 'dokumente', branch: '' });
+    expect(agentSetting(home, 'worker').harness).toBeUndefined();
   });
 
   test('a repository whose settings say clones gets clones', async () => {

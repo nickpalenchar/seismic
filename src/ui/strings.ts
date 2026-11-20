@@ -1557,8 +1557,8 @@ const en = {
       reloadModels: 'Reload models',
       codexAutoReview: 'Codex’s automatic review decides permissions',
       codexAutoReviewHint: 'On: what a Codex agent on a task wants to do outside its sandbox (network, a local server, git writes) is judged by Codex’s own reviewer, as auto mode does for Claude Code; no permission question reaches the card. Off: you are asked on the card each time.',
-      codexScope: 'Preview: Codex uses its own login. SSH, folders without Git and contribution reviews are not supported yet; a repository’s .codex configuration is loaded only once you trust it in the configuration. Its usage limits show beside Claude’s in the bar.',
-      hint: 'Choose a signed-in harness for each role, then its model and effort. Changes apply to new sessions. The default is Claude Code with Opus.',
+      codexScope: 'Preview: Codex uses its own login. SSH, folders without Git and contribution reviews are not supported yet; a repository’s .codex configuration is loaded only once you trust it in the configuration. Its usage limits show in the bar.',
+      hint: 'Choose a signed-in harness for each role, then its model and effort. Changes apply to new sessions.',
       model: 'Model',
       effort: 'Effort',
       roles: {

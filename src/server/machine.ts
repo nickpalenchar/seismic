@@ -16,13 +16,13 @@ import { dirname, join, resolve } from 'node:path';
 // by its path: the package exports no package.json, which Bun imports all the same but TypeScript does not
 import sdk from '../../node_modules/@anthropic-ai/claude-agent-sdk/package.json';
 import { DOCUMENT } from '../core/files';
-import { blocksSaving, CLONES, firstProjectHarness, HARNESSES, HARNESS_SECTION, needsGit, type Harness, type FirstProject, type MachineItem, type MachineJob, type MachineSection, type MachineSectionId, type MachineView, type SetupFolder, type SetupRepoCheck, type GitSetupPreview } from '../core/types';
+import { blocksSaving, CLONES, firstProjectHarness, HARNESSES, HARNESS_SECTION, type Harness, type FirstProject, type MachineItem, type MachineJob, type MachineSection, type MachineSectionId, type MachineView, type SetupFolder, type SetupRepoCheck, type GitSetupPreview } from '../core/types';
 import { expandHome, readDemoSettings } from '../../plugin/skills/demo/lib/settings.ts';
 import { checkSetup, type LinuxFamily, linuxFamily, output } from '../../plugin/skills/demo/lib/setup.ts';
 import { installVoice } from '../../plugin/skills/demo/lib/voices.ts';
 import { BadRequest } from './board';
 import type { ProjectRuntime } from './project';
-import { folderHarnessDetail, type Config } from './config';
+import type { Config } from './config';
 import { previewGitSetup, setUpGit, withoutGit } from './git-setup';
 import { saveClaudeToken } from './hosts';
 import { repoInfo } from './repo';
@@ -697,7 +697,8 @@ export class MachineSetup {
   /** The first project: a repository's folder, saved at once; or a clone of one, in the background. */
   async project(input: unknown): Promise<FirstProject | MachineView> {
     const { path, clone, into, git, agents } = (input ?? {}) as { path?: unknown; clone?: unknown; into?: unknown; git?: unknown; agents?: unknown };
-    const configured = Array.isArray(agents) ? HARNESSES.filter((h) => agents.includes(h)) : [];
+    if (agents !== undefined && !Array.isArray(agents)) throw new BadRequest('invalid', 'Choose supported harnesses.');
+    const configured = agents && HARNESSES.filter((h) => agents.includes(h));
     if (typeof path === 'string' && path.trim()) return this.add(resolve(expandHome(path.trim())), git === false, configured);
     if (typeof clone !== 'string' || !clone.trim()) throw new BadRequest('invalid', 'a folder or a repository to clone');
     this.idle();
@@ -723,16 +724,15 @@ export class MachineSetup {
   }
 
   /** Adds the repository as a project of its own and saves the configuration; Seismic runs it at once. `folder`: a folder that stays without git. */
-  private async add(path: string, folder = false, configured: Harness[] = []): Promise<FirstProject> {
-    // a folder without git is no place for workers that need a Git workstation, set before or set now (the configuration's check sees only those set before)
-    const harness = agentSetting(this.o.home, 'worker').harness ?? firstProjectHarness(configured);
-    if (folder && needsGit(harness)) throw new BadRequest('config', folderHarnessDetail(harness));
+  private async add(path: string, folder = false, configured?: Harness[]): Promise<FirstProject> {
+    const worker = agentSetting(this.o.home, 'worker');
+    const onboarding = configured && { worker: { ...worker, harness: firstProjectHarness(configured, worker.harness) }, harnesses: configured };
     let next = [...this.o.config.current(), { repos: [{ path, ...(folder ? { git: false as const } : {}) }] }];
-    let { problems, resolved } = await this.o.config.check(next);
+    let { problems, resolved } = await this.o.config.check(next, onboarding);
     // a repository whose settings say clones gets two, so two cards can be worked on at once
     if (!folder && resolved.at(-1)?.repos[0]?.workstations === 'clones') {
       next = [...next.slice(0, -1), { repos: [{ path, clones: CLONES }] }];
-      ({ problems, resolved } = await this.o.config.check(next));
+      ({ problems, resolved } = await this.o.config.check(next, onboarding));
     }
     const problem = problems.find(blocksSaving);
     if (problem) throw new BadRequest(problem.code === 'notRepo' ? 'notRepo' : 'config', problem.detail);
@@ -744,7 +744,7 @@ export class MachineSetup {
     let saved;
     try {
       writeFileSync(welcomeFile, project);
-      if (configured.length) {
+      if (configured) {
         saveFirstHarnesses(this.o.home, configured);
         this.o.onHarnessesChange?.(this.harnesses());
       }
