@@ -588,7 +588,7 @@ export function CardMore({ item, floating, onClose }: { item: Item; floating?: b
               <span className={cn(loptClass, 'w-full')}>
                 <X size={14} aria-hidden />
                 {t.cardClose}
-                <kbd className="ml-auto rounded-xs border border-border px-1 font-mono text-xs text-muted-foreground">Esc</kbd>
+                <kbd className="ml-auto rounded-xs border border-border px-1 font-mono text-xs text-muted-foreground">{t.escapeKey}</kbd>
               </span>
             </MenuItem>
           )}

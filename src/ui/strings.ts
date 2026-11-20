@@ -25,6 +25,8 @@ function cloneGroups(leaving: LeavingClone[]): { host?: string; numbers?: number
 
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 
+const escapeKey = 'Esc';
+
 const en = {
   extensionActions: 'More actions',
   kind: { task: 'Task', question: 'Question', plan: 'Plan', workstream: 'Workstream', idea: 'Idea', prototype: 'Prototype', becomesPlan: 'Idea → Plan', taskBecomesPlan: 'Task → Plan' },
@@ -156,7 +158,7 @@ const en = {
           { keys: [['Double-click']], text: 'New task right there' },
           { keys: [['N']], text: 'New task in the middle' },
           { keys: [['Tab']], text: 'Next card that needs you, or Seismic’s answer' },
-          { keys: [['Esc']], text: 'Close the card, plan or Seismic chat' },
+          { keys: [[escapeKey]], text: 'Close the card, plan or Seismic chat' },
         ],
       },
       {
@@ -195,7 +197,8 @@ const en = {
     move: 'Dragging a marked card moves them all. A click on empty space or Esc lets go.',
     howTo: 'To move several cards at once: Shift-click them, or hold Shift and drag around them.',
   },
-  close: 'Close (Esc)',
+  escapeKey,
+  close: `Close (${escapeKey})`,
   cardActions: 'Card actions',
   cardClose: 'Close',
   sheetGrip: 'Drag to resize · Double-click: back to the default width',
