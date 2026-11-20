@@ -30,7 +30,7 @@ import { ArchiveView } from './archive';
 import { CardSearch } from './cardSearch';
 import { useBarFit } from './barFit';
 import { UsagePill } from './usage';
-import { ConfigDialog, Problem, showAddSite, showProjectsSection, showDevicesSection, showNewProject } from './config';
+import { ConfigDialog, Problem, showAddSite, showDevicesSection } from './config';
 import { PrefsDialog } from './prefs';
 import { PhoneDialog } from './access';
 import { OpenPerformance, PerformanceDialog } from './performance';
@@ -74,6 +74,7 @@ import { InboxView, inboxListWidth } from './inbox';
 import { NeedsYouSheet } from './needsYou';
 import { useInboxRead } from './inboxRead';
 import { ProjectSettingsSheet } from './projectSettings/sheet';
+import { NewProjectDialog } from './projectSettings/project';
 import { sectionOfSetting, type SettingsFocus, showSettingsAt } from './projectSettings/focus';
 import { type InboxEntry, inboxEntries, needsYouCount, readMark } from '../core/inbox';
 import { beingWritten, split, talkAlone } from './talk';
@@ -619,6 +620,8 @@ function Project({
   const searchField = useRef<HTMLInputElement>(null);
   // the app-wide preferences, a dialog over the page as the configuration is, opened from the logo's menu
   const [prefsOn, setPrefsOn] = useState(false);
+  // "+ New project" in the menu: its name and repositories in a pop-up
+  const [newProjectOn, setNewProjectOn] = useState(false);
   const openPrefs = () => {
     setCOn(false);
     setPrefsOn(true);
@@ -2239,7 +2242,7 @@ function Project({
     pinned,
     pinnable: !matchMedia(NARROW).matches && innerWidth - navWidth - side.right >= NAV_PROJECT_MIN,
     onPin: pin,
-    onNew: () => (showNewProject(), setPrefsOn(false), setCOn(true)),
+    onNew: () => (setPrefsOn(false), setCOn(false), setNewProjectOn(true)),
   };
   /** A one-click reply in the inbox: the entry leaves at once, a held one waits out "Undo", a refused one comes back with the reason. */
   const replyTo = (c: string, i: Item, r: QuickReply) =>
@@ -2698,10 +2701,7 @@ function Project({
                   const i = byId(id);
                   if (i) open(i).catch(console.error);
                 }}
-                onChange={() => {
-                  showProjectsSection();
-                  setCOn(true);
-                }}
+                onChange={() => openSettingsAt({ project: snapshot.project.id, repo: d.repo ?? snapshot.project.repos[0]?.id, section: 'git', field: 'planDocs' })}
                 onHide={() => hideNote(d)}
               />
             ))}
@@ -2942,15 +2942,11 @@ function Project({
         <ConfigDialog
           on={cOn}
           usage={online ? usage : []}
-          page={snapshot.project.id}
           onClose={() => setCOn(false)}
           onTalk={talkFromConfig}
-          onProblems={setConfigProblems}
-          revs={configRevs}
           onConnect={() => (setCOn(false), setPhoneOn(true))}
-          onProjectSettings={(project) => openSettingsAt({ project })}
-          onAsk={(text, project) => void told.tell(t.voice.reading(t.voice.koordinator), undefined, () => (project ? api.commandOn(project, text) : api.command(text, null, { place: placeNow() })))}
         />
+        <NewProjectDialog open={newProjectOn} onClose={() => setNewProjectOn(false)} />
         <PrefsDialog
           preferences={snapshot.preferences} repos={snapshot.project.repos}
           on={prefsOn}

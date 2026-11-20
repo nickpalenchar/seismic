@@ -4,8 +4,8 @@
 
 import type { SettingKey } from '../config';
 
-/** A sheet's sections, in the order its list shows them; Allowed commands stands apart above the others. */
-export const SECTIONS = ['commands', 'agents', 'suggestions', 'environment', 'reviews', 'git', 'archiving', 'demos'] as const;
+/** A sheet's sections, in the order its list shows them; Configuration and Allowed commands stand apart above the others. */
+export const SECTIONS = ['project', 'commands', 'agents', 'suggestions', 'environment', 'reviews', 'git', 'archiving', 'demos'] as const;
 export type Section = (typeof SECTIONS)[number];
 
 export interface SettingsFocus {

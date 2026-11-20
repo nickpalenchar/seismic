@@ -1512,9 +1512,6 @@ const en = {
     fromArgs: (file: string) =>
       `Seismic is running with the repositories from the command line. Saving creates ${file}; Seismic then starts from it, also in future when it is started without repositories.`,
     koordinator: 'You can also ask Seismic about the configuration or tell it what should change.',
-    inSheet: 'Its settings (agents, suggestions, environment, code reviews, git, archiving, demos) are in Project settings, under the sliders in the bar.',
-    openSheet: 'Open project settings',
-    inSheetLater: 'Once it is saved and runs, they open there.',
     askSeismic: 'Ask Seismic',
     sections: { projects: 'Projects', defaults: 'Project defaults', agents: 'Agents and models', harnesses: 'Harnesses', voice: 'Voice input', demos: 'Demos', notices: 'Notifications and limits', devices: 'Other devices', advanced: 'Advanced', developer: 'Developer' },
     harnesses: {
@@ -2510,6 +2507,7 @@ const en = {
     site: 'Demo site',
     back: 'Back',
     sections: {
+      project: 'Configuration',
       commands: 'Allowed commands',
       agents: 'Agents and models',
       suggestions: 'Auto suggestions',
@@ -2520,6 +2518,12 @@ const en = {
       demos: 'Demos',
     },
     commandsHint: 'Commands from the repo config that Seismic may run.',
+    entryHint: 'The project’s name and its repositories. A change applies once it is saved; a repository added, removed or moved restarts its agents.',
+    order: 'Order',
+    newProject: 'New project',
+    newProjectHint: 'Its name and its repositories. Once it is created, its settings are in Project settings.',
+    create: 'Create project',
+    cancel: 'Cancel',
     toTrust: (n: number) => `${n} ${n === 1 ? 'repository has' : 'repositories have'} commands to trust`,
     allTrusted: 'Nothing new to trust: its commands count as they are on the main branch.',
     plans: 'Plans',

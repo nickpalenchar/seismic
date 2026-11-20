@@ -10,7 +10,7 @@ import { forwardRef, Fragment, lazy, type ReactNode, Suspense, useContext, useEf
 import { OpenPerformance } from './performance';
 import { allowsDemo, HANDOVER_ARTIFACTS } from '../../plugin/skills/demo/lib/artifacts.ts';
 import { DEFAULT_STYLE, QWEN3_SPEAKER, QWEN3_SPEAKERS, qwen3IsClone, qwen3Speaker, STYLED_VOICES } from '../../plugin/skills/demo/lib/voice-choices.ts';
-import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_ROLES, agyBaseChoice, modelEffort, modelEfforts, harnessChoice, needsGit, projectAgentSetting, CARD_ARCHIVING, type CardArchiving, RIGHT_CLICK, type RightClick, CODE_REVIEW_MODES, type CodeReviewSetting, type AgentEffort, type AgentModel, type AgentRole, type AgentSetting, type ModelInfo, type Harness, type AgentsView, blockingProblems, type ProjectConfig, type ProjectDefaults, type ProjectDefaultsView, type ProjectSettings, type ConfigChecked, type DeveloperView, type ConfigProblem, type ConfigProblemCode, type ConfigView, commandLines, type DemoSettings, type HandoverArtifact, type DemoSettingsView, type DemoSpaceView, type DemoVoiceCheck, type FilledClones, type ProjectDemoSite, type ProjectDemoSiteState, type DemoSitesView, type TagProposalJob, type Language, type HostConfig, type LanguageView, type NarrationLanguage, restartsAgents, type RepoConfig, type RepoSettings, type RepoTrust, type RepoValues, type ResolvedProject, type SettingsShared, type SettingValue, layerSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type PageTags, type SetupCheck, START_FAILED, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type FeedbackPromptView, type NotificationsView, type VoiceKind, type VoiceSetupView, withClones } from '../core/types';
+import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_ROLES, agyBaseChoice, modelEffort, modelEfforts, harnessChoice, needsGit, projectAgentSetting, CARD_ARCHIVING, type CardArchiving, RIGHT_CLICK, type RightClick, CODE_REVIEW_MODES, type CodeReviewSetting, type AgentEffort, type AgentModel, type AgentRole, type AgentSetting, type ModelInfo, type Harness, type AgentsView, type ProjectConfig, type ProjectDefaults, type ProjectDefaultsView, type ProjectSettings, type ConfigChecked, type DeveloperView, type ConfigProblem, type ConfigProblemCode, type ConfigView, commandLines, type DemoSettings, type HandoverArtifact, type DemoSettingsView, type DemoSpaceView, type DemoVoiceCheck, type ProjectDemoSite, type ProjectDemoSiteState, type DemoSitesView, type TagProposalJob, type Language, type HostConfig, type LanguageView, type NarrationLanguage, type RepoConfig, type RepoSettings, type RepoTrust, type RepoValues, type ResolvedProject, type SettingsShared, type SettingValue, layerSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type PageTags, type SetupCheck, START_FAILED, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type FeedbackPromptView, type NotificationsView, type VoiceKind, type VoiceSetupView } from '../core/types';
 import { catalogDefault, DefaultEffort, HarnessOptions, ModelOptions, useConnectedHarnesses } from './agent-options';
 import { patchOf } from '../core/diff';
 import { parseTagLines, tagLines } from '../core/page-tags';
@@ -50,7 +50,6 @@ import { Tooltip } from './components/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from './components/popover';
 import { ProjectIcon } from './canvasIcon';
 import { IconPicker, type IconPickerView } from './iconPicker';
-import { qmovesClass } from './queue';
 import { Input, Textarea } from './components/input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './components/collapsible';
 import { Select, SelectGroup, SelectItem, SelectLabel } from './components/select';
@@ -70,43 +69,17 @@ declare global {
   }
 }
 
-type Checked = Pick<ConfigChecked, 'resolved' | 'problems'>;
-
 /** Hands the Koordinator a request; to the one of `project` where given, else to this page's. */
 type Ask = (text: string, project?: string) => void;
 
 /** The dialog's sections, in the order its list shows them. */
-type Section = 'projects' | 'defaults' | 'agents' | 'harnesses' | 'voice' | 'demos' | 'notices' | 'devices' | 'advanced' | 'developer';
-/** The value of a project's tab in the navigation, followed by its number. */
+type Section = 'defaults' | 'agents' | 'harnesses' | 'voice' | 'demos' | 'notices' | 'devices' | 'advanced' | 'developer';
 /** A field of prose in a setting (a voice's style, its sample text): the page's font, not a path's. */
 const proseFieldClass = (hook: string) => `${hook} block w-full max-w-[420px] resize-y text-sm leading-[1.45] py-1.5 px-2`;
 
-const PROJECT_TAB = 'project:';
-const SECTIONS: Section[] = ['projects', 'defaults', 'agents', 'harnesses', 'voice', 'demos', 'notices', 'devices', 'advanced', 'developer'];
+const SECTIONS: Section[] = ['defaults', 'agents', 'harnesses', 'voice', 'demos', 'notices', 'devices', 'advanced', 'developer'];
 // the section shown, per tab: a save that restarts Seismic reloads the page, and the dialog comes back at it
 const SECTION_KEY = 'seismic-config-section';
-
-// the project shown in Projects, per tab, by its place in the list
-const PROJECT_KEY = 'seismic-config-project';
-
-/** Opens the dialog at the projects next time, at the one the page shows, as from the note on a plan directory. */
-export const showProjectsSection = () => {
-  sessionStorage.setItem(SECTION_KEY, 'projects');
-  sessionStorage.removeItem(PROJECT_KEY);
-};
-
-const ADD_PROJECT_KEY = 'seismic-config-add-project';
-/** Opens the dialog next time with a new project added to its list, as from "+ New project" in the navigation. */
-export const showNewProject = () => {
-  showProjectsSection();
-  sessionStorage.setItem(ADD_PROJECT_KEY, '1');
-};
-
-/** The project this tab showed last in the dialog, if any. */
-const keptProject = () => {
-  const n = Number(sessionStorage.getItem(PROJECT_KEY) ?? NaN);
-  return Number.isInteger(n) && n >= 0 ? n : null;
-};
 
 /** Opens the dialog at the demos next time, scrolled to this machine's demo sites. */
 export const showDemosSection = () => {
@@ -134,58 +107,15 @@ const keptSection = () => {
   return s && SECTIONS.includes(s) ? s : null;
 };
 
-/** The projects' draft as written down, with the id each project had when loaded. */
-type KeptProjects = { draft: ProjectConfig[]; origin: (string | null)[] };
-const ofKept = (k: KeptProjects) => k.draft;
-
 /**
- * The draft with the ids of its projects once the check of the configuration as `loaded` resolved
- * them: a project without one yet gets the id of the loaded project with its repositories, and a
- * running one the owner renamed meanwhile keeps it, as a rename does once the id is known; one they
- * added has none.
+ * Seismic's configuration: what holds for every project and this machine. A project's own entry (its
+ * name, repositories) and settings are in its settings sheet; "+ New project" adds one.
  */
-function pinned(kept: KeptProjects, loaded: ProjectConfig[], resolved: Checked['resolved'], running: string[]): KeptProjects {
-  const taken = new Set<number>();
-  const out = kept.draft.map((c, i) => {
-    if (kept.origin[i]) return { c, id: kept.origin[i]! };
-    const j = loaded.findIndex((l, k) => !taken.has(k) && JSON.stringify(l.repos) === JSON.stringify(c.repos));
-    if (j < 0) return { c, id: null };
-    taken.add(j);
-    const id = resolved[j]?.id ?? null;
-    return { c: id && running.includes(id) && !c.id && c.name !== loaded[j]!.name ? { ...c, id } : c, id };
-  });
-  return { draft: out.map((x) => x.c), origin: out.map((x) => x.id) };
-}
-
-/** `list` with its entry at `from` moved to `to`. */
-const moved = <T,>(list: T[], from: number, to: number): T[] => {
-  const out = [...list];
-  out.splice(to, 0, ...out.splice(from, 1));
-  return out;
-};
-
-/** The check of `n` projects with the one at `from` moved to `to`, as the draft's: its ids and problems stay with it until the draft is checked again. */
-function checkedMoved(c: Checked, n: number, from: number, to: number): Checked {
-  const order = moved([...Array(n).keys()], from, to);
-  return {
-    resolved: order.map((i) => c.resolved[i] ?? null),
-    problems: c.problems.map((p) => (p.project === undefined ? p : { ...p, project: order.indexOf(p.project) })),
-  };
-}
-
-export function ConfigDialog({ on, page, usage, onClose, onAsk, onTalk, onProblems, onConnect, onProjectSettings, revs }: { on: boolean; /** The project the page shows: the one Projects shows first. */ page?: string; usage: Usage[]; onClose: () => void; onAsk: Ask; onTalk: () => void; onProblems: (n: number) => void; onConnect: () => void; /** Closes the dialog and opens the settings sheet of the running project with this id. */ onProjectSettings: (project: string) => void; revs: string }) {
+export function ConfigDialog({ on, usage, onClose, onTalk, onConnect }: { on: boolean; usage: Usage[]; onClose: () => void; onTalk: () => void; onConnect: () => void }) {
   const [setupOn, setSetupOn] = useState(false);
-  const [view, setView] = useState<ConfigView | null>(null);
-  const [draft, setDraft] = useState<ProjectConfig[]>([]);
-  const [checked, setChecked] = useState<Checked | null>(null);
-  // the check of the configuration as saved: it reads every repository, so it comes after the configuration
-  const [saved, setSaved] = useState<Checked | null>(null);
-  const [status, setStatus] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [json, setJson] = useState(false);
-  // Project defaults: a project added here starts with them, as one made elsewhere does on the server
+  // Project defaults: a project added from "+ New project" starts with them, as one made elsewhere does on the server
   const [defaults, setDefaults] = useState<ProjectDefaultsView | null>(null);
-  const [section, setSectionState] = useState<Section>(() => keptSection() ?? 'projects');
+  const [section, setSectionState] = useState<Section>(() => keptSection() ?? 'defaults');
   // the page that adds a demo site, over the Demos section; kept across a reload
   const [addingSite, setAddingSiteState] = useState(() => !!sessionStorage.getItem(ADD_SITE_KEY));
   const setAddingSite = (on: boolean) => {
@@ -208,191 +138,20 @@ export function ConfigDialog({ on, page, usage, onClose, onAsk, onTalk, onProble
     window.addEventListener(ADD_SITE_EVENT, open);
     return () => window.removeEventListener(ADD_SITE_EVENT, open);
   }, []);
-  // the id each project of the draft had when loaded: renaming a running project keeps it, and its cards
-  const [origin, setOrigin] = useState<(string | null)[]>([]);
-  // a repository added here whose settings say clones gets as many as the first project's, once it is checked, until existing ones are listed
-  const filled = useRef<FilledClones>(new Map());
-  // the projects as loaded while their ids are unknown yet: those come with the check of the saved configuration
-  const unpinned = useRef<ProjectConfig[] | null>(null);
-  // counts the drafts loaded anew (reset, read again): a project of the one before is not one of this one
-  const [loads, setLoads] = useState(0);
-  const load = (v: ConfigView, c: Checked | null) => {
-    setLoads((n) => n + 1);
-    filled.current.clear();
-    setDraft(v.projects);
-    setOrigin(c ? c.resolved.map((r) => r?.id ?? null) : v.projects.map(() => null));
-    unpinned.current = c ? null : v.projects;
-  };
-  const now = useRef({ draft, origin, running: view?.running ?? [] });
-  now.current = { draft, origin, running: view?.running ?? [] };
-  const savedSeq = useRef(0);
-  const checkSaved = () => {
-    const n = ++savedSeq.current;
-    api.configCheck().then((c) => {
-      if (n !== savedSeq.current) return;
-      setSaved(c);
-      onProblems(c.problems.length);
-      const loaded = unpinned.current;
-      unpinned.current = null;
-      if (!loaded) return;
-      const p = pinned(now.current, loaded, c.resolved, now.current.running);
-      if (p.draft.some((x, i) => x !== now.current.draft[i])) setDraft(p.draft);
-      setOrigin(p.origin);
-    }, console.error);
-  };
-
-  // the project Projects shows, by its place in the draft; until one is chosen, the page's, once its id is known
-  const [pick, setPickState] = useState<number | null>(keptProject);
-  const setPick = (i: number | null) => {
-    if (i === null) sessionStorage.removeItem(PROJECT_KEY);
-    else sessionStorage.setItem(PROJECT_KEY, String(i));
-    setPickState(i);
-  };
-  const idAt = (i: number) => origin[i] ?? checked?.resolved[i]?.id ?? null;
-  const wanted = useRef<string | null>(null);
-  useEffect(() => {
-    const id = wanted.current;
-    if (!id) return;
-    const i = draft.findIndex((_, j) => idAt(j) === id);
-    if (i < 0) return;
-    wanted.current = null;
-    setPick(i);
-  }, [origin, checked, view]);
-  const shown = Math.min(pick ?? 0, Math.max(0, draft.length - 1));
-
-  // a key per project that goes with it when it moves or one above it goes, and what is open in it with it
-  const keys = useRef<number[]>([]);
-  const nextKey = useRef(0);
-  const keyed = useRef(loads);
-  if (keyed.current !== loads || keys.current.length !== draft.length) {
-    keyed.current = loads;
-    keys.current = draft.map(() => nextKey.current++);
-  }
-
-  const changed = !!view && JSON.stringify(draft) !== JSON.stringify(view.projects);
-  const changedRef = useRef(changed);
-  changedRef.current = changed;
-  // a draft not saved yet is written down as it changes: a reload (Seismic's restart) brings it back
-  useEffect(() => {
-    if (view) keepConfigDraft<KeptProjects>(sessionStorage, 'projects', { draft, origin }, view.projects, ofKept);
-  }, [draft, origin, view]);
-  // read afresh whenever the dialog opens: the Koordinator or the file may have changed it; a draft not saved yet stays, after a reload too
+  // read afresh whenever the dialog opens
   useEffect(() => {
     if (!on) return;
     const s = keptSection();
     if (s) setSectionState(s);
     setAddingSiteState(!!sessionStorage.getItem(ADD_SITE_KEY));
-    // the one this tab showed last, else the page's
-    const kept = keptProject();
-    wanted.current = kept === null ? (page ?? null) : null;
-    setPickState(kept);
-    setSaved(null);
     getSetting('projectDefaults').then(setDefaults, console.error);
-    getConfiguration().then((v) => {
-      setView(v);
-      const kept = !changedRef.current && keptConfigDraft<KeptProjects>(sessionStorage, 'projects', v.projects, ofKept);
-      if (kept) {
-        setLoads((n) => n + 1);
-        setDraft(kept.draft);
-        setOrigin(kept.origin);
-        unpinned.current = v.projects;
-      } else if (!changedRef.current) load(v, null);
-      if (sessionStorage.getItem(ADD_PROJECT_KEY)) {
-        sessionStorage.removeItem(ADD_PROJECT_KEY);
-        setAddAsked((n) => n + 1);
-      }
-      setStatus(v.restarting ? t.config.saved : '');
-      checkSaved();
-    }, console.error);
   }, [on]);
 
-  // what the problems are read from changed while the dialog is open (a repository did not start, say): the saved configuration is checked again
-  const revsSeen = useRef(revs);
-  useEffect(() => {
-    if (revsSeen.current === revs) return;
-    revsSeen.current = revs;
-    if (on && view) checkSaved();
-  }, [revs]);
-
-  const take = (c: Checked, checkedDraft: ProjectConfig[]) => {
-    setChecked(c);
-    const next = view && withClones(checkedDraft, view.projects, c.resolved, filled.current);
-    if (next) setDraft(next);
-  };
-
-  // the draft is checked as it is edited: paths, settings, ids; as saved, it has the check of the saved configuration
-  const seq = useRef(0);
-  useEffect(() => {
-    if (!changed) setChecked(saved);
-  }, [changed, saved]);
-  useEffect(() => {
-    if (!view || !changed) return void ++seq.current;
-    const n = ++seq.current;
-    const h = setTimeout(() => api.checkConfig(draft).then((c) => n === seq.current && take(c, draft), console.error), 300);
-    return () => clearTimeout(h);
-  }, [draft, view]);
-
-  const problems = checked?.problems ?? [];
   const c = t.config;
-  // a path that became a repository here (git set up in its folder): its problem goes
-  const recheck = () => {
-    const n = ++seq.current;
-    return api.checkConfig(draft).then((v) => void (n === seq.current && take(v, draft)), console.error);
-  };
-  // A harness change can also change the validity of a folder already in the draft or saved config.
-  useEffect(() => {
-    if (!on || !view) return;
-    return onAgentSettingsChange(() => {
-      checkSaved();
-      if (changed) void recheck();
-    });
-  }, [on, view, changed, draft]);
-  // problems of no one project (none at all, the file broken): counted at the heading over them
-  const overall = problems.filter((p) => p.project === undefined);
-  // a project differs from the saved one with its id, or from the one at its place while ids are unknown; one added always
-  const projectChanged = (i: number) => {
-    if (!view || !changed) return false;
-    const id = origin[i];
-    const j = id && saved ? saved.resolved.findIndex((r) => r?.id === id) : i;
-    return j !== i || JSON.stringify(draft[i]) !== JSON.stringify(view.projects[j]);
-  };
-  const projectName = (x: ProjectConfig, i: number) => x.name?.trim() || checked?.resolved[i]?.name || c.project(i + 1);
-  const showProject = (i: number) => {
-    wanted.current = null;
-    setSection('projects');
-    setPick(i);
-  };
-  const [addAsked, setAddAsked] = useState(0);
-  // asked for from the navigation: the new project is added once the list has loaded
-  useEffect(() => {
-    if (addAsked) addProject();
-  }, [addAsked]);
-  const addProject = () => {
-    keys.current = [...keys.current, nextKey.current++];
-    setDraft([...draft, { ...structuredClone(defaults?.defaults ?? {}), repos: [{ path: '' }] }]);
-    setOrigin([...origin, null]);
-    showProject(draft.length);
-  };
-  const setProject = (i: number, x: ProjectConfig | null) => {
-    if (x) return setDraft(draft.map((y, j) => (j === i ? x : y)));
-    keys.current = keys.current.filter((_, j) => j !== i);
-    setDraft(draft.filter((_, j) => j !== i));
-    setOrigin(origin.filter((_, j) => j !== i));
-    // the next one takes its place; after the last, the one before it
-    setPick(Math.max(0, Math.min(i, draft.length - 2)));
-  };
-  const moveProject = (from: number, to: number) => {
-    keys.current = moved(keys.current, from, to);
-    setDraft(moved(draft, from, to));
-    setOrigin(moved(origin, from, to));
-    if (checked) setChecked(checkedMoved(checked, draft.length, from, to));
-    if (shown === from) setPick(to);
-  };
-  const tabOf = section === 'projects' ? PROJECT_TAB + shown : section;
   return (
     // a press on the dim around the dialog closes it; a press that starts inside does not
     <Dialog open={on} onOpenChange={(open) => !open && onClose()}>
-      <Tabs asChild orientation="vertical" value={tabOf} onValueChange={(v) => (v.startsWith(PROJECT_TAB) ? showProject(Number(v.slice(PROJECT_TAB.length))) : setSection(v as Section))}>
+      <Tabs asChild orientation="vertical" value={section} onValueChange={(v) => setSection(v as Section)}>
       <DialogContent id="config" glass keepMounted className={K.cfgBoxClass} layerClassName={K.cfgLayerClass}>
         <nav className={K.cfgNavClass}>
           <div className={K.cfgKindClass}>{c.kind}</div>
@@ -407,54 +166,13 @@ export function ConfigDialog({ on, page, usage, onClose, onAsk, onTalk, onProble
           </div>
           <TabsList asChild aria-label={c.title}>
           <ul className={K.cfgNavListClass}>
-            {SECTIONS.map((s) =>
-              s === 'projects' ? (
-                <li key={s} className={K.cfgNavGroupClass} role="presentation">
-                  {/* a heading over the projects, each of them a section of its own */}
-                  <span className={K.cfgNavTitleClass}>
-                    {c.sections.projects}
-                    {changed && !draft.some((_, i) => projectChanged(i)) && <span className={K.cfgDotClass} title={c.unsaved} />}
-                    {overall.length > 0 && (
-                      <Badge variant="destructive" className="ml-auto" title={c.problemCount(overall.length)}>
-                        {overall.length}
-                      </Badge>
-                    )}
-                  </span>
-                  <ul role="presentation" className={K.cfgNavGroupListClass}>
-                    {draft.map((x, i) => {
-                      const on = section === 'projects' && i === shown;
-                      const n = problems.filter((p) => p.project === i).length;
-                      return (
-                        <li key={keys.current[i]} role="presentation">
-                          <TabsTrigger value={PROJECT_TAB + i} aria-controls="cfg-sec-projects" className={K.cfgNavEntryClass(true)} onClick={() => on && showProject(i)}>
-                            <span className={K.cfgNavNameClass}>{projectName(x, i)}</span>
-                            {projectChanged(i) && <span className={K.cfgDotClass} title={c.unsaved} />}
-                            {n > 0 && (
-                              <Badge variant="destructive" className="ml-auto" title={c.problemCount(n)}>
-                                {n}
-                              </Badge>
-                            )}
-                          </TabsTrigger>
-                        </li>
-                      );
-                    })}
-                    {view && (
-                      <li role="presentation">
-                        <button className={K.cfgNavAddClass} onClick={addProject}>
-                          {c.addProject}
-                        </button>
-                      </li>
-                    )}
-                  </ul>
-                </li>
-              ) : (
+            {SECTIONS.map((s) => (
                 <li key={s} role="presentation">
                   <TabsTrigger value={s} aria-controls={`cfg-sec-${s}`} className={K.cfgNavEntryClass()} onClick={() => s === section && setSection(s)}>
                     {c.sections[s]}
                   </TabsTrigger>
                 </li>
-              ),
-            )}
+            ))}
           </ul>
           </TabsList>
           <div className={K.cfgNavFootClass}>
@@ -464,59 +182,6 @@ export function ConfigDialog({ on, page, usage, onClose, onAsk, onTalk, onProble
         {/* on the box, not in the scrolling column, so it stays in view however far that scrolls */}
         <CloseButton label={t.close} className={K.cfgCloseClass} onClick={onClose} />
         <div className={K.cfgMainClass}>
-          <section id="cfg-sec-projects" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'projects'}>
-            {!view ? (
-              <>
-                <Head title={c.sections.projects} />
-                <p className="hint">{c.loading}</p>
-              </>
-            ) : (
-              <Projects
-                view={view}
-                draft={draft}
-                origin={origin}
-                projectChanged={projectChanged}
-                n={shown}
-                projectKey={keys.current[shown]}
-                checked={checked}
-                changed={changed}
-                busy={busy}
-                onAsk={onAsk}
-                onProjectSettings={onProjectSettings}
-                onRecheck={recheck}
-                onProject={setProject}
-                onMove={moveProject}
-                onShow={setPick}
-                onSave={async () => {
-                  setBusy(true);
-                  let applies = false;
-                  try {
-                    const {
-                      saved: { restarting, applied },
-                      configuration,
-                    } = await saveConfiguration(draft);
-                    // what is saved now is the draft as last checked; settings applied at once change what the
-                    // repositories amount to (where "For everyone" goes, say): the answer has them, and they are checked again
-                    const fresh = applied ? configuration : null;
-                    savedSeq.current++;
-                    setSaved(checked);
-                    setView({ ...(fresh ?? view), projects: draft, restarting });
-                    checkSaved();
-                    setStatus(restarting ? c.saved : applied ? (restartsAgents(view.projects, draft) ? c.savedRestarts : c.savedApplied) : c.savedOnly);
-                    applies = !restarting;
-                  } catch (e) {
-                    setStatus(failText(e));
-                  }
-                  setBusy(false);
-                  return applies;
-                }}
-                onReset={() => load(view, saved)}
-                status={status}
-                json={json}
-                onJson={() => setJson(!json)}
-              />
-            )}
-          </section>
           <section id="cfg-sec-defaults" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'defaults'}>
             <ProjectDefaultsBlock view={defaults} onSaved={setDefaults} />
           </section>
@@ -552,7 +217,7 @@ export function ConfigDialog({ on, page, usage, onClose, onAsk, onTalk, onProble
               <p className="hint">{c.reconfigureSetup.hint}</p>
               <Button size="small" onClick={() => setSetupOn(true)}>{c.reconfigureSetup.relaunch}</Button>
             </section>
-            <ProjectExport projects={draft} ids={origin} />
+            <ProjectExport />
           </section>
           <section id="cfg-sec-developer" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'developer'}>
             <DeveloperBlock on={on && section === 'developer'} />
@@ -565,10 +230,11 @@ export function ConfigDialog({ on, page, usage, onClose, onAsk, onTalk, onProble
   );
 }
 
-function ProjectExport({ projects, ids: savedIds }: { projects: ProjectConfig[]; ids: (string | null)[] }) {
+function ProjectExport() {
   const [selected, setSelected] = useState<string[] | null>(null);
   const [error, setError] = useState('');
-  const names = projects.flatMap((project, i) => savedIds[i] ? [{ id: savedIds[i]!, name: project.name || savedIds[i]! }] : []);
+  const [names, setNames] = useState<{ id: string; name: string }[]>([]);
+  useEffect(() => void api.projects().then((ps) => setNames(ps.map((p) => ({ id: p.id, name: p.name || p.id }))), console.error), []);
   const ids = selected === null ? names.map((project) => project.id) : selected.filter((id) => names.some((project) => project.id === id));
   const exportAs = async (as: 'csv' | 'json') => {
     setError('');
@@ -670,103 +336,6 @@ export function Info({ text }: { text: string }) {
         <InfoIcon size={14} strokeWidth={1.75} aria-hidden="true" />
       </button>
     </Tooltip>
-  );
-}
-
-interface ProjectsProps {
-  view: ConfigView;
-  draft: ProjectConfig[];
-  origin: (string | null)[];
-  /** Whether a project differs from the saved one, by its place in the draft. */
-  projectChanged: (i: number) => boolean;
-  /** The project shown, by its place in the draft. */
-  n: number;
-  /** Shows another project, by its place in the draft. */
-  onShow: (n: number) => void;
-  /** Its key, which goes with it when it moves: what is open in it stays with it. */
-  projectKey: number | undefined;
-  checked: Checked | null;
-  changed: boolean;
-  busy: boolean;
-  onAsk: Ask;
-  onProjectSettings: (project: string) => void;
-  onRecheck: () => Promise<void>;
-  /** Changes the project at `i`, or removes it (`null`). */
-  onProject: (i: number, c: ProjectConfig | null) => void;
-  /** Moves the project at `from` to `to`: the order every list of projects shows (the switcher, the phone). */
-  onMove: (from: number, to: number) => void;
-  /** Saves the draft; says whether it was saved and applies without a restart. */
-  onSave: () => Promise<boolean>;
-  onReset: () => void;
-  status: string;
-  json: boolean;
-  onJson: () => void;
-}
-
-/** One project of the configuration with its repositories; all projects are saved together, with the bar at the bottom. */
-function Projects({ view, draft, origin, projectChanged, n, projectKey, checked, changed, busy, onAsk, onProjectSettings, onRecheck, onProject, onMove, onShow, onSave, onReset, status, json, onJson }: ProjectsProps) {
-  const c = t.config;
-  const problems = checked?.problems ?? [];
-  // only the problems of changed projects (and of none in particular) keep a save from going through
-  const blocking = blockingProblems(problems, projectChanged);
-  // a project with a problem has no id yet: which running project goes is only known once all resolve
-  const resolved = checked?.resolved ?? [];
-  const gone = resolved.every(Boolean) ? view.running.filter((id) => !resolved.some((r) => r?.id === id)) : [];
-  const file =
-    view.source === 'file' ? (
-      <>
-        {c.fromFile} <code>{view.file}</code>
-      </>
-    ) : (
-      c.fromArgs(view.file)
-    );
-  const x = draft[n];
-  return (
-    <>
-      {x ? (
-        <ProjectBlock
-          key={projectKey}
-          n={n}
-          {...(draft.length > 1 ? { onMove: (earlier: boolean) => onMove(n, earlier ? n - 1 : n + 1), last: n === draft.length - 1 } : {})}
-          project={x}
-          file={file}
-          checking={!checked}
-          resolved={checked?.resolved[n] ?? null}
-          running={view.running}
-          pin={origin[n] && view.running.includes(origin[n]) ? origin[n] : undefined}
-          problems={problems.filter((p) => p.project === n && !SHEET_PROBLEMS.includes(p.code))}
-          ask={changed ? undefined : onAsk}
-          onProjectSettings={onProjectSettings}
-          onRecheck={onRecheck}
-          onChange={(y) => onProject(n, y)}
-          onShow={onShow}
-        />
-      ) : (
-        <Head title={c.sections.projects} hint={file} />
-      )}
-      {problems
-        .filter((p) => p.project === undefined)
-        .map((p, k) => (
-          <Problem key={k} problem={p} where="" ask={changed ? undefined : onAsk} />
-        ))}
-      {changed && gone.length > 0 && <p className="hint warn">{c.gone(gone.join(', '))}</p>}
-      {json && <pre className={jsonClass}>{JSON.stringify(draft, null, 2)}</pre>}
-      <div className={K.cfgActionsClass}>
-        <Button variant="primary" disabled={!changed || busy || blocking.length > 0} onClick={() => void onSave()}>
-          {/* a configuration from the file applies while Seismic runs; one from the command line becomes the file with a restart */}
-          {view.server.restarts && (view.source === 'args' || view.restarting) ? c.save : c.saveOnly}
-        </Button>
-        {changed && (
-          <Button disabled={busy} onClick={onReset}>
-            {c.reset}
-          </Button>
-        )}
-        {status ? <span className={`hint ${statusClass}`}>{status}</span> : changed && draft.length > 1 && <span className={`hint ${statusClass}`}>{c.savesAll}</span>}
-        <Button size="small" variant={json ? 'primary' : 'default'} className="cfg-json m-0 ml-auto" aria-pressed={json} onClick={onJson}>
-          {c.json}
-        </Button>
-      </div>
-    </>
   );
 }
 
@@ -2405,8 +1974,6 @@ interface ProjectProps {
   /** Shows another project, by its place in the draft (the one a problem points to). */
   onShow: (n: number) => void;
   project: ProjectConfig;
-  /** Where the projects are saved, under its title. */
-  file: ReactNode;
   /** The repositories are being checked: their ids and settings are still to come. */
   checking: boolean;
   resolved: ConfigChecked['resolved'][number];
@@ -2416,13 +1983,8 @@ interface ProjectProps {
   problems: ConfigProblem[];
   /** Has the Koordinator create a task that fixes a problem; only for the configuration as saved, which is what it reads. */
   ask?: Ask;
-  onProjectSettings: (project: string) => void;
   onRecheck: () => Promise<void>;
-  onChange: (c: ProjectConfig | null) => void;
-  /** Moves it one place up or down; none while it is the only project. */
-  onMove?: (earlier: boolean) => void;
-  /** It is the last project: it cannot move down. */
-  last?: boolean;
+  onChange: (c: ProjectConfig) => void;
 }
 
 /**
@@ -2460,10 +2022,10 @@ function ProjectIconField({ icon, onChange }: { icon: string | undefined; onChan
 }
 
 /**
- * A project as its own page: its title with id, order and removal, its name, then its repositories.
- * Its settings are in its settings sheet, which a line under the title opens.
+ * A project's entry in the configuration: its name and icon, old names, then its repositories with
+ * their paths. "Configuration" in its settings sheet edits it, and "+ New project" a new one.
  */
-function ProjectBlock({ n, project, file, checking, resolved, running, pin, problems, ask, onProjectSettings, onRecheck, onChange, onShow, onMove, last }: ProjectProps) {
+export function ProjectBlock({ n, project, checking, resolved, running, pin, problems, ask, onRecheck, onChange, onShow }: ProjectProps) {
   const fresh = resolved && !running.includes(resolved.id);
   // the Koordinator of the project with the problem, where it runs: a card for it goes there
   const askHere = ask && ((text: string) => ask(text, resolved && running.includes(resolved.id) ? resolved.id : undefined));
@@ -2479,42 +2041,7 @@ function ProjectBlock({ n, project, file, checking, resolved, running, pin, prob
   const gitOnly = needsGit(harness) ? harness : undefined;
   return (
     <div className="cfg-project pb-2">
-      <header className={K.cfgHeadClass()}>
-        <div className="cfg-project-head flex items-baseline gap-3 mr-12 [&_.qmoves]:ml-auto [&_.qmoves]:self-center [&_.qmoves+.c-del]:ml-0 [&>.c-del]:self-center">
-          <h3 className={cn(K.cfgHeadTitleClass, 'm-0 mb-1.5 min-w-0 [overflow-wrap:anywhere]')}>{project.name?.trim() || resolved?.name || here}</h3>
-          {resolved && (
-            <span className={idClass(!!fresh)}>
-              {projectPath(resolved.id)} · {fresh ? t.config.fresh : t.config.runs}
-            </span>
-          )}
-          {onMove && (
-            <span className={qmovesClass}>
-              {[true, false].map((earlier) => {
-                const label = earlier ? t.config.moveUp : t.config.moveDown;
-                return (
-                  <Tooltip key={label} content={label}>
-                    <Button size="small" className="qmove" disabled={earlier ? n === 0 : last} aria-label={label} onClick={() => onMove(earlier)}>
-                      {earlier ? '↑' : '↓'}
-                    </Button>
-                  </Tooltip>
-                );
-              })}
-            </span>
-          )}
-          <RemoveButton label={t.config.removeProject} onClick={() => onChange(null)} />
-        </div>
-        <p className={K.cfgHeadFileClass}>{file}</p>
-        <p className={cn(K.cfgHeadHintClass, 'cfg-in-sheet')}>
-          {t.config.inSheet}{' '}
-          {resolved && running.includes(resolved.id) ? (
-            <LinkButton type="button" className="cfg-open-sheet" onClick={() => onProjectSettings(resolved.id)}>
-              {t.config.openSheet}
-            </LinkButton>
-          ) : (
-            t.config.inSheetLater
-          )}
-        </p>
-      </header>
+      {resolved && fresh && <p className={cn(idClass(true), 'mt-0')}>{projectPath(resolved.id)} · {t.config.fresh}</p>}
       {checking && <p className="hint">{t.config.checking}</p>}
       <Field label={t.config.name} hint={fresh ? t.config.freshHint : undefined}>
         <div className="flex max-w-[420px] items-center gap-2">
@@ -3164,7 +2691,7 @@ function slotsOf(value: string): number | undefined {
  * trust, settings the repository's file gets wrong): Configuration leaves them to it. They keep no save
  * from going through; those that do show here, where the save waits.
  */
-const SHEET_PROBLEMS: ConfigProblemCode[] = ['untrusted', 'adapterGone', 'repoSettings'];
+export const SHEET_PROBLEMS: ConfigProblemCode[] = ['untrusted', 'adapterGone', 'repoSettings'];
 
 /** Problems of a project's name, shown at the name. */
 const NAME_PROBLEMS: ConfigProblemCode[] = ['nameTaken', 'oldNameTaken'];

@@ -6,11 +6,12 @@
 // code reviews, suggestions, card archiving). Each change saves at once: the project's into the
 // configuration (`PUT /api/c/:project/settings`), a repository's into its entry there (`PUT
 // /api/c/:project/repos`), shortly after the last key; what restarts a repository's agents waits for
-// the owner's word. The project's name, old names, order and repositories are in the Configuration dialog.
+// the owner's word. "Configuration" at the top holds the project's entry (its name, repositories and
+// place in the list), a draft with a Save button (`./project`).
 // A jump to a field (`showSettingsAt`: a card waiting for a clone, a proposal for a setting) opens its
 // section at its repository and marks the field.
 
-import { Archive, Bot, BrickWall, ChevronLeft, ChevronRight, Film, GitPullRequest, Laptop, Lock, type LucideIcon, MessageSquareCode, Sparkle, Sparkles, TriangleAlert } from 'lucide-react';
+import { Archive, Bot, Cog, BrickWall, ChevronLeft, ChevronRight, Film, GitPullRequest, Laptop, Lock, type LucideIcon, MessageSquareCode, Sparkle, Sparkles, TriangleAlert } from 'lucide-react';
 import { type KeyboardEvent, type ReactNode, useEffect, useId, useRef, useState } from 'react';
 import type { AgentRole, ConfigProblem, ConfigProblemCode, ProjectAgents, ProjectSettings, ProjectSettingsView } from '../../core/types';
 import { SUGGEST_TOGGLES, suggestToggles, type SuggestToggle } from '../../core/labels';
@@ -32,11 +33,12 @@ import { layerOpen } from '../components/ui';
 import { pathClass, statusClass } from '../setupClasses';
 import { AgentChoice, AgentModels, type Catalogs, chosen } from './models';
 import { type ProjectRepos, useProjectRepos } from './repos';
+import { ProjectEntrySection } from './project';
 import { onSettingsFocus, SECTIONS, type Section, type SettingsFocus, takeSettingsFocus } from './focus';
 import { cn } from 'cn';
 
 /** Each section's icon on its row. */
-const ICONS: Record<Section, LucideIcon> = { commands: BrickWall, agents: Bot, suggestions: Sparkle, environment: Laptop, reviews: MessageSquareCode, git: GitPullRequest, archiving: Archive, demos: Film };
+const ICONS: Record<Section, LucideIcon> = { project: Cog, commands: BrickWall, agents: Bot, suggestions: Sparkle, environment: Laptop, reviews: MessageSquareCode, git: GitPullRequest, archiving: Archive, demos: Film };
 
 /**
  * Where a repository's problem shows and is counted: commands to trust under Allowed commands, where
@@ -239,9 +241,10 @@ function SectionList({ view, repos, focus, onOpen }: { view: ProjectSettingsView
   };
   return (
     <div ref={list} className="cs-sections flex flex-col">
+      {row('project')}
       {row('commands')}
       <Separator className="my-2" />
-      {SECTIONS.filter((s) => s !== 'commands').map(row)}
+      {SECTIONS.filter((s) => s !== 'project' && s !== 'commands').map(row)}
     </div>
   );
 }
@@ -338,6 +341,8 @@ function SectionBody(p: BodyProps) {
   const { section, view, save } = p;
   const l = t.projectSettings;
   switch (section) {
+    case 'project':
+      return <ProjectEntrySection project={p.project} on />;
     case 'commands':
       return <AllowedCommands repos={p.repos} />;
     case 'environment':
