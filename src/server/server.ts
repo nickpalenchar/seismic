@@ -5,7 +5,7 @@ import { extensionSettings, serverExtensions as extensions } from '../extensions
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir, userInfo } from 'node:os';
 import { join, resolve } from 'node:path';
-import { type ActivityPage, agentListens, type ProjectInfo, type ChatElsewhere, type ProjectSettingsView, type CardAction, type ClientMessage, type CardPatch, type DeveloperView, type Item, type MachineSectionId, type NewCard, type PageTags, type PendingRestart, type ServerMessage, type SpotInput, type TalkRef, isTalkRef, MAX_FILE_BYTES, needsYou, type Waiting, waitingIn } from '../core/types';
+import { type ActivityPage, agentListens, type ProjectInfo, type ChatElsewhere, type ProjectSettingsView, type CardAction, type ClientMessage, type CardPatch, type DeveloperView, type Harness, type Item, type MachineSectionId, type NewCard, type PageTags, type PendingRestart, type ServerMessage, type SpotInput, type TalkRef, isTalkRef, MAX_FILE_BYTES, needsYou, type Waiting, waitingIn } from '../core/types';
 import { uiRoutes } from './ui';
 import { guarded, LOCAL_HOSTS, refusal } from './access';
 import { BadRequest } from './board';
@@ -39,7 +39,7 @@ import { servePdfjs } from './pdfjs';
 import { Tailscale } from './tailscale';
 import { codexModels } from './llms/harnesses/codex';
 import { agyModels } from './llms/harnesses/agy';
-import { agentsView, projectDefaultsView, feedbackPromptView, languageView, notificationsView, ownerLanguage, saveAgents, saveProjectDefaults, saveCodexAutoReview, saveNotifications, saveFeedbackPrompt, saveLanguage, saveTheme, saveMotion, saveUsageMeter, themeView, motionView, usageMeterView } from './settings';
+import { savedHarnesses, agentsView, projectDefaultsView, feedbackPromptView, languageView, notificationsView, ownerLanguage, saveAgents, saveProjectDefaults, saveCodexAutoReview, saveNotifications, saveFeedbackPrompt, saveLanguage, saveTheme, saveMotion, saveUsageMeter, themeView, motionView, usageMeterView } from './settings';
 import { proposeTags, TagProposals } from './llms/agents/agentJobs/tagProposal';
 import { parseTagLines, tagLines } from '../core/page-tags';
 import { expandHome, readDemoSettings } from '../../plugin/skills/demo/lib/settings.ts';
@@ -58,6 +58,17 @@ type Req = Request & { params: Record<string, string> };
 const notFound = () => new Response('Not found', { status: 404 });
 
 /** `?replyTo=` of a recording: a card's event (`7`), or a message of the sheet (`12.answer`). */
+/**
+ * Whether a harness's model catalog is read. One that is not connected has none, except before any
+ * harnesses were saved and any project exists: onboarding picks agents there that are saved only with the first project.
+ */
+function offersCatalog(home: string, harness: Harness, machine?: MachineSetup): boolean {
+  const saved = savedHarnesses(home);
+  if (saved) return saved.includes(harness);
+  const inferred = machine?.harnesses();
+  return !inferred?.length || inferred.includes(harness);
+}
+
 function replyParam(p: string | null): number | TalkRef | undefined {
   const m = p?.match(/^(\d+)(?:\.(said|reply|answer))?$/);
   if (!m) return;
@@ -660,8 +671,8 @@ export function serve(
         GET: needs(machine, (m) => m.harnesses()),
         PUT: needs(machine, async (m, req) => m.setHarness(await req.json())),
       },
-      '/api/agents/codex-models': { GET: needs(config, () => machine?.harnesses().includes('codex') === false ? [] : codexModels()) },
-      '/api/agents/agy-models': { GET: needs(config, () => machine?.harnesses().includes('agy') === false ? [] : agyModels()) },
+      '/api/agents/codex-models': { GET: needs(config, (c) => offersCatalog(c.home, 'codex', machine) ? codexModels() : []) },
+      '/api/agents/agy-models': { GET: needs(config, (c) => offersCatalog(c.home, 'agy', machine) ? agyModels() : []) },
       // this machine's demo sites: listed, added (set up at a host or entered by hand, once a publish there
       // went through), connected with another machine's code, removed from this machine
       '/api/demo-sites': {

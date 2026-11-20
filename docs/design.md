@@ -220,9 +220,12 @@ cycling through terminals.
   `main`, as do follow-ups and prototypes made from those cards (`homeCanvas`). An unarchived card
   tells the owner so in a toast. Rejected: archived cards blocking a delete, or moving to `main` with it.
 - **The setup assistant goes in steps** (2026-11-15): agents (several picked at once, each with
-  what it needs, git shared below them), the features that can wait, then on the first start the
-  first project. Going on from the first step needs one configured agent, which counts only with
-  git ready too; the second never blocks, a callout names what is left out. Rejected: tabs
+  what it needs, git shared below them), the model of Seismic's own agent (harness, model and effort,
+  among the picked agents only; confirming saves the choice, and the model lists of Codex and
+  Antigravity are read before any harness is saved), the features that can wait, then on the first
+  start the first project. Going on from the first step needs one configured agent, which counts
+  only with git ready too; the Seismic step needs a confirmation, the features step never blocks, a
+  callout names what is left out. Rejected: tabs
   "Needed"/"Recommended" with the first project under the needed ones. A login done in a shell of
   its own (over SSH) brings no focus back to the page, so while a login the step waits for is
   missing the list checks again every 15 seconds (also where Seismic opened no terminal and the

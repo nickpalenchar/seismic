@@ -19,6 +19,8 @@ export function SeismicAgentStep({ harnesses, onConfirm, onBack }: { harnesses: 
   const [models, setModels] = useState<CodexModel[] | undefined>();
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const [loadError, setLoadError] = useState('');
   const a = t.config.agents;
   const s = t.setup.seismic;
   useEffect(() => {
@@ -30,14 +32,15 @@ export function SeismicAgentStep({ harnesses, onConfirm, onBack }: { harnesses: 
   const other = harness === 'codex' || harness === 'agy' ? harness : null;
   useEffect(() => {
     setModels(undefined);
+    setLoadError('');
     if (!other) return;
     let live = true;
     (other === 'agy' ? api.agyModels() : api.codexModels()).then(
       (list) => { if (live) setModels(list); },
-      (e) => { if (live) setStatus(failText(e)); },
+      (e) => { if (live) setLoadError(failText(e)); },
     );
     return () => { live = false; };
-  }, [other]);
+  }, [other, attempt]);
   if (!setting) return status ? <p className="hint text-destructive">{status}</p> : null;
 
   const choice = other === 'agy' ? agyBaseChoice(setting.agy ?? { model: 'default' }, models) : harnessChoice({ ...setting, harness });
@@ -93,6 +96,11 @@ export function SeismicAgentStep({ harnesses, onConfirm, onBack }: { harnesses: 
         )}
       </div>
       {status && <p className="hint text-destructive">{status}</p>}
+      {loadError && (
+        <p className="hint text-destructive">
+          {loadError} <Button size="small" onClick={() => setAttempt((n) => n + 1)}>{a.reloadModels}</Button>
+        </p>
+      )}
       <div className="flex gap-2 mt-4">
         <Button size="small" onClick={onBack}>{t.setup.back}</Button>
         <Button variant="primary" disabled={busy || (!!other && !models)} onClick={() => void confirm()}>{s.confirm}</Button>
