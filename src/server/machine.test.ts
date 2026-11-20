@@ -71,7 +71,7 @@ describe('what Seismic needs on this machine', () => {
 
   test('a session on a token gets a new one: claude setup-token, its token kept for the sessions from then on', async () => {
     fake('claude', 'case "$1" in --version) echo "2.1.300 (Claude Code)";; auth) echo \'{"loggedIn":true,"authMethod":"oauth_token"}\';; esac');
-    const env: Record<string, string> = { PATH: bin, CLAUDE_CODE_OAUTH_TOKEN: 'sk-ant-oat01-old' };
+    const env: Record<string, string> = { PATH: bin, HOME: home, CLAUDE_CODE_OAUTH_TOKEN: 'sk-ant-oat01-old' };
     const machine = new MachineSetup({ home, config: config(), env, platform: 'linux', arch: 'x64', compiled: true });
     expect(await machine.login({ section: 'needed', id: 'claudeLogin', token: true })).toEqual({ opened: false, command: `${bin}/claude setup-token` });
     await expect(machine.login({ section: 'needed', id: 'gh', token: true })).rejects.toThrow();
@@ -86,7 +86,7 @@ describe('what Seismic needs on this machine', () => {
   });
 
   test('a token kept for the hosts leaves a machine on its own login on that login', () => {
-    const env: Record<string, string> = { PATH: bin };
+    const env: Record<string, string> = { PATH: bin, HOME: home };
     new MachineSetup({ home, config: config(), env, platform: 'linux', arch: 'x64' }).saveToken({ token: 'sk-ant-oat01-new' });
     expect(env.CLAUDE_CODE_OAUTH_TOKEN).toBeUndefined();
   });
@@ -159,7 +159,7 @@ describe('what Seismic needs on this machine', () => {
     const agents = new HarnessCheck(() => new Promise(() => {}), Infinity);
     const set = agents.set.bind(agents);
     agents.set = (found, check, of) => (told.push(found), set(found, check, of));
-    const machine = new MachineSetup({ home, config: config(), env: { PATH: bin }, platform: 'linux', arch: 'x64', compiled: true, agents });
+    const machine = new MachineSetup({ home, config: config(), env: { PATH: bin, HOME: home }, platform: 'linux', arch: 'x64', compiled: true, agents });
     fake('codex', 'case "$1" in --version) echo "codex-cli 0.169.0";; login) echo "Logged in using ChatGPT";; esac');
     fake('agy', 'case "$1" in models) exit 1;; esac');
     fake('claude', 'case "$1" in --version) echo "2.1.300 (Claude Code)";; auth) echo \'{"loggedIn": false}\'; exit 1;; esac');
@@ -175,7 +175,7 @@ describe('what Seismic needs on this machine', () => {
   test('a check of some sections runs and tells only those, so each agent shows as soon as it is known', async () => {
     const agents = new HarnessCheck(() => new Promise(() => {}), Infinity);
     agents.set(['claude', 'agy']);
-    const machine = new MachineSetup({ home, config: config(), env: { PATH: bin }, platform: 'linux', arch: 'x64', compiled: true, agents });
+    const machine = new MachineSetup({ home, config: config(), env: { PATH: bin, HOME: home }, platform: 'linux', arch: 'x64', compiled: true, agents });
     fake('codex', 'case "$1" in --version) echo "codex-cli 0.169.0";; login) echo "Logged in using ChatGPT";; esac');
     // Claude Code would answer it is logged out: a check of Codex alone never asks it
     fake('claude', 'case "$1" in --version) echo "2.1.300 (Claude Code)";; auth) echo \'{"loggedIn": false}\'; exit 1;; esac');
@@ -236,7 +236,7 @@ describe('what Seismic needs on this machine', () => {
     const later = join(dir, 'Git', 'cmd');
     // the registry's PATH, as PowerShell reads it
     fake('powershell', `echo "C:\\Windows;${later}"`);
-    const machine = new MachineSetup({ home, config: config(), env: { PATH: bin }, platform: 'win32', arch: 'x64', compiled: true });
+    const machine = new MachineSetup({ home, config: config(), env: { PATH: bin, HOME: home }, platform: 'win32', arch: 'x64', compiled: true });
     expect(section(await machine.view(), 'git').items.find((i) => i.id === 'git')).toMatchObject({ state: 'missing' });
     // the owner installs git by hand and comes back to the window
     mkdirSync(later, { recursive: true });
@@ -247,8 +247,8 @@ describe('what Seismic needs on this machine', () => {
 
   test('lists uv above the speech recognition, whose installation waits for it', async () => {
     const local = { backend: 'parakeet' as const, prepare: async () => {}, transcribe: async () => ({ text: '', doubtful: false }) };
-    const voice = new VoiceSetup({ home, local, env: { PATH: bin } });
-    const machine = new MachineSetup({ home, config: config(), voice, env: { PATH: bin }, platform: 'linux', arch: 'x64', compiled: true });
+    const voice = new VoiceSetup({ home, local, env: { PATH: bin, HOME: home } });
+    const machine = new MachineSetup({ home, config: config(), voice, env: { PATH: bin, HOME: home }, platform: 'linux', arch: 'x64', compiled: true });
     const items = section(await machine.view(), 'voice').items;
     expect(items.map((i) => i.id)).toEqual(['uv', 'recognition', 'ffmpeg']);
     expect(items[0]).toMatchObject({ state: 'missing', act: 'install' });
@@ -318,7 +318,7 @@ describe('the first project', () => {
     failing.save = async () => {
       throw new Error('disk full');
     };
-    const machine = new MachineSetup({ home, config: failing, env: { PATH: bin }, platform: 'linux', arch: 'x64', compiled: true });
+    const machine = new MachineSetup({ home, config: failing, env: { PATH: bin, HOME: home }, platform: 'linux', arch: 'x64', compiled: true });
     await expect(machine.project({ path: repo, agents: ['codex'] })).rejects.toThrow('disk full');
     expect(agentSetting(home, 'worker').harness).toBeUndefined();
     expect(existsSync(join(home, WELCOME_FILE))).toBe(false);
@@ -340,7 +340,7 @@ describe('the first project', () => {
   test('a project saved whose start then fails keeps its default agent and its welcome', async () => {
     const repo = gitRepo(join(dir, 'shop'));
     const starting = new Config({ file: join(home, 'projects.json'), source: 'file', started: [], store, running: () => [], server: { port: 4417, home, permissionMode: 'auto' }, apply: async () => { throw new Error('did not start'); } });
-    const machine = new MachineSetup({ home, config: starting, env: { PATH: bin }, platform: 'linux', arch: 'x64', compiled: true });
+    const machine = new MachineSetup({ home, config: starting, env: { PATH: bin, HOME: home }, platform: 'linux', arch: 'x64', compiled: true });
     await expect(machine.project({ path: repo, agents: ['codex'] })).rejects.toThrow('did not start');
     expect(JSON.parse(readFileSync(join(home, 'projects.json'), 'utf8'))[0].repos).toEqual([{ path: repo }]);
     expect(agentSetting(home, 'worker').harness).toBe('codex');
@@ -596,7 +596,7 @@ describe('the first project', () => {
 });
 
 describe('mobile development, on the recommended page', () => {
-  const mac = () => new MachineSetup({ home, config: config(), env: { PATH: bin, USER: 'ada' }, platform: 'darwin', arch: 'arm64', compiled: true });
+  const mac = () => new MachineSetup({ home, config: config(), env: { PATH: bin, HOME: home, USER: 'ada' }, platform: 'darwin', arch: 'arm64', compiled: true });
 
   test('only a Mac has the section', async () => {
     expect(await setup().view().then((v) => v.sections.map((s) => s.id))).not.toContain('mobile');
