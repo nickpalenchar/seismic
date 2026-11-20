@@ -76,7 +76,6 @@ import { ProjectSettingsSheet } from './projectSettings/sheet';
 import { type InboxEntry, inboxEntries, needsYouCount, readMark } from '../core/inbox';
 import { beingWritten, split, talkAlone } from './talk';
 import { ACK_MS, noticeLine, tellers, useAck, useWarnings, voiceTarget } from './tell';
-import { CloseButton } from './components/button';
 import { Tooltip } from './components/tooltip';
 import { Badge } from './components/badge';
 import { PillButton } from './components/pill';
@@ -2884,7 +2883,6 @@ function Project({
           tabIndex={-1}
           className="group/panel outline-none fixed z-40 overflow-hidden hidden frost-pane [&:not(.ready)]:bg-surface [&:not(.ready)]:backdrop-filter-none [&.anim]:[--ease:cubic-bezier(.3,.9,.3,1)] [&.anim]:transition-[left,top,width,height] [&.anim]:duration-(--unfold) [&.anim]:ease-(--ease) before:content-[''] before:absolute before:left-[30px] before:w-20 before:top-0 before:h-[3px] before:rounded-b-xs before:bg-(--c) before:shadow-[0_0_12px_var(--c)] before:z-1"
         >
-          <CloseButton label={t.close} className="close absolute right-3.5 top-3 z-2" onClick={() => closeCard()} />
           {/* keeps the final width while the panel unfolds, so the content can be measured before it shows; --pb is
               the room below the content, more where the microphone covers the panel's foot (fitPanel) */}
           <div className="inner card-sheet [--pb:26px] absolute left-0 top-0 bottom-0 w-full overflow-auto [scrollbar-gutter:stable] pt-6 px-8 pb-(--pb) opacity-0 transition-opacity duration-[120ms] group-[.ready]/panel:opacity-100" ref={innerRef}>
@@ -2912,6 +2910,7 @@ function Project({
                   onEdit={onEdit}
                   flush={flushEdit}
                   onDelete={deleteOpen}
+                  onClose={() => closeCard()}
                   onDone={onDone}
                   onTell={(text, images, field, replyTo) => tellTyped(text, images, { card: openItem.id }, field, replyTo)}
                 />

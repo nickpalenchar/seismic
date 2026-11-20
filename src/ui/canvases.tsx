@@ -5,7 +5,7 @@
 
 import { createContext, type PointerEvent as ReactPointerEvent, useContext, useEffect, useRef, useState } from 'react';
 import { cn } from 'cn';
-import { Car, Clock, GripVertical, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Car, Clock, GripVertical, MoreHorizontal, Pencil, Plus, Trash2, X } from 'lucide-react';
 import type { Bounds } from '../core/layout';
 import { type Canvas, CANVAS_NAME_MAX, canvasNameProblem, type Item, MAIN_CANVAS, parkable, parkableStopping, inParkingLot, offCanvas } from '../core/types';
 import { api } from './api';
@@ -517,7 +517,7 @@ export function CanvasDialog({ project, canvases, canvas, onClose, onDone }: { p
  * the page at the button, unscaled by the zoom and above the plan's workstreams, and goes when the
  * canvas moves under it.
  */
-export function CardMore({ item, floating }: { item: Item; floating?: boolean }) {
+export function CardMore({ item, floating, onClose }: { item: Item; floating?: boolean; onClose?: () => void }) {
   const { canvases, move } = useContext(Canvases);
   const [open, setOpen] = useState(false);
   const [confirm, setConfirm] = useState(false);
@@ -538,22 +538,23 @@ export function CardMore({ item, floating }: { item: Item; floating?: boolean })
   const stopsToPark = parkableStopping(item);
   const canPark = parkable(item) || stopsToPark;
   const parked = !!inParkingLot(item) && !item.archivedAt;
-  if ((!others.length && !canPark && !parked) || item.archivedAt) return null;
+  if (!onClose && ((!others.length && !canPark && !parked) || item.archivedAt)) return null;
+  const actions = !item.archivedAt;
   const parking = (action: 'park' | 'unpark') => {
     void api.act(item.id, { action }).catch(console.error);
   };
   return (
     <span className={`${prioPickClass} card-more`}>
       <Menu open={open} onOpenChange={setOpen}>
-        <Tooltip content={canPark || parked ? t.parking.menu : t.canvases.more}>
+        <Tooltip content={actions && (canPark || parked) ? t.parking.menu : t.canvases.more}>
           <MenuTrigger asChild>
-            <button ref={button} className={cn(prioBtnClass(), 'inline-grid h-5 place-items-center px-1 py-0 text-muted-foreground')} aria-label={canPark || parked ? t.parking.menu : t.canvases.more}>
+            <button ref={button} className={cn(prioBtnClass(), 'inline-grid h-5 place-items-center px-1 py-0 text-muted-foreground')} aria-label={actions && (canPark || parked) ? t.parking.menu : t.canvases.more}>
               <MoreHorizontal size={14} aria-hidden />
             </button>
           </MenuTrigger>
         </Tooltip>
         <MenuContent className={prioMenuClass}>
-          {(canPark || parked) && (
+          {actions && (canPark || parked) && (
             <MenuItem title={canPark ? t.parking.parkHint : undefined} onSelect={() => (stopsToPark ? (leaveMenu(), setConfirm(true)) : parking(canPark ? 'park' : 'unpark'))}>
               <span className={loptClass}>
                 <Car size={14} aria-hidden />
@@ -561,8 +562,8 @@ export function CardMore({ item, floating }: { item: Item; floating?: boolean })
               </span>
             </MenuItem>
           )}
-          {others.length > 0 && !parked && <MenuLabel>{t.canvases.moveTo}</MenuLabel>}
-          {!parked && others.map((c) => (
+          {actions && others.length > 0 && !parked && <MenuLabel>{t.canvases.moveTo}</MenuLabel>}
+          {actions && !parked && others.map((c) => (
             <MenuItem key={c.id} onSelect={() => (leaveMenu(), move(item, c))}>
               <span className={loptClass}>
                 <CanvasIcon canvas={c} />
@@ -570,6 +571,15 @@ export function CardMore({ item, floating }: { item: Item; floating?: boolean })
               </span>
             </MenuItem>
           ))}
+          {onClose && (
+            <MenuItem onSelect={onClose}>
+              <span className={cn(loptClass, 'w-full')}>
+                <X size={14} aria-hidden />
+                {t.cardClose}
+                <kbd className="ml-auto rounded-xs border border-border px-1 font-mono text-xs text-muted-foreground">Esc</kbd>
+              </span>
+            </MenuItem>
+          )}
         </MenuContent>
       </Menu>
       <ConfirmDialog

@@ -196,6 +196,7 @@ const en = {
     howTo: 'To move several cards at once: Shift-click them, or hold Shift and drag around them.',
   },
   close: 'Close (Esc)',
+  cardClose: 'Close',
   sheetGrip: 'Drag to resize · Double-click: back to the default width',
   planSheet: 'Plan',
   plan: {
