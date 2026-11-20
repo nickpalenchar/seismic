@@ -1,8 +1,8 @@
 // The plans' usage limits in the status bar, a pill per harness signed in here (Claude Code's, and
 // Codex's and Antigravity's beside it): behind the harness's logo, the session's and the week's, each
-// with how much of it is used and a bar under the weekly percentage. A click (a tap on the phone)
-// lists every limit with its own bar, when it starts anew, where the numbers come from, and the
-// button that hides the meters (Configuration → Notifications and limits shows them again).
+// with how much of it is used. On desktop, a bar sits under the weekly percentage. The popover
+// lists every limit, its reset time and source, and the button that hides the meters
+// (Configuration → Notifications and limits shows them again). On desktop each row has its own bar.
 
 import { cn } from 'cn';
 import { ClaudeCode, CodexIcon, GoogleAntigravityIcon } from '@dev.icons/react';
@@ -34,10 +34,8 @@ export function limitName(l: UsageLimit): string {
 
 const percent = (n: number) => `${Math.round(n)} %`;
 
-/** A limit's share used, in the colour of its grade. */
 function Percent({ limit, className }: { limit: UsageLimit; className?: string }) {
-  const grade = { critical: 'text-destructive', warning: 'text-waiting-strong' }[limit.severity as string];
-  return <b className={cn('font-semibold tabular-nums', grade, className)}>{percent(limit.percent)}</b>;
+  return <b className={cn('font-semibold tabular-nums', className)}>{percent(limit.percent)}</b>;
 }
 
 function UsageProgress({ limit, className }: { limit: UsageLimit; className?: string }) {
@@ -84,7 +82,7 @@ export function UsagePill({ usage, phone, compact }: { usage: Usage; phone?: boo
             <span key={l.group} className="relative flex items-center gap-1.5" title={compact ? limitName(l) : undefined}>
               {!compact && <span>{t.usage.groups[l.group] ?? limitName(l)}</span>}
               <Percent limit={l} />
-              {l.group === 'weekly' && <UsageProgress limit={l} className="absolute inset-x-0 top-full h-0.5" />}
+              {!phone && l.group === 'weekly' && <UsageProgress limit={l} className="absolute inset-x-0 top-full h-[3px]" />}
             </span>
           ))}
         </PopoverTrigger>
@@ -95,9 +93,9 @@ export function UsagePill({ usage, phone, compact }: { usage: Usage; phone?: boo
         </p>
         <ul className="m-0 mb-2 list-none p-0">
           {usage.limits.map((l, i) => (
-            <li key={i} className="grid grid-cols-[minmax(0,1fr)_5rem_42px] items-center gap-x-2 py-1">
+            <li key={i} className={cn('grid items-center gap-x-2 py-1', phone ? 'grid-cols-[minmax(0,1fr)_42px]' : 'grid-cols-[minmax(0,1fr)_5rem_42px]')}>
               <span className="wrap-anywhere">{limitName(l)}</span>
-              <UsageProgress limit={l} className="h-1.5" />
+              {!phone && <UsageProgress limit={l} className="h-[7px]" />}
               <Percent limit={l} className="text-right" />
               {l.resetsAt && <span className="hint col-span-full">{t.usage.resets(snoozeWhen(l.resetsAt))}</span>}
             </li>
