@@ -2762,6 +2762,8 @@ const en = {
     },
     moveCardsTo: 'Move to',
     deleteConfirm: 'Move cards and delete canvas',
+    deleteWorking: 'Working…',
+    chooseAnother: 'The destination canvas no longer exists. Choose another canvas.',
     deleteBack: 'Go back',
     dialogNew: 'New canvas',
     dialogEdit: 'Edit canvas',

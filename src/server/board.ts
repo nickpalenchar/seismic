@@ -965,13 +965,21 @@ export class Board {
       const at = this.nearFree(items, { x: place.x - w / 2, y: place.y - h / 2 }, place.view);
       return { x: Math.round(at.x), y: Math.round(at.y) };
     }
-    const top = items.filter((i) => !i.parent);
-    const all = unionBounds(top.map((i) => boundsOf(i, items)));
+    return this.columnSpot(this.canvasLayout(items));
+  }
+
+  private canvasLayout(items: Item[]) {
+    return items.filter((i) => !i.parent).map((i) => ({ ...boundsOf(i, items), kind: i.kind }));
+  }
+
+  private columnSpot(layout: (Bounds & { kind: Item['kind'] })[], width = CARD_SIZE.task[0]) {
+    const all = unionBounds(layout);
     if (!all) return { x: 0, y: 0 };
-    const column = top.filter((i) => i.kind !== 'plan' && i.x >= all.x + all.w - 400);
-    const x = column.length ? Math.min(...column.map((i) => i.x)) : all.x + all.w + 80;
-    const y = column.length ? Math.max(...column.map((i) => boundsOf(i, items).y + boundsOf(i, items).h)) + 30 : all.y;
-    return { x, y };
+    const column = layout.filter((i) => i.kind !== 'plan' && i.x >= all.x + all.w - 400);
+    if (!column.length) return { x: all.x + all.w + 80, y: all.y };
+    const x = Math.min(...column.map((i) => i.x));
+    const above = layout.filter((i) => i.x < x + width && x < i.x + i.w);
+    return { x, y: Math.max(...above.map((i) => i.y + i.h)) + 30 };
   }
 
   /**
@@ -2943,16 +2951,24 @@ export class Board {
   canvases(): Canvas[] {
     const items = this.items();
     const groups = this.store.groups.of(this.project.id).map(toGroup);
+    const counts = new Map<string, { parked: number; snoozed: number }>();
+    for (const row of this.offCanvasRows()) {
+      const count = counts.get(row.canvas_id) ?? { parked: 0, snoozed: 0 };
+      if (row.hold?.reason === 'parkingLot') count.parked++;
+      else count.snoozed++;
+      counts.set(row.canvas_id, count);
+    }
     return this.store.canvases.of(this.project.id).map((c) => {
-      const off = this.offCanvasRows(c.id);
-      const parked = off.filter((r) => r.hold?.reason === 'parkingLot').length;
-      return { ...toCanvas(c), ...(canvasHolds(c.id, items, groups) ? { inUse: true as const } : {}), ...(parked ? { parked } : {}), ...(off.length - parked ? { snoozed: off.length - parked } : {}) };
+      const { parked, snoozed } = counts.get(c.id) ?? {};
+      return { ...toCanvas(c), ...(canvasHolds(c.id, items, groups) ? { inUse: true as const } : {}), ...(parked ? { parked } : {}), ...(snoozed ? { snoozed } : {}) };
     });
   }
 
   /** The parked and snoozed cards (not the workstreams) that keep the canvas as theirs. */
-  private offCanvasRows(canvas: string): CardRow[] {
-    return this.store.cards.onProject(this.project.id).filter((r) => r.canvas_id === canvas && !r.parent_id && !r.deleted_at && !r.archived_at && (r.hold?.reason === 'parkingLot' || r.hold?.reason === 'snoozed'));
+  private offCanvasRows() {
+    return this.store.cards.onProject(this.project.id).filter(
+      (r): r is CardRow & { canvas_id: string } => !!r.canvas_id && !r.parent_id && !r.deleted_at && !r.archived_at && (r.hold?.reason === 'parkingLot' || r.hold?.reason === 'snoozed'),
+    );
   }
 
   /**
@@ -3031,20 +3047,15 @@ export class Board {
       const n = items.filter((i) => i.canvasVisible && i.canvas === id && !i.parent).length;
       throw new BadRequest('canvasInUse', `only an empty canvas can be deleted; ${c.name} still has ${n ? `${n} card${n === 1 ? '' : 's'}` : 'a group with cards'} on it`);
     }
-    const off = this.offCanvasRows(id).map((r) => r.id);
-    if (off.length) {
-      const to = moveTo === undefined || moveTo === null ? this.store.canvases.main(this.project.id) : this.ownCanvas(moveTo).id;
-      if (to === id) throw new BadRequest('invalid', 'the cards cannot move to the canvas being deleted');
-      for (const card of off) {
-        const at = this.spotOn(to);
-        this.store.transaction(() => {
-          this.store.cards.setCanvas([card], to);
-          this.store.cards.update(card, { ...at, group_id: null });
-        });
+    this.store.transaction(() => {
+      const off = this.offCanvasRows().filter((r) => r.canvas_id === id).map((r) => r.id);
+      if (off.length) {
+        const to = moveTo === undefined || moveTo === null ? this.store.canvases.main(this.project.id) : this.ownCanvas(moveTo).id;
+        if (to === id) throw new BadRequest('invalid', 'the cards cannot move to the canvas being deleted');
+        this.placeOnCanvas(off, to, items);
       }
-    }
-    this.store.deleteCanvas(id);
-    this.changedRows();
+      this.store.deleteCanvas(id);
+    });
     this.changed();
   }
 
@@ -3054,17 +3065,27 @@ export class Board {
    */
   moveToCanvas(cardIds: unknown, canvasId: string) {
     const to = this.ownCanvas(canvasId).id;
+    const items = this.items();
     const ids = this.groupable(cardIds).filter((id) => this.own(id).canvas_id !== to);
-    for (const id of ids) {
-      const at = this.spotOn(to);
-      this.store.transaction(() => {
-        this.store.cards.setCanvas([id], to);
-        this.store.cards.update(id, at);
-      });
-      this.changedRows();
-    }
-    this.store.dropEmptyGroups(this.project.id);
+    this.store.transaction(() => {
+      this.placeOnCanvas(ids, to, items);
+      this.store.dropEmptyGroups(this.project.id);
+    });
     this.changed();
+  }
+
+  /** Move within the caller's transaction, reserving positions without changing cached items. */
+  private placeOnCanvas(ids: string[], to: string, items: Item[]) {
+    const layout = this.canvasLayout(this.on(to, items));
+    const byId = new Map(items.map((i) => [i.id, i]));
+    for (const id of ids) {
+      const item = byId.get(id);
+      const [w, h] = item ? sizeOf(item, items) : CARD_SIZE.task;
+      const at = this.columnSpot(layout, w);
+      this.store.cards.setCanvas([id], to);
+      this.store.cards.update(id, at);
+      layout.push({ ...at, w, h, kind: item?.kind ?? 'task' });
+    }
   }
 
   private ownCanvas(id: unknown): CanvasRow {

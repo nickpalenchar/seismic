@@ -919,24 +919,70 @@ describe('canvases', () => {
     const main = board.snapshot().canvases[0]!.id;
     const parked = board.create({ title: 'P', x: 0, y: 0 });
     const snoozed = board.create({ title: 'S', x: 400, y: 0 });
+    const secondParked = board.create({ title: 'P2', x: 0, y: 0 });
     const kept = board.create({ title: 'K', x: 800, y: 0 });
-    board.moveToCanvas([parked.id, snoozed.id, kept.id], later.id);
+    const existing = board.create({ title: 'Already there', x: 0, y: 0, canvas: other.id });
+    const moving = [parked, snoozed, secondParked];
+    board.moveToCanvas([...moving.map((i) => i.id), kept.id], later.id);
     board.work(parked.id, { hold: { reason: 'parkingLot', since: new Date().toISOString() } });
+    board.work(secondParked.id, { hold: { reason: 'parkingLot', since: new Date().toISOString() } });
     board.work(snoozed.id, { hold: { reason: 'snoozed', since: new Date().toISOString(), until: new Date(Date.now() + 86_400_000).toISOString(), by: 'owner' } as never });
-    expect(board.canvases().find((c) => c.id === later.id)).toMatchObject({ parked: 1, snoozed: 1, inUse: true });
+    expect(board.canvases().find((c) => c.id === later.id)).toMatchObject({ parked: 2, snoozed: 1, inUse: true });
     board.moveToCanvas([kept.id], main);
-    expect(board.canvases().find((c) => c.id === later.id)).toMatchObject({ parked: 1, snoozed: 1 });
-    expect(board.canvases().find((c) => c.id === later.id)!.inUse).toBeUndefined();
+
+    board.items(); // Warm the layout cache before counting and moving.
+    const load = spyOn(store.cards, 'onProject');
+    try {
+      const canvases = board.canvases();
+      expect(canvases.find((c) => c.id === later.id)).toMatchObject({ parked: 2, snoozed: 1 });
+      expect(canvases.find((c) => c.id === later.id)!.inUse).toBeUndefined();
+      expect(canvases.find((c) => c.id === other.id)!.parked).toBeUndefined();
+      expect(load).toHaveBeenCalledTimes(1);
+    } finally {
+      load.mockRestore();
+    }
     board.deleteCanvas(later.id, other.id);
+    expect(board.canvases().find((c) => c.id === other.id)).toMatchObject({ parked: 2, snoozed: 1 });
+    for (const i of moving) board.work(i.id, { hold: null });
     const items = board.snapshot().items;
-    expect(items.find((i) => i.id === parked.id)!.canvas).toBe(other.id);
-    expect(items.find((i) => i.id === snoozed.id)!.canvas).toBe(other.id);
+    const placed = [existing, ...moving].map(({ id }) => items.find((i) => i.id === id)!);
+    expect(placed.every((i) => i.canvas === other.id && i.canvasVisible)).toBe(true);
+    for (const [index, a] of placed.map((i) => boundsOf(i, items)).entries()) {
+      for (const b of placed.slice(index + 1).map((i) => boundsOf(i, items))) {
+        expect(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y).toBe(true);
+      }
+    }
     const third = board.createCanvas('Third');
     const lone = board.create({ title: 'L', x: 0, y: 0 });
     board.moveToCanvas([lone.id], third.id);
     board.work(lone.id, { hold: { reason: 'parkingLot', since: new Date().toISOString() } });
     board.deleteCanvas(third.id);
     expect(board.snapshot().items.find((i) => i.id === lone.id)!.canvas).toBe(main);
+  });
+
+  test('a failure at the end of deleting a canvas rolls back moves and group cleanup', () => {
+    const source = board.createCanvas('Source');
+    const target = board.createCanvas('Target');
+    const a = board.create({ title: 'A', x: 0, y: 0, canvas: source.id });
+    const b = board.create({ title: 'B', x: 0, y: 200, canvas: source.id });
+    const group = board.createGroup('Later', [a.id, b.id]);
+    for (const id of [a.id, b.id]) board.work(id, { hold: { reason: 'parkingLot', since: new Date().toISOString() } });
+    const before = board.snapshot();
+    const rows = [a, b].map(({ id }) => store.cards.get(id));
+    expect(code(() => board.deleteCanvas(source.id, 'missing'))).toBe('unknownCanvas');
+    const order = spyOn(store.canvases, 'order').mockImplementation(() => { throw new Error('could not reorder canvases'); });
+    try {
+      expect(() => board.deleteCanvas(source.id, target.id)).toThrow('could not reorder canvases');
+      expect([a, b].map(({ id }) => store.cards.get(id))).toEqual(rows);
+      expect(store.groups.get(group.id)?.id).toBe(group.id);
+      expect(store.canvases.get(source.id)?.id).toBe(source.id);
+      expect(board.snapshot()).toEqual(before);
+    } finally {
+      order.mockRestore();
+    }
+    board.deleteCanvas(source.id, target.id);
+    expect(store.canvases.get(source.id)).toBeNull();
+    expect([a, b].map(({ id }) => store.cards.get(id)?.canvas_id)).toEqual([target.id, target.id]);
   });
 
   test('moving cards: a workstream takes its plan along, groups stay behind, only an empty canvas can be deleted and its archive goes to main', () => {

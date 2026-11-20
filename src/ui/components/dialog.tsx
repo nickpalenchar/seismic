@@ -101,7 +101,8 @@ export function DialogContent({
 
 /**
  * A confirm: `confirm` runs and closes it, the way back (`cancel`, with the focus) only closes it. Closing by Esc or by `cancel` is `onOpenChange(false)`.
- * `also`: a second way to go on beside `confirm` (another way to do it); `disabled` keeps either from being chosen.
+ * `keepOpen` lets the primary action close the dialog itself, for example after a save succeeds.
+ * `busy` prevents further actions and dismissal while a request is pending.
  */
 export function ConfirmDialog({
   open,
@@ -111,18 +112,25 @@ export function ConfirmDialog({
   confirm,
   also,
   cancel,
+  busy,
   className,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: ReactNode;
   children?: ReactNode;
-  confirm: { label: ReactNode; onClick: () => void; variant?: ButtonVariant; className?: string; disabled?: boolean };
+  confirm: { label: ReactNode; onClick: () => void; variant?: ButtonVariant; className?: string; disabled?: boolean; keepOpen?: boolean };
   also?: { label: ReactNode; onClick: () => void; variant?: ButtonVariant; className?: string; disabled?: boolean };
   cancel: ReactNode;
+  busy?: boolean;
   className?: string;
 }) {
   const opener = useOpenerFocus();
+  const action = (
+    <Button variant={confirm.variant ?? 'primary'} className={confirm.className} disabled={busy || confirm.disabled} onClick={confirm.onClick}>
+      {confirm.label}
+    </Button>
+  );
   return (
     <AlertDialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <AlertDialogPrimitive.Portal container={uiPortal()}>
@@ -130,26 +138,23 @@ export function ConfirmDialog({
           <AlertDialogPrimitive.Content
             data-slot="confirm-dialog"
             {...opener}
+            onEscapeKeyDown={(e) => { if (busy) e.preventDefault(); }}
             aria-describedby={undefined}
             className={cn(box, surface.solid, 'w-[min(440px,100%)] rounded-sm p-6 [&_p]:mb-5.5 [&_p]:leading-normal', className)}
           >
             <AlertDialogPrimitive.Title className="m-0 mb-2.5 text-2xl font-semibold">{title}</AlertDialogPrimitive.Title>
             {children}
             <div className="flex flex-wrap gap-2">
-              <AlertDialogPrimitive.Action asChild>
-                <Button variant={confirm.variant ?? 'primary'} className={confirm.className} disabled={confirm.disabled} onClick={confirm.onClick}>
-                  {confirm.label}
-                </Button>
-              </AlertDialogPrimitive.Action>
+              {confirm.keepOpen ? action : <AlertDialogPrimitive.Action asChild>{action}</AlertDialogPrimitive.Action>}
               {also && (
                 <AlertDialogPrimitive.Action asChild>
-                  <Button variant={also.variant ?? 'default'} className={also.className} disabled={also.disabled} onClick={also.onClick}>
+                  <Button variant={also.variant ?? 'default'} className={also.className} disabled={busy || also.disabled} onClick={also.onClick}>
                     {also.label}
                   </Button>
                 </AlertDialogPrimitive.Action>
               )}
               <AlertDialogPrimitive.Cancel asChild>
-                <Button>{cancel}</Button>
+                <Button disabled={busy}>{cancel}</Button>
               </AlertDialogPrimitive.Cancel>
             </div>
           </AlertDialogPrimitive.Content>

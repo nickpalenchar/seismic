@@ -27,6 +27,7 @@ import { Tabs, TabsList, TabsTrigger } from './components/tabs';
 import { Tooltip } from './components/tooltip';
 import { Input } from './components/input';
 import { Select, SelectItem } from './components/select';
+import { Spinner } from './components/spinner';
 
 /** What the page knows of the project's canvases, for what shows a card (its menu, search). */
 export interface CanvasesView {
@@ -54,7 +55,7 @@ const LEAVE_MS = 260;
  * the strip (a tap on touch, ↑ from the keyboard) slides out the drawer above it, which lists the
  * canvases by name with the cards waiting on each, and ends with "+ New canvas".
  */
-export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow }: {
+export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow, onDeleteError }: {
   project: string;
   canvases: Canvas[];
   shown?: string;
@@ -63,6 +64,7 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow }:
   /** The canvases without cards, which can be deleted (but `main`). */
   empty: Set<string>;
   onShow: (c: Canvas) => void;
+  onDeleteError: (err: unknown) => void;
 }) {
   const [drawer, setDrawer] = useState(false);
   const [dialog, setDialog] = useState<{ edit?: string } | null>(null);
@@ -199,17 +201,13 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow }:
         }}
       >
         {keyed && <p className="hint m-0 px-2 pt-1 pb-1.5">{t.canvases.drawerKey}</p>}
-        <Drawer canvases={canvases} shown={shown} waiting={waiting} empty={empty} onPick={pick} onEdit={(c) => (open(false), setDialog({ edit: c.id }))} onNew={startNew} onMoveAway={(c) => (open(false), setDeleting(c))} />
+        <Drawer canvases={canvases} shown={shown} waiting={waiting} empty={empty} onPick={pick} onEdit={(c) => (open(false), setDialog({ edit: c.id }))} onNew={startNew} onRemove={(c) => void api.deleteCanvas(c.id).catch(onDeleteError)} onMoveAway={(c) => (open(false), setDeleting(c))} />
       </PopoverContent>
       {deleting && (
         <DeleteCanvasDialog
           canvas={deleting}
           others={canvases.filter((c) => c.id !== deleting.id)}
           onClose={() => setDeleting(undefined)}
-          onDelete={(to) => {
-            setDeleting(undefined);
-            api.deleteCanvas(deleting.id, to).catch(() => {});
-          }}
         />
       )}
       {dialog && (
@@ -242,7 +240,7 @@ const ctabClass = (kind: 'on' | 'off' | 'named') =>
 const ctabName = 'max-w-[180px] overflow-hidden leading-7 text-ellipsis whitespace-nowrap';
 
 /** The drawer: the canvases in order, each with its waiting count, rename and icon, a grip to reorder, delete where it is empty; then "+ New canvas". */
-function Drawer({ canvases, shown, waiting, empty, onPick, onEdit, onNew, onMoveAway }: { canvases: Canvas[]; shown?: string; waiting: Record<string, number>; empty: Set<string>; onPick: (c: Canvas) => void; onEdit: (c: Canvas) => void; onNew: () => void; onMoveAway: (c: Canvas) => void }) {
+function Drawer({ canvases, shown, waiting, empty, onPick, onEdit, onNew, onRemove, onMoveAway }: { canvases: Canvas[]; shown?: string; waiting: Record<string, number>; empty: Set<string>; onPick: (c: Canvas) => void; onEdit: (c: Canvas) => void; onNew: () => void; onRemove: (c: Canvas) => void; onMoveAway: (c: Canvas) => void }) {
   const [failed, setFailed] = useState<string>();
   const sort = useSortable(
     canvases.map((c) => c.id),
@@ -261,10 +259,6 @@ function Drawer({ canvases, shown, waiting, empty, onPick, onEdit, onNew, onMove
       },
     },
   );
-  const remove = (c: Canvas) => {
-    setFailed(undefined);
-    api.deleteCanvas(c.id).catch((err) => setFailed(failText(err)));
-  };
   return (
     <>
       <ul className="m-0 list-none p-0">
@@ -297,7 +291,7 @@ function Drawer({ canvases, shown, waiting, empty, onPick, onEdit, onNew, onMove
                 </Tooltip>
                 {c.name !== MAIN_CANVAS && empty.has(c.id) && (
                   <Tooltip content={t.canvases.remove}>
-                    <button className={tool} aria-label={t.canvases.remove} onClick={() => (c.parked || c.snoozed ? onMoveAway(c) : remove(c))}>
+                    <button className={tool} aria-label={t.canvases.remove} onClick={() => (c.parked || c.snoozed ? onMoveAway(c) : onRemove(c))}>
                       <Trash2 size={13} aria-hidden />
                     </button>
                   </Tooltip>
@@ -319,27 +313,50 @@ function Drawer({ canvases, shown, waiting, empty, onPick, onEdit, onNew, onMove
 }
 
 /** The warning before deleting a canvas that still has parked or snoozed cards: they move to the canvas picked, `main` to begin with. */
-function DeleteCanvasDialog({ canvas, others, onClose, onDelete }: { canvas: Canvas; others: Canvas[]; onClose: () => void; onDelete: (to: string) => void }) {
+function DeleteCanvasDialog({ canvas, others, onClose }: { canvas: Canvas; others: Canvas[]; onClose: () => void }) {
   const [to, setTo] = useState((others.find((c) => c.name === MAIN_CANVAS) ?? others[0])?.id ?? '');
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState<string>();
+  const available = others.some((c) => c.id === to);
+  const remove = async () => {
+    if (busy || !available) return;
+    setFailed(undefined);
+    setBusy(true);
+    try {
+      await api.deleteCanvas(canvas.id, to);
+      onClose();
+    } catch (err) {
+      setFailed(failText(err));
+      setBusy(false);
+    }
+  };
   return (
     <ConfirmDialog
       open
       onOpenChange={(open) => !open && onClose()}
       title={t.canvases.deleteTitle(canvas.name)}
-      confirm={{ label: t.canvases.deleteConfirm, variant: 'review-warning', onClick: () => onDelete(to) }}
+      busy={busy}
+      confirm={{
+        label: busy ? <><Spinner className="size-3" aria-hidden />{t.canvases.deleteWorking}</> : t.canvases.deleteConfirm,
+        variant: 'review-warning',
+        keepOpen: true,
+        disabled: !available,
+        onClick: remove,
+      }}
       cancel={t.canvases.deleteBack}
     >
       <p>{t.canvases.deleteWarning(canvas.parked ?? 0, canvas.snoozed ?? 0)}</p>
       <label className={cn(cdLabel, 'mb-1.5')} htmlFor="canvas-move-to">
         {t.canvases.moveCardsTo}
       </label>
-      <Select id="canvas-move-to" className="mb-5 w-full" aria-label={t.canvases.moveCardsTo} value={to} onValueChange={setTo}>
+      <Select id="canvas-move-to" className="mb-5 w-full" aria-label={t.canvases.moveCardsTo} value={available ? to : ''} onValueChange={setTo} disabled={busy}>
         {others.map((c) => (
           <SelectItem key={c.id} value={c.id} textValue={c.name}>
             {c.name}
           </SelectItem>
         ))}
       </Select>
+      {(failed || !available) && <p role="alert" className="text-sm text-destructive">{!available ? t.canvases.chooseAnother : failed}</p>}
     </ConfirmDialog>
   );
 }
