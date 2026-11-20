@@ -956,6 +956,7 @@ function Project({
     // a plan on another canvas opens there
     if (p.canvas && p.canvas !== canvasRef.current && !p.archivedAt) showCanvas(p.canvas);
     const f = focusRef.current;
+    if (f?.type !== 'plan') planOpener.current = onControl(document.activeElement) ? (document.activeElement as HTMLElement) : null;
     setFocus(f?.type === 'plan' ? { ...f, id: p.id } : { type: 'plan', id: p.id, prevCam: camRef.current, prevSide: camSide.current });
     addressOpens(p, undefined);
     setSheetId(p.id);
@@ -966,6 +967,8 @@ function Project({
     if (inView && !fullPage.ref.current) await flyOrJump(camFor(bounds(p), sideNow()), 700, quick);
   }
 
+  /** The control the keyboard had reached when the plan's sheet opened from it, which gets the focus back when the sheet closes. */
+  const planOpener = useRef<HTMLElement | null>(null);
   /** Closes the open plan; `toArchive`: back to the archive an archived one was opened from. */
   async function closePlan(toArchive = true) {
     const f = focusRef.current;
@@ -973,6 +976,10 @@ function Project({
     setFocus(null);
     addressCloses(undefined);
     setSheetOn(false);
+    const title = planOpener.current;
+    planOpener.current = null;
+    const at = document.activeElement;
+    if (title?.isConnected && (at === document.body || at?.closest('#sheet, #sheet-close'))) title.focus({ preventScroll: true });
     if (toArchive && archivedRef.current.some((i) => i.id === f.id) && !itemsRef.current.some((i) => i.id === f.id)) setAOn(true);
     // a full-page view hides the project: the camera stays
     if (!fullPage.ref.current) await fly(back(f), 600);
