@@ -2913,6 +2913,7 @@ export type ProjectAgents = Partial<Record<AgentRole, ProjectAgent>>;
 export interface ProjectSettingsView {
   settings: ProjectDefaults;
   agents: Record<AgentRole, AgentSetting>;
+  harnesses?: Harness[];
 }
 
 /** A project in Seismic's configuration. */
@@ -3380,12 +3381,19 @@ export type Harness = (typeof HARNESSES)[number];
 /** Each harness by its name in what Seismic tells (prompts, problems); the UI has its own in its strings. */
 export const HARNESS_NAMES: Record<Harness, string> = { claude: 'Claude Code', codex: 'Codex', agy: 'Antigravity' };
 
+/** The setup checks shared by onboarding and harness management. */
+export const HARNESS_SECTION = { claude: 'needed', codex: 'codex', agy: 'agents' } as const satisfies Record<Harness, MachineSectionId>;
+
+export interface HarnessAvailability {
+  configured: Harness[];
+  ready: Harness[];
+}
+
 /** Whether a harness's workers need a local Git workstation, so a folder without git cannot be theirs (Codex and Antigravity, as `portable` has it). */
 export const needsGit = (harness: Harness | undefined): harness is 'codex' | 'agy' => harness === 'codex' || harness === 'agy';
 
 /**
- * The harness the setup assistant's first project gives agent roles where the owner set none, from the agents found
- * configured (`MachineSetup.defaultAgent`): none (Claude Code stays) where Claude Code is among them, else the first of the others.
+ * The default among configured harnesses: Claude Code (represented by undefined) if present, otherwise the first of the others.
  */
 export const firstProjectHarness = (configured: readonly string[]): Harness | undefined =>
   configured.includes('claude') ? undefined : HARNESSES.find((h) => configured.includes(h));
@@ -3808,13 +3816,14 @@ export interface Skill {
  * The model and effort a group of a project's agents runs with: Configuration's, with the project's own
  * over it. A project's own model for its workers is one of Claude Code's, so it runs them in Claude Code; an effort alone keeps them where they are.
  */
-export function projectAgentSetting(role: AgentRole, base: AgentSetting, own: ProjectAgents | undefined): AgentSetting {
+export function projectAgentSetting(role: AgentRole, base: AgentSetting, own: ProjectAgents | undefined, harnesses?: readonly Harness[]): AgentSetting {
   if (base.model === 'default') base = { ...base, model: AGENT_DEFAULTS[role].model };
   const configured = own?.[role];
   if (!configured || !Object.keys(configured).length) return base;
   const { codex, agy, harness: requestedHarness, ...fields } = configured;
   const mine = fields.model === 'default' ? { ...fields, model: base.model } : fields;
   const harness = requestedHarness === undefined && mine.model && base.harness ? 'claude' : requestedHarness ?? base.harness;
+  if (harnesses && !harnesses.includes(harness ?? 'claude')) return base;
   const inheritedCodex = base.harness === 'codex' ? harnessChoice(base) : { model: 'default', effort: base.effort };
   const inheritedAgy = base.harness === 'agy' ? base.agy : undefined;
   const portable = {

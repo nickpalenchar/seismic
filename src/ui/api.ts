@@ -1,7 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { CardDiff } from '../core/diff';
 import { type Place, placeParam } from '../core/layout';
-import type { ProjectReposView, RepoConfig, AccessView, ActivityPage, Pairing, RemoteSetting, CodexModel, Harness, AgentRole, AgentSetting, CloudPreset, AgentsView, ProjectConfig, ProjectInfo, ProjectSnapshot, ChatElsewhere, ClientMessage, ConfigSaved, ConfigView, CardAction, ConfigChecked, DemoSettings, Group, DemoSettingsView, DemoVoiceCheck, ProjectDemoSiteState, DemoSitesView, GithubRepoList, GithubRepoView, TagProposalJob, PageTags, NarrationLanguage, FirstProject, GitSetupPreview, MachineItem, MachineSectionId, MachineView, SetupCheck, SetupFolder, SetupRepoCheck, VoiceSetupView, CardEvent, CardPatch, Item, Language, LanguageView, NewCard, Notice, OwnerHold, PendingRestart, PlanHistory, RepoTrust, ServerMessage, SettingsShared, Skill, SourceUpdate, SpotInput, TalkRef, AppUpdate, Theme, ThemeView, Motion, MotionView, Usage, UsageMeterView, Waiting, Feedback, FeedbackAnswer, FeedbackPromptView,
+import type { ProjectReposView, RepoConfig, AccessView, ActivityPage, Pairing, RemoteSetting, CodexModel, Harness, HarnessAvailability, AgentRole, AgentSetting, CloudPreset, AgentsView, ProjectConfig, ProjectInfo, ProjectSnapshot, ChatElsewhere, ClientMessage, ConfigSaved, ConfigView, CardAction, ConfigChecked, DemoSettings, Group, DemoSettingsView, DemoVoiceCheck, ProjectDemoSiteState, DemoSitesView, GithubRepoList, GithubRepoView, TagProposalJob, PageTags, NarrationLanguage, FirstProject, GitSetupPreview, MachineItem, MachineSectionId, MachineView, SetupCheck, SetupFolder, SetupRepoCheck, VoiceSetupView, CardEvent, CardPatch, Item, Language, LanguageView, NewCard, Notice, OwnerHold, PendingRestart, PlanHistory, RepoTrust, ServerMessage, SettingsShared, Skill, SourceUpdate, SpotInput, TalkRef, AppUpdate, Theme, ThemeView, Motion, MotionView, Usage, UsageMeterView, Waiting, Feedback, FeedbackAnswer, FeedbackPromptView,
   ProjectDefaultsView,
   ProjectSettings, ProjectSettingsView, DeveloperView, NotificationsView, Canvas } from '../core/types';
 import type { Wish } from '../core/wish';
@@ -222,7 +222,9 @@ export const api = {
   agents: () => call<AgentsView>('GET', '/api/agents'),
   /** The settings of the shown project, with Configuration's models as the base of its own. */
   shownProjectSettings: () => call<ProjectSettingsView>('GET', at('/settings')),
-  connectedHarnesses: () => call<Harness[]>('GET', '/api/agents/harnesses'),
+  harnessAvailability: () => call<HarnessAvailability>('GET', '/api/agents/harnesses'),
+  harnesses: () => call<Harness[]>('GET', '/api/harnesses'),
+  setHarness: (harness: Harness, connected: boolean) => saveAgentSettings<Harness[]>('/api/harnesses', { harness, connected }),
   codexModels: () => call<CodexModel[]>('GET', '/api/agents/codex-models'),
   agyModels: () => call<CodexModel[]>('GET', '/api/agents/agy-models'),
   /** Saves the model or the effort of one group. */

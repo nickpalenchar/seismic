@@ -88,12 +88,13 @@ export class HarnessCheck {
 /** Harnesses by name, for a prompt; `own` (the harness asking) where none is known, as it runs at least. */
 export const harnessNames = (own: Harness, found: Harness[]) => (found.length ? found : [own]).map((h) => HARNESS_NAMES[h]);
 
-export function harnessRuntime(claude: AgentRuntime, codex: AgentRuntime = createCodexRuntime(), agy: AgentRuntime = createAgyRuntime()): AgentRuntime {
+export function harnessRuntime(claude: AgentRuntime, codex: AgentRuntime = createCodexRuntime(), agy: AgentRuntime = createAgyRuntime(), configured?: () => readonly Harness[] | undefined): AgentRuntime {
   return {
     start(spec, firstMessage, images) {
       try {
         const harness = spec.setting?.harness ?? 'claude';
         if (spec.resume && sessionHarness(spec.resume) !== harness) throw new Error('Saved session and configured harness disagree; refusing cross-harness resume');
+        if (!spec.resume && configured?.()?.includes(harness) === false) throw new Error(`Connect ${HARNESS_NAMES[harness]} in Configuration → Harnesses to start this agent.`);
         if (harness === 'claude') return claude.start(spec, firstMessage, images);
         const backend = harness === 'agy' ? agy : codex;
         return backend.start(portable(spec, HARNESS_NAMES[harness]), firstMessage, images);

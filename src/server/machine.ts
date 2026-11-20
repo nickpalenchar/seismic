@@ -16,7 +16,7 @@ import { dirname, join, resolve } from 'node:path';
 // by its path: the package exports no package.json, which Bun imports all the same but TypeScript does not
 import sdk from '../../node_modules/@anthropic-ai/claude-agent-sdk/package.json';
 import { DOCUMENT } from '../core/files';
-import { blocksSaving, CLONES, firstProjectHarness, AGENT_ROLES, HARNESSES, needsGit, type Harness, type FirstProject, type MachineItem, type MachineJob, type MachineSection, type MachineSectionId, type MachineView, type SetupFolder, type SetupRepoCheck, type GitSetupPreview } from '../core/types';
+import { blocksSaving, CLONES, firstProjectHarness, HARNESSES, HARNESS_SECTION, needsGit, type Harness, type FirstProject, type MachineItem, type MachineJob, type MachineSection, type MachineSectionId, type MachineView, type SetupFolder, type SetupRepoCheck, type GitSetupPreview } from '../core/types';
 import { expandHome, readDemoSettings } from '../../plugin/skills/demo/lib/settings.ts';
 import { checkSetup, type LinuxFamily, linuxFamily, output } from '../../plugin/skills/demo/lib/setup.ts';
 import { installVoice } from '../../plugin/skills/demo/lib/voices.ts';
@@ -27,7 +27,7 @@ import { previewGitSetup, setUpGit, withoutGit } from './git-setup';
 import { saveClaudeToken } from './hosts';
 import { repoInfo } from './repo';
 import { COMPILED } from './resources';
-import { agentSetting, agentsAsNow, saveAgents } from './settings';
+import { agentSetting, agentsAsNow, configuredHarnesses, saveFirstHarnesses, saveHarnesses } from './settings';
 import { claudeExecutable, sdkClaude } from './llms/harnesses/claude';
 import { connectedHarnesses, type HarnessCheck } from './llms/harnesses';
 import { installedAgy } from './llms/harnesses/agy';
@@ -293,6 +293,7 @@ export interface MachineOptions {
   compiled?: boolean;
   /** Told of each check, as it starts and then which harnesses are installed and signed in (`HarnessCheck`). */
   agents?: Pick<HarnessCheck, 'begin' | 'set' | 'refresh'>;
+  onHarnessesChange?: (configured: Harness[]) => void;
 }
 
 /** What the check found, with how Seismic acts on each piece. */
@@ -302,11 +303,33 @@ interface Found {
   logins: Partial<Record<MachineItem['id'], string[]>>;
 }
 
-/** The section that checks each harness. */
-const HARNESS_SECTION: Record<Harness, MachineSectionId> = { claude: 'needed', codex: 'codex', agy: 'agents' };
-
 export class MachineSetup {
-  connectedHarnesses() { return this.o.agents?.refresh() ?? connectedHarnesses(); }
+  harnesses() { return configuredHarnesses(this.o.home, this.o.config.current()); }
+
+  /** Readiness is transient and only affects choices among explicitly connected harnesses. */
+  async harnessAvailability() {
+    const found = await (this.o.agents?.refresh() ?? connectedHarnesses());
+    const configured = this.harnesses();
+    return { configured, ready: configured.filter((h) => found.includes(h)) };
+  }
+
+  async setHarness(input: unknown): Promise<Harness[]> {
+    const { harness, connected } = (input ?? {}) as { harness?: unknown; connected?: unknown };
+    const selected = HARNESSES.find((h) => h === harness);
+    if (!selected || typeof connected !== 'boolean') throw new BadRequest('invalid', 'Choose a supported harness.');
+    if (connected && !this.harnesses().includes(selected)) {
+      const { sections } = await this.check([HARNESS_SECTION[selected], 'git']);
+      if (sections.length !== 2 || !sections.every((s) => s.items.length > 0 && s.items.every((i) => i.state === 'ok'))) {
+        throw new BadRequest('invalid', 'Finish setting up this harness and check again.');
+      }
+    }
+    // Read after the check so confirms for different harnesses can complete concurrently.
+    const configured = this.harnesses();
+    saveHarnesses(this.o.home, connected ? [...configured, selected] : configured.filter((h) => h !== selected));
+    const saved = this.harnesses();
+    this.o.onHarnessesChange?.(saved);
+    return saved;
+  }
 
   private job?: MachineJob;
 
@@ -721,13 +744,17 @@ export class MachineSetup {
     let saved;
     try {
       writeFileSync(welcomeFile, project);
-      this.defaultAgent(configured);
+      if (configured.length) {
+        saveFirstHarnesses(this.o.home, configured);
+        this.o.onHarnessesChange?.(this.harnesses());
+      }
       saved = await this.o.config.save(next);
     } catch (e) {
       if (!this.o.config.current().some((c) => c.repos.some((r) => resolve(r.path) === path))) {
         rmSync(welcomeFile, { force: true });
         try {
           undo();
+          this.o.onHarnessesChange?.(this.harnesses());
         } catch (again) {
           console.error(`Seismic: the agents' defaults could not be put back: ${(again as Error).message}`);
         }
@@ -736,16 +763,5 @@ export class MachineSetup {
     }
     const { restarting, applied } = saved;
     return { project, branch: folder ? '' : repoInfo(path).branch, opens: restarting || !!applied };
-  }
-
-  /**
-   * The agents the assistant found configured decide what new sessions run on: Claude Code when it is among
-   * them (nothing changes), else the first of Codex and Antigravity. An agent the owner chose before stays.
-   */
-  private defaultAgent(configured: Harness[]) {
-    const first = firstProjectHarness(configured);
-    if (!first) return;
-    const saved = Object.fromEntries(AGENT_ROLES.filter((r) => !agentSetting(this.o.home, r).harness).map((r) => [r, { harness: first }]));
-    if (Object.keys(saved).length) saveAgents(this.o.home, saved);
   }
 }

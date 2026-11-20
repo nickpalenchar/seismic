@@ -9,7 +9,7 @@ import { Config } from './config';
 import { Store } from './store';
 import { claudeToken } from './hosts';
 import { cloneName, codexHint, machineHint, MachineSetup, runnable, tried, WELCOME_FILE, welcome } from './machine';
-import { agentSetting, saveAgents } from './settings';
+import { agentSetting, saveAgents, savedHarnesses } from './settings';
 import { gitRepo } from './testing';
 import { HarnessCheck } from './llms/harnesses';
 import { VoiceSetup } from './voice-setup';
@@ -286,6 +286,7 @@ describe('the first project', () => {
     const repo = gitRepo(join(dir, 'shop'));
     await setup().project({ path: repo, agents: ['claude', 'codex'] });
     expect(agentSetting(home, 'worker').harness).toBeUndefined();
+    expect(savedHarnesses(home)).toEqual(['claude', 'codex']);
   });
 
   test('with only Codex configured, all roles default to Codex', async () => {
@@ -321,6 +322,7 @@ describe('the first project', () => {
     const machine = new MachineSetup({ home, config: failing, env: { PATH: bin, HOME: home }, platform: 'linux', arch: 'x64', compiled: true });
     await expect(machine.project({ path: repo, agents: ['codex'] })).rejects.toThrow('disk full');
     expect(agentSetting(home, 'worker').harness).toBeUndefined();
+    expect(savedHarnesses(home)).toBeUndefined();
     expect(existsSync(join(home, WELCOME_FILE))).toBe(false);
     // tried again with Claude Code there too: nothing of the failed try stands in the way
     await setup().project({ path: repo, agents: ['claude', 'codex'] });
@@ -592,6 +594,37 @@ describe('the first project', () => {
     const cards = board.snapshot().items.filter((i) => i.kind === 'task');
     expect(cards.map((c) => c.title)).toEqual([board.t.welcome.title]);
     expect(existsSync(join(home, WELCOME_FILE))).toBe(false);
+  });
+});
+
+describe('harness management', () => {
+  test('a ready harness only becomes available after confirmation and can be disconnected again', async () => {
+    const ready = new HarnessCheck(async () => ['claude', 'codex', 'agy']);
+    const machine = new MachineSetup({ home, config: config(), env: { PATH: bin }, platform: 'linux', compiled: true, agents: ready });
+    await machine.project({ path: gitRepo(join(dir, 'shop')), agents: ['claude'] });
+    expect(await machine.harnessAvailability()).toEqual({ configured: ['claude'], ready: ['claude'] });
+    fake('git', 'case "$1" in --version) echo "git version 2.45.0";; config) echo "Ada";; esac');
+    fake('codex', 'case "$1" in --version) echo "codex-cli 0.169.0";; login) exit 1;; esac');
+    await expect(machine.setHarness({ harness: 'codex', connected: true })).rejects.toThrow('Finish setting up');
+    expect(machine.harnesses()).toEqual(['claude']);
+    fake('codex', 'case "$1" in --version) echo "codex-cli 0.169.0";; login) echo "Logged in using ChatGPT";; esac');
+    expect(await machine.setHarness({ harness: 'codex', connected: true })).toEqual(['claude', 'codex']);
+    saveAgents(home, { worker: { harness: 'codex' } });
+    expect(agentSetting(home, 'worker').harness).toBe('codex');
+    expect(await machine.setHarness({ harness: 'codex', connected: false })).toEqual(['claude']);
+    expect(agentSetting(home, 'worker').harness).toBeUndefined();
+    expect(() => saveAgents(home, { worker: { harness: 'codex' } })).toThrow('Configure this harness');
+    expect(await machine.setHarness({ harness: 'claude', connected: false })).toEqual([]);
+    expect(setup().harnesses()).toEqual([]);
+  });
+
+  test('a legacy installation derives its connections from saved agent choices', async () => {
+    const machine = setup();
+    await machine.project({ path: gitRepo(join(dir, 'shop')) });
+    saveAgents(home, { worker: { harness: 'agy' } });
+    expect(machine.harnesses()).toEqual(['claude', 'agy']);
+    expect(await machine.setHarness({ harness: 'agy', connected: false })).toEqual(['claude']);
+    expect(setup().harnesses()).toEqual(['claude']);
   });
 });
 

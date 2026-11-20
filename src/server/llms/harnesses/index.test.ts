@@ -34,6 +34,16 @@ test('routes pinned harness/model independently of current default, with portabl
   expect(claude.last.spec.resume).toBe('legacy-claude');
 });
 
+test('a disconnected harness can resume its sessions but cannot start a new one', async () => {
+  const { claude, codex, events, spec } = fixture({ setting });
+  const runtime = harnessRuntime(claude, codex, undefined, () => ['claude']);
+  await runtime.start(spec, 'build').done;
+  expect(events).toContainEqual(expect.objectContaining({ type: 'error', message: expect.stringContaining('Connect Codex') }));
+  expect(codex.sessions).toHaveLength(0);
+  runtime.start({ ...spec, resume: 'codex:thread' });
+  expect(codex.last.spec.resume).toBe('codex:thread');
+});
+
 test('all role defaults reach both alternate harnesses, including read-only sessions', () => {
   const { cwd, claude, codex, spec } = fixture();
   const agy = new FakeRuntime();

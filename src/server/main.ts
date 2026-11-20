@@ -45,7 +45,7 @@ import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { parsePermissionFlag, setOwnerPermission } from './llms/agents/permission';
-import type { DeveloperView, RestartReason } from '../core/types';
+import { HARNESSES, type DeveloperView, type Harness, type RestartReason } from '../core/types';
 import { type ProjectConfig, Projects } from './project';
 import { adoptOldConfig, Config, CONFIG_FILE, expandConfig, readConfigFile } from './config';
 import { checkPlugin } from './demo';
@@ -83,7 +83,7 @@ import { useLib } from '../../plugin/skills/demo/lib/here.ts';
 import { DEMO_SETTINGS_FILE, expandHome, readDemoSettings } from '../../plugin/skills/demo/lib/settings.ts';
 import { DemoSpace } from './demo-space';
 import { qwen3Serve } from '../../plugin/skills/demo/lib/voices.ts';
-import { agentSetting, agentsView, conversationLanguage, feedbackPromptView, ownerLanguage, usageMeterView } from './settings';
+import { agentSetting, agentsView, configuredHarnesses, conversationLanguage, feedbackPromptView, ownerLanguage, savedHarnesses, usageMeterView } from './settings';
 import { loginLink } from './owner';
 import { databaseFile, moveDefaultHome, moveNotice } from './home-move';
 import { Stalls } from './stalls';
@@ -323,7 +323,7 @@ const claude = agentRuntime();
 const recordOnlyClaude = (name: string) => values.record || values.replay
   ? { start() { throw new Error(`${name} sessions are not supported in record/replay mode`); } }
   : undefined;
-const runtime = harnessRuntime(claude, recordOnlyClaude('Codex'), recordOnlyClaude('Antigravity'));
+const runtime = harnessRuntime(claude, recordOnlyClaude('Codex'), recordOnlyClaude('Antigravity'), () => savedHarnesses(home));
 // which agents are signed in on this machine, for a setup card's allow list: checked in the background from the start, never while a card starts
 const harnessCheck = new HarnessCheck();
 void harnessCheck.refresh();
@@ -347,7 +347,11 @@ projects = new Projects(
     asksFeedback: () => feedbackPromptView(home).on,
     agents: (role) => agentSetting(home, role),
     codexAutoReview: () => agentsView(home).codexAutoReview,
-    harnesses: () => harnessCheck.current(),
+    harnesses: () => {
+      const configured = configuredHarnesses(home, config.current());
+      return harnessCheck.current().filter((h) => configured.includes(h));
+    },
+    configuredHarnesses: () => savedHarnesses(home),
     settings: (path) => config.repoSettings(path),
   },
   // the project the setup assistant created gets a first card that says what to try
@@ -371,9 +375,15 @@ const voiceSetup = new VoiceSetup({ home, local: transcriber.local });
 const updates = new AppUpdates();
 // run from a clone of Seismic's repository: new commits on its upstream, for the owner to pull
 const sources = own ? new SourceUpdates(own) : undefined;
-// the plans' usage limits in the bar, Claude Code's and Codex's, while the owner has it show them and a page is open
-const usage = [new UsageMeter(() => claudeUsage(home), { on: usageMeterView(home).on }), new UsageMeter(() => codexUsage(), { on: usageMeterView(home).on }), new UsageMeter(() => agyUsage(), { on: usageMeterView(home).on })];
-const machine = new MachineSetup({ home, config, voice: voiceSetup, agents: harnessCheck });
+// Only connected harnesses fetch usage limits, while usage is enabled and a page is open.
+const usageSources = { claude: () => claudeUsage(home), codex: () => codexUsage(), agy: () => agyUsage() };
+const usage = HARNESSES.map((harness) => new UsageMeter(usageSources[harness], { harness }));
+const syncUsage = (configured: readonly Harness[]) => {
+  const { on } = usageMeterView(home);
+  for (const meter of usage) meter.setOn(on && !!meter.harness && configured.includes(meter.harness));
+};
+const machine = new MachineSetup({ home, config, voice: voiceSetup, agents: harnessCheck, onHarnessesChange: syncUsage });
+syncUsage(machine.harnesses());
 // the project the assistant created gets a first card that says what to try
 welcome(home, projects.all());
 const shutdown = async (code: number, forced = false) => {

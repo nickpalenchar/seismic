@@ -551,11 +551,11 @@ export function serve(
       '/api/c/:project/restart': { POST: on(async (c) => ({ restarting: await c.restartNow() })) },
       // the project's own settings, from the sliders in the bar: read with Configuration's models they fall back on, saved into the configuration
       '/api/c/:project/settings': {
-        GET: on((c) => (config ? { settings: c.settings(), agents: agentsView(config.home).agents } satisfies ProjectSettingsView : notFound())),
+        GET: on((c) => (config ? { settings: c.settings(), agents: agentsView(config.home).agents, harnesses: machine?.harnesses() } satisfies ProjectSettingsView : notFound())),
         PUT: on(async (c, req) => {
           if (!config) return notFound();
           await config.saveProject(c.id, await req.json());
-          return { settings: c.settings(), agents: agentsView(config.home).agents } satisfies ProjectSettingsView;
+          return { settings: c.settings(), agents: agentsView(config.home).agents, harnesses: machine?.harnesses() } satisfies ProjectSettingsView;
         }),
       },
       // the project's repositories as configured, from its settings sheet: read with their check, and one saved at a time
@@ -623,7 +623,8 @@ export function serve(
         GET: needs(config, (c) => usageMeterView(c.home)),
         PUT: needs(config, async (c, req) => {
           const view = saveUsageMeter(c.home, await req.json());
-          for (const m of usage) m.setOn(view.on);
+          const configured = machine?.harnesses();
+          for (const m of usage) m.setOn(view.on && (!m.harness || (configured?.includes(m.harness) ?? true)));
           return view;
         }),
       },
@@ -654,9 +655,13 @@ export function serve(
         PUT: needs(config, async (c, req) => saveAgents(c.home, await req.json())),
       },
       '/api/agents/codex-auto-review': { PUT: needs(config, async (c, req) => saveCodexAutoReview(c.home, await req.json())) },
-      '/api/agents/harnesses': { GET: needs(machine, (m) => m.connectedHarnesses()) },
-      '/api/agents/codex-models': { GET: needs(config, async () => codexModels()) },
-      '/api/agents/agy-models': { GET: needs(config, async () => agyModels()) },
+      '/api/agents/harnesses': { GET: needs(machine, (m) => m.harnessAvailability()) },
+      '/api/harnesses': {
+        GET: needs(machine, (m) => m.harnesses()),
+        PUT: needs(machine, async (m, req) => m.setHarness(await req.json())),
+      },
+      '/api/agents/codex-models': { GET: needs(config, () => machine?.harnesses().includes('codex') === false ? [] : codexModels()) },
+      '/api/agents/agy-models': { GET: needs(config, () => machine?.harnesses().includes('agy') === false ? [] : agyModels()) },
       // this machine's demo sites: listed, added (set up at a host or entered by hand, once a publish there
       // went through), connected with another machine's code, removed from this machine
       '/api/demo-sites': {

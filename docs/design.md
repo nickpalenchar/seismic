@@ -432,6 +432,10 @@ Safety rules:
   end does not wait for its pipes to close beyond 2 s after its process exited: a command it left
   (never observed) can hold them for as long as it runs.
 
+- Harness readiness is machine discovery. The owner’s confirmed harnesses are stored separately in the machine’s settings and
+  control new agent choices and usage polling. Before the first saved list, existing agent defaults and project overrides provide
+  the compatibility list because earlier onboarding did not record its selection. A disconnected default falls back to a connected
+  harness and a disconnected project override follows the machine setting. Existing sessions keep their harness (2026-11-19).
 - The first-project request of the setup assistant carries the agents the owner picked and found configured. When Claude Code is
   not among them, the first of Codex and Antigravity becomes the default harness of every role in the owner's
   settings (unless the owner set one before), together with the project: written before its save, which a failed write

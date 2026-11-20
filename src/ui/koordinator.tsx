@@ -145,7 +145,7 @@ export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats
       const request = ++revision;
       setFallback(null);
       api.projectSettings(project).then((view) => {
-        if (request === revision) setFallback({ project, setting: projectAgentSetting('koordinator', view.agents.koordinator, view.settings.agents) });
+        if (request === revision) setFallback({ project, setting: projectAgentSetting('koordinator', view.agents.koordinator, view.settings.agents, view.harnesses) });
       }).catch(console.error);
     };
     const unsubscribe = onAgentSettingsChange(refresh);

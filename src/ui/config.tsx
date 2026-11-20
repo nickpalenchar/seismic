@@ -17,11 +17,13 @@ import { parseTagLines, tagLines } from '../core/page-tags';
 import { LANGUAGES } from '../core/locale';
 import { SUGGEST_TOGGLES, type SuggestSettings, type SuggestToggle, suggestToggles } from '../core/labels';
 import { AccessSection } from './access';
-import { type AddSiteInput, api, reload, type SiteHow } from './api';
+import { type AddSiteInput, api, onAgentSettingsChange, reload, type SiteHow } from './api';
 import { keepConfigDraft, keptConfigDraft } from './configDraft';
 import { keep } from './keep';
 import { plain } from './markdown';
 import { demoState, GitSetup, platformName, RecognitionDetail, Setup, SetupList, useFolderWithoutGit, useWorkerSetting, voiceState } from './views/setup';
+import { Harnesses } from './views/setup/harnesses';
+import type { Usage } from '../core/types';
 import { Spinner } from './components/spinner';
 import { idClass, installClass, installHintClass, jsonClass, pathClass, problemClass, removeClass, rowClass, statusClass, trustClass, trustGroupClass } from './setupClasses';
 import { useFitHeight } from './fitHeight';
@@ -72,13 +74,13 @@ type Checked = Pick<ConfigChecked, 'resolved' | 'problems'>;
 type Ask = (text: string, project?: string) => void;
 
 /** The dialog's sections, in the order its list shows them. */
-type Section = 'projects' | 'defaults' | 'agents' | 'voice' | 'demos' | 'notices' | 'devices' | 'advanced' | 'developer';
+type Section = 'projects' | 'defaults' | 'agents' | 'harnesses' | 'voice' | 'demos' | 'notices' | 'devices' | 'advanced' | 'developer';
 /** The value of a project's tab in the navigation, followed by its number. */
 /** A field of prose in a setting (a voice's style, its sample text): the page's font, not a path's. */
 const proseFieldClass = (hook: string) => `${hook} block w-full max-w-[420px] resize-y text-sm leading-[1.45] py-1.5 px-2`;
 
 const PROJECT_TAB = 'project:';
-const SECTIONS: Section[] = ['projects', 'defaults', 'agents', 'voice', 'demos', 'notices', 'devices', 'advanced', 'developer'];
+const SECTIONS: Section[] = ['projects', 'defaults', 'agents', 'harnesses', 'voice', 'demos', 'notices', 'devices', 'advanced', 'developer'];
 // the section shown, per tab: a save that restarts Seismic reloads the page, and the dialog comes back at it
 const SECTION_KEY = 'seismic-config-section';
 
@@ -185,7 +187,7 @@ function checkedMoved(c: Checked, n: number, from: number, to: number): Checked 
   };
 }
 
-export function ConfigDialog({ on, page, onClose, onAsk, onTalk, onProblems, onConnect, revs }: { on: boolean; /** The project the page shows: the one Projects shows first. */ page?: string; onClose: () => void; onAsk: Ask; onTalk: () => void; onProblems: (n: number) => void; onConnect: () => void; revs: string }) {
+export function ConfigDialog({ on, page, usage, onClose, onAsk, onTalk, onProblems, onConnect, revs }: { on: boolean; /** The project the page shows: the one Projects shows first. */ page?: string; usage: Usage[]; onClose: () => void; onAsk: Ask; onTalk: () => void; onProblems: (n: number) => void; onConnect: () => void; revs: string }) {
   const [setupOn, setSetupOn] = useState(false);
   const [view, setView] = useState<ConfigView | null>(null);
   const [draft, setDraft] = useState<ProjectConfig[]>([]);
@@ -539,7 +541,10 @@ export function ConfigDialog({ on, page, onClose, onAsk, onTalk, onProblems, onC
             <ProjectDefaultsBlock view={defaults} onSaved={setDefaults} />
           </section>
           <section id="cfg-sec-agents" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'agents'}>
-            <AgentsBlock on={on} />
+            <AgentsBlock on={on && section === 'agents'} />
+          </section>
+          <section id="cfg-sec-harnesses" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'harnesses'}>
+            {on && section === 'harnesses' && <Harnesses usage={usage} />}
           </section>
           <section id="cfg-sec-voice" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'voice'}>
             <VoiceBlock on={on} />
@@ -1266,13 +1271,24 @@ function AgentsBlock({ on }: { on: boolean }) {
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
   useEffect(() => {
-    if (on) api.agents().then(setView, console.error);
+    if (!on) return;
+    let revision = 0;
+    const refresh = () => {
+      const at = ++revision;
+      api.agents().then((saved) => { if (at === revision) setView(saved); }, console.error);
+    };
+    refresh();
+    const stop = onAgentSettingsChange(refresh);
+    return () => { ++revision; stop(); };
   }, [on]);
   const codexOn = !!view && AGENT_ROLES.some((r) => view.agents[r].harness === 'codex');
   const agyOn = !!view && AGENT_ROLES.some((r) => view.agents[r].harness === 'agy');
   useEffect(() => { if (on && (codexOn || agyOn)) void loadModels(); }, [on, codexOn, agyOn]);
   if (!view) return null;
   const a = t.config.agents;
+  if (connected?.configured.length === 0) {
+    return <Head title={a.title} hint={t.config.harnesses.empty} file={view.file} />;
+  }
   const save = async (saving: () => Promise<AgentsView>) => {
     setBusy(true);
     setStatus('');

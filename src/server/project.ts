@@ -115,6 +115,8 @@ export interface ProjectDeps {
   codexAutoReview?: () => boolean;
   /** The harnesses a worker could start in on this machine now (`connectedHarnesses`), for the allow list a setup card drafts; the workers' own when left out (the tests). */
   harnesses?: () => Harness[];
+  /** The explicitly connected harnesses, when management has been set up. */
+  configuredHarnesses?: () => Harness[] | undefined;
   /** How long a restart of a repository's agents waits for them to pause at most; Seismic's patience for a restart when left out. */
   restartPatienceMs?: number;
   /** How often that restart looks whether they paused; every two seconds when left out. */
@@ -289,7 +291,7 @@ export class ProjectRuntime {
 
   constructor(config: ProjectConfig, private deps: ProjectDeps) {
     // Configuration's model and effort of each group, with the project's own over it
-    const agents = (role: AgentRole) => projectAgentSetting(role, deps.agents?.(role) ?? AGENT_DEFAULTS[role], this.config?.agents);
+    const agents = (role: AgentRole) => projectAgentSetting(role, deps.agents?.(role) ?? AGENT_DEFAULTS[role], this.config?.agents, deps.configuredHarnesses?.());
     this.agentFor = agents;
     // the agents other than workers and Seismic's chat wait for the usage limit through it, each where it shows;
     // each names its harness and model where it shows at work

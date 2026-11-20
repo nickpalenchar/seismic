@@ -1,8 +1,6 @@
-// The plans' usage limits in the status bar, a pill per harness signed in here (Claude Code's, and
-// Codex's and Antigravity's beside it): behind the harness's logo, the session's and the week's, each
-// with how much of it is used. On desktop, a bar sits under each percentage. The popover lists
-// every limit with its own bar, its reset time and source, and the button that hides the meters
-// (Configuration → Notifications and limits shows them again).
+// The status bar shows one pill per connected harness that reports usage. Desktop pills have
+// a bar under each percentage. The popover and Configuration → Harnesses share the limit
+// details, including progress, reset times and the source.
 
 import { cn } from 'cn';
 import { ClaudeCode, CodexIcon, GoogleAntigravityIcon } from '@dev.icons/react';
@@ -52,6 +50,29 @@ function UsageProgress({ limit, className }: { limit: UsageLimit; className?: st
 // the harnesses' own logos, from devicons.io
 const MARKS = { claude: ClaudeCode, codex: CodexIcon, agy: GoogleAntigravityIcon };
 
+export function HarnessMark({ harness, size = 14 }: { harness: Usage['harness']; size?: number }) {
+  const Mark = MARKS[harness];
+  return <Mark size={size} className="block" aria-hidden />;
+}
+
+export function UsageDetails({ usage }: { usage: Usage }) {
+  return (
+    <>
+      <ul className="m-0 mb-2 list-none p-0">
+        {usage.limits.map((l, i) => (
+          <li key={i} className="grid grid-cols-[minmax(0,1fr)_minmax(2rem,5rem)_42px] items-center gap-x-2 py-1">
+            <span className="wrap-anywhere">{limitName(l)}</span>
+            <UsageProgress limit={l} className="h-[7px]" />
+            <Percent limit={l} className="text-right" />
+            {l.resetsAt && <span className="hint col-span-full">{t.usage.resets(snoozeWhen(l.resetsAt))}</span>}
+          </li>
+        ))}
+      </ul>
+      <p className="hint m-0 mb-1.5">{t.usage.source(usage.harness, clock(usage.at))}</p>
+    </>
+  );
+}
+
 /**
  * In the status bar; `phone`: at the right end of the phone's bar, a pill of glass; `compact`: only
  * the most used limit, without its name (the phone, with another harness's pill beside it).
@@ -66,7 +87,6 @@ export function UsagePill({ usage, phone, compact }: { usage: Usage; phone?: boo
     api.saveUsageMeter(false).catch((e) => setStatus(failText(e)));
   };
   const groups = headline(usage.limits);
-  const Mark = MARKS[usage.harness];
   const shown = compact ? groups.filter((l) => l === groups.reduce((a, b) => (b.percent > a.percent ? b : a))) : groups;
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -76,7 +96,7 @@ export function UsagePill({ usage, phone, compact }: { usage: Usage; phone?: boo
           aria-label={t.usage.title[usage.harness]}
         >
           <span className="-mr-1.5 flex items-center" title={t.usage.harness[usage.harness]}>
-            <Mark size={14} className="block" aria-hidden />
+            <HarnessMark harness={usage.harness} />
           </span>
           {shown.map((l) => (
             <span key={l.group} className="relative flex items-center gap-1.5" title={compact ? limitName(l) : undefined}>
@@ -91,17 +111,7 @@ export function UsagePill({ usage, phone, compact }: { usage: Usage; phone?: boo
         <p className="m-0 mb-1.5">
           <b>{t.usage.title[usage.harness]}</b>
         </p>
-        <ul className="m-0 mb-2 list-none p-0">
-          {usage.limits.map((l, i) => (
-            <li key={i} className="grid grid-cols-[minmax(0,1fr)_5rem_42px] items-center gap-x-2 py-1">
-              <span className="wrap-anywhere">{limitName(l)}</span>
-              <UsageProgress limit={l} className="h-[7px]" />
-              <Percent limit={l} className="text-right" />
-              {l.resetsAt && <span className="hint col-span-full">{t.usage.resets(snoozeWhen(l.resetsAt))}</span>}
-            </li>
-          ))}
-        </ul>
-        <p className="hint m-0 mb-1.5">{t.usage.source(usage.harness, clock(usage.at))}</p>
+        <UsageDetails usage={usage} />
         <p className="hint m-0">
           <Button size="small" onClick={hide}>
             {t.usage.hide}

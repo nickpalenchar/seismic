@@ -14,6 +14,7 @@ import { suggestToggles } from '../core/labels';
 import { type Language, LANGUAGES } from '../core/locale';
 import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_MODELS, AGENT_ROLES, type AgentRole, type AgentSetting, type AgentsView, type LanguageView, type RemoteSetting, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type FeedbackPromptView, type NotificationsView, type ProjectAgents, type ProjectDefaults, type ProjectDefaultsView, type ProjectSettings, type ProjectDemoSite, HARNESSES, CODE_REVIEW_MODES, CARD_ARCHIVING, RIGHT_CLICK, type CodeReviewSetting } from '../core/types';
 import { BadRequest } from './board';
+import { firstProjectHarness, projectAgentSetting, type Harness, type ProjectConfig } from '../core/types';
 
 interface Settings {
   /** The interface's: Seismic's own words. */
@@ -26,6 +27,8 @@ interface Settings {
   motion?: Motion;
   /** Only what differs from `AGENT_DEFAULTS`, so a changed default reaches what the owner left. */
   agents?: Partial<Record<AgentRole, Partial<AgentSetting>>>;
+  /** Harnesses connected to Seismic. Absent on installations that predate harness management. */
+  harnesses?: Harness[];
   /** `false`: Codex workers ask the owner what leaves their sandbox; absent, Codex's own automatic review decides. */
   codexAutoReview?: false;
   /** How other devices reach Seismic; absent, they do not. */
@@ -47,7 +50,8 @@ function read(home: string): Settings {
     const conversationLanguage = LANGUAGES.find((l) => l === o.conversationLanguage);
     const theme = THEMES.find((x) => x === o.theme);
     const motion = MOTIONS.find((x) => x === o.motion);
-    return { ...o, language, conversationLanguage, theme, motion, agents: agentsOf(o.agents), remote: remoteOf(o.remote) ?? undefined, usageMeter: o.usageMeter === false ? false : undefined, codexAutoReview: o.codexAutoReview === false ? false : undefined, feedbackPrompt: o.feedbackPrompt === true ? true : undefined, notifications: typeof o.notifications === 'boolean' ? o.notifications : undefined, projectDefaults: projectSettingsShape.safeParse(renamedBaselines(o.projectDefaults ?? o.canvasDefaults)).data };
+    const harnesses = Array.isArray(o.harnesses) ? HARNESSES.filter((h) => (o.harnesses as unknown[]).includes(h)) : undefined;
+    return { ...o, language, conversationLanguage, theme, motion, harnesses, agents: agentsOf(o.agents), remote: remoteOf(o.remote) ?? undefined, usageMeter: o.usageMeter === false ? false : undefined, codexAutoReview: o.codexAutoReview === false ? false : undefined, feedbackPrompt: o.feedbackPrompt === true ? true : undefined, notifications: typeof o.notifications === 'boolean' ? o.notifications : undefined, projectDefaults: projectSettingsShape.safeParse(renamedBaselines(o.projectDefaults ?? o.canvasDefaults)).data };
   } catch {
     return {};
   }
@@ -299,11 +303,53 @@ function agentsOf(input: unknown): Partial<Record<AgentRole, Partial<AgentSettin
   return agents;
 }
 
-/** The model and effort a group of agents runs with: the owner's choice, else the default; read whenever one starts. */
-export const agentSetting = (home: string, role: AgentRole): AgentSetting => ({ ...AGENT_DEFAULTS[role], ...read(home).agents?.[role] });
+function settingFor(settings: Settings, role: AgentRole): AgentSetting {
+  const setting = { ...AGENT_DEFAULTS[role], ...settings.agents?.[role] };
+  if (settings.harnesses && !settings.harnesses.includes(setting.harness ?? 'claude')) {
+    return { ...setting, harness: firstProjectHarness(settings.harnesses) };
+  }
+  return setting;
+}
+
+/** The model and effort a group of agents runs with, read whenever one starts. */
+export const agentSetting = (home: string, role: AgentRole): AgentSetting => settingFor(read(home), role);
+
+export const savedHarnesses = (home: string): Harness[] | undefined => read(home).harnesses;
+
+/** Before the owner has a saved list, recover the harnesses named by existing agent choices. */
+export function configuredHarnesses(home: string, projects: readonly ProjectConfig[]): Harness[] {
+  const settings = read(home);
+  if (settings.harnesses) return settings.harnesses;
+  const used = new Set<Harness>();
+  for (const role of AGENT_ROLES) {
+    const base = settingFor(settings, role);
+    if (base.harness || projects.length) used.add(base.harness ?? 'claude');
+    for (const project of projects) used.add(projectAgentSetting(role, base, project.agents).harness ?? 'claude');
+  }
+  return HARNESSES.filter((h) => used.has(h));
+}
+
+export function saveHarnesses(home: string, harnesses: readonly Harness[]) {
+  write(home, { ...read(home), harnesses: HARNESSES.filter((h) => harnesses.includes(h)) });
+}
+
+/** Save onboarding's selections and fix the starting defaults before the first project opens. */
+export function saveFirstHarnesses(home: string, selected: readonly Harness[]) {
+  const settings = read(home);
+  const first = firstProjectHarness(selected);
+  const agents = { ...settings.agents };
+  const configured = new Set(selected);
+  for (const role of AGENT_ROLES) {
+    const previous = agents[role]?.harness;
+    if (previous && settings.harnesses?.includes(previous) !== false) configured.add(previous);
+    else if (first) agents[role] = { ...agents[role], harness: first };
+  }
+  write(home, { ...settings, agents, harnesses: HARNESSES.filter((h) => configured.has(h)) });
+}
 
 export function agentsView(home: string): AgentsView {
-  return { file: join(home, SETTINGS_FILE), agents: Object.fromEntries(AGENT_ROLES.map((r) => [r, agentSetting(home, r)])) as Record<AgentRole, AgentSetting>, codexAutoReview: read(home).codexAutoReview !== false };
+  const settings = read(home);
+  return { file: join(home, SETTINGS_FILE), agents: Object.fromEntries(AGENT_ROLES.map((r) => [r, settingFor(settings, r)])) as Record<AgentRole, AgentSetting>, codexAutoReview: settings.codexAutoReview !== false };
 }
 
 /** Saves whether Codex's own automatic review decides for Codex workers (`{ on }`) or the owner is asked; read whenever one starts. Other settings in the file stay. */
@@ -324,6 +370,7 @@ export function saveAgents(home: string, input: unknown): AgentsView {
     const { model, effort, harness, codex, agy, ...other } = (choice && typeof choice === 'object' ? choice : {}) as Record<string, unknown>;
     if (Object.keys(other).length) throw new BadRequest('invalid', 'unknown agent setting');
     if (harness !== undefined && !HARNESSES.some((h) => h === harness)) throw new BadRequest('invalid', 'harness must be claude, codex or agy');
+    if (harness !== undefined && settings.harnesses && !settings.harnesses.includes(harness as Harness)) throw new BadRequest('invalid', 'Configure this harness before choosing it.');
     if (agy !== undefined && !agyChoice.safeParse(agy).success) throw new BadRequest('invalid', 'agy needs a model id and accepts an optional effort (low, medium, high, xhigh, max)');
     if (codex !== undefined && !codexChoice.safeParse(codex).success) throw new BadRequest('invalid', 'codex needs a model id and a supported effort (low, medium, high, xhigh, max)');
     if (model !== undefined && !AGENT_MODELS.some((m) => m === model)) throw new BadRequest('invalid', `model must be one of ${AGENT_MODELS.join(', ')}`);
@@ -335,11 +382,11 @@ export function saveAgents(home: string, input: unknown): AgentsView {
   return agentsView(home);
 }
 
-/** What puts the agents' settings back as they are now, the rest of the file as it is then. */
+/** Restore the previous agent defaults and harness connections, keeping other settings as they are then. */
 export function agentsAsNow(home: string): () => void {
-  const agents = read(home).agents;
+  const { agents, harnesses } = read(home);
   return () => {
-    write(home, { ...read(home), agents });
+    write(home, { ...read(home), agents, harnesses });
     console.log(`Seismic: models and effort of the agents put back in ${join(home, SETTINGS_FILE)}`);
   };
 }

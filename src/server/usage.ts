@@ -40,6 +40,7 @@ export interface UsageSource {
  * what it fetched last stands meanwhile, for a few minutes.
  */
 export class UsageMeter {
+  readonly harness?: Usage['harness'];
   private last: Usage | null = null;
   private listeners = new Set<() => void>();
   private watchers = 0;
@@ -57,8 +58,9 @@ export class UsageMeter {
 
   constructor(
     private open: () => UsageSource,
-    o: { on?: boolean; everyMs?: number; lingerMs?: number } = {},
+    o: { harness?: Usage['harness']; on?: boolean; everyMs?: number; lingerMs?: number } = {},
   ) {
+    this.harness = o.harness;
     this.on = !!o.on;
     this.everyMs = o.everyMs ?? USAGE_EVERY_MS;
     this.lingerMs = o.lingerMs ?? USAGE_LINGER_MS;

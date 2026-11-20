@@ -91,11 +91,21 @@ export function ProjectSettingsBody({ project, name, homePath, on, covered, onAd
     api.projectSettings(project).then(setView, (e) => setStatus(failText(e)));
   }, [on, covered, project]);
   useEffect(() => {
-    if (!on) return;
-    void api.connectedHarnesses().then((connected) => setCatalogs((current) => ({ ...current, connected })), console.error);
-    void api.codexModels().then((codex) => setCatalogs((current) => ({ ...current, codex })), console.error);
-    void api.agyModels().then((agy) => setCatalogs((current) => ({ ...current, agy })), console.error);
-  }, [on]);
+    if (!on || covered) return;
+    let active = true;
+    setCatalogs({});
+    void api.harnessAvailability().then((connected) => {
+      if (!active) return;
+      setCatalogs({ connected });
+      for (const harness of ['codex', 'agy'] as const) {
+        if (!connected.configured.includes(harness)) continue;
+        void (harness === 'codex' ? api.codexModels() : api.agyModels()).then((models) => {
+          if (active) setCatalogs((current) => ({ ...current, [harness]: models }));
+        }, console.error);
+      }
+    }, console.error);
+    return () => { active = false; };
+  }, [on, covered]);
   // another project starts at its list
   useEffect(() => {
     setOpen(null);

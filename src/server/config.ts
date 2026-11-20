@@ -42,7 +42,7 @@ import type { Forge } from './forge';
 import { commitShared, proposeShared, pushShared } from './shared-settings';
 import { gitCalls, gitSteps, leavingClones } from './workstations';
 import { VERSION } from './resources';
-import { agentSetting, projectDefaults, projectSettingsShape, renamedBaselines, tidyProjectSettings, withProjectDefaults } from './settings';
+import { agentSetting, projectDefaults, projectSettingsShape, renamedBaselines, savedHarnesses, tidyProjectSettings, withProjectDefaults } from './settings';
 import { canonical, commandsOf, heldGroups, trustHeld, trustTakenOver } from './trust';
 
 export const CONFIG_FILE = 'projects.json';
@@ -668,7 +668,7 @@ export class Config {
         }),
       );
       // workers that need a Git workstation have none in a folder without git: the project's harness, else Configuration's
-      const harness = projectAgentSetting('worker', agentSetting(this.o.server.home, 'worker'), c.agents).harness;
+      const harness = projectAgentSetting('worker', agentSetting(this.o.server.home, 'worker'), c.agents, savedHarnesses(this.o.server.home)).harness;
       c.repos.forEach((r, repo) => {
         if (r.git === false && needsGit(harness)) problems.push({ code: 'folderHarness', project, repo, detail: folderHarnessDetail(harness) });
       });

@@ -3,7 +3,7 @@
 // of the settings sheet shows every group, "Code reviews" the reviewer's alone.
 
 import { Fragment } from 'react';
-import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_ROLES, agyBaseChoice, catalogModel, modelEffort, modelEfforts, harnessChoice, projectAgentSetting, type AgentEffort, type AgentModel, type AgentRole, type CodexModel, type Harness, type ProjectAgents, type ProjectSettingsView } from '../../core/types';
+import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_ROLES, agyBaseChoice, catalogModel, modelEffort, modelEfforts, harnessChoice, projectAgentSetting, type AgentEffort, type AgentModel, type AgentRole, type CodexModel, type Harness, type HarnessAvailability, type ProjectAgents, type ProjectSettingsView } from '../../core/types';
 import { catalogDefault, DefaultEffort, HarnessOptions, ModelOptions } from '../agent-options';
 import { agentClass } from '../config';
 import { t } from '../strings';
@@ -14,7 +14,7 @@ import { cn } from 'cn';
 const choiceClass = 'min-w-0 w-full';
 
 /** The models of Codex and Antigravity, read once the sheet opens. */
-export type Catalogs = Partial<Record<'codex' | 'agy', CodexModel[]>> & { connected?: Harness[] };
+export type Catalogs = Partial<Record<'codex' | 'agy', CodexModel[]>> & { connected?: HarnessAvailability };
 
 /** Changes the group's own choice; `null` takes it back to Configuration's. */
 export type Choose = (role: AgentRole, change: Partial<ProjectAgents[AgentRole]> | null) => void;
@@ -56,7 +56,8 @@ export function AgentChoice({ role, view, catalogs, busy, choose }: { role: Agen
   const a = t.config.agents;
   const base = view.agents[role];
   const own = view.settings.agents[role] ?? {};
-  const effective = projectAgentSetting(role, base, view.settings.agents);
+  const effective = projectAgentSetting(role, base, view.settings.agents, view.harnesses);
+  if (view.harnesses?.length === 0) return <p className="hint">{t.config.harnesses.empty}</p>;
   const harness = effective.harness ?? 'claude';
   const other = harness === 'codex' || harness === 'agy' ? harness : null;
   const models = other ? catalogs[other] : undefined;

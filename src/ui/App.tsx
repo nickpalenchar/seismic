@@ -2915,6 +2915,7 @@ function Project({
         </div>
         <ConfigDialog
           on={cOn}
+          usage={online ? usage : []}
           page={snapshot.project.id}
           onClose={() => setCOn(false)}
           onTalk={talkFromConfig}

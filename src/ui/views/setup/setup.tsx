@@ -7,8 +7,9 @@
  * logins. Later the settings open it over the project, without the last step.
  */
 
-import { Fragment, type ReactNode, useEffect, useRef, useState } from 'react';
+import { Fragment, type ReactNode, useEffect, useId, useRef, useState } from 'react';
 import { type AgentSetting, CLOUD_PRESETS, CLOUD_VOICES, type CloudPreset, firstProjectHarness, type GitSetupPreview, needsGit, LARGE_FILE, type Language, type MachineItem, type MachineSection, type MachineSectionId, type MachineView, type MobileId, RECOMMENDED_SECTIONS, type SetupItem, type SetupRepoCheck, type VoiceSetupItem } from '../../../core/types';
+import { HARNESSES, HARNESS_SECTION, type Harness } from '../../../core/types';
 import { LANGUAGES } from '../../../core/locale';
 import { api, reload } from '../../api';
 import { useCopy } from '../../copy';
@@ -238,10 +239,8 @@ export function demoState(i: SetupItem | MachineItem) {
 const ready = (items: MachineItem[] | undefined) => !!items?.length && items.every((i) => i.state !== 'missing');
 
 /** The agents the first step offers, in its order; Pi is not there yet. */
-const AGENTS = ['claude', 'codex', 'agy', 'pi'] as const;
+const AGENTS = [...HARNESSES, 'pi'] as const;
 type Agent = (typeof AGENTS)[number];
-/** The section that checks each agent. */
-const AGENT_SECTION: Record<Exclude<Agent, 'pi'>, MachineSectionId> = { claude: 'needed', codex: 'codex', agy: 'agents' };
 /**
  * The checks the list runs side by side, each shown as it answers: an agent's own first, git (which
  * every agent needs, and whose slowness holds back no agent's result), the features that can wait last.
@@ -251,6 +250,7 @@ const SECTION_ORDER: readonly MachineSectionId[] = ['needed', 'git', 'codex', 'a
 /** The check that covers a section. */
 const checkOf = (id: MachineSectionId) => CHECKS.findIndex((c) => c.includes(id));
 const ALL_CHECKS = CHECKS.map((_, i) => i);
+const HARNESS_CHECKS = [...HARNESSES.map((h) => checkOf(HARNESS_SECTION[h])), checkOf('git')];
 /** The sections of the first step, whose blocks each have their own "Check again". */
 const OWN_CHECK_SECTIONS: readonly MachineSectionId[] = ['needed', 'git', 'codex', 'agents'];
 /**
@@ -306,17 +306,32 @@ function CheckAgain({ checking, disabled, variant, onClick }: { checking: boolea
   );
 }
 
-export function Setup({ first, onClose }: { first?: boolean; onClose?: () => void }) {
+interface HarnessWizard {
+  configured: readonly Harness[];
+  onSaved: (harnesses: Harness[], done: boolean) => void;
+  onBack: () => void;
+}
+
+export function Setup({ first, onClose, wizard }: { first?: boolean; onClose?: () => void; wizard?: HarnessWizard }) {
+  const allChecks = wizard ? HARNESS_CHECKS : ALL_CHECKS;
   const [view, setView] = useState<MachineView | null>(null);
   // the checks under way, by their index in CHECKS; all of them until the first answers come in, so a
   // first check that fails (the server starting again) leaves no spinner behind
-  const [checking, setChecking] = useState<readonly number[]>(ALL_CHECKS);
+  const [checking, setChecking] = useState<readonly number[]>(allChecks);
   const [status, setStatus] = useState('');
   const [terminal, setTerminal] = useState<string | null>(null);
   const [step, setStep] = useState<Step>('agents');
   const [furthest, setFurthest] = useState(0);
   // the agents the owner ticked or unticked; the others are picked once their check finds them ready
   const [touched, setTouched] = useState<Partial<Record<Agent, boolean>>>({});
+  const [pending, setPending] = useState<Harness[]>([]);
+  const [confirming, setConfirming] = useState(false);
+  const currentHarness = pending[0];
+  const wizardHeading = useRef<HTMLHeadingElement>(null);
+  const pickerTitle = useId();
+  useEffect(() => {
+    if (wizard) wizardHeading.current?.focus();
+  }, [currentHarness]);
   // the checks whose last run failed (the server starting again, say), by their index in CHECKS, with why:
   // each shows that with a Check again of its own, as its sections may never have arrived
   const [broken, setBroken] = useState<Readonly<Partial<Record<number, string>>>>({});
@@ -336,7 +351,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
     setView(v);
   };
   /** Checks again (`which`: the checks by their index in CHECKS, all where left out); settles once checks that started after this call have ended. */
-  const recheck = (which: readonly number[] = ALL_CHECKS): Promise<void> =>
+  const recheck = (which: readonly number[] = allChecks): Promise<void> =>
     Promise.all(
       which.map((i) => {
         const f = flights.current[i]!;
@@ -402,7 +417,7 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
   const jobSection = view?.job?.section;
   useEffect(() => {
     if (!running) return;
-    const which = jobSection ? [checkOf(jobSection)] : ALL_CHECKS;
+    const which = jobSection ? [checkOf(jobSection)] : allChecks;
     const timer = setInterval(() => recheck(which), 1500);
     return () => clearInterval(timer);
   }, [running, jobSection]);
@@ -474,10 +489,10 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
   const git = sectionOf('git');
   const gitItems = git?.items ?? [];
   /** An agent's own pieces; the git all of them need is a section of its own. */
-  const agentItems = (a: Agent) => (a === 'pi' ? [] : (sectionOf(AGENT_SECTION[a])?.items ?? []));
+  const agentItems = (a: Agent) => (a === 'pi' ? [] : (sectionOf(HARNESS_SECTION[a])?.items ?? []));
   /** Whether the agent's check is under way, the first or a later one; one that failed is over, whatever it left. */
-  const checkingAgent = (a: Agent) => a !== 'pi' && isChecking(AGENT_SECTION[a]);
-  const chosen = AGENTS.filter((a) => touched[a] ?? (a !== 'pi' && ready(agentItems(a))));
+  const checkingAgent = (a: Agent) => a !== 'pi' && isChecking(HARNESS_SECTION[a]);
+  const chosen = AGENTS.filter((a) => touched[a] ?? (!wizard && a !== 'pi' && ready(agentItems(a))));
   // an agent is configured once its own pieces and git are there: its Ready badge, the count and the steps after the first all go by this
   const isConfigured = (a: Agent) => ready(agentItems(a)) && ready(gitItems);
   const configured = chosen.filter(isConfigured);
@@ -507,9 +522,9 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
   // checks again by itself, whether or not Seismic could open a terminal for it.
   const awaitsLogin = (i: MachineItem) => i.state === 'missing' && (i.act === 'login' || i.act === 'terminal');
   const shownItems = step === 'agents' ? chosen.flatMap(agentItems) : step === 'recommended' ? recommended.flatMap((x) => x.items) : [];
-  const shownSections = step === 'agents' ? chosen.flatMap((a) => (a === 'pi' ? [] : [AGENT_SECTION[a]])) : step === 'recommended' ? recommended.map((x) => x.id) : [];
+  const shownSections = wizard ? (currentHarness ? [HARNESS_SECTION[currentHarness], 'git'] as const : []) : step === 'agents' ? chosen.flatMap((a) => (a === 'pi' ? [] : [HARNESS_SECTION[a]])) : step === 'recommended' ? recommended.map((x) => x.id) : [];
   // only the checks of the sections that wait for a login, each skipped while it runs already
-  const polling = [...new Set(shownSections.filter((id) => sectionOf(id)?.items.some((i) => shownItems.includes(i) && awaitsLogin(i))).map(checkOf))].sort().join(',');
+  const polling = [...new Set(shownSections.filter((id) => sectionOf(id)?.items.some((i) => (wizard || shownItems.includes(i)) && awaitsLogin(i))).map(checkOf))].sort().join(',');
   useEffect(() => {
     if (!polling) return;
     const which = polling.split(',').map(Number);
@@ -539,6 +554,122 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
     <CheckAgain checking={isChecking('pr')} disabled={running} onClick={recheckOf('pr')} />
   );
 
+  const picker = (
+    <section className={cn(projectClass, 'setup-pick')}>
+      <div className={sectionHeadClass}>
+        <b id={pickerTitle}>{wizard ? t.config.harnesses.pick : s.pick.title}</b>
+      </div>
+      <p className="hint mt-0.5 mb-2">{wizard ? t.config.harnesses.pickHint : s.pick.hint}</p>
+      <div role="group" aria-labelledby={pickerTitle} className="grid grid-cols-2 gap-2.5 max-sm:grid-cols-1">
+        {(wizard ? HARNESSES : AGENTS).map((a) => {
+          const soon = a === 'pi';
+          const saved = !soon && wizard?.configured.includes(a);
+          const on = !!saved || chosen.includes(a);
+          return (
+            <CheckLabel
+              key={a}
+              className={cn(
+                'setup-agent items-start gap-3 rounded-lg border border-solid py-3 px-3.5 transition-colors',
+                soon ? 'border-border opacity-60 cursor-default' : on ? 'on border-primary bg-primary/5' : 'border-border [&:hover]:border-foreground',
+              )}
+            >
+              <Checkbox className="mt-0.5" checked={on} disabled={soon || saved} onCheckedChange={(c) => toggle(a, c === true)} />
+              <span className="grid gap-0.5 min-w-0">
+                <span className="flex flex-wrap items-center gap-2">
+                  <b>{s.agentNames[a]}</b>
+                  {!saved && checkingAgent(a) && (
+                    <span className="setup-checking hint inline-flex items-center gap-1">
+                      <Spinner className="size-3.5" aria-hidden />
+                      {t.config.setup.checking}
+                    </span>
+                  )}
+                  {!soon && (saved || (!checkingAgent(a) && isConfigured(a))) && (
+                    <Badge variant="secondary" className="text-approved">
+                      <Check aria-hidden />
+                      {saved ? t.config.harnesses.connected : s.agentReady}
+                    </Badge>
+                  )}
+                </span>
+                <span className="hint">{s.agentHints[a]}</span>
+              </span>
+            </CheckLabel>
+          );
+        })}
+      </div>
+      {HARNESSES.map((h) => (!wizard || !wizard.configured.includes(h)) && brokenOf(HARNESS_SECTION[h]) !== undefined && (
+        <p key={h} className="hint">{s.agentNames[h]} {checkFailed(HARNESS_SECTION[h])}</p>
+      ))}
+    </section>
+  );
+
+  if (wizard) {
+    const w = t.config.harnesses;
+    const selected = HARNESSES.filter((h) => touched[h] && !wizard.configured.includes(h));
+    const section = currentHarness && sectionOf(HARNESS_SECTION[currentHarness]);
+    const checking = !!currentHarness && (checkingAgent(currentHarness) || isChecking('git'));
+    const readyToConfirm = !!currentHarness && isConfigured(currentHarness);
+    const failedCheck = !!currentHarness && (brokenOf(HARNESS_SECTION[currentHarness]) !== undefined || brokenOf('git') !== undefined);
+    const confirm = async () => {
+      if (!currentHarness) return;
+      setConfirming(true);
+      setStatus('');
+      try {
+        const saved = await api.setHarness(currentHarness, true);
+        const next = pending.slice(1).filter((h) => !saved.includes(h));
+        setPending(next);
+        if (next[0]) void recheck([checkOf(HARNESS_SECTION[next[0]]), checkOf('git')]);
+        wizard.onSaved(saved, next.length === 0);
+      } catch (error) {
+        failed(error);
+        void recheck([checkOf(HARNESS_SECTION[currentHarness]), checkOf('git')]);
+      } finally {
+        setConfirming(false);
+      }
+    };
+    return (
+      <div className="max-w-3xl">
+        <Button size="small" variant="ghost" disabled={confirming} onClick={() => {
+          setStatus('');
+          if (currentHarness) setPending([]); else wizard.onBack();
+        }}>{s.back}</Button>
+        <h2 ref={wizardHeading} tabIndex={-1} className={cn(headingClass, 'mt-3 focus:outline-none')}>
+          {currentHarness ? w.configure(s.agentNames[currentHarness]) : w.add}
+        </h2>
+        {currentHarness ? (
+          <>
+            {readyToConfirm && !checking && !failedCheck && <p className="hint">{w.ready(s.agentNames[currentHarness])}</p>}
+            {!readyToConfirm && (section || git) && (
+              <>
+                <p className="hint">{w.setupNeeded}</p>
+                {section && !ready(section.items) && block(currentHarness, section, section.items, s.agentNames[currentHarness], s.sections[section.id].hint)}
+                {git && !ready(gitItems) && block('git', git, gitItems, s.sections.git.title, s.sections.git.hint)}
+              </>
+            )}
+            {checkFailed(HARNESS_SECTION[currentHarness])}
+            {checkFailed('git')}
+            {checking && <p className="hint flex items-center gap-2" role="status"><Spinner className="size-3.5" aria-hidden />{t.config.setup.checking}</p>}
+            {status && <p className={statusClass} role="alert">{status}</p>}
+            <div className="mt-4 flex flex-col items-start gap-1">
+              <Button variant="primary" disabled={confirming || checking || failedCheck || running || !readyToConfirm} onClick={confirm}>
+                {confirming && <Spinner className="size-3.5" aria-hidden />}
+                {w.confirm}
+              </Button>
+              {pending.length > 1 && <small className="text-muted-foreground">{w.remaining(pending.length - 1)}</small>}
+            </div>
+          </>
+        ) : (
+          <>
+            {picker}
+            <Button className="mt-4" variant="primary" disabled={!selected.length} onClick={() => {
+              setPending(selected);
+              void recheck([checkOf(HARNESS_SECTION[selected[0]!]), checkOf('git')]);
+            }}>{s.next}</Button>
+          </>
+        )}
+      </div>
+    );
+  }
+
   return (
     <SetupShell first={first} onClose={onClose}>
         <header ref={top} className={cn('setup-head scroll-mt-14 flex items-center gap-3.5', !first && 'flex-none pr-7')}>
@@ -559,51 +690,10 @@ export function Setup({ first, onClose }: { first?: boolean; onClose?: () => voi
           {view && step !== 'first' && <p className="hint">{s.platform(platformName(view))}</p>}
           {step === 'agents' && (
             <>
-              <section className={cn(projectClass, 'setup-pick')}>
-                <div className={sectionHeadClass}>
-                  <b id="setup-pick">{s.pick.title}</b>
-                </div>
-                <p className="hint mt-0.5 mb-2">{s.pick.hint}</p>
-                <div role="group" aria-labelledby="setup-pick" className="grid grid-cols-2 gap-2.5">
-                  {AGENTS.map((a) => {
-                    const soon = a === 'pi';
-                    const on = chosen.includes(a);
-                    return (
-                      <CheckLabel
-                        key={a}
-                        className={cn(
-                          'setup-agent items-start gap-3 rounded-lg border border-solid py-3 px-3.5 transition-colors',
-                          soon ? 'border-border opacity-60 cursor-default' : on ? 'on border-primary bg-primary/5' : 'border-border [&:hover]:border-foreground',
-                        )}
-                      >
-                        <Checkbox className="mt-0.5" checked={on} disabled={soon} onCheckedChange={(c) => toggle(a, c === true)} />
-                        <span className="grid gap-0.5 min-w-0">
-                          <span className="flex items-center gap-2">
-                            <b>{s.agentNames[a]}</b>
-                            {checkingAgent(a) && (
-                              <span className="setup-checking hint inline-flex items-center gap-1">
-                                <Spinner className="size-3.5" aria-hidden />
-                                {t.config.setup.checking}
-                              </span>
-                            )}
-                            {!soon && isConfigured(a) && (
-                              <Badge variant="secondary" className="text-approved">
-                                <Check aria-hidden />
-                                {s.agentReady}
-                              </Badge>
-                            )}
-                          </span>
-                          <span className="hint">{s.agentHints[a]}</span>
-                          {!soon && checkFailed(AGENT_SECTION[a])}
-                        </span>
-                      </CheckLabel>
-                    );
-                  })}
-                </div>
-              </section>
+              {picker}
               {chosen.map((a) => {
                   if (a === 'pi') return null;
-                  const section = sectionOf(AGENT_SECTION[a]);
+                  const section = sectionOf(HARNESS_SECTION[a]);
                   if (!section) return null;
                   const hint = s.sections[section.id].hint;
                   return block(
