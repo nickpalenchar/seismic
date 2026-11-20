@@ -642,7 +642,7 @@ export class MachineSetup {
       GH_PROMPT_DISABLED: '1',
       SSH_ASKPASS_REQUIRE: 'never',
     };
-    const ghLogin = github && (await tried(['gh', 'auth', 'status'], env, 30_000)).ok;
+    const ghLogin = github && (await tried(['gh', 'auth', 'status', '--hostname', 'github.com'], env, 30_000)).ok;
     // An empty helper resets all configured helpers, including URL-specific ones.
     const helper = action === 'check' || ghLogin ? ['-c', 'credential.helper='] : [];
     if (ghLogin) helper.push('-c', 'credential.https://github.com.helper=!gh auth git-credential');

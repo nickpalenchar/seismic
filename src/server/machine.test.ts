@@ -460,6 +460,18 @@ describe('the first project', () => {
     ]);
   });
 
+  test('a gh logged in only to another host does not count as a github.com login', async () => {
+    const calls = join(dir, 'git-calls');
+    // gh reports the Enterprise login without a host; with --hostname github.com it fails
+    fake('gh', `[ "$1 $2" = "auth status" ] || exit 1; case "$*" in *"--hostname github.com"*) exit 1;; esac; exit 0`);
+    fake('git', `echo "$@" >> ${calls}; echo "fatal: could not read Username for 'https://github.com': terminal prompts disabled" >&2; exit 128`);
+    const s = setup({});
+    expect(await s.repo({ clone: 'acme/private-shop' })).toMatchObject({ readable: false, github: true, ghLogin: false });
+    await s.project({ clone: 'acme/private-shop', into: join(dir, 'code') }).catch(() => {});
+    for (let i = 0; (await s.view()).job?.running && i < 100; i++) await Bun.sleep(50);
+    expect(readFileSync(calls, 'utf8')).not.toContain('gh auth git-credential');
+  });
+
   test('checks skip configured helpers and explicit HTTPS clones can use saved credentials', async () => {
     const realGit = Bun.which('git')!;
     const githubOrigin = gitRepo(join(dir, 'github-origin'));
