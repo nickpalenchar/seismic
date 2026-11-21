@@ -820,8 +820,8 @@ function StepFooter({ callout, text, children }: { callout?: CalloutKind; text: 
   );
 }
 
-/** The assistant's pane: frost's glass, its commands in the page's mono. */
-const pageClass = 'setup-page frost-pane max-w-[720px] pt-6 px-7 pb-6 [&_code]:font-mono [&_code]:text-xs';
+/** The assistant's pane, with commands in the page's mono. */
+const pageClass = 'setup-page max-w-[720px] pt-6 px-7 pb-6 [&_code]:font-mono [&_code]:text-xs';
 /** Its title, close under the kind above it. */
 const headingClass = 'mt-0.5 mb-0 mx-0';
 /** A block's head: its title, whether it is needed, its size and how much of it is still open. */
@@ -830,9 +830,9 @@ const sectionHeadClass = 'setup-sh flex items-baseline gap-2 mb-0.5';
 /** The whole page on the first start; over the project from the settings, a dialog within the window. */
 function SetupShell({ first, onClose, children }: { first?: boolean; onClose?: () => void; children: ReactNode }) {
   const [opener] = useState(() => document.activeElement instanceof HTMLElement ? document.activeElement : null);
-  if (first) return <div className="setup first fixed inset-0 overflow-y-auto z-80 bg-background"><div className={cn(pageClass, 'mx-auto mt-14 mb-12')}>{children}</div></div>;
+  if (first) return <div className="setup first fixed inset-0 overflow-y-auto z-80 bg-background"><div className={cn(pageClass, 'frost-pane mx-auto mt-14 mb-12')}>{children}</div></div>;
   return <Dialog open onOpenChange={(open) => !open && onClose?.()}>
-    <DialogContent layerClassName="setup over z-80 overflow-hidden py-12 px-6 bg-scrim" glass className={cn(pageClass, 'w-full my-0 mx-auto flex flex-col pr-0 pb-0')} onCloseAutoFocus={(e) => {
+    <DialogContent layerClassName="setup over z-80 overflow-hidden py-12 px-6 bg-scrim" className={cn(pageClass, 'w-full my-0 mx-auto flex flex-col rounded-2xl pr-0 pb-0')} onCloseAutoFocus={(e) => {
       e.preventDefault();
       opener?.focus();
     }}>{children}</DialogContent>

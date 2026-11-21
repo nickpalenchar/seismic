@@ -476,7 +476,7 @@ const en = {
   },
   welcome: {
     title: 'First task: change something small',
-    body: 'Write into this card what an agent should do in this repository, for example: “Add to the README how to start the project.” Then “Start agent”: it works on a branch of its own, asks when something is not its to decide, and shows you a demo at the end. You approve it or write what is still missing.\n\nMore tasks come from “+ New task”, or you say them: hold Space and speak. “Configuration” → “Check setup” checks again later what Seismic needs on this machine.',
+    body: 'Write into this card what an agent should do in this repository, for example: “Add to the README how to start the project.” Then “Start agent”: it works on a branch of its own, asks when something is not its to decide, and shows you a demo at the end. You approve it or write what is still missing.\n\nMore tasks come from “+ New task”, or you say them: hold Space and speak. To run Setup again, open Settings → Advanced and click “Relaunch Setup”.',
   },
   adapterSetup: {
     title: (repo: string) => `Set up Seismic for ${repo}`,

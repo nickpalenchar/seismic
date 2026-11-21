@@ -480,10 +480,7 @@ export function ConfigDialog({ on, page, usage, onClose, onAsk, onTalk, onProble
           </ul>
           </TabsList>
           <div className={K.cfgNavFootClass}>
-            <Button size="small" onClick={() => setSetupOn(true)}>
-              {t.setup.check}
-            </Button>
-            <WishLink className="mt-3.5 flex" onOpen={onClose} />
+            <WishLink onOpen={onClose} />
           </div>
         </nav>
         {/* on the box, not in the scrolling column, so it stays in view however far that scrolls */}
@@ -574,6 +571,12 @@ export function ConfigDialog({ on, page, usage, onClose, onAsk, onTalk, onProble
             <AccessSection on={on && section === 'devices'} onConnect={onConnect} />
           </section>
           <section id="cfg-sec-advanced" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'advanced'}>
+            <Head title={c.sections.advanced} />
+            <section className="mb-6" aria-labelledby="cfg-reconfigure-setup">
+              <h3 id="cfg-reconfigure-setup">{c.reconfigureSetup.title}</h3>
+              <p className="hint">{c.reconfigureSetup.hint}</p>
+              <Button size="small" onClick={() => setSetupOn(true)}>{c.reconfigureSetup.relaunch}</Button>
+            </section>
             <ProjectExport projects={draft} ids={origin} />
           </section>
           <section id="cfg-sec-developer" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'developer'}>
@@ -597,7 +600,6 @@ function ProjectExport({ projects, ids: savedIds }: { projects: ProjectConfig[];
     try { await api.exportProjects(ids, as); } catch (e) { setError(failText(e)); }
   };
   return <>
-    <Head title={t.config.sections.advanced} />
     <h3>{t.config.dataExport.title}</h3>
     <p className="hint">{t.config.dataExport.hint}</p>
     <CheckLabel><Checkbox checked={selected === null} onCheckedChange={() => setSelected(null)} />{t.config.dataExport.all}</CheckLabel>

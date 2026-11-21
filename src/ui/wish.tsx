@@ -344,7 +344,7 @@ const issueLabel = 'flex flex-col gap-1 text-xs text-muted-foreground';
 const wishLinkClass = 'group/wish inline-flex cursor-pointer items-baseline gap-1.5 bg-transparent p-0 text-left text-xs text-muted-foreground hover:text-foreground';
 const wishTextClass = 'border-b border-b-border group-hover/wish:border-muted-foreground';
 
-/** The quiet link that opens the dialog: under "Check setup" in the Konfiguration dialog, and in the legend (`onOpen` closes either). */
+/** The quiet link that opens the dialog from Settings or the legend. `onOpen` closes the current panel. */
 export function WishLink({ className, onOpen }: { className?: string; onOpen?: () => void }) {
   const draft = useWishDraft();
   return (

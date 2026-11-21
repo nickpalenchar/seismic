@@ -1526,6 +1526,11 @@ const en = {
       },
     },
     dataExport: { title: 'Export data', hint: 'Download saved data from the selected projects, including archived cards and conversations.', all: 'All projects', csv: 'Download CSV', json: 'Download JSON' },
+    reconfigureSetup: {
+      title: 'Reconfigure Setup',
+      hint: 'Click the button to relaunch the initial setup dialogue.',
+      relaunch: 'Relaunch Setup',
+    },
     unsaved: 'Not saved',
     language: {
       heading: 'Languages',
@@ -2132,7 +2137,6 @@ const en = {
     },
   },
   setup: {
-    check: 'Check setup',
     kind: 'Seismic',
     titleFirst: 'Welcome to Seismic',
     title: 'Setup',
