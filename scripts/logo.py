@@ -3,7 +3,7 @@
 # wordmark-dark.svg (the sign with "Seismic" in Newsreader SemiBold as outlines, the letters in the ink of
 # either theme), logo.png (where SVG is not taken), apple-touch-icon.png and icon-512.png (the sign on a
 # square for home screens), glyphs.ts (what the UI's Sign and Wordmark draw), the site's copies in
-# site/img/ and the app's icons in app/icons/.
+# site/img/ and the app's icons in desktop/icons/.
 # /// script
 # dependencies = ["pillow", "fonttools", "brotli"]
 # ///
@@ -18,7 +18,7 @@ from fontTools.pens.transformPen import TransformPen
 root = Path(__file__).resolve().parent.parent
 logo_dir = root / 'src/ui/logo'
 site_img = root / 'site/img'
-icons = root / 'app/icons'
+icons = root / 'desktop/icons'
 BG = (11, 18, 32)  # the ink the sign sits on in icons: the sign is light, so it needs a dark square
 
 src = Image.open(logo_dir / 'seismic_logo.png').convert('RGBA')

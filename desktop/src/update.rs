@@ -12,8 +12,8 @@
 // - A .deb is not replaced by the app (dpkg needs root): the bar offers the release to download.
 // - Only for an Seismic the app started in this run, whose end it sees. An Seismic from a checkout
 //   updates itself from its checkout, and so does a shell installed from one (`bun run app install`,
-//   which compiles in the version of app/ it was built from, SEISMIC_BUILT_TREE): every minute it
-//   looks at app/ on the checkout's HEAD, and once that is another, the checkout's scripts/app.ts
+//   which compiles in the version of desktop/ it was built from, SEISMIC_BUILT_TREE): every minute it
+//   looks at desktop/ on the checkout's HEAD, and once that is another, the checkout's scripts/app.ts
 //   builds the shell and installs it in this one's place. The shell then tells the server it started
 //   of it as of an update, which the server installs without asking, as it restarts for new code;
 //   nothing is left to install then but starting again. A server it did not start (a terminal's)
@@ -99,7 +99,7 @@ fn check_releases(app: &AppHandle, updates: &Arc<Updates>) {
   });
 }
 
-/// Installed from a checkout: builds and installs the shell anew whenever app/ on the checkout's
+/// Installed from a checkout: builds and installs the shell anew whenever desktop/ on the checkout's
 /// HEAD is another than the one it was last built from.
 fn rebuild(checkout: &Path, built: &str, home: &Path, updates: &Updates) {
   let mut last = built.to_string();
@@ -132,10 +132,10 @@ fn rebuild(checkout: &Path, built: &str, home: &Path, updates: &Updates) {
   }
 }
 
-/// The version of app/ on the checkout's HEAD.
+/// The version of desktop/ on the checkout's HEAD.
 fn tree(checkout: &Path) -> Option<String> {
   let mut cmd = Command::new("git");
-  cmd.arg("-C").arg(checkout).args(["rev-parse", "HEAD:app"]).stdin(Stdio::null()).stderr(Stdio::null());
+  cmd.arg("-C").arg(checkout).args(["rev-parse", "HEAD:desktop"]).stdin(Stdio::null()).stderr(Stdio::null());
   no_window(&mut cmd);
   let out = cmd.output().ok()?;
   let tree = String::from_utf8_lossy(&out.stdout).trim().to_string();

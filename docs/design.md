@@ -91,7 +91,7 @@ cycling through terminals.
   unpublished (`SITE` in `scripts/distribution.ts`). Release notes are a curated `CHANGELOG.md`
   section per version, each entry linking its demo, with the commits folded under it; rejected:
   commit subjects as notes (hundreds of lines per release, unreadable for users). Kill switches:
-  `DISTRIBUTION` in `scripts/distribution.ts`, `CHECK_RELEASES` in `app/src/update.rs`,
+  `DISTRIBUTION` in `scripts/distribution.ts`, `CHECK_RELEASES` in `desktop/src/update.rs`,
   `UPDATES_ENABLED` in `src/server/app-update.ts`. `docs/release.md` has the process.
 - **The Koordinator is called Seismic in the UI** (2026-10-09): the owner has one counterpart, not a
   product plus a component in it.

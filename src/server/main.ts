@@ -16,7 +16,7 @@
 // configuration the owner saves applies while the server runs (config.ts, `Projects`); saved while
 // the projects came from the command line, it starts the server again, from the file from then on.
 //
-// Ctrl-C, SIGTERM or `POST /api/stop` (the app, app/, and Windows, which has no SIGTERM) stops
+// Ctrl-C, SIGTERM or `POST /api/stop` (the app, desktop/, and Windows, which has no SIGTERM) stops
 // Seismic the way a restart goes: workers in the middle of a turn hear of it and pause, and Seismic
 // ends once none is (at most 15 minutes); a second Ctrl-C ends it at once. Workers it stopped are
 // resumed when Seismic starts again. Installing a newer version of the app (`POST

@@ -16,9 +16,9 @@ import { gitAsync, gitOrNull } from './workstations';
 export const RESTART = 75;
 /** The same, and from now on with the configuration file rather than the command line's repositories. */
 export const RESTART_FROM_FILE = 76;
-/** The server ended for the app's shell to install a new version of the app and start it again (app/src/update.rs). */
+/** The server ended for the app's shell to install a new version of the app and start it again (desktop/src/update.rs). */
 export const UPDATE = 77;
-/** The server ended for the app's shell to start it again under itself (app/src/main.rs, `orphaned`). */
+/** The server ended for the app's shell to start it again under itself (desktop/src/main.rs, `orphaned`). */
 export const TAKEOVER = 78;
 
 /** How long a restart waits for workers to finish their turns before it cuts them off. */

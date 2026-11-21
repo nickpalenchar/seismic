@@ -1,4 +1,4 @@
-// The app's shell (app/) started from the checkout: it opens a window on the Seismic that runs on
+// The app's shell (desktop/) started from the checkout: it opens a window on the Seismic that runs on
 // the home, or starts this checkout's server (`bun src/server/main.ts`, which updates itself from
 // the checkout as `bun start` does) and stops it when the app quits. No compiled server and no
 // installer: those are scripts/build-app.ts.
@@ -6,17 +6,17 @@
 //   bun run app [--debug]            builds the shell and runs it from this terminal
 //   bun run app install [--no-open]  installs it as an app of its own, "Seismic (checkout)", and opens it
 //
-// install builds the shell with this checkout, the bun that runs it and the version of app/ on HEAD
+// install builds the shell with this checkout, the bun that runs it and the version of desktop/ on HEAD
 // (and the commit, which the settings show) compiled in, and puts it where the system starts apps from: ~/Applications on a Mac (Spotlight,
 // Launchpad, the Dock), the applications menu on Linux (~/.local/share/seismic-checkout and a .desktop
 // file in ~/.local/share/applications), the Start menu on Windows (%LOCALAPPDATA%\Programs\Seismic
-// checkout). Started from there, it runs this checkout's server as `bun run app` does. Once app/ on
+// checkout). Started from there, it runs this checkout's server as `bun run app` does. Once desktop/ on
 // HEAD is another than it was built from, the installed shell runs `install --no-open` itself in the
-// background and starts again with the new build (app/src/update.rs); everything else follows HEAD
+// background and starts again with the new build (desktop/src/update.rs); everything else follows HEAD
 // through the server's own self-update. --build-only builds it without installing.
 //
 // Needs Rust (rustup) and, on Linux, WebKitGTK's development files, as scripts/build-app.ts says.
-// The first build takes some minutes; it goes into app/target/checkout/ and is reused after that.
+// The first build takes some minutes; it goes into desktop/target/checkout/ and is reused after that.
 
 import { spawn } from 'node:child_process';
 import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -26,7 +26,7 @@ import { replace } from './app-replace';
 import { cargoPath } from './common';
 
 const ROOT = resolve(import.meta.dir, '..');
-const APP = join(ROOT, 'app');
+const APP = join(ROOT, 'desktop');
 const args = process.argv.slice(2);
 const install = args[0] === 'install';
 const debug = args.includes('--debug');
@@ -50,12 +50,12 @@ if (install) {
   };
   Object.assign(config, { identifier: IDENTIFIER });
   Object.assign(env, {
-    // compiled in (option_env! in app/src/main.rs and update.rs): started from the desktop, the shell gets no environment of ours
+    // compiled in (option_env! in desktop/src/main.rs and update.rs): started from the desktop, the shell gets no environment of ours
     SEISMIC_BUILT_CHECKOUT: ROOT,
     // the one the installed shell names when it builds itself anew (started from the desktop, its PATH
     // has none), else the PATH's (Homebrew's link, say) rather than the binary it points at, which an upgrade removes
     SEISMIC_BUILT_BUN: (process.env.SEISMIC_BUN ?? process.env.OBEYA_BUN) || Bun.which('bun') || process.execPath,
-    SEISMIC_BUILT_TREE: git('rev-parse', 'HEAD:app'),
+    SEISMIC_BUILT_TREE: git('rev-parse', 'HEAD:desktop'),
     // for the settings, which show it
     SEISMIC_BUILT_COMMIT: git('rev-parse', 'HEAD'),
   });

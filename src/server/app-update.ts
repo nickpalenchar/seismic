@@ -1,14 +1,14 @@
-// A newer version of the app, as its shell reports it (app/src/update.rs): downloaded and checked,
+// A newer version of the app, as its shell reports it (desktop/src/update.rs): downloaded and checked,
 // every few seconds while the shell runs the server. The bar shows it; installing it goes like a
 // restart (the Restarter's `update`), and the shell installs it once the server has ended.
 
 import type { AppUpdate } from '../core/types';
 import { BadRequest } from './board';
 
-/** Where the app's releases are, as its shell names them (`RELEASES` in app/src/update.rs). */
+/** Where the app's releases are, as its shell names them (`RELEASES` in desktop/src/update.rs). */
 const RELEASES = 'https://github.com/nickpalenchar/seismic/releases/';
 /**
- * The switch for app updates (docs/release.md), with `CHECK_RELEASES` in app/src/update.rs: off, a
+ * The switch for app updates (docs/release.md), with `CHECK_RELEASES` in desktop/src/update.rs: off, a
  * report that reaches the server shows no update.
  */
 const UPDATES_ENABLED = true;
@@ -66,7 +66,7 @@ const HANDED_OVER_MS = 2 * 60_000;
 
 /**
  * What the page in the app's window keeps across its shell starting again while the server runs
- * on (a new build of a shell installed from a checkout, app/src/update.rs). A reload keeps it in
+ * on (a new build of a shell installed from a checkout, desktop/src/update.rs). A reload keeps it in
  * the tab's session storage (keep.ts, draft.ts), which the new shell's webview starts without: the
  * page hands it over here first (`token`: which time the shell asked), and the page the new shell
  * opens takes it back, once.

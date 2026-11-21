@@ -109,7 +109,7 @@ function makeHistory() {
   git('tag', 'site-media');
   commit('docs/design.md', 'Record the plan\n\nDemo-Page: https://demos.example/plan/');
   commit('README.md', 'Reword the README');
-  commit('app/src/main.rs', 'Quit cleanly\n\nDemo-Video: /Users/someone/demos/quit/demo.mp4\nDemo-Video: https://demos.example/quit/');
+  commit('desktop/src/main.rs', 'Quit cleanly\n\nDemo-Video: /Users/someone/demos/quit/demo.mp4\nDemo-Video: https://demos.example/quit/');
   commit('src/c.ts', 'Quit faster\n\nDemo-Page: https://demos.example/quit/');
   git('tag', 'v0.2.0');
   commit('src/d.ts', 'Unreleased');

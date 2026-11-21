@@ -4,7 +4,7 @@
 //
 //   bun scripts/release.ts collect <target> <dir>
 //       copies the installers of <target> (darwin-arm64, …, as in scripts/build.ts) from
-//       app/target/release/bundle/ (scripts/build-app.ts) into <dir> under the release's fixed
+//       desktop/target/release/bundle/ (scripts/build-app.ts) into <dir> under the release's fixed
 //       names, with the update artifact and its signature when there is one.
 //   bun scripts/release.ts commits [<tag>] [--since <date>]
 //       prints the commits since the version tag before <tag> (without <tag>: since the last version
@@ -275,7 +275,7 @@ if (import.meta.main) {
   const cwd = resolve(import.meta.dir, '..');
   const changelog = () => readFileSync(join(cwd, 'CHANGELOG.md'), 'utf8');
   if (command === 'collect' && rest[1]) {
-    const copied = collect(rest[0]!, join(cwd, 'app', 'target', 'release', 'bundle'), resolve(rest[1]));
+    const copied = collect(rest[0]!, join(cwd, 'desktop', 'target', 'release', 'bundle'), resolve(rest[1]));
     for (const f of copied) console.log(f);
   } else if (command === 'commits') {
     const at = rest.indexOf('--since');

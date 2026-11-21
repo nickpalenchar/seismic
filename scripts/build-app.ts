@@ -1,17 +1,17 @@
-// Seismic as an app: the compiled server (scripts/build.ts) as the sidecar of the Tauri shell in app/,
+// Seismic as an app: the compiled server (scripts/build.ts) as the sidecar of the Tauri shell in desktop/,
 // bundled into what installs on this platform: a DMG on macOS (the app inside signed ad hoc, or with
 // a Developer ID and notarised, see below), an NSIS installer on Windows, an AppImage and a .deb on
 // Linux (both unsigned).
 //
 //   bun scripts/build-app.ts [<target>] [--bundles <dmg,app,nsis,appimage,deb>] [--config <json>] [--debug] [--verbose]
 //
-// --config merges into app/tauri.conf.json for this build (scripts/check-update.ts gives the app
+// --config merges into desktop/tauri.conf.json for this build (scripts/check-update.ts gives the app
 // another version and another updater that way).
 //
 // The target is this machine's by default (see scripts/build.ts); another needs Rust's target for it
 // and Tauri's tools for cross-building. Needs Rust (rustup) and, on Linux, WebKitGTK's development
 // files (libwebkit2gtk-4.1-dev and the rest Tauri lists). The bundles end up in
-// app/target/[<triple>/]release/bundle/.
+// desktop/target/[<triple>/]release/bundle/.
 //
 // With TAURI_SIGNING_PRIVATE_KEY set (and TAURI_SIGNING_PRIVATE_KEY_PASSWORD, if the key has one),
 // it also signs what Tauri's updater installs, each with a `.sig` beside it: Seismic.app.tar.gz on
@@ -20,7 +20,7 @@
 // its signature of the AppImage would be of the one without the server.
 //
 // On macOS, with a Developer ID Application certificate it signs the app with it instead of ad hoc:
-// the shell and the server with the hardened runtime and app/entitlements.plist, then the DMG.
+// the shell and the server with the hardened runtime and desktop/entitlements.plist, then the DMG.
 // The certificate is in the keychain, named by APPLE_SIGNING_IDENTITY ("Developer ID Application:
 // Name (TEAMID)"), or (in CI) in APPLE_CERTIFICATE as a base64 .p12 with APPLE_CERTIFICATE_PASSWORD,
 // which Tauri imports into a keychain of its own. With an App Store Connect API key it then has the
@@ -46,7 +46,7 @@ const TRIPLES = {
 type Target = keyof typeof TRIPLES;
 
 const ROOT = resolve(import.meta.dir, '..');
-const APP = join(ROOT, 'app');
+const APP = join(ROOT, 'desktop');
 const args = process.argv.slice(2);
 const here = `${process.platform === 'win32' ? 'windows' : process.platform}-${process.arch}` as Target;
 const target = (args.find((a, i) => !a.startsWith('--') && !['--bundles', '--config'].includes(args[i - 1] ?? '')) ?? here) as Target;
@@ -103,7 +103,7 @@ mkdirSync(join(APP, 'binaries'), { recursive: true });
 cpSync(join(built, `seismic${exe}`), join(APP, 'binaries', `seismic-server-${triple}${exe}`));
 rmSync(join(APP, 'staged'), { recursive: true, force: true });
 cpSync(join(built, 'resources'), join(APP, 'staged', 'resources'), { recursive: true });
-// on Linux the server goes among the resources (app/tauri.linux.conf.json), not into usr/bin
+// on Linux the server goes among the resources (desktop/tauri.linux.conf.json), not into usr/bin
 if (os === 'linux') cpSync(join(built, 'seismic'), join(APP, 'staged', 'seismic-server'));
 
 const cross = target !== here;

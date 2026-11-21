@@ -30,5 +30,5 @@
     // the UI as the shadcn CLI writes its imports (components.json): `@/components/…`, `@/lib/utils`
     "paths": { "@/*": ["./src/ui/*"] }
   },
-  "exclude": ["node_modules", "dist", "app/target", "app/staged"]
+  "exclude": ["node_modules", "dist", "desktop/target", "desktop/staged"]
 }

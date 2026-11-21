@@ -1,4 +1,4 @@
-// Checks that the installed app updates itself (app/src/update.rs) on this machine: it builds the
+// Checks that the installed app updates itself (desktop/src/update.rs) on this machine: it builds the
 // app twice with scripts/build-app.ts, as version 0.0.1 and 0.0.2, both with an updater that asks
 // a local server instead of GitHub and trusts a key pair made for the check; installs the first
 // (macOS: the app in a scratch directory; Windows: the NSIS installer, silently, for this user;
@@ -30,7 +30,7 @@ import { cargoPath, endingIn, opt } from './common';
 const ROOT = resolve(import.meta.dir, '..');
 const args = process.argv.slice(2);
 const os = process.platform === 'win32' ? 'windows' : process.platform === 'darwin' ? 'darwin' : 'linux';
-const BUNDLE = join(ROOT, 'app', 'target', 'release', 'bundle');
+const BUNDLE = join(ROOT, 'desktop', 'target', 'release', 'bundle');
 const env = { ...process.env, PATH: cargoPath() };
 
 const hash = (file: string) => new Bun.CryptoHasher('sha256').update(readFileSync(file)).digest('hex');
@@ -69,7 +69,7 @@ const one = (sub: string, end: string) => {
 const UPDATE = { darwin: 'Seismic.app.tar.gz', windows: 'Seismic-setup.exe', linux: 'Seismic.AppImage' }[os];
 
 if (!reuse) {
-  run([process.execPath, 'x', 'tauri', 'signer', 'generate', '--ci', '-f', '-w', join(dir, 'check.key')], join(ROOT, 'app'));
+  run([process.execPath, 'x', 'tauri', 'signer', 'generate', '--ci', '-f', '-w', join(dir, 'check.key')], join(ROOT, 'desktop'));
   const pubkey = readFileSync(join(dir, 'check.key.pub'), 'utf8').trim();
   const config = (version: string) =>
     JSON.stringify({ version, plugins: { updater: { pubkey, endpoints: [`http://127.0.0.1:${port}/latest.json`], dangerousInsecureTransportProtocol: true } } });

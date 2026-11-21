@@ -1,13 +1,13 @@
 #!/bin/bash
-# What app/linux.Dockerfile's container runs: build, install, check.
+# What desktop/linux.Dockerfile's container runs: build, install, check.
 set -euo pipefail
-rsync -a --delete --exclude node_modules --exclude /app/target --exclude /dist --exclude /app/binaries --exclude /app/staged /src/ /work/
+rsync -a --delete --exclude node_modules --exclude /desktop/target --exclude /dist --exclude /desktop/binaries --exclude /desktop/staged /src/ /work/
 cd /work
 bun install --frozen-lockfile
 # linuxdeploy is an AppImage itself, and a container has no FUSE
 export APPIMAGE_EXTRACT_AND_RUN=1
 bun scripts/build-app.ts
-bundle=app/target/release/bundle
+bundle=desktop/target/release/bundle
 cp "$bundle"/appimage/*.AppImage "$bundle"/deb/*.deb /out/
 ls -la /out
 

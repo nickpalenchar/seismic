@@ -27,7 +27,7 @@
 //   starts `bun <checkout>/src/server/main.ts` (SEISMIC_BUN names the bun) instead of the sidecar,
 //   which then updates itself from its checkout as `bun start` does. Installed from a checkout
 //   (`bun run app install`), the shell has both compiled in (SEISMIC_BUILT_CHECKOUT, SEISMIC_BUILT_BUN),
-//   and builds itself anew when app/ changes there (update.rs).
+//   and builds itself anew when desktop/ changes there (update.rs).
 // - Starting again (an update, a new build) brings the window back where it was, on the page it showed
 //   (`relaunch`).
 // - On a Mac an Seismic that runs without the app that started it lacks the system's permissions for
@@ -315,7 +315,7 @@ fn fail(app: &AppHandle, why: String) {
 }
 
 fn start_server(app: &AppHandle, home: &Path, port: u16, log: &(fs::File, PathBuf)) -> std::io::Result<Child> {
-  // beside this program (a sidecar), or on Linux among the resources (app/tauri.linux.conf.json)
+  // beside this program (a sidecar), or on Linux among the resources (desktop/tauri.linux.conf.json)
   let beside = std::env::current_exe()?.with_file_name(SERVER);
   let server = match app.path().resource_dir() {
     Ok(dir) if !beside.exists() => dir.join(SERVER),

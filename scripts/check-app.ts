@@ -17,7 +17,7 @@
 //   - `POST /api/stop` ends the server and then the app, and the home has no entry left;
 //   - with an Seismic already running on the home (started from a terminal), the app opens a window
 //     on it instead of starting another, and quitting the app leaves it running.
-// The page reports through SEISMIC_APP_CHECK (app/src/main.rs), which imports this script's module.
+// The page reports through SEISMIC_APP_CHECK (desktop/src/main.rs), which imports this script's module.
 // Prints one line per check; exits 1 when one failed. Needs ffmpeg (for the video) and git.
 
 import { type Subprocess } from 'bun';
@@ -128,7 +128,7 @@ const button = [...document.querySelectorAll('#bar button')].find((b) => /^(Konf
 button?.click();
 await new Promise((r) => setTimeout(r, 1000));
 out.browserButton = [...document.querySelectorAll('button')].some((b) => /^Open in browser$/.test(b.textContent));
-// on a Mac the bar is the title bar: the page may move the window (app/capabilities/window.json)
+// on a Mac the bar is the title bar: the page may move the window (desktop/capabilities/window.json)
 if (window.seismicApp?.platform === 'macos')
   out.drag = await window.__TAURI_INTERNALS__.invoke('plugin:window|start_dragging', { label: 'main' }).then(() => 'allowed', (e) => String(e));
 await report(out);

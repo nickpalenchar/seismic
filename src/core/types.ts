@@ -3644,7 +3644,7 @@ export interface GitSetupPreview {
  * Why Seismic starts again: new code on the checkout it runs from, a configuration the owner saved,
  * a repository's `.seismic/settings.json` changed on its default branch where its agents work, a
  * new version of the app the owner installs, or the Mac app taking over an Seismic that runs without
- * the app that started it (app/src/main.rs, `orphaned`); or why it stops for good (Ctrl-C, SIGTERM).
+ * the app that started it (desktop/src/main.rs, `orphaned`); or why it stops for good (Ctrl-C, SIGTERM).
  */
 export type RestartReason = 'code' | 'config' | 'repository' | 'owner' | 'rebuild' | 'update' | 'takeover' | 'stop';
 
@@ -3660,7 +3660,7 @@ export interface DeveloperView {
   rebuildWhy?: 'compiled';
 }
 
-/** A newer version of the app that its shell has downloaded (app/src/update.rs), shown in the bar. */
+/** A newer version of the app that its shell has downloaded (desktop/src/update.rs), shown in the bar. */
 export interface AppUpdate {
   version: string;
   /** What changed, from the release. */

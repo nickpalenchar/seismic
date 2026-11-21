@@ -1,6 +1,6 @@
 // One Seismic per home: two serving one database on one port would trip over each other. A running
 // Seismic writes where it answers into its home (`server.json`), and a second start on that home
-// finds it there: the checkout says where it runs and ends, the app (app/) opens a window on it.
+// finds it there: the checkout says where it runs and ends, the app (desktop/) opens a window on it.
 
 import { readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -15,7 +15,7 @@ export interface Instance {
   version: string;
   /** Its server ended to start again (new code, a saved configuration) and does not answer yet. */
   restarting?: boolean;
-  /** Started by the app's shell (app/), which may take it over once it runs without the app (app/src/main.rs, `orphaned`). */
+  /** Started by the app's shell (desktop/), which may take it over once it runs without the app (desktop/src/main.rs, `orphaned`). */
   app?: boolean;
   /** It ended for the app's shell to start it again under itself; the process is gone. */
   takenOver?: boolean;

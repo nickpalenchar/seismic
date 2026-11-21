@@ -989,7 +989,7 @@ export function serve(
       },
       // the Mac app's shell finds this Seismic running without the app that started it, so without the
       // system's permissions for it (the local network): it ends once the workers paused, and the shell
-      // starts it again under itself (app/src/main.rs, `orphaned`)
+      // starts it again under itself (desktop/src/main.rs, `orphaned`)
       '/api/app-takeover': {
         POST: () =>
           handle(() => {

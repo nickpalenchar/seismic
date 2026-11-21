@@ -1,8 +1,8 @@
 # Builds the Linux app (AppImage and .deb) and checks it, where there is no Linux machine: a Mac
 # with Docker builds for its own architecture (arm64 on Apple silicon).
 #
-#   docker build -f app/linux.Dockerfile -t seismic-linux-app app
-#   docker run --rm -v "$PWD":/src:ro -v seismic-cargo:/root/.cargo/registry -v seismic-target:/work/app/target \
+#   docker build -f desktop/linux.Dockerfile -t seismic-linux-app app
+#   docker run --rm -v "$PWD":/src:ro -v seismic-cargo:/root/.cargo/registry -v seismic-target:/work/desktop/target \
 #     -v "$PWD/dist/linux-app":/out seismic-linux-app
 #
 # The run copies the checkout into /work (without its node_modules, which are another platform's),

@@ -11,7 +11,7 @@ in `SHA256SUMS`. Every version has a section in [`CHANGELOG.md`](../CHANGELOG.md
 start of its release notes and what installed apps show of the update.
 
 Three switches can stop distribution again, each on its own: `DISTRIBUTION` in
-`scripts/distribution.ts` (the release status refuses), `CHECK_RELEASES` in `app/src/update.rs`
+`scripts/distribution.ts` (the release status refuses), `CHECK_RELEASES` in `desktop/src/update.rs`
 (installed apps stop looking for updates) and `UPDATES_ENABLED` in `src/server/app-update.ts` (the
 server shows no update the shell reports).
 
@@ -80,7 +80,7 @@ or a rerun needs.
 Installed apps install only what is signed with Seismic's own key pair (Tauri's updater, made with
 `tauri signer generate` on 2026-11-17, without a password).
 
-- The public key is in `app/tauri.conf.json` (`plugins.updater.pubkey`); every app carries it.
+- The public key is in `desktop/tauri.conf.json` (`plugins.updater.pubkey`); every app carries it.
 - The private key is `~/.tauri/seismic.key` on the owner's Mac. Keep a copy in a password manager:
   without it no update reaches the apps that are installed, which would then have to install the
   next version by hand.
@@ -90,7 +90,7 @@ Installed apps install only what is signed with Seismic's own key pair (Tauri's 
   installed apps then find nothing to install.
 
 A key that is lost or got out is replaced by a new pair whose public key goes into
-`app/tauri.conf.json`; apps installed before still trust the old one, so the release with the
+`desktop/tauri.conf.json`; apps installed before still trust the old one, so the release with the
 new key has to be installed by hand once (say so in its notes).
 
 ## Signing the Mac apps
