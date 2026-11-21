@@ -12,7 +12,8 @@ progress is planned in plan docs under `docs/plan/` (Seismic shows them as plans
 its lasting decisions and constraints move into the design doc and the plan doc goes.
 
 - Bun + TypeScript throughout; tests with `bun test --parallel` (a file per process, from Bun 1.4 on;
-  older Bun ignores the flag and runs them one after the other), types with `bun run typecheck`.
+  older Bun ignores the flag and runs them one after the other), types with `bun run typecheck`
+  (which also runs `bun run lint`: oxlint's rules-of-hooks over `src/ui`, nothing else).
   When the suite fails only from machine load or timing, don't ask to rerun it: hand over and say
   which failing tests were unrelated. When it hangs or stalls, stop it and go on to the demo and
   handover without asking: say there that the tests were skipped.
