@@ -27,7 +27,7 @@ export interface NameRun {
 }
 
 /** The naming session: what it gives is kept in `title` and `labels`. */
-class CardNameJob extends SeismicJob {
+class CardNameJob extends SeismicJob<{ title: string; labels: Labels }> {
   readonly name = 'cardName';
   readonly description = "Gives a card the owner left without a title one, from its text and screenshots.";
   override readonly capabilities = { images: 'optional' } as const;
@@ -36,6 +36,10 @@ class CardNameJob extends SeismicJob {
 
   constructor(private o: Pick<NameRun, 'language' | 'asked' | 'task' | 'preferences'>) {
     super();
+  }
+
+  protected answer() {
+    return this.title === null ? undefined : { value: { title: this.title, labels: this.labels } };
   }
 
   getPrompt() {
@@ -72,6 +76,6 @@ class CardNameJob extends SeismicJob {
  */
 export async function nameCard(o: NameRun): Promise<{ title: string; labels: Labels }> {
   const job = new CardNameJob(o);
-  await job.run(o.runtime, { cwd: o.cwd, ...(o.images ? { images: o.images } : {}), ...(o.onLimit ? { onLimit: o.onLimit } : {}) });
-  return { title: job.title || '…', labels: job.labels };
+  const result = await job.run(o.runtime, { cwd: o.cwd, ...(o.images ? { images: o.images } : {}), ...(o.onLimit ? { onLimit: o.onLimit } : {}) });
+  return result.ok ? { title: result.value.title || '…', labels: result.value.labels } : { title: '…', labels: {} };
 }

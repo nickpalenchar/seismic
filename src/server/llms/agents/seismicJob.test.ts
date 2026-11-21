@@ -4,9 +4,13 @@ import { z } from 'zod';
 import { FakeRuntime } from '../../testing';
 import { SeismicJob } from './seismicJob';
 
-class Probe extends SeismicJob {
+class Probe extends SeismicJob<string> {
   readonly name = 'probe';
   readonly description = 'A test job.';
+  text: string | undefined;
+  protected answer() {
+    return this.text === undefined ? undefined : { value: this.text };
+  }
   getPrompt() {
     return 'Answer.';
   }
@@ -14,7 +18,7 @@ class Probe extends SeismicJob {
     return 'The question.';
   }
   getJobTools() {
-    return [{ name: 'answer', description: 'The answer.', schema: { text: z.string() }, run: () => this.finish('Recorded.') }];
+    return [{ name: 'answer', description: 'The answer.', schema: { text: z.string() }, run: (a: { text?: unknown }) => { this.text = String(a.text); return this.finish('Recorded.'); } }];
   }
 }
 
@@ -44,22 +48,30 @@ test('a job runs under the role it names, and its capabilities are checked again
   expect(plain.last.spec.checkModel).toBeUndefined();
 });
 
-test('it settles without an error when a tool finishes it', async () => {
+test('it settles with the value its tools collected when one finishes it', async () => {
   const runtime = new FakeRuntime();
   const done = new Probe().run(runtime, { cwd: '/w' });
   expect(runtime.last.call('answer', { text: 'x' })).toBe('Recorded.');
-  expect(await done).toBeUndefined();
+  expect(await done).toEqual({ ok: true, value: 'x' });
 });
 
-test('it settles without an error when its turn ends, and with the message of an error', async () => {
+test('it settles with an error where its turn ends without an answer, and with the message of one that ended it', async () => {
   const runtime = new FakeRuntime();
   const idle = new Probe().run(runtime, { cwd: '/w' });
   runtime.last.emit({ type: 'idle' });
-  expect(await idle).toBeUndefined();
+  expect(await idle).toEqual({ ok: false, error: 'probe ended without an answer' });
   expect(runtime.last.closed).toBe(true);
   const failed = new Probe().run(runtime, { cwd: '/w' });
   runtime.last.emit({ type: 'error', message: 'no login' });
-  expect(await failed).toBe('no login');
+  expect(await failed).toEqual({ ok: false, error: 'no login' });
+});
+
+test('an answer the tools gave stands where the session errors afterwards', async () => {
+  const runtime = new FakeRuntime();
+  const done = new Probe().run(runtime, { cwd: '/w' });
+  runtime.last.call('answer', { text: 'y' });
+  runtime.last.emit({ type: 'error', message: 'late' });
+  expect(await done).toEqual({ ok: true, value: 'y' });
 });
 
 test('the usage limit hook and where it shows reach the session', () => {

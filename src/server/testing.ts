@@ -3,7 +3,8 @@
 import { appendFileSync, cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import type { StoredDemo } from './board';
+import type { Board, StoredDemo } from './board';
+import type { Item } from '../core/types';
 import type { Forge } from './forge';
 import type { AgentEvent, AgentRuntime, AgentSession, AgentSpec, PermissionAnswer } from './runtime';
 import { git } from './workstations';
@@ -310,3 +311,33 @@ export function tailscaleStatus(dir: string, s: TailscaleStatus) {
     }),
   );
 }
+
+/**
+ * The part of a board that the sessions proposing rules use (the learner, the retrospective), kept in
+ * memory: the project's repositories `home` and `api`, the recorded rules, and what they proposed and logged.
+ */
+export class FakeRuleBoard {
+  readonly proposals: { text: string; source: Record<string, unknown>; replaces?: string; target?: string }[] = [];
+  readonly logs: string[] = [];
+  private readonly active: { id: string; text: string }[];
+
+  constructor(private o: { active?: string[]; preferences?: string } = {}) {
+    this.active = (o.active ?? []).map((text, n) => ({ id: `r${n + 1}`, text }));
+  }
+
+  /** As the jobs take it: only what they call exists. */
+  get board(): Board {
+    return {
+      home: 'home',
+      project: { repos: [{ id: 'home', name: 'App', path: '/app' }, { id: 'api', name: 'Api', path: '/api' }] },
+      preferences: (...states: string[]) => (states.includes('active') ? this.active : states.includes('proposed') ? this.proposals.map((p) => ({ text: p.text, target: p.target })) : []),
+      preferencesText: () => this.o.preferences ?? '',
+      proposePreference: (text: string, source: Record<string, unknown>, replaces?: string, target?: string) => this.proposals.push({ text, source, replaces, target }),
+      log: (_id: string, _kind: string, _by: string, text: string) => this.logs.push(text),
+      t: { koordinator: { proposes: (r: string) => `proposes: ${r}` } },
+    } as unknown as Board;
+  }
+}
+
+/** A card with only what the sessions that read one use. */
+export const fakeCard = (id: string, title: string): Item => ({ id, title, kind: 'task' }) as unknown as Item;

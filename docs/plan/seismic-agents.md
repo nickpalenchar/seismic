@@ -39,6 +39,9 @@ and `docs/design.md`, and this doc goes.
   handshake, `run()` settling with the error that ended it) for `tagProposal` (`TagProposalSession`) and `workRetro`
   (`FrictionNotesSession`, `RetroSession`); `wish` (`WishSession`) extends `SeismicAgent` since it settles on its own
   timeout and usage-limit hook. A job is built per run, so its tools keep their state in fields.
+- [x] A job is generic over its result: `SeismicJob<R>.run` settles with `JobResult<R>` (`{ ok: true, value }` or
+  `{ ok: false, error }`), `answer()` turns what the tools collected into the value, and what a failure means is the
+  caller's to decide (a fallback title, a thrown error). A job whose effect is what its tools do (they write to the board) is `SeismicJob<void>`.
 - [x] A job names the role it runs under (`role` on the subclass: `chores` by default, `koordinator` for the
   Koordinator's own one-shots). What a session needs of its model is declared by the agent or job as `capabilities`
   (`{ images: 'optional' | 'required' }`, `llms/models/seismicModel.ts`). `SeismicAgent.checkCapabilities(model, needed?)`
@@ -50,8 +53,10 @@ and `docs/design.md`, and this doc goes.
 - [ ] The Koordinator's sessions in `koordinator.ts`, `merges.ts`, `revisions.ts` and `share.ts` still call
   `readSession` directly; they become jobs (then `readSession.ts` goes). Done: card naming (`agentJobs/cardName.ts`) and
   the labels at a card's start (`cardLabels.ts`), their prompts in `llms/prompts/` (`nameSystem.ts`, `labelsSystem.ts`).
-  Left: the plan's dependencies, the retrospective, the learner, the two duplicate and schedule turns in `koordinator.ts`,
-  `merges.ts`, `revisions.ts`, and the two in `share.ts`.
+  Also done: the plan's dependencies (`planDependencies.ts`), the retrospective on the owner's inputs (`ruleRetro.ts`) and
+  the learner (`ruleLearner.ts`, with `ruleProposals.ts` for what they share); their prompts and `whereRulesGo` are in
+  `llms/prompts/`. Left: the two duplicate and schedule turns in `koordinator.ts`, `merges.ts`, `revisions.ts`, and the two
+  in `share.ts`.
 - [ ] Later, once an agent has jobs: `SeismicAgent.runJob(job)` so the agent that runs a job is chosen apart from the job
   (the job names a default); `delegateJob` between agents when something needs subagents. Tools are fixed when a session
   starts in all three harnesses, so a job always opens a session of its own.

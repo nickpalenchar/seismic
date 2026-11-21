@@ -59,14 +59,22 @@ export interface TagRun {
 const BRIEF_MAX = 80_000;
 
 /** The proposal session: what the session proposes is kept in `out`; `tried` says why a try was refused. */
-class TagProposalSession extends SeismicJob {
+class TagProposalSession extends SeismicJob<{ tags: PageTags; why: string }> {
   readonly name = 'tagProposal';
   readonly description = "Proposes the vocabulary of tags for a demo site from the repository and its cards.";
-  out: { tags: PageTags; why: string } | null = null;
-  tried = '';
+  private out: { tags: PageTags; why: string } | null = null;
+  private tried = '';
 
   constructor(private o: TagRun) {
     super();
+  }
+
+  protected answer() {
+    return this.out ? { value: this.out } : undefined;
+  }
+
+  protected override missing() {
+    return this.tried ? 'the proposal had no dimension with values' : 'the agent proposed nothing';
   }
 
   getPrompt() {
@@ -102,9 +110,9 @@ class TagProposalSession extends SeismicJob {
 /** The proposal of a read-only session; it settles with why it has none. */
 export async function proposeTags(o: TagRun): Promise<{ tags: PageTags; why: string }> {
   const job = new TagProposalSession(o);
-  const error = await job.run(o.runtime, { cwd: o.cwd });
-  if (job.out) return job.out;
-  throw new Error(error ?? (job.tried ? 'the proposal had no dimension with values' : 'the agent proposed nothing'));
+  const result = await job.run(o.runtime, { cwd: o.cwd });
+  if (!result.ok) throw new Error(result.error);
+  return result.value;
 }
 
 /** The tags as the field takes them: no colon in a dimension, no comma in a value, nothing empty; none where nothing is left. */

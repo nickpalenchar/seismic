@@ -20,14 +20,18 @@ export interface LabelsRun {
 }
 
 /** The labels session: what it gives is kept in `labels`. */
-class CardLabelsJob extends SeismicJob {
+class CardLabelsJob extends SeismicJob<Labels> {
   readonly name = 'cardLabels';
   readonly description = "Judges a card's labels from its title, text and screenshots.";
   override readonly capabilities = { images: 'optional' } as const;
-  labels: Labels = {};
+  private labels: Labels | undefined;
 
   constructor(private o: Pick<LabelsRun, 'asked' | 'title' | 'body' | 'images'>) {
     super();
+  }
+
+  protected answer() {
+    return this.labels ? { value: this.labels } : undefined;
   }
 
   getPrompt() {
@@ -58,6 +62,6 @@ class CardLabelsJob extends SeismicJob {
 /** The labels the session gave; none where it gave none or failed. */
 export async function judgeLabels(o: LabelsRun): Promise<Labels> {
   const job = new CardLabelsJob(o);
-  await job.run(o.runtime, { cwd: o.cwd, ...(o.images ? { images: o.images } : {}) });
-  return job.labels;
+  const result = await job.run(o.runtime, { cwd: o.cwd, ...(o.images ? { images: o.images } : {}) });
+  return result.ok ? result.value : {};
 }

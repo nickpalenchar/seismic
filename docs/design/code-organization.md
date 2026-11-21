@@ -99,7 +99,8 @@ Not necesarilly "layers", but important to keep organized nonetheless
 - `src/server/llms/agents/agentJobs/` the agent jobs: short, single-purpose agent sessions of Seismic's own
   (the wish draft, tag proposals, the work retrospective): a class that extends `SeismicJob`
   (`src/server/llms/agents/seismicJob.ts`: a read-only session of the role `chores` that answers through its tools),
-  built per run, with its test. A job names the role whose model setting it runs under (`chores`, or
+  built per run, with its test. A job is generic over its result: `run` settles with a `JobResult` (the value its tools collected, or the error that
+  ended the session), and what a failure means is the caller's. A job names the role whose model setting it runs under (`chores`, or
   `koordinator` for the Koordinator's own one-shots). An agent or job declares the `capabilities` it needs of its model
   (`{ images: 'optional' }` where it reads screenshots only as a help); the agent checks them against the `SeismicModel`
   the harness resolved (`llms/models/`), before the first turn: a required capability the model's catalog says it lacks ends

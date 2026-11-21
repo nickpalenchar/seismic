@@ -2,8 +2,9 @@
  * A job: a short, single-purpose agent session of Seismic's own (a draft, a proposal, notes on a
  * run). It is read-only, on the role `chores`, and answers through its tools: it ends with its turn,
  * or once a tool calls `finish`. A job is built for one run, so what its tools collect sits in the
- * subclass's fields. `run` settles with the error that ended the session before a tool called
- * `finish`, if one did.
+ * subclass's fields, and `answer` turns that into the job's result (`R`). `run` settles with a
+ * `JobResult`: the value where the job has its answer, whatever ended the session after it, and
+ * otherwise the error that ended the session. What a failure means to the caller is the caller's to decide.
  */
 import type { AgentRole } from '../../../core/types';
 import type { AgentRuntime, AgentTool } from '../../runtime';
@@ -21,7 +22,10 @@ export interface JobRun {
   onLimit?: SessionOptions['onLimit'];
 }
 
-export abstract class SeismicJob extends SeismicAgent<void> {
+/** What a job gave: its value, or why it has none. */
+export type JobResult<R> = { ok: true; value: R } | { ok: false; error: string };
+
+export abstract class SeismicJob<R = void> extends SeismicAgent<void> {
   readonly role: AgentRole = 'chores';
   /** Set while the job runs: ends it, answering a tool call with `r`. */
   protected finish: (r: string) => string = (r) => r;
@@ -32,6 +36,17 @@ export abstract class SeismicJob extends SeismicAgent<void> {
 
   override getPermissionMode(): AgentPermission {
     return 'readOnly';
+  }
+
+  /**
+   * What the tools collected, as the job's result: undefined while the job has no answer. A job
+   * whose effect is what its tools do (they write to the board) answers `{ value: undefined }`.
+   */
+  protected abstract answer(): { value: R } | undefined;
+
+  /** Why a session that ended without an answer has none. */
+  protected missing(): string {
+    return `${this.name} ended without an answer`;
   }
 
   /** The brief the session reads. */
@@ -47,8 +62,15 @@ export abstract class SeismicJob extends SeismicAgent<void> {
     return this.getJobTools();
   }
 
-  /** Runs the session; settles with the error that ended it, none when a tool finished it or its turn ended. */
-  run(runtime: AgentRuntime, o: JobRun): Promise<string | undefined> {
+  /** Runs the session and settles with what it gave. */
+  async run(runtime: AgentRuntime, o: JobRun): Promise<JobResult<R>> {
+    const error = await this.session(runtime, o);
+    const answer = this.answer();
+    return answer ? { ok: true, value: answer.value } : { ok: false, error: error ?? this.missing() };
+  }
+
+  /** The session itself; settles with the error that ended it, none when a tool finished it or its turn ended. */
+  private session(runtime: AgentRuntime, o: JobRun): Promise<string | undefined> {
     return new Promise((resolve) => {
       let done = false;
       const end = (error?: string) => {

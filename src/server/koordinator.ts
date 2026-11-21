@@ -5,15 +5,18 @@ import { normalize, overlaps } from '../core/path-overlap';
 
 import { judgeLabels } from './llms/agents/agentJobs/cardLabels';
 import { nameCard } from './llms/agents/agentJobs/cardName';
+import { learnFrom, type InputContext, type OwnerInput } from './llms/agents/agentJobs/ruleLearner';
+import { readDependencies } from './llms/agents/agentJobs/planDependencies';
+import { retrospect } from './llms/agents/agentJobs/ruleRetro';
 import { readSession } from './llms/agents/agentJobs/readSession';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { RepoAdapter } from '../adapters/types';
 import { drawnWaits, inQueue, movable, notStarted, queueOrder, reach, waitsOn } from '../core/queue';
-import { type CardEvent, EVICT_HOLD_MS, finished, inParkingLot, mergeRank, type Item, nameless, type Preference, START_ALL_HOLD_MS, type Wait, snoozeOf } from '../core/types';
+import { type CardEvent, EVICT_HOLD_MS, finished, inParkingLot, mergeRank, type Item, nameless, START_ALL_HOLD_MS, type Wait, snoozeOf } from '../core/types';
 import { ACTIVE, BadRequest, type Board, contributionOf } from './board';
 import type { Utterance } from './store';
-import { type AgentRuntime, type AgentTool, waitQuietly } from './runtime';
+import { type AgentRuntime, waitQuietly } from './runtime';
 import type { WorkerSupervisor } from './workerSupervisor/workerSupervisor';
 import { type CardWorkstations, type Change, RECHECK_MS, shortageOf } from './workstations';
 import { LANGUAGE_NAMES } from '../core/locale';
@@ -31,22 +34,8 @@ interface Planned {
   reason: string;
 }
 
-/**
- * What the owner said that may hold a lasting preference: to a worker (answer, note, feedback), in
- * an idea's discussion, to the Koordinator in conversation (a command it carried out, or a question
- * or remark it replied to), or in the text of a card they wrote.
- */
-export type OwnerInput = 'answer' | 'note' | 'feedback' | 'idea' | 'command' | 'talk' | 'card';
-
-/** What the learner reads an input with. */
-export interface InputContext {
-  /** The question the owner answered. */
-  question?: string;
-  /** The Koordinator's reply to what the owner said to it. */
-  reply?: string;
-  /** The card's text before the owner wrote in it: a proposal's, a follow-up's. */
-  before?: string;
-}
+/** What the owner said that may hold a lasting preference, and what the learner reads it with (`ruleLearner.ts`). */
+export type { InputContext, OwnerInput } from './llms/agents/agentJobs/ruleLearner';
 
 export interface Scope {
   files: string[];
@@ -324,49 +313,8 @@ export class Koordinator {
   }
 
   /** One turn reads from the plan doc which workstream builds on which: the keys of those each builds on, by key. */
-  private async dependencies(plan: Item, kids: Item[]): Promise<Record<string, string[]>> {
-    const keys = this.o.board.workstreamKeys(plan.id);
-    const tags = new Map(kids.map((k, n) => [`K${n + 1}`, k.id]));
-    let on: Record<string, string[]> | undefined;
-    const error = await readSession(this.o.runtime, {
-      cwd: this.o.repoFor(plan).path,
-      role: 'koordinator',
-      system: DEPS_SYSTEM,
-      tools: (finish) => [
-        {
-          name: 'dependencies',
-          description: 'Report every workstream once: its tag and the tags of the workstreams it builds on (empty when it builds on none).',
-          schema: { workstreams: z.array(z.object({ card: z.string(), builds_on: z.array(z.string()) })) },
-          run: (a) => {
-            if (on) return 'Already reported.';
-            const found: Record<string, string[]> = {};
-            for (const w of a.workstreams as { card: string; builds_on: string[] }[]) {
-              const id = tags.get(w.card);
-              if (!id) continue;
-              found[keys.get(id)!] = w.builds_on.flatMap((t) => {
-                const b = tags.get(t);
-                return b && b !== id ? [keys.get(b)!] : [];
-              });
-            }
-            const missing = kids.filter((k) => !finished(k.state) && !(keys.get(k.id)! in found));
-            if (missing.length) return `Every open workstream at least, please: missing ${missing.map((k) => tagOf(tags, k.id)).join(', ')}. Call dependencies again with all of them.`;
-            on = found;
-            return finish('Recorded. End your turn now.');
-          },
-        },
-      ],
-      brief: [
-        `The plan: "${plan.title}"${plan.plan?.file ? `; plan doc ${plan.plan.file}` : ''}.`,
-        plan.plan?.goal ? `Goal: ${plan.plan.goal}` : '',
-        `Its workstreams, in the plan's order:\n${kids
-          .map((k) => `- ${tagOf(tags, k.id)}${finished(k.state) ? ' (delivered)' : ''}: ${k.plan?.label ? `${k.plan.label} ` : ''}"${k.title}"${k.body ? ` — ${k.body.replace(/\s+/g, ' ').slice(0, 600)}` : ''}`)
-          .join('\n')}`,
-      ]
-        .filter(Boolean)
-        .join('\n\n'),
-    });
-    if (!on) throw new Error(error ?? 'no dependencies');
-    return on;
+  private dependencies(plan: Item, kids: Item[]): Promise<Record<string, string[]>> {
+    return readDependencies({ runtime: this.o.runtime, cwd: this.o.repoFor(plan).path, plan, kids, keys: this.o.board.workstreamKeys(plan.id) });
   }
 
   /** The cards to be judged together under `key` (a plan's start, or cards freed at once) that the Koordinator has not planned yet. */
@@ -469,36 +417,7 @@ export class Koordinator {
   private async review(since: string): Promise<void> {
     const history = this.history(since);
     if (!history.length) return;
-    const rules = this.o.board.preferences('active');
-    let proposed = 0;
-    await readSession(this.o.runtime, {
-      cwd: this.o.home(),
-      role: 'koordinator',
-      onLimit: waitQuietly,
-      system: this.ownerFacing(REVIEW_SYSTEM(this.spokenLanguage)),
-      tools: (finish): AgentTool[] => [
-        {
-          name: 'propose',
-          description: `Propose a rule to the owner: one short rule in ${this.spokenLanguage}, and why (one short sentence in ${this.spokenLanguage}, under 150 characters, naming what in the history it rests on). Pass replaces with the number of a recorded rule it refines or contradicts. ${REPOS_PARAM}`,
-          schema: { rule: z.string(), why: z.string(), replaces: z.number().int().optional(), repos: z.array(z.string()).optional() },
-          run: ({ rule, why, replaces, repos }) => {
-            const r = String(rule).trim().slice(0, 500);
-            if (!r) return 'Empty rule ignored.';
-            if (proposed >= REVIEW_PROPOSALS) return finish(`At most ${REVIEW_PROPOSALS} proposals. End your turn now.`);
-            const targets = this.targets(repos);
-            if (typeof targets === 'string') return targets;
-            const fresh = targets.filter((t) => !this.o.board.preferences('proposed').some((p) => p.text === r && p.target === t));
-            if (!fresh.length) return 'Already proposed.';
-            const old = typeof replaces === 'number' ? rules[replaces - 1] : undefined;
-            for (const t of fresh) this.o.board.proposePreference(r, { review: true, quote: String(why ?? '') }, old?.id, t);
-            proposed++;
-            return proposed < REVIEW_PROPOSALS ? 'Proposed.' : finish('Proposed. That was the last one; end your turn now.');
-          },
-        },
-        { name: 'done', description: 'Nothing (more) to propose.', schema: {}, run: () => finish('Fine. End your turn now.') },
-      ],
-      brief: [`What happened on the project since the last retrospective, oldest first:\n${history.join('\n')}`, ...this.rules(null)].filter(Boolean).join('\n\n'),
-    });
+    await retrospect({ runtime: this.o.runtime, board: this.o.board, cwd: this.o.home(), language: this.spokenLanguage, history, onLimit: waitQuietly });
   }
 
   /**
@@ -547,36 +466,6 @@ export class Koordinator {
       .map((l) => `- ${l.at.slice(0, 16).replace('T', ' ')} ${l.text}`);
   }
 
-  /**
-   * What the learner and the retrospective read about the rules: the project's repositories, the active
-   * rules (numbered, for `replaces`), the rules on their way into a CLAUDE.md, and the proposals
-   * waiting or rejected.
-   */
-  private rules(card: Item | null): string[] {
-    const b = this.o.board;
-    const repo = card?.repo ?? b.home;
-    const rules = b.preferences('active');
-    const where = (p: Preference) => (p.target ? ` (for the CLAUDE.md of ${p.target})` : '');
-    const list = (ps: Preference[]) => ps.map((p) => `- ${p.text}${where(p)}`).join('\n');
-    const [open, filed, rejected] = [b.preferences('proposed'), b.preferences('filed'), b.preferences('rejected')];
-    return [
-      `The project's repositories (ids for repos):\n${b.project.repos.map((r) => `- ${r.id}: ${r.name}, at ${r.path}${r.id === repo ? (card ? " (the card's)" : ' (the home repository)') : ''}`).join('\n')}`,
-      rules.length ? `Rules recorded so far:\n${rules.map((r, n) => `${n + 1}. ${r.text}`).join('\n')}` : 'No rules recorded so far.',
-      filed.length ? `Rules the owner accepted for a repository's CLAUDE.md (in it or on their way; do not propose them again):\n${list(filed)}` : '',
-      open.length ? `Proposals waiting for the owner (do not propose them again):\n${list(open)}` : '',
-      rejected.length ? `Proposals the owner rejected (do not propose them again):\n${list(rejected)}` : '',
-    ];
-  }
-
-  /** The repositories a proposal is for (none: the preference memory), or why they are not the project's. */
-  private targets(repos: unknown): (string | undefined)[] | string {
-    const ids = Array.isArray(repos) ? [...new Set(repos.map(String).filter(Boolean))] : [];
-    const known = this.o.board.project.repos.map((r) => r.id);
-    const unknown = ids.filter((id) => !known.includes(id));
-    if (unknown.length) return `Unknown repository ${unknown.join(', ')}; the project has ${known.join(', ')}. Call propose again.`;
-    return ids.length ? ids : [undefined];
-  }
-
   /** What the learner reads an input in: the card's text, the agent's last message before it, what the owner said in the last days. */
   private around(card: Item | null, kind: OwnerInput, text: string, { question }: InputContext): string[] {
     // a card deleted meanwhile has no log to read
@@ -600,48 +489,17 @@ export class Koordinator {
   }
 
   private async distill(card: Item | null, kind: OwnerInput, text: string, context: InputContext, around: string[]): Promise<void> {
-    const rules = this.o.board.preferences('active');
-    const open = this.o.board.preferences('proposed');
-    const { question, reply, before } = context;
-    let proposed = false;
-    await readSession(this.o.runtime, {
+    await learnFrom({
+      runtime: this.o.runtime,
+      board: this.o.board,
       cwd: card && !card.repoDown ? this.o.repoFor(card).path : this.o.home(),
-      role: 'koordinator',
+      language: this.spokenLanguage,
+      card,
+      kind,
+      text,
+      context,
+      around,
       onLimit: waitQuietly,
-      system: this.ownerFacing(LEARN_SYSTEM(this.spokenLanguage)),
-      tools: (finish): AgentTool[] => [
-        {
-          name: 'propose',
-          description: `Propose a lasting preference to the owner as one short rule in ${this.spokenLanguage}. Pass replaces with the number of a recorded rule it refines or contradicts. ${REPOS_PARAM}`,
-          schema: { rule: z.string(), replaces: z.number().int().optional(), repos: z.array(z.string()).optional() },
-          run: ({ rule, replaces, repos }) => {
-            const r = String(rule).trim().slice(0, 500);
-            if (!r) return finish('Empty rule ignored.');
-            if (proposed) return finish('One proposal per input. End your turn now.');
-            const targets = this.targets(repos);
-            if (typeof targets === 'string') return targets;
-            const fresh = targets.filter((t) => !open.some((p) => p.text === r && p.target === t));
-            if (!fresh.length) return finish('Already proposed. End your turn now.');
-            const old = typeof replaces === 'number' ? rules[replaces - 1] : undefined;
-            for (const t of fresh) this.o.board.proposePreference(r, { ...(card ? { cardId: card.id } : {}), quote: text }, old?.id, t);
-            proposed = true;
-            if (card) this.o.board.log(card.id, 'state', 'koordinator', this.o.board.t.koordinator.proposes(r));
-            return finish('Proposed. End your turn now.');
-          },
-        },
-        { name: 'nothing', description: 'Nothing lasting to record.', schema: {}, run: () => finish('Fine. End your turn now.') },
-      ],
-      brief: [
-        card ? `Card${kind === 'talk' || kind === 'command' ? ' the owner had open' : ''}: ${card.kind === 'plan' ? 'plan ' : ''}"${card.title}".` : '',
-        ...around,
-        question ? `The worker asked: ${question}` : '',
-        before ? `Before the owner wrote in it, the card's text read:\n${before}` : '',
-        `The owner's ${INPUTS[kind]}: ${text}`,
-        reply ? `You replied: ${reply}` : '',
-        ...this.rules(card),
-      ]
-        .filter(Boolean)
-        .join('\n\n'),
     });
   }
 
@@ -1404,13 +1262,6 @@ ${merges ? '- duplicates: tags of unfinished tasks asking for substantially the 
 Keep it quick: this runs every time a card starts.
 `.trim();
 
-const DEPS_SYSTEM = `
-You are the Koordinator of Seismic, a project on which the owner directs coding agents. The owner wants the workstreams of a plan arranged by what builds on what: what can start at once on the left, what builds on it to the right of it. Read the plan doc (and the repository only where the doc leaves it open; you cannot change files) and say for each workstream, delivered ones too, which workstreams it builds on.
-
-A workstream builds on another when it needs code, an API, data, a document or a decision that the other one introduces, or when the plan says it comes after it, needs it or waits for it. Name only direct dependencies: when C builds on B and B on A, C names B, not A. Two workstreams that merely touch the same files, or that the plan lists one after the other without saying one needs the other, do not build on each other. A workstream may build on a delivered one.
-
-Call dependencies exactly once, with every workstream once.
-`.trim();
 
 /**
  * What a joint turn decides on: the workstreams of a plan the owner started at once, or cards
@@ -1475,58 +1326,16 @@ ${merges ? '- duplicates: tags of unfinished tasks asking for substantially the 
 `.trim();
 };
 
-/**
- * Where a rule goes: the preference memory, for how agents work with the owner through Seismic, or a
- * repository's CLAUDE.md, for anything about the repository. Shared by the learner and the retrospective.
- */
-const WHERE_RULES_GO = `
-A rule goes to one of two places:
-- The preference memory, for rules at the level of Seismic: how the agents work with the owner through Seismic, whatever the repository. What to ask the owner and what to decide alone, how many options a question offers, how to report, hand over and demo, what to decide in the owner's name and what not. Leave repos out.
-- A repository's CLAUDE.md, for anything about a repository: its conventions, product requirements, tools, how its code is written, tested and landed, the UI and its wording, and taste in code too, even when it holds in every repository. There it is versioned, colleagues see it, and Claude Code follows it outside Seismic as well. Pass repos: the repository it concerns (usually the card's), or every repository of the project when it holds in all of them. A worker writes it into the CLAUDE.md once the owner accepts it; until that has landed, no agent follows it. If the repository's CLAUDE.md or docs say it already (you can read them), propose nothing.
-`.trim();
 
-const REPOS_PARAM =
-  "repos: the ids of the repositories whose CLAUDE.md the rule belongs in (one proposal each); leave it out for a rule on how agents work with the owner through Seismic.";
 
-const LEARN_SYSTEM = (language: string) => `
-You are the Koordinator of Seismic, a project on which the owner directs coding agents; the owner knows you simply as Seismic. You keep the owner's rules, so the owner never has to say the same thing twice.
-
-You get one thing the owner just said: to the agent on a card, in the text of a card they wrote, or to you in conversation. With it you see the card, what the owner said in the last days, the agent's last message before it, the project's repositories, the rules recorded so far, and the proposals waiting for the owner or rejected by them. Decide whether it holds a lasting rule that should guide future work on other cards too: how to work, what to ask and what not, style, wording, testing, tools.
-
-${WHERE_RULES_GO}
-
-Signals for one:
-- It is phrased generally: "always", "never", "from now on", "as a rule", "every time", "in cases like this".
-- It corrects how an agent works rather than what it builds: the agent asked what it could have decided itself, skipped a check, wrote in a style the owner does not want, went beyond its task. The agent's last message shows what the owner reacts to.
-- It repeats something the owner said before, on this card or another: said twice, it should not need saying a third time.
-Not a preference: deciding the case at hand (an option, a name, a date, what this card should do), approving, asking how things stand, correcting a fact. Most of what the owner says is like that: then call nothing.
-
-Make few, good proposals: at most one per input, and only one you expect the owner to accept; when unsure, wait until the owner says it again. Call propose with a short, general rule in ${language}, in the owner's terms and without the occasion ("Questions to me with at most three options.", "Changes to the login always get the Codex review." for the repository with the login); the owner accepts or rejects it before it applies. If it refines or contradicts a recorded rule, pass that rule's number as replaces. Do not propose what a recorded rule or a waiting proposal already covers, nor a rejected proposal again, in other words either.
-`.trim();
 
 /** After how many of the owner's inputs the retrospective runs, at most how many rules it proposes, and how much history it reads. */
 export const REVIEW_EVERY = 20;
-const REVIEW_PROPOSALS = 3;
 const REVIEW_HISTORY = 300;
 /** The settings that keep the retrospective's count across restarts, and when its history begins. */
 const REVIEW_COUNT = 'review_inputs';
 const REVIEW_SINCE = 'review_since';
 
-const REVIEW_SYSTEM = (language: string) => `
-You are the Koordinator of Seismic, a project on which the owner directs coding agents; the owner knows you simply as Seismic. You keep the owner's rules, so the owner never has to say the same thing twice.
-
-${WHERE_RULES_GO}
-
-This is the retrospective. You get what happened on the project since the last one, oldest first: what the owner said and clicked (notes, answers, feedback, approvals, starts against your advice, cards and proposals they deleted or dismissed, commands they took back, rule proposals they accepted or rejected), and what the agents asked and handed over. Each thing the owner said was already read on its own; look for what only shows across several moments and cards:
-- the same correction or feedback on different cards;
-- the same kind of question, answered the same way each time;
-- proposals of one kind the owner always dismisses, or always takes;
-- your advice to wait overruled again and again;
-- commands taken back, and what the owner did instead.
-Clicks without words count here: what the owner does again and again says what they want as much as what they say.
-
-Propose a rule only for a pattern seen at least twice, on different cards, that you expect the owner to accept; most of the time there is none. Call propose for each, at most ${REVIEW_PROPOSALS}: rule, a short, general rule in ${language} in the owner's terms and without the occasion ("Questions to me with at most three options.", "Changes to the login always get the Codex review." for the repository with the login); why, one short sentence in ${language} for the owner (under 150 characters) naming the cards or moments it rests on. If it refines or contradicts a recorded rule, pass that rule's number as replaces. Do not propose what a recorded rule or a waiting proposal already covers, nor a rejected proposal again, in other words either. Then call done.
-`.trim();
 
 /** How the retrospective names who did something on a card, and what. */
 const WHO: Record<CardEvent['author'], string> = {
@@ -1560,17 +1369,6 @@ const UTTERED: Record<Utterance['kind'], string> = {
   answer: "answering the agent's question",
   talk: "in an idea's discussion",
   say: 'to you',
-};
-
-/** How the learner hears each kind of input. */
-const INPUTS: Record<OwnerInput, string> = {
-  answer: 'answer',
-  note: 'note to the worker',
-  feedback: 'feedback on the finished work',
-  idea: 'words in the discussion of an idea',
-  command: 'words to you, which you carried out',
-  talk: 'question or remark to you',
-  card: 'text of a card they wrote, the task for an agent',
 };
 
 /** A changed file with the places changed in it: "src/a.ts (lines 12-20 in function f; 40)", or "(new)". */

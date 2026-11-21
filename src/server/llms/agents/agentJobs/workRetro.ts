@@ -236,6 +236,10 @@ class FrictionNotesSession extends SeismicJob {
     super();
   }
 
+  protected answer() {
+    return { value: undefined };
+  }
+
   getPrompt() {
     return this.o.system;
   }
@@ -288,6 +292,10 @@ class RetroSession extends SeismicJob {
     },
   ) {
     super();
+  }
+
+  protected answer() {
+    return { value: undefined };
   }
 
   getPrompt() {
