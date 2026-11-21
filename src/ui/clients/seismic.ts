@@ -3,7 +3,7 @@
  * what it changed, which the page shows at once (`cardSaved`). New calls go here; `api.ts` holds
  * the old routes until they move.
  */
-import type { CardPatch, Item } from '../../core/types';
+import type { AgentSetting, CardPatch, Item } from '../../core/types';
 import { call, cardBack, cardRemoved, cardSaved, projectOf, snapshotsOf } from '../api';
 
 /** How long a request may take before the page gives it up. */
@@ -12,15 +12,18 @@ const TIMEOUT_MS = 60_000;
 /** The URL of the card `id` in the API; the server finds the project it is on. */
 export const getCardById = (id: string) => `/api/v1/cards/${encodeURIComponent(id)}`;
 
-/**
- * A write to the card `id` (to `path` under its URL) that answers with the card: the project shows it
- * at once, through `shown`: in place of the card it was (`cardSaved`, the default), put back on it
- * (`cardBack`), or taken off it.
- */
-async function writeCard(id: string, method: string, path: string, body: unknown, shown: (project: string, card: Item, seen: number) => void = cardSaved): Promise<Item> {
+type WriteOptions = {
+  /** How the project shows the card: in place of the card it was (`cardSaved`, the default), put back on it (`cardBack`), or taken off it. */
+  shown?: (project: string, card: Item, seen: number) => void;
+  /** How long the page waits; `null` waits as long as the server works on it. */
+  timeoutMs?: number | null;
+};
+
+/** A write to the card `id` (to `path` under its URL) that answers with the card, which the project shows at once. */
+async function writeCard(id: string, method: string, path: string, body: unknown, { shown = cardSaved, timeoutMs = TIMEOUT_MS }: WriteOptions = {}): Promise<Item> {
   const project = projectOf(id);
   const seen = snapshotsOf(project);
-  const { card } = await call<{ card: Item }>(method, `${getCardById(id)}${path}`, body, false, TIMEOUT_MS);
+  const { card } = await call<{ card: Item }>(method, `${getCardById(id)}${path}`, body, false, timeoutMs ?? undefined);
   shown(project, card, seen);
   return card;
 }
@@ -40,10 +43,22 @@ export async function removeCard(id: string): Promise<void> {
 }
 
 /** A deleted card brought back (the undo of `removeCard`): the project shows it again at once. */
-export const restoreCard = (id: string) => writeCard(id, 'POST', '/restore', undefined, cardBack);
+export const restoreCard = (id: string) => writeCard(id, 'POST', '/restore', undefined, { shown: cardBack });
 
 /** The card `id` archived: it leaves the shown project at once; the answer is the card as the archive shows it. */
-export const archiveCard = (id: string) => writeCard(id, 'POST', '/archive', undefined, (project, card, seen) => cardRemoved(project, card.id, seen));
+export const archiveCard = (id: string) => writeCard(id, 'POST', '/archive', undefined, { shown: (project, card, seen) => cardRemoved(project, card.id, seen) });
 
 /** The archived card `id` back on the project (also the undo of `archiveCard`): it shows again at once. */
-export const unarchiveCard = (id: string) => writeCard(id, 'POST', '/unarchive', undefined, cardBack);
+export const unarchiveCard = (id: string) => writeCard(id, 'POST', '/unarchive', undefined, { shown: cardBack });
+
+/** The card started: Seismic judges when its agent begins (`agent`: the one picked in the Start menu); a plan, all its planned workstreams. */
+export const startCardAgent = (id: string, agent?: AgentSetting) => writeCard(id, 'POST', '/start', agent ? { agent } : {});
+
+/** The card's agent stopped: the card is planned again. */
+export const stopCardAgent = (id: string) => writeCard(id, 'POST', '/stop', {});
+
+/**
+ * The card's work approved (`direct`: onto main where it would go out as a pull request). The answer
+ * waits for what the approval does, a landing onto main included, so the page waits as long.
+ */
+export const approveCard = (id: string, { direct = false }: { direct?: boolean } = {}) => writeCard(id, 'POST', '/approve', direct ? { direct } : {}, { timeoutMs: null });

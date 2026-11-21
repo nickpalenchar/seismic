@@ -231,7 +231,7 @@ if (args.includes('--worker')) {
       },
     });
     card = created.id;
-    await api(`/api/c/${project}/cards/${card}/act`, { json: { action: 'start' } });
+    await api(`/api/v1/cards/${card}/start`, { json: {} });
     const item = await until('the card is handed over', 20 * 60_000, async () => {
       const it = (await json(`/api/c/${project}/project`)).items.find((i: { id: string }) => i.id === card);
       if (it?.state === 'waiting' && it.need === 'question') throw new Error(`the agent asks: ${JSON.stringify(it.question)}`);

@@ -69,10 +69,12 @@ const post = (path: string, body: string) => fetch(new URL(path, server.url), { 
 const codeOf = async (res: Promise<Response>) => ((await (await res).json()) as { code: string }).code;
 const api = (path: string) => `/api/c/main${path}`;
 const act = (id: string, a: CardAction | { action: string; text?: unknown }) => post(api(`/cards/${id}/act`), JSON.stringify(a));
+// a card action with a URL of its own (`routes/v1/cards/_cardId/`)
+const v1 = (id: string, action: 'start' | 'stop' | 'approve', body: unknown = {}) => post(`/api/v1/cards/${id}/${action}`, JSON.stringify(body));
 
 describe('refused requests', () => {
   test('carry a stable code and an English detail', async () => {
-    const res = await act(card().id, { action: 'stop' });
+    const res = await v1(card().id, 'stop');
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ code: 'noAgent', error: 'no agent works on this card' });
   });
@@ -83,10 +85,12 @@ describe('refused requests', () => {
     expect(await codeOf(act(c.id, { action: 'answer', text: '  ' }))).toBe('emptyText');
     // an option picked is an answer without words
     expect(await codeOf(act(c.id, { action: 'answer', text: '', picks: ['Ja'] }))).toBe('noQuestion');
-    expect(await codeOf(act(c.id, { action: 'approve' }))).toBe('notReady');
+    expect(await codeOf(v1(c.id, 'approve'))).toBe('notReady');
     expect(await codeOf(act(c.id, { action: 'force' }))).toBe('notQueued');
     expect(await codeOf(act(c.id, { action: 'dismiss' }))).toBe('notProposal');
-    expect(await codeOf(act('nope', { action: 'start' }))).toBe('unknownCard');
+    expect(await codeOf(v1('nope', 'start'))).toBe('unknownCard');
+    // start, stop and approve are no longer taken by /act
+    for (const action of ['start', 'stop', 'approve'] as const) expect(await codeOf(act(c.id, { action }))).toBe('invalid');
     expect(await codeOf(act(c.id, { action: 'fly' }))).toBe('invalid');
     expect(await codeOf(post(api(`/cards/${c.id}/act`), '{'))).toBe('invalid');
     expect(await codeOf(post(api('/cards'), JSON.stringify({ title: 'x', x: 'links', y: 0 })))).toBe('invalid');
@@ -95,12 +99,12 @@ describe('refused requests', () => {
   test('a card already with the Koordinator cannot be started again', async () => {
     const c = card();
     board.work(c.id, { queue: JSON.stringify({ checking: true }) });
-    expect(await codeOf(act(c.id, { action: 'start' }))).toBe('queued');
+    expect(await codeOf(v1(c.id, 'start'))).toBe('queued');
   });
 
   test('a start without a free workstation waits for one', async () => {
     const c = card();
-    expect((await act(c.id, { action: 'start' })).status).toBe(204);
+    expect((await v1(c.id, 'start')).status).toBe(200);
     await until(() => board.item(c.id)!.queue && 'workstation' in board.item(c.id)!.queue!);
     expect(board.item(c.id)).toMatchObject({ state: 'planned', queue: { workstation: 'none' } });
     expect(board.events(c.id).some((e) => e.kind === 'error')).toBe(false);
@@ -1364,7 +1368,7 @@ describe('landing approved work', () => {
     };
     const a = await handedOver('A');
     const b = await handedOver('B');
-    const approve = (id: string) => post(`/api/c/${pushed.board.project.id}/cards/${id}/act`, JSON.stringify({ action: 'approve', direct: true }));
+    const approve = (id: string) => post(`/api/v1/cards/${id}/approve`, JSON.stringify({ direct: true }));
 
     let answered = 0;
     const landings = [approve(a.id), approve(b.id)].map((r) => r.then((res) => (answered++, res)));

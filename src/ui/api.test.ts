@@ -135,6 +135,13 @@ test('a saved card that is as the snapshot shows it leaves the snapshot as it is
   expect(withCard(snapshot, { ...a })).toBe(snapshot);
 });
 
+test('a saved card the answer shows archived (a prototype approved) leaves the snapshot', () => {
+  const a = { id: 'a', title: 'A' } as Item;
+  const b = { id: 'b', title: 'B' } as Item;
+  const snapshot = { items: [a, b] } as ProjectSnapshot;
+  expect(withCard(snapshot, { ...b, archivedAt: '2026-11-21T10:00:00Z' }).items).toEqual([a]);
+});
+
 test('a deleted card leaves the snapshot; one it does not show leaves the snapshot as it is', () => {
   const a = { id: 'a', title: 'A' } as Item;
   const b = { id: 'b', title: 'B' } as Item;

@@ -24,7 +24,7 @@ import { type ActDone, Detail, type Pending } from './detail';
 import { Cards, KoordinatorAgent } from './message';
 import { motionMs, reducedMotion, sizeSettled } from './motion';
 import type { Heard, Where } from './api';
-import { archiveCard, patchCard, removeCard, restoreCard, unarchiveCard } from './clients/seismic';
+import { archiveCard, patchCard, removeCard, restoreCard, startCardAgent, unarchiveCard } from './clients/seismic';
 import { replyOn, setReply } from './reply';
 import { ArchiveView } from './archive';
 import { CardSearch } from './cardSearch';
@@ -1276,7 +1276,7 @@ function Project({
   /** The play button on a card: starts it, or one queued behind others despite the likely conflict. */
   const startCardNow = useCallback(async (i: Item) => {
     try {
-      await api.act(i.id, { action: i.queue ? 'force' : 'start' });
+      await (i.queue ? api.act(i.id, { action: 'force' }) : startCardAgent(i.id));
       if (i.queue) showAck(forcedText(i.queue));
     } catch (e) {
       fail(e);
@@ -1309,7 +1309,7 @@ function Project({
    */
   const startAll = useCallback(async (p: Item, n: number) => {
     try {
-      await api.act(p.id, { action: 'start' });
+      await startCardAgent(p.id);
       showAck(
         t.plan.startedAll(n),
         async () => {

@@ -14,7 +14,7 @@ import { mockPage } from '../core/frame';
 import { mmss } from '../../plugin/skills/demo/lib/timeline.ts';
 import { answers, answerText, OTHER, toggleOther } from './answer';
 import { ApiError, api, projectOf, cardAt, type Field, holdRestart, onCardEvent, onCardEventGone, onCardRefresh, onReconnect, refreshCard, useCardRefreshFailed } from './api';
-import { archiveCard, setShareOnApproval, unarchiveCard } from './clients/seismic';
+import { approveCard, archiveCard, setShareOnApproval, startCardAgent, stopCardAgent, unarchiveCard } from './clients/seismic';
 import { cardPath } from './address';
 import { Naming, smartLink } from './cardLink';
 import { DuplicateMergePreview, MergeButton, MergeView } from './merge';
@@ -264,7 +264,10 @@ export function Detail(p: Props) {
   const actNow = (a: CardAction, done: ActDone, failed?: () => void) =>
     run(async () => {
       if (a.action === 'approve' || a.action === 'pushChanges') await saveHeld(item.id);
-      await api.act(item.id, a);
+      if (a.action === 'start') await startCardAgent(item.id, a.agent);
+      else if (a.action === 'stop') await stopCardAgent(item.id);
+      else if (a.action === 'approve') await approveCard(item.id, { direct: !!a.direct });
+      else await api.act(item.id, a);
       // the agent picked in the Start menu is spent once the start is accepted, not before
       if (a.action === 'start' || a.action === 'force' || (a.action === 'accept' && a.start !== false)) updateDraft(cardDraft(item.id), { agent: undefined });
     }, done, failed);

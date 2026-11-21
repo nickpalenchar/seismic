@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from 'bun:test';
 import { setProject } from '../api';
-import { archiveCard, getCardById, patchCard, removeCard, restoreCard, setShareOnApproval, unarchiveCard } from './seismic';
+import { approveCard, archiveCard, getCardById, patchCard, removeCard, restoreCard, setShareOnApproval, startCardAgent, stopCardAgent, unarchiveCard } from './seismic';
 
 const real = globalThis.fetch;
 afterEach(() => {
@@ -66,5 +66,27 @@ test('archiving and unarchiving go out as POSTs of the card\'s actions and answe
   expect(sent).toEqual([
     { url: '/api/v1/cards/c7/archive', method: 'POST' },
     { url: '/api/v1/cards/c7/unarchive', method: 'POST' },
+  ]);
+});
+
+test("starting, stopping and approving go out as POSTs of the card's actions, with what was picked, and answer with the card", async () => {
+  const sent: { url: string; body?: unknown; timed: boolean }[] = [];
+  globalThis.fetch = (async (url: string, init: RequestInit) => {
+    sent.push({ url, body: JSON.parse(init.body as string), timed: !!init.signal });
+    return Response.json({ card: { id: 'c8', state: 'planned' } });
+  }) as typeof fetch;
+  const agent = { model: 'opus', effort: 'high' } as const;
+  expect((await startCardAgent('c8')).state).toBe('planned');
+  await startCardAgent('c8', agent);
+  await stopCardAgent('c8');
+  await approveCard('c8');
+  await approveCard('c8', { direct: true });
+  expect(sent).toEqual([
+    { url: '/api/v1/cards/c8/start', body: {}, timed: true },
+    { url: '/api/v1/cards/c8/start', body: { agent }, timed: true },
+    { url: '/api/v1/cards/c8/stop', body: {}, timed: true },
+    // an approval waits for the landing, however long it takes
+    { url: '/api/v1/cards/c8/approve', body: {}, timed: false },
+    { url: '/api/v1/cards/c8/approve', body: { direct: true }, timed: false },
   ]);
 });

@@ -205,6 +205,15 @@ archive button: the card was gone 47 ms after the click (snapshot at 106 ms), an
 "Undo" (snapshot at 45 ms). The project-wide `GET` and `POST /api/c/:project/archive` (the archive's
 list, "archive all done") have not moved.
 
+Starting, stopping and approving moved next: `POST /api/v1/cards/:cardId/start` (`{ agent? }`),
+`.../stop` and `.../approve` (`{ direct? }`), each answered with the card, which the panel swaps in.
+`/act` refuses the three now, so each has one URL. An approval's answer waits for what the approval
+does (a landing onto main, the pull request asked for, a review card's PR merged), as `/act` did,
+so the client gives it no timeout; a prototype approved comes back archived and leaves the project
+(`withCard`). From the panel on a scratch Seismic: start answered in 15 ms, stop in 35 ms, approving
+work without changes in 13 ms. The other actions (force, dequeue, pause, resume, message, …) are
+still on `/act`.
+
 Typing is not disturbed by the card coming back: the title and text fields keep a draft of their
 own, which the card they get does not overwrite (`ManualTitle` in `src/ui/detail.tsx`). Checked live
 on the 600-card project: typing on through two saves kept every character, and the server held them.

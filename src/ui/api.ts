@@ -686,8 +686,12 @@ export function cardRemoved(project: string, id: string, seen: number) {
 /** For a state setter: `next`, unless it has the same content as what the state holds, which then stays the object it was. */
 const unlessSame = <T,>(next: T) => (previous: T) => (sameJson(previous, next) ? previous : next);
 
-/** The snapshot with `card` in place of the card it was; one it does not show, or shows as it is, leaves it as it is. */
+/**
+ * The snapshot with `card` in place of the card it was; one it does not show, or shows as it is,
+ * leaves it as it is. A card the answer shows archived (a prototype approved) leaves the project.
+ */
 export function withCard(snapshot: ProjectSnapshot, card: Item): ProjectSnapshot {
+  if (card.archivedAt) return withoutCard(snapshot, card.id);
   const before = snapshot.items.find((i) => i.id === card.id);
   if (!before || sameJson(before, card)) return snapshot;
   return { ...snapshot, items: snapshot.items.map((i) => (i.id === card.id ? card : i)) };

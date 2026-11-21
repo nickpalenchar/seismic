@@ -59,6 +59,9 @@ type Req = Request & { params: Record<string, string> };
 
 const notFound = () => new Response('Not found', { status: 404 });
 
+/** Card actions that moved to a URL of their own under `/api/v1/cards/:cardId/`. */
+const V1_ACTIONS = new Set<string>(['start', 'stop', 'approve']);
+
 /** `?replyTo=` of a recording: a card's event (`7`), or a message of the sheet (`12.answer`). */
 /**
  * Whether a harness's model catalog is read. One that is not connected has none, except before any
@@ -824,7 +827,14 @@ export function serve(
       },
       // the archive, newest first; posting archives every finished card of the owner's
       '/api/c/:project/archive': { GET: on((c) => c.board.archived()), POST: on((c) => ({ ids: c.board.archiveDone() })) },
-      '/api/c/:project/cards/:id/act': { POST: on(async (c, req) => c.press(req.params.id!, (await req.json()) as CardAction)) },
+      '/api/c/:project/cards/:id/act': {
+        POST: on(async (c, req) => {
+          const a = (await req.json()) as CardAction;
+          // the actions with a URL of their own (`routes/v1/cards/_cardId/`) are not taken here as well
+          if (a && V1_ACTIONS.has(a.action)) throw new BadRequest('invalid', `${a.action} goes through POST /api/v1/cards/:cardId/${a.action}`);
+          return c.press(req.params.id!, a);
+        }),
+      },
       // a script acting as the card's agent, in a scratch Seismic whose workers are idle (scripts/scratch-seismic.ts --say)
       '/api/c/:project/cards/:id/stand-in': { POST: on(async (c, req) => ({ result: await c.standIn(req.params.id!, (await req.json()) as Parameters<typeof c.standIn>[1]) })) },
       '/api/c/:project/cards/:id/events': { GET: on((c, req) => c.board.events(req.params.id!)) },

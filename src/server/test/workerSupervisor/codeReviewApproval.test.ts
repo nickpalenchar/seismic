@@ -84,10 +84,14 @@ for (const scenario of ['running', 'fixing', 'verifying', 'unsent', 'unsentDurin
         if (path === '/tailwind.css') return new Response(css, { headers: { 'content-type': 'text/css' } });
         if (path === '/style.css') return new Response(Bun.file(join(serverDir, '../ui/frost.css')));
         if (path === '/fixture') return Response.json({ item: board.item(id), repo: { id: 'home', name: 'Home', path: main, branch: 'main', pullRequests: true, direct: true } });
+        if (path.endsWith('/approve')) {
+          const { direct } = await req.json() as { direct?: boolean };
+          actions.push(direct ? { action: 'approve', direct } : { action: 'approve' });
+          await workers.approve(id, { direct: !!direct });
+          return Response.json({ card: board.item(id) });
+        }
         if (path.endsWith('/act')) {
-          const action = await req.json() as CardAction;
-          actions.push(action);
-          if (action.action === 'approve') await workers.approve(id, { direct: !!action.direct });
+          actions.push(await req.json() as CardAction);
           return new Response(null, { status: 204 });
         }
         if (path.endsWith('/events') || path.endsWith('/skills')) return Response.json([]);

@@ -54,6 +54,15 @@ export abstract class HttpRoute {
     return project;
   }
 
+  /** The request's JSON object; none sent is `{}`. Anything but an object is refused. */
+  protected async bodyOf(request: RouteRequest): Promise<Record<string, unknown>> {
+    const text = await request.text();
+    if (!text.trim()) return {};
+    const body = JSON.parse(text) as unknown;
+    if (typeof body !== 'object' || body === null || Array.isArray(body)) throw new BadRequest('invalid', 'the body must be an object');
+    return body as Record<string, unknown>;
+  }
+
   /** The methods this route answers, as `Bun.serve` takes them. */
   toBun(): Partial<Record<Method, BunHandler>> {
     const out: Partial<Record<Method, BunHandler>> = {};
