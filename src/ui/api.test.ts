@@ -1,5 +1,6 @@
 import { afterEach, expect, test } from 'bun:test';
-import { api, beforeReload, cardsOn, handOver, setProject, takeHandOver } from './api';
+import { api, beforeReload, cardsOn, handOver, setProject, takeHandOver, withCard } from './api';
+import type { Item, ProjectSnapshot } from '../core/types';
 
 const fetched: string[] = [];
 const real = globalThis.fetch;
@@ -93,4 +94,15 @@ test('a model save carries the selected chat and project after navigation', asyn
   await api.setChatModel('original', 12, 'sonnet');
   expect(fetched).toEqual(['/api/c/original/chat/model']);
   expect(body).toEqual({ chat: 12, model: 'sonnet' });
+});
+
+test('a saved card takes the place of the one the snapshot had; one it does not show changes nothing', () => {
+  const a = { id: 'a', title: 'A' } as Item;
+  const b = { id: 'b', title: 'B' } as Item;
+  const snapshot = { items: [a, b] } as ProjectSnapshot;
+  const saved = { ...b, title: 'B2' };
+  const next = withCard(snapshot, saved);
+  expect(next.items).toEqual([a, saved]);
+  expect(next.items[0]).toBe(a);
+  expect(withCard(snapshot, { id: 'x' } as Item)).toBe(snapshot);
 });

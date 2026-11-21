@@ -2208,7 +2208,6 @@ export type CardAction =
   /** Takes the demo with handover `demo` off the page, the page down with its last one; without `demo`, the whole page. */
   | { action: 'unshare'; demo?: number }
   /** "Share on approval", where the repository's site publishes on approval: whether approving the card shares its latest demo. */
-  | { action: 'shareOnApproval'; on: boolean }
   /** The owner sets the values of one dimension of the page's tags by hand; a shared page goes out again at once. */
   | { action: 'pageTags'; dimension: string; values: string[] }
   /** Question cards: the owner's words to the agent that looked the answers up. */

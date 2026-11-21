@@ -1816,20 +1816,40 @@ export class ProjectRuntime {
   }
 
   /**
+   * Refuses the owner's `action` on the card where its state does not allow it, after the learner
+   * got what the owner wrote in it; the card as it stands otherwise.
+   */
+  private refuseAction(cardId: string, action: string): Item | undefined {
+    this.written(cardId);
+    const is = (list: readonly string[]) => list.includes(action);
+    // the card's agents work in its repository: while that does not run, only the board changes
+    const card = this.board.item(cardId);
+    if (card?.repoDown && !is(BOARD_ONLY)) throw repoDown(card);
+    // while its new repository is about to be made, the card is not decided otherwise
+    if (card?.idea?.newRepo?.due && is(DUE_REFUSES)) throw new BadRequest('newRepoDue', 'the card is about to be built in its new repository; take that back first');
+    // a card merged with a proposal, and the proposal while the two are one, wait for the owner's call on the merge
+    if (card?.idea?.mergingInto && mergeRank(card) <= 1 && !is(MERGE_LEAVES)) throw new BadRequest('merging', 'the card is merged with a proposal; approve or separate that first');
+    if (card?.idea?.proposal?.merge && !is(['merge', 'approveMerge', 'separate', 'dismiss', ...MERGE_LEAVES]))
+      throw new BadRequest('merging', 'the proposal is merged with another card; approve or separate that first');
+    return card;
+  }
+
+  /** "Share on approval" on the card's demo, set by the owner; the card as it now stands. */
+  setShareOnApproval(cardId: string, on: boolean): Item {
+    this.refuseAction(cardId, 'shareOnApproval');
+    this.sharing.onApproval(cardId, on);
+    this.koordinator.noticed();
+    const card = this.board.item(cardId);
+    if (!card) throw new BadRequest('unknownCard', 'unknown card');
+    return card;
+  }
+
+  /**
    * An owner action from the card's panel, or from a spoken command. `log`: words to a proposal's
    * reviser go into its conversation (a spoken command's stand there already).
    */
   act(cardId: string, a: CardAction, log = false) {
-    this.written(cardId);
-    // the card's agents work in its repository: while that does not run, only the board changes
-    const card = this.board.item(cardId);
-    if (card?.repoDown && !BOARD_ONLY.includes(a.action)) throw repoDown(card);
-    // while its new repository is about to be made, the card is not decided otherwise
-    if (card?.idea?.newRepo?.due && DUE_REFUSES.includes(a.action)) throw new BadRequest('newRepoDue', 'the card is about to be built in its new repository; take that back first');
-    // a card merged with a proposal, and the proposal while the two are one, wait for the owner's call on the merge
-    if (card?.idea?.mergingInto && mergeRank(card) <= 1 && !MERGE_LEAVES.includes(a.action)) throw new BadRequest('merging', 'the card is merged with a proposal; approve or separate that first');
-    if (card?.idea?.proposal?.merge && !['merge', 'approveMerge', 'separate', 'dismiss', ...MERGE_LEAVES].includes(a.action))
-      throw new BadRequest('merging', 'the proposal is merged with another card; approve or separate that first');
+    const card = this.refuseAction(cardId, a.action);
     const text = 'text' in a ? (a.text ?? '') : '';
     const images = this.images.resolve('images' in a ? a.images : undefined);
     // a reply to anything but a message of this card's conversation is the words alone
@@ -1991,9 +2011,6 @@ export class ProjectRuntime {
         return this.sharing.share(cardId, { demo: Number.isInteger(a.demo) ? a.demo : undefined, add: a.add === true });
       case 'unshare':
         return this.sharing.unshare(cardId, Number.isInteger(a.demo) ? a.demo : undefined);
-      case 'shareOnApproval':
-        if (typeof a.on !== 'boolean') throw new BadRequest('invalid', 'on must be true or false');
-        return this.sharing.onApproval(cardId, a.on);
       case 'pageTags':
         if (typeof a.dimension !== 'string' || !Array.isArray(a.values) || !a.values.every((v) => typeof v === 'string')) throw new BadRequest('invalid', 'dimension must be a string, values a list of strings');
         return this.sharing.setTags(cardId, a.dimension, a.values);

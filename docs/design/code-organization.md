@@ -50,11 +50,24 @@ Represents endpoints that are registered to the server, which can be called in a
 
 - relevant paths: `/src/server/routes`
 
-#### Service Layer Rules
+#### Router Layer Rules
 
-- Route files should be in paths that mirror their REST route on the server (omitting path params:
-  - `src/server/routes/card/activity.ts` might hold routes like `/card/:id/activity`
-- Routes should be defined using the base class `HttpRoute`
+- The API is RESTful and lives under `/api/v1/`, in `src/server/routes/v1/` (decided 2026-11-21).
+  A route moved out of `server.ts` gets a RESTful URL there, and its callers in the UI move with it.
+- A route's file mirrors its URL: a `:x` segment is a folder `_x`, the last segment is the file,
+  and one file holds all the methods of its URL.
+  - `PATCH /api/v1/cards/:cardId/share` is `src/server/routes/v1/cards/_cardId/share.ts`.
+  - Params name what they stand for (`:cardId`), never a bare `:id`.
+  - A card's URL names the card alone, not its project: the server finds the project from the card
+    (`HttpRoute.projectOfCard`), so a call can't go to the wrong project when the page shows another.
+  - `src/server/test/routes/v1.test.ts` checks that every file's route is at the URL its path names.
+- Routes extend the base class `HttpRoute` (`src/server/routes/httpRoute.ts`), are listed in
+  `routes/v1/index.ts`, and get what they need through the constructor.
+- A write answers with JSON of the resource the UI keeps (`{ card }` for a card, as the project's
+  snapshot shows it), so the page shows the change without waiting for the next snapshot.
+- The UI calls them through `src/ui/clients/seismic.ts`, which hands a card it got back to the
+  shown project (`cardSaved` in `src/ui/api.ts`). The old calls (`api` in `src/ui/api.ts`) are
+  deprecated: new calls go into the client, and a call that moves there leaves `api`.
 
 ## Other important modules
 

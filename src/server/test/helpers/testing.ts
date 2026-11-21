@@ -150,8 +150,15 @@ export function asOwner(of: () => object) {
   };
 }
 
-/** The board's listeners have heard of what changed so far (they hear of it once the code that changed it is through: `Board.changed`). */
-export const heard = () => Bun.sleep(0);
+/**
+ * The board's listeners have heard of what changed so far: they hear of it after the event loop's
+ * turn that changed it (`Board.tell`, on `setImmediate`), and what they change in turn is heard of
+ * one turn later.
+ */
+export const heard = async () => {
+  for (let turn = 0; turn < 3; turn++) await new Promise((resolve) => setImmediate(resolve));
+  await Bun.sleep(0);
+};
 
 export const until = async (done: () => unknown, ms = 3000) => {
   for (const end = Date.now() + ms; !(await done()); await Bun.sleep(2)) if (Date.now() > end) throw new Error(`timed out after ${ms} ms: ${done}`);

@@ -14,6 +14,7 @@ import { mockPage } from '../core/frame';
 import { mmss } from '../../plugin/skills/demo/lib/timeline.ts';
 import { answers, answerText, OTHER, toggleOther } from './answer';
 import { ApiError, api, projectOf, cardAt, type Field, holdRestart, onCardEvent, onCardEventGone, onCardRefresh, onReconnect, refreshCard, useCardRefreshFailed } from './api';
+import { setShareOnApproval } from './clients/seismic';
 import { cardPath } from './address';
 import { Naming, smartLink } from './cardLink';
 import { DuplicateMergePreview, MergeButton, MergeView } from './merge';
@@ -955,7 +956,7 @@ export function Detail(p: Props) {
         </div>
       )}
       {item.state === 'planned' && !item.idea?.proposal?.merge && !worked && !item.queue && fresh && <p className="hint">{fresh.hint}</p>}
-      {review && item.demo?.latest && sharing && !item.demo.latest.asked && (shares?.share || item.demo.share) && sharesLater(item, item.demo.latest, !!shares?.shareOnApproval) && <ShareOnApproval item={item} act={act} />}
+      {review && item.demo?.latest && sharing && !item.demo.latest.asked && (shares?.share || item.demo.share) && sharesLater(item, item.demo.latest, !!shares?.shareOnApproval) && <ShareOnApproval item={item} />}
       {review && item.review?.modelsUnchanged && <p className="hint">{t.modelsUnchanged(item.review.modelsUnchanged)}</p>}
       {review && direct && !item.idea?.prototypeOf && <p className="hint">{t.directHint(reviewed)}</p>}
       </>}
@@ -3317,12 +3318,30 @@ const shareLabel = 'share-label text-2xs uppercase tracking-[.08em] text-approve
 const shareGo = 'share-go inline-flex items-center gap-2 [&_svg]:size-4 [&_svg]:fill-none [&_svg]:stroke-current [&_svg]:[stroke-width:2] [&_svg]:[stroke-linecap:round] [&_svg]:[stroke-linejoin:round]';
 
 /** "Share on approval", under the row of buttons that approves. */
-function ShareOnApproval({ item, act }: { item: Item; act: (a: CardAction, done: ActDone) => Promise<void> }) {
+function ShareOnApproval({ item }: { item: Item }) {
+  // what the owner switched to, until the server answers with the card
+  const [pending, setPending] = useState<boolean | null>(null);
+  const [error, setError] = useState('');
+  const toggle = async (on: boolean) => {
+    setPending(on);
+    setError('');
+    try {
+      await setShareOnApproval(item.id, on);
+    } catch (e) {
+      setError(failText(e));
+    } finally {
+      setPending(null);
+    }
+  };
   return (
-    <CheckLabel className="share-check inline-flex mt-2" title={t.share.onApprovalHint}>
-      <Switch checked={!item.demo?.notOnApproval} onCheckedChange={(on) => void act({ action: 'shareOnApproval', on }, { close: false })} />
-      {item.review?.contribution ? t.review.onApproval : t.share.onApproval}
-    </CheckLabel>
+    <div className="inline-flex flex-wrap items-center gap-2 mt-2">
+      <CheckLabel className="share-check inline-flex" title={t.share.onApprovalHint}>
+        <Switch checked={pending ?? !item.demo?.notOnApproval} disabled={pending !== null} onCheckedChange={(on) => void toggle(on)} />
+        {item.review?.contribution ? t.review.onApproval : t.share.onApproval}
+      </CheckLabel>
+      {pending !== null && <Spinner />}
+      {error && <span className="text-destructive text-sm">{error}</span>}
+    </div>
   );
 }
 

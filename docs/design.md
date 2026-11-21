@@ -96,6 +96,12 @@ cycling through terminals.
 - **The Koordinator is called Seismic in the UI** (2026-10-09): the owner has one counterpart, not a
   product plus a component in it.
 - **A persistent local store** (SQLite in Seismic's home), not an ephemeral one.
+- **A write's answer goes out before the snapshot is built** (2026-11-21): the board's listeners
+  hear of a change on `setImmediate` (`Board.tell`), after the request that made it has its
+  response written, not in a microtask, which held the response until the whole snapshot was built
+  and sent (about 1 ms ahead of the push on a 600-card project). The v1 routes answer with what they
+  changed, which the page shows at once. Tests wait for the listeners with `heard()`
+  (`src/server/test/helpers/testing.ts`), not a bare `Bun.sleep(0)`.
 - **Docs, comments, prompts and the UI are in English** (2026-11-05, 2026-11-07): agents drifted into
   German after reading German UI labels; language support may return later.
 - **Agents run through official harnesses on their own logins** (2026-10-30), Claude Code by

@@ -9,6 +9,8 @@ import { type ActivityPage, agentListens, type ProjectInfo, type ChatElsewhere, 
 import { uiRoutes } from './ui';
 import { guarded, LOCAL_HOSTS, refusal } from './access';
 import { BadRequest } from './board';
+import { bunRoutes, respond } from './routes/httpRoute';
+import { v1Routes } from './routes/v1';
 import { type Dropped, findDropped, localImage } from './files';
 import type { ProjectRuntime } from './project';
 import { SiteSetup } from './site-setup';
@@ -335,17 +337,13 @@ export function serve(
     return out;
   };
 
-  const handle = async (fn: () => unknown | Promise<unknown>) => {
-    try {
-      const out = await fn();
-      if (out instanceof Response) return out;
-      return out === undefined || out === null ? new Response(null, { status: 204 }) : Response.json(out);
-    } catch (e) {
-      if (e instanceof BadRequest) return Response.json({ code: e.code, error: e.message }, { status: 400 });
-      if (e instanceof SyntaxError) return Response.json({ code: 'invalid', error: 'invalid JSON' }, { status: 400 });
-      throw e;
-    }
-  };
+  const handle = respond;
+  /** The project a card is on, by the card's row; none for a card deleted or unknown. */
+  const projectOfCard = (cardId: string) =>
+    [...byId.values()].find((c) => {
+      const row = c.dataStore.cards.get(cardId);
+      return row?.project_id === c.id && !row.deleted_at;
+    });
   /** A route on one project; an unknown project is a 404. */
   const on =
     (fn: (c: ProjectRuntime, req: Req) => unknown | Promise<unknown>) =>
@@ -465,6 +463,8 @@ export function serve(
     routes: guarded({
       ...extensionRoutes,
       ...uiRoutes(development),
+      // the RESTful API, one file per URL under routes/v1/
+      ...bunRoutes(v1Routes({ projectOfCard })),
       // a browser on this machine signing in with a one-time link (owner.ts)
       '/login': { GET: (req, srv) => access.loginRoute(req, srv) },
       // such a link, for whoever holds the owner's key (the app's shell, a second start, scripts); `next`: where it leads; `once`: for one browser

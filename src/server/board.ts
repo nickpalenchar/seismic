@@ -660,11 +660,16 @@ export class Board {
     this.tell();
   }
 
-  /** The listeners hear of the changes once the code that made them is through. */
+  /**
+   * The listeners hear of the changes once the code that made them is through, after the event
+   * loop's current turn: a request that made them has its answer written first, so the snapshot the
+   * listeners build (and send to the pages) does not hold it up. Changes made meanwhile, across
+   * awaits too, are heard of once.
+   */
   private tell() {
     if (this.telling) return;
     this.telling = true;
-    queueMicrotask(() => {
+    setImmediate(() => {
       this.telling = false;
       for (const fn of this.listeners) {
         try {

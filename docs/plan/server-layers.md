@@ -46,9 +46,10 @@ Checked in the code on 2026-11-13; counts may be off by a few. Each workstream r
   god files split into them. Services are named after a noun (`CardService.moveToProject()`: id first,
   active verbs); integrations end in `Client` (`GitHubClient`, `ForgejoClient`, `CodexClient`,
   `TailscaleClient`).
-- `routes/<area>/`: one `HttpRoute` class per resource; file paths mirror the existing URLs
-  (`routes/c/cards/activity.ts` → `/api/c/:project/cards/:id/activity`). `server.ts` only collects the
-  registered routes and the WebSocket.
+- `routes/v1/`: one `HttpRoute` class per resource, at a RESTful URL under `/api/v1/`; the file path
+  mirrors it, `:x` as `_x` (`routes/v1/cards/_cardId/share.ts` → `/api/v1/cards/:cardId/share`;
+  see the Router Layer in `code-organization.md`).
+  `server.ts` only collects the registered routes and the WebSocket.
 - `auth/`: `access.ts`, `remote.ts`, `owner.ts`, `trust.ts`.
 - `lib/`: helpers (`path.ts`, `zip.ts`, `images.ts` …).
 - `jobs/` (not in the WIP docs): background loops that are neither a request nor a service call
@@ -60,8 +61,11 @@ Checked in the code on 2026-11-13; counts may be off by a few. Each workstream r
   app context plus one child context per project replaces the hand-wiring in `ProjectRuntime`. Variant A
   (layers only, no DI) is dropped. If the spike in W7 fails, the fallback is DI without decorators (a plain
   composition root or awilix), for the owner to decide then.
-- **Decided without the owner** (they can overrule): URLs stay unchanged, since renaming the REST API
-  would also touch the UI; each move is kept small and lands quickly, to limit conflicts.
+- **URLs become RESTful as their routes move** (owner's decision, 2026-11-21, over the earlier "URLs
+  stay unchanged"): each route moves to `/api/v1/` with its UI callers, which go through
+  `src/ui/clients/seismic.ts` and use the JSON a write answers with. The first is "Share on approval".
+- **Decided without the owner** (they can overrule): each move is kept small and lands quickly, to
+  limit conflicts.
 
 ## Workstreams
 

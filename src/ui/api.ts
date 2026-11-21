@@ -1,3 +1,11 @@
+/**
+ * The page's link to the server: the live project over its WebSocket (`useProject`), and the calls
+ * to the old API (`api`).
+ *
+ * Deprecated for new calls: `api` is the old API (and marked `@deprecated`). Add new calls to the
+ * RESTful client in `src/ui/clients/seismic.ts` instead, with their route under
+ * `src/server/routes/v1/`. The WebSocket, `call` and the snapshot helpers here stay.
+ */
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { CardDiff } from '../core/diff';
 import { type Place, placeParam } from '../core/layout';
@@ -30,16 +38,20 @@ export class ApiError extends Error {
   }
 }
 
-async function call<T>(method: string, path: string, body?: unknown, keepalive?: boolean): Promise<T> {
-  const res = await send(method, path, body, keepalive);
+export async function call<T>(method: string, path: string, body?: unknown, keepalive?: boolean, timeoutMs?: number): Promise<T> {
+  const res = await send(method, path, body, keepalive, timeoutMs);
   return (res.status === 204 ? undefined : await res.json()) as T;
 }
 
-/** The request, with `body` as JSON; throws the server's refusal. With `keepalive`, it outlasts the page. */
-async function send(method: string, path: string, body?: unknown, keepalive?: boolean) {
+/**
+ * The request, with `body` as JSON; throws the server's refusal. With `keepalive`, it outlasts the
+ * page; with `timeoutMs`, it is given up after that long.
+ */
+async function send(method: string, path: string, body?: unknown, keepalive?: boolean, timeoutMs?: number) {
   const res = await fetch(path, {
     method,
     keepalive,
+    ...(timeoutMs ? { signal: AbortSignal.timeout(timeoutMs) } : {}),
     headers: body === undefined ? undefined : { 'content-type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
@@ -159,6 +171,14 @@ export type AddSiteInput =
   | { host: 'github'; repo: string; folder: string; via: 'pr' | 'push' }
   | { manual: { url: string; deploy: string; env?: string; maxFile?: number } };
 
+/**
+ * The calls to the old API (`/api/…`, `/api/c/:project/…`), most of which answer with nothing and
+ * leave the change to the next snapshot.
+ *
+ * @deprecated Add new calls to the RESTful client in `src/ui/clients/seismic.ts` instead, with their
+ * route under `src/server/routes/v1/` (see the Router Layer in `docs/design/code-organization.md`).
+ * A call moved there is taken out of here, and its callers switch to it.
+ */
 export const api = {
   exportProjects: (ids: string[], as: 'csv' | 'json') => download(`/api/projects/export?as=${as}${ids.map((id) => `&project=${encodeURIComponent(id)}`).join('')}`, `seismic-projects.${as}`),
   projects: () => call<ProjectInfo[]>('GET', '/api/projects'),
@@ -636,6 +656,31 @@ export async function takeHandOver() {
   } catch {}
 }
 
+/** How many snapshots the page took in, by project: a write's answer is older than one that came after the write went out. */
+const snapshotsIn = new Map<string, number>();
+const tookSnapshot = (project: string) => snapshotsIn.set(project, (snapshotsIn.get(project) ?? 0) + 1);
+export const snapshotsOf = (project: string) => snapshotsIn.get(project) ?? 0;
+
+const savedListeners = new Set<(project: string, card: Item, seen: number) => void>();
+function onCardSaved(fn: (project: string, card: Item, seen: number) => void): () => void {
+  savedListeners.add(fn);
+  return () => savedListeners.delete(fn);
+}
+
+/**
+ * A write to a card answered with the card as it now stands: the project shows it without waiting
+ * for the next snapshot. `seen`: `snapshotsOf(project)` when the write went out.
+ */
+export function cardSaved(project: string, card: Item, seen: number) {
+  for (const fn of savedListeners) fn(project, card, seen);
+}
+
+/** The snapshot with `card` in place of the card it was; one it does not show stays as it is. */
+export function withCard(snapshot: ProjectSnapshot, card: Item): ProjectSnapshot {
+  if (!snapshot.items.some((i) => i.id === card.id)) return snapshot;
+  return { ...snapshot, items: snapshot.items.map((i) => (i.id === card.id ? card : i)) };
+}
+
 /**
  * The live project `id` (the shown one by default): the server pushes a snapshot on connect and after
  * every change, the restart that waits, the newer version of the app there is, how many cards on
@@ -702,7 +747,15 @@ export function useProject(id = projectId): {
       const version = ++snapshotVersion;
       const fresh = await api.project(id);
       // A newer read or push takes precedence over a response that was still in flight.
-      if (!closed && version === snapshotVersion) setSnapshot(fresh);
+      if (!closed && version === snapshotVersion) {
+        tookSnapshot(id);
+        setSnapshot(fresh);
+      }
+    });
+    // a card a write answered with shows at once, unless a snapshot came in after the write went out
+    const offSaved = onCardSaved((project, card, seen) => {
+      if (project !== id || closed || snapshotsOf(id) !== seen) return;
+      setSnapshot((s) => s && withCard(s, card));
     });
     /** When the oldest ping the server has not answered was sent. */
     let unanswered: number | null = null;
@@ -748,6 +801,7 @@ export function useProject(id = projectId): {
           setOldBun(msg.oldBun ?? null);
         } else if (msg.type === 'snapshot') {
           snapshotVersion++;
+          tookSnapshot(id);
           setSnapshot(msg.snapshot);
         } else if (msg.type === 'restart') setRestart(msg.restart);
         else if (msg.type === 'update') setUpdate(msg.update);
@@ -816,6 +870,7 @@ export function useProject(id = projectId): {
     return () => {
       closed = true;
       offRefresh();
+      offSaved();
       clearTimeout(retry);
       clearInterval(beat);
       document.removeEventListener('visibilitychange', back);

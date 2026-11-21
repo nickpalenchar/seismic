@@ -67,7 +67,9 @@ beforeAll(() => {
   project.board.changed();
 });
 
-afterAll(() => {
+afterAll(async () => {
+  // what listens to the board hears of the last change before its files go
+  await heard();
   project.shutdown();
   rmSync(dir, { recursive: true, force: true });
 });

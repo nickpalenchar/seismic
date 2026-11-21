@@ -9,7 +9,7 @@ import { Access, deviceName, machineAddresses, PAIRING_MS, UNUSED_MS } from '../
 import { serve } from '../server';
 import { Tailscale } from '../tailscale';
 import { Push } from '../push';
-import { asOwner, fakeTailscale, gitRepo, noForge, tailscaleStatus, until } from './helpers/testing';
+import { asOwner, fakeTailscale, gitRepo, heard, noForge, tailscaleStatus, until } from './helpers/testing';
 import { b64u } from '../webpush';
 
 const NAME = 'mac.tail1234.ts.net';
@@ -343,6 +343,7 @@ describe('push', () => {
     page.send(JSON.stringify({ type: 'ping' }));
     await new Promise<void>((resolve) => { page.onmessage = (event) => { if (JSON.parse(String(event.data)).type === 'pong') resolve(); }; });
     project.board.work(card('Export'), { state: 'waiting', need: 'question', detail: JSON.stringify({ question: { text: 'CSV?', options: [] } }) });
+    await heard();
     await push.settled();
     expect(pushed).toHaveLength(1);
     pushTimers.shift()!();
