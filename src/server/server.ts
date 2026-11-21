@@ -780,10 +780,7 @@ export function serve(
       '/api/c/:project/plan-dirs/:repo': {
         PATCH: on(async (c, req) => c.board.movePlanDirNote(req.params.repo!, await req.json())),
       },
-      // a card's changes: PATCH /api/v1/cards/:cardId (routes/v1/cards/_cardId.ts)
-      '/api/c/:project/cards/:id': {
-        DELETE: on((c, req) => click(c, c.remove(req.params.id!))),
-      },
+      // a card's changes and its deletion: /api/v1/cards/:cardId (routes/v1/cards/_cardId.ts)
       // groups: a new one with its first cards (and a colour, when one comes back), a new name, the
       // end of one, and cards put into one (`group: null`: none)
       '/api/c/:project/groups': {

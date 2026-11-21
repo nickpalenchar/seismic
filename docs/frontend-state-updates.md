@@ -186,7 +186,13 @@ message still renders the page once, because the card toggled here is in it (it 
 A card's changes (title and text as typed, its place after a drag, labels, a plan's fold, the
 undo of "Arrange") go through `PATCH /api/v1/cards/:cardId` (`src/server/routes/v1/cards/_cardId.ts`)
 and `patchCard` in `src/ui/clients/seismic.ts`, which answers with the card. `api.patch` and the old
-`PATCH /api/c/:project/cards/:id` are gone; that URL keeps its `DELETE` until it moves.
+`PATCH /api/c/:project/cards/:id` are gone.
+
+Deleting a card went the same way: `DELETE /api/v1/cards/:cardId` answers 204, and `removeCard`
+takes the card off the shown project at once (`cardRemoved`, under the same rule as `cardSaved`:
+not once a newer snapshot came in). On 600 cards, a card deleted from its open panel left the
+canvas at 279 ms after the click, before the snapshot (354 ms); most of that time is the panel
+folding shut, which the deletion waits for. The undo is still `POST /api/c/:project/cards/:id/restore`.
 
 Typing is not disturbed by the card coming back: the title and text fields keep a draft of their
 own, which the card they get does not overwrite (`ManualTitle` in `src/ui/detail.tsx`). Checked live

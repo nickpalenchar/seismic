@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from 'bun:test';
 import { setProject } from '../api';
-import { getCardById, patchCard, setShareOnApproval } from './seismic';
+import { getCardById, patchCard, removeCard, setShareOnApproval } from './seismic';
 
 const real = globalThis.fetch;
 afterEach(() => {
@@ -32,4 +32,14 @@ test("a card's changes go out as a PATCH of the card and answer with it", async 
   const card = await patchCard('c4', { title: 'Checkout' });
   expect(sent).toEqual([{ url: '/api/v1/cards/c4', method: 'PATCH', body: { title: 'Checkout' } }]);
   expect(card.title).toBe('Checkout');
+});
+
+test('a card deleted goes out as a DELETE of the card', async () => {
+  const sent: { url: string; method?: string }[] = [];
+  globalThis.fetch = (async (url: string, init: RequestInit) => {
+    sent.push({ url, method: init.method });
+    return new Response(null, { status: 204 });
+  }) as typeof fetch;
+  await removeCard('c5');
+  expect(sent).toEqual([{ url: '/api/v1/cards/c5', method: 'DELETE' }]);
 });

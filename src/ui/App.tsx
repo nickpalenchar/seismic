@@ -24,7 +24,7 @@ import { type ActDone, Detail, type Pending } from './detail';
 import { Cards, KoordinatorAgent } from './message';
 import { motionMs, reducedMotion, sizeSettled } from './motion';
 import type { Heard, Where } from './api';
-import { patchCard } from './clients/seismic';
+import { patchCard, removeCard } from './clients/seismic';
 import { replyOn, setReply } from './reply';
 import { ArchiveView } from './archive';
 import { CardSearch } from './cardSearch';
@@ -916,7 +916,7 @@ function Project({
     const draft = openDraft.current;
     if (i?.source === 'manual' && !draft.title.trim()) {
       if (nameless(draft)) saved.then(() => api.act(i.id, { action: 'name' })).catch(console.error);
-      else if (!keepUntitled) api.remove(i.id).catch(console.error);
+      else if (!keepUntitled) removeCard(i.id).catch(console.error);
     }
     // the view stays where the card was brought to, so it can be seen among the rest
     // the card may have gone (archived, deleted) and taken the last content in view with it
@@ -1013,7 +1013,7 @@ function Project({
     openDraft.current = { kind: i?.kind ?? 'task', title: '', body: '' };
     await closeCard({ keepUntitled: true });
     if (!i) return;
-    await api.remove(i.id);
+    await removeCard(i.id);
     if (title) showAck(t.deleted(plain(title)), () => api.restore(i.id));
   }
 

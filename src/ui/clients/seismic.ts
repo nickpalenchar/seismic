@@ -4,7 +4,7 @@
  * the old routes until they move.
  */
 import type { CardPatch, Item } from '../../core/types';
-import { call, cardSaved, projectOf, snapshotsOf } from '../api';
+import { call, cardRemoved, cardSaved, projectOf, snapshotsOf } from '../api';
 
 /** How long a request may take before the page gives it up. */
 const TIMEOUT_MS = 60_000;
@@ -26,3 +26,11 @@ export const setShareOnApproval = (id: string, onApproval: boolean) => writeCard
 
 /** Changes to the card `id` (its title, text, place, labels; a plan's fold), answered with the card. */
 export const patchCard = (id: string, patch: CardPatch) => writeCard(id, 'PATCH', '', patch);
+
+/** The card `id` deleted (its undo is `api.restore`): the project stops showing it at once. */
+export async function removeCard(id: string): Promise<void> {
+  const project = projectOf(id);
+  const seen = snapshotsOf(project);
+  await call<void>('DELETE', getCardById(id), undefined, false, TIMEOUT_MS);
+  cardRemoved(project, id, seen);
+}

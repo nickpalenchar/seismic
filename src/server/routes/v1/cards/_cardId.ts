@@ -2,7 +2,10 @@ import { BadRequest } from '../../../board';
 import type { CardPatch, Item } from '../../../../core/types';
 import { HttpRoute, type RouteRequest } from '../../httpRoute';
 
-/** A card: what the owner changes on it (its title, text, place, labels, a plan's fold), answered with the card. */
+/**
+ * A card: what the owner changes on it (its title, text, place, labels, a plan's fold), answered with
+ * the card; and the card deleted, answered with nothing (its undo brings it back, `restore`).
+ */
 export class Card extends HttpRoute {
   readonly path = '/api/v1/cards/:cardId';
 
@@ -15,5 +18,12 @@ export class Card extends HttpRoute {
     const card = project.board.item(cardId);
     if (!card) throw new BadRequest('unknownCard', 'unknown card');
     return { card };
+  };
+
+  override DELETE = (request: RouteRequest): void => {
+    const project = this.projectOfCard(request);
+    project.remove(request.params.cardId!);
+    // a click of the owner's: it counts toward the retrospective that reads the history every so many
+    project.koordinator.noticed();
   };
 }

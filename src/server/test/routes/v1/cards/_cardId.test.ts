@@ -65,3 +65,25 @@ test('refused: changes that are no object or not allowed, an unknown or deleted 
   expect(await codeOf(await patch(c.id, { title: 'X' }, globalThis.fetch))).toEqual([401, 'notOwner']);
   expect(shop.item(c.id)?.title).toBe('A');
 });
+
+const remove = (card: string, send: (url: URL, init: RequestInit) => Promise<Response> = fetch) => send(new URL(`/api/v1/cards/${card}`, server.url), { method: 'DELETE' });
+
+test('a card deleted on the project it is on, answered with nothing; its undo brings it back', async () => {
+  const c = website.create({ title: 'A', x: 0, y: 0 });
+  const res = await remove(c.id);
+  expect(res.status).toBe(204);
+  expect(website.item(c.id)).toBeUndefined();
+  // the undo is still the project's route
+  expect((await fetch(new URL(`/api/c/${website.project.id}/cards/${c.id}/restore`, server.url), { method: 'POST' })).status).toBe(204);
+  expect(website.item(c.id)?.title).toBe('A');
+});
+
+test('a deletion refused: an unknown or deleted card, no owner key', async () => {
+  const c = shop.create({ title: 'A', x: 0, y: 0 });
+  const gone = shop.create({ title: 'B', x: 0, y: 0 });
+  shop.remove(gone.id);
+  expect(await codeOf(await remove('nope'))).toEqual([404, 'unknownCard']);
+  expect(await codeOf(await remove(gone.id))).toEqual([404, 'unknownCard']);
+  expect(await codeOf(await remove(c.id, globalThis.fetch))).toEqual([401, 'notOwner']);
+  expect(shop.item(c.id)?.title).toBe('A');
+});

@@ -14,10 +14,13 @@ async function sent(i: Item) {
     for (const q of quickReplies(i)) {
       let a: CardAction | 'remove' = 'remove';
       api.act = async (_id, x) => void (a = x);
-      const remove = api.remove;
-      api.remove = async () => void (a = 'remove');
-      await q.send(i.id, false);
-      api.remove = remove;
+      // a deletion goes out as the card's DELETE
+      const fetched = globalThis.fetch;
+      globalThis.fetch = (async (_url: string, init: RequestInit) => {
+        if (init.method === 'DELETE') a = 'remove';
+        return new Response(null, { status: 204 });
+      }) as typeof fetch;
+      await q.send(i.id, false).finally(() => (globalThis.fetch = fetched));
       out.push([q.label, a, !!q.primary]);
     }
   } finally {

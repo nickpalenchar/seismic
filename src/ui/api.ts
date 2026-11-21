@@ -338,7 +338,6 @@ export const api = {
     const total = Number(/\/(\d+)$/.exec(res.headers.get('content-range') ?? '')?.[1]);
     return res.ok && total > 0 ? total : null;
   },
-  remove: (id: string) => call<void>('DELETE', cardAt(id)),
   restore: (id: string) => call<void>('POST', cardAt(id, '/restore')),
   /** Takes a finished card off the project into the archive. */
   archive: (id: string) => call<void>('POST', cardAt(id, '/archive')),
@@ -661,8 +660,10 @@ const snapshotsIn = new Map<string, number>();
 const tookSnapshot = (project: string) => snapshotsIn.set(project, (snapshotsIn.get(project) ?? 0) + 1);
 export const snapshotsOf = (project: string) => snapshotsIn.get(project) ?? 0;
 
-const savedListeners = new Set<(project: string, card: Item, seen: number) => void>();
-function onCardSaved(fn: (project: string, card: Item, seen: number) => void): () => void {
+/** A write's answer, applied to the snapshot of the project it was on. */
+type SnapshotChange = (snapshot: ProjectSnapshot) => ProjectSnapshot;
+const savedListeners = new Set<(project: string, change: SnapshotChange, seen: number) => void>();
+function onCardSaved(fn: (project: string, change: SnapshotChange, seen: number) => void): () => void {
   savedListeners.add(fn);
   return () => savedListeners.delete(fn);
 }
@@ -672,7 +673,12 @@ function onCardSaved(fn: (project: string, card: Item, seen: number) => void): (
  * for the next snapshot. `seen`: `snapshotsOf(project)` when the write went out.
  */
 export function cardSaved(project: string, card: Item, seen: number) {
-  for (const fn of savedListeners) fn(project, card, seen);
+  for (const fn of savedListeners) fn(project, (snapshot) => withCard(snapshot, card), seen);
+}
+
+/** A card deleted: the project stops showing it without waiting for the next snapshot. `seen` as for `cardSaved`. */
+export function cardRemoved(project: string, id: string, seen: number) {
+  for (const fn of savedListeners) fn(project, (snapshot) => withoutCard(snapshot, id), seen);
 }
 
 /** For a state setter: `next`, unless it has the same content as what the state holds, which then stays the object it was. */
@@ -683,6 +689,12 @@ export function withCard(snapshot: ProjectSnapshot, card: Item): ProjectSnapshot
   const before = snapshot.items.find((i) => i.id === card.id);
   if (!before || sameJson(before, card)) return snapshot;
   return { ...snapshot, items: snapshot.items.map((i) => (i.id === card.id ? card : i)) };
+}
+
+/** The snapshot without the card `id`; one it does not show leaves it as it is. */
+export function withoutCard(snapshot: ProjectSnapshot, id: string): ProjectSnapshot {
+  if (!snapshot.items.some((i) => i.id === id)) return snapshot;
+  return { ...snapshot, items: snapshot.items.filter((i) => i.id !== id) };
 }
 
 /**
@@ -779,9 +791,9 @@ export function useProject(id = projectId): {
       }
     });
     // a card a write answered with shows at once, unless a snapshot came in after the write went out
-    const offSaved = onCardSaved((project, card, seen) => {
+    const offSaved = onCardSaved((project, change, seen) => {
       if (project !== id || closed || snapshotsOf(id) !== seen) return;
-      setSnapshot((s) => s && withCard(s, card));
+      setSnapshot((s) => s && change(s));
     });
     /** When the oldest ping the server has not answered was sent. */
     let unanswered: number | null = null;
