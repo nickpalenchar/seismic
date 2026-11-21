@@ -9,6 +9,9 @@ The steps, their commands and the facts behind them are in `docs/release.md` § 
 it first and go through its steps in its order. This skill adds where the owner comes in and what
 to judge on the way.
 
+A release candidate (`v<version>-rc.<n>`) is not this skill's: it goes as `docs/release.md` §
+"Release candidates" says.
+
 The owner approves once, on the changelog's section, before anything leaves the machine. After
 that the agent pushes, tags and watches the build. Publishing the release (step 7) reaches every
 installed app through the updater, so that click is the owner's.

@@ -12,9 +12,11 @@
 //       trailers link: the raw material a version's section in CHANGELOG.md is written from.
 //       `--since` narrows them by date (the first release has the whole history before it).
 //   bun scripts/release.ts check <tag>
-//       fails unless <tag> is v<version of package.json> and CHANGELOG.md has a section for it.
+//       fails unless <tag> is v<version of package.json> and CHANGELOG.md has a section for it (a
+//       release candidate, v<x.y.z>-rc.<n>, needs none).
 //   bun scripts/release.ts section <tag> <file>
-//       writes the version's section of CHANGELOG.md (without its heading) into <file>.
+//       writes the version's section of CHANGELOG.md (without its heading) into <file>; for a
+//       release candidate without one, an empty file.
 //   bun scripts/release.ts notes <tag> <owner/repo> <file>
 //       writes the release's notes: the version's section of CHANGELOG.md, how to install the
 //       unsigned downloads, and every commit since the version tag before, folded.
@@ -24,7 +26,9 @@
 //       everything in <dir>.
 //
 // The names carry no version: the README and the site link the newest release's installers through
-// `releases/latest/download/<name>`. Without the updater's key (TAURI_SIGNING_PRIVATE_KEY at the
+// `releases/latest/download/<name>`. A release candidate goes out as a GitHub pre-release, which
+// `releases/latest` skips: installed apps are not offered it, and the links keep pointing at the
+// latest release. Without the updater's key (TAURI_SIGNING_PRIVATE_KEY at the
 // build) there are no update artifacts, and latest.json names no platform.
 
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -113,12 +117,23 @@ export const RUNS = ['.', ...INERT.dirs.map((d) => `:!${d}`), `:!*${INERT.ending
 export type Demo = { kind: 'video' | 'page'; url: string };
 export type Commit = { hash: string; date: string; subject: string; demos: Demo[] };
 
+/** A release candidate's tag: v0.2.0-rc.1. */
+const CANDIDATE = /^v?(\d+\.\d+\.\d+)-rc\.(\d+)$/;
+
+/** The version a release candidate's tag is a candidate for (v0.2.0-rc.1 → 0.2.0); null for any other tag. */
+export function candidate(tag: string): string | null {
+  return CANDIDATE.exec(tag)?.[1] ?? null;
+}
+
 /**
- * The version tag before `tag`, or without one the last version tag on HEAD. Other tags
- * (`site-media`, which held the upstream site's video) do not count.
+ * The version tag before `tag`, or without one the last version tag on HEAD. A release's is the
+ * release before it, so its notes cover every release candidate in between; a release candidate's
+ * is the tag before it of either kind. Other tags (`site-media`, which held the upstream site's
+ * video) do not count.
  */
 export function tagBefore(cwd: string, tag?: string): string | null {
-  return git(cwd, 'describe', '--tags', '--abbrev=0', '--match', 'v[0-9]*', tag ? `${tag}^` : 'HEAD');
+  const releasesOnly = tag && candidate(tag) ? [] : ['--exclude', 'v*-rc.*'];
+  return git(cwd, 'describe', '--tags', '--abbrev=0', '--match', 'v[0-9]*', ...releasesOnly, tag ? `${tag}^` : 'HEAD');
 }
 
 /**
@@ -175,10 +190,15 @@ export function section(changelog: string, tag: string): string | null {
   return body || null;
 }
 
-/** Why `tag` makes no release, or null: it must be v<package.json's version>, with its section in CHANGELOG.md. */
+/**
+ * Why `tag` makes no release, or null: it must be v<package.json's version>, with its section in
+ * CHANGELOG.md; a release candidate (v<x.y.z>-rc.<n>) needs no section.
+ */
 export function check(cwd: string, tag: string): string | null {
   const pkg = JSON.parse(readFileSync(join(cwd, 'package.json'), 'utf8')).version as string;
+  if (!/^v\d+\.\d+\.\d+$/.test(tag) && !candidate(tag)) return `tag ${tag} is neither v<x.y.z> nor a release candidate v<x.y.z>-rc.<n>`;
   if (tag !== `v${pkg}`) return `tag ${tag}, but package.json says v${pkg}`;
+  if (candidate(tag)) return null;
   const file = join(cwd, 'CHANGELOG.md');
   if (!existsSync(file) || !section(readFileSync(file, 'utf8'), tag)) return `CHANGELOG.md has no section "## ${pkg}" (docs/release.md)`;
   return null;
@@ -197,12 +217,21 @@ const COMMITS_LISTED = 300;
 /**
  * The release's notes: the version's section of CHANGELOG.md, how to install, and the commits since
  * the version tag before that change what runs, folded, each linked with its demo. The first
- * release would fold the whole history, so it links it instead.
+ * release would fold the whole history, so it links it instead. A release candidate's start with
+ * what it is, its section after that when CHANGELOG.md has one.
  */
 export function notes(cwd: string, tag: string, repo: string, changelog: string): string {
   const text = section(changelog, tag);
-  if (!text) throw new Error(`CHANGELOG.md has no section for ${tag}`);
-  const out = [text, '', '### Installing', '', INSTALL, ''];
+  const target = candidate(tag);
+  if (!text && !target) throw new Error(`CHANGELOG.md has no section for ${tag}`);
+  const out = target
+    ? [
+        `Release candidate ${CANDIDATE.exec(tag)![2]} for Seismic ${target}, for trying it out before it is released. ` +
+          'Installed apps are not offered it as an update; once installed, it updates to the next release.',
+        ...(text ? ['', text] : []),
+      ]
+    : [text!];
+  out.push('', '### Installing', '', INSTALL, '');
   const before = tagBefore(cwd, tag);
   if (!before) {
     out.push(`[All commits](https://github.com/${repo}/commits/${tag}) up to this first release.`);
@@ -290,14 +319,14 @@ if (import.meta.main) {
       console.error(`::error::${why}`);
       process.exit(1);
     }
-    console.log(`${rest[0]} is package.json's version, with its section in CHANGELOG.md`);
+    console.log(candidate(rest[0]) ? `${rest[0]} is package.json's version, a release candidate` : `${rest[0]} is package.json's version, with its section in CHANGELOG.md`);
   } else if (command === 'section' && rest[1]) {
     const text = section(changelog(), rest[0]!);
-    if (!text) {
+    if (!text && candidate(rest[0]!)) writeFileSync(rest[1], '');
+    else if (!text) {
       console.error(`CHANGELOG.md has no section for ${rest[0]}`);
       process.exit(1);
-    }
-    writeFileSync(rest[1], `${text}\n`);
+    } else writeFileSync(rest[1], `${text}\n`);
   } else if (command === 'notes' && rest[2]) {
     writeFileSync(rest[2], notes(cwd, rest[0]!, rest[1]!, changelog()));
   } else if (command === 'manifest' && rest[2]) {

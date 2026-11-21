@@ -75,6 +75,27 @@ or a rerun needs.
    it, whatever the release's text says after an edit. Afterwards `bun scripts/release-status.ts`
    names the new version as the latest release.
 
+## Release candidates
+
+A release candidate, `v<version>-rc.<n>` (`v0.2.0-rc.1`), is a build of the version to come, there
+for trying it out between releases. It goes out as a GitHub pre-release, published by the build
+workflow at once, without a draft: GitHub's `releases/latest` skips pre-releases, so installed apps
+are not offered it, and the download links keep pointing at the latest release. Someone who
+installs a candidate gets the next release through the updater once it is out (semver puts
+`0.2.0` after `0.2.0-rc.1`); a later candidate they install by hand.
+
+1. The version in `package.json` is the candidate's, `0.2.0-rc.1`; committed and pushed to `main`.
+   The release after its candidates sets it to `0.2.0`.
+2. `git tag v0.2.0-rc.1 <commit>` and `git push origin v0.2.0-rc.1`. The build signs and notarises
+   it as a release's, and `bun scripts/release.ts check` asks for no section in `CHANGELOG.md`.
+3. Its notes say what it is and fold the commits since the tag before, a candidate's or a
+   release's; a section `## 0.2.0-rc.1` in `CHANGELOG.md`, if there is one, comes after that. The
+   section `## 0.2.0` is the release's, not its candidates'.
+
+The release's own notes and `bun scripts/release.ts commits` count from the release before, so the
+changes of every candidate in between are part of them. `bun scripts/release-status.ts` does too, and
+proposes the version a candidate in `package.json` is for.
+
 ## The updater's key
 
 Installed apps install only what is signed with Seismic's own key pair (Tauri's updater, made with

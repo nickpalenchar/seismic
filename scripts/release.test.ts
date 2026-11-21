@@ -2,7 +2,7 @@ import { afterAll, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { check, collect, commits, latest, material, notes, section, sums } from './release';
+import { candidate, check, collect, commits, latest, material, notes, section, sums, tagBefore } from './release';
 
 const tmp = mkdtempSync(join(tmpdir(), 'seismic-release-'));
 afterAll(() => rmSync(tmp, { recursive: true, force: true }));
@@ -178,4 +178,64 @@ test('the bar gets the start of the section, without a heading cut off from its 
   // a paragraph or an entry wrapped over lines is one line
   expect(latest(dir, 'v0.2.0', 'someone/seismic', new Date(), 'What it\nbrings.\n\n### New\n- One,\n  wrapped\n- Two').notes).toBe('What it brings.\n### New\n- One, wrapped\n- Two');
   expect(latest(dir, 'v0.2.0', 'someone/seismic', new Date())).not.toHaveProperty('notes');
+});
+
+let candidates: string | undefined;
+function candidateHistory() {
+  return (candidates ??= makeCandidates());
+}
+
+function makeCandidates() {
+  const repo = join(tmp, 'candidates');
+  mkdirSync(repo);
+  const git = (...a: string[]) => Bun.spawnSync(['git', '-C', repo, '-c', 'user.name=T', '-c', 'user.email=t@example.com', ...a], { stderr: 'pipe' });
+  const commit = (file: string, message: string, tag?: string) => {
+    files(repo, { [file]: message });
+    git('add', '.');
+    git('commit', '-qm', message);
+    if (tag) git('tag', tag);
+  };
+  git('init', '-q', '-b', 'main');
+  commit('src/a.ts', 'First', 'v0.1.0');
+  commit('src/b.ts', 'Faster project', 'v0.2.0-rc.1');
+  commit('src/c.ts', 'Quit cleanly', 'v0.2.0-rc.2');
+  commit('src/d.ts', 'Quit faster', 'v0.2.0');
+  commit('src/e.ts', 'Unreleased', 'v0.3.0-rc.1');
+  return repo;
+}
+
+test('a release candidate counts from the tag before it; a release from the release before, past the candidates', () => {
+  const repo = candidateHistory();
+  expect(candidate('v0.2.0-rc.1')).toBe('0.2.0');
+  expect(candidate('0.2.0-rc.12')).toBe('0.2.0');
+  expect(candidate('v0.2.0')).toBeNull();
+  expect(candidate('v0.2.0-beta.1')).toBeNull();
+
+  expect(tagBefore(repo, 'v0.2.0-rc.1')).toBe('v0.1.0');
+  expect(tagBefore(repo, 'v0.2.0-rc.2')).toBe('v0.2.0-rc.1');
+  expect(tagBefore(repo, 'v0.2.0')).toBe('v0.1.0');
+  expect(tagBefore(repo, 'v0.3.0-rc.1')).toBe('v0.2.0');
+  // what the next release's section is written from: since the last release, its candidates included
+  expect(tagBefore(repo)).toBe('v0.2.0');
+  expect(commits(repo).map((c) => c.subject)).toEqual(['Unreleased']);
+  expect(commits(repo, 'v0.2.0').map((c) => c.subject)).toEqual(['Quit faster', 'Quit cleanly', 'Faster project']);
+  expect(commits(repo, 'v0.2.0-rc.2').map((c) => c.subject)).toEqual(['Quit cleanly']);
+});
+
+test('a release candidate needs no section in the changelog; its notes say what it is', () => {
+  const repo = candidateHistory();
+  writeFileSync(join(repo, 'package.json'), JSON.stringify({ version: '0.2.0-rc.2' }));
+  expect(check(repo, 'v0.2.0-rc.2')).toBeNull();
+  expect(check(repo, 'v0.2.0-rc.3')).toBe('tag v0.2.0-rc.3, but package.json says v0.2.0-rc.2');
+  writeFileSync(join(repo, 'package.json'), JSON.stringify({ version: '0.2.0-beta.1' }));
+  expect(check(repo, 'v0.2.0-beta.1')).toBe('tag v0.2.0-beta.1 is neither v<x.y.z> nor a release candidate v<x.y.z>-rc.<n>');
+
+  const text = notes(repo, 'v0.2.0-rc.2', 'someone/seismic', CHANGELOG);
+  expect(text).toStartWith('Release candidate 2 for Seismic 0.2.0, for trying it out before it is released.');
+  // the section of 0.2.0 is the release's, not its candidate's
+  expect(text).not.toContain('Quits cleanly now.');
+  expect(text.split('\n')).toContain('<summary>All commits since v0.2.0-rc.1 (1)</summary>');
+  // a candidate with a section of its own shows it after what it is
+  const own = notes(repo, 'v0.2.0-rc.2', 'someone/seismic', '## 0.2.0-rc.2\n\nTry the new quit.\n');
+  expect(own).toContain('it updates to the next release.\n\nTry the new quit.\n\n### Installing');
 });

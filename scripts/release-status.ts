@@ -20,7 +20,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { distributionPaused } from './distribution';
 import { CHECKOUT, ghEnv } from './gh';
-import { RELEASE, RUNS, section, type Latest } from './release';
+import { candidate, RELEASE, RUNS, section, type Latest } from './release';
 
 const MAIN = 'main';
 /** What the build workflow signs with (docs/release.md); APPLE_NOTARY_ISSUER only with a team key. */
@@ -34,12 +34,12 @@ type Commit = { hash: string; date: string; subject: string };
 export type Status = {
   /** package.json's version in the checkout. */
   version: string;
-  /** The last version tag on main and its date. */
+  /** The last version tag on main (release candidates aside) and its date. */
   tag?: { name: string; date: string };
   /** The commits since the tag that change what runs, newest first, and how many there are in all. */
   changes: Commit[];
   commits: number;
-  /** The version to propose: package.json's when it is past the tag, else the next minor one. */
+  /** The version to propose: package.json's when it is past the tag (a release candidate's own version: 0.2.0-rc.1 → 0.2.0), else the next minor one. */
   propose: string;
   /** Whether `v<propose>` is a tag already, here or on GitHub. */
   tagTaken: boolean;
@@ -92,12 +92,13 @@ export function status(cwd: string, gh: Gh): Status {
   if (off) problems.push(off);
   const version = JSON.parse(readFileSync(join(cwd, 'package.json'), 'utf8')).version as string;
 
-  const tagName = git(cwd, 'describe', '--tags', '--abbrev=0', '--match', 'v[0-9]*', MAIN);
+  const tagName = git(cwd, 'describe', '--tags', '--abbrev=0', '--match', 'v[0-9]*', '--exclude', 'v*-rc.*', MAIN);
   const tag = tagName ? { name: tagName, date: git(cwd, 'log', '-1', '--format=%cI', tagName)! } : undefined;
   const range = tagName ? `${tagName}..${MAIN}` : MAIN;
   const changes = commits(git(cwd, 'log', '--no-merges', '--format=%h%x09%cI%x09%s', range, '--', ...RUNS));
   const all = Number(git(cwd, 'rev-list', '--count', range) ?? 0);
-  const propose = !tagName || newer(version, tagName) ? version : nextVersion(tagName);
+  const released = candidate(version) ?? version;
+  const propose = !tagName || newer(released, tagName) ? released : nextVersion(tagName);
   if (tagName && !changes.length) problems.push(`Nothing that runs changed since ${tagName}.`);
 
   const remoteTags = git(cwd, 'ls-remote', '--tags', 'origin', `refs/tags/v${propose}`);

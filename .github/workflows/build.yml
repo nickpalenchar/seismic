@@ -7,7 +7,8 @@
 # with every installer, SHA256SUMS and latest.json for the updater (scripts/release.ts), its notes
 # the version's section of CHANGELOG.md with the commits since the tag before folded under it; the
 # owner publishes it, and installed apps then offer it (docs/release.md). A tag without its section
-# in CHANGELOG.md fails at once. Update artifacts and their signatures come only with the secret
+# in CHANGELOG.md fails at once. A release candidate's tag, v<version>-rc.<n>, needs no section and
+# goes out at once as a published pre-release, which installed apps are not offered. Update artifacts and their signatures come only with the secret
 # TAURI_SIGNING_PRIVATE_KEY (and TAURI_SIGNING_PRIVATE_KEY_PASSWORD, if the key has one).
 # On a tag, the Macs' app is signed with the Developer ID and notarised, the ticket stapled to the
 # DMG (scripts/build-app.ts), with the secrets APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD,
@@ -143,7 +144,12 @@ jobs:
       - run: bun scripts/release.ts section "$GITHUB_REF_NAME" section.md
       - run: bun scripts/release.ts notes "$GITHUB_REF_NAME" "$GITHUB_REPOSITORY" notes.md
       - run: bun scripts/release.ts manifest release "$GITHUB_REF_NAME" "$GITHUB_REPOSITORY" section.md
-      - name: Draft release
+      # a release candidate is published as a pre-release, which releases/latest (the updater's
+      # latest.json, the download links) skips; a release is a draft the owner publishes
+      - name: Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --draft --latest --verify-tag --title "Seismic ${GITHUB_REF_NAME#v}" --notes-file notes.md release/*
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF_NAME" == *-rc.* ]]; then kind=(--prerelease --latest=false); else kind=(--draft --latest); fi
+          gh release create "$GITHUB_REF_NAME" "${kind[@]}" --verify-tag --title "Seismic ${GITHUB_REF_NAME#v}" --notes-file notes.md release/*

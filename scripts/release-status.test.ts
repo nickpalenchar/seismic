@@ -86,6 +86,22 @@ test('says what the release holds, whether its changelog is written and how far 
   expect(text).toEndWith('Nothing in the way.');
 });
 
+test('release candidates since the last release leave it the last tag; the version proposed is the one they were for', () => {
+  const { dir, git, commit } = repo('candidates');
+  commit('2026-10-08T10:00:00Z', 'package.json', JSON.stringify({ version: '0.1.0' }));
+  git('', 'tag', 'v0.1.0');
+  commit('2026-10-10T10:00:00Z', 'src/ui/project.tsx', 'Pin the cards to a wall');
+  commit('2026-10-10T11:00:00Z', 'package.json', JSON.stringify({ version: '0.2.0-rc.1' }));
+  git('', 'tag', 'v0.2.0-rc.1');
+  commit('2026-10-12T10:00:00Z', 'src/ui/bar.tsx', 'Fit the bar');
+
+  const s = status(dir, gh([{ tag_name: 'v0.1.0' }, { tag_name: 'v0.2.0-rc.1', prerelease: true }]));
+  expect(s.tag?.name).toBe('v0.1.0');
+  expect(s.propose).toBe('0.2.0');
+  // the candidate's own commits count toward the release, back to the last release
+  expect(s.changes.map((c) => c.subject)).toEqual(['Fit the bar', JSON.stringify({ version: '0.2.0-rc.1' }), 'Pin the cards to a wall']);
+});
+
 test('names what stands in the way: a missing secret, GitHub ahead, a tag taken, a draft left over', () => {
   const { dir, git, commit } = repo('blocked');
   commit('2026-10-08T10:00:00Z', 'package.json', JSON.stringify({ version: '0.1.0' }));
