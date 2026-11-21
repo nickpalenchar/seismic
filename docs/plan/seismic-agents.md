@@ -26,8 +26,6 @@ and `docs/design.md`, and this doc goes.
 - [x] Instances for `browser`, `demo`, `settings` (`demo.ts` still has `DEMO_SKILL`, `DEMO_SKILL_FILE`; they can use `demoSkill` once their callers move).
 - [x] One registry (`skills/registry.ts`, an explicit list of the instances; a test fails when a plugin
   folder has none); `project.ts` and the Codex/agy listing in `llms/harnesses/index.ts` read it.
-- [ ] Remove the deprecated `labelsGuide`, `LABELS_SKILL_FILE`, `titlesGuide` once `koordinator.ts` uses
-  the skills directly.
 - [ ] Decide whether `getInstructions()` is embedded in the binary (Bun text import) or stays read from
   the resources directory. Skills with scripts (`browser/lib`, `demo/lib`) need real files either way.
 
@@ -50,14 +48,12 @@ and `docs/design.md`, and this doc goes.
   (not a no). The harness calls the spec's `checkModel` once it has resolved the model, before the first turn: a check that is
   not `ok` ends the session with its `problem`, and its `apply` leaves optional images out with a note. Codex's list names
   its input types, so it enforces today; Antigravity's listing and Claude have none, so their images go through.
-- [ ] The Koordinator's sessions in `koordinator.ts`, `merges.ts`, `revisions.ts` and `share.ts` still call
-  `readSession` directly; they become jobs (then `readSession.ts` goes). Done: card naming (`agentJobs/cardName.ts`) and
-  the labels at a card's start (`cardLabels.ts`), their prompts in `llms/prompts/` (`nameSystem.ts`, `labelsSystem.ts`).
-  Also done: the plan's dependencies (`planDependencies.ts`), the retrospective on the owner's inputs (`ruleRetro.ts`) and
-  the learner (`ruleLearner.ts`, with `ruleProposals.ts` for what they share); their prompts and `whereRulesGo` are in
-  `llms/prompts/`. Also done: the merge comparison (`cardMerge.ts`), the proposal rework (`proposalRevision.ts`), the demo
-  page's text (`demoPage.ts`) and its tags (`pageTags.ts`, with `pageTagging.ts`). Left: the duplicate and schedule
-  turns in `koordinator.ts`, then `readSession.ts` and the deprecated guide readers go.
+- [x] Every one-shot session is a `SeismicJob` in `llms/agents/agentJobs/` with its prompt in `llms/prompts/`, and
+  `readSession.ts` and the deprecated guide readers (`labelsGuide`, `titlesGuide`, `LABELS_SKILL_FILE`) are gone: card
+  naming and labels, the plan's dependencies, the rule retrospective and learner (`ruleProposals.ts` is what they share),
+  the merge comparison, the proposal rework, the demo page's text and tags, and the card's scope and the batch schedule
+  (`cardScope.ts`, `queueSchedule.ts`, which call the Koordinator's async brief builders). `CardTags` hands out the
+  `K1…` tags the sessions call cards by.
 - [ ] Later, once an agent has jobs: `SeismicAgent.runJob(job)` so the agent that runs a job is chosen apart from the job
   (the job names a default); `delegateJob` between agents when something needs subagents. Tools are fixed when a session
   starts in all three harnesses, so a job always opens a session of its own.

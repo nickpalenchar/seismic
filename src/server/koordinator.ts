@@ -8,9 +8,10 @@ import { nameCard } from './llms/agents/agentJobs/cardName';
 import { learnFrom, type InputContext, type OwnerInput } from './llms/agents/agentJobs/ruleLearner';
 import { readDependencies } from './llms/agents/agentJobs/planDependencies';
 import { retrospect } from './llms/agents/agentJobs/ruleRetro';
-import { readSession } from './llms/agents/agentJobs/readSession';
+import { CardTags } from './llms/agents/agentJobs/cardTags';
+import { type Scope, scopeCard } from './llms/agents/agentJobs/cardScope';
+import { type Planned, scheduleCards } from './llms/agents/agentJobs/queueSchedule';
 import { randomUUID } from 'node:crypto';
-import { z } from 'zod';
 import type { RepoAdapter } from '../adapters/types';
 import { drawnWaits, inQueue, movable, notStarted, queueOrder, reach, waitsOn } from '../core/queue';
 import { type CardEvent, EVICT_HOLD_MS, finished, inParkingLot, mergeRank, type Item, nameless, START_ALL_HOLD_MS, type Wait, snoozeOf } from '../core/types';
@@ -23,30 +24,9 @@ import { LANGUAGE_NAMES } from '../core/locale';
 import { clip, messageOf } from '../core/text';
 import { type Label, type Labels, suggestable, type SuggestToggles } from '../core/labels';
 
-/** A workstream as the Koordinator scheduled it, in its turn's order. */
-interface Planned {
-  card: string;
-  files: string[];
-  duplicates: string[];
-  waitsFor: string[];
-  /** Those of `waitsFor` it builds on. */
-  buildsOn: string[];
-  reason: string;
-}
-
 /** What the owner said that may hold a lasting preference, and what the learner reads it with (`ruleLearner.ts`). */
 export type { InputContext, OwnerInput } from './llms/agents/agentJobs/ruleLearner';
-
-export interface Scope {
-  files: string[];
-  /** Unfinished cards that appear to ask for the same outcome. */
-  duplicates: string[];
-  /** Cards in progress or queued ahead whose changes the Koordinator expects to conflict with this card's on merge. */
-  conflictsWith: string[];
-  /** Workstreams of its plan it builds on: they hold it until they have landed, also while not started. */
-  buildsOn: string[];
-  reason: string;
-}
+export type { Scope } from './llms/agents/agentJobs/cardScope';
 
 /** What the Koordinator needs of the repository a card belongs to. */
 export interface RepoHands {
@@ -89,11 +69,6 @@ export class Koordinator {
   }
 
   /** A saved language rule also governs the Koordinator's short, owner-facing jobs. */
-  private ownerFacing(system: string): string {
-    const preferences = this.o.board.preferencesText();
-    return preferences ? `${system}\n\n${preferences}` : system;
-  }
-
   private get spokenLanguage(): string {
     return `${this.language} unless an explicit standing preference names another language`;
   }
@@ -1002,51 +977,25 @@ export class Koordinator {
 
   /** `onLimit`: where the estimate shows that it waits for the usage limit. */
   private async estimate(card: Item, active: Item[], ahead: Item[], pending: Item[], candidates: Item[], onLimit: (until: number | null | undefined, retry?: () => void) => void): Promise<Scope> {
-    let scope: Scope | undefined;
-    const tags = new Map([...new Map([...active, ...ahead, ...pending, ...candidates].map((a) => [a.id, a])).values()].map((a, n) => [`K${n + 1}`, a.id]));
-    // a conflict only with what runs or goes first; building on only a workstream of its plan
-    const running = new Set([...active, ...ahead].map((a) => a.id));
-    const siblings = new Set([...active, ...ahead, ...pending].filter((a) => card.parent && a.parent === card.parent).map((a) => a.id));
-    const possible = new Set(candidates.map((a) => a.id));
-    const ids = (list: unknown, among: Set<string>) =>
-      (Array.isArray(list) ? list : []).map((t) => tags.get(String(t))).filter((x): x is string => !!x && among.has(x));
-    // with merge suggestions off the agent is told nothing about duplicates
-    const merges = this.suggestsMerges();
-    const error = await readSession(this.o.runtime, {
-      cwd: this.o.repoFor(card).path,
-      role: 'koordinator',
+    const tags = new CardTags(active, ahead, pending, candidates);
+    const hands = this.o.repoFor(card);
+    return scopeCard({
+      runtime: this.o.runtime,
+      cwd: hands.path,
+      card,
+      active,
+      ahead,
+      pending,
+      candidates,
+      tags,
+      // with merge suggestions off the agent is told nothing about duplicates
+      merges: this.suggestsMerges(),
+      folder: !!hands.folder,
+      language: this.spokenLanguage,
+      preferences: this.o.board.preferencesText(),
+      brief: () => this.brief(card, active, ahead, pending, tags),
       onLimit,
-      system: this.ownerFacing(this.o.repoFor(card).folder ? FOLDER_SYSTEM(this.spokenLanguage, merges) : SYSTEM(this.spokenLanguage, merges)),
-      tools: (finish) => [
-        {
-          name: 'scope',
-          description: `Report likely files, merge conflicts, dependencies,${merges ? ' possible duplicate cards (their tags),' : ''} and a one-sentence reason in ${this.spokenLanguage}.`,
-          schema: {
-            files: z.array(z.string()),
-            conflicts_with: z.array(z.string()),
-            builds_on: z.array(z.string()).optional(),
-            ...(merges ? { duplicates: z.array(z.string()).optional() } : {}),
-            reason: z.string(),
-          },
-          run: (a) => {
-            if (scope) return 'Already reported.';
-            scope = {
-              files: (a.files as string[]).slice(0, 200),
-              duplicates: ids(a.duplicates, possible),
-              conflictsWith: ids(a.conflicts_with, running),
-              buildsOn: ids(a.builds_on, siblings),
-              reason: String(a.reason).slice(0, 500),
-            };
-            return finish('Recorded. End your turn now.');
-          },
-        },
-      ],
-      brief: merges
-        ? `${await this.brief(card, active, ahead, pending, tags)}\n\nOther unfinished tasks to check for the same requested outcome (planned, in progress or awaiting review):\n${candidates.map((a) => `- ${tagOf(tags, a.id)}: "${a.title}" (${a.state})${a.body ? ` — ${a.body.replace(/\s+/g, ' ').slice(0, 600)}` : ''}`).join('\n') || '(none)'}`
-        : await this.brief(card, active, ahead, pending, tags),
     });
-    if (!scope) throw new Error(error ?? 'no estimate');
-    return scope;
   }
 
   /**
@@ -1054,94 +1003,34 @@ export class Koordinator {
    * once: in which order they go, and which wait for what.
    */
   private async schedule(planCard: Item | undefined, batch: Item[], active: Item[], ahead: Item[]): Promise<Planned[]> {
-    let plan: Planned[] | undefined;
     const candidates = [...new Map(batch.flatMap((w) => this.duplicateCandidates(w)).map((a) => [a.id, a])).values()];
-    const tags = new Map([...new Map([...active, ...ahead, ...batch, ...candidates].map((a) => [a.id, a])).values()].map((a, n) => [`K${n + 1}`, a.id]));
+    const tags = new CardTags(active, ahead, batch, candidates);
     const hands = this.o.repoFor(batch[0]!);
-    const noun = planCard ? 'workstream' : 'card';
-    const merges = this.suggestsMerges();
-    const error = await readSession(this.o.runtime, {
+    return scheduleCards({
+      runtime: this.o.runtime,
+      board: this.o.board,
       cwd: hands.path,
-      role: 'koordinator',
+      planCard,
+      batch,
+      active,
+      ahead,
+      candidates,
+      tags,
+      merges: this.suggestsMerges(),
+      folder: !!hands.folder,
+      language: this.spokenLanguage,
+      preferences: this.o.board.preferencesText(),
+      others: () => this.others(batch[0]!, active, ahead, tags),
       // the cards the owner started wait with it
       onLimit: (until, retry) => {
         for (const w of batch) this.o.board.waitsForLimit({ card: w.id }, until, retry);
       },
-      system: this.ownerFacing((hands.folder ? FOLDER_SCHEDULE_SYSTEM : SCHEDULE_SYSTEM)(this.spokenLanguage, !planCard, merges)),
-      tools: (finish) => [
-        {
-          name: 'schedule',
-          description: `Report every ${noun} once, in the order they should go: its tag, likely files, dependencies, conflicts,${merges ? ' possible duplicate cards (their tags),' : ''} and a one-sentence reason in ${this.spokenLanguage}.`,
-          schema: {
-            workstreams: z.array(
-              z.object({
-                card: z.string(),
-                files: z.array(z.string()),
-                builds_on: z.array(z.string()),
-                conflicts_with: z.array(z.string()),
-                ...(merges ? { duplicates: z.array(z.string()).optional() } : {}),
-                reason: z.string(),
-              }),
-            ),
-          },
-          run: (a) => {
-            if (plan) return 'Already reported.';
-            const mine = new Set(batch.map((w) => w.id));
-            const seen = new Set<string>();
-            const order: Planned[] = [];
-            for (const w of a.workstreams as { card: string; files: string[]; builds_on: string[]; conflicts_with: string[]; duplicates?: string[]; reason: string }[]) {
-              const id = tags.get(w.card);
-              if (!id || !mine.has(id) || seen.has(id)) continue;
-              seen.add(id);
-              const ids = (list: string[]) => list.map((t) => tags.get(t)).filter((x): x is string => !!x && x !== id);
-              const buildsOn = ids(w.builds_on);
-              order.push({
-                card: id,
-                files: w.files.slice(0, 200),
-                duplicates: (w.duplicates ?? []).map((t) => tags.get(t)).filter((other): other is string => !!other && other !== id && candidates.some((c) => c.id === other)),
-                waitsFor: [...new Set([...buildsOn, ...ids(w.conflicts_with)])],
-                buildsOn,
-                reason: String(w.reason).slice(0, 500),
-              });
-            }
-            const missing = batch.filter((w) => !seen.has(w.id));
-            if (missing.length) return `Every ${noun} once, please: missing ${missing.map((w) => tagOf(tags, w.id)).join(', ')}. Call schedule again with all of them.`;
-            plan = order;
-            return finish('Recorded. End your turn now.');
-          },
-        },
-      ],
-      brief: [
-        ...(planCard
-          ? [
-              `The plan: "${planCard.title}"${planCard.plan?.file ? `; plan doc ${planCard.plan.file}` : ''}.`,
-              planCard.plan?.goal ? `Goal: ${planCard.plan.goal}` : '',
-              `Its workstreams to schedule, in the plan's order:\n${batch
-                .map((w) => `- ${tagOf(tags, w.id)}: ${w.plan?.label ? `${w.plan.label} ` : ''}"${w.title}"${w.body ? ` — ${w.body.replace(/\s+/g, ' ').slice(0, 600)}` : ''}`)
-                .join('\n')}`,
-            ]
-          : [
-              `The cards to schedule, freed at once, in their order in the queue, which the owner may have set: keep it where neither a dependency nor a likely conflict asks for another:\n${batch
-                .map((w) => {
-                  const of = w.parent ? this.o.board.item(w.parent) : undefined;
-                  const where = of?.plan?.file ? ` (workstream ${w.plan?.label ?? ''} of the plan "${of.title}", plan doc ${of.plan.file})` : '';
-                  return `- ${tagOf(tags, w.id)}: ${w.kind} "${w.title}"${where}${w.body ? ` — ${w.body.replace(/\s+/g, ' ').slice(0, 1500)}` : ''}`;
-                })
-                .join('\n')}`,
-            ]),
-        ...(await this.others(batch[0]!, active, ahead, tags)),
-        merges ? `Other unfinished tasks to check for the same requested outcome (planned, in progress or awaiting review):\n${candidates.map((a) => `- ${tagOf(tags, a.id)}: "${a.title}" (${a.state})${a.body ? ` — ${a.body.replace(/\s+/g, ' ').slice(0, 600)}` : ''}`).join('\n') || '(none)'}` : '',
-      ]
-        .filter(Boolean)
-        .join('\n\n'),
     });
-    if (!plan) throw new Error(error ?? 'no schedule');
-    return plan;
   }
 
-  private async brief(card: Item, active: Item[], ahead: Item[], pending: Item[], tags: Map<string, string>): Promise<string> {
+  private async brief(card: Item, active: Item[], ahead: Item[], pending: Item[], tags: CardTags): Promise<string> {
     const plan = card.parent ? this.o.board.item(card.parent) : undefined;
-    const siblings = [...active, ...ahead].filter((a) => a.parent === card.parent).map((a) => tagOf(tags, a.id));
+    const siblings = [...active, ...ahead].filter((a) => a.parent === card.parent).map((a) => tags.tagOf(a.id));
     const lines = [
       `The card to start: ${card.kind} "${card.title}".`,
       card.body.trim(),
@@ -1152,7 +1041,7 @@ export class Koordinator {
         ? `The plan's other workstreams that have not landed, neither in progress nor queued ahead:\n${pending
             .map((w) => {
               const state = notStarted(w) ? (w.agent?.branch ? 'stopped by the owner, not running' : 'not started') : 'queued after this card';
-              return `- ${tagOf(tags, w.id)}: ${w.plan?.label ? `${w.plan.label} ` : ''}"${w.title}" (${state})${w.body ? ` — ${w.body.replace(/\s+/g, ' ').slice(0, 300)}` : ''}`;
+              return `- ${tags.tagOf(w.id)}: ${w.plan?.label ? `${w.plan.label} ` : ''}"${w.title}" (${state})${w.body ? ` — ${w.body.replace(/\s+/g, ' ').slice(0, 300)}` : ''}`;
             })
             .join('\n')}`
         : '',
@@ -1161,7 +1050,7 @@ export class Koordinator {
   }
 
   /** The cards in progress and queued ahead, as a turn of the Koordinator reads them. */
-  private async others(card: Item, active: Item[], ahead: Item[], tags: Map<string, string>): Promise<string[]> {
+  private async others(card: Item, active: Item[], ahead: Item[], tags: CardTags): Promise<string[]> {
     const folder = !!this.o.repoFor(card).folder;
     // in a folder nothing is merged later: every path counts
     const soft = folder ? [] : this.o.repoFor(card).adapter.softPaths;
@@ -1173,7 +1062,7 @@ export class Koordinator {
       active.length
         ? `Cards in progress:\n${active
             .map((a, n) => {
-              const tag = tagOf(tags, a.id);
+              const tag = tags.tagOf(a.id);
               const changed = changes[n]!.filter((c) => hard(c.file));
               return [
                 `- ${tag}: "${a.title}"${a.body ? ` — ${a.body.split('\n')[0]!.slice(0, 200)}` : ''}`,
@@ -1190,7 +1079,7 @@ export class Koordinator {
               const waitsFor =
                 'behind' in q ? q.behind.map((id) => `"${this.o.board.item(id)?.title ?? id}"`).join(', ') : 'workstation' in q ? 'a free workstation (its start is decided)' : 'paused' in q ? "the owner to resume the project's paused agents (its start is decided)" : 'restart' in q ? "Seismic's restart (it is not yet checked)" : '';
               return [
-                `- ${tagOf(tags, a.id)}: "${a.title}"${a.body ? ` — ${a.body.split('\n')[0]!.slice(0, 200)}` : ''}`,
+                `- ${tags.tagOf(a.id)}: "${a.title}"${a.body ? ` — ${a.body.split('\n')[0]!.slice(0, 200)}` : ''}`,
                 `  expected to change: ${(a.scope ?? []).filter(hard).join(', ') || '(no estimate)'}`,
                 `  waits for: ${waitsFor || 'your decision'}`,
               ].join('\n');
@@ -1227,104 +1116,6 @@ export class Koordinator {
     return i;
   }
 }
-
-const SYSTEM = (language: string, merges = true) => `
-You are the Koordinator of Seismic, a project on which the owner directs coding agents; the owner knows you simply as Seismic. Several workers work at the same time, each in its own workstation, and their branches are rebased onto the main branch one after the other. Your job here: before a card starts, estimate which files it will change, and judge whether running it next to the cards in progress is likely to end in merge conflicts. Only those keep it waiting, and for a workstream of a plan what it builds on; everything else should run in parallel. Cards queued ahead of it count too: they came first and start before it, so a card likely to conflict with one of them waits behind it rather than overtaking it.
-
-${merges ? `Also check unfinished cards in this repository for the same requested outcome, including planned cards and work awaiting the owner's review. A possible duplicate is a substantially overlapping task, not merely a shared file or topic. Report its tag in duplicates; the card stays planned and the owner sees which card to compare before starting it again.
-
-` : ''}A workstream of a plan builds on another workstream of it when it needs code, an API, data or a decision that the other one introduces, or the plan says it comes after it. It then waits until that one has landed, also when the owner has not started that one yet: the owner may start workstreams one by one, and starting this one now would build on what is not there. Read the plan doc for that.
-
-Sharing a file is not a conflict. Git merges changes to different places of the same file cleanly: new strings, types, routes, tests or functions added next to others; edits in different functions. A conflict is likely when both cards change the same lines or the same function or block, when one rewrites, moves, renames or reformats code the other one edits, or when both change the same small, tightly packed section (one config entry, one signature that both extend). For a card in progress you see what it is expected to change and the places it has changed so far (line ranges in its branch, with the enclosing function); read the code there when you need to.
-
-Read what you need in the repository (you cannot change files), then call scope exactly once:
-- files: repository-relative paths the card will most likely change; a path ending in "/" stands for a directory. Be concrete; list new files where you expect them.
-- conflicts_with: the tags of cards in progress or queued ahead whose changes will likely conflict with this card's on merge; empty when none. When in doubt, leave a card out: a conflict that happens anyway goes back to its worker to resolve.
-- builds_on: for a workstream, the tags of the workstreams of its plan it builds on, whether in progress, queued or not started; empty when none, and for any other card.
-${merges ? '- duplicates: tags of unfinished tasks asking for substantially the same outcome; empty when none.\n' : ''}- reason: one sentence in ${language} for the owner: with a dependency, what it builds on; with a conflict, where the two cards change the same code; without either, which files they share, if any, and why that is fine. The owner does not know the tags: name cards by their title.
-Keep it quick: this runs every time a card starts.
-`.trim();
-
-const FOLDER_SYSTEM = (language: string, merges = true) => `
-You are the Koordinator of Seismic, a project on which the owner directs agents; the owner knows you simply as Seismic. Several workers work at the same time, all directly in one folder that is not a git repository: what one changes is there at once for the others, and nothing is merged afterwards. Your job here: before a card starts, estimate which files and directories it will touch, and judge whether running it next to the cards in progress is likely to get in their way. Only those keep it waiting, and for a workstream of a plan what it builds on; everything else should run in parallel. Cards queued ahead of it count too: they came first and start before it, so a card likely to collide with one of them waits behind it rather than overtaking it.
-
-${merges ? `Also check unfinished cards in this folder for the same requested outcome, including planned cards and work awaiting the owner's review. A possible duplicate is a substantially overlapping task, not merely a shared file or topic. Report its tag in duplicates; the card stays planned and the owner sees which card to compare before starting it again.
-
-` : ''}A workstream of a plan builds on another workstream of it when it needs files, an overview, data or a decision that the other one makes, or the plan says it comes after it. It then waits until that one is done, also when the owner has not started that one yet: the owner may start workstreams one by one, and starting this one now would build on what is not there. Read the plan doc for that.
-
-Working in the same directory is not a collision: cards that add or edit different files there run side by side. A collision is likely when both change, move, rename or delete the same files; when one moves, renames or reorganises a directory the other works in; or when one sorts or rewrites files the other creates or reads. For a card in progress you see what it is expected to touch and what it has changed so far (each path, and whether it was added, changed, moved or deleted); look in the folder when you need to.
-
-Read what you need in the folder (you cannot change files), then call scope exactly once:
-- files: paths relative to the folder that the card will most likely touch; a path ending in "/" stands for a directory. Be concrete; list new files where you expect them.
-- conflicts_with: the tags of cards in progress or queued ahead it would likely collide with; empty when none. Leave out a card that only works beside it.
-- builds_on: for a workstream, the tags of the workstreams of its plan it builds on, whether in progress, queued or not started; empty when none, and for any other card.
-${merges ? '- duplicates: tags of unfinished tasks asking for substantially the same outcome; empty when none.\n' : ''}- reason: one sentence in ${language} for the owner: with a dependency, what it builds on; with a collision, which files or directories both touch; without either, what they share, if anything, and why that is fine. The owner does not know the tags: name cards by their title.
-Keep it quick: this runs every time a card starts.
-`.trim();
-
-
-/**
- * What a joint turn decides on: the workstreams of a plan the owner started at once, or cards
- * whose waits ended at once (`freed`).
- */
-const batchOf = (freed: boolean, folder: boolean) =>
-  freed
-    ? {
-        situation: `Several cards waited in the queue, and what they waited for ${folder ? 'is done' : 'has landed'} now, so they are free to start at the same time; you decide together how they go, so that none starts without regard to the others. Read their tasks and what you need in the ${folder ? 'folder' : 'repository'} (you cannot change files).`,
-        noun: 'card',
-        dependsOn: folder ? 'it builds on files, an overview, data or a decision that the other one makes' : 'it builds on code, an API, data or a decision that the other one introduces',
-      }
-    : {
-        situation: `The owner started all open workstreams of a plan at once; you decide how they go. Read the plan doc and what you need in the ${folder ? 'folder' : 'repository'} (you cannot change files).`,
-        noun: 'workstream',
-        dependsOn: folder
-          ? 'it builds on files, an overview, data or a decision that the other one makes, or the plan says it comes after it'
-          : 'it builds on code, an API, data or a decision that the other one introduces, or the plan says it comes after it',
-      };
-
-const FOLDER_SCHEDULE_SYSTEM = (language: string, freed: boolean, merges = true) => {
-  const b = batchOf(freed, true);
-  return `
-You are the Koordinator of Seismic, a project on which the owner directs agents; the owner knows you simply as Seismic. Several workers work at the same time, all directly in one folder that is not a git repository: what one changes is there at once for the others, and nothing is merged afterwards. ${b.situation}
-
-A ${b.noun} waits for another when:
-- it depends on it: ${b.dependsOn}. It then waits until that one is done.
-- running both at once likely collides: both change, move, rename or delete the same files, one reorganises a directory the other works in, or one sorts or rewrites files the other creates or reads. Working in the same directory is not a collision.
-Everything else starts now and runs in parallel; parallel work is the point. Cards in progress and queued ahead count as for any start: a ${b.noun} likely to collide with one of them waits for it.
-
-${merges ? `Check unfinished cards in this folder, including planned work and work awaiting review, for substantially the same requested outcome. Report possible duplicates even when their files do not collide. A possible duplicate stays planned for the owner to compare.
-
-` : ''}Call schedule exactly once, with every ${b.noun} once, in the order they should go (what starts now first, then each one after what it waits for):
-- card: its tag.
-- files: paths relative to the folder it will most likely touch; a path ending in "/" stands for a directory.
-- builds_on: the tags of the ${b.noun}s it depends on (in progress, queued ahead, or earlier in your order).
-- conflicts_with: the tags of cards it would likely collide with: cards in progress, queued ahead, or ${b.noun}s earlier in your order.
-${merges ? '- duplicates: tags of unfinished tasks asking for substantially the same outcome; empty when none.\n' : ''}Both empty: it starts now. A ${b.noun} that waits starts by itself once what it waits for is done.
-- reason: one sentence in ${language} for the owner: why it waits (the dependency, or where the changes collide), or, starting now, why it can run beside the others. The owner does not know the tags: name cards by their label or title.
-`.trim();
-};
-
-const SCHEDULE_SYSTEM = (language: string, freed: boolean, merges = true) => {
-  const b = batchOf(freed, false);
-  return `
-You are the Koordinator of Seismic, a project on which the owner directs coding agents; the owner knows you simply as Seismic. Several workers work at the same time, each in its own workstation, and their branches are rebased onto the main branch one after the other. ${b.situation}
-
-A ${b.noun} waits for another when:
-- it depends on it: ${b.dependsOn}. It then waits until that one has landed.
-- running both at once likely ends in merge conflicts: both change the same lines or the same function or block, one rewrites, moves, renames or reformats code the other one edits, or both change the same small, tightly packed section. Sharing a file is not a conflict: changes in different places of a file merge cleanly.
-Everything else starts now and runs in parallel; parallel work is the point. When in doubt about a conflict, let it run: a conflict that happens anyway goes back to its worker. Cards in progress and queued ahead count as for any start: a ${b.noun} likely to conflict with one of them waits for it.
-
-${merges ? `Check unfinished cards in this repository, including planned work and work awaiting review, for substantially the same requested outcome. Report possible duplicates even when their files do not conflict. A possible duplicate stays planned for the owner to compare.
-
-` : ''}Call schedule exactly once, with every ${b.noun} once, in the order they should go (what starts now first, then each one after what it waits for):
-- card: its tag.
-- files: repository-relative paths it will most likely change; a path ending in "/" stands for a directory.
-- builds_on: the tags of the ${b.noun}s it depends on (in progress, queued ahead, or earlier in your order).
-- conflicts_with: the tags of cards it would likely conflict with: cards in progress, queued ahead, or ${b.noun}s earlier in your order.
-${merges ? '- duplicates: tags of unfinished tasks asking for substantially the same outcome; empty when none.\n' : ''}Both empty: it starts now. A ${b.noun} that waits starts by itself once what it waits for has landed.
-- reason: one sentence in ${language} for the owner: why it waits (the dependency, or where the changes collide), or, starting now, why it can run beside the others. The owner does not know the tags: name cards by their label or title.
-`.trim();
-};
 
 
 
@@ -1384,6 +1175,5 @@ const unlanded = (i?: Item) => !!i && !finished(i.state) && !i.archivedAt;
 /** Whether two lists hold the same cards. */
 const same = (a: string[], b: string[]) => a.length === b.length && a.every((id) => b.includes(id));
 
-const tagOf = (tags: Map<string, string>, id: string) => [...tags].find(([, x]) => x === id)![0];
 
 export { overlaps } from '../core/path-overlap';

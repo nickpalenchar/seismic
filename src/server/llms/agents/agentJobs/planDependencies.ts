@@ -7,6 +7,7 @@ import { finished, type Item } from '../../../../core/types';
 import type { AgentRuntime, AgentTool } from '../../../runtime';
 import { depsSystem } from '../../prompts/depsSystem';
 import { SeismicJob } from '../seismicJob';
+import { CardTags } from './cardTags';
 
 export interface DependenciesRun {
   runtime: AgentRuntime;
@@ -28,12 +29,12 @@ class PlanDependenciesJob extends SeismicJob<Dependencies> {
   readonly name = 'planDependencies';
   readonly description = 'Reads which workstream of a plan builds on which.';
   private on: Dependencies | undefined;
-  /** The tags the session calls the workstreams by (`K1`…), to the cards' ids. */
-  private readonly tags: Map<string, string>;
+  /** The tags the session calls the workstreams by. */
+  private readonly tags: CardTags;
 
   constructor(private o: Omit<DependenciesRun, 'runtime' | 'cwd'>) {
     super();
-    this.tags = new Map(o.kids.map((k, n) => [`K${n + 1}`, k.id]));
+    this.tags = new CardTags(o.kids);
   }
 
   protected answer() {
@@ -42,10 +43,6 @@ class PlanDependenciesJob extends SeismicJob<Dependencies> {
 
   protected override missing() {
     return 'no dependencies';
-  }
-
-  private tagOf(id: string): string {
-    return [...this.tags].find(([, x]) => x === id)![0];
   }
 
   getPrompt() {
@@ -58,7 +55,7 @@ class PlanDependenciesJob extends SeismicJob<Dependencies> {
       `The plan: "${plan.title}"${plan.plan?.file ? `; plan doc ${plan.plan.file}` : ''}.`,
       plan.plan?.goal ? `Goal: ${plan.plan.goal}` : '',
       `Its workstreams, in the plan's order:\n${kids
-        .map((k) => `- ${this.tagOf(k.id)}${finished(k.state) ? ' (delivered)' : ''}: ${k.plan?.label ? `${k.plan.label} ` : ''}"${k.title}"${k.body ? ` — ${k.body.replace(/\s+/g, ' ').slice(0, 600)}` : ''}`)
+        .map((k) => `- ${this.tags.tagOf(k.id)}${finished(k.state) ? ' (delivered)' : ''}: ${k.plan?.label ? `${k.plan.label} ` : ''}"${k.title}"${k.body ? ` — ${k.body.replace(/\s+/g, ' ').slice(0, 600)}` : ''}`)
         .join('\n')}`,
     ]
       .filter(Boolean)
@@ -76,15 +73,15 @@ class PlanDependenciesJob extends SeismicJob<Dependencies> {
           if (this.on) return 'Already reported.';
           const found: Dependencies = {};
           for (const w of a.workstreams as { card: string; builds_on: string[] }[]) {
-            const id = this.tags.get(w.card);
+            const id = this.tags.idOf(w.card);
             if (!id) continue;
             found[keys.get(id)!] = w.builds_on.flatMap((t) => {
-              const b = this.tags.get(t);
+              const b = this.tags.idOf(t);
               return b && b !== id ? [keys.get(b)!] : [];
             });
           }
           const missing = kids.filter((k) => !finished(k.state) && !(keys.get(k.id)! in found));
-          if (missing.length) return `Every open workstream at least, please: missing ${missing.map((k) => this.tagOf(k.id)).join(', ')}. Call dependencies again with all of them.`;
+          if (missing.length) return `Every open workstream at least, please: missing ${missing.map((k) => this.tags.tagOf(k.id)).join(', ')}. Call dependencies again with all of them.`;
           this.on = found;
           return this.finish('Recorded. End your turn now.');
         },
