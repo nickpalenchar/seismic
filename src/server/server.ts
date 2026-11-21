@@ -347,6 +347,7 @@ export function serve(
   const ownerSettings = config
     ? new OwnerSettings({
         home: config.home,
+        demo: { view: () => config.demo(), save: (input) => config.saveDemo(input) },
         onUsageMeter: (view) => {
           const configured = machine?.harnesses();
           for (const m of usage) m.setOn(view.on && (!m.harness || (configured?.includes(m.harness) ?? true)));
@@ -479,7 +480,7 @@ export function serve(
       ...extensionRoutes,
       ...uiRoutes(development),
       // the RESTful API, one file per URL under routes/v1/
-      ...bunRoutes(v1Routes({ projectOfCard, ownerSettings })),
+      ...bunRoutes(v1Routes({ projectOfCard, ownerSettings, configuration: config })),
       // a browser on this machine signing in with a one-time link (owner.ts)
       '/login': { GET: (req, srv) => access.loginRoute(req, srv) },
       // such a link, for whoever holds the owner's key (the app's shell, a second start, scripts); `next`: where it leads; `once`: for one browser
@@ -568,10 +569,6 @@ export function serve(
         } });
       } },
       // Seismic's configuration: read, checked while the owner edits it, and saved (Seismic then starts again)
-      '/api/config': {
-        GET: needs(config, (c) => c.view()),
-        PUT: needs(config, async (c, req) => c.save(await req.json())),
-      },
       // the owner has the restart of a repository's agents that waits for them go ahead at once
       '/api/c/:project/restart': { POST: on(async (c) => ({ restarting: await c.restartNow() })) },
       // the project's own settings, from the sliders in the bar: read with Configuration's models they fall back on, saved into the configuration
@@ -699,10 +696,6 @@ export function serve(
         },
       },
       // the demo settings: narration language and voice, read by every render
-      '/api/demo-settings': {
-        GET: needs(config, (c) => c.demo()),
-        PUT: needs(config, async (c, req) => c.saveDemo(await req.json())),
-      },
       // a voice as the owner chooses it: checked, installed (in the background), heard in a sample;
       // and what else a render needs on this machine
       '/api/demo-settings/check': { POST: needs(config, async (c, req) => c.checkDemo(await req.json())) },

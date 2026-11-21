@@ -713,6 +713,8 @@ const en = {
   },
   error: {
     unknownCard: 'That no longer exists.',
+    settingNotFound: 'There is no such setting.',
+    noConfiguration: 'This Seismic runs without a configuration of its own.',
     unknownGroup: 'This group no longer exists.',
     unknownCanvas: 'This canvas no longer exists.',
     canvasInUse: 'Only an empty canvas can be deleted, and never “main”.',

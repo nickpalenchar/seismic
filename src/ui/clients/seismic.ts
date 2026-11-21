@@ -3,7 +3,7 @@
  * what it changed, which the page shows at once (`cardSaved`). New calls go here; `api.ts` holds
  * the old routes until they move.
  */
-import type { AgentSetting, CardPatch, Item, OwnerSetting, OwnerSettingChanges, OwnerSettingViews } from '../../core/types';
+import type { AgentSetting, CardPatch, ConfigSaved, ConfigView, Item, OwnerSetting, OwnerSettingChanges, OwnerSettingViews, ProjectConfig } from '../../core/types';
 import { agentSettingsSaved, call, cardBack, cardRemoved, cardSaved, projectOf, snapshotsOf } from '../api';
 
 /** How long a request may take before the page gives it up. */
@@ -87,3 +87,12 @@ export async function saveSettings(changes: Partial<OwnerSettingChanges>): Promi
   if ('agents' in changes || 'codexAutoReview' in changes) agentSettingsSaved();
   return settings;
 }
+
+/** Seismic's configuration: its projects and their repositories, as the Configuration sheet shows them. */
+export const getConfiguration = async (): Promise<ConfigView> => (await call<{ configuration: ConfigView }>('GET', '/api/v1/configuration', undefined, false, TIMEOUT_MS)).configuration;
+
+/**
+ * The configuration saved with the sheet's Save: what came of it (applied at once, or a restart to
+ * come) and the configuration as it then reads. Applying waits for git to read the projects it changed.
+ */
+export const saveConfiguration = (projects: ProjectConfig[]) => call<{ saved: ConfigSaved; configuration: ConfigView }>('PUT', '/api/v1/configuration', projects, false, TIMEOUT_MS);

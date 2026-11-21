@@ -67,8 +67,12 @@ Represents endpoints that are registered to the server, which can be called in a
   - The owner's system-level settings (decided by the owner 2026-11-21): each saves on its own at
     `PUT /api/v1/settings/:settingName`, named as in `settings.json` (`notifications`, `usageMeter`),
     and `PATCH /api/v1/settings` saves several at once, each as its own URL takes it. A name that is
-    no setting refuses the whole patch before anything is saved. Rejected: one PATCH for the Save
-    sections (Demo settings, the configuration) instead.
+    no setting refuses the whole patch before anything is saved. The demo settings are one of them
+    (`demo`, saved whole), as they live beside `settings.json` (`demo.json`). Rejected: one PATCH for
+    the Save sections (Demo settings, the configuration) instead.
+  - The configuration (the projects and their repositories, `projects.json`) is its own resource,
+    `/api/v1/configuration`, saved whole with `PUT`; the answer has what came of the save and the
+    configuration as it then reads. It is no setting: saving it applies to running projects.
   - Params name what they stand for (`:cardId`), never a bare `:id`.
   - A card's URL names the card alone, not its project: the server finds the project from the card
     (`HttpRoute.projectOfCard`), so a call can't go to the wrong project when the page shows another.

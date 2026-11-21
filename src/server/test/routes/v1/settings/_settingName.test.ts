@@ -66,8 +66,8 @@ test('what a save sets going besides the file: the usage meters, the pages follo
 });
 
 test('refused: a setting there is not, a value the setting does not take, a body that is no object, no owner key', async () => {
-  expect(await call('GET', '/api/v1/settings/colour')).toMatchObject({ status: 404, body: { code: 'unknownSetting' } });
-  expect(await call('PUT', '/api/v1/settings/colour', { on: true })).toMatchObject({ status: 404, body: { code: 'unknownSetting' } });
+  expect(await call('GET', '/api/v1/settings/colour')).toMatchObject({ status: 404, body: { code: 'settingNotFound' } });
+  expect(await call('PUT', '/api/v1/settings/colour', { on: true })).toMatchObject({ status: 404, body: { code: 'settingNotFound' } });
   expect(await call('PUT', '/api/v1/settings/notifications', { on: 'yes' })).toMatchObject({ status: 400, body: { code: 'invalid' } });
   expect(await call('PUT', '/api/v1/settings/theme', { theme: 'pink' })).toMatchObject({ status: 400, body: { code: 'invalid' } });
   expect(await call('PUT', '/api/v1/settings/notifications', [true])).toMatchObject({ status: 400, body: { code: 'invalid' } });

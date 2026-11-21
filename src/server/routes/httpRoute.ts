@@ -5,6 +5,7 @@
  * and a `BadRequest` or `NotFound` it throws as `{ code, error }`.
  */
 import { BadRequest } from '../board';
+import type { Config } from '../config';
 import type { OwnerSettings } from '../ownerSettings';
 import type { ProjectRuntime } from '../project';
 import { NotFound } from './notFound';
@@ -23,6 +24,8 @@ export interface RouteDependencies {
   projectOfCard: (cardId: string, options?: { deleted?: boolean }) => ProjectRuntime | undefined;
   /** The owner's system-level settings; none where Seismic runs without a configuration of its own. */
   ownerSettings?: OwnerSettings;
+  /** Seismic's configuration (its projects and their repositories); none where it runs without one of its own. */
+  configuration?: Config;
 }
 
 /** The answer to a request: `fn`'s result as JSON, or its refusal. */
@@ -60,7 +63,7 @@ export abstract class HttpRoute {
   /** The owner's settings; a Seismic without a configuration of its own has none to show. */
   protected get settings(): OwnerSettings {
     const settings = this.dependencies.ownerSettings;
-    if (!settings) throw new NotFound('noSettings', 'this Seismic keeps no settings of its own');
+    if (!settings) throw new NotFound('noConfiguration', 'this Seismic keeps no settings of its own');
     return settings;
   }
 

@@ -9,7 +9,7 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { CardDiff } from '../core/diff';
 import { type Place, placeParam } from '../core/layout';
-import type { ProjectReposView, RepoConfig, AccessView, ActivityPage, Pairing, RemoteSetting, ModelInfo, Harness, HarnessAvailability, CloudPreset, ProjectConfig, ProjectInfo, ProjectSnapshot, ChatElsewhere, ClientMessage, ConfigSaved, ConfigView, CardAction, ConfigChecked, DemoSettings, Group, DemoSettingsView, DemoVoiceCheck, ProjectDemoSiteState, DemoSitesView, GithubRepoList, GithubRepoView, TagProposalJob, PageTags, NarrationLanguage, FirstProject, GitSetupPreview, MachineItem, MachineSectionId, MachineView, SetupCheck, SetupFolder, SetupRepoCheck, VoiceSetupView, CardEvent, Item, NewCard, Notice, OwnerHold, PendingRestart, PlanHistory, RepoTrust, ServerMessage, SettingsShared, Skill, SourceUpdate, SpotInput, TalkRef, AppUpdate, Usage, Waiting, Feedback, FeedbackAnswer, ProjectSettings, ProjectSettingsView, DeveloperView, Canvas } from '../core/types';
+import type { ProjectReposView, RepoConfig, AccessView, ActivityPage, Pairing, RemoteSetting, ModelInfo, Harness, HarnessAvailability, CloudPreset, ProjectConfig, ProjectInfo, ProjectSnapshot, ChatElsewhere, ClientMessage, ConfigSaved, CardAction, ConfigChecked, DemoSettings, Group, DemoSettingsView, DemoVoiceCheck, ProjectDemoSiteState, DemoSitesView, GithubRepoList, GithubRepoView, TagProposalJob, PageTags, NarrationLanguage, FirstProject, GitSetupPreview, MachineItem, MachineSectionId, MachineView, SetupCheck, SetupFolder, SetupRepoCheck, VoiceSetupView, CardEvent, Item, NewCard, Notice, OwnerHold, PendingRestart, PlanHistory, RepoTrust, ServerMessage, SettingsShared, Skill, SourceUpdate, SpotInput, TalkRef, AppUpdate, Usage, Waiting, Feedback, FeedbackAnswer, ProjectSettings, ProjectSettingsView, DeveloperView, Canvas } from '../core/types';
 import type { Wish } from '../core/wish';
 import { sameJson } from './sameJson';
 import { noteMessage, watchPageStalls } from './stalls';
@@ -189,13 +189,11 @@ export const api = {
   activity: (project: string, all: boolean, before?: number) => call<ActivityPage>('GET', `/api/activity?project=${encodeURIComponent(project)}${all ? '&all=1' : ''}${before ? `&before=${before}` : ''}`),
   project: (id: string) => call<ProjectSnapshot>('GET', `/api/c/${encodeURIComponent(id)}/project`),
   /** Seismic's configuration, for all projects. */
-  config: () => call<ConfigView>('GET', '/api/config'),
   /** What the configuration as saved amounts to, and what is wrong with it: it reads every repository, so it comes after `config`. */
   configCheck: () => call<ConfigChecked>('GET', '/api/config/check'),
   checkConfig: (projects: ProjectConfig[]) => call<ConfigChecked>('POST', '/api/config/check', projects),
   retryStart: () => call<{}>('POST', '/api/config/retry'),
   /** Saves it; Seismic then starts again with it where something restarts it. */
-  saveConfig: (projects: ProjectConfig[]) => call<ConfigSaved>('PUT', '/api/config', projects),
   /** "Take over into the repository for everyone": the repository's settings for this machine into its settings file (`.seismic/settings.json`, else `.obeya/`). */
   shareSettings: (path: string, direct = false) => call<SettingsShared>('POST', '/api/config/share-settings', { path, direct }),
   /** The owner confirms the repository's commands the dialog showed them (the groups `held` of `now`): they count from now on. */
@@ -267,8 +265,6 @@ export const api = {
     call<{ job: TagProposalJob }>('POST', '/api/tag-proposal', { path, ...(current ? { current } : {}), ...(language ? { language } : {}) }),
   tagProposal: (path: string) => call<{ job: TagProposalJob | null; available: boolean }>('GET', `/api/tag-proposal?path=${encodeURIComponent(path)}`),
   tagProposalTaken: (path: string) => call<object>('DELETE', `/api/tag-proposal?path=${encodeURIComponent(path)}`),
-  demoSettings: () => call<DemoSettingsView>('GET', '/api/demo-settings'),
-  saveDemoSettings: (settings: DemoSettings) => call<DemoSettingsView>('PUT', '/api/demo-settings', settings),
   checkDemoVoice: (settings: DemoSettings) => call<DemoVoiceCheck>('POST', '/api/demo-settings/check', settings),
   demoSetup: (settings: DemoSettings) => call<SetupCheck>('POST', '/api/demo-settings/setup', settings),
   installDemoVoice: (settings: DemoSettings) => call<DemoSettingsView>('POST', '/api/demo-settings/install', settings),

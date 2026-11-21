@@ -128,7 +128,7 @@ await check(`Seismic ${pkg.version} starts from ${binary}`, async () => {
 const project = 'check';
 
 await check('the settings show the version and no checkout; the repository has its own settings', async () => {
-  const view = await json('/api/config');
+  const { configuration: view } = await json('/api/v1/configuration');
   expect(view.server.version === pkg.version, `version ${view.server.version}`);
   expect(view.server.commit === null, `commit ${view.server.commit}`);
   expect(view.server.restarts, 'not supervised');

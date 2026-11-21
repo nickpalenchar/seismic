@@ -96,6 +96,13 @@ describe('refused requests', () => {
     expect(await codeOf(post(api('/cards'), JSON.stringify({ title: 'x', x: 'links', y: 0 })))).toBe('invalid');
   });
 
+  test('a Seismic without a configuration of its own has no settings or configuration to show', async () => {
+    for (const path of ['/api/v1/settings', '/api/v1/settings/theme', '/api/v1/configuration']) {
+      const res = await fetch(new URL(path, server.url));
+      expect([res.status, ((await res.json()) as { code: string }).code]).toEqual([404, 'noConfiguration']);
+    }
+  });
+
   test('a card already with the Koordinator cannot be started again', async () => {
     const c = card();
     board.work(c.id, { queue: JSON.stringify({ checking: true }) });

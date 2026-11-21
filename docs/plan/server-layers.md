@@ -70,8 +70,9 @@ Checked in the code on 2026-11-13; counts may be off by a few. Each workstream r
     the card requeued, its workstation freed, and the workstation assigned to the card waiting
     longest. Their URLs and bodies are settled when they move.
   - The system-level settings went under one `settings/` resource (`/api/v1/settings/:settingName`,
-    see the Router Layer in `code-organization.md`). Demo settings (`/api/demo-settings`) and the
-    configuration (`/api/config`) have not moved.
+    see the Router Layer in `code-organization.md`), the demo settings among them (`demo`). The
+    configuration is `/api/v1/configuration`; its check (`/api/config/check`) and the demo voice's
+    routes (`/api/demo-settings/check`, `/sample`, `/install`) have not moved.
 - **Decided without the owner** (they can overrule): each move is kept small and lands quickly, to
   limit conflicts.
 

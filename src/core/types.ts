@@ -2383,6 +2383,10 @@ export type ErrorCode =
   | 'nothingOutdated'
   /** "Take over into the repository for everyone": this machine sets nothing to take over. */
   | 'noSettings'
+  /** `/api/v1/settings`, `/api/v1/configuration`: this Seismic runs without a configuration (and settings) of its own. */
+  | 'noConfiguration'
+  /** `/api/v1/settings/:settingName` names no setting. */
+  | 'settingNotFound'
   /** "Take over into the repository for everyone": the checkout on the main branch has changes of its own in `.seismic/settings.json`. */
   | 'settingsDirty'
   /** The commands to confirm changed on the default branch since the dialog showed them. */
@@ -3273,10 +3277,10 @@ export interface FeedbackPromptView {
 
 /**
  * The owner's system-level settings (`src/server/ownerSettings.ts`), named as in Seismic's
- * `settings.json`: each is read and saved on its own at `/api/v1/settings/:settingName`, several at
- * once with a PATCH of `/api/v1/settings`.
+ * `settings.json` (`demo`: the demo settings, in `demo.json`): each is read and saved on its own at
+ * `/api/v1/settings/:settingName`, several at once with a PATCH of `/api/v1/settings`.
  */
-export const OWNER_SETTINGS = ['language', 'theme', 'motion', 'notifications', 'usageMeter', 'feedbackPrompt', 'projectDefaults', 'agents', 'codexAutoReview'] as const;
+export const OWNER_SETTINGS = ['language', 'theme', 'motion', 'notifications', 'usageMeter', 'feedbackPrompt', 'projectDefaults', 'agents', 'codexAutoReview', 'demo'] as const;
 export type OwnerSetting = (typeof OWNER_SETTINGS)[number];
 
 /** What each of the owner's settings reads as. */
@@ -3290,6 +3294,7 @@ export interface OwnerSettingViews {
   projectDefaults: ProjectDefaultsView;
   agents: AgentsView;
   codexAutoReview: AgentsView;
+  demo: DemoSettingsView;
 }
 
 /** What a save of each of the owner's settings sends: the fields it changes, the others staying. */
@@ -3305,6 +3310,8 @@ export interface OwnerSettingChanges {
   /** The choices for the groups given; the other groups stay. */
   agents: Partial<Record<AgentRole, Partial<AgentSetting>>>;
   codexAutoReview: { on: boolean };
+  /** The demo settings as a whole, as the Demos section saves them. */
+  demo: DemoSettings;
 }
 
 /**

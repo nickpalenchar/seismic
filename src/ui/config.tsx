@@ -41,7 +41,7 @@ import { ConfirmDialog, Dialog, DialogContent, DialogTitle } from './components/
 import { Checkbox } from './components/checkbox';
 import { CheckLabel } from './components/check-label';
 import { SavingSwitch } from './components/saving-switch';
-import { getSetting, saveSetting } from './clients/seismic';
+import { getConfiguration, getSetting, saveConfiguration, saveSetting } from './clients/seismic';
 import { Switch } from './components/switch';
 import { RadioGroup, RadioOption } from './components/radio';
 import { SegmentedControl } from './components/segmented';
@@ -311,7 +311,7 @@ export function ConfigDialog({ on, page, usage, onClose, onAsk, onTalk, onProble
     setPickState(fo ? null : kept);
     setSaved(null);
     getSetting('projectDefaults').then(setDefaults, console.error);
-    api.config().then((v) => {
+    getConfiguration().then((v) => {
       setView(v);
       const kept = !changedRef.current && keptConfigDraft<KeptProjects>(sessionStorage, 'projects', v.projects, ofKept);
       if (kept) {
@@ -515,10 +515,13 @@ export function ConfigDialog({ on, page, usage, onClose, onAsk, onTalk, onProble
                   setBusy(true);
                   let applies = false;
                   try {
-                    const { restarting, applied } = await api.saveConfig(draft);
+                    const {
+                      saved: { restarting, applied },
+                      configuration,
+                    } = await saveConfiguration(draft);
                     // what is saved now is the draft as last checked; settings applied at once change what the
-                    // repositories amount to (where "For everyone" goes, say), so it is read and checked again
-                    const fresh = applied ? await api.config() : null;
+                    // repositories amount to (where "For everyone" goes, say): the answer has them, and they are checked again
+                    const fresh = applied ? configuration : null;
                     savedSeq.current++;
                     setSaved(checked);
                     setView({ ...(fresh ?? view), projects: draft, restarting });
@@ -533,7 +536,7 @@ export function ConfigDialog({ on, page, usage, onClose, onAsk, onTalk, onProble
                 }}
                 onReset={() => load(view, saved)}
                 onReload={async () => {
-                  const v = await api.config();
+                  const v = await getConfiguration();
                   setView(v);
                   load(v, null);
                   checkSaved();
@@ -1416,7 +1419,7 @@ function DemoBlock({ on }: { on: boolean }) {
   const audio = useRef<HTMLAudioElement | null>(null);
   useEffect(() => {
     if (!on) return;
-    api.demoSettings().then((v) => {
+    getSetting('demo').then((v) => {
       setView(v);
       setDraft(keptConfigDraft<DemoSettings>(sessionStorage, 'demo', v.settings) ?? v.settings);
       setStatus('');
@@ -1440,7 +1443,7 @@ function DemoBlock({ on }: { on: boolean }) {
   const counting = !!view?.space?.busy;
   useEffect(() => {
     if (!on || !(installing || counting)) return;
-    const timer = setInterval(() => api.demoSettings().then(setView, console.error), 1500);
+    const timer = setInterval(() => getSetting('demo').then(setView, console.error), 1500);
     return () => clearInterval(timer);
   }, [on, installing, counting]);
   useEffect(() => () => audio.current?.pause(), []);
@@ -1454,7 +1457,7 @@ function DemoBlock({ on }: { on: boolean }) {
   const save = async () => {
     setBusy(true);
     try {
-      const v = await api.saveDemoSettings(draft);
+      const v = await saveSetting('demo', draft);
       setView(v);
       setDraft(v.settings);
       setStatus(d.saved);

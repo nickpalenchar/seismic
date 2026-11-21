@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import type { ConfigView, Preference, RepoRef } from '../core/types';
-import { api } from './api';
+import { getConfiguration } from './clients/seismic';
 import { NewPreference, PreferenceRow } from './koordinator';
 import { prefsClass } from './prefsClasses';
 import { Head, LanguageBlock, MotionBlock, ServerBlock, ThemeBlock } from './config';
@@ -42,7 +42,7 @@ export function PrefsDialog({ on, onClose, onConfig, preferences, repos }: { on:
     if (s) setSectionState(s);
   }, [on]);
   useEffect(() => {
-    if (on && section === 'about' && !server) api.config().then((v) => setServer(v.server), console.error);
+    if (on && section === 'about' && !server) getConfiguration().then((v) => setServer(v.server), console.error);
   }, [on, section]);
   const p = t.prefs;
   return (

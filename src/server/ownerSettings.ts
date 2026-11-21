@@ -1,10 +1,11 @@
 /**
  * The owner's system-level settings by name (`OWNER_SETTINGS`), each read and saved on its own
- * through the functions of `settings.ts`, for the routes under `/api/v1/settings`. What a save sets
+ * through the functions of `settings.ts` (the demo settings through `Config`), for the routes
+ * under `/api/v1/settings`. What a save sets
  * going besides the file (the usage meters, the pages that follow "Ask for feedback") comes in from
  * the server.
  */
-import { OWNER_SETTINGS, type OwnerSetting, type OwnerSettingViews, type UsageMeterView } from '../core/types';
+import { type DemoSettingsView, OWNER_SETTINGS, type OwnerSetting, type OwnerSettingViews, type UsageMeterView } from '../core/types';
 import { BadRequest } from './board';
 import { NotFound } from './routes/notFound';
 import {
@@ -27,41 +28,48 @@ import {
   usageMeterView,
 } from './settings';
 
-type Entry<N extends OwnerSetting> = { view: (home: string) => OwnerSettingViews[N]; save: (home: string, input: unknown) => OwnerSettingViews[N] };
-
-const ENTRIES: { [N in OwnerSetting]: Entry<N> } = {
-  language: { view: (home) => languageView(home), save: saveLanguage },
-  theme: { view: themeView, save: saveTheme },
-  motion: { view: motionView, save: saveMotion },
-  notifications: { view: notificationsView, save: saveNotifications },
-  usageMeter: { view: usageMeterView, save: saveUsageMeter },
-  feedbackPrompt: { view: feedbackPromptView, save: saveFeedbackPrompt },
-  projectDefaults: { view: projectDefaultsView, save: saveProjectDefaults },
-  agents: { view: agentsView, save: saveAgents },
-  codexAutoReview: { view: agentsView, save: saveCodexAutoReview },
-};
+type Entry<N extends OwnerSetting> = { view: () => OwnerSettingViews[N]; save: (input: unknown) => OwnerSettingViews[N] };
 
 export interface OwnerSettingsOptions {
   /** Seismic's home, which holds `settings.json`. */
   home: string;
+  /** The demo settings (`Config.demo`, `Config.saveDemo`): with the voice's check and the space demos take. */
+  demo: { view: () => DemoSettingsView; save: (input: unknown) => DemoSettingsView };
   /** The usage meter turned on or off: the bar's meters fetch the limits from then on, or stop. */
   onUsageMeter?: (view: UsageMeterView) => void;
   /** "Ask for feedback" changed: every project's cards follow at once. */
   onFeedbackPrompt?: () => void;
 }
 
+const entries = ({ home, demo }: OwnerSettingsOptions): { [N in OwnerSetting]: Entry<N> } => ({
+  language: { view: () => languageView(home), save: (input) => saveLanguage(home, input) },
+  theme: { view: () => themeView(home), save: (input) => saveTheme(home, input) },
+  motion: { view: () => motionView(home), save: (input) => saveMotion(home, input) },
+  notifications: { view: () => notificationsView(home), save: (input) => saveNotifications(home, input) },
+  usageMeter: { view: () => usageMeterView(home), save: (input) => saveUsageMeter(home, input) },
+  feedbackPrompt: { view: () => feedbackPromptView(home), save: (input) => saveFeedbackPrompt(home, input) },
+  projectDefaults: { view: () => projectDefaultsView(home), save: (input) => saveProjectDefaults(home, input) },
+  agents: { view: () => agentsView(home), save: (input) => saveAgents(home, input) },
+  codexAutoReview: { view: () => agentsView(home), save: (input) => saveCodexAutoReview(home, input) },
+  demo,
+});
+
 export class OwnerSettings {
-  constructor(private readonly o: OwnerSettingsOptions) {}
+  private readonly entries: { [N in OwnerSetting]: Entry<N> };
+
+  constructor(private readonly o: OwnerSettingsOptions) {
+    this.entries = entries(o);
+  }
 
   /** The setting `name`, as the URL names it; an unknown one is not found. */
   named(name: string): OwnerSetting {
     const known = OWNER_SETTINGS.find((s) => s === name);
-    if (!known) throw new NotFound('unknownSetting', `there is no setting ${name}`);
+    if (!known) throw new NotFound('settingNotFound', `there is no setting ${name}`);
     return known;
   }
 
   view<N extends OwnerSetting>(name: N): OwnerSettingViews[N] {
-    return ENTRIES[name].view(this.o.home);
+    return this.entries[name].view();
   }
 
   /** Every setting as it reads. */
@@ -71,7 +79,7 @@ export class OwnerSettings {
 
   /** Saves the setting from what the owner sent (`OwnerSettingChanges`), answered with it as it then reads. */
   save<N extends OwnerSetting>(name: N, input: unknown): OwnerSettingViews[N] {
-    const saved = ENTRIES[name].save(this.o.home, input);
+    const saved = this.entries[name].save(input);
     if (name === 'usageMeter') this.o.onUsageMeter?.(saved as UsageMeterView);
     if (name === 'feedbackPrompt') this.o.onFeedbackPrompt?.();
     return saved;

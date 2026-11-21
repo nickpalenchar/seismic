@@ -679,7 +679,7 @@ describe('the configuration over HTTP', () => {
   };
 
   test('reads, checks and saves it', async () => {
-    const view = (await call('GET', '/api/config')).body as unknown as ConfigView;
+    const view = (await call('GET', '/api/v1/configuration')).body.configuration as unknown as ConfigView;
     expect(view.projects).toEqual([{ repos: [{ path: web }] }]);
     expect(view.running).toEqual(['web']);
     expect((await call('GET', '/api/config/check')).body).toMatchObject({ resolved: [{ id: 'web', repos: [{ id: 'web' }] }], problems: [] });
@@ -687,10 +687,11 @@ describe('the configuration over HTTP', () => {
     const checked = await call('POST', '/api/config/check', [{ name: 'Zwei', repos: [{ path: web }, { path: join(dir, 'nowhere') }] }]);
     expect(checked.body.problems).toMatchObject([{ code: 'notRepo', project: 0, repo: 1 }]);
 
-    const refused = await call('PUT', '/api/config', [{ repos: [{ path: join(dir, 'nowhere') }] }]);
+    const refused = await call('PUT', '/api/v1/configuration', [{ repos: [{ path: join(dir, 'nowhere') }] }]);
     expect(refused).toMatchObject({ status: 400, body: { code: 'config' } });
 
-    expect((await call('PUT', '/api/config', [{ repos: [{ path: web }, { path: api }] }])).body).toEqual({ restarting: true });
+    // the answer has what came of it and the configuration as it then reads: from the command line, it runs on as it started until the restart
+    expect((await call('PUT', '/api/v1/configuration', [{ repos: [{ path: web }, { path: api }] }])).body).toMatchObject({ saved: { restarting: true }, configuration: { restarting: true, running: ['web'] } });
     expect(readConfigFile(file)).toEqual([{ repos: [{ path: web }, { path: api }] }]);
   });
 
@@ -719,12 +720,12 @@ describe('the configuration over HTTP', () => {
   test('reads and saves the demo settings in its home, without a restart', async () => {
     // without a narration language of their own, demos speak the owner's
     writeFileSync(join(dir, 'settings.json'), JSON.stringify({ language: 'en' }));
-    const before = (await call('GET', '/api/demo-settings')).body as unknown as DemoSettingsView;
+    const before = (await call('GET', '/api/v1/settings/demo')).body.setting as unknown as DemoSettingsView;
     expect(before).toMatchObject({ file: join(dir, 'demo.json'), settings: { language: 'en', voice: 'piper' }, check: { person: 'third', problems: [] } });
     expect(before.check.install).toMatchObject({ installed: false, missing: ['Piper', 'Piper voice en_US-ryan-high'] });
-    expect((await call('PUT', '/api/demo-settings', { language: 'fr', voice: 'piper' })).status).toBe(400);
-    const saved = await call('PUT', '/api/demo-settings', { language: 'en', voice: 'command', command: ' speak ', ownVoice: true });
-    expect(saved.body).toMatchObject({ settings: { language: 'en', voice: 'command', command: 'speak', ownVoice: true }, check: { person: 'first', problems: [] } });
+    expect((await call('PUT', '/api/v1/settings/demo', { language: 'fr', voice: 'piper' })).status).toBe(400);
+    const saved = await call('PUT', '/api/v1/settings/demo', { language: 'en', voice: 'command', command: ' speak ', ownVoice: true });
+    expect(saved.body.setting).toMatchObject({ settings: { language: 'en', voice: 'command', command: 'speak', ownVoice: true }, check: { person: 'first', problems: [] } });
     expect(JSON.parse(readFileSync(join(dir, 'demo.json'), 'utf8'))).toEqual({ language: 'en', voice: 'command', ownVoice: true, command: 'speak' });
     // a voice being chosen is checked before it is saved
     const draft = await call('POST', '/api/demo-settings/check', { language: 'en', voice: 'qwen3', references: { en: join(dir, 'me.wav') } });
@@ -735,7 +736,7 @@ describe('the configuration over HTTP', () => {
     // the directory demos go into: the one that applies, and a relative one, which would land wherever the agent works
     expect(before.check).toMatchObject({ directory: join(homedir(), 'demos') });
     const demos = join(dir, 'demos');
-    expect((await call('PUT', '/api/demo-settings', { language: 'en', voice: 'piper', directory: demos })).body).toMatchObject({ settings: { directory: demos }, check: { directory: demos } });
+    expect((await call('PUT', '/api/v1/settings/demo', { language: 'en', voice: 'piper', directory: demos })).body.setting).toMatchObject({ settings: { directory: demos }, check: { directory: demos } });
     const relative = (await call('POST', '/api/demo-settings/check', { language: 'en', voice: 'piper', directory: 'demos' })).body as unknown as DemoSettingsView['check'];
     expect(relative).toMatchObject({ directory: join(homedir(), 'demos'), directoryRelative: true });
     expect(restarts).toBe(0);
