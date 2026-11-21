@@ -55,8 +55,9 @@ and `docs/design.md`, and this doc goes.
   the labels at a card's start (`cardLabels.ts`), their prompts in `llms/prompts/` (`nameSystem.ts`, `labelsSystem.ts`).
   Also done: the plan's dependencies (`planDependencies.ts`), the retrospective on the owner's inputs (`ruleRetro.ts`) and
   the learner (`ruleLearner.ts`, with `ruleProposals.ts` for what they share); their prompts and `whereRulesGo` are in
-  `llms/prompts/`. Left: the two duplicate and schedule turns in `koordinator.ts`, `merges.ts`, `revisions.ts`, and the two
-  in `share.ts`.
+  `llms/prompts/`. Also done: the merge comparison (`cardMerge.ts`), the proposal rework (`proposalRevision.ts`), the demo
+  page's text (`demoPage.ts`) and its tags (`pageTags.ts`, with `pageTagging.ts`). Left: the duplicate and schedule
+  turns in `koordinator.ts`, then `readSession.ts` and the deprecated guide readers go.
 - [ ] Later, once an agent has jobs: `SeismicAgent.runJob(job)` so the agent that runs a job is chosen apart from the job
   (the job names a default); `delegateJob` between agents when something needs subagents. Tools are fixed when a session
   starts in all three harnesses, so a job always opens a session of its own.
