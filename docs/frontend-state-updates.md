@@ -181,6 +181,17 @@ Result (production build, five toggles):
 The snapshot after the response no longer renders anything: it brings the same card. The `waiting`
 message still renders the page once, because the card toggled here is in it (it needs the owner).
 
+## Card edits moved (2026-11-21)
+
+A card's changes (title and text as typed, its place after a drag, labels, a plan's fold, the
+undo of "Arrange") go through `PATCH /api/v1/cards/:cardId` (`src/server/routes/v1/cards/_cardId.ts`)
+and `patchCard` in `src/ui/clients/seismic.ts`, which answers with the card. `api.patch` and the old
+`PATCH /api/c/:project/cards/:id` are gone; that URL keeps its `DELETE` until it moves.
+
+Typing is not disturbed by the card coming back: the title and text fields keep a draft of their
+own, which the card they get does not overwrite (`ManualTitle` in `src/ui/detail.tsx`). Checked live
+on the 600-card project: typing on through two saves kept every character, and the server held them.
+
 ## Open questions
 
 - Which of smells 2–4 and 9–10 costs the most time in a slow interaction (a card patch or archive)?

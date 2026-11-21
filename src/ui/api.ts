@@ -9,7 +9,7 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { CardDiff } from '../core/diff';
 import { type Place, placeParam } from '../core/layout';
-import type { ProjectReposView, RepoConfig, AccessView, ActivityPage, Pairing, RemoteSetting, ModelInfo, Harness, HarnessAvailability, AgentRole, AgentSetting, CloudPreset, AgentsView, ProjectConfig, ProjectInfo, ProjectSnapshot, ChatElsewhere, ClientMessage, ConfigSaved, ConfigView, CardAction, ConfigChecked, DemoSettings, Group, DemoSettingsView, DemoVoiceCheck, ProjectDemoSiteState, DemoSitesView, GithubRepoList, GithubRepoView, TagProposalJob, PageTags, NarrationLanguage, FirstProject, GitSetupPreview, MachineItem, MachineSectionId, MachineView, SetupCheck, SetupFolder, SetupRepoCheck, VoiceSetupView, CardEvent, CardPatch, Item, Language, LanguageView, NewCard, Notice, OwnerHold, PendingRestart, PlanHistory, RepoTrust, ServerMessage, SettingsShared, Skill, SourceUpdate, SpotInput, TalkRef, AppUpdate, Theme, ThemeView, Motion, MotionView, Usage, UsageMeterView, Waiting, Feedback, FeedbackAnswer, FeedbackPromptView,
+import type { ProjectReposView, RepoConfig, AccessView, ActivityPage, Pairing, RemoteSetting, ModelInfo, Harness, HarnessAvailability, AgentRole, AgentSetting, CloudPreset, AgentsView, ProjectConfig, ProjectInfo, ProjectSnapshot, ChatElsewhere, ClientMessage, ConfigSaved, ConfigView, CardAction, ConfigChecked, DemoSettings, Group, DemoSettingsView, DemoVoiceCheck, ProjectDemoSiteState, DemoSitesView, GithubRepoList, GithubRepoView, TagProposalJob, PageTags, NarrationLanguage, FirstProject, GitSetupPreview, MachineItem, MachineSectionId, MachineView, SetupCheck, SetupFolder, SetupRepoCheck, VoiceSetupView, CardEvent, Item, Language, LanguageView, NewCard, Notice, OwnerHold, PendingRestart, PlanHistory, RepoTrust, ServerMessage, SettingsShared, Skill, SourceUpdate, SpotInput, TalkRef, AppUpdate, Theme, ThemeView, Motion, MotionView, Usage, UsageMeterView, Waiting, Feedback, FeedbackAnswer, FeedbackPromptView,
   ProjectDefaultsView,
   ProjectSettings, ProjectSettingsView, DeveloperView, NotificationsView, Canvas } from '../core/types';
 import type { Wish } from '../core/wish';
@@ -338,7 +338,6 @@ export const api = {
     const total = Number(/\/(\d+)$/.exec(res.headers.get('content-range') ?? '')?.[1]);
     return res.ok && total > 0 ? total : null;
   },
-  patch: (id: string, p: CardPatch) => call<void>('PATCH', cardAt(id), p),
   remove: (id: string) => call<void>('DELETE', cardAt(id)),
   restore: (id: string) => call<void>('POST', cardAt(id, '/restore')),
   /** Takes a finished card off the project into the archive. */

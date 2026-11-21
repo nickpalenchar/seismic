@@ -3,7 +3,7 @@
  * what it changed, which the page shows at once (`cardSaved`). New calls go here; `api.ts` holds
  * the old routes until they move.
  */
-import type { Item } from '../../core/types';
+import type { CardPatch, Item } from '../../core/types';
 import { call, cardSaved, projectOf, snapshotsOf } from '../api';
 
 /** How long a request may take before the page gives it up. */
@@ -23,3 +23,6 @@ async function writeCard(id: string, method: string, path: string, body: unknown
 
 /** "Share on approval" on the card's demo: whether approving puts its latest demo on the page. */
 export const setShareOnApproval = (id: string, onApproval: boolean) => writeCard(id, 'PATCH', '/share', { onApproval });
+
+/** Changes to the card `id` (its title, text, place, labels; a plan's fold), answered with the card. */
+export const patchCard = (id: string, patch: CardPatch) => writeCard(id, 'PATCH', '', patch);

@@ -819,8 +819,8 @@ describe('screenshots', () => {
     const res = await post(api('/cards'), JSON.stringify({ title: 'Seite bricht um', x: 0, y: 0, images: [id] }));
     const c = (await res.json()) as { id: string };
     expect(board.item(c.id)!.images).toEqual([id]);
-    const patch = (p: unknown) => fetch(new URL(api(`/cards/${c.id}`), server.url), { method: 'PATCH', body: JSON.stringify(p) });
-    expect((await patch({ images: [] })).status).toBe(204);
+    const patch = (p: unknown) => fetch(new URL(`/api/v1/cards/${c.id}`, server.url), { method: 'PATCH', body: JSON.stringify(p) });
+    expect((await patch({ images: [] })).status).toBe(200);
     expect(board.item(c.id)!.images).toBeUndefined();
     expect(await codeOf(patch({ images: ['0000.png'] }))).toBe('invalid');
     expect(await codeOf(post(api('/cards'), JSON.stringify({ title: 'x', x: 0, y: 0, images: 'a.png' })))).toBe('invalid');

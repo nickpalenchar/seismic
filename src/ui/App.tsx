@@ -24,6 +24,7 @@ import { type ActDone, Detail, type Pending } from './detail';
 import { Cards, KoordinatorAgent } from './message';
 import { motionMs, reducedMotion, sizeSettled } from './motion';
 import type { Heard, Where } from './api';
+import { patchCard } from './clients/seismic';
 import { replyOn, setReply } from './reply';
 import { ArchiveView } from './archive';
 import { CardSearch } from './cardSearch';
@@ -704,7 +705,7 @@ function Project({
     if (!e) return Promise.resolve();
     clearTimeout(e.timer);
     edit.current = null;
-    return Object.keys(e.patch).length ? api.patch(e.id, e.patch) : Promise.resolve();
+    return Object.keys(e.patch).length ? patchCard(e.id, e.patch).then(() => {}) : Promise.resolve();
   };
   // what the open card holds as typed, which the snapshot may not carry yet
   const openDraft = useRef<Pick<Item, 'kind' | 'title' | 'body' | 'images'>>({ kind: 'task', title: '', body: '' });
@@ -1358,7 +1359,7 @@ function Project({
       await api.act(p.id, { action: 'arrange' });
       showAck(t.plan.arranged, async () => {
         try {
-          await Promise.all(before.map(({ id, x, y }) => api.patch(id, { x, y })));
+          await Promise.all(before.map(({ id, x, y }) => patchCard(id, { x, y })));
           showAck(t.plan.arrangeUndone);
         } catch (e) {
           fail(e);
@@ -1373,7 +1374,7 @@ function Project({
   const collapse = useCallback(async (p: Item, collapsed: boolean) => {
     setFolded((f) => ({ ...f, [p.id]: collapsed }));
     try {
-      await api.patch(p.id, { collapsed });
+      await patchCard(p.id, { collapsed });
     } catch (e) {
       setFolded(({ [p.id]: _, ...rest }) => rest);
       fail(e);
@@ -2105,7 +2106,7 @@ function Project({
     // a card held on touch and let go where it was stays unsaved
     if (d.moved && (i.x !== d.start.x || i.y !== d.start.y)) {
       for (const x of [i, ...d.with.flatMap((w) => byId(w.id) ?? [])])
-        api.patch(x.id, { x: x.x, y: x.y }).catch((err) => {
+        patchCard(x.id, { x: x.x, y: x.y }).catch((err) => {
           console.error(err);
           setMoved(({ [x.id]: _, ...rest }) => rest);
         });

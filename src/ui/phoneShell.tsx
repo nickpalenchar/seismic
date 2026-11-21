@@ -8,6 +8,7 @@ import { useRatePrompt } from './feedback';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { type ProjectInfo, type CardPatch, type Item, nameless, needsYou, openQuestions } from '../core/types';
 import { api, beforeReload, cardsOn, onNotice, setProject, type Where } from './api';
+import { patchCard } from './clients/seismic';
 import { inboxEntries, readMark } from '../core/inbox';
 import { useInboxRead } from './inboxRead';
 import { type ActDone, Detail, type Pending, TalkElsewhere, useEvents } from './detail';
@@ -270,7 +271,7 @@ export function usePhoneShell(loaded: ProjectInfo[]) {
     if (!e) return Promise.resolve();
     clearTimeout(e.timer);
     edit.current = null;
-    return Object.keys(e.patch).length ? api.patch(e.id, e.patch) : Promise.resolve();
+    return Object.keys(e.patch).length ? patchCard(e.id, e.patch).then(() => {}) : Promise.resolve();
   }
   /** The open card's title, text and screenshots as typed, ahead of the snapshot: whether it was left without a title. */
   const typed = useRef<{ id: string } & Pick<Item, 'kind' | 'title' | 'body' | 'images'> | null>(null);

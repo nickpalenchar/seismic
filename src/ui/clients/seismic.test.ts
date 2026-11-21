@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from 'bun:test';
 import { setProject } from '../api';
-import { getCardById, setShareOnApproval } from './seismic';
+import { getCardById, patchCard, setShareOnApproval } from './seismic';
 
 const real = globalThis.fetch;
 afterEach(() => {
@@ -21,4 +21,15 @@ test('“Share on approval” goes out as a PATCH of the share and answers with 
   const card = await setShareOnApproval('c3', false);
   expect(sent).toEqual([{ url: '/api/v1/cards/c3/share', method: 'PATCH', body: { onApproval: false } }]);
   expect(card.demo?.notOnApproval).toBe(true);
+});
+
+test("a card's changes go out as a PATCH of the card and answer with it", async () => {
+  const sent: { url: string; method?: string; body?: unknown }[] = [];
+  globalThis.fetch = (async (url: string, init: RequestInit) => {
+    sent.push({ url, method: init.method, body: JSON.parse(init.body as string) });
+    return Response.json({ card: { id: 'c4', title: 'Checkout' } });
+  }) as typeof fetch;
+  const card = await patchCard('c4', { title: 'Checkout' });
+  expect(sent).toEqual([{ url: '/api/v1/cards/c4', method: 'PATCH', body: { title: 'Checkout' } }]);
+  expect(card.title).toBe('Checkout');
 });

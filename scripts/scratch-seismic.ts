@@ -646,6 +646,11 @@ const api = async (method: string, path: string, body?: unknown, on = project) =
   if (!r.ok) fail(`${method} ${path} ${JSON.stringify(body)}: ${r.status} ${text}`);
   return text ? JSON.parse(text) : undefined;
 };
+/** A card's changes, through the RESTful API: the server finds the card's project itself. */
+const patchCard = async (id: string, patch: Record<string, unknown>) => {
+  const r = await fetch(`${base}/api/v1/cards/${id}`, { method: 'PATCH', headers: { ...owner, 'content-type': 'application/json' }, body: JSON.stringify(patch) });
+  if (!r.ok) fail(`PATCH /api/v1/cards/${id} ${JSON.stringify(patch)}: ${r.status} ${await r.text()}`);
+};
 
 // the repositories' commands trusted as staged, as "Trust these commands" does
 if (stage.trusted) {
@@ -1045,7 +1050,7 @@ for (const on of allProjects) {
   const first = stage.cards.find((c) => (c.plan || c.workstream ? on.id === project : c.project ? c.project === on.name : on.id === project));
   if (!first) continue;
   const c = ((await api('GET', '/project', undefined, on.id)) as ProjectSnapshot).items.find((x: Item) => x.id === idOf(first, stage.cards.indexOf(first)))!;
-  await api('PATCH', `/cards/${c.id}`, { x: c.x, y: c.y }, on.id);
+  await patchCard(c.id, { x: c.x, y: c.y });
 }
 
 for (const v of stage.canvases ?? []) {
@@ -1057,7 +1062,7 @@ for (const v of stage.canvases ?? []) {
   // the cards keep the places the stage gives them
   for (const id of on) {
     const c = before.find((x: Item) => x.id === id);
-    if (c && !c.parent) await api('PATCH', `/cards/${id}`, { x: c.x, y: c.y });
+    if (c && !c.parent) await patchCard(id, { x: c.x, y: c.y });
   }
 }
 

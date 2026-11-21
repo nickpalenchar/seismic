@@ -57,6 +57,8 @@ Represents endpoints that are registered to the server, which can be called in a
 - A route's file mirrors its URL: a `:x` segment is a folder `_x`, the last segment is the file,
   and one file holds all the methods of its URL.
   - `PATCH /api/v1/cards/:cardId/share` is `src/server/routes/v1/cards/_cardId/share.ts`.
+  - `PATCH /api/v1/cards/:cardId` is `src/server/routes/v1/cards/_cardId.ts`, beside the folder
+    `_cardId/` that holds the URLs under it.
   - Params name what they stand for (`:cardId`), never a bare `:id`.
   - A card's URL names the card alone, not its project: the server finds the project from the card
     (`HttpRoute.projectOfCard`), so a call can't go to the wrong project when the page shows another.

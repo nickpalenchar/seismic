@@ -5,7 +5,7 @@ import { extensionSettings, serverExtensions as extensions } from '../extensions
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir, userInfo } from 'node:os';
 import { join, resolve } from 'node:path';
-import { type ActivityPage, agentListens, type ProjectInfo, type ChatElsewhere, type ProjectSettingsView, type CardAction, type ClientMessage, type CardPatch, type DeveloperView, type Harness, type Item, type MachineSectionId, type NewCard, type PageTags, type PendingRestart, type ServerMessage, type SpotInput, type TalkRef, isTalkRef, MAX_FILE_BYTES, needsYou, type Waiting, waitingIn } from '../core/types';
+import { type ActivityPage, agentListens, type ProjectInfo, type ChatElsewhere, type ProjectSettingsView, type CardAction, type ClientMessage, type DeveloperView, type Harness, type Item, type MachineSectionId, type NewCard, type PageTags, type PendingRestart, type ServerMessage, type SpotInput, type TalkRef, isTalkRef, MAX_FILE_BYTES, needsYou, type Waiting, waitingIn } from '../core/types';
 import { uiRoutes } from './ui';
 import { guarded, LOCAL_HOSTS, refusal } from './access';
 import { BadRequest } from './board';
@@ -780,8 +780,8 @@ export function serve(
       '/api/c/:project/plan-dirs/:repo': {
         PATCH: on(async (c, req) => c.board.movePlanDirNote(req.params.repo!, await req.json())),
       },
+      // a card's changes: PATCH /api/v1/cards/:cardId (routes/v1/cards/_cardId.ts)
       '/api/c/:project/cards/:id': {
-        PATCH: on(async (c, req) => c.patch(req.params.id!, (await req.json()) as CardPatch)),
         DELETE: on((c, req) => click(c, c.remove(req.params.id!))),
       },
       // groups: a new one with its first cards (and a colour, when one comes back), a new name, the

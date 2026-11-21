@@ -6,7 +6,7 @@ import { Flag as FlagIcon } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { COMPLEXITIES, type Complexity, type Label, type Labels, LABEL_VALUES, PRIORITIES, type Priority } from '../../core/labels';
 import type { Item } from '../../core/types';
-import { api } from '../api';
+import { patchCard } from '../clients/seismic';
 import { Badge } from '../components/badge';
 import { loptClass, prioBtnClass, prioClass, prioMenuClass, prioPickClass } from '../labelClasses';
 import { Menu, MenuContent, MenuRadioGroup, MenuRadioItem, MenuTrigger } from '../components/menu';
@@ -107,7 +107,7 @@ function LabelPick<L extends Label>({ item, label, values, shown, empty, option,
   const now = item.labels?.[label] as Labels[L] | undefined;
   const pick = (v: string) => {
     const chosen = v === NONE ? null : values.find((x) => String(x) === v)!;
-    api.patch(item.id, { [label]: chosen }).catch(console.error);
+    patchCard(item.id, { [label]: chosen }).catch(console.error);
   };
   return (
     <span className={prioPickClass}>
