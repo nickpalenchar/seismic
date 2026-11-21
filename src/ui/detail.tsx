@@ -431,9 +431,8 @@ export function Detail(p: Props) {
   const unsentCount = Object.keys(unsentPicks ?? {}).filter((id) => cr?.items.some((r) => r.number === Number(id) && needsOwner(r))).length;
   const openItems = cr?.items.filter(needsOwner).length ?? 0;
   const confirmApproval = openItems > 0 || reviewRunning;
-  useEffect(() => {
-    if (!confirmApproval) setApprovalRoute(null);
-  }, [confirmApproval]);
+  // a confirmation no longer needed must not reopen once one is needed again (set during render: Detail returns early above, so no hook may follow)
+  if (!confirmApproval && approvalRoute !== null) setApprovalRoute(null);
   const reviewed = cr?.state === 'done' && !cr.stale;
   // work handed over with no code review attached (its review was lost, or the project did not review it) can always be reviewed on the owner's word
   const unreviewed = !cr && item.kind === 'task' && handedOver(item) && !inFolder && !item.idea?.prototypeOf && !item.review?.contribution && !item.review?.noChange && !item.review?.landing;
