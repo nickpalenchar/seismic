@@ -27,7 +27,7 @@ export class SeismicModel {
   }
 
   /** Whether the model has the capability; undefined where its catalog does not say, which is not a no. */
-  has(capability: Capability): boolean | undefined {
+  hasCapability(capability: Capability): boolean | undefined {
     return capability === 'images' ? modelReadsImages(this.info) : undefined;
   }
 }

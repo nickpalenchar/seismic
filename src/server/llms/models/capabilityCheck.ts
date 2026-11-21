@@ -29,12 +29,12 @@ export class CapabilityCheck {
 
   /** The required capabilities the model lacks. */
   get missing(): Capability[] {
-    return CAPABILITIES.filter((c) => this.needed[c] === 'required' && this.model.has(c) === false);
+    return CAPABILITIES.filter((c) => this.needed[c] === 'required' && this.model.hasCapability(c) === false);
   }
 
   /** The optional capabilities the model lacks: the session goes on without them. */
   get degraded(): Capability[] {
-    return CAPABILITIES.filter((c) => this.needed[c] === 'optional' && this.model.has(c) === false);
+    return CAPABILITIES.filter((c) => this.needed[c] === 'optional' && this.model.hasCapability(c) === false);
   }
 
   /** Whether the session may run on the model. */
@@ -52,8 +52,8 @@ export class CapabilityCheck {
    * where the session takes them as a help; where it needs them, or named nothing, it is an error, as
    * a model that cannot read what it is sent has always been.
    */
-  apply(message: { text: string; images: string[] }): { text: string; images: string[] } {
-    if (!message.images.length || this.model.has('images') !== false) return message;
+  applyToMessage(message: { text: string; images: string[] }): { text: string; images: string[] } {
+    if (!message.images.length || this.model.hasCapability('images') !== false) return message;
     if (this.needed.images === 'optional') return { text: `${message.text}\n\n${IMAGES_DROPPED}`, images: [] };
     throw new Error(`Selected ${this.model.harnessName} model does not support images`);
   }

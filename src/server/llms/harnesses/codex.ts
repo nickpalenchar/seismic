@@ -295,7 +295,7 @@ export function createCodexRuntime(connect: Connect = connectInstalled): AgentRu
             if (closing) break;
             const next = queue[0];
             if (!next) break;
-            const sent = check ? check.apply({ text: next.text, images: next.images }) : { text: next.text, images: next.images };
+            const sent = check ? check.applyToMessage({ text: next.text, images: next.images }) : { text: next.text, images: next.images };
             const input = [{ type: 'text', text: sent.text, text_elements: [] }, ...sent.images.map((path) => ({ type: 'localImage', path }))];
             if (turn) {
               const expected = turn;

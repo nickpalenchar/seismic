@@ -44,7 +44,7 @@ and `docs/design.md`, and this doc goes.
   Koordinator's own one-shots). What a session needs of its model is declared by the agent or job as `capabilities`
   (`{ images: 'optional' | 'required' }`, `llms/models/seismicModel.ts`). `SeismicAgent.checkCapabilities(model, needed?)`
   sets them (merged with what a run adds, the stricter standing) against a `SeismicModel`, which wraps the harness, the model
-  id and its catalog entry (`ModelInfo`) and answers `has(capability)`: true, false, or undefined where a catalog does not say
+  id and its catalog entry (`ModelInfo`) and answers `hasCapability(capability)`: true, false, or undefined where a catalog does not say
   (not a no). The harness calls the spec's `checkModel` once it has resolved the model, before the first turn: a check that is
   not `ok` ends the session with its `problem`, and its `apply` leaves optional images out with a note. Codex's list names
   its input types, so it enforces today; Antigravity's listing and Claude have none, so their images go through.
