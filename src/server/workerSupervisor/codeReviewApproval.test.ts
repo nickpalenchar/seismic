@@ -132,7 +132,9 @@ for (const scenario of ['running', 'fixing', 'verifying', 'unsent', 'unsentDurin
         if (secondReview) expect(activeReviewer.closed).toBe(false);
         await approval.click();
         const confirmLabel = warnReview ? (direct ? 'Stop Review & land' : 'Stop Review & approve') : 'Approve anyway';
-        await dialog.getByRole('button', { name: confirmLabel, exact: true }).click();
+        const confirm = dialog.getByRole('button', { name: confirmLabel, exact: true });
+        expect(await confirm.getAttribute('data-variant')).toBe(warnReview ? 'review-warning' : 'primary');
+        await confirm.click();
         await page.locator('body[data-approved="true"]').waitFor();
         expect(actions).toEqual([direct ? { action: 'approve', direct: true } : { action: 'approve' }]);
         expect(state(id)).toBe(direct ? 'live' : 'inPr');

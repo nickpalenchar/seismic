@@ -476,6 +476,7 @@ export function Detail(p: Props) {
           title={openItems ? t.unsentChoices.title : t.approveDuringReview.title}
           confirm={{
             label: reviewRunning ? stopReviewLabel : t.unsentChoices.approve,
+            variant: reviewRunning ? 'review-warning' : 'primary',
             onClick: () => { setApprovalRoute(null); approveNow(approvalRoute === 'direct'); },
           }}
           cancel={openItems ? t.unsentChoices.back : t.approveDuringReview.continue}
