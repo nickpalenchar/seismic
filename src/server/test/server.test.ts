@@ -70,7 +70,7 @@ const codeOf = async (res: Promise<Response>) => ((await (await res).json()) as 
 const api = (path: string) => `/api/c/main${path}`;
 const act = (id: string, a: CardAction | { action: string; text?: unknown }) => post(api(`/cards/${id}/act`), JSON.stringify(a));
 // a card action with a URL of its own (`routes/v1/cards/_cardId/`)
-const v1 = (id: string, action: 'start' | 'stop' | 'approve', body: unknown = {}) => post(`/api/v1/cards/${id}/${action}`, JSON.stringify(body));
+const v1 = (id: string, action: 'start' | 'stop' | 'approve' | 'dequeue', body: unknown = {}) => post(`/api/v1/cards/${id}/${action}`, JSON.stringify(body));
 
 describe('refused requests', () => {
   test('carry a stable code and an English detail', async () => {
@@ -86,11 +86,11 @@ describe('refused requests', () => {
     // an option picked is an answer without words
     expect(await codeOf(act(c.id, { action: 'answer', text: '', picks: ['Ja'] }))).toBe('noQuestion');
     expect(await codeOf(v1(c.id, 'approve'))).toBe('notReady');
-    expect(await codeOf(act(c.id, { action: 'force' }))).toBe('notQueued');
+    expect(await codeOf(v1(c.id, 'start', { skipWaitForCards: true }))).toBe('notQueued');
     expect(await codeOf(act(c.id, { action: 'dismiss' }))).toBe('notProposal');
     expect(await codeOf(v1('nope', 'start'))).toBe('unknownCard');
-    // start, stop and approve are no longer taken by /act
-    for (const action of ['start', 'stop', 'approve'] as const) expect(await codeOf(act(c.id, { action }))).toBe('invalid');
+    // the actions with a URL of their own are no longer taken by /act
+    for (const action of ['start', 'force', 'stop', 'approve', 'dequeue'] as const) expect(await codeOf(act(c.id, { action }))).toBe('invalid');
     expect(await codeOf(act(c.id, { action: 'fly' }))).toBe('invalid');
     expect(await codeOf(post(api(`/cards/${c.id}/act`), '{'))).toBe('invalid');
     expect(await codeOf(post(api('/cards'), JSON.stringify({ title: 'x', x: 'links', y: 0 })))).toBe('invalid');

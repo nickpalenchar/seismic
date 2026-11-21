@@ -51,8 +51,15 @@ export const archiveCard = (id: string) => writeCard(id, 'POST', '/archive', und
 /** The archived card `id` back on the project (also the undo of `archiveCard`): it shows again at once. */
 export const unarchiveCard = (id: string) => writeCard(id, 'POST', '/unarchive', undefined, { shown: cardBack });
 
-/** The card started: Seismic judges when its agent begins (`agent`: the one picked in the Start menu); a plan, all its planned workstreams. */
-export const startCardAgent = (id: string, agent?: AgentSetting) => writeCard(id, 'POST', '/start', agent ? { agent } : {});
+/**
+ * The card started: Seismic judges when its agent begins (`agent`: the one picked in the Start menu);
+ * a plan, all its planned workstreams. `skipWaitForCards`: "Start anyway" on a card waiting behind others.
+ */
+export const startCardAgent = (id: string, { agent, skipWaitForCards = false }: { agent?: AgentSetting; skipWaitForCards?: boolean } = {}) =>
+  writeCard(id, 'POST', '/start', { ...(agent ? { agent } : {}), ...(skipWaitForCards ? { skipWaitForCards } : {}) });
+
+/** "Take out of the queue": the card's start taken back before its agent begins; on a plan, its workstreams' not yet planned. */
+export const dequeueCard = (id: string) => writeCard(id, 'POST', '/dequeue', {});
 
 /** The card's agent stopped: the card is planned again. */
 export const stopCardAgent = (id: string) => writeCard(id, 'POST', '/stop', {});

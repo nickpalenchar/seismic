@@ -48,10 +48,24 @@ test('the agent picked in the Start menu goes with the start', async () => {
   expect(board.row(c.id).agent_setting).toBe(JSON.stringify(agent));
 });
 
+test('"Start anyway" starts a card waiting behind another, with the agent picked; a card not waiting is refused', async () => {
+  const before = board.create({ title: 'A', x: 0, y: 0 });
+  const c = board.create({ title: 'B', x: 0, y: 0 });
+  expect(await codeOf(await post(c.id, { skipWaitForCards: true }))).toEqual([400, 'notQueued']);
+  board.work(c.id, { queue: JSON.stringify({ behind: [before.id], reason: 'both change the cart' }) });
+  const agent = { model: 'opus', effort: 'high' };
+  const res = await post(c.id, { skipWaitForCards: true, agent });
+  expect(res.status).toBe(200);
+  expect((await cardOf(res)).queue).toBeUndefined();
+  expect(board.row(c.id).agent_setting).toBe(JSON.stringify(agent));
+  expect(board.events(c.id).some((e) => e.text === 'Started anyway, without waiting.')).toBe(true);
+});
+
 test('refused: an agent choice that is none, a body that is no object, no owner key, a card not planned, an unknown card', async () => {
   const c = board.create({ title: 'A', x: 0, y: 0 });
   expect(await codeOf(await post(c.id, { agent: { model: 'gpt' } }))).toEqual([400, 'invalid']);
   expect(await codeOf(await post(c.id, ['start']))).toEqual([400, 'invalid']);
+  expect(await codeOf(await post(c.id, { skipWaitForCards: 'yes' }))).toEqual([400, 'invalid']);
   expect(await codeOf(await post(c.id, {}, globalThis.fetch))).toEqual([401, 'notOwner']);
   expect(board.item(c.id)?.queue).toBeFalsy();
   board.work(c.id, { state: 'working' });

@@ -211,8 +211,16 @@ Starting, stopping and approving moved next: `POST /api/v1/cards/:cardId/start` 
 does (a landing onto main, the pull request asked for, a review card's PR merged), as `/act` did,
 so the client gives it no timeout; a prototype approved comes back archived and leaves the project
 (`withCard`). From the panel on a scratch Seismic: start answered in 15 ms, stop in 35 ms, approving
-work without changes in 13 ms. The other actions (force, dequeue, pause, resume, message, …) are
-still on `/act`.
+work without changes in 13 ms.
+
+"Start anyway" and "Take out of the queue" followed. "Start anyway" is a start with
+`skipWaitForCards: true`, so it takes the same agent choice and the canvas start is one call; the
+name says which wait it skips (behind other cards: possible merge conflicts, the cards the owner
+connected it to), since a card started anyway may still wait for a free workstation. "Take out of
+the queue" is `POST /api/v1/cards/:cardId/dequeue`. Both answer with the card; on a plan only the
+plan card comes back, its workstreams follow with the snapshot. `/act` refuses `force` and
+`dequeue` now. Still on `/act`: the other queue actions (`reorder`, `takeWorkstation`,
+`keepWorkstation`, `arrange`), pause, resume, messages and the rest.
 
 Typing is not disturbed by the card coming back: the title and text fields keep a draft of their
 own, which the card they get does not overwrite (`ManualTitle` in `src/ui/detail.tsx`). Checked live

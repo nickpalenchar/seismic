@@ -60,7 +60,7 @@ type Req = Request & { params: Record<string, string> };
 const notFound = () => new Response('Not found', { status: 404 });
 
 /** Card actions that moved to a URL of their own under `/api/v1/cards/:cardId/`. */
-const V1_ACTIONS = new Set<string>(['start', 'stop', 'approve']);
+const V1_ACTIONS = new Set<string>(['start', 'force', 'stop', 'approve', 'dequeue']);
 
 /** `?replyTo=` of a recording: a card's event (`7`), or a message of the sheet (`12.answer`). */
 /**
@@ -831,7 +831,7 @@ export function serve(
         POST: on(async (c, req) => {
           const a = (await req.json()) as CardAction;
           // the actions with a URL of their own (`routes/v1/cards/_cardId/`) are not taken here as well
-          if (a && V1_ACTIONS.has(a.action)) throw new BadRequest('invalid', `${a.action} goes through POST /api/v1/cards/:cardId/${a.action}`);
+          if (a && V1_ACTIONS.has(a.action)) throw new BadRequest('invalid', `${a.action} goes through POST /api/v1/cards/:cardId/${a.action === 'force' ? 'start' : a.action}`);
           return c.press(req.params.id!, a);
         }),
       },

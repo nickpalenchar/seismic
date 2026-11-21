@@ -14,7 +14,7 @@ import { mockPage } from '../core/frame';
 import { mmss } from '../../plugin/skills/demo/lib/timeline.ts';
 import { answers, answerText, OTHER, toggleOther } from './answer';
 import { ApiError, api, projectOf, cardAt, type Field, holdRestart, onCardEvent, onCardEventGone, onCardRefresh, onReconnect, refreshCard, useCardRefreshFailed } from './api';
-import { approveCard, archiveCard, setShareOnApproval, startCardAgent, stopCardAgent, unarchiveCard } from './clients/seismic';
+import { approveCard, archiveCard, dequeueCard, setShareOnApproval, startCardAgent, stopCardAgent, unarchiveCard } from './clients/seismic';
 import { cardPath } from './address';
 import { Naming, smartLink } from './cardLink';
 import { DuplicateMergePreview, MergeButton, MergeView } from './merge';
@@ -264,7 +264,8 @@ export function Detail(p: Props) {
   const actNow = (a: CardAction, done: ActDone, failed?: () => void) =>
     run(async () => {
       if (a.action === 'approve' || a.action === 'pushChanges') await saveHeld(item.id);
-      if (a.action === 'start') await startCardAgent(item.id, a.agent);
+      if (a.action === 'start' || a.action === 'force') await startCardAgent(item.id, { agent: a.agent, skipWaitForCards: a.action === 'force' });
+      else if (a.action === 'dequeue') await dequeueCard(item.id);
       else if (a.action === 'stop') await stopCardAgent(item.id);
       else if (a.action === 'approve') await approveCard(item.id, { direct: !!a.direct });
       else await api.act(item.id, a);

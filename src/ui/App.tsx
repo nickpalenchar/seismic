@@ -24,7 +24,7 @@ import { type ActDone, Detail, type Pending } from './detail';
 import { Cards, KoordinatorAgent } from './message';
 import { motionMs, reducedMotion, sizeSettled } from './motion';
 import type { Heard, Where } from './api';
-import { archiveCard, patchCard, removeCard, restoreCard, startCardAgent, unarchiveCard } from './clients/seismic';
+import { archiveCard, dequeueCard, patchCard, removeCard, restoreCard, startCardAgent, unarchiveCard } from './clients/seismic';
 import { replyOn, setReply } from './reply';
 import { ArchiveView } from './archive';
 import { CardSearch } from './cardSearch';
@@ -1276,7 +1276,7 @@ function Project({
   /** The play button on a card: starts it, or one queued behind others despite the likely conflict. */
   const startCardNow = useCallback(async (i: Item) => {
     try {
-      await (i.queue ? api.act(i.id, { action: 'force' }) : startCardAgent(i.id));
+      await startCardAgent(i.id, { skipWaitForCards: !!i.queue });
       if (i.queue) showAck(forcedText(i.queue));
     } catch (e) {
       fail(e);
@@ -1314,7 +1314,7 @@ function Project({
         t.plan.startedAll(n),
         async () => {
           try {
-            await api.act(p.id, { action: 'dequeue' });
+            await dequeueCard(p.id);
             showAck(t.plan.startTakenBack);
           } catch (e) {
             showAck(e instanceof ApiError && e.code === 'notQueued' ? t.voice.tooLate : t.offlineError);

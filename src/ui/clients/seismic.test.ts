@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from 'bun:test';
 import { setProject } from '../api';
-import { approveCard, archiveCard, getCardById, patchCard, removeCard, restoreCard, setShareOnApproval, startCardAgent, stopCardAgent, unarchiveCard } from './seismic';
+import { approveCard, archiveCard, dequeueCard, getCardById, patchCard, removeCard, restoreCard, setShareOnApproval, startCardAgent, stopCardAgent, unarchiveCard } from './seismic';
 
 const real = globalThis.fetch;
 afterEach(() => {
@@ -69,7 +69,7 @@ test('archiving and unarchiving go out as POSTs of the card\'s actions and answe
   ]);
 });
 
-test("starting, stopping and approving go out as POSTs of the card's actions, with what was picked, and answer with the card", async () => {
+test("starting, taking out of the queue, stopping and approving go out as POSTs of the card's actions, with what was picked, and answer with the card", async () => {
   const sent: { url: string; body?: unknown; timed: boolean }[] = [];
   globalThis.fetch = (async (url: string, init: RequestInit) => {
     sent.push({ url, body: JSON.parse(init.body as string), timed: !!init.signal });
@@ -77,13 +77,18 @@ test("starting, stopping and approving go out as POSTs of the card's actions, wi
   }) as typeof fetch;
   const agent = { model: 'opus', effort: 'high' } as const;
   expect((await startCardAgent('c8')).state).toBe('planned');
-  await startCardAgent('c8', agent);
+  await startCardAgent('c8', { agent });
+  await startCardAgent('c8', { agent, skipWaitForCards: true });
+  await dequeueCard('c8');
   await stopCardAgent('c8');
   await approveCard('c8');
   await approveCard('c8', { direct: true });
   expect(sent).toEqual([
     { url: '/api/v1/cards/c8/start', body: {}, timed: true },
     { url: '/api/v1/cards/c8/start', body: { agent }, timed: true },
+    // "Start anyway"
+    { url: '/api/v1/cards/c8/start', body: { agent, skipWaitForCards: true }, timed: true },
+    { url: '/api/v1/cards/c8/dequeue', body: {}, timed: true },
     { url: '/api/v1/cards/c8/stop', body: {}, timed: true },
     // an approval waits for the landing, however long it takes
     { url: '/api/v1/cards/c8/approve', body: {}, timed: false },

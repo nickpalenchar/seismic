@@ -12,6 +12,7 @@ import { agentFailed, type AppUpdate, type ProjectInfo, type ClonePool, finished
 import { CardMore } from './canvases';
 import { PlanTalk } from './koordinator';
 import { api } from './api';
+import { dequeueCard } from './clients/seismic';
 import type { Cam, Sides } from './camera';
 import type { Shape } from './groups';
 import { Doc, Inline, plain } from './markdown';
@@ -176,7 +177,7 @@ function CardCheckStop({ item, on }: { item: Item; on: PlayOn }) {
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
-            void api.act(item.id, { action: 'dequeue' }).catch(() => {});
+            void dequeueCard(item.id).catch(() => {});
           }}
       >
         <Square className="btn-mark" size={10} strokeWidth={1.75} fill="currentColor" aria-hidden />
