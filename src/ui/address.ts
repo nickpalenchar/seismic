@@ -4,6 +4,7 @@
 // the conversation open on the phone, the view over the canvas as `?view=table`) stays in the query.
 import { projectAt, projectSegment } from '../core/project-slug';
 import type { Item } from '../core/types';
+import { leave } from './leaving';
 
 export interface Address {
   project?: string;
@@ -62,8 +63,14 @@ export function followedPath(pathname: string, projects: { id: string; name: str
  * loading it again: a step in the history, Back returns.
  */
 export function goTo(path: string) {
-  history.pushState(null, '', path);
-  dispatchEvent(new PopStateEvent('popstate', { state: null }));
+  const go = () => {
+    history.pushState(null, '', path);
+    dispatchEvent(new PopStateEvent('popstate', { state: null }));
+  };
+  // another project's page (or another page of the app) replaces this one: an unsaved draft on it asks first (`leaving`)
+  const page = (p: string) => p.split(/[?#]/)[0]!.split('/').slice(0, 3).join('/');
+  if (page(path) === page(location.pathname)) go();
+  else leave(go);
 }
 
 /** A plain click on a link switches within the page, without loading it again; one for a new tab or window stays the link's. */

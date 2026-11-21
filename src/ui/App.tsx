@@ -75,7 +75,8 @@ import { NeedsYouSheet } from './needsYou';
 import { useInboxRead } from './inboxRead';
 import { ProjectSettingsSheet } from './projectSettings/sheet';
 import { NewProjectDialog } from './projectSettings/project';
-import { sectionOfSetting, type SettingsFocus, showSettingsAt } from './projectSettings/focus';
+import { sectionOfSetting, type SettingsFocus, settingsFocusWaits, showSettingsAt } from './projectSettings/focus';
+import { leave } from './leaving';
 import { type InboxEntry, inboxEntries, needsYouCount, readMark } from '../core/inbox';
 import { beingWritten, split, talkAlone } from './talk';
 import { ACK_MS, noticeLine, tellers, useAck, useWarnings, voiceTarget } from './tell';
@@ -2301,11 +2302,20 @@ function Project({
   };
   /** Opens the project settings of `f.project` at a field: on this page, or on that project's, which it switches to. */
   const openSettingsAt = (f: SettingsFocus) => {
+    if (f.project !== snapshot.project.id)
+      // the other project's page is a page of its own: it opens its sheet at the place as it loads
+      return leave(() => {
+        showSettingsAt(f);
+        goTo(projectPath(f.project));
+      });
     showSettingsAt(f);
     setCOn(false);
-    if (f.project !== snapshot.project.id) goTo(projectPath(f.project));
     if (!csOnRef.current) toggleProjectSettings();
   };
+  // come from another project's page to a place in this one's settings: the sheet opens with the page
+  useEffect(() => {
+    if (settingsFocusWaits(snapshot.project.id) && !csOnRef.current) toggleProjectSettings();
+  }, []);
   /** The agents slide out in place of another sheet, and close again. */
   const toggleAgents = () => {
     const open = !agentsOnRef.current;

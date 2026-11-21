@@ -1,11 +1,11 @@
-// What the owner changed in the configuration's dialog but has not saved yet (the projects with
-// their repositories, the demo settings), written down per tab as it changes, so that it outlives
+// What the owner changed but has not saved yet (a project's entry with its repositories, the demo
+// settings), written down per tab as it changes, so that it outlives
 // closing the dialog and a page load: Seismic's restart, say, which reloads the page mid-edit.
 
 type Store = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
-/** The dialog's drafts that are saved with a button of their own. */
-export type ConfigDraftName = 'projects' | 'demo';
+/** The drafts that are saved with a button of their own: the demo settings, a project's entry in its settings sheet. */
+export type ConfigDraftName = 'demo' | `project:${string}`;
 
 const key = (name: ConfigDraftName) => `seismic-config-draft-${name}`;
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);

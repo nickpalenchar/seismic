@@ -5,6 +5,7 @@ import { clampWidth, loadWidths, saveWidths, widthsIn, SHEET_W, type SheetWidths
 import { t } from './strings';
 import { DockPolicy } from './docked';
 import { CloseButton } from './components/button';
+import { leave } from './leaving';
 
 export type DockId = 'seismic' | 'plan' | 'plan-doc' | 'needs-you' | 'agents' | 'settings';
 export interface DockView {
@@ -27,7 +28,9 @@ export function useDock(initial: DockId | null) {
   const [active, render] = useState(initial);
   const ref = useRef(active);
   const registry = useRef<DockView[]>([]);
-  const select = (id: DockId | null) => { ref.current = id; render(id); };
+  const selectNow = (id: DockId | null) => { ref.current = id; render(id); };
+  // what closes or replaces the open view waits for an unsaved draft in it (`leaving`)
+  const select = (id: DockId | null) => (id === ref.current ? selectNow(id) : leave(() => selectNow(id)));
   const view = (id: DockId) => [active === id, (on: boolean) => {
     if (on) select(id);
     else if (ref.current === id) select(null);

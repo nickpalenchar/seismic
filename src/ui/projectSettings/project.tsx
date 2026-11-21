@@ -5,7 +5,7 @@
 // repository added or removed starts or stops agents, so it applies once the owner says so. The whole
 // configuration is checked (`POST /api/config/check`) and saved (`PUT /api/config`) with it.
 
-import { useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { blockingProblems, type ConfigChecked, type ConfigView, type FilledClones, type ProjectConfig, restartsAgents, withClones } from '../../core/types';
 import { api } from '../api';
 import { projectPath, goTo } from '../address';
@@ -16,6 +16,8 @@ import { ConfirmDialog } from '../components/dialog';
 import { Tooltip } from '../components/tooltip';
 import { statusClass } from '../setupClasses';
 import { qmovesClass } from '../queue';
+import { keepConfigDraft, keptConfigDraft } from '../configDraft';
+import { holdLeaving } from '../leaving';
 import { cn } from 'cn';
 
 type Checked = Pick<ConfigChecked, 'resolved' | 'problems'>;
@@ -55,7 +57,8 @@ function useProjectEntry(project: string | null, on: boolean) {
     const at = saved.resolved.findIndex((r) => r?.id === project);
     if (at < 0) return setStatus(t.projectSettings.notResolved);
     setLoaded({ view, at, saved, entry: view.projects[at]! });
-    setEntry(view.projects[at]!);
+    // an edit not saved yet comes back, after a reload too (Seismic's restart), while what it was made on is as saved
+    setEntry(keptConfigDraft<ProjectConfig>(sessionStorage, `project:${project}`, view.projects[at]!) ?? view.projects[at]!);
   };
   useEffect(() => {
     if (!on) return;
@@ -82,6 +85,10 @@ function useProjectEntry(project: string | null, on: boolean) {
     if (!all || !changed) return void ++seq.current;
     const h = setTimeout(() => void check(all), 300);
     return () => clearTimeout(h);
+  }, [JSON.stringify(entry), loaded]);
+  // the edit is written down as it changes, and forgotten once it is as saved
+  useEffect(() => {
+    if (project !== null && loaded && entry) keepConfigDraft(sessionStorage, `project:${project}`, entry, loaded.entry);
   }, [JSON.stringify(entry), loaded]);
   const shown = changed ? checked : (loaded?.saved ?? null);
   const at = loaded?.at ?? 0;
@@ -144,6 +151,52 @@ function useProjectEntry(project: string | null, on: boolean) {
 
 type Entry = ReturnType<typeof useProjectEntry>;
 
+/**
+ * While `unsaved`, whatever would leave the draft (Back, another sheet, another project) asks first:
+ * "Stay" keeps it, "Discard and close" drops it (`discard`) and goes on. Returns the question, to render,
+ * `ask`, for a leaving of the draft's own (its pop-up's Cancel), and `release`, once it is saved.
+ */
+function useLeaveGuard(unsaved: boolean, discard: () => void): [ReactNode, (proceed: () => void) => void, () => void] {
+  const [asking, setAsking] = useState<(() => void) | null>(null);
+  const ask = (proceed: () => void) => setAsking(() => proceed);
+  const held = useRef<(() => void) | null>(null);
+  const release = () => {
+    held.current?.();
+    held.current = null;
+  };
+  useEffect(() => {
+    if (!unsaved) return;
+    held.current = holdLeaving((proceed) => (ask(proceed), true));
+    return release;
+  }, [unsaved]);
+  const l = t.projectSettings;
+  const question = (
+    <ConfirmDialog
+      open={!!asking}
+      onOpenChange={(o) => !o && setAsking(null)}
+      title={l.unsavedTitle}
+      className="cs-unsaved"
+      confirm={{
+        label: l.discardClose,
+        variant: 'warning',
+        className: 'cs-discard',
+        onClick: () => {
+          const go = asking;
+          setAsking(null);
+          discard();
+          // discarded: what goes on asks nothing more of it
+          release();
+          go?.();
+        },
+      }}
+      cancel={l.stay}
+    >
+      <p className="hint mt-0">{l.unsavedText}</p>
+    </ConfirmDialog>
+  );
+  return [question, ask, release];
+}
+
 /** The entry's fields: its name, old names and repositories, with the problems of the project and of the configuration as a whole. */
 function EntryFields({ e, pin }: { e: Entry; pin?: string }) {
   if (!e.loaded || !e.entry) return e.status ? null : <p className="hint">{t.config.loading}</p>;
@@ -174,6 +227,10 @@ function EntryFields({ e, pin }: { e: Entry; pin?: string }) {
 /** "Configuration" in the project's settings sheet: its entry, saved with its button, and its place in the list of projects. */
 export function ProjectEntrySection({ project, on }: { project: string; on: boolean }) {
   const e = useProjectEntry(project, on);
+  const [question] = useLeaveGuard(e.changed, () => {
+    e.reset();
+    keepConfigDraft(sessionStorage, `project:${project}`, null, null);
+  });
   const l = t.projectSettings;
   const c = t.config;
   const n = e.loaded?.view.projects.length ?? 0;
@@ -209,6 +266,7 @@ export function ProjectEntrySection({ project, on }: { project: string; on: bool
         </div>
       )}
       {e.status && <p className={`hint ${statusClass}`}>{e.status}</p>}
+      {question}
     </div>
   );
 }
@@ -217,10 +275,15 @@ export function ProjectEntrySection({ project, on }: { project: string; on: bool
 export function NewProjectDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const e = useProjectEntry(null, open);
   const l = t.projectSettings;
+  // something typed in: closing the pop-up (Cancel, Esc) or leaving the page asks first
+  const typed = open && !!e.entry && !!e.loaded && JSON.stringify(e.entry) !== JSON.stringify(e.loaded.entry);
+  const [question, ask, release] = useLeaveGuard(typed, () => {});
   const ready = !!e.entry && e.entry.repos.some((r) => r.path.trim()) && !!e.shown && !e.blocking.length && !e.busy;
   const create = async () => {
     const made = await e.save();
     if (!made) return;
+    // made: nothing is lost by going to it
+    release();
     onClose();
     if (!made.id) return;
     // a restart reloads the page by itself; the new project's page is where it comes back
@@ -230,7 +293,7 @@ export function NewProjectDialog({ open, onClose }: { open: boolean; onClose: ()
   return (
     <ConfirmDialog
       open={open}
-      onOpenChange={(o) => !o && onClose()}
+      onOpenChange={(o) => !o && (typed ? ask(onClose) : onClose())}
       title={l.newProject}
       className="cs-new-project w-[min(560px,100%)] [&_.c-row]:block [&_.c-row>*]:max-w-full"
       confirm={{ label: l.create, className: 'cs-create', keepOpen: true, disabled: !ready, onClick: () => void create() }}
@@ -240,6 +303,7 @@ export function NewProjectDialog({ open, onClose }: { open: boolean; onClose: ()
       <p className="hint mt-0">{l.newProjectHint}</p>
       <EntryFields e={e} />
       {e.status && <p className={`hint ${statusClass}`}>{e.status}</p>}
+      {question}
     </ConfirmDialog>
   );
 }

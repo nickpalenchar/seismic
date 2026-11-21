@@ -23,12 +23,12 @@ test('the projects keep their draft with the ids they had, and each draft its ow
   const of = (k: K) => k.draft;
   const saved = [{ name: 'seismic' }];
   const k: K = { draft: [{ name: 'Seismic' }], origin: ['seismic'] };
-  keepConfigDraft(s, 'projects', k, saved, of);
+  keepConfigDraft(s, 'project:shop', k, saved, of);
   expect(keptConfigDraft(s, 'demo', {})).toBeNull();
-  expect(keptConfigDraft<K>(s, 'projects', saved, of)).toEqual(k);
+  expect(keptConfigDraft<K>(s, 'project:shop', saved, of)).toEqual(k);
   // put back as saved: forgotten
-  keepConfigDraft(s, 'projects', { draft: saved, origin: ['seismic'] }, saved, of);
-  expect(keptConfigDraft<K>(s, 'projects', saved, of)).toBeNull();
+  keepConfigDraft(s, 'project:shop', { draft: saved, origin: ['seismic'] }, saved, of);
+  expect(keptConfigDraft<K>(s, 'project:shop', saved, of)).toBeNull();
 });
 
 test('a Qwen3 voice is a clone for a built-in speaker or a sample of the narration language', async () => {

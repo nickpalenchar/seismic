@@ -32,6 +32,8 @@ const buttonVariants = cva(
         /** confirming a wontfix: closing the card without a change, in green */
         success: 'bg-approved text-approved-foreground',
         'review-warning': 'bg-amber-300 text-amber-950 shadow-[inset_0_0_0_1px_var(--color-amber-600)]',
+        /** going on at a loss (discarding what is unsaved), in yellow */
+        warning: 'bg-amber-300 text-amber-950 shadow-[inset_0_0_0_1px_var(--color-amber-600)] hover:not-disabled:bg-amber-300/90',
         /** the icon alone until hovered */
         ghost: 'bg-transparent text-muted-foreground hover:not-disabled:bg-accent hover:not-disabled:text-accent-foreground dark:hover:not-disabled:bg-accent/50',
         /** blue and underlined, inline in text */

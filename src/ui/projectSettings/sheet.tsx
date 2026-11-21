@@ -34,6 +34,7 @@ import { pathClass, statusClass } from '../setupClasses';
 import { AgentChoice, AgentModels, type Catalogs, chosen } from './models';
 import { type ProjectRepos, useProjectRepos } from './repos';
 import { ProjectEntrySection } from './project';
+import { leave } from '../leaving';
 import { onSettingsFocus, SECTIONS, type Section, type SettingsFocus, takeSettingsFocus } from './focus';
 import { cn } from 'cn';
 
@@ -129,11 +130,14 @@ export function ProjectSettingsBody({ project, name, homePath, on, covered, onAd
     const resolved = repos.view?.resolved;
     if (!jump || !resolved || resolved.id !== project) return;
     setJump(null);
-    const i = resolved.repos.findIndex((r) => r?.id === jump.repo);
-    if (i >= 0) setRepoAt(i);
-    setOpen(jump.section ?? null);
-    setMark(jump.field ?? null);
-    const h = setTimeout(() => setMark(null), 2400);
+    let h: ReturnType<typeof setTimeout> | undefined;
+    leave(() => {
+      const i = resolved.repos.findIndex((r) => r?.id === jump.repo);
+      if (i >= 0) setRepoAt(i);
+      setOpen(jump.section ?? null);
+      setMark(jump.field ?? null);
+      h = setTimeout(() => setMark(null), 2400);
+    });
     return () => clearTimeout(h);
   }, [jump, repos.view, project]);
   const l = t.projectSettings;
@@ -152,10 +156,12 @@ export function ProjectSettingsBody({ project, name, homePath, on, covered, onAd
     setBusy(false);
   };
   const choose = (role: AgentRole, change: Partial<ProjectAgents[AgentRole]> | null) => save({ agents: chosen(view!.settings.agents, role, change) });
-  const shown = (s: Section | null) => {
-    if (s === null) setBack(open);
-    setOpen(s);
-  };
+  // Back (or another section) leaves the one open: an unsaved draft in it asks first
+  const shown = (s: Section | null) =>
+    leave(() => {
+      if (s === null) setBack(open);
+      setOpen(s);
+    });
   const said = status || repos.status;
   return (
     <>

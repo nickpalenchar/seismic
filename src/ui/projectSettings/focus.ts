@@ -44,6 +44,12 @@ export function takeSettingsFocus(project: string): SettingsFocus | null {
   return f;
 }
 
+/** Whether the sheet of `project` is to open at a place: the page of that project opens it as it loads, after a jump from another project's. */
+export function settingsFocusWaits(project: string): boolean {
+  const kept = sessionStorage.getItem(FOCUS_KEY);
+  return !!kept && (JSON.parse(kept) as SettingsFocus).project === project;
+}
+
 /** Calls `on` whenever a place to open at is asked for while the sheet is up. */
 export function onSettingsFocus(on: () => void) {
   window.addEventListener(FOCUS_EVENT, on);
