@@ -10,7 +10,7 @@ import { forwardRef, Fragment, lazy, type ReactNode, Suspense, useContext, useEf
 import { OpenPerformance } from './performance';
 import { allowsDemo, HANDOVER_ARTIFACTS } from '../../plugin/skills/demo/lib/artifacts.ts';
 import { DEFAULT_STYLE, QWEN3_SPEAKER, QWEN3_SPEAKERS, qwen3IsClone, qwen3Speaker, STYLED_VOICES } from '../../plugin/skills/demo/lib/voice-choices.ts';
-import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_ROLES, agyBaseChoice, modelEffort, modelEfforts, harnessChoice, needsGit, projectAgentSetting, CARD_ARCHIVING, type CardArchiving, RIGHT_CLICK, type RightClick, CODE_REVIEW_MODES, type CodeReviewSetting, type AgentEffort, type AgentModel, type AgentRole, type AgentSetting, type ModelInfo, type Harness, type AgentsView, type ProjectConfig, type ProjectDefaults, type ProjectDefaultsView, type ProjectSettings, type ConfigChecked, type DeveloperView, type ConfigProblem, type ConfigProblemCode, type ConfigView, commandLines, type DemoSettings, type HandoverArtifact, type DemoSettingsView, type DemoSpaceView, type DemoVoiceCheck, type ProjectDemoSite, type ProjectDemoSiteState, type DemoSitesView, type TagProposalJob, type Language, type HostConfig, type LanguageView, type NarrationLanguage, type RepoConfig, type RepoSettings, type RepoTrust, type RepoValues, type ResolvedProject, type SettingsShared, type SettingValue, layerSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type PageTags, type SetupCheck, START_FAILED, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type FeedbackPromptView, type NotificationsView, type VoiceKind, type VoiceSetupView } from '../core/types';
+import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_ROLES, agyBaseChoice, modelEffort, modelEfforts, harnessChoice, needsGit, projectAgentSetting, CARD_ARCHIVING, type CardArchiving, RIGHT_CLICK, type RightClick, CODE_REVIEW_MODES, type CodeReviewSetting, type AgentEffort, type AgentModel, type AgentRole, type AgentSetting, type ModelInfo, type Harness, type AgentsView, type ProjectDefaults, type ProjectDefaultsView, type ProjectSettings, type ConfigChecked, type DeveloperView, type ConfigProblem, type ConfigProblemCode, type ConfigView, commandLines, type DemoSettings, type HandoverArtifact, type DemoSettingsView, type DemoSpaceView, type DemoVoiceCheck, type ProjectDemoSite, type ProjectDemoSiteState, type DemoSitesView, type TagProposalJob, type Language, type HostConfig, type LanguageView, type NarrationLanguage, type RepoConfig, type RepoSettings, type RepoTrust, type RepoValues, type ResolvedProject, type SettingsShared, type SettingValue, layerSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type PageTags, type SetupCheck, START_FAILED, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type FeedbackPromptView, type NotificationsView, type VoiceKind, type VoiceSetupView } from '../core/types';
 import { catalogDefault, DefaultEffort, HarnessOptions, ModelOptions, useConnectedHarnesses } from './agent-options';
 import { patchOf } from '../core/diff';
 import { parseTagLines, tagLines } from '../core/page-tags';
@@ -56,6 +56,7 @@ import { Select, SelectGroup, SelectItem, SelectLabel } from './components/selec
 import { type GithubAdd, GithubSetup, PublishMode } from './githubSite';
 import { cn } from 'cn';
 import * as K from './configClasses';
+import type { EntryDraft } from './projectSettings/entry';
 
 declare global {
   interface Window {
@@ -1988,7 +1989,7 @@ interface ProjectProps {
   n: number;
   /** Opens the configuration of a project named by a problem, where it has a running page. */
   showProject: (n: number) => (() => void) | undefined;
-  project: ProjectConfig;
+  project: EntryDraft;
   /** The repositories are being checked: their ids and settings are still to come. */
   checking: boolean;
   resolved: ConfigChecked['resolved'][number];
@@ -1999,7 +2000,7 @@ interface ProjectProps {
   /** Has the Koordinator create a task that fixes a problem; only for the configuration as saved, which is what it reads. */
   ask?: Ask;
   onRecheck: () => Promise<void>;
-  onChange: (c: ProjectConfig) => void;
+  onChange: (c: EntryDraft) => void;
 }
 
 /**
@@ -2045,7 +2046,10 @@ export function ProjectBlock({ n, project, checking, resolved, running, pin, pro
   // the Koordinator of the project with the problem, where it runs: a card for it goes there
   const askHere = ask && ((text: string) => ask(text, resolved && running.includes(resolved.id) ? resolved.id : undefined));
   const here = t.config.project(n + 1);
-  const setRepo = (i: number, r: RepoConfig | null) => onChange({ ...project, repos: r ? project.repos.map((x, j) => (j === i ? r : x)) : project.repos.filter((_, j) => j !== i) });
+  const setRepo = (i: number, r: RepoConfig | null) => onChange({
+    ...project,
+    repos: r ? project.repos.map((x, j) => j === i ? { ...r, originalPath: x.originalPath } : x) : project.repos.filter((_, j) => j !== i),
+  });
   // the repository shown: the home one at first
   const [tab, setAt] = useState(0);
   const at = Math.min(tab, project.repos.length - 1);
@@ -2119,7 +2123,7 @@ export function ProjectBlock({ n, project, checking, resolved, running, pin, pro
           <Button
             size="small"
             onClick={() => {
-              onChange({ ...project, repos: [...project.repos, { path: '' }] });
+              onChange({ ...project, repos: [...project.repos, { path: '', originalPath: null }] });
               setAt(project.repos.length);
             }}
           >

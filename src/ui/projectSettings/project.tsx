@@ -18,7 +18,7 @@ import { statusClass } from '../setupClasses';
 import { qmovesClass } from '../queue';
 import { keepConfigDraft, keptConfigDraft } from '../configDraft';
 import { holdLeaving, leave } from '../leaving';
-import { mergedEntry, withEntry } from './entry';
+import { entryDraft, type EntryDraft, mergedEntry, withEntry } from './entry';
 import { showSettingsAt } from './focus';
 import { cn } from 'cn';
 
@@ -29,7 +29,7 @@ interface Loaded {
   at: number;
   saved: ConfigChecked | null;
   /** The entry as saved, or a new one with Project defaults. */
-  entry: ProjectConfig;
+  entry: EntryDraft;
 }
 
 /**
@@ -38,7 +38,7 @@ interface Loaded {
  */
 function useProjectEntry(project: string | null, on: boolean) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
-  const [entry, setEntry] = useState<ProjectConfig | null>(null);
+  const [entry, setEntry] = useState<EntryDraft | null>(null);
   const [checked, setChecked] = useState<{ result: ConfigChecked; at: number } | null>(null);
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
@@ -50,7 +50,7 @@ function useProjectEntry(project: string | null, on: boolean) {
     const view = await api.config();
     if (project === null) {
       const defaults = await api.projectDefaults();
-      const entry: ProjectConfig = { ...structuredClone(defaults.defaults ?? {}), repos: [{ path: '' }] };
+      const entry = entryDraft({ ...structuredClone(defaults.defaults ?? {}), repos: [{ path: '' }] }, null);
       setLoaded({ view, at: view.projects.length, saved: null, entry });
       setEntry(entry);
       return;
@@ -58,9 +58,11 @@ function useProjectEntry(project: string | null, on: boolean) {
     const saved = await api.configCheck();
     const at = saved.resolved.findIndex((r) => r?.id === project);
     if (at < 0) return setStatus(t.projectSettings.notResolved);
-    setLoaded({ view, at, saved, entry: view.projects[at]! });
-    // an edit not saved yet comes back, after a reload too (Seismic's restart), while what it was made on is as saved
-    setEntry(keptConfigDraft<ProjectConfig>(sessionStorage, `project:${project}`, view.projects[at]!) ?? view.projects[at]!);
+    const original = saved.projects[at]!;
+    const baseline = entryDraft(original);
+    setLoaded({ view: { ...view, projects: saved.projects }, at, saved, entry: baseline });
+    const kept = keptConfigDraft<ProjectConfig>(sessionStorage, `project:${project}`, baseline);
+    setEntry(kept ? entryDraft(kept, original) : baseline);
   };
   useEffect(() => {
     if (!on) return;
@@ -70,27 +72,47 @@ function useProjectEntry(project: string | null, on: boolean) {
     load().catch((e) => setStatus(failText(e)));
   }, [on, project]);
 
-  const all = loaded && entry ? withEntry(loaded.view.projects, loaded.at, entry) : null;
-  const changed = !!loaded && !!entry && (project === null || JSON.stringify(entry) !== JSON.stringify(loaded.entry));
-  const pending = changed && checkedOf !== JSON.stringify(entry);
-  // checked as it is edited; as saved, it has the check of the saved configuration
+  const serialized = JSON.stringify(entry);
+  const changed = !!loaded && !!entry && (project === null || serialized !== JSON.stringify(loaded.entry));
+  const pending = changed && checkedOf !== serialized;
+  /** Read the latest entries and resolve the project index from the same configuration. */
+  const fresh = async () => {
+    if (project === null) {
+      const { projects } = await api.config();
+      return { projects, at: projects.length };
+    }
+    const { projects, resolved } = await api.configCheck();
+    const at = resolved.findIndex((r) => r?.id === project);
+    return at < 0 ? null : { projects, at };
+  };
+  // The preview and save both validate the path with the current repository settings.
   const seq = useRef(0);
-  const check = (projects: ProjectConfig[]) => {
+  const check = async (draft: EntryDraft) => {
     const n = ++seq.current;
-    const of = JSON.stringify(projects[loaded?.at ?? 0]);
-    return api.checkConfig(projects).then((c) => {
-      if (n !== seq.current || !loaded) return;
-      setChecked({ result: c, at: loaded.at });
-      setCheckedOf(of);
-      const next = withClones(projects, loaded.view.projects, c.resolved, filled.current);
-      if (next) setEntry(next[loaded.at]!);
-    }, console.error);
+    try {
+      const now = await fresh();
+      if (!now || n !== seq.current) return;
+      const candidate = mergedEntry(draft, now.projects[now.at]);
+      const result = await api.checkConfig(withEntry(now.projects, now.at, candidate));
+      if (n !== seq.current) return;
+      setChecked({ result, at: now.at });
+      setCheckedOf(JSON.stringify(draft));
+      // A changed path still belongs to an existing row. Only new rows get a default clone count.
+      const known = draft.repos.filter((r) => r.originalPath !== null);
+      const next = withClones([candidate], [...now.projects, { repos: known }], [result.resolved[now.at] ?? null], filled.current);
+      if (next) setEntry({ ...draft, repos: draft.repos.map((r, i) => r.originalPath === null ? { ...next[0]!.repos[i]!, originalPath: null } : r) });
+    } catch (e) {
+      if (n === seq.current) console.error(e);
+    }
   };
   useEffect(() => {
-    if (!all || !changed) return void ++seq.current;
-    const h = setTimeout(() => void check(all), 300);
-    return () => clearTimeout(h);
-  }, [JSON.stringify(entry), loaded]);
+    if (!on || !entry || !changed) return;
+    const h = setTimeout(() => void check(entry), 300);
+    return () => {
+      clearTimeout(h);
+      ++seq.current;
+    };
+  }, [on, serialized, loaded]);
   // the edit is written down as it changes, and forgotten once it is as saved
   useEffect(() => {
     if (project !== null && loaded && entry) keepConfigDraft(sessionStorage, `project:${project}`, entry, loaded.entry);
@@ -100,16 +122,6 @@ function useProjectEntry(project: string | null, on: boolean) {
   const problems = shown?.problems ?? [];
   const blocking = shown ? blockingProblems(problems, (i) => i === at) : [];
 
-  /**
-   * The configuration as saved now, and the entry's place in it: the one it was read with may be
-   * behind (the sheet's other sections save as they are changed), so a save goes over the fresh one.
-   */
-  const fresh = async () => {
-    const view = await api.config();
-    if (project === null) return { view, at: view.projects.length };
-    const at = (await api.configCheck()).resolved.findIndex((r) => r?.id === project);
-    return at < 0 ? null : { view, at };
-  };
   /** Saves the configuration with the entry; says whether it applies without a restart, and the id the project has. */
   const save = async (): Promise<{ id: string | null; restarting: boolean } | null> => {
     if (!entry || !loaded) return null;
@@ -121,7 +133,7 @@ function useProjectEntry(project: string | null, on: boolean) {
         setStatus(t.projectSettings.notResolved);
         return null;
       }
-      const list = withEntry(now.view.projects, now.at, now.at < now.view.projects.length ? mergedEntry(entry, now.view.projects[now.at]!) : entry);
+      const list = withEntry(now.projects, now.at, mergedEntry(entry, now.projects[now.at]));
       // checked as it goes, not as it was a moment ago: the id the project gets is this check's, and a problem the edit just made holds the save
       const c = await api.checkConfig(list);
       ++seq.current;
@@ -136,7 +148,7 @@ function useProjectEntry(project: string | null, on: boolean) {
         if (!restarting) await load();
       }
       const s = t.config;
-      setStatus(restarting ? s.saved : applied ? (restartsAgents(now.view.projects, list) ? s.savedRestarts : s.savedApplied) : s.savedOnly);
+      setStatus(restarting ? s.saved : applied ? (restartsAgents(now.projects, list) ? s.savedRestarts : s.savedApplied) : s.savedOnly);
       const id = c.resolved[now.at]?.id ?? project;
       return { id, restarting };
     } catch (e) {
@@ -153,7 +165,7 @@ function useProjectEntry(project: string | null, on: boolean) {
     try {
       const now = await fresh();
       if (!now) return setStatus(t.projectSettings.notResolved);
-      const list = [...now.view.projects];
+      const list = [...now.projects];
       const to = earlier ? now.at - 1 : now.at + 1;
       if (to < 0 || to >= list.length) return;
       list.splice(to, 0, ...list.splice(now.at, 1));
@@ -181,7 +193,7 @@ function useProjectEntry(project: string | null, on: boolean) {
     move,
     reset: () => loaded && setEntry(loaded.entry),
     recheck: async () => {
-      if (all) await check(all);
+      if (entry) await check(entry);
     },
   };
 }
