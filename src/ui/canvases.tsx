@@ -22,7 +22,7 @@ import { useStoredState } from './stored';
 import { failText, t } from './strings';
 import { Button, buttonVariants, CloseButton } from './components/button';
 import { ConfirmDialog, Dialog, DialogContent, DialogTitle } from './components/dialog';
-import { leaveMenu, Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from './components/menu';
+import { leaveMenu, Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from './components/menu';
 import { Popover, PopoverAnchor, PopoverContent } from './components/popover';
 import { Tabs, TabsList, TabsTrigger } from './components/tabs';
 import { Tooltip } from './components/tooltip';
@@ -569,14 +569,6 @@ export function CardMore({ item, floating, onClose }: { item: Item; floating?: b
             onClose();
           }}
         >
-          {actions && (canPark || parked) && (
-            <MenuItem title={canPark ? t.parking.parkHint : undefined} onSelect={() => (stopsToPark ? (leaveMenu(), setConfirm(true)) : parking(canPark ? 'park' : 'unpark'))}>
-              <span className={loptClass}>
-                <Car size={14} aria-hidden />
-                {canPark ? t.parking.park : t.parking.unpark}
-              </span>
-            </MenuItem>
-          )}
           {actions && others.length > 0 && !parked && <MenuLabel>{t.canvases.moveTo}</MenuLabel>}
           {actions && !parked && others.map((c) => (
             <MenuItem key={c.id} onSelect={() => (leaveMenu(), move(item, c))}>
@@ -586,6 +578,15 @@ export function CardMore({ item, floating, onClose }: { item: Item; floating?: b
               </span>
             </MenuItem>
           ))}
+          {actions && (canPark || parked) && (
+            <MenuItem title={canPark ? t.parking.parkHint : undefined} onSelect={() => (stopsToPark ? (leaveMenu(), setConfirm(true)) : parking(canPark ? 'park' : 'unpark'))}>
+              <span className={loptClass}>
+                <Car size={14} aria-hidden />
+                {canPark ? t.parking.park : t.parking.unpark}
+              </span>
+            </MenuItem>
+          )}
+          {onClose && (canPark || parked || (actions && others.length > 0 && !parked)) && <MenuSeparator />}
           {onClose && (
             <MenuItem onSelect={onClose}>
               <span className={cn(loptClass, 'w-full')}>

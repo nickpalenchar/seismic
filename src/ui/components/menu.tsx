@@ -120,3 +120,8 @@ export function MenuCheckboxItem({ className, children, ...props }: ComponentPro
 export function MenuLabel({ className, ...props }: ComponentProps<typeof DropdownMenu.Label>) {
   return <DropdownMenu.Label data-slot="dropdown-menu-label" className={cn('px-2 pt-1.5 pb-1 text-2xs text-muted-foreground', className)} {...props} />;
 }
+
+/** A thin rule between groups of entries. */
+export function MenuSeparator({ className, ...props }: ComponentProps<typeof DropdownMenu.Separator>) {
+  return <DropdownMenu.Separator data-slot="dropdown-menu-separator" className={cn('-mx-1 my-1 h-px bg-border', className)} {...props} />;
+}
