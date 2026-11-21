@@ -69,3 +69,10 @@ export function isCanvasIcon(icon: string): boolean {
   // one grapheme that is a pictograph (with its modifiers and joiners) or a flag (two regional indicators)
   return graphemes.length === 1 && (/\p{Extended_Pictographic}/u.test(icon) || /^\p{Regional_Indicator}{2}$/u.test(icon)) && !/[\p{L}\p{N}\s]/u.test(icon.replace(/[⃣️\p{Extended_Pictographic}]/gu, ''));
 }
+
+/** A random curated Lucide icon in a random palette colour, for a canvas made without the owner choosing one. */
+export function randomCanvasIcon(): string {
+  const names = CANVAS_LUCIDE_ICONS;
+  const colors = Object.keys(CANVAS_ICON_COLORS) as CanvasIconColor[];
+  return lucideIconValue(names[Math.floor(Math.random() * names.length)]!, colors[Math.floor(Math.random() * colors.length)]!);
+}

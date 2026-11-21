@@ -9,6 +9,7 @@ import { Car, Clock, GripVertical, MoreHorizontal, Pencil, Plus, Trash2, X } fro
 import type { Bounds } from '../core/layout';
 import { type Canvas, CANVAS_NAME_MAX, canvasNameProblem, type Item, MAIN_CANVAS, parkable, parkableStopping, inParkingLot, offCanvas } from '../core/types';
 import { api } from './api';
+import { randomCanvasIcon } from '../core/canvas-icons';
 import { CanvasIcon, canvasText } from './canvasIcon';
 import { IconPicker, type IconPickerView, pickerLabel as cdLabel } from './iconPicker';
 import { depLineClass } from './depsClasses';
@@ -414,7 +415,9 @@ interface CanvasDraft extends IconPickerView {
 export function CanvasDialog({ project, canvases, canvas, onClose, onDone }: { project: string; canvases: Canvas[]; canvas?: Canvas; onClose: () => void; onDone: (c: Canvas) => void }) {
   const [draft, setDraft] = useStoredState<CanvasDraft | null>(`seismic-canvas-draft-${project}-${canvas?.id ?? 'new'}`, null);
   const name = draft?.name ?? canvas?.name ?? '';
-  const icon = draft ? draft.icon : (canvas?.icon ?? null);
+  // a new canvas starts with a random icon, kept while the dialog is open; "No icon" still takes it away
+  const [randomIcon] = useState(() => (canvas ? null : randomCanvasIcon()));
+  const icon = draft ? draft.icon : (canvas?.icon ?? randomIcon);
   const set = (p: Partial<CanvasDraft>) => setDraft({ ...draft, name, icon, ...p });
   const [touched, setTouched] = useState(!!draft?.name);
   const [failed, setFailed] = useState<string>();
