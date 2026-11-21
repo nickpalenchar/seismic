@@ -7,7 +7,7 @@
  */
 import type { AgentRole } from '../../../core/types';
 import type { AgentRuntime, AgentTool } from '../../runtime';
-import type { AgentPermission, SessionOptions } from './types';
+import type { AgentNeeds, AgentPermission, SessionOptions } from './types';
 import { SeismicAgent } from './seismicAgent';
 
 /** Where a job's session runs and shows, and how it takes the account's usage limit. */
@@ -23,6 +23,8 @@ export interface JobRun {
 
 export abstract class SeismicJob extends SeismicAgent<void> {
   readonly role: AgentRole = 'chores';
+  /** What the job needs of its model, which the harness checks; a job that reads screenshots only as a help says `{ images: 'optional' }`. */
+  readonly needs: AgentNeeds = {};
   /** Set while the job runs: ends it, answering a tool call with `r`. */
   protected finish: (r: string) => string = (r) => r;
 
@@ -32,6 +34,10 @@ export abstract class SeismicJob extends SeismicAgent<void> {
 
   override getPermissionMode(): AgentPermission {
     return 'readOnly';
+  }
+
+  override getNeeds() {
+    return Object.keys(this.needs).length ? this.needs : undefined;
   }
 
   /** The brief the session reads. */

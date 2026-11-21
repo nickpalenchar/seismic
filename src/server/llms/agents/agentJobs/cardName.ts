@@ -1,0 +1,77 @@
+/**
+ * Names a card the owner left without a title: a read-only session reads the task and its
+ * screenshots and gives a title, with the labels left to suggest in the same call. The screenshots
+ * are a help: on a model that cannot read images the session goes on from the text.
+ */
+import { z } from 'zod';
+import type { Label, Labels } from '../../../../core/labels';
+import type { AgentRuntime, AgentTool } from '../../../runtime';
+import { nameSystem } from '../../prompts/nameSystem';
+import { labelParams, labelsFrom, labelWords } from '../../skills/labelSuggestion';
+import { type JobRun, SeismicJob } from '../seismicJob';
+
+export interface NameRun {
+  runtime: AgentRuntime;
+  /** Where the session reads. */
+  cwd: string;
+  /** The language of the title, and any labels. */
+  language: string;
+  /** The labels to judge in the same call. */
+  asked: Label[];
+  /** The card's text; empty where the task is in the screenshots alone. */
+  task: string;
+  /** The owner's standing preferences, added to the instructions. */
+  preferences?: string;
+  images?: string[];
+  onLimit?: JobRun['onLimit'];
+}
+
+/** The naming session: what it gives is kept in `title` and `labels`. */
+class CardNameJob extends SeismicJob {
+  readonly name = 'cardName';
+  readonly description = "Gives a card the owner left without a title one, from its text and screenshots.";
+  override readonly needs = { images: 'optional' } as const;
+  title: string | null = null;
+  labels: Labels = {};
+
+  constructor(private o: Pick<NameRun, 'language' | 'asked' | 'task' | 'preferences'>) {
+    super();
+  }
+
+  getPrompt() {
+    const system = nameSystem(this.o.language, this.o.asked);
+    return this.o.preferences ? `${system}\n\n${this.o.preferences}` : system;
+  }
+
+  getBrief() {
+    return this.o.task.trim() ? `The task:\n${this.o.task.trim()}` : 'The task is in the screenshots alone (shown below).';
+  }
+
+  getJobTools(): AgentTool[] {
+    const { language, asked } = this.o;
+    return [
+      {
+        name: 'title',
+        description: `The card's title, in ${language} unless an explicit standing preference names another language${asked.length ? `, and its ${labelWords(asked)}` : ''}.`,
+        schema: { title: z.string(), ...labelParams(asked) },
+        run: (a) => {
+          if (this.title !== null) return 'Already named.';
+          this.title = String(a.title).replace(/\s+/g, ' ').trim().slice(0, 200);
+          this.labels = labelsFrom(a, asked);
+          return this.finish('Recorded. End your turn now.');
+        },
+      },
+    ];
+  }
+}
+
+/**
+ * The title and labels the session gave. A failed turn has no translation to use, so it settles
+ * with a language-neutral placeholder rather than a language inferred from the task or the owner's
+ * free-form preferences.
+ */
+export async function nameCard(o: NameRun): Promise<{ title: string; labels: Labels }> {
+  const job = new CardNameJob(o);
+  await job.run(o.runtime, { cwd: o.cwd, ...(o.images ? { images: o.images } : {}), ...(o.onLimit ? { onLimit: o.onLimit } : {}) });
+  return { title: job.title || '…', labels: job.labels };
+}

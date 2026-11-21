@@ -141,6 +141,39 @@ test('queues initial messages and images, steers while active, and waits for aut
   await until(() => wire.n === 2);
 });
 
+/** A wire whose model reads no images. */
+const blindWire = () => {
+  const wire = new Wire();
+  wire.override = (method) => (method === 'model/list' ? Promise.resolve({ data: [{ ...model, inputModalities: ['text'] }], nextCursor: null }) : undefined);
+  return wire;
+};
+
+test('screenshots a session takes only as a help are left out, and it is told, where the model cannot read images', async () => {
+  const { wire, session, events } = fixture({ needs: { images: 'optional' } }, blindWire(), null);
+  session.send('name this card', [join(tmpdir(), 'screen.png')]);
+  await until(() => wire.calls.some((c) => c.method === 'turn/start'));
+  const input = wire.calls.find((c) => c.method === 'turn/start')!.params.input as { type: string; text?: string }[];
+  expect(input.map((i) => i.type)).toEqual(['text']);
+  expect(input[0]!.text).toContain('name this card');
+  expect(input[0]!.text).toContain('cannot read images');
+  expect(events.some((e) => e.type === 'error')).toBe(false);
+});
+
+test('a session that needs images ends with an error, naming that, where the model cannot read them', async () => {
+  const { wire, session, events } = fixture({ needs: { images: 'required' } }, blindWire(), null);
+  session.send('describe this', [join(tmpdir(), 'screen.png')]);
+  await until(() => events.some((e) => e.type === 'error'));
+  expect(events.find((e) => e.type === 'error')).toMatchObject({ message: expect.stringContaining('which this session needs') });
+  expect(wire.calls.some((c) => c.method === 'turn/start')).toBe(false);
+});
+
+test('without a declared need, images to a model that cannot read them fail as before', async () => {
+  const { session, events } = fixture({}, blindWire(), null);
+  session.send('look', [join(tmpdir(), 'screen.png')]);
+  await until(() => events.some((e) => e.type === 'error'));
+  expect(events.find((e) => e.type === 'error')).toMatchObject({ message: 'Selected Codex model does not support images' });
+});
+
 test('completion before start reply does not resurrect a finished turn', async () => {
   const wire = new Wire();
   wire.override = (method) => {

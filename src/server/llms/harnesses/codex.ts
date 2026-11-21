@@ -19,6 +19,8 @@ import { answered, cleanEnv, type AgentEvent, type AgentRuntime, type AgentSpec 
 // Codex reserves mcp__ names for actual MCP servers. Keep its wire name separate from the
 // canonical identity consumed by Seismic's existing orchestration.
 const wirePrefix = 'seismic_';
+/** What a session that only takes screenshots as a help reads where its model cannot see images. */
+const IMAGES_DROPPED = 'Screenshots came with this message, but the model you run on cannot read images, so they are left out. Go on from the text alone.';
 // A resumed thread keeps the tool definitions it was started with, so a session started before the
 // rename still calls `obeya_report` and the like: those dispatch to today's tools. The execution
 // tools carried a prefix of their own then, doubled on the wire.
@@ -293,8 +295,10 @@ export function createCodexRuntime(connect: Connect = connectInstalled): AgentRu
             if (closing) break;
             const next = queue[0];
             if (!next) break;
-            if (next.images.length && !imageSupport) throw new Error('Selected Codex model does not support images');
-            const input = [{ type: 'text', text: next.text, text_elements: [] }, ...next.images.map((path) => ({ type: 'localImage', path }))];
+            // the model cannot read images: a session that only takes them as a help goes on without, and is told
+            const blind = next.images.length > 0 && !imageSupport;
+            if (blind && spec.needs?.images !== 'optional') throw new Error(spec.needs?.images === 'required' ? 'The selected Codex model does not support images, which this session needs' : 'Selected Codex model does not support images');
+            const input = [{ type: 'text', text: blind ? `${next.text}\n\n${IMAGES_DROPPED}` : next.text, text_elements: [] }, ...(blind ? [] : next.images).map((path) => ({ type: 'localImage', path }))];
             if (turn) {
               const expected = turn;
               try {

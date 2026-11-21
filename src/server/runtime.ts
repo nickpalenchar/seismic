@@ -7,7 +7,7 @@ import { endSessionsHere } from './llms/harnesses/codexRpc';
 import { agentIdentity } from './llms/harnesses/identity';
 import { allowed } from './allow-rules';
 import type { SeismicSkill } from './llms/skills/seismicSkill';
-import type { AgentPermission } from './llms/agents/types';
+import type { AgentNeeds, AgentPermission } from './llms/agents/types';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { remote } from './hosts';
@@ -117,6 +117,8 @@ export interface AgentSpec {
    * or run commands.
    */
   permission?: AgentPermission;
+  /** What the session needs of its model (`AgentNeeds`), checked by the harness once it knows which model runs. */
+  needs?: AgentNeeds;
   /** Added to the agent's environment (Seismic's own, cleaned). */
   env?: Record<string, string>;
   /** How much the model thinks; low for quick, small jobs. */

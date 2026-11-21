@@ -39,8 +39,21 @@ and `docs/design.md`, and this doc goes.
   handshake, `run()` settling with the error that ended it) for `tagProposal` (`TagProposalSession`) and `workRetro`
   (`FrictionNotesSession`, `RetroSession`); `wish` (`WishSession`) extends `SeismicAgent` since it settles on its own
   timeout and usage-limit hook. A job is built per run, so its tools keep their state in fields.
+- [x] A job names the role it runs under (`role` on the subclass: `chores` by default, `koordinator` for the
+  Koordinator's own one-shots) and what it needs of its model (`needs`, `AgentNeeds`: `{ images: 'optional' | 'required' }`).
+  The spec carries it (`AgentSpec.needs`) and the harness that knows the model enforces it: Codex, whose model list
+  names its input types, leaves optional screenshots out and tells the session, and fails a required need with an
+  error naming it; agy and Claude do not report a model's input types, so they pass images through as before.
+  The agents' next need is added only when a job really lacks it; settings could warn the owner of a role whose model
+  lacks what a job needs.
 - [ ] The Koordinator's sessions in `koordinator.ts`, `merges.ts`, `revisions.ts` and `share.ts` still call
-  `readSession` directly; they become jobs with the Koordinator (then `readSession.ts` goes).
+  `readSession` directly; they become jobs (then `readSession.ts` goes). Done: card naming (`agentJobs/cardName.ts`) and
+  the labels at a card's start (`cardLabels.ts`), their prompts in `llms/prompts/` (`nameSystem.ts`, `labelsSystem.ts`).
+  Left: the plan's dependencies, the retrospective, the learner, the two duplicate and schedule turns in `koordinator.ts`,
+  `merges.ts`, `revisions.ts`, and the two in `share.ts`.
+- [ ] Later, once an agent has jobs: `SeismicAgent.runJob(job)` so the agent that runs a job is chosen apart from the job
+  (the job names a default); `delegateJob` between agents when something needs subagents. Tools are fixed when a session
+  starts in all three harnesses, so a job always opens a session of its own.
 - [x] The code review's agent session is `ReviewerAgent` (`llms/agents/review/reviewerAgent.ts`: role `review`,
   read-only, the `review` tool, the brief); `CodeReviews` (`workerSupervisor/codeReview.ts`) stays the service that
   decides when it runs and hands in the card's state as the context.

@@ -21,7 +21,7 @@
 import type { AgentRole, AgentSetting } from '../../../core/types';
 import type { AgentEvent, AgentRuntime, AgentSession, AgentSpec, AgentTool } from '../../runtime';
 import { ownerPermission } from './permission';
-import type { AgentMcp, AgentPermission, AgentSkill, SessionOptions } from './types';
+import type { AgentMcp, AgentNeeds, AgentPermission, AgentSkill, SessionOptions } from './types';
 
 /** What a run needs from its caller. */
 export interface AgentRun {
@@ -49,6 +49,9 @@ export abstract class SeismicAgent<Ctx = void> {
    * owner's own setting).
    */
   getPermissionMode(_ctx: Ctx): AgentPermission | undefined { return ownerPermission(); }
+
+  /** What the session needs of the model it runs on; none by default. */
+  getNeeds(_ctx: Ctx): AgentNeeds | undefined { return undefined; }
   /** Appended to the harness's default system prompt. */
   abstract getPrompt(ctx: Ctx): string;
   /** The first message of a run; none lets the session start up and wait. */
@@ -64,6 +67,7 @@ export abstract class SeismicAgent<Ctx = void> {
   toSpec(ctx: Ctx, run: AgentRun): AgentSpec {
     const skills = this.getSkills(ctx);
     const permission = this.getPermissionMode(ctx);
+    const needs = this.getNeeds(ctx);
     const setting = this.getModel(ctx);
     return {
       ...this.getSessionOptions(ctx),
@@ -74,6 +78,7 @@ export abstract class SeismicAgent<Ctx = void> {
       role: this.role,
       ...(setting ? { setting } : {}),
       ...(permission ? { permission } : {}),
+      ...(needs ? { needs } : {}),
       ...(run.resume ? { resume: run.resume } : {}),
       onEvent: run.onEvent,
     };

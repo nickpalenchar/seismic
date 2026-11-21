@@ -25,6 +25,20 @@ test('a job is a read-only session of the chores role that reads its brief', () 
   expect(runtime.last.inbox).toEqual(['The question.']);
 });
 
+class Looks extends Probe {
+  override readonly role = 'koordinator' as const;
+  override readonly needs = { images: 'optional' } as const;
+}
+
+test('a job runs under the role it names, and what it needs of its model goes into the spec', () => {
+  const runtime = new FakeRuntime();
+  void new Looks().run(runtime, { cwd: '/w', images: ['/w/shot.png'] });
+  expect(runtime.last.spec).toMatchObject({ role: 'koordinator', permission: 'readOnly', needs: { images: 'optional' } });
+  const plain = new FakeRuntime();
+  void new Probe().run(plain, { cwd: '/w' });
+  expect(plain.last.spec.needs).toBeUndefined();
+});
+
 test('it settles without an error when a tool finishes it', async () => {
   const runtime = new FakeRuntime();
   const done = new Probe().run(runtime, { cwd: '/w' });

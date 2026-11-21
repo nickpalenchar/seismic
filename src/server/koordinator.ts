@@ -3,6 +3,8 @@ import { normalize, overlaps } from '../core/path-overlap';
 // merge with work in progress. It judges that from what each card will change (estimated before
 // the start) and has changed so far (files and the places in them); sharing a file is not enough.
 
+import { judgeLabels } from './llms/agents/agentJobs/cardLabels';
+import { nameCard } from './llms/agents/agentJobs/cardName';
 import { readSession } from './llms/agents/agentJobs/readSession';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
@@ -17,8 +19,6 @@ import { type CardWorkstations, type Change, RECHECK_MS, shortageOf } from './wo
 import { LANGUAGE_NAMES } from '../core/locale';
 import { clip, messageOf } from '../core/text';
 import { type Label, type Labels, suggestable, type SuggestToggles } from '../core/labels';
-import { labelParams, labelsFrom, labelsGuide, labelWords } from './llms/skills/labelSuggestion';
-import { titlesGuide } from './llms/skills/titleSuggestion';
 
 /** A workstream as the Koordinator scheduled it, in its turn's order. */
 interface Planned {
@@ -1061,34 +1061,18 @@ export class Koordinator {
     return naming;
   }
 
-  private async writeTitle(card: Item, asked: Label[]): Promise<{ title: string; labels: Labels }> {
-    let title: string | null = null;
-    let labels: Labels = {};
-    await readSession(this.o.runtime, {
+  private writeTitle(card: Item, asked: Label[]): Promise<{ title: string; labels: Labels }> {
+    return nameCard({
+      runtime: this.o.runtime,
       // a title reads as well from the home repository while the card's does not run
       cwd: card.repoDown ? this.o.home() : this.o.repoFor(card).path,
-      role: 'chores',
-      onLimit: (until, retry) => this.o.board.waitsForLimit({ card: card.id }, until, retry),
-      system: this.ownerFacing(NAME_SYSTEM(this.language, asked)),
-      tools: (finish) => [
-        {
-          name: 'title',
-          description: `The card's title, in ${this.language} unless an explicit standing preference names another language${asked.length ? `, and its ${labelWords(asked)}` : ''}.`,
-          schema: { title: z.string(), ...labelParams(asked) },
-          run: (a) => {
-            if (title !== null) return 'Already named.';
-            title = String(a.title).replace(/\s+/g, ' ').trim().slice(0, 200);
-            labels = labelsFrom(a, asked);
-            return finish('Recorded. End your turn now.');
-          },
-        },
-      ],
-      brief: card.body.trim() ? `The task:\n${card.body.trim()}` : 'The task is in the screenshots alone (shown below).',
+      language: this.language,
+      asked,
+      task: card.body,
+      preferences: this.o.board.preferencesText(),
       images: this.o.imageFiles?.(card.images) ?? [],
+      onLimit: (until, retry) => this.o.board.waitsForLimit({ card: card.id }, until, retry),
     });
-    // A failed naming turn has no translation to use. Use a language-neutral placeholder rather
-    // than inferring a language from the task or the owner's free-form preferences.
-    return { title: title || '…', labels };
   }
 
   // ---------------------------------------------------------------- labels
@@ -1120,28 +1104,8 @@ export class Koordinator {
     if (!card || nameless(card) || card.kind === 'plan' || card.repoDown) return;
     const asked = this.labelsToAsk(cardId);
     if (!asked.length) return;
-    let labels: Labels = {};
-    void readSession(this.o.runtime, {
-      cwd: this.o.repoFor(card).path,
-      role: 'chores',
-      system: LABELS_SYSTEM(asked),
-      tools: (finish) => [
-        {
-          name: 'labels',
-          description: `The card's ${labelWords(asked)}.`,
-          schema: labelParams(asked),
-          run: (a) => {
-            labels = labelsFrom(a, asked);
-            return finish('Recorded. End your turn now.');
-          },
-        },
-      ],
-      brief: [`The card's title: ${card.title.trim()}`, card.body.trim() ? `Its text:\n${card.body.trim()}` : '', card.images?.length ? 'Its screenshots are below.' : '']
-        .filter(Boolean)
-        .join('\n\n'),
-      images: this.o.imageFiles?.(card.images) ?? [],
-    })
-      .then(() => {
+    void judgeLabels({ runtime: this.o.runtime, cwd: this.o.repoFor(card).path, asked, title: card.title, body: card.body, images: this.o.imageFiles?.(card.images) ?? [] })
+      .then((labels) => {
         if (this.o.board.item(cardId)) this.o.board.suggestLabels(cardId, labels);
       })
       .catch(() => {});
@@ -1405,12 +1369,6 @@ export class Koordinator {
     return i;
   }
 }
-
-const NAME_SYSTEM = (language: string, labels: Label[] = []) =>
-  `You name a card on Seismic, a project on which the owner directs coding agents. The owner wrote the card's task (below) without a title. Give it one with the tool title, following the naming guide below, in ${language} unless an explicit standing preference names another language. The task's language does not change the title's language.${labels.length ? ` In the same call, give its ${labelWords(labels)}, judged as the labels guide below says.` : ''} Then end your turn.\n\n${titlesGuide()}${labels.length ? `\n\n${labelsGuide()}` : ''}`;
-
-const LABELS_SYSTEM = (labels: Label[]) =>
-  `You label a card on Seismic, a project on which the owner directs coding agents: its title, text and screenshots are below. Give its ${labelWords(labels)} with the tool labels, judged as the guide below says, from the card alone, without reading files. Then end your turn.\n\n${labelsGuide()}`;
 
 const SYSTEM = (language: string, merges = true) => `
 You are the Koordinator of Seismic, a project on which the owner directs coding agents; the owner knows you simply as Seismic. Several workers work at the same time, each in its own workstation, and their branches are rebased onto the main branch one after the other. Your job here: before a card starts, estimate which files it will change, and judge whether running it next to the cards in progress is likely to end in merge conflicts. Only those keep it waiting, and for a workstream of a plan what it builds on; everything else should run in parallel. Cards queued ahead of it count too: they came first and start before it, so a card likely to conflict with one of them waits behind it rather than overtaking it.
