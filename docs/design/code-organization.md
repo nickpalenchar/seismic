@@ -64,6 +64,11 @@ Represents endpoints that are registered to the server, which can be called in a
     archive and unarchive go the same way. Rejected: `PATCH { deleted: false }`, which would make the
     card's URL find deleted cards and describe a deletion two ways, and a `deletion` resource to
     `DELETE`, which reads poorly.
+  - The owner's system-level settings (decided by the owner 2026-11-21): each saves on its own at
+    `PUT /api/v1/settings/:settingName`, named as in `settings.json` (`notifications`, `usageMeter`),
+    and `PATCH /api/v1/settings` saves several at once, each as its own URL takes it. A name that is
+    no setting refuses the whole patch before anything is saved. Rejected: one PATCH for the Save
+    sections (Demo settings, the configuration) instead.
   - Params name what they stand for (`:cardId`), never a bare `:id`.
   - A card's URL names the card alone, not its project: the server finds the project from the card
     (`HttpRoute.projectOfCard`), so a call can't go to the wrong project when the page shows another.

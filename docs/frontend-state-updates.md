@@ -226,6 +226,32 @@ Typing is not disturbed by the card coming back: the title and text fields keep 
 own, which the card they get does not overwrite (`ManualTitle` in `src/ui/detail.tsx`). Checked live
 on the 600-card project: typing on through two saves kept every character, and the server held them.
 
+## System settings saves (2026-11-21)
+
+Measured on a scratch Seismic (production build) with five projects of one repository each, as the
+owner's machine has:
+
+- The single settings (`PUT /api/notifications`, `/theme`, `/motion`, `/language`, `/usage-meter`,
+  `/feedback-prompt`, `/project-defaults`, `/agents`, `/agents/codex-auto-review`,
+  `/demo-settings`) answer in 0–16 ms with the view saved, which the sheet shows. Their slowness is
+  not the server's: the notifications switch, say, has no pending state and moves only with the
+  answer (after the browser's permission prompt, when it asks).
+- The saves that rewrite the configuration are slow: the sheet's Save (`PUT /api/config`, 0.5–1.5 s
+  with nothing changed), a project's own settings (`PUT /api/c/:project/settings`, the bar's
+  sliders: about 1 s alone; three in a row answered after 0.9 s, 8 s and 16 s, as they queue), a
+  repository saved from the project sheet, and taking a setting over into a repository.
+- Where the time goes: `Config.save` checks the configuration twice (git reads of every repository,
+  about 20 ms each pass here) and applies it to every project, not only the one that changed. Each
+  project's `follow()` then tears down and sets up its plan-docs watches (`watchPlanDocs`) whether
+  or not the plan directory moved. On macOS each `fs.watch` set up blocks the server for 70–300 ms,
+  growing to 1–3 s when saves come quickly one after another (fseventsd), so the projects take
+  their turn one after the other and every other request waits meanwhile.
+- The fix is on the server, apart from moving routes: watch afresh only where the read checkout or
+  the plan directory moved, and apply a project's own settings to that project alone.
+- The single settings moved to `/api/v1/settings/:settingName` (and `PATCH /api/v1/settings` for
+  several). Their switches show the new position at once, disabled with a spinner until the answer
+  comes (`SavingSwitch`); theme and motion already showed it at once.
+
 ## Open questions
 
 - Which of smells 2–4 and 9–10 costs the most time in a slow interaction (a card patch or archive)?

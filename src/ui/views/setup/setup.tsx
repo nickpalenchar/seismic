@@ -13,6 +13,7 @@ import { type AgentsView, CLOUD_PRESETS, CLOUD_VOICES, type CloudPreset, firstPr
 import { HARNESSES, HARNESS_SECTION, type Harness } from '../../../core/types';
 import { LANGUAGES } from '../../../core/locale';
 import { api, onAgentSettingsChange, reload } from '../../api';
+import { getSetting, saveSetting } from '../../clients/seismic';
 import { useCopy } from '../../copy';
 import { Sign } from '../../logo';
 import { failText, fileSize, t } from '../../strings';
@@ -869,7 +870,7 @@ function Identity({ onSaved, onError }: { onSaved: (v: MachineView) => void; onE
 function LanguagePick() {
   const [chosen, setChosen] = useState<Language | null>(null);
   useEffect(() => {
-    api.language().then((l) => setChosen(l.language), console.error);
+    getSetting('language').then((l) => setChosen(l.language), console.error);
   }, []);
   if (!chosen || LANGUAGES.length < 2) return null;
   return (
@@ -877,7 +878,7 @@ function LanguagePick() {
       className="setup-lang ml-auto text-sm py-1 px-2 rounded-xs border-border hover:border-border bg-card focus:bg-card text-foreground"
       aria-label={t.config.language.title}
       value={chosen}
-      onValueChange={(picked) => api.saveLanguage(picked as Language).then(() => reload(), console.error)}
+      onValueChange={(picked) => saveSetting('language', { language: picked as Language }).then(() => reload(), console.error)}
     >
       {LANGUAGES.map((l) => (
         <SelectItem key={l} value={l}>
@@ -1183,7 +1184,7 @@ export function useWorkerConfiguration(): AgentsView | null {
     let revision = 0;
     const refresh = () => {
       const at = ++revision;
-      api.agents().then((saved) => { if (at === revision) setView(saved); }, () => {});
+      getSetting('agents').then((saved) => { if (at === revision) setView(saved); }, () => {});
     };
     refresh();
     const stop = onAgentSettingsChange(refresh);

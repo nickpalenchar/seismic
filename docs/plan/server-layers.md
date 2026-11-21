@@ -64,6 +64,14 @@ Checked in the code on 2026-11-13; counts may be off by a few. Each workstream r
 - **URLs become RESTful as their routes move** (owner's decision, 2026-11-21, over the earlier "URLs
   stay unchanged"): each route moves to `/api/v1/` with its UI callers, which go through
   `src/ui/clients/seismic.ts` and use the JSON a write answers with. The first is "Share on approval".
+- **Routes the owner has shaped ahead of their move** (2026-11-21):
+  - "Give to the waiting card" and its undo (`takeWorkstation`, `keepWorkstation` on `/act`, the
+    Koordinator's `evict` and `keep`) do not move as two actions. They split into three endpoints:
+    the card requeued, its workstation freed, and the workstation assigned to the card waiting
+    longest. Their URLs and bodies are settled when they move.
+  - The system-level settings went under one `settings/` resource (`/api/v1/settings/:settingName`,
+    see the Router Layer in `code-organization.md`). Demo settings (`/api/demo-settings`) and the
+    configuration (`/api/config`) have not moved.
 - **Decided without the owner** (they can overrule): each move is kept small and lands quickly, to
   limit conflicts.
 

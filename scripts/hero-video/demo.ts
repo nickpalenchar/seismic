@@ -48,7 +48,7 @@ function stage() {
   // the worker's own demo: English, a quick voice (the hero video has no page audio), in the owner's demo directory, where site-shots.ts finds it
   fs.writeFileSync(path.join(staged.dir, 'home', 'demo.json'), JSON.stringify({ language: 'en', voice: 'say', voiceName: 'Samantha', directory: demoDirectory() }));
   const key = `${KEY_HEADER}: ${owner()[KEY_HEADER]}`;
-  execFileSync('curl', ['-s', '-H', key, '-X', 'PUT', `${base}/api/language`, '-d', '{"language":"en"}']);
+  execFileSync('curl', ['-s', '-H', key, '-X', 'PUT', `${base}/api/v1/settings/language`, '-d', '{"language":"en"}']);
   // Whisper and Seismic loaded before the take, so the spoken command is heard at once
   execFileSync('curl', ['-s', '-H', key, '-X', 'POST', `${base}/api/c/tipjar/voice/warm`]);
   execFileSync('sleep', ['20']);

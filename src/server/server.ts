@@ -11,6 +11,7 @@ import { guarded, LOCAL_HOSTS, refusal } from './access';
 import { BadRequest } from './board';
 import { bunRoutes, respond } from './routes/httpRoute';
 import { v1Routes } from './routes/v1';
+import { OwnerSettings } from './ownerSettings';
 import { type Dropped, findDropped, localImage } from './files';
 import type { ProjectRuntime } from './project';
 import { SiteSetup } from './site-setup';
@@ -41,7 +42,7 @@ import { servePdfjs } from './pdfjs';
 import { Tailscale } from './tailscale';
 import { codexModels } from './llms/harnesses/codex';
 import { agyModels } from './llms/harnesses/agy';
-import { savedHarnesses, agentsView, projectDefaultsView, feedbackPromptView, languageView, notificationsView, ownerLanguage, saveAgents, saveProjectDefaults, saveCodexAutoReview, saveNotifications, saveFeedbackPrompt, saveLanguage, saveTheme, saveMotion, saveUsageMeter, themeView, motionView, usageMeterView } from './settings';
+import { savedHarnesses, agentsView, ownerLanguage } from './settings';
 import { proposeTags, TagProposals } from './llms/agents/agentJobs/tagProposal';
 import { parseTagLines, tagLines } from '../core/page-tags';
 import { expandHome, readDemoSettings } from '../../plugin/skills/demo/lib/settings.ts';
@@ -342,6 +343,17 @@ export function serve(
 
   const handle = respond;
   /** The project a card is on, by the card's row; none for one unknown, or deleted unless `deleted`. */
+  // the owner's system-level settings for /api/v1/settings: the usage meters and every project's cards follow what is saved
+  const ownerSettings = config
+    ? new OwnerSettings({
+        home: config.home,
+        onUsageMeter: (view) => {
+          const configured = machine?.harnesses();
+          for (const m of usage) m.setOn(view.on && (!m.harness || (configured?.includes(m.harness) ?? true)));
+        },
+        onFeedbackPrompt: () => projects.all().forEach((x) => x.board.changed()),
+      })
+    : undefined;
   const projectOfCard = (cardId: string, options?: { deleted?: boolean }) =>
     [...byId.values()].find((c) => {
       const row = c.dataStore.cards.get(cardId);
@@ -467,7 +479,7 @@ export function serve(
       ...extensionRoutes,
       ...uiRoutes(development),
       // the RESTful API, one file per URL under routes/v1/
-      ...bunRoutes(v1Routes({ projectOfCard })),
+      ...bunRoutes(v1Routes({ projectOfCard, ownerSettings })),
       // a browser on this machine signing in with a one-time link (owner.ts)
       '/login': { GET: (req, srv) => access.loginRoute(req, srv) },
       // such a link, for whoever holds the owner's key (the app's shell, a second start, scripts); `next`: where it leads; `once`: for one browser
@@ -617,57 +629,8 @@ export function serve(
             return { stopping: true };
           }),
       },
-      // the interface language (chosen in the settings, else the system's) and the conversation language (chosen, else English)
-      '/api/language': {
-        GET: needs(config, (c) => languageView(c.home)),
-        PUT: needs(config, async (c, req) => saveLanguage(c.home, await req.json())),
-      },
-      // light or dark: chosen in the settings, else as the system
-      '/api/theme': {
-        GET: needs(config, (c) => themeView(c.home)),
-        PUT: needs(config, async (c, req) => saveTheme(c.home, await req.json())),
-      },
-      '/api/motion': {
-        GET: needs(config, (c) => motionView(c.home)),
-        PUT: needs(config, async (c, req) => saveMotion(c.home, await req.json())),
-      },
-      // whether the bar shows the plan's usage limits: the meter fetches them from then on, or stops
-      '/api/usage-meter': {
-        GET: needs(config, (c) => usageMeterView(c.home)),
-        PUT: needs(config, async (c, req) => {
-          const view = saveUsageMeter(c.home, await req.json());
-          const configured = machine?.harnesses();
-          for (const m of usage) m.setOn(view.on && (!m.harness || (configured?.includes(m.harness) ?? true)));
-          return view;
-        }),
-      },
-      // whether pages notify the owner on the desktop when a card needs them; null: not asked yet
-      '/api/notifications': {
-        GET: needs(config, (c) => notificationsView(c.home)),
-        PUT: needs(config, async (c, req) => saveNotifications(c.home, await req.json())),
-      },
-      // Project defaults: what a project created from now on starts with; the projects there are keep their own settings
-      '/api/project-defaults': {
-        GET: needs(config, (c) => projectDefaultsView(c.home)),
-        PUT: needs(config, async (c, req) => saveProjectDefaults(c.home, await req.json())),
-      },
-      // whether approving work asks for feedback on it: every project's cards follow at once; the responses given stay
-      '/api/feedback-prompt': {
-        GET: needs(config, (c) => feedbackPromptView(c.home)),
-        PUT: needs(config, async (c, req) => {
-          const view = saveFeedbackPrompt(c.home, await req.json());
-          projects.all().forEach((x) => x.board.changed());
-          return view;
-        }),
-      },
       // every response the owner gave on agents' work, on every project: the performance dashboard groups them
       '/api/feedback': { GET: () => handle(() => projects.all()[0]?.board.allFeedback() ?? []) },
-      // the model and effort of each group of agents, read whenever one starts
-      '/api/agents': {
-        GET: needs(config, (c) => agentsView(c.home)),
-        PUT: needs(config, async (c, req) => saveAgents(c.home, await req.json())),
-      },
-      '/api/agents/codex-auto-review': { PUT: needs(config, async (c, req) => saveCodexAutoReview(c.home, await req.json())) },
       '/api/agents/harnesses': { GET: needs(machine, (m) => m.harnessAvailability()) },
       '/api/harnesses': {
         GET: needs(machine, (m) => m.harnesses()),

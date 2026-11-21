@@ -120,7 +120,7 @@ async function run(harness: Harness, kind: Case) {
     const repo = check.resolved[0].repos[0];
     await api('/api/config/trust', { path: join(s.dir, 'repo'), seen: repo.trust.now, held: repo.trust.held });
     const worker = harness === 'codex' ? { model: 'default', effort: 'low', harness: 'codex', codex: { model: 'default', effort: 'low' } } : { model: 'sonnet', effort: 'low' };
-    await api('/api/agents', { worker }, 'PUT');
+    await api('/api/v1/settings/agents', { worker }, 'PUT');
     await api(`/api/v1/cards/${id}/start`, {});
 
     // the worker started the heartbeat, asked, and parking asked app.keep, which kept it

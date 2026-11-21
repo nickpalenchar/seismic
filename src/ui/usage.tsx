@@ -6,7 +6,7 @@ import { cn } from 'cn';
 import { ClaudeCode, CodexIcon, GoogleAntigravityIcon } from '@dev.icons/react';
 import { useState } from 'react';
 import type { Usage, UsageLimit } from '../core/types';
-import { api } from './api';
+import { saveSetting } from './clients/seismic';
 import { clock, failText, snoozeWhen, t } from './strings';
 import { Button } from './components/button';
 import { Popover, PopoverContent, PopoverTrigger } from './components/popover';
@@ -85,7 +85,7 @@ export function UsagePill({ usage, phone, compact }: { usage: Usage; phone?: boo
   if (!usage.limits.length) return null;
   const hide = () => {
     setStatus('');
-    api.saveUsageMeter(false).catch((e) => setStatus(failText(e)));
+    saveSetting('usageMeter', { on: false }).catch((e) => setStatus(failText(e)));
   };
   const groups = headline(usage.limits);
   return (

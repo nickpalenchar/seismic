@@ -9,9 +9,7 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { CardDiff } from '../core/diff';
 import { type Place, placeParam } from '../core/layout';
-import type { ProjectReposView, RepoConfig, AccessView, ActivityPage, Pairing, RemoteSetting, ModelInfo, Harness, HarnessAvailability, AgentRole, AgentSetting, CloudPreset, AgentsView, ProjectConfig, ProjectInfo, ProjectSnapshot, ChatElsewhere, ClientMessage, ConfigSaved, ConfigView, CardAction, ConfigChecked, DemoSettings, Group, DemoSettingsView, DemoVoiceCheck, ProjectDemoSiteState, DemoSitesView, GithubRepoList, GithubRepoView, TagProposalJob, PageTags, NarrationLanguage, FirstProject, GitSetupPreview, MachineItem, MachineSectionId, MachineView, SetupCheck, SetupFolder, SetupRepoCheck, VoiceSetupView, CardEvent, Item, Language, LanguageView, NewCard, Notice, OwnerHold, PendingRestart, PlanHistory, RepoTrust, ServerMessage, SettingsShared, Skill, SourceUpdate, SpotInput, TalkRef, AppUpdate, Theme, ThemeView, Motion, MotionView, Usage, UsageMeterView, Waiting, Feedback, FeedbackAnswer, FeedbackPromptView,
-  ProjectDefaultsView,
-  ProjectSettings, ProjectSettingsView, DeveloperView, NotificationsView, Canvas } from '../core/types';
+import type { ProjectReposView, RepoConfig, AccessView, ActivityPage, Pairing, RemoteSetting, ModelInfo, Harness, HarnessAvailability, CloudPreset, ProjectConfig, ProjectInfo, ProjectSnapshot, ChatElsewhere, ClientMessage, ConfigSaved, ConfigView, CardAction, ConfigChecked, DemoSettings, Group, DemoSettingsView, DemoVoiceCheck, ProjectDemoSiteState, DemoSitesView, GithubRepoList, GithubRepoView, TagProposalJob, PageTags, NarrationLanguage, FirstProject, GitSetupPreview, MachineItem, MachineSectionId, MachineView, SetupCheck, SetupFolder, SetupRepoCheck, VoiceSetupView, CardEvent, Item, NewCard, Notice, OwnerHold, PendingRestart, PlanHistory, RepoTrust, ServerMessage, SettingsShared, Skill, SourceUpdate, SpotInput, TalkRef, AppUpdate, Usage, Waiting, Feedback, FeedbackAnswer, ProjectSettings, ProjectSettingsView, DeveloperView, Canvas } from '../core/types';
 import type { Wish } from '../core/wish';
 import { sameJson } from './sameJson';
 import { noteMessage, watchPageStalls } from './stalls';
@@ -23,9 +21,14 @@ export function onAgentSettingsChange(listener: () => void) {
   return () => agentSettingsEvents.removeEventListener('change', listener);
 }
 
+/** The agents' settings were saved: what shows their models reads them again. */
+export function agentSettingsSaved() {
+  agentSettingsEvents.dispatchEvent(new Event('change'));
+}
+
 async function saveAgentSettings<T>(path: string, body: unknown): Promise<T> {
   const saved = await call<T>('PUT', path, body);
-  agentSettingsEvents.dispatchEvent(new Event('change'));
+  agentSettingsSaved();
   return saved;
 }
 
@@ -197,15 +200,6 @@ export const api = {
   shareSettings: (path: string, direct = false) => call<SettingsShared>('POST', '/api/config/share-settings', { path, direct }),
   /** The owner confirms the repository's commands the dialog showed them (the groups `held` of `now`): they count from now on. */
   trustCommands: (path: string, trust: RepoTrust) => call<object>('POST', '/api/config/trust', { path, seen: trust.now, held: trust.held }),
-  /** The interface language (chosen, or the system's) and the conversation language (chosen, or English). */
-  language: () => call<LanguageView>('GET', '/api/language'),
-  /** Saves the owner's choice; `null` follows the system again. */
-  saveLanguage: (language: Language | null) => call<LanguageView>('PUT', '/api/language', { language }),
-  /** The language agents write the owner in; `null` uses English. */
-  saveConversationLanguage: (conversation: Language | null) => call<LanguageView>('PUT', '/api/language', { conversation }),
-  /** Light or dark as the owner chose, or `null` for the system's. */
-  theme: () => call<ThemeView>('GET', '/api/theme'),
-  motion: () => call<MotionView>('GET', '/api/motion'),
   // other devices reaching Seismic: the section "Other devices" and "Connect a phone"
   access: () => call<AccessView | { local: false }>('GET', '/api/access'),
   saveAccess: (remote: RemoteSetting | null) => call<AccessView>('PUT', '/api/access', { remote }),
@@ -214,21 +208,8 @@ export const api = {
   /** Seismic's key for pushes, and whether this device gets them. */
   push: () => call<{ key: string; on: boolean }>('GET', '/api/push'),
   subscribe: (subscription: PushSubscriptionJSON) => call<void>('PUT', '/api/push', subscription),
-  saveTheme: (theme: Theme | null) => call<ThemeView>('PUT', '/api/theme', { theme }),
-  saveMotion: (motion: Motion | null) => call<MotionView>('PUT', '/api/motion', { motion }),
-  /** Whether the bar shows the plan's usage limits. */
-  usageMeter: () => call<UsageMeterView>('GET', '/api/usage-meter'),
-  saveUsageMeter: (on: boolean) => call<UsageMeterView>('PUT', '/api/usage-meter', { on }),
-  /** Whether this machine's pages notify the owner on the desktop; `null`: not asked yet. */
-  notifications: () => call<NotificationsView>('GET', '/api/notifications'),
-  saveNotifications: (on: boolean) => call<NotificationsView>('PUT', '/api/notifications', { on }),
-  feedbackPrompt: () => call<FeedbackPromptView>('GET', '/api/feedback-prompt'),
   /** Every response the owner gave on agents' work, on every project. */
   allFeedback: () => call<Feedback[]>('GET', '/api/feedback'),
-  saveFeedbackPrompt: (on: boolean) => call<FeedbackPromptView>('PUT', '/api/feedback-prompt', { on }),
-  /** Project defaults: what a new project's own settings start as. */
-  projectDefaults: () => call<ProjectDefaultsView>('GET', '/api/project-defaults'),
-  saveProjectDefaults: (d: ProjectSettings) => call<ProjectDefaultsView>('PUT', '/api/project-defaults', d),
   /** A project's own settings, and Configuration's models they fall back on. */
   projectSettings: (project: string) => call<ProjectSettingsView>('GET', `/api/c/${encodeURIComponent(project)}/settings`),
   /** Saves some of a project's own settings (`{ agents }`, `{ suggest }` …) into the configuration. */
@@ -239,8 +220,6 @@ export const api = {
   archiveProject: (project: string) => call<ConfigSaved>('POST', `/api/c/${encodeURIComponent(project)}/archive-project`),
   /** Saves one repository's entry (named by its path) from the settings sheet; it applies at once. */
   saveProjectRepo: (project: string, repo: RepoConfig) => call<ProjectReposView>('PUT', `/api/c/${encodeURIComponent(project)}/repos`, repo),
-  /** The model and effort of each group of agents. */
-  agents: () => call<AgentsView>('GET', '/api/agents'),
   /** The settings of the shown project, with Configuration's models as the base of its own. */
   shownProjectSettings: () => call<ProjectSettingsView>('GET', at('/settings')),
   harnessAvailability: () => call<HarnessAvailability>('GET', '/api/agents/harnesses'),
@@ -248,10 +227,6 @@ export const api = {
   setHarness: (harness: Harness, connected: boolean) => saveAgentSettings<Harness[]>('/api/harnesses', { harness, connected }),
   codexModels: () => call<ModelInfo[]>('GET', '/api/agents/codex-models'),
   agyModels: () => call<ModelInfo[]>('GET', '/api/agents/agy-models'),
-  /** Saves the model or the effort of one group. */
-  /** Whether Codex's own automatic review decides for Codex workers (`true`) or the owner is asked. */
-  saveCodexAutoReview: (on: boolean) => call<AgentsView>('PUT', '/api/agents/codex-auto-review', { on }),
-  saveAgents: (role: AgentRole, choice: Partial<AgentSetting>) => saveAgentSettings<AgentsView>('/api/agents', { [role]: choice }),
   /** The setup assistant's list: what Seismic needs on this machine; `sections`: only those, all where left out. */
   setup: (sections?: readonly MachineSectionId[]) => call<MachineView>('GET', `/api/setup${sections ? `?sections=${sections.join(',')}` : ''}`),
   setupInstall: (section: MachineSectionId, id: MachineItem['id']) => call<MachineView>('POST', '/api/setup/install', { section, id }),

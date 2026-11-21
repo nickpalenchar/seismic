@@ -3272,6 +3272,42 @@ export interface FeedbackPromptView {
 }
 
 /**
+ * The owner's system-level settings (`src/server/ownerSettings.ts`), named as in Seismic's
+ * `settings.json`: each is read and saved on its own at `/api/v1/settings/:settingName`, several at
+ * once with a PATCH of `/api/v1/settings`.
+ */
+export const OWNER_SETTINGS = ['language', 'theme', 'motion', 'notifications', 'usageMeter', 'feedbackPrompt', 'projectDefaults', 'agents', 'codexAutoReview'] as const;
+export type OwnerSetting = (typeof OWNER_SETTINGS)[number];
+
+/** What each of the owner's settings reads as. */
+export interface OwnerSettingViews {
+  language: LanguageView;
+  theme: ThemeView;
+  motion: MotionView;
+  notifications: NotificationsView;
+  usageMeter: UsageMeterView;
+  feedbackPrompt: FeedbackPromptView;
+  projectDefaults: ProjectDefaultsView;
+  agents: AgentsView;
+  codexAutoReview: AgentsView;
+}
+
+/** What a save of each of the owner's settings sends: the fields it changes, the others staying. */
+export interface OwnerSettingChanges {
+  /** The interface language and the conversation language; `null` follows the system, or English. */
+  language: { language?: Language | null; conversation?: Language | null };
+  theme: { theme: Theme | null };
+  motion: { motion: Motion | null };
+  notifications: { on: boolean };
+  usageMeter: { on: boolean };
+  feedbackPrompt: { on: boolean };
+  projectDefaults: ProjectSettings;
+  /** The choices for the groups given; the other groups stay. */
+  agents: Partial<Record<AgentRole, Partial<AgentSetting>>>;
+  codexAutoReview: { on: boolean };
+}
+
+/**
  * How other devices reach Seismic, when the owner lets them (`src/server/remote.ts`): through
  * `tailscale serve`, which gives an HTTPS address in the tailnet, or on an address of this machine
  * the owner picks (another VPN's interface), in plain HTTP.

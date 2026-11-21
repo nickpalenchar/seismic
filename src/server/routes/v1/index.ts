@@ -9,7 +9,9 @@ import { Share } from './cards/_cardId/share';
 import { Start } from './cards/_cardId/start';
 import { Stop } from './cards/_cardId/stop';
 import { Unarchive } from './cards/_cardId/unarchive';
+import { Settings } from './settings';
+import { Setting } from './settings/_settingName';
 
 export function v1Routes(dependencies: RouteDependencies): HttpRoute[] {
-  return [Card, Approve, Archive, Dequeue, Restore, Share, Start, Stop, Unarchive].map((Route) => new Route(dependencies));
+  return [Card, Approve, Archive, Dequeue, Restore, Share, Start, Stop, Unarchive, Settings, Setting].map((Route) => new Route(dependencies));
 }

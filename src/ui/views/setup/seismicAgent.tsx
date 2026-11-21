@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import { agyBaseChoice, AGENT_DEFAULTS, AGENT_EFFORTS, catalogModel, harnessChoice, modelEffort, modelEfforts, type AgentEffort, type AgentModel, type AgentSetting, type ModelInfo, type Harness } from '../../../core/types';
 import { catalogDefault, DefaultEffort, ModelOptions } from '../../agent-options';
 import { api } from '../../api';
+import { getSetting, saveSetting } from '../../clients/seismic';
 import { Button } from '../../components/button';
 import { Select, SelectItem } from '../../components/select';
 import { failText, t } from '../../strings';
@@ -32,7 +33,7 @@ export function SeismicAgentStep({ harnesses, onConfirm, onBack }: { harnesses: 
   }, []);
   useEffect(() => {
     let live = true;
-    api.agents().then(
+    getSetting('agents').then(
       (view) => { if (live) setSaved(view.agents[ROLE]); },
       (error) => { if (live) setSettingsError(failText(error)); },
     );
@@ -76,7 +77,7 @@ export function SeismicAgentStep({ harnesses, onConfirm, onBack }: { harnesses: 
     setBusy(true);
     setStatus('');
     try {
-      await api.saveAgents(ROLE, { harness, ...own });
+      await saveSetting('agents', { [ROLE]: { harness, ...own } });
       if (mounted.current) onConfirm();
     } catch (e) {
       if (mounted.current) setStatus(failText(e));

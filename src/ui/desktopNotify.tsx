@@ -8,7 +8,7 @@ import { MESSAGES } from '../core/messages';
 import { languageOf } from '../core/locale';
 import type { ProjectSnapshot, Item } from '../core/types';
 import { plainTitle, startedWaiting } from '../core/waits';
-import { api } from './api';
+import { getSetting, saveSetting } from './clients/seismic';
 import { t } from './strings';
 import { Button } from './components/button';
 
@@ -58,13 +58,13 @@ export const notificationsChanged = () => window.dispatchEvent(new Event(CHANGED
 function useSetting(): [boolean | null | undefined, (on: boolean) => Promise<void>] {
   const [on, setOn] = useState<boolean | null | undefined>(undefined);
   useEffect(() => {
-    const load = () => api.notifications().then((v) => setOn(v.on), console.error);
+    const load = () => getSetting('notifications').then((v) => setOn(v.on), console.error);
     load();
     window.addEventListener(CHANGED, load);
     return () => window.removeEventListener(CHANGED, load);
   }, []);
   const save = useCallback(async (value: boolean) => {
-    setOn((await api.saveNotifications(value)).on);
+    setOn((await saveSetting('notifications', { on: value })).on);
     notificationsChanged();
   }, []);
   return [on, save];

@@ -703,16 +703,16 @@ describe('the configuration over HTTP', () => {
   });
 
   test('reads and saves the language in its home, keeping the file\'s other settings', async () => {
-    const before = (await call('GET', '/api/language')).body as unknown as LanguageView;
+    const before = (await call('GET', '/api/v1/settings/language')).body.setting as LanguageView;
     expect(before).toMatchObject({ file: join(dir, 'settings.json'), chosen: null });
     expect(before.language).toBe(before.system);
-    expect((await call('PUT', '/api/language', { language: 'fr' })).status).toBe(400);
+    expect((await call('PUT', '/api/v1/settings/language', { language: 'fr' })).status).toBe(400);
     writeFileSync(join(dir, 'settings.json'), JSON.stringify({ later: 1 }));
-    expect((await call('PUT', '/api/language', { language: 'en' })).body).toMatchObject({ chosen: 'en', language: 'en' });
+    expect((await call('PUT', '/api/v1/settings/language', { language: 'en' })).body.setting).toMatchObject({ chosen: 'en', language: 'en' });
     expect(JSON.parse(readFileSync(join(dir, 'settings.json'), 'utf8'))).toEqual({ later: 1, language: 'en' });
     // the server reads it whenever it needs it
     expect(ownerLanguage(dir)).toBe('en');
-    expect((await call('PUT', '/api/language', { language: null })).body).toMatchObject({ chosen: null, language: before.system });
+    expect((await call('PUT', '/api/v1/settings/language', { language: null })).body.setting).toMatchObject({ chosen: null, language: before.system });
     expect(JSON.parse(readFileSync(join(dir, 'settings.json'), 'utf8'))).toEqual({ later: 1 });
   });
 

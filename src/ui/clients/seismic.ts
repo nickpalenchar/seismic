@@ -3,8 +3,8 @@
  * what it changed, which the page shows at once (`cardSaved`). New calls go here; `api.ts` holds
  * the old routes until they move.
  */
-import type { AgentSetting, CardPatch, Item } from '../../core/types';
-import { call, cardBack, cardRemoved, cardSaved, projectOf, snapshotsOf } from '../api';
+import type { AgentSetting, CardPatch, Item, OwnerSetting, OwnerSettingChanges, OwnerSettingViews } from '../../core/types';
+import { agentSettingsSaved, call, cardBack, cardRemoved, cardSaved, projectOf, snapshotsOf } from '../api';
 
 /** How long a request may take before the page gives it up. */
 const TIMEOUT_MS = 60_000;
@@ -69,3 +69,21 @@ export const stopCardAgent = (id: string) => writeCard(id, 'POST', '/stop', {});
  * waits for what the approval does, a landing onto main included, so the page waits as long.
  */
 export const approveCard = (id: string, { direct = false }: { direct?: boolean } = {}) => writeCard(id, 'POST', '/approve', direct ? { direct } : {}, { timeoutMs: null });
+
+/** One of the owner's system-level settings, as it reads. */
+export const getSetting = async <N extends OwnerSetting>(name: N): Promise<OwnerSettingViews[N]> =>
+  (await call<{ setting: OwnerSettingViews[N] }>('GET', `/api/v1/settings/${name}`, undefined, false, TIMEOUT_MS)).setting;
+
+/** One of the owner's settings saved on its own (the fields it changes), answered with it as it then reads. */
+export async function saveSetting<N extends OwnerSetting>(name: N, change: OwnerSettingChanges[N]): Promise<OwnerSettingViews[N]> {
+  const { setting } = await call<{ setting: OwnerSettingViews[N] }>('PUT', `/api/v1/settings/${name}`, change, false, TIMEOUT_MS);
+  if (name === 'agents' || name === 'codexAutoReview') agentSettingsSaved();
+  return setting;
+}
+
+/** Several of the owner's settings saved at once, answered with all of them. */
+export async function saveSettings(changes: Partial<OwnerSettingChanges>): Promise<OwnerSettingViews> {
+  const { settings } = await call<{ settings: OwnerSettingViews }>('PATCH', '/api/v1/settings', changes, false, TIMEOUT_MS);
+  if ('agents' in changes || 'codexAutoReview' in changes) agentSettingsSaved();
+  return settings;
+}

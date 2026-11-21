@@ -40,6 +40,8 @@ import { Button, CloseButton, IconButton, LinkButton } from './components/button
 import { ConfirmDialog, Dialog, DialogContent, DialogTitle } from './components/dialog';
 import { Checkbox } from './components/checkbox';
 import { CheckLabel } from './components/check-label';
+import { SavingSwitch } from './components/saving-switch';
+import { getSetting, saveSetting } from './clients/seismic';
 import { Switch } from './components/switch';
 import { RadioGroup, RadioOption } from './components/radio';
 import { SegmentedControl } from './components/segmented';
@@ -308,7 +310,7 @@ export function ConfigDialog({ on, page, usage, onClose, onAsk, onTalk, onProble
     wanted.current = fo?.project ?? (kept === null ? (page ?? null) : null);
     setPickState(fo ? null : kept);
     setSaved(null);
-    api.projectDefaults().then(setDefaults, console.error);
+    getSetting('projectDefaults').then(setDefaults, console.error);
     api.config().then((v) => {
       setView(v);
       const kept = !changedRef.current && keptConfigDraft<KeptProjects>(sessionStorage, 'projects', v.projects, ofKept);
@@ -875,7 +877,7 @@ export function LanguageBlock({ on }: { on: boolean }) {
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
   useEffect(() => {
-    if (on) api.language().then(setView, console.error);
+    if (on) getSetting('language').then(setView, console.error);
   }, [on]);
   if (!view || LANGUAGES.length < 2) return null;
   const l = t.config.language;
@@ -883,7 +885,7 @@ export function LanguageBlock({ on }: { on: boolean }) {
     setBusy(true);
     setStatus('');
     try {
-      const v = await api.saveLanguage(language);
+      const v = await saveSetting('language', { language });
       setView(v);
       // the strings are set before the first render: the page loads again, keeping what is open
       reload();
@@ -895,7 +897,7 @@ export function LanguageBlock({ on }: { on: boolean }) {
   const converse = async (conversation: Language | null) => {
     setStatus('');
     try {
-      setView(await api.saveConversationLanguage(conversation));
+      setView(await saveSetting('language', { conversation }));
     } catch (e) {
       setStatus(failText(e));
     }
@@ -933,7 +935,7 @@ export function ThemeBlock({ on }: { on: boolean }) {
   const [view, setView] = useState<ThemeView | null>(null);
   const [status, setStatus] = useState('');
   useEffect(() => {
-    if (on) api.theme().then(setView, console.error);
+    if (on) getSetting('theme').then(setView, console.error);
   }, [on]);
   if (!view) return null;
   const l = t.config.theme;
@@ -943,7 +945,7 @@ export function ThemeBlock({ on }: { on: boolean }) {
     applyTheme(theme);
     setStatus('');
     try {
-      setView(await api.saveTheme(theme));
+      setView(await saveSetting('theme', { theme }));
     } catch (e) {
       setView(before);
       applyTheme(before.chosen);
@@ -971,7 +973,7 @@ export function MotionBlock({ on }: { on: boolean }) {
   const [view, setView] = useState<MotionView | null>(null);
   const [status, setStatus] = useState('');
   useEffect(() => {
-    if (on) api.motion().then(setView, console.error);
+    if (on) getSetting('motion').then(setView, console.error);
   }, [on]);
   if (!view) return null;
   const l = t.config.motion;
@@ -981,7 +983,7 @@ export function MotionBlock({ on }: { on: boolean }) {
     applyMotion(motion);
     setStatus('');
     try {
-      setView(await api.saveMotion(motion));
+      setView(await saveSetting('motion', { motion }));
     } catch (e) {
       setView(before);
       applyMotion(before.chosen);
@@ -1009,14 +1011,14 @@ function UsageBlock({ on }: { on: boolean }) {
   const [view, setView] = useState<UsageMeterView | null>(null);
   const [status, setStatus] = useState('');
   useEffect(() => {
-    if (on) api.usageMeter().then(setView, console.error);
+    if (on) getSetting('usageMeter').then(setView, console.error);
   }, [on]);
   if (!view) return null;
   const l = t.usage.setting;
   const choose = async (shown: boolean) => {
     setStatus('');
     try {
-      setView(await api.saveUsageMeter(shown));
+      setView(await saveSetting('usageMeter', { on: shown }));
     } catch (e) {
       setStatus(failText(e));
     }
@@ -1025,10 +1027,9 @@ function UsageBlock({ on }: { on: boolean }) {
     <>
       <Head sub title={l.title} hint={l.hint} file={view.file} />
       <Field label={l.title}>
-        <CheckLabel>
-          <Switch checked={view.on} onCheckedChange={choose} />
+        <SavingSwitch checked={view.on} save={choose}>
           {l.label}
-        </CheckLabel>
+        </SavingSwitch>
       </Field>
       {status && <p className={`hint ${statusClass}`}>{status}</p>}
     </>
@@ -1042,7 +1043,7 @@ function NotificationsBlock({ on }: { on: boolean }) {
   const [status, setStatus] = useState('');
   useEffect(() => {
     if (!on) return;
-    api.notifications().then(setView, console.error);
+    getSetting('notifications').then(setView, console.error);
     permission().then(setPerm, console.error);
   }, [on]);
   if (!view || !canNotify()) return null;
@@ -1052,7 +1053,7 @@ function NotificationsBlock({ on }: { on: boolean }) {
     try {
       const p = wanted && perm !== 'granted' ? await requestPermission() : perm;
       setPerm(p);
-      setView(await api.saveNotifications(wanted));
+      setView(await saveSetting('notifications', { on: wanted }));
       notificationsChanged();
     } catch (e) {
       setStatus(failText(e));
@@ -1062,10 +1063,9 @@ function NotificationsBlock({ on }: { on: boolean }) {
     <>
       <Head sub title={l.title} hint={l.hint} file={view.file} />
       <Field label={l.title}>
-        <CheckLabel>
-          <Switch checked={view.on === true} onCheckedChange={choose} />
+        <SavingSwitch checked={view.on === true} save={choose}>
           {l.label}
-        </CheckLabel>
+        </SavingSwitch>
       </Field>
       {view.on === true && perm !== 'granted' && <p className={`hint ${statusClass}`}>{perm === 'denied' ? l.denied : l.notGranted}</p>}
       {status && <p className={`hint ${statusClass}`}>{status}</p>}
@@ -1079,14 +1079,14 @@ function FeedbackBlock({ on }: { on: boolean }) {
   const openPerformance = useContext(OpenPerformance);
   const [status, setStatus] = useState('');
   useEffect(() => {
-    if (on) api.feedbackPrompt().then(setView, console.error);
+    if (on) getSetting('feedbackPrompt').then(setView, console.error);
   }, [on]);
   if (!view) return null;
   const l = t.feedback.setting;
   const choose = async (asks: boolean) => {
     setStatus('');
     try {
-      setView(await api.saveFeedbackPrompt(asks));
+      setView(await saveSetting('feedbackPrompt', { on: asks }));
     } catch (e) {
       setStatus(failText(e));
     }
@@ -1095,11 +1095,10 @@ function FeedbackBlock({ on }: { on: boolean }) {
     <>
       <Head sub title={l.title} hint={l.hint} file={view.file} />
       <Field label={l.title}>
-        <CheckLabel>
-          <Switch checked={view.on} onCheckedChange={choose} />
+        <SavingSwitch checked={view.on} save={choose}>
           {l.label}
           <Badge variant="secondary">{l.preview}</Badge>
-        </CheckLabel>
+        </SavingSwitch>
         {openPerformance && (
           <Button size="small" className="cfg-perf [:is(#config,#prefs,#project-settings)_&]:mt-2.5" title={t.performance.openHint} onClick={openPerformance}>
             {t.performance.open}
@@ -1226,7 +1225,7 @@ function ProjectDefaultsBlock({ view, onSaved }: { view: ProjectDefaultsView | n
   const save = async (d: ProjectSettings) => {
     setStatus('');
     try {
-      onSaved(await api.saveProjectDefaults(d));
+      onSaved(await saveSetting('projectDefaults', d));
     } catch (e) {
       setStatus(failText(e));
     }
@@ -1285,7 +1284,7 @@ function AgentsBlock({ on }: { on: boolean }) {
     let revision = 0;
     const refresh = () => {
       const at = ++revision;
-      api.agents().then((saved) => { if (at === revision) setView(saved); }, console.error);
+      getSetting('agents').then((saved) => { if (at === revision) setView(saved); }, console.error);
     };
     refresh();
     const stop = onAgentSettingsChange(refresh);
@@ -1309,17 +1308,16 @@ function AgentsBlock({ on }: { on: boolean }) {
     }
     setBusy(false);
   };
-  const choose = (role: AgentRole, choice: Partial<AgentSetting>) => save(() => api.saveAgents(role, choice));
+  const choose = (role: AgentRole, choice: Partial<AgentSetting>) => save(() => saveSetting('agents', { [role]: choice }));
   return (
     <>
       <Head title={a.title} hint={a.hint} file={view.file} />
       {codexOn && <p className="hint">{a.codexScope}</p>}
       {view.agents.worker.harness === 'codex' && (
         <>
-          <CheckLabel>
-            <Switch checked={view.codexAutoReview} disabled={busy} onCheckedChange={(on) => save(() => api.saveCodexAutoReview(on))} />
+          <SavingSwitch checked={view.codexAutoReview} disabled={busy} save={(on) => save(() => saveSetting('codexAutoReview', { on }))}>
             {a.codexAutoReview}
-          </CheckLabel>
+          </SavingSwitch>
           <p className="hint">{a.codexAutoReviewHint}</p>
         </>
       )}

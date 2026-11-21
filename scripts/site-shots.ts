@@ -86,7 +86,7 @@ writeFileSync(stageFile, JSON.stringify(stage, null, 1));
 
 const staged = JSON.parse(execFileSync('bun', [join(ROOT, 'scripts', 'scratch-seismic.ts'), stageFile], { encoding: 'utf8' }).trim().split('\n').at(-1)!);
 const base = `http://127.0.0.1:${PORT}`;
-await fetch(`${base}/api/language`, { method: 'PUT', headers: ownerHeaders(join(staged.dir, 'home')), body: JSON.stringify({ language: 'en' }) });
+await fetch(`${base}/api/v1/settings/language`, { method: 'PUT', headers: ownerHeaders(join(staged.dir, 'home')), body: JSON.stringify({ language: 'en' }) });
 console.log('staged', staged.url);
 
 // the Koordinator reads the new plan's doc for what builds on what and arranges it: until

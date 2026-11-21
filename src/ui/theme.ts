@@ -7,7 +7,8 @@
 import { useSyncExternalStore } from 'react';
 import { FALLBACK_LANGUAGE, languageOf } from '../core/locale';
 import type { Theme } from '../core/types';
-import { api, markQuiet } from './api';
+import { markQuiet } from './api';
+import { getSetting } from './clients/seismic';
 import { applyMotion } from './motion';
 import { setLanguage } from './strings';
 
@@ -24,9 +25,9 @@ export function applyTheme(theme: Theme | null) {
 }
 
 /** The owner's choice from the server; one that does not answer leaves the system's. */
-const loadTheme = () => api.theme().then((v) => applyTheme(v.chosen), () => {});
+const loadTheme = () => getSetting('theme').then((v) => applyTheme(v.chosen), () => {});
 /** And whether it moves: the system's until the server answers. */
-const loadMotion = () => api.motion().then((v) => applyMotion(v.chosen), () => {});
+const loadMotion = () => getSetting('motion').then((v) => applyMotion(v.chosen), () => {});
 
 /**
  * The language and the look first, from the server (the owner's choice, else the system's), so a
@@ -36,7 +37,7 @@ const loadMotion = () => api.motion().then((v) => applyMotion(v.chosen), () => {
 export async function loadLanguageAndTheme() {
   const browser = languageOf(navigator.language) ?? FALLBACK_LANGUAGE;
   const [language] = await Promise.race([
-    Promise.all([api.language().then((l) => l.language, () => browser), loadTheme(), loadMotion()]),
+    Promise.all([getSetting('language').then((l) => l.language, () => browser), loadTheme(), loadMotion()]),
     new Promise<[typeof browser]>((done) =>
       setTimeout(() => {
         markQuiet();
