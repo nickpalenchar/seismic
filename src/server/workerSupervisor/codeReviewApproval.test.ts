@@ -27,10 +27,13 @@ beforeAll(async () => {
 }, 60_000);
 afterAll(async () => { await browser?.close(); }, 30_000);
 
-for (const scenario of ['running', 'fixing', 'verifying', 'unsent', 'unsentDuringReview', 'open'] as const) {
+for (const scenario of ['running', 'fixing', 'verifying', 'unsent', 'unsentDuringReview', 'open', 'reopenedDuringReview'] as const) {
   for (const direct of [true, false]) {
     test(`${direct ? 'Straight to main' : 'Approve (PR)'} on a PR card: ${scenario} confirmation cancels safely and preserves the approval route`, async () => {
-      const unsent = scenario === 'unsent' || scenario === 'unsentDuringReview' || scenario === 'open';
+      const picked = scenario === 'unsent' || scenario === 'unsentDuringReview';
+      const open = picked || scenario === 'open' || scenario === 'reopenedDuringReview';
+      const secondReview = scenario === 'unsentDuringReview' || scenario === 'reopenedDuringReview';
+      const warnReview = secondReview || !open;
       setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces,
         adapter: { ...generic, land: 'pr', direct: true, workstations: 'clones' },
         codeReviews: () => ({ on: true, mode: 'auto' }),
@@ -54,12 +57,13 @@ for (const scenario of ['running', 'fixing', 'verifying', 'unsent', 'unsentDurin
         reviewer.call('review', { items: [{ title: 'Validate export names', text: 'Check invalid names.', severity: 'minor' }], verdicts: [], regressions: [] });
         reviewer.emit({ type: 'idle' });
         await until(() => board.item(id)!.review?.codeReview?.state === 'done');
-        if (!unsent) {
+        if (!open) {
           workers.message(id, '', [], false, undefined, undefined, { 1: 'self' });
           if (scenario === 'verifying') await worker.call('resubmit_review_item', { items: [{ number: 1 }] });
         }
       }
-      if (scenario === 'unsentDuringReview') {
+      if (scenario === 'reopenedDuringReview') workers.reviews.ignore(id, [1]);
+      if (secondReview) {
         writeFileSync(join(ws, 'export.ts'), 'export const ready = false;\n');
         git(ws, 'add', '.');
         git(ws, 'commit', '--quiet', '-m', 'Update export');
@@ -67,6 +71,8 @@ for (const scenario of ['running', 'fixing', 'verifying', 'unsent', 'unsentDurin
         worker.emit({ type: 'idle' });
         await until(() => runtime.sessions.filter((s) => s.spec.role === 'review').length === 2);
       }
+      if (scenario === 'reopenedDuringReview') workers.reviews.reopen(id, 1);
+      const activeReviewer = runtime.sessions.filter((s) => s.spec.role === 'review').at(-1)!;
       const before = structuredClone(board.item(id)!.review?.codeReview);
       const originalMain = git(origin, 'rev-parse', 'main');
       const actions: CardAction[] = [];
@@ -97,20 +103,24 @@ for (const scenario of ['running', 'fixing', 'verifying', 'unsent', 'unsentDurin
         await page.goto(server.url.href);
         const approval = page.getByRole('button', { name: direct ? /^Straight to main/ : /^Approve \(PR\)/ });
         await approval.waitFor();
-        if (scenario === 'open') {
-          // a raised finding nobody has looked at: no choice picked
-        } else if (unsent) {
+        if (picked) {
           await page.getByRole('tab', { name: /Review/ }).click();
           await page.getByRole('button', { name: 'Fix it', exact: true }).click();
-        } else {
+        }
+        if (warnReview) {
           expect(await approval.getAttribute('data-variant')).toBe('review-warning');
           expect(await approval.innerText()).toContain(scenario === 'fixing' ? 'Fixing in progress' : 'Review in progress');
         }
         await approval.click();
-        const dialog = page.getByRole('alertdialog', { name: unsent ? 'Review findings still open' : 'Approve without Review?' });
+        const dialog = page.getByRole('alertdialog', { name: open ? 'Review findings still open' : 'Approve without Review?' });
         await dialog.waitFor();
+        const warning = await dialog.innerText();
+        expect(warning.includes('Approving leaves it unanswered.')).toBe(open);
+        expect(warning.includes('1 choice you picked is not sent yet and is dropped.')).toBe(picked);
+        expect(warning.includes('This will stop the in-progress review')).toBe(warnReview);
+        if (warnReview) expect(warning).toContain(direct ? 'move straight to landing' : 'approve the work for a pull request');
         expect(actions).toEqual([]);
-        await dialog.getByRole('button', { name: unsent ? 'Go back' : 'Continue review', exact: true }).click();
+        await dialog.getByRole('button', { name: open ? 'Go back' : 'Continue review', exact: true }).click();
         await dialog.waitFor({ state: 'hidden' });
         // Cancelling leaves the real server card, its review and origin/main untouched.
         expect(actions).toEqual([]);
@@ -118,12 +128,15 @@ for (const scenario of ['running', 'fixing', 'verifying', 'unsent', 'unsentDurin
         expect(board.item(id)!.review?.codeReview).toEqual(before);
         expect(git(origin, 'rev-parse', 'main')).toBe(originalMain);
         expect(await page.locator('body').getAttribute('data-approved')).toBeNull();
-        if (scenario !== 'open' && unsent) expect(await page.getByRole('button', { name: 'Fix it', exact: true }).getAttribute('aria-pressed')).toBe('true');
+        if (picked) expect(await page.getByRole('button', { name: 'Fix it', exact: true }).getAttribute('aria-pressed')).toBe('true');
+        if (secondReview) expect(activeReviewer.closed).toBe(false);
         await approval.click();
-        await dialog.getByRole('button', { name: unsent ? 'Approve anyway' : 'Stop Review & land', exact: true }).click();
+        const confirmLabel = warnReview ? (direct ? 'Stop Review & land' : 'Stop Review & approve') : 'Approve anyway';
+        await dialog.getByRole('button', { name: confirmLabel, exact: true }).click();
         await page.locator('body[data-approved="true"]').waitFor();
         expect(actions).toEqual([direct ? { action: 'approve', direct: true } : { action: 'approve' }]);
         expect(state(id)).toBe(direct ? 'live' : 'inPr');
+        if (secondReview) expect(activeReviewer.closed).toBe(true);
         expect(git(origin, 'rev-parse', 'main')).toBe(direct ? git(ws, 'rev-parse', 'HEAD') : originalMain);
         expect(errors).toEqual([]);
       } finally {

@@ -221,8 +221,7 @@ export function Detail(p: Props) {
   // a prototype whose idea has become a plan: the workstream to build on it
   const [workstream, setWorkstream] = useState('');
   const [picking, setPicking] = useState(false);
-  const [confirmReviewApproval, setConfirmReviewApproval] = useState(false);
-  const [confirmUnsent, setConfirmUnsent] = useState(false);
+  const [approvalRoute, setApprovalRoute] = useState<'standard' | 'direct' | null>(null);
   // "Attempt merge" shows a spinner and stays off until the merge view arrives (a failed action turns it back on)
   const [attemptingMerge, setAttemptingMerge] = useState(false);
   useEffect(() => setAttemptingMerge(false), [mergeRevision]);
@@ -231,8 +230,6 @@ export function Detail(p: Props) {
   const [dismissedDuplicate, setDismissedDuplicate] = useState<string>();
   // the card as its state line shows it: without the suggestion once dismissed
   const stated = dismissedDuplicate === duplicateKey ? { ...item, possibleDuplicates: undefined } : item;
-  // whether the approval the owner is asked to confirm is "Straight to main"
-  const [confirmDirect, setConfirmDirect] = useState(false);
   const unsentPicks = useFindingDraft(item).findings;
   const all = p.all;
   const duplicateMatches = (item.possibleDuplicates ?? []).map((id) => all.find((other) => other.id === id)).filter((other): other is Item => !!other);
@@ -433,23 +430,29 @@ export function Detail(p: Props) {
   // items still waiting for the owner, and choices picked on them but not sent yet: approving would leave the first unanswered and drop the second
   const unsentCount = Object.keys(unsentPicks ?? {}).filter((id) => cr?.items.some((r) => r.number === Number(id) && needsOwner(r))).length;
   const openItems = cr?.items.filter(needsOwner).length ?? 0;
-  const unsent = openItems;
+  const confirmApproval = openItems > 0 || reviewRunning;
+  useEffect(() => {
+    if (!confirmApproval) setApprovalRoute(null);
+  }, [confirmApproval]);
   const reviewed = cr?.state === 'done' && !cr.stale;
   // work handed over with no code review attached (its review was lost, or the project did not review it) can always be reviewed on the owner's word
   const unreviewed = !cr && item.kind === 'task' && handedOver(item) && !inFolder && !item.idea?.prototypeOf && !item.review?.contribution && !item.review?.noChange && !item.review?.landing;
   // a review skipped (its model had no usage left) leaves none, in either mode; one stopped by the usage limit has its own buttons in the conversation;
   // work that changed nothing has nothing new to review, but fixes waiting for their verdict are still verified
   const asksReview = unreviewed || (!!cr && !cr.limited && (!item.review?.noChange || verifying) && (!cr.state || (cr.mode === 'manual' && (!!cr.stale || cr.state === 'failed' || (cr.state === 'done' && verifying)))));
-  // approval asks first where choices are unsent or a review is still at work, the same for "Straight to main"
+  // Both approval routes explain every consequence in one confirmation.
   const approveNow = (direct: boolean) =>
     void act(
       direct ? { action: 'approve', direct: true } : { action: 'approve' },
       direct ? { close: true, ack: t.approvedDirect, pending: t.approvingDirect, rate: item.id } : item.review?.noChange ? { close: true, ack: t.approvedNoChange, rate: item.id } : { close: true, ack: t.approved, pending: t.approving, rate: item.id },
     );
   const approve = (direct: boolean) => {
-    if (unsent || reviewRunning) (setConfirmDirect(direct), unsent ? setConfirmUnsent(true) : setConfirmReviewApproval(true));
+    if (confirmApproval) setApprovalRoute(direct ? 'direct' : 'standard');
     else approveNow(direct);
   };
+  const approvingPr = pr && approvalRoute === 'standard';
+  const stopReviewLabel = item.review?.noChange ? t.approveDuringReview.close : approvingPr ? t.approveDuringReview.pr : t.approveDuringReview.land;
+  const stopReviewBody = item.review?.noChange ? t.approveDuringReview.noChangeBody : approvingPr ? t.approveDuringReview.prBody : t.approveDuringReview.body;
   const approveButton = item.review?.landing ? null : item.review?.contribution ? (
     <ApproveReview c={item.review?.contribution} act={act} />
   ) : inFolder ? (
@@ -466,26 +469,19 @@ export function Detail(p: Props) {
         <span>{item.review?.noChange ? t.approveNoChange : pr ? t.approvePr : t.approve}</span>
         {approvalWarning}
       </Button>
-      {unsent > 0 && (
+      {confirmApproval && (
         <ConfirmDialog
-          open={confirmUnsent}
-          onOpenChange={setConfirmUnsent}
-          title={t.unsentChoices.title}
-          confirm={{ label: t.unsentChoices.approve, onClick: () => { setConfirmUnsent(false); approveNow(confirmDirect); } }}
-          cancel={t.unsentChoices.back}
+          open={approvalRoute !== null}
+          onOpenChange={(open) => { if (!open) setApprovalRoute(null); }}
+          title={openItems ? t.unsentChoices.title : t.approveDuringReview.title}
+          confirm={{
+            label: reviewRunning ? stopReviewLabel : t.unsentChoices.approve,
+            onClick: () => { setApprovalRoute(null); approveNow(approvalRoute === 'direct'); },
+          }}
+          cancel={openItems ? t.unsentChoices.back : t.approveDuringReview.continue}
         >
-          <p>{t.unsentChoices.body(openItems, unsentCount)}</p>
-        </ConfirmDialog>
-      )}
-      {reviewRunning && (
-        <ConfirmDialog
-          open={confirmReviewApproval}
-          onOpenChange={setConfirmReviewApproval}
-          title={t.approveDuringReview.title}
-          confirm={{ label: item.review?.noChange ? t.approveDuringReview.close : t.approveDuringReview.land, onClick: () => { setConfirmReviewApproval(false); approveNow(confirmDirect); } }}
-          cancel={t.approveDuringReview.continue}
-        >
-          <p>{item.review?.noChange ? t.approveDuringReview.noChangeBody : t.approveDuringReview.body}</p>
+          {openItems > 0 && <p>{t.unsentChoices.body(openItems, unsentCount)}</p>}
+          {reviewRunning && <p>{stopReviewBody}</p>}
         </ConfirmDialog>
       )}
       {/* where the owner starts code reviews themselves: beside Approve, in its own colour, until the latest handover is reviewed */}

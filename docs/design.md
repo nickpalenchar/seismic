@@ -151,6 +151,10 @@ cycling through terminals.
   from an empty list. Verifying resubmitted fixes is part of the review: in manual mode too, the
   handover that resubmits them starts the review by itself (2026-11-18); only a review of new work
   waits for "Start code review".
+  Card approval stays available with raised or reopened findings (2026-11-20), so the owner can
+  proceed with the handover without deciding each finding. The approval dialog warns that the
+  findings will stay unanswered and any unsent choices will be dropped. If approval also ends
+  review work in progress, the same dialog warns about that too, on every approval route.
 - **A model out of usage is the owner's to route around, on the card** (2026-11-17): a worker or
   code review stopped by its model's usage limit shows a callout naming the model, with "Try again",
   "Select new agent" and, for a review, "Skip review". A worker handed to another model of the same
