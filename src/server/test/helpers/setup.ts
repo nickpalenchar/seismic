@@ -1,10 +1,14 @@
 // Preloaded by `bun test` (bunfig.toml): its hooks run once around all test files.
 
-import { afterAll } from 'bun:test';
+import { afterAll, setDefaultTimeout } from 'bun:test';
 import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { removeTemplates } from './testing';
+
+// `bun test --parallel` runs a file per process, and git calls make a test several times slower under
+// that load: Bun's 5 s default fails them. (bunfig.toml has no setting for it.)
+setDefaultTimeout(30_000);
 
 // Whatever the tests put in the temp directory goes into one of this run, removed after the run. A
 // run that was killed (Seismic restarting stops its workers' test runs) never got there: the next run
