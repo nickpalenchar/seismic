@@ -17,18 +17,17 @@ import { Tooltip } from '../components/tooltip';
 import { statusClass } from '../setupClasses';
 import { qmovesClass } from '../queue';
 import { keepConfigDraft, keptConfigDraft } from '../configDraft';
-import { holdLeaving } from '../leaving';
+import { holdLeaving, leave } from '../leaving';
 import { mergedEntry, withEntry } from './entry';
+import { showSettingsAt } from './focus';
 import { cn } from 'cn';
-
-type Checked = Pick<ConfigChecked, 'resolved' | 'problems'>;
 
 /** What the entry is read from: the configuration as saved, the entry's place in it, and the check of it. */
 interface Loaded {
   view: ConfigView;
   /** Its place among the projects; the length of the list for a new one. */
   at: number;
-  saved: Checked | null;
+  saved: ConfigChecked | null;
   /** The entry as saved, or a new one with Project defaults. */
   entry: ProjectConfig;
 }
@@ -40,7 +39,7 @@ interface Loaded {
 function useProjectEntry(project: string | null, on: boolean) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [entry, setEntry] = useState<ProjectConfig | null>(null);
-  const [checked, setChecked] = useState<Checked | null>(null);
+  const [checked, setChecked] = useState<{ result: ConfigChecked; at: number } | null>(null);
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
   // the entry the last check was of: until the edit is checked, nothing goes by the check before
@@ -81,7 +80,7 @@ function useProjectEntry(project: string | null, on: boolean) {
     const of = JSON.stringify(projects[loaded?.at ?? 0]);
     return api.checkConfig(projects).then((c) => {
       if (n !== seq.current || !loaded) return;
-      setChecked(c);
+      setChecked({ result: c, at: loaded.at });
       setCheckedOf(of);
       const next = withClones(projects, loaded.view.projects, c.resolved, filled.current);
       if (next) setEntry(next[loaded.at]!);
@@ -96,8 +95,8 @@ function useProjectEntry(project: string | null, on: boolean) {
   useEffect(() => {
     if (project !== null && loaded && entry) keepConfigDraft(sessionStorage, `project:${project}`, entry, loaded.entry);
   }, [JSON.stringify(entry), loaded]);
-  const shown = changed ? checked : (loaded?.saved ?? null);
-  const at = loaded?.at ?? 0;
+  const shown = changed ? (checked?.result ?? null) : (loaded?.saved ?? null);
+  const at = (changed ? checked?.at : undefined) ?? loaded?.at ?? 0;
   const problems = shown?.problems ?? [];
   const blocking = shown ? blockingProblems(problems, (i) => i === at) : [];
 
@@ -126,14 +125,19 @@ function useProjectEntry(project: string | null, on: boolean) {
       // checked as it goes, not as it was a moment ago: the id the project gets is this check's, and a problem the edit just made holds the save
       const c = await api.checkConfig(list);
       ++seq.current;
-      setChecked(c);
+      setChecked({ result: c, at: now.at });
       setCheckedOf(JSON.stringify(entry));
       if (blockingProblems(c.problems, (i) => i === now.at).length) return null;
       const { restarting, applied } = await api.saveConfig(list);
+      // The saved entry can include server-generated old names and fresher repository fields.
+      // The draft that produced it has been saved even when its JSON differs from that entry.
+      if (project !== null) {
+        keepConfigDraft(sessionStorage, `project:${project}`, null, null);
+        if (!restarting) await load();
+      }
       const s = t.config;
       setStatus(restarting ? s.saved : applied ? (restartsAgents(now.view.projects, list) ? s.savedRestarts : s.savedApplied) : s.savedOnly);
       const id = c.resolved[now.at]?.id ?? project;
-      if (!restarting && project !== null) await load();
       return { id, restarting };
     } catch (e) {
       setStatus(failText(e));
@@ -231,9 +235,17 @@ function useLeaveGuard(unsaved: boolean, discard: () => void): [ReactNode, (proc
 }
 
 /** The entry's fields: its name, old names and repositories, with the problems of the project and of the configuration as a whole. */
-function EntryFields({ e, pin, fresh }: { e: Entry; pin?: string; /** A new project: a path not typed yet is no problem to show, only one to fill in. */ fresh?: boolean }) {
+function EntryFields({ e, pin, fresh, onShowProject, onNavigate }: { e: Entry; pin?: string; /** A new project: a path not typed yet is no problem to show, only one to fill in. */ fresh?: boolean; onShowProject?: ((id: string) => void) | undefined; onNavigate?: () => void }) {
   if (!e.loaded || !e.entry) return e.status ? null : <p className="hint">{t.config.loading}</p>;
   const { loaded, entry, at, shown, problems } = e;
+  const nameOf = (n: number) => shown?.resolved[n]?.name ?? shown?.projects[n]?.name;
+  const conflicts = problems.flatMap((p) => {
+    // The checker reports duplicate names on the later entry. The earlier entry's editor
+    // can cause the conflict too, so it needs the same explanation and destination.
+    if (p.code !== 'nameTaken' || p.ofProject !== at || p.project === undefined) return [];
+    const name = nameOf(p.project);
+    return name ? [{ ...p, project: at, of: name, ofProject: p.project }] : [];
+  });
   return (
     <>
       <ProjectBlock
@@ -243,10 +255,19 @@ function EntryFields({ e, pin, fresh }: { e: Entry; pin?: string; /** A new proj
         resolved={shown?.resolved[at] ?? null}
         running={loaded.view.running}
         {...(pin ? { pin } : {})}
-        problems={problems.filter((p) => p.project === at && !SHEET_PROBLEMS.includes(p.code) && !(fresh && p.code === 'noPath'))}
+        problems={[...problems.filter((p) => p.project === at && !SHEET_PROBLEMS.includes(p.code) && !(fresh && p.code === 'noPath')), ...conflicts]}
         onRecheck={e.recheck}
         onChange={e.setEntry}
-        onShow={() => {}}
+        showProject={(n) => {
+          const id = shown?.resolved[n]?.id ?? shown?.projects[n]?.id;
+          if (!id || id === pin || !loaded.view.running.includes(id)) return undefined;
+          return () => leave(() => {
+            onNavigate?.();
+            showSettingsAt({ project: id, section: 'project' });
+            if (onShowProject) onShowProject(id);
+            else goTo(projectPath(id));
+          });
+        }}
       />
       {problems
         .filter((p) => p.project === undefined)
@@ -258,7 +279,7 @@ function EntryFields({ e, pin, fresh }: { e: Entry; pin?: string; /** A new proj
 }
 
 /** "Configuration" in the project's settings sheet: its entry, saved with its button, and its place in the list of projects. */
-export function ProjectEntrySection({ project, on }: { project: string; on: boolean }) {
+export function ProjectEntrySection({ project, on, onShowProject }: { project: string; on: boolean; onShowProject?: ((id: string) => void) | undefined }) {
   const e = useProjectEntry(project, on);
   const [question] = useLeaveGuard(e.changed, () => {
     e.reset();
@@ -267,10 +288,13 @@ export function ProjectEntrySection({ project, on }: { project: string; on: bool
   const l = t.projectSettings;
   const c = t.config;
   const n = e.loaded?.view.projects.length ?? 0;
+  const at = e.loaded?.at ?? 0;
   return (
     <div className="cs-entry [&_.c-row]:block [&_.c-row>*]:max-w-full">
       <p className="hint mt-0 mb-2 text-sm leading-[1.45]">{l.entryHint}</p>
-      <EntryFields e={e} pin={project} />
+      <fieldset disabled={e.busy} className="m-0 min-w-0 border-0 p-0">
+        <EntryFields e={e} pin={project} onShowProject={onShowProject} />
+      </fieldset>
       {e.loaded && (
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <Button variant="primary" className="cs-entry-save" disabled={!e.changed || e.pending || e.busy || e.blocking.length > 0} onClick={() => void e.save()}>
@@ -288,7 +312,7 @@ export function ProjectEntrySection({ project, on }: { project: string; on: bool
                 const label = earlier ? c.moveUp : c.moveDown;
                 return (
                   <Tooltip key={label} content={label}>
-                    <Button size="small" className="qmove" disabled={e.busy || (earlier ? e.at === 0 : e.at === n - 1)} aria-label={label} onClick={() => void e.move(earlier)}>
+                  <Button size="small" className="qmove" disabled={e.busy || (earlier ? at === 0 : at === n - 1)} aria-label={label} onClick={() => void e.move(earlier)}>
                       {earlier ? '↑' : '↓'}
                     </Button>
                   </Tooltip>
@@ -336,7 +360,7 @@ export function NewProjectDialog({ open, onClose }: { open: boolean; onClose: ()
       busy={e.busy}
     >
       <p className="hint mt-0">{l.newProjectHint}</p>
-      <EntryFields e={e} fresh />
+      <EntryFields e={e} fresh onNavigate={onClose} />
       {e.status && <p className={`hint ${statusClass}`}>{e.status}</p>}
       {question}
     </ConfirmDialog>

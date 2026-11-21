@@ -242,7 +242,7 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
             </button>
           </header>
           <div id="project-settings" className={cn(settingsSheetClass, 'px-5.5 pt-3')}>
-            <ProjectSettingsBody phone project={seismicId} name={snap.project.name} homePath={snap.project.repos[0]?.path} onAddSite={showAddSite} on={settingsOn} covered={false} />
+            <ProjectSettingsBody key={seismicId} phone project={seismicId} name={snap.project.name} homePath={snap.project.repos[0]?.path} onAddSite={showAddSite} onShowProject={setSeismicProject} on={settingsOn} covered={false} />
           </div>
         </div>
       )}

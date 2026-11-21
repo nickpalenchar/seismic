@@ -644,13 +644,22 @@ function Project({
   const [helpNote, setHelpNote] = useState<'button' | 'gone'>();
   // the "Needs you" button says so until the owner has clicked it once; then the bell and the count do
   const [needsYouKnown, setNeedsYouKnown] = useState(() => known(NEEDS_YOU_KNOWN));
-  // what is wrong in the configuration as saved, marked on its button; read when the page loads,
-  // after a save in the dialog, when a repository's settings change on its default branch, which
-  // the project counts in its repositories (`configRev`), and when a project or repository does not
-  // start, which the projects count (theirs, and which of them run)
+  // The settings button counts this project's problems using the same view as its sheet.
+  // Configuration revisions cover saved changes, repository settings on the default branch and start failures.
   const [configProblems, setConfigProblems] = useState(0);
   const configRevs = [...snapshot.project.repos.map((r) => `${r.id}:${r.configRev ?? 0}`), ...projects.map((c) => `${c.id}:${c.configRev ?? 0}`), `${snapshot.project.configRev ?? 0}`].join(' ');
-  useEffect(() => void api.configCheck().then((c) => setConfigProblems(c.problems.length), console.error), [configRevs]);
+  useEffect(() => {
+    let active = true;
+    void api.projectRepos(snapshot.project.id).then(
+      (c) => { if (active) setConfigProblems(c.problems.length); },
+      (e) => {
+        if (!active) return;
+        setConfigProblems(0);
+        console.error(e);
+      },
+    );
+    return () => { active = false; };
+  }, [snapshot.project.id, configRevs]);
   useEffect(() => void api.shownProjectSettings().then((v) => setRightClick(v.settings.rightClick), () => {}), [snapshot.project.id, csOn, cOn, configRevs]);
   // the archive, read while its list is open; archived cards unfold from their row there
   const [archived, setArchived] = useState<Item[]>([]);

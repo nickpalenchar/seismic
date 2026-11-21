@@ -24,3 +24,22 @@ test('the entry takes its place in the list, or is added to it', () => {
   expect(withEntry(list, 1, { repos: [{ path: '/b2' }] })).toEqual([{ repos: [{ path: '/a' }] }, { repos: [{ path: '/b2' }] }]);
   expect(withEntry(list, 2, { repos: [{ path: '/c' }] })).toEqual([...list, { repos: [{ path: '/c' }] }]);
 });
+
+test('an entry save keeps new workstation values and removals on repositories it still lists', () => {
+  const draft: ProjectConfig = {
+    name: 'Shop',
+    repos: [
+      { path: '/a', clones: 1, slots: 1, workstations: ['/a-old'], settings: { workstations: 'clones' } },
+      { path: '/b', clones: 2, hosts: [{ name: 'old', ssh: 'old', root: '/b', clones: 2 }] },
+    ],
+  };
+  const fresh: ProjectConfig = {
+    repos: [
+      { path: '/a', clones: 4, slots: 0, workstations: ['/a-new'], hosts: [{ name: 'new', ssh: 'new', root: '/a', clones: 3 }] },
+      { path: '/b' },
+    ],
+  };
+  expect(mergedEntry(draft, fresh)).toEqual({ ...fresh, name: 'Shop' });
+  expect(mergedEntry({ repos: [{ path: ' /a ' }] }, fresh)).toEqual({ repos: [fresh.repos[0]!] });
+  expect(mergedEntry({ repos: [{ path: '/a', git: false }] }, fresh)).toEqual({ repos: [{ path: '/a', git: false }] });
+});

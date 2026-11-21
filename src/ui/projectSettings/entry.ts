@@ -2,23 +2,25 @@
 
 import type { ProjectConfig } from '../../core/types';
 
-/** What the entry's editor sets: its name and the like, and its repositories; the rest of the entry (its settings) is the sheet's other sections'. */
+/** The project fields owned by the entry editor. */
 const EDITED = ['name', 'id', 'oldNames', 'icon'] as const;
 
 /**
  * The entry as edited, over `fresh`, the same entry as saved now: what the editor sets comes from the
- * draft, what else the entry holds (the project's settings, each repository's) from `fresh`. The
- * sheet's other sections save as they are changed, so what they saved since the draft was begun stays.
+ * draft. A repository that still has its saved path keeps its current settings and workstation
+ * configuration. Choosing to keep a folder without git also drops its Git workstations.
  */
 export function mergedEntry(draft: ProjectConfig, fresh: ProjectConfig): ProjectConfig {
   const next: ProjectConfig = { ...fresh, repos: [] };
   for (const k of EDITED) delete next[k];
   for (const k of EDITED) if (draft[k] !== undefined) Object.assign(next, { [k]: draft[k] });
   next.repos = draft.repos.map((r) => {
-    const was = fresh.repos.find((f) => f.path === r.path);
+    const was = fresh.repos.find((f) => f.path.trim() === r.path.trim());
     if (!was) return r;
-    const { settings: _, ...rest } = r;
-    return was.settings ? { ...rest, settings: was.settings } : rest;
+    if (r.git === was.git) return was;
+    if (r.git === false) return { path: r.path, git: false, ...(was.settings ? { settings: was.settings } : {}) };
+    const { git: _, ...rest } = was;
+    return rest;
   });
   return next;
 }

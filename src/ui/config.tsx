@@ -217,7 +217,7 @@ export function ConfigDialog({ on, usage, onClose, onTalk, onConnect }: { on: bo
               <p className="hint">{c.reconfigureSetup.hint}</p>
               <Button size="small" onClick={() => setSetupOn(true)}>{c.reconfigureSetup.relaunch}</Button>
             </section>
-            <ProjectExport />
+            <ProjectExport on={on && section === 'advanced'} />
           </section>
           <section id="cfg-sec-developer" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'developer'}>
             <DeveloperBlock on={on && section === 'developer'} />
@@ -230,15 +230,30 @@ export function ConfigDialog({ on, usage, onClose, onTalk, onConnect }: { on: bo
   );
 }
 
-function ProjectExport() {
+function ProjectExport({ on }: { on: boolean }) {
   const [selected, setSelected] = useState<string[] | null>(null);
   const [error, setError] = useState('');
   const [names, setNames] = useState<{ id: string; name: string }[]>([]);
-  useEffect(() => void api.projects().then((ps) => setNames(ps.map((p) => ({ id: p.id, name: p.name || p.id }))), console.error), []);
+  useEffect(() => {
+    setNames([]);
+    if (!on) return;
+    setError('');
+    let active = true;
+    void api.projects().then(
+      (ps) => {
+        if (active) setNames(ps.map((p) => ({ id: p.id, name: p.name || p.id })));
+      },
+      (e) => {
+        if (active) setError(failText(e));
+      },
+    );
+    return () => { active = false; };
+  }, [on]);
   const ids = selected === null ? names.map((project) => project.id) : selected.filter((id) => names.some((project) => project.id === id));
   const exportAs = async (as: 'csv' | 'json') => {
     setError('');
-    try { await api.exportProjects(ids, as); } catch (e) { setError(failText(e)); }
+    // An empty project parameter list asks the server for all projects as of the download.
+    try { await api.exportProjects(selected === null ? [] : ids, as); } catch (e) { setError(failText(e)); }
   };
   return <>
     <h3>{t.config.dataExport.title}</h3>
@@ -1674,12 +1689,12 @@ const sitePathOk = (path: string) => path === '' || /^[a-z0-9][a-z0-9-]{0,40}(\/
 const tidyPath = (path: string) => path.trim().replace(/^\/+|\/+$/g, '');
 
 /**
- * A project's demo site, in its settings sheet and on its page in Configuration: one of this
- * machine's sites ("+ Add new site" opens Configuration at the page that adds one), its path there, "Initialize" until the path is on the site ("Creating demo site" in the
- * status bar meanwhile), the vocabulary of tags and when a demo goes on the site. `project`: the
+ * A project's demo site, under Demos in Project settings: one of this machine's sites, its path
+ * there, "Initialize" until the path is on the site ("Creating demo site" in the status bar
+ * meanwhile), the vocabulary of tags and when a demo goes on the site. `project`: the
  * project's id where it runs (Initialize needs it). Path and tags take effect when the field is left.
  */
-export function ProjectSiteField({ project, value, onChange, homePath, language, bare, onAddSite = showAddSite }: { project: string | undefined; value: ProjectDemoSite | null | undefined; onChange: (v: ProjectDemoSite | null) => void; /** The project's home repository, which "Have an agent propose the tags" reads. */ homePath?: string; language: NarrationLanguage | null; /** Under a heading of its own that names it (the settings sheet): the controls alone. */ bare?: boolean; /** "+ Add new site": opens the page that adds one (in Configuration, where the field is). */ onAddSite?: () => void }) {
+export function ProjectSiteField({ project, value, onChange, homePath, language, bare, onAddSite = showAddSite }: { project: string | undefined; value: ProjectDemoSite | null | undefined; onChange: (v: ProjectDemoSite | null) => void; /** The project's home repository, which "Have an agent propose the tags" reads. */ homePath?: string; language: NarrationLanguage | null; /** Under a heading of its own that names it (the settings sheet): the controls alone. */ bare?: boolean; /** "+ Add new site" opens the add-site page in the machine-wide Configuration dialog. */ onAddSite?: () => void }) {
   const [view] = useDemoSites(true);
   const [path, setPath] = useState(value?.path ?? '');
   const [init, setInit] = useState<ProjectDemoSiteState | null>(null);
@@ -1971,8 +1986,8 @@ function VoiceBlock({ on }: { on: boolean }) {
 
 interface ProjectProps {
   n: number;
-  /** Shows another project, by its place in the draft (the one a problem points to). */
-  onShow: (n: number) => void;
+  /** Opens the configuration of a project named by a problem, where it has a running page. */
+  showProject: (n: number) => (() => void) | undefined;
   project: ProjectConfig;
   /** The repositories are being checked: their ids and settings are still to come. */
   checking: boolean;
@@ -2025,7 +2040,7 @@ function ProjectIconField({ icon, onChange }: { icon: string | undefined; onChan
  * A project's entry in the configuration: its name and icon, old names, then its repositories with
  * their paths. "Configuration" in its settings sheet edits it, and "+ New project" a new one.
  */
-export function ProjectBlock({ n, project, checking, resolved, running, pin, problems, ask, onRecheck, onChange, onShow }: ProjectProps) {
+export function ProjectBlock({ n, project, checking, resolved, running, pin, problems, ask, onRecheck, onChange, showProject }: ProjectProps) {
   const fresh = resolved && !running.includes(resolved.id);
   // the Koordinator of the project with the problem, where it runs: a card for it goes there
   const askHere = ask && ((text: string) => ask(text, resolved && running.includes(resolved.id) ? resolved.id : undefined));
@@ -2068,7 +2083,7 @@ export function ProjectBlock({ n, project, checking, resolved, running, pin, pro
         {problems
           .filter((p) => NAME_PROBLEMS.includes(p.code))
           .map((p, k) => (
-            <Problem key={k} problem={p} where={here} onShow={onShow} />
+            <Problem key={k} problem={p} where={here} onShow={p.ofProject === undefined ? undefined : showProject(p.ofProject)} />
           ))}
       </Field>
       {!!project.oldNames?.length && (
@@ -2196,7 +2211,7 @@ function RepoRow({ repo, gitOnly, home, resolved, problems, where, ask, onRechec
  * What is wrong with a repository, each problem with what fixes it where it can be fixed here:
  * setting up git in a folder without it, trusting the repository's commands.
  */
-export function RepoProblems({ repo, resolved, problems, where, ask, onRecheck, gitOnly, onFolder }: { repo: RepoConfig; resolved: ResolvedProject['repos'][number] | undefined; problems: ConfigProblem[]; where: string; ask?: ((text: string) => void) | undefined; onRecheck: () => Promise<void>; /** The harness that needs git which the workers run in (`GitSetup`). */ gitOnly?: 'codex' | 'agy' | undefined; /** Keeps the folder without git; none where that is chosen in Configuration only. */ onFolder?: () => void }) {
+export function RepoProblems({ repo, resolved, problems, where, ask, onRecheck, gitOnly, onFolder }: { repo: RepoConfig; resolved: ResolvedProject['repos'][number] | undefined; problems: ConfigProblem[]; where: string; ask?: ((text: string) => void) | undefined; onRecheck: () => Promise<void>; /** The harness that needs git which the workers run in (`GitSetup`). */ gitOnly?: 'codex' | 'agy' | undefined; /** The entry editor can keep the folder without git. */ onFolder?: () => void }) {
   // a path without a repository that is a folder: git can be set up there
   const noGit = useFolderWithoutGit(problems.some((p) => p.code === 'notRepo') ? repo.path.trim() : '');
   return (
@@ -2687,9 +2702,8 @@ function slotsOf(value: string): number | undefined {
  * does not pass for the dialog's close button, shown while the pointer or focus is on its entry.
  */
 /**
- * Problems of a repository the project's settings sheet shows with what fixes them there (commands to
- * trust, settings the repository's file gets wrong): Configuration leaves them to it. They keep no save
- * from going through; those that do show here, where the save waits.
+ * Repository problems shown elsewhere in Project settings, under Allowed commands or Git and
+ * releasing. The Configuration section shows the problems that matter to the entry's save.
  */
 export const SHEET_PROBLEMS: ConfigProblemCode[] = ['untrusted', 'adapterGone', 'repoSettings'];
 
@@ -2802,7 +2816,7 @@ const DETAILED: ConfigProblem['code'][] = ['adapterGone', 'repoSettings', 'hostN
  * what to fix, and a button that has the Koordinator create a task that fixes it (with the detail, which it reads).
  * What did not start as saved tries again with "Try again", where `retried` is given (called after it).
  */
-export function Problem({ problem, where, ask, retried, onShow }: { problem: ConfigProblem; where: string; ask?: (text: string) => void; retried?: () => void; /** Shows the project the problem points to (`ofProject`). */ onShow?: (n: number) => void }) {
+export function Problem({ problem, where, ask, retried, onShow }: { problem: ConfigProblem; where: string; ask?: (text: string) => void; retried?: () => void; /** Shows the project the problem points to. */ onShow?: (() => void) | undefined }) {
   const [asked, setAsked] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [error, setError] = useState('');
@@ -2826,7 +2840,7 @@ export function Problem({ problem, where, ask, retried, onShow }: { problem: Con
       {named ? (
         <>
           {named[0]}
-          <LinkButton type="button" onClick={() => onShow!(problem.ofProject!)}>
+          <LinkButton type="button" onClick={onShow}>
             {problem.of}
           </LinkButton>
           {named[1]}

@@ -61,6 +61,8 @@ interface SettingsProps {
   on: boolean;
   /** The Configuration dialog is open over it: read afresh once it closes, as models may have changed there. */
   covered: boolean;
+  /** The phone's project switch, keeping its settings page open. */
+  onShowProject?: (id: string) => void;
 }
 
 /** The sheet of the project `project`, docked on the right; read afresh each time it opens or the Configuration over it closes. */
@@ -76,7 +78,7 @@ export function ProjectSettingsSheet(p: SettingsProps) {
  * The list of sections and the view open, in the docked sheet or on the phone's page of its own
  * (`phone`: under the page's bar, which names it).
  */
-export function ProjectSettingsBody({ project, name, homePath, on, covered, onAddSite, phone }: SettingsProps & { phone?: boolean }) {
+export function ProjectSettingsBody({ project, name, homePath, on, covered, onAddSite, onShowProject, phone }: SettingsProps & { phone?: boolean }) {
   const [view, setView] = useState<ProjectSettingsView | null>(null);
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
@@ -116,7 +118,7 @@ export function ProjectSettingsBody({ project, name, homePath, on, covered, onAd
   }, [project]);
   // a jump to a field: taken as the sheet shows its project, applied once that project's repositories are read
   const [jump, setJump] = useState<SettingsFocus | null>(null);
-  const [mark, setMark] = useState<SettingsFocus['field'] | null>(null);
+  const [mark, setMark] = useState<SettingsFocus | null>(null);
   useEffect(() => {
     if (!on) return;
     const take = () => {
@@ -127,19 +129,27 @@ export function ProjectSettingsBody({ project, name, homePath, on, covered, onAd
     return onSettingsFocus(take);
   }, [on, project]);
   useEffect(() => {
+    if (!on || !jump || jump.project !== project || !view) return;
     const resolved = repos.view?.resolved;
-    if (!jump || !resolved || resolved.id !== project) return;
+    if (jump.repo && (!resolved || resolved.id !== project)) return;
     setJump(null);
-    let h: ReturnType<typeof setTimeout> | undefined;
     leave(() => {
-      const i = resolved.repos.findIndex((r) => r?.id === jump.repo);
-      if (i >= 0) setRepoAt(i);
+      if (jump.repo) {
+        const i = resolved?.repos.findIndex((r) => r?.id === jump.repo) ?? -1;
+        if (i >= 0) setRepoAt(i);
+      }
       setOpen(jump.section ?? null);
-      setMark(jump.field ?? null);
-      h = setTimeout(() => setMark(null), 2400);
+      setMark(jump.field ? jump : null);
     });
+  }, [on, jump, repos.view, project, view]);
+  useEffect(() => {
+    if (!mark) return;
+    const h = setTimeout(() => setMark(null), 2400);
     return () => clearTimeout(h);
-  }, [jump, repos.view, project]);
+  }, [mark]);
+  useEffect(() => {
+    if (!on) setMark(null);
+  }, [on]);
   const l = t.projectSettings;
   const save = async (s: ProjectSettings) => {
     // shown at once; the server's answer, or the view before on a refusal, follows
@@ -160,7 +170,9 @@ export function ProjectSettingsBody({ project, name, homePath, on, covered, onAd
   const shown = (s: Section | null) =>
     leave(() => {
       if (s === null) setBack(open);
+      if (open === 'project' && s !== 'project') void repos.reload();
       setOpen(s);
+      setMark(null);
     });
   const said = status || repos.status;
   return (
@@ -169,7 +181,7 @@ export function ProjectSettingsBody({ project, name, homePath, on, covered, onAd
         <SectionView key={open} section={open} onBack={() => shown(null)}>
           {/* under the title, in view however far the section's fields reach */}
           <Said status={said} failed={repos.failed} />
-          <SectionBody section={open} project={project} view={view} repos={repos} repoAt={Math.min(repoAt, Math.max(0, repos.repos.length - 1))} onRepo={setRepoAt} catalogs={catalogs} busy={busy} save={save} choose={choose} homePath={homePath} onAddSite={onAddSite} mark={mark} />
+          <SectionBody section={open} project={project} view={view} repos={repos} repoAt={Math.min(repoAt, Math.max(0, repos.repos.length - 1))} onRepo={(i) => { setMark(null); setRepoAt(i); }} catalogs={catalogs} busy={busy} save={save} choose={choose} homePath={homePath} onAddSite={onAddSite} onShowProject={onShowProject} mark={mark?.project === project ? mark : null} />
         </SectionView>
       ) : (
         <div className={cn(back && 'animate-[push-back_.22s_ease-out]')}>
@@ -204,7 +216,7 @@ function SectionList({ view, repos, focus, onOpen }: { view: ProjectSettingsView
   useEffect(() => {
     if (focus) list.current?.querySelector<HTMLButtonElement>(`[data-section="${focus}"]`)?.focus();
   }, [focus]);
-  const problems = (s: Section) => (repos.view?.problems ?? []).filter((p) => p.repo !== undefined && sectionOf(p) === s).length;
+  const problems = (s: Section) => (repos.view?.problems ?? []).filter((p) => (p.repo === undefined ? 'project' : sectionOf(p)) === s).length;
   const resolved = repos.view?.resolved;
   const places = new Set(repos.repos.flatMap((r, i) => (r.git === false ? [] : [workPlace(r, resolved?.repos[i]).workIn])));
   const home = repos.repos[0];
@@ -339,7 +351,8 @@ interface BodyProps {
   homePath: string | undefined;
   onAddSite: () => void;
   /** The field to focus and mark for a moment: the sheet was opened at it. */
-  mark: SettingsFocus['field'] | null;
+  mark: SettingsFocus | null;
+  onShowProject: SettingsProps['onShowProject'];
 }
 
 /** What a section's view holds: the repository's part first, under the switcher, then the project's. */
@@ -348,7 +361,7 @@ function SectionBody(p: BodyProps) {
   const l = t.projectSettings;
   switch (section) {
     case 'project':
-      return <ProjectEntrySection project={p.project} on />;
+      return <ProjectEntrySection project={p.project} on onShowProject={p.onShowProject} />;
     case 'commands':
       return <AllowedCommands repos={p.repos} />;
     case 'environment':
@@ -414,19 +427,25 @@ function RepoPart({ section, project, view, save, repos, repoAt, onRepo, mark }:
   const l = t.projectSettings;
   const v = repos.view;
   const box = useRef<HTMLDivElement>(null);
-  const place = mark === 'clones' || mark === 'slots';
+  const key = mark?.field;
+  const place = key === 'clones' || key === 'slots';
   useEffect(() => {
-    if (!mark || !box.current) return;
-    const field = place ? box.current.querySelector<HTMLElement>(mark === 'slots' ? '.cfg-slots' : '.cfg-clone-count') : box.current.querySelector<HTMLElement>(`[data-setting="${mark}"]`);
+    if (!key || !box.current) return;
+    const field = box.current.querySelector<HTMLElement>(place ? (key === 'slots' ? '.cfg-slots' : '.cfg-clone-count') : `[data-setting="${key}"]`);
     if (!field) return;
+    const controls = field.querySelector('.cfg-control');
+    const control = controls?.querySelector<HTMLElement>('[data-slot="toggle-group-item"][data-state="on"]:enabled')
+      ?? controls?.querySelector<HTMLElement>('input:enabled, textarea:enabled, select:enabled, button:enabled');
+    const before = document.activeElement;
     const take = () => {
-      if (field.contains(document.activeElement)) return;
       field.scrollIntoView({ block: 'center' });
-      field.querySelector<HTMLElement>('input, textarea')?.focus({ preventScroll: true });
+      control?.focus({ preventScroll: true });
     };
     take();
-    // a sheet that slides in takes the focus only once it is there
-    const h = setTimeout(take, 350);
+    // Retry after the slide if the control could not take focus and the user has not moved it.
+    const h = setTimeout(() => {
+      if (control !== document.activeElement && (document.activeElement === before || document.activeElement?.matches('.cs-back'))) take();
+    }, 450);
     return () => clearTimeout(h);
   }, [mark, repoAt, !!v?.resolved]);
   if (!v) return <p className="hint">{t.config.loading}</p>;
@@ -466,7 +485,7 @@ function RepoPart({ section, project, view, save, repos, repoAt, onRepo, mark }:
     const { settings: _, ...rest } = repo;
     repos.edit(repoAt, settings ? { ...rest, settings } : rest);
   };
-  const at = repoSettingsAt(repo.settings, resolved.values, edit, place ? null : mark);
+  const at = repoSettingsAt(repo.settings, resolved.values, edit, place ? null : key);
   // what reads the saved configuration (sharing it for everyone, the agent that writes it) saves what waits first
   const takeover: Takeover = { saved: !repos.unsaved(repoAt) && !repos.busy, onReload: async () => repos.reload(), prepare: () => repos.settle(repoAt) };
   const name = repoName(repo, resolved);
