@@ -10,7 +10,7 @@ import { formatQuestion, type Item, type Question, type Revising } from '../core
 import { BadRequest, type Board } from './board';
 import { MAX_IMAGES } from './images';
 import type { AgentRuntime } from './runtime';
-import { reviseProposal, type Revised, type Shots } from './llms/agents/agentJobs/proposalRevision';
+import { reviseProposal, type Revised, type Shots } from './llms/agents/agentJobs/reviseProposal';
 import { messageOf } from '../core/text';
 
 export interface RevisionOptions {

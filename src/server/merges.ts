@@ -2,7 +2,7 @@
 import { messageOf } from '../core/text';
 import type { Item, Merge } from '../core/types';
 import type { Board } from './board';
-import { compareCards, type MergeResult as Result } from './llms/agents/agentJobs/cardMerge';
+import { createCardMergePlan, type CardMergePlan as Result } from './llms/agents/agentJobs/createCardMergePlan';
 import type { AgentRuntime } from './runtime';
 
 export interface MergeOptions {
@@ -150,7 +150,7 @@ export class Merges {
 
   private ask(card: Item, other: Item): Promise<Result> {
     const compared = this.o.board.mergeReads(card, other);
-    return compareCards({
+    return createCardMergePlan({
       runtime: this.o.runtime,
       board: this.o.board,
       cwd: this.o.pathFor(other),

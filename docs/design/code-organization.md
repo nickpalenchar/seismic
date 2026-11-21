@@ -124,7 +124,8 @@ Not necesarilly "layers", but important to keep organized nonetheless
 - `src/server/llms/agents/agentJobs/` the agent jobs: short, single-purpose agent sessions of Seismic's own
   (the wish draft, tag proposals, the work retrospective): a class that extends `SeismicJob`
   (`src/server/llms/agents/seismicJob.ts`: a read-only session of the role `chores` that answers through its tools),
-  built per run, with its test. The tags a session calls cards by (`K1`…) come from `CardTags` (`agentJobs/cardTags.ts`), which maps them to ids and back. A job's brief is read asynchronously (`getBrief(): Promise<string>`), so a job can read what it needs (git, the board) when it
+  built per run, with its test. A job is named for what it does, as a verb phrase (`estimateCardScope`, `createCardMergePlan`): its file, its class (`EstimateCardScopeJob`), its function and its `name`; its doc comments say what the whole job does, in the active voice, not what it is.
+  The tags a session calls cards by (`K1`…) come from `CardTags` (`agentJobs/cardTags.ts`), which maps them to ids and back. A job's brief is read asynchronously (`getBrief(): Promise<string>`), so a job can read what it needs (git, the board) when it
   starts; the session starts once the brief is read, and a brief that cannot be read ends the job with the error. A job is generic over its result: `run` settles with a `JobResult` (the value its tools collected, or the error that
   ended the session), and what a failure means is the caller's. A job names the role whose model setting it runs under (`chores`, or
   `koordinator` for the Koordinator's own one-shots). An agent or job declares the `capabilities` it needs of its model

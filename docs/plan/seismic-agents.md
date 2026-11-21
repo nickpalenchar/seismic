@@ -19,7 +19,7 @@ and `docs/design.md`, and this doc goes.
 - [x] `SeismicSkill` (`src/server/llms/skills/seismicSkill.ts`), instances `labels` and `titles`.
 - [x] `AgentSpec.skills`; `attachedSkills.ts` (`skillPlugins` for Claude, `skillListing` for Codex and agy),
   called from the harnesses.
-- [x] `wish` moved to `src/server/llms/agents/agentJobs/`.
+- [x] `writeWish` (was `wish`) moved to `src/server/llms/agents/agentJobs/`.
 
 ## Open: skills
 
@@ -34,9 +34,9 @@ and `docs/design.md`, and this doc goes.
 - [x] `readSession` (`llms/agents/agentJobs/readSession.ts`) left `koordinator.ts`; `tagProposal` and `workRetro`
   moved to `llms/agents/agentJobs/`.
 - [x] The agent jobs are classes: `SeismicJob` (`llms/agents/seismicJob.ts`: read-only, role `chores`, the `finish`
-  handshake, `run()` settling with the error that ended it) for `tagProposal` (`TagProposalSession`) and `workRetro`
-  (`FrictionNotesSession`, `RetroSession`); `wish` (`WishSession`) extends `SeismicAgent` since it settles on its own
-  timeout and usage-limit hook. A job is built per run, so its tools keep their state in fields.
+  handshake, `run()` settling with the error that ended it) for `tagProposal` (`ProposeTagsJob`), `workRetro`
+  (`NoteCardFrictionJob`, `ProposeFrictionFixesJob`) and `writeWish` (`WriteWishJob`, which ends its run early with
+  `cancel()` on its timeout and its usage-limit hook). A job is built per run, so its tools keep their state in fields.
 - [x] A job is generic over its result: `SeismicJob<R>.run` settles with `JobResult<R>` (`{ ok: true, value }` or
   `{ ok: false, error }`), `answer()` turns what the tools collected into the value, and what a failure means is the
   caller's to decide (a fallback title, a thrown error). A job whose effect is what its tools do (they write to the board) is `SeismicJob<void>`.
@@ -52,7 +52,7 @@ and `docs/design.md`, and this doc goes.
   `readSession.ts` and the deprecated guide readers (`labelsGuide`, `titlesGuide`, `LABELS_SKILL_FILE`) are gone: card
   naming and labels, the plan's dependencies, the rule retrospective and learner (`ruleProposals.ts` is what they share),
   the merge comparison, the proposal rework, the demo page's text and tags, and the card's scope and the batch schedule
-  (`cardScope.ts`, `queueSchedule.ts`, which call the Koordinator's async brief builders). `CardTags` hands out the
+  (`estimateCardScope.ts`, `scheduleCardBatch.ts`, which call the Koordinator's async brief builders). `CardTags` hands out the
   `K1…` tags the sessions call cards by.
 - [ ] Later, once an agent has jobs: `SeismicAgent.runJob(job)` so the agent that runs a job is chosen apart from the job
   (the job names a default); `delegateJob` between agents when something needs subagents. Tools are fixed when a session
@@ -64,9 +64,9 @@ and `docs/design.md`, and this doc goes.
   and move with it.
 - [ ] `codeReview` and `workRetro` split further into a service (board state, counters, owner decisions; the
   pure review-item functions to `core/`) and the agent sessions they start; the sessions are agents already.
-- [ ] Inline prompts (`tagProposal`'s `system()` and `brief()`, `wish`'s `brief()`) into `llms/prompts/`
+- [ ] Inline prompts (`tagProposal`'s `system()` and `brief()`, `writeWish`'s `brief()`) into `llms/prompts/`
   (one prompt per file).
-- [ ] `osName` in `wish.ts` duplicates the platform names of `ui/views/setup/setup.tsx`; one helper in
+- [ ] `osName` in `writeWish.ts` duplicates the platform names of `ui/views/setup/setup.tsx`; one helper in
   `core/` (the plugin's copy in `plugin/skills/demo/lib/setup.ts` stays, the plugin is portable).
 
 ## The worker as a `SeismicAgent`

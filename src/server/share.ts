@@ -29,8 +29,8 @@ import { demoFile } from './demo-file';
 import type { Theme } from './theme';
 import { type Forge, landedUrl, parsePrUrl } from './forge';
 import type { AgentRuntime } from './runtime';
-import { writeDemoPage } from './llms/agents/agentJobs/demoPage';
-import { chooseTags } from './llms/agents/agentJobs/pageTags';
+import { writeDemoPage } from './llms/agents/agentJobs/writeDemoPage';
+import { chooseDemoPageTags } from './llms/agents/agentJobs/chooseDemoPageTags';
 import type { CardRow } from './schemas/cards/cards';
 import { branchName, CARD_BRANCH, gitAsync } from './workstations';
 import { originOf } from './forgejo';
@@ -955,7 +955,7 @@ export class Sharing {
    * the owner or a worker chose stays. Without an answer they stay lacking.
    */
   private async chooseTags(card: Item, demos: SharedDemo[], lacking: PageTags) {
-    const tags = await chooseTags({ runtime: this.o.runtime, cwd: this.target(card)?.repo ?? this.o.home, demos: demos.map((d) => d.shown), lacking });
+    const tags = await chooseDemoPageTags({ runtime: this.o.runtime, cwd: this.target(card)?.repo ?? this.o.home, demos: demos.map((d) => d.shown), lacking });
     if (tags) this.chosen(card.id, tags);
   }
 

@@ -3,14 +3,14 @@ import { normalize, overlaps } from '../core/path-overlap';
 // merge with work in progress. It judges that from what each card will change (estimated before
 // the start) and has changed so far (files and the places in them); sharing a file is not enough.
 
-import { judgeLabels } from './llms/agents/agentJobs/cardLabels';
-import { nameCard } from './llms/agents/agentJobs/cardName';
-import { learnFrom, type InputContext, type OwnerInput } from './llms/agents/agentJobs/ruleLearner';
-import { readDependencies } from './llms/agents/agentJobs/planDependencies';
-import { retrospect } from './llms/agents/agentJobs/ruleRetro';
+import { judgeCardLabels } from './llms/agents/agentJobs/judgeCardLabels';
+import { nameCard } from './llms/agents/agentJobs/nameCard';
+import { learnRuleFromInput, type InputContext, type OwnerInput } from './llms/agents/agentJobs/learnRuleFromInput';
+import { readPlanDependencies } from './llms/agents/agentJobs/readPlanDependencies';
+import { proposeRulesFromHistory } from './llms/agents/agentJobs/proposeRulesFromHistory';
 import { CardTags } from './llms/agents/agentJobs/cardTags';
-import { type Scope, scopeCard } from './llms/agents/agentJobs/cardScope';
-import { type Planned, scheduleCards } from './llms/agents/agentJobs/queueSchedule';
+import { type Scope, estimateCardScope } from './llms/agents/agentJobs/estimateCardScope';
+import { type Planned, scheduleCardBatch } from './llms/agents/agentJobs/scheduleCardBatch';
 import { randomUUID } from 'node:crypto';
 import type { RepoAdapter } from '../adapters/types';
 import { drawnWaits, inQueue, movable, notStarted, queueOrder, reach, waitsOn } from '../core/queue';
@@ -25,8 +25,8 @@ import { clip, messageOf } from '../core/text';
 import { type Label, type Labels, suggestable, type SuggestToggles } from '../core/labels';
 
 /** What the owner said that may hold a lasting preference, and what the learner reads it with (`ruleLearner.ts`). */
-export type { InputContext, OwnerInput } from './llms/agents/agentJobs/ruleLearner';
-export type { Scope } from './llms/agents/agentJobs/cardScope';
+export type { InputContext, OwnerInput } from './llms/agents/agentJobs/learnRuleFromInput';
+export type { Scope } from './llms/agents/agentJobs/estimateCardScope';
 
 /** What the Koordinator needs of the repository a card belongs to. */
 export interface RepoHands {
@@ -289,7 +289,7 @@ export class Koordinator {
 
   /** One turn reads from the plan doc which workstream builds on which: the keys of those each builds on, by key. */
   private dependencies(plan: Item, kids: Item[]): Promise<Record<string, string[]>> {
-    return readDependencies({ runtime: this.o.runtime, cwd: this.o.repoFor(plan).path, plan, kids, keys: this.o.board.workstreamKeys(plan.id) });
+    return readPlanDependencies({ runtime: this.o.runtime, cwd: this.o.repoFor(plan).path, plan, kids, keys: this.o.board.workstreamKeys(plan.id) });
   }
 
   /** The cards to be judged together under `key` (a plan's start, or cards freed at once) that the Koordinator has not planned yet. */
@@ -392,7 +392,7 @@ export class Koordinator {
   private async review(since: string): Promise<void> {
     const history = this.history(since);
     if (!history.length) return;
-    await retrospect({ runtime: this.o.runtime, board: this.o.board, cwd: this.o.home(), language: this.spokenLanguage, history, onLimit: waitQuietly });
+    await proposeRulesFromHistory({ runtime: this.o.runtime, board: this.o.board, cwd: this.o.home(), language: this.spokenLanguage, history, onLimit: waitQuietly });
   }
 
   /**
@@ -464,7 +464,7 @@ export class Koordinator {
   }
 
   private async distill(card: Item | null, kind: OwnerInput, text: string, context: InputContext, around: string[]): Promise<void> {
-    await learnFrom({
+    await learnRuleFromInput({
       runtime: this.o.runtime,
       board: this.o.board,
       cwd: card && !card.repoDown ? this.o.repoFor(card).path : this.o.home(),
@@ -937,7 +937,7 @@ export class Koordinator {
     if (!card || nameless(card) || card.kind === 'plan' || card.repoDown) return;
     const asked = this.labelsToAsk(cardId);
     if (!asked.length) return;
-    void judgeLabels({ runtime: this.o.runtime, cwd: this.o.repoFor(card).path, asked, title: card.title, body: card.body, images: this.o.imageFiles?.(card.images) ?? [] })
+    void judgeCardLabels({ runtime: this.o.runtime, cwd: this.o.repoFor(card).path, asked, title: card.title, body: card.body, images: this.o.imageFiles?.(card.images) ?? [] })
       .then((labels) => {
         if (this.o.board.item(cardId)) this.o.board.suggestLabels(cardId, labels);
       })
@@ -979,7 +979,7 @@ export class Koordinator {
   private async estimate(card: Item, active: Item[], ahead: Item[], pending: Item[], candidates: Item[], onLimit: (until: number | null | undefined, retry?: () => void) => void): Promise<Scope> {
     const tags = new CardTags(active, ahead, pending, candidates);
     const hands = this.o.repoFor(card);
-    return scopeCard({
+    return estimateCardScope({
       runtime: this.o.runtime,
       cwd: hands.path,
       card,
@@ -1006,7 +1006,7 @@ export class Koordinator {
     const candidates = [...new Map(batch.flatMap((w) => this.duplicateCandidates(w)).map((a) => [a.id, a])).values()];
     const tags = new CardTags(active, ahead, batch, candidates);
     const hands = this.o.repoFor(batch[0]!);
-    return scheduleCards({
+    return scheduleCardBatch({
       runtime: this.o.runtime,
       board: this.o.board,
       cwd: hands.path,

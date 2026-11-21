@@ -1,5 +1,5 @@
 /**
- * The work retrospective: Seismic looks back at how the workers worked, to make future runs cheaper.
+ * Looks back at how the workers worked, to make future runs cheaper (the work retrospective).
  * When a card's work ends, an excerpt of its runs (Claude's or Codex's, transcript.ts, no model) goes to a short session
  * that notes the friction in it; after WORK_RETRO_RAMP finished cards of a new repository (1, 2 more,
  * 4 more), then every WORK_RETRO_EVERY, or when the
@@ -18,8 +18,8 @@ import { remote } from '../../../hosts';
 import { type Excerpt, excerptOf, excerptText, findTranscript } from '../../../transcript';
 import { type Language, LANGUAGE_NAMES } from '../../../../core/locale';
 import { clip } from '../../../../core/text';
-import { retroNotesSystem } from '../../prompts/retroNotesSystem';
-import { retroSystem } from '../../prompts/retroSystem';
+import { noteCardFrictionSystem } from '../../prompts/noteCardFrictionSystem';
+import { proposeFrictionFixesSystem } from '../../prompts/proposeFrictionFixesSystem';
 
 export interface WorkRetroOptions {
   board: Board;
@@ -133,8 +133,8 @@ export class WorkRetro {
     const notes: FrictionNote[] = [];
     const settings = this.settingsText(card.repo);
     const ownerLanguage = `${LANGUAGE_NAMES[this.o.board.conversation()]} unless an explicit standing preference names another language`;
-    await new FrictionNotesSession({
-      system: [retroNotesSystem(ownerLanguage), this.o.board.preferencesText()].filter(Boolean).join('\n\n'),
+    await new NoteCardFrictionJob({
+      system: [noteCardFrictionSystem(ownerLanguage), this.o.board.preferencesText()].filter(Boolean).join('\n\n'),
       brief: `The card: "${card.title}".${settings ? `\n\n${settings}` : ''}\n\nThe excerpt of its worker's ${runs.length > 1 ? `${runs.length} runs` : 'run'}:\n\n${text}`,
       ownerLanguage,
       notes,
@@ -186,8 +186,8 @@ export class WorkRetro {
     const settings = this.settingsText(repo);
     const ownerLanguage = `${LANGUAGE_NAMES[b.conversation()]} unless an explicit standing preference names another language`;
     const withCards = this.o.proposesCards?.() !== false;
-    const session = new RetroSession({
-      system: [retroSystem(ownerLanguage, b.language(), this.o.repoLanguage?.(repo) ?? 'en', WORK_RETRO_PROPOSALS, withCards), b.preferencesText()].filter(Boolean).join('\n\n'),
+    const session = new ProposeFrictionFixesJob({
+      system: [proposeFrictionFixesSystem(ownerLanguage, b.language(), this.o.repoLanguage?.(repo) ?? 'en', WORK_RETRO_PROPOSALS, withCards), b.preferencesText()].filter(Boolean).join('\n\n'),
       brief: [
   `The repository: ${name}. The friction noted on its cards since the last work retrospective, card by card:\n\n${byCard.join('\n\n')}`,
   settings,
@@ -227,9 +227,9 @@ export class WorkRetro {
   }
 }
 
-/** The session that reads one card's runs and notes its friction. */
-class FrictionNotesSession extends SeismicJob {
-  readonly name = 'frictionNotes';
+/** Reads one card's worker runs and notes the friction in them. */
+class NoteCardFrictionJob extends SeismicJob {
+  readonly name = 'noteCardFriction';
   readonly description = "Notes the friction in a card's worker runs.";
 
   constructor(private o: { system: string; brief: string; ownerLanguage: string; notes: FrictionNote[] }) {
@@ -269,9 +269,9 @@ class FrictionNotesSession extends SeismicJob {
   }
 }
 
-/** The session that reads the friction noted since the last retrospective and proposes cards, CLAUDE.md lines and setting values. */
-class RetroSession extends SeismicJob {
-  readonly name = 'workRetro';
+/** Reads the friction noted since the last retrospective and proposes cards, CLAUDE.md lines and setting values. */
+class ProposeFrictionFixesJob extends SeismicJob {
+  readonly name = 'proposeFrictionFixes';
   readonly description = "Proposes what would prevent the friction noted on a repository's cards.";
   /** How many proposals it made. */
   made = 0;

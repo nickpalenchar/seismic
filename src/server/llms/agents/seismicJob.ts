@@ -59,6 +59,13 @@ export abstract class SeismicJob<R = void> extends SeismicAgent<void> {
     return this.getJobTools();
   }
 
+  /** Ends the run now and closes its session (the owner stopped waiting, a time limit ran out); the run settles with what the job has by then. */
+  cancel(): void {
+    this.stopRun();
+  }
+
+  private stopRun: () => void = () => {};
+
   /** Runs the session and settles with what it gave. */
   async run(runtime: AgentRuntime, o: JobRun): Promise<JobResult<R>> {
     const error = await this.session(runtime, o);
@@ -80,8 +87,14 @@ export abstract class SeismicJob<R = void> extends SeismicAgent<void> {
         end();
         return r;
       };
+      this.stopRun = () => {
+        end();
+        session?.close();
+      };
       let session: AgentSession | undefined;
       const start = (brief: string) => {
+        // cancelled before its brief was read
+        if (done) return;
         session = runtime.start(
           {
             ...this.toSpec(undefined, {

@@ -1,9 +1,9 @@
 /**
- * "Suggest tags" at a demo site's tags: a read-only session reads the repository (how the app
- * is built: its areas, its users) and the cards of the projects it is on (finished and open,
- * archived ones too, with what their demos show), and proposes a vocabulary of tags, which the
- * dialog puts into the field for the owner to change and save. It runs in the background, so the
- * dialog may close meanwhile and take the proposal in when it opens again.
+ * Proposes a vocabulary of tags for a demo site ("Suggest tags"): a read-only session reads the
+ * repository (how the app is built: its areas, its users) and the cards of the projects it is on
+ * (finished and open, archived ones too, with what their demos show), and proposes the vocabulary,
+ * which the dialog puts into the field for the owner to change and save. It runs in the background,
+ * so the dialog may close meanwhile and take the proposal in when it opens again.
  */
 
 import { z } from 'zod';
@@ -58,9 +58,9 @@ export interface TagRun {
 /** The longest brief: the newest cards first, the rest left out. */
 const BRIEF_MAX = 80_000;
 
-/** The proposal session: what the session proposes is kept in `out`; `tried` says why a try was refused. */
-class TagProposalSession extends SeismicJob<{ tags: PageTags; why: string }> {
-  readonly name = 'tagProposal';
+/** Proposes the vocabulary of tags; keeps its proposal in `out`, and in `tried` why a try was refused. */
+class ProposeTagsJob extends SeismicJob<{ tags: PageTags; why: string }> {
+  readonly name = 'proposeTags';
   readonly description = "Proposes the vocabulary of tags for a demo site from the repository and its cards.";
   private out: { tags: PageTags; why: string } | null = null;
   private tried = '';
@@ -107,9 +107,9 @@ class TagProposalSession extends SeismicJob<{ tags: PageTags; why: string }> {
   }
 }
 
-/** The proposal of a read-only session; it settles with why it has none. */
+/** Proposes the vocabulary of tags in a read-only session; throws with why it has none. */
 export async function proposeTags(o: TagRun): Promise<{ tags: PageTags; why: string }> {
-  const job = new TagProposalSession(o);
+  const job = new ProposeTagsJob(o);
   const result = await job.run(o.runtime, { cwd: o.cwd });
   if (!result.ok) throw new Error(result.error);
   return result.value;
