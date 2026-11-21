@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { api, onAgentSettingsChange } from './api';
-import { AGENT_MODELS, type CodexModel, type Harness, type HarnessAvailability } from '../core/types';
+import { AGENT_MODELS, type ModelInfo, type Harness, type HarnessAvailability } from '../core/types';
 import { Badge } from './components/badge';
 import { Select, SelectItem } from './components/select';
 import { t } from './strings';
 
-export function catalogDefault(models?: readonly CodexModel[] | null) {
+export function catalogDefault(models?: readonly ModelInfo[] | null) {
   return models?.find((model) => model.isDefault)?.model ?? 'default';
 }
 
@@ -60,7 +60,7 @@ export function HarnessOptions({ defaultHarness, connected, portable = true }: {
 
 export function ModelOptions({ harness, models, value, defaultModel }: {
   harness: Harness;
-  models?: readonly CodexModel[] | null;
+  models?: readonly ModelInfo[] | null;
   value: string;
   defaultModel: string;
 }) {

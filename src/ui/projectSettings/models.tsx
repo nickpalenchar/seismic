@@ -3,7 +3,7 @@
 // of the settings sheet shows every group, "Code reviews" the reviewer's alone.
 
 import { Fragment } from 'react';
-import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_ROLES, agyBaseChoice, catalogModel, modelEffort, modelEfforts, harnessChoice, projectAgentSetting, type AgentEffort, type AgentModel, type AgentRole, type CodexModel, type Harness, type HarnessAvailability, type ProjectAgents, type ProjectSettingsView } from '../../core/types';
+import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_ROLES, agyBaseChoice, catalogModel, modelEffort, modelEfforts, harnessChoice, projectAgentSetting, type AgentEffort, type AgentModel, type AgentRole, type ModelInfo, type Harness, type HarnessAvailability, type ProjectAgents, type ProjectSettingsView } from '../../core/types';
 import { catalogDefault, DefaultEffort, HarnessOptions, ModelOptions } from '../agent-options';
 import { agentClass } from '../config';
 import { t } from '../strings';
@@ -14,7 +14,7 @@ import { cn } from 'cn';
 const choiceClass = 'min-w-0 w-full';
 
 /** The models of Codex and Antigravity, read once the sheet opens. */
-export type Catalogs = Partial<Record<'codex' | 'agy', CodexModel[]>> & { connected?: HarnessAvailability };
+export type Catalogs = Partial<Record<'codex' | 'agy', ModelInfo[]>> & { connected?: HarnessAvailability };
 
 /** Changes the group's own choice; `null` takes it back to Configuration's. */
 export type Choose = (role: AgentRole, change: Partial<ProjectAgents[AgentRole]> | null) => void;

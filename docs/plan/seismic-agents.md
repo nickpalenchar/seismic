@@ -41,9 +41,12 @@ and `docs/design.md`, and this doc goes.
   timeout and usage-limit hook. A job is built per run, so its tools keep their state in fields.
 - [x] A job names the role it runs under (`role` on the subclass: `chores` by default, `koordinator` for the
   Koordinator's own one-shots) and what it needs of its model (`needs`, `AgentNeeds`: `{ images: 'optional' | 'required' }`).
-  The spec carries it (`AgentSpec.needs`) and the harness that knows the model enforces it: Codex, whose model list
-  names its input types, leaves optional screenshots out and tells the session, and fails a required need with an
-  error naming it; agy and Claude do not report a model's input types, so they pass images through as before.
+  The spec carries it (`AgentSpec.needs`); `messageForModel` (`llms/harnesses/needs.ts`) judges it from the model's
+  catalog entry (`ModelInfo`, whichever harness it comes from; `modelReadsImages` says undefined where a catalog does
+  not say). A harness hands in the entry of the model it resolved: Codex's list names its input types, so it leaves
+  optional screenshots out and tells the session, and fails a required need with an error naming it. Antigravity's listing
+  names none (its entries carry no `inputModalities`, which is not "text alone") and Claude has no catalog, so their images
+  go through as before; a harness that learns a model's input types gains the check by calling `messageForModel`.
   The agents' next need is added only when a job really lacks it; settings could warn the owner of a role whose model
   lacks what a job needs.
 - [ ] The Koordinator's sessions in `koordinator.ts`, `merges.ts`, `revisions.ts` and `share.ts` still call

@@ -1,7 +1,7 @@
 import { cn } from 'cn';
 import { ChevronDown, CircleAlert } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { AGENT_DEFAULTS, AGENT_EFFORTS, catalogModel, modelEffort, modelEfforts, harnessChoice, projectAgentSetting, withAgyBase, type AgentEffort, type AgentModel, type AgentIdentity, type AgentRole, type AgentSetting, type CodexModel, type Harness } from '../core/types';
+import { AGENT_DEFAULTS, AGENT_EFFORTS, catalogModel, modelEffort, modelEfforts, harnessChoice, projectAgentSetting, withAgyBase, type AgentEffort, type AgentModel, type AgentIdentity, type AgentRole, type AgentSetting, type ModelInfo, type Harness } from '../core/types';
 import { catalogDefault, DefaultEffort, HarnessOptions, modelLabel, ModelOptions, useConnectedHarnesses } from './agent-options';
 import { ApiError, api, onAgentSettingsChange } from './api';
 import { updateDraft, useDraft, type StartAgentChoice } from './draft';
@@ -27,7 +27,7 @@ function defaultModelFor(role: AgentRole, harness: Harness, inherited: AgentSett
   return harness === inherited.harness ? harnessChoice(inherited).model : 'default';
 }
 
-function resolveStartChoice(role: AgentRole, choice: StartAgentChoice, inherited: AgentSetting, models?: CodexModel[] | null): AgentSetting {
+function resolveStartChoice(role: AgentRole, choice: StartAgentChoice, inherited: AgentSetting, models?: ModelInfo[] | null): AgentSetting {
   const { followProjectModel, ...setting } = withAgyBase(choice, models);
   if (!followProjectModel) return setting.harness === 'agy' && !setting.agy ? { ...setting, agy: { model: 'default' } } : setting;
   const harness = setting.harness ?? 'claude';
@@ -37,7 +37,7 @@ function resolveStartChoice(role: AgentRole, choice: StartAgentChoice, inherited
     : { ...setting, [harness]: { ...harnessChoice(setting), model } };
 }
 
-export const describeAgent = (s: AgentSetting, short = false, models?: CodexModel[] | null) => {
+export const describeAgent = (s: AgentSetting, short = false, models?: ModelInfo[] | null) => {
     const a = t.config.agents;
     const harness = short ? a.harnessesShort : a.harnesses, efforts = short ? a.effortsShort : a.efforts;
     const setting = withAgyBase(s, s.harness === 'agy' ? models : null);
@@ -60,7 +60,7 @@ export const modelName = (a: AgentSetting | AgentIdentity | undefined): string |
 };
 
 /** Whether a Codex or Antigravity choice stands in the catalog the harness offers now: its model, and the effort that model supports (any, for a model without efforts). */
-const stands = (models: CodexModel[], setting: AgentSetting) => {
+const stands = (models: ModelInfo[], setting: AgentSetting) => {
   const normalized = withAgyBase(setting, setting.harness === 'agy' ? models : null);
   const choice = normalized.harness === 'agy' ? normalized.agy ?? { model: 'default' } : harnessChoice(normalized);
   const m = catalogModel(models, choice.model);
@@ -74,7 +74,7 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
   const [open, setOpen] = useState(false);
   const connected = useConnectedHarnesses(open);
   const [setting, setSetting] = useState<StartAgentChoice | null>(null);
-  const [models, setModels] = useState<CodexModel[] | null>(null);
+  const [models, setModels] = useState<ModelInfo[] | null>(null);
   // which harness the catalog in `models` belongs to: after a switch the old one stands until the new one has loaded
   const [modelsOf, setModelsOf] = useState<Harness | null>(null);
   const [error, setError] = useState('');
@@ -232,7 +232,7 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
   const selected = catalogModel(current, model);
   const summary = noHarness || disconnected ? null : picked ?? currentDefault;
   const summaryHarness = summary?.harness;
-  const [summaryModels, setSummaryModels] = useState<{ harness: Harness; models: CodexModel[] } | null>(null);
+  const [summaryModels, setSummaryModels] = useState<{ harness: Harness; models: ModelInfo[] } | null>(null);
   const needsCatalog = summary && (summaryHarness === 'agy' || harnessChoice(summary).model === 'default');
   useEffect(() => {
     if (!needsCatalog || (summaryHarness !== 'codex' && summaryHarness !== 'agy')) return;

@@ -10,7 +10,7 @@ import { LoaderCircle, Settings } from 'lucide-react';
 import { Docked, sheetTitleClass } from './docked';
 import { ChatsHead, RecentChats } from './chats';
 import { Fragment, type ReactNode, useEffect, useRef, useState } from 'react';
-import { agyBaseChoice, chatModelFor, withAgyBase, harnessChoice, projectAgentSetting, type AgentSetting, type ChatModel, type CodexModel, type Chat, type Item, type Preference, type RepoRef, type Reshare, type SettingProposal, type Talk, type TalkQuote, type TalkRef, type TalkWait } from '../core/types';
+import { agyBaseChoice, chatModelFor, withAgyBase, harnessChoice, projectAgentSetting, type AgentSetting, type ChatModel, type ModelInfo, type Chat, type Item, type Preference, type RepoRef, type Reshare, type SettingProposal, type Talk, type TalkQuote, type TalkRef, type TalkWait } from '../core/types';
 import { catalogDefault, ModelOptions } from './agent-options';
 import { api, onAgentSettingsChange } from './api';
 import { Inline, plain } from './markdown';
@@ -137,7 +137,7 @@ export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats
   const [pending, setPending] = useState<{ id: string; project: string; chat: number; text: string; images?: string[] }[]>([]);
   const [error, setError] = useState('');
   const [fallback, setFallback] = useState<{ project: string; setting: AgentSetting } | null>(null);
-  const [models, setModels] = useState<CodexModel[]>();
+  const [models, setModels] = useState<ModelInfo[]>();
   useEffect(() => {
     if (!on) return;
     let revision = 0;

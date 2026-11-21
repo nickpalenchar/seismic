@@ -3404,21 +3404,25 @@ export function harnessChoice(setting: AgentSetting): { model: string; effort: A
   return setting.harness && setting.harness !== 'claude' ? { model: own?.model ?? 'default', effort: own?.effort ?? setting.effort } : setting;
 }
 
-/** Discovered from the installed Codex account, never a hardcoded model alias. */
-export interface CodexModel {
+/** A model as its harness's catalog describes it (Codex's account, Antigravity's listing), never a hardcoded alias. */
+export interface ModelInfo {
   model: string;
   isDefault: boolean;
   /** Empty for a model without efforts (Antigravity's orchestrator): its effort is not passed. */
   supportedReasoningEfforts: { reasoningEffort: string }[];
   /** The effort the account runs the model with where none is chosen, where the harness says so. */
   defaultReasoningEffort?: AgentEffort;
-  inputModalities: string[];
+  /** What the model reads (`text`, `image`); absent where the catalog does not say, which is not the same as text alone. */
+  inputModalities?: string[];
 }
+
+/** Whether the model reads images; undefined where its catalog does not say. */
+export const modelReadsImages = (model: ModelInfo | undefined): boolean | undefined => (model?.inputModalities ? model.inputModalities.includes('image') : undefined);
 
 export type AgyChoice = { model: string; effort?: AgentEffort };
 
 /** Resolve only variant IDs the catalog confirmed with a matching display-name tag. */
-export function agyBaseChoice(choice: AgyChoice, models?: readonly CodexModel[] | null): AgyChoice {
+export function agyBaseChoice(choice: AgyChoice, models?: readonly ModelInfo[] | null): AgyChoice {
   if (!models || models.some((m) => m.model === choice.model)) return choice;
   for (const model of models) {
     const effort = AGENT_EFFORTS.find((e) => choice.model === `${model.model}-${e}` && model.supportedReasoningEfforts.some((x) => x.reasoningEffort === e));
@@ -3427,16 +3431,16 @@ export function agyBaseChoice(choice: AgyChoice, models?: readonly CodexModel[] 
   return choice;
 }
 
-export function catalogModel(models: readonly CodexModel[] | null | undefined, id: string): CodexModel | undefined {
+export function catalogModel(models: readonly ModelInfo[] | null | undefined, id: string): ModelInfo | undefined {
   return models?.find((m) => id === 'default' ? m.isDefault : m.model === id);
 }
 
-export function modelEfforts(model: CodexModel | undefined): AgentEffort[] {
+export function modelEfforts(model: ModelInfo | undefined): AgentEffort[] {
   return AGENT_EFFORTS.filter((e) => model?.supportedReasoningEfforts.some((x) => x.reasoningEffort === e));
 }
 
 /** Keep the chosen effort if supported, otherwise prefer the catalog's default. */
-export function modelEffort(model: CodexModel | undefined, chosen?: AgentEffort): AgentEffort | undefined {
+export function modelEffort(model: ModelInfo | undefined, chosen?: AgentEffort): AgentEffort | undefined {
   const efforts = modelEfforts(model);
   if (chosen && efforts.includes(chosen)) return chosen;
   const preferred = model?.defaultReasoningEffort;
@@ -3444,7 +3448,7 @@ export function modelEffort(model: CodexModel | undefined, chosen?: AgentEffort)
 }
 
 /** A saved setting keeps its original ID until a catalog can identify a legacy variant. */
-export function withAgyBase<T extends { agy?: AgyChoice }>(setting: T, models?: readonly CodexModel[] | null): T {
+export function withAgyBase<T extends { agy?: AgyChoice }>(setting: T, models?: readonly ModelInfo[] | null): T {
   const base = setting.agy && agyBaseChoice(setting.agy, models);
   return base && base !== setting.agy ? { ...setting, agy: base } : setting;
 }

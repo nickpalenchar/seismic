@@ -8,19 +8,18 @@ import { homedir } from 'node:os';
 import { realpathSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { GIT } from '../../workstations';
-import { AGENT_EFFORTS, type CodexModel, type Usage, type UsageLimit } from '../../../core/types';
+import { AGENT_EFFORTS, type ModelInfo, type Usage, type UsageLimit } from '../../../core/types';
 import type { UsageSource } from '../../usage';
 import { z } from 'zod';
 import { messageOf } from '../../../core/text';
 import { sessionRegistry } from './sessionRegistry';
 import { codexConnection, CodexRpcError, type CodexConnection, type CodexHandlers } from './codexRpc';
+import { messageForModel } from './needs';
 import { answered, cleanEnv, type AgentEvent, type AgentRuntime, type AgentSpec } from '../../runtime';
 
 // Codex reserves mcp__ names for actual MCP servers. Keep its wire name separate from the
 // canonical identity consumed by Seismic's existing orchestration.
 const wirePrefix = 'seismic_';
-/** What a session that only takes screenshots as a help reads where its model cannot see images. */
-const IMAGES_DROPPED = 'Screenshots came with this message, but the model you run on cannot read images, so they are left out. Go on from the text alone.';
 // A resumed thread keeps the tool definitions it was started with, so a session started before the
 // rename still calls `obeya_report` and the like: those dispatch to today's tools. The execution
 // tools carried a prefix of their own then, doubled on the wire.
@@ -212,7 +211,7 @@ export function createCodexRuntime(connect: Connect = connectInstalled): AgentRu
       let pumping = false;
       let settle = false;
       let idlePending = false;
-      let imageSupport = false;
+      let chosen: ModelInfo | undefined;
       let background: { id: string; description: string }[] = [];
       let poll: ReturnType<typeof setTimeout> | undefined;
       const emit = (event: AgentEvent) => { if (!closing) spec.onEvent(event); };
@@ -295,10 +294,8 @@ export function createCodexRuntime(connect: Connect = connectInstalled): AgentRu
             if (closing) break;
             const next = queue[0];
             if (!next) break;
-            // the model cannot read images: a session that only takes them as a help goes on without, and is told
-            const blind = next.images.length > 0 && !imageSupport;
-            if (blind && spec.needs?.images !== 'optional') throw new Error(spec.needs?.images === 'required' ? 'The selected Codex model does not support images, which this session needs' : 'Selected Codex model does not support images');
-            const input = [{ type: 'text', text: blind ? `${next.text}\n\n${IMAGES_DROPPED}` : next.text, text_elements: [] }, ...(blind ? [] : next.images).map((path) => ({ type: 'localImage', path }))];
+            const sent = messageForModel(spec.needs, chosen, { text: next.text, images: next.images }, 'Codex');
+            const input = [{ type: 'text', text: sent.text, text_elements: [] }, ...sent.images.map((path) => ({ type: 'localImage', path }))];
             if (turn) {
               const expected = turn;
               try {
@@ -441,7 +438,7 @@ export function createCodexRuntime(connect: Connect = connectInstalled): AgentRu
           const model = spec.model ? models.find((m) => m.model === spec.model) : models.find((m) => m.isDefault);
           if (!model) throw new Error(spec.model ? `Codex model unavailable: ${spec.model}` : 'Codex did not report an available model.');
           if (spec.effort && !model.supportedReasoningEfforts.some((e) => e.reasoningEffort === spec.effort)) throw new Error(`Codex model ${model.model} does not support effort ${spec.effort}`);
-          imageSupport = model.inputModalities.includes('image');
+          chosen = model;
           const config = {
             ...(spec.dirs?.length ? { 'sandbox_workspace_write.writable_roots': spec.dirs } : {}),
             ...(connection.pid ? { 'shell_environment_policy.set': bothNames({ AGENT_PID: String(connection.pid) }) } : {}),
@@ -480,11 +477,11 @@ async function checkProjectConfig(connection: CodexConnection, spec: AgentSpec) 
   if (stray.length) throw new Error(`Codex would load repository configuration the owner has not trusted: ${stray.join(', ')}`);
 }
 
-async function discover(connection: CodexConnection, closing: () => boolean): Promise<CodexModel[]> {
+async function discover(connection: CodexConnection, closing: () => boolean): Promise<ModelInfo[]> {
   await connection.request('initialize', { clientInfo: { name: 'seismic', title: 'Seismic', version: '0.1.0' }, capabilities: { experimentalApi: true } });
   if (closing()) return [];
   connection.notify('initialized', {});
-  const models: CodexModel[] = [];
+  const models: ModelInfo[] = [];
   const seen = new Set<string>();
   let cursor: string | null = null;
   do {
@@ -498,7 +495,7 @@ async function discover(connection: CodexConnection, closing: () => boolean): Pr
 }
 
 /** Account catalog only: does not create a thread or spend a model turn. */
-export async function codexModels(): Promise<CodexModel[]> {
+export async function codexModels(): Promise<ModelInfo[]> {
   const connection = connectInstalled({ cwd: homedir(), system: '', tools: [], onEvent() {} }, {
     notification() {}, request: async () => { throw new CodexRpcError(-32601, 'No active worker'); },
   });

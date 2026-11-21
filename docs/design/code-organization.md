@@ -101,8 +101,9 @@ Not necesarilly "layers", but important to keep organized nonetheless
   (`src/server/llms/agents/seismicJob.ts`: a read-only session of the role `chores` that answers through its tools),
   built per run, with its test. A job names the role whose model setting it runs under (`chores`, or
   `koordinator` for the Koordinator's own one-shots) and, where it reads screenshots only as a help, says so
-  (`needs: { images: 'optional' }`): the harness leaves them out and tells the session where its model cannot read
-  images, and fails a session whose need is `required`. What is still in
+  (`needs: { images: 'optional' }`): where the model's catalog entry (`ModelInfo`) says it cannot read images, the
+  harness leaves them out and tells the session (`llms/harnesses/needs.ts`), and fails a session whose need is `required`;
+  where the catalog does not say, the images go through. What is still in
   `src/server/llms/skills/` (label helpers) moves here a part at a time. The code review service
   (`CodeReviews`) is in `src/server/workerSupervisor/`, beside the supervisor that runs it.
 - `src/server/llms/agents/types.ts` placeholder types for MCPs until they get a class of their own.

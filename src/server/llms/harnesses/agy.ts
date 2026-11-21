@@ -14,7 +14,7 @@ import { StringDecoder } from 'node:string_decoder';
 import { isAbsolute, resolve } from 'node:path';
 import { z } from 'zod';
 import { homedir } from 'node:os';
-import { AGENT_EFFORTS, agyBaseChoice, catalogModel, modelEffort, type AgentEffort, type CodexModel, type Usage, type UsageLimit } from '../../../core/types';
+import { AGENT_EFFORTS, agyBaseChoice, catalogModel, modelEffort, type AgentEffort, type ModelInfo, type Usage, type UsageLimit } from '../../../core/types';
 import type { UsageSource } from '../../usage';
 import { messageOf } from '../../../core/text';
 import { which } from '../../path';
@@ -48,7 +48,7 @@ export async function agyConnected(): Promise<boolean> {
  * without efforts. The first listed, or the one marked as the default, is the account default,
  * with its effort as the default effort.
  */
-export function parseAgyModels(output: string): CodexModel[] {
+export function parseAgyModels(output: string): ModelInfo[] {
   const entries = output.split('\n').flatMap((line) => {
     const m = /^\s*(?:[-*•>]\s*)?`?([A-Za-z][A-Za-z0-9_.:/-]*)`?(.*)$/.exec(line);
     if (!m || /^(fetching|available|models?|error|usage|name|id)\b/i.test(m[1]!)) return [];
@@ -58,9 +58,9 @@ export function parseAgyModels(output: string): CodexModel[] {
     return [{ ...split, isDefault: /\bdefault\b|\bcurrent\b|\(\*\)|\*$/i.test(m[2]!) }];
   });
   const chosen = entries.find((e) => e.isDefault) ?? entries[0];
-  const models = new Map<string, CodexModel>();
+  const models = new Map<string, ModelInfo>();
   for (const e of entries) {
-    const model = models.get(e.model) ?? { model: e.model, isDefault: e.model === chosen?.model, supportedReasoningEfforts: [], inputModalities: ['text'] };
+    const model = models.get(e.model) ?? { model: e.model, isDefault: e.model === chosen?.model, supportedReasoningEfforts: [] };
     if (e.effort && !model.supportedReasoningEfforts.some((x) => x.reasoningEffort === e.effort)) model.supportedReasoningEfforts.push({ reasoningEffort: e.effort });
     models.set(e.model, model);
   }
@@ -71,13 +71,13 @@ export function parseAgyModels(output: string): CodexModel[] {
   }));
 }
 
-const catalogs = new Map<string, CodexModel[]>();
-const listings = new Map<string, Promise<CodexModel[]>>();
+const catalogs = new Map<string, ModelInfo[]>();
+const listings = new Map<string, Promise<ModelInfo[]>>();
 
 type RunChoice = { model?: string; effort?: AgentEffort };
 
 /** Resolve saved variants, unsupported inherited efforts and the account default before building flags. */
-export function agyRun(choice: RunChoice, models: CodexModel[]): RunChoice {
+export function agyRun(choice: RunChoice, models: ModelInfo[]): RunChoice {
   const base = agyBaseChoice({ model: choice.model ?? 'default', effort: choice.effort }, models);
   const model = catalogModel(models, base.model);
   const effort = model ? modelEffort(model, base.effort) : base.effort;
@@ -85,7 +85,7 @@ export function agyRun(choice: RunChoice, models: CodexModel[]): RunChoice {
 }
 
 /** The account's model catalog, from the CLI; fails visibly where `agy` is missing or not signed in. */
-export async function agyModels(executable = installedAgy()): Promise<CodexModel[]> {
+export async function agyModels(executable = installedAgy()): Promise<ModelInfo[]> {
   if (!executable) throw new Error('Antigravity (agy) is not installed; set SEISMIC_AGY to its path');
   const pending = listings.get(executable);
   if (pending) return pending;
@@ -562,7 +562,7 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
       supported(spec);
       const command = executable();
       if (!command) throw new Error('Antigravity (agy) is not installed; set SEISMIC_AGY to its path');
-      const start = (models: CodexModel[]) => sessions.start(command, spec, agyRun(spec, models), firstMessage, images);
+      const start = (models: ModelInfo[]) => sessions.start(command, spec, agyRun(spec, models), firstMessage, images);
       const cached = catalogs.get(command);
       if (cached) return start(cached);
       if (!spec.setting && !spec.model && !spec.effort) return start([]);

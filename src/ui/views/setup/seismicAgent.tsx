@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { agyBaseChoice, AGENT_DEFAULTS, AGENT_EFFORTS, catalogModel, harnessChoice, modelEffort, modelEfforts, type AgentEffort, type AgentModel, type AgentSetting, type CodexModel, type Harness } from '../../../core/types';
+import { agyBaseChoice, AGENT_DEFAULTS, AGENT_EFFORTS, catalogModel, harnessChoice, modelEffort, modelEfforts, type AgentEffort, type AgentModel, type AgentSetting, type ModelInfo, type Harness } from '../../../core/types';
 import { catalogDefault, DefaultEffort, ModelOptions } from '../../agent-options';
 import { api } from '../../api';
 import { Button } from '../../components/button';
@@ -22,7 +22,7 @@ export function SeismicAgentStep({ harnesses, onConfirm, onBack }: { harnesses: 
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
   const [attempt, setAttempt] = useState(0);
-  const [catalog, setCatalog] = useState<{ key: string; models?: CodexModel[]; error?: string }>();
+  const [catalog, setCatalog] = useState<{ key: string; models?: ModelInfo[]; error?: string }>();
   const mounted = useRef(false);
   const a = t.config.agents;
   const s = t.setup.seismic;
