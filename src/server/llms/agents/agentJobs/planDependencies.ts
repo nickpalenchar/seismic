@@ -52,7 +52,7 @@ class PlanDependenciesJob extends SeismicJob<Dependencies> {
     return depsSystem;
   }
 
-  getBrief() {
+  async getBrief() {
     const { plan, kids } = this.o;
     return [
       `The plan: "${plan.title}"${plan.plan?.file ? `; plan doc ${plan.plan.file}` : ''}.`,

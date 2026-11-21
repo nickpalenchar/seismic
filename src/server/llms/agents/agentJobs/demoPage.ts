@@ -47,7 +47,7 @@ class DemoPageJob extends SeismicJob<DemoPage> {
     return demoPageSystem(LANGUAGE_NAMES[this.o.language], this.o.lacking);
   }
 
-  getBrief() {
+  async getBrief() {
     const { card, demo, summary } = this.o;
     return [
       `The card: “${plainText(card.title)}”.`,

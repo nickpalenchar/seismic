@@ -47,7 +47,7 @@ class RuleRetroJob extends SeismicJob {
     return ownerFacing(this.o.board, ruleRetroSystem(this.o.language, RULE_RETRO_PROPOSALS));
   }
 
-  getBrief() {
+  async getBrief() {
     return [`What happened on the project since the last retrospective, oldest first:\n${this.o.history.join('\n')}`, ...ruleLines(this.o.board, null)].filter(Boolean).join('\n\n');
   }
 

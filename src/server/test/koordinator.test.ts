@@ -872,6 +872,7 @@ describe('Koordinator names a card the owner left without a title', () => {
   test('from its text, by a short read-only session; asked twice, one session answers', async () => {
     const a = task('Der Dialog soll den Cursor ins Textfeld setzen.');
     const naming = k.name(a.id);
+    await settle();
     void k.name(a.id);
     expect(namings()).toHaveLength(1);
     expect(namings()[0]!.spec).toMatchObject({ permission: 'readOnly', role: 'chores' });
@@ -886,6 +887,7 @@ describe('Koordinator names a card the owner left without a title', () => {
     board.addPreference('Agents speak and write to me in English only.');
     const a = task('Der Dialog soll den Cursor ins Textfeld setzen.');
     const naming = k.name(a.id);
+    await settle();
     const s = namings().at(-1)!;
     expect(s.spec.system).toContain('unless an explicit standing preference names another language');
     expect(s.spec.system).toContain('- Agents speak and write to me in English only.');
@@ -900,6 +902,7 @@ describe('Koordinator names a card the owner left without a title', () => {
   test('a title the owner types meanwhile stands; without an answer the fallback is language-neutral', async () => {
     const a = task('Erste Zeile\nmehr');
     const naming = k.name(a.id);
+    await settle();
     board.patch(a.id, { title: 'Meiner' });
     namings()[0]!.call('title', { title: 'Seismics' });
     namings()[0]!.emit({ type: 'idle' });
@@ -908,6 +911,7 @@ describe('Koordinator names a card the owner left without a title', () => {
 
     const b = task('Erste Zeile\nmehr');
     const failed = k.name(b.id);
+    await settle();
     namings().at(-1)!.emit({ type: 'error', message: 'down' });
     await failed;
     expect(item(b.id).title).toBe('…');
@@ -915,6 +919,7 @@ describe('Koordinator names a card the owner left without a title', () => {
     board.addPreference('Agents speak and write to me in English only.');
     const c = task('Noch eine deutsche Aufgabe.');
     const failedWithPreference = k.name(c.id);
+    await settle();
     namings().at(-1)!.emit({ type: 'error', message: 'down' });
     await failedWithPreference;
     expect(item(c.id).title).toBe('…');
@@ -923,6 +928,7 @@ describe('Koordinator names a card the owner left without a title', () => {
     board.addPreference('Always speak to me in English.');
     const d = task('Bitte wieder Deutsch schreiben.');
     const failedWithOrdinaryRule = k.name(d.id);
+    await settle();
     namings().at(-1)!.emit({ type: 'error', message: 'down' });
     await failedWithOrdinaryRule;
     expect(item(d.id).title).toBe('…');
@@ -931,6 +937,7 @@ describe('Koordinator names a card the owner left without a title', () => {
     board.addPreference('Use English for all replies.');
     const e = task('Ein weiterer deutscher Text.');
     const failedWithReplyRule = k.name(e.id);
+    await settle();
     namings().at(-1)!.emit({ type: 'error', message: 'down' });
     await failedWithReplyRule;
     expect(item(e.id).title).toBe('…');
@@ -939,6 +946,7 @@ describe('Koordinator names a card the owner left without a title', () => {
     board.addPreference('Write commit messages in German.');
     const f = task('English task text.');
     const failedWithCodeRule = k.name(f.id);
+    await settle();
     namings().at(-1)!.emit({ type: 'error', message: 'down' });
     await failedWithCodeRule;
     expect(item(f.id).title).toBe('…');
@@ -948,6 +956,7 @@ describe('Koordinator names a card the owner left without a title', () => {
     k = new Koordinator({ board, runtime: withLimitWait(runtime, 10), home: () => dir, repoFor: () => ({ workers, workstations, adapter: generic, path: dir }), holdMs: 0 });
     const a = task('Erste Zeile\nmehr');
     const naming = k.name(a.id);
+    await settle();
     const s = namings()[0]!;
     s.emit({ type: 'error', message: "You've hit your session limit", limit: { resetsAt: Date.now() + 20 } });
     s.emit({ type: 'idle' });
@@ -989,6 +998,7 @@ describe('Koordinator suggests the labels the owner left empty', () => {
   test('the naming call returns the title and the labels together, guided by the labels skill', async () => {
     const a = task('The export button crashes the page.');
     const naming = k.name(a.id);
+    await settle();
     const s = namings()[0]!;
     expect(params(s, 'title')).toEqual(['title', 'category', 'subcategory', 'complexity', 'priority']);
     expect(s.spec.system).toContain('Data Migration');
@@ -1048,6 +1058,7 @@ describe('Koordinator suggests the labels the owner left empty', () => {
     toggles = { category: false, complexity: false, priority: false };
     const b = task('Mach was.');
     const naming = k.name(b.id);
+    await settle();
     expect(params(namings()[0]!, 'title')).toEqual(['title']);
     expect(namings()[0]!.spec.system).not.toContain('Data Migration');
     namings()[0]!.call('title', { title: 'B', complexity: 3 });

@@ -76,7 +76,7 @@ class ProposalRevisionJob extends SeismicJob<Revised | null> {
     return [proposalRevisionSystem, this.o.toSeismic ? toSeismicNote : '', this.o.preferences ?? ''].filter(Boolean).join('\n\n');
   }
 
-  getBrief() {
+  async getBrief() {
     const { card, said, shots } = this.o;
     const p = card.idea!.proposal!;
     const from = card.from ? this.o.board.item(card.from) : undefined;

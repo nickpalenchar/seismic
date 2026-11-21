@@ -7,7 +7,8 @@
  * otherwise the error that ended the session. What a failure means to the caller is the caller's to decide.
  */
 import type { AgentRole } from '../../../core/types';
-import type { AgentRuntime, AgentTool } from '../../runtime';
+import { messageOf } from '../../../core/text';
+import type { AgentRuntime, AgentSession, AgentTool } from '../../runtime';
 import type { AgentPermission, SessionOptions } from './types';
 import { SeismicAgent } from './seismicAgent';
 
@@ -50,13 +51,9 @@ export abstract class SeismicJob<R = void> extends SeismicAgent<void> {
   }
 
   /** The brief the session reads. */
-  abstract getBrief(): string;
+  abstract getBrief(): Promise<string>;
   /** The tools that answer; they end the job through `this.finish`. */
   abstract getJobTools(): AgentTool[];
-
-  override getBriefing() {
-    return this.getBrief();
-  }
 
   override getTools() {
     return this.getJobTools();
@@ -83,23 +80,27 @@ export abstract class SeismicJob<R = void> extends SeismicAgent<void> {
         end();
         return r;
       };
-      const session = runtime.start(
-        {
-          ...this.toSpec(undefined, {
-            cwd: o.cwd,
-            onEvent: (e) => {
-              if (e.type === 'idle' || e.type === 'error') {
-                session.close();
-                end(e.type === 'error' ? e.message : undefined);
-              }
-            },
-          }),
-          ...(o.onLimit ? { onLimit: o.onLimit } : {}),
-          ...(o.at ? { at: o.at } : {}),
-        },
-        this.getBrief(),
-        o.images,
-      );
+      let session: AgentSession | undefined;
+      const start = (brief: string) => {
+        session = runtime.start(
+          {
+            ...this.toSpec(undefined, {
+              cwd: o.cwd,
+              onEvent: (e) => {
+                if (e.type === 'idle' || e.type === 'error') {
+                  session?.close();
+                  end(e.type === 'error' ? e.message : undefined);
+                }
+              },
+            }),
+            ...(o.onLimit ? { onLimit: o.onLimit } : {}),
+            ...(o.at ? { at: o.at } : {}),
+          },
+          brief,
+          o.images,
+        );
+      };
+      this.getBrief().then(start, (e: unknown) => end(messageOf(e)));
     });
   }
 }

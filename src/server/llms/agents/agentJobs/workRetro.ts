@@ -244,7 +244,7 @@ class FrictionNotesSession extends SeismicJob {
     return this.o.system;
   }
 
-  getBrief() {
+  async getBrief() {
     return this.o.brief;
   }
 
@@ -302,7 +302,7 @@ class RetroSession extends SeismicJob {
     return this.o.system;
   }
 
-  getBrief() {
+  async getBrief() {
     return this.o.brief;
   }
 

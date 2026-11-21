@@ -81,7 +81,7 @@ class TagProposalSession extends SeismicJob<{ tags: PageTags; why: string }> {
     return system(this.o.language, this.o.owner);
   }
 
-  getBrief() {
+  async getBrief() {
     return brief(this.o);
   }
 

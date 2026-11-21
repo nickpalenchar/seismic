@@ -9,7 +9,7 @@ import { mergeCandidates } from '../../ui/merge';
 import { ProjectRuntime } from '../project';
 import { Store } from '../store';
 import { Merges } from '../merges';
-import { FakeRuntime, gitRepo, noForge, until } from './helpers/testing';
+import { FakeRuntime, gitRepo, heard, noForge, until } from './helpers/testing';
 
 let dir: string;
 let main: string;
@@ -32,7 +32,12 @@ afterEach(() => {
 
 const settle = (ms = 5) => new Promise((r) => setTimeout(r, ms));
 const board = () => project.board;
-const merger = () => runtime.sessions.filter((s) => s.spec.tools.some((t) => t.name === 'merge_cards')).at(-1);
+const latestMerger = () => runtime.sessions.filter((s) => s.spec.tools.some((t) => t.name === 'merge_cards')).at(-1);
+/** The comparison session once it has started: it starts after its brief is read. */
+const merger = async () => {
+  await heard();
+  return latestMerger();
+};
 
 /** A proposal from the agent of "Export", with a question, and the owner's planned card it belongs with. */
 function cards(): { p: Item; planned: Item } {
@@ -47,7 +52,7 @@ describe('a proposal merged with another card', () => {
     const { p, planned } = cards();
     expect(mergeableWith(board().item(p.id)!, board().item(planned.id)!)).toBe(true);
     project.act(p.id, { action: 'merge', with: planned.id });
-    const m = merger()!;
+    const m = (await merger())!;
     expect(m.spec.permission).toBe('readOnly');
     expect(m.inbox[0]).toContain('The CSV export writes umlauts wrongly.');
     expect(m.inbox[0]).toContain('Dates in the CSV export are off by one day.');
@@ -101,8 +106,8 @@ describe('a proposal merged with another card', () => {
     expect({ x: a.x, y: a.y }).toEqual({ x: p.x, y: p.y });
     expect(needsYou(a)).toBe(true);
     // the agent's late answer changes nothing any more
-    merger()!.call('merge_cards', { title: 'x', task: 'y' });
-    merger()!.emit({ type: 'idle' });
+    (await merger())!.call('merge_cards', { title: 'x', task: 'y' });
+    (await merger())!.emit({ type: 'idle' });
     await settle();
     expect(board().item(p.id)!.idea?.proposal?.merge).toBeUndefined();
   });
@@ -112,8 +117,8 @@ describe('a proposal merged with another card', () => {
     const from = board().create({ title: 'Import', x: 0, y: 300 });
     const q = board().propose(from.id, { title: 'CSV import', task: 'Import CSV too.', questions: [{ text: 'Which separator?', options: [';', ','] }] });
     project.act(p.id, { action: 'merge', with: q.id });
-    merger()!.call('merge_cards', { title: 'CSV in and out', task: 'Export and import CSV correctly.' });
-    merger()!.emit({ type: 'idle' });
+    (await merger())!.call('merge_cards', { title: 'CSV in and out', task: 'Export and import CSV correctly.' });
+    (await merger())!.emit({ type: 'idle' });
     await settle();
     project.act(p.id, { action: 'approveMerge' });
     const b = board().item(q.id)!;
@@ -141,11 +146,13 @@ describe('a proposal merged with another card', () => {
   test('an agent that ends without a merged text leaves the reason, and the merge can be tried again', async () => {
     const { p, planned } = cards();
     project.act(p.id, { action: 'merge', with: planned.id });
-    merger()!.emit({ type: 'idle' });
+    (await merger())!.emit({ type: 'idle' });
     await settle();
     expect(board().item(p.id)!.idea?.proposal?.merge?.failed).toBeDefined();
+    await heard();
     const before = runtime.sessions.length;
     project.act(p.id, { action: 'merge', with: planned.id });
+    await heard();
     expect(runtime.sessions.length).toBe(before + 1);
     expect(board().item(p.id)!.idea?.proposal?.merge).toMatchObject({ with: planned.id });
   });
@@ -153,8 +160,8 @@ describe('a proposal merged with another card', () => {
 
 
 const finishMerge = async (result: Record<string, unknown>) => {
-  merger()!.call('merge_cards', result);
-  merger()!.emit({ type: 'idle' });
+  (await merger())!.call('merge_cards', result);
+  (await merger())!.emit({ type: 'idle' });
   await settle();
 };
 const covered = (i: Item) => ({ outcome: 'covered', titleCovered: true, parts: [{ text: i.body, covered: true }] });
@@ -167,8 +174,8 @@ describe('folding into a progressed survivor', () => {
     board().items();
     const before = store.cards.get(planned.id)!;
     project.act(p.id, { action: 'merge', with: planned.id });
-    expect(merger()!.inbox[0]).toContain('CSV encoding and dates are fixed.');
-    expect(merger()!.spec.system).toContain('without reading repository files or branch diffs');
+    expect((await merger())!.inbox[0]).toContain('CSV encoding and dates are fixed.');
+    expect((await merger())!.spec.system).toContain('without reading repository files or branch diffs');
     await finishMerge(covered(p));
     const draft = board().item(p.id)!.idea!.proposal!.merge!;
     expect(draft.title).toBe(before.title!);
@@ -258,7 +265,7 @@ describe('folding into a progressed survivor', () => {
     expect(mergeableWith(board().item(a.id)!, board().item(b.id)!)).toBe(false);
     board().work(b.id, { state: 'planned' });
     project.act(a.id, { action: 'merge', with: b.id });
-    expect(merger()!.inbox[0]).toContain('Both cards are unworked.');
+    expect((await merger())!.inbox[0]).toContain('Both cards are unworked.');
     await finishMerge({ title: 'Menu', task: 'Write a plan doc: a new menu, sorted' });
     project.act(a.id, { action: 'approveMerge' });
     expect(board().item(a.id)).toBeUndefined();
@@ -273,7 +280,7 @@ describe('folding into a progressed survivor', () => {
     const { p, planned } = cards();
     board().work(planned.id, { state: 'working', branch: 'csv' });
     project.act(p.id, { action: 'merge', with: planned.id });
-    expect(merger()!.call('merge_cards', { outcome: 'covered', titleCovered: true, parts: [{ text: 'Only a fragment', covered: true }] })).toContain('entire left task exactly');
+    expect((await merger())!.call('merge_cards', { outcome: 'covered', titleCovered: true, parts: [{ text: 'Only a fragment', covered: true }] })).toContain('entire left task exactly');
     expect(board().item(p.id)!.idea!.proposal!.merge!.task).toBeUndefined();
   });
 
@@ -303,10 +310,10 @@ describe('folding into a progressed survivor', () => {
 test('late answers from a separated comparison cannot complete a new merge', async () => {
   const { p, planned } = cards();
   project.act(p.id, { action: 'merge', with: planned.id });
-  const old = merger()!;
+  const old = (await merger())!;
   project.act(p.id, { action: 'separate' });
   project.act(p.id, { action: 'merge', with: planned.id });
-  const current = merger()!;
+  const current = (await merger())!;
   expect(current).not.toBe(old);
   old.call('merge_cards', { title: 'Stale', task: 'Stale task.' });
   old.emit({ type: 'idle' });
@@ -323,11 +330,13 @@ test('an unfinished planned-card comparison resumes once, including an archived 
   board().archive([survivor.id]);
   board().mergeStart(back.id, survivor.id);
   const resumed = new Merges({ board: board(), runtime, pathFor: () => main });
+  await heard();
   const before = runtime.sessions.length;
   resumed.resume();
   resumed.resume();
+  await heard();
   expect(runtime.sessions).toHaveLength(before + 1);
-  expect(merger()!.inbox[0]).toContain('archived');
+  expect((await merger())!.inbox[0]).toContain('archived');
   await finishMerge(covered(back));
   expect(board().item(back.id)!.idea!.proposal!.merge!.outcome).toBe('covered');
 });
@@ -340,7 +349,7 @@ test('a title-only request can become extra work, with selected screenshots and 
   board().work(planned.id, { state: 'done' });
   board().archive([planned.id]);
   project.act(p.id, { action: 'merge', with: planned.id });
-  expect(merger()!.images[0]).toEqual([project.images.path(image)!, project.images.path(unused)!]);
+  expect((await merger())!.images[0]).toEqual([project.images.path(image)!, project.images.path(unused)!]);
   await finishMerge({ outcome: 'followUp', titleCovered: false, parts: [], followUp: { title: 'Fix umlauts', task: 'Correct umlaut encoding in CSV exports.', images: [image], questions: [0] } });
   project.act(p.id, { action: 'approveMerge' });
   const follow = board().items().find((i) => i.title === 'Fix umlauts')!;
@@ -394,14 +403,14 @@ describe('a merged pair whose cards change compares again', () => {
     const { p, planned } = cards();
     project.act(p.id, { action: 'merge', with: planned.id });
     await finishMerge({ title: 'Combined', task: 'Both requirements.' });
-    const first = merger();
+    const first = (await merger());
     expect(merge(p.id).compared).toBeDefined();
     board().work(p.id, { body: 'The CSV export writes umlauts and quotes wrongly.' });
     // the race guard: approved before the watcher noticed
     expect(() => project.act(p.id, { action: 'approveMerge' })).toThrow('comparing again');
     await settle(40);
-    expect(merger()).not.toBe(first);
-    expect(merger()!.inbox[0]).toContain('umlauts and quotes');
+    expect((await merger())).not.toBe(first);
+    expect((await merger())!.inbox[0]).toContain('umlauts and quotes');
     expect(merge(p.id).task).toBeUndefined();
     expect(merge(p.id).previous).toMatchObject({ title: 'Combined', task: 'Both requirements.' });
     expect(lines(p.id)).toContain('Compared again: “Check CSV umlauts” changed.');
@@ -419,7 +428,7 @@ describe('a merged pair whose cards change compares again', () => {
     const previous = { title: 'Combined', task: 'Both requirements.' };
     board().work(p.id, { body: 'Updated requirements.' });
     await settle(40);
-    merger()!.emit({ type: 'idle' });
+    (await merger())!.emit({ type: 'idle' });
     await settle(40);
     expect(merge(p.id).failed).toBeDefined();
     expect(merge(p.id).previous).toMatchObject(previous);
@@ -428,7 +437,7 @@ describe('a merged pair whose cards change compares again', () => {
     project.act(p.id, { action: 'merge', with: planned.id });
     expect(merge(p.id).failed).toBeUndefined();
     expect(merge(p.id).previous).toMatchObject(previous);
-    merger()!.emit({ type: 'idle' });
+    (await merger())!.emit({ type: 'idle' });
     await settle(40);
     expect(merge(p.id).previous).toMatchObject(previous);
 
@@ -456,7 +465,7 @@ describe('a merged pair whose cards change compares again', () => {
     await settle(40);
     const attempt = merge(p.id).attempt;
     const previous = merge(p.id).previous;
-    merger()!.emit({ type: 'idle' });
+    (await merger())!.emit({ type: 'idle' });
     await settle(40);
     await until(() => merge(p.id).failed !== undefined);
     expect(merge(p.id).previous).toEqual(previous);
@@ -490,13 +499,13 @@ describe('a merged pair whose cards change compares again', () => {
         const saved = proposal.merge!;
         store.updateCard(p.id, { idea: { proposal: { ...proposal, merge: { ...saved, followUp: { ...saved.followUp!, questionTexts: undefined } } } } });
       }
-      const first = merger();
+      const first = (await merger());
       const questions = change === 'edit' ? [{ ...original[0]!, text: 'Which file format?' }, original[1]!]
         : change === 'remove' ? [original[1]!] : [original[1]!, original[0]!];
       setQuestions(questions);
-      await until(() => merger() !== first);
+      await until(() => latestMerger() !== first);
       expect(mergeQuestionTexts(merge(p.id).previous!)).toEqual(['Which encoding?']);
-      merger()!.emit({ type: 'idle' });
+      (await merger())!.emit({ type: 'idle' });
       await until(() => merge(p.id).failed !== undefined);
       expect(mergeQuestionTexts(merge(p.id).previous!)).toEqual(['Which encoding?']);
       project.shutdown();
@@ -529,7 +538,7 @@ describe('a merged pair whose cards change compares again', () => {
     await finishMerge(covered(p));
     board().work(planned.id, { state: 'waiting', detail: JSON.stringify({ summary: 'Umlauts are written as UTF-8 now.' }) });
     await settle(40);
-    expect(merger()!.inbox[0]).toContain('Umlauts are written as UTF-8 now.');
+    expect((await merger())!.inbox[0]).toContain('Umlauts are written as UTF-8 now.');
     expect(merge(p.id).previous?.outcome).toBe('covered');
     expect(lines(p.id)).toContain('Compared again: “Fix the CSV export” changed.');
     await finishMerge(covered(p));
@@ -543,7 +552,7 @@ describe('a merged pair whose cards change compares again', () => {
     await finishMerge({ title: 'Combined', task: 'Both requirements.' });
     board().work(planned.id, { state: 'working', branch: 'csv' });
     await settle(40);
-    expect(merger()!.inbox[0]).toContain('The right card has progressed');
+    expect((await merger())!.inbox[0]).toContain('The right card has progressed');
     await finishMerge({ outcome: 'followUp', titleCovered: false, parts: [{ text: p.body, covered: false }], followUp: { title: 'Fix CSV encoding', task: 'Fix the encoding.', images: [], questions: [] } });
     project.act(p.id, { action: 'approveMerge' });
     expect(board().item(planned.id)!.body).toBe(planned.body);
@@ -553,13 +562,14 @@ describe('a merged pair whose cards change compares again', () => {
   test('a change during the first comparison starts it again; a burst of edits makes one comparison', async () => {
     const { p, planned } = cards();
     project.act(p.id, { action: 'merge', with: planned.id });
+    await heard();
     const before = runtime.sessions.length;
     board().work(planned.id, { body: 'Dates are off.' });
     board().work(planned.id, { body: 'Dates are off by one day.' });
     board().work(planned.id, { body: 'Dates are off by one day in CSV.' });
     await settle(40);
     expect(runtime.sessions.length).toBe(before + 1);
-    expect(merger()!.inbox[0]).toContain('Dates are off by one day in CSV.');
+    expect((await merger())!.inbox[0]).toContain('Dates are off by one day in CSV.');
     expect(merge(p.id).previous).toBeUndefined();
     await settle(40);
     expect(runtime.sessions.length).toBe(before + 1);
@@ -585,7 +595,7 @@ describe('a merged pair whose cards change compares again', () => {
   test('a failed comparison separates too once its partner can no longer be merged with', async () => {
     const { p, planned } = cards();
     project.act(p.id, { action: 'merge', with: planned.id });
-    merger()!.emit({ type: 'idle' });
+    (await merger())!.emit({ type: 'idle' });
     await settle();
     expect(merge(p.id).failed).toBeDefined();
     board().snooze(planned.id, { until: '2099-01-01T00:00:00.000Z', why: 'later', by: 'owner' });
@@ -600,37 +610,38 @@ describe('a merged pair whose cards change compares again', () => {
     const q = board().propose(from.id, { title: 'CSV import', task: 'Import CSV too.', questions: [{ text: 'Which separator?', options: [';', ','] }] });
     project.act(p.id, { action: 'merge', with: q.id });
     await finishMerge({ title: 'CSV in and out', task: 'Export and import CSV correctly.' });
-    const first = merger();
+    const first = (await merger());
     const image = project.images.save(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a0foAAAAASUVORK5CYII=', 'base64'), 'image/png');
     board().work(q.id, { images: JSON.stringify([image]) });
     await settle(40);
-    expect(merger()).not.toBe(first);
-    expect(merger()!.inbox[0]).toContain(image);
+    expect((await merger())).not.toBe(first);
+    expect((await merger())!.inbox[0]).toContain(image);
     expect(lines(p.id)).toContain('Compared again: “CSV import” changed.');
   });
 
   test('a card that changes while its comparison fails is compared again rather than left on the failure', async () => {
     const { p, planned } = cards();
     project.act(p.id, { action: 'merge', with: planned.id });
-    const first = merger()!;
+    const first = (await merger())!;
     board().work(planned.id, { body: 'Dates are off by two days.' });
     first.emit({ type: 'idle' });
     await settle(40);
-    expect(merger()).not.toBe(first);
-    expect(merger()!.inbox[0]).toContain('Dates are off by two days.');
+    expect((await merger())).not.toBe(first);
+    expect((await merger())!.inbox[0]).toContain('Dates are off by two days.');
     expect(merge(p.id).failed).toBeUndefined();
     // a failure of unchanged cards waits for "Try again"
-    const second = merger()!;
+    const second = (await merger())!;
     second.emit({ type: 'idle' });
     await settle(40);
     expect(merge(p.id).failed).toBeDefined();
-    expect(merger()).toBe(second);
+    expect((await merger())).toBe(second);
   });
 
-  test('a restart after the partner of an unfinished comparison was deleted separates the pair instead of failing', () => {
+  test('a restart after the partner of an unfinished comparison was deleted separates the pair instead of failing', async () => {
     const { p, planned } = cards();
     board().mergeStart(p.id, planned.id);
     board().remove(planned.id);
+    await heard();
     const before = runtime.sessions.length;
     expect(() => new Merges({ board: board(), runtime, pathFor: () => main }).resume()).not.toThrow();
     expect(runtime.sessions.length).toBe(before);
@@ -645,7 +656,7 @@ describe('merge deletion and settling regressions', () => {
     test(`deleting and immediately restoring the dissolving card separates a ${state} merge`, async () => {
       const { p, planned } = cards();
       project.act(p.id, { action: 'merge', with: planned.id });
-      const old = merger()!;
+      const old = (await merger())!;
       if (state === 'ready') await finishMerge({ title: 'Combined', task: 'Both requirements.' });
       if (state === 'failed') { old.emit({ type: 'idle' }); await settle(); }
       board().remove(p.id);
@@ -662,13 +673,14 @@ describe('merge deletion and settling regressions', () => {
     });
   }
 
-  test('restart repairs a persisted deleted merge owner and restores its original place', () => {
+  test('restart repairs a persisted deleted merge owner and restores its original place', async () => {
     const { planned } = cards();
     const other = board().create({ title: 'Other', x: 2000, y: 2000 });
     board().mergeStart(planned.id, other.id);
     // Simulate deletion saved by another path or an older version before shutdown.
     store.cards.update(planned.id, { deleted_at: new Date().toISOString() });
     const resumed = new Merges({ board: board(), runtime, pathFor: () => main });
+    await heard();
     const before = runtime.sessions.length;
     resumed.resume();
     resumed.shutdown();
@@ -685,6 +697,7 @@ describe('merge deletion and settling regressions', () => {
     const watcher = new Merges({ board: board(), runtime, pathFor: () => main, settleMs: 150 });
     try {
       watcher.merge(p.id, planned.id);
+      await heard();
       const before = runtime.sessions.length;
       board().work(planned.id, { body: 'First edit.' });
       await settle(100);
@@ -696,7 +709,7 @@ describe('merge deletion and settling regressions', () => {
       expect(runtime.sessions.length).toBe(before);
       await settle(100);
       expect(runtime.sessions.length).toBe(before + 1);
-      expect(merger()!.inbox[0]).toContain('Final edit.');
+      expect((await merger())!.inbox[0]).toContain('Final edit.');
     } finally { watcher.shutdown(); }
   });
 });
@@ -710,7 +723,8 @@ for (const state of ['pending', 'ready', 'failed'] as const) {
     try {
       watcher.merge(p.id, planned.id);
       if (state === 'ready') await finishMerge({ title: 'Combined', task: 'Both requirements.' });
-      if (state === 'failed') { merger()!.emit({ type: 'idle' }); await settle(); }
+      if (state === 'failed') { (await merger())!.emit({ type: 'idle' }); await settle(); }
+      await heard();
       const before = runtime.sessions.length;
       board().work(planned.id, { body: 'Changed requirement.' });
       for (let n = 0; n < 8; n++) {
@@ -720,7 +734,7 @@ for (const state of ['pending', 'ready', 'failed'] as const) {
         await settle(30);
       }
       expect(runtime.sessions.length).toBe(before + 1);
-      expect(merger()!.inbox[0]).toContain('Changed requirement.');
+      expect((await merger())!.inbox[0]).toContain('Changed requirement.');
     } finally { watcher.shutdown(); }
   });
 }
@@ -742,6 +756,7 @@ test('a change marks the result out of date at once; only the new comparison wai
     await settle(250);
     await finishMerge({ title: 'Combined', task: 'Both requirements.' });
     expect(merge().task).toBe('Both requirements.');
+    await heard();
     const before = runtime.sessions.length;
     board().work(p.id, { body: 'The CSV export writes umlauts and quotes wrongly.' });
     await settle();
@@ -755,7 +770,7 @@ test('a change marks the result out of date at once; only the new comparison wai
     expect(runtime.sessions.length).toBe(before);
     await settle(200);
     expect(runtime.sessions.length).toBe(before + 1);
-    expect(merger()!.inbox[0]).toContain('quotes and dates');
+    expect((await merger())!.inbox[0]).toContain('quotes and dates');
     expect(board().events(p.id).filter((e) => e.text.startsWith('Compared again')).length).toBe(2);
   } finally { watcher.shutdown(); }
 });
@@ -769,6 +784,7 @@ test('two merging pairs settle independently and separation cancels a pending co
   try {
     watcher.merge(p.id, planned.id);
     watcher.merge(a.id, b.id);
+    await heard();
     const before = runtime.sessions.length;
     board().work(planned.id, { body: 'Settled pair.' });
     for (let n = 0; n < 8; n++) {
@@ -776,7 +792,7 @@ test('two merging pairs settle independently and separation cancels a pending co
       await settle(30);
     }
     expect(runtime.sessions.length).toBe(before + 1);
-    expect(merger()!.inbox[0]).toContain('Settled pair.');
+    expect((await merger())!.inbox[0]).toContain('Settled pair.');
     board().separate(a.id);
     await settle(150);
     expect(runtime.sessions.length).toBe(before + 1);

@@ -71,7 +71,7 @@ class CardMergeJob extends SeismicJob<MergeResult> {
     return [cardMergeSystem, this.o.preferences ?? ''].filter(Boolean).join('\n\n');
   }
 
-  getBrief() {
+  async getBrief() {
     const { card, other, compared } = this.o;
     const { preserve } = this;
     const summary = compared.summary;

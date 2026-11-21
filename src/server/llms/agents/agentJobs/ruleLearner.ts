@@ -80,7 +80,7 @@ class RuleLearnerJob extends SeismicJob {
     return ownerFacing(this.o.board, ruleLearnerSystem(this.o.language));
   }
 
-  getBrief() {
+  async getBrief() {
     const { board, card, kind, text, context, around } = this.o;
     const { question, reply, before } = context;
     return [

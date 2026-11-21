@@ -47,7 +47,7 @@ class CardNameJob extends SeismicJob<{ title: string; labels: Labels }> {
     return this.o.preferences ? `${system}\n\n${this.o.preferences}` : system;
   }
 
-  getBrief() {
+  async getBrief() {
     return this.o.task.trim() ? `The task:\n${this.o.task.trim()}` : 'The task is in the screenshots alone (shown below).';
   }
 

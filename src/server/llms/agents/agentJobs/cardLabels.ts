@@ -38,7 +38,7 @@ class CardLabelsJob extends SeismicJob<Labels> {
     return labelsSystem(this.o.asked);
   }
 
-  getBrief() {
+  async getBrief() {
     const { title, body, images } = this.o;
     return [`The card's title: ${title.trim()}`, body.trim() ? `Its text:\n${body.trim()}` : '', images?.length ? 'Its screenshots are below.' : ''].filter(Boolean).join('\n\n');
   }

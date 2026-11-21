@@ -37,7 +37,7 @@ class PageTagsJob extends SeismicJob<PageTags> {
     return pageTagsSystem;
   }
 
-  getBrief() {
+  async getBrief() {
     const { demos, lacking } = this.o;
     return [
       `The dimensions to choose for, each with its values:\n${dimensions(lacking)
