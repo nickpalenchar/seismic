@@ -30,7 +30,7 @@ export interface NameRun {
 class CardNameJob extends SeismicJob {
   readonly name = 'cardName';
   readonly description = "Gives a card the owner left without a title one, from its text and screenshots.";
-  override readonly needs = { images: 'optional' } as const;
+  override readonly capabilities = { images: 'optional' } as const;
   title: string | null = null;
   labels: Labels = {};
 

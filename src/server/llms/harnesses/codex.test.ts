@@ -1,3 +1,4 @@
+import { CapabilityCheck } from '../models/capabilityCheck';
 import { afterEach, expect, test } from 'bun:test';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -149,7 +150,7 @@ const blindWire = () => {
 };
 
 test('screenshots a session takes only as a help are left out, and it is told, where the model cannot read images', async () => {
-  const { wire, session, events } = fixture({ needs: { images: 'optional' } }, blindWire(), null);
+  const { wire, session, events } = fixture({ checkModel: (m) => new CapabilityCheck(m, { images: 'optional' }) }, blindWire(), null);
   session.send('name this card', [join(tmpdir(), 'screen.png')]);
   await until(() => wire.calls.some((c) => c.method === 'turn/start'));
   const input = wire.calls.find((c) => c.method === 'turn/start')!.params.input as { type: string; text?: string }[];
@@ -160,7 +161,7 @@ test('screenshots a session takes only as a help are left out, and it is told, w
 });
 
 test('a session that needs images ends with an error, naming that, where the model cannot read them', async () => {
-  const { wire, session, events } = fixture({ needs: { images: 'required' } }, blindWire(), null);
+  const { wire, session, events } = fixture({ checkModel: (m) => new CapabilityCheck(m, { images: 'required' }) }, blindWire(), null);
   session.send('describe this', [join(tmpdir(), 'screen.png')]);
   await until(() => events.some((e) => e.type === 'error'));
   expect(events.find((e) => e.type === 'error')).toMatchObject({ message: expect.stringContaining('which this session needs') });

@@ -40,15 +40,13 @@ and `docs/design.md`, and this doc goes.
   (`FrictionNotesSession`, `RetroSession`); `wish` (`WishSession`) extends `SeismicAgent` since it settles on its own
   timeout and usage-limit hook. A job is built per run, so its tools keep their state in fields.
 - [x] A job names the role it runs under (`role` on the subclass: `chores` by default, `koordinator` for the
-  Koordinator's own one-shots) and what it needs of its model (`needs`, `AgentNeeds`: `{ images: 'optional' | 'required' }`).
-  The spec carries it (`AgentSpec.needs`); `messageForModel` (`llms/harnesses/needs.ts`) judges it from the model's
-  catalog entry (`ModelInfo`, whichever harness it comes from; `modelReadsImages` says undefined where a catalog does
-  not say). A harness hands in the entry of the model it resolved: Codex's list names its input types, so it leaves
-  optional screenshots out and tells the session, and fails a required need with an error naming it. Antigravity's listing
-  names none (its entries carry no `inputModalities`, which is not "text alone") and Claude has no catalog, so their images
-  go through as before; a harness that learns a model's input types gains the check by calling `messageForModel`.
-  The agents' next need is added only when a job really lacks it; settings could warn the owner of a role whose model
-  lacks what a job needs.
+  Koordinator's own one-shots). What a session needs of its model is declared by the agent or job as `capabilities`
+  (`{ images: 'optional' | 'required' }`, `llms/models/seismicModel.ts`). `SeismicAgent.checkCapabilities(model, needed?)`
+  sets them (merged with what a run adds, the stricter standing) against a `SeismicModel`, which wraps the harness, the model
+  id and its catalog entry (`ModelInfo`) and answers `has(capability)`: true, false, or undefined where a catalog does not say
+  (not a no). The harness calls the spec's `checkModel` once it has resolved the model, before the first turn: a check that is
+  not `ok` ends the session with its `problem`, and its `apply` leaves optional images out with a note. Codex's list names
+  its input types, so it enforces today; Antigravity's listing and Claude have none, so their images go through.
 - [ ] The Koordinator's sessions in `koordinator.ts`, `merges.ts`, `revisions.ts` and `share.ts` still call
   `readSession` directly; they become jobs (then `readSession.ts` goes). Done: card naming (`agentJobs/cardName.ts`) and
   the labels at a card's start (`cardLabels.ts`), their prompts in `llms/prompts/` (`nameSystem.ts`, `labelsSystem.ts`).

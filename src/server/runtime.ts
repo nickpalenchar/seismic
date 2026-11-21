@@ -7,7 +7,9 @@ import { endSessionsHere } from './llms/harnesses/codexRpc';
 import { agentIdentity } from './llms/harnesses/identity';
 import { allowed } from './allow-rules';
 import type { SeismicSkill } from './llms/skills/seismicSkill';
-import type { AgentNeeds, AgentPermission } from './llms/agents/types';
+import type { CapabilityCheck } from './llms/models/capabilityCheck';
+import type { SeismicModel } from './llms/models/seismicModel';
+import type { AgentPermission } from './llms/agents/types';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { remote } from './hosts';
@@ -117,8 +119,12 @@ export interface AgentSpec {
    * or run commands.
    */
   permission?: AgentPermission;
-  /** What the session needs of its model (`AgentNeeds`), checked by the harness once it knows which model runs. */
-  needs?: AgentNeeds;
+  /**
+   * Asked by the harness once it has resolved the model the session runs on, before its first turn:
+   * what the agent that runs it asks of that model (`SeismicAgent.checkCapabilities`). A check that is
+   * not `ok` ends the session with its `problem`; the harness takes its messages through `apply`.
+   */
+  checkModel?: (model: SeismicModel) => CapabilityCheck;
   /** Added to the agent's environment (Seismic's own, cleaned). */
   env?: Record<string, string>;
   /** How much the model thinks; low for quick, small jobs. */

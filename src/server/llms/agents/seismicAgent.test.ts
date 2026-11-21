@@ -2,6 +2,7 @@ import { expect, test } from 'bun:test';
 import { AGENT_DEFAULTS } from '../../../core/types';
 import { FakeRuntime } from '../../testing';
 import { SeismicAgent } from './seismicAgent';
+import { SeismicModel } from '../models/seismicModel';
 import { ownerPermission, setOwnerPermission } from './permission';
 import { labelsSkill } from '../skills/labels';
 
@@ -44,4 +45,18 @@ test('an agent follows the owner’s permission unless it overrides', () => {
     setOwnerPermission('auto');
   }
   expect(ownerPermission()).toBe('auto');
+});
+
+test('an agent checks what it declares of its model, with what a run adds, before it runs', () => {
+  class Sees extends Probe {
+    override readonly capabilities = { images: 'required' } as const;
+  }
+  const info = (inputModalities?: string[]) => new SeismicModel('codex', 'm', { model: 'm', isDefault: true, supportedReasoningEfforts: [], ...(inputModalities ? { inputModalities } : {}) });
+  const agent = new Sees();
+  expect(agent.checkCapabilities(info(['text', 'image'])).ok).toBe(true);
+  expect(agent.checkCapabilities(info(['text'])).problem).toBe('The selected Codex model does not support images, which this session needs');
+  expect(agent.checkCapabilities(info()).ok).toBe(true);
+  expect(new Probe().checkCapabilities(info(['text']), { images: 'optional' }).degraded).toEqual(['images']);
+  expect(new Probe().toSpec({ topic: 't' }, { cwd: '/w', onEvent: () => {} }).checkModel).toBeUndefined();
+  expect(agent.toSpec({ topic: 't' }, { cwd: '/w', onEvent: () => {} }).checkModel!(info(['text'])).ok).toBe(false);
 });

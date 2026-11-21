@@ -21,7 +21,9 @@
 import type { AgentRole, AgentSetting } from '../../../core/types';
 import type { AgentEvent, AgentRuntime, AgentSession, AgentSpec, AgentTool } from '../../runtime';
 import { ownerPermission } from './permission';
-import type { AgentMcp, AgentNeeds, AgentPermission, AgentSkill, SessionOptions } from './types';
+import { CapabilityCheck, mergeCapabilities } from '../models/capabilityCheck';
+import type { Capabilities, SeismicModel } from '../models/seismicModel';
+import type { AgentMcp, AgentPermission, AgentSkill, SessionOptions } from './types';
 
 /** What a run needs from its caller. */
 export interface AgentRun {
@@ -50,8 +52,19 @@ export abstract class SeismicAgent<Ctx = void> {
    */
   getPermissionMode(_ctx: Ctx): AgentPermission | undefined { return ownerPermission(); }
 
-  /** What the session needs of the model it runs on; none by default. */
-  getNeeds(_ctx: Ctx): AgentNeeds | undefined { return undefined; }
+  /**
+   * What this agent asks of any model it runs on (a vision agent declares `{ images: 'required' }`),
+   * checked once the harness has resolved the model, before the first turn.
+   */
+  readonly capabilities: Capabilities = {};
+
+  /** What this run asks of its model: the agent's own capabilities, and a subclass may add the run's. */
+  getCapabilities(_ctx: Ctx): Capabilities { return this.capabilities; }
+
+  /** What `needed`, with this agent's own capabilities, asks of `model`: whether the session may run on it. */
+  checkCapabilities(model: SeismicModel, needed: Capabilities = {}): CapabilityCheck {
+    return new CapabilityCheck(model, mergeCapabilities(this.capabilities, needed));
+  }
   /** Appended to the harness's default system prompt. */
   abstract getPrompt(ctx: Ctx): string;
   /** The first message of a run; none lets the session start up and wait. */
@@ -67,7 +80,7 @@ export abstract class SeismicAgent<Ctx = void> {
   toSpec(ctx: Ctx, run: AgentRun): AgentSpec {
     const skills = this.getSkills(ctx);
     const permission = this.getPermissionMode(ctx);
-    const needs = this.getNeeds(ctx);
+    const needed = this.getCapabilities(ctx);
     const setting = this.getModel(ctx);
     return {
       ...this.getSessionOptions(ctx),
@@ -78,7 +91,7 @@ export abstract class SeismicAgent<Ctx = void> {
       role: this.role,
       ...(setting ? { setting } : {}),
       ...(permission ? { permission } : {}),
-      ...(needs ? { needs } : {}),
+      ...(Object.keys(needed).length ? { checkModel: (model: SeismicModel) => this.checkCapabilities(model, needed) } : {}),
       ...(run.resume ? { resume: run.resume } : {}),
       onEvent: run.onEvent,
     };

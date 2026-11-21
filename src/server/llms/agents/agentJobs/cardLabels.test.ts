@@ -10,7 +10,7 @@ const run = (over: Partial<Parameters<typeof judgeLabels>[0]> = {}) => {
 
 test('labels are judged by a read-only session of the chores role that may do without screenshots', () => {
   const { runtime } = run({ images: ['/img/a.png'] });
-  expect(runtime.last.spec).toMatchObject({ cwd: '/repo', role: 'chores', permission: 'readOnly', needs: { images: 'optional' } });
+  expect(runtime.last.spec).toMatchObject({ cwd: '/repo', role: 'chores', permission: 'readOnly', checkModel: expect.any(Function) });
   expect(runtime.last.inbox).toEqual(["The card's title: Export readings\n\nIts text:\nAs CSV.\n\nIts screenshots are below."]);
   expect(runtime.last.images).toEqual([['/img/a.png']]);
 });

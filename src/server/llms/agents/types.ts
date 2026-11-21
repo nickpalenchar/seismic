@@ -5,16 +5,6 @@
 import type { AgentSpec } from '../../runtime';
 import type { SeismicSkill } from '../skills/seismicSkill';
 
-/**
- * What a session needs of the model it runs on, as its job declares it. `optional`: the session goes
- * on without it where the model lacks it, and is told; `required`: it fails there. Only what some
- * model really lacks is named here, and a harness enforces it where it knows the model.
- */
-export interface AgentNeeds {
-  /** The screenshots that come with the brief: a model that cannot read images. */
-  images?: 'required' | 'optional';
-}
-
 /** A skill the agent uses. */
 export type AgentSkill = SeismicSkill;
 

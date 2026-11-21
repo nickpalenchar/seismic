@@ -10,7 +10,7 @@ const run = (over: Partial<Parameters<typeof nameCard>[0]> = {}) => {
 
 test('a card is named by a read-only session of the chores role that may do without its screenshots', async () => {
   const { runtime, named } = run({ images: ['/img/a.png'] });
-  expect(runtime.last.spec).toMatchObject({ cwd: '/repo', role: 'chores', permission: 'readOnly', needs: { images: 'optional' } });
+  expect(runtime.last.spec).toMatchObject({ cwd: '/repo', role: 'chores', permission: 'readOnly', checkModel: expect.any(Function) });
   expect(runtime.last.inbox).toEqual(['The task:\nExport the readings as CSV.']);
   expect(runtime.last.images).toEqual([['/img/a.png']]);
   expect(runtime.last.call('title', { title: '  Export   readings\nas CSV ' })).toContain('Recorded');

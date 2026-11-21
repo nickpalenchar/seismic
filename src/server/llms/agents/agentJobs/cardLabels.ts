@@ -23,7 +23,7 @@ export interface LabelsRun {
 class CardLabelsJob extends SeismicJob {
   readonly name = 'cardLabels';
   readonly description = "Judges a card's labels from its title, text and screenshots.";
-  override readonly needs = { images: 'optional' } as const;
+  override readonly capabilities = { images: 'optional' } as const;
   labels: Labels = {};
 
   constructor(private o: Pick<LabelsRun, 'asked' | 'title' | 'body' | 'images'>) {

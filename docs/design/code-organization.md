@@ -100,10 +100,10 @@ Not necesarilly "layers", but important to keep organized nonetheless
   (the wish draft, tag proposals, the work retrospective): a class that extends `SeismicJob`
   (`src/server/llms/agents/seismicJob.ts`: a read-only session of the role `chores` that answers through its tools),
   built per run, with its test. A job names the role whose model setting it runs under (`chores`, or
-  `koordinator` for the Koordinator's own one-shots) and, where it reads screenshots only as a help, says so
-  (`needs: { images: 'optional' }`): where the model's catalog entry (`ModelInfo`) says it cannot read images, the
-  harness leaves them out and tells the session (`llms/harnesses/needs.ts`), and fails a session whose need is `required`;
-  where the catalog does not say, the images go through. What is still in
+  `koordinator` for the Koordinator's own one-shots). An agent or job declares the `capabilities` it needs of its model
+  (`{ images: 'optional' }` where it reads screenshots only as a help); the agent checks them against the `SeismicModel`
+  the harness resolved (`llms/models/`), before the first turn: a required capability the model's catalog says it lacks ends
+  the session, an optional one is left out with a note, and a catalog that does not say is never taken as a no. What is still in
   `src/server/llms/skills/` (label helpers) moves here a part at a time. The code review service
   (`CodeReviews`) is in `src/server/workerSupervisor/`, beside the supervisor that runs it.
 - `src/server/llms/agents/types.ts` placeholder types for MCPs until they get a class of their own.

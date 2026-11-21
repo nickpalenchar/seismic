@@ -14,7 +14,8 @@ import { z } from 'zod';
 import { messageOf } from '../../../core/text';
 import { sessionRegistry } from './sessionRegistry';
 import { codexConnection, CodexRpcError, type CodexConnection, type CodexHandlers } from './codexRpc';
-import { messageForModel } from './needs';
+import { CapabilityCheck } from '../models/capabilityCheck';
+import { SeismicModel } from '../models/seismicModel';
 import { answered, cleanEnv, type AgentEvent, type AgentRuntime, type AgentSpec } from '../../runtime';
 
 // Codex reserves mcp__ names for actual MCP servers. Keep its wire name separate from the
@@ -211,7 +212,7 @@ export function createCodexRuntime(connect: Connect = connectInstalled): AgentRu
       let pumping = false;
       let settle = false;
       let idlePending = false;
-      let chosen: ModelInfo | undefined;
+      let check: CapabilityCheck | undefined;
       let background: { id: string; description: string }[] = [];
       let poll: ReturnType<typeof setTimeout> | undefined;
       const emit = (event: AgentEvent) => { if (!closing) spec.onEvent(event); };
@@ -294,7 +295,7 @@ export function createCodexRuntime(connect: Connect = connectInstalled): AgentRu
             if (closing) break;
             const next = queue[0];
             if (!next) break;
-            const sent = messageForModel(spec.needs, chosen, { text: next.text, images: next.images }, 'Codex');
+            const sent = check ? check.apply({ text: next.text, images: next.images }) : { text: next.text, images: next.images };
             const input = [{ type: 'text', text: sent.text, text_elements: [] }, ...sent.images.map((path) => ({ type: 'localImage', path }))];
             if (turn) {
               const expected = turn;
@@ -438,7 +439,9 @@ export function createCodexRuntime(connect: Connect = connectInstalled): AgentRu
           const model = spec.model ? models.find((m) => m.model === spec.model) : models.find((m) => m.isDefault);
           if (!model) throw new Error(spec.model ? `Codex model unavailable: ${spec.model}` : 'Codex did not report an available model.');
           if (spec.effort && !model.supportedReasoningEfforts.some((e) => e.reasoningEffort === spec.effort)) throw new Error(`Codex model ${model.model} does not support effort ${spec.effort}`);
-          chosen = model;
+          const seismicModel = new SeismicModel('codex', model.model, model);
+          check = spec.checkModel?.(seismicModel) ?? new CapabilityCheck(seismicModel);
+          if (check.problem) throw new Error(check.problem);
           const config = {
             ...(spec.dirs?.length ? { 'sandbox_workspace_write.writable_roots': spec.dirs } : {}),
             ...(connection.pid ? { 'shell_environment_policy.set': bothNames({ AGENT_PID: String(connection.pid) }) } : {}),

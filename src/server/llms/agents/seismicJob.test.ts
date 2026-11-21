@@ -1,3 +1,4 @@
+import { SeismicModel } from '../models/seismicModel';
 import { expect, test } from 'bun:test';
 import { z } from 'zod';
 import { FakeRuntime } from '../../testing';
@@ -27,16 +28,20 @@ test('a job is a read-only session of the chores role that reads its brief', () 
 
 class Looks extends Probe {
   override readonly role = 'koordinator' as const;
-  override readonly needs = { images: 'optional' } as const;
+  override readonly capabilities = { images: 'optional' } as const;
 }
 
-test('a job runs under the role it names, and what it needs of its model goes into the spec', () => {
+const model = (inputModalities: string[]) => new SeismicModel('codex', 'm', { model: 'm', isDefault: true, supportedReasoningEfforts: [], inputModalities });
+
+test('a job runs under the role it names, and its capabilities are checked against the model it gets', () => {
   const runtime = new FakeRuntime();
   void new Looks().run(runtime, { cwd: '/w', images: ['/w/shot.png'] });
-  expect(runtime.last.spec).toMatchObject({ role: 'koordinator', permission: 'readOnly', needs: { images: 'optional' } });
+  expect(runtime.last.spec).toMatchObject({ role: 'koordinator', permission: 'readOnly' });
+  const check = runtime.last.spec.checkModel!(model(['text']));
+  expect([check.ok, check.degraded]).toEqual([true, ['images']]);
   const plain = new FakeRuntime();
   void new Probe().run(plain, { cwd: '/w' });
-  expect(plain.last.spec.needs).toBeUndefined();
+  expect(plain.last.spec.checkModel).toBeUndefined();
 });
 
 test('it settles without an error when a tool finishes it', async () => {
