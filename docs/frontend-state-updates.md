@@ -192,7 +192,11 @@ Deleting a card went the same way: `DELETE /api/v1/cards/:cardId` answers 204, a
 takes the card off the shown project at once (`cardRemoved`, under the same rule as `cardSaved`:
 not once a newer snapshot came in). On 600 cards, a card deleted from its open panel left the
 canvas at 279 ms after the click, before the snapshot (354 ms); most of that time is the panel
-folding shut, which the deletion waits for. The undo is still `POST /api/c/:project/cards/:id/restore`.
+folding shut, which the deletion waits for.
+
+Its undo is `POST /api/v1/cards/:cardId/restore`, answered with the card, which `restoreCard` puts
+back on the shown project (`cardBack`). Undone at once after a deletion, the card was back on the
+canvas 34 ms after the click, before the snapshot (76 ms).
 
 Typing is not disturbed by the card coming back: the title and text fields keep a draft of their
 own, which the card they get does not overwrite (`ManualTitle` in `src/ui/detail.tsx`). Checked live

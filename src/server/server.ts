@@ -338,11 +338,11 @@ export function serve(
   };
 
   const handle = respond;
-  /** The project a card is on, by the card's row; none for a card deleted or unknown. */
-  const projectOfCard = (cardId: string) =>
+  /** The project a card is on, by the card's row; none for one unknown, or deleted unless `deleted`. */
+  const projectOfCard = (cardId: string, options?: { deleted?: boolean }) =>
     [...byId.values()].find((c) => {
       const row = c.dataStore.cards.get(cardId);
-      return row?.project_id === c.id && !row.deleted_at;
+      return row?.project_id === c.id && (!row.deleted_at || !!options?.deleted);
     });
   /** A route on one project; an unknown project is a 404. */
   const on =
@@ -822,7 +822,6 @@ export function serve(
         POST: on(async (c, req) => { const { from, to, anchor } = await req.json() as { from: string; to: string; anchor?: import('../core/types').ManualAnchor }; c.board.connect(from, to, false, anchor); }),
         DELETE: on(async (c, req) => { const { from, to } = await req.json() as { from: string; to: string }; c.board.connect(from, to, true); }),
       },
-      '/api/c/:project/cards/:id/restore': { POST: on((c, req) => c.restore(req.params.id!)) },
       '/api/c/:project/cards/:id/archive': { POST: on((c, req) => c.board.archive([req.params.id!])) },
       '/api/c/:project/cards/:id/unarchive': { POST: on((c, req) => c.board.unarchive(req.params.id!)) },
       // the archive, newest first; posting archives every finished card of the owner's

@@ -338,7 +338,6 @@ export const api = {
     const total = Number(/\/(\d+)$/.exec(res.headers.get('content-range') ?? '')?.[1]);
     return res.ok && total > 0 ? total : null;
   },
-  restore: (id: string) => call<void>('POST', cardAt(id, '/restore')),
   /** Takes a finished card off the project into the archive. */
   archive: (id: string) => call<void>('POST', cardAt(id, '/archive')),
   unarchive: (id: string) => call<void>('POST', cardAt(id, '/unarchive')),
@@ -676,6 +675,11 @@ export function cardSaved(project: string, card: Item, seen: number) {
   for (const fn of savedListeners) fn(project, (snapshot) => withCard(snapshot, card), seen);
 }
 
+/** A card back on the project (a deletion undone): it shows again without waiting for the next snapshot. `seen` as for `cardSaved`. */
+export function cardBack(project: string, card: Item, seen: number) {
+  for (const fn of savedListeners) fn(project, (snapshot) => withCardBack(snapshot, card), seen);
+}
+
 /** A card deleted: the project stops showing it without waiting for the next snapshot. `seen` as for `cardSaved`. */
 export function cardRemoved(project: string, id: string, seen: number) {
   for (const fn of savedListeners) fn(project, (snapshot) => withoutCard(snapshot, id), seen);
@@ -689,6 +693,11 @@ export function withCard(snapshot: ProjectSnapshot, card: Item): ProjectSnapshot
   const before = snapshot.items.find((i) => i.id === card.id);
   if (!before || sameJson(before, card)) return snapshot;
   return { ...snapshot, items: snapshot.items.map((i) => (i.id === card.id ? card : i)) };
+}
+
+/** The snapshot with `card` on it: in place of the card it was, else added. */
+export function withCardBack(snapshot: ProjectSnapshot, card: Item): ProjectSnapshot {
+  return snapshot.items.some((i) => i.id === card.id) ? withCard(snapshot, card) : { ...snapshot, items: [...snapshot.items, card] };
 }
 
 /** The snapshot without the card `id`; one it does not show leaves it as it is. */

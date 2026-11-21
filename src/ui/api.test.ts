@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from 'bun:test';
-import { api, beforeReload, cardsOn, handOver, setProject, takeHandOver, withCard, withoutCard, withUnchanged } from './api';
+import { api, beforeReload, cardsOn, handOver, setProject, takeHandOver, withCard, withCardBack, withoutCard, withUnchanged } from './api';
 import type { Item, ProjectSnapshot } from '../core/types';
 
 const fetched: string[] = [];
@@ -141,4 +141,13 @@ test('a deleted card leaves the snapshot; one it does not show leaves the snapsh
   const snapshot = { items: [a, b] } as ProjectSnapshot;
   expect(withoutCard(snapshot, 'a').items).toEqual([b]);
   expect(withoutCard(snapshot, 'c')).toBe(snapshot);
+});
+
+test('a card back on the project is added to the snapshot, or replaces the card it was', () => {
+  const a = { id: 'a', title: 'A' } as Item;
+  const snapshot = { items: [a] } as ProjectSnapshot;
+  const b = { id: 'b', title: 'B' } as Item;
+  expect(withCardBack(snapshot, b).items).toEqual([a, b]);
+  const a2 = { id: 'a', title: 'A2' } as Item;
+  expect(withCardBack(snapshot, a2).items).toEqual([a2]);
 });

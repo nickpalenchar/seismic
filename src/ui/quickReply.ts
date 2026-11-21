@@ -6,7 +6,7 @@
 
 import { answerText } from './answer';
 import { ApiError, api, cardsOn } from './api';
-import { removeCard } from './clients/seismic';
+import { removeCard, restoreCard } from './clients/seismic';
 import { ACK_MS } from './tell';
 import { type CardAction, handedOver, type Item, openQuestions, type Question } from '../core/types';
 import { plain } from './markdown';
@@ -49,7 +49,7 @@ export function quickReplies(i: Item): QuickReply[] {
   if (i.idea?.superseded)
     return [
       { label: t.superseded.keep, send: act({ action: 'keep' }), ack: t.quick.kept, primary: true, title: t.superseded.keepHint },
-      { label: t.superseded.remove, send: (id) => removeCard(id), ack: t.deleted(plain(i.title)), undo: (id) => api.restore(id), title: t.superseded.removeHint },
+      { label: t.superseded.remove, send: (id) => removeCard(id), ack: t.deleted(plain(i.title)), undo: (id) => restoreCard(id), title: t.superseded.removeHint },
     ];
   if (i.state === 'proposal') {
     // a merged pair is approved or separated on the card, where the merged text shows

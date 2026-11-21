@@ -17,9 +17,9 @@ type BunHandler = (request: RouteRequest) => Promise<Response>;
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
 type Method = (typeof METHODS)[number];
 
-/** What the routes need of the server: the project runtime a card is on. */
+/** What the routes need of the server: the project runtime a card is on (`deleted`: also one deleted, to be restored). */
 export interface RouteDependencies {
-  projectOfCard: (cardId: string) => ProjectRuntime | undefined;
+  projectOfCard: (cardId: string, options?: { deleted?: boolean }) => ProjectRuntime | undefined;
 }
 
 /** The answer to a request: `fn`'s result as JSON, or its refusal. */
@@ -47,9 +47,9 @@ export abstract class HttpRoute {
 
   constructor(protected readonly dependencies: RouteDependencies) {}
 
-  /** The project of the card the URL names (`:cardId`); an unknown card is a 404. */
-  protected projectOfCard(request: RouteRequest): ProjectRuntime {
-    const project = this.dependencies.projectOfCard(request.params.cardId ?? '');
+  /** The project of the card the URL names (`:cardId`); an unknown card is a 404, a deleted one too unless `deleted`. */
+  protected projectOfCard(request: RouteRequest, options?: { deleted?: boolean }): ProjectRuntime {
+    const project = this.dependencies.projectOfCard(request.params.cardId ?? '', options);
     if (!project) throw new NotFound('unknownCard', 'unknown card');
     return project;
   }

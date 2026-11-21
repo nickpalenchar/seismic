@@ -8,7 +8,7 @@ import { useRatePrompt } from './feedback';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { type ProjectInfo, type CardPatch, type Item, nameless, needsYou, openQuestions } from '../core/types';
 import { api, beforeReload, cardsOn, onNotice, setProject, type Where } from './api';
-import { patchCard, removeCard } from './clients/seismic';
+import { patchCard, removeCard, restoreCard } from './clients/seismic';
 import { inboxEntries, readMark } from '../core/inbox';
 import { useInboxRead } from './inboxRead';
 import { type ActDone, Detail, type Pending, TalkElsewhere, useEvents } from './detail';
@@ -451,7 +451,7 @@ export function usePhoneShell(loaded: ProjectInfo[]) {
     back();
     try {
       await removeCard(i.id);
-      showAck(t.deleted(plain(i.title)), () => api.restore(i.id));
+      showAck(t.deleted(plain(i.title)), () => restoreCard(i.id));
     } catch (e) {
       fail(e);
     }

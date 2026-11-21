@@ -59,6 +59,11 @@ Represents endpoints that are registered to the server, which can be called in a
   - `PATCH /api/v1/cards/:cardId/share` is `src/server/routes/v1/cards/_cardId/share.ts`.
   - `PATCH /api/v1/cards/:cardId` is `src/server/routes/v1/cards/_cardId.ts`, beside the folder
     `_cardId/` that holds the URLs under it.
+  - What is not a change of the resource's own fields is a `POST` to a named action under its URL
+    (decided by the owner 2026-11-21): `POST /api/v1/cards/:cardId/restore` undoes a deletion, and
+    archive and unarchive go the same way. Rejected: `PATCH { deleted: false }`, which would make the
+    card's URL find deleted cards and describe a deletion two ways, and a `deletion` resource to
+    `DELETE`, which reads poorly.
   - Params name what they stand for (`:cardId`), never a bare `:id`.
   - A card's URL names the card alone, not its project: the server finds the project from the card
     (`HttpRoute.projectOfCard`), so a call can't go to the wrong project when the page shows another.

@@ -24,7 +24,7 @@ import { type ActDone, Detail, type Pending } from './detail';
 import { Cards, KoordinatorAgent } from './message';
 import { motionMs, reducedMotion, sizeSettled } from './motion';
 import type { Heard, Where } from './api';
-import { patchCard, removeCard } from './clients/seismic';
+import { patchCard, removeCard, restoreCard } from './clients/seismic';
 import { replyOn, setReply } from './reply';
 import { ArchiveView } from './archive';
 import { CardSearch } from './cardSearch';
@@ -1014,7 +1014,7 @@ function Project({
     await closeCard({ keepUntitled: true });
     if (!i) return;
     await removeCard(i.id);
-    if (title) showAck(t.deleted(plain(title)), () => api.restore(i.id));
+    if (title) showAck(t.deleted(plain(title)), () => restoreCard(i.id));
   }
 
   /** A new card centred at `world`; `made` runs once it exists, before it opens. */

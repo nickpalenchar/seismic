@@ -73,8 +73,10 @@ test('a card deleted on the project it is on, answered with nothing; its undo br
   const res = await remove(c.id);
   expect(res.status).toBe(204);
   expect(website.item(c.id)).toBeUndefined();
-  // the undo is still the project's route
-  expect((await fetch(new URL(`/api/c/${website.project.id}/cards/${c.id}/restore`, server.url), { method: 'POST' })).status).toBe(204);
+  // the undo (routes/v1/cards/_cardId/restore.ts)
+  const back = await fetch(new URL(`/api/v1/cards/${c.id}/restore`, server.url), { method: 'POST' });
+  expect(back.status).toBe(200);
+  expect(((await back.json()) as { card: Item }).card).toMatchObject({ id: c.id, title: 'A' });
   expect(website.item(c.id)?.title).toBe('A');
 });
 
