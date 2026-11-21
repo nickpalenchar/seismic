@@ -9,3 +9,6 @@ dist/
 site/media/
 .voice/
 /.local/state/gh/
+# secrets (signing keys, tokens) stay out of git
+.env*
+!.env.example
