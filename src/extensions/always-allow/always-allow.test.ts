@@ -8,10 +8,10 @@ import { AGENT_DEFAULTS } from '../../core/types';
 import { codexRules } from '../../server/allow-rules';
 import { ProjectRuntime } from '../../server/project';
 import { Store } from '../../server/store';
-import { FakeRuntime, gitRepo, noForge, until } from '../../server/testing';
+import { FakeRuntime, gitRepo, noForge, until } from '../../server/test/helpers/testing';
 import { commandsOf } from '../../server/trust';
 import { WorkerSupervisor } from '../../server/workerSupervisor/workerSupervisor';
-import { board, eachTest, flush, manual, runtime, setWorkers, spaces, workers } from '../../server/workerSupervisor/fixture';
+import { board, eachTest, flush, manual, runtime, setWorkers, spaces, workers } from '../../server/test/helpers/workerSupervisor';
 import { git } from '../../server/workstations';
 import { alwaysRules } from './server';
 

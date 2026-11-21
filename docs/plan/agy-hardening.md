@@ -40,7 +40,7 @@ agent executor error: generating and executing: RESOURCE_EXHAUSTED (code 429): I
 Line 131 repeats the same failure without the `agent executor error:` prefix. Another log,
 `cli-20261107_181023.log`, reports `Resets in 145h5m46s.`. These are actual account failures,
 not the preview's invented `Quota exceeded. Retry in 30s.` example. Only the error text is
-retained in `src/server/fixtures/agy-quota.txt`; no account identifiers or conversation content
+retained in `src/server/test/fixtures/agy-quota.txt`; no account identifiers or conversation content
 are copied. This capture establishes the error wording, not a live stream-json envelope.
 
 The reset is a relative, compound hours/minutes/seconds duration; hours can exceed 24. Seismic

@@ -1,0 +1,1504 @@
+import { beforeEach, describe, expect, spyOn, test } from 'bun:test';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { boundsOf, onProject, PLAN_COLLAPSED, sizeOf } from '../../core/layout';
+import type { PlanDoc } from '../../core/plan-doc';
+import { BadRequest, Board, pathOfRef, type PlanRead, repoOfRef } from '../board';
+import { Store } from '../store';
+import { heard } from './helpers/testing';
+
+const ws = (key: string, done = false) => ({ key, label: key, title: `Title ${key}`, body: `Body ${key}`, done, inReview: false });
+const docA: PlanDoc = { file: 'docs/plan/a.md', title: 'A', goal: 'Goal A', workstreams: [ws('W1', true), ws('W2'), ws('W3')], markdown: '# A\n\n## Goal\n\nGoal A\n' };
+const docB: PlanDoc = { file: 'docs/plan/b.md', title: 'B', goal: 'Goal B', workstreams: [ws('W1')], markdown: '' };
+
+let store: Store;
+let docs: PlanDoc[];
+let dirs: PlanRead['dirs'];
+let board: Board;
+
+beforeEach(() => {
+  store = new Store(':memory:');
+  docs = [docA];
+  dirs = [];
+  board = new Board(store, { id: 'shop', name: 'Shop', repos: [{ id: 'home', name: 'Home', path: '/r', branch: 'main' }] }, () => ({ docs, dirs }));
+});
+
+describe('plan docs', () => {
+  test('a plan and its workstreams appear with state and text from the doc', () => {
+    const { items } = board.snapshot();
+    const [p, w1, w2, w3] = items;
+    expect(p).toMatchObject({ kind: 'plan', title: 'A', source: 'plan', plan: { file: 'docs/plan/a.md', goal: 'Goal A' } });
+    expect([w1, w2, w3].map((w) => [w!.plan?.label, w!.state, w!.parent])).toEqual([
+      ['W1', 'live', p!.id],
+      ['W2', 'planned', p!.id],
+      ['W3', 'planned', p!.id],
+    ]);
+  });
+
+  test('a plan gives its plan doc as written; a workstream or manual card has none', () => {
+    const [p, w1] = board.snapshot().items;
+    expect(board.planDoc(p!.id)).toEqual({ file: 'docs/plan/a.md', markdown: docA.markdown });
+    docs = [{ ...docA, markdown: '# A\n\nEdited\n' }];
+    board.docsChanged();
+    expect(board.planDoc(p!.id).markdown).toBe('# A\n\nEdited\n');
+    expect(() => board.planDoc(w1!.id)).toThrow(BadRequest);
+    const c = board.create({ title: 'Own', x: 0, y: 0 });
+    expect(() => board.planDoc(c.id)).toThrow(BadRequest);
+  });
+
+  test('placement is kept across reads and survives an edit of the doc', () => {
+    const w2 = board.snapshot().items.find((i) => i.plan?.label === 'W2')!;
+    board.patch(w2.id, { x: 700, y: 400 });
+    docs = [{ ...docA, workstreams: [ws('W1', true), { ...ws('W2', true), title: 'Renamed' }, ws('W3')] }];
+    board.docsChanged();
+    expect(board.snapshot().items.find((i) => i.id === w2.id)).toMatchObject({ x: 700, y: 400, title: 'Renamed', state: 'live' });
+  });
+
+  test('older packed completed cards get room, and the repaired layout survives another read', () => {
+    docs = [{ ...docA, workstreams: [ws('W1', true), ws('W2', true), ws('W3', true), ws('W4', true), ws('W5')] }];
+    const initial = board.snapshot().items;
+    const kids = initial.filter((i) => i.parent);
+    // The old four-chip row, with the open card immediately below it.
+    kids.forEach((k, n) => store.cards.update(k.id, n < 4 ? { x: 30 + n * 216, y: 78 } : { x: 30, y: 162 }));
+    board.docsChanged();
+    const repaired = board.snapshot().items;
+    const boxes = repaired.filter((i) => i.parent).map((i) => boundsOf(i, repaired));
+    for (const [n, a] of boxes.entries()) for (const b of boxes.slice(n + 1)) {
+      expect(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y).toBe(true);
+    }
+    expect(repaired.filter((i) => i.parent).every((i) => i.x >= 30 && i.y >= 78)).toBe(true);
+    board.docsChanged();
+    expect(board.snapshot().items.map((i) => [i.id, i.x, i.y])).toEqual(repaired.map((i) => [i.id, i.x, i.y]));
+  });
+
+  test('refitting hidden completed cards keeps a collapsed plan beside its neighbours', () => {
+    docs = [{ ...docA, workstreams: [ws('W1', true), ws('W2', true), ws('W3')] }];
+    const [plan, w1, w2, w3] = board.snapshot().items;
+    store.cards.update(w1!.id, { x: 30, y: 78 });
+    store.cards.update(w2!.id, { x: 246, y: 78 });
+    store.cards.update(w3!.id, { x: 30, y: 162 });
+    board.patch(plan!.id, { collapsed: true });
+    board.create({ title: 'Neighbour', x: plan!.x + 500, y: plan!.y });
+    board.docsChanged();
+    expect(board.snapshot().items.find((i) => i.id === plan!.id)).toMatchObject({ x: plan!.x, y: plan!.y, plan: { collapsed: true } });
+  });
+
+  test('a new workstream is placed below the existing ones', () => {
+    const before = board.snapshot().items;
+    const lowest = Math.max(...before.filter((i) => i.parent).map((i) => i.y));
+    docs = [{ ...docA, workstreams: [...docA.workstreams, ws('W4')] }];
+    board.docsChanged();
+    const w4 = board.snapshot().items.find((i) => i.plan?.label === 'W4')!;
+    expect(w4.y).toBeGreaterThan(lowest);
+  });
+
+  test('a new plan is placed clear of everything on the project', () => {
+    const first = board.snapshot().items;
+    docs = [docA, docB];
+    board.docsChanged();
+    const items = board.snapshot().items;
+    const a = boundsOf(items.find((i) => i.title === 'A')!, items);
+    const b = boundsOf(items.find((i) => i.title === 'B')!, items);
+    expect(b.y).toBeGreaterThanOrEqual(a.y + a.h);
+    expect(first.length + 2).toBe(items.length);
+  });
+
+  test('a collapsed plan stays collapsed, takes the room of its head, and expands again', () => {
+    const p = board.snapshot().items[0]!;
+    board.patch(p.id, { collapsed: true });
+    let items = board.snapshot().items;
+    expect(items[0]).toMatchObject({ id: p.id, plan: { collapsed: true } });
+    expect(boundsOf(items[0]!, items)).toMatchObject({ w: PLAN_COLLAPSED[0], h: PLAN_COLLAPSED[1] });
+    // its workstreams are still there, for its sheet and its marks
+    expect(onProject(items).map((i) => i.id)).toEqual([p.id]);
+    expect(items.filter((i) => i.parent === p.id)).toHaveLength(3);
+    expect(() => board.patch(p.id, { collapsed: 'yes' as never })).toThrow(BadRequest);
+    expect(() => board.patch(items[1]!.id, { collapsed: true })).toThrow(BadRequest);
+    board.patch(p.id, { collapsed: false });
+    items = board.snapshot().items;
+    expect(items[0]!.plan?.collapsed).toBeUndefined();
+    expect(onProject(items)).toHaveLength(4);
+  });
+
+  test('a card made without a place (from the phone) goes where there is room', () => {
+    const c = board.create({ title: '' });
+    const items = board.snapshot().items;
+    const mine = boundsOf(items.find((i) => i.id === c.id)!, items);
+    const clear = (b: ReturnType<typeof boundsOf>) => mine.x + mine.w <= b.x || b.x + b.w <= mine.x || mine.y + mine.h <= b.y || b.y + b.h <= mine.y;
+    expect(onProject(items).filter((i) => i.id !== c.id && !i.parent).every((i) => clear(boundsOf(i, items)))).toBe(true);
+    expect(() => board.create({ title: '', x: 1 })).toThrow(BadRequest);
+  });
+
+  test('the owner gives any card a priority, changes it and takes it off again', () => {
+    const [p, , w2] = board.snapshot().items;
+    const c = board.create({ title: 'Own', x: 0, y: 0 });
+    board.patch(c.id, { priority: 'critical' });
+    board.patch(p!.id, { priority: 'trivial' });
+    board.patch(w2!.id, { priority: 'veryHigh' });
+    const at = (id: string) => board.snapshot().items.find((i) => i.id === id)!;
+    expect([at(c.id).labels?.priority, at(p!.id).labels?.priority, at(w2!.id).labels?.priority]).toEqual(['critical', 'trivial', 'veryHigh']);
+    expect(() => board.patch(c.id, { priority: 'urgent' as never })).toThrow(BadRequest);
+    board.patch(c.id, { priority: null });
+    expect(at(c.id).labels?.priority).toBeUndefined();
+  });
+
+  test('the owner sets category, sub-category and complexity on any card, each on its own, and takes them off again', () => {
+    const [p, , w2] = board.snapshot().items;
+    const c = board.create({ title: 'Own', x: 0, y: 0 });
+    const at = (id: string) => board.snapshot().items.find((i) => i.id === id)!;
+    // a card from before the labels has none
+    expect(at(c.id)).not.toHaveProperty('labels.category');
+    expect(at(c.id)).not.toHaveProperty('labels.suggested');
+    board.patch(c.id, { category: 'backend', complexity: 3 });
+    board.patch(p!.id, { subcategory: 'bugFix' });
+    board.patch(w2!.id, { category: 'dataMigration', subcategory: 'refactor', complexity: 8 });
+    expect(at(c.id)).toMatchObject({ labels: { category: 'backend', complexity: 3 } });
+    expect(at(c.id).labels?.subcategory).toBeUndefined();
+    expect(at(p!.id)).toMatchObject({ labels: { subcategory: 'bugFix' } });
+    expect(at(p!.id).labels?.category).toBeUndefined();
+    expect(at(w2!.id)).toMatchObject({ labels: { category: 'dataMigration', subcategory: 'refactor', complexity: 8 } });
+    expect(() => board.patch(c.id, { category: 'design' as never })).toThrow(BadRequest);
+    expect(() => board.patch(c.id, { subcategory: 'chore' as never })).toThrow(BadRequest);
+    expect(() => board.patch(c.id, { complexity: 4 as never })).toThrow(BadRequest);
+    expect(() => board.patch(c.id, { complexity: '3' as never })).toThrow(BadRequest);
+    for (const complexity of [13, 21] as const) {
+      board.patch(c.id, { complexity });
+      expect(at(c.id).labels?.complexity).toBe(complexity);
+    }
+    board.patch(c.id, { category: null, complexity: null });
+    expect(at(c.id).labels?.category).toBeUndefined();
+    expect(at(c.id).labels?.complexity).toBeUndefined();
+  });
+
+  test("Seismic's suggestion fills only empty labels the owner never set, marked until the owner touches them", () => {
+    const c = board.create({ title: 'Own', x: 0, y: 0 });
+    const at = (id: string) => board.snapshot().items.find((i) => i.id === id)!;
+    board.patch(c.id, { priority: 'high' });
+    expect(board.suggestLabels(c.id, { category: 'frontend', subcategory: 'newFeature', complexity: 5, priority: 'low' })).toEqual(['category', 'subcategory', 'complexity']);
+    // the owner's priority stands
+    expect(at(c.id)).toMatchObject({ labels: { category: 'frontend', subcategory: 'newFeature', complexity: 5, priority: 'high', suggested: ['category', 'subcategory', 'complexity'] } });
+    // a second suggestion overwrites none of the first
+    expect(board.suggestLabels(c.id, { category: 'backend', complexity: 2 })).toEqual([]);
+    expect(at(c.id)).toMatchObject({ labels: { category: 'frontend', complexity: 5 } });
+    // the owner picks the same value: the mark goes, the value stays
+    board.patch(c.id, { category: 'frontend' });
+    expect(at(c.id)).toMatchObject({ labels: { category: 'frontend', suggested: ['subcategory', 'complexity'] } });
+    // another value
+    board.patch(c.id, { complexity: 1 });
+    expect(at(c.id)).toMatchObject({ labels: { complexity: 1, suggested: ['subcategory'] } });
+    // none: the label is empty, and Seismic does not suggest it again
+    board.patch(c.id, { subcategory: null });
+    expect(at(c.id).labels?.subcategory).toBeUndefined();
+    expect(at(c.id)).not.toHaveProperty('labels.suggested');
+    expect(board.suggestLabels(c.id, { subcategory: 'bugFix' })).toEqual([]);
+    expect(at(c.id).labels?.subcategory).toBeUndefined();
+    // the owner's priority taken off is not suggested again either
+    board.patch(c.id, { priority: null });
+    expect(board.suggestLabels(c.id, { priority: 'medium' })).toEqual([]);
+    expect(at(c.id).labels?.priority).toBeUndefined();
+  });
+
+  test("a suggestion fills a plan doc's cards too, skips values that are not on the lists, and leaves the plan doc alone", () => {
+    const [p, , w2] = board.snapshot().items;
+    const at = (id: string) => board.snapshot().items.find((i) => i.id === id)!;
+    expect(board.suggestLabels(w2!.id, { category: 'docs', complexity: 7 as never, priority: 'medium' })).toEqual(['category', 'priority']);
+    expect(at(w2!.id)).toMatchObject({ labels: { category: 'docs', priority: 'medium', suggested: ['category', 'priority'] } });
+    expect(at(w2!.id).labels?.complexity).toBeUndefined();
+    expect(board.suggestLabels(p!.id, { subcategory: 'configuration' })).toEqual(['subcategory']);
+    expect(at(p!.id)).toMatchObject({ labels: { subcategory: 'configuration', suggested: ['subcategory'] } });
+    expect(docs[0]!.markdown).toBe('# A\n\n## Goal\n\nGoal A\n');
+  });
+
+  test('a removed doc takes its plan into the archive; its return brings it back to its place', () => {
+    const p = board.snapshot().items[0]!;
+    board.patch(p.id, { x: -500, y: 42 });
+    docs = [];
+    board.docsChanged();
+    expect(board.snapshot().items).toEqual([]);
+    expect(board.archived().map((i) => [i.title, i.parent ?? null])).toEqual([
+      ['A', null],
+      ['Title W1', p.id],
+      ['Title W2', p.id],
+      ['Title W3', p.id],
+    ]);
+    docs = [docA];
+    board.docsChanged();
+    expect(board.snapshot().items[0]).toMatchObject({ id: p.id, x: -500, y: 42 });
+    expect(board.archived()).toEqual([]);
+  });
+
+  test('a workstream\'s Activity line carries the workstream, also once its plan is archived', () => {
+    const [p, , w2] = board.snapshot().items;
+    board.record(w2!.id, 'started', 'agent');
+    const entry = () => board.activityEntries(board.activityRows(['shop'], undefined, 10), 'Shop');
+    expect(entry()).toEqual([expect.objectContaining({ code: 'started', card: expect.objectContaining({ id: w2!.id, plan: expect.objectContaining({ label: 'W2' }), parent: p!.id }) })]);
+    docs = [];
+    board.docsChanged();
+    expect(entry()).toEqual([expect.objectContaining({ card: expect.objectContaining({ id: w2!.id, title: 'Title W2', archivedAt: expect.any(String) }) })]);
+  });
+
+  test('one card of the archive is as the archive shows it, also asked for first after its doc went', () => {
+    const [p, w1] = board.snapshot().items;
+    docs = [];
+    board.docsChanged();
+    // nothing looked at the project since the doc went
+    expect(board.card(p!.id)).toMatchObject({ kind: 'plan', title: 'A', archivedAt: expect.any(String) });
+    board.changed();
+    expect(board.card(w1!.id)).toEqual(board.archived()[1]!);
+  });
+
+  test('every workstream ticked off ends the plan; an open one added later brings it back to its place', () => {
+    const p = board.snapshot().items[0]!;
+    board.patch(p.id, { x: -500, y: 42 });
+    const ticked = { ...docA, workstreams: docA.workstreams.map((w) => ({ ...w, done: true })) };
+    docs = [ticked];
+    board.docsChanged();
+    expect(board.snapshot().items).toEqual([]);
+    expect(board.archived().map((i) => [i.title, i.state])).toEqual([
+      ['A', 'planned'],
+      ['Title W1', 'live'],
+      ['Title W2', 'live'],
+      ['Title W3', 'live'],
+    ]);
+    docs = [{ ...ticked, workstreams: [...ticked.workstreams, ws('W4')] }];
+    board.docsChanged();
+    expect(board.snapshot().items.map((i) => i.plan?.label ?? i.title)).toEqual(['A', 'W1', 'W2', 'W3', 'W4']);
+    expect(board.snapshot().items[0]).toMatchObject({ id: p.id, x: -500, y: 42 });
+    expect(board.archived()).toEqual([]);
+  });
+
+  test('a workstream still at work keeps its plan on the project once every box is ticked', () => {
+    const w2 = board.snapshot().items.find((i) => i.plan?.label === 'W2')!;
+    board.work(w2.id, { state: 'working' });
+    docs = [{ ...docA, workstreams: docA.workstreams.map((w) => ({ ...w, done: true })) }];
+    board.docsChanged();
+    expect(board.item(w2.id)!.state).toBe('working');
+    // its worker done, the plan ends without reading the doc again
+    board.work(w2.id, { state: 'live' });
+    expect(board.snapshot().items).toEqual([]);
+    expect(board.archived()[0]!.title).toBe('A');
+  });
+
+  test('a workstream whose worker finishes after the landing keeps its plan, as its doc last stood, once the doc is gone', () => {
+    const w2 = board.snapshot().items.find((i) => i.plan?.label === 'W2')!;
+    board.work(w2.id, { state: 'live', landed: JSON.stringify({ commit: 'abc' }), workstation: '/ws/1' });
+    docs = [];
+    board.docsChanged();
+    expect(board.snapshot().items.map((i) => i.plan?.label ?? i.title)).toEqual(['A', 'W1', 'W2', 'W3']);
+    expect(board.archived()).toEqual([]);
+    // its worker done, the docs read again
+    board.work(w2.id, { landed: null, workstation: null });
+    board.docsChanged();
+    expect(board.snapshot().items).toEqual([]);
+    expect(board.archived()[0]!.title).toBe('A');
+  });
+
+  test('a doc whose work was done before Seismic first read it goes straight into the archive', () => {
+    docs = [docA, { ...docB, workstreams: [ws('W1', true)] }];
+    board.docsChanged();
+    expect(board.snapshot().items.filter((i) => i.kind === 'plan').map((i) => i.title)).toEqual(['A']);
+    expect(board.archived().map((i) => i.title)).toEqual(['B', 'Title W1']);
+    // and stays there, read again
+    board.docsChanged();
+    expect(board.archived().map((i) => i.title)).toEqual(['B', 'Title W1']);
+    expect(store.cards.plans('shop')).toHaveLength(2);
+  });
+
+  test('work in progress wins over a ticked-off workstream until it has landed', () => {
+    const w2 = board.snapshot().items.find((i) => i.plan?.label === 'W2')!;
+    board.work(w2.id, { state: 'inPr' });
+    docs = [{ ...docA, workstreams: [ws('W1', true), { ...ws('W2'), done: true }, ws('W3')] }];
+    board.docsChanged();
+    expect(board.item(w2.id)!.state).toBe('inPr');
+    board.work(w2.id, { state: 'live' });
+    expect(board.item(w2.id)!.state).toBe('live');
+  });
+
+  test('a stored live splits into a done card and a new one for the rest once the Lesestand holds what landed; a stored done stays', () => {
+    const items = board.snapshot().items;
+    const w2 = items.find((i) => i.plan?.label === 'W2')!;
+    const w3 = items.find((i) => i.plan?.label === 'W3')!;
+    // landed before the commit was kept, as a pull request; with its handover
+    board.work(w2.id, { state: 'live', review: { pr: { url: 'https://github.com/acme/app/pull/821', number: 821, seen: [], reported: [] } } });
+    board.work(w3.id, { state: 'done' });
+    board.docsChanged();
+    // the landed card is done and in the archive; a new card takes the workstream for the rest
+    expect(board.item(w2.id)).toBeUndefined();
+    expect(board.archived().find((i) => i.id === w2.id)).toMatchObject({ state: 'live' });
+    expect(board.events(w2.id).map((e) => e.text)).toEqual(['Part landed; the plan doc keeps the workstream open. The rest continues on a new card.']);
+    const rest = board.snapshot().items.find((i) => i.plan?.label === 'W2')!;
+    expect(rest).toMatchObject({ state: 'planned', from: w2.id });
+    expect(rest.id).not.toBe(w2.id);
+    expect(board.item(w3.id)!.state).toBe('done');
+    // reading again changes nothing more
+    board.docsChanged();
+    expect(board.events(w2.id)).toHaveLength(1);
+    expect(board.snapshot().items.filter((i) => i.plan?.label === 'W2')).toHaveLength(1);
+  });
+
+  test('plan cards are read-only apart from placement and state', () => {
+    const [p, w1] = board.snapshot().items;
+    expect(() => board.patch(w1!.id, { title: 'x' })).toThrow(BadRequest);
+    expect(() => board.patch(p!.id, { state: 'working' })).toThrow(BadRequest);
+    expect(() => board.remove(w1!.id)).toThrow(BadRequest);
+  });
+});
+
+describe('the note on the plan directory', () => {
+  test('lists the docs that are not plans, with the reason and the card preparing one', () => {
+    dirs = [{ repo: 'home', dir: 'docs/plan', others: [{ file: 'docs/plan/rollout.md', reason: 'noWorkstreams' }, { file: 'docs/plan/rfc.md', reason: 'noChecklist' }] }];
+    board.docsChanged();
+    expect(board.snapshot().planDirs).toEqual([{ repo: 'home', dir: 'docs/plan', empty: false, others: dirs[0]!.others }]);
+    const card = board.create({ title: 'Prepare rollout.md as a plan', x: 0, y: 0 });
+    expect(board.snapshot().planDirs![0]!.others[0]).toEqual({ file: 'docs/plan/rollout.md', reason: 'noWorkstreams', preparing: card.id });
+    // finished, it prepares nothing any more: the doc is a plan once its change has landed
+    board.work(card.id, { state: 'done' });
+    expect(board.snapshot().planDirs![0]!.others[0]!.preparing).toBeUndefined();
+  });
+
+  test('stays where the owner put it, wherever the plans go, and new plans go below it', () => {
+    dirs = [{ repo: 'home', dir: 'docs/plan', others: [{ file: 'docs/plan/rollout.md', reason: 'noWorkstreams' }] }];
+    board.docsChanged();
+    expect(board.snapshot().planDirs![0]!.at).toBeUndefined();
+    expect(() => board.movePlanDirNote('home', { x: 1 })).toThrow(BadRequest);
+    expect(() => board.movePlanDirNote('elsewhere', { x: 1, y: 2 })).toThrow(BadRequest);
+    board.movePlanDirNote('home', { x: 40.4, y: 3000 });
+    expect(board.snapshot().planDirs![0]!.at).toEqual({ x: 40, y: 3000 });
+    // a plan moved away leaves it there
+    const a = board.snapshot().items.find((i) => i.kind === 'plan')!;
+    board.patch(a.id, { x: a.x + 900, y: a.y - 400 });
+    expect(board.snapshot().planDirs![0]!.at).toEqual({ x: 40, y: 3000 });
+    docs = [docA, docB];
+    board.docsChanged();
+    const b = board.snapshot().items.find((i) => i.kind === 'plan' && i.plan?.file === docB.file)!;
+    expect(b.y).toBeGreaterThan(3000);
+  });
+
+  test('says where plan docs go until the repository has its first plan, and not when every doc is one', () => {
+    docs = [];
+    dirs = [{ repo: 'home', dir: 'docs/plan', others: [] }];
+    board.docsChanged();
+    expect(board.snapshot().planDirs).toEqual([{ repo: 'home', dir: 'docs/plan', empty: true, others: [] }]);
+    docs = [docA];
+    board.docsChanged();
+    expect(board.snapshot().planDirs).toBeUndefined();
+    // its doc gone, the plan is in the archive: the repository has had one
+    docs = [];
+    board.docsChanged();
+    expect(board.snapshot().planDirs).toBeUndefined();
+  });
+});
+
+describe('the archive of plans', () => {
+  test('an archived plan shows its doc as last read: goal, workstreams with text and state', () => {
+    const w2 = board.snapshot().items.find((i) => i.plan?.label === 'W2')!;
+    board.work(w2.id, { state: 'live', branch: 'seismic/w2' });
+    docs = [{ ...docA, goal: 'Neues Ziel', workstreams: [ws('W1', true), { ...ws('W2', true), body: 'Zuletzt so' }, ws('W3')] }];
+    board.docsChanged();
+    board.snapshot();
+    docs = [];
+    board.docsChanged();
+    board.snapshot();
+    const [p, ...kids] = board.archived();
+    expect(p).toMatchObject({ kind: 'plan', title: 'A', plan: { file: 'docs/plan/a.md', goal: 'Neues Ziel' }, archivedAt: expect.any(String) });
+    expect(kids.map((k) => [k.plan?.label, k.state, k.body, k.archivedAt])).toEqual([
+      ['W1', 'live', 'Body W1', p!.archivedAt],
+      ['W2', 'live', 'Zuletzt so', p!.archivedAt],
+      ['W3', 'planned', 'Body W3', p!.archivedAt],
+    ]);
+    // a workstream of an archived plan still opens, with its log
+    expect(board.card(w2.id)).toMatchObject({ id: w2.id, agent: { branch: 'seismic/w2' }, parent: p!.id });
+    expect(board.events(w2.id)).toEqual([]);
+    expect(() => board.unarchive(p!.id)).toThrow(expect.objectContaining({ code: 'planCard' }));
+  });
+
+  test('a plan lists its decisions and those of the idea its doc was written from', () => {
+    const idea = board.create({ idea: true, title: 'Idee B', x: 0, y: 0 });
+    board.decide({ plan_id: null, card_id: idea.id, question: 'Idee „Idee B“: wie weiter?', answer: 'Als Plan.', by: 'owner' });
+    board.work(idea.id, { state: 'live' });
+    board.planDocsLanded(idea.id, ['docs/plan/b.md']);
+    docs = [docA, docB];
+    board.docsChanged();
+    const b = board.snapshot().items.find((i) => i.title === 'B')!;
+    expect(b.plan?.origin).toBe(idea.id);
+    const w1 = board.snapshot().items.find((i) => i.parent === b.id)!;
+    // one answered in the owner's name, as a plan agent did before workers asked the owner directly
+    store.decisions.add({ projectId: 'shop', planId: b.id, cardId: w1.id, question: 'Welche Spalten?', answer: 'Alle.', by: 'plan' });
+    // the idea's card leaves the project; the plan still finds it
+    board.archive([idea.id]);
+    const h = board.planHistory(b.id);
+    expect(h.decisions.map((d) => [d.cardId, d.answer, d.by])).toEqual([
+      [idea.id, 'Als Plan.', 'owner'],
+      [w1.id, 'Alle.', 'plan'],
+    ]);
+    expect(h.origin).toMatchObject({ id: idea.id, title: 'Idee B', archivedAt: expect.any(String), idea: { brief: '' } });
+    // and so does the archived plan
+    docs = [docA];
+    board.docsChanged();
+    expect(board.archived().find((i) => i.id === b.id)!.plan?.origin).toBe(idea.id);
+    expect(board.planHistory(b.id).decisions).toHaveLength(2);
+    expect(board.planHistory(board.snapshot().items[0]!.id)).toEqual({ decisions: [], origin: null, talk: [] });
+  });
+
+  test('a follow-up in a crowded area stays near its origin instead of drifting far away', () => {
+    const origin = board.create({ title: 'Origin', x: 5000, y: 5000 });
+    // a dense wall of cards around and below the origin, with no gaps wide enough for a card
+    for (let c = -8; c <= 8; c++) for (let r = -4; r <= 8; r++) if (c || r) board.create({ title: `W${c}-${r}`, x: 5000 + c * 310, y: 5000 + r * 140 });
+    const next = board.create({ title: 'Next', from: origin.id });
+    expect(Math.hypot(next.x - origin.x, next.y - origin.y)).toBeLessThan(400);
+  });
+
+  test('a plan takes the place of the idea it was written from; the idea goes once its worker is done', () => {
+    const idea = board.create({ idea: true, title: 'Idee B', x: 900, y: 40 });
+    const below = board.create({ title: 'Darunter', x: 900, y: 240 });
+    const beside = board.create({ title: 'Daneben', x: 1240, y: 40 });
+    const away = board.create({ title: 'Weit weg', x: 3000, y: 900 });
+    board.work(idea.id, { state: 'live', landed: '{}', workstation: '/ws/1' });
+    board.planDocsLanded(idea.id, ['docs/plan/b.md']);
+    docs = [docA, docB];
+    board.docsChanged();
+    const items = board.snapshot().items;
+    const b = items.find((i) => i.title === 'B')!;
+    expect(b).toMatchObject({ plan: { origin: idea.id }, x: 900, y: 40 });
+    // what the larger plan would cover moves aside by as much as it outgrows the idea
+    const [iw, ih] = sizeOf(board.item(idea.id)!, items);
+    const [pw, ph] = sizeOf(b, items);
+    expect(board.item(below.id)).toMatchObject({ x: 900, y: 240 + ph - ih });
+    expect(board.item(beside.id)).toMatchObject({ x: 1240 + pw - iw, y: 40 });
+    expect(board.item(away.id)).toMatchObject({ x: 3000, y: 900 });
+    for (const i of [below, beside]) {
+      const [p, c] = [boundsOf(b, items), boundsOf(board.item(i.id)!, items)];
+      expect(c.x >= p.x + p.w || c.y >= p.y + p.h).toBe(true);
+    }
+    // its worker still finishes after the landing
+    expect(board.item(idea.id)).toBeDefined();
+    board.work(idea.id, { landed: null, workstation: null });
+    board.workDone(idea.id);
+    expect(board.item(idea.id)).toBeUndefined();
+    expect(board.archived().find((i) => i.id === idea.id)).toMatchObject({ title: 'Idee B' });
+    expect(board.events(idea.id).at(-1)!.text).toContain('in the idea’s place');
+    // put back on the project, it stays
+    board.unarchive(idea.id);
+    board.docsChanged();
+    expect(board.item(idea.id)).toBeDefined();
+  });
+
+  test('only a card that was an idea, or a task planned as a plan, becomes the origin of a plan', () => {
+    const plain = board.create({ title: 'Kein Idee', x: 0, y: 0 });
+    board.planDocsLanded(plain.id, ['docs/plan/b.md']);
+    docs = [docA, docB];
+    board.docsChanged();
+    expect(board.snapshot().items.find((i) => i.title === 'B')!.plan?.origin).toBeUndefined();
+  });
+
+  test('a task planned as a plan gives way to it as an idea does', () => {
+    const task = board.create({ title: 'Aufgabe B', x: 900, y: 40 });
+    board.work(task.id, { idea: { becomesPlan: true } });
+    expect(board.item(task.id)).toMatchObject({ idea: { becomesPlan: true } });
+    expect(board.item(task.id)!.idea?.brief).toBeUndefined();
+    board.work(task.id, { state: 'live' });
+    board.planDocsLanded(task.id, ['docs/plan/b.md']);
+    docs = [docA, docB];
+    board.docsChanged();
+    expect(board.snapshot().items.find((i) => i.title === 'B')).toMatchObject({ plan: { origin: task.id }, x: 900, y: 40 });
+    expect(board.item(task.id)).toBeUndefined();
+    expect(board.events(task.id).at(-1)!.text).toBe('The plan now stands in the task’s place; the task is in the archive.');
+  });
+});
+
+describe('manual cards', () => {
+  test('create, edit, delete and restore', async () => {
+    let changes = 0;
+    board.onChange(() => changes++);
+    const c = board.create({ title: 'Fix it', x: 10, y: 20 });
+    expect(c).toMatchObject({ kind: 'task', state: 'planned', title: 'Fix it', body: '', source: 'manual' });
+    await heard();
+    expect(changes).toBe(1);
+    board.patch(c.id, { title: 'Fix it now', body: 'Details' });
+    expect(board.snapshot().items.find((i) => i.id === c.id)).toMatchObject({ title: 'Fix it now', body: 'Details' });
+    board.remove(c.id);
+    expect(board.snapshot().items.some((i) => i.id === c.id)).toBe(false);
+    board.restore(c.id);
+    expect(board.snapshot().items.some((i) => i.id === c.id)).toBe(true);
+    // what changed in a row, the listeners hear of once
+    await heard();
+    expect(changes).toBe(2);
+  });
+
+  test('a follow-up goes below the card it comes from, in its repository, and names it', () => {
+    // clear of the plan plan (placed with the first snapshot), which a follow-up would step around
+    board.snapshot();
+    const src = board.create({ title: 'Export', x: 3000, y: 100 });
+    const a = board.create({ title: 'Ton bleibt an', body: 'Der ambient-Ton läuft nach dem Stopp weiter.', from: src.id });
+    expect(a).toMatchObject({ state: 'planned', from: src.id, repo: src.repo, body: 'Der ambient-Ton läuft nach dem Stopp weiter.' });
+    expect(a.x).toBe(3035);
+    expect(a.y).toBeGreaterThan(100);
+    // the next one goes beside it
+    const b = board.create({ title: 'Noch eine', from: src.id });
+    expect(b.y).toBe(a.y);
+    expect(b.x - a.x).toBeGreaterThan(boundsOf(a, board.snapshot().items).w);
+    expect(() => board.create({ title: 'x', from: 'nope' })).toThrow(BadRequest);
+    expect(() => board.create({ title: 'x', from: src.id, idea: true })).toThrow(BadRequest);
+  });
+
+  test('rejects invalid input', () => {
+    expect(() => board.create({ title: 'x', x: Number.NaN, y: 0 })).toThrow(BadRequest);
+    const c = board.create({ title: 'x', x: 0, y: 0 });
+    expect(() => board.patch(c.id, { kind: 'plan' } as never)).toThrow(BadRequest);
+    expect(() => board.patch(c.id, { state: 'gone' as never })).toThrow(BadRequest);
+    expect(() => board.patch('nope', { x: 1 })).toThrow(BadRequest);
+  });
+
+  test('empty cards left over from a closed page are dropped on start; one with a text waits to be named', () => {
+    const fresh = board.create({ title: '', x: 0, y: 0 });
+    const old = board.create({ title: ' ', x: 0, y: 0 });
+    const kept = board.create({ title: 'Echt', x: 0, y: 0 });
+    const written = board.create({ title: '', body: 'Eine Aufgabe', x: 0, y: 0 });
+    store.db.query("UPDATE cards SET created_at = '2020-01-01T00:00:00.000Z' WHERE id IN ($a, $b, $c)").run({ a: old.id, b: kept.id, c: written.id });
+    const again = new Board(store, { id: 'shop', name: 'Shop', repos: [{ id: 'home', name: 'Home', path: '/r', branch: 'main' }] }, () => ({ docs, dirs: [] }));
+    const ids = again.snapshot().items.map((i) => i.id);
+    expect(ids).toContain(fresh.id);
+    expect(ids).toContain(kept.id);
+    expect(ids).toContain(written.id);
+    expect(ids).not.toContain(old.id);
+  });
+
+  test('cards are persisted per project', () => {
+    board.create({ title: 'mine', x: 0, y: 0 });
+    const other = new Board(store, { id: 'other', name: 'Other', repos: [{ id: 'home', name: 'Home', path: '/o', branch: 'main' }] }, () => ({ docs: [], dirs: [] }));
+    expect(other.snapshot().items).toEqual([]);
+  });
+});
+
+describe('archive', () => {
+  const done = (title: string) => {
+    const c = board.create({ title, x: 10, y: 20 });
+    board.patch(c.id, { state: 'live' });
+    return c;
+  };
+
+  test('an archived card leaves the project and heads the archive until it goes back', async () => {
+    const a = done('A');
+    const b = done('B');
+    board.archive([a.id]);
+    await Bun.sleep(2);
+    board.archive([b.id]);
+    expect(board.snapshot().items.some((i) => i.id === a.id || i.id === b.id)).toBe(false);
+    expect(board.archived().map((i) => [i.title, i.state, typeof i.archivedAt])).toEqual([
+      ['B', 'live', 'string'],
+      ['A', 'live', 'string'],
+    ]);
+    board.unarchive(b.id);
+    expect(board.snapshot().items.find((i) => i.id === b.id)).toMatchObject({ x: 10, y: 20, state: 'live' });
+    expect(board.archived().map((i) => i.title)).toEqual(['A']);
+  });
+
+  test('only finished cards of the owner go into the archive', () => {
+    const open = board.create({ title: 'Open', x: 0, y: 0 });
+    const w1 = board.snapshot().items.find((i) => i.plan?.label === 'W1')!;
+    expect(() => board.archive([open.id])).toThrow(expect.objectContaining({ code: 'notDone' }));
+    expect(() => board.archive([w1.id])).toThrow(expect.objectContaining({ code: 'planCard' }));
+    expect(() => board.unarchive(open.id)).toThrow(expect.objectContaining({ code: 'notArchived' }));
+    expect(board.archived()).toEqual([]);
+  });
+
+  test('a stopped task goes into the archive with its conversation, unless its workstation holds work or it waits to start', () => {
+    const c = board.create({ title: 'Frage', body: 'Stimmt die Rechnung?', x: 50, y: 60 });
+    board.work(c.id, { branch: 'seismic/frage-1', workstation: '/tmp/clone-1' });
+    board.log(c.id, 'talk', 'worker', 'Sie stimmt.');
+    board.log(c.id, 'state', 'owner', 'Gestoppt.');
+    expect(() => board.archive([c.id])).toThrow(expect.objectContaining({ code: 'holdsWork' }));
+    board.work(c.id, { workstation: null, queue: JSON.stringify({ checking: true, since: new Date().toISOString() }) });
+    expect(() => board.archive([c.id])).toThrow(expect.objectContaining({ code: 'notDone' }));
+    board.work(c.id, { queue: null });
+    // archiving everything finished leaves it alone: it was stopped, not done
+    expect(board.archiveDone()).toEqual([]);
+    board.archive([c.id]);
+    expect(board.snapshot().items.some((i) => i.id === c.id)).toBe(false);
+    expect(board.archived()).toMatchObject([{ id: c.id, state: 'planned', agent: { branch: 'seismic/frage-1' } }]);
+    expect(board.events(c.id).map((e) => e.text)).toEqual(['Sie stimmt.', 'Gestoppt.']);
+    board.unarchive(c.id);
+    expect(board.snapshot().items.find((i) => i.id === c.id)).toMatchObject({ x: 50, y: 60, state: 'planned' });
+  });
+
+  test('a dropped idea goes into the archive with its brief, an open one does not', () => {
+    const idea = board.create({ idea: true, title: 'Idee', x: 30, y: 40 });
+    expect(() => board.archive([idea.id])).toThrow(expect.objectContaining({ code: 'notDone' }));
+    board.setIdea(idea.id, { status: 'dropped', brief: '**Ziel:** nichts' });
+    board.addPrototype(idea.id, 'Prototyp: Idee', 'zeigen');
+    expect(() => board.archive([idea.id])).toThrow(expect.objectContaining({ code: 'prototypeRunning' }));
+    board.remove(board.snapshot().items.find((i) => i.idea?.prototypeOf === idea.id)!.id);
+    board.archive([idea.id]);
+    expect(board.snapshot().items.some((i) => i.id === idea.id)).toBe(false);
+    expect(board.archived()).toMatchObject([{ id: idea.id, state: 'idea', idea: { discussion: { status: 'dropped', brief: '**Ziel:** nichts' } } }]);
+    // archiving everything finished leaves ideas alone
+    expect(board.archiveDone()).toEqual([]);
+    board.unarchive(idea.id);
+    expect(board.snapshot().items.find((i) => i.id === idea.id)).toMatchObject({ x: 30, y: 40, idea: { discussion: { status: 'dropped' } } });
+  });
+
+  test('a parked idea goes into the archive and comes back parked', () => {
+    const idea = board.create({ idea: true, title: 'Idee', x: 30, y: 40 });
+    board.setIdea(idea.id, { status: 'parked', brief: '**Ziel:** ein Post' });
+    board.addPrototype(idea.id, 'Prototyp: Idee', 'zeigen');
+    expect(() => board.archive([idea.id])).toThrow(expect.objectContaining({ code: 'prototypeRunning' }));
+    board.remove(board.snapshot().items.find((i) => i.idea?.prototypeOf === idea.id)!.id);
+    board.archive([idea.id]);
+    expect(board.archived()).toMatchObject([{ id: idea.id, state: 'idea', idea: { discussion: { status: 'parked', brief: '**Ziel:** ein Post' } } }]);
+    expect(board.archiveDone()).toEqual([]);
+    board.unarchive(idea.id);
+    expect(board.snapshot().items.find((i) => i.id === idea.id)).toMatchObject({ x: 30, y: 40, idea: { discussion: { status: 'parked' } } });
+  });
+
+  test('archiving everything finished leaves the rest on the project', () => {
+    const a = done('A');
+    const b = done('B');
+    const open = board.create({ title: 'Open', x: 0, y: 0 });
+    expect(board.archiveDone().sort()).toEqual([a.id, b.id].sort());
+    expect(board.snapshot().items.some((i) => i.id === open.id)).toBe(true);
+    expect(board.archived()).toHaveLength(2);
+    expect(board.archiveDone()).toEqual([]);
+  });
+});
+
+describe('groups', () => {
+  const groupOf = (id: string) => board.item(id)!.group;
+
+  test('a new group takes its first cards and a colour no other group has', () => {
+    const a = board.create({ title: 'A', x: 0, y: 0 });
+    const b = board.create({ title: 'B', x: 400, y: 0 });
+    const g1 = board.createGroup('  Abrechnung ', [a.id]);
+    const g2 = board.createGroup('Infra', [b.id]);
+    expect(g1.name).toBe('Abrechnung');
+    expect(g1.hue).not.toBe(g2.hue);
+    expect(board.snapshot().groups).toEqual([g1, g2]);
+    expect([groupOf(a.id), groupOf(b.id)]).toEqual([g1.id, g2.id]);
+  });
+
+  test('a name a group has already puts the cards into that group', () => {
+    const a = board.create({ title: 'A', x: 0, y: 0 });
+    const b = board.create({ title: 'B', x: 400, y: 0 });
+    const g = board.createGroup('Abrechnung', [a.id]);
+    expect(board.createGroup('abrechnung', [b.id])).toEqual(g);
+    expect(board.snapshot().groups).toHaveLength(1);
+    expect(groupOf(b.id)).toBe(g.id);
+  });
+
+  test('cards move between groups and out of them; a group no card belongs to goes', () => {
+    const a = board.create({ title: 'A', x: 0, y: 0 });
+    const b = board.create({ title: 'B', x: 400, y: 0 });
+    const g1 = board.createGroup('Eins', [a.id, b.id]);
+    const g2 = board.createGroup('Zwei', [a.id]);
+    board.group([b.id], g2.id);
+    expect(board.snapshot().groups.map((g) => g.id)).toEqual([g2.id]);
+    expect(() => board.group([a.id], g1.id)).toThrow(BadRequest);
+    board.group([a.id], null);
+    expect(groupOf(a.id)).toBeUndefined();
+    expect(groupOf(b.id)).toBe(g2.id);
+  });
+
+  test('a group with only archived cards stays, and they come back in it', () => {
+    const a = board.create({ title: 'A', x: 0, y: 0 });
+    const b = board.create({ title: 'B', x: 400, y: 0 });
+    const g = board.createGroup('Alt', [a.id]);
+    board.work(a.id, { state: 'live' });
+    board.archive([a.id]);
+    board.group([b.id], null);
+    expect(board.snapshot().groups.map((x) => x.id)).toEqual([g.id]);
+    board.unarchive(a.id);
+    expect(groupOf(a.id)).toBe(g.id);
+  });
+
+  test('a plan is grouped as a whole: a workstream stands for it and colours with it', () => {
+    const [p, w1, w2] = board.snapshot().items;
+    const g = board.createGroup('Plan', [w1!.id]);
+    expect([groupOf(p!.id), groupOf(w1!.id), groupOf(w2!.id)]).toEqual([g.id, g.id, g.id]);
+    board.group([w2!.id], null);
+    expect(groupOf(p!.id)).toBeUndefined();
+  });
+
+  test('proposals, follow-ups and prototypes come into the group of the card they come from', () => {
+    const a = board.create({ title: 'A', x: 0, y: 0 });
+    const idea = board.create({ idea: true, title: 'Idee', x: 800, y: 0 });
+    const g = board.createGroup('Familie', [a.id, idea.id]);
+    const proposal = board.propose(a.id, { title: 'Vorschlag', task: 't', reason: 'r' });
+    const followUp = board.create({ title: 'Folge', from: a.id });
+    const prototype = board.addPrototype(idea.id, 'Prototyp', 'b');
+    expect([proposal, followUp, prototype].map((i) => groupOf(i.id))).toEqual([g.id, g.id, g.id]);
+    // from a workstream: its plan's group
+    const w = board.snapshot().items.find((i) => i.plan?.label === 'W2')!;
+    const h = board.createGroup('Projekt', [w.id]);
+    expect(groupOf(board.create({ title: 'Folge W2', from: w.id }).id)).toBe(h.id);
+    // once there, a card's group is its own
+    board.group([a.id], null);
+    expect(groupOf(proposal.id)).toBe(g.id);
+  });
+
+  test('a plan written from an idea takes its group', () => {
+    const idea = board.create({ idea: true, title: 'Idee B', x: 900, y: 40 });
+    const g = board.createGroup('Ideen', [idea.id]);
+    board.work(idea.id, { state: 'live', landed: '{}', workstation: '/ws/1' });
+    board.planDocsLanded(idea.id, ['docs/plan/b.md']);
+    docs = [docA, docB];
+    board.docsChanged();
+    expect(board.snapshot().items.find((i) => i.title === 'B')!.group).toBe(g.id);
+  });
+
+  test('renaming keeps the cards; a name another group has is refused', () => {
+    const a = board.create({ title: 'A', x: 0, y: 0 });
+    const b = board.create({ title: 'B', x: 400, y: 0 });
+    const g = board.createGroup('Alt', [a.id]);
+    board.createGroup('Anders', [b.id]);
+    board.renameGroup(g.id, 'Neu');
+    expect(board.snapshot().groups[0]).toMatchObject({ id: g.id, name: 'Neu' });
+    expect(groupOf(a.id)).toBe(g.id);
+    expect(() => board.renameGroup(g.id, 'anders')).toThrow(BadRequest);
+    board.renameGroup(g.id, 'NEU');
+    expect(board.snapshot().groups[0]!.name).toBe('NEU');
+  });
+
+  test('deleting a group takes all its cards out, archived ones too, and it comes back in its colour', () => {
+    const a = board.create({ title: 'A', x: 0, y: 0 });
+    const b = board.create({ title: 'B', x: 400, y: 0 });
+    const c = board.create({ title: 'C', x: 800, y: 0 });
+    const g = board.createGroup('Alt', [a.id, b.id]);
+    const other = board.createGroup('Anders', [c.id]);
+    board.work(b.id, { state: 'live' });
+    board.archive([b.id]);
+    const gone = board.deleteGroup(g.id);
+    expect(gone).toEqual({ group: g, cards: [a.id, b.id] });
+    expect(board.snapshot().groups).toEqual([other]);
+    const archived = (id: string) => board.archived().find((i) => i.id === id)!.group;
+    expect([groupOf(a.id), archived(b.id), groupOf(c.id)]).toEqual([undefined, undefined, other.id]);
+    expect(() => board.deleteGroup(g.id)).toThrow(BadRequest);
+    // back, as the undo brings it
+    const back = board.createGroup(gone.group.name, gone.cards, gone.group.hue);
+    expect(back).toMatchObject({ name: 'Alt', hue: g.hue });
+    expect([groupOf(a.id), archived(b.id)]).toEqual([back.id, back.id]);
+    expect(() => board.createGroup('Neu', [a.id], 400)).toThrow(BadRequest);
+  });
+
+  test('rejects invalid input', () => {
+    const a = board.create({ title: 'A', x: 0, y: 0 });
+    const code = (fn: () => unknown) => {
+      try {
+        fn();
+      } catch (e) {
+        return (e as BadRequest).code;
+      }
+    };
+    expect(code(() => board.createGroup('  ', [a.id]))).toBe('emptyText');
+    expect(code(() => board.createGroup('x'.repeat(61), [a.id]))).toBe('invalid');
+    expect(code(() => board.createGroup('Leer', []))).toBe('invalid');
+    expect(code(() => board.createGroup('X', ['nope']))).toBe('unknownCard');
+    expect(code(() => board.createGroup('X', 'a' as unknown as string[]))).toBe('invalid');
+    expect(code(() => board.group([a.id], 'nope'))).toBe('unknownGroup');
+    expect(code(() => board.renameGroup('nope', 'X'))).toBe('unknownGroup');
+    expect(board.snapshot().groups).toEqual([]);
+  });
+
+  test('groups are kept per project', () => {
+    const a = board.create({ title: 'A', x: 0, y: 0 });
+    const g = board.createGroup('Hier', [a.id]);
+    const other = new Board(store, { id: 'other', name: 'Other', repos: [{ id: 'home', name: 'Home', path: '/r', branch: 'main' }] }, () => ({ docs: [], dirs: [] }));
+    const b = other.create({ title: 'B', x: 0, y: 0 });
+    expect(other.snapshot().groups).toEqual([]);
+    expect(() => other.group([b.id], g.id)).toThrow(BadRequest);
+    expect(() => other.group([a.id], null)).toThrow(BadRequest);
+  });
+});
+
+describe('canvases', () => {
+  const code = (fn: () => unknown) => {
+    try {
+      fn();
+    } catch (e) {
+      return (e as BadRequest).code;
+    }
+  };
+  const canvasOf = (id: string) => board.snapshot().items.find((i) => i.id === id)?.canvas;
+
+  test('a project starts with main, which holds its plans and cards; names are unique, never 1 to 999, main keeps its name and stays', () => {
+    const { canvases, items } = board.snapshot();
+    expect(canvases.map((c) => c.name)).toEqual(['main']);
+    const main = canvases[0]!.id;
+    expect(items.every((i) => i.canvas === main)).toBe(true);
+    const ideas = board.createCanvas('Ideas', '💡');
+    expect(ideas).toMatchObject({ name: 'Ideas', icon: '💡' });
+    expect(code(() => board.createCanvas('ideas'))).toBe('invalid');
+    expect(code(() => board.createCanvas('2'))).toBe('invalid');
+    expect(code(() => board.createCanvas('999'))).toBe('invalid');
+    expect(board.createCanvas('2026').name).toBe('2026');
+    expect(code(() => board.createCanvas('  '))).toBe('emptyText');
+    expect(code(() => board.createCanvas('x'.repeat(41)))).toBe('invalid');
+    expect(code(() => board.createCanvas('Words', 'billing'))).toBe('invalid');
+    expect(code(() => board.createCanvas('Words', 'lucide:no-such-icon'))).toBe('invalid');
+    expect(code(() => board.updateCanvas(main, { name: 'Start' }))).toBe('invalid');
+    expect(code(() => board.deleteCanvas(main))).toBe('canvasInUse');
+    expect(code(() => board.updateCanvas('nope', { name: 'X' }))).toBe('unknownCanvas');
+    board.updateCanvas(ideas.id, { name: 'Thoughts', icon: 'lucide:lightbulb', position: 1 });
+    expect(board.snapshot().canvases.map((c) => [c.name, c.icon])).toEqual([['Thoughts', 'lucide:lightbulb'], ['main', undefined], ['2026', undefined]]);
+    board.updateCanvas(ideas.id, { icon: null, position: 3 });
+    expect(board.snapshot().canvases.map((c) => [c.name, c.icon])).toEqual([['main', undefined], ['2026', undefined], ['Thoughts', undefined]]);
+    expect(code(() => board.updateCanvas(ideas.id, { position: 4 }))).toBe('invalid');
+  });
+
+  test('cards land where they belong: where they say or the owner looks, follow-ups, proposals and prototypes beside their card', () => {
+    const ideas = board.createCanvas('Ideas');
+    const main = board.snapshot().canvases[0]!.id;
+    expect(canvasOf(board.create({ title: 'Here', x: 0, y: 0 }).id)).toBe(main);
+    const idea = board.create({ title: 'Idea', x: 0, y: 0, idea: true, canvas: ideas.id });
+    expect(canvasOf(idea.id)).toBe(ideas.id);
+    expect(code(() => board.create({ title: 'X', canvas: 'nope' }))).toBe('unknownCanvas');
+    const follow = board.create({ title: 'Follow-up', from: idea.id });
+    expect(canvasOf(follow.id)).toBe(ideas.id);
+    expect(canvasOf(board.propose(idea.id, { title: 'Proposal', task: 'T' }).id)).toBe(ideas.id);
+    expect(canvasOf(board.addPrototype(idea.id, 'Prototype', 'P').id)).toBe(ideas.id);
+    // Seismic puts its cards where the owner looks
+    board.looking = () => ({ x: 0, y: 0, canvas: ideas.id });
+    expect(board.freeSpot().canvas).toBe(ideas.id);
+    expect(canvasOf(board.create({ title: 'Seen', ...board.freeSpot() }).id)).toBe(ideas.id);
+    expect(canvasOf(board.proposeRetro('home', { title: 'Retro', body: 'B', basis: 'b' }).id)).toBe(ideas.id);
+    expect(board.freeSpot({ x: 0, y: 0, canvas: main }).canvas).toBe(main);
+    // a canvas that is gone counts as none
+    board.looking = () => ({ x: 0, y: 0, canvas: 'gone' });
+    expect(board.freeSpot().canvas).toBe(main);
+  });
+
+  test('a free spot is free of the cards of its own canvas only', () => {
+    const ideas = board.createCanvas('Ideas');
+    const main = board.snapshot().canvases[0]!.id;
+    const want = board.freeSpot({ x: 2000, y: 2000, canvas: ideas.id });
+    board.create({ title: 'Here', x: want.x, y: want.y, canvas: main });
+    // taken on main, still free on Ideas
+    expect(board.freeSpot({ x: 2000, y: 2000, canvas: ideas.id })).toEqual(want);
+    expect(board.freeSpot({ x: 2000, y: 2000, canvas: main })).not.toMatchObject({ x: want.x, y: want.y });
+  });
+
+  test('a workstream is always on its plan\'s canvas: archived, moved away and back, put into another plan; new cards from it land there', () => {
+    const later = board.createCanvas('Later');
+    const main = board.snapshot().canvases[0]!.id;
+    const rows = () => [...store.cards.onProject('shop'), ...store.cards.archived('shop')];
+    const aligned = () => rows().filter((r) => r.parent_id).every((r) => r.canvas_id === store.cards.get(r.parent_id!)!.canvas_id);
+    const [plan, w1] = board.snapshot().items;
+    board.moveToCanvas([plan!.id], later.id);
+    expect(aligned()).toBe(true);
+    docs = [];
+    board.docsChanged();
+    expect(aligned()).toBe(true);
+    expect(rows().filter((r) => r.parent_id).map((r) => r.canvas_id)).toEqual([later.id, later.id, later.id]);
+    // new cards from an archived workstream, while the owner looks at main
+    board.looking = () => ({ x: 0, y: 0, canvas: main });
+    const from = (id: string) => [
+      board.create({ title: 'Follow-up', from: id }),
+      board.propose(id, { title: 'Proposal', task: 'T' }),
+      board.addPrototype(id, 'Prototype', 'P'),
+    ].map((i) => canvasOf(i.id));
+    expect(from(w1!.id)).toEqual([later.id, later.id, later.id]);
+    // once that canvas is gone, they go to main
+    store.cards.setCanvas([plan!.id], main);
+    expect(aligned()).toBe(true);
+    store.cards.setCanvas([plan!.id], later.id);
+    store.canvases.delete(later.id);
+    expect(from(w1!.id)).toEqual([main, main, main]);
+  });
+
+  test('a card put into a plan takes the plan\'s canvas', () => {
+    const later = board.createCanvas('Later');
+    const [plan] = board.snapshot().items;
+    const own = board.create({ title: 'Own', x: 0, y: 0 });
+    store.cards.setCanvas([plan!.id], later.id);
+    store.cards.replan(own.id, 'docs/plan/a.md#X', plan!.id);
+    expect(store.cards.get(own.id)!.canvas_id).toBe(later.id);
+  });
+
+  test('deleting a canvas moves its parked and snoozed cards to the canvas picked, main by default', () => {
+    const later = board.createCanvas('Later');
+    const other = board.createCanvas('Other');
+    const main = board.snapshot().canvases[0]!.id;
+    const parked = board.create({ title: 'P', x: 0, y: 0 });
+    const snoozed = board.create({ title: 'S', x: 400, y: 0 });
+    const secondParked = board.create({ title: 'P2', x: 0, y: 0 });
+    const kept = board.create({ title: 'K', x: 800, y: 0 });
+    const existing = board.create({ title: 'Already there', x: 0, y: 0, canvas: other.id });
+    const moving = [parked, snoozed, secondParked];
+    board.moveToCanvas([...moving.map((i) => i.id), kept.id], later.id);
+    board.work(parked.id, { hold: { reason: 'parkingLot', since: new Date().toISOString() } });
+    board.work(secondParked.id, { hold: { reason: 'parkingLot', since: new Date().toISOString() } });
+    board.work(snoozed.id, { hold: { reason: 'snoozed', since: new Date().toISOString(), until: new Date(Date.now() + 86_400_000).toISOString(), by: 'owner' } as never });
+    expect(board.canvases().find((c) => c.id === later.id)).toMatchObject({ parked: 2, snoozed: 1, inUse: true });
+    board.moveToCanvas([kept.id], main);
+
+    board.items(); // Warm the layout cache before counting and moving.
+    const load = spyOn(store.cards, 'onProject');
+    try {
+      const canvases = board.canvases();
+      expect(canvases.find((c) => c.id === later.id)).toMatchObject({ parked: 2, snoozed: 1 });
+      expect(canvases.find((c) => c.id === later.id)!.inUse).toBeUndefined();
+      expect(canvases.find((c) => c.id === other.id)!.parked).toBeUndefined();
+      expect(load).toHaveBeenCalledTimes(1);
+    } finally {
+      load.mockRestore();
+    }
+    board.deleteCanvas(later.id, other.id);
+    expect(board.canvases().find((c) => c.id === other.id)).toMatchObject({ parked: 2, snoozed: 1 });
+    for (const i of moving) board.work(i.id, { hold: null });
+    const items = board.snapshot().items;
+    const placed = [existing, ...moving].map(({ id }) => items.find((i) => i.id === id)!);
+    expect(placed.every((i) => i.canvas === other.id && i.canvasVisible)).toBe(true);
+    for (const [index, a] of placed.map((i) => boundsOf(i, items)).entries()) {
+      for (const b of placed.slice(index + 1).map((i) => boundsOf(i, items))) {
+        expect(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y).toBe(true);
+      }
+    }
+    const third = board.createCanvas('Third');
+    const lone = board.create({ title: 'L', x: 0, y: 0 });
+    board.moveToCanvas([lone.id], third.id);
+    board.work(lone.id, { hold: { reason: 'parkingLot', since: new Date().toISOString() } });
+    board.deleteCanvas(third.id);
+    expect(board.snapshot().items.find((i) => i.id === lone.id)!.canvas).toBe(main);
+  });
+
+  test('a failure at the end of deleting a canvas rolls back moves and group cleanup', () => {
+    const source = board.createCanvas('Source');
+    const target = board.createCanvas('Target');
+    const a = board.create({ title: 'A', x: 0, y: 0, canvas: source.id });
+    const b = board.create({ title: 'B', x: 0, y: 200, canvas: source.id });
+    const group = board.createGroup('Later', [a.id, b.id]);
+    for (const id of [a.id, b.id]) board.work(id, { hold: { reason: 'parkingLot', since: new Date().toISOString() } });
+    const before = board.snapshot();
+    const rows = [a, b].map(({ id }) => store.cards.get(id));
+    expect(code(() => board.deleteCanvas(source.id, 'missing'))).toBe('unknownCanvas');
+    const order = spyOn(store.canvases, 'order').mockImplementation(() => { throw new Error('could not reorder canvases'); });
+    try {
+      expect(() => board.deleteCanvas(source.id, target.id)).toThrow('could not reorder canvases');
+      expect([a, b].map(({ id }) => store.cards.get(id))).toEqual(rows);
+      expect(store.groups.get(group.id)?.id).toBe(group.id);
+      expect(store.canvases.get(source.id)?.id).toBe(source.id);
+      expect(board.snapshot()).toEqual(before);
+    } finally {
+      order.mockRestore();
+    }
+    board.deleteCanvas(source.id, target.id);
+    expect(store.canvases.get(source.id)).toBeNull();
+    expect([a, b].map(({ id }) => store.cards.get(id)?.canvas_id)).toEqual([target.id, target.id]);
+  });
+
+  test('moving cards: a workstream takes its plan along, groups stay behind, only an empty canvas can be deleted and its archive goes to main', () => {
+    const later = board.createCanvas('Later');
+    const main = board.snapshot().canvases[0]!.id;
+    const [plan, w1] = board.snapshot().items;
+    const a = board.create({ title: 'A', x: 0, y: 0 });
+    const b = board.create({ title: 'B', x: 400, y: 0 });
+    const g = board.createGroup('Billing', [a.id, b.id]);
+    board.moveToCanvas([w1!.id, a.id], later.id);
+    const items = board.snapshot().items;
+    expect(items.filter((i) => i.id === plan!.id || i.parent === plan!.id).every((i) => i.canvas === later.id)).toBe(true);
+    expect(items.find((i) => i.id === a.id)).toMatchObject({ canvas: later.id });
+    expect(items.find((i) => i.id === a.id)!.group).toBeUndefined();
+    expect(items.find((i) => i.id === b.id)).toMatchObject({ canvas: main, group: g.id });
+    // a group holds the cards of one canvas
+    expect(code(() => board.createGroup('Mixed', [a.id, b.id]))).toBe('invalid');
+    expect(code(() => board.group([a.id], g.id))).toBe('invalid');
+    expect(code(() => board.deleteCanvas(later.id))).toBe('canvasInUse');
+    expect(code(() => board.moveToCanvas([a.id], 'nope'))).toBe('unknownCanvas');
+    board.moveToCanvas([plan!.id], main);
+    board.work(a.id, { state: 'live' });
+    board.archive([a.id]);
+    board.deleteCanvas(later.id);
+    expect(board.snapshot().canvases.map((c) => c.name)).toEqual(['main']);
+    const notices: { cardId?: string; text: string }[] = [];
+    board.onNotice((n) => notices.push(n));
+    board.unarchive(a.id);
+    expect(canvasOf(a.id)).toBe(main);
+    expect(notices).toHaveLength(1);
+    expect(notices[0]).toMatchObject({ cardId: a.id, text: expect.stringContaining('back on main') });
+  });
+
+  const inUse = (id: string) => board.canvases().find((c) => c.id === id)!.inUse;
+  const visible = (id: string) => [...board.snapshot().items, ...board.archived()].find((i) => i.id === id)?.canvasVisible;
+
+  test('every card says whether its canvas holds it: folded away it does; archived, ended, parked or of an archived plan it does not', () => {
+    const later = board.createCanvas('Later');
+    const [plan, w1] = board.snapshot().items;
+    expect(board.snapshot().items.every((i) => i.canvasVisible)).toBe(true);
+    // a collapsed plan's workstreams and a merge proposal's partner are folded away, still on the canvas
+    board.patch(plan!.id, { collapsed: true });
+    expect(visible(w1!.id)).toBe(true);
+    const a = board.create({ title: 'A', x: 0, y: 0, canvas: later.id });
+    const p = board.propose(a.id, { title: 'Same', task: 'T' });
+    store.db.query("UPDATE card_ideas SET proposal = json_set(proposal, '$.merge', json(?)) WHERE card_id = ?").run(JSON.stringify({ with: a.id, task: 'T', outcome: 'covered', parts: [] }), p.id);
+    board.patch(p.id, { x: 10, y: 10 });
+    expect(board.card(a.id)).toMatchObject({ idea: { mergingInto: p.id }, canvasVisible: true });
+    expect(inUse(later.id)).toBe(true);
+    // archived, an ended prototype, parked
+    board.work(a.id, { state: 'live' });
+    board.archive([a.id]);
+    expect(visible(a.id)).toBe(false);
+    const idea = board.create({ idea: true, title: 'Idea', x: 0, y: 0, canvas: later.id });
+    const proto = board.addPrototype(idea.id, 'Prototype', 'P');
+    board.endPrototype(proto.id, 'discarded');
+    expect(visible(proto.id)).toBe(false);
+    const parked = board.create({ title: 'Parked', x: 0, y: 0, canvas: later.id });
+    board.work(parked.id, { hold: { reason: 'parkingLot', since: new Date().toISOString() } });
+    expect(visible(parked.id)).toBe(false);
+    // the workstreams of a plan whose doc went are in the archive with it
+    docs = [];
+    board.docsChanged();
+    expect(visible(plan!.id)).toBe(false);
+    expect(visible(w1!.id)).toBe(false);
+  });
+
+  test('a workstream whose key left the doc is on no canvas', () => {
+    const later = board.createCanvas('Later');
+    const [plan] = board.snapshot().items;
+    board.moveToCanvas([plan!.id], later.id);
+    const w3 = board.snapshot().items.find((i) => i.plan?.label === 'W3')!;
+    docs = [{ ...docA, workstreams: [ws('W1', true), ws('W2')] }];
+    board.docsChanged();
+    expect(board.snapshot().items.find((i) => i.id === w3.id)).toBeUndefined();
+    expect(board.archived().find((i) => i.id === w3.id)).toBeUndefined();
+    expect(store.cards.get(w3.id)!.archived_at).toBeNull();
+    // asked for by its id, it says so
+    expect(board.card(w3.id)).toMatchObject({ id: w3.id, parent: plan!.id, canvasVisible: false });
+    // what is left of the plan is still on it; once that goes too, nothing is
+    expect(inUse(later.id)).toBe(true);
+    docs = [];
+    board.docsChanged();
+    expect(inUse(later.id)).toBeUndefined();
+    board.deleteCanvas(later.id);
+  });
+
+  test('a canvas holding only an ended plan holds nothing and can be deleted, though its workstream rows are not archived', () => {
+    const later = board.createCanvas('Later');
+    const [plan] = board.snapshot().items;
+    board.moveToCanvas([plan!.id], later.id);
+    expect(inUse(later.id)).toBe(true);
+    expect(code(() => board.deleteCanvas(later.id))).toBe('canvasInUse');
+    docs = [{ ...docA, workstreams: [ws('W1', true), ws('W2', true), ws('W3', true)] }];
+    board.docsChanged();
+    expect(board.archived().find((i) => i.id === plan!.id)).toBeDefined();
+    expect(store.cards.children([plan!.id]).every((r) => !r.archived_at)).toBe(true);
+    expect(inUse(later.id)).toBeUndefined();
+    board.deleteCanvas(later.id);
+    expect(board.snapshot().canvases.map((c) => c.name)).toEqual(['main']);
+  });
+
+  test('a group holds its canvas while a card in it is on the canvas; one with only archived cards goes with the canvas', () => {
+    const later = board.createCanvas('Later');
+    const a = board.create({ title: 'A', x: 0, y: 0, canvas: later.id });
+    const b = board.create({ title: 'B', x: 400, y: 0, canvas: later.id });
+    const g = board.createGroup('Billing', [a.id, b.id]);
+    board.work(a.id, { state: 'live' });
+    board.archive([a.id]);
+    expect(inUse(later.id)).toBe(true);
+    board.work(b.id, { state: 'live' });
+    board.archive([b.id]);
+    expect(inUse(later.id)).toBeUndefined();
+    board.deleteCanvas(later.id);
+    expect(board.snapshot().groups.find((x) => x.id === g.id)).toBeUndefined();
+    // the archived cards keep the canvas they came from, out of the group
+    expect([store.cards.get(a.id)!.canvas_id, store.cards.get(a.id)!.group_id]).toEqual([later.id, null]);
+  });
+
+  test('what is made from a card its canvas does not hold (parked, archived) keeps its repository and group', () => {
+    board = new Board(store, { id: 'shop', name: 'Shop', repos: [{ id: 'home', name: 'Home', path: '/r', branch: 'main' }, { id: 'site', name: 'Site', path: '/s', branch: 'main' }] }, () => ({ docs, dirs }));
+    const parked = board.create({ title: 'Parked', x: 0, y: 0, repo: 'site' });
+    const idea = board.create({ idea: true, title: 'Idea', x: 400, y: 0, repo: 'site' });
+    const g = board.createGroup('Site work', [parked.id, idea.id]);
+    board.work(parked.id, { hold: { reason: 'parkingLot', since: new Date().toISOString() } });
+    board.patch(idea.id, { state: 'done' });
+    board.archive([idea.id]);
+    for (const c of [board.propose(parked.id, { title: 'From parked', task: 'T' }), board.create({ title: 'After parked', from: parked.id }), board.addPrototype(idea.id, 'Prototype', 'P')])
+      expect([c.repo, c.group]).toEqual(['site', g.id]);
+  });
+
+  test('parked cards and their follow-ups use the chosen destination, while archived and trashed cards return to main', () => {
+    const main = board.snapshot().canvases[0]!.id;
+    const later = board.createCanvas('Later');
+    const destination = board.createCanvas('Destination');
+    const a = board.create({ title: 'A', x: 0, y: 0, canvas: later.id });
+    const gone = board.create({ title: 'Gone', x: 0, y: 0, canvas: later.id });
+    const parked = board.create({ title: 'Parked', x: 0, y: 0, canvas: later.id });
+    const idea = board.create({ idea: true, title: 'Idea', x: 0, y: 0, canvas: later.id });
+    const [plan] = board.snapshot().items;
+    board.moveToCanvas([plan!.id], later.id);
+    board.work(a.id, { state: 'live' });
+    board.archive([a.id]);
+    board.remove(gone.id);
+    board.work(parked.id, { hold: { reason: 'parkingLot', since: new Date().toISOString() } });
+    board.patch(idea.id, { state: 'done' });
+    board.archive([idea.id]);
+    docs = [];
+    board.docsChanged();
+    board.deleteCanvas(later.id, destination.id);
+    // what the canvas did not hold keeps pointing at it until it comes back
+    board.snapshot();
+    for (const id of [a.id, gone.id]) expect(store.cards.get(id)!.canvas_id).toBe(later.id);
+    // a parked card moves along with the canvas
+    expect(store.cards.get(parked.id)!.canvas_id).toBe(destination.id);
+    // What is made from a still parked card uses its new canvas.
+    const fromParked = [board.propose(parked.id, { title: 'From parked', task: 'T' }), board.create({ title: 'After parked', from: parked.id })];
+    for (const c of fromParked) expect([c.canvas, store.cards.get(c.id)!.canvas_id]).toEqual([destination.id, destination.id]);
+    board.work(parked.id, { hold: null });
+    expect(canvasOf(parked.id)).toBe(destination.id);
+    // made from an archived card whose canvas is gone
+    expect(canvasOf(board.create({ title: 'Next', from: a.id }).id)).toBe(main);
+    expect(canvasOf(board.propose(a.id, { title: 'Proposal', task: 'T' }).id)).toBe(main);
+    expect(board.addPrototype(idea.id, 'Prototype', 'P').canvas).toBe(main);
+    board.unarchive(a.id);
+    board.restore(gone.id);
+    for (const id of [a.id, gone.id]) expect(canvasOf(id)).toBe(main);
+    // each at a free spot there, clear of what main holds already
+    const boxes = board.snapshot().items.filter((i) => !i.parent && i.canvas === main).map((i) => boundsOf(i, board.snapshot().items));
+    for (const [n, p] of boxes.entries()) for (const q of boxes.slice(n + 1)) expect(p.x + p.w <= q.x || q.x + q.w <= p.x || p.y + p.h <= q.y || q.y + q.h <= p.y).toBe(true);
+    // a plan whose doc is back, with its workstreams, which keep their places within it
+    const within = store.cards.children([plan!.id]).map((r) => [r.id, r.x, r.y]);
+    docs = [docA];
+    board.docsChanged();
+    const items = board.snapshot().items;
+    expect(items.filter((i) => i.id === plan!.id || i.parent === plan!.id).map((i) => i.canvas)).toEqual([main, main, main, main]);
+    expect(store.cards.children([plan!.id]).map((r) => [r.id, r.x, r.y])).toEqual(within);
+    const back = items.filter((i) => !i.parent && i.canvas === main).map((i) => boundsOf(i, items));
+    for (const [n, p] of back.entries()) for (const q of back.slice(n + 1)) expect(p.x + p.w <= q.x || q.x + q.w <= p.x || p.y + p.h <= q.y || q.y + q.h <= p.y).toBe(true);
+  });
+
+  test('a plan written from an idea takes its place on the idea canvas, with its workstreams', () => {
+    const ideas = board.createCanvas('Ideas');
+    const idea = board.create({ title: 'Idea', x: 100, y: 100, idea: true, canvas: ideas.id });
+    store.updateCard(idea.id, { plan: { planDocs: ['docs/plan/b.md'] }, state: 'live', landed: '{}' });
+    docs = [docA, docB];
+    board.docsChanged();
+    const items = board.snapshot().items;
+    const plan = items.find((i) => i.plan?.file === 'docs/plan/b.md')!;
+    expect(plan).toMatchObject({ canvas: ideas.id, x: 100, y: 100, plan: { origin: idea.id } });
+    expect(items.filter((i) => i.parent === plan.id).every((i) => i.canvas === ideas.id)).toBe(true);
+    // a plan found in the repository is on main
+    expect(items.find((i) => i.plan?.file === 'docs/plan/a.md')!.canvas).toBe(board.snapshot().canvases[0]!.id);
+  });
+});
+
+describe('needs you', () => {
+  // what the latest snapshot reconciled, as stored
+  const open = () => (board.snapshot(), store.needsYou.open('shop'));
+  const rowOf = (card: string) => open().find((r) => r.card === card);
+
+  test('a card gets a wait when it starts to need the owner, keeps it while it waits, across a restart, and ends it after', () => {
+    const c = board.create({ title: 'Own', x: 0, y: 0 });
+    expect(rowOf(c.id)).toBeUndefined();
+    board.work(c.id, { state: 'waiting', need: 'demo', detail: JSON.stringify({ summary: 'Demo ready' }) });
+    const row = rowOf(c.id)!;
+    expect(row).toMatchObject({ kind: 'demo', createdAt: row.lastUpdated });
+    expect(Date.now() - row.createdAt).toBeLessThan(5000);
+    // a change to what it waits for does not touch the wait; neither does a new board on the same database (a restart)
+    board.work(c.id, { status_line: 'Demo fertig' });
+    expect(rowOf(c.id)).toEqual(row);
+    const again = new Board(store, { id: 'shop', name: 'Shop', repos: [{ id: 'home', name: 'Home', path: '/r', branch: 'main' }] }, () => ({ docs, dirs }));
+    expect(again.snapshot().needsYou).toEqual([row]);
+    board.work(c.id, { state: 'working', need: null });
+    expect(open()).toEqual([]);
+    // the ended wait stays, with when it ended; waiting again is a new wait
+    expect(store.needsYou.all('shop')).toMatchObject([{ id: row.id, resolvedAt: expect.any(Number) }]);
+    board.work(c.id, { state: 'waiting', need: 'question', detail: JSON.stringify({ question: { text: 'Which one?', options: [] } }) });
+    expect(rowOf(c.id)).toMatchObject({ kind: 'question' });
+    expect(rowOf(c.id)!.id).not.toBe(row.id);
+  });
+
+  test('a new summary or question, or a change of kind, counts as an update; moving the card does not', () => {
+    const c = board.create({ title: 'Own', x: 0, y: 0 });
+    board.work(c.id, { state: 'waiting', need: 'demo', detail: JSON.stringify({ summary: 'Demo ready' }) });
+    open();
+    store.db.run('UPDATE needs_you SET created_at = 1000, last_updated = 1000');
+    board.patch(c.id, { x: 50, y: 60 });
+    expect(rowOf(c.id)).toMatchObject({ createdAt: 1000, lastUpdated: 1000 });
+    board.work(c.id, { detail: JSON.stringify({ summary: 'Revised demo ready' }) });
+    const revised = rowOf(c.id)!;
+    expect(revised.createdAt).toBe(1000);
+    expect(revised.lastUpdated).toBeGreaterThan(1000);
+    open();
+    store.db.run('UPDATE needs_you SET last_updated = 2000');
+    board.work(c.id, { need: 'question', detail: JSON.stringify({ question: { text: 'Shipping too?', options: [] } }) });
+    expect(rowOf(c.id)).toMatchObject({ kind: 'question', createdAt: 1000 });
+    expect(rowOf(c.id)!.lastUpdated).toBeGreaterThan(2000);
+  });
+
+  test('a merge comparison or proposal that is revised counts as an update, also where the line it shows stays the same', () => {
+    const from = board.create({ title: 'Own', x: 0, y: 0 });
+    const p = board.propose(from.id, { title: 'Export', task: 'Add CSV.', questions: [{ text: 'Which format?', options: [] }] });
+    const merge = (m: object) => {
+      store.db.query("UPDATE card_ideas SET proposal = json_set(proposal, '$.merge', json(?)) WHERE card_id = ?").run(JSON.stringify(m), p.id);
+      // a move rereads the card without counting as an update
+      board.patch(p.id, { x: 10, y: 10 });
+    };
+    const updated = () => rowOf(p.id)!.lastUpdated;
+    merge({ with: from.id, task: 'Add CSV.', outcome: 'covered', parts: [{ text: 'Add CSV.', covered: true }] });
+    expect(rowOf(p.id)).toMatchObject({ kind: 'merge' });
+    store.db.run('UPDATE needs_you SET last_updated = 1000');
+    board.patch(p.id, { x: 20, y: 20 });
+    expect(updated()).toBe(1000);
+    merge({ with: from.id, task: 'Add CSV and XLSX.', outcome: 'followUp', followUp: { title: 'XLSX', task: 'Add XLSX.', images: [], questions: [] } });
+    expect(updated()).toBeGreaterThan(1000);
+    // a proposal's revised text, or a question after its first, is a new one to decide on too
+    merge({});
+    store.db.query("UPDATE card_ideas SET proposal = json_remove(proposal, '$.merge') WHERE card_id = ?").run(p.id);
+    board.patch(p.id, { x: 30, y: 30 });
+    expect(rowOf(p.id)).toMatchObject({ kind: 'proposal' });
+    store.db.run('UPDATE needs_you SET last_updated = 2000');
+    store.db.query("UPDATE cards SET body = 'Add CSV with dates.' WHERE id = ?").run(p.id);
+    board.patch(p.id, { x: 40, y: 40 });
+    expect(updated()).toBeGreaterThan(2000);
+    store.db.run('UPDATE needs_you SET last_updated = 3000');
+    store.db.query("UPDATE card_ideas SET proposal = json_set(proposal, '$.questions[1]', json(?)) WHERE card_id = ?").run(JSON.stringify({ text: 'Dates too?', options: [] }), p.id);
+    board.patch(p.id, { x: 50, y: 50 });
+    expect(updated()).toBeGreaterThan(3000);
+  });
+
+  test('changes in the same millisecond keep their order: the later one is the latest', () => {
+    const now = Date.now();
+    const clock = spyOn(Date, 'now').mockReturnValue(now);
+    try {
+      const a = board.create({ title: 'First', x: 0, y: 0 });
+      const b = board.create({ title: 'Second', x: 400, y: 0 });
+      board.work(a.id, { state: 'waiting', need: 'demo', detail: JSON.stringify({ summary: 'A ready' }) });
+      open();
+      board.work(b.id, { state: 'waiting', need: 'demo', detail: JSON.stringify({ summary: 'B ready' }) });
+      open();
+      expect(rowOf(b.id)!.lastUpdated).toBeGreaterThan(rowOf(a.id)!.lastUpdated);
+      board.work(a.id, { detail: JSON.stringify({ summary: 'A revised' }) });
+      expect(rowOf(a.id)!.lastUpdated).toBeGreaterThan(rowOf(b.id)!.lastUpdated);
+      // an older question's answer that comes in the same millisecond as a newer one's, a reconcile later, is the one that waits
+      const slow = board.addTalk('Which tests?', '');
+      const fast = board.addTalk('How long?', 'An hour.', null);
+      board.replyTalk(fast, 'An hour.', undefined, undefined, true);
+      expect(open().find((r) => r.kind === 'answer')!.talk).toBe(fast);
+      board.replyTalk(slow, 'The unit tests.', undefined, undefined, true);
+      expect(open().find((r) => r.kind === 'answer')!.talk).toBe(slow);
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  test('the answer that was written last waits, whichever question was asked first, before any snapshot and after a restart', () => {
+    const fresh = () => new Board(store, { id: 'shop', name: 'Shop', repos: [{ id: 'home', name: 'Home', path: '/r', branch: 'main' }] }, () => ({ docs, dirs }));
+    for (const olderFirst of [false, true]) {
+      const older = board.addTalk('Which tests?', '');
+      const newer = board.addTalk('How long?', '');
+      const [first, second] = olderFirst ? [older, newer] : [newer, older];
+      board.replyTalk(first, `Answer ${first}`, undefined, undefined, true);
+      board.replyTalk(second, `Answer ${second}`, undefined, undefined, true);
+      expect(open().find((r) => r.kind === 'answer')!.talk).toBe(second);
+      board.readTalk([older, newer]);
+      board.replyTalk(first, `Answer ${first}`, undefined, undefined, true);
+      board.replyTalk(second, `Answer ${second}`, undefined, undefined, true);
+      expect(fresh().snapshot().needsYou.find((r) => r.kind === 'answer')!.talk).toBe(second);
+      board.readTalk([older, newer]);
+    }
+  });
+
+  test('an older question answered after more exchanges than the sheet shows is still the answer that waits', () => {
+    const older = board.addTalk('Which tests?', '');
+    for (let i = 0; i < 40; i++) board.addTalk(`Chatter ${i}`, 'Ok.');
+    board.replyTalk(older, 'The unit tests.', undefined, undefined, true);
+    expect(open().find((r) => r.kind === 'answer')!.talk).toBe(older);
+    expect(board.snapshot().talk.some((x) => x.id === older)).toBe(true);
+    const again = new Board(store, { id: 'shop', name: 'Shop', repos: [{ id: 'home', name: 'Home', path: '/r', branch: 'main' }] }, () => ({ docs, dirs }));
+    expect(again.snapshot().needsYou.find((r) => r.kind === 'answer')!.talk).toBe(older);
+  });
+
+  test('exchanges from before arrivals were kept come in the order of their ids', () => {
+    const a = board.addTalk('One?', '');
+    const b = board.addTalk('Two?', '');
+    board.replyTalk(b, 'Two.', undefined, undefined, true);
+    board.replyTalk(a, 'One.', undefined, undefined, true);
+    store.db.run('UPDATE talk SET arrived = NULL');
+    expect(open().find((r) => r.kind === 'answer')!.talk).toBe(b);
+  });
+
+  test('a wait moved over from before the table takes its kind and text at its first reconcile, without counting as an update', () => {
+    const c = board.create({ title: 'Own', x: 0, y: 0 });
+    board.work(c.id, { state: 'waiting', need: 'question', detail: JSON.stringify({ question: { text: 'Which one?', stuck: true, options: [] } }) });
+    open();
+    store.db.run("UPDATE needs_you SET kind = 'question', digest = NULL, created_at = 1000, last_updated = 1000");
+    const again = new Board(store, { id: 'shop', name: 'Shop', repos: [{ id: 'home', name: 'Home', path: '/r', branch: 'main' }] }, () => ({ docs, dirs }));
+    expect(again.snapshot().needsYou).toMatchObject([{ card: c.id, kind: 'stuck', createdAt: 1000, lastUpdated: 1000 }]);
+  });
+
+  test('a proposed rule, a setting proposal and the Koordinator’s latest unread answer wait too, until decided or read', () => {
+    const rule = board.proposePreference('Always test', {});
+    const setting = board.proposeSetting({ repo: 'home', field: 'checks', value: 'bun test', basis: 'Tests ran each time', cards: [] });
+    const first = board.addTalk('How far?', 'Looking.');
+    board.replyTalk(first, 'Halfway.', undefined, undefined, true);
+    const second = board.addTalk('And now?', 'Looking.');
+    board.replyTalk(second, 'Done.', undefined, undefined, true);
+    // the answer waits from when it came, not from when the owner asked
+    store.db.query("UPDATE talk SET at = '2020-01-01T00:00:00.000Z' WHERE id = ?").run(second);
+    const third = board.addTalk('Anything else?', 'Looking.');
+    store.db.query("UPDATE talk SET at = '2020-01-01T00:00:00.000Z' WHERE id = ?").run(third);
+    board.replyTalk(third, 'Nothing else.', undefined, undefined, true);
+    expect(Date.now() - open().find((r) => r.kind === 'answer')!.createdAt).toBeLessThan(5000);
+    board.readTalk([third]);
+    // an older question's slow answer that comes after a newer exchange's is the one that waits
+    const slow = board.addTalk('Which tests?', '');
+    const fast = board.addTalk('How long?', 'An hour.', null);
+    board.replyTalk(fast, 'An hour.', undefined, undefined, true);
+    expect(open().find((r) => r.kind === 'answer')!.talk).toBe(fast);
+    board.replyTalk(slow, 'The unit tests.', undefined, undefined, true);
+    expect(open().find((r) => r.kind === 'answer')!.talk).toBe(slow);
+    // and after a restart, the answer the open wait is on stays the latest
+    const again = new Board(store, { id: 'shop', name: 'Shop', repos: [{ id: 'home', name: 'Home', path: '/r', branch: 'main' }] }, () => ({ docs, dirs }));
+    expect(again.snapshot().needsYou.find((r) => r.kind === 'answer')!.talk).toBe(slow);
+    board.readTalk([slow, fast]);
+    expect(open().map((r) => [r.kind, r.preference ?? r.setting ?? r.talk])).toEqual([
+      ['rule', rule],
+      ['setting', setting],
+      ['answer', second],
+    ]);
+    board.acceptProposal(rule);
+    board.decideSetting(setting, 'rejected');
+    board.readTalk();
+    expect(open()).toEqual([]);
+    expect(store.needsYou.all('shop').every((r) => r.resolvedAt !== null)).toBe(true);
+  });
+});
+
+describe('a demo on the card', () => {
+  test('a video without a poster says so, for the player to show its first frame; one with a poster does not', () => {
+    const dir = (files: string[]) => {
+      const d = mkdtempSync(join(tmpdir(), 'seismic-demo-'));
+      for (const f of files) writeFileSync(join(d, f), f);
+      return d;
+    };
+    const [bare, framed] = [dir(['demo.mp4', 'captions.vtt']), dir(['demo.mp4', 'captions.vtt', 'poster.jpg'])];
+    const c = board.create({ title: 'Video', x: 0, y: 0 });
+    board.work(c.id, {
+      state: 'working',
+      branch: 'seismic/video',
+      demo: { latest: { kind: 'video', dir: framed, chapters: [[0, 'Danach']], handover: 2 }, earlier: [{ kind: 'video', dir: bare, chapters: [[0, 'Vorher']], handover: 1 }] },
+    });
+    const item = board.item(c.id)!;
+    expect(item.demo?.latest).toEqual({ kind: 'video', chapters: [[0, 'Danach']], handover: 2 });
+    expect(item.demo?.earlier).toEqual([{ kind: 'video', chapters: [[0, 'Vorher']], handover: 1, noPoster: true, n: 0 }]);
+    for (const d of [bare, framed]) rmSync(d, { recursive: true, force: true });
+  });
+});
+
+describe('a plan reference', () => {
+  test('names its repository before the path, unless it is the home one; an absolute path or a Windows drive is no repository', () => {
+    const refs = ['docs/plan/a.md', 'api:docs/plan/a.md', '/home/jo/plans/a.md', 'api:/home/jo/plans/a.md', 'C:/plans/a.md', 'api:C:/plans/a.md'];
+    expect(refs.map((r) => [repoOfRef(r, 'home'), pathOfRef(r)])).toEqual([
+      ['home', 'docs/plan/a.md'],
+      ['api', 'docs/plan/a.md'],
+      ['home', '/home/jo/plans/a.md'],
+      ['api', '/home/jo/plans/a.md'],
+      ['home', 'C:/plans/a.md'],
+      ['api', 'C:/plans/a.md'],
+    ]);
+  });
+});
+
+
+/** The code of the refusal `act` meets. */
+function refusal(act: () => void): string | undefined {
+  try {
+    act();
+  } catch (e) {
+    if (e instanceof BadRequest) return e.code;
+    throw e;
+  }
+}
+
+describe('owner-drawn dependencies', () => {
+  test('connections survive a new board, reject cycles, and can be removed independently', () => {
+    const a = board.create({ title: 'A', x: 0, y: 0 });
+    const b = board.create({ title: 'B', x: 0, y: 0 });
+    const c = board.create({ title: 'C', x: 0, y: 0 });
+    board.connect(a.id, b.id);
+    board.connect(b.id, c.id);
+    expect(board.item(b.id)?.plan?.manualDependsOn).toEqual([a.id]);
+    expect(refusal(() => board.connect(c.id, a.id))).toBe('dependencyCycle');
+    const reopened = new Board(store, board.project, () => ({ docs, dirs }));
+    expect(reopened.item(c.id)?.plan?.manualDependsOn).toEqual([b.id]);
+    reopened.connect(a.id, b.id, true);
+    expect(reopened.item(b.id)?.plan?.manualDependsOn).toBeUndefined();
+    expect(reopened.item(c.id)?.plan?.manualDependsOn).toEqual([b.id]);
+  });
+});
+
+test('a snooze cannot close a cycle through queued or drawn dependencies', () => {
+  const a = board.create({ title: 'A', x: 0, y: 0 });
+  const b = board.create({ title: 'B', x: 0, y: 0 });
+  const c = board.create({ title: 'C', x: 0, y: 0 });
+  const on = (id: string, title: string) => ({ on: { card: id, title, state: 'done' as const }, by: 'agent' as const });
+  board.work(a.id, { state: 'working' });
+  board.work(b.id, { queue: JSON.stringify({ behind: [a.id], since: new Date().toISOString() }) });
+  board.connect(b.id, c.id);
+
+  expect(refusal(() => board.snooze(a.id, on(b.id, 'B')))).toBe('dependencyCycle');
+  expect(refusal(() => board.snooze(a.id, on(c.id, 'C')))).toBe('dependencyCycle');
+  expect(board.snoozedOf(a.id)).toBeNull();
+  expect(board.events(a.id).some((e) => e.text.includes('Snoozed'))).toBe(false);
+
+  board.snooze(c.id, on(a.id, 'A'));
+  expect(board.snoozedOf(c.id)?.on?.card).toBe(a.id);
+  expect(refusal(() => board.snooze(c.id, { by: 'agent', until: new Date(Date.now() + 86_400_000).toISOString() }))).toBeUndefined();
+
+  const d = board.create({ title: 'D', x: 0, y: 0 });
+  const e = board.create({ title: 'E', x: 0, y: 0 });
+  board.snooze(d.id, on(e.id, 'E'));
+  expect(refusal(() => board.snooze(e.id, on(d.id, 'D')))).toBe('dependencyCycle');
+  expect(refusal(() => board.snooze(e.id, on(e.id, 'E')))).toBe('dependencyCycle');
+});
+
+test("a deleted card's arrows count for nothing until it is restored, and come back without closing a cycle", () => {
+  const a = board.create({ title: 'A', x: 0, y: 0 });
+  const x = board.create({ title: 'X', x: 0, y: 0 });
+  const c = board.create({ title: 'C', x: 0, y: 0 });
+  board.connect(a.id, x.id);
+  board.connect(x.id, c.id);
+  board.remove(x.id);
+  expect(board.item(c.id)?.plan?.manualDependsOn).toBeUndefined();
+  board.connect(c.id, a.id);
+  expect(board.item(a.id)?.plan?.manualDependsOn).toEqual([c.id]);
+  board.restore(x.id);
+  expect(board.item(x.id)?.plan?.manualDependsOn).toEqual([a.id]);
+  expect(board.item(c.id)?.plan?.manualDependsOn).toBeUndefined();
+  expect(board.manualDependencies()).toEqual([[c.id, a.id], [a.id, x.id]]);
+});
+
+test("an archived card's arrows come back with it, without closing a cycle", () => {
+  const a = board.create({ title: 'A', x: 0, y: 0 });
+  const x = board.create({ title: 'X', x: 0, y: 0 });
+  const c = board.create({ title: 'C', x: 0, y: 0 });
+  board.connect(a.id, x.id);
+  board.connect(x.id, c.id);
+  board.patch(x.id, { state: 'live' });
+  board.archive([x.id]);
+  board.connect(c.id, a.id);
+  board.unarchive(x.id);
+  expect(board.manualDependencies()).toEqual([[c.id, a.id], [a.id, x.id]]);
+});
+
+test('owner-drawn dependencies cannot connect plans or their workstreams', () => {
+  const own = board.create({ title: 'Own task', x: 0, y: 0 });
+  const plan = board.snapshot().items.find((i) => i.kind === 'plan')!;
+  const workstream = board.snapshot().items.find((i) => i.parent === plan.id)!;
+  for (const card of [plan, workstream]) {
+    expect(refusal(() => board.connect(own.id, card.id))).toBe('planDependency');
+    expect(refusal(() => board.connect(card.id, own.id))).toBe('planDependency');
+  }
+});
+
+test('manual attachment points survive reopening and legacy arrows remain readable', () => {
+  const a = board.create({ title: 'A', x: 0, y: 0 });
+  const b = board.create({ title: 'B', x: 0, y: 0 });
+  const c = board.create({ title: 'C', x: 0, y: 0 });
+  const anchor = { fromSide: 'right', toSide: 'top', offset: 0.25 } as const;
+  board.connect(a.id, b.id, false, anchor);
+  board.connect(b.id, c.id);
+  const reopened = new Board(store, board.project, () => ({ docs, dirs }));
+  expect(reopened.item(b.id)?.plan?.manualAnchors?.[a.id]).toEqual(anchor);
+  expect(reopened.item(c.id)?.plan?.manualDependsOn).toEqual([b.id]);
+  expect(reopened.item(c.id)?.plan?.manualAnchors).toBeUndefined();
+  expect(() => board.connect(a.id, c.id, false, { ...anchor, offset: 2 })).toThrow(BadRequest);
+});

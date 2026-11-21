@@ -115,7 +115,7 @@ const usageRead = z.object({
 });
 
 /**
- * The limits of an `agy -p /usage --output-format json` answer (captured in fixtures/agy-usage.json):
+ * The limits of an `agy -p /usage --output-format json` answer (captured in test/fixtures/agy-usage.json):
  * a five-hour and a weekly bucket per group of models sharing them, each with the share remaining.
  * Every limit is scoped to its group; agy grades none, so Seismic does from the percentage, as for Codex.
  */
@@ -318,7 +318,7 @@ export function nativeTool(name: string, parameters: Record<string, unknown> = {
 
 /**
  * When the usage limit lifts (milliseconds). agy's account-quota error uses a Go-style duration:
- * "Resets in 152h12m37s." (captured in fixtures/agy-quota.txt). Keep the preview's retry wording
+ * "Resets in 152h12m37s." (captured in test/fixtures/agy-quota.txt). Keep the preview's retry wording
  * too; an unrecognised time stays unknown rather than scheduling an early retry.
  */
 export function agyLimit(message: string, now = Date.now()): { resetsAt?: number } | undefined {

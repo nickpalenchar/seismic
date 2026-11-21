@@ -83,7 +83,7 @@ and leaves no re-export shims behind.
 - [ ] **W3:** Split `board.ts` into `services/cards/` and related areas (`CardService` and the services for
   what else it holds), one area per change. Routes and callers switch to the new services.
 - [ ] **W4:** Split `workerSupervisor/workerSupervisor.ts` into `services/agents/`: sessions, spawning, limits, review and the rest, one
-  piece per change, against the fake runtime in `src/server/testing.ts`.
+  piece per change, against the fake runtime in `src/server/test/helpers/testing.ts`.
 - [ ] **W5:** Split `project.ts`, `workstations.ts`, `commands.ts` and `koordinator.ts` into their services
   (`services/projects/`, `services/workstations/`, `services/commands/`, `services/koordinator/`). The
   `ProjectRuntime` stays as the hand-wired root until W7.
@@ -93,7 +93,7 @@ and leaves no re-export shims behind.
 - [ ] **W7:** LoopBack. Spike on Bun first: `experimentalDecorators`, `emitDecoratorMetadata` and
   `reflect-metadata` in the tsconfig; Bun 1.4 and the compiled binary (`bun build --compile`);
   `verbatimModuleSyntax` (inject by binding key, not by type metadata); moving the hand-wired test fixtures
-  (`workerSupervisor/fixture.ts`) to a test context. If it fails, hand the owner the fallback to decide. Otherwise
+  (`test/helpers/workerSupervisor.ts`) to a test context. If it fails, hand the owner the fallback to decide. Otherwise
   introduce `@model`/`@service`/`@route`, an app context and one child context per project in place of the
   wiring in `ProjectRuntime`. Last step: turn the WIP docs into the design chapter, add the decision to
   `docs/design.md` and remove this plan doc.

@@ -1,0 +1,343 @@
+// Test doubles, and git repositories for tests.
+
+import { appendFileSync, cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import type { Board, StoredDemo } from '../../board';
+import type { Item } from '../../../core/types';
+import type { Forge } from '../../forge';
+import type { AgentEvent, AgentRuntime, AgentSession, AgentSpec, PermissionAnswer } from '../../runtime';
+import { git } from '../../workstations';
+import { KEY_HEADER, keyOf } from '../../owner';
+
+/** The calls of a forge that only review cards make, for a fake forge of a test that has none. */
+export const noContributions: Pick<Forge, 'urlOf' | 'contribution' | 'comment' | 'requestChanges'> = { urlOf: async () => '', contribution: async () => ({}) as never, comment: async () => {}, requestChanges: async () => {} };
+
+/** A forge for tests that never reach a pull request. */
+export const noForge: Forge = { status: async () => ({}) as never, body: async () => '', setBody: async () => {}, merge: async () => {}, open: async () => '', ...noContributions };
+
+/** A session whose tools and events the test drives. */
+export class FakeSession implements AgentSession {
+  inbox: string[] = [];
+  /** The images sent with each message of `inbox`, by index. */
+  images: string[][] = [];
+  closed = false;
+  done: Promise<void>;
+  private finish!: () => void;
+  constructor(
+    readonly spec: AgentSpec,
+    first?: string,
+    images: string[] = [],
+  ) {
+    if (first !== undefined) this.send(first, images);
+    this.done = new Promise((r) => (this.finish = r));
+  }
+  send(text: string, images: string[] = []) {
+    this.inbox.push(text);
+    this.images.push(images);
+  }
+  close() {
+    this.closed = true;
+    this.abort.abort();
+    this.finish();
+  }
+  private abort = new AbortController();
+  /** A tool call that needs a person's permission: settles with the answer the session got. */
+  permission(name: string, input: Record<string, unknown>, reason?: string): Promise<PermissionAnswer> {
+    return this.spec.askOwner!({ name, input, ...(reason ? { reason } : {}) }, this.abort.signal);
+  }
+  call(name: string, args: Record<string, unknown>) {
+    return this.spec.tools.find((t) => t.name === name)!.run(args);
+  }
+  /** A tool call of the agent that does `act` in its workstation, with the hooks that watch it before and after. */
+  async use(name: string, input: Record<string, unknown>, act: () => unknown = () => {}) {
+    const call = { id: `call-${++FakeSession.calls}`, name, input };
+    await this.spec.watch?.before(call);
+    await act();
+    await this.spec.watch?.after(call);
+  }
+  private static calls = 0;
+  /** A tool step of the agent: what the session hands it with the step's result. */
+  toolStep(): string | undefined {
+    return this.spec.contextUpdate?.();
+  }
+  emit(e: AgentEvent) {
+    this.spec.onEvent(e);
+  }
+}
+
+export class FakeRuntime implements AgentRuntime {
+  sessions: FakeSession[] = [];
+  start(spec: AgentSpec, first?: string, images?: string[]) {
+    const s = new FakeSession(spec, first, images);
+    this.sessions.push(s);
+    return s;
+  }
+  get last() {
+    return this.sessions.at(-1)!;
+  }
+}
+
+const templates = new Map<string, string>();
+let templateDir: string | undefined;
+
+/**
+ * Makes `path` a git repository on `main` with `files` committed as "init", in which tests can
+ * commit. Spawning git is what makes the tests slow, so each set of files is committed once into
+ * a template, and the repository is a copy of it.
+ */
+export function gitRepo(path: string, files: Record<string, string> = { 'README.md': 'hello\n' }): string {
+  const key = JSON.stringify(files);
+  let template = templates.get(key);
+  if (!template) {
+    templateDir ??= mkdtempSync(join(tmpdir(), 'seismic-template-'));
+    template = join(templateDir, String(templates.size));
+    git(templateDir, 'init', '--quiet', '--template=', '-b', 'main', template);
+    identify(template);
+    // a copy keeps mtime and size but not inode and ctime: git is to trust what the copy keeps
+    appendFileSync(join(template, '.git/config'), '[core]\n\tcheckStat = minimal\n\ttrustctime = false\n');
+    // git's automatic maintenance after a commit would run in the background and could add or
+    // remove files (objects/maintenance.lock) while another test copies the template
+    appendFileSync(join(template, '.git/config'), '[maintenance]\n\tauto = false\n[gc]\n\tauto = 0\n');
+    for (const [file, text] of Object.entries(files)) {
+      mkdirSync(dirname(join(template, file)), { recursive: true });
+      writeFileSync(join(template, file), text);
+    }
+    git(template, 'add', '.');
+    git(template, 'commit', '--quiet', '-m', 'init');
+    templates.set(key, template);
+  }
+  cpSync(template, path, { recursive: true, preserveTimestamps: true });
+  return path;
+}
+
+/** Removes the templates of `gitRepo`; setup.ts calls it once all tests have run. */
+export function removeTemplates() {
+  if (templateDir) rmSync(templateDir, { recursive: true, force: true });
+  templateDir = undefined;
+  templates.clear();
+}
+
+/** Lets tests commit in `repo`, a repository or a clone of one, as T. */
+export function identify(repo: string) {
+  appendFileSync(join(repo, '.git/config'), '[user]\n\temail = t@example.com\n\tname = T\n');
+}
+
+/**
+ * Waits until `done` holds. A request reaches the server only after a round trip, which on a
+ * loaded machine (other workers' test runs) takes longer than any fixed pause; a test that went
+ * on too early failed and left its request open, and stopping the server reset it in the next test.
+ */
+/**
+ * `fetch` and `WebSocket` with the owner's key of the server `of` gives (one of `serve`), as the
+ * page, the app's shell and Seismic's scripts send it. A request without it goes through the global ones.
+ */
+export function asOwner(of: () => object) {
+  const withKey = (given?: HeadersInit) => {
+    const headers = new Headers(given);
+    if (!headers.has(KEY_HEADER)) headers.set(KEY_HEADER, keyOf(of()));
+    return headers;
+  };
+  return {
+    fetch: (input: string | URL | Request, init: RequestInit = {}) => globalThis.fetch(input, { ...init, headers: withKey(init.headers) }),
+    WebSocket: class extends globalThis.WebSocket {
+      // `{ headers }` as Bun takes it (the DOM's type knows only protocols there)
+      constructor(url: string | URL, given: unknown = {}) {
+        const o = given as { headers?: HeadersInit };
+        super(url, { ...o, headers: Object.fromEntries(withKey(o.headers)) } as unknown as string[]);
+      }
+    },
+  };
+}
+
+/** The board's listeners have heard of what changed so far (they hear of it once the code that changed it is through: `Board.changed`). */
+export const heard = () => Bun.sleep(0);
+
+export const until = async (done: () => unknown, ms = 3000) => {
+  for (const end = Date.now() + ms; !(await done()); await Bun.sleep(2)) if (Date.now() > end) throw new Error(`timed out after ${ms} ms: ${done}`);
+};
+
+/**
+ * A stand-in for `ssh` that runs the command on this machine, as a host's login shell would; the
+ * host counts as unreachable (exit 255, as ssh's own) while `<dir>/down` exists. Its home is
+ * `<dir>/home`. Each command it ran is appended to `<dir>/log`, with the target first; each
+ * connection it tried, reachable or not, adds a line to `<dir>/tries`. A forward from here (`-L`)
+ * is a proxy on this machine for as long as the command runs; its pid goes to `<dir>/forwards`.
+ */
+export function fakeSsh(dir: string): string {
+  mkdirSync(dir, { recursive: true });
+  const program = join(dir, 'ssh');
+  const proxy = join(dir, 'forward.ts');
+  writeFileSync(
+    proxy,
+    `import { connect, createServer } from 'node:net';
+const [, port, host, to] = /^(?:.*?:)?(\\d+):(\\[[^\\]]*\\]|[^:]*):(\\d+)$/.exec(process.argv[2]!)!;
+createServer((c) => {
+  const t = connect(Number(to), host!.replace(/^\\[|\\]$/g, ''));
+  c.pipe(t).pipe(c);
+  t.on('error', () => c.destroy());
+  c.on('error', () => t.destroy());
+}).listen(Number(port), '127.0.0.1');
+`,
+  );
+  writeFileSync(
+    program,
+    `#!/bin/sh
+fwd=
+while [ $# -gt 1 ]; do
+  case "$1" in -L) fwd="$2"; shift 2 ;; -o|-R) shift 2 ;; -T|-n) shift ;; *) break ;; esac
+done
+target="$1"; shift
+echo x >> ${JSON.stringify(join(dir, 'tries'))}
+[ -e ${JSON.stringify(join(dir, 'down'))} ] && { echo "ssh: connect to host $target: Connection refused" >&2; exit 255; }
+printf '%s %s\\n' "$target" "$*" >> ${JSON.stringify(join(dir, 'log'))}
+HOME=${JSON.stringify(join(dir, 'home'))}; export HOME; mkdir -p "$HOME"
+[ -z "$fwd" ] && exec sh -c "$*"
+echo $$ >> ${JSON.stringify(join(dir, 'forwards'))}
+${JSON.stringify(process.execPath)} ${JSON.stringify(proxy)} "$fwd" & proxy=$!
+# a command in the background reads /dev/null in dash, even with <&0: stdin goes by another fd
+exec 3<&0
+sh -c "$*" <&3 3<&- & command=$!
+trap 'kill $proxy $command 2>/dev/null; exit 255' TERM INT
+wait $command
+kill $proxy 2>/dev/null
+`,
+    { mode: 0o755 },
+  );
+  return program;
+}
+
+
+/** A demo for a handover in a test that is not about demos: an HTML artifact in a directory of its own. */
+export function artifact(): StoredDemo {
+  const dir = mkdtempSync(join(tmpdir(), 'seismic-artifact-'));
+  writeFileSync(join(dir, 'index.html'), '<p>Ergebnis</p>\n');
+  // as a worker's handover stores an artifact: without chapters
+  return { kind: 'html', dir } as StoredDemo;
+}
+
+/**
+ * A stand-in for GitHub's CLI, in `dir`, slow as GitHub can be: it answers a call on pull request
+ * number `n` after `delays[n]` milliseconds (none for others), with an open PR whose one comment
+ * is by `lead`; `auth token` answers at once with `token:<host>:<user>`. Each call is appended to
+ * `<dir>/calls`, with the host and tokens gh would use from its environment.
+ */
+export function fakeGh(dir: string, delays: Record<number, number>): string {
+  mkdirSync(dir, { recursive: true });
+  const program = join(dir, 'gh');
+  const script = join(dir, 'gh.ts');
+  writeFileSync(
+    script,
+    `import { appendFileSync } from 'node:fs';
+const args = process.argv.slice(2);
+const env = ['GH_HOST', 'GH_TOKEN', 'GITHUB_TOKEN', 'GH_ENTERPRISE_TOKEN', 'GITHUB_ENTERPRISE_TOKEN'].map((k, i) => (process.env[k] || !i ? k + '=' + (process.env[k] ?? '') : '')).filter(Boolean);
+appendFileSync(${JSON.stringify(join(dir, 'calls'))}, args.join(' ') + ' | ' + env.join(' ') + '\\n');
+const opt = (name: string) => args[args.indexOf(name) + 1];
+if (args[0] === 'auth') { console.log('token:' + opt('--hostname') + ':' + opt('--user')); process.exit(0); }
+const n = Number(/pulls?\\/(\\d+)|number=(\\d+)/.exec(args.join(' '))?.slice(1).find(Boolean));
+await Bun.sleep((${JSON.stringify(delays)} as Record<number, number>)[n] ?? 0);
+if (args[0] === 'pr') console.log(JSON.stringify({ state: 'OPEN', mergeable: 'MERGEABLE', mergeStateStatus: 'BLOCKED', headRefOid: 'aaa', author: { login: 'owner' }, statusCheckRollup: [], comments: [{ id: 'IC_' + n, author: { login: 'lead' }, body: 'Rename it.', url: 'https://gh/c' + n }], reviews: [] }));
+else if (args[1] === 'graphql') console.log('{}');
+else console.log('[]');
+`,
+  );
+  writeFileSync(program, `#!/bin/sh\nexec ${JSON.stringify(process.execPath)} ${JSON.stringify(script)} "$@"\n`, { mode: 0o755 });
+  return program;
+}
+
+/**
+ * A stand-in for Tailscale's CLI, in `dir`: `status --json` answers `<dir>/status.json` (as
+ * `tailscaleStatus` writes it), `serve status --json` and `serve --bg --https=<port> <target>` /
+ * `serve --https=<port> off` read and change `<dir>/serve.json`. While `<dir>/fail` exists, `serve`
+ * fails with its text on stderr; while `<dir>/slow` exists, `status` answers after 5 s. Each call is
+ * appended to `<dir>/calls`.
+ */
+export function fakeTailscale(dir: string, status: TailscaleStatus = { state: 'Running', name: 'mac.tail1234.ts.net', https: true }): string {
+  mkdirSync(dir, { recursive: true });
+  const program = join(dir, 'tailscale');
+  const script = join(dir, 'tailscale.ts');
+  writeFileSync(
+    script,
+    `import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+const dir = ${JSON.stringify(dir)};
+const args = process.argv.slice(2);
+appendFileSync(dir + '/calls', args.join(' ') + '\\n');
+const status = JSON.parse(readFileSync(dir + '/status.json', 'utf8'));
+const config = existsSync(dir + '/serve.json') ? JSON.parse(readFileSync(dir + '/serve.json', 'utf8')) : {};
+if (args[0] === 'status') {
+  if (existsSync(dir + '/slow')) await Bun.sleep(5000);
+  console.log(JSON.stringify(status));
+}
+else if (args[0] === 'serve' && args[1] === 'status') console.log(JSON.stringify(config));
+else if (args[0] === 'serve') {
+  if (existsSync(dir + '/fail')) { console.error(readFileSync(dir + '/fail', 'utf8')); process.exit(1); }
+  const port = args.find((a) => a.startsWith('--https='))!.slice(8);
+  const name = status.Self.DNSName.replace(/\\.$/, '');
+  const target = args[args.length - 1];
+  config.TCP ??= {}; config.Web ??= {};
+  if (target === 'off') { delete config.TCP[port]; delete config.Web[name + ':' + port]; }
+  else { config.TCP[port] = { HTTPS: true }; config.Web[name + ':' + port] = { Handlers: { '/': { Proxy: target } } }; }
+  writeFileSync(dir + '/serve.json', JSON.stringify(config));
+}
+`,
+  );
+  writeFileSync(program, `#!/bin/sh\nexec ${JSON.stringify(process.execPath)} ${JSON.stringify(script)} "$@"\n`, { mode: 0o755 });
+  tailscaleStatus(dir, status);
+  return program;
+}
+
+/**
+ * What the fake `tailscale status --json` says: its backend's state, the machine's tailnet name,
+ * whether HTTPS is on, the account it runs as and how many other devices the tailnet has (one).
+ */
+export interface TailscaleStatus {
+  state: 'Running' | 'NeedsLogin' | 'Stopped';
+  name: string;
+  https: boolean;
+  account?: string;
+  others?: number;
+}
+
+export function tailscaleStatus(dir: string, s: TailscaleStatus) {
+  const peers = Object.fromEntries(Array.from({ length: s.others ?? 1 }, (_, i) => [`nodekey:${i}`, { HostName: `phone-${i}` }]));
+  writeFileSync(
+    join(dir, 'status.json'),
+    JSON.stringify({
+      BackendState: s.state,
+      Self: { DNSName: `${s.name}.`, UserID: 1 },
+      CertDomains: s.https ? [s.name] : null,
+      Peer: peers,
+      User: { 1: { LoginName: s.account ?? 'owner@example.com' } },
+    }),
+  );
+}
+
+/**
+ * The part of a board that the sessions proposing rules use (the learner, the retrospective), kept in
+ * memory: the project's repositories `home` and `api`, the recorded rules, and what they proposed and logged.
+ */
+export class FakeRuleBoard {
+  readonly proposals: { text: string; source: Record<string, unknown>; replaces?: string; target?: string }[] = [];
+  readonly logs: string[] = [];
+  private readonly active: { id: string; text: string }[];
+
+  constructor(private o: { active?: string[]; preferences?: string } = {}) {
+    this.active = (o.active ?? []).map((text, n) => ({ id: `r${n + 1}`, text }));
+  }
+
+  /** As the jobs take it: only what they call exists. */
+  get board(): Board {
+    return {
+      home: 'home',
+      project: { repos: [{ id: 'home', name: 'App', path: '/app' }, { id: 'api', name: 'Api', path: '/api' }] },
+      preferences: (...states: string[]) => (states.includes('active') ? this.active : states.includes('proposed') ? this.proposals.map((p) => ({ text: p.text, target: p.target })) : []),
+      preferencesText: () => this.o.preferences ?? '',
+      proposePreference: (text: string, source: Record<string, unknown>, replaces?: string, target?: string) => this.proposals.push({ text, source, replaces, target }),
+      log: (_id: string, _kind: string, _by: string, text: string) => this.logs.push(text),
+      t: { koordinator: { proposes: (r: string) => `proposes: ${r}` } },
+    } as unknown as Board;
+  }
+}
+
+/** A card with only what the sessions that read one use. */
+export const fakeCard = (id: string, title: string): Item => ({ id, title, kind: 'task' }) as unknown as Item;

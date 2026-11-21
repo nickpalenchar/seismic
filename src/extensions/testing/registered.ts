@@ -54,7 +54,7 @@ try {
   assert.equal(readConfigFile(file)[0]!.repos[0]!.settings, undefined);
 } finally { rmSync(configDir, { recursive: true, force: true }); }
 const { serve } = await import('../../server/server');
-const { asOwner, artifact } = await import('../../server/testing');
+const { asOwner, artifact } = await import('../../server/test/helpers/testing');
 let showRepo = false;
 const served = { all: () => showRepo ? [{ id: 'project', repos: [{ ref: { id: 'repo' }, adapter: { example: 'route value' } }] }] : [] };
 const server = serve(served as never, { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0);
@@ -64,7 +64,7 @@ try {
   showRepo = true;
   assert.deepEqual(await (await asOwner(() => server).fetch(url)).json(), { settings: { example: 'route value' } });
 } finally { server.stop(true); }
-const fixture = await import('../../server/workerSupervisor/fixture');
+const fixture = await import('../../server/test/helpers/workerSupervisor');
 const { git } = await import('../../server/workstations');
 fixture.setup({ ...generic, land: 'main', workstations: 'clones', ...{ example: 'worker value' } });
 try {

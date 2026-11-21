@@ -24,7 +24,10 @@ its lasting decisions and constraints move into the design doc and the plan doc 
   to avoid shell escaping problems.
 - `src/core/` is shared by server and UI (types, plan-doc parser, layout); `src/server/` is the
   Bun server with SQLite; `src/ui/` the React canvas, with `src/ui/components/` for UI pieces shared across views (starting with toasts: one store, one component, every toast goes through it); `src/adapters/` what Seismic knows of a repository (its defaults, its settings).
-- Code that drives agents is tested against the fake runtime in `src/server/testing.ts` and real
+- The server's tests live in `src/server/test/`, mirroring the paths of the code they test
+  (`src/server/llms/harnesses/agy.ts` → `src/server/test/llms/harnesses/agy.test.ts`); what they share
+  is in `test/helpers/`, their data in `test/fixtures/`.
+- Code that drives agents is tested against the fake runtime in `src/server/test/helpers/testing.ts` and real
   git repositories in a temp directory (`gitRepo` there; git calls are what makes tests slow).
   Live runs go against a scratch git repository with a plan doc and a scratch `SEISMIC_HOME` (never
   `~/.seismic` of a running Seismic): `bun scripts/scratch-seismic.ts <stage.json>` stages one with its

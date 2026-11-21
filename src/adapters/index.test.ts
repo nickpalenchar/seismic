@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { repoInfo } from '../server/repo';
-import { gitRepo } from '../server/testing';
+import { gitRepo } from '../server/test/helpers/testing';
 import { git } from '../server/workstations';
 import { layerSettings, type RepoSettings } from '../core/types';
 import { defaultsFor, hasAdapterModule, parseShared, readShared, readSharedFiles, REPO_SETTINGS_FILES, repoValues, withSettings } from '.';

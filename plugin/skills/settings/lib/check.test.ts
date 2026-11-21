@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { gitRepo } from '../../../../src/server/testing';
+import { gitRepo } from '../../../../src/server/test/helpers/testing';
 
 let dir: string;
 beforeEach(() => {

@@ -64,8 +64,13 @@ Not necesarilly "layers", but important to keep organized nonetheless
 - `src/server/lib/` various helper funcitons
 - `src/server/llms/` what Seismic asks of an LLM: agents, skills, prompts, harnesses (see below)
 - `src/server/workerSupervisor/` the `WorkerSupervisor`: runs every card's worker session (leasing workstations,
-  landing approved work, restarts, the owner's questions) with the tests that go with it. The worker agent itself
+  landing approved work, restarts, the owner's questions). The worker agent itself
   (prompt, tools, briefing) is `llms/agents/worker/`; the supervisor is not an agent.
+- `src/server/test/` every test of the server, at the path of the code it tests (`test/workerSupervisor/landing.test.ts`
+  tests `workerSupervisor/`), so that same-named tests of two folders don't collide. `test/helpers/` holds what
+  tests share (the fake runtime and `gitRepo` in `testing.ts`, the worker supervisor's fixture, the preload
+  `setup.ts`, `paths.ts` for reaching the sources and fixtures); `test/fixtures/` the captured data they read.
+  Decided 2026-11-21: tests apart from the code, over the earlier colocation.
 
 ### LLMs
 

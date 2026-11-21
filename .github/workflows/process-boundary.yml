@@ -36,7 +36,7 @@ jobs:
         run: bun test scripts/windows-job-prototype.test.ts
       - name: Today's tracker on Windows
         continue-on-error: true
-        run: bun test src/server/agent-processes.test.ts
+        run: bun test src/server/test/llms/harnesses/processes.test.ts
       - name: Probe
         run: bun scripts/windows-job-probe.ts
 
