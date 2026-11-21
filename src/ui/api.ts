@@ -13,6 +13,7 @@ import type { ProjectReposView, RepoConfig, AccessView, ActivityPage, Pairing, R
   ProjectDefaultsView,
   ProjectSettings, ProjectSettingsView, DeveloperView, NotificationsView, Canvas } from '../core/types';
 import type { Wish } from '../core/wish';
+import { sameJson } from './sameJson';
 import { noteMessage, watchPageStalls } from './stalls';
 
 const agentSettingsEvents = new EventTarget();
@@ -675,10 +676,36 @@ export function cardSaved(project: string, card: Item, seen: number) {
   for (const fn of savedListeners) fn(project, card, seen);
 }
 
-/** The snapshot with `card` in place of the card it was; one it does not show stays as it is. */
+/** For a state setter: `next`, unless it has the same content as what the state holds, which then stays the object it was. */
+const unlessSame = <T,>(next: T) => (previous: T) => (sameJson(previous, next) ? previous : next);
+
+/** The snapshot with `card` in place of the card it was; one it does not show, or shows as it is, leaves it as it is. */
 export function withCard(snapshot: ProjectSnapshot, card: Item): ProjectSnapshot {
-  if (!snapshot.items.some((i) => i.id === card.id)) return snapshot;
+  const before = snapshot.items.find((i) => i.id === card.id);
+  if (!before || sameJson(before, card)) return snapshot;
   return { ...snapshot, items: snapshot.items.map((i) => (i.id === card.id ? card : i)) };
+}
+
+/**
+ * `next`, keeping what it has the same as `previous` as `previous`'s own objects: each card, and
+ * each other part of the snapshot. A card that did not change stays the object it was, so the
+ * canvas does not draw it again; a snapshot that changed nothing is `previous` itself, which
+ * React does not render again at all.
+ */
+export function withUnchanged(previous: ProjectSnapshot | null, next: ProjectSnapshot): ProjectSnapshot {
+  if (!previous) return next;
+  const before = new Map(previous.items.map((i) => [i.id, i]));
+  const items = next.items.map((item) => {
+    const old = before.get(item.id);
+    return old && sameJson(old, item) ? old : item;
+  });
+  const sameItems = items.length === previous.items.length && items.every((item, index) => item === previous.items[index]);
+  const merged = { ...next, items: sameItems ? previous.items : items } as Record<string, unknown>;
+  const old = previous as unknown as Record<string, unknown>;
+  for (const key of Object.keys(merged)) if (key !== 'items' && key in old && sameJson(old[key], merged[key])) merged[key] = old[key];
+  const keys = Object.keys(merged);
+  const unchanged = keys.length === Object.keys(old).length && keys.every((key) => merged[key] === old[key]);
+  return unchanged ? previous : (merged as unknown as ProjectSnapshot);
 }
 
 /**
@@ -749,7 +776,7 @@ export function useProject(id = projectId): {
       // A newer read or push takes precedence over a response that was still in flight.
       if (!closed && version === snapshotVersion) {
         tookSnapshot(id);
-        setSnapshot(fresh);
+        setSnapshot((previous) => withUnchanged(previous, fresh));
       }
     });
     // a card a write answered with shows at once, unless a snapshot came in after the write went out
@@ -802,13 +829,14 @@ export function useProject(id = projectId): {
         } else if (msg.type === 'snapshot') {
           snapshotVersion++;
           tookSnapshot(id);
-          setSnapshot(msg.snapshot);
+          setSnapshot((previous) => withUnchanged(previous, msg.snapshot));
         } else if (msg.type === 'restart') setRestart(msg.restart);
         else if (msg.type === 'update') setUpdate(msg.update);
         else if (msg.type === 'source') setSource(msg.source);
-        else if (msg.type === 'usage') setUsage(msg.usage);
-        else if (msg.type === 'waiting') setWaiting(msg.waiting);
-        else if (msg.type === 'projects') setProjects(msg.projects);
+        // these come with every change on any project: one that brings nothing new leaves the page as it is
+        else if (msg.type === 'usage') setUsage(unlessSame(msg.usage));
+        else if (msg.type === 'waiting') setWaiting(unlessSame(msg.waiting));
+        else if (msg.type === 'projects') setProjects(unlessSame<ProjectInfo[] | null>(msg.projects));
         else if (msg.type === 'event') for (const fn of eventListeners) fn(msg.event);
         else if (msg.type === 'eventGone') for (const fn of goneListeners) fn(msg.cardId, msg.id);
         else if (msg.type === 'notice') notice(msg);

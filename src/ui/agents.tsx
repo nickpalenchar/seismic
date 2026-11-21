@@ -6,7 +6,7 @@
 // the Parked view (src/ui/views.tsx). "Activity" is the log of what happened on the cards (src/ui/activity.tsx).
 
 import { cn } from 'cn';
-import { useEffect, useRef } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { agentStage, agentWork } from '../core/agents';
 import { waitsFor } from '../core/inbox';
 import type { Item } from '../core/types';
@@ -92,8 +92,11 @@ export function AgentsSheet({ on, items, open, underway, onOpen, project, change
   );
 }
 
-/** A card, as the inbox shows an entry: its face at size S, with what it waits for where it needs the owner, and "Go to card". With `els`, a card opened from it unfolds from it. */
-export function AgentEntry({ item: i, els, here, underway, onOpen }: { item: Item; els?: Map<string, HTMLElement>; here: boolean; underway: boolean; onOpen: (i: Item) => void }) {
+/**
+ * A card, as the inbox shows an entry: its face at size S, with what it waits for where it needs the owner, and "Go to card". With `els`, a card opened from it unfolds from it.
+ * Drawn again only when its props change: the Agent work sheet stays mounted while closed, with an entry per planned card.
+ */
+export const AgentEntry = memo(function AgentEntry({ item: i, els, here, underway, onOpen }: { item: Item; els?: Map<string, HTMLElement>; here: boolean; underway: boolean; onOpen: (i: Item) => void }) {
   const stage = agentStage(i, underway);
   // what it waits for where it needs the owner, as its inbox entry says; else the line its card shows under its title
   const waits = stage === 'needsYou' ? waitsFor(i) : undefined;
@@ -117,4 +120,4 @@ export function AgentEntry({ item: i, els, here, underway, onOpen }: { item: Ite
       </CardFace>
     </li>
   );
-}
+});

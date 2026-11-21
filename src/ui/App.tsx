@@ -13,7 +13,7 @@ import { type RightClick, type Canvas, canvasNamedBy, MAIN_CANVAS, type ProjectI
 import { NotifyAsk, useDesktopNotifications } from './desktopNotify';
 import { api, ApiError, beforeReload, cardsOn, onNotice, quietAtStart, reportFocus, setProject, useProject } from './api';
 import { groupAt, GroupNames, growFrom, hintBubbleClass, inside, Lasso, MarkHint, Marked, Ring, TerritoryLayer, useTerritories } from './groups';
-import { connectionDotClass, depLayerClass, dotSide, handleColour, manualRemoveClass } from './depsClasses';
+import { depLayerClass, handleColour, manualRemoveClass } from './depsClasses';
 import { buzz, pinchCam, TOUCH_HOLD_KNOWN, Touches } from './touch';
 import { besideSheet, BOTTOM, type Cam, camFor, camKey, centreOn, chase, dragLimit, edgeScroll, FAR, flying, flyTo, keepInView, MAX_ZOOM, midX, MIN_ZOOM, NO_SIDES, overviewCam, placeIn, shows, type Sides, stopFlight, TOP, toWorld } from './camera';
 import { plain } from './markdown';
@@ -46,7 +46,7 @@ import { queueOrder } from '../core/queue';
 import { AgentsSheet } from './agents';
 import { TableView } from './table/view';
 import { ParkedView, QueueView, type SwitchedView, ViewSwitcher } from './views';
-import { depsOf, handleAt, manualPrerequisites, nearestHandle, settledAmong, type Side, SIDES, waitsAmong, withoutImplied } from './deps';
+import { depsOf, handleAt, manualPrerequisites, nearestHandle, settledAmong, type Side, waitsAmong, withoutImplied } from './deps';
 import { anchoredPath, nearestEdge } from './manualLinks';
 import type { ManualAnchor } from '../core/types';
 import { collect, inboxKept, keep, keepInbox, type Kept, leaveSheet, restore, type SideSheet, takeKept, takeSheetLeft } from './keep';
@@ -64,7 +64,7 @@ import { acksClass, Toasts, useToasts } from './components/toast';
 import { layerOpen } from './components/ui';
 import { videoOf } from './spot';
 import { cardHooks, shownState, stateVars } from './card';
-import { CardView, DepLinks, depHead, depWidth, linkPath, linkSpot, Edges, Links, Minimap, minimapArea, OldBunPill, PlanView, RestartPill, Sheet, SourcePill, TalkIcon, UpdatePill, WorkstationsPill } from './parts';
+import { CardHandles, CardView, DepLinks, depHead, depWidth, linkPath, linkSpot, Edges, Links, Minimap, minimapArea, OldBunPill, PlanView, RestartPill, Sheet, SourcePill, TalkIcon, UpdatePill, WorkstationsPill } from './parts';
 import { clock, failText, t } from './strings';
 import { loadNavHidden, loadNavWidth, loadPinned, MenuButton, NAV_PROJECT_MIN, NavPill, NavSheet, saveNavHidden, saveNavWidth, savePinned } from './nav';
 import { projectPath, cardPath, feedbackLogPath, followedPath, goTo, named, knowProjects, projectNamed, queryWithout, readAddress, readView, withView, followedView } from './address';
@@ -362,7 +362,7 @@ function Project({
       if (c === undefined) return at;
       return withPart(at, 'plan', { collapsed: c || undefined });
     });
-  }, [snapshot, pending, moved, folded]);
+  }, [snapshot.items, pending, moved, folded]);
   const itemsRef = useRef(items);
   itemsRef.current = items;
   // ---------------------------------------------------------------- canvases
@@ -1281,14 +1281,15 @@ function Project({
       fail(e);
     }
   }, []);
+  // reads the cards as they are when clicked, so that it stays the same function and the cards' memo holds
   const startCard = useCallback((i: Item) => {
-    const waiting = i.queue ? manualPrerequisites(i, items) : [];
+    const waiting = i.queue ? manualPrerequisites(i, itemsRef.current) : [];
     if (waiting.length) {
       setManualStart({ item: i, names: waiting.map((card) => plain(card.title)).join(', ') });
       return;
     }
     void startCardNow(i);
-  }, [items, startCardNow]);
+  }, [startCardNow]);
 
   /** The archive button on a finished card or a parked or dropped idea: takes it off the project, with a moment to undo. */
   const archiveCard = useCallback(async (i: Item) => {
@@ -1382,6 +1383,14 @@ function Project({
   const openRef = useRef(open);
   openRef.current = open;
   const openCard = useCallback((i: Item) => void openRef.current(i).catch(console.error), []);
+  const openFreshRef = useRef(openFresh);
+  openFreshRef.current = openFresh;
+  // the same function from render to render, so that the lists' entries (AgentEntry) keep their memo
+  const openFreshCard = useCallback((i: Item) => void openFreshRef.current(i), []);
+  // also read by the keys, which treat an approved card as not needing the owner before the snapshot says it lands
+  const underwayRef = useRef(underway);
+  underwayRef.current = underway;
+  const isUnderway = useCallback((id: string) => !!underwayRef.current[id], []);
   const notifyAsk = useDesktopNotifications(snapshot, openCard);
 
   /** "Als Plan aufbereiten" on the note on a plan directory: a card whose agent prepares the doc, started at once. */
@@ -1622,6 +1631,11 @@ function Project({
   };
   // on touch the dots show on the card picked up and let go, and on the marked ones
   const touchDots = (id: string) => touchy && !dragId && (touchFocus === id || selection.includes(id));
+  // a dot of a card's handles pressed: an arrow starts from that side to where the pointer goes
+  const connectFrom = useCallback((id: string, side: Side, clientX: number, clientY: number) => {
+    const p = toWorld(camRef.current, clientX, clientY);
+    setConnection({ from: id, side, ...p });
+  }, []);
   const cardBoxes = useMemo(() => placed.flatMap(({ item, b }) => (item.kind === 'plan' ? [] : [b])), [placed]);
   const titleOf = (id: string) => {
     const i = byId(id);
@@ -2201,8 +2215,6 @@ function Project({
 
   // ---------------------------------------------------------------- keys
   // an approved card stops needing the owner with the click, before the snapshot says it lands
-  const underwayRef = useRef(underway);
-  underwayRef.current = underway;
   const yours = (i: Item) => needsYou(i) && !underwayRef.current[i.id];
   // the inbox, what waits on every project: this one's as this page sees it, without what the owner just
   // acted on (on any project: its reply is under way) and without answers in Seismic's sheet while it is open
@@ -2561,7 +2573,7 @@ function Project({
   const openCardId = (focus?.type === 'card' ? focus.id : openId) ?? undefined;
   const dockViews: DockView[] = [
     { id: 'needs-you', besideCard: true, title: t.needsYou.title, icon: ConciergeBell, component: () => (<NeedsYouSheet on={nyOn} entries={entries} current={snapshot.project.id} open={openCardId} onGo={goToEntry} onReply={replyTo} isRead={inboxRead.isRead} onRead={inboxRead.markRead} />) },
-    { id: 'agents', besideCard: true, title: t.agents.title, icon: Bot, component: () => (<AgentsSheet on={agentsOn} items={items} open={openId ?? undefined} underway={(id) => !!underway[id]} onOpen={(i) => void openFresh(i)} project={snapshot.project.id} changed={snapshot} onGo={(project, card) => goToEntry({ project, card })} />) },
+    { id: 'agents', besideCard: true, title: t.agents.title, icon: Bot, component: () => (<AgentsSheet on={agentsOn} items={items} open={openId ?? undefined} underway={isUnderway} onOpen={openFreshCard} project={snapshot.project.id} changed={snapshot} onGo={(project, card) => goToEntry({ project, card })} />) },
     { id: 'settings', besideCard: true, title: t.projectSettings.title, icon: SlidersHorizontal, component: () => (<ProjectSettingsSheet project={snapshot.project.id} name={snapshot.project.name} homePath={snapshot.project.repos[0]?.path} onAddSite={() => (showAddSite(), setPrefsOn(false), setCOn(true))} on={csOn} covered={cOn} />) },
     { id: 'seismic', besideCard: true, title: t.koordinator.title, icon: MessageSquare, buttonCloses: true, component: () => (<KoordinatorSheet on={kOn} onClose={() => toggleKoordinator()} entry={chatEntry.current} project={snapshot.project.id} projectName={snapshot.project.name} items={items} preferences={snapshot.preferences} settings={snapshot.settingProposals ?? []} repos={snapshot.project.repos} talk={snapshot.talk} chat={snapshot.chat} chatModel={snapshot.chatModel} chats={snapshot.chats} reshare={snapshot.reshare} onOpen={(i) => void openFresh(i)} onTell={tellChat} onProject={(c) => goTo(`${projectPath(c)}?talk`)} onConfig={(repo, setting) => {
             showRepoClones({ project: snapshot.project.id, repo, field: 'settings', setting });
@@ -2665,12 +2677,9 @@ function Project({
             )}
             {placed.filter(({ item }) => connectable(item)).map(({ item, b }) => {
               const states = cardHooks(item, underway[item.id]).replace(/^card\s*/, '');
-              const target = connection?.target === item.id;
-              const colour = handleColour(states, !!depOf(item.id));
-              return <div key={`handles:${item.id}`} data-id={item.id} className={cn('connection-handles absolute z-4', states, target ? 'pointer-events-auto outline-3 outline-solid outline-waiting outline-offset-3 rounded-sm' : 'pointer-events-none')} style={{ left: b.x, top: b.y, width: b.w, height: b.h, ...(colour ? { '--c': colour } : {}) } as React.CSSProperties}>
-              {/* a dot draws its arrow to where the pointer goes: four per card would only lengthen the Tab path */}
-              {SIDES.map((side) => { const lit = !connection && (handle?.id === item.id && handle.side === side || touchDots(item.id)); return <Tooltip key={side} content={t.deps.connect}><button tabIndex={-1} className={cn(connectionDotClass, dotSide[side], lit ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none')} aria-label={t.deps.connect} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); const p = toWorld(camRef.current, e.clientX, e.clientY); setConnection({ from: item.id, side, ...p }); }} /></Tooltip>; })}
-            </div>; })}
+              const lit = connection ? null : touchDots(item.id) ? 'all' : handle?.id === item.id ? handle.side : null;
+              return <CardHandles key={`handles:${item.id}`} id={item.id} x={b.x} y={b.y} w={b.w} h={b.h} states={states} colour={handleColour(states, !!depOf(item.id))} target={connection?.target === item.id} lit={lit} onConnect={connectFrom} />;
+            })}
             {planDirs?.map((d, n) => (
               <PlanDirNote
                 key={d.repo}
@@ -2838,7 +2847,7 @@ function Project({
           onProposalCard={(project, card) => goToEntry({ project, card })}
           onProposalConfig={(project, repo, setting) => { showRepoClones({ project, repo, field: 'settings', setting }); setCOn(true); }} />
         <ArchiveView on={aOn} onClose={() => setAOn(false)} held={focus?.type === 'card'} archived={archived} done={doneCount} onOpen={open} onArchiveDone={() => archiveDone().catch(console.error)} els={archiveEls} />
-        <ParkedView on={fullPage.active === 'parked'} items={items} open={openCardId} underway={(id) => !!underway[id]} onOpen={(i) => void openFresh(i)} onClose={() => showPage(null)} els={parkedEls} />
+        <ParkedView on={fullPage.active === 'parked'} items={items} open={openCardId} underway={isUnderway} onOpen={openFreshCard} onClose={() => showPage(null)} els={parkedEls} />
         <TableView on={fullPage.active === 'table'} project={snapshot.project.id} items={items} canvases={canvases} groups={snapshot.groups} repos={snapshot.project.repos} open={openCardId ?? (focus?.type === 'plan' ? focus.id : undefined)} onOpen={(i) => void openFresh(i)} onClose={() => showPage(null)} els={tableEls} />
         <QueueView on={fullPage.active === 'queue'} items={items} onOpen={(i) => void openFresh(i)} onClose={() => showPage(null)} />
         {/* the status bar along the bottom: the connection (or the restart that waits), whom the microphone speaks to, the workstation pool and the usage limits */}

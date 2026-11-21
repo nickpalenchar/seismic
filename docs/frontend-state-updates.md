@@ -144,6 +144,43 @@ The server no longer holds the answer. The bottleneck is now on the page: smell 
 re-renders on every snapshot. It now costs about 200 ms for one changed card, and is paid twice:
 once for the returned card, once for the snapshot that follows.
 
+(The timings above are from the development build. Its React is several times slower than the
+production one, which the owner's Seismic runs: there the same toggle settled in ~93 ms, with long
+frames of ~80 and ~52 ms.)
+
+## Unchanged cards are no longer drawn again (2026-11-21)
+
+Counting the fibers React rendered per commit, on the same 600-card project, found what each
+update redrew:
+
+| What re-rendered | Why |
+|---|---|
+| Every `CardView` | each card was a new object after `JSON.parse`; `startCard` changed with `items` |
+| Every entry of Agent work (600 `AgentEntry`) | the docked sheet stays mounted while closed (`forceMount`), and its entries had no memo; `onOpen` and `underway` were new functions on every render |
+| The connection dots of every card (2,400 Tooltips) | inline JSX in `App.tsx`, outside any memo |
+| The whole page once more, right after a snapshot | the `waiting` and `projects` messages replace their state even when nothing in them changed |
+
+What changed:
+
+- `withUnchanged` (`src/ui/api.ts`) keeps a new snapshot's unchanged cards and parts as the objects
+  the page already holds. A snapshot that changes nothing is the previous object, which React does
+  not render at all.
+- `usage`, `waiting` and `projects` keep their state when the message brings the same content.
+- `AgentEntry` is memoized. App passes stable `openFreshCard` and `isUnderway` callbacks, and
+  `startCard` reads the cards through `itemsRef`.
+- The dots are `CardHandles` (`src/ui/parts.tsx`), memoized and given only values.
+
+Result (production build, five toggles):
+
+| | Before | After |
+|---|---|---|
+| Switch settled after the click | 87–105 ms | 42–57 ms |
+| Long frames (over 50 ms) per toggle | 2 (~78 ms, ~53 ms) | none |
+| Fibers rendered by the response's commit (dev build) | ~35,000 | ~1,400 |
+
+The snapshot after the response no longer renders anything: it brings the same card. The `waiting`
+message still renders the page once, because the card toggled here is in it (it needs the owner).
+
 ## Open questions
 
 - Which of smells 2–4 and 9–10 costs the most time in a slow interaction (a card patch or archive)?

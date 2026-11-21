@@ -102,6 +102,14 @@ cycling through terminals.
   and sent (about 1 ms ahead of the push on a 600-card project). The v1 routes answer with what they
   changed, which the page shows at once. Tests wait for the listeners with `heard()`
   (`src/server/test/helpers/testing.ts`), not a bare `Bun.sleep(0)`.
+- **The page keeps what a snapshot did not change as the objects it holds** (2026-11-21): the
+  whole project still comes with each change, but `withUnchanged` (`src/ui/api.ts`) gives each card
+  and part that is the same as before its previous object, so memoized components (`CardView`,
+  `AgentEntry`, `CardHandles`) are not drawn again; on 600 cards that drew some 35,000 components
+  per change. This holds only while the snapshot carries nothing that changes on its own (a "now"
+  or a counter on each card), and while what the canvas and the docked sheets pass a card is the
+  same values and functions from render to render (`useCallback` over a ref, as `openCard`).
+  Rejected for now: sending only the changed cards, which would change the server's push.
 - **Docs, comments, prompts and the UI are in English** (2026-11-05, 2026-11-07): agents drifted into
   German after reading German UI labels; language support may return later.
 - **Agents run through official harnesses on their own logins** (2026-10-30), Claude Code by

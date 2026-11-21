@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from 'bun:test';
-import { api, beforeReload, cardsOn, handOver, setProject, takeHandOver, withCard } from './api';
+import { api, beforeReload, cardsOn, handOver, setProject, takeHandOver, withCard, withUnchanged } from './api';
 import type { Item, ProjectSnapshot } from '../core/types';
 
 const fetched: string[] = [];
@@ -105,4 +105,32 @@ test('a saved card takes the place of the one the snapshot had; one it does not 
   expect(next.items).toEqual([a, saved]);
   expect(next.items[0]).toBe(a);
   expect(withCard(snapshot, { id: 'x' } as Item)).toBe(snapshot);
+});
+
+test('a snapshot keeps what did not change as the objects it was; one that changed nothing is the one before', () => {
+  const a = { id: 'a', title: 'A' } as Item;
+  const b = { id: 'b', title: 'B', demo: { share: { slug: 'b' } } } as unknown as Item;
+  const previous = { items: [a, b], groups: [{ id: 'g' }], talk: [] } as unknown as ProjectSnapshot;
+  // the same content, read anew from the server's JSON
+  const again = JSON.parse(JSON.stringify(previous)) as ProjectSnapshot;
+  expect(withUnchanged(previous, again)).toBe(previous);
+  // one card changed: the other stays the object it was, and so does what else did not change
+  const changed = JSON.parse(JSON.stringify({ ...previous, items: [a, { ...b, title: 'B2' }] })) as ProjectSnapshot;
+  const next = withUnchanged(previous, changed);
+  expect(next).not.toBe(previous);
+  expect(next.items[0]).toBe(a);
+  expect(next.items[1]!.title).toBe('B2');
+  expect(next.groups).toBe(previous.groups);
+  // a card gone or come: the list is new, the cards that stayed are the ones they were
+  const fewer = withUnchanged(previous, JSON.parse(JSON.stringify({ ...previous, items: [b] })) as ProjectSnapshot);
+  expect(fewer.items).toEqual([b]);
+  expect(fewer.items[0]).toBe(b);
+  // nothing before: the snapshot as it came
+  expect(withUnchanged(null, again)).toBe(again);
+});
+
+test('a saved card that is as the snapshot shows it leaves the snapshot as it is', () => {
+  const a = { id: 'a', title: 'A' } as Item;
+  const snapshot = { items: [a] } as ProjectSnapshot;
+  expect(withCard(snapshot, { ...a })).toBe(snapshot);
 });

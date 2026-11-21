@@ -1,7 +1,8 @@
 // Presentational pieces of the project. State and camera live in App.tsx.
 
 import { headClass } from './cardClasses';
-import { depHeadClass, depLayerClass, depLineClass, type DepKind } from './depsClasses';
+import { connectionDotClass, depHeadClass, depLayerClass, depLineClass, dotSide, type DepKind } from './depsClasses';
+import { type Side, SIDES } from './deps';
 import { Archive, ChevronDown, ChevronLeft, ChevronRight, Columns3, GitMerge, MessageSquare, Pause, Play, Square } from 'lucide-react';
 import { Docked, sheetTitleClass } from './docked';
 import { memo, type MouseEvent, type ReactNode, useEffect, useRef, useState } from 'react';
@@ -1128,6 +1129,33 @@ export const depHead = (s: number) => 6 * depWidth(s);
  * whose prerequisite is finished (`settled`) stays as a dim green line to the card it unlocked.
  * `children` go on top: what the pointer can reach on a line.
  */
+/**
+ * The four dots around a card that draw an arrow from it to the card it waits for. `lit`: the sides
+ * whose dot shows (the one under the pointer, or all on a card picked up on touch). Its props are
+ * values only, so it is drawn again only when one of them changes, not with every card on the canvas.
+ */
+export const CardHandles = memo(function CardHandles({ id, x, y, w, h, states, colour, target, lit, onConnect }: { id: string; x: number; y: number; w: number; h: number; states: string; colour: string | undefined; target: boolean; lit: Side | 'all' | null; onConnect: (id: string, side: Side, clientX: number, clientY: number) => void }) {
+  return (
+    <div data-id={id} className={cn('connection-handles absolute z-4', states, target ? 'pointer-events-auto outline-3 outline-solid outline-waiting outline-offset-3 rounded-sm' : 'pointer-events-none')} style={{ left: x, top: y, width: w, height: h, ...(colour ? { '--c': colour } : {}) } as React.CSSProperties}>
+      {/* a dot draws its arrow to where the pointer goes: four per card would only lengthen the Tab path */}
+      {SIDES.map((side) => (
+        <Tooltip key={side} content={t.deps.connect}>
+          <button
+            tabIndex={-1}
+            className={cn(connectionDotClass, dotSide[side], lit === 'all' || lit === side ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none')}
+            aria-label={t.deps.connect}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onConnect(id, side, e.clientX, e.clientY);
+            }}
+          />
+        </Tooltip>
+      ))}
+    </div>
+  );
+});
+
 export function DepLinks({
   placed,
   waits,
