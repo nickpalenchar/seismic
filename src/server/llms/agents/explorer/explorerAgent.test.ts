@@ -27,3 +27,14 @@ test('its preferences are added to the instructions, and its first message is th
   explorerAgent.start(runtime, context({ host, live: {} as never, cardId: 'c1' }), { cwd: '/w', onEvent: () => {} });
   expect(runtime.last.inbox).toEqual(['Hello.']);
 });
+
+test('a session from scratch is briefed with the card before what the owner said; a resumed one hears only the words', () => {
+  const board = { ...(host as { o: { board: object } }).o.board, decisions: () => [], idea: () => ({ brief: '', mocks: [], variants: [] }), talkOf: () => [] };
+  const briefed = { ...(host as object), o: { board } } as never;
+  const card = { id: 'c1', title: 'Export readings', body: 'As a tenant I want a CSV.', idea: undefined, images: [] } as never;
+  const fresh = explorerAgent.getBriefing(context({ host: briefed, start: { card, shots: [], said: [] } }));
+  expect(fresh).toContain('The idea: “Export readings”.');
+  expect(fresh).toContain('As a tenant I want a CSV.');
+  expect(fresh.endsWith('\n\nHello.')).toBe(true);
+  expect(explorerAgent.getBriefing(context())).toBe('Hello.');
+});

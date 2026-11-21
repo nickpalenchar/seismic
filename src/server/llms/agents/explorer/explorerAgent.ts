@@ -4,11 +4,13 @@
  * hands in the idea's state as the context. It has no permission of its own: the harness follows the
  * owner's mode, as for the workers.
  */
-import type { AgentSetting } from '../../../../core/types';
+import type { AgentSetting, Item } from '../../../../core/types';
 import type { Language } from '../../../../core/locale';
 import { SeismicAgent } from '../seismicAgent';
 import type { AgentPermission, SessionOptions } from '../types';
 import type { Live } from '../../../explorers';
+import { explorerBriefing } from './briefing';
+import { explorerContextUpdate } from './contextUpdate';
 import { explorerSystemPrompt } from './systemPrompt';
 import { type ExplorerHost, explorerTools } from './tools';
 
@@ -25,9 +27,11 @@ export interface ExplorerContext {
   toSeismic: boolean;
   /** The owner's standing preferences, added to the instructions. */
   preferences: string;
-  /** The first message: the briefing and what the owner has said. */
+  /** What the owner has said; a session from scratch is briefed first (`start`). */
   message: string;
-  /** Where it shows, what it hears with its tool steps, how it waits for a usage limit. */
+  /** A session that starts from scratch: the card, the screenshots of its task, the messages this turn answers. */
+  start?: { card: Item; shots: string[]; said: number[] };
+  /** Where it shows and how it waits for a usage limit. */
   options: SessionOptions;
   setting?: AgentSetting;
 }
@@ -50,7 +54,7 @@ export class ExplorerAgent extends SeismicAgent<ExplorerContext> {
   }
 
   override getBriefing(ctx: ExplorerContext) {
-    return ctx.message;
+    return ctx.start ? `${explorerBriefing(ctx.host, ctx.start.card, ctx.start.shots, ctx.start.said)}\n\n${ctx.message}` : ctx.message;
   }
 
   override getTools(ctx: ExplorerContext) {
@@ -58,7 +62,7 @@ export class ExplorerAgent extends SeismicAgent<ExplorerContext> {
   }
 
   override getSessionOptions(ctx: ExplorerContext) {
-    return ctx.options;
+    return { ...ctx.options, contextUpdate: () => explorerContextUpdate(ctx.host, ctx.cardId, ctx.live) };
   }
 }
 

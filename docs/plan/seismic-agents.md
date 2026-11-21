@@ -75,12 +75,14 @@ and permission; `launch()` in `workerSupervisor/workerSupervisor.ts` starts it w
   card-state helpers they reach move into their own classes.
 - [ ] The trust flags `claudeHeld` and `codexConfig`, `onLimit` and `permissionMode`-like extras of the other
   agents go through `getSessionOptions()` as each agent moves.
-- [x] The exploration agent is `ExplorerAgent` (`llms/agents/explorer/`: `systemPrompt.ts`, `tools.ts`, the agent
-  class); `Explorers` hands in the idea's state and reaches it through `ExplorerHost`. It has no permission of its
+- [x] The exploration agent is `ExplorerAgent` (`llms/agents/explorer/`: `systemPrompt.ts`, `tools.ts`, `briefing.ts`
+  for a session from scratch, `contextUpdate.ts` for what it hears mid-session, the agent class); `Explorers` hands in
+  the idea's state and reaches it through `ExplorerHost`. The messages `Explorers` itself sends (`OPENING*`, `RESUMED`,
+  `UNREAD_NOTE`) stay in `explorers.ts` for now; they are prompts and could go to `llms/prompts/`. It has no permission of its
   own (`getPermissionMode()` may return none: the harness follows the owner's mode as before, which for Codex is
   "ask", not its automatic review).
 - [ ] The same for the other agents (`koordinator`, `chores`); the Koordinator's briefing and `contextUpdate`
-  parts move out of `explorers.ts`-style hosts the same way.
+  parts move out the way the explorer's did.
 
 ## Permission mode
 

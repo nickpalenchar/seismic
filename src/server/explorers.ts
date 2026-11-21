@@ -5,12 +5,11 @@
 // the agent got to a reply (what it read and thought) folds away under that reply.
 
 import { type Language } from '../core/locale';
-import { type CardEvent, formatQuestion, type Item, type Mock, type NextStep, type Question, isPaused, isPausing } from '../core/types';
-import { decisionLog } from './advisor';
+import { formatQuestion, type Item, type Mock, type NextStep, type Question, isPaused, isPausing } from '../core/types';
 import { BadRequest, type Board, holdNow, type Message, replyNote, type Unread } from './board';
 import { type AgentEvent, type AgentRuntime, type AgentSession } from './runtime';
 import { explorerAgent } from './llms/agents/explorer/explorerAgent';
-import { MAX_VARIANTS } from './llms/agents/explorer/tools';
+import { buildNote } from './llms/agents/explorer/contextUpdate';
 import { BackgroundWait } from './llms/harnesses/claude';
 import { imageNote } from './images';
 import { describeTool, SPOKEN } from './workerSupervisor/workerSupervisor';
@@ -265,10 +264,10 @@ export class Explorers {
     if (row.session_id) return this.launch(card, current, text, row.session_id, all, quiet);
     // a planned card that became an idea brings the screenshots of its task
     const shots = this.o.imageFiles?.(card.images) ?? [];
-    this.launch(card, current, `${this.briefing(card, shots, current.flatMap((m) => m.said))}\n\n${text}`, undefined, [...shots, ...all], quiet);
+    this.launch(card, current, text, undefined, [...shots, ...all], quiet, { shots, said: current.flatMap((m) => m.said) });
   }
 
-  private launch(card: Item, current: Message[], message: string, resume: string | undefined, images: string[], quiet = false) {
+  private launch(card: Item, current: Message[], message: string, resume: string | undefined, images: string[], quiet = false, start?: { shots: string[]; said: number[] }) {
     // where it reads, first: without its repository on the project, nothing starts
     const cwd = this.o.pathFor(card);
     const preferences = this.o.preferences?.() ?? '';
@@ -293,10 +292,10 @@ export class Explorers {
         toSeismic: !!this.o.toSeismic,
         preferences,
         message,
+        ...(start ? { start: { card, ...start } } : {}),
         setting: resume ? this.o.board.sessionSetting(card.id) : undefined,
         options: {
           at: { card: card.id },
-          contextUpdate: () => [this.buildNote(card.id, live), this.preferencesUpdate(live)].filter(Boolean).join('\n\n') || undefined,
           // the idea's agent waits for the usage limit, on the card, and the owner's words wait with it
           onLimit: (until, retry) => this.o.board.waitsForLimit({ card: card.id }, until, retry),
         },
@@ -305,20 +304,7 @@ export class Explorers {
     );
   }
 
-  /** The owner clicked "Build it like this" while the agent works: it hears so once, as the brief it leaves becomes the task. */
-  private buildNote(cardId: string, live: Live): string | undefined {
-    if (live.toldBuild || !this.o.board.item(cardId)?.idea?.discussion?.buildAfterReply) return;
-    live.toldBuild = true;
-    return BUILD_AFTER_REPLY;
-  }
 
-  /** A preference learned or changed during the session reaches the agent once, with its next tool call. */
-  private preferencesUpdate(live: Live): string | undefined {
-    const now = this.o.preferences?.() ?? '';
-    if (now === live.preferences) return;
-    live.preferences = now;
-    return now ? `The owner's preferences changed during this conversation; they now read:\n\n${now}` : 'The owner withdrew their standing preferences; none apply any more.';
-  }
 
   private onEvent(cardId: string, live: Live, e: AgentEvent) {
     if (this.live.get(cardId) !== live) return;
@@ -394,7 +380,7 @@ export class Explorers {
     live.current = [...unanswered, ...queued];
     this.o.board.readNow(cardId, queued.flatMap((m) => m.said));
     live.session.send(
-      [...queued.map((m) => m.text), this.buildNote(cardId, live)].filter(Boolean).join('\n\n'),
+      [...queued.map((m) => m.text), buildNote(this, cardId, live)].filter(Boolean).join('\n\n'),
       queued.flatMap((m) => m.images),
     );
   }
@@ -413,58 +399,7 @@ export class Explorers {
   }
 
 
-  /**
-   * The first message of a session from scratch: the card and the decisions, and for an idea discussed
-   * before (its session gone, pruned after weeks, say) where it stands: the brief, its mocks, the
-   * prototypes planned and built, and the conversation so far up to the messages this turn answers (`said`).
-   */
-  private briefing(card: Item, shots: string[], said: number[] = []): string {
-    return [
-      `The idea: “${card.title}”.`,
-      card.body.trim(),
-      shots.length ? `The owner attached ${shots.length === 1 ? 'a screenshot' : `${shots.length} screenshots`} to the card (shown with this message; files: ${shots.join(', ')}).` : '',
-      `Decisions on cards without a plan so far:\n${decisionLog(this.o.board.decisions(null))}`,
-      this.standing(card, said),
-    ]
-      .filter(Boolean)
-      .join('\n\n');
-  }
 
-  /**
-   * Where an idea discussed before stands, for a session that starts without its earlier ones; empty
-   * for an idea its agent has not taken up yet (new, or a Question card just turned into one).
-   */
-  private standing(card: Item, said: number[]): string {
-    const { brief, mocks = [], variants = [], split } = this.o.board.idea(card.id);
-    const repo = card.idea?.newRepo;
-    // in the order the agent read them: words it read later stand after the reply it read them at
-    const place = (e: CardEvent) => (e.readAfter ? e.readAfter + 0.5 : e.id);
-    const talk = this.o.board
-      .talkOf(card.id, EARLIER_MESSAGES + said.length)
-      .filter((e) => !said.includes(e.id))
-      .slice(-EARLIER_MESSAGES)
-      .sort((a, b) => place(a) - place(b) || a.id - b.id);
-    const prototypes = card.idea?.prototypes ?? [];
-    const shown = prototypes.slice(-MAX_VARIANTS);
-    if (!brief.trim() && !mocks.length && !variants.length && !split && !repo && !prototypes.length && !talk.some((e) => e.author === 'explorer')) return '';
-    const who = (e: CardEvent) => (e.author === 'owner' ? 'Owner' : e.author === 'explorer' ? 'You' : 'Seismic');
-    return [
-      'This idea was discussed before, in a session of yours that is gone. Where it stands, as Seismic keeps it; go on from there, and keep in the brief what still holds:',
-      brief.trim() ? `The brief as you left it:\n\n${brief.trim()}` : '',
-      mocks.length ? `The brief's mocks, shown under it (update_brief without mocks keeps them): ${mocks.map((m) => `“${m.title}”`).join(', ')}.` : '',
-      variants.length ? `The prototypes you planned (plan_prototypes):\n${variants.map((v) => `- ${v.approach}: ${v.show}`).join('\n')}` : '',
-      split ? `The part you marked to split off (plan_split): “${split.title}”.\n\n${split.brief}` : '',
-      repo ? `It is to be built in a new repository at ${repo.path || '(no folder named yet)'}${repo.project ? ', with a project of its own' : ' on this project'}, as ${repo.by === 'owner' ? 'the owner picked on the card' : 'you marked with plan_repo'}.` : '',
-      shown.length
-        ? `The idea's prototypes${prototypes.length > shown.length ? ` (the latest ${shown.length} of ${prototypes.length})` : ''}:\n${shown.map((p) => `- “${p.title}”, ${prototypeState(p)}${p.review?.summary ? `. Its summary: ${clip(p.review.summary, 2000)}` : ''}`).join('\n')}`
-        : '',
-      talk.length
-        ? `The conversation so far${talk.length === EARLIER_MESSAGES ? ' (its latest messages)' : ''}:\n\n${talk.map((e) => `${who(e)}${e.kind === 'question' ? ' (question)' : ''}: ${clip(e.text, 2000)}`).join('\n\n')}`
-        : '',
-    ]
-      .filter(Boolean)
-      .join('\n\n');
-  }
 
   private idea(id: string): Item {
     const i = this.o.board.item(id);
@@ -480,17 +415,7 @@ const OWN_TOOLS = ['reply', 'update_brief', 'plan_prototypes', 'plan_split', 'pl
 
 
 
-/** How many messages of the conversation so far a session from scratch reads. */
-const EARLIER_MESSAGES = 20;
 
-/** A prototype's state, as a session from scratch hears it. */
-function prototypeState(p: Item): string {
-  if (p.idea?.prototypeEnd === 'discarded') return 'discarded';
-  if (p.idea?.prototypeEnd === 'built') return 'the idea was built on it';
-  if (p.state === 'planned' || p.state === 'working') return 'being built';
-  if (p.state === 'waiting' && (p.need === 'demo' || p.need === 'review')) return 'handed over';
-  return p.state;
-}
 
 /** How the agent opens the discussion of an idea the owner wrote, or one a worker proposed. */
 const OPENING =
@@ -509,9 +434,6 @@ const OPENING_PROPOSED_TASK =
 const RESUMED =
   'The owner paused you after your reply and has now let you go on. Pausing ended your session at once: whatever you had running was stopped with it (a command still running shows exit code 137). Go on where you stopped.';
 
-/** The owner clicked "Build it like this" during the agent's turn. */
-const BUILD_AFTER_REPLY =
-  'The owner clicked "Build it like this" while you worked on this reply: once it is there, a worker builds the idea from the brief as you leave it, unless your reply asks questions; then nothing is built, and the owner decides again after answering them.';
 
 /** How the agent hears the messages an interrupted turn left unanswered. */
 const UNREAD_NOTE: Record<Unread['why'], string> = {
