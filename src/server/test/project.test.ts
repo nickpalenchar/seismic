@@ -180,7 +180,8 @@ describe('a project with several repositories', () => {
     project = start();
     expect(project.repoOf(w.id).workstations.leasedBy(w.id)).toBe(clone);
     expect(project.board.row(w.id).workstation).toBe(clone);
-  });
+    // on macOS opening or closing a plan-doc watcher can block for seconds (FSEvents), and this test does it twice per repository
+  }, 30_000);
 
   test('cards of different repositories never wait for each other', async () => {
     const a = project.board.create({ title: 'A', x: 0, y: 0 });
