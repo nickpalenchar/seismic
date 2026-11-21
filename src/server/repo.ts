@@ -81,7 +81,7 @@ export function outsidePlanDir(dir: string, home: string = homedir()): string | 
 }
 
 /** The plan directory of the repository read at `repoPath`, and the directory its watch reaches up to. */
-function planDirOf(repoPath: string, adapter: RepoAdapter): { dir: string; root: string } {
+export function planDirOf(repoPath: string, adapter: RepoAdapter): { dir: string; root: string } {
   const outside = outsidePlanDir(adapter.planDocs.dir);
   return outside ? { dir: outside, root: parse(outside).root } : { dir: join(repoPath, adapter.planDocs.dir), root: repoPath };
 }

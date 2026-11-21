@@ -35,7 +35,7 @@ import { branchCommit, readingDefaultBranch, ReadTree, refsSeal } from './read-t
 import { Revisions } from './revisions';
 import { Merges } from './merges';
 import { PlanAgents } from './plan-agents';
-import { ghHosts, onGitHub, outsidePlanDir, planHistory, readPlanDocs, watchPlanDocs } from './repo';
+import { ghHosts, onGitHub, outsidePlanDir, planDirOf, planHistory, readPlanDocs, watchPlanDocs } from './repo';
 import { boundsOf, GAP, type Place, planDirNoteBox, unionBounds } from '../core/layout';
 import { type AgentRuntime, idleRuntime, withAgentSetting, withCodexTrust, withLimitWait, withRepoTrust, withTrustedAllow } from './runtime';
 import { harnessNames } from './llms/harnesses';
@@ -173,6 +173,8 @@ interface Repo extends RepoRuntime {
   stops: (() => void)[];
   /** Stops watching its plan docs. */
   docs?: () => void;
+  /** Where its plan docs are watched (`planDirOf`): they are watched afresh only once that moved. */
+  docsAt?: string;
   /** Its plan docs as last read from its read checkout: what the project shows while git moves the read checkout. */
   planDocs?: ReturnType<typeof readPlanDocs>;
   /** Watches its pull requests, once its work went out as one; it stays for those still open. */
@@ -264,6 +266,8 @@ export class ProjectRuntime {
   private restartReading = false;
   /** By repository's id: why it does not run as the configuration has it (`StartFailure`). */
   private failed = new Map<string, { detail: string; before?: true }>();
+  /** The configuration last applied (as JSON), or being applied: one saved again unchanged leaves the project as it is. */
+  private appliedConfig?: string;
   /** The restart of all of Seismic that waits, if one does: it covers the repositories' too. */
   private seismicDue: DueRestart | null = null;
   /** The owner paused the project's agents (kept across restarts, `paused` of its stored settings): cards the Koordinator lets start wait until they resume them. */
@@ -305,6 +309,7 @@ export class ProjectRuntime {
     // the main branch the owner set counts from the start: the repository's id, its settings and its read checkout go by it
     for (const r of config.repos) this.useBranch(r);
     this.config = config;
+    this.appliedConfig = JSON.stringify(config);
     const resolved = this.resolve(config);
     const { id, name, repos, stored } = resolved;
     this.config = resolved.config;
@@ -1011,6 +1016,7 @@ export class ProjectRuntime {
   private stopRepo(r: Repo) {
     for (const stop of r.stops) stop();
     r.docs?.();
+    r.docs = r.docsAt = undefined;
     r.prs?.stop();
     r.workers.shutdown();
   }
@@ -1022,8 +1028,15 @@ export class ProjectRuntime {
    */
   private watch(r: Repo) {
     if (!this.deps.watch) return;
-    r.docs?.();
-    r.docs = watchPlanDocs(r.read.path, r.adapter, () => this.board.docsChanged());
+    // setting up a watch holds the server up (on macOS 0.1 s and more each): where the plan directory
+    // stayed, the watch there goes on, as when the owner saves settings that do not move it
+    const { dir, root } = planDirOf(r.read.path, r.adapter);
+    const at = `${dir}\0${root}`;
+    if (!r.docs || r.docsAt !== at) {
+      r.docs?.();
+      r.docs = watchPlanDocs(r.read.path, r.adapter, () => this.board.docsChanged());
+      r.docsAt = at;
+    }
     // a review card's pull request is watched in any repository, also one that lands on main
     if (r.adapter.land === 'pr' || this.board.items().some((i) => (i.state === 'inPr' || (i.review?.contribution && !finished(i.state))) && i.repo === r.ref.id)) this.watchPrs(r);
   }
@@ -1044,6 +1057,12 @@ export class ProjectRuntime {
    * work on, and their settings apply as they are read.
    */
   apply(next: ProjectConfig): Promise<void> | undefined {
+    // a configuration the project runs on already (the owner saved another project's settings) leaves it
+    // as it is: reading its repositories again would hold up the save. With a repository that did not
+    // start, or a restart to come, it is applied all the same: that is what "Try again" asks for.
+    const shape = JSON.stringify(next);
+    if (shape === this.appliedConfig && !this.retiring && !this.failed.size && !this.pending) return;
+    this.appliedConfig = shape;
     // back in the configuration before it left: it stays, and so do its repositories
     if (this.retiring) {
       this.retiring = null;
@@ -1061,6 +1080,8 @@ export class ProjectRuntime {
     try {
       resolved = this.resolve(next, reads);
     } catch (e) {
+      // the same configuration saved again is tried again
+      this.appliedConfig = undefined;
       console.error(`Seismic: the new configuration of the project ${this.id} does not resolve; it runs on as it was: ${messageOf(e)}`);
       return;
     }

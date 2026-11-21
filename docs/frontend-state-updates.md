@@ -246,11 +246,18 @@ owner's machine has:
   or not the plan directory moved. On macOS each `fs.watch` set up blocks the server for 70–300 ms,
   growing to 1–3 s when saves come quickly one after another (fseventsd), so the projects take
   their turn one after the other and every other request waits meanwhile.
-- The fix is on the server, apart from moving routes: watch afresh only where the read checkout or
-  the plan directory moved, and apply a project's own settings to that project alone.
+- Fixed on the server: a project watches its plan docs afresh only where the plan directory moved
+  (`docsAt`), and `ProjectRuntime.apply` leaves a project as it is when its configuration is the one
+  it runs on, unless a repository failed to start or a restart is pending (what "Try again" asks
+  for). Measured again on the same scratch: the sheet's Save 40 ms with nothing changed, a slider
+  alone 60–90 ms, three in a row 90, 170 and 255 ms. The configuration is still checked twice per
+  save (about 20 ms each here).
 - The single settings moved to `/api/v1/settings/:settingName` (and `PATCH /api/v1/settings` for
-  several). Their switches show the new position at once, disabled with a spinner until the answer
-  comes (`SavingSwitch`); theme and motion already showed it at once.
+  several), the demo settings among them as `demo`. Their switches show the new position at once,
+  disabled with a spinner until the answer comes (`SavingSwitch`); theme and motion already showed
+  it at once.
+- The configuration moved to `/api/v1/configuration`: a save answers with what came of it and the
+  configuration as it then reads, so the sheet no longer reads it again after an applied save.
 
 ## Open questions
 

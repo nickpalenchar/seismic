@@ -929,6 +929,19 @@ describe('the configuration changed while the project runs', () => {
     api = join(dir, 'api');
   });
 
+  test('the configuration saved again unchanged leaves the project as it is (its repositories are not read again); changed, it applies', async () => {
+    const config = { name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' as const } }] };
+    open(config.repos);
+    // another project's settings were saved: nothing to do here
+    expect(project.apply(config)).toBeUndefined();
+    await project.apply({ ...config, name: 'Plattform' });
+    expect(project.board.project.name).toBe('Plattform');
+    expect(project.apply({ ...config, name: 'Plattform' })).toBeUndefined();
+    // back to how it started: applied, not taken for the one it runs on
+    await project.apply(config);
+    expect(project.board.project.name).toBe('Produkt');
+  });
+
   test('a new name and a repository new on the project apply at once; the workers at work go on', async () => {
     open([{ path: web, settings: { land: 'pr' } }]);
     const { session } = await atWork('web', 'A');
@@ -1288,7 +1301,8 @@ describe('the projects Seismic serves', () => {
     expect(started).toEqual(['api']);
     expect(changes).toBeGreaterThan(before);
     await set.apply([{ name: 'API', repos: [{ path: api, settings: { land: 'pr' } }] }], ['api']);
-    // nobody at work on it: it stops at once
+    // nobody at work on it: it stops once its repositories had their look whether anyone is (`restartIntervalMs`)
+    await until(() => set.all().length === 1);
     expect(set.all().map((c) => c.id)).toEqual(['api']);
     expect(changes).toBeGreaterThan(1);
     expect(store.cards.onProject('web').map((c) => c.id)).toContain(keep.id);
