@@ -198,7 +198,7 @@ function useLeaveGuard(unsaved: boolean, discard: () => void): [ReactNode, (proc
 }
 
 /** The entry's fields: its name, old names and repositories, with the problems of the project and of the configuration as a whole. */
-function EntryFields({ e, pin }: { e: Entry; pin?: string }) {
+function EntryFields({ e, pin, fresh }: { e: Entry; pin?: string; /** A new project: a path not typed yet is no problem to show, only one to fill in. */ fresh?: boolean }) {
   if (!e.loaded || !e.entry) return e.status ? null : <p className="hint">{t.config.loading}</p>;
   const { loaded, entry, at, shown, problems } = e;
   return (
@@ -210,7 +210,7 @@ function EntryFields({ e, pin }: { e: Entry; pin?: string }) {
         resolved={shown?.resolved[at] ?? null}
         running={loaded.view.running}
         {...(pin ? { pin } : {})}
-        problems={problems.filter((p) => p.project === at && !SHEET_PROBLEMS.includes(p.code))}
+        problems={problems.filter((p) => p.project === at && !SHEET_PROBLEMS.includes(p.code) && !(fresh && p.code === 'noPath'))}
         onRecheck={e.recheck}
         onChange={e.setEntry}
         onShow={() => {}}
@@ -295,13 +295,14 @@ export function NewProjectDialog({ open, onClose }: { open: boolean; onClose: ()
       open={open}
       onOpenChange={(o) => !o && (typed ? ask(onClose) : onClose())}
       title={l.newProject}
-      className="cs-new-project w-[min(560px,100%)] [&_.c-row]:block [&_.c-row>*]:max-w-full"
+      // as tall as with every line it can show (its address, the hints, a problem): it keeps its height as they come and go, the buttons at its foot
+      className="cs-new-project flex w-[min(560px,100%)] min-h-[min(560px,calc(100dvh-48px))] flex-col [&_.c-row]:block [&_.c-row>*]:max-w-full [&>div:last-child]:mt-auto [&>div:last-child]:pt-4"
       confirm={{ label: l.create, className: 'cs-create', keepOpen: true, disabled: !ready, onClick: () => void create() }}
       cancel={l.cancel}
       busy={e.busy}
     >
       <p className="hint mt-0">{l.newProjectHint}</p>
-      <EntryFields e={e} />
+      <EntryFields e={e} fresh />
       {e.status && <p className={`hint ${statusClass}`}>{e.status}</p>}
       {question}
     </ConfirmDialog>
