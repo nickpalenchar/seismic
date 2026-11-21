@@ -309,13 +309,13 @@ describe('only the owner', () => {
 describe('archive', () => {
   test('a finished card goes into the archive and back', async () => {
     const c = card();
-    expect(await codeOf(post(api(`/cards/${c.id}/archive`), ''))).toBe('notDone');
+    expect(await codeOf(post(`/api/v1/cards/${c.id}/archive`, ''))).toBe('notDone');
     board.patch(c.id, { state: 'live' });
-    expect((await post(api(`/cards/${c.id}/archive`), '')).status).toBe(204);
+    expect((await post(`/api/v1/cards/${c.id}/archive`, '')).status).toBe(200);
     const archive = (await (await fetch(new URL(api('/archive'), server.url))).json()) as { id: string; archivedAt: string }[];
     expect(archive.map((i) => i.id)).toEqual([c.id]);
     expect(board.item(c.id)).toBeUndefined();
-    expect((await post(api(`/cards/${c.id}/unarchive`), '')).status).toBe(204);
+    expect((await post(`/api/v1/cards/${c.id}/unarchive`, '')).status).toBe(200);
     expect(board.item(c.id)!.state).toBe('live');
     expect(await (await post(api('/archive'), '')).json()).toEqual({ ids: [c.id] });
   });

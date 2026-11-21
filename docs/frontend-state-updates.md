@@ -198,6 +198,13 @@ Its undo is `POST /api/v1/cards/:cardId/restore`, answered with the card, which 
 back on the shown project (`cardBack`). Undone at once after a deletion, the card was back on the
 canvas 34 ms after the click, before the snapshot (76 ms).
 
+Archiving and unarchiving went the same way, as named actions (`POST /api/v1/cards/:cardId/archive`
+and `.../unarchive`), both answered with the card. Archiving takes the card off the shown project
+(the snapshot leaves archived cards out); unarchiving puts it back (`cardBack`). From a canvas card's
+archive button: the card was gone 47 ms after the click (snapshot at 106 ms), and back 28 ms after
+"Undo" (snapshot at 45 ms). The project-wide `GET` and `POST /api/c/:project/archive` (the archive's
+list, "archive all done") have not moved.
+
 Typing is not disturbed by the card coming back: the title and text fields keep a draft of their
 own, which the card they get does not overwrite (`ManualTitle` in `src/ui/detail.tsx`). Checked live
 on the 600-card project: typing on through two saves kept every character, and the server held them.

@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from 'bun:test';
 import { setProject } from '../api';
-import { getCardById, patchCard, removeCard, restoreCard, setShareOnApproval } from './seismic';
+import { archiveCard, getCardById, patchCard, removeCard, restoreCard, setShareOnApproval, unarchiveCard } from './seismic';
 
 const real = globalThis.fetch;
 afterEach(() => {
@@ -53,4 +53,18 @@ test("a deletion's undo goes out as a POST of the card's restore and answers wit
   const card = await restoreCard('c6');
   expect(sent).toEqual([{ url: '/api/v1/cards/c6/restore', method: 'POST' }]);
   expect(card.title).toBe('Back');
+});
+
+test('archiving and unarchiving go out as POSTs of the card\'s actions and answer with the card', async () => {
+  const sent: { url: string; method?: string }[] = [];
+  globalThis.fetch = (async (url: string, init: RequestInit) => {
+    sent.push({ url, method: init.method });
+    return Response.json({ card: { id: 'c7', title: 'Done' } });
+  }) as typeof fetch;
+  expect((await archiveCard('c7')).id).toBe('c7');
+  expect((await unarchiveCard('c7')).id).toBe('c7');
+  expect(sent).toEqual([
+    { url: '/api/v1/cards/c7/archive', method: 'POST' },
+    { url: '/api/v1/cards/c7/unarchive', method: 'POST' },
+  ]);
 });

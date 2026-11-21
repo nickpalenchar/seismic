@@ -14,9 +14,10 @@ export const getCardById = (id: string) => `/api/v1/cards/${encodeURIComponent(i
 
 /**
  * A write to the card `id` (to `path` under its URL) that answers with the card: the project shows it
- * at once, in place of the card it was (`saved`), or put back on it (`back`).
+ * at once, through `shown`: in place of the card it was (`cardSaved`, the default), put back on it
+ * (`cardBack`), or taken off it.
  */
-async function writeCard(id: string, method: string, path: string, body: unknown, shown: typeof cardSaved = cardSaved): Promise<Item> {
+async function writeCard(id: string, method: string, path: string, body: unknown, shown: (project: string, card: Item, seen: number) => void = cardSaved): Promise<Item> {
   const project = projectOf(id);
   const seen = snapshotsOf(project);
   const { card } = await call<{ card: Item }>(method, `${getCardById(id)}${path}`, body, false, TIMEOUT_MS);
@@ -40,3 +41,9 @@ export async function removeCard(id: string): Promise<void> {
 
 /** A deleted card brought back (the undo of `removeCard`): the project shows it again at once. */
 export const restoreCard = (id: string) => writeCard(id, 'POST', '/restore', undefined, cardBack);
+
+/** The card `id` archived: it leaves the shown project at once; the answer is the card as the archive shows it. */
+export const archiveCard = (id: string) => writeCard(id, 'POST', '/archive', undefined, (project, card, seen) => cardRemoved(project, card.id, seen));
+
+/** The archived card `id` back on the project (also the undo of `archiveCard`): it shows again at once. */
+export const unarchiveCard = (id: string) => writeCard(id, 'POST', '/unarchive', undefined, cardBack);

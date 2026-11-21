@@ -24,7 +24,7 @@ import { type ActDone, Detail, type Pending } from './detail';
 import { Cards, KoordinatorAgent } from './message';
 import { motionMs, reducedMotion, sizeSettled } from './motion';
 import type { Heard, Where } from './api';
-import { patchCard, removeCard, restoreCard } from './clients/seismic';
+import { archiveCard, patchCard, removeCard, restoreCard, unarchiveCard } from './clients/seismic';
 import { replyOn, setReply } from './reply';
 import { ArchiveView } from './archive';
 import { CardSearch } from './cardSearch';
@@ -1293,11 +1293,11 @@ function Project({
   }, [startCardNow]);
 
   /** The archive button on a finished card or a parked or dropped idea: takes it off the project, with a moment to undo. */
-  const archiveCard = useCallback(async (i: Item) => {
+  const archiveOnCanvas = useCallback(async (i: Item) => {
     try {
-      await api.archive(i.id);
+      await archiveCard(i.id);
       ratePrompt.ask(i.id);
-      showAck(t.archive.archived(plain(i.title)), () => api.unarchive(i.id));
+      showAck(t.archive.archived(plain(i.title)), () => unarchiveCard(i.id));
     } catch (e) {
       fail(e);
     }
@@ -2250,7 +2250,7 @@ function Project({
   async function archiveDone() {
     const { ids } = await api.archiveDone();
     if (ids.length) ratePrompt.ask(ids);
-    if (ids.length) showAck(t.archive.archivedMany(ids.length), () => Promise.all(ids.map((id) => api.unarchive(id))));
+    if (ids.length) showAck(t.archive.archivedMany(ids.length), () => Promise.all(ids.map((id) => unarchiveCard(id))));
   }
   const attnLast = useRef<string | null>(null);
   /** The next card that needs the owner, in turn, and Seismic's sheet among them while an answer waits there. */
@@ -2668,7 +2668,7 @@ function Project({
                   showRepo={snapshot.project.repos.length > 1}
                   els={els}
                   onStart={startCard}
-                  onArchive={archiveCard}
+                  onArchive={archiveOnCanvas}
                   dep={depOf(item.id)}
                   underway={underway[item.id] ?? (item.review?.landing ? t.approving : undefined)}
                   onHover={setHoverId}

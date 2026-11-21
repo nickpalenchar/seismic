@@ -339,8 +339,6 @@ export const api = {
     return res.ok && total > 0 ? total : null;
   },
   /** Takes a finished card off the project into the archive. */
-  archive: (id: string) => call<void>('POST', cardAt(id, '/archive')),
-  unarchive: (id: string) => call<void>('POST', cardAt(id, '/unarchive')),
   /** The archive, the most recently archived first. */
   archived: () => call<Item[]>('GET', at('/archive')),
   /** Archives every finished card of the owner's on the project. */

@@ -14,7 +14,7 @@ import { mockPage } from '../core/frame';
 import { mmss } from '../../plugin/skills/demo/lib/timeline.ts';
 import { answers, answerText, OTHER, toggleOther } from './answer';
 import { ApiError, api, projectOf, cardAt, type Field, holdRestart, onCardEvent, onCardEventGone, onCardRefresh, onReconnect, refreshCard, useCardRefreshFailed } from './api';
-import { setShareOnApproval } from './clients/seismic';
+import { archiveCard, setShareOnApproval, unarchiveCard } from './clients/seismic';
 import { cardPath } from './address';
 import { Naming, smartLink } from './cardLink';
 import { DuplicateMergePreview, MergeButton, MergeView } from './merge';
@@ -3603,11 +3603,11 @@ function ArchiveButton({ item, run, variant, label = t.archive.archive, hint }: 
   // a stopped task whose workstation holds work stays on the project; the button says why
   const held = stopped(item) && !stoppedArchivable(item);
   return item.archivedAt ? (
-    <Button onClick={() => run(() => api.unarchive(item.id), { close: true, ack: t.archive.unarchived(title) })}>
+    <Button onClick={() => run(() => unarchiveCard(item.id).then(() => {}), { close: true, ack: t.archive.unarchived(title) })}>
       {t.archive.unarchive}
     </Button>
   ) : (
-    <Button variant={variant} disabled={held} title={held ? t.archive.holdsWork : hint} onClick={() => run(() => api.archive(item.id), { close: true, ack: t.archive.archived(title), undo: () => api.unarchive(item.id), rate: item.id })}>
+    <Button variant={variant} disabled={held} title={held ? t.archive.holdsWork : hint} onClick={() => run(() => archiveCard(item.id).then(() => {}), { close: true, ack: t.archive.archived(title), undo: () => unarchiveCard(item.id), rate: item.id })}>
       {label}
     </Button>
   );
