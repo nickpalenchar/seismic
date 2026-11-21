@@ -18,6 +18,7 @@ import { statusClass } from '../setupClasses';
 import { qmovesClass } from '../queue';
 import { keepConfigDraft, keptConfigDraft } from '../configDraft';
 import { holdLeaving } from '../leaving';
+import { mergedEntry, withEntry } from './entry';
 import { cn } from 'cn';
 
 type Checked = Pick<ConfigChecked, 'resolved' | 'problems'>;
@@ -42,6 +43,8 @@ function useProjectEntry(project: string | null, on: boolean) {
   const [checked, setChecked] = useState<Checked | null>(null);
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
+  // the entry the last check was of: until the edit is checked, nothing goes by the check before
+  const [checkedOf, setCheckedOf] = useState('');
   // a repository added here whose settings say clones gets as many as the first project's, until existing ones are listed
   const filled = useRef<FilledClones>(new Map());
   const load = async () => {
@@ -68,15 +71,18 @@ function useProjectEntry(project: string | null, on: boolean) {
     load().catch((e) => setStatus(failText(e)));
   }, [on, project]);
 
-  const all = loaded && entry ? (loaded.at < loaded.view.projects.length ? loaded.view.projects.map((p, i) => (i === loaded.at ? entry : p)) : [...loaded.view.projects, entry]) : null;
+  const all = loaded && entry ? withEntry(loaded.view.projects, loaded.at, entry) : null;
   const changed = !!loaded && !!entry && (project === null || JSON.stringify(entry) !== JSON.stringify(loaded.entry));
+  const pending = changed && checkedOf !== JSON.stringify(entry);
   // checked as it is edited; as saved, it has the check of the saved configuration
   const seq = useRef(0);
   const check = (projects: ProjectConfig[]) => {
     const n = ++seq.current;
+    const of = JSON.stringify(projects[loaded?.at ?? 0]);
     return api.checkConfig(projects).then((c) => {
       if (n !== seq.current || !loaded) return;
       setChecked(c);
+      setCheckedOf(of);
       const next = withClones(projects, loaded.view.projects, c.resolved, filled.current);
       if (next) setEntry(next[loaded.at]!);
     }, console.error);
@@ -95,39 +101,65 @@ function useProjectEntry(project: string | null, on: boolean) {
   const problems = shown?.problems ?? [];
   const blocking = shown ? blockingProblems(problems, (i) => i === at) : [];
 
+  /**
+   * The configuration as saved now, and the entry's place in it: the one it was read with may be
+   * behind (the sheet's other sections save as they are changed), so a save goes over the fresh one.
+   */
+  const fresh = async () => {
+    const view = await api.config();
+    if (project === null) return { view, at: view.projects.length };
+    const at = (await api.configCheck()).resolved.findIndex((r) => r?.id === project);
+    return at < 0 ? null : { view, at };
+  };
   /** Saves the configuration with the entry; says whether it applies without a restart, and the id the project has. */
   const save = async (): Promise<{ id: string | null; restarting: boolean } | null> => {
-    if (!all || !loaded) return null;
+    if (!entry || !loaded) return null;
     setBusy(true);
     setStatus('');
     try {
-      const { restarting, applied } = await api.saveConfig(all);
-      const c = t.config;
-      setStatus(restarting ? c.saved : applied ? (restartsAgents(loaded.view.projects, all) ? c.savedRestarts : c.savedApplied) : c.savedOnly);
-      const id = checked?.resolved[at]?.id ?? project;
+      const now = await fresh();
+      if (!now) {
+        setStatus(t.projectSettings.notResolved);
+        return null;
+      }
+      const list = withEntry(now.view.projects, now.at, now.at < now.view.projects.length ? mergedEntry(entry, now.view.projects[now.at]!) : entry);
+      // checked as it goes, not as it was a moment ago: the id the project gets is this check's, and a problem the edit just made holds the save
+      const c = await api.checkConfig(list);
+      ++seq.current;
+      setChecked(c);
+      setCheckedOf(JSON.stringify(entry));
+      if (blockingProblems(c.problems, (i) => i === now.at).length) return null;
+      const { restarting, applied } = await api.saveConfig(list);
+      const s = t.config;
+      setStatus(restarting ? s.saved : applied ? (restartsAgents(now.view.projects, list) ? s.savedRestarts : s.savedApplied) : s.savedOnly);
+      const id = c.resolved[now.at]?.id ?? project;
       if (!restarting && project !== null) await load();
-      setBusy(false);
       return { id, restarting };
     } catch (e) {
       setStatus(failText(e));
-      setBusy(false);
       return null;
+    } finally {
+      setBusy(false);
     }
   };
   /** Moves the project one place up or down in the list of projects, saved at once. */
   const move = async (earlier: boolean) => {
     if (!loaded) return;
-    const list = [...loaded.view.projects];
-    const to = earlier ? at - 1 : at + 1;
-    list.splice(to, 0, ...list.splice(at, 1));
     setBusy(true);
     try {
+      const now = await fresh();
+      if (!now) return setStatus(t.projectSettings.notResolved);
+      const list = [...now.view.projects];
+      const to = earlier ? now.at - 1 : now.at + 1;
+      if (to < 0 || to >= list.length) return;
+      list.splice(to, 0, ...list.splice(now.at, 1));
       await api.saveConfig(list);
       await load();
     } catch (e) {
       setStatus(failText(e));
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
   };
   return {
     loaded,
@@ -138,6 +170,7 @@ function useProjectEntry(project: string | null, on: boolean) {
     problems,
     blocking,
     changed,
+    pending,
     status,
     busy,
     save,
@@ -240,7 +273,7 @@ export function ProjectEntrySection({ project, on }: { project: string; on: bool
       <EntryFields e={e} pin={project} />
       {e.loaded && (
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <Button variant="primary" className="cs-entry-save" disabled={!e.changed || e.busy || e.blocking.length > 0} onClick={() => void e.save()}>
+          <Button variant="primary" className="cs-entry-save" disabled={!e.changed || e.pending || e.busy || e.blocking.length > 0} onClick={() => void e.save()}>
             {c.saveOnly}
           </Button>
           {e.changed && (
@@ -278,7 +311,8 @@ export function NewProjectDialog({ open, onClose }: { open: boolean; onClose: ()
   // something typed in: closing the pop-up (Cancel, Esc) or leaving the page asks first
   const typed = open && !!e.entry && !!e.loaded && JSON.stringify(e.entry) !== JSON.stringify(e.loaded.entry);
   const [question, ask, release] = useLeaveGuard(typed, () => {});
-  const ready = !!e.entry && e.entry.repos.some((r) => r.path.trim()) && !!e.shown && !e.blocking.length && !e.busy;
+  // with the entry as typed checked: the project's id, which the page goes to, is the check's
+  const ready = !!e.entry && e.entry.repos.some((r) => r.path.trim()) && !!e.shown && !e.pending && !e.blocking.length && !e.busy;
   const create = async () => {
     const made = await e.save();
     if (!made) return;

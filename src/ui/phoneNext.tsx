@@ -42,6 +42,7 @@ import { plannedOrder } from './phoneOrder';
 import { ProjectSettingsBody } from './projectSettings/sheet';
 import { settingsSheetClass } from './configClasses';
 import { showAddSite } from './config';
+import { leave } from './leaving';
 
 /** The sections of the list, in their order; those folded until the owner unfolds them. */
 const SECTIONS = ['queued', 'planned', 'parked', 'done'] as const;
@@ -57,10 +58,11 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
   const [page, showPage, closePage] = usePage();
   const needsOn = page === 'needs';
   const settingsOn = page === 'settings';
-  const openNeeds = () => showPage('needs');
+  // what closes the settings page or puts another in its place waits for an unsaved draft in it (`leaving`)
+  const openNeeds = () => (settingsOn ? leave(() => showPage('needs')) : showPage('needs'));
   const openSettings = () => showPage('settings');
   const closeNeeds = () => { if (needsOn) closePage(); };
-  const closeSettings = () => { if (settingsOn) closePage(); };
+  const closeSettings = () => { if (settingsOn) leave(closePage); };
   const [workingOpen, setWorkingOpen] = useStoredState('seismic-phone-working-open', true);
   const [folded, setFolded] = useStoredState<Section[]>('seismic-phone-folded', FOLDED);
   // how many cards each section shows; back to the first twenty with another project
@@ -252,12 +254,14 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
           onOpenChange={setMenuOpen}
           projects={projects}
           project={project}
-          onProject={(id) => {
-            setSeismicProject(id);
-            closeNeeds();
-            closeSettings();
-            setMenuOpen(false);
-          }}
+          onProject={(id) =>
+            leave(() => {
+              setSeismicProject(id);
+              closeNeeds();
+              closeSettings();
+              setMenuOpen(false);
+            })
+          }
           onInbox={() => {
             setMenuOpen(false);
             openNeeds();
