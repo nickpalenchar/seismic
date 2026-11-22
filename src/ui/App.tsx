@@ -438,6 +438,14 @@ function Project({
     history.replaceState(history.state, '', `${location.pathname}${location.search}${h}`);
     flushSync(() => setHash(h));
   };
+  /** The canvas shown was renamed: an address naming it follows the new name; one without a hash stays so. */
+  const renamedCanvas = (c: Canvas) => {
+    if (gone.current || c.id !== canvasRef.current || !location.hash) return;
+    const h = `#${encodeURIComponent(c.name)}`;
+    if (location.hash === h) return;
+    history.replaceState(history.state, '', `${location.pathname}${location.search}${h}`);
+    setHash(h);
+  };
   // the address names the canvas by its name, which reordering does not change: `#2` as the page
   // opens becomes the name of the second, and a hash that names none goes
   useEffect(() => {
@@ -2919,7 +2927,7 @@ function Project({
           onJump={(wx, wy) => !focusRef.current && fly(viewOn(wx, wy), 500)}
           onFollow={(wx, wy) => !focusRef.current && chase(camRef.current, viewOn(wx, wy), setCam)}
         />
-        <CanvasTabs project={snapshot.project.id} canvases={canvases} shown={canvasId} waiting={perCanvas.waiting} empty={perCanvas.empty} onDeleteError={fail} onShow={(c) => (focusRef.current?.type === 'plan' && closePlan(), showPage(null), showCanvas(c))} />
+        <CanvasTabs project={snapshot.project.id} canvases={canvases} shown={canvasId} waiting={perCanvas.waiting} empty={perCanvas.empty} onDeleteError={fail} onShow={(c) => (focusRef.current?.type === 'plan' && closePlan(), showPage(null), showCanvas(c))} onRename={renamedCanvas} />
 
         {/* over the inbox's view, its list stays undimmed beside the card, to work down from there */}
         <div id="dim" className={cn('fixed inset-x-0 top-[50px] bottom-0 z-30 bg-scrim opacity-0 pointer-events-none [transition:opacity_.2s,left_0s]', dim && 'on opacity-100 pointer-events-auto backdrop-blur-[3px]')} onClick={() => closeCard()} />

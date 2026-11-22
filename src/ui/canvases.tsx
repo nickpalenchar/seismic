@@ -56,7 +56,7 @@ const LEAVE_MS = 260;
  * the strip (a tap on touch, ↑ from the keyboard) slides out the drawer above it, which lists the
  * canvases by name with the cards waiting on each, and ends with "+ New canvas".
  */
-export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow, onDeleteError }: {
+export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow, onRename, onDeleteError }: {
   project: string;
   canvases: Canvas[];
   shown?: string;
@@ -65,6 +65,8 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow, o
   /** The canvases without cards, which can be deleted (but `main`). */
   empty: Set<string>;
   onShow: (c: Canvas) => void;
+  /** The canvas shown has a new name or icon: the owner picked nothing. */
+  onRename: (c: Canvas) => void;
   onDeleteError: (err: unknown) => void;
 }) {
   const [drawer, setDrawer] = useState(false);
@@ -230,8 +232,9 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow, o
           onClose={() => setDialog(null)}
           onDone={(c) => {
             setDialog(null);
-            // a new canvas is shown at once, as is the one shown under its new name
-            if (!editing || editing.id === shown) onShow(c);
+            // a new canvas is shown at once; the one shown keeps showing, under its new name
+            if (!editing) onShow(c);
+            else if (editing.id === shown) onRename(c);
           }}
         />
       )}
