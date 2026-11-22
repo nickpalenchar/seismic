@@ -2971,6 +2971,10 @@ function Project({
           onClose={() => setCOn(false)}
           onTalk={talkFromConfig}
           onConnect={() => (setCOn(false), setPhoneOn(true))}
+          onProjectSettings={() => {
+            setCOn(false);
+            if (!csOnRef.current) toggleProjectSettings();
+          }}
         />
         <NewProjectDialog open={newProjectOn} onClose={() => setNewProjectOn(false)} />
         <PrefsDialog

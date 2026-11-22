@@ -112,7 +112,7 @@ const keptSection = () => {
  * Seismic's configuration: what holds for every project and this machine. A project's own entry (its
  * name, repositories) and settings are in its settings sheet; "+ New project" adds one.
  */
-export function ConfigDialog({ on, usage, onClose, onTalk, onConnect }: { on: boolean; usage: Usage[]; onClose: () => void; onTalk: () => void; onConnect: () => void }) {
+export function ConfigDialog({ on, usage, onClose, onTalk, onConnect, onProjectSettings }: { on: boolean; usage: Usage[]; onClose: () => void; onTalk: () => void; onConnect: () => void; /** Closes Configuration and opens the current project's settings sheet. */ onProjectSettings: () => void }) {
   const [setupOn, setSetupOn] = useState(false);
   // Project defaults: a project added from "+ New project" starts with them, as one made elsewhere does on the server
   const [defaults, setDefaults] = useState<ProjectDefaultsView | null>(null);
@@ -193,7 +193,7 @@ export function ConfigDialog({ on, usage, onClose, onTalk, onConnect }: { on: bo
         <div className={K.cfgMainClass}>
           <ConfigurationProblems problems={problems} />
           <section id="cfg-sec-defaults" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'defaults'}>
-            <ProjectDefaultsBlock view={defaults} onSaved={setDefaults} />
+            <ProjectDefaultsBlock view={defaults} onSaved={setDefaults} onProjectSettings={onProjectSettings} />
           </section>
           <section id="cfg-sec-agents" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'agents'}>
             <AgentsBlock on={on && section === 'agents'} />
@@ -778,7 +778,7 @@ export function CodeReviewField({ value, onChange, bare }: { value: Partial<Code
  * Project defaults: what a project created from now on starts with, a value for every project setting
  * (`PROJECT_SETTINGS` on the server). Saved on each change; existing projects keep their own.
  */
-function ProjectDefaultsBlock({ view, onSaved }: { view: ProjectDefaultsView | null; onSaved: (v: ProjectDefaultsView) => void }) {
+function ProjectDefaultsBlock({ view, onSaved, onProjectSettings }: { view: ProjectDefaultsView | null; onSaved: (v: ProjectDefaultsView) => void; onProjectSettings: () => void }) {
   const [status, setStatus] = useState('');
   const c = t.config;
   if (!view) return <Head title={c.sections.defaults} />;
@@ -808,6 +808,7 @@ function ProjectDefaultsBlock({ view, onSaved }: { view: ProjectDefaultsView | n
   return (
     <>
       <Head title={c.sections.defaults} hint={c.defaults.hint} file={view.file} />
+      <Button size="small" className="mb-4" onClick={onProjectSettings}>{c.defaults.openProjectSettings}</Button>
       {Object.entries(fields).map(([k, field]) => (
         <Fragment key={k}>{field}</Fragment>
       ))}

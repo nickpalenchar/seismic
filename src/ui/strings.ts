@@ -1625,6 +1625,7 @@ const en = {
     },
     defaults: {
       hint: 'New projects start with these defaults. Change an existing project’s choices in its Project settings.',
+      openProjectSettings: 'Open project settings',
       agents: 'Models',
       agentsValue: 'as under Agents and models; a project can choose its own (the sliders in the bar)',
     },
