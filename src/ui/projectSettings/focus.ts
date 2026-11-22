@@ -55,3 +55,19 @@ export function onSettingsFocus(on: () => void) {
   window.addEventListener(FOCUS_EVENT, on);
   return () => window.removeEventListener(FOCUS_EVENT, on);
 }
+
+/**
+ * Moves the keyboard focus into the docked project settings sheet, once its list (or the section it
+ * shows) has rendered: for a dialog that has just closed over it, which would hand the focus back to
+ * the page behind. Gives up after about a second.
+ */
+export function focusSettingsSheet() {
+  let frames = 0;
+  const step = () => {
+    const target = document.querySelector<HTMLElement>('.cs-sections [data-section], .cs-back');
+    if (target) target.focus({ preventScroll: true });
+    if (document.activeElement === target || ++frames > 60) return;
+    requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}

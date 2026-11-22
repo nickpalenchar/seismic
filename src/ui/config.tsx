@@ -37,6 +37,7 @@ import { projectPath } from './address';
 import { scrollBehavior } from './motion';
 import { Badge } from './components/badge';
 import { Button, CloseButton, IconButton, LinkButton } from './components/button';
+import { focusSettingsSheet } from './projectSettings/focus';
 import { ConfirmDialog, Dialog, DialogContent, DialogTitle } from './components/dialog';
 import { Checkbox } from './components/checkbox';
 import { CheckLabel } from './components/check-label';
@@ -114,6 +115,8 @@ const keptSection = () => {
  */
 export function ConfigDialog({ on, usage, onClose, onTalk, onConnect, onProjectSettings }: { on: boolean; usage: Usage[]; onClose: () => void; onTalk: () => void; onConnect: () => void; /** Closes Configuration and opens the current project's settings sheet. */ onProjectSettings: () => void }) {
   const [setupOn, setSetupOn] = useState(false);
+  // Closing for the project settings sheet: the focus goes into it, not back to what opened Configuration.
+  const toSheet = useRef(false);
   // Project defaults: a project added from "+ New project" starts with them, as one made elsewhere does on the server
   const [defaults, setDefaults] = useState<ProjectDefaultsView | null>(null);
   const [problems, setProblems] = useState<ConfigProblem[]>([]);
@@ -161,7 +164,12 @@ export function ConfigDialog({ on, usage, onClose, onTalk, onConnect, onProjectS
     // a press on the dim around the dialog closes it; a press that starts inside does not
     <Dialog open={on} onOpenChange={(open) => !open && onClose()}>
       <Tabs asChild orientation="vertical" value={section} onValueChange={(v) => setSection(v as Section)}>
-      <DialogContent id="config" glass keepMounted className={K.cfgBoxClass} layerClassName={K.cfgLayerClass}>
+      <DialogContent id="config" glass keepMounted className={K.cfgBoxClass} layerClassName={K.cfgLayerClass} onCloseAutoFocus={(e) => {
+        if (!toSheet.current) return;
+        toSheet.current = false;
+        e.preventDefault();
+        focusSettingsSheet();
+      }}>
         <nav className={K.cfgNavClass}>
           <div className={K.cfgKindClass}>{c.kind}</div>
           <DialogTitle asChild>
@@ -193,7 +201,7 @@ export function ConfigDialog({ on, usage, onClose, onTalk, onConnect, onProjectS
         <div className={K.cfgMainClass}>
           <ConfigurationProblems problems={problems} />
           <section id="cfg-sec-defaults" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'defaults'}>
-            <ProjectDefaultsBlock view={defaults} onSaved={setDefaults} onProjectSettings={onProjectSettings} />
+            <ProjectDefaultsBlock view={defaults} onSaved={setDefaults} onProjectSettings={() => { toSheet.current = true; onProjectSettings(); }} />
           </section>
           <section id="cfg-sec-agents" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'agents'}>
             <AgentsBlock on={on && section === 'agents'} />
@@ -781,7 +789,14 @@ export function CodeReviewField({ value, onChange, bare }: { value: Partial<Code
 function ProjectDefaultsBlock({ view, onSaved, onProjectSettings }: { view: ProjectDefaultsView | null; onSaved: (v: ProjectDefaultsView) => void; onProjectSettings: () => void }) {
   const [status, setStatus] = useState('');
   const c = t.config;
-  if (!view) return <Head title={c.sections.defaults} />;
+  // opening the sheet does not depend on the defaults, so the link stands while they load
+  const link = <LinkButton className="mb-4" onClick={onProjectSettings}>{c.defaults.openProjectSettings}</LinkButton>;
+  if (!view) return (
+    <>
+      <Head title={c.sections.defaults} />
+      {link}
+    </>
+  );
   const save = async (d: ProjectSettings) => {
     setStatus('');
     try {
@@ -808,7 +823,7 @@ function ProjectDefaultsBlock({ view, onSaved, onProjectSettings }: { view: Proj
   return (
     <>
       <Head title={c.sections.defaults} hint={c.defaults.hint} file={view.file} />
-      <Button size="small" className="mb-4" onClick={onProjectSettings}>{c.defaults.openProjectSettings}</Button>
+      {link}
       {Object.entries(fields).map(([k, field]) => (
         <Fragment key={k}>{field}</Fragment>
       ))}
