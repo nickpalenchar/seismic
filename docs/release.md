@@ -78,11 +78,14 @@ or a rerun needs.
 ## Release candidates
 
 A release candidate, `v<version>-rc.<n>` (`v0.2.0-rc.1`), is a build of the version to come, there
-for trying it out between releases. It goes out as a GitHub pre-release, published by the build
-workflow at once, without a draft: GitHub's `releases/latest` skips pre-releases, so installed apps
-are not offered it, and the download links keep pointing at the latest release. Someone who
-installs a candidate gets the next release through the updater once it is out (semver puts
-`0.2.0` after `0.2.0-rc.1`); a later candidate they install by hand.
+for trying it out between releases. It stays a draft release, marked as a pre-release, so the
+Releases page shows only releases: a draft is seen and downloaded only by the repository's
+collaborators (from the Releases page, or `bun scripts/gh.ts release download v0.2.0-rc.1`).
+Installed apps are not offered it, and the download links keep pointing at the latest release.
+Someone who installs a candidate gets the next release through the updater once it is out (semver
+puts `0.2.0` after `0.2.0-rc.1`); a later candidate they install by hand. Its tag is public, as
+every tag is; a candidate's draft and tag can be deleted once its release is out
+(`bun scripts/gh.ts release delete v0.2.0-rc.1 --cleanup-tag`).
 
 1. The version in `package.json` is the candidate's, `0.2.0-rc.1`; committed and pushed to `main`.
    The release after its candidates sets it to `0.2.0`.

@@ -26,9 +26,9 @@
 //       everything in <dir>.
 //
 // The names carry no version: the README and the site link the newest release's installers through
-// `releases/latest/download/<name>`. A release candidate goes out as a GitHub pre-release, which
-// `releases/latest` skips: installed apps are not offered it, and the links keep pointing at the
-// latest release. Without the updater's key (TAURI_SIGNING_PRIVATE_KEY at the
+// `releases/latest/download/<name>`. A release candidate stays a draft release, which only the
+// repository's collaborators see: installed apps are not offered it, and the links keep pointing at
+// the latest release. Without the updater's key (TAURI_SIGNING_PRIVATE_KEY at the
 // build) there are no update artifacts, and latest.json names no platform.
 
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -234,7 +234,7 @@ export function notes(cwd: string, tag: string, repo: string, changelog: string)
   out.push('', '### Installing', '', INSTALL, '');
   const before = tagBefore(cwd, tag);
   if (!before) {
-    out.push(`[All commits](https://github.com/${repo}/commits/${tag}) up to this first release.`);
+    out.push(`[All commits](https://github.com/${repo}/commits/${tag}) up to this first ${target ? 'release candidate' : 'release'}.`);
     return `${out.join('\n')}\n`;
   }
   const list = commits(cwd, tag);

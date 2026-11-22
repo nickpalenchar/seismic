@@ -47,7 +47,7 @@ export type Status = {
   changelog: boolean;
   /** GitHub's main against ours: commits it lacks, commits only it has (both null: it has some never fetched here). */
   github: { behind: number | null; ahead: number | null } | null;
-  /** The latest release, and drafts left over. */
+  /** The latest release, and drafts left over (a release candidate's draft is no left-over: it stays one). */
   latest: string | null;
   drafts: string[];
   /** Secrets the build needs that GitHub does not have (null: they could not be read). */
@@ -121,7 +121,7 @@ export function status(cwd: string, gh: Gh): Status {
 
   const list = releases(gh);
   const latest = list ? (gh(['api', 'repos/{owner}/{repo}/releases/latest', '--jq', '.tag_name']) ?? null) : null;
-  const drafts = list?.filter((r) => r.draft).map((r) => r.tag_name) ?? [];
+  const drafts = list?.filter((r) => r.draft && !candidate(r.tag_name)).map((r) => r.tag_name) ?? [];
   if (!list) problems.push(`GitHub's releases could not be read (gh login of the repository's owner?).`);
   if (drafts.length) problems.push(`Drafts left over: ${drafts.join(', ')}.`);
 

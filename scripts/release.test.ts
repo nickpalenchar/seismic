@@ -235,6 +235,8 @@ test('a release candidate needs no section in the changelog; its notes say what 
   // the section of 0.2.0 is the release's, not its candidate's
   expect(text).not.toContain('Quits cleanly now.');
   expect(text.split('\n')).toContain('<summary>All commits since v0.2.0-rc.1 (1)</summary>');
+  // a candidate with no tag before it links the history as a candidate's
+  expect(notes(repo, 'v0.0.1-rc.1', 'someone/seismic', CHANGELOG)).toEndWith('/commits/v0.0.1-rc.1) up to this first release candidate.\n');
   // a candidate with a section of its own shows it after what it is
   const own = notes(repo, 'v0.2.0-rc.2', 'someone/seismic', '## 0.2.0-rc.2\n\nTry the new quit.\n');
   expect(own).toContain('it updates to the next release.\n\nTry the new quit.\n\n### Installing');
