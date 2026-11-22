@@ -37,27 +37,59 @@ export function leavesPage(from: string, to: string): boolean {
   return false;
 }
 
-// The browser's own Back and Forward move the address before the page hears of it. While something
-// is held, a step that leaves the page is taken back at once (the address as it was, put over the
-// one the browser went to) and asked about; discarded, the step is taken again.
+// A native traversal has already moved the history cursor by the time popstate runs. Restore
+// that cursor before asking, then replay the same number of steps if the owner discards.
+// Stamp app entries for browsers that do not expose the session history index.
 if (typeof window !== 'undefined' && typeof history !== 'undefined') {
-  let here = { href: location.href, state: history.state as unknown };
-  const settle = () => {
-    here = { href: location.href, state: history.state };
+  const indexKey = '__seismicHistoryIndex';
+  const nativeIndex = () => {
+    const navigation = (window as Window & { navigation?: { currentEntry?: { index: number } } }).navigation;
+    const index = navigation?.currentEntry?.index ?? -1;
+    return index >= 0 ? index : undefined;
   };
-  for (const m of ['pushState', 'replaceState'] as const) {
-    const orig = history[m];
-    history[m] = function (this: History, ...args: Parameters<History['pushState']>) {
-      orig.apply(this, args);
-      settle();
-    };
-  }
+  const cursor = () => ({ href: location.href, native: nativeIndex(), app: history.state?.[indexKey] as number | undefined });
+  type Cursor = ReturnType<typeof cursor>;
+  const distance = (from: Cursor, to: Cursor) => {
+    if (from.native !== undefined && to.native !== undefined) return to.native - from.native;
+    if (from.app !== undefined && to.app !== undefined) return to.app - from.app;
+    return undefined;
+  };
+  const push = history.pushState.bind(history);
+  const replace = history.replaceState.bind(history);
+  if (history.state?.[indexKey] === undefined) replace({ ...history.state, [indexKey]: 0 }, '');
+  let here = cursor();
+  history.pushState = (state, unused, url) => {
+    push({ ...state, [indexKey]: (here.app ?? 0) + 1 }, unused, url);
+    here = cursor();
+  };
+  history.replaceState = (state, unused, url) => {
+    replace({ ...state, [indexKey]: here.app ?? 0 }, unused, url);
+    here = cursor();
+  };
+
+  let returning: { origin: Cursor; delta: number } | null = null;
   addEventListener('popstate', (e) => {
-    if (!e.isTrusted || !guards.size || !leavesPage(here.href, location.href)) return settle();
-    // before anything else of the page follows the address
-    e.stopImmediatePropagation();
-    const { href, state } = here;
-    history.pushState(state, '', href);
-    leave(() => history.back());
+    const there = cursor();
+    if (e.isTrusted && returning) {
+      const back = distance(there, returning.origin);
+      if (back !== undefined) {
+        e.stopImmediatePropagation();
+        if (back !== 0) return history.go(back);
+        const { delta } = returning;
+        returning = null;
+        here = there;
+        leave(() => history.go(delta));
+        return;
+      }
+      returning = null;
+    }
+    const delta = distance(here, there);
+    if (e.isTrusted && guards.size && delta && leavesPage(here.href, there.href)) {
+      e.stopImmediatePropagation();
+      returning = { origin: here, delta };
+      history.go(-delta);
+      return;
+    }
+    here = there;
   });
 }

@@ -181,7 +181,9 @@ function NoProject() {
   if (!problems) return <Splash offline={false} />;
   const down = problems.filter((p) => p.code === 'projectDown');
   const globals = problems.filter((p) => p.project === undefined);
-  if (!down.length && !globals.some((p) => p.code === 'invalid')) return <Setup first notice={<ConfigurationProblems problems={globals} />} />;
+  if (!down.length && !globals.some((p) => p.code === 'invalid')) {
+    return <Setup first notice={<ConfigurationProblems problems={globals.filter((p) => p.code !== 'noProject')} />} />;
+  }
   const retried = () =>
     void api.projects().then((list) => {
       if (list.length) location.reload();
