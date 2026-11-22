@@ -139,24 +139,45 @@ function fingerprint(text: string): string {
   return `${(h >>> 0).toString(36)}.${text.length.toString(36)}`;
 }
 
-/** The lines of `before` and `after` as a diff: each kept (` `), gone (`-`) or new (`+`), in order (longest common subsequence). */
+/** Beyond this many pairs of lines between the first and last change, `lineDiff` matches none of them. */
+export const LINE_DIFF_LIMIT = 1_000_000;
+
+/**
+ * The lines of `before` and `after` as a diff: each kept (` `), gone (`-`) or new (`+`), in order
+ * (longest common subsequence). The lines alike at the start and the end are kept without
+ * comparing; where what lies between holds more than `LINE_DIFF_LIMIT` pairs, it is all gone and
+ * all new, so a long text with a small change costs its length, not its length squared.
+ */
 export function lineDiff(before: string[], after: string[]): { kind: ' ' | '-' | '+'; line: string }[] {
-  const n = before.length;
-  const m = after.length;
-  // common[i][j]: the longest common subsequence of before[i..] and after[j..]
-  const common = Array.from({ length: n + 1 }, () => new Array<number>(m + 1).fill(0));
-  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) common[i]![j] = before[i] === after[j] ? common[i + 1]![j + 1]! + 1 : Math.max(common[i + 1]![j]!, common[i]![j + 1]!);
+  let start = 0;
+  while (start < before.length && start < after.length && before[start] === after[start]) start++;
+  let end = 0;
+  while (end < before.length - start && end < after.length - start && before[before.length - 1 - end] === after[after.length - 1 - end]) end++;
   const out: { kind: ' ' | '-' | '+'; line: string }[] = [];
-  let i = 0;
-  let j = 0;
-  while (i < n || j < m) {
-    if (i < n && j < m && before[i] === after[j]) {
-      out.push({ kind: ' ', line: before[i]! });
-      i++;
-      j++;
-    } else if (i < n && (j === m || common[i + 1]![j]! >= common[i]![j + 1]!)) out.push({ kind: '-', line: before[i++]! });
-    else out.push({ kind: '+', line: after[j++]! });
+  for (let i = 0; i < start; i++) out.push({ kind: ' ', line: before[i]! });
+  const n = before.length - start - end;
+  const m = after.length - start - end;
+  if (n * m > LINE_DIFF_LIMIT) {
+    for (let i = 0; i < n; i++) out.push({ kind: '-', line: before[start + i]! });
+    for (let j = 0; j < m; j++) out.push({ kind: '+', line: after[start + j]! });
+  } else {
+    const b = (i: number) => before[start + i]!;
+    const a = (j: number) => after[start + j]!;
+    // common[i][j]: the longest common subsequence of the middle of before from i and of after from j
+    const common = Array.from({ length: n + 1 }, () => new Array<number>(m + 1).fill(0));
+    for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) common[i]![j] = b(i) === a(j) ? common[i + 1]![j + 1]! + 1 : Math.max(common[i + 1]![j]!, common[i]![j + 1]!);
+    let i = 0;
+    let j = 0;
+    while (i < n || j < m) {
+      if (i < n && j < m && b(i) === a(j)) {
+        out.push({ kind: ' ', line: b(i) });
+        i++;
+        j++;
+      } else if (i < n && (j === m || common[i + 1]![j]! >= common[i]![j + 1]!)) out.push({ kind: '-', line: b(i++) });
+      else out.push({ kind: '+', line: a(j++) });
+    }
   }
+  for (let i = before.length - end; i < before.length; i++) out.push({ kind: ' ', line: before[i]! });
   return out;
 }
 

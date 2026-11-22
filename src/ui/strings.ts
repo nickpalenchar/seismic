@@ -1683,6 +1683,7 @@ const en = {
       codex: 'The repository’s Codex configuration (.codex/): Codex workers load its settings, hooks, MCP servers and rules, and run them outside their sandbox. Until then, and in a workstation where it differs, they work without it.',
       trust: 'Trust these commands',
       trusting: 'Adding changes…',
+      unseen: (names: string) => `${names} changed in a way the view cannot show: compare it in the repository before trusting it.`,
       blankOnly: (files: string) => `In ${files} only space at the start or end changed, which the view does not show. It can decide whether a hook runs.`,
     },
     adapterSetupHint:

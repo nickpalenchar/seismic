@@ -100,3 +100,13 @@ test('a patch of a list too long to pass as arguments', () => {
   const long = Array.from({ length: 300_000 }, (_, i) => `line ${i}`);
   expect(patchOf('f', [], long).lines).toHaveLength(300_004);
 });
+
+test('a long list with a small change diffs in its length, a large change past the limit as all gone and all new', () => {
+  const long = Array.from({ length: 200_000 }, (_, i) => `line ${i}`);
+  const edited = long.map((l, i) => (i === 100_000 ? 'changed' : l));
+  const d = lineDiff(long, edited);
+  expect(d.filter((x) => x.kind !== ' ')).toEqual([{ kind: '-', line: 'line 100000' }, { kind: '+', line: 'changed' }]);
+  const other = long.map((l) => `${l}!`);
+  const all = lineDiff(long.slice(0, 2000), other.slice(0, 2000));
+  expect(all.slice(0, 2000).every((x) => x.kind === '-') && all.slice(2000).every((x) => x.kind === '+')).toBe(true);
+});
