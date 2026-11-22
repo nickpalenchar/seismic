@@ -10,7 +10,7 @@ import { forwardRef, Fragment, lazy, type ReactNode, Suspense, useContext, useEf
 import { OpenPerformance } from './performance';
 import { allowsDemo, HANDOVER_ARTIFACTS } from '../../plugin/skills/demo/lib/artifacts.ts';
 import { DEFAULT_STYLE, QWEN3_SPEAKER, QWEN3_SPEAKERS, qwen3IsClone, qwen3Speaker, STYLED_VOICES } from '../../plugin/skills/demo/lib/voice-choices.ts';
-import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_ROLES, agyBaseChoice, modelEffort, modelEfforts, harnessChoice, needsGit, projectAgentSetting, CARD_ARCHIVING, type CardArchiving, RIGHT_CLICK, type RightClick, CODE_REVIEW_MODES, type CodeReviewSetting, type AgentEffort, type AgentModel, type AgentRole, type AgentSetting, type ModelInfo, type Harness, type AgentsView, type ProjectDefaults, type ProjectDefaultsView, type ProjectSettings, type ConfigChecked, type DeveloperView, type ConfigProblem, type ConfigProblemCode, type ConfigView, commandLines, type DemoSettings, type HandoverArtifact, type DemoSettingsView, type DemoSpaceView, type DemoVoiceCheck, type ProjectDemoSite, type ProjectDemoSiteState, type DemoSitesView, type TagProposalJob, type Language, type HostConfig, type LanguageView, type NarrationLanguage, type RepoConfig, type RepoSettings, type RepoTrust, type RepoValues, type ResolvedProject, type SettingsShared, type SettingValue, layerSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type PageTags, type SetupCheck, START_FAILED, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type FeedbackPromptView, type NotificationsView, type VoiceKind, type VoiceSetupView } from '../core/types';
+import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_ROLES, agyBaseChoice, modelEffort, modelEfforts, harnessChoice, needsGit, projectAgentSetting, CARD_ARCHIVING, type CardArchiving, RIGHT_CLICK, type RightClick, CODE_REVIEW_MODES, type CodeReviewSetting, type AgentEffort, type AgentModel, type AgentRole, type AgentSetting, type ModelInfo, type Harness, type AgentsView, type ProjectDefaults, type ProjectDefaultsView, type ProjectSettings, type ConfigChecked, type DeveloperView, type ConfigProblem, type ConfigProblemCode, type ConfigView, commandLines, type DemoSettings, type HandoverArtifact, type DemoSettingsView, type DemoSpaceView, type DemoVoiceCheck, type ProjectDemoSite, type ProjectDemoSiteState, type DemoSitesView, type TagProposalJob, type Language, type HostConfig, type LanguageView, type NarrationLanguage, type RepoConfig, type RepoSettings, type RepoTrust, type TrustGroup, type RepoValues, type ResolvedProject, type SettingsShared, type SettingValue, layerSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type PageTags, type SetupCheck, START_FAILED, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type FeedbackPromptView, type NotificationsView, type VoiceKind, type VoiceSetupView } from '../core/types';
 import { catalogDefault, DefaultEffort, HarnessOptions, ModelOptions, useConnectedHarnesses } from './agent-options';
 import { patchOf } from '../core/diff';
 import { parseTagLines, tagLines } from '../core/page-tags';
@@ -2980,18 +2980,51 @@ export function TrustCommands({ path, trust, onDone }: { path: string; trust: Re
 
 /**
  * A group's lines as last trusted against those now: the changes with a few lines around them, the
- * unchanged ones between expandable, and above each change the configuration file it is in.
+ * unchanged ones between expandable. The Claude Code and Codex configuration is diffed file by file,
+ * each under its name, so a change is never matched against another file's lines nor shown without its own.
  */
-function TrustDiff({ trust, group }: { trust: RepoTrust; group: RepoTrust['held'][number] }) {
-  const versions = useMemo(() => ({ old: commandLines(trust.before, group), new: commandLines(trust.now, group) }), [trust, group]);
-  // a file's lines of the Claude Code or Codex configuration follow its name, the one line not indented
-  const part = useMemo(() => patchOf(group, versions.old, versions.new, group === 'claude' || group === 'codex' ? { heading: (l) => !l.startsWith(' ') } : {}), [group, versions]);
+function TrustDiff({ trust, group }: { trust: RepoTrust; group: TrustGroup }) {
+  const parts = useMemo(() => {
+    if (group !== 'claude' && group !== 'codex') return [{ name: undefined, ...diffOf(group, commandLines(trust.before, group), commandLines(trust.now, group)) }];
+    const was = trust.before?.[group] ?? {};
+    const now = trust.now[group] ?? {};
+    return [...new Set([...Object.keys(was), ...Object.keys(now)])]
+      .filter((file) => was[file]?.text !== now[file]?.text)
+      .map((file, i) => ({ name: file, ...diffOf(`${group}-${i}${extension(file)}`, was[file] ? was[file].text.split('\n') : [], now[file] ? now[file].text.split('\n') : []) }));
+  }, [trust, group]);
   return (
-    <Suspense fallback={<p className="hint">{t.diff.loading}</p>}>
-      <CodeDiff part={part} card="" style="unified" versions={versions} />
-    </Suspense>
+    <>
+      {parts.map(({ name, part, versions }) => (
+        <div key={part.file}>
+          {name !== undefined && (
+            <h6 className="m-0 flex gap-3 items-baseline py-1 px-2.5 bg-muted border border-border rounded-t-xs text-xs font-medium">
+              <span className="font-mono break-all">{name}</span>
+              <span className="hint">{versions.old.length && versions.new.length ? '' : t.diff.status[versions.old.length ? 'deleted' : 'added']}</span>
+            </h6>
+          )}
+          <Suspense fallback={<p className="hint">{t.diff.loading}</p>}>
+            <CodeDiff part={part} card="" style="unified" versions={versions} />
+          </Suspense>
+        </div>
+      ))}
+    </>
   );
 }
+
+/**
+ * The patch of two versions under `id`, a name of Seismic's own: a name or line from the repository
+ * goes into no line of the patch that is not prefixed as a line of the diff, and each line of a
+ * value is a line of its own, so none can pass for a hunk's header.
+ */
+function diffOf(id: string, before: string[], after: string[]) {
+  const versions = { old: before.flatMap(splitBreaks), new: after.flatMap(splitBreaks) };
+  return { part: patchOf(id, versions.old, versions.new), versions };
+}
+
+const splitBreaks = (line: string) => line.split(/\r\n|\r|\n|\u2028|\u2029/);
+
+/** A file's extension, for its highlighting; none where it holds more than letters and digits. */
+const extension = (file: string) => /\.[A-Za-z0-9]+$/.exec(file)?.[0] ?? '';
 
 /** The files of the Claude Code or Codex configuration whose change the diff cannot show: other contents, the same text but for space at its start or end. */
 const blankOnly = (trust: RepoTrust, g: 'claude' | 'codex') =>

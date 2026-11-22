@@ -163,10 +163,9 @@ export function lineDiff(before: string[], after: string[]): { kind: ' ' | '-' |
 /**
  * `lineDiff` of two line lists as a unified patch for `file`: its hunks hold the changed lines with
  * `context` unchanged lines around them, as git shows a change; hunks whose context meets are one.
- * `heading` tells the lines that head what follows them (a file's name in a list of files): a hunk
- * names the last one before it, as git names the function a hunk is in.
+ * `file` goes into the patch's head as it is, so it holds no line break; nor do the lines.
  */
-export function patchOf(file: string, before: string[], after: string[], { context = 3, heading }: { context?: number; heading?: (line: string) => boolean } = {}): DiffPart {
+export function patchOf(file: string, before: string[], after: string[], context = 3): DiffPart {
   const d = lineDiff(before, after);
   const changed = d.flatMap((x, i) => (x.kind === ' ' ? [] : [i]));
   // the runs of the diff to show: each change with its context, runs that touch merged
@@ -187,15 +186,8 @@ export function patchOf(file: string, before: string[], after: string[], { conte
     const run = d.slice(from, to);
     const oldCount = run.filter((x) => x.kind !== '+').length;
     const newCount = run.filter((x) => x.kind !== '-').length;
-    // the heading the hunk is under, none where its first line is one
-    let section = '';
-    for (let i = from; heading && i >= 0; i--)
-      if (heading(d[i]!.line)) {
-        if (i < from) section = d[i]!.line;
-        break;
-      }
     // a side the hunk takes no line from names the line before it
-    lines.push(`@@ -${oldCount ? old + 1 : old},${oldCount} +${newCount ? neu + 1 : neu},${newCount} @@${section && ` ${section}`}`);
+    lines.push(`@@ -${oldCount ? old + 1 : old},${oldCount} +${newCount ? neu + 1 : neu},${newCount} @@`);
     // one line at a time: a run of a whole long list passed as arguments overruns the engine's limit
     for (const x of run) lines.push(x.kind + x.line);
     old += oldCount;
