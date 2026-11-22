@@ -532,6 +532,17 @@ export class Board {
   private prototypeItems: Prototypes | null = null;
   /** The ids of the cards `items` shows on the project, for `withActivePartners`; gone with `cache`. */
   private visibleIds: Set<string> | null = null;
+  /**
+   * The rows of the cards on the project as `items` last read them, kept across writes to single
+   * cards (`work`, which names the card): the next build reads again only the cards `written`,
+   * since every row of the project takes several queries to read and a landing writes to its card
+   * dozens of times, each read back at once (board-size.test.ts). Kept only while each row the
+   * database wrote since (`totalChanges`, from `at` on) was such a write or none of a card's
+   * (`accounted`); anything else, and a card coming onto the project or leaving it, reads them all.
+   */
+  private kept: { rows: CardRow[]; at: number; accounted: number; written: Set<string>; plans?: CardRow[]; planDocs?: CardRow[] } | null = null;
+  /** `totalChanges` when `items` last read the project's rows. */
+  private readAt = -1;
   private eventListeners = new Set<(e: CardEvent) => void>();
   private goneListeners = new Set<(cardId: string, id: number) => void>();
   private noticeListeners = new Set<(n: Notice) => void>();
@@ -651,13 +662,101 @@ export class Board {
    * are looked at again with the next change of anything else). A landing writes to its card dozens
    * of times, each read back at once, on a project of hundreds of cards with demos.
    */
-  private changedRows() {
+  private changedRows(cardId?: string) {
     this.cache = null;
     this.itemsCache = null;
     this.archiveItems = null;
-    this.prototypeItems = null;
     this.visibleIds = null;
+    if (cardId && this.kept) {
+      this.kept.written.add(cardId);
+      // the other prototypes stay as they were made; this card's own, and its title as an idea's, are made
+      // again, and so are its prototypes as an idea's, which carry that title
+      const p = this.prototypeItems;
+      p?.items.delete(cardId);
+      p?.titles.delete(cardId);
+      for (const r of p?.ofIdea.get(cardId) ?? []) p!.items.delete(r.id);
+    } else {
+      this.kept = null;
+      this.prototypeItems = null;
+    }
     this.tell();
+  }
+
+  /** Runs writes that change no card's rows but `work`'s card's (which it names): `kept` stays good across them. */
+  private accounted<T>(write: () => T): T {
+    const before = this.store.totalChanges();
+    try {
+      return write();
+    } finally {
+      if (this.kept) this.kept.accounted += this.store.totalChanges() - before;
+    }
+  }
+
+  /**
+   * Takes in the cards written since `items` last read the rows (`kept`): each one's row as it is
+   * now, in its place. Where the database wrote anything else meanwhile, or a card came onto the
+   * project or left it, nothing is kept; the prototypes go too where a card's prototype or hold
+   * changed (which cards show is what a prototype's duplicates are told by).
+   */
+  private takeWritten() {
+    const k = this.kept;
+    if (!k) return;
+    if (this.store.totalChanges() - k.at !== k.accounted) {
+      this.kept = null;
+      this.prototypeItems = null;
+      return;
+    }
+    if (!k.written.size) return;
+    const p = this.prototypeItems;
+    // a build handed the rows it read on: those stay as they were
+    const rows = k.rows.slice();
+    for (const id of k.written) {
+      const now = this.store.cards.get(id);
+      const at = rows.findIndex((r) => r.id === id);
+      const was = at < 0 ? undefined : rows[at];
+      const ref = p?.byId.get(id);
+      const prototypeChanged = ref ? !now || !!now.deleted_at || now.idea?.prototypeOf !== ref.prototype_of || now.archived_at !== ref.archived_at : !!now?.idea?.prototypeOf;
+      if (prototypeChanged || !Bun.deepEquals(was?.hold ?? null, now?.hold ?? null)) this.prototypeItems = null;
+      const onProject = !!now && now.project_id === this.project.id && !now.deleted_at && !now.archived_at;
+      if (onProject !== !!was) {
+        this.kept = null;
+        this.prototypeItems = null;
+        return;
+      }
+      if (was) rows[at] = now!;
+      // a plan, or a card with plan docs, is read again with the others
+      if (k.plans?.some((r) => r.id === id) || now?.kind === 'plan') k.plans = undefined;
+      if (k.planDocs?.some((r) => r.id === id) || now?.plan?.planDocs) k.planDocs = undefined;
+    }
+    k.rows = rows;
+    k.written.clear();
+  }
+
+  /** The rows of the cards on the project, as `kept` has them where it holds; read anew otherwise. */
+  private projectRows(): CardRow[] {
+    this.takeWritten();
+    return this.kept?.rows ?? this.store.cards.onProject(this.project.id);
+  }
+
+  /** For `items`: the rows as `projectRows` has them, or (`fresh`, after the build's own writes) read anew; when, it notes (`readAt`). */
+  private buildRows(fresh = false): CardRow[] {
+    const rows = fresh ? this.store.cards.onProject(this.project.id) : this.projectRows();
+    this.readAt = this.store.totalChanges();
+    return rows;
+  }
+
+  /** The project's plans, archived ones too; read once while `kept` holds (each change of the project asks). */
+  private plans(): CardRow[] {
+    this.takeWritten();
+    if (!this.kept) return this.store.cards.plans(this.project.id);
+    return (this.kept.plans ??= this.store.cards.plans(this.project.id));
+  }
+
+  /** The project's cards whose landed work added plan docs, archived ones too; read once while `kept` holds. */
+  private planDocCards(): CardRow[] {
+    this.takeWritten();
+    if (!this.kept) return this.store.cards.withPlanDocs(this.project.id);
+    return (this.kept.planDocs ??= this.store.cards.withPlanDocs(this.project.id));
   }
 
   /**
@@ -747,7 +846,8 @@ export class Board {
     extra: Partial<Pick<CardEvent, 'code' | 'images' | 'mocks' | 'replyTo' | 'spot' | 'answer' | 'picks' | 'at' | 'wish' | 'reply' | 'forwarded' | 'agent' | 'token' | 'made'>> & { unread?: boolean } = {},
   ): CardEvent {
     const { code, images, mocks, replyTo, spot, answer, picks, at, unread, wish, reply, forwarded, agent, token, made } = extra;
-    const e = this.store.events.add({
+    // a line of the log changes no card's row: the rows kept for the next build stay
+    const e = this.accounted(() => this.store.events.add({
       cardId,
       kind,
       author,
@@ -767,7 +867,7 @@ export class Board {
       ...('agent' in extra ? { agent } : {}),
       ...(token ? { token } : {}),
       ...(made ? { made } : {}),
-    });
+    }));
     for (const fn of this.eventListeners) fn(e);
     return e;
   }
@@ -913,9 +1013,9 @@ export class Board {
     this.own(id);
     // a card that leaves the planned state no longer stands where it was stopped
     if (update.state && update.state !== 'planned' && !('stopped_at' in update)) update = { ...update, stopped_at: null };
-    this.store.updateCard(id, update);
+    this.accounted(() => this.store.updateCard(id, update));
     this.presence.refreshSoon();
-    this.changedRows();
+    this.changedRows(id);
   }
 
   /** Once the demos' files have been looked at again (see `changed`): what a card shows of them is as the disk has it. */
@@ -2237,6 +2337,7 @@ export class Board {
       this.archiveItems = null;
       this.prototypeItems = null;
       this.visibleIds = null;
+      this.kept = null;
     }
     if (this.itemsCache) return this.itemsCache;
     const read = !this.docs;
@@ -2246,7 +2347,7 @@ export class Board {
     }
     const all = this.docs;
     this.follow(all, read);
-    let rows = this.store.cards.onProject(this.project.id);
+    let rows = this.buildRows();
     const docs = this.openDocs(all, rows);
     const open = docs.map((d) => d.file).join('\n');
     if (read || open !== this.open) {
@@ -2254,10 +2355,10 @@ export class Board {
       this.keepDocs(all, docs);
       if (read) this.reopen(all);
       // keeping and reopening docs archives and brings back their cards
-      rows = this.store.cards.onProject(this.project.id);
+      rows = this.buildRows(true);
     }
     // a card back from the archive, the trash or the parking lot whose canvas went meanwhile is on main
-    if (this.rehome(rows, docs)) rows = this.store.cards.onProject(this.project.id);
+    if (this.rehome(rows, docs)) rows = this.buildRows(true);
     let items = withLivePartners(toItems(rows, docs, this.home, this.worked, this.themeNow, this.there));
     this.visibleIds = new Set(items.map((i) => i.id));
     if (this.placeNew(docs, items, all, rows)) {
@@ -2265,7 +2366,7 @@ export class Board {
       this.keepDocs(all, docs);
       // what reacts to changes hears of them too (the Koordinator reads what builds on what in a plan just come)
       this.tell();
-      rows = this.store.cards.onProject(this.project.id);
+      rows = this.buildRows(true);
       items = withLivePartners(toItems(rows, docs, this.home, this.worked, this.themeNow, this.there));
       this.visibleIds = new Set(items.map((i) => i.id));
     }
@@ -2332,6 +2433,11 @@ export class Board {
     if (this.limits.size) items = items.map((i) => this.limitedCard(i));
     if (this.atWork.size) items = items.map((i) => withPart(i, 'agent', this.agentAt('identity', `card:${i.id}`)));
     if (this.landingPositions.size) items = items.map((i) => this.landingPositions.has(i.id) && i.review?.landing ? withPart(i, 'review', { landingPosition: this.landingPositions.get(i.id)! }) : i);
+    // the rows stay for the next build where nothing wrote since they were read (laying out a plan's workstreams does)
+    const now = this.store.totalChanges();
+    // the plans read meanwhile go on with them where the database wrote nothing else since they were read
+    const had = this.kept && now - this.kept.at === this.kept.accounted && !this.kept.written.size ? this.kept : null;
+    this.kept = now === this.readAt ? { rows, at: now, accounted: 0, written: new Set(), plans: had?.plans, planDocs: had?.planDocs } : null;
     this.itemsCache = items;
     return items;
   }
@@ -2501,8 +2607,8 @@ export class Board {
    * The notes on the plan directories: one for each that holds docs which are not plans, and
    * one for a repository with no plan doc that never had a plan, saying where the first goes.
    */
-  private planDirs(docs: PlanDoc[], rows = this.store.cards.onProject(this.project.id)): PlanDir[] {
-    const plans = this.store.cards.plans(this.project.id);
+  private planDirs(docs: PlanDoc[], rows = this.projectRows()): PlanDir[] {
+    const plans = this.plans();
     const preparing = rows.filter((r) => !r.plan_ref && r.title && !finished(r.state ?? 'planned'));
     return this.dirs.flatMap(({ repo, dir, others }) => {
       const empty = !others.length && !docs.some((d) => repoOfRef(d.file, this.home) === repo) && !plans.some((p) => repoOfRef(p.plan_ref!, this.home) === repo);
@@ -2730,6 +2836,8 @@ export class Board {
    * up on its own (sharing looks up hundreds in a row) need them.
    */
   private prototypes(): Prototypes {
+    // a card written since may have become a prototype or stopped being one
+    this.takeWritten();
     if (this.prototypeItems) return this.prototypeItems;
     const rows = this.store.ideas.prototypes(this.project.id);
     this.prototypeItems = { rows, ofIdea: Map.groupBy(rows, (r) => r.prototype_of), byId: new Map(rows.map((r) => [r.id, r])), items: new Map(), titles: new Map() };
@@ -2971,7 +3079,7 @@ export class Board {
 
   /** The parked and snoozed cards (not the workstreams) that keep the canvas as theirs. */
   private offCanvasRows() {
-    return this.store.cards.onProject(this.project.id).filter(
+    return this.projectRows().filter(
       (r): r is CardRow & { canvas_id: string } => !!r.canvas_id && !r.parent_id && !r.deleted_at && !r.archived_at && (r.hold?.reason === 'parkingLot' || r.hold?.reason === 'snoozed'),
     );
   }
@@ -3386,7 +3494,7 @@ export class Board {
     const shown = new Set(open.map((d) => d.file));
     const at = new Date().toISOString();
     this.store.transaction(() => {
-      for (const r of this.store.cards.plans(this.project.id)) {
+      for (const r of this.plans()) {
         const doc = byFile.get(r.plan_ref!);
         const was = r.plan?.doc ?? null;
         const plan = doc ?? was;
@@ -3412,7 +3520,7 @@ export class Board {
    * (`arranging` on the project), from their rows: asked on every change, this builds no snapshot.
    */
   arranging(): string[] {
-    return this.store.cards.plans(this.project.id).flatMap((r) => (!r.archived_at && r.plan?.deps?.reading ? [r.id] : []));
+    return this.plans().flatMap((r) => (!r.archived_at && r.plan?.deps?.reading ? [r.id] : []));
   }
 
   /** The Koordinator starts reading which workstream builds on which (`reading`), or has read it (`on`, for the doc as it stands now). */
@@ -3499,7 +3607,7 @@ export class Board {
     if (!read && !this.missing.size) return;
     this.pastOf.clear();
     const byFile = new Map(all.map((d) => [d.file, d]));
-    const plans = this.store.cards.plans(this.project.id).filter((p) => byFile.has(p.plan_ref!));
+    const plans = this.plans().filter((p) => byFile.has(p.plan_ref!));
     // the doc as last read, with its whole text: only parsed where a card needs it
     const lastOf = new Map<string, PlanDoc | null>();
     const last = (p: CardRow) => (lastOf.has(p.id) ? lastOf.get(p.id)! : lastOf.set(p.id, (p.plan?.doc ?? null)).get(p.id)!);
@@ -3737,7 +3845,7 @@ export class Board {
     this.restOf.clear();
     const linked = this.linkOrigins(docs);
 
-    const known = new Set(this.store.cards.plans(this.project.id).map((r) => r.plan_ref!));
+    const known = new Set(this.plans().map((r) => r.plan_ref!));
     const done = all.filter((d) => !docs.includes(d) && !known.has(d.file));
     const fresh = [...docs.filter((d) => !byRef.has(d.file)), ...done];
     if (!fresh.length) return add.length > 0 || linked;
@@ -3772,10 +3880,10 @@ export class Board {
   private linkOrigins(docs: PlanDoc[]): boolean {
     const origin = new Map<string, string>();
     // a card writing its doc in a plan folder outside the repository names it from the start: it is its origin once approved
-    for (const r of this.store.cards.withPlanDocs(this.project.id)) if (r.landed || r.state === 'live' || r.state === 'done') for (const ref of r.plan!.planDocs!) origin.set(ref, r.id);
+    for (const r of this.planDocCards()) if (r.landed || r.state === 'live' || r.state === 'done') for (const ref of r.plan!.planDocs!) origin.set(ref, r.id);
     if (!origin.size) return false;
     let linked = false;
-    for (const r of this.store.cards.plans(this.project.id)) {
+    for (const r of this.plans()) {
       const from = !r.from_id ? origin.get(r.plan_ref!) : undefined;
       if (!from) continue;
       this.store.cards.update(r.id, { from_id: from });
@@ -3822,7 +3930,7 @@ export class Board {
     const r = this.store.cards.get(ideaId);
     // `done`: approved without a change, its doc written in a plan folder outside the repository
     if (!r || r.deleted_at || r.archived_at || (r.state !== 'live' && r.state !== 'done') || (r.landed && r.workstation)) return false;
-    if (!this.store.cards.plans(this.project.id).some((p) => p.from_id === ideaId && !p.archived_at)) return false;
+    if (!this.plans().some((p) => p.from_id === ideaId && !p.archived_at)) return false;
     this.store.cards.update(ideaId, { archived_at: new Date().toISOString() });
     this.log(ideaId, 'state', 'seismic', r.idea?.discussion ? this.t.idea.becamePlan : this.t.idea.taskBecamePlan);
     return true;
@@ -4117,8 +4225,12 @@ function workOf(r: CardRow, worked?: Worked, themeNow?: ThemeNow, there?: Presen
   return made;
 }
 
+/** The parts (idea, demo, labels …) come from tables of their own as new objects with each read: they compare by value. */
 const sameRow = (a: CardRow, b: CardRow) => {
-  for (const k in b) if (a[k as keyof CardRow] !== b[k as keyof CardRow]) return false;
+  for (const k in b) {
+    const x = a[k as keyof CardRow], y = b[k as keyof CardRow];
+    if (x !== y && !(typeof x === 'object' && x !== null && typeof y === 'object' && y !== null && Bun.deepEquals(x, y))) return false;
+  }
   return true;
 };
 

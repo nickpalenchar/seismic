@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, getTableColumns, inArray, isNotNull, isNull, ne, relations, type SQL, sql } from 'drizzle-orm';
+import { and, asc, Column, desc, eq, getTableColumns, inArray, is, isNotNull, isNull, ne, relations, SQL, sql } from 'drizzle-orm';
 import { type AnySQLiteColumn, index, real, sqliteTable, text, unique, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import type { AgentSetting, CardKind, CardState, Hold, Need, Queue } from '../../../core/types';
 import { atomic, changes, type Db, now, SHORT } from '../common';
@@ -208,6 +208,32 @@ const READ = {
   plan: getTableColumns(cardPlans),
   hold: getTableColumns(cardHolds),
 };
+/**
+ * READ's columns in the order the query selects them (READ's own, as Drizzle goes through it), each
+ * with the part it goes into (none: the card's own, read as stored) and, for a part's, its column
+ * to decode it. `fromValues` puts a row together as Drizzle's own mapping does, with these found
+ * once: Drizzle looks up every value's kind and place anew, which made reading a project's cards
+ * cost three times what SQLite takes (the size test, board-size.test.ts).
+ */
+type ReadField = { part: string | null; key: string; column: Column | null };
+const READ_FIELDS = Object.entries(READ).flatMap<ReadField>(([key, field]) =>
+  is(field, SQL.Aliased) ? [{ part: null, key, column: null }] : Object.entries(field as Record<string, Column>).map(([k, column]) => ({ part: key, key: k, column })),
+);
+
+/** A row of READ as SQLite gives it, as Drizzle reads it: a left-joined part is null where its first column, the key, is. */
+function fromValues(values: unknown[]): Omit<Read, 'earlierDemos' | 'labels' | 'reviewItems' | 'reviewEvents'> {
+  const row: Record<string, unknown> = {};
+  for (let i = 0; i < READ_FIELDS.length; i++) {
+    const { part, key, column } = READ_FIELDS[i]!;
+    const raw = values[i];
+    const value = raw === null || !column ? raw : column.mapFromDriverValue(raw);
+    if (!part) row[key] = value;
+    else if (!(part in row)) row[part] = value === null ? null : { [key]: value };
+    else if (row[part]) (row[part] as Record<string, unknown>)[key] = value;
+  }
+  return row as Omit<Read, 'earlierDemos' | 'labels' | 'reviewItems' | 'reviewEvents'>;
+}
+
 /** Each column's key in `cards` by its name in the database. */
 const keyOf = new Map(Object.entries(getTableColumns(cards)).map(([key, c]) => [c.name, key]));
 
@@ -294,7 +320,7 @@ export class Cards {
   }
 
   get(id: string): CardRow | null {
-    return this.complete(this.byId.all({ id }))[0] ?? null;
+    return this.complete(this.byId.values({ id }).map(fromValues))[0] ?? null;
   }
 
   /** The cards `where` selects with their one-row parts (`READ`), in the order given. */
@@ -326,7 +352,7 @@ export class Cards {
 
   /** The cards `where` selects, as read, in the order given. */
   private rows(where: SQL | undefined, orderBy: SQL[] = []): CardRow[] {
-    return this.complete(this.select(where, orderBy).all());
+    return this.complete(this.select(where, orderBy).values().map(fromValues));
   }
 
   /** The rows of these cards, deleted or archived ones too. */
@@ -347,7 +373,7 @@ export class Cards {
 
   /** Every card on the project: not deleted, not archived. */
   onProject(projectId: string): CardRow[] {
-    return this.complete(this.open.all({ project: projectId }));
+    return this.complete(this.open.values({ project: projectId }).map(fromValues));
   }
 
   /** The project's cards, archived ones too, that were ever shared or are about to be. */
@@ -367,7 +393,8 @@ export class Cards {
 
   /** The cards whose landed work added plan docs, on the project or archived. */
   withPlanDocs(projectId: string): CardRow[] {
-    return this.rows(and(open(projectId), sql`EXISTS (SELECT 1 FROM card_plans p WHERE p.card_id = ${cards.id} AND p.plan_docs IS NOT NULL)`));
+    // from the few plan rows with docs (card_plans_plan_docs), not from every card of the project: each change of it asks
+    return this.rows(and(open(projectId), inArray(cards.id, sql`(SELECT card_id FROM card_plans WHERE plan_docs IS NOT NULL)`)));
   }
 
   /** The workstreams of the given plans. */

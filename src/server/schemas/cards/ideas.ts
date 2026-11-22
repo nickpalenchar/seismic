@@ -46,7 +46,18 @@ const EMPTY: CardIdea = { discussion: null, prototypeOf: null, prototype: null, 
 
 /** The idea parts' queries (`Store.ideas`); they are read with their cards (`Cards`, `with: { idea: true }`). */
 export class Ideas {
-  constructor(private readonly db: Db) {}
+  // read with each change of a project (its prototypes, wherever they are), prepared once: building the query costs more than running it
+  private readonly ofProject;
+
+  constructor(private readonly db: Db) {
+    this.ofProject = db
+      .select({ id: cards.id, prototype_of: sql<string>`${cardIdeas.prototypeOf}`, archived_at: cards.archivedAt })
+      .from(cardIdeas)
+      .innerJoin(cards, eq(cards.id, cardIdeas.cardId))
+      .where(and(eq(cards.projectId, sql.placeholder('project')), isNull(cards.deletedAt), isNotNull(cardIdeas.prototypeOf)))
+      .orderBy(asc(cards.createdAt), sql`${cards}.rowid`)
+      .prepare();
+  }
 
   /** Sets fields of the card's idea part: its row comes once any is set, and goes once none is. */
   set(cardId: string, fields: IdeaUpdate) {
@@ -62,12 +73,6 @@ export class Ideas {
 
   /** The project's prototypes, on the project or archived, the oldest first: which they are, of which idea, without the rest of their rows. */
   prototypes(projectId: string): { id: string; prototype_of: string; archived_at: string | null }[] {
-    return this.db
-      .select({ id: cards.id, prototype_of: sql<string>`${cardIdeas.prototypeOf}`, archived_at: cards.archivedAt })
-      .from(cardIdeas)
-      .innerJoin(cards, eq(cards.id, cardIdeas.cardId))
-      .where(and(eq(cards.projectId, projectId), isNull(cards.deletedAt), isNotNull(cardIdeas.prototypeOf)))
-      .orderBy(asc(cards.createdAt), sql`${cards}.rowid`)
-      .all();
+    return this.ofProject.all({ project: projectId });
   }
 }

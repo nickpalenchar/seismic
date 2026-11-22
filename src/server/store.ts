@@ -126,6 +126,14 @@ export class Store {
     this.agentRuns = new AgentRuns(orm);
     this.feedback = new Feedbacks(orm);
     this.devices = new Devices(orm);
+    this.changesMade = client.query('SELECT total_changes() AS n');
+  }
+
+  private readonly changesMade;
+
+  /** How many rows this connection has written so far, every table and project alike: a reader that counts them knows whether anything wrote since it last read. */
+  totalChanges(): number {
+    return (this.changesMade.get() as { n: number }).n;
   }
 
   /** Runs `fn` in one transaction, or in a savepoint of the one it runs in. */

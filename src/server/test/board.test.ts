@@ -507,6 +507,40 @@ describe('the archive of plans', () => {
   });
 });
 
+describe('the rows a build keeps for the next', () => {
+  test('a write to one card is read back, and so is a row written past the board meanwhile', () => {
+    const a = board.create({ title: 'A', x: 0, y: 0 });
+    const b = board.create({ title: 'B', x: 400, y: 0 });
+    board.item(a.id);
+    board.work(a.id, { status_line: 'Landing' });
+    expect(board.item(a.id)?.agent?.statusLine).toBe('Landing');
+    // written straight to the store, as no code should: the next write to another card reads it all the same
+    store.cards.update(b.id, { title: 'B, renamed' });
+    board.work(a.id, { status_line: 'Landed' });
+    expect(board.item(b.id)?.title).toBe('B, renamed');
+    expect(board.item(a.id)?.agent?.statusLine).toBe('Landed');
+  });
+
+  test('an idea renamed: its prototypes, on their own and on the idea, carry its new title', () => {
+    const [idea] = store.addCards([{ project_id: 'shop', kind: 'task', state: 'idea', title: 'Export', x: 0, y: 0 }]);
+    const [prototype] = store.addCards([{ project_id: 'shop', kind: 'task', state: 'live', title: 'Export, variant 1', x: 0, y: 300, from_id: idea!.id, idea: { prototypeOf: idea!.id } }]);
+    board.changed();
+    expect(board.item(idea!.id)?.idea?.prototypes?.[0]?.idea?.ideaTitle).toBe('Export');
+    board.work(idea!.id, { title: 'Export as CSV' });
+    expect(board.item(prototype!.id)?.idea?.ideaTitle).toBe('Export as CSV');
+    expect(board.item(idea!.id)?.idea?.prototypes?.[0]?.idea?.ideaTitle).toBe('Export as CSV');
+  });
+
+  test('a card written off the project or back onto it leaves or joins the others', () => {
+    const a = board.create({ title: 'A', x: 0, y: 0 });
+    board.item(a.id);
+    board.work(a.id, { archived_at: new Date().toISOString() });
+    expect(board.item(a.id)).toBeUndefined();
+    board.work(a.id, { archived_at: null });
+    expect(board.item(a.id)?.title).toBe('A');
+  });
+});
+
 describe('manual cards', () => {
   test('create, edit, delete and restore', async () => {
     let changes = 0;
@@ -937,7 +971,8 @@ describe('canvases', () => {
       expect(canvases.find((c) => c.id === later.id)).toMatchObject({ parked: 2, snoozed: 1 });
       expect(canvases.find((c) => c.id === later.id)!.inUse).toBeUndefined();
       expect(canvases.find((c) => c.id === other.id)!.parked).toBeUndefined();
-      expect(load).toHaveBeenCalledTimes(1);
+      // the parked and snoozed cards are counted from the rows the build kept: nothing reads the project again
+      expect(load).toHaveBeenCalledTimes(0);
     } finally {
       load.mockRestore();
     }
