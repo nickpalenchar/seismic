@@ -394,8 +394,9 @@ function Project({
    * the other project's, no choice here.
    */
   const addressOurs = () => {
+    // an address without a project shows the first (App)
     const a = readAddress().project;
-    return !a || projectNamed(projectsRef.current, a)?.id === snapshotRef.current.project.id;
+    return (a ? projectNamed(projectsRef.current, a) : projectsRef.current[0])?.id === snapshotRef.current.project.id;
   };
   /** Keeps `id` as the canvas shown last on this project, for the next visit. */
   const keepCanvas = (id: string) => {

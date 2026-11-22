@@ -39,7 +39,9 @@ export function leavesPage(from: string, to: string): boolean {
 
 // A native traversal has already moved the history cursor by the time popstate runs. Restore
 // that cursor before asking, then replay the same number of steps if the owner discards.
-// Stamp app entries for browsers that do not expose the session history index.
+// Stamp app entries for browsers that do not expose the session history index. Those steps there and
+// back are the guard's, not the owner's: the `hashchange` they bring is kept from the page too, so
+// that nothing takes the hash of a step that did not happen for a choice (the canvas it names).
 if (typeof window !== 'undefined' && typeof history !== 'undefined') {
   const indexKey = '__seismicHistoryIndex';
   const nativeIndex = () => {
@@ -58,22 +60,44 @@ if (typeof window !== 'undefined' && typeof history !== 'undefined') {
   const replace = history.replaceState.bind(history);
   if (history.state?.[indexKey] === undefined) replace({ ...history.state, [indexKey]: 0 }, '');
   let here = cursor();
+  /** The address before the step that runs now, the guard's own steps included. */
+  let at = location.href;
+  /**
+   * The address whose `hashchange` belongs to the guard's last step, until it comes. Chrome and Safari
+   * bring none where the path changed too; the next step or address set drops it, so it hides no later one.
+   */
+  let unseen: string | null = null;
   history.pushState = (state, unused, url) => {
     push({ ...state, [indexKey]: (here.app ?? 0) + 1 }, unused, url);
     here = cursor();
+    at = location.href;
+    unseen = null;
   };
   history.replaceState = (state, unused, url) => {
     replace({ ...state, [indexKey]: here.app ?? 0 }, unused, url);
     here = cursor();
+    at = location.href;
+    unseen = null;
   };
+  addEventListener('hashchange', (e: HashChangeEvent) => {
+    if (e.newURL !== unseen) return;
+    unseen = null;
+    e.stopImmediatePropagation();
+  });
 
   let returning: { origin: Cursor; delta: number } | null = null;
   addEventListener('popstate', (e) => {
     const there = cursor();
+    const from = at;
+    at = there.href;
+    unseen = null;
+    /** This step is the guard's: a hash it changes is no news for the page. */
+    const hide = () => void (new URL(from).hash !== location.hash && (unseen = location.href));
     if (e.isTrusted && returning) {
       const back = distance(there, returning.origin);
       if (back !== undefined) {
         e.stopImmediatePropagation();
+        hide();
         if (back !== 0) return history.go(back);
         const { delta } = returning;
         returning = null;
@@ -86,6 +110,7 @@ if (typeof window !== 'undefined' && typeof history !== 'undefined') {
     const delta = distance(here, there);
     if (e.isTrusted && guards.size && delta && leavesPage(here.href, there.href)) {
       e.stopImmediatePropagation();
+      hide();
       returning = { origin: here, delta };
       history.go(-delta);
       return;
