@@ -2,8 +2,8 @@
 // projects under it, the best match first; the arrow keys move through them, Enter goes to the one
 // marked, Esc closes it. The project open now comes last, since the owner opens it to leave. Each
 // page that shows a project (the canvas, the Agent Feedback Log, an address naming none) mounts it,
-// and it listens for its key itself. What is about every project and not this one (the configuration,
-// the preferences, the performance dashboard) closes for it, so that it opens over the project; over
+// and it listens for its key itself. While what is about every project and not this one covers the
+// page (the configuration, the preferences, the performance dashboard), the key does nothing; over
 // the project's own dialogs it opens on top, the card's diff included; over the
 // overlays that take Esc themselves before any dialog hears it (`OWN_ESC`) it stays shut.
 
@@ -61,14 +61,14 @@ export function switcherResults(projects: ProjectInfo[], query: string, current:
     .map((r) => r.p);
 }
 
-export function ProjectSwitcher({ project, projects, entries = [], onOpen }: {
+export function ProjectSwitcher({ project, projects, entries = [], shut = false }: {
   /** The project open now. */
   project: string;
   projects: ProjectInfo[];
   /** What waits for the owner on every project, for the counts beside them. */
   entries?: InboxEntry[];
-  /** Closes what covers the project and is not about it (the configuration, the preferences), so the switcher opens over the project. */
-  onOpen?: () => void;
+  /** What covers the project is about every project (the configuration, the preferences): the key does nothing meanwhile. */
+  shut?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -83,16 +83,13 @@ export function ProjectSwitcher({ project, projects, entries = [], onOpen }: {
       if (!isSwitcherKey(e)) return;
       // the browser's print has no place here, also where the switcher stays shut
       e.preventDefault();
-      if (e.repeat || (!open && document.querySelector(OWN_ESC))) return;
-      if (!open) {
-        opener.current = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
-        onOpen?.();
-      }
+      if (e.repeat || (!open && (shut || document.querySelector(OWN_ESC)))) return;
+      if (!open) opener.current = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
       setOpen(!open);
     };
     addEventListener('keydown', key, true);
     return () => removeEventListener('keydown', key, true);
-  }, [open, onOpen]);
+  }, [open, shut]);
   // each time it opens, the field starts empty
   useEffect(() => void (open && setQuery('')), [open]);
   const waiting = open ? waitingPerProject(entries) : {};

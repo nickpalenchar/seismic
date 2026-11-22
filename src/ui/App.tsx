@@ -727,12 +727,6 @@ function Project({
     setPrefsOn(false);
     setPerfOn(true);
   }, []);
-  // the views about every project, not this one: the project switcher closes them to open over the project
-  const leaveSystemViews = useCallback(() => {
-    setCOn(false);
-    setPrefsOn(false);
-    setPerfOn(false);
-  }, []);
   const wishOn = useWish().open;
   // the bar's `?` button stays until the owner opened the legend with the key; the legend's foot says so
   const [helpKnown, setHelpKnown] = useState(() => known(HELP_KEY_KNOWN));
@@ -3000,7 +2994,7 @@ function Project({
         {/* over the inbox's view, its list stays undimmed beside the card, to work down from there */}
         <div id="dim" className={cn('fixed inset-x-0 top-[50px] bottom-0 z-30 bg-scrim opacity-0 pointer-events-none [transition:opacity_.2s,left_0s]', dim && 'on opacity-100 pointer-events-auto backdrop-blur-[3px]')} onClick={() => closeCard()} />
         {helpOn && <Help note={helpNote} onClose={() => setHelpOn(false)} />}
-        <ProjectSwitcher project={snapshot.project.id} projects={projects} entries={entries} onOpen={leaveSystemViews} />
+        <ProjectSwitcher project={snapshot.project.id} projects={projects} entries={entries} shut={cOn || prefsOn || perfOn} />
         <WishDialog />
         {/* the open card blurs only while it is open in full (`ready`): as it unfolds, folds and hides it is a solid
             pane, and the card it lifted off the canvas keeps no blur either. Safari (an iPad's) can leave a hidden
