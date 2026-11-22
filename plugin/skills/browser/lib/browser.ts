@@ -160,7 +160,7 @@ async function pageTabs(port: number): Promise<Tab[]> {
 
 async function pickTab(port: number, tabId?: string): Promise<Tab> {
   const tabs = await pageTabs(port);
-  if (tabs.length === 0) fail(NOT_STARTED + ' If `start` already ran, the browser has no tab yet: run `open <url>`, then retry.');
+  if (tabs.length === 0) fail('The browser has no open tab. Run `open <url>` to open one, then retry your command.');
   if (!tabId) return tabs[0]!;
   const tab = tabs.find((t) => t.id === tabId || t.id.startsWith(tabId));
   if (!tab) fail(`No tab ${tabId}. Open tabs:\n` + tabs.map((t) => `${t.id}  ${t.url}`).join('\n'));

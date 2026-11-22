@@ -136,6 +136,21 @@ describe('browser skill', () => {
     expect(alive(sa.pid)).toBe(false);
     expect(await answers(sa.port)).toBe(false);
     await expect(browser(a, 'text')).rejects.toThrow("Browser session not initialized");
+    // before any start: the whole sequence is named
+    const fresh = session();
+    for (const command of [['nav', PAGE], ['eval', '1'], ['input', 'wait:1']]) {
+      const failure = await browser(fresh, ...command).catch((error: Error) => error.message);
+      expect(failure).toContain('Browser session not initialized');
+      expect(failure).toContain('browser.ts start');
+      expect(failure).toContain('`open <url>`');
+      expect(failure).toContain('retry your command');
+    }
+    // started but no tab: only open is asked for
+    await browser(fresh, 'start');
+    const noTab = await browser(fresh, 'eval', '1').catch((error: Error) => error.message);
+    expect(noTab).toContain('no open tab');
+    expect(noTab).not.toContain('not initialized');
+    await browser(fresh, 'stop');
     expect(await browser(b, 'text')).toBe('b');
     await browser(b, 'stop');
   }, 30_000);
