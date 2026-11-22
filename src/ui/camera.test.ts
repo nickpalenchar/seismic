@@ -159,4 +159,7 @@ test('a return to a project finds the canvas shown last on it, while the project
   expect(lastCanvas(canvases, 'gone')).toBeUndefined();
   expect(lastCanvas(canvases, null)).toBeUndefined();
   expect(lastCanvasKey('p1')).not.toBe(lastCanvasKey('p2'));
+  // no project id makes it the key of something else, such as another project's draft of a new canvas
+  expect(lastCanvasKey('draft-shop-new')).not.toBe('seismic-canvas-draft-shop-new');
+  expect(lastCanvasKey('x').startsWith('seismic-last-canvas-')).toBe(true);
 });

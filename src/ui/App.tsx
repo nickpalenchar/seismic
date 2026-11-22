@@ -378,14 +378,16 @@ function Project({
   // this project (a return from another project lands there), else the first; each has a layout of its own
   const [hash, setHash] = useState(() => location.hash);
   // the canvas shown last, as the page opened: it stays out of the address, so that an entry of the
-  // history without a hash goes on meaning "where the owner left", not the canvas shown then
-  const [keptCanvas] = useState(() => {
+  // history without a hash goes on meaning "where the owner left", not the canvas shown then. It
+  // stands only for the first canvas shown: what the owner shows later replaces it
+  const keptCanvas = useRef<string | null | undefined>(undefined);
+  if (keptCanvas.current === undefined) {
     try {
-      return localStorage.getItem(lastCanvasKey(snapshot.project.id));
+      keptCanvas.current = localStorage.getItem(lastCanvasKey(snapshot.project.id));
     } catch {
-      return null;
+      keptCanvas.current = null;
     }
-  });
+  }
   useEffect(() => {
     const on = () => {
       // a card open is shown on its own canvas: a hash naming another one goes
@@ -405,21 +407,28 @@ function Project({
   // named in the address before the project brings it under that name; as the page opens, one that
   // names no canvas any more (deleted, renamed) shows the one shown last, as no hash does
   const lastShown = useRef<string>(undefined);
-  const shownCanvas = (hash ? canvasNamedBy(canvases, hash) : undefined) ?? canvases.find((c) => c.id === lastShown.current) ?? lastCanvas(canvases, keptCanvas) ?? canvases[0];
+  const shownCanvas = (hash ? canvasNamedBy(canvases, hash) : undefined) ?? canvases.find((c) => c.id === lastShown.current) ?? lastCanvas(canvases, keptCanvas.current ?? null) ?? canvases[0];
   const canvasId = shownCanvas?.id;
   lastShown.current = canvasId;
+  // once a canvas shows, the one kept is used up: a canvas shown and then deleted falls back to the first
+  if (canvasId) keptCanvas.current = null;
   const canvasRef = useRef(canvasId);
   canvasRef.current = canvasId;
-  useEffect(() => {
-    if (!canvasId) return;
+  /** Keeps `id` as the canvas shown last on this project, for the next visit. */
+  const keepCanvas = (id: string) => {
     try {
-      localStorage.setItem(lastCanvasKey(snapshot.project.id), canvasId);
+      localStorage.setItem(lastCanvasKey(snapshot.project.id), id);
     } catch {}
+  };
+  useEffect(() => {
+    if (canvasId) keepCanvas(canvasId);
   }, [canvasId]);
   /** Shows a canvas of the project (one just made too, which the project brings soon); the address names it. */
   const showCanvas = (c: Canvas | string) => {
     const to = typeof c === 'string' ? canvases.find((x) => x.id === c) : c;
     if (!to) return;
+    // picked again, the canvas shown is the last choice here too, over one another tab made since
+    keepCanvas(to.id);
     const h = `#${encodeURIComponent(to.name)}`;
     if (to.id === canvasRef.current && location.hash === h) return;
     history.replaceState(history.state, '', `${location.pathname}${location.search}${h}`);

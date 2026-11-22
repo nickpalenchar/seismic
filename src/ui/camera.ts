@@ -19,8 +19,12 @@ export interface Cam {
 export const camKey = (projectId: string, canvas?: { id: string; name: string }) =>
   `seismic-cam-${projectId}${canvas && canvas.name !== MAIN_CANVAS ? `#${canvas.id}` : ''}`;
 
-/** Where the canvas last shown of a project is kept in localStorage, by its id: a return to the project without a hash lands on it. */
-export const lastCanvasKey = (projectId: string) => `seismic-canvas-${projectId}`;
+/**
+ * Where the canvas last shown of a project is kept in localStorage, by its id: a return to the project
+ * without a hash lands on it. No other key starts with `seismic-last-`, so no project id turns it into
+ * another one (under `seismic-canvas-`, the project `draft-shop-new` would have hit Shop's "New canvas" draft).
+ */
+export const lastCanvasKey = (projectId: string) => `seismic-last-canvas-${projectId}`;
 
 /** The canvas kept as last shown, when the project still has it; none otherwise (the page then shows the first). */
 export const lastCanvas = <C extends { id: string }>(canvases: C[], keptId: string | null) => (keptId ? canvases.find((c) => c.id === keptId) : undefined);
