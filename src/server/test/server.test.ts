@@ -1327,7 +1327,7 @@ describe('cards that need the owner', () => {
 });
 
 describe('projects that start and stop while Seismic runs', () => {
-  test('a new project is served at once and every page hears of it; the pages of one that stopped go elsewhere', async () => {
+  test('projects are listed on connection and after changes; the pages of a stopped project go elsewhere', async () => {
     const other = join(dir, 'other');
     gitRepo(other);
     const set = new Projects([], { store: new Store(':memory:'), home: join(dir, 'home2'), runtime, forge: noForge, restartIntervalMs: 5 });
@@ -1338,10 +1338,12 @@ describe('projects that start and stop while Seismic runs', () => {
     const ws = new WebSocket(new URL(api('/ws'), server.url.href.replace('http', 'ws')));
     ws.onmessage = (e) => messages.push(JSON.parse(e.data));
     await until(() => messages.some((m) => m.type === 'snapshot'));
+    const projectLists = () => messages.filter((m) => m.type === 'projects');
+    expect(projectLists()).toMatchObject([{ projects: [{ id: 'main' }] }]);
 
-    set.apply([{ name: 'Andere', repos: [{ path: other }] }], ['andere']);
-    await until(() => messages.some((m) => m.type === 'projects'));
-    expect(messages.find((m) => m.type === 'projects')).toMatchObject({ projects: [{ id: 'main' }, { id: 'andere', name: 'Andere' }] });
+    await set.apply([{ name: 'Andere', repos: [{ path: other }] }], ['andere']);
+    await until(() => projectLists().length === 2);
+    expect(projectLists().at(-1)).toMatchObject({ projects: [{ id: 'main' }, { id: 'andere', name: 'Andere' }] });
     const listed = (await (await fetch(new URL('/api/projects', server.url))).json()) as { id: string }[];
     expect(listed.map((c) => c.id)).toEqual(['main', 'andere']);
     const theirs = new WebSocket(new URL('/api/c/andere/ws', server.url.href.replace('http', 'ws')));
@@ -1349,10 +1351,22 @@ describe('projects that start and stop while Seismic runs', () => {
     theirs.onclose = () => (closed = true);
     await until(() => theirs.readyState === WebSocket.OPEN);
 
+    await set.apply([{ name: 'Renamed', repos: [{ path: other }] }], ['andere']);
+    await until(() => projectLists().length === 3);
+    const rejoined: ServerMessage[] = [];
+    const rejoin = new WebSocket(new URL(api('/ws'), server.url.href.replace('http', 'ws')));
+    rejoin.onmessage = (e) => rejoined.push(JSON.parse(e.data));
+    await until(() => rejoined.some((m) => m.type === 'waiting'));
+    expect(rejoined.filter((m) => m.type === 'projects' || m.type === 'snapshot' || m.type === 'waiting').map((m) => m.type)).toEqual([
+      'projects', 'snapshot', 'waiting',
+    ]);
+    expect(rejoined.find((m) => m.type === 'projects')).toMatchObject({ projects: [{ id: 'main' }, { id: 'andere', name: 'Renamed' }] });
+    rejoin.close();
+
     // it leaves the configuration: nobody works on it, so it stops at once and its page is closed
     set.apply([], []);
     await until(() => closed);
-    expect(messages.filter((m) => m.type === 'projects').at(-1)).toMatchObject({ projects: [{ id: 'main' }] });
+    expect(projectLists().at(-1)).toMatchObject({ projects: [{ id: 'main' }] });
     expect((await post('/api/c/andere/cards', JSON.stringify({ title: 'X', x: 0, y: 0 }))).status).toBe(404);
     ws.close();
   });

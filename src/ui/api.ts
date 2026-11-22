@@ -739,7 +739,7 @@ export function useProject(id = projectId): {
   /** What waits for the owner on each project, by project id. */
   waiting: Record<string, Waiting>;
   oldBun: string | null;
-  /** The projects as they changed while the page is open (one started, stopped or renamed); null until they do. */
+  /** The projects from the connection, initially and as they change. */
   projects: ProjectInfo[] | null;
 } {
   const [snapshot, setSnapshot] = useState<ProjectSnapshot | null>(null);

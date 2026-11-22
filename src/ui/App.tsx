@@ -88,6 +88,10 @@ import { cn } from 'cn';
 export function App() {
   const [phone] = useState(phoneView);
   const [projects, setProjects] = useState<ProjectInfo[] | null>(null);
+  const refreshProjects = useCallback((list: ProjectInfo[], previous: ProjectInfo[]) => {
+    // A connection can take over while the fallback read is in flight.
+    setProjects((current) => current === previous ? list : current);
+  }, []);
   const [failed, setFailed] = useState(false);
   // another project picked in the switcher, or Back and Forward between projects: the page shows it without loading again
   const [, followed] = useState(0);
@@ -133,7 +137,7 @@ export function App() {
         <Shown id={current.id} projects={projects} onProjects={setProjects} />
       )}
       {/* one for every page, which stays as one page takes another's place: a search in it goes on */}
-      <ProjectSwitcher project={current?.id ?? ''} projects={projects} onProjects={setProjects} />
+      <ProjectSwitcher project={current?.id ?? ''} projects={projects} onProjects={refreshProjects} />
     </>
   );
 }

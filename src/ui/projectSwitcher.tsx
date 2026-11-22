@@ -123,8 +123,8 @@ export function ProjectSwitcher({ project, projects, onProjects }: {
   /** The project open now; '' where the address names none. */
   project: string;
   projects: ProjectInfo[];
-  /** The projects as the switcher read them where no project's connection keeps them current, which the page then knows too. */
-  onProjects: (list: ProjectInfo[]) => void;
+  /** Publishes the fallback read if the page still has the list it had when the read began. */
+  onProjects: (list: ProjectInfo[], previous: ProjectInfo[]) => void;
 }) {
   const [open, setOpen] = useState(false);
   const field = useRef<HTMLInputElement>(null);
@@ -143,7 +143,7 @@ export function ProjectSwitcher({ project, projects, onProjects }: {
     let on = true;
     Promise.all([api.projects(), api.waiting()]).then(([list, w]) => {
       if (!on) return;
-      onProjects(list);
+      onProjects(list, projects);
       setRead(waitingPerProject(inboxEntries(list, w)));
     }, () => {});
     return () => void (on = false);

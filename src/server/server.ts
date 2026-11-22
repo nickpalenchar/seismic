@@ -302,17 +302,19 @@ export function serve(
     ];
     detach.set(c.id, () => offs.forEach((off) => off()));
   };
+  const projectList = () => projects.all().map((c) => c.board.project);
+  const projectsMessage = (list: ProjectInfo[]) => JSON.stringify({ type: 'projects', projects: list } satisfies ServerMessage);
   /** The list the pages' project switchers show, as it was last sent. */
   let listed = '';
   /** Sends the projects to every page where they changed (one started, stopped, renamed, or with other repositories). */
   const relist = () => {
-    const now = projects.all().map((c) => c.board.project);
+    const now = projectList();
     const list = JSON.stringify(now);
     if (list === listed) return;
     const first = !listed;
     listed = list;
     if (first) return;
-    everyone(JSON.stringify({ type: 'projects', projects: now } satisfies ServerMessage));
+    everyone(projectsMessage(now));
     everyone(waitingMessage());
   };
   for (const c of projects.all()) attach(c);
@@ -526,7 +528,7 @@ export function serve(
           return device ? handle(() => push.unsubscribe(device)) : onlyDevices();
         },
       },
-      '/api/projects': { GET: () => Response.json(projects.all().map((c) => c.board.project) satisfies ProjectInfo[]) },
+      '/api/projects': { GET: () => Response.json(projectList()) },
       // what waits for the owner on each project, for a page without a project's connection (the feedback log, an address naming none)
       '/api/waiting': { GET: () => Response.json(waiting satisfies Record<string, Waiting>) },
       // the Activity log, newest first: the project's lines, or every project's (`all`); `before` pages back from a line's id
@@ -1183,6 +1185,9 @@ export function serve(
           const closed = usage.map((m) => m.watch());
           unwatch.set(ws.data.page, () => closed.forEach((f) => f()));
         }
+        // A page opening or reconnecting may have missed project changes. Give it the current
+        // list before the snapshot and waiting counts let it rely on this connection.
+        ws.send(projectsMessage(projectList()));
         ws.send(JSON.stringify({ type: 'snapshot', snapshot: c.board.snapshot() } satisfies ServerMessage));
         ws.send(waitingMessage());
         // a page that reloads within a command's undo window offers "Undo" again

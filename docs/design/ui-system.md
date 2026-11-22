@@ -149,31 +149,18 @@ same style. UI text comes from `src/ui/strings.ts`, never a literal.
   unfolded card, the panel itself takes focus. Space can then start push-to-talk and Esc can fold
   the card. Tab moves focus to the Card actions menu. Esc also folds the card when that menu is open.
   The connection dots stay out of the Tab order: an arrow follows the pointer.
-- **⌘P / Ctrl+P is the quick project switcher** (2026-11-22): ⌘P on a Mac, iPhone or iPad and
-  Ctrl+P elsewhere, never Ctrl+P on a Mac (the owner: there it is the system's line up in a text
-  field), so the key it takes is the key its hint shows. A search field over the page with
-  the projects under it (name first, then a repository or old name, then the name's letters in
-  order; the open project last), Enter going there within the page. It takes the key from anywhere,
-  a text field included, since the browser's own use of it (print) has no place in Seismic; every
-  desktop list of the projects (the bar's switcher, the left menu, docked or not) shows the key
-  under it so it is found. While a view about every project is open (Configuration, Preferences,
-  the performance dashboard, Connect a phone, the new project's form) the key does nothing and
-  leaves that view as it is (the owner, 2026-11-22: it switches projects, and those are system
-  wide); over the project's own dialogs it opens on top (the card's diff sits at z 1000), and Esc
-  gives the focus back to where it was, or to the button of a menu or popover that closed as it
-  opened. App mounts one beside every desktop page, the splash while a project loads or its
-  server does not answer included, so a page that takes another's place under it (the first
-  snapshot, a project that turns up, Back) leaves a search in it going; a page with no project's
-  connection (the feedback log, an address naming none, a project not connected yet) reads the
-  projects and what waits (`/api/waiting`) as it opens. Keys pressed in it are its own: the page's
-  shortcuts (the legend's `?` and Space) and a demo's keys leave them alone, and on a Mac its
-  cmdk Vim keys are off, so Ctrl+N/P/J/K stay the text field's there (the other lists keep them,
-  where they are the way to move without the arrows). The legend shows only the key this system
-  takes. Its Esc stops in the document's capture phase, where Radix closes it,
-  so nothing under it (a demo shown larger) closes as well; a prevented default cannot say so, as
-  the docked sheet prevents it on every Esc. It stays shut over the overlays that close on Esc in the window's
-  capture phase (the right-click rings, a screenshot shown large, the chats drawer), which would
-  take its Esc first.
+- **⌘P / Ctrl+P is the quick project switcher** (2026-11-22). Seismic uses the browser's print
+  shortcut to search and switch projects within the page. Project menus and the keyboard legend
+  show the active shortcut for the platform. On a Mac, iPhone or iPad it is ⌘P. Elsewhere it is
+  Ctrl+P. On a Mac, Ctrl+P and the other native text editing keys keep their usual meaning in
+  the search field.
+  The switcher is available across desktop pages, including while a canvas loads. Search survives
+  page changes underneath it. The picker shows the current projects and what waits for the owner
+  on each, including after returning from a page without a live project connection. It puts the
+  open project last because the shortcut is primarily for going elsewhere.
+  System-wide views keep their place because switching applies to a project. The picker can open
+  over project dialogs where it can own keyboard input, and Escape dismisses just the picker and
+  restores focus to the previous control or its menu trigger.
 - **Phone settings and Needs you share one history step**: switching between them replaces that
   step; closing returns to the project. Pages covering the project make its controls inert.
 - **Clone values parked while choosing worktrees belong to the repository draft**, rather than
