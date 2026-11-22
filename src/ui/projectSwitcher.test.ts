@@ -1,7 +1,8 @@
 import { expect, test } from 'bun:test';
 import type { ProjectInfo } from '../core/types';
 import type { InboxEntry } from '../core/inbox';
-import { isSwitcherKey, switcherResults, waitingPerProject } from './projectSwitcher';
+import type { Item, Waiting } from '../core/types';
+import { isSwitcherKey, readProjects, switcherResults, waitingPerProject } from './projectSwitcher';
 import { switcherCombo, switcherKeys, t } from './strings';
 
 const project = (id: string, name: string, repos: string[] = [id], more: Partial<ProjectInfo> = {}) =>
@@ -60,4 +61,53 @@ test('the waiting counts start at zero for every project id, also one named like
   expect(per[id]).toBe(1);
   expect(per.a).toBe(2);
   expect(waitingPerProject([]).toString).toBeUndefined();
+});
+
+/** What waits on a project: one card waiting for the owner's look at its demo. */
+const oneWaiting = (id: string): Waiting => ({
+  items: [{ id, kind: 'task', state: 'waiting', need: 'demo', title: id, body: '', x: 0, y: 0, source: 'manual', repo: 'r', canvasVisible: true } as Item],
+  talk: [],
+  needsYou: [{ id: 1, kind: 'demo', card: id, createdAt: 1, lastUpdated: 1 }],
+});
+/** A read that answers only when `settle` is called (or fails with `fail`). */
+const held = <T,>() => {
+  let settle!: (v: T) => void, fail!: (e: unknown) => void;
+  const promise = new Promise<T>((res, rej) => ((settle = res), (fail = rej)));
+  return { promise, settle, fail };
+};
+const reading = () => {
+  const list = held<ProjectInfo[]>(), waiting = held<Record<string, Waiting>>();
+  const out: { projects?: ProjectInfo[]; waiting?: Record<string, number> } = {};
+  const done = readProjects(
+    { projects: () => list.promise, waiting: () => waiting.promise },
+    { projects: (l) => (out.projects = l), waiting: (c) => (out.waiting = c) },
+  );
+  return { list, waiting, out, done };
+};
+
+test('the project list goes out as soon as it is read, while what waits is still being read', async () => {
+  const r = reading();
+  r.list.settle([projects[1]!]);
+  await Bun.sleep(0);
+  expect(r.out.projects?.map((p) => p.id)).toEqual(['b']);
+  expect(r.out.waiting).toBeUndefined();
+  // counted against the fresh list: a project gone from it counts nothing
+  r.waiting.settle({ a: oneWaiting('gone'), b: oneWaiting('here') });
+  await r.done;
+  expect({ ...r.out.waiting }).toEqual({ b: 1 });
+});
+
+test('a failed waiting read leaves the fresh list and gives no counts; a failed list read gives nothing', async () => {
+  const r = reading();
+  r.waiting.fail(new Error('slow server'));
+  r.list.settle([projects[0]!]);
+  await r.done;
+  expect(r.out.projects?.map((p) => p.id)).toEqual(['a']);
+  expect(r.out.waiting).toBeUndefined();
+
+  const f = reading();
+  f.list.fail(new Error('down'));
+  f.waiting.settle({ a: oneWaiting('x') });
+  await f.done;
+  expect(f.out).toEqual({});
 });

@@ -71,6 +71,28 @@ export function waitingPerProject(entries: InboxEntry[]): Record<string, number>
   return per;
 }
 
+/**
+ * The projects and what waits on them, read from the server where no connection tells the switcher:
+ * the list goes out as soon as it is read, without waiting for the waiting cards, which follow,
+ * counted against that list, once (and if) their read succeeds. A failed read gives nothing.
+ */
+export async function readProjects(
+  from: { projects: () => Promise<ProjectInfo[]>; waiting: typeof api.waiting },
+  to: { projects: (list: ProjectInfo[]) => void; waiting: (counts: Record<string, number>) => void },
+): Promise<void> {
+  // both reads at once; a failed waiting read is not left unhandled while the list is still read
+  const waiting = from.waiting().catch(() => null);
+  let list: ProjectInfo[];
+  try {
+    list = await from.projects();
+  } catch {
+    return;
+  }
+  to.projects(list);
+  const w = await waiting;
+  if (w) to.waiting(waitingPerProject(inboxEntries(list, w)));
+}
+
 /** How well `text` matches `query`: a lower rank is better; null where it does not match. */
 function rank(name: string, others: string[], query: string): number | null {
   const n = name.toLowerCase();
@@ -152,11 +174,10 @@ export function ProjectSwitcher({ project, projects, onProjects }: {
   useEffect(() => {
     if (!open || told) return;
     let on = true;
-    Promise.all([api.projects(), api.waiting()]).then(([list, w]) => {
-      if (!on) return;
-      onProjects(list, projects);
-      setRead(waitingPerProject(inboxEntries(list, w)));
-    }, () => {});
+    void readProjects(api, {
+      projects: (list) => on && onProjects(list, projects),
+      waiting: (counts) => on && setRead(counts),
+    });
     return () => void (on = false);
   }, [open, !told]);
   useEffect(() => {
