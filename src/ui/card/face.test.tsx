@@ -132,3 +132,17 @@ test('inbox faces style finish and setup proposals identically', () => {
   expect(face({ item: finish, size: 's', subtle: true })).toBe(face({ item: setup, size: 's', subtle: true }));
   expect(face({ item: finish, size: 's', subtle: true })).toContain('Proposed by Seismic');
 });
+
+test('the lightbulb stands before "Merge proposed" at every size, and only while the state line says it', () => {
+  const proposed = card({ possibleDuplicates: ['d'] });
+  for (const size of ['m', 's', 'xs'] as const) {
+    const html = face({ item: proposed, size });
+    expect(html).toContain('Merge proposed');
+    expect(html).toContain('merge-mark');
+    expect(html).not.toContain('f-dot');
+  }
+  // parked, the card says so, and the proposal waits without its mark
+  const parked = face({ item: { ...proposed, hold: { reason: 'parkingLot', since: '2026-11-22T10:00:00Z' } } as Item });
+  expect(parked).not.toContain('Merge proposed');
+  expect(parked).not.toContain('merge-mark');
+});

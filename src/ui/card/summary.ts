@@ -6,7 +6,7 @@ import { agentFailed, answering, demoStage, finishingUp, handedOver, type Item, 
 import { excerpt, plain } from '../markdown';
 import { waitReason } from '../queue';
 import { snoozeWho } from '../snooze';
-import { becomesLabel, clock, mergeProposed, snoozeWhen, stateLabel, stoppedAtOf, t } from '../strings';
+import { becomesLabel, clock, showsMergeProposed, snoozeWhen, stateLabel, stoppedAtOf, t } from '../strings';
 
 /** Whether the card's state reads "Question for you": its agent asks and waits for the answer. */
 export const asksYou = (i: Item) => i.state === 'waiting' && i.need === 'question' && !agentFailed(i) && !i.review?.answering && !i.review?.answered && !isPaused(i) && !isPausing(i) && !snoozeOf(i);
@@ -15,7 +15,7 @@ export const asksYou = (i: Item) => i.state === 'waiting' && i.need === 'questio
  * The colour a card's state gives its unfolded sheet: a snoozed card's is pencil grey, as on the
  * project; a demo whose worker takes in the owner's answer is at work.
  */
-export const shownState = (i: Item) => (snoozeOf(i) ? 'muted' : i.kind === 'question' ? 'question' : answering(i) ? 'working' : agentFailed(i) ? 'destructive' : asksYou(i) ? 'asking' : mergeProposed(i) || i.idea?.proposal?.merge ? 'proposal' : i.state === 'done' ? 'live' : i.state);
+export const shownState = (i: Item) => (snoozeOf(i) ? 'muted' : i.kind === 'question' ? 'question' : answering(i) ? 'working' : agentFailed(i) ? 'destructive' : asksYou(i) ? 'asking' : showsMergeProposed(i) || i.idea?.proposal?.merge ? 'proposal' : i.state === 'done' ? 'live' : i.state);
 
 /** The colour token of a tone: a finished card (`done`) is `live`, the one palette entry for both; every other tone names its own. */
 export const toneToken = (tone: string): string => (tone === 'done' ? 'live' : tone);
@@ -45,7 +45,7 @@ export const cardTone = (i: Item, underway?: string): string =>
               ? 'destructive'
               : asksYou(i)
                 ? 'asking'
-                : mergeProposed(i) || i.idea?.proposal?.merge
+                : showsMergeProposed(i) || i.idea?.proposal?.merge
                   ? 'proposal'
                   : i.review?.codeReview?.state === 'running'
                   ? 'reviewing'
@@ -174,7 +174,7 @@ export function cardSummary(item: Item, underway?: string): CardSummary {
         ...((item.queue && 'restart' in item.queue ? ['restartQueue'] : []) as StateMark[]),
         ...((asksYou(item) && !revising && !proposal?.merge ? ['question'] : []) as StateMark[]),
         ...((proposal?.merge ? ['merge'] : []) as StateMark[]),
-        ...((mergeProposed(item) ? ['mergeProposed'] : []) as StateMark[]),
+        ...((showsMergeProposed(item) ? ['mergeProposed'] : []) as StateMark[]),
       ];
   // a card being merged says its own state, and then how the merge stands
   const merge = proposal?.merge;

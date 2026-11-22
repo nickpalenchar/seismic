@@ -36,7 +36,7 @@ const ParkedMark = () => <Car className="parked-mark" size={13} aria-hidden />;
 const MergeStateMark = () => <GitMerge className="merge-mark" size={12} strokeWidth={1.75} aria-hidden />;
 
 /** A lightbulb: the mark of a card Seismic proposes to merge with a likely duplicate. */
-const MergeProposedMark = () => <Lightbulb className="merge-mark" size={12} strokeWidth={1.75} aria-hidden />;
+export const MergeProposedMark = () => <Lightbulb className="merge-mark" size={12} strokeWidth={1.75} aria-hidden />;
 
 const MARKS: Record<StateMark, () => ReactNode> = { merge: MergeStateMark, mergeProposed: MergeProposedMark, parked: ParkedMark, limit: HourglassMark, snooze: ClockMark, restart: RestartMark, restartQueue: HourglassMark, question: QuestionMark };
 

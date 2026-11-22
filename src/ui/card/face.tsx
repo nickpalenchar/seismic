@@ -9,7 +9,7 @@ import { OtherCanvas, useOtherCanvas } from '../canvases';
 import { stateLabel, t } from '../strings';
 import { hasChips, hasLabels, LabelMarks, PriorityMark } from './labels';
 import { LIST_DOING, cardFlags, type CardPlace, chipLabelClass, dotClass, faceClass, kindClass, lineClass, listStateClass, listStateTextClass, listTextClass, listTitleClass, listTitleTextClass, metaClass, pinClass, shortStateClass, stateClass, stateLineClass, stateTextClass, topClass, ttlClass, whereClass, wordsClass, wsLabelClass } from './faceClasses';
-import { Pin, PinDot, shownTitle, StateMarks, StateText, StoppedWords, Title, UnreadDot } from './pieces';
+import { MergeProposedMark, Pin, PinDot, shownTitle, StateMarks, StateText, StoppedWords, Title, UnreadDot } from './pieces';
 import { cardKind, cardSummary, cardTone, stateVars } from './summary';
 import { Badge } from '../components/badge';
 import { DrawLine } from '../components/draw-line';
@@ -213,7 +213,7 @@ function FaceXS({ item, underway, subtle, title, text, tail, workstation }: Card
       </Title>
       {subtle && s.pin && <PinDot pin={s.pin} />}
       <span className={lineClass}>
-        <span className={dotClass(item.state === 'proposal', subtle)} />
+        {s.state.marks.includes('mergeProposed') ? <span className={`inline-flex flex-none ${subtle ? '' : 'text-(--c)'}`}><MergeProposedMark /></span> : <span className={dotClass(item.state === 'proposal', subtle)} />}
         <span className={`${wordsClass} ${workstation ? LIST_DOING : ""}`}>
           {dotted([
             <span className={shortStateClass(subtle)}>{s.state.stopped ? <StoppedWords stopped={s.state.stopped} /> : workstation ? s.state.label : s.state.short}</span>,

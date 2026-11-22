@@ -47,7 +47,7 @@ import { newRepoWords, type RepoChoice, RepoPick, useRepoChoice } from './repoPi
 import { continueWatching, dismissPlace, finishWatching, type Place, seekTo, showsVersions, usePlace, videoOf, watch } from './spot';
 import { cameInView, useSeen } from './seen';
 import { ClockMark, SnoozeLine, SnoozeMenu, snoozeWho } from './snooze';
-import { clock as time, errorText, failText, mergeProposed, shortDay, snoozeWhen, stateLabel, stoppedAtOf, t } from './strings';
+import { clock as time, errorText, failText, mergeProposed, shortDay, showsMergeProposed, snoozeWhen, stateLabel, stoppedAtOf, t } from './strings';
 import { agentWorks, cardTalk, demoHandover, talkState, koordinatorReads, ownerField, parseQuestion, snoozeLine, talkAlone, type Turn, unseenTurns, waitsFirstStart, worked as isWorked } from './talk';
 import { PageChangeList } from './page-changes';
 import { MadeCover } from './made';
@@ -668,8 +668,8 @@ export function Detail(p: Props) {
       </ConfirmDialog>
       <KindLine kind={kind} item={item} panelMenu={p.panelMenu} />
       {editable ? <ManualTitle item={item} onEdit={p.onEdit} /> : <div className={titleClass}>{shownTitle(item)}</div>}
-      <div className={cn(stateClass, finishingUp(item) && 'finishing', (isPaused(item) || snoozeOf(item) || inParkingLot(item)) && 'paused', (item.hold?.reason === 'restart') && 'restart-paused', item.queue && 'restart' in item.queue && 'restart-paused', item.review?.resolvingConflicts && 'resolving-conflicts', reviewing && 'reviewing', mergeProposed(stated) && 'merge-proposed', item.idea?.proposal?.merge && 'merging')}>
-        {mergeProposed(stated) ? <Lightbulb className="merge-mark" size={13} aria-hidden /> : item.idea?.proposal?.merge ? <GitMerge className="merge-mark" size={13} strokeWidth={1.75} aria-hidden /> : asksYou(item) ? <QuestionMark /> : (item.hold?.reason === 'restart') ? <RestartMark /> : item.queue && 'restart' in item.queue ? <HourglassMark /> : inParkingLot(item) ? <Car size={13} aria-hidden /> : item.state === 'proposal' ? '✦' : '●'} {stoppedAtOf(item) ? <StoppedWords stopped={stoppedAtOf(item)!} /> : stateLabel(stated)}
+      <div className={cn(stateClass, finishingUp(item) && 'finishing', (isPaused(item) || snoozeOf(item) || inParkingLot(item)) && 'paused', (item.hold?.reason === 'restart') && 'restart-paused', item.queue && 'restart' in item.queue && 'restart-paused', item.review?.resolvingConflicts && 'resolving-conflicts', reviewing && 'reviewing', showsMergeProposed(stated) && 'merge-proposed', item.idea?.proposal?.merge && 'merging')}>
+        {showsMergeProposed(stated) ? <Lightbulb className="merge-mark" size={13} aria-hidden /> : item.idea?.proposal?.merge ? <GitMerge className="merge-mark" size={13} strokeWidth={1.75} aria-hidden /> : asksYou(item) ? <QuestionMark /> : (item.hold?.reason === 'restart') ? <RestartMark /> : item.queue && 'restart' in item.queue ? <HourglassMark /> : inParkingLot(item) ? <Car size={13} aria-hidden /> : item.state === 'proposal' ? '✦' : '●'} {stoppedAtOf(item) ? <StoppedWords stopped={stoppedAtOf(item)!} /> : stateLabel(stated)}
         {reviewing && <DrawLine color="var(--c)" className="ml-2 motion-reduce:after:animate-none" />}
         {snoozeOf(item) ? (
           <span className={statusClass}> · {snoozeWho(snoozeOf(item)!)}</span>

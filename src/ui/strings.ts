@@ -2978,6 +2978,9 @@ const ordinal = (n: number) => `${n}${['th', 'st', 'nd', 'rd'][n % 100 >= 11 && 
 export const mergeProposed = (i: { state: CardState; possibleDuplicates?: string[]; idea?: { proposal?: { merge?: unknown } } }) =>
   i.state === 'planned' && !!i.possibleDuplicates?.length && !i.idea?.proposal?.merge;
 
+/** Whether a card's state line says "Merge proposed": a parked, snoozed or paused card with a proposed merge says that instead. */
+export const showsMergeProposed = (i: Parameters<typeof stateLabel>[0]) => mergeProposed(i) && stateLabel(i) === t.duplicate.proposed;
+
 /** A card's state as its state line says it; `short`, in a word or two, as the smallest card face says it (`stateShort`). */
 export const stateLabel = (i: { kind?: string; thread?: { thinking?: boolean }; state: CardState; need?: Need; queue?: Queue; question?: { stuck?: true }; hold?: ItemHold; possibleDuplicates?: string[]; agent?: { finishing?: boolean; followUp?: boolean; branch?: string; stoppedAt?: StoppedAt }; review?: { landing?: true; landingPosition?: number; pr?: unknown; contribution?: unknown; answering?: true; answered?: true; blocked?: unknown; codeReview?: { state?: string; runs?: number } }; demo?: { earlier?: { asked?: true }[] }; idea?: { discussion?: Idea; prototypeEnd?: 'discarded' | 'built'; retro?: string; proposal?: { setup?: true; finish?: true; merge?: { task?: string; failed?: string } } } }, short = false): string => {
   const { agent, review, idea: ideaPart } = i;
