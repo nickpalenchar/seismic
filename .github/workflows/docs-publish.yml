@@ -1,0 +1,22 @@
+# When docs-vlatest moves, ask seismic-site to rebuild: its deploy pulls docs/site/ from the tag.
+# Moving the tag is the publish step (docs/release.md, Publishing the docs).
+#
+# SEISMIC_SITE_DISPATCH_TOKEN: a fine-grained token with Contents read and write on
+# nickpalenchar/seismic-site, which repository_dispatch needs; GITHUB_TOKEN cannot reach
+# another repository.
+name: Publish docs
+
+on:
+  push:
+    tags: [docs-vlatest]
+
+permissions: {}
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch docs-updated to seismic-site
+        env:
+          GH_TOKEN: ${{ secrets.SEISMIC_SITE_DISPATCH_TOKEN }}
+        run: gh api repos/nickpalenchar/seismic-site/dispatches -f event_type=docs-updated

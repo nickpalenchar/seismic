@@ -198,7 +198,9 @@ git tag -f docs-vlatest <commit>      # a commit on GitHub's main
 git push -f origin docs-vlatest
 ```
 
-then deploy `seismic-site`. The pages are markdown with Starlight frontmatter (`title`,
+Pushing the tag runs `.github/workflows/docs-publish.yml`, which asks `seismic-site` to deploy
+(a `repository_dispatch` with the `SEISMIC_SITE_DISPATCH_TOKEN` secret, a fine-grained token with
+Contents read and write on `nickpalenchar/seismic-site`). The pages are markdown with Starlight frontmatter (`title`,
 `description`, `sidebar.label`, `sidebar.order`); links between them are site paths
 (`/docs/workflows/coding/`). Each directory is a sidebar group, and `seismic-site`'s
 `astro.config.mjs` lists the groups: a page in an existing group needs nothing there, a new
