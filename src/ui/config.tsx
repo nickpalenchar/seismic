@@ -738,7 +738,7 @@ export function RightClickField({ value, onChange }: { value: RightClick | undef
 
 /**
  * Whether a separate agent reviews work that lands on main, and when ("Reviews happen"): the same
- * control on a project's settings sheet and page, and in Project defaults.
+ * controls for a new project's draft and for Project defaults.
  */
 export function CodeReviewField({ value, onChange, bare }: { value: Partial<CodeReviewSetting> | undefined; onChange: (v: CodeReviewSetting) => void; /** Under a heading of its own that names it (the settings sheet): the controls alone. */ bare?: boolean }) {
   const l = t.config.codeReviews;
@@ -1990,6 +1990,8 @@ interface ProjectProps {
   /** Opens the configuration of a project named by a problem, where it has a running page. */
   showProject: (n: number) => (() => void) | undefined;
   project: EntryDraft;
+  /** A new project can set its review policy and repository options before creation. */
+  configure?: boolean | undefined;
   /** The repositories are being checked: their ids and settings are still to come. */
   checking: boolean;
   resolved: ConfigChecked['resolved'][number];
@@ -2041,7 +2043,7 @@ function ProjectIconField({ icon, onChange }: { icon: string | undefined; onChan
  * A project's entry in the configuration: its name and icon, old names, then its repositories with
  * their paths. "Configuration" in its settings sheet edits it, and "+ New project" a new one.
  */
-export function ProjectBlock({ n, project, checking, resolved, running, pin, problems, ask, onRecheck, onChange, showProject }: ProjectProps) {
+export function ProjectBlock({ n, project, configure, checking, resolved, running, pin, problems, ask, onRecheck, onChange, showProject }: ProjectProps) {
   const fresh = resolved && !running.includes(resolved.id);
   // the Koordinator of the project with the problem, where it runs: a card for it goes there
   const askHere = ask && ((text: string) => ask(text, resolved && running.includes(resolved.id) ? resolved.id : undefined));
@@ -2105,6 +2107,7 @@ export function ProjectBlock({ n, project, checking, resolved, running, pin, pro
         .map((p, k) => (
           <Problem key={k} problem={p} where={here} ask={askHere} retried={askHere && onRecheck} />
         ))}
+      {configure && <CodeReviewField value={project.codeReviews} onChange={(codeReviews) => onChange({ ...project, codeReviews })} />}
       {/* its repositories as tabs, one shown at a time, with the problems of each counted on it */}
       <Tabs value={String(at)} onValueChange={(v) => setAt(Number(v))}>
       <Field label={t.config.repos}>
@@ -2136,6 +2139,7 @@ export function ProjectBlock({ n, project, checking, resolved, running, pin, pro
         <RepoRow
           key={at}
           repo={repo}
+          configure={configure}
           gitOnly={gitOnly}
           home={at === 0}
           resolved={resolved?.repos[at]}
@@ -2157,6 +2161,7 @@ export function ProjectBlock({ n, project, checking, resolved, running, pin, pro
 
 interface RepoProps {
   repo: RepoConfig;
+  configure?: boolean | undefined;
   /** The harness that needs git which the project's workers run in, where they do: a folder without git is no choice then. */
   gitOnly?: 'codex' | 'agy' | undefined;
   home: boolean;
@@ -2190,10 +2195,10 @@ function withField<K extends keyof RepoConfig>(repo: RepoConfig, k: K, v: RepoCo
   return next;
 }
 
-function RepoRow({ repo, gitOnly, home, resolved, problems, where, ask, onRecheck, onChange }: RepoProps) {
+function RepoRow({ repo, configure, gitOnly, home, resolved, problems, where, ask, onRecheck, onChange }: RepoProps) {
   // a folder without git: its agents work in the folder itself
   const folder = repo.git === false;
-  // a repository of the project: its path and what is wrong with it; its settings are in the project's settings sheet
+  // A new project's repository can be configured here before its settings sheet is available.
   return (
     <section className="cfg-repo mt-2 pt-2.5 border-t border-t-border [&>.c-row]:mt-1.5 [&>.c-row]:mb-1 [&>.c-row]:max-w-[900px]">
       <Field label={t.config.path} hint={home || folder ? [...(home ? [t.config.home] : []), ...(folder ? [t.config.folderMode] : [])].join(' · ') : undefined}>
@@ -2207,6 +2212,18 @@ function RepoRow({ repo, gitOnly, home, resolved, problems, where, ask, onRechec
         </div>
       </Field>
       <RepoProblems repo={repo} resolved={resolved} problems={problems} where={where} ask={ask} onRecheck={onRecheck} gitOnly={gitOnly} onFolder={() => onChange({ path: repo.path, git: false, ...(repo.settings ? { settings: repo.settings } : {}) })} />
+      {configure && resolved && !folder && (
+        <>
+          <div className={K.cfgGroupClass()}>
+            <h5 className={K.cfgGroupHeadClass}>{t.config.groups.landing}</h5>
+            <RepoSettingRows
+              at={repoSettingsAt(repo.settings, resolved.values, (settings) => onChange(withField(repo, 'settings', settings)))}
+              keys={REPO_SETTING_GROUPS.landing.filter((key) => key !== 'softPaths')}
+            />
+          </div>
+          <Workstations repo={repo} resolved={resolved} onChange={onChange} />
+        </>
+      )}
     </section>
   );
 }

@@ -296,6 +296,7 @@ function EntryFields({ e, pin, fresh, onShowProject, onNavigate }: { e: Entry; p
       <ProjectBlock
         n={at}
         project={entry}
+        configure={fresh}
         checking={!shown && e.pending && !e.checkError}
         resolved={shown?.resolved[at] ?? null}
         running={loaded.view.running}
@@ -408,15 +409,16 @@ export function NewProjectDialog({ open, onClose }: { open: boolean; onClose: ()
       open={open}
       onOpenChange={(o) => !o && (typed ? ask(onClose) : onClose())}
       title={l.newProject}
-      // as tall as with every line it can show (its address, the hints, a problem): it keeps its height as they come and go, the buttons at its foot
-      className="cs-new-project flex w-[min(560px,100%)] min-h-[min(560px,calc(100dvh-48px))] flex-col [&_.c-row]:block [&_.c-row>*]:max-w-full [&>div:last-child]:mt-auto [&>div:last-child]:pt-4"
+      className="cs-new-project flex h-[min(720px,calc(100dvh-48px))] w-[min(760px,100%)] flex-col [&>.cs-new-fields]:overflow-y-auto [&>div:last-child]:shrink-0 [&>div:last-child]:border-t [&>div:last-child]:border-border [&>div:last-child]:pt-4"
       confirm={{ label: l.create, className: 'cs-create', keepOpen: true, disabled: !ready, onClick: () => void create() }}
       cancel={l.cancel}
       busy={e.busy}
     >
-      <p className="hint mt-0">{l.newProjectHint}</p>
-      <EntryFields e={e} fresh onNavigate={onClose} />
-      {e.status && <p className={`hint ${statusClass}`}>{e.status}</p>}
+      <fieldset disabled={e.busy} className="cs-new-fields m-0 min-h-0 min-w-0 flex-1 overflow-y-auto border-0 py-0 pr-2 pl-0">
+        <p className="hint mt-0">{l.newProjectHint}</p>
+        <EntryFields e={e} fresh onNavigate={onClose} />
+        {e.status && <p className={`hint ${statusClass}`}>{e.status}</p>}
+      </fieldset>
       {question}
     </ConfirmDialog>
   );

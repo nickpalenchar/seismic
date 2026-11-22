@@ -2521,7 +2521,7 @@ const en = {
     entryHint: 'The project’s name and its repositories. A change applies once it is saved; a repository added, removed or moved restarts its agents.',
     order: 'Order',
     newProject: 'New project',
-    newProjectHint: 'Its name and its repositories. Once it is created, its settings are in Project settings.',
+    newProjectHint: 'Choose the project’s repositories, code reviews, and how work will land.',
     create: 'Create project',
     cancel: 'Cancel',
     unsavedTitle: 'Unsaved changes',
