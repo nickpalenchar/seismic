@@ -55,7 +55,12 @@ async function settle() {
   // the workers it started at work in their workstations
   await workers.prepared();
 }
-const card = (title: string) => board.create({ title, x: 0, y: 0 });
+/** Waits until `done` holds, for what goes on in the background: git keeping a card's work, a turn starting after the board's change got round. */
+async function until(done: () => boolean) {
+  for (const end = Date.now() + 5000; !done() && Date.now() < end; ) await Bun.sleep(5);
+  await settle();
+}
+const card =(title: string) => board.create({ title, x: 0, y: 0 });
 const item = (id: string) => board.item(id)!;
 const estimates = () => runtime.sessions.filter((s) => s.spec.tools.some((t) => t.name === 'scope'));
 const workerOf = (id: string) => runtime.sessions.find((s) => s.spec.cwd === board.row(id).workstation)!;
@@ -1357,12 +1362,6 @@ describe('Koordinator waits for a free workstation', () => {
     await settle();
     expect(item(b.id).state).toBe('planned');
   });
-  /** Waits until `done` holds: git keeps a card's work and frees its clone in the background. */
-  async function until(done: () => boolean) {
-    for (const end = Date.now() + 5000; !done() && Date.now() < end; ) await Bun.sleep(5);
-    await settle();
-  }
-
   test("taking a card's clone gives it to the card waiting; the card it was taken from waits behind and goes on with its work, uncommitted again", async () => {
     pool(1);
     const a = card('A');
@@ -2073,7 +2072,7 @@ describe('Koordinator arranges a plan by what builds on what', () => {
   test('a plan just come is read without anything else looking at the project first', async () => {
     docs = [{ file: 'docs/plan/p.md', title: 'P', goal: 'Ziel P', workstreams: [ws('W1'), ws('W2')], markdown: '' }];
     board.docsChanged();
-    await settle();
+    await until(() => readings().length > 0);
     expect(readings()).toHaveLength(1);
   });
 

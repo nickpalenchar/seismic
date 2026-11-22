@@ -64,13 +64,14 @@ export function setup(adapter: RepoAdapter, withOrigin = false, share?: { tags?:
     for (const w of workstations.list()) identify(w.path);
   }
   runtime = new FakeRuntime();
-  merged = [];
+  // this test's own: a merge an earlier test's workers report late goes to that test's list
+  const ours: string[] = (merged = []);
   workers = new WorkerSupervisor({
     board,
     runtime,
     workstations,
     adapter,
-    onMerged: (cardId) => void merged.push(cardId),
+    onMerged: (cardId) => void ours.push(cardId),
     env: { SEISMIC_URL: 'http://127.0.0.1:4417' },
     ...(share ? { shares: () => true, vocabulary: () => share.tags } : {}),
   });

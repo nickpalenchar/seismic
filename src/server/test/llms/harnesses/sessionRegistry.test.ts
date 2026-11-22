@@ -243,6 +243,11 @@ require('node:fs').writeFileSync(${JSON.stringify(join(root, '..', 'leaf'))},Str
   const canary = start();
   await until(() => existsSync(ready));
   const [app, leaf] = pidsOf(ready) as [number, number];
+  // a process goes on record after it is tracked, not with it: the crash comes once the record names both
+  const recorded = () => readdirSync(root).filter((n) => n.endsWith('.json')).flatMap((n) => {
+    try { return (JSON.parse(readFileSync(join(root, n), 'utf8')) as SessionRecord).processes.map((p) => p.pid); } catch { return []; }
+  });
+  await until(() => recorded().includes(app) && recorded().includes(leaf));
   await crash(host);
   expect(alive(app) && alive(leaf)).toBe(true); // a crash runs no cleanup
   const [result] = new SessionRegistry(root).recover();

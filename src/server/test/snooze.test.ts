@@ -235,6 +235,8 @@ describe('the agent snoozes until another card gets somewhere', () => {
     board().work(demo, { state: 'waiting', need: 'question' });
     await Bun.sleep(5);
     board().work(demo, { state: 'working', need: null });
+    // the waking turn starts once its brief is read
+    await until(() => runtime.last !== s);
     expect(runtime.last.inbox[0]).toContain('waits for the owner now');
   });
 

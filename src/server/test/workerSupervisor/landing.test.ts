@@ -1045,8 +1045,8 @@ describe('a workstation its card will not work in again goes back to the pool', 
     runtime.last.emit({ type: 'idle' });
     expect(state(w.id)).toBe('inPr');
     ticked();
-    await flush();
-    expect(state(w.id)).toBe('live');
+    // the lease is looked at once git is done preparing the clone
+    await until(() => state(w.id) === 'live');
     expect(merged).toEqual([w.id]);
     expect(runtime.last.inbox.at(-1)).toContain('Your pull request was merged');
     runtime.last.emit({ type: 'idle' });
@@ -1075,8 +1075,8 @@ describe('a workstation its card will not work in again goes back to the pool', 
     await approvedIntoPr(w.id);
     // the worker opened the pull request without reporting it, and someone merged it by hand
     ticked();
-    await flush();
-    expect(state(w.id)).toBe('live');
+    // the lease is looked at once git is done preparing the clone
+    await until(() => state(w.id) === 'live');
     expect(merged).toEqual([w.id]);
   });
 

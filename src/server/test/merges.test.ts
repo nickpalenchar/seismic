@@ -446,10 +446,13 @@ describe('a merged pair whose cards change compares again', () => {
     project = new ProjectRuntime({ repos: [{ path: main, clones: 1 }] }, { store, home: dir, runtime, forge: noForge, commandDelayMs: 10, mergeSettleMs: 10 });
     expect(merge(p.id).failed).toBeDefined();
     expect(merge(p.id).previous).toMatchObject(previous);
+    const failed = latestMerger();
     board().work(planned.id, { body: 'Another change triggers automatic retry.' });
     await settle(40);
     expect(merge(p.id).failed).toBeUndefined();
     expect(merge(p.id).previous).toMatchObject(previous);
+    // the retry's session starts once its brief is read: answering before that would answer the failed one
+    await until(() => latestMerger() !== failed);
     await finishMerge({ title: 'New comparison', task: 'All updated requirements.' });
     expect(merge(p.id).previous).toBeUndefined();
     expect(merge(p.id).failed).toBeUndefined();
