@@ -15,7 +15,7 @@ import { api, ApiError, beforeReload, cardsOn, onNotice, quietAtStart, reportFoc
 import { groupAt, GroupNames, growFrom, hintBubbleClass, inside, Lasso, MarkHint, Marked, Ring, TerritoryLayer, useTerritories } from './groups';
 import { depLayerClass, handleColour, manualRemoveClass } from './depsClasses';
 import { buzz, pinchCam, TOUCH_HOLD_KNOWN, Touches } from './touch';
-import { besideSheet, BOTTOM, type Cam, camFor, camKey, centreOn, chase, dragLimit, edgeScroll, FAR, flying, flyTo, keepInView, MAX_ZOOM, midX, MIN_ZOOM, NO_SIDES, overviewCam, placeIn, shows, type Sides, stopFlight, TOP, toWorld } from './camera';
+import { besideSheet, BOTTOM, type Cam, camFor, camKey, centreOn, chase, dragLimit, edgeScroll, FAR, flying, flyTo, keepInView, lastCanvasHash, lastCanvasKey, MAX_ZOOM, midX, MIN_ZOOM, NO_SIDES, overviewCam, placeIn, shows, type Sides, stopFlight, TOP, toWorld } from './camera';
 import { plain } from './markdown';
 import { CanvasRing, Canvases, CanvasStubs, CanvasTabs, CardMore, hiddenCard, parkedStubsOf, stubsOf } from './canvases';
 import { canvasText } from './canvasIcon';
@@ -374,8 +374,16 @@ function Project({
   const itemsRef = useRef(items);
   itemsRef.current = items;
   // ---------------------------------------------------------------- canvases
-  // the canvas shown is the one the address's hash names (`#main`, `#2`), else the first; each has a layout of its own
-  const [hash, setHash] = useState(() => location.hash);
+  // the canvas shown is the one the address's hash names (`#main`, `#2`), else the one shown last on
+  // this project (a return from another project lands there), else the first; each has a layout of its own
+  const [hash, setHash] = useState(() => {
+    if (location.hash) return location.hash;
+    try {
+      return lastCanvasHash(snapshot.canvases ?? [], localStorage.getItem(lastCanvasKey(snapshot.project.id)));
+    } catch {
+      return '';
+    }
+  });
   useEffect(() => {
     const on = () => {
       // a card open is shown on its own canvas: a hash naming another one goes
@@ -399,6 +407,12 @@ function Project({
   lastShown.current = canvasId;
   const canvasRef = useRef(canvasId);
   canvasRef.current = canvasId;
+  useEffect(() => {
+    if (!canvasId) return;
+    try {
+      localStorage.setItem(lastCanvasKey(snapshot.project.id), canvasId);
+    } catch {}
+  }, [canvasId]);
   /** Shows a canvas of the project (one just made too, which the project brings soon); the address names it. */
   const showCanvas = (c: Canvas | string) => {
     const to = typeof c === 'string' ? canvases.find((x) => x.id === c) : c;
@@ -409,10 +423,10 @@ function Project({
     flushSync(() => setHash(h));
   };
   // the address names the canvas by its name, which reordering does not change: `#2` as the page
-  // opens becomes the name of the second, and a hash that names none goes
+  // opens becomes the name of the second, the canvas shown last is named too, and a hash that names none goes
   useEffect(() => {
-    if (!location.hash || !canvases.length) return;
-    const named = canvasNamedBy(canvases, location.hash);
+    if (!hash || !canvases.length) return;
+    const named = canvasNamedBy(canvases, hash);
     const h = named ? `#${encodeURIComponent(named.name)}` : '';
     if (h === location.hash) return;
     history.replaceState(history.state, '', `${location.pathname}${location.search}${h}`);

@@ -26,7 +26,7 @@ Workstreams keep their name. The workspace level is only reserved as a word; not
 
 **Icon picker:** a full emoji picker plus a curated set of Lucide icons in a colour of a palette; the exact set is the worker's call. A canvas name may not be a number from 1 to 999.
 
-**Addresses:** the canvas is a hash, not part of the path. `/p/<project>#main` names it, `/p/<project>#2` is the second canvas in the drawer's order (`#1` is the first). `/p/<project>` without a hash opens the first canvas. A card's address `/p/<project>/c/<code>` needs no hash, since every card knows its canvas; a hash naming another canvas is dropped. Switching canvas updates the hash.
+**Addresses:** the canvas is a hash, not part of the path. `/p/<project>#main` names it, `/p/<project>#2` is the second canvas in the drawer's order (`#1` is the first). `/p/<project>` without a hash opens the canvas last shown on that project in this browser (kept in localStorage, so a return from another project lands where the owner left), else the first. A card's address `/p/<project>/c/<code>` needs no hash, since every card knows its canvas; a hash naming another canvas is dropped. Switching canvas updates the hash.
 
 **Cards across canvases:**
 

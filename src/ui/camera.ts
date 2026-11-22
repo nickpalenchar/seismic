@@ -19,6 +19,15 @@ export interface Cam {
 export const camKey = (projectId: string, canvas?: { id: string; name: string }) =>
   `seismic-cam-${projectId}${canvas && canvas.name !== MAIN_CANVAS ? `#${canvas.id}` : ''}`;
 
+/** Where the canvas last shown of a project is kept in localStorage, by its id: a return to the project without a hash lands on it. */
+export const lastCanvasKey = (projectId: string) => `seismic-canvas-${projectId}`;
+
+/** The hash naming the canvas kept as last shown, when the project still has it; none otherwise (the page then shows the first). */
+export const lastCanvasHash = (canvases: { id: string; name: string }[], keptId: string | null) => {
+  const c = keptId ? canvases.find((x) => x.id === keptId) : undefined;
+  return c ? `#${encodeURIComponent(c.name)}` : '';
+};
+
 export const MIN_ZOOM = 0.55;
 export const MAX_ZOOM = 2;
 /** Below this scale cards drop their details. */
