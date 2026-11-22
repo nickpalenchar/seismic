@@ -11,7 +11,7 @@
 // A jump to a field (`showSettingsAt`: a card waiting for a clone, a proposal for a setting) opens its
 // section at its repository and marks the field.
 
-import { Archive, Bot, Cog, BrickWall, ChevronLeft, ChevronRight, Film, GitPullRequest, Laptop, Lock, type LucideIcon, MessageSquareCode, Sparkle, Sparkles, TriangleAlert } from 'lucide-react';
+import { Archive, Bot, Cog, BrickWall, ChevronLeft, ChevronRight, CircleX, Film, GitPullRequest, Laptop, Lock, type LucideIcon, MessageSquareCode, Sparkle, Sparkles, TriangleAlert } from 'lucide-react';
 import { type KeyboardEvent, type ReactNode, useEffect, useId, useRef, useState } from 'react';
 import type { AgentRole, ConfigProblem, ConfigProblemCode, ProjectAgents, ProjectSettings, ProjectSettingsView } from '../../core/types';
 import { SUGGEST_TOGGLES, suggestToggles, type SuggestToggle } from '../../core/labels';
@@ -248,7 +248,7 @@ function SectionList({ view, repos, focus, onOpen }: { view: ProjectSettingsView
         {status[s] !== undefined && (typeof status[s] === 'string' ? <span className="max-w-[40%] truncate text-xs text-muted-foreground">{status[s]}</span> : status[s])}
         {n > 0 && (
           <Badge variant={error ? 'destructive' : 'default'} className={cn('py-0', !error && 'bg-warning-subtle text-warning-strong')} title={said} aria-label={said}>
-            {s !== 'commands' && <TriangleAlert aria-hidden />}
+            {s === 'git' ? <CircleX aria-hidden /> : s !== 'commands' && <TriangleAlert aria-hidden />}
             {n}
           </Badge>
         )}
