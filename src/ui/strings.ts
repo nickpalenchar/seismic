@@ -1624,7 +1624,7 @@ const en = {
       merges: { title: 'Suggest card merges', on: 'Suggest merges', hint: 'Seismic will periodically look for potential duplicate cards and suggest a way to merge them into one.' },
     },
     defaults: {
-      hint: 'Every project you create from now on starts with these (here, through Seismic, or when building in a new repository). Existing projects keep their own settings; change those on their page under Projects. Applies at once.',
+      hint: 'New projects start with these defaults. Change an existing project’s choices in its Project settings.',
       agents: 'Models',
       agentsValue: 'as under Agents and models; a project can choose its own (the sliders in the bar)',
     },
