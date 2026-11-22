@@ -136,7 +136,7 @@ export function App() {
       ) : (
         <Shown id={current.id} projects={projects} onProjects={setProjects} />
       )}
-      {/* one for every page, which stays as one page takes another's place: a search in it goes on */}
+      {/* one for every page, which stays as one page takes another's place: a search in it goes on, unless a view about every project opens over it */}
       <ProjectSwitcher project={current?.id ?? ''} projects={projects} onProjects={refreshProjects} />
     </>
   );

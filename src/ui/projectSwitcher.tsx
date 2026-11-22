@@ -4,17 +4,17 @@
 // mounts one beside every desktop page (the canvas, the Agent Feedback Log, an address naming none,
 // the splash while the project loads or its server does not answer), where it stays as one page
 // takes another's place (the project's first snapshot, a project that turns up, Back): a search in
-// it goes on. It listens for its key itself. A page with a project's connection tells it what waits
-// on every project and whether it stays shut (`useSwitcherFeed`); without one, it reads the projects
-// and what waits from the server as it opens. While what is about every project and not this one
+// it goes on, but for the one case below. It listens for its key itself. A page with a project's
+// connection tells it what waits on every project and whether it stays shut (`useSwitcherFeed`);
+// without one, it reads the projects and what waits from the server as it opens. While what is about every project and not this one
 // covers the page (the configuration, the preferences, the performance dashboard, a phone's
 // pairing, the new project's form), the key does nothing; over the project's own dialogs it opens
 // on top, the card's diff included; over the overlays that take Esc themselves before any dialog
 // hears it (`OWN_ESC`) it stays shut. Where such a view opens while the switcher is open already (the
 // performance dashboard a page opens at start, its address asking for it, as the project's first
-// snapshot replaces the splash the key was pressed on), the switcher closes and leaves the focus
-// where that view put it: the newer dialog holds the focus trap and Esc, so the switcher over it
-// would take no typing.
+// snapshot replaces the splash the key was pressed on), the switcher closes, its search dropped (the
+// one page change a search does not outlive), and leaves the focus where that view put it: the
+// newer dialog holds the focus trap and Esc, so the switcher over it would take no typing.
 
 import { type RefObject, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { counted, type InboxEntry, inboxEntries } from '../core/inbox';

@@ -158,8 +158,12 @@ same style. UI text comes from `src/ui/strings.ts`, never a literal.
   page changes underneath it. The picker shows the current projects and what waits for the owner
   on each, including after returning from a page without a live project connection. It puts the
   open project last because the shortcut is primarily for going elsewhere.
-  System-wide views keep their place because switching applies to a project. The picker can open
-  over project dialogs where it can own keyboard input, and Escape dismisses just the picker and
+  System-wide views keep their place because switching applies to a project. The one exception to
+  a search surviving the page change: a system-wide view that opens while the picker is open (the
+  performance dashboard a project's address asks for, opening as its first snapshot replaces the
+  loading splash) closes the picker and drops its search, leaving focus in that view. The newer
+  dialog holds the focus trap and Escape, so a picker left over it would take no typing and its
+  Escape would close the view underneath. The picker can open over project dialogs where it can own keyboard input, and Escape dismisses just the picker and
   restores focus to the previous control or its menu trigger.
 - **Phone settings and Needs you share one history step**: switching between them replaces that
   step; closing returns to the project. Pages covering the project make its controls inert.
