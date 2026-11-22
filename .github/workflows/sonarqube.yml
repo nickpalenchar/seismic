@@ -1,0 +1,41 @@
+# Analyzes main on the self-hosted SonarQube. The server is only reachable on the tailnet
+# (sonarqube.nickpal.dev resolves to a Tailscale IP), so the runner first joins it as an ephemeral
+# node tagged tag:ci, which the tailnet ACLs limit to the SonarQube host. Only main is analyzed:
+# Community Build keeps one branch per project, and any other branch would overwrite its results.
+name: SonarQube
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sonarqube-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # full history, so SonarQube can attribute new code and blame lines
+          fetch-depth: 0
+      - uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+          # waits until the server answers over the tailnet before the scan starts
+          ping: sonarqube.nickpal.dev
+      - uses: SonarSource/sonarqube-scan-action@v8
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarqube.nickpal.dev
+        with:
+          args: >
+            -Dsonar.projectKey=nickpalenchar_seismic_5fde2ad0-630e-48ac-a79d-537b8e33cf23
