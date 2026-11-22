@@ -1,0 +1,37 @@
+---
+title: Seismic docs
+description: What Seismic is, how it works, and where to go next.
+sidebar:
+  label: Overview
+---
+
+import { CardGrid, LinkCard } from "@astrojs/starlight/components";
+
+Seismic is a spatial canvas for directing AI coding agents, a fork of [Obeya](https://github.com/sadilek/obeya).
+You work like a VP of Engineering: you put tasks on a canvas, the agents build them in the
+background, and you judge the result from a recorded demo instead of reading code.
+
+## How it works
+
+- **Projects hold memory.** A Project is made up of at least one **Canvas**, on which **cards** are created to represent
+  tasks. Crads can have arrows drawn between them (so one comes before the other), and/or grouped for visual orginization. Agents can also be
+  configured to intuit arrow directions (dependencies) of cards ars the're created.
+- **Cards get workers** Each card gets its own agent, which act as a "worker", and carries out the task as a change in its own workspace
+(a [git worktree]() or cloned repo, depending on config) Workers run in parallel, and coordinate landing work once finished and approved.
+- **A demo for every handover.** When a worker is done it records a narrated video (or a page to
+  look at) and hands the card over.
+- **An Independent reviewer follows** - if turned on, a seperate agent will review the work and flag any issues. You choose to have the worker
+address them now, as a follow up, or not at all.
+
+:::note
+These docs are new and still growing. If something you need is missing, the
+[GitHub repository](https://github.com/nickpalenchar/seismic) is the place to ask.
+:::
+
+## Where to go next
+
+<CardGrid>
+  <LinkCard title="Install" description="Get Seismic running on your machine." href="/docs/install/" />
+  <LinkCard title="Repository settings" description="Tell Seismic how your repository's app runs, which checks pass and how work lands." href="/docs/reference/settings/" />
+  <LinkCard title="Demos" description="Watch Seismic's own demos, recorded by its workers." href="/demos/" />
+</CardGrid>

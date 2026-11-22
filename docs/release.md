@@ -187,6 +187,23 @@ Not signed. SmartScreen warns about the Windows installer until it has a reputat
 info", then "Run anyway"); the release notes say so and how to check a download against
 `SHA256SUMS`.
 
+## Publishing the docs
+
+The user docs at seismic.im/docs live in `docs/site/` and are published by `seismic-site`, which
+pulls that directory from the `docs-vlatest` tag when it builds (its `scripts/fetch-docs.sh`).
+Docs on `main` are not live until the tag moves:
+
+```sh
+git tag -f docs-vlatest <commit>      # a commit on GitHub's main
+git push -f origin docs-vlatest
+```
+
+then deploy `seismic-site`. The pages are markdown with Starlight frontmatter (`title`,
+`description`, `sidebar.label`, `sidebar.order`); links between them are site paths
+(`/docs/workflows/coding/`). Each directory is a sidebar group, and `seismic-site`'s
+`astro.config.mjs` lists the groups: a page in an existing group needs nothing there, a new
+group does.
+
 ## Rules
 
 - gh calls against this repository's GitHub repository go through `bun scripts/gh.ts <gh args…>`:

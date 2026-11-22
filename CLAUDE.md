@@ -11,6 +11,10 @@ chapter in the same change; a chapter is started when an area gathers enough of 
 progress is planned in plan docs under `docs/plan/` (Seismic shows them as plans); when one is done,
 its lasting decisions and constraints move into the design doc and the plan doc goes.
 
+The user docs at seismic.im/docs are in `docs/site/`, Starlight markdown that `seismic-site` pulls
+from the `docs-vlatest` tag (`docs/release.md`, Publishing the docs). They describe what users see,
+not how it is built; a change users notice updates them in the same change.
+
 - Bun + TypeScript throughout; tests with `bun test --parallel` (a file per process, from Bun 1.4 on;
   older Bun ignores the flag and runs them one after the other), types with `bun run typecheck`
   (which also runs `bun run lint`: oxlint's rules-of-hooks over `src/ui`, nothing else).
