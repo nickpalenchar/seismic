@@ -22,11 +22,8 @@ export const camKey = (projectId: string, canvas?: { id: string; name: string })
 /** Where the canvas last shown of a project is kept in localStorage, by its id: a return to the project without a hash lands on it. */
 export const lastCanvasKey = (projectId: string) => `seismic-canvas-${projectId}`;
 
-/** The hash naming the canvas kept as last shown, when the project still has it; none otherwise (the page then shows the first). */
-export const lastCanvasHash = (canvases: { id: string; name: string }[], keptId: string | null) => {
-  const c = keptId ? canvases.find((x) => x.id === keptId) : undefined;
-  return c ? `#${encodeURIComponent(c.name)}` : '';
-};
+/** The canvas kept as last shown, when the project still has it; none otherwise (the page then shows the first). */
+export const lastCanvas = <C extends { id: string }>(canvases: C[], keptId: string | null) => (keptId ? canvases.find((c) => c.id === keptId) : undefined);
 
 export const MIN_ZOOM = 0.55;
 export const MAX_ZOOM = 2;

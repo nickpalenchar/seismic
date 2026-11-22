@@ -15,7 +15,7 @@ import { api, ApiError, beforeReload, cardsOn, onNotice, quietAtStart, reportFoc
 import { groupAt, GroupNames, growFrom, hintBubbleClass, inside, Lasso, MarkHint, Marked, Ring, TerritoryLayer, useTerritories } from './groups';
 import { depLayerClass, handleColour, manualRemoveClass } from './depsClasses';
 import { buzz, pinchCam, TOUCH_HOLD_KNOWN, Touches } from './touch';
-import { besideSheet, BOTTOM, type Cam, camFor, camKey, centreOn, chase, dragLimit, edgeScroll, FAR, flying, flyTo, keepInView, lastCanvasHash, lastCanvasKey, MAX_ZOOM, midX, MIN_ZOOM, NO_SIDES, overviewCam, placeIn, shows, type Sides, stopFlight, TOP, toWorld } from './camera';
+import { besideSheet, BOTTOM, type Cam, camFor, camKey, centreOn, chase, dragLimit, edgeScroll, FAR, flying, flyTo, keepInView, lastCanvas, lastCanvasKey, MAX_ZOOM, midX, MIN_ZOOM, NO_SIDES, overviewCam, placeIn, shows, type Sides, stopFlight, TOP, toWorld } from './camera';
 import { plain } from './markdown';
 import { CanvasRing, Canvases, CanvasStubs, CanvasTabs, CardMore, hiddenCard, parkedStubsOf, stubsOf } from './canvases';
 import { canvasText } from './canvasIcon';
@@ -376,12 +376,14 @@ function Project({
   // ---------------------------------------------------------------- canvases
   // the canvas shown is the one the address's hash names (`#main`, `#2`), else the one shown last on
   // this project (a return from another project lands there), else the first; each has a layout of its own
-  const [hash, setHash] = useState(() => {
-    if (location.hash) return location.hash;
+  const [hash, setHash] = useState(() => location.hash);
+  // the canvas shown last, as the page opened: it stays out of the address, so that an entry of the
+  // history without a hash goes on meaning "where the owner left", not the canvas shown then
+  const [keptCanvas] = useState(() => {
     try {
-      return lastCanvasHash(snapshot.canvases ?? [], localStorage.getItem(lastCanvasKey(snapshot.project.id)));
+      return localStorage.getItem(lastCanvasKey(snapshot.project.id));
     } catch {
-      return '';
+      return null;
     }
   });
   useEffect(() => {
@@ -400,9 +402,10 @@ function Project({
   const canvasesRef = useRef(canvases);
   canvasesRef.current = canvases;
   // a hash that names no canvas keeps the one shown before: a canvas just made or renamed here is
-  // named in the address before the project brings it under that name
+  // named in the address before the project brings it under that name; as the page opens, one that
+  // names no canvas any more (deleted, renamed) shows the one shown last, as no hash does
   const lastShown = useRef<string>(undefined);
-  const shownCanvas = (hash ? canvasNamedBy(canvases, hash) : undefined) ?? canvases.find((c) => c.id === lastShown.current) ?? canvases[0];
+  const shownCanvas = (hash ? canvasNamedBy(canvases, hash) : undefined) ?? canvases.find((c) => c.id === lastShown.current) ?? lastCanvas(canvases, keptCanvas) ?? canvases[0];
   const canvasId = shownCanvas?.id;
   lastShown.current = canvasId;
   const canvasRef = useRef(canvasId);
@@ -423,10 +426,10 @@ function Project({
     flushSync(() => setHash(h));
   };
   // the address names the canvas by its name, which reordering does not change: `#2` as the page
-  // opens becomes the name of the second, the canvas shown last is named too, and a hash that names none goes
+  // opens becomes the name of the second, and a hash that names none goes
   useEffect(() => {
-    if (!hash || !canvases.length) return;
-    const named = canvasNamedBy(canvases, hash);
+    if (!location.hash || !canvases.length) return;
+    const named = canvasNamedBy(canvases, location.hash);
     const h = named ? `#${encodeURIComponent(named.name)}` : '';
     if (h === location.hash) return;
     history.replaceState(history.state, '', `${location.pathname}${location.search}${h}`);

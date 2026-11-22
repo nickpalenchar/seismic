@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { besideSheet, camKey, type Cam, lastCanvasHash, lastCanvasKey, NO_SIDES, CHASE_MS, chaseStep, DROP_ROOM, dragLimit, EDGE_ZONE, edgeScroll, KEEP, keepInView, placeIn, shows } from './camera';
+import { besideSheet, camKey, type Cam, lastCanvas, lastCanvasKey, NO_SIDES, CHASE_MS, chaseStep, DROP_ROOM, dragLimit, EDGE_ZONE, edgeScroll, KEEP, keepInView, placeIn, shows } from './camera';
 
 const view = { left: 0, top: 70, right: 1000, bottom: 800 };
 const cam: Cam = { x: 0, y: 0, s: 1 };
@@ -153,10 +153,10 @@ test('a canvas keeps its saved view key wherever it stands in the order', () => 
   expect(camKey('p')).toBe('seismic-cam-p');
 });
 
-test('a return to a project names the canvas shown last on it, while the project still has it', () => {
+test('a return to a project finds the canvas shown last on it, while the project still has it', () => {
   const canvases = [{ id: 'm', name: 'main' }, { id: 'b', name: 'Big bets' }];
-  expect(lastCanvasHash(canvases, 'b')).toBe('#Big%20bets');
-  expect(lastCanvasHash(canvases, 'gone')).toBe('');
-  expect(lastCanvasHash(canvases, null)).toBe('');
+  expect(lastCanvas(canvases, 'b')?.name).toBe('Big bets');
+  expect(lastCanvas(canvases, 'gone')).toBeUndefined();
+  expect(lastCanvas(canvases, null)).toBeUndefined();
   expect(lastCanvasKey('p1')).not.toBe(lastCanvasKey('p2'));
 });
