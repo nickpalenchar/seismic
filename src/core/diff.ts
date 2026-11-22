@@ -160,11 +160,36 @@ export function lineDiff(before: string[], after: string[]): { kind: ' ' | '-' |
   return out;
 }
 
-/** `lineDiff` of two line lists as the one hunk of a unified patch for `file`, all lines in it (no context is cut). */
-export function patchOf(file: string, before: string[], after: string[]): DiffPart {
+/**
+ * `lineDiff` of two line lists as a unified patch for `file`: its hunks hold the changed lines with
+ * `context` unchanged lines around them, as git shows a change; hunks whose context meets are one.
+ */
+export function patchOf(file: string, before: string[], after: string[], context = 3): DiffPart {
   const d = lineDiff(before, after);
-  const old = d.filter((x) => x.kind !== '+').length;
-  const neu = d.filter((x) => x.kind !== '-').length;
-  const lines = [`diff --git a/${file} b/${file}`, `--- a/${file}`, `+++ b/${file}`, `@@ -${old ? 1 : 0},${old} +${neu ? 1 : 0},${neu} @@`, ...d.map((x) => x.kind + x.line)];
-  return { file, status: 'added', added: d.filter((x) => x.kind === '+').length, removed: d.filter((x) => x.kind === '-').length, lines };
+  const changed = d.flatMap((x, i) => (x.kind === ' ' ? [] : [i]));
+  // the runs of the diff to show: each change with its context, runs that touch merged
+  const runs: [number, number][] = [];
+  for (const i of changed) {
+    const from = Math.max(0, i - context);
+    const to = Math.min(d.length, i + 1 + context);
+    const last = runs.at(-1);
+    if (last && from <= last[1]) last[1] = to;
+    else runs.push([from, to]);
+  }
+  const lines = [`diff --git a/${file} b/${file}`, `--- a/${file}`, `+++ b/${file}`];
+  let old = 0;
+  let neu = 0;
+  let at = 0;
+  for (const [from, to] of runs) {
+    for (; at < from; at++) [old, neu] = [old + 1, neu + 1];
+    const run = d.slice(from, to);
+    const oldCount = run.filter((x) => x.kind !== '+').length;
+    const newCount = run.filter((x) => x.kind !== '-').length;
+    // a side the hunk takes no line from names the line before it
+    lines.push(`@@ -${oldCount ? old + 1 : old},${oldCount} +${newCount ? neu + 1 : neu},${newCount} @@`, ...run.map((x) => x.kind + x.line));
+    old += oldCount;
+    neu += newCount;
+    at = to;
+  }
+  return { file, status: 'modified', added: d.filter((x) => x.kind === '+').length, removed: d.filter((x) => x.kind === '-').length, lines };
 }

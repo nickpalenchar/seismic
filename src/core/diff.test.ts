@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { cardDiff, diffFiles, diffSize, lineDiff, PATCH_LIMIT, splitDiff } from './diff';
+import { cardDiff, diffFiles, diffSize, lineDiff, PATCH_LIMIT, patchOf, splitDiff } from './diff';
 
 const patch = [
   'diff --git a/src/a.ts b/src/a.ts',
@@ -82,4 +82,16 @@ test('two lists of lines as a diff: kept, gone and new in their order', () => {
   ]);
   expect(lineDiff([], ['a'])).toEqual([{ kind: '+', line: 'a' }]);
   expect(lineDiff(['a'], [])).toEqual([{ kind: '-', line: 'a' }]);
+});
+
+test('two lists of lines as a patch: each change with three lines around it, hunks whose context meets as one', () => {
+  const before = Array.from({ length: 30 }, (_, i) => `line ${i + 1}`);
+  const after = before.map((l, i) => (i === 9 ? 'changed 10' : i === 13 ? 'changed 14' : l)).filter((_, i) => i !== 26);
+  const part = patchOf('f', before, after);
+  expect(part.lines.filter((l) => l.startsWith('@@'))).toEqual(['@@ -7,11 +7,11 @@', '@@ -24,7 +24,6 @@']);
+  expect(part.lines.slice(3, 6)).toEqual(['@@ -7,11 +7,11 @@', ' line 7', ' line 8']);
+  expect([part.added, part.removed]).toEqual([2, 3]);
+  // a list that was empty: one hunk of all its lines, taking none from the old side
+  expect(patchOf('f', [], ['a', 'b']).lines.slice(3)).toEqual(['@@ -0,0 +1,2 @@', '+a', '+b']);
+  expect(patchOf('f', ['a'], ['a']).lines).toHaveLength(3);
 });

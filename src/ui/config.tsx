@@ -6,7 +6,7 @@ import { parkClones, restoreClones } from './workstationDraft';
 // dialog (prefs.tsx).
 
 import { Info as InfoIcon, Trash2 } from 'lucide-react';
-import { forwardRef, Fragment, lazy, type ReactNode, Suspense, useContext, useEffect, useRef, useState } from 'react';
+import { forwardRef, Fragment, lazy, type ReactNode, Suspense, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { OpenPerformance } from './performance';
 import { allowsDemo, HANDOVER_ARTIFACTS } from '../../plugin/skills/demo/lib/artifacts.ts';
 import { DEFAULT_STYLE, QWEN3_SPEAKER, QWEN3_SPEAKERS, qwen3IsClone, qwen3Speaker, STYLED_VOICES } from '../../plugin/skills/demo/lib/voice-choices.ts';
@@ -2965,9 +2965,7 @@ export function TrustCommands({ path, trust, onDone }: { path: string; trust: Re
       {trust.held.map((g) => (
         <div key={g} className={trustGroupClass}>
           <p className="hint">{c[g]}</p>
-          <Suspense fallback={<p className="hint">{t.diff.loading}</p>}>
-            <CodeDiff part={patchOf(g, commandLines(trust.before, g), commandLines(trust.now, g))} card="" style="unified" />
-          </Suspense>
+          <TrustDiff trust={trust} group={g} />
           {(g === 'claude' || g === 'codex') && blankOnly(trust, g).length > 0 && <p className="hint">{c.blankOnly(blankOnly(trust, g).join(', '))}</p>}
         </div>
       ))}
@@ -2977,6 +2975,17 @@ export function TrustCommands({ path, trust, onDone }: { path: string; trust: Re
       </Button>
       {error && <p className="p-error">{error}</p>}
     </div>
+  );
+}
+
+/** A group's lines as last trusted against those now: the changes with a few lines around them, the unchanged ones between expandable. */
+function TrustDiff({ trust, group }: { trust: RepoTrust; group: RepoTrust['held'][number] }) {
+  const versions = useMemo(() => ({ old: commandLines(trust.before, group), new: commandLines(trust.now, group) }), [trust, group]);
+  const part = useMemo(() => patchOf(group, versions.old, versions.new), [group, versions]);
+  return (
+    <Suspense fallback={<p className="hint">{t.diff.loading}</p>}>
+      <CodeDiff part={part} card="" style="unified" versions={versions} />
+    </Suspense>
   );
 }
 

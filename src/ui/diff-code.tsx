@@ -32,7 +32,11 @@ interface For<T> {
 
 const NONE: ReadonlySet<number> = new Set();
 
-export default function CodeDiff({ part, card, style }: { part: DiffPart; card: string; style: DiffStyle }) {
+/**
+ * `versions`: the whole old and new text where the caller has them (a diff not of a card's files),
+ * so the unchanged lines expand from them without asking the server.
+ */
+export default function CodeDiff({ part, card, style, versions }: { part: DiffPart; card: string; style: DiffStyle; versions?: { old: string[]; new: string[] } }) {
   // Everything below follows the patch's text, not the object carrying it: a parent that splits the
   // diff again (on a re-render, a new layout, the same diff fetched anew) leaves expanded lines and
   // highlighting as they are.
@@ -49,11 +53,11 @@ export default function CodeDiff({ part, card, style }: { part: DiffPart; card: 
   // file comes near the screen, carries no file; the files themselves are fetched when the owner
   // expands. A file whose text cannot be shown keeps its folded lines as a count.
   const [probe, setProbe] = useState<For<boolean>>();
-  const expandable = probe?.key === key && probe.value;
+  const expandable = !!versions || (probe?.key === key && probe.value);
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = box.current;
-    if (!el || !changed) return;
+    if (!el || !changed || versions) return;
     let gone = false;
     const look = new IntersectionObserver(
       ([e]) => {
@@ -71,7 +75,7 @@ export default function CodeDiff({ part, card, style }: { part: DiffPart; card: 
       gone = true;
       look.disconnect();
     };
-  }, [key, card, file, changed]);
+  }, [key, card, file, changed, !!versions]);
 
   const [wholeFor, setWholeFor] = useState<For<Whole>>();
   const whole = wholeFor?.key === key ? wholeFor.value : null;
@@ -80,7 +84,7 @@ export default function CodeDiff({ part, card, style }: { part: DiffPart; card: 
   const expand = (i: number) => {
     const asked = key;
     setShownFor((s) => ({ key: asked, value: new Set(s?.key === asked ? s.value : NONE).add(i) }));
-    if (whole !== null && whole !== 'failed') return;
+    if (versions || (whole !== null && whole !== 'failed')) return;
     setWholeFor({ key: asked, value: 'loading' });
     // the answer goes only where the same diff still waits for it
     const settle = (value: Whole) => setWholeFor((w) => (w?.key === asked ? { key: asked, value } : w));
@@ -89,7 +93,7 @@ export default function CodeDiff({ part, card, style }: { part: DiffPart; card: 
       () => settle('failed'),
     );
   };
-  const files = typeof whole === 'object' ? whole : null;
+  const files = versions ?? (typeof whole === 'object' ? whole : null);
 
   // Highlighting: contiguous patch runs independently until the whole files are there, then the files,
   // so the unchanged lines shown between hunks are coloured too and the grammar runs through.
