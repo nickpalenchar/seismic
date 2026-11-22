@@ -27,6 +27,9 @@ export function CardSearch({ items, onOpen, field, hidden }: { items: Item[]; on
     setQuery('');
     box.current?.querySelector('input')?.blur();
   };
+  // the project switcher opening over it takes the focus for a while: only the list closes, the query
+  // stays for when the focus comes back
+  const leave = (to?: EventTarget | null) => (to instanceof Element && to.closest('#project-switcher')) || document.querySelector('#project-switcher') ? setOpen(false) : close();
   // an unfolded card covers what the finder would open
   useEffect(() => void (hidden && open && close()), [hidden]);
   const pick = (item: Item) => {
@@ -35,7 +38,7 @@ export function CardSearch({ items, onOpen, field, hidden }: { items: Item[]; on
   };
   return (
     <Command ref={box} shouldFilter={false} loop label={t.cardSearch.results} className={cn('relative min-w-0', hidden && 'invisible')} onKeyDown={(e) => open && e.key === 'Escape' && (e.stopPropagation(), close())}>
-      <Popover open={open && results.length > 0} onOpenChange={(on) => on || close()}>
+      <Popover open={open && results.length > 0} onOpenChange={(on) => on || leave()}>
         <PopoverAnchor asChild>
           <div className="relative">
             <Search className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground" size={15} strokeWidth={2} aria-hidden />
@@ -55,7 +58,7 @@ export function CardSearch({ items, onOpen, field, hidden }: { items: Item[]; on
                 if (!open) closeBarMenus();
                 setOpen(true);
               }}
-              onBlur={close}
+              onBlur={(e) => leave(e.relatedTarget)}
             />
             {!query && !open && <kbd className="pointer-events-none absolute top-1/2 right-2.5 grid h-5 min-w-[18px] -translate-y-1/2 place-items-center rounded-xs border border-border px-1 font-mono text-xs text-muted-foreground in-data-[fit~='3']:hidden" aria-hidden>/</kbd>}
           </div>
