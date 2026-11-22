@@ -10,7 +10,11 @@
 // covers the page (the configuration, the preferences, the performance dashboard, a phone's
 // pairing, the new project's form), the key does nothing; over the project's own dialogs it opens
 // on top, the card's diff included; over the overlays that take Esc themselves before any dialog
-// hears it (`OWN_ESC`) it stays shut.
+// hears it (`OWN_ESC`) it stays shut. Where such a view opens while the switcher is open already (the
+// performance dashboard a page opens at start, its address asking for it, as the project's first
+// snapshot replaces the splash the key was pressed on), the switcher closes and leaves the focus
+// where that view put it: the newer dialog holds the focus trap and Esc, so the switcher over it
+// would take no typing.
 
 import { type RefObject, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { counted, type InboxEntry, inboxEntries } from '../core/inbox';
@@ -134,6 +138,13 @@ export function ProjectSwitcher({ project, projects, onProjects }: {
   const opener = useRef<{ el: HTMLElement; home: HTMLElement } | null>(null);
   const told = useSyncExternalStore(onFeed, () => feed);
   const shut = !!told?.shut;
+  // closed because a view about every project opened over the page: the focus stays in that view
+  const ousted = useRef(false);
+  useEffect(() => {
+    if (!shut || !open) return;
+    ousted.current = true;
+    setOpen(false);
+  }, [shut]);
   // where no project's connection tells it (the feedback log, an address naming none, a project not
   // connected yet), the projects and what waits on them as they are now: one added or removed in
   // another tab meanwhile is found, or is gone
@@ -187,6 +198,11 @@ export function ProjectSwitcher({ project, projects, onProjects }: {
         onCloseAutoFocus={(e) => {
           const was = opener.current;
           opener.current = null;
+          if (ousted.current) {
+            ousted.current = false;
+            e.preventDefault();
+            return;
+          }
           const el = was && (was.el.isConnected ? was.el : was.home);
           if (!el?.isConnected || el.closest('[inert]')) return;
           e.preventDefault();
