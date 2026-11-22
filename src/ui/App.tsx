@@ -388,9 +388,18 @@ function Project({
       keptCanvas.current = null;
     }
   }
+  /**
+   * Whether the address still names this project. Back or Forward to another project changes the
+   * address before this one leaves the page (its `hashchange` can come first): what it names then is
+   * the other project's, no choice here.
+   */
+  const addressOurs = () => {
+    const a = readAddress().project;
+    return !a || projectNamed(projectsRef.current, a)?.id === snapshotRef.current.project.id;
+  };
   /** Keeps `id` as the canvas shown last on this project, for the next visit. */
   const keepCanvas = (id: string) => {
-    if (gone.current) return;
+    if (gone.current || !addressOurs()) return;
     try {
       localStorage.setItem(lastCanvasKey(snapshot.project.id), id);
     } catch {}
@@ -408,6 +417,8 @@ function Project({
   const restoring = useRef(false);
   useEffect(() => {
     const on = () => {
+      // an address on another project: the page switches there (App), this one goes
+      if (gone.current || !addressOurs()) return;
       // a card open is shown on its own canvas: a hash naming another one goes
       const f = focusRef.current;
       const open = f?.type === 'card' ? itemsRef.current.find((i) => i.id === f.id) : undefined;
