@@ -578,6 +578,7 @@ export function CardMore({ item, floating, onClose }: { item: Item; floating?: b
               </span>
             </MenuItem>
           ))}
+          {actions && (canPark || parked) && others.length > 0 && !parked && <MenuSeparator />}
           {actions && (canPark || parked) && (
             <MenuItem title={canPark ? t.parking.parkHint : undefined} onSelect={() => (stopsToPark ? (leaveMenu(), setConfirm(true)) : parking(canPark ? 'park' : 'unpark'))}>
               <span className={loptClass}>
@@ -586,7 +587,6 @@ export function CardMore({ item, floating, onClose }: { item: Item; floating?: b
               </span>
             </MenuItem>
           )}
-          {onClose && (canPark || parked || (actions && others.length > 0 && !parked)) && <MenuSeparator />}
           {onClose && (
             <MenuItem onSelect={onClose}>
               <span className={cn(loptClass, 'w-full')}>
