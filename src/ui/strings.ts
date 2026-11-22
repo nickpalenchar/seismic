@@ -2560,6 +2560,8 @@ const en = {
     restartDiscard: 'Discard',
     restartFirst: 'Save or discard the change to where agents work first.',
     retry: 'Try again',
+    loadFailed: (reason: string) => `Couldn’t load the project configuration. ${reason}`,
+    checkFailed: (reason: string) => `Couldn’t check your changes. ${reason}`,
     notResolved: 'This project has a problem in its configuration; its repositories show once it is fixed.',
     saving: 'Saving…',
   },

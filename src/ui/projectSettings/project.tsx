@@ -41,6 +41,8 @@ function useProjectEntry(project: string | null, on: boolean) {
   const [entry, setEntry] = useState<EntryDraft | null>(null);
   const [checked, setChecked] = useState<{ result: ConfigChecked; at: number } | null>(null);
   const [status, setStatus] = useState('');
+  const [loadError, setLoadError] = useState('');
+  const [checkFailure, setCheckFailure] = useState<{ draft: string; message: string } | null>(null);
   const [busy, setBusy] = useState(false);
   // the entry the last check was of: until the edit is checked, nothing goes by the check before
   const [checkedOf, setCheckedOf] = useState('');
@@ -57,24 +59,37 @@ function useProjectEntry(project: string | null, on: boolean) {
     }
     const saved = await api.configCheck();
     const at = saved.resolved.findIndex((r) => r?.id === project);
-    if (at < 0) return setStatus(t.projectSettings.notResolved);
+    if (at < 0) return false;
     const original = saved.projects[at]!;
     const baseline = entryDraft(original);
     setLoaded({ view: { ...view, projects: saved.projects }, at, saved, entry: baseline });
     const kept = keptConfigDraft<ProjectConfig>(sessionStorage, `project:${project}`, baseline);
     setEntry(kept ? entryDraft(kept, original) : baseline);
   };
+  const retryLoad = async () => {
+    setLoadError('');
+    try {
+      if (await load() === false) setLoadError(t.projectSettings.notResolved);
+    } catch (e) {
+      setLoadError(failText(e));
+    }
+  };
   useEffect(() => {
     if (!on) return;
     setStatus('');
+    setLoaded(null);
+    setEntry(null);
     setChecked(null);
+    setCheckedOf('');
+    setCheckFailure(null);
     filled.current.clear();
-    load().catch((e) => setStatus(failText(e)));
+    void retryLoad();
   }, [on, project]);
 
   const serialized = JSON.stringify(entry);
   const changed = !!loaded && !!entry && (project === null || serialized !== JSON.stringify(loaded.entry));
-  const pending = changed && checkedOf !== serialized;
+  const checkError = checkFailure?.draft === serialized ? checkFailure.message : '';
+  const pending = changed && (checkedOf !== serialized || !!checkError);
   /** Read the latest entries and resolve the project index from the same configuration. */
   const fresh = async () => {
     if (project === null) {
@@ -89,20 +104,27 @@ function useProjectEntry(project: string | null, on: boolean) {
   const seq = useRef(0);
   const check = async (draft: EntryDraft) => {
     const n = ++seq.current;
+    const of = JSON.stringify(draft);
+    setCheckedOf('');
+    setCheckFailure(null);
     try {
       const now = await fresh();
-      if (!now || n !== seq.current) return;
+      if (n !== seq.current) return;
+      if (!now) {
+        setCheckFailure({ draft: of, message: t.projectSettings.notResolved });
+        return;
+      }
       const candidate = mergedEntry(draft, now.projects[now.at]);
       const result = await api.checkConfig(withEntry(now.projects, now.at, candidate));
       if (n !== seq.current) return;
       setChecked({ result, at: now.at });
-      setCheckedOf(JSON.stringify(draft));
+      setCheckedOf(of);
       // A changed path still belongs to an existing row. Only new rows get a default clone count.
       const known = draft.repos.filter((r) => r.originalPath !== null);
       const next = withClones([candidate], [...now.projects, { repos: known }], [result.resolved[now.at] ?? null], filled.current);
       if (next) setEntry({ ...draft, repos: draft.repos.map((r, i) => r.originalPath === null ? { ...next[0]!.repos[i]!, originalPath: null } : r) });
     } catch (e) {
-      if (n === seq.current) console.error(e);
+      if (n === seq.current) setCheckFailure({ draft: of, message: failText(e) });
     }
   };
   useEffect(() => {
@@ -127,15 +149,17 @@ function useProjectEntry(project: string | null, on: boolean) {
     if (!entry || !loaded) return null;
     setBusy(true);
     setStatus('');
+    let validating = true;
     try {
       const now = await fresh();
       if (!now) {
-        setStatus(t.projectSettings.notResolved);
+        setCheckFailure({ draft: serialized, message: t.projectSettings.notResolved });
         return null;
       }
       const list = withEntry(now.projects, now.at, mergedEntry(entry, now.projects[now.at]));
       // checked as it goes, not as it was a moment ago: the id the project gets is this check's, and a problem the edit just made holds the save
       const c = await api.checkConfig(list);
+      validating = false;
       ++seq.current;
       setChecked({ result: c, at: now.at });
       setCheckedOf(JSON.stringify(entry));
@@ -152,7 +176,8 @@ function useProjectEntry(project: string | null, on: boolean) {
       const id = c.resolved[now.at]?.id ?? project;
       return { id, restarting };
     } catch (e) {
-      setStatus(failText(e));
+      if (validating) setCheckFailure({ draft: serialized, message: failText(e) });
+      else setStatus(failText(e));
       return null;
     } finally {
       setBusy(false);
@@ -187,11 +212,17 @@ function useProjectEntry(project: string | null, on: boolean) {
     blocking,
     changed,
     pending,
+    checkError,
+    loadError,
+    retryLoad,
     status,
     busy,
     save,
     move,
-    reset: () => loaded && setEntry(loaded.entry),
+    reset: () => {
+      setCheckFailure(null);
+      if (loaded) setEntry(loaded.entry);
+    },
     recheck: async () => {
       if (entry) await check(entry);
     },
@@ -248,7 +279,9 @@ function useLeaveGuard(unsaved: boolean, discard: () => void): [ReactNode, (proc
 
 /** The entry's fields: its name, old names and repositories, with the problems of the project and of the configuration as a whole. */
 function EntryFields({ e, pin, fresh, onShowProject, onNavigate }: { e: Entry; pin?: string; /** A new project: a path not typed yet is no problem to show, only one to fill in. */ fresh?: boolean; onShowProject?: ((id: string) => void) | undefined; onNavigate?: () => void }) {
-  if (!e.loaded || !e.entry) return e.status ? null : <p className="hint">{t.config.loading}</p>;
+  if (!e.loaded || !e.entry) return e.loadError
+    ? <EntryCheckError message={t.projectSettings.loadFailed(e.loadError)} retry={e.retryLoad} />
+    : <p className="hint">{t.config.loading}</p>;
   const { loaded, entry, at, shown, problems } = e;
   const nameOf = (n: number) => shown?.resolved[n]?.name ?? shown?.projects[n]?.name;
   const conflicts = problems.flatMap((p) => {
@@ -263,7 +296,7 @@ function EntryFields({ e, pin, fresh, onShowProject, onNavigate }: { e: Entry; p
       <ProjectBlock
         n={at}
         project={entry}
-        checking={!shown}
+        checking={!shown && e.pending && !e.checkError}
         resolved={shown?.resolved[at] ?? null}
         running={loaded.view.running}
         {...(pin ? { pin } : {})}
@@ -281,12 +314,22 @@ function EntryFields({ e, pin, fresh, onShowProject, onNavigate }: { e: Entry; p
           });
         }}
       />
+      {e.checkError && <EntryCheckError message={t.projectSettings.checkFailed(e.checkError)} retry={e.recheck} />}
       {problems
         .filter((p) => p.project === undefined)
         .map((p, k) => (
           <Problem key={k} problem={p} where="" />
         ))}
     </>
+  );
+}
+
+function EntryCheckError({ message, retry }: { message: string; retry: () => Promise<void> }) {
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2">
+      <p role="alert" className="p-error m-0">{message}</p>
+      <Button type="button" size="small" onClick={() => void retry()}>{t.projectSettings.retry}</Button>
+    </div>
   );
 }
 
