@@ -388,6 +388,9 @@ Platform quirks:
   Windows at about 1 MB/s).
 - A sandboxed frame has a `null` origin and loads nothing beside it on static hosts: shared
   artifacts are self-contained.
+- A repository's worktrees share its `.git`: two `git worktree add` at once fail on each other's
+  half-written entry, two config writes on the config's lock. Those changes run one at a time per
+  repository (`inTurn` in `src/server/workstations.ts`).
 
 Safety rules:
 

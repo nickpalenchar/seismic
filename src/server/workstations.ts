@@ -140,6 +140,27 @@ export async function gitAsync(cwd: string, ...args: string[]): Promise<string> 
   return r.stdout.trim();
 }
 
+/** Per repository, the change of its shared files (worktree entries, config) running now and those after it. */
+const repositoryChanges = new Map<string, Promise<unknown>>();
+
+/**
+ * Runs `change` once the changes to the shared files of `repo` (its directory or its `.git`) before
+ * it are done: the worktrees of a repository share its `.git`. Adding a worktree, git reads every
+ * worktree's entry, and fails on that of another added at the same moment that it has not finished
+ * writing ("failed to read .git/worktrees/<name>/commondir"); two writes of the config at once fail
+ * on its lock ("could not lock config file").
+ */
+function inTurn<T>(repo: string, change: () => Promise<T>): Promise<T> {
+  const key = resolve(repo).replace(/[\\/]\.git$/, '');
+  const turn = (repositoryChanges.get(key) ?? Promise.resolve()).catch(() => {}).then(change);
+  repositoryChanges.set(key, turn);
+  void turn.catch(() => {}).then(() => repositoryChanges.get(key) === turn && repositoryChanges.delete(key));
+  return turn;
+}
+
+/** A `git worktree` add, remove or prune in `repo`, in turn with the repository's other such changes. */
+const worktreeGit = (repo: string, ...args: string[]) => inTurn(repo, () => gitAsync(repo, ...args));
+
 /**
  * The paths a `-z` listing of git's names in `cwd`, exactly as git wrote them: `gitAsync` trims its
  * output, which would cut whitespace off the first and last of them.
@@ -1061,7 +1082,8 @@ export class Workstations implements CardWorkstations {
     if (!existing) await gitAsync(ws, 'update-ref', ref, commit, '');
     const branch = await gitAsync(ws, 'branch', '--show-current');
     if (!branch) throw new WorkstationError(`Cannot configure plan baseline on a detached HEAD in ${ws}`);
-    await gitAsync(ws, 'config', '--local', `branch.${branch}.seismic-project-baseline`, tag);
+    // a worktree's config is its repository's, written by every workstream of the plan
+    await inTurn(this.o.mode === 'worktrees' ? this.o.repoPath : ws, () => gitAsync(ws, 'config', '--local', `branch.${branch}.seismic-project-baseline`, tag));
     this.o.baselineConfigured?.(cardId, tag, commit);
   }
 
@@ -1380,7 +1402,7 @@ export class Workstations implements CardWorkstations {
       }
       if (existsSync(path)) {
         if ((await gitAsync(path, 'status', '--porcelain').catch(() => null)) !== '') return false;
-        if ((await gitAsync(this.o.repoPath, 'worktree', 'remove', path).catch(() => null)) === null) return false;
+        if ((await worktreeGit(this.o.repoPath, 'worktree', 'remove', path).catch(() => null)) === null) return false;
       }
       this.store.workstations.remove(path);
       return true;
@@ -1817,7 +1839,7 @@ export class Workstations implements CardWorkstations {
     if (this.cloned(ws)) return this.release(cardId);
     this.store.workstations.remove(ws);
     await this.clearing(ws, async () => {
-      if (existsSync(ws)) await gitAsync(this.o.repoPath, 'worktree', 'remove', '--force', ws);
+      if (existsSync(ws)) await worktreeGit(this.o.repoPath, 'worktree', 'remove', '--force', ws);
       try {
         if (await gitAsync(this.o.repoPath, 'branch', '--list', branch)) await gitAsync(this.o.repoPath, 'branch', '--quiet', '-d', branch);
       } catch (e) {
@@ -1837,7 +1859,7 @@ export class Workstations implements CardWorkstations {
     if (!this.cloned(ws)) {
       this.store.workstations.remove(ws);
       return this.clearing(ws, async () => {
-        if (existsSync(ws)) await gitAsync(this.o.repoPath, 'worktree', 'remove', '--force', ws);
+        if (existsSync(ws)) await worktreeGit(this.o.repoPath, 'worktree', 'remove', '--force', ws);
         if (await gitAsync(this.o.repoPath, 'branch', '--list', branch)) await gitAsync(this.o.repoPath, 'branch', '--quiet', '-D', branch);
       });
     }
@@ -2164,7 +2186,7 @@ export class Workstations implements CardWorkstations {
       }
       await removeTree(path);
       mkdirSync(dirname(path), { recursive: true });
-      await gitAsync(repo, ...detachedTree(path, (await commit(repo, ref)) ?? ref));
+      await worktreeGit(repo, ...detachedTree(path, (await commit(repo, ref)) ?? ref));
       return path;
     })();
     const added = ready.then(() => {});
@@ -2200,8 +2222,8 @@ export class Workstations implements CardWorkstations {
         this.store.workstations.lease(path, cardId);
         if (existsSync(path)) return path;
         mkdirSync(this.o.dir, { recursive: true });
-        if ((await gitAsync(this.o.repoPath, 'branch', '--list', branch)) !== '') await gitAsync(this.o.repoPath, 'worktree', 'add', '--quiet', path, branch);
-        else await gitAsync(this.o.repoPath, 'worktree', 'add', '--quiet', '-b', branch, path, await this.mainAsync(this.o.repoPath));
+        if ((await gitAsync(this.o.repoPath, 'branch', '--list', branch)) !== '') await worktreeGit(this.o.repoPath, 'worktree', 'add', '--quiet', path, branch);
+        else await worktreeGit(this.o.repoPath, 'worktree', 'add', '--quiet', '-b', branch, path, await this.mainAsync(this.o.repoPath));
         return path;
       },
       () => this.store.workstations.remove(path),
@@ -2460,7 +2482,7 @@ async function removeTree(path: string) {
   if (!existsSync(path)) return;
   const common = await gitAsync(path, 'rev-parse', '--path-format=absolute', '--git-common-dir').catch(() => null);
   await rm(path, { recursive: true, force: true });
-  if (common) await gitAsync(common, 'worktree', 'prune');
+  if (common) await worktreeGit(common, 'worktree', 'prune');
 }
 
 /**

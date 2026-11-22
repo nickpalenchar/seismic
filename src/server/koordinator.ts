@@ -75,6 +75,8 @@ export class Koordinator {
 
   /** Decisions to start are taken one at a time, so two colliding cards cannot both slip through. */
   private chain: Promise<unknown> = Promise.resolve();
+  /** The decisions on the chain that have not ended yet. */
+  private deciding = 0;
   private learning: Promise<unknown> = Promise.resolve();
   private draining = false;
   /** A look again at cards waiting for a workstation, which can free up without a change of the board (a dirty clone cleaned up). */
@@ -1093,7 +1095,13 @@ export class Koordinator {
   // ---------------------------------------------------------------- helpers
 
   private serial(fn: () => unknown) {
-    this.chain = this.chain.then(fn).catch((e) => console.error('Koordinator:', e));
+    this.deciding++;
+    this.chain = this.chain.then(fn).catch((e) => console.error('Koordinator:', e)).finally(() => this.deciding--);
+  }
+
+  /** Whether a change of the board is still to be looked at or a decision is under way (one may wait for an agent's estimate). */
+  get busy(): boolean {
+    return this.draining || this.deciding > 0;
   }
 
   /** The repository of a card it was deciding on stopped running on the project: the card is planned again, for the owner to start once it is back. */

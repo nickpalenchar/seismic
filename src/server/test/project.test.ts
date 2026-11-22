@@ -52,6 +52,9 @@ afterEach(() => {
 // the timers' work done, and the workers it started at work in their workstations
 const settle = async () => {
   await new Promise((r) => setTimeout(r, 5));
+  // a change of the board reaches the Koordinator after a timer and the decisions before it: on a loaded runner, later than 5 ms
+  const asking = () => runtime.sessions.some((s) => !s.closed && s.spec.tools.some((t) => t.name === 'scope' || t.name === 'schedule'));
+  for (const end = Date.now() + 1000; project.koordinator.busy && !asking() && Date.now() < end; ) await Bun.sleep(2);
   await Promise.all(project.repos.map((r) => r.workers.prepared()));
 };
 /** Collects what goes to `console.error` until `restore`. */

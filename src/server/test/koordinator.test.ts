@@ -50,7 +50,8 @@ const activity = (id: string) => board.activityRows(['c'], undefined, 100).filte
 async function settle() {
   await Bun.sleep(5);
   const asking = () => runtime.sessions.some((s) => !s.closed && s.spec.tools.some((t) => t.name === 'scope' || t.name === 'schedule'));
-  const judging = () => board.snapshot().items.some((i) => i.queue && 'checking' in i.queue) && !asking();
+  // a change of the board reaches the Koordinator after a timer and the decisions before it: on a loaded runner, later than 5 ms
+  const judging = () => (k.busy || board.snapshot().items.some((i) => i.queue && 'checking' in i.queue)) && !asking();
   for (const end = Date.now() + 1000; judging() && Date.now() < end; ) await Bun.sleep(2);
   // the workers it started at work in their workstations
   await workers.prepared();
