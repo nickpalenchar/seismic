@@ -416,6 +416,7 @@ function Project({
   canvasRef.current = canvasId;
   /** Keeps `id` as the canvas shown last on this project, for the next visit. */
   const keepCanvas = (id: string) => {
+    if (gone.current) return;
     try {
       localStorage.setItem(lastCanvasKey(snapshot.project.id), id);
     } catch {}
@@ -426,7 +427,9 @@ function Project({
   /** Shows a canvas of the project (one just made too, which the project brings soon); the address names it. */
   const showCanvas = (c: Canvas | string) => {
     const to = typeof c === 'string' ? canvases.find((x) => x.id === c) : c;
-    if (!to) return;
+    // a call that ends after a switch to another project (a canvas made, a card opened) leaves the
+    // address and the canvas kept for this project as the owner left them
+    if (!to || gone.current) return;
     // picked again, the canvas shown is the last choice here too, over one another tab made since
     keepCanvas(to.id);
     const h = `#${encodeURIComponent(to.name)}`;
