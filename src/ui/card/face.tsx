@@ -213,7 +213,7 @@ function FaceXS({ item, underway, subtle, title, text, tail, workstation }: Card
       </Title>
       {subtle && s.pin && <PinDot pin={s.pin} />}
       <span className={lineClass}>
-        {s.state.marks.includes('mergeProposed') ? <span className={`inline-flex flex-none ${subtle ? '' : 'text-(--c)'}`}><MergeProposedMark /></span> : <span className={dotClass(item.state === 'proposal', subtle)} />}
+        {s.state.marks.includes('mergeProposed') ? <span className={`inline-flex flex-none ${subtle ? '' : 'text-c-strong'}`}><MergeProposedMark /></span> : <span className={dotClass(item.state === 'proposal', subtle)} />}
         <span className={`${wordsClass} ${workstation ? LIST_DOING : ""}`}>
           {dotted([
             <span className={shortStateClass(subtle)}>{s.state.stopped ? <StoppedWords stopped={s.state.stopped} /> : workstation ? s.state.label : s.state.short}</span>,
