@@ -101,12 +101,25 @@ test('a patch of a list too long to pass as arguments', () => {
   expect(patchOf('f', [], long).lines).toHaveLength(300_004);
 });
 
-test('a long list with a small change diffs in its length, a large change past the limit as all gone and all new', () => {
+test('two small changes far apart in a long list stay two changes, the lines between kept', () => {
   const long = Array.from({ length: 200_000 }, (_, i) => `line ${i}`);
-  const edited = long.map((l, i) => (i === 100_000 ? 'changed' : l));
+  const edited = long.map((l, i) => (i === 1_000 ? 'one' : i === 150_000 ? 'two' : l));
+  const started = performance.now();
   const d = lineDiff(long, edited);
-  expect(d.filter((x) => x.kind !== ' ')).toEqual([{ kind: '-', line: 'line 100000' }, { kind: '+', line: 'changed' }]);
-  const other = long.map((l) => `${l}!`);
-  const all = lineDiff(long.slice(0, 2000), other.slice(0, 2000));
-  expect(all.slice(0, 2000).every((x) => x.kind === '-') && all.slice(2000).every((x) => x.kind === '+')).toBe(true);
+  expect(performance.now() - started).toBeLessThan(2_000);
+  expect(d.filter((x) => x.kind !== ' ').map((x) => x.kind + x.line)).toEqual(['-line 1000', '+one', '-line 150000', '+two']);
+});
+
+test('lists too unlike for the budget are anchored on the lines found once in each', () => {
+  // every other line differs, the rest are unique and kept
+  const before = Array.from({ length: 40_000 }, (_, i) => (i % 2 ? `old ${i}` : `same ${i}`));
+  const after = before.map((l, i) => (i % 2 ? `new ${i}` : l));
+  const d = lineDiff(before, after);
+  expect(d.filter((x) => x.kind === ' ')).toHaveLength(20_000);
+  expect(d.filter((x) => x.kind === '-')).toHaveLength(20_000);
+});
+
+test('a last line without a line feed is marked, and gaining one is a change', () => {
+  expect(patchOf('f', ['a', 'b'], ['a', 'b'], { ends: { old: false, new: true } }).lines.slice(3)).toEqual(['@@ -1,2 +1,2 @@', ' a', '-b', '\\ No newline at end of file', '+b']);
+  expect(patchOf('f', ['a'], ['x'], { ends: { old: false, new: false } }).lines.slice(3)).toEqual(['@@ -1,1 +1,1 @@', '-a', '\\ No newline at end of file', '+x', '\\ No newline at end of file']);
 });

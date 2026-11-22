@@ -2993,19 +2993,21 @@ function TrustDiff({ trust, group }: { trust: RepoTrust; group: TrustGroup }) {
     return [...new Set([...Object.keys(was), ...Object.keys(now)])]
       .filter((name) => was[name] !== now[name])
       .map((name, i) => {
-        const versions = { old: linesOf(was[name]), new: linesOf(now[name]) };
-        const part = patchOf(`${group}-${i}${extension(name)}`, versions.old, versions.new);
-        return { name: group === 'app' ? `app.${name}` : name, part, versions, unseen: !part.lines.some((l) => l.startsWith('@@')) };
+        const [old, neu] = [linesOf(was[name]), linesOf(now[name])];
+        const versions = { old: old.lines, new: neu.lines };
+        const part = patchOf(`${group}-${i}${extension(name)}`, versions.old, versions.new, { ends: { old: old.ends, new: neu.ends } });
+        const status = !(name in was) ? t.diff.status.added : !(name in now) ? t.diff.status.deleted : '';
+        return { name: group === 'app' ? `app.${name}` : name, part, versions, status, unseen: !part.lines.some((l) => l.startsWith('@@')) };
       });
   }, [trust, group]);
   const unseen = parts.filter((p) => p.unseen).map((p) => p.name);
   return (
     <>
-      {parts.map(({ name, part, versions }) => (
+      {parts.map(({ name, part, versions, status }) => (
         <div key={part.file}>
           <h6 className="m-0 flex gap-3 items-baseline py-1 px-2.5 bg-muted border border-border rounded-t-xs text-xs font-medium">
             <span className="font-mono break-all">{visible(name)}</span>
-            <span className="hint">{versions.old.length && versions.new.length ? '' : t.diff.status[versions.old.length ? 'deleted' : 'added']}</span>
+            <span className="hint">{status}</span>
           </h6>
           <Suspense fallback={<p className="hint">{t.diff.loading}</p>}>
             <CodeDiff part={part} card="" style="unified" versions={versions} />

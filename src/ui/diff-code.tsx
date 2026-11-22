@@ -95,8 +95,11 @@ export default function CodeDiff({ part, card, style, versions }: { part: DiffPa
   };
   const files = versions ?? (typeof whole === 'object' ? whole : null);
 
-  // Highlighting: contiguous patch runs independently until the whole files are there, then the files,
-  // so the unchanged lines shown between hunks are coloured too and the grammar runs through.
+  // Highlighting: contiguous patch runs independently until the owner expands, then the whole files,
+  // so the unchanged lines shown between hunks are coloured too and the grammar runs through. Files
+  // that are there from the start (`versions`) are not painted while all their unchanged lines are
+  // folded: a small change in a long file costs its hunks, not the file.
+  const paintFiles = shown.size > 0 ? files : null;
   const theme = useResolvedTheme();
   const [paintedFor, setPaintedFor] = useState<For<Painted>>();
   const painted = paintedFor?.key === key ? paintedFor.value : undefined;
@@ -111,8 +114,8 @@ export default function CodeDiff({ part, card, style, versions }: { part: DiffPa
           const tokens = tokenize(lines.join('\n'));
           return new Map(numbers.map((n, i) => [n, tokens[i] ?? []]));
         };
-        if (files) {
-          setPainted({ old: side(files.old, files.old.map((_, i) => i + 1)), new: side(files.new, files.new.map((_, i) => i + 1)) });
+        if (paintFiles) {
+          setPainted({ old: side(paintFiles.old, paintFiles.old.map((_, i) => i + 1)), new: side(paintFiles.new, paintFiles.new.map((_, i) => i + 1)) });
         } else {
           setPainted(paintHunks(hunks, tokenize));
         }
@@ -122,7 +125,7 @@ export default function CodeDiff({ part, card, style, versions }: { part: DiffPa
     return () => {
       gone = true;
     };
-  }, [key, file, hunks, files, theme]);
+  }, [key, file, hunks, paintFiles, theme]);
 
   if (!hunks.length) return null;
   const tokensOf = (line: DiffLine) => (line.kind === 'removed' ? painted?.old.get(line.old!) : painted?.new.get(line.new!));

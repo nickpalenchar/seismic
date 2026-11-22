@@ -1,6 +1,8 @@
 // What a card's work changes in its repository, as `git diff` shows it: the server sums it up for
 // the line beside the card's branch, the UI shows it file by file.
 
+import { diffArrays } from 'diff';
+
 /** A card's change: the branch in its workstation so far, or what landed; in a folder without git, what the card changed there. */
 export interface CardDiff {
   /**
@@ -139,55 +141,99 @@ function fingerprint(text: string): string {
   return `${(h >>> 0).toString(36)}.${text.length.toString(36)}`;
 }
 
-/** Beyond this many pairs of lines between the first and last change, `lineDiff` matches none of them. */
-export const LINE_DIFF_LIMIT = 1_000_000;
+type LineOp = { kind: ' ' | '-' | '+'; line: string };
+
+/** The steps a diff of two lists may take before it gives up: its cost is about their length times the lines that differ. */
+const DIFF_BUDGET = 20_000_000;
 
 /**
- * The lines of `before` and `after` as a diff: each kept (` `), gone (`-`) or new (`+`), in order
- * (longest common subsequence). The lines alike at the start and the end are kept without
- * comparing; where what lies between holds more than `LINE_DIFF_LIMIT` pairs, it is all gone and
- * all new, so a long text with a small change costs its length, not its length squared.
+ * The lines of `before` and `after` as a diff: each kept (` `), gone (`-`) or new (`+`), in order.
+ * Myers' diff (jsdiff), whose cost grows with the lines that differ, not with the square of the
+ * lines; where that would take too long, the lines found once in each list anchor the diff
+ * (patience) and only what lies between two anchors is diffed again, or else shown gone and new.
  */
-export function lineDiff(before: string[], after: string[]): { kind: ' ' | '-' | '+'; line: string }[] {
-  let start = 0;
-  while (start < before.length && start < after.length && before[start] === after[start]) start++;
-  let end = 0;
-  while (end < before.length - start && end < after.length - start && before[before.length - 1 - end] === after[after.length - 1 - end]) end++;
-  const out: { kind: ' ' | '-' | '+'; line: string }[] = [];
-  for (let i = 0; i < start; i++) out.push({ kind: ' ', line: before[i]! });
-  const n = before.length - start - end;
-  const m = after.length - start - end;
-  if (n * m > LINE_DIFF_LIMIT) {
-    for (let i = 0; i < n; i++) out.push({ kind: '-', line: before[start + i]! });
-    for (let j = 0; j < m; j++) out.push({ kind: '+', line: after[start + j]! });
-  } else {
-    const b = (i: number) => before[start + i]!;
-    const a = (j: number) => after[start + j]!;
-    // common[i][j]: the longest common subsequence of the middle of before from i and of after from j
-    const common = Array.from({ length: n + 1 }, () => new Array<number>(m + 1).fill(0));
-    for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) common[i]![j] = b(i) === a(j) ? common[i + 1]![j + 1]! + 1 : Math.max(common[i + 1]![j]!, common[i]![j + 1]!);
-    let i = 0;
-    let j = 0;
-    while (i < n || j < m) {
-      if (i < n && j < m && b(i) === a(j)) {
-        out.push({ kind: ' ', line: b(i) });
-        i++;
-        j++;
-      } else if (i < n && (j === m || common[i + 1]![j]! >= common[i]![j + 1]!)) out.push({ kind: '-', line: b(i++) });
-      else out.push({ kind: '+', line: a(j++) });
-    }
-  }
-  for (let i = before.length - end; i < before.length; i++) out.push({ kind: ' ', line: before[i]! });
+export function lineDiff(before: string[], after: string[]): LineOp[] {
+  return myers(before, after) ?? patience(before, after);
+}
+
+function myers(before: string[], after: string[]): LineOp[] | null {
+  const changes = diffArrays(before, after, { maxEditLength: Math.max(64, Math.floor(DIFF_BUDGET / (before.length + after.length + 1))) });
+  if (!changes) return null;
+  const out: LineOp[] = [];
+  for (const c of changes) for (const line of c.value) out.push({ kind: c.added ? '+' : c.removed ? '-' : ' ', line });
   return out;
+}
+
+function patience(before: string[], after: string[]): LineOp[] {
+  const count = new Map<string, [number, number, number]>();
+  before.forEach((l, i) => {
+    const c = count.get(l) ?? [0, 0, -1];
+    c[0]++;
+    c[2] = i;
+    count.set(l, c);
+  });
+  after.forEach((l) => {
+    const c = count.get(l);
+    if (c) c[1]++;
+  });
+  // the lines once in each list, in the order of `after`, as [index in before, index in after]
+  const pairs: [number, number][] = [];
+  after.forEach((l, j) => {
+    const c = count.get(l);
+    if (c && c[0] === 1 && c[1] === 1) pairs.push([c[2], j]);
+  });
+  const anchors = increasing(pairs);
+  const out: LineOp[] = [];
+  const between = (b: string[], a: string[]) => {
+    const d = myers(b, a);
+    if (d) for (const x of d) out.push(x);
+    else {
+      for (const line of b) out.push({ kind: '-', line });
+      for (const line of a) out.push({ kind: '+', line });
+    }
+  };
+  let i = 0;
+  let j = 0;
+  for (const [ai, aj] of anchors) {
+    between(before.slice(i, ai), after.slice(j, aj));
+    out.push({ kind: ' ', line: before[ai]! });
+    [i, j] = [ai + 1, aj + 1];
+  }
+  between(before.slice(i), after.slice(j));
+  return out;
+}
+
+/** The longest run of `pairs` (in the order of their second index) whose first index rises too. */
+function increasing(pairs: [number, number][]): [number, number][] {
+  const tails: number[] = [];
+  const back = new Array<number>(pairs.length).fill(-1);
+  for (let k = 0; k < pairs.length; k++) {
+    let lo = 0;
+    let hi = tails.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (pairs[tails[mid]!]![0] < pairs[k]![0]) lo = mid + 1;
+      else hi = mid;
+    }
+    if (lo > 0) back[k] = tails[lo - 1]!;
+    tails[lo] = k;
+  }
+  const out: [number, number][] = [];
+  for (let k = tails.at(-1) ?? -1; k >= 0; k = back[k]!) out.push(pairs[k]!);
+  return out.reverse();
 }
 
 /**
  * `lineDiff` of two line lists as a unified patch for `file`: its hunks hold the changed lines with
  * `context` unchanged lines around them, as git shows a change; hunks whose context meets are one.
- * `file` goes into the patch's head as it is, so it holds no line break; nor do the lines.
+ * `file` goes into the patch's head as it is, so it holds no line break; nor do the lines, nor a NUL.
+ * `ends`: whether each side's last line ends with a line feed; a side whose last line does not gets
+ * git's "No newline at end of file" after it, and a line that gains or loses its line feed changes.
  */
-export function patchOf(file: string, before: string[], after: string[], context = 3): DiffPart {
-  const d = lineDiff(before, after);
+export function patchOf(file: string, before: string[], after: string[], { context = 3, ends = { old: true, new: true } }: { context?: number; ends?: { old: boolean; new: boolean } } = {}): DiffPart {
+  // the last line without a line feed compares with a NUL after it
+  const open = (lines: string[], ended: boolean) => (ended || !lines.length ? lines : [...lines.slice(0, -1), `${lines.at(-1)}\0`]);
+  const d = lineDiff(open(before, ends.old), open(after, ends.new));
   const changed = d.flatMap((x, i) => (x.kind === ' ' ? [] : [i]));
   // the runs of the diff to show: each change with its context, runs that touch merged
   const runs: [number, number][] = [];
@@ -210,7 +256,10 @@ export function patchOf(file: string, before: string[], after: string[], context
     // a side the hunk takes no line from names the line before it
     lines.push(`@@ -${oldCount ? old + 1 : old},${oldCount} +${newCount ? neu + 1 : neu},${newCount} @@`);
     // one line at a time: a run of a whole long list passed as arguments overruns the engine's limit
-    for (const x of run) lines.push(x.kind + x.line);
+    for (const x of run) {
+      if (!x.line.endsWith('\0')) lines.push(x.kind + x.line);
+      else lines.push(x.kind + x.line.slice(0, -1), '\\ No newline at end of file');
+    }
     old += oldCount;
     neu += newCount;
     at = to;
