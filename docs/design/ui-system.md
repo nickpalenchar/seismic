@@ -155,11 +155,11 @@ same style. UI text comes from `src/ui/strings.ts`, never a literal.
   a text field included, since the browser's own use of it (print) has no place in Seismic; every
   desktop list of the projects (the bar's switcher, the left menu, docked or not) shows the key
   under it so it is found. While a view about every project is open (Configuration, Preferences,
-  the performance dashboard) the key does nothing and leaves that view as it is (the owner,
-  2026-11-22: it switches projects, and those are system wide); over the project's own dialogs it
-  opens on top
-  (the card's diff sits at z 1000), but stays
-  shut over the overlays that close on Esc in the window's capture phase (the right-click rings, a
+  the performance dashboard, Connect a phone, the new project's form) the key does nothing and
+  leaves that view as it is (the owner, 2026-11-22: it switches projects, and those are system
+  wide); over the project's own dialogs it opens on top (the card's diff sits at z 1000), and Esc
+  gives the focus back to where it was, or to the button of a menu or popover that closed as it
+  opened; it stays shut over the overlays that close on Esc in the window's capture phase (the right-click rings, a
   screenshot shown large, the chats drawer), which would take its Esc first.
 - **Phone settings and Needs you share one history step**: switching between them replaces that
   step; closing returns to the project. Pages covering the project make its controls inert.

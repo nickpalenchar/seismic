@@ -3,7 +3,8 @@
 // marked, Esc closes it. The project open now comes last, since the owner opens it to leave. Each
 // page that shows a project (the canvas, the Agent Feedback Log, an address naming none) mounts it,
 // and it listens for its key itself. While what is about every project and not this one covers the
-// page (the configuration, the preferences, the performance dashboard), the key does nothing; over
+// page (the configuration, the preferences, the performance dashboard, a phone's pairing,
+// the new project's form), the key does nothing; over
 // the project's own dialogs it opens on top, the card's diff included; over the
 // overlays that take Esc themselves before any dialog hears it (`OWN_ESC`) it stays shut.
 
@@ -28,9 +29,30 @@ export const isSwitcherKey = (e: Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKe
  */
 const OWN_ESC = '#ringback, .lightbox, .artifact-image-close, .chats-drawer';
 
+/**
+ * The layers that close as the focus leaves them (a menu, a submenu, a popover, a select's list):
+ * Radix then skips giving the focus back to their button.
+ */
+const CLOSES_ON_BLUR = '[role=menu], [role=listbox], [data-slot=popover-content]';
+
+/**
+ * Where the focus goes back to when the switcher closes, for `el` that had it as the key opened it:
+ * for an element inside a layer that closes as the switcher takes the focus, the button that opened
+ * that layer (out through nested submenus to the first one outside any).
+ */
+export function focusHome(el: HTMLElement): HTMLElement {
+  for (let layer = el.closest<HTMLElement>(CLOSES_ON_BLUR); layer; layer = el.closest<HTMLElement>(CLOSES_ON_BLUR)) {
+    const button = layer.id ? document.querySelector<HTMLElement>(`[aria-controls="${CSS.escape(layer.id)}"]`) : null;
+    if (!button || button === el) break;
+    el = button;
+  }
+  return el;
+}
+
 /** The cards waiting for the owner on each project, by its id, as the bell counts them. */
 export function waitingPerProject(entries: InboxEntry[]): Record<string, number> {
-  const per: Record<string, number> = {};
+  // without a prototype: an id such as `constructor` would read an inherited value
+  const per: Record<string, number> = Object.create(null);
   for (const e of entries) if (e.card && counted(e)) per[e.project] = (per[e.project] ?? 0) + 1;
   return per;
 }
@@ -67,7 +89,7 @@ export function ProjectSwitcher({ project, projects, entries = [], shut = false 
   projects: ProjectInfo[];
   /** What waits for the owner on every project, for the counts beside them. */
   entries?: InboxEntry[];
-  /** What covers the project is about every project (the configuration, the preferences): the key does nothing meanwhile. */
+  /** What covers the project is about every project (the configuration, the preferences, a phone's pairing): the key does nothing meanwhile. */
   shut?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -84,7 +106,7 @@ export function ProjectSwitcher({ project, projects, entries = [], shut = false 
       // the browser's print has no place here, also where the switcher stays shut
       e.preventDefault();
       if (e.repeat || (!open && (shut || document.querySelector(OWN_ESC)))) return;
-      if (!open) opener.current = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
+      if (!open) opener.current = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? focusHome(document.activeElement) : null;
       setOpen(!open);
     };
     addEventListener('keydown', key, true);
@@ -92,7 +114,7 @@ export function ProjectSwitcher({ project, projects, entries = [], shut = false 
   }, [open, shut]);
   // each time it opens, the field starts empty
   useEffect(() => void (open && setQuery('')), [open]);
-  const waiting = open ? waitingPerProject(entries) : {};
+  const waiting = waitingPerProject(open ? entries : []);
   const results = switcherResults(projects, query, project);
   const pick = (id: string) => {
     setOpen(false);

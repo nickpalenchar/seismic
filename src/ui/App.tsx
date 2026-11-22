@@ -2994,7 +2994,7 @@ function Project({
         {/* over the inbox's view, its list stays undimmed beside the card, to work down from there */}
         <div id="dim" className={cn('fixed inset-x-0 top-[50px] bottom-0 z-30 bg-scrim opacity-0 pointer-events-none [transition:opacity_.2s,left_0s]', dim && 'on opacity-100 pointer-events-auto backdrop-blur-[3px]')} onClick={() => closeCard()} />
         {helpOn && <Help note={helpNote} onClose={() => setHelpOn(false)} />}
-        <ProjectSwitcher project={snapshot.project.id} projects={projects} entries={entries} shut={cOn || prefsOn || perfOn} />
+        <ProjectSwitcher project={snapshot.project.id} projects={projects} entries={entries} shut={cOn || prefsOn || perfOn || phoneOn || newProjectOn} />
         <WishDialog />
         {/* the open card blurs only while it is open in full (`ready`): as it unfolds, folds and hides it is a solid
             pane, and the card it lifted off the canvas keeps no blur either. Safari (an iPad's) can leave a hidden

@@ -1,6 +1,7 @@
 import { expect, test } from 'bun:test';
 import type { ProjectInfo } from '../core/types';
-import { isSwitcherKey, switcherResults } from './projectSwitcher';
+import type { InboxEntry } from '../core/inbox';
+import { isSwitcherKey, switcherResults, waitingPerProject } from './projectSwitcher';
 import { switcherKeys } from './strings';
 
 const project = (id: string, name: string, repos: string[] = [id], more: Partial<ProjectInfo> = {}) =>
@@ -34,4 +35,13 @@ test('⌘P and Ctrl+P open the switcher; with Shift or Alt they do not', () => {
   expect(isSwitcherKey(key({ ctrlKey: true, shiftKey: true }))).toBe(false);
   expect(switcherKeys('MacIntel')).toBe('⌘P');
   expect(switcherKeys('Win32')).toBe('Ctrl+P');
+});
+
+test('the waiting counts start at zero for every project id, also one named like an object key', () => {
+  const entry = (p: string) => ({ project: p, card: {} }) as InboxEntry;
+  const per = waitingPerProject([entry('constructor'), entry('a'), entry('a')]);
+  const id: string = 'constructor';
+  expect(per[id]).toBe(1);
+  expect(per.a).toBe(2);
+  expect(waitingPerProject([]).toString).toBeUndefined();
 });
