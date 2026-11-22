@@ -58,12 +58,21 @@ export function followedPath(pathname: string, projects: { id: string; name: str
   return ours ? `${now}${pathname.slice(seg[0].length)}` : null;
 }
 
+let wentTo = false;
+/** Whether the page shown came from `goTo` (a link, the inbox), not a reload or Back; asked once, as the page opens. */
+export function cameByGoTo(): boolean {
+  const was = wentTo;
+  wentTo = false;
+  return was;
+}
+
 /**
  * Goes to `path` (another project, a card on it) within the page, as a link would but without
  * loading it again: a step in the history, Back returns.
  */
 export function goTo(path: string) {
   const go = () => {
+    if (leavesPage(location.href, path)) wentTo = true;
     history.pushState(null, '', path);
     dispatchEvent(new PopStateEvent('popstate', { state: null }));
   };

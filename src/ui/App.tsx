@@ -5,7 +5,7 @@ import { clientExtensions as extensions } from '../extensions/client';
 // The project: camera, drag, unfold-in-place and the plan sheet.
 
 import { useRatePrompt } from './feedback';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Bot, CircleUserRound, ConciergeBell, MessageSquare, FileText, Columns3, type LucideIcon, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { type Bounds, boundsOf, CARD_SIZE, centre, onProject, type Place, PLAN_HEAD, PLAN_PAD, unionBounds } from '../core/layout';
@@ -68,7 +68,7 @@ import { cardHooks, shownState, stateVars } from './card';
 import { CardHandles, CardView, DepLinks, depHead, depWidth, linkPath, linkSpot, Edges, Links, Minimap, minimapArea, OldBunPill, PlanView, RestartPill, Sheet, SourcePill, TalkIcon, UpdatePill, WorkstationsPill } from './parts';
 import { clock, failText, t } from './strings';
 import { loadNavHidden, loadNavWidth, loadPinned, MenuButton, NAV_PROJECT_MIN, NavPill, NavSheet, saveNavHidden, saveNavWidth, savePinned } from './nav';
-import { projectPath, cardPath, feedbackLogPath, followedPath, goTo, named, knowProjects, projectNamed, queryWithout, readAddress, readView, withView, followedView } from './address';
+import { projectPath, cardPath, feedbackLogPath, followedPath, goTo, cameByGoTo, named, knowProjects, projectNamed, queryWithout, readAddress, readView, withView, followedView } from './address';
 import { type QuickReply, sendReply } from './quickReply';
 import { NeedsYouSheet } from './needsYou';
 import { useInboxRead } from './inboxRead';
@@ -401,19 +401,22 @@ function Project({
   // once the project brings it)
   const chosen = useRef<string>(undefined);
   const choose = (id: string) => {
+    chosen.current = id === canvasRef.current ? undefined : id;
     if (id === canvasRef.current) keepCanvas(id);
-    else chosen.current = id;
   };
+  // while a card or plan comes back by itself (a reload, a return), the canvas it shows on is no choice
+  const restoring = useRef(false);
   useEffect(() => {
     const on = () => {
       // a card open is shown on its own canvas: a hash naming another one goes
       const f = focusRef.current;
       const open = f?.type === 'card' ? itemsRef.current.find((i) => i.id === f.id) : undefined;
       const own = open && !open.archivedAt ? canvasesRef.current.find((c) => c.id === open.canvas) : undefined;
-      if (own && canvasNamedBy(canvasesRef.current, location.hash)?.id !== own.id) history.replaceState(history.state, '', `${location.pathname}${location.search}#${encodeURIComponent(own.name)}`);
-      // the address changed by the owner (Back, Forward, a hash typed) chooses the canvas it names
       const named = canvasNamedBy(canvasesRef.current, location.hash);
-      if (named) choose(named.id);
+      if (own && named?.id !== own.id) history.replaceState(history.state, '', `${location.pathname}${location.search}#${encodeURIComponent(own.name)}`);
+      // the address changed by the owner (Back, Forward, a hash typed) chooses the canvas it names;
+      // one the open card overrules was not shown, so nothing is chosen
+      else if (named) choose(named.id);
       setHash(location.hash);
     };
     addEventListener('hashchange', on);
@@ -426,6 +429,7 @@ function Project({
   // named in the address before the project brings it under that name; as the page opens, one that
   // names no canvas any more (deleted, renamed) shows the one shown last, as no hash does
   const lastShown = useRef<string>(undefined);
+  const [, showAgain] = useReducer((n: number) => n + 1, 0);
   const shownCanvas = (hash ? canvasNamedBy(canvases, hash) : undefined) ?? canvases.find((c) => c.id === lastShown.current) ?? lastCanvas(canvases, keptCanvas.current ?? null) ?? canvases[0];
   const canvasId = shownCanvas?.id;
   lastShown.current = canvasId;
@@ -440,15 +444,24 @@ function Project({
   }, [canvasId]);
   /**
    * Shows a canvas of the project (one just made too, which the project brings soon); the address
-   * names it. `picked` false where the owner did not choose it (a card or plan that comes back).
+   * names it. One the owner did not choose (a card or plan that comes back) leaves the address
+   * without a hash, so the entry of the history goes on meaning "where the owner left".
    */
-  const showCanvas = (c: Canvas | string, picked = true) => {
+  const showCanvas = (c: Canvas | string) => {
+    const picked = !restoring.current;
     const to = typeof c === 'string' ? canvases.find((x) => x.id === c) : c;
     // a call that ends after a switch to another project (a canvas made, a card opened) leaves the
     // address and the canvas kept for this project as the owner left them
     if (!to || gone.current) return;
     // picked again, the canvas shown is the last choice here too, over one another tab made since
     if (picked) choose(to.id);
+    else {
+      if (to.id === canvasRef.current) return;
+      lastShown.current = to.id;
+      if (location.hash) history.replaceState(history.state, '', `${location.pathname}${location.search}`);
+      flushSync(() => (setHash(''), showAgain()));
+      return;
+    }
     const h = `#${encodeURIComponent(to.name)}`;
     if (to.id === canvasRef.current && location.hash === h) return;
     history.replaceState(history.state, '', `${location.pathname}${location.search}${h}`);
@@ -797,7 +810,7 @@ function Project({
     const f = focusRef.current;
     if (f?.type === 'card') return;
     // a card on another canvas opens there
-    if (i.canvas && i.canvas !== canvasRef.current && !i.archivedAt && !offCanvas(i)) showCanvas(i.canvas, !reload);
+    if (i.canvas && i.canvas !== canvasRef.current && !i.archivedAt && !offCanvas(i)) showCanvas(i.canvas);
     if (i.kind === 'plan') return openPlan(i);
     cardsOn(snapshot.project.id, [i.id]);
     setFocus({ type: 'card', id: i.id, prevCam: camRef.current, prevSide: camSide.current, plan: f });
@@ -1016,7 +1029,7 @@ function Project({
   /** Shows the plan in the sheet, its workstreams or (`r`) its plan doc, and with `inView` flies to it. */
   async function planSheet(p: Item, r: { mark?: string } | null, quick: boolean, inView: boolean) {
     // a plan on another canvas opens there
-    if (p.canvas && p.canvas !== canvasRef.current && !p.archivedAt) showCanvas(p.canvas, !quick);
+    if (p.canvas && p.canvas !== canvasRef.current && !p.archivedAt) showCanvas(p.canvas);
     const f = focusRef.current;
     if (f?.type !== 'plan') planOpener.current = onControl(document.activeElement) ? (document.activeElement as HTMLElement) : null;
     setFocus(f?.type === 'plan' ? { ...f, id: p.id } : { type: 'plan', id: p.id, prevCam: camRef.current, prevSide: camSide.current });
@@ -1150,8 +1163,13 @@ function Project({
     // what comes back is what the address names already; a kept card the address left out (a
     // restart of the app's shell, a link to the project) gets its address once it is open
     addressSet.current = true;
+    // what comes back by itself shows its canvas without choosing it; a card the owner went to from
+    // elsewhere (the inbox, a link within the page) is chosen, with its canvas
+    const came = cameByGoTo();
+    restoring.current = !(code && came);
     const done = () => {
       addressSet.current = false;
+      restoring.current = false;
       // the owner switched to another project meanwhile: the address is that one's now
       if (gone.current) return;
       history.replaceState(history.state, '', pathOf(openNow()));
