@@ -89,7 +89,7 @@ test('filters by project, repository, plan and since when; the choices are what 
 
 test('the trend is each row’s average per month, over every month from the first to the last', () => {
   const list = [
-    fb([opusHigh], { rating: 5 }, { at: '2026-08-03T00:00:00.000Z' }),
+    fb([opusHigh], { rating: 5 }, { at: '2026-07-03T00:00:00.000Z' }),
     fb([opusHigh], { rating: 3 }, { at: '2026-10-03T00:00:00.000Z' }),
     fb([opusHigh], { rating: 4 }, { at: '2026-10-20T00:00:00.000Z' }),
     fb([sonnet], { comment: 'no stars' }, { at: '2026-11-01T00:00:00.000Z' }),
@@ -97,9 +97,9 @@ test('the trend is each row’s average per month, over every month from the fir
   ];
   const t = trend(performance(list).rows);
   expect(t.unit).toBe('month');
-  expect(t.periods).toEqual(['2026-08', '2026-09', '2026-10']);
+  expect(t.periods).toEqual(['2026-07', '2026-08', '2026-09', '2026-10']);
   expect(t.series).toEqual([
-    { key: 'claude|claude-opus-5-5|high', points: [{ period: '2026-08', mean: 5, n: 1 }, { period: '2026-10', mean: 3.5, n: 2 }] },
+    { key: 'claude|claude-opus-5-5|high', points: [{ period: '2026-07', mean: 5, n: 1 }, { period: '2026-10', mean: 3.5, n: 2 }] },
     { key: 'claude|claude-sonnet-5-5|medium', points: [{ period: '2026-10', mean: 2, n: 1 }] },
   ]);
   expect(trend([])).toEqual({ unit: 'month', periods: [], series: [] });
