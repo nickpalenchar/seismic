@@ -8,7 +8,7 @@ import { type Item, titleFrom } from '../../core/types';
 import { Inline } from '../markdown';
 import { unreadDotClass } from '../inboxClasses';
 import { ClockMark } from '../snooze';
-import { mergeProposed, t } from '../strings';
+import { t } from '../strings';
 import type { CardSummary, StateMark } from './summary';
 
 /** A card's title as it shows: its own, else the start of its text. */
@@ -35,7 +35,10 @@ const ParkedMark = () => <Car className="parked-mark" size={13} aria-hidden />;
 /** Two lines joining into one: the mark of a card being merged with another. */
 const MergeStateMark = () => <GitMerge className="merge-mark" size={12} strokeWidth={1.75} aria-hidden />;
 
-const MARKS: Record<StateMark, () => ReactNode> = { merge: MergeStateMark, parked: ParkedMark, limit: HourglassMark, snooze: ClockMark, restart: RestartMark, restartQueue: HourglassMark, question: QuestionMark };
+/** A lightbulb: the mark of a card Seismic proposes to merge with a likely duplicate. */
+const MergeProposedMark = () => <Lightbulb className="merge-mark" size={12} strokeWidth={1.75} aria-hidden />;
+
+const MARKS: Record<StateMark, () => ReactNode> = { merge: MergeStateMark, mergeProposed: MergeProposedMark, parked: ParkedMark, limit: HourglassMark, snooze: ClockMark, restart: RestartMark, restartQueue: HourglassMark, question: QuestionMark };
 
 /** The marks before a state, in their order. */
 export const StateMarks = ({ marks }: { marks: StateMark[] }) => (
@@ -81,10 +84,6 @@ export function Title({ item, className, inline, children }: { item: Item; class
   const cls = item.title ? className : `${className} untitled`;
   return inline ? <span className={cls}>{children ?? shownTitle(item)}</span> : <div className={cls}>{children ?? shownTitle(item)}</div>;
 }
-
-/** A lightbulb before the title of a card Seismic proposes to merge with a likely duplicate. */
-export const MergeProposedMark = ({ item, inline }: { item: Item; inline?: boolean }) =>
-  mergeProposed(item) ? <Lightbulb className={`merge-proposed-mark inline-block flex-none align-[-0.125em] text-(--proposal) ${inline ? 'mr-1' : ''}`} size="0.95em" strokeWidth={2} aria-hidden /> : null;
 
 /** A pin's fill, in the colour of what the owner is asked (`--pin`). */
 const PIN = 'bg-(--pin)';

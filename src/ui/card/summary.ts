@@ -99,7 +99,7 @@ const firstLine = (md: string) =>
 const doingNow = (item: Item) => (item.agent?.inTurn && !isPaused(item) ? item.agent.doing : undefined);
 
 /** A mark before the state: parked off the canvas, a usage limit waited out, a snooze, a restart due, a start waiting for a restart, a question for the owner. */
-export type StateMark = 'parked' | 'limit' | 'snooze' | 'restart' | 'restartQueue' | 'question' | 'merge';
+export type StateMark = 'parked' | 'limit' | 'snooze' | 'restart' | 'restartQueue' | 'question' | 'merge' | 'mergeProposed';
 
 export interface CardSummary {
   /** The kind line's word: a workstream's label, else the card's kind (`cardKind`). */
@@ -174,6 +174,7 @@ export function cardSummary(item: Item, underway?: string): CardSummary {
         ...((item.queue && 'restart' in item.queue ? ['restartQueue'] : []) as StateMark[]),
         ...((asksYou(item) && !revising && !proposal?.merge ? ['question'] : []) as StateMark[]),
         ...((proposal?.merge ? ['merge'] : []) as StateMark[]),
+        ...((mergeProposed(item) ? ['mergeProposed'] : []) as StateMark[]),
       ];
   // a card being merged says its own state, and then how the merge stands
   const merge = proposal?.merge;
