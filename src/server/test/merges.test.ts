@@ -330,7 +330,8 @@ test('an unfinished planned-card comparison resumes once, including an archived 
   board().archive([survivor.id]);
   board().mergeStart(back.id, survivor.id);
   const resumed = new Merges({ board: board(), runtime, pathFor: () => main });
-  await heard();
+  // the project's own comparisons look at the pair once its edits settle (mergeSettleMs): counted only after that
+  await settle(40);
   const before = runtime.sessions.length;
   resumed.resume();
   resumed.resume();

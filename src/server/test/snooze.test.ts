@@ -233,10 +233,10 @@ describe('the agent snoozes until another card gets somewhere', () => {
     s.call('snooze', { card: 'Export demo', state: 'waits_for_owner', why: 'Compare' });
     s.emit({ type: 'idle' });
     board().work(demo, { state: 'waiting', need: 'question' });
-    await Bun.sleep(5);
-    board().work(demo, { state: 'working', need: null });
-    // the waking turn starts once its brief is read
+    // the change reaches the waker after the event loop's turn and a timer of its own, long before the next tick
+    // (WAKE_EVERY_MS): a fixed few milliseconds were not always enough on a loaded runner
     await until(() => runtime.last !== s);
+    board().work(demo, { state: 'working', need: null });
     expect(runtime.last.inbox[0]).toContain('waits for the owner now');
   });
 
