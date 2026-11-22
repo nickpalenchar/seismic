@@ -417,7 +417,8 @@ function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean
       </div>
       </InMenu.Provider>
       <InMenu.Provider value={!floating ? null : page === 'inbox' ? ACTIVE : INACTIVE}>
-      <div className={pageClass(page !== 'inbox')} inert={page !== 'inbox'}>
+      {/* the dropped-down menu is a Radix menu, which keeps Tab and typeahead for its own items: on this page the keys stay the page's own */}
+      <div className={pageClass(page !== 'inbox')} inert={page !== 'inbox'} onKeyDown={floating ? (e) => { if (e.key !== 'Escape') e.stopPropagation(); } : undefined}>
         <div className={head(titlebar)} {...drag}>
           <Act sidebarItem={false} className="-ml-0.5 flex h-8 cursor-pointer items-center gap-2 rounded-sm bg-transparent px-2.5 text-base text-foreground hover:bg-muted" ref={inboxBackButton} keep onAct={() => setPage('main')} tip={m.back} aria-label={m.back}>
             <ArrowLeft size={16} strokeWidth={2} aria-hidden />
@@ -426,7 +427,9 @@ function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean
           {pin}
         </div>
         {/* mounted while shown only: the entries are where a card opened from them unfolds from */}
-        {p.inbox && page === 'inbox' && <InboxList {...p.inbox} onGo={(e) => { if (floating) leaveMenu(); p.inbox!.onGo(e); }} />}
+        {p.inbox && page === 'inbox' && (
+          <InboxList {...p.inbox} onGo={(e) => { if (floating) leaveMenu(); p.inbox!.onGo(e); }} />
+        )}
       </div>
       </InMenu.Provider>
     </div>
