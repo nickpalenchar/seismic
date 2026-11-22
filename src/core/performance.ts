@@ -120,43 +120,63 @@ export function filterChoices(list: Feedback[]) {
 }
 
 export interface TrendPoint {
-  /** The month, `2026-10`. */
-  month: string;
+  /** The bucket: a month `2026-10`, or the Monday of a week `2026-10-26`. */
+  period: string;
   mean: number;
   n: number;
 }
 
-/** Each row's average rating per month (by when a response was last given), and the months from the first to the last with any. */
-export function trend(rows: PerformanceRow[]): { months: string[]; series: { key: string; points: TrendPoint[] }[] } {
-  const monthOf = (f: Feedback) => (f.updatedAt ?? f.at).slice(0, 7);
+const DAY = 86_400_000;
+const mondayOf = (iso: string) => {
+  const d = new Date(`${iso.slice(0, 10)}T12:00:00Z`);
+  return new Date(d.getTime() - ((d.getUTCDay() + 6) % 7) * DAY).toISOString().slice(0, 10);
+};
+
+/**
+ * Each row's average rating per period (by when a response was last given), and the periods from the first to the last
+ * with any. Periods are months, or weeks when everything lies within about three months: monthly buckets would show a
+ * young history as one point.
+ */
+export function trend(rows: PerformanceRow[]): { unit: 'week' | 'month'; periods: string[]; series: { key: string; points: TrendPoint[] }[] } {
+  const when = (f: Feedback) => f.updatedAt ?? f.at;
+  const times = rows.flatMap((r) => r.responses.filter((f) => stars(f.answer.rating) !== null).map((f) => Date.parse(when(f))));
+  const unit = times.length && Math.max(...times) - Math.min(...times) <= 90 * DAY ? 'week' : 'month';
+  const bucket = (f: Feedback) => (unit === 'week' ? mondayOf(when(f)) : when(f).slice(0, 7));
   const series = rows.map((r) => {
     const by = new Map<string, number[]>();
     for (const f of r.responses) {
       const s = stars(f.answer.rating);
       if (s === null) continue;
-      const m = monthOf(f);
+      const m = bucket(f);
       by.set(m, [...(by.get(m) ?? []), s]);
     }
-    const points = [...by].map(([month, v]) => ({ month, mean: v.reduce((a, b) => a + b, 0) / v.length, n: v.length })).sort((a, b) => a.month.localeCompare(b.month));
+    const points = [...by].map(([period, v]) => ({ period, mean: v.reduce((a, b) => a + b, 0) / v.length, n: v.length })).sort((a, b) => a.period.localeCompare(b.period));
     return { key: r.key, points };
   });
-  const all = series.flatMap((s) => s.points.map((p) => p.month)).sort();
-  const months: string[] = [];
+  const all = series.flatMap((s) => s.points.map((p) => p.period)).sort();
+  const periods: string[] = [];
   if (all.length) {
-    let [y, m] = all[0]!.split('-').map(Number) as [number, number];
     const last = all.at(-1)!;
-    for (;;) {
-      const at = `${y}-${String(m).padStart(2, '0')}`;
-      months.push(at);
-      if (at >= last) break;
-      m++;
-      if (m > 12) (m = 1), y++;
+    if (unit === 'week') {
+      for (let t = Date.parse(`${all[0]}T12:00:00Z`); ; t += 7 * DAY) {
+        const at = new Date(t).toISOString().slice(0, 10);
+        periods.push(at);
+        if (at >= last) break;
+      }
+    } else {
+      let [y, m] = all[0]!.split('-').map(Number) as [number, number];
+      for (;;) {
+        const at = `${y}-${String(m).padStart(2, '0')}`;
+        periods.push(at);
+        if (at >= last) break;
+        m++;
+        if (m > 12) (m = 1), y++;
+      }
     }
   }
-  return { months, series: series.filter((s) => s.points.length) };
+  return { unit, periods, series: series.filter((s) => s.points.length) };
 }
 
-const DAY = 86_400_000;
 /** The upper bounds in days of the ages a dot's size tells apart, the newest first; older than the last is the smallest. */
 export const AGES = [3, 7, 30, 60] as const;
 

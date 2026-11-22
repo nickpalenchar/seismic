@@ -96,12 +96,19 @@ test('the trend is each row’s average per month, over every month from the fir
     fb([sonnet], { rating: 2 }, { at: '2026-07-01T00:00:00.000Z', updatedAt: '2026-10-01T00:00:00.000Z' }),
   ];
   const t = trend(performance(list).rows);
-  expect(t.months).toEqual(['2026-08', '2026-09', '2026-10']);
+  expect(t.unit).toBe('month');
+  expect(t.periods).toEqual(['2026-08', '2026-09', '2026-10']);
   expect(t.series).toEqual([
-    { key: 'claude|claude-opus-5-5|high', points: [{ month: '2026-08', mean: 5, n: 1 }, { month: '2026-10', mean: 3.5, n: 2 }] },
-    { key: 'claude|claude-sonnet-5-5|medium', points: [{ month: '2026-10', mean: 2, n: 1 }] },
+    { key: 'claude|claude-opus-5-5|high', points: [{ period: '2026-08', mean: 5, n: 1 }, { period: '2026-10', mean: 3.5, n: 2 }] },
+    { key: 'claude|claude-sonnet-5-5|medium', points: [{ period: '2026-10', mean: 2, n: 1 }] },
   ]);
-  expect(trend([])).toEqual({ months: [], series: [] });
+  expect(trend([])).toEqual({ unit: 'month', periods: [], series: [] });
+  const young = trend(performance([
+    fb([opusHigh], { rating: 5 }, { at: '2026-11-04T00:00:00.000Z' }),
+    fb([opusHigh], { rating: 3 }, { at: '2026-11-19T00:00:00.000Z' }),
+  ]).rows);
+  expect(young.unit).toBe('week');
+  expect(young.periods).toEqual(['2026-11-02', '2026-11-09', '2026-11-16']);
 });
 
 test('a response’s age is one of five steps, by when it was last given', () => {

@@ -2590,9 +2590,12 @@ const en = {
     filters: { project: 'Project', repo: 'Repository', plan: 'Plan', period: 'Period', any: 'all' },
     periods: { all: 'all time', days: (n: number) => `last ${n} days` },
     views: { label: 'View', stars: 'Spread', dots: 'Each rating', trend: 'Over time' },
-    trendLabel: (months: number) => `Average per model and effort over ${months === 1 ? 'one month' : `${months} months`}`,
-    trendHint: (few: number) => `Point: a month's average · hollow: under ${few} ratings`,
-    month: (m: string) => new Date(`${m}-15T00:00:00Z`).toLocaleDateString('en-GB', { month: 'short', year: '2-digit', timeZone: 'UTC' }),
+    trendLabel: (n: number, unit: 'week' | 'month') => `Average per model and effort over ${n === 1 ? `one ${unit}` : `${n} ${unit}s`}`,
+    trendHint: (few: number, unit: 'week' | 'month') => `Point: a ${unit}'s average · hollow: under ${few} ratings`,
+    period: (m: string, unit: 'week' | 'month') =>
+      unit === 'week'
+        ? new Date(`${m}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })
+        : new Date(`${m}-15T00:00:00Z`).toLocaleDateString('en-GB', { month: 'short', year: 'numeric', timeZone: 'UTC' }),
     point: (name: string, month: string, mean: number, n: number) => `${name}, ${month}: ${mean.toFixed(1)} from ${n} ${n === 1 ? 'rating' : 'ratings'}`,
     cols: { config: 'Model · effort', ratings: 'Ratings', mean: 'Average', spread: 'Stars 1 → 5', each: 'Each rating on the scale of 1 to 5 stars', comments: 'Comments' },
     uncreditedHead: 'Not credited to one model',

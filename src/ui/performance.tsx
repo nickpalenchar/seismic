@@ -456,7 +456,7 @@ function rowText(r: PerformanceRow) {
 function Trend({ rows }: { rows: PerformanceRow[] }) {
   const p = t.performance;
   // the lines are the models': work credited to none of them has no line of its own
-  const { months, series } = trend(rows.filter((r) => r.kind === 'config'));
+  const { unit, periods: months, series } = trend(rows.filter((r) => r.kind === 'config'));
   const W = 900, H = 200, L = 44, R = 16, T = 12, B = 30;
   const x = (m: string) => (months.length < 2 ? L + (W - L - R) / 2 : L + (months.indexOf(m) / (months.length - 1)) * (W - L - R));
   const y = (v: number) => T + ((5 - v) / 4) * (H - T - B);
@@ -464,7 +464,7 @@ function Trend({ rows }: { rows: PerformanceRow[] }) {
   const lines = series.map((s, k) => ({ ...s, ink: LINE_INKS[k % LINE_INKS.length]!, name: rowText(named.get(s.key)!) }));
   return (
     <figure className="mt-0 mx-0 mb-4">
-      <svg className="block w-full h-auto overflow-visible" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={p.trendLabel(months.length)}>
+      <svg className="block w-full h-auto overflow-visible" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={p.trendLabel(months.length, unit)}>
         {[1, 2, 3, 4, 5].map((v) => (
           <g key={v}>
             <line x1={L} x2={W - R} y1={y(v)} y2={y(v)} className="stroke-border" />
@@ -475,15 +475,15 @@ function Trend({ rows }: { rows: PerformanceRow[] }) {
         ))}
         {months.map((m) => (
           <text key={m} x={x(m)} y={H - 8} textAnchor="middle" className={axisTextClass}>
-            {p.month(m)}
+            {p.period(m, unit)}
           </text>
         ))}
         {lines.map((s) => (
           <g key={s.key} style={{ color: s.ink }}>
-            <polyline fill="none" stroke="currentColor" strokeWidth={2} points={s.points.map((pt) => `${x(pt.month)},${y(pt.mean)}`).join(' ')} />
+            <polyline fill="none" stroke="currentColor" strokeWidth={2} points={s.points.map((pt) => `${x(pt.period)},${y(pt.mean)}`).join(' ')} />
             {s.points.map((pt) => (
-              <circle key={pt.month} cx={x(pt.month)} cy={y(pt.mean)} r={4.5} stroke="currentColor" strokeWidth={2} fill={pt.n < FEW ? 'var(--surface)' : 'currentColor'}>
-                <title>{p.point(s.name, p.month(pt.month), pt.mean, pt.n)}</title>
+              <circle key={pt.period} cx={x(pt.period)} cy={y(pt.mean)} r={4.5} stroke="currentColor" strokeWidth={2} fill={pt.n < FEW ? 'var(--surface)' : 'currentColor'}>
+                <title>{p.point(s.name, p.period(pt.period, unit), pt.mean, pt.n)}</title>
               </circle>
             ))}
           </g>
@@ -495,7 +495,7 @@ function Trend({ rows }: { rows: PerformanceRow[] }) {
             {s.name}
           </span>
         ))}
-        <span>{p.trendHint(FEW)}</span>
+        <span>{p.trendHint(FEW, unit)}</span>
       </figcaption>
     </figure>
   );
