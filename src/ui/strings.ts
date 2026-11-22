@@ -1451,7 +1451,6 @@ const en = {
     unread: 'Unread',
     noneUnread: 'Nothing unread.',
     allProjects: 'All projects',
-    pick: '“Go to card” opens the card here, beside the list.',
   },
   phone: {
     forYou: 'Needs you',

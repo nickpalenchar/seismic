@@ -12,6 +12,7 @@ import type { Canvas, ProjectInfo } from '../core/types';
 import { projectPath, switchTo } from './address';
 import { CanvasIcon, ProjectIcon } from './canvasIcon';
 import { Sign, Wordmark } from './logo';
+import { InboxList, type InboxProps } from './inbox';
 import { closeBarMenus, leaveMenu, Menu, MenuContent, MenuItem, MenuTrigger } from './components/menu';
 import { ProjectAgents } from './parts';
 import { t } from './strings';
@@ -128,6 +129,8 @@ function NavList(props: ComponentProps<'ul'>) {
  */
 export interface MenuActions {
   onInbox: () => void;
+  /** With it, the inbox opens as a page of the menu itself, docked or dropped down; without it (the phone), `onInbox` opens it. */
+  inbox?: InboxProps;
   /** Agents, Rules and Review rules open nothing yet: with `onConfig` (the desktop) they show as "Coming soon" until given an action; without it (the phone) they stay out. */
   onAgents?: () => void;
   onRules?: () => void;
@@ -302,16 +305,17 @@ export function PhoneNavSheet({ open, onOpenChange, ...p }: MenuProps & { open: 
 
 /** The menu's two pages, the main one and "Configure agents", the second sliding in over the first. */
 function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean; titlebar?: boolean }) {
-  const [page, setPage] = useState<'main' | 'agents'>('main');
+  const [page, setPage] = useState<'main' | 'agents' | 'inbox'>('main');
   const previousPage = useRef(page);
   const configureButton = useRef<HTMLButtonElement>(null);
   const backButton = useRef<HTMLButtonElement>(null);
+  const inboxBackButton = useRef<HTMLButtonElement>(null);
   useLayoutEffect(() => {
     if (previousPage.current !== page) {
       // The old page becomes inert in this commit. Keep focus inside the newly active page,
       // including when the menu is docked and Radix is not managing its items. Radix
       // focuses the menu content after selection, so move focus after that has finished.
-      const frame = requestAnimationFrame(() => (page === 'agents' ? backButton : configureButton).current?.focus());
+      const frame = requestAnimationFrame(() => (page === 'main' ? configureButton : page === 'agents' ? backButton : inboxBackButton).current?.focus());
       previousPage.current = page;
       return () => cancelAnimationFrame(frame);
     }
@@ -335,12 +339,12 @@ function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean
   // the "Configure agents" page is only offered while it has something on it
   const hasAgentsPage = agentEntries.length > 0 || !!p.onPerformance || !!p.onFeedbackLog;
   const inbox = (
-    <Entry icon={<Inbox size={16} strokeWidth={2} aria-hidden />} label={m.inbox} on={p.showing === 'inbox'} onClick={run(p.onInbox)} />
+    <Entry icon={<Inbox size={16} strokeWidth={2} aria-hidden />} label={m.inbox} on={p.showing === 'inbox'} keep={!!p.inbox} onClick={p.inbox ? () => setPage('inbox') : run(p.onInbox)} />
   );
   return (
-    // the menu's two pages side by side, the second ("Configure agents") sliding in over the first; the
+    // the menu's pages side by side, "Configure agents" and the inbox sliding in over the main one; the
     // page out of view takes no height, so the menu is as tall as the page it shows
-    <div className={cn('grid grid-cols-[100%_100%] items-start transition-transform duration-300 ease-[cubic-bezier(.3,.9,.3,1)]', page === 'agents' && '-translate-x-full')}>
+    <div className={cn('grid grid-cols-[100%_100%_100%] items-start transition-transform duration-300 ease-[cubic-bezier(.3,.9,.3,1)]', page === 'agents' && '-translate-x-full', page === 'inbox' && '-translate-x-[200%]')}>
       <InMenu.Provider value={!floating ? null : page === 'main' ? ACTIVE : INACTIVE}>
       <div className={pageClass(page !== 'main')} inert={page !== 'main'}>
         {/* in the app on a Mac the traffic lights take the head; the inbox's entry follows under it */}
@@ -412,11 +416,24 @@ function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean
         </NavList>
       </div>
       </InMenu.Provider>
+      <InMenu.Provider value={!floating ? null : page === 'inbox' ? ACTIVE : INACTIVE}>
+      <div className={pageClass(page !== 'inbox')} inert={page !== 'inbox'}>
+        <div className={head(titlebar)} {...drag}>
+          <Act sidebarItem={false} className="-ml-0.5 flex h-8 cursor-pointer items-center gap-2 rounded-sm bg-transparent px-2.5 text-base text-foreground hover:bg-muted" ref={inboxBackButton} keep onAct={() => setPage('main')} tip={m.back} aria-label={m.back}>
+            <ArrowLeft size={16} strokeWidth={2} aria-hidden />
+            <b>{m.inbox}</b>
+          </Act>
+          {pin}
+        </div>
+        {/* mounted while shown only: the entries are where a card opened from them unfolds from */}
+        {p.inbox && page === 'inbox' && <InboxList {...p.inbox} onGo={(e) => { if (floating) leaveMenu(); p.inbox!.onGo(e); }} />}
+      </div>
+      </InMenu.Provider>
     </div>
   );
 }
 
-/** One of the menu's two pages; the one out of view hides once it has slid away, and takes no height. */
+/** One of the menu's pages; the one out of view hides once it has slid away, and takes no height. */
 const pageClass = (away: boolean) => cn('min-w-0', away && 'invisible h-0 [transition:visibility_0s_.3s]');
 
 /**

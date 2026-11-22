@@ -2,7 +2,7 @@
 // to, where the demo video stood, and what was typed but not sent. Written down just before the
 // reload (sessionStorage, per tab), and taken once by the page that loads.
 
-/** A sheet on the right that is not a plan's, or the archive's view. The inbox's view comes back by `inboxKept`. */
+/** A sheet on the right that is not a plan's, or the archive's view. */
 export type SideSheet = 'koordinator' | 'needs-you' | 'settings' | 'agents' | 'archive';
 
 export interface Kept {
@@ -25,7 +25,7 @@ export interface Kept {
 }
 
 /** Where the open things are: the panel of the open card, the sheets, the pinned navigation, the inbox's view, the archive's list and the configuration's dialog. */
-export const ROOTS = ['panel', 'sheet', 'ksheet', 'nav', 'inbox-full', 'amenu', 'config'];
+export const ROOTS = ['panel', 'sheet', 'ksheet', 'nav', 'amenu', 'config'];
 
 /** How old what was kept may be to come back: a restart takes seconds, a page reloaded much later starts afresh. */
 const FRESH_MS = 5 * 60_000;
@@ -166,25 +166,6 @@ export function takeSheetLeft(store: Store, project: string): boolean {
     const open = store.getItem(sheetKey(project)) === '1';
     store.removeItem(sheetKey(project));
     return open;
-  } catch {
-    return false;
-  }
-}
-
-const INBOX_KEY = 'seismic-inbox-open';
-
-/** Whether the inbox is open, for this tab and every project in it: it stays open as the owner switches project. */
-export function keepInbox(store: Store, on: boolean) {
-  try {
-    if (on) store.setItem(INBOX_KEY, '1');
-    else store.removeItem(INBOX_KEY);
-  } catch {}
-}
-
-/** The inbox was open as this tab left the project before. */
-export function inboxKept(store: Store): boolean {
-  try {
-    return store.getItem(INBOX_KEY) === '1';
   } catch {
     return false;
   }

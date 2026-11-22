@@ -1,7 +1,7 @@
 // The inbox: what waits for the owner on every project, the latest changed first (src/core/inbox.ts). The
-// desktop shows it as a full-page view of the main area, opened from the left menu's "Inbox", its
-// list at the left, where a card opened from it unfolds beside the list; the phone lists it as
-// "Needs you". The desktop's "Needs you" sheet (src/ui/needsYou.tsx) shows its cards' entries alike.
+// desktop shows it as a page of the left menu (src/ui/nav.tsx), opened from its "Inbox" entry and sliding in
+// at the menu's size, docked or dropped down, with the canvas left in view; a card opened from it unfolds
+// beside the docked menu. The phone lists it as "Needs you". The desktop's "Needs you" sheet (src/ui/needsYou.tsx) shows its cards' entries alike.
 // Each entry shows as its kind's renderer has it (src/ui/needsYou/renderers.tsx): a card's is its face
 // at size S (src/ui/card), its project and canvas on its top line and what it waits for under its
 // state ("Demo ready" on a handover, which is judged on the card); under it, the card's one-click
@@ -10,16 +10,13 @@
 // an orange dot and a bold title; the switch above the list shows all of them or only the unread ones
 // (src/ui/inboxRead.ts keeps what was read).
 
-import { cn } from 'cn';
-import { Fragment, type ReactNode } from 'react';
+import { Fragment } from 'react';
 import type { InboxEntry } from '../core/inbox';
 import type { Item } from '../core/types';
-import { FullPage, fullCloseClass } from './fullPage';
 import { renderEntry } from './needsYou/renderers';
 import type { QuickReply } from './quickReply';
 import { useStoredState } from './stored';
 import { t } from './strings';
-import { CloseButton } from './components/button';
 import { emptyInboxClass, entryListClass, inboxBarClass } from './inboxClasses';
 import { CheckLabel } from './components/check-label';
 import { Switch } from './components/switch';
@@ -80,31 +77,5 @@ export function InboxList({ entries: all, current, open, onGo, onReply, onPropos
         ))}
       </ul>
     </>
-  );
-}
-
-/** The width of the inbox view's list, beside which a card opened from it unfolds. */
-export const inboxListWidth = () => Math.round(Math.min(480, Math.max(340, innerWidth * 0.36)));
-
-/**
- * The desktop's inbox, a full-page view of the main area: the list at the left, the room beside it
- * where a card opened from it unfolds (`held`: the list stays above the dim, usable, the open card's
- * entry ringed). Its ✕ and Esc (in App, once no card is open) close it.
- */
-export function InboxView({ on, held, onClose, ...p }: InboxProps & { on: boolean; held: boolean; onClose: () => void }): ReactNode {
-  if (!on) return null;
-  // the list keeps to the left, out of the dim beside an open card (App), so the owner works down it; the
-  // card unfolds in the room beside it (a row, over the full page's column)
-  return (
-    <FullPage id="inbox-full" title={t.inbox.title} className="flex-row">
-      <div className={cn('inbox-col flex-none w-[min(480px,max(340px,36vw))] box-border overflow-auto pt-3 px-3.5 pb-8 border-r border-r-border', held && 'held')}>
-        <h2 className="mt-0 mx-2 mb-2.5 text-lg">{t.inbox.title}</h2>
-        <InboxList {...p} />
-      </div>
-      <div className="inbox-room flex-1 min-w-0 flex flex-col items-end py-3 px-6">
-        <CloseButton label={t.close} className={fullCloseClass} onClick={onClose} />
-        <p className="self-center my-auto mx-0 max-w-[320px] text-center text-sm text-muted-foreground">{t.inbox.pick}</p>
-      </div>
-    </FullPage>
   );
 }
