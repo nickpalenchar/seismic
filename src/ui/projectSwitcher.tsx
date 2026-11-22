@@ -110,8 +110,8 @@ const onFeed = (fn: () => void) => {
  * A page with a project's connection tells the switcher, while it is mounted, what waits on every
  * project (`counts`, as its connection keeps it current) and whether the switcher stays shut (`shut`:
  * what covers the page is about every project, the configuration, the preferences, a phone's
- * pairing). `counts` null tells nothing (yet): what a page in it told stands, as the splash leaves
- * the word to the project that takes its place, and without any, the switcher reads from the server.
+ * pairing). `counts` null tells nothing (yet): what was told before stands (the splash leaves the
+ * word to the project that takes its place), and where nothing was, the switcher reads from the server.
  */
 export function useSwitcherFeed(counts: Record<string, number> | null, shut = false) {
   const said = counts && `${shut} ${JSON.stringify(counts)}`;
