@@ -55,6 +55,22 @@ beforeEach(() => {
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 describe("Seismic's configuration", async () => {
+  test('reports an unreadable saved file without losing the running project’s resolution', async () => {
+    const c = config('file', [{ repos: [{ path: web }] }], ['web']);
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, '{');
+    const checked = await c.checkSaved();
+    expect(checked.problems).toMatchObject([{ code: 'invalid', detail: expect.stringContaining(file) }]);
+    expect(checked.problems[0]?.project).toBeUndefined();
+    expect(checked.resolved[0]?.id).toBe('web');
+    expect((await c.projectView('web')).problems).toEqual([]);
+
+    const empty = config('file', [], []);
+    expect((await empty.checkSaved()).problems.map((p) => p.code)).toEqual(['invalid']);
+    await expect(empty.retry()).rejects.toThrow(file);
+    writeFileSync(file, '[]');
+    expect((await empty.checkSaved()).problems.map((p) => p.code)).toEqual(['noProject']);
+  });
   test('keeps the project plan-baseline toggle when saving and reading configuration', async () => {
     const c = config('file', [{ repos: [{ path: web }] }], ['web']);
     await c.save([{ planBaselines: false, repos: [{ path: web }] }]);

@@ -408,17 +408,25 @@ export class Config {
 
   /** The configuration as saved, or as started when nothing is saved yet (or the file no longer reads). */
   current(): ProjectConfig[] {
+    return this.readCurrent().projects;
+  }
+
+  private readCurrent(): { projects: ProjectConfig[]; invalid?: ConfigProblem } {
     if (this.o.source === 'file' && existsSync(this.o.file)) {
       try {
         const { mtimeMs, size } = statSync(this.o.file);
         const stamp = `${mtimeMs}:${size}`;
-        if (this.read?.stamp === stamp) return this.read.projects;
+        if (this.read?.stamp === stamp) return { projects: this.read.projects };
         const projects = readConfigFile(this.o.file);
         this.read = { stamp, projects };
-        return projects;
-      } catch {}
+        return { projects };
+      } catch (error) {
+        this.read = undefined;
+        const detail = error instanceof Error ? error.message : String(error);
+        return { projects: this.o.started, invalid: { code: 'invalid', detail: `${this.o.file}: ${detail}` } };
+      }
     }
-    return this.o.started;
+    return { projects: this.o.started };
   }
 
   /** The settings the owner set for the repository at `path` (absolute) on this machine, as saved now; none where they set none. */
@@ -605,14 +613,17 @@ export class Config {
 
   /** `check` of the configuration as saved. */
   checkSaved(): Promise<ConfigChecked> {
-    const projects = this.current();
+    const { projects, invalid } = this.readCurrent();
     if (this.checking?.projects !== projects) {
       const done = this.check(projects).finally(() => {
         if (this.checking?.done === done) this.checking = undefined;
       });
       this.checking = { projects, done };
     }
-    return this.checking.done;
+    return invalid ? this.checking.done.then((checked) => ({
+      ...checked,
+      problems: [invalid, ...checked.problems.filter((p) => p.code !== 'noProject')],
+    })) : this.checking.done;
   }
 
   /**
@@ -870,7 +881,9 @@ export class Config {
    */
   async retry(): Promise<{}> {
     if (!this.o.apply) throw new BadRequest('config', 'this Seismic does not apply its configuration while it runs');
-    const { projects, resolved } = await this.check(this.current());
+    const { projects, resolved, problems } = await this.checkSaved();
+    const invalid = problems.find((p) => p.code === 'invalid');
+    if (invalid) throw new BadRequest('config', invalid.detail);
     await this.o.apply(expandConfig(projects), resolved.map((r) => r?.id ?? null));
     return {};
   }

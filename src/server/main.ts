@@ -198,7 +198,13 @@ if (source === 'file' && !values.config && !existsSync(configFile)) {
 (without repositories Seismic reads ${configFile}, which does not exist)`);
     process.exit(2);
   }
-  started = readConfigFile(configFile);
+  try {
+    started = readConfigFile(configFile);
+  } catch (error) {
+    // Serve the configuration diagnostic so the owner can repair the file and retry startup.
+    console.error(`Seismic cannot read ${configFile}:`, error);
+    started = [];
+  }
 } else {
   started = [
     {

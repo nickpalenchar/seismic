@@ -116,6 +116,7 @@ export function ConfigDialog({ on, usage, onClose, onTalk, onConnect }: { on: bo
   const [setupOn, setSetupOn] = useState(false);
   // Project defaults: a project added from "+ New project" starts with them, as one made elsewhere does on the server
   const [defaults, setDefaults] = useState<ProjectDefaultsView | null>(null);
+  const [problems, setProblems] = useState<ConfigProblem[]>([]);
   const [section, setSectionState] = useState<Section>(() => keptSection() ?? 'defaults');
   // the page that adds a demo site, over the Demos section; kept across a reload
   const [addingSite, setAddingSiteState] = useState(() => !!sessionStorage.getItem(ADD_SITE_KEY));
@@ -146,6 +147,13 @@ export function ConfigDialog({ on, usage, onClose, onTalk, onConnect }: { on: bo
     if (s) setSectionState(s);
     setAddingSiteState(!!sessionStorage.getItem(ADD_SITE_KEY));
     getSetting('projectDefaults').then(setDefaults, console.error);
+    let active = true;
+    setProblems([]);
+    void api.configCheck().then(
+      (checked) => { if (active) setProblems(checked.problems.filter((p) => p.project === undefined)); },
+      console.error,
+    );
+    return () => { active = false; };
   }, [on]);
 
   const c = t.config;
@@ -183,6 +191,7 @@ export function ConfigDialog({ on, usage, onClose, onTalk, onConnect }: { on: bo
         {/* on the box, not in the scrolling column, so it stays in view however far that scrolls */}
         <CloseButton label={t.close} className={K.cfgCloseClass} onClick={onClose} />
         <div className={K.cfgMainClass}>
+          <ConfigurationProblems problems={problems} />
           <section id="cfg-sec-defaults" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'defaults'}>
             <ProjectDefaultsBlock view={defaults} onSaved={setDefaults} />
           </section>
@@ -2830,7 +2839,19 @@ function Hosts({ hosts, onChange }: { hosts: HostConfig[]; onChange: (hosts: Hos
 }
 
 // problems whose detail says what to fix, in the repository's settings rather than here, or why something did not start
-const DETAILED: ConfigProblem['code'][] = ['adapterGone', 'repoSettings', 'hostName', ...START_FAILED];
+const DETAILED: ConfigProblem['code'][] = ['invalid', 'adapterGone', 'repoSettings', 'hostName', ...START_FAILED];
+
+export function ConfigurationProblems({ problems, retried }: { problems: ConfigProblem[]; retried?: () => void }) {
+  if (!problems.length) return null;
+  return (
+    <section className="cfg-machine-problems mb-5" aria-label={t.config.configurationProblems}>
+      <h3 className="mt-0 mb-1 text-base">{t.config.configurationProblems}</h3>
+      {problems.map((problem, i) => (
+        <Problem key={i} problem={problem} where="" {...(retried ? { retried } : {})} />
+      ))}
+    </section>
+  );
+}
 
 /**
  * A problem of the configuration: what is wrong, the technical detail folded away where it says
@@ -2877,7 +2898,7 @@ export function Problem({ problem, where, ask, retried, onShow }: { problem: Con
           </CollapsibleContent>
         </Collapsible>
       )}
-      {retried && START_FAILED.includes(problem.code) && (
+      {retried && (problem.code === 'invalid' || START_FAILED.includes(problem.code)) && (
         <Button size="small" disabled={retrying} onClick={() => void retry()}>
           {t.config.retry}
         </Button>

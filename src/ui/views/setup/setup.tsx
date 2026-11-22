@@ -315,7 +315,7 @@ interface HarnessWizard {
   onBack: () => void;
 }
 
-export function Setup({ first, onClose, wizard }: { first?: boolean; onClose?: () => void; wizard?: HarnessWizard }) {
+export function Setup({ first, onClose, wizard, notice }: { first?: boolean; onClose?: () => void; wizard?: HarnessWizard; notice?: ReactNode }) {
   const allChecks = wizard ? HARNESS_CHECKS : ALL_CHECKS;
   const [view, setView] = useState<MachineView | null>(null);
   // the checks under way, by their index in CHECKS; all of them until the first answers come in, so a
@@ -716,6 +716,7 @@ export function Setup({ first, onClose, wizard }: { first?: boolean; onClose?: (
         </header>
         {/* over the project the dialog stays within the window: its head stays, the rest scrolls inside */}
         <div ref={body} className={cn('setup-body', !first && 'flex-[1_1_auto] min-h-0 overflow-y-auto pt-0 pr-7 pb-6 pl-0')}>
+          {notice}
           <Steps steps={steps} at={step} furthest={reached} onPick={go} />
           <p className="setup-intro text-muted-foreground text-sm leading-normal mt-3.5 mb-1 mx-0">{first ? s.introFirst : s.intro}</p>
           {view && step !== 'first' && <p className="hint">{s.platform(platformName(view))}</p>}

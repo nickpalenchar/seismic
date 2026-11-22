@@ -317,7 +317,7 @@ function EntryFields({ e, pin, fresh, onShowProject, onNavigate }: { e: Entry; p
       />
       {e.checkError && <EntryCheckError message={t.projectSettings.checkFailed(e.checkError)} retry={e.recheck} />}
       {problems
-        .filter((p) => p.project === undefined)
+        .filter((p) => e.changed && p.project === undefined)
         .map((p, k) => (
           <Problem key={k} problem={p} where="" />
         ))}

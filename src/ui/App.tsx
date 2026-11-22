@@ -30,7 +30,7 @@ import { ArchiveView } from './archive';
 import { CardSearch } from './cardSearch';
 import { useBarFit } from './barFit';
 import { UsagePill } from './usage';
-import { ConfigDialog, Problem, showAddSite, showDevicesSection } from './config';
+import { ConfigDialog, ConfigurationProblems, Problem, showAddSite, showDevicesSection } from './config';
 import { PrefsDialog } from './prefs';
 import { PhoneDialog } from './access';
 import { OpenPerformance, PerformanceDialog } from './performance';
@@ -175,11 +175,13 @@ function NoSuchProject({ name, projects }: { name: string; projects: ProjectInfo
  * opens the projects once one runs.
  */
 function NoProject() {
-  const [down, setDown] = useState<ConfigProblem[] | null>(null);
-  const read = () => api.configCheck().then((c) => setDown(c.problems.filter((p) => p.code === 'projectDown')), () => setDown([]));
+  const [problems, setProblems] = useState<ConfigProblem[] | null>(null);
+  const read = () => api.configCheck().then((c) => setProblems(c.problems), () => setProblems([]));
   useEffect(() => void read(), []);
-  if (!down) return <Splash offline={false} />;
-  if (!down.length) return <Setup first />;
+  if (!problems) return <Splash offline={false} />;
+  const down = problems.filter((p) => p.code === 'projectDown');
+  const globals = problems.filter((p) => p.project === undefined);
+  if (!down.length && !globals.some((p) => p.code === 'invalid')) return <Setup first notice={<ConfigurationProblems problems={globals} />} />;
   const retried = () =>
     void api.projects().then((list) => {
       if (list.length) location.reload();
@@ -189,6 +191,7 @@ function NoProject() {
     <div id="splash" className={cn(splash, splashNoneRuns)}>
       <Sign size={56} />
       <h2 className="m-0">{t.noneRuns}</h2>
+      <ConfigurationProblems problems={globals} retried={retried} />
       {down.map((p, k) => (
         <Problem key={k} problem={p} where="" retried={retried} />
       ))}

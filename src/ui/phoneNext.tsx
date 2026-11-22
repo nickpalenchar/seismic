@@ -63,6 +63,11 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
   const openSettings = () => showPage('settings');
   const closeNeeds = () => { if (needsOn) closePage(); };
   const closeSettings = () => { if (settingsOn) leave(closePage); };
+  const leaveForHome = (proceed: () => void) => {
+    const go = () => page ? closePage(proceed) : proceed();
+    if (settingsOn) leave(go);
+    else go();
+  };
   const [workingOpen, setWorkingOpen] = useStoredState('seismic-phone-working-open', true);
   const [folded, setFolded] = useStoredState<Section[]>('seismic-phone-folded', FOLDED);
   // how many cards each section shows; back to the first twenty with another project
@@ -135,10 +140,10 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
   /** A section of the list from the menu: the pages over the list close, it unfolds and scrolls into view. */
   const showSection = (x: Section) => {
     setMenuOpen(false);
-    closeNeeds();
-    closeSettings();
-    fold(x, true);
-    requestAnimationFrame(() => document.querySelector(`.ph-next-${x}`)?.scrollIntoView({ block: 'start' }));
+    leaveForHome(() => {
+      fold(x, true);
+      requestAnimationFrame(() => document.querySelector(`.ph-next-${x}`)?.scrollIntoView({ block: 'start' }));
+    });
   };
 
   return (
@@ -255,10 +260,8 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
           projects={projects}
           project={project}
           onProject={(id) =>
-            leave(() => {
+            leaveForHome(() => {
               setSeismicProject(id);
-              closeNeeds();
-              closeSettings();
               setMenuOpen(false);
             })
           }
@@ -503,9 +506,10 @@ function FloatingBar({ needsYou, making, chat, chatWorking, onNew, onChat, onSea
  * Whether a page over the project is open (Needs you, `needs`; the project's settings, `settings`),
  * kept in the address (`?needs`) so Back and a reload hold it; opening is a step in the browser's
  * history, closing takes it back (or drops it from the address where the page was loaded on it).
+ * A follow-up action runs once the home address is restored.
  */
 type PhonePage = 'needs' | 'settings';
-function usePage(): [PhonePage | null, (page: PhonePage) => void, () => void] {
+function usePage(): [PhonePage | null, (page: PhonePage) => void, (after?: () => void) => void] {
   const read = (): PhonePage | null => {
     const q = new URLSearchParams(location.search);
     return q.has('settings') ? 'settings' : q.has('needs') ? 'needs' : null;
@@ -535,11 +539,16 @@ function usePage(): [PhonePage | null, (page: PhonePage) => void, () => void] {
     if (current) history.replaceState(state, '', address(next));
     else history.pushState(state, '', address(next));
     setPage(next);
-  }, () => {
+  }, (after) => {
     const current = read();
-    if (!current) return;
-    if (history.state?.[current]) history.back();
-    else history.replaceState(history.state, '', address(null));
+    if (!current) return after?.();
+    if (history.state?.[current]) {
+      if (after) addEventListener('popstate', () => after(), { once: true });
+      history.back();
+    } else {
+      history.replaceState(history.state, '', address(null));
+      after?.();
+    }
     setPage(null);
   }];
 }

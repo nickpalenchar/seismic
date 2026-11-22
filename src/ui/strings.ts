@@ -1513,6 +1513,7 @@ const en = {
       `Seismic is running with the repositories from the command line. Saving creates ${file}; Seismic then starts from it, also in future when it is started without repositories.`,
     koordinator: 'You can also ask Seismic about the configuration or tell it what should change.',
     askSeismic: 'Ask Seismic',
+    configurationProblems: 'Configuration problems',
     sections: { projects: 'Projects', defaults: 'Project defaults', agents: 'Agents and models', harnesses: 'Harnesses', voice: 'Voice input', demos: 'Demos', notices: 'Notifications and limits', devices: 'Other devices', advanced: 'Advanced', developer: 'Developer' },
     harnesses: {
       add: 'Configure new harness',
