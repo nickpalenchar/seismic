@@ -27,12 +27,17 @@ test('a word of the name, a repository, an old name and letters in order all mat
   expect(names('zzz')).toEqual([]);
 });
 
-test('⌘P and Ctrl+P open the switcher; with Shift or Alt they do not', () => {
+test('⌘P opens the switcher on a Mac and Ctrl+P elsewhere, as the hint says; with Shift or Alt neither does', () => {
   const key = (more: Partial<KeyboardEvent>) => ({ key: 'p', metaKey: false, ctrlKey: false, altKey: false, shiftKey: false, ...more });
-  expect(isSwitcherKey(key({ metaKey: true }))).toBe(true);
-  expect(isSwitcherKey(key({ ctrlKey: true, key: 'P' }))).toBe(true);
-  expect(isSwitcherKey(key({}))).toBe(false);
-  expect(isSwitcherKey(key({ ctrlKey: true, shiftKey: true }))).toBe(false);
+  expect(isSwitcherKey(key({ metaKey: true }), 'MacIntel')).toBe(true);
+  expect(isSwitcherKey(key({ metaKey: true }), 'iPad')).toBe(true);
+  expect(isSwitcherKey(key({ ctrlKey: true }), 'MacIntel')).toBe(false);
+  expect(isSwitcherKey(key({ ctrlKey: true, key: 'P' }), 'Win32')).toBe(true);
+  expect(isSwitcherKey(key({ ctrlKey: true }), 'Linux x86_64')).toBe(true);
+  expect(isSwitcherKey(key({ metaKey: true }), 'Win32')).toBe(false);
+  expect(isSwitcherKey(key({}), 'MacIntel')).toBe(false);
+  expect(isSwitcherKey(key({ metaKey: true, shiftKey: true }), 'MacIntel')).toBe(false);
+  expect(isSwitcherKey(key({ ctrlKey: true, altKey: true }), 'Win32')).toBe(false);
   expect(switcherKeys('MacIntel')).toBe('⌘P');
   expect(switcherKeys('Win32')).toBe('Ctrl+P');
 });

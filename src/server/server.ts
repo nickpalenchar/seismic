@@ -527,6 +527,8 @@ export function serve(
         },
       },
       '/api/projects': { GET: () => Response.json(projects.all().map((c) => c.board.project) satisfies ProjectInfo[]) },
+      // what waits for the owner on each project, for a page without a project's connection (the feedback log, an address naming none)
+      '/api/waiting': { GET: () => Response.json(waiting satisfies Record<string, Waiting>) },
       // the Activity log, newest first: the project's lines, or every project's (`all`); `before` pages back from a line's id
       '/api/activity': {
         GET: (req) =>

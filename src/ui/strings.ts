@@ -2943,10 +2943,10 @@ function validTag(tag: string): boolean {
   }
 }
 
-/** The keys that paste, and that take a screenshot onto the clipboard where the system has one for it. */
 /** The key that opens the quick project switcher, as the system writes it. */
 export const switcherKeys = (platform = typeof navigator !== 'undefined' ? navigator.platform : '') => (/Mac|iPhone|iPad/.test(platform) ? '⌘P' : 'Ctrl+P');
 
+/** The keys that paste, and that take a screenshot onto the clipboard where the system has one for it. */
 export function pasteKeys(platform = typeof navigator !== 'undefined' ? navigator.platform : '') {
   if (/Mac/.test(platform)) return { paste: '⌘V', grab: '⌃⇧⌘4' };
   if (/Win/.test(platform)) return { paste: t.shots.ctrlV, grab: t.shots.winShiftS };

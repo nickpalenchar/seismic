@@ -152,7 +152,7 @@ function Shown({ id, projects, onProjects }: { id: string; projects: ProjectInfo
     setReady(id);
   }, [id]);
   if (ready !== id) return <Splash offline={false} />;
-  return <Live key={id} projects={projects} onProjects={onProjects} />;
+  return <Live key={id} id={id} projects={projects} onProjects={onProjects} />;
 }
 
 /** The page while nothing else can show: the sign in the middle, a word or the projects under it. */
@@ -260,11 +260,17 @@ function Splash({ offline }: { offline: boolean }) {
   );
 }
 
-function Live({ projects: loaded, onProjects }: { projects: ProjectInfo[]; onProjects: (list: ProjectInfo[]) => void }) {
+function Live({ id, projects: loaded, onProjects }: { id: string; projects: ProjectInfo[]; onProjects: (list: ProjectInfo[]) => void }) {
   const { snapshot, online, frozenSince, offlineSince, restart, update, source, usage, waiting, oldBun, projects } = useProject();
   // the page knows a project started or renamed meanwhile when the owner switches to it
   useEffect(() => void (projects && onProjects(projects)), [projects]);
-  if (!snapshot) return <Splash offline={!online} />;
+  // while the project loads, or its server does not answer, the owner can still go to another one
+  if (!snapshot) return (
+    <>
+      <Splash offline={!online} />
+      <ProjectSwitcher project={id} projects={projects ?? loaded} entries={Object.keys(waiting).length ? inboxEntries(projects ?? loaded, waiting) : undefined} />
+    </>
+  );
   // a project started, stopped or renamed while the page is open: the switcher follows
   return <Project snapshot={snapshot} online={online} downSince={offlineSince ?? frozenSince} frozen={frozenSince !== null} restart={restart} update={update} source={source} usage={usage} projects={projects ?? loaded} waiting={waiting} oldBun={oldBun} />;
 }

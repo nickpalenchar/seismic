@@ -186,6 +186,8 @@ export type AddSiteInput =
 export const api = {
   exportProjects: (ids: string[], as: 'csv' | 'json') => download(`/api/projects/export?as=${as}${ids.map((id) => `&project=${encodeURIComponent(id)}`).join('')}`, `seismic-projects.${as}`),
   projects: () => call<ProjectInfo[]>('GET', '/api/projects'),
+  /** What waits for the owner on each project, by project id, as the project's connection sends it. */
+  waiting: () => call<Record<string, Waiting>>('GET', '/api/waiting'),
   activity: (project: string, all: boolean, before?: number) => call<ActivityPage>('GET', `/api/activity?project=${encodeURIComponent(project)}${all ? '&all=1' : ''}${before ? `&before=${before}` : ''}`),
   project: (id: string) => call<ProjectSnapshot>('GET', `/api/c/${encodeURIComponent(id)}/project`),
   /** Seismic's configuration, for all projects. */

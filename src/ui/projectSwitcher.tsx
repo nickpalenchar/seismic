@@ -1,7 +1,8 @@
-// The quick project switcher: ⌘P (Ctrl+P elsewhere) opens a search field over the page with the
+// The quick project switcher: ⌘P on a Mac (Ctrl+P elsewhere) opens a search field over the page with the
 // projects under it, the best match first; the arrow keys move through them, Enter goes to the one
 // marked, Esc closes it. The project open now comes last, since the owner opens it to leave. Each
-// page that shows a project (the canvas, the Agent Feedback Log, an address naming none) mounts it,
+// page that shows a project or waits for one (the canvas, the Agent Feedback Log, an address naming
+// none, the splash while the project loads or its server does not answer) mounts it,
 // and it listens for its key itself. While what is about every project and not this one covers the
 // page (the configuration, the preferences, the performance dashboard, a phone's pairing,
 // the new project's form), the key does nothing; over
@@ -9,18 +10,25 @@
 // overlays that take Esc themselves before any dialog hears it (`OWN_ESC`) it stays shut.
 
 import { useEffect, useRef, useState } from 'react';
-import { counted, type InboxEntry } from '../core/inbox';
+import { counted, type InboxEntry, inboxEntries } from '../core/inbox';
 import type { ProjectInfo } from '../core/types';
 import { goTo, projectPath } from './address';
+import { api } from './api';
 import { ProjectIcon } from './canvasIcon';
 import { Badge } from './components/badge';
 import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from './components/command';
 import { Dialog, DialogContent, DialogTitle } from './components/dialog';
 import { t } from './strings';
 
-/** Whether a key press is the switcher's shortcut: ⌘P or Ctrl+P, without Shift or Alt. */
-export const isSwitcherKey = (e: Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey'>) =>
-  (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'p';
+/**
+ * Whether a key press is the switcher's shortcut, the key the hint shows (`switcherKeys`): ⌘P on a
+ * Mac, an iPhone or an iPad, Ctrl+P elsewhere; without Shift or Alt. Ctrl+P on a Mac stays the
+ * system's (the line up in a text field).
+ */
+export const isSwitcherKey = (
+  e: Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey'>,
+  platform = typeof navigator !== 'undefined' ? navigator.platform : '',
+) => (/Mac|iPhone|iPad/.test(platform) ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'p';
 
 /**
  * The overlays outside the dialogs that close on Esc in the window's capture phase, before a dialog
@@ -29,19 +37,18 @@ export const isSwitcherKey = (e: Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKe
  */
 const OWN_ESC = '#ringback, .lightbox, .artifact-image-close, .chats-drawer';
 
-/**
- * The layers that close as the focus leaves them (a menu, a submenu, a popover, a select's list):
- * Radix then skips giving the focus back to their button.
- */
-const CLOSES_ON_BLUR = '[role=menu], [role=listbox], [data-slot=popover-content]';
+/** The layers opened from a button (a menu, a submenu, a popover, a select's list). */
+const LAYERS = '[role=menu], [role=listbox], [data-slot=popover-content]';
 
 /**
- * Where the focus goes back to when the switcher closes, for `el` that had it as the key opened it:
- * for an element inside a layer that closes as the switcher takes the focus, the button that opened
- * that layer (out through nested submenus to the first one outside any).
+ * Where the focus goes back to when the switcher closes, for `el` that had it as the key opened it,
+ * where `el` is gone by then: for an element inside a layer, the button that opened that layer (out
+ * through nested submenus to the first one outside any). A menu or a popover closes as the
+ * switcher takes the focus, and Radix then skips giving it back to their button; a select's list
+ * stays open, and its option keeps the focus itself.
  */
 export function focusHome(el: HTMLElement): HTMLElement {
-  for (let layer = el.closest<HTMLElement>(CLOSES_ON_BLUR); layer; layer = el.closest<HTMLElement>(CLOSES_ON_BLUR)) {
+  for (let layer = el.closest<HTMLElement>(LAYERS); layer; layer = el.closest<HTMLElement>(LAYERS)) {
     const button = layer.id ? document.querySelector<HTMLElement>(`[aria-controls="${CSS.escape(layer.id)}"]`) : null;
     if (!button || button === el) break;
     el = button;
@@ -83,11 +90,11 @@ export function switcherResults(projects: ProjectInfo[], query: string, current:
     .map((r) => r.p);
 }
 
-export function ProjectSwitcher({ project, projects, entries = [], shut = false }: {
+export function ProjectSwitcher({ project, projects, entries, shut = false }: {
   /** The project open now. */
   project: string;
   projects: ProjectInfo[];
-  /** What waits for the owner on every project, for the counts beside them. */
+  /** What waits for the owner on every project, for the counts beside them; without it, read from the server as it opens. */
   entries?: InboxEntry[];
   /** What covers the project is about every project (the configuration, the preferences, a phone's pairing): the key does nothing meanwhile. */
   shut?: boolean;
@@ -98,7 +105,15 @@ export function ProjectSwitcher({ project, projects, entries = [], shut = false 
   // what had the focus when the key opened it, which gets it back on Esc. Noted at the key press, since
   // the dialog's own note comes too late where the focus was in another cmdk field (the card finder):
   // cmdk moves it into the switcher's field as the list mounts, so the dialog would see it there already
-  const opener = useRef<HTMLElement | null>(null);
+  const opener = useRef<{ el: HTMLElement; home: HTMLElement } | null>(null);
+  // what waits on every project where the page has no project's connection to tell it
+  const [read, setRead] = useState<InboxEntry[]>([]);
+  useEffect(() => {
+    if (!open || entries) return;
+    let on = true;
+    api.waiting().then((w) => on && setRead(inboxEntries(projects, w)), () => {});
+    return () => void (on = false);
+  }, [open, !entries]);
   useEffect(() => {
     // in the capture phase, so that a field with the cursor or a dialog's own keys come after it
     const key = (e: KeyboardEvent) => {
@@ -106,7 +121,8 @@ export function ProjectSwitcher({ project, projects, entries = [], shut = false 
       // the browser's print has no place here, also where the switcher stays shut
       e.preventDefault();
       if (e.repeat || (!open && (shut || document.querySelector(OWN_ESC)))) return;
-      if (!open) opener.current = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? focusHome(document.activeElement) : null;
+      const el = document.activeElement;
+      if (!open) opener.current = el instanceof HTMLElement && el !== document.body ? { el, home: focusHome(el) } : null;
       setOpen(!open);
     };
     addEventListener('keydown', key, true);
@@ -114,7 +130,7 @@ export function ProjectSwitcher({ project, projects, entries = [], shut = false 
   }, [open, shut]);
   // each time it opens, the field starts empty
   useEffect(() => void (open && setQuery('')), [open]);
-  const waiting = waitingPerProject(open ? entries : []);
+  const waiting = waitingPerProject(open ? (entries ?? read) : []);
   const results = switcherResults(projects, query, project);
   const pick = (id: string) => {
     setOpen(false);
@@ -133,9 +149,14 @@ export function ProjectSwitcher({ project, projects, entries = [], shut = false 
           e.preventDefault();
           field.current?.focus();
         }}
+        // its Esc closes only the switcher: Radix hears it in the document's capture phase, and the
+        // listeners after it (a demo shown larger, the field the focus goes back to) do not.
+        // Its default cannot tell them, since the docked sheet prevents it on every Esc
+        onEscapeKeyDown={(e) => e.stopPropagation()}
         onCloseAutoFocus={(e) => {
-          const el = opener.current;
+          const was = opener.current;
           opener.current = null;
+          const el = was && (was.el.isConnected ? was.el : was.home);
           if (!el?.isConnected || el.closest('[inert]')) return;
           e.preventDefault();
           el.focus({ preventScroll: true });

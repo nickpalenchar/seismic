@@ -1312,6 +1312,18 @@ describe('cards that need the owner', () => {
     expect(titles(3)).toEqual({ main: [], other: ['C1'] });
     ws.close();
   });
+
+  test('a page without a project\'s connection reads them too', async () => {
+    const other = join(dir, 'other');
+    gitRepo(other);
+    const second = new ProjectRuntime({ repos: [{ path: other }] }, { store: new Store(':memory:'), home: join(dir, 'home2'), runtime, forge: noForge });
+    const waiting = second.board.create({ title: 'B', x: 0, y: 0 });
+    second.board.work(waiting.id, { state: 'waiting', need: 'review' });
+    server.stop(true);
+    server = serve([project, second], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0);
+    const read = (await (await fetch(new URL('/api/waiting', server.url))).json()) as Record<string, { items: { title: string }[] }>;
+    expect(Object.fromEntries(Object.entries(read).map(([id, w]) => [id, w.items.map((i) => i.title)]))).toEqual({ main: [], other: ['B'] });
+  });
 });
 
 describe('projects that start and stop while Seismic runs', () => {
