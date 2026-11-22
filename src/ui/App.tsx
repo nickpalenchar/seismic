@@ -388,6 +388,22 @@ function Project({
       keptCanvas.current = null;
     }
   }
+  /** Keeps `id` as the canvas shown last on this project, for the next visit. */
+  const keepCanvas = (id: string) => {
+    if (gone.current) return;
+    try {
+      localStorage.setItem(lastCanvasKey(snapshot.project.id), id);
+    } catch {}
+  };
+  // only a canvas the owner chose here is kept: one shown by itself (the first, after the one shown
+  // is deleted; a card's, as it comes back after a reload or a return) leaves a newer choice another
+  // tab made standing. A choice of a canvas not shown yet is kept once it shows (one just made shows
+  // once the project brings it)
+  const chosen = useRef<string>(undefined);
+  const choose = (id: string) => {
+    if (id === canvasRef.current) keepCanvas(id);
+    else chosen.current = id;
+  };
   useEffect(() => {
     const on = () => {
       // a card open is shown on its own canvas: a hash naming another one goes
@@ -395,6 +411,9 @@ function Project({
       const open = f?.type === 'card' ? itemsRef.current.find((i) => i.id === f.id) : undefined;
       const own = open && !open.archivedAt ? canvasesRef.current.find((c) => c.id === open.canvas) : undefined;
       if (own && canvasNamedBy(canvasesRef.current, location.hash)?.id !== own.id) history.replaceState(history.state, '', `${location.pathname}${location.search}#${encodeURIComponent(own.name)}`);
+      // the address changed by the owner (Back, Forward, a hash typed) chooses the canvas it names
+      const named = canvasNamedBy(canvasesRef.current, location.hash);
+      if (named) choose(named.id);
       setHash(location.hash);
     };
     addEventListener('hashchange', on);
@@ -414,25 +433,22 @@ function Project({
   if (canvasId) keptCanvas.current = null;
   const canvasRef = useRef(canvasId);
   canvasRef.current = canvasId;
-  /** Keeps `id` as the canvas shown last on this project, for the next visit. */
-  const keepCanvas = (id: string) => {
-    if (gone.current) return;
-    try {
-      localStorage.setItem(lastCanvasKey(snapshot.project.id), id);
-    } catch {}
-  };
   useEffect(() => {
-    if (canvasId) keepCanvas(canvasId);
+    if (!canvasId || canvasId !== chosen.current) return;
+    chosen.current = undefined;
+    keepCanvas(canvasId);
   }, [canvasId]);
-  /** Shows a canvas of the project (one just made too, which the project brings soon); the address names it. */
-  const showCanvas = (c: Canvas | string) => {
+  /**
+   * Shows a canvas of the project (one just made too, which the project brings soon); the address
+   * names it. `picked` false where the owner did not choose it (a card or plan that comes back).
+   */
+  const showCanvas = (c: Canvas | string, picked = true) => {
     const to = typeof c === 'string' ? canvases.find((x) => x.id === c) : c;
     // a call that ends after a switch to another project (a canvas made, a card opened) leaves the
     // address and the canvas kept for this project as the owner left them
     if (!to || gone.current) return;
-    // picked again, the canvas shown is the last choice here too, over one another tab made since;
-    // a new canvas is recorded by the canvasId effect once it actually appears
-    if (to.id === canvasRef.current) keepCanvas(to.id);
+    // picked again, the canvas shown is the last choice here too, over one another tab made since
+    if (picked) choose(to.id);
     const h = `#${encodeURIComponent(to.name)}`;
     if (to.id === canvasRef.current && location.hash === h) return;
     history.replaceState(history.state, '', `${location.pathname}${location.search}${h}`);
@@ -781,7 +797,7 @@ function Project({
     const f = focusRef.current;
     if (f?.type === 'card') return;
     // a card on another canvas opens there
-    if (i.canvas && i.canvas !== canvasRef.current && !i.archivedAt && !offCanvas(i)) showCanvas(i.canvas);
+    if (i.canvas && i.canvas !== canvasRef.current && !i.archivedAt && !offCanvas(i)) showCanvas(i.canvas, !reload);
     if (i.kind === 'plan') return openPlan(i);
     cardsOn(snapshot.project.id, [i.id]);
     setFocus({ type: 'card', id: i.id, prevCam: camRef.current, prevSide: camSide.current, plan: f });
@@ -1000,7 +1016,7 @@ function Project({
   /** Shows the plan in the sheet, its workstreams or (`r`) its plan doc, and with `inView` flies to it. */
   async function planSheet(p: Item, r: { mark?: string } | null, quick: boolean, inView: boolean) {
     // a plan on another canvas opens there
-    if (p.canvas && p.canvas !== canvasRef.current && !p.archivedAt) showCanvas(p.canvas);
+    if (p.canvas && p.canvas !== canvasRef.current && !p.archivedAt) showCanvas(p.canvas, !quick);
     const f = focusRef.current;
     if (f?.type !== 'plan') planOpener.current = onControl(document.activeElement) ? (document.activeElement as HTMLElement) : null;
     setFocus(f?.type === 'plan' ? { ...f, id: p.id } : { type: 'plan', id: p.id, prevCam: camRef.current, prevSide: camSide.current });
