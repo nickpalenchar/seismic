@@ -2,13 +2,13 @@
 // the line under it, the state line with its marks, the pin and the unread dot. The label chips are
 // in labels.tsx.
 
-import { Car, CircleHelp, GitMerge, RotateCw } from 'lucide-react';
+import { Car, CircleHelp, GitMerge, Lightbulb, RotateCw } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { type Item, titleFrom } from '../../core/types';
 import { Inline } from '../markdown';
 import { unreadDotClass } from '../inboxClasses';
 import { ClockMark } from '../snooze';
-import { t } from '../strings';
+import { mergeProposed, t } from '../strings';
 import type { CardSummary, StateMark } from './summary';
 
 /** A card's title as it shows: its own, else the start of its text. */
@@ -81,6 +81,10 @@ export function Title({ item, className, inline, children }: { item: Item; class
   const cls = item.title ? className : `${className} untitled`;
   return inline ? <span className={cls}>{children ?? shownTitle(item)}</span> : <div className={cls}>{children ?? shownTitle(item)}</div>;
 }
+
+/** A lightbulb before the title of a card Seismic proposes to merge with a likely duplicate. */
+export const MergeProposedMark = ({ item, inline }: { item: Item; inline?: boolean }) =>
+  mergeProposed(item) ? <Lightbulb className={`merge-proposed-mark inline-block flex-none align-[-0.125em] text-(--proposal) ${inline ? 'mr-1' : ''}`} size="0.95em" strokeWidth={2} aria-hidden /> : null;
 
 /** A pin's fill, in the colour of what the owner is asked (`--pin`). */
 const PIN = 'bg-(--pin)';

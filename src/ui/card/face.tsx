@@ -6,10 +6,10 @@
 import { Fragment, type CSSProperties, type ReactNode } from 'react';
 import type { Item } from '../../core/types';
 import { OtherCanvas, useOtherCanvas } from '../canvases';
-import { stateLabel, t } from '../strings';
+import { mergeProposed, stateLabel, t } from '../strings';
 import { hasChips, hasLabels, LabelMarks, PriorityMark } from './labels';
 import { LIST_DOING, cardFlags, type CardPlace, chipLabelClass, dotClass, faceClass, kindClass, lineClass, listStateClass, listStateTextClass, listTextClass, listTitleClass, listTitleTextClass, metaClass, pinClass, shortStateClass, stateClass, stateLineClass, stateTextClass, topClass, ttlClass, whereClass, wordsClass, wsLabelClass } from './faceClasses';
-import { Pin, PinDot, shownTitle, StateMarks, StateText, StoppedWords, Title, UnreadDot } from './pieces';
+import { MergeProposedMark, Pin, PinDot, shownTitle, StateMarks, StateText, StoppedWords, Title, UnreadDot } from './pieces';
 import { cardKind, cardSummary, cardTone, stateVars } from './summary';
 import { Badge } from '../components/badge';
 import { DrawLine } from '../components/draw-line';
@@ -140,6 +140,11 @@ function FaceM({ item, where, underway, since, chip, subtle, mergePartner, place
             <span className={chipLabelClass}>{item.plan.label}</span>
             {shownTitle(item)}
           </>
+        ) : mergeProposed(item) ? (
+          <>
+            <MergeProposedMark item={item} inline />
+            {shownTitle(item)}
+          </>
         ) : undefined}
       </Title>
       {s.meta && <div className={metaClass(at)}>{s.meta}</div>}
@@ -175,6 +180,7 @@ function FaceS({ item, where, underway, since, unread, subtle, title, text, chil
       )}
       <Title item={item} className={listTitleClass('s', subtle)}>
         {unread && !subtle && <UnreadDot />}
+        <MergeProposedMark item={item} />
         <span className={listTitleTextClass('s', !item.title)}>{title ?? shownTitle(item)}</span>
         {!unread && s.pin && !subtle && <Pin pin={s.pin} />}
       </Title>
@@ -208,6 +214,7 @@ function FaceXS({ item, underway, subtle, title, text, tail, workstation }: Card
       <Title item={item} className={listTitleClass('xs', subtle)} inline>
         {item.labels?.priority && <PriorityMark priority={item.labels.priority} suggested={!!item.labels.suggested?.includes('priority')} bare />}
         {item.parent && item.plan?.label && <span className={wsLabelClass}>{item.plan.label}</span>}
+        <MergeProposedMark item={item} />
         <span className={listTitleTextClass('xs', !item.title)}>{title ?? shownTitle(item)}</span>
         {s.pin && !subtle && <Pin pin={s.pin} />}
       </Title>
