@@ -149,6 +149,11 @@ same style. UI text comes from `src/ui/strings.ts`, never a literal.
   unfolded card, the panel itself takes focus. Space can then start push-to-talk and Esc can fold
   the card. Tab moves focus to the Card actions menu. Esc also folds the card when that menu is open.
   The connection dots stay out of the Tab order: an arrow follows the pointer.
+- **⌘P / Ctrl+P is the quick project switcher** (2026-11-22): a search field over the page with
+  the projects under it (name first, then a repository or old name, then the name's letters in
+  order; the open project last), Enter going there within the page. It takes the key from anywhere,
+  a text field included, since the browser's own use of it (print) has no place in Seismic; the
+  bar's project switcher shows the key under its list so it is found.
 - **Phone settings and Needs you share one history step**: switching between them replaces that
   step; closing returns to the project. Pages covering the project make its controls inert.
 - **Clone values parked while choosing worktrees belong to the repository draft**, rather than

@@ -15,7 +15,7 @@ import { Sign, Wordmark } from './logo';
 import { InboxList, type InboxProps } from './inbox';
 import { closeBarMenus, leaveMenu, Menu, MenuContent, MenuItem, MenuTrigger } from './components/menu';
 import { ProjectAgents } from './parts';
-import { t } from './strings';
+import { switcherKeys, t } from './strings';
 import { openWish } from './wish';
 import { Tooltip } from './components/tooltip';
 import { PillButton } from './components/pill';
@@ -106,6 +106,10 @@ export function NavPill(p: ProjectsProps) {
             {p.onNew && <NewProject onNew={p.onNew} />}
           </NavList>
         </InMenu.Provider>
+        <p className="mt-2 mb-0 flex items-center gap-1.5 px-2.5 text-xs text-muted-foreground">
+          <kbd className="grid h-5 place-items-center rounded-xs border border-border px-1 font-mono text-xs">{switcherKeys()}</kbd>
+          {t.projectSwitcher.hint}
+        </p>
       </MenuContent>
     </Menu>
   );

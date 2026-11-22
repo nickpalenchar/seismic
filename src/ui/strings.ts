@@ -166,6 +166,7 @@ const en = {
           { keys: [['Drag'], ['Scroll']], text: 'Move the view' },
           { keys: [['⌘ / Ctrl', 'Scroll'], ['Pinch']], text: 'Zoom' },
           { keys: [['0']], text: 'Overview of everything' },
+          { keys: [['⌘ / Ctrl', 'P']], text: 'Switch to another project' },
           { keys: [['Drag a card']], text: 'Move a card' },
           { keys: [['Shift', 'Click'], ['Shift', 'Drag']], text: 'Mark several cards' },
           { keys: [['Drag a marked card']], text: 'Move all marked cards' },
@@ -2891,6 +2892,14 @@ const en = {
     onCanvas: (canvas: string) => `On ${canvas}`,
   },
   cardSearch: { shortcut: 'Search cards (/)', placeholder: 'Search cards …', results: 'Matching cards' },
+  projectSwitcher: {
+    title: 'Switch project',
+    placeholder: 'Search projects …',
+    none: 'No project matches.',
+    current: 'open now',
+    /** Under the projects in the bar's switcher, so the shortcut is found. */
+    hint: 'searches the projects',
+  },
   skills: {
     menu: "The agent's skills",
     hint: '“/” asks the agent for one of its skills.',
@@ -2935,6 +2944,9 @@ function validTag(tag: string): boolean {
 }
 
 /** The keys that paste, and that take a screenshot onto the clipboard where the system has one for it. */
+/** The key that opens the quick project switcher, as the system writes it. */
+export const switcherKeys = (platform = typeof navigator !== 'undefined' ? navigator.platform : '') => (/Mac|iPhone|iPad/.test(platform) ? '⌘P' : 'Ctrl+P');
+
 export function pasteKeys(platform = typeof navigator !== 'undefined' ? navigator.platform : '') {
   if (/Mac/.test(platform)) return { paste: '⌘V', grab: '⌃⇧⌘4' };
   if (/Win/.test(platform)) return { paste: t.shots.ctrlV, grab: t.shots.winShiftS };

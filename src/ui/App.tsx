@@ -67,6 +67,7 @@ import { videoOf } from './spot';
 import { cardHooks, shownState, stateVars } from './card';
 import { CardHandles, CardView, DepLinks, depHead, depWidth, linkPath, linkSpot, Edges, Links, Minimap, minimapArea, OldBunPill, PlanView, RestartPill, Sheet, SourcePill, TalkIcon, UpdatePill, WorkstationsPill } from './parts';
 import { clock, failText, t } from './strings';
+import { isSwitcherKey, ProjectSwitcher, waitingPerProject } from './projectSwitcher';
 import { loadNavHidden, loadNavWidth, loadPinned, MenuButton, NAV_PROJECT_MIN, NavPill, NavSheet, saveNavHidden, saveNavWidth, savePinned } from './nav';
 import { projectPath, cardPath, feedbackLogPath, followedPath, goTo, cameByGoTo, named, knowProjects, projectNamed, queryWithout, readAddress, readView, withView, followedView } from './address';
 import { type QuickReply, sendReply } from './quickReply';
@@ -696,6 +697,7 @@ function Project({
     if (!kOn) talkKoordinator();
   };
   const [helpOn, setHelpOn] = useState(false);
+  const [switcherOn, setSwitcherOn] = useState(false);
   const searchField = useRef<HTMLInputElement>(null);
   // the app-wide preferences, a dialog over the page as the configuration is, opened from the logo's menu
   const [prefsOn, setPrefsOn] = useState(false);
@@ -2457,6 +2459,12 @@ function Project({
   keys.current = (e: KeyboardEvent) => {
     const f = focusRef.current;
     const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || (e.target instanceof HTMLElement && e.target.isContentEditable);
+    // ⌘P / Ctrl+P opens the project switcher from anywhere, a field with the cursor included, and closes it again
+    if (isSwitcherKey(e)) {
+      e.preventDefault();
+      if (!e.repeat) setSwitcherOn((on) => !on);
+      return;
+    }
     // a field being edited handles its own keys (Esc cancels the edit there); any other field's Esc closes what it is in
     if (typing && (e.target as Element).closest('[data-esc]')) return;
     // an open layer from the component library (menu, popover, dialog) closes itself on Esc, before anything under it
@@ -2983,6 +2991,7 @@ function Project({
         {/* over the inbox's view, its list stays undimmed beside the card, to work down from there */}
         <div id="dim" className={cn('fixed inset-x-0 top-[50px] bottom-0 z-30 bg-scrim opacity-0 pointer-events-none [transition:opacity_.2s,left_0s]', dim && 'on opacity-100 pointer-events-auto backdrop-blur-[3px]')} onClick={() => closeCard()} />
         {helpOn && <Help note={helpNote} onClose={() => setHelpOn(false)} />}
+        <ProjectSwitcher open={switcherOn} onOpenChange={setSwitcherOn} project={snapshot.project.id} projects={projects} waiting={switcherOn ? waitingPerProject(entries) : {}} />
         <WishDialog />
         {/* the open card blurs only while it is open in full (`ready`): as it unfolds, folds and hides it is a solid
             pane, and the card it lifted off the canvas keeps no blur either. Safari (an iPad's) can leave a hidden
