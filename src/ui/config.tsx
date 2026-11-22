@@ -41,7 +41,7 @@ import { ConfirmDialog, Dialog, DialogContent, DialogTitle } from './components/
 import { Checkbox } from './components/checkbox';
 import { CheckLabel } from './components/check-label';
 import { SavingSwitch } from './components/saving-switch';
-import { getConfiguration, getSetting, saveConfiguration, saveSetting } from './clients/seismic';
+import { getSetting, saveSetting } from './clients/seismic';
 import { Switch } from './components/switch';
 import { RadioGroup, RadioOption } from './components/radio';
 import { SegmentedControl } from './components/segmented';

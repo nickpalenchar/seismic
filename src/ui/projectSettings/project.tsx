@@ -8,6 +8,7 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { blockingProblems, type ConfigChecked, type ConfigView, type FilledClones, type ProjectConfig, restartsAgents, withClones } from '../../core/types';
 import { api } from '../api';
+import { getConfiguration, getSetting, saveConfiguration } from '../clients/seismic';
 import { projectPath, goTo } from '../address';
 import { Problem, ProjectBlock, SHEET_PROBLEMS } from '../config';
 import { failText, t } from '../strings';
@@ -49,9 +50,9 @@ function useProjectEntry(project: string | null, on: boolean) {
   // a repository added here whose settings say clones gets as many as the first project's, until existing ones are listed
   const filled = useRef<FilledClones>(new Map());
   const load = async () => {
-    const view = await api.config();
+    const view = await getConfiguration();
     if (project === null) {
-      const defaults = await api.projectDefaults();
+      const defaults = await getSetting('projectDefaults');
       const entry = entryDraft({ ...structuredClone(defaults.defaults ?? {}), repos: [{ path: '' }] }, null);
       setLoaded({ view, at: view.projects.length, saved: null, entry });
       setEntry(entry);
@@ -93,7 +94,7 @@ function useProjectEntry(project: string | null, on: boolean) {
   /** Read the latest entries and resolve the project index from the same configuration. */
   const fresh = async () => {
     if (project === null) {
-      const { projects } = await api.config();
+      const { projects } = await getConfiguration();
       return { projects, at: projects.length };
     }
     const { projects, resolved } = await api.configCheck();
@@ -164,7 +165,7 @@ function useProjectEntry(project: string | null, on: boolean) {
       setChecked({ result: c, at: now.at });
       setCheckedOf(JSON.stringify(entry));
       if (blockingProblems(c.problems, (i) => i === now.at).length) return null;
-      const { restarting, applied } = await api.saveConfig(list);
+      const { saved: { restarting, applied } } = await saveConfiguration(list);
       // The saved entry can include server-generated old names and fresher repository fields.
       // The draft that produced it has been saved even when its JSON differs from that entry.
       if (project !== null) {
@@ -194,7 +195,7 @@ function useProjectEntry(project: string | null, on: boolean) {
       const to = earlier ? now.at - 1 : now.at + 1;
       if (to < 0 || to >= list.length) return;
       list.splice(to, 0, ...list.splice(now.at, 1));
-      await api.saveConfig(list);
+      await saveConfiguration(list);
       await load();
     } catch (e) {
       setStatus(failText(e));
