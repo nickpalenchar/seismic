@@ -238,8 +238,7 @@ function SectionList({ view, repos, focus, onOpen }: { view: ProjectSettingsView
     const n = problems(s);
     const waits = s === 'agents' && repos.repos.some((_, i) => repos.restarts(i));
     const Icon = ICONS[s];
-    // commands to trust are the owner's to look at before they count: red; any other problem a warning
-    const alert = s === 'commands' ? 'bg-destructive text-destructive-foreground' : 'bg-warning-subtle text-warning-strong';
+    const error = s === 'commands' || s === 'git';
     const said = s === 'commands' ? l.toTrust(n) : l.problems(n);
     return (
       <Button key={s} variant="ghost" data-section={s} className={rowClass} onClick={() => onOpen(s)}>
@@ -248,7 +247,7 @@ function SectionList({ view, repos, focus, onOpen }: { view: ProjectSettingsView
         {waits && <span className="text-xs text-warning">{l.unsaved}</span>}
         {status[s] !== undefined && (typeof status[s] === 'string' ? <span className="max-w-[40%] truncate text-xs text-muted-foreground">{status[s]}</span> : status[s])}
         {n > 0 && (
-          <Badge className={cn('py-0', alert)} title={said} aria-label={said}>
+          <Badge variant={error ? 'destructive' : 'default'} className={cn('py-0', !error && 'bg-warning-subtle text-warning-strong')} title={said} aria-label={said}>
             {s !== 'commands' && <TriangleAlert aria-hidden />}
             {n}
           </Badge>
@@ -465,7 +464,11 @@ function RepoPart({ section, project, view, save, repos, repoAt, onRepo, mark }:
           label: (
             <>
               {repoName(r, v.resolved?.repos[i])}
-              {n > 0 && <Badge className="ml-1.5 bg-warning-subtle py-0 text-warning-strong">{n}</Badge>}
+              {n > 0 && (
+                <Badge variant={section === 'git' ? 'destructive' : 'default'} className={cn('ml-1.5 py-0', section !== 'git' && 'bg-warning-subtle text-warning-strong')}>
+                  {n}
+                </Badge>
+              )}
             </>
           ),
         };
