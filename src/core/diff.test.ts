@@ -95,3 +95,20 @@ test('two lists of lines as a patch: each change with three lines around it, hun
   expect(patchOf('f', [], ['a', 'b']).lines.slice(3)).toEqual(['@@ -0,0 +1,2 @@', '+a', '+b']);
   expect(patchOf('f', ['a'], ['a']).lines).toHaveLength(3);
 });
+
+test('a patch names above each hunk the heading it is under, none where the hunk starts with one', () => {
+  const file = (name: string, n: number) => [`${name}:`, ...Array.from({ length: n }, (_, i) => `  ${name} ${i + 1}`)];
+  const before = [...file('a.json', 3), ...file('b.json', 12)];
+  const after = before.map((l) => (l === '  b.json 9' ? '  b.json nine' : l));
+  const heading = (l: string) => !l.startsWith(' ');
+  expect(patchOf('claude', before, after, { heading }).lines.filter((l) => l.startsWith('@@'))).toEqual(['@@ -11,7 +11,7 @@ b.json:']);
+  // the hunk's first line is the heading itself: nothing to name
+  const early = before.map((l) => (l === '  b.json 3' ? '  b.json three' : l));
+  expect(patchOf('claude', before, early, { heading }).lines.filter((l) => l.startsWith('@@'))).toEqual(['@@ -5,7 +5,7 @@']);
+  expect(patchOf('claude', before, after).lines.filter((l) => l.startsWith('@@'))).toEqual(['@@ -11,7 +11,7 @@']);
+});
+
+test('a patch of a list too long to pass as arguments', () => {
+  const long = Array.from({ length: 300_000 }, (_, i) => `line ${i}`);
+  expect(patchOf('f', [], long).lines).toHaveLength(300_004);
+});

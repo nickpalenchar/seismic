@@ -126,7 +126,7 @@ export default function CodeDiff({ part, card, style, versions }: { part: DiffPa
 
   if (!hunks.length) return null;
   const tokensOf = (line: DiffLine) => (line.kind === 'removed' ? painted?.old.get(line.old!) : painted?.new.get(line.new!));
-  const digits = String(Math.max(...hunks.map((h) => Math.max(h.oldStart + h.oldCount, h.newStart + h.newCount)), files ? files.new.length : 0)).length;
+  const digits = String(hunks.reduce((m, h) => Math.max(m, h.oldStart + h.oldCount, h.newStart + h.newCount), files ? files.new.length : 0)).length;
   const number = (n?: number) => (
     <span className="inline-block align-top text-end tabular-nums" style={{ width: `${digits}ch` }}>
       {n ?? ''}

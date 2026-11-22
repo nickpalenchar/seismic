@@ -2978,10 +2978,14 @@ export function TrustCommands({ path, trust, onDone }: { path: string; trust: Re
   );
 }
 
-/** A group's lines as last trusted against those now: the changes with a few lines around them, the unchanged ones between expandable. */
+/**
+ * A group's lines as last trusted against those now: the changes with a few lines around them, the
+ * unchanged ones between expandable, and above each change the configuration file it is in.
+ */
 function TrustDiff({ trust, group }: { trust: RepoTrust; group: RepoTrust['held'][number] }) {
   const versions = useMemo(() => ({ old: commandLines(trust.before, group), new: commandLines(trust.now, group) }), [trust, group]);
-  const part = useMemo(() => patchOf(group, versions.old, versions.new), [group, versions]);
+  // a file's lines of the Claude Code or Codex configuration follow its name, the one line not indented
+  const part = useMemo(() => patchOf(group, versions.old, versions.new, group === 'claude' || group === 'codex' ? { heading: (l) => !l.startsWith(' ') } : {}), [group, versions]);
   return (
     <Suspense fallback={<p className="hint">{t.diff.loading}</p>}>
       <CodeDiff part={part} card="" style="unified" versions={versions} />
