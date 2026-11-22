@@ -106,10 +106,7 @@ export function NavPill(p: ProjectsProps) {
             {p.onNew && <NewProject onNew={p.onNew} />}
           </NavList>
         </InMenu.Provider>
-        <p className="mt-2 mb-0 flex items-center gap-1.5 px-2.5 text-xs text-muted-foreground">
-          <kbd className="grid h-5 place-items-center rounded-xs border border-border px-1 font-mono text-xs">{switcherKeys()}</kbd>
-          {t.projectSwitcher.hint}
-        </p>
+        <SwitcherHint />
       </MenuContent>
     </Menu>
   );
@@ -384,6 +381,8 @@ function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean
           )}
           {p.onNew && <NewProject onNew={p.onNew} />}
         </NavList>
+        {/* the phone, without a configuration here, has no keyboard for it */}
+        {p.onConfig && <SwitcherHint className="mb-2" />}
         {p.onConfig && (
           <NavList className={cn(list, 'mt-0.5 border-t border-border pt-2.5')}>
             <Entry icon={<Settings size={16} strokeWidth={2} aria-hidden />} label={m.settings} onClick={run(p.onConfig)} />
@@ -541,6 +540,16 @@ function ProjectRow({ project: c, here, repos, bold, onGo, onProject }: { projec
       {menu ? <MenuItem asChild disabled={!menu.active} onSelect={leaveMenu}>{link}</MenuItem> : <SidebarMenuButton asChild>{link}</SidebarMenuButton>}
       <ProjectAgents project={c} item={menu} />
     </SidebarMenuItem>
+  );
+}
+
+/** Under a list of the projects: the key of the quick project switcher (projectSwitcher.tsx), so it is found. */
+function SwitcherHint({ className }: { className?: string }) {
+  return (
+    <p className={cn('mt-2 mb-0 flex items-center gap-1.5 px-2.5 text-xs text-muted-foreground', className)}>
+      <kbd className="grid h-5 place-items-center rounded-xs border border-border px-1 font-mono text-xs">{switcherKeys()}</kbd>
+      {t.projectSwitcher.hint}
+    </p>
   );
 }
 

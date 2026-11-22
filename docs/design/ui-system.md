@@ -152,8 +152,11 @@ same style. UI text comes from `src/ui/strings.ts`, never a literal.
 - **⌘P / Ctrl+P is the quick project switcher** (2026-11-22): a search field over the page with
   the projects under it (name first, then a repository or old name, then the name's letters in
   order; the open project last), Enter going there within the page. It takes the key from anywhere,
-  a text field included, since the browser's own use of it (print) has no place in Seismic; the
-  bar's project switcher shows the key under its list so it is found.
+  a text field included, since the browser's own use of it (print) has no place in Seismic; every
+  desktop list of the projects (the bar's switcher, the left menu, docked or not) shows the key
+  under it so it is found. It opens over every dialog (the card's diff sits at z 1000), but stays
+  shut over the overlays that close on Esc in the window's capture phase (the right-click rings, a
+  screenshot shown large, the chats drawer), which would take its Esc first.
 - **Phone settings and Needs you share one history step**: switching between them replaces that
   step; closing returns to the project. Pages covering the project make its controls inert.
 - **Clone values parked while choosing worktrees belong to the repository draft**, rather than

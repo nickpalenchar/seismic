@@ -1,8 +1,11 @@
 // The quick project switcher: ⌘P (Ctrl+P elsewhere) opens a search field over the page with the
 // projects under it, the best match first; the arrow keys move through them, Enter goes to the one
-// marked, Esc closes it. The project open now comes last, since the owner opens it to leave.
+// marked, Esc closes it. The project open now comes last, since the owner opens it to leave. Each
+// page that shows a project (the canvas, the Agent Feedback Log, an address naming none) mounts it,
+// and it listens for its key itself. It opens over every dialog, the card's diff included; over the
+// overlays that take Esc themselves before any dialog hears it (`OWN_ESC`) it stays shut.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { counted, type InboxEntry } from '../core/inbox';
 import type { ProjectInfo } from '../core/types';
 import { goTo, projectPath } from './address';
@@ -15,6 +18,13 @@ import { t } from './strings';
 /** Whether a key press is the switcher's shortcut: ⌘P or Ctrl+P, without Shift or Alt. */
 export const isSwitcherKey = (e: Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey'>) =>
   (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'p';
+
+/**
+ * The overlays outside the dialogs that close on Esc in the window's capture phase, before a dialog
+ * over them could hear it: the right-click rings, a screenshot shown large, an artifact's image full
+ * screen, the earlier chats' drawer. Over one of them the switcher would lose its Esc to it.
+ */
+const OWN_ESC = '#ringback, .lightbox, .artifact-image-close, .chats-drawer';
 
 /** The cards waiting for the owner on each project, by its id, as the bell counts them. */
 export function waitingPerProject(entries: InboxEntry[]): Record<string, number> {
@@ -49,30 +59,66 @@ export function switcherResults(projects: ProjectInfo[], query: string, current:
     .map((r) => r.p);
 }
 
-export function ProjectSwitcher({ open, onOpenChange, project, projects, waiting }: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+export function ProjectSwitcher({ project, projects, entries = [] }: {
   /** The project open now. */
   project: string;
   projects: ProjectInfo[];
-  /** How many cards wait for the owner on each project, by its id. */
-  waiting: Record<string, number>;
+  /** What waits for the owner on every project, for the counts beside them. */
+  entries?: InboxEntry[];
 }) {
+  const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const field = useRef<HTMLInputElement>(null);
+  // what had the focus when the key opened it, which gets it back on Esc. Noted at the key press, since
+  // the dialog's own note comes too late where the focus was in another cmdk field (the card finder):
+  // cmdk moves it into the switcher's field as the list mounts, so the dialog would see it there already
+  const opener = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    // in the capture phase, so that a field with the cursor or a dialog's own keys come after it
+    const key = (e: KeyboardEvent) => {
+      if (!isSwitcherKey(e)) return;
+      // the browser's print has no place here, also where the switcher stays shut
+      e.preventDefault();
+      if (e.repeat || (!open && document.querySelector(OWN_ESC))) return;
+      if (!open) opener.current = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
+      setOpen(!open);
+    };
+    addEventListener('keydown', key, true);
+    return () => removeEventListener('keydown', key, true);
+  }, [open]);
   // each time it opens, the field starts empty
   useEffect(() => void (open && setQuery('')), [open]);
+  const waiting = open ? waitingPerProject(entries) : {};
   const results = switcherResults(projects, query, project);
   const pick = (id: string) => {
-    onOpenChange(false);
+    setOpen(false);
     if (id !== project) goTo(projectPath(id));
   };
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent id="project-switcher" glass layerClassName="items-start pt-[14vh]" className="w-[min(560px,100%)] rounded-lg p-2">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent
+        id="project-switcher"
+        glass
+        // over every other layer of the page: the card's diff and a screenshot shown large are the highest, at 1000
+        layerClassName="z-1010 items-start pt-[14vh]"
+        className="w-[min(560px,100%)] rounded-lg p-2"
+        // the field takes the focus, also inside another dialog's trap
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          field.current?.focus();
+        }}
+        onCloseAutoFocus={(e) => {
+          const el = opener.current;
+          opener.current = null;
+          if (!el?.isConnected || el.closest('[inert]')) return;
+          e.preventDefault();
+          el.focus({ preventScroll: true });
+        }}
+      >
         <DialogTitle className="sr-only">{t.projectSwitcher.title}</DialogTitle>
         <Command shouldFilter={false} loop label={t.projectSwitcher.title}>
           <CommandInput
-            autoFocus
+            ref={field}
             value={query}
             onValueChange={setQuery}
             placeholder={t.projectSwitcher.placeholder}
