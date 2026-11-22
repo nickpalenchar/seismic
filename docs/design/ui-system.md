@@ -161,9 +161,13 @@ same style. UI text comes from `src/ui/strings.ts`, never a literal.
   leaves that view as it is (the owner, 2026-11-22: it switches projects, and those are system
   wide); over the project's own dialogs it opens on top (the card's diff sits at z 1000), and Esc
   gives the focus back to where it was, or to the button of a menu or popover that closed as it
-  opened. The splash while a project loads or its server does not answer has it too; a page with
-  no project's connection (the feedback log, an address naming none) reads what waits from
-  `/api/waiting` as it opens. Its Esc stops in the document's capture phase, where Radix closes it,
+  opened. App mounts one beside every desktop page, the splash while a project loads or its
+  server does not answer included, so a page that takes another's place under it (the first
+  snapshot, a project that turns up, Back) leaves a search in it going; a page with no project's
+  connection (the feedback log, an address naming none, a project not connected yet) reads the
+  projects and what waits (`/api/waiting`) as it opens. Keys pressed in it are its own: the page's
+  shortcuts (the legend's `?` and Space) and a demo's keys leave them alone, and cmdk's Vim keys
+  are off in every `Command`, so Ctrl+N/P/J/K stay the text field's. Its Esc stops in the document's capture phase, where Radix closes it,
   so nothing under it (a demo shown larger) closes as well; a prevented default cannot say so, as
   the docked sheet prevents it on every Esc. It stays shut over the overlays that close on Esc in the window's
   capture phase (the right-click rings, a screenshot shown large, the chats drawer), which would

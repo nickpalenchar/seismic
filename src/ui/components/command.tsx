@@ -9,6 +9,9 @@
 // draws its own, `wrapperClassName` styles what holds it), `CommandList` the scrolling list,
 // `CommandItem` an option (`value` is its id, `onSelect` picks it; the active one is
 // `[data-selected=true]`).
+//
+// Ctrl+N, Ctrl+P, Ctrl+J and Ctrl+K stay the field's and the browser's (on a Mac: a line down and up,
+// cut to the line's end), not cmdk's Vim keys for the next and the previous item.
 
 import { cn } from 'cn';
 import { Command as CommandPrimitive } from 'cmdk';
@@ -17,7 +20,7 @@ import type { ComponentProps } from 'react';
 import { inputFieldClassName } from './input';
 
 function Command({ className, ...props }: ComponentProps<typeof CommandPrimitive>) {
-  return <CommandPrimitive data-slot="command" className={cn('flex w-full flex-col text-foreground', className)} {...props} />;
+  return <CommandPrimitive data-slot="command" vimBindings={false} className={cn('flex w-full flex-col text-foreground', className)} {...props} />;
 }
 
 function CommandInput({ className, wrapperClassName, icon = true, ...props }: ComponentProps<typeof CommandPrimitive.Input> & { wrapperClassName?: string; icon?: boolean }) {

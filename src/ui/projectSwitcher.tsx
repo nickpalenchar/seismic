@@ -1,15 +1,18 @@
 // The quick project switcher: ⌘P on a Mac (Ctrl+P elsewhere) opens a search field over the page with the
 // projects under it, the best match first; the arrow keys move through them, Enter goes to the one
-// marked, Esc closes it. The project open now comes last, since the owner opens it to leave. Each
-// page that shows a project or waits for one (the canvas, the Agent Feedback Log, an address naming
-// none, the splash while the project loads or its server does not answer) mounts it,
-// and it listens for its key itself. While what is about every project and not this one covers the
-// page (the configuration, the preferences, the performance dashboard, a phone's pairing,
-// the new project's form), the key does nothing; over
-// the project's own dialogs it opens on top, the card's diff included; over the
-// overlays that take Esc themselves before any dialog hears it (`OWN_ESC`) it stays shut.
+// marked, Esc closes it. The project open now comes last, since the owner opens it to leave. App
+// mounts one beside every desktop page (the canvas, the Agent Feedback Log, an address naming none,
+// the splash while the project loads or its server does not answer), where it stays as one page
+// takes another's place (the project's first snapshot, a project that turns up, Back): a search in
+// it goes on. It listens for its key itself. A page with a project's connection tells it what waits
+// on every project and whether it stays shut (`useSwitcherFeed`); without one, it reads the projects
+// and what waits from the server as it opens. While what is about every project and not this one
+// covers the page (the configuration, the preferences, the performance dashboard, a phone's
+// pairing, the new project's form), the key does nothing; over the project's own dialogs it opens
+// on top, the card's diff included; over the overlays that take Esc themselves before any dialog
+// hears it (`OWN_ESC`) it stays shut.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { counted, type InboxEntry, inboxEntries } from '../core/inbox';
 import type { ProjectInfo } from '../core/types';
 import { goTo, projectPath } from './address';
@@ -90,14 +93,38 @@ export function switcherResults(projects: ProjectInfo[], query: string, current:
     .map((r) => r.p);
 }
 
-export function ProjectSwitcher({ project, projects, entries, shut = false }: {
-  /** The project open now. */
+/** What a page with a project's connection tells the switcher: what waits on every project, counted, and whether it stays shut. */
+type Feed = { counts: Record<string, number>; shut: boolean };
+let feed: Feed | null = null;
+const feedListeners = new Set<() => void>();
+const setFeed = (f: Feed | null) => {
+  feed = f;
+  for (const fn of feedListeners) fn();
+};
+const onFeed = (fn: () => void) => {
+  feedListeners.add(fn);
+  return () => void feedListeners.delete(fn);
+};
+
+/**
+ * A page with a project's connection tells the switcher, while it is mounted, what waits on every
+ * project (`counts`, as its connection keeps it current) and whether the switcher stays shut (`shut`:
+ * what covers the page is about every project, the configuration, the preferences, a phone's
+ * pairing). `counts` null tells nothing (yet): what a page in it told stands, as the splash leaves
+ * the word to the project that takes its place, and without any, the switcher reads from the server.
+ */
+export function useSwitcherFeed(counts: Record<string, number> | null, shut = false) {
+  const said = counts && `${shut} ${JSON.stringify(counts)}`;
+  useEffect(() => void (counts && setFeed({ counts, shut })), [said]);
+  useEffect(() => () => setFeed(null), []);
+}
+
+export function ProjectSwitcher({ project, projects, onProjects }: {
+  /** The project open now; '' where the address names none. */
   project: string;
   projects: ProjectInfo[];
-  /** What waits for the owner on every project, for the counts beside them; without it, read from the server as it opens. */
-  entries?: InboxEntry[];
-  /** What covers the project is about every project (the configuration, the preferences, a phone's pairing): the key does nothing meanwhile. */
-  shut?: boolean;
+  /** The projects as the switcher read them where no project's connection keeps them current, which the page then knows too. */
+  onProjects: (list: ProjectInfo[]) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -106,14 +133,22 @@ export function ProjectSwitcher({ project, projects, entries, shut = false }: {
   // the dialog's own note comes too late where the focus was in another cmdk field (the card finder):
   // cmdk moves it into the switcher's field as the list mounts, so the dialog would see it there already
   const opener = useRef<{ el: HTMLElement; home: HTMLElement } | null>(null);
-  // what waits on every project where the page has no project's connection to tell it
-  const [read, setRead] = useState<InboxEntry[]>([]);
+  const told = useSyncExternalStore(onFeed, () => feed);
+  const shut = !!told?.shut;
+  // where no project's connection tells it (the feedback log, an address naming none, a project not
+  // connected yet), the projects and what waits on them as they are now: one added or removed in
+  // another tab meanwhile is found, or is gone
+  const [read, setRead] = useState<Record<string, number>>(() => waitingPerProject([]));
   useEffect(() => {
-    if (!open || entries) return;
+    if (!open || told) return;
     let on = true;
-    api.waiting().then((w) => on && setRead(inboxEntries(projects, w)), () => {});
+    Promise.all([api.projects(), api.waiting()]).then(([list, w]) => {
+      if (!on) return;
+      onProjects(list);
+      setRead(waitingPerProject(inboxEntries(list, w)));
+    }, () => {});
     return () => void (on = false);
-  }, [open, !entries]);
+  }, [open, !told]);
   useEffect(() => {
     // in the capture phase, so that a field with the cursor or a dialog's own keys come after it
     const key = (e: KeyboardEvent) => {
@@ -130,7 +165,7 @@ export function ProjectSwitcher({ project, projects, entries, shut = false }: {
   }, [open, shut]);
   // each time it opens, the field starts empty
   useEffect(() => void (open && setQuery('')), [open]);
-  const waiting = waitingPerProject(open ? (entries ?? read) : []);
+  const waiting = told?.counts ?? read;
   const results = switcherResults(projects, query, project);
   const pick = (id: string) => {
     setOpen(false);

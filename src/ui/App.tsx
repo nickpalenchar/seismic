@@ -67,7 +67,7 @@ import { videoOf } from './spot';
 import { cardHooks, shownState, stateVars } from './card';
 import { CardHandles, CardView, DepLinks, depHead, depWidth, linkPath, linkSpot, Edges, Links, Minimap, minimapArea, OldBunPill, PlanView, RestartPill, Sheet, SourcePill, TalkIcon, UpdatePill, WorkstationsPill } from './parts';
 import { clock, failText, t } from './strings';
-import { ProjectSwitcher } from './projectSwitcher';
+import { ProjectSwitcher, useSwitcherFeed, waitingPerProject } from './projectSwitcher';
 import { loadNavHidden, loadNavWidth, loadPinned, MenuButton, NAV_PROJECT_MIN, NavPill, NavSheet, saveNavHidden, saveNavWidth, savePinned } from './nav';
 import { projectPath, cardPath, feedbackLogPath, followedPath, goTo, cameByGoTo, named, knowProjects, projectNamed, queryWithout, readAddress, readView, withView, followedView } from './address';
 import { type QuickReply, sendReply } from './quickReply';
@@ -120,22 +120,22 @@ export function App() {
   // an address with no address part opens the first; one naming no project says so, rather than showing another's cards
   const current = wanted ? projectNamed(projects, wanted) : projects[0];
   if (!projects.length) return <NoProject />;
-  if (!current) return (
-    <>
-      <NoSuchProject name={wanted!} projects={projects} />
-      <ProjectSwitcher project="" projects={projects} />
-    </>
-  );
   // a phone gets every project's waits and work, and the cards full screen, instead of the project
-  if (phone) return <PhoneNext projects={projects} />;
-  // the Agent Feedback Log, a page of its own in place of the project it was opened from
-  if (page === 'feedback') return (
+  if (phone && current) return <PhoneNext projects={projects} />;
+  return (
     <>
-      <FeedbackLog projects={projects} here={current.id} />
-      <ProjectSwitcher project={current.id} projects={projects} />
+      {!current ? (
+        <NoSuchProject name={wanted!} projects={projects} />
+      ) : page === 'feedback' ? (
+        // the Agent Feedback Log, a page of its own in place of the project it was opened from
+        <FeedbackLog projects={projects} here={current.id} />
+      ) : (
+        <Shown id={current.id} projects={projects} onProjects={setProjects} />
+      )}
+      {/* one for every page, which stays as one page takes another's place: a search in it goes on */}
+      <ProjectSwitcher project={current?.id ?? ''} projects={projects} onProjects={setProjects} />
     </>
   );
-  return <Shown id={current.id} projects={projects} onProjects={setProjects} />;
 }
 
 /**
@@ -152,7 +152,7 @@ function Shown({ id, projects, onProjects }: { id: string; projects: ProjectInfo
     setReady(id);
   }, [id]);
   if (ready !== id) return <Splash offline={false} />;
-  return <Live key={id} id={id} projects={projects} onProjects={onProjects} />;
+  return <Live key={id} projects={projects} onProjects={onProjects} />;
 }
 
 /** The page while nothing else can show: the sign in the middle, a word or the projects under it. */
@@ -260,17 +260,13 @@ function Splash({ offline }: { offline: boolean }) {
   );
 }
 
-function Live({ id, projects: loaded, onProjects }: { id: string; projects: ProjectInfo[]; onProjects: (list: ProjectInfo[]) => void }) {
+function Live({ projects: loaded, onProjects }: { projects: ProjectInfo[]; onProjects: (list: ProjectInfo[]) => void }) {
   const { snapshot, online, frozenSince, offlineSince, restart, update, source, usage, waiting, oldBun, projects } = useProject();
   // the page knows a project started or renamed meanwhile when the owner switches to it
   useEffect(() => void (projects && onProjects(projects)), [projects]);
-  // while the project loads, or its server does not answer, the owner can still go to another one
-  if (!snapshot) return (
-    <>
-      <Splash offline={!online} />
-      <ProjectSwitcher project={id} projects={projects ?? loaded} entries={Object.keys(waiting).length ? inboxEntries(projects ?? loaded, waiting) : undefined} />
-    </>
-  );
+  // while the project loads, the switcher counts what waits as the connection says it; the project tells it once it shows
+  useSwitcherFeed(!snapshot && Object.keys(waiting).length ? waitingPerProject(inboxEntries(projects ?? loaded, waiting)) : null);
+  if (!snapshot) return <Splash offline={!online} />;
   // a project started, stopped or renamed while the page is open: the switcher follows
   return <Project snapshot={snapshot} online={online} downSince={offlineSince ?? frozenSince} frozen={frozenSince !== null} restart={restart} update={update} source={source} usage={usage} projects={projects ?? loaded} waiting={waiting} oldBun={oldBun} />;
 }
@@ -2335,6 +2331,8 @@ function Project({
   // acted on (on any project: its reply is under way) and without answers in Seismic's sheet while it is open
   const here = waitingIn({ ...snapshot, items, talk: kOn ? [] : snapshot.talk });
   const entries = inboxEntries(projects, { ...waiting, [snapshot.project.id]: here }, (id) => !!underway[id]);
+  // the project switcher counts what waits as the bell does, and stays shut under a view about every project
+  useSwitcherFeed(waitingPerProject(entries), cOn || prefsOn || perfOn || phoneOn || newProjectOn);
   // the cards waiting in the queue, counted in grey on the agents' button
   const queued = queueOrder(items).length;
   // the cards that wait for the owner on every project, counted on the bell
@@ -2474,6 +2472,8 @@ function Project({
   keys.current = (e: KeyboardEvent) => {
     const f = focusRef.current;
     const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || (e.target instanceof HTMLElement && e.target.isContentEditable);
+    // the project switcher over the page keeps its keys, the legend's under it too: what is typed there searches
+    if (e.target instanceof Element && e.target.closest('#project-switcher')) return;
     // a field being edited handles its own keys (Esc cancels the edit there); any other field's Esc closes what it is in
     if (typing && (e.target as Element).closest('[data-esc]')) return;
     // an open layer from the component library (menu, popover, dialog) closes itself on Esc, before anything under it
@@ -3000,7 +3000,6 @@ function Project({
         {/* over the inbox's view, its list stays undimmed beside the card, to work down from there */}
         <div id="dim" className={cn('fixed inset-x-0 top-[50px] bottom-0 z-30 bg-scrim opacity-0 pointer-events-none [transition:opacity_.2s,left_0s]', dim && 'on opacity-100 pointer-events-auto backdrop-blur-[3px]')} onClick={() => closeCard()} />
         {helpOn && <Help note={helpNote} onClose={() => setHelpOn(false)} />}
-        <ProjectSwitcher project={snapshot.project.id} projects={projects} entries={entries} shut={cOn || prefsOn || perfOn || phoneOn || newProjectOn} />
         <WishDialog />
         {/* the open card blurs only while it is open in full (`ready`): as it unfolds, folds and hides it is a solid
             pane, and the card it lifted off the canvas keeps no blur either. Safari (an iPad's) can leave a hidden

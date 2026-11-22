@@ -33,8 +33,11 @@ export function FeedbackLog({ projects, here }: { projects: ProjectInfo[]; here:
   const [state, setState] = useState<LogState>(() => readLogQuery(location.search));
   const { filter, group } = state;
   useEffect(() => {
+    // the page's name while it shows, the app's again once a link or the project switcher goes on within the page
+    const was = document.title;
     document.title = `${l.title} · Seismic`;
     api.allFeedback().then(setAll, (e) => setError(failText(e)));
+    return () => void (document.title = was);
   }, []);
   // the address keeps the filters and grouping: a reload or a link shows the same
   useEffect(() => history.replaceState(history.state, '', `${feedbackLogPath(here)}${logQuery(state)}`), [state]);

@@ -2453,7 +2453,7 @@ function useWatching(cardId: string, video: RefObject<HTMLVideoElement | null>, 
 function forTheVideo(e: KeyboardEvent) {
   if (e.metaKey || e.ctrlKey || e.altKey) return false;
   if (e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable], [role=menu]')) return false;
-  return !document.querySelector('#help, #config, .lightbox, .diff-view');
+  return !document.querySelector('#help, #config, .lightbox, .diff-view, #project-switcher');
 }
 
 /** The demo video the keys are for, with several on a card: the zoomed one, else the one playing, else the first. */
