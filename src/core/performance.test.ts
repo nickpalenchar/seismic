@@ -109,6 +109,12 @@ test('the trend is each row’s average per month, over every month from the fir
   ]).rows);
   expect(young.unit).toBe('week');
   expect(young.periods).toEqual(['2026-11-02', '2026-11-09', '2026-11-16']);
+  const days = trend(performance([
+    fb([opusHigh], { rating: 5 }, { at: '2026-11-17T00:00:00.000Z' }),
+    fb([opusHigh], { rating: 3 }, { at: '2026-11-19T00:00:00.000Z' }),
+  ]).rows);
+  expect(days.unit).toBe('day');
+  expect(days.periods).toEqual(['2026-11-17', '2026-11-18', '2026-11-19']);
 });
 
 test('a response’s age is one of five steps, by when it was last given', () => {

@@ -120,7 +120,7 @@ export function filterChoices(list: Feedback[]) {
 }
 
 export interface TrendPoint {
-  /** The bucket: a month `2026-10`, or the Monday of a week `2026-10-26`. */
+  /** The bucket: a month `2026-10`, a day `2026-10-28`, or the Monday of a week `2026-10-26`. */
   period: string;
   mean: number;
   n: number;
@@ -134,14 +134,16 @@ const mondayOf = (iso: string) => {
 
 /**
  * Each row's average rating per period (by when a response was last given), and the periods from the first to the last
- * with any. Periods are months, or weeks when everything lies within about three months: monthly buckets would show a
- * young history as one point.
+ * with any. Periods are days when everything lies within two weeks, weeks within about three months, else months: coarser
+ * buckets would show a young history as one point.
  */
-export function trend(rows: PerformanceRow[]): { unit: 'week' | 'month'; periods: string[]; series: { key: string; points: TrendPoint[] }[] } {
+export type TrendUnit = 'day' | 'week' | 'month';
+export function trend(rows: PerformanceRow[]): { unit: TrendUnit; periods: string[]; series: { key: string; points: TrendPoint[] }[] } {
   const when = (f: Feedback) => f.updatedAt ?? f.at;
   const times = rows.flatMap((r) => r.responses.filter((f) => stars(f.answer.rating) !== null).map((f) => Date.parse(when(f))));
-  const unit = times.length && Math.max(...times) - Math.min(...times) <= 90 * DAY ? 'week' : 'month';
-  const bucket = (f: Feedback) => (unit === 'week' ? mondayOf(when(f)) : when(f).slice(0, 7));
+  const span = times.length ? Math.max(...times) - Math.min(...times) : Infinity;
+  const unit: TrendUnit = span <= 14 * DAY ? 'day' : span <= 90 * DAY ? 'week' : 'month';
+  const bucket = (f: Feedback) => (unit === 'day' ? when(f).slice(0, 10) : unit === 'week' ? mondayOf(when(f)) : when(f).slice(0, 7));
   const series = rows.map((r) => {
     const by = new Map<string, number[]>();
     for (const f of r.responses) {
@@ -157,8 +159,8 @@ export function trend(rows: PerformanceRow[]): { unit: 'week' | 'month'; periods
   const periods: string[] = [];
   if (all.length) {
     const last = all.at(-1)!;
-    if (unit === 'week') {
-      for (let t = Date.parse(`${all[0]}T12:00:00Z`); ; t += 7 * DAY) {
+    if (unit !== 'month') {
+      for (let t = Date.parse(`${all[0]}T12:00:00Z`); ; t += (unit === 'week' ? 7 : 1) * DAY) {
         const at = new Date(t).toISOString().slice(0, 10);
         periods.push(at);
         if (at >= last) break;

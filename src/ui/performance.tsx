@@ -457,6 +457,8 @@ function Trend({ rows }: { rows: PerformanceRow[] }) {
   const p = t.performance;
   // the lines are the models': work credited to none of them has no line of its own
   const { unit, periods: months, series } = trend(rows.filter((r) => r.kind === 'config'));
+  // an axis within one year leaves the year to the tooltips
+  const crossesYears = months.length > 0 && months[0]!.slice(0, 4) !== months.at(-1)!.slice(0, 4);
   const W = 900, H = 200, L = 44, R = 16, T = 12, B = 30;
   const x = (m: string) => (months.length < 2 ? L + (W - L - R) / 2 : L + (months.indexOf(m) / (months.length - 1)) * (W - L - R));
   const y = (v: number) => T + ((5 - v) / 4) * (H - T - B);
@@ -475,7 +477,7 @@ function Trend({ rows }: { rows: PerformanceRow[] }) {
         ))}
         {months.map((m) => (
           <text key={m} x={x(m)} y={H - 8} textAnchor="middle" className={axisTextClass}>
-            {p.period(m, unit)}
+            {p.period(m, unit, crossesYears)}
           </text>
         ))}
         {lines.map((s) => (
