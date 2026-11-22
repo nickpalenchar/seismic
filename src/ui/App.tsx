@@ -651,15 +651,17 @@ function Project({
   const [needsYouKnown, setNeedsYouKnown] = useState(() => known(NEEDS_YOU_KNOWN));
   // The settings button counts this project's problems using the same view as its sheet.
   // Configuration revisions cover saved changes, repository settings on the default branch and start failures.
-  const [configProblems, setConfigProblems] = useState(0);
+  const [problemsOf, setProblemsOf] = useState<{ project: string; n: number }>();
+  // a count read for another project is never shown: the badge waits for this project's own
+  const configProblems = problemsOf?.project === snapshot.project.id ? problemsOf.n : 0;
   const configRevs = [...snapshot.project.repos.map((r) => `${r.id}:${r.configRev ?? 0}`), ...projects.map((c) => `${c.id}:${c.configRev ?? 0}`), `${snapshot.project.configRev ?? 0}`].join(' ');
   useEffect(() => {
     let active = true;
     void api.projectRepos(snapshot.project.id).then(
-      (c) => { if (active) setConfigProblems(c.problems.length); },
+      (c) => { if (active) setProblemsOf({ project: snapshot.project.id, n: c.problems.length }); },
       (e) => {
         if (!active) return;
-        setConfigProblems(0);
+        setProblemsOf(undefined);
         console.error(e);
       },
     );
