@@ -7,7 +7,7 @@ import { cardKind } from './summary';
 
 const card = (more: Partial<Item> = {}): Item => ({ id: 'c', kind: 'task', state: 'planned', title: 'Cart model', body: 'One cart per customer.', x: 0, y: 0, source: 'manual', repo: 'shop', canvasVisible: true, ...more });
 /** The class names that name a face's parts and states, without the utilities that give them their look (faceClasses.ts). */
-const HOOK = /^(face|face-s|face-xs|kind|ttl|meta|state|state-text|doing-now|subtle|untitled|ws-no|f-[a-z-]+|pin-dot|asking|failed|proposal|prio|prio-[a-z]+|sugg|bare|lchip|lchip-[a-z]+|unread-dot|[a-z]+-mark)$/;
+const HOOK = /^(face|face-s|face-xs|kind|ttl|meta|state|state-text|doing-now|subtle|untitled|ws-no|f-[a-z-]+|pin-dot|asking|failed|proposal|prio|prio-[a-z]+|sugg|bare|lchip|lchip-[a-z]+|unread-dot|lucide-lightbulb|lucide-git-merge|[a-z]+-mark)$/;
 const hooks = (html: string) =>
   html.replace(/ class="([^"]*)"/g, (_, cls: string) => {
     const kept = cls.split(/\s+/).filter((c) => HOOK.test(c)).join(' ');
@@ -118,10 +118,10 @@ test('subtle: the pin is a small dot in the corner, the state line is plain, and
 test('both cards of a merge say their own state, then how the merge stands, behind the merge mark', () => {
   const merging = card({ idea: { proposal: { questions: [], merge: { with: 'p', attempt: 'a', origin: { x: 0, y: 0 } } } } } as unknown as Partial<Item>);
   const html = face({ item: merging });
-  expect(html).toContain('merge-mark');
+  expect(html).toMatch(/<div class="state[^"]*"><svg[^>]*class="lucide-git-merge merge-mark"[^>]*>.*?<\/svg><span class="state-text">Planned · Planning merge<\/span>/s);
   expect(html).toContain('Planned · Planning merge');
   const partner = face({ item: card({ id: 'p' }), mergePartner: 'Planning merge' });
-  expect(partner).toContain('merge-mark');
+  expect(partner).toMatch(/<div class="state[^"]*"><svg[^>]*class="lucide-git-merge merge-mark"[^>]*>.*?<\/svg><span class="state-text">Planned · Planning merge<\/span>/s);
   expect(partner).toContain('Planned · Planning merge');
 });
 
@@ -137,8 +137,12 @@ test('the lightbulb stands before "Merge proposed" at every size, and only while
   const proposed = card({ possibleDuplicates: ['d'] });
   for (const size of ['m', 's', 'xs'] as const) {
     const html = face({ item: proposed, size });
-    expect(html).toContain('Merge proposed');
-    expect(html).toContain('merge-mark');
+    if (size === 'xs') {
+      expect(html).toMatch(/<span class="f-line"><span><svg[^>]*class="lucide-lightbulb merge-mark"[^>]*>.*?<\/svg><\/span><span class="f-words"><span class="f-state">Merge proposed<\/span>/s);
+    } else {
+      expect(html).toMatch(/<div class="(?:state|f-state)[^"]*"><svg[^>]*class="lucide-lightbulb merge-mark"[^>]*>.*?<\/svg><span class="state-text">Merge proposed<\/span>/s);
+    }
+    expect(html).not.toContain('lucide-git-merge');
     expect(html).not.toContain('f-dot');
   }
   // parked, the card says so, and the proposal waits without its mark
