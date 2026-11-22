@@ -1,5 +1,9 @@
 [test]
 preload = ["./src/server/test/helpers/setup.ts"]
+# The process-boundary prototypes need what a developer machine or the main CI job lacks (a systemd
+# user manager, Windows Job Objects): .github/workflows/process-boundary.yml runs them, lifting this
+# with `--path-ignore-patterns=`, as does anyone running them by hand.
+pathIgnorePatterns = ["scripts/*-prototype.test.ts"]
 
 # HTML imports served by Bun (`bun run dev`, the compiled binary) run the UI's CSS through Tailwind (src/ui/tailwind.css)
 [serve.static]

@@ -30,7 +30,8 @@ export function processIdentity(pid: number): ProcessIdentity | undefined {
     const own = statSync('/proc/self/ns/pid', { bigint: true });
     const ns = statSync(`/proc/${pid}/ns/pid`, { bigint: true });
     if (own.dev !== ns.dev || own.ino !== ns.ino) return;
-    const info = linuxProcessStat(readFileSync(`/proc/${pid}/stat`, 'utf8'));
+    // the boot is a field of its own: the start stays the bare ticks
+    const info = linuxProcessStat(readFileSync(`/proc/${pid}/stat`, 'utf8'), '');
     if (!boot || !info || info.pid !== pid) return;
     return { pid, boot, namespace: `${ns.dev}:${ns.ino}`, start: info.born };
   } catch { return; }

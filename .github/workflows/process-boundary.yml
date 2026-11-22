@@ -33,7 +33,7 @@ jobs:
           echo "SEISMIC_CODEX=$codex" >> "$GITHUB_ENV"
       - name: Prototype tests
         continue-on-error: true
-        run: bun test scripts/windows-job-prototype.test.ts
+        run: bun test --path-ignore-patterns= scripts/windows-job-prototype.test.ts
       - name: Today's tracker on Windows
         continue-on-error: true
         run: bun test src/server/test/llms/harnesses/processes.test.ts
@@ -75,7 +75,7 @@ jobs:
           XDG_RUNTIME_DIR=/run/user/$(id -u) systemctl --user is-system-running || true
       - name: Prototype tests
         continue-on-error: true
-        run: bun test scripts/linux-scope-prototype.test.ts
+        run: bun test --path-ignore-patterns= scripts/linux-scope-prototype.test.ts scripts/agent-registry-prototype.test.ts scripts/agent-liveness-prototype.test.ts
       - name: Probe
         continue-on-error: true
         run: bun scripts/linux-scope-probe.ts
@@ -89,4 +89,4 @@ jobs:
           mv "$XDG_RUNTIME_DIR/bus" "$XDG_RUNTIME_DIR/bus.off" 2>/dev/null || true
           systemctl --user is-active dbus.service || true; ls "$XDG_RUNTIME_DIR"
           env -u DBUS_SESSION_BUS_ADDRESS bun scripts/linux-scope-probe.ts kill
-          env -u DBUS_SESSION_BUS_ADDRESS bun test scripts/linux-scope-prototype.test.ts
+          env -u DBUS_SESSION_BUS_ADDRESS bun test --path-ignore-patterns= scripts/linux-scope-prototype.test.ts
