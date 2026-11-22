@@ -1713,7 +1713,10 @@ export interface BlockedClone {
 
 export interface ProjectSnapshot {
   project: ProjectInfo;
-  /** The project's canvases in the owner's order; the first is the one the project opens on. */
+  /**
+   * The project's canvases in the owner's order; the first is the fallback after the address and the
+   * saved selection.
+   */
   canvases: Canvas[];
   items: Item[];
   /** The project's groups, the oldest first. */

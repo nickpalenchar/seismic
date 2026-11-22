@@ -430,8 +430,9 @@ function Project({
     // a call that ends after a switch to another project (a canvas made, a card opened) leaves the
     // address and the canvas kept for this project as the owner left them
     if (!to || gone.current) return;
-    // picked again, the canvas shown is the last choice here too, over one another tab made since
-    keepCanvas(to.id);
+    // picked again, the canvas shown is the last choice here too, over one another tab made since;
+    // a new canvas is recorded by the canvasId effect once it actually appears
+    if (to.id === canvasRef.current) keepCanvas(to.id);
     const h = `#${encodeURIComponent(to.name)}`;
     if (to.id === canvasRef.current && location.hash === h) return;
     history.replaceState(history.state, '', `${location.pathname}${location.search}${h}`);
