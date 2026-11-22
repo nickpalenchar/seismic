@@ -12,7 +12,7 @@
 // on top, the card's diff included; over the overlays that take Esc themselves before any dialog
 // hears it (`OWN_ESC`) it stays shut.
 
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { type RefObject, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { counted, type InboxEntry, inboxEntries } from '../core/inbox';
 import type { ProjectInfo } from '../core/types';
 import { goTo, projectPath } from './address';
@@ -21,7 +21,7 @@ import { ProjectIcon } from './canvasIcon';
 import { Badge } from './components/badge';
 import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from './components/command';
 import { Dialog, DialogContent, DialogTitle } from './components/dialog';
-import { t } from './strings';
+import { switcherCombo, t } from './strings';
 
 /**
  * Whether a key press is the switcher's shortcut, the key the hint shows (`switcherKeys`): ⌘P on a
@@ -31,7 +31,7 @@ import { t } from './strings';
 export const isSwitcherKey = (
   e: Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey'>,
   platform = typeof navigator !== 'undefined' ? navigator.platform : '',
-) => (/Mac|iPhone|iPad/.test(platform) ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'p';
+) => (switcherCombo(platform)[0] === '⌘' ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'p';
 
 /**
  * The overlays outside the dialogs that close on Esc in the window's capture phase, before a dialog
@@ -127,7 +127,6 @@ export function ProjectSwitcher({ project, projects, onProjects }: {
   onProjects: (list: ProjectInfo[]) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
   const field = useRef<HTMLInputElement>(null);
   // what had the focus when the key opened it, which gets it back on Esc. Noted at the key press, since
   // the dialog's own note comes too late where the focus was in another cmdk field (the card finder):
@@ -163,10 +162,7 @@ export function ProjectSwitcher({ project, projects, onProjects }: {
     addEventListener('keydown', key, true);
     return () => removeEventListener('keydown', key, true);
   }, [open, shut]);
-  // each time it opens, the field starts empty
-  useEffect(() => void (open && setQuery('')), [open]);
   const waiting = told?.counts ?? read;
-  const results = switcherResults(projects, query, project);
   const pick = (id: string) => {
     setOpen(false);
     if (id !== project) goTo(projectPath(id));
@@ -198,36 +194,56 @@ export function ProjectSwitcher({ project, projects, onProjects }: {
         }}
       >
         <DialogTitle className="sr-only">{t.projectSwitcher.title}</DialogTitle>
-        <Command shouldFilter={false} loop label={t.projectSwitcher.title}>
-          <CommandInput
-            ref={field}
-            value={query}
-            onValueChange={setQuery}
-            placeholder={t.projectSwitcher.placeholder}
-            aria-label={t.projectSwitcher.placeholder}
-            className="h-10 border-transparent bg-transparent text-base shadow-none focus:border-transparent focus:bg-transparent"
-            spellCheck={false}
-          />
-          <CommandList className="mt-1 max-h-[min(420px,55vh)] border-t border-border pt-1">
-            <CommandEmpty>{t.projectSwitcher.none}</CommandEmpty>
-            {results.map((p) => (
-              <CommandItem key={p.id} value={p.id} className="px-2.5 py-2 text-sm" onSelect={() => pick(p.id)}>
-                <ProjectIcon icon={p.icon} />
-                <b className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap" title={p.name}>{p.name}</b>
-                <span className="min-w-0 flex-[0_1000_auto] overflow-hidden text-xs text-ellipsis whitespace-nowrap text-muted-foreground">{p.repos.map((r) => r.name).join(', ')}</span>
-                <span className="ml-auto flex flex-none items-center gap-2">
-                  {!!waiting[p.id] && (
-                    <Badge variant="count" tone="waiting" title={t.nav.waiting(waiting[p.id]!)}>
-                      {waiting[p.id]}
-                    </Badge>
-                  )}
-                  {p.id === project && <span className="text-xs text-muted-foreground">{t.projectSwitcher.current}</span>}
-                </span>
-              </CommandItem>
-            ))}
-          </CommandList>
-        </Command>
+        <Search field={field} projects={projects} project={project} waiting={waiting} onPick={pick} />
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * The field and the projects that match it, inside the open switcher only: shut, it ranks nothing
+ * as the page under it changes, and each time it opens the field starts empty.
+ */
+function Search({ field, projects, project, waiting, onPick }: {
+  field: RefObject<HTMLInputElement | null>;
+  projects: ProjectInfo[];
+  project: string;
+  waiting: Record<string, number>;
+  onPick: (id: string) => void;
+}) {
+  const [query, setQuery] = useState('');
+  const results = switcherResults(projects, query, project);
+  // on a Mac, Ctrl+N/P/J/K stay the field's (a line down and up, cut to the line's end), as Ctrl+P
+  // does not open it there; elsewhere cmdk's Vim keys move through the projects, as in every list
+  return (
+    <Command shouldFilter={false} loop vimBindings={switcherCombo()[0] !== '⌘'} label={t.projectSwitcher.title}>
+      <CommandInput
+        ref={field}
+        value={query}
+        onValueChange={setQuery}
+        placeholder={t.projectSwitcher.placeholder}
+        aria-label={t.projectSwitcher.placeholder}
+        className="h-10 border-transparent bg-transparent text-base shadow-none focus:border-transparent focus:bg-transparent"
+        spellCheck={false}
+      />
+      <CommandList className="mt-1 max-h-[min(420px,55vh)] border-t border-border pt-1">
+        <CommandEmpty>{t.projectSwitcher.none}</CommandEmpty>
+        {results.map((p) => (
+          <CommandItem key={p.id} value={p.id} className="px-2.5 py-2 text-sm" onSelect={() => onPick(p.id)}>
+            <ProjectIcon icon={p.icon} />
+            <b className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap" title={p.name}>{p.name}</b>
+            <span className="min-w-0 flex-[0_1000_auto] overflow-hidden text-xs text-ellipsis whitespace-nowrap text-muted-foreground">{p.repos.map((r) => r.name).join(', ')}</span>
+            <span className="ml-auto flex flex-none items-center gap-2">
+              {!!waiting[p.id] && (
+                <Badge variant="count" tone="waiting" title={t.nav.waiting(waiting[p.id]!)}>
+                  {waiting[p.id]}
+                </Badge>
+              )}
+              {p.id === project && <span className="text-xs text-muted-foreground">{t.projectSwitcher.current}</span>}
+            </span>
+          </CommandItem>
+        ))}
+      </CommandList>
+    </Command>
   );
 }

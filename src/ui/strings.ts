@@ -166,7 +166,8 @@ const en = {
           { keys: [['Drag'], ['Scroll']], text: 'Move the view' },
           { keys: [['⌘ / Ctrl', 'Scroll'], ['Pinch']], text: 'Zoom' },
           { keys: [['0']], text: 'Overview of everything' },
-          { keys: [['⌘ / Ctrl', 'P']], text: 'Switch to another project' },
+          // the key this system's switcher takes, not both: Ctrl+P on a Mac stays the system's
+          { get keys() { return [switcherCombo()]; }, text: 'Switch to another project' },
           { keys: [['Drag a card']], text: 'Move a card' },
           { keys: [['Shift', 'Click'], ['Shift', 'Drag']], text: 'Mark several cards' },
           { keys: [['Drag a marked card']], text: 'Move all marked cards' },
@@ -2943,8 +2944,16 @@ function validTag(tag: string): boolean {
   }
 }
 
-/** The key that opens the quick project switcher, as the system writes it. */
-export const switcherKeys = (platform = typeof navigator !== 'undefined' ? navigator.platform : '') => (/Mac|iPhone|iPad/.test(platform) ? '⌘P' : 'Ctrl+P');
+/** The keys that open the quick project switcher, one by one: ⌘ and P on a Mac, an iPhone or an iPad, Ctrl and P elsewhere. */
+export function switcherCombo(platform = typeof navigator !== 'undefined' ? navigator.platform : '') {
+  return /Mac|iPhone|iPad/.test(platform) ? ['⌘', 'P'] : ['Ctrl', 'P'];
+}
+
+/** The key that opens the quick project switcher, as the system writes it: ⌘P, or Ctrl+P. */
+export const switcherKeys = (platform?: string) => {
+  const [modifier, key] = switcherCombo(platform);
+  return modifier === '⌘' ? `${modifier}${key}` : `${modifier}+${key}`;
+};
 
 /** The keys that paste, and that take a screenshot onto the clipboard where the system has one for it. */
 export function pasteKeys(platform = typeof navigator !== 'undefined' ? navigator.platform : '') {

@@ -166,8 +166,10 @@ same style. UI text comes from `src/ui/strings.ts`, never a literal.
   snapshot, a project that turns up, Back) leaves a search in it going; a page with no project's
   connection (the feedback log, an address naming none, a project not connected yet) reads the
   projects and what waits (`/api/waiting`) as it opens. Keys pressed in it are its own: the page's
-  shortcuts (the legend's `?` and Space) and a demo's keys leave them alone, and cmdk's Vim keys
-  are off in every `Command`, so Ctrl+N/P/J/K stay the text field's. Its Esc stops in the document's capture phase, where Radix closes it,
+  shortcuts (the legend's `?` and Space) and a demo's keys leave them alone, and on a Mac its
+  cmdk Vim keys are off, so Ctrl+N/P/J/K stay the text field's there (the other lists keep them,
+  where they are the way to move without the arrows). The legend shows only the key this system
+  takes. Its Esc stops in the document's capture phase, where Radix closes it,
   so nothing under it (a demo shown larger) closes as well; a prevented default cannot say so, as
   the docked sheet prevents it on every Esc. It stays shut over the overlays that close on Esc in the window's
   capture phase (the right-click rings, a screenshot shown large, the chats drawer), which would

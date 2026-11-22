@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 import type { ProjectInfo } from '../core/types';
 import type { InboxEntry } from '../core/inbox';
 import { isSwitcherKey, switcherResults, waitingPerProject } from './projectSwitcher';
-import { switcherKeys } from './strings';
+import { switcherCombo, switcherKeys, t } from './strings';
 
 const project = (id: string, name: string, repos: string[] = [id], more: Partial<ProjectInfo> = {}) =>
   ({ id, name, repos: repos.map((r) => ({ id: r, name: r, path: `/r/${r}`, branch: 'main' })), ...more }) as ProjectInfo;
@@ -44,6 +44,13 @@ test('⌘P opens the switcher on a Mac and Ctrl+P elsewhere, as the hint says; w
   }
   expect(switcherKeys('MacIntel')).toBe('⌘P');
   expect(switcherKeys('Win32')).toBe('Ctrl+P');
+});
+
+test('the legend shows the key this system takes, not both', () => {
+  expect(switcherCombo('MacIntel')).toEqual(['⌘', 'P']);
+  expect(switcherCombo('Linux x86_64')).toEqual(['Ctrl', 'P']);
+  const row = t.help.sections.flatMap((s) => s.rows).find((r) => r.text === 'Switch to another project');
+  expect(row?.keys).toEqual([switcherCombo()]);
 });
 
 test('the waiting counts start at zero for every project id, also one named like an object key', () => {
