@@ -13,6 +13,7 @@
 // - reports every hook call, page load and command that ran to the harness, and quits after
 //   SPIKE_SECONDS.
 //
+// On Windows the shell also guards frames (FrameNavigationStarting), which wry's hook does not see.
 // On Linux `SPIKE_POSTMESSAGE=off` unregisters wry's postMessage IPC (the backup branch's fix), as
 // wry attributes such a call to the page the webview shows, not the frame that sent it.
 
@@ -68,6 +69,8 @@ fn pair(origin: &str) -> Result<String, String> {
 
 fn open(app: &AppHandle, label: &str, own: &str, url: &str, guard: bool) -> tauri::Result<()> {
   let own = own.to_string();
+  #[cfg(windows)]
+  let own_frames = own.clone();
   let (nav_label, new_label, load_label) = (label.to_string(), label.to_string(), label.to_string());
   let window = WebviewWindowBuilder::new(app, label, WebviewUrl::External(url.parse().unwrap()))
     .title(label)
@@ -93,6 +96,31 @@ fn open(app: &AppHandle, label: &str, own: &str, url: &str, guard: bool) -> taur
       if let Some(manager) = webview.inner().user_content_manager() {
         manager.unregister_script_message_handler("ipc");
       }
+    })?;
+  }
+  // WebView2 asks wry's hook for main-frame navigations only (NavigationStarting): a frame's goes to
+  // FrameNavigationStarting, which the shell has to guard itself
+  #[cfg(windows)]
+  if guard {
+    let own = own_frames;
+    let label = label.to_string();
+    window.with_webview(move |webview| unsafe {
+      use webview2_com::{take_pwstr, NavigationStartingEventHandler};
+      let core = webview.controller().CoreWebView2().expect("CoreWebView2");
+      let mut token = 0i64;
+      let _ = core.add_FrameNavigationStarting(
+        &NavigationStartingEventHandler::create(Box::new(move |_, args| {
+          let Some(args) = args else { return Ok(()) };
+          let mut uri = windows::core::PWSTR::null();
+          args.Uri(&mut uri)?;
+          let uri = take_pwstr(uri);
+          let allowed = uri.parse::<Url>().map(|u| origin(&u) == own).unwrap_or(false) || uri == "about:blank" || uri == "about:srcdoc";
+          report(serde_json::json!({ "kind": "frameNav", "window": label, "url": uri, "allowed": allowed }));
+          args.SetCancel(!allowed)?;
+          Ok(())
+        })),
+        &mut token,
+      );
     })?;
   }
   let _ = window;

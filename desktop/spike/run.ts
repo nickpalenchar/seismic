@@ -22,9 +22,8 @@
 //
 // It prints each check with PASS or FAIL and the events behind a failure, and exits 1 on a FAIL.
 
-import { spawn } from "node:child_process";
 
-const binary = process.argv[2];
+const binary = process.argv[2] ?? "";
 if (!binary) throw new Error("usage: bun desktop/spike/run.ts <webview-spike binary>");
 
 const LOCAL = 8900;
@@ -74,7 +73,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 function deskPage(req: Request, port: number) {
   const url = new URL(req.url);
   const n = Number(url.searchParams.get("n") ?? "0");
-  const win = DESKS[port];
+  const win = DESKS[port]!;
   const other = Number(Object.keys(DESKS).find((p) => Number(p) !== port));
   const frames = [
     ["same", `${at(port)}/frame?case=same&win=${win}`, ""],
@@ -190,9 +189,9 @@ for (const port of [LOCAL, ...Object.keys(DESKS).map(Number), FOREIGN]) {
 
 function runApp(env: Record<string, string>) {
   return new Promise<void>((resolve) => {
-    const child = spawn(binary, [], { env: { ...process.env, ...env }, stdio: ["ignore", "inherit", "inherit"] });
+    const child = Bun.spawn([binary], { env: { ...process.env, ...env }, stdio: ["ignore", "inherit", "inherit"] });
     const kill = setTimeout(() => child.kill(), 60_000);
-    child.on("exit", () => (clearTimeout(kill), resolve()));
+    void child.exited.then(() => (clearTimeout(kill), resolve()));
   });
 }
 
@@ -233,7 +232,7 @@ function judgeGuard(navigated: boolean) {
   check("no request reached the foreign origin (navigations, redirects, frames)", foreign.length === 0, foreign);
   const cross = events.filter((e) => e.source === "http" && DESKS[e.port] && e.win && e.win !== DESKS[e.port]);
   check("no workspace window loaded the other workspace's origin in a frame", cross.length === 0, cross);
-  const offOrigin = events.filter((e) => e.source === "shell" && e.kind === "load" && e.window !== "main" && !e.url.startsWith(OWN[e.window].origin));
+  const offOrigin = events.filter((e) => e.source === "shell" && e.kind === "load" && e.window !== "main" && !e.url.startsWith(OWN[e.window]!.origin));
   check("no workspace window loaded a page off its origin", offOrigin.length === 0, offOrigin);
   if (!navigated) return;
   const stayed = events.filter((e) => e.case === "nav-stayed").map((e) => `${e.win}:${e.step}`);
@@ -254,7 +253,7 @@ async function runMode(name: string, env: Record<string, string>) {
 const log: Record<string, Event[]> = {};
 
 log.first = await runMode("first", { SPIKE_RUN: "first", SPIKE_SECONDS: "20" });
-for (const [port, win] of Object.entries(DESKS)) {
+for (const win of Object.values(DESKS)) {
   const cookies = events.filter((e) => e.case === "cookie" && e.win === win);
   check(`${win} has the device cookie after the login link (n=1) and on a reload (n=2)`, cookies.some((e) => e.n === 1 && e.cookie) && cookies.some((e) => e.n === 2 && e.cookie), cookies);
 }
