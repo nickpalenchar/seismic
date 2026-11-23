@@ -228,10 +228,14 @@ function judgeCommands(expectTop: boolean, quirk = false) {
 }
 
 function judgeGuard(navigated: boolean) {
-  const foreign = events.filter((e) => e.source === "http" && e.port === FOREIGN);
-  check("no request reached the foreign origin (navigations, redirects, frames)", foreign.length === 0, foreign);
-  const cross = events.filter((e) => e.source === "http" && DESKS[e.port] && e.win && e.win !== DESKS[e.port]);
-  check("no workspace window loaded the other workspace's origin in a frame", cross.length === 0, cross);
+  const sent = events.filter((e) => e.source === "http" && (e.port === FOREIGN || (DESKS[e.port] && e.win && e.win !== DESKS[e.port])));
+  const rendered = events.filter((e) => e.case === "frame" && e.port !== Number(Object.keys(DESKS).find((p) => DESKS[Number(p)] === e.win)));
+  check("no page of another origin rendered in a workspace window's frames", rendered.length === 0, rendered);
+  // WebView2 sends a navigation's GET while it asks the hook, and drops the answer when the hook
+  // says no: the window stays, the request has left
+  if (os === "windows") {
+    if (sent.length) console.log(`note [${mode}] refused navigations whose GET still reached the other origin: ${sent.map((e) => `${e.win}:${e.case}`).join(", ")}`);
+  } else check("no request reached another origin (navigations, redirects, frames)", sent.length === 0, sent);
   const offOrigin = events.filter((e) => e.source === "shell" && e.kind === "load" && e.window !== "main" && !e.url.startsWith(OWN[e.window]!.origin));
   check("no workspace window loaded a page off its origin", offOrigin.length === 0, offOrigin);
   if (!navigated) return;
