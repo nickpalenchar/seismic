@@ -62,35 +62,42 @@ export class Devices {
     this.db.update(devices).set({ push }).where(eq(devices.id, id)).run();
   }
 
-  /** The device whose cookie hashes to `hash`. */
+  /**
+   * The device whose cookie hashes to `hash`: its credential, or the newer one a pairing again gave
+   * it (`renew`). Both hold until the next renewal, so a late answer of an earlier one cannot set a
+   * cookie that no longer lets the browser in.
+   */
   byToken(hash: string): DeviceView | null {
     const active = this.db.select(view).from(devices).where(eq(devices.tokenHash, hash)).get();
     if (active) return active;
-    const pending = this.db.select({ id: deviceRenewals.deviceId }).from(deviceRenewals).where(eq(deviceRenewals.tokenHash, hash)).get();
-    if (!pending) return null;
-    return this.db.transaction((tx) => {
-      const received = tx.delete(deviceRenewals).where(eq(deviceRenewals.tokenHash, hash)).returning({ id: deviceRenewals.deviceId }).get();
-      if (!received) return null;
-      return tx.update(devices).set({ tokenHash: hash }).where(eq(devices.id, received.id)).returning(view).get() ?? null;
-    });
+    const newer = this.db.select({ id: deviceRenewals.deviceId }).from(deviceRenewals).where(eq(deviceRenewals.tokenHash, hash)).get();
+    return newer ? (this.db.select(view).from(devices).where(eq(devices.id, newer.id)).get() ?? null) : null;
   }
 
   add(d: DeviceView & { tokenHash: string }) {
     this.db.insert(devices).values({ id: d.id, tokenHash: d.tokenHash, name: d.name, pairedAt: d.pairedAt, lastSeen: d.lastSeen }).run();
   }
 
-  /** Retries with the current cookie receive the same outstanding replacement, even after restart.
-   * The nonce alone cannot reconstruct it: that also requires the browser's current secret. */
-  renew(d: DeviceView, currentToken: string): string {
+  /**
+   * A new credential for the device whose browser presents `presented`, one of its two. With the
+   * older one it gets the newer one again, the same after a restart too (a retry whose first answer
+   * was lost); the nonce alone cannot make it, that takes the browser's secret as well. With the
+   * newer one, that one becomes the older and a new one is made from it: the credential before is
+   * retired, the one presented holds on until the next renewal.
+   */
+  renew(d: DeviceView, presented: string): string {
+    const presentedHash = createHash('sha256').update(presented).digest('hex');
     return this.db.transaction((tx) => {
-      const pending = tx.select({ nonce: deviceRenewals.nonce }).from(deviceRenewals).where(eq(deviceRenewals.deviceId, d.id)).get();
-      const nonce = pending?.nonce ?? randomBytes(32).toString('hex');
-      const token = createHmac('sha256', currentToken).update(nonce).digest('base64url');
-      if (!pending) {
-        const tokenHash = createHash('sha256').update(token).digest('hex');
-        tx.insert(deviceRenewals).values({ deviceId: d.id, nonce, tokenHash }).run();
-      }
+      const newer = tx.select({ nonce: deviceRenewals.nonce, tokenHash: deviceRenewals.tokenHash }).from(deviceRenewals).where(eq(deviceRenewals.deviceId, d.id)).get();
       tx.update(devices).set({ pairedAt: d.pairedAt, lastSeen: d.lastSeen }).where(eq(devices.id, d.id)).run();
+      if (newer && newer.tokenHash !== presentedHash) return createHmac('sha256', presented).update(newer.nonce).digest('base64url');
+      if (newer) {
+        tx.delete(deviceRenewals).where(eq(deviceRenewals.deviceId, d.id)).run();
+        tx.update(devices).set({ tokenHash: presentedHash }).where(eq(devices.id, d.id)).run();
+      }
+      const nonce = randomBytes(32).toString('hex');
+      const token = createHmac('sha256', presented).update(nonce).digest('base64url');
+      tx.insert(deviceRenewals).values({ deviceId: d.id, nonce, tokenHash: createHash('sha256').update(token).digest('hex') }).run();
       return token;
     });
   }

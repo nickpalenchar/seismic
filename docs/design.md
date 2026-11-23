@@ -420,13 +420,20 @@ Safety rules:
   addresses of one, would otherwise overwrite each other's pairing. The address's own cookie, once
   present, decides alone; the older names (`seismic-device-8443`, `seismic-device`, `obeya-device`)
   still let in a browser that lacks it, and are never renewed. Pairing again with an explicit code
-  or link (even where the browser is paired) keeps the device entry: the new credential waits in
-  `device_renewals` and becomes current when the browser first presents it, so an answer lost on
-  the way leaves the old cookie working (2026-11-23).
+  or link (even where the browser is paired) keeps the device entry and gives it a newer credential
+  (`device_renewals`), made from the older one so a retry with that gets the same. Both hold until
+  the next renewal, which retires the older: an answer lost on the way leaves the old cookie
+  working, and a late answer of an earlier renewal sets no cookie that no longer lets the browser
+  in. Rejected: retiring the older credential on the newer one's first use, which a late answer
+  defeats (2026-11-23).
 - The desktop app's shell pairs over HTTP (`POST /api/pair` with `{ code }`, JSON only): the
   answer is a one-time link (`/pair?token=`, valid for a minute, held in memory) or why not
-  (`wrongCode`, `codeExpired`). The code is spent for the link; the device is made when the window
-  opens the link, so it gets the webview's cookie and name, not the shell's (2026-11-23).
+  (`wrongCode`, `codeExpired`). The code is spent for the link and leaves "Connect a phone" when
+  the link expires unused; the device is made when the window opens the link, so it gets the
+  webview's cookie and name, not the shell's. The link is built only on a request address that is
+  a plain `host[:port]` of Seismic's as a whole. Opened again, a used link leads on to the project
+  only in the browser it paired; an expired or unknown one says it did not pair, even to a browser
+  paired before (2026-11-23).
 - Landing never loses work: nothing is force-pushed, a direct push only fast-forwards, a merge is
   pinned to the head that was checked; a clone is deleted only when nothing on it would be lost.
 - Approval comes only from the card's button after the demo, never from a list or from words

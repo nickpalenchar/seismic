@@ -264,13 +264,20 @@ describe('pairing', () => {
     expect((await viaTailnet('/api/projects', { cookie })).status).toBe(200);
     const renewed = await reconnect(next.code);
     expect(renewed.status).toBe(303);
-    // The response might never reach the webview. Its original cookie still works until receipt.
+    // The response might never reach the webview. Its original cookie still works.
     expect((await viaTailnet('/api/projects', { cookie })).status).toBe(200);
     const freshCookie = cookieOf(renewed);
     // A second valid submission before either response arrives must not strand the first response.
-    expect(cookieOf(await reconnect((await pairing()).code))).toBe(freshCookie);
+    const late = await reconnect((await pairing()).code);
+    expect(cookieOf(late)).toBe(freshCookie);
     expect((await viaTailnet('/api/projects', { cookie: freshCookie })).status).toBe(200);
+    // pairing again with the fresh cookie retires the original; the fresh one holds beside the newest
+    const newest = cookieOf(await viaTailnet(`/pair?code=${(await pairing()).code}`, { cookie: freshCookie }));
+    expect(newest).not.toBe(freshCookie);
     expect((await viaTailnet('/api/projects', { cookie })).status).toBe(401);
+    expect((await viaTailnet('/api/projects', { cookie: newest })).status).toBe(200);
+    // so the late answer of the second submission, arriving only now and setting the fresh cookie over the newest, keeps the browser in
+    expect((await viaTailnet('/api/projects', { cookie: cookieOf(late) })).status).toBe(200);
     expect((await reconnect(next.code)).status).toBe(401);
     expect((await view()).devices.map((d) => d.id)).toEqual([id]);
   });
@@ -524,8 +531,72 @@ describe('pairing', () => {
       const renewed = cookieOf(again);
       expect(renewed).not.toBe(cookie);
       expect((await viaTailnet('/api/projects', { cookie: renewed })).status).toBe(200);
-      expect((await viaTailnet('/api/projects', { cookie })).status).toBe(401);
+      // the older one holds until the next renewal, so an answer lost on the way strands nothing
+      expect((await viaTailnet('/api/projects', { cookie })).status).toBe(200);
       expect((await view()).devices.map((d) => d.id)).toEqual([id]);
+    });
+
+    test('a "Pair again" link that expired before the window opened it says so, though the old cookie still lets the browser in', async () => {
+      await turnOn();
+      const first = await linkOf(await shellPairs((await pairing()).code));
+      const cookie = cookieOf(await viaTailnet(first));
+      const late = await linkOf(await shellPairs((await pairing()).code));
+      clock += LINK_MS + 1;
+      const opened = await viaTailnet(late, { cookie });
+      expect(opened.status).toBe(401);
+      expect(await opened.text()).toContain('wrong or has expired');
+      // an unknown token too; only the link this browser was paired by leads on to the project
+      expect((await viaTailnet('/pair?token=nothing-of-ours', { cookie })).status).toBe(401);
+      expect((await viaTailnet(first, { cookie })).status).toBe(303);
+      expect((await viaTailnet('/api/projects', { cookie })).status).toBe(200);
+    });
+
+    test('a code traded for a link goes from "Connect a phone" once the link has expired unused, and a new code comes', async () => {
+      await turnOn();
+      const p = await pairing();
+      expect((await shellPairs(p.code)).status).toBe(200);
+      // while the link holds, the dialog keeps the code, valid until the link expires
+      expect(Date.parse((await view()).pairing!.expires)).toBe(clock + LINK_MS);
+      clock += LINK_MS + 1;
+      expect((await view()).pairing).toBeNull();
+      expect((await pairing()).code).toMatch(/^\d{6}$/);
+      // a link that was used keeps the dialog's "connected" as long as the code would have held
+      const q = await pairing();
+      await viaTailnet(await linkOf(await shellPairs(q.code)));
+      clock += LINK_MS + 1;
+      expect((await view()).pairing?.paired?.name).toBe('iPhone · Safari');
+    });
+
+    test('a link is built only on an address that is one of Seismic\'s as a whole, and the code is not spent otherwise', async () => {
+      await turnOn();
+      const p = await pairing();
+      for (const host of [`${NAME}@evil.example`, `${NAME}:8443@evil.example`, `${NAME}/path`, `${NAME}:99999`, `${NAME}:x`, `${NAME}\\evil.example`]) {
+        const res = await shellPairs(p.code, { host, 'x-forwarded-host': host });
+        expect([400, 421]).toContain(res.status);
+      }
+      const ok = await shellPairs(p.code, { host: `${NAME}:8443`, 'x-forwarded-host': `${NAME}:8443` });
+      expect(ok.status).toBe(200);
+      expect(new URL(((await ok.json()) as { url: string }).url).host).toBe(`${NAME}:8443`);
+    });
+
+    test('a link stays usable when pairing the browser fails to write the device', async () => {
+      await turnOn();
+      const link = await linkOf(await shellPairs((await pairing()).code));
+      const add = store.devices.add.bind(store.devices);
+      store.devices.add = () => {
+        throw new Error('disk full');
+      };
+      try {
+        // straight to the route, as the server would hand it on: a throw there would end the test's server
+        const from = { requestIP: () => ({ address: '100.64.0.7' }), port: server.port } as unknown as Bun.Server<unknown>;
+        const req = new Request(new URL(link, server.url), { headers: { host: NAME, 'x-forwarded-for': '100.64.0.7', 'x-forwarded-host': NAME, 'x-forwarded-proto': 'https', 'user-agent': IPHONE } });
+        await expect(access.pairRoute(req, from)).rejects.toThrow('disk full');
+      } finally {
+        store.devices.add = add;
+      }
+      const opened = await viaTailnet(link);
+      expect(opened.status).toBe(303);
+      expect((await viaTailnet('/api/projects', { cookie: cookieOf(opened) })).status).toBe(200);
     });
 
     test('two Seismics on one host, each paired through the shell, the links opened in one cookie jar: each keeps its own pairing', async () => {

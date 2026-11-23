@@ -76,6 +76,8 @@ export const PAIRING_MS = 5 * 60_000;
 const PAIRING_TRIES = 5;
 /** How long the one-time link `POST /api/pair` answers with holds. */
 export const LINK_MS = 60_000;
+/** How long a used link is remembered, so that the browser it paired, opening it again, goes on to the project. */
+const USED_LINK_MS = 24 * 3600_000;
 /** A device unused this long is no longer paired: a phone given away or lost and forgotten. */
 export const UNUSED_MS = 90 * 24 * 3600_000;
 /** How often a device's "last seen" is written. */
@@ -126,12 +128,16 @@ export interface AccessOptions {
 /** What answers on another address: started and stopped by the server, which knows its routes. */
 export type Listen = (address: string | null) => void;
 
-/** The one-time code "Connect a phone" shows; `spent` once `POST /api/pair` traded it for a link, `paired` once a device paired with it. */
+/**
+ * The one-time code "Connect a phone" shows; `spent`: until when the link `POST /api/pair` traded
+ * it for holds (the code pairs nothing more, and goes from the dialog once that link has expired
+ * unused); `paired` once a device paired with it.
+ */
 interface PairingCode {
   code: string;
   expires: number;
   tries: number;
-  spent?: boolean;
+  spent?: number;
   paired?: DeviceView;
 }
 
@@ -154,8 +160,8 @@ export class Access implements Gate {
   private port = 0;
   private listen: Listen = () => {};
   private pairing: PairingCode | null = null;
-  /** The one-time links `POST /api/pair` gave out, by their token's hash, with the code each spent. */
-  private readonly links = new Map<string, { expires: number; pairing: PairingCode }>();
+  /** The one-time links `POST /api/pair` gave out, by their token's hash, with the code each spent; `device`: the one it paired. */
+  private readonly links = new Map<string, { expires: number; pairing: PairingCode; device?: string }>();
   /** The device each admitted remote request came from: its WebSocket closes when the device is removed. */
   private readonly from = new WeakMap<Request, string>();
   private readonly removedFns = new Set<(id: string) => void>();
@@ -430,8 +436,10 @@ export class Access implements Gate {
   private livePairing(): Pairing | null {
     const p = this.pairing;
     const address = this.address();
-    if (!p || !address || p.expires <= this.now()) return null;
-    return { code: p.code, url: `${address}/pair?code=${p.code}`, expires: new Date(p.expires).toISOString(), ...(p.paired ? { paired: p.paired } : {}) };
+    // a code traded for a link holds only as long as the link: past it, the dialog asks for a new one
+    const until = p && !p.paired && p.spent !== undefined ? Math.min(p.expires, p.spent) : p?.expires;
+    if (!p || !address || until! <= this.now()) return null;
+    return { code: p.code, url: `${address}/pair?code=${p.code}`, expires: new Date(until!).toISOString(), ...(p.paired ? { paired: p.paired } : {}) };
   }
 
   /** A new one-time code, valid for `PAIRING_MS`; the one before no longer pairs. */
@@ -463,7 +471,7 @@ export class Access implements Gate {
   /** Whether `code` is the current one; `counts`: a wrong one spends one of the tries. */
   private check(code: string, counts: boolean): 'ok' | 'wrongCode' | 'codeExpired' {
     const p = this.pairing;
-    if (!p || p.spent || p.paired || p.expires <= this.now()) return 'codeExpired';
+    if (!p || p.spent !== undefined || p.paired || p.expires <= this.now()) return 'codeExpired';
     if (code.replace(/\D/g, '') !== p.code) {
       // guessing gets five tries at a code, then it is spent
       if (counts && ++p.tries >= PAIRING_TRIES) this.pairing = null;
@@ -499,10 +507,14 @@ export class Access implements Gate {
     if (req.method === 'GET' && params.has('token')) {
       const hash = sha256(params.get('token')!);
       const link = this.links.get(hash);
-      this.links.delete(hash);
-      // a link opened again in the browser it paired
-      if (!link || link.expires <= this.now()) return this.device(req) ? project() : this.notPairedPage(true);
-      return this.paired(req, this.enroll(link.pairing, userAgent, existing()).token);
+      // a link opened again in the browser it paired; any other browser, or a link that expired
+      // unused (a "Pair again" whose window came too late among them), is told it did not pair
+      if (link?.device) return this.device(req)?.id === link.device ? project() : this.notPairedPage(true);
+      if (!link || link.expires <= this.now()) return this.notPairedPage(true);
+      // used up only once the device is written: a failed write leaves the link for another try
+      const paired = this.enroll(link.pairing, userAgent, existing());
+      link.device = paired.device.id;
+      return this.paired(req, paired.token);
     }
     const code = req.method === 'POST' ? String((await req.formData().catch(() => null))?.get('code') ?? '') : (params.get('code') ?? '');
     if (req.method === 'GET' && !params.has('code') && this.device(req)) return project();
@@ -525,19 +537,38 @@ export class Access implements Gate {
     if (this.isLocal(req, server)) return refuse(409, 'onThisMachine', 'this is the Seismic of this machine: it needs no pairing');
     const body = req.headers.get('content-type')?.split(';')[0]?.trim() === 'application/json' ? ((await req.json().catch(() => null)) as { code?: unknown } | null) : null;
     if (typeof body?.code !== 'string') return refuse(400, 'invalid', 'send { "code": "123456" } as JSON');
+    // the link carries a credential: built only on an address that is one of Seismic's as a whole, before the code is spent
+    const authority = this.authorityOf(req);
+    if (!authority) return refuse(400, 'invalidHost', 'the address this request was sent to is not one a link can be made for');
     const checked = this.check(body.code, true);
     if (checked === 'wrongCode') return refuse(401, 'wrongCode', 'this code is wrong');
     if (checked === 'codeExpired') return refuse(410, 'codeExpired', 'this code has expired or was used: "Connect a phone" shows a new one');
     const p = this.pairing!;
-    p.spent = true;
     const now = this.now();
-    for (const [hash, link] of this.links) if (link.expires <= now) this.links.delete(hash);
+    p.spent = now + LINK_MS;
+    for (const [hash, link] of this.links) if ((link.device ? link.expires + USED_LINK_MS : link.expires) <= now) this.links.delete(hash);
     const token = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64url');
     this.links.set(sha256(token), { expires: now + LINK_MS, pairing: p });
-    // the address the shell asked at, as a proxy forwarded it; the guard checked it to be one of Seismic's
-    const host = (req.headers.get('x-forwarded-host')?.split(',')[0]?.trim() || req.headers.get('host')!).toLowerCase();
-    const url = `${schemeOf(req)}://${host}/pair?token=${token}`;
-    return Response.json({ url, expires: new Date(now + LINK_MS).toISOString() });
+    const url = new URL('/pair', `${schemeOf(req)}://${authority}`);
+    url.searchParams.set('token', token);
+    return Response.json({ url: url.href, expires: new Date(now + LINK_MS).toISOString() });
+  }
+
+  /**
+   * The address the request was sent to (a proxy's `X-Forwarded-Host`, else `Host`), where it is a
+   * plain `host[:port]` that a URL parser reads back as the same host, one of Seismic's; else none.
+   * The guard checks only the name before a colon, which `example.ts.net@evil` or one with a path
+   * passes.
+   */
+  private authorityOf(req: Request): string | null {
+    const raw = (req.headers.get('x-forwarded-host')?.split(',')[0]?.trim() || req.headers.get('host') || '').toLowerCase();
+    if (!/^(?:[a-z0-9-]+(?:\.[a-z0-9-]+)*|\[[0-9a-f:.]+\])(?::\d{1,5})?$/.test(raw)) return null;
+    try {
+      const parsed = new URL(`${schemeOf(req)}://${raw}`);
+      return parsed.hostname === hostname(raw) && this.hosts().includes(parsed.hostname) ? raw : null;
+    } catch {
+      return null;
+    }
   }
 
   /** The answer that gives a paired browser its cookie and leads it on to the project. */
