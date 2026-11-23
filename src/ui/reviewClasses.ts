@@ -98,6 +98,7 @@ export const fixingLine = 'absolute left-[calc(100%+5px)] top-[calc(50%-1px)] w-
 const pills: Record<string, string> = {
   raised: 'text-rose-800 bg-rose-600/14 dark:text-rose-300',
   reopened: 'text-amber-800 bg-amber-100 dark:text-amber-300 dark:bg-amber-950',
+  disputed: 'text-orange-800 bg-orange-100 dark:text-orange-300 dark:bg-orange-950',
   fixing: cn('text-teal-50 bg-teal-800', fixingRoom),
   underReview: 'text-sky-800 bg-sky-100 dark:text-sky-300 dark:bg-sky-950',
   'done-fix': 'text-green-800 bg-green-100 dark:text-green-300 dark:bg-green-950',

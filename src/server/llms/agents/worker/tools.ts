@@ -313,7 +313,7 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
           },
           {
             name: 'dispute_review_item',
-            description: `Dispute items of the code review of your work that you are fixing and hold wrong, each with your reasons in ${language}: they go back to the owner as reopened, who decides again. Change no code for an item you dispute.`,
+            description: `Dispute items of the code review of your work that you are fixing and hold wrong, each with your reasons in ${language}: they go back to the owner as disputed, who confirms the dispute and closes them, or rejects it and has you fix them. Change no code for an item you dispute.`,
             schema: { items: z.array(z.object({ number: z.number().int(), note: z.string() })) },
             run: ({ items }) => self.disputeItems(cardId, (items as { number: number; note: string }[]) ?? []),
           },

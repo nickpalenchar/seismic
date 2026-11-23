@@ -584,13 +584,37 @@ describe('code reviews', () => {
     expect(await worker().call('dispute_review_item', { items: [{ number: 2, note: '' }] })).toContain('needs your reasons');
     expect(await worker().call('dispute_review_item', { items: [{ number: 2, note: 'Exports are serialized by the queue already.' }] })).toContain('Disputed: #2');
     expect(await worker().call('dispute_review_item', { items: [{ number: 3, note: 'x' }] })).toContain('not one you are fixing');
-    expect(statuses(id)).toEqual(['fixing', 'reopened', 'underReview']);
+    expect(statuses(id)).toEqual(['fixing', 'disputed', 'underReview']);
     expect(needsYou(board.item(id)!)).toBe(false);
     
     await handOver(id, 'fix.ts');
-    expect(statuses(id)).toEqual(['underReview', 'reopened', 'underReview']);
+    expect(statuses(id)).toEqual(['underReview', 'disputed', 'underReview']);
     await until(() => reviewers().length === 2);
     expect(reviewers()[1]!.inbox[0]).toContain('The worker wrote: Also covered by a test.');
+    
+    expect(reviewers()[1]!.inbox[0]).toContain('Disputed (the worker holds them wrong and the owner decides on them; leave them out and do not raise them again):\n- #2');
+  });
+
+  test('the owner rejects a dispute with why, and the worker fixes the item; confirming one closes it', async () => {
+    reviewing('auto');
+    const id = await started();
+    await handOver(id, 'export.ts');
+    await until(() => reviewers().length === 1);
+    await review(id, reviewers()[0]!);
+    workers.message(id, '', [], false, undefined, undefined, { 1: 'self', 2: 'self' });
+    await worker().call('dispute_review_item', { items: [{ number: 1, note: 'The input is validated upstream.' }, { number: 2, note: 'Exports are serialized by the queue already.' }] });
+    expect(statuses(id)).toEqual(['disputed', 'disputed', 'raised']);
+    worker().emit({ type: 'idle' });
+    
+    workers.message(id, '', [], false, undefined, undefined, { 1: 'self' }, { 1: 'The admin import skips that validation.' });
+    expect(itemsOf(id)[0]).toMatchObject({ status: 'fixing', context: 'The admin import skips that validation.' });
+    const note = worker().inbox.at(-1)!;
+    expect(note).toContain('You wrote: The input is validated upstream.');
+    expect(note).toContain('You wrote: The input is validated upstream.\n    The owner rejected your dispute of it.');
+    expect(note).toContain('Finding #1:\nThe admin import skips that validation.');
+    
+    workers.message(id, '', [], false, undefined, undefined, { 2: 'ignore' });
+    expect(statuses(id)).toEqual(['fixing', 'closed', 'raised']);
   });
 
   test('a resubmission followed by a reply starts the next automatic review', async () => {
@@ -933,14 +957,14 @@ describe('code reviews', () => {
     worker().call('dispute_review_item', { items: [{ number: 2, note: 'The exports are serialized upstream.' }] });
     await handOver(id, 'fix.ts');
     
-    expect(statuses(id)).toEqual(['underReview', 'reopened', 'raised']);
-    expect(itemsOf(id)[1]!.log.at(-1)).toMatchObject({ who: 'worker', from: 'fixing', to: 'reopened', note: 'The exports are serialized upstream.' });
+    expect(statuses(id)).toEqual(['underReview', 'disputed', 'raised']);
+    expect(itemsOf(id)[1]!.log.at(-1)).toMatchObject({ who: 'worker', from: 'fixing', to: 'disputed', note: 'The exports are serialized upstream.' });
     expect(board.item(id)!.review?.codeReview).toMatchObject({ mode: 'manual', state: 'running', runs: 2 });
     await until(() => reviewers().length === 2);
     expect(board.item(id)!.review?.codeReview?.mode).toBe('manual');
     expect(reviewers()[1]!.inbox[0]!).toContain('- #1 “SQL built from input”');
     await review(id, reviewers()[1]!, [{ title: 'Missing test', text: 'Nothing covers the fix.', severity: 'minor' }], [{ number: 1, fixed: true }]);
-    expect(statuses(id)).toEqual(['fixed', 'reopened', 'raised', 'raised']);
+    expect(statuses(id)).toEqual(['fixed', 'disputed', 'raised', 'raised']);
     expect(itemsOf(id).map((i) => i.number)).toEqual([1, 2, 3, 4]);
     expect(board.item(id)!.review?.codeReview?.runs).toBe(2);
     

@@ -1181,7 +1181,9 @@ export type FindingStatus = 'open' | 'sent' | 'fixed' | 'resolved' | 'dropped' |
 
 
 
-export const REVIEW_ITEM_STATUSES = ['raised', 'fixing', 'underReview', 'fixed', 'reopened', 'closed', 'followUp'] as const;
+
+
+export const REVIEW_ITEM_STATUSES = ['raised', 'fixing', 'underReview', 'fixed', 'reopened', 'disputed', 'closed', 'followUp'] as const;
 export type ReviewItemStatus = (typeof REVIEW_ITEM_STATUSES)[number];
 
 
@@ -1224,7 +1226,7 @@ export interface ReviewItem {
 }
 
 /** Whether the item waits for the owner. */
-export const needsOwner = (i: Pick<ReviewItem, 'status'>) => i.status === 'raised' || i.status === 'reopened';
+export const needsOwner = (i: Pick<ReviewItem, 'status'>) => i.status === 'raised' || i.status === 'reopened' || i.status === 'disputed';
 
 
 

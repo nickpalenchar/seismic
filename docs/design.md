@@ -177,6 +177,10 @@ cycling through terminals.
   proceed with the handover without deciding each finding. The approval dialog warns that the
   findings will stay unanswered and any unsent choices will be dropped. If approval also ends
   review work in progress, the same dialog warns about that too, on every approval route.
+  A worker's dispute of an item is a status of its own, "Disputed" (2026-11-23), not "Reopened":
+  reopened reads as the reviewer having overruled the dispute, while the decision is the owner's.
+  The reviewer leaves disputed items out; the owner answers "Confirm and close" (the item is
+  closed) or "Reject and explain" (fixed after all, with the owner's words as its context).
 - **A model out of usage is the owner's to route around, on the card** (2026-11-17): a worker or
   code review stopped by its model's usage limit shows a callout naming the model, with "Try again",
   "Select new agent" and, for a review, "Skip review". A worker handed to another model of the same

@@ -285,7 +285,7 @@ export class CodeReviews {
     return { done: next.filter((i) => items.find((x) => x.number === i.number)?.status !== i.status), noted: next.filter((i) => noted.includes(i.number)), refused };
   }
 
-  /** The worker holds an item wrong: it goes back to the owner as reopened, with why. Refuses an item the worker is not fixing. */
+  /** The worker holds an item wrong: it goes back to the owner as disputed, with why. Refuses an item the worker is not fixing. */
   dispute(cardId: string, entries: { number: number; note: string }[]): { done: ReviewItem[]; refused: string[] } {
     const items = this.items(cardId);
     const refused: string[] = [];
@@ -294,7 +294,7 @@ export class CodeReviews {
       const i = next.find((x) => x.number === e.number);
       if (!i) refused.push(`there is no item #${e.number}`);
       else if (i.status !== 'fixing') refused.push(`#${i.number} is not one you are fixing`);
-      else next = moved(next, e.number, 'reopened', 'worker', e.note);
+      else next = moved(next, e.number, 'disputed', 'worker', e.note);
     }
     if (next !== items) this.setItems(cardId, next);
     return { done: next.filter((i) => items.find((x) => x.number === i.number)?.status !== i.status), refused };
@@ -356,7 +356,7 @@ export class CodeReviews {
     this.setItems(cardId, next);
     const after = (n: number) => next.find((x) => x.number === n)!;
     
-    const kept = (f: ReviewItem) => `${described(f)}${f.context && notes[f.number] === undefined ? `\n    The owner wrote: ${f.context}` : ''}`;
+    const kept = (f: ReviewItem) => `${described(f)}${rejected(f) ? '\n    The owner rejected your dispute of it.' : ''}${f.context && notes[f.number] === undefined ? `\n    The owner wrote: ${f.context}` : ''}`;
     const fix = picked.filter((p) => p.route === 'self').map((p) => after(p.i.number));
     const later = picked.filter((p) => p.route === 'later').map((p) => after(p.i.number));
     const ids = new Set(later.map((f) => f.number));
@@ -377,7 +377,7 @@ export class CodeReviews {
         group('Fixed (the reviewer verified them):', others.filter((i) => i.status === 'fixed')),
         group('Closed (the owner ignored them; the review does not raise them again):', others.filter((i) => i.status === 'closed')),
         group('Follow-ups (handled as tasks of their own):', others.filter((i) => i.status === 'followUp' && !later.some((l) => l.number === i.number))),
-        group('Others (waiting for the owner, or for the reviewer):', others.filter((i) => ['raised', 'reopened', 'underReview', 'fixing'].includes(i.status))),
+        group('Others (waiting for the owner, or for the reviewer):', others.filter((i) => ['raised', 'reopened', 'disputed', 'underReview', 'fixing'].includes(i.status))),
         'If your work happens to fix an item that is closed or a follow-up, resubmit it with resubmit_review_item and a note: it goes to the reviewer too.',
       ]
         .filter(Boolean)
@@ -734,13 +734,16 @@ export const described = (f: ReviewItem, viewer: ReviewItemWho = 'worker') => ` 
 /** How often the item came back to the owner: reopened by the reviewer, the worker or the owner. */
 export const reopenings = (f: ReviewItem) => f.log.filter((x) => x.to === 'reopened').length;
 
+/** Whether the owner has just chosen to fix an item the worker disputed: its dispute was rejected. */
+const rejected = (f: ReviewItem) => f.status === 'fixing' && f.log.at(-2)?.to === 'disputed';
+
 /**
  * Why an item came back and what the worker said of its fixes, where its log says, as `viewer`
- * reads it: every note of a reopening or resubmission, oldest first, so a reopened item shows what
- * each earlier round tried and why it did not hold.
+ * reads it: every note of a reopening, dispute or resubmission, oldest first, so a reopened item
+ * shows what each earlier round tried and why it did not hold.
  */
 const lastNote = (f: ReviewItem, viewer: ReviewItemWho = 'worker') => {
-  const notes = f.log.filter((x) => x.note && (x.to === 'reopened' || x.to === 'underReview'));
+  const notes = f.log.filter((x) => x.note && (x.to === 'reopened' || x.to === 'disputed' || x.to === 'underReview'));
   const said = (e: (typeof notes)[number]) => `${e.who === viewer ? 'You' : `The ${e.who}`} wrote: ${e.note}`;
   if (notes.length <= 1) return notes.length ? `\n    ${said(notes[0]!)}` : '';
   return `\n    Earlier rounds on this item (oldest first):${notes.map((e) => `\n      - ${said(e)}`).join('')}`;
@@ -758,6 +761,7 @@ export function listed(items: ReviewItem[]): string {
     part('Under review (the worker resubmitted them as fixed; give each a verdict, from the code as it is now):', of('underReview'), full),
     part('Fixed (an earlier review verified them; report one as a regression only where the diff shows its problem again):', of('fixed'), full),
     part('Raised or reopened (waiting for the owner; do not raise them again):', of('raised', 'reopened'), short),
+    part('Disputed (the worker holds them wrong and the owner decides on them; leave them out and do not raise them again):', of('disputed'), short),
     part('Fixing (the worker is on them; leave them out):', of('fixing'), short),
     part('Closed (the owner ignored them; do not raise them or anything like them again):', of('closed'), short),
     part('Follow-ups (handled as tasks of their own; do not raise them again):', of('followUp'), short),

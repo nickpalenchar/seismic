@@ -967,12 +967,12 @@ export class WorkerSupervisor {
     return `${done.length ? `Resubmitted: ${done.map((i) => `#${i.number}`).join(', ')}, under review now.` : noted.length ? '' : 'Nothing resubmitted.'}${noted.length ? ` Note added to ${noted.map((i) => `#${i.number}`).join(', ')}, under review already.` : ''}${refused.length ? ` Not resubmitted: ${refused.join('; ')}.` : ''}`.trim();
   }
 
-  /** The worker disputes items it is fixing: back to the owner, reopened. */
+  /** The worker disputes items it is fixing: back to the owner, disputed. */
   disputeItems(cardId: string, entries: { number: number; note: string }[]): string {
     if (!this.reviews.items(cardId).length) return 'Not disputed: your work has no code review items.';
     if (entries.some((e) => !e.note?.trim())) return 'Not disputed: every item needs your reasons (note).';
     const { done, refused } = this.reviews.dispute(cardId, entries.map((e) => ({ number: Number(e.number), note: clip(e.note.trim(), 1000) })));
-    return `${done.length ? `Disputed: ${done.map((i) => `#${i.number}`).join(', ')}, back with the owner as reopened.` : 'Nothing disputed.'}${refused.length ? ` Not disputed: ${refused.join('; ')}.` : ''}`;
+    return `${done.length ? `Disputed: ${done.map((i) => `#${i.number}`).join(', ')}, back with the owner to decide on.` : 'Nothing disputed.'}${refused.length ? ` Not disputed: ${refused.join('; ')}.` : ''}`;
   }
 
   /**

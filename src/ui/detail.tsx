@@ -58,7 +58,7 @@ import { describeAgent, StartAgent, startAgentMain, startAgentModel } from './st
 import type { AgentSetting } from '../core/types';
 import { ButtonGroup } from './components/button-group';
 import { Button, type ButtonVariant, CloseButton, LinkButton } from './components/button';
-import { Callout, CalloutDescription } from './components/callout';
+import { Callout, CalloutDescription, CalloutTitle } from './components/callout';
 import { ConfirmDialog } from './components/dialog';
 import { Select, SelectItem } from './components/select';
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from './components/menu';
@@ -2825,28 +2825,30 @@ function reviewTab(item: Item, act: (a: CardAction, done: ActDone) => void): { l
   return { label, ...(waiting.length ? { title: t.codeReview.counts(counts.map(([s, n]) => ({ severity: t.codeReview.severity[s], count: n }))) } : {}), panel };
 }
 
-/** A line of an item's log: when, who, what happened (and why). */
-function logLine(e: ReviewItem['log'][number]): string {
+/** A line of an item's log: when, who, what happened (and why, unless `bare`: the dispute its alert shows). */
+function logLine(e: ReviewItem['log'][number], bare = false): string {
   const l = t.codeReview.log;
   const what =
     e.who === 'worker' && e.to === 'underReview'
       ? l.resubmitted
       : e.who === 'worker' && e.to === 'reopened'
         ? `${l.disputed} → ${t.codeReview.status.reopened}`
+        : e.to === 'disputed'
+          ? l.disputed
         : e.from === e.to
           ? l.taskMade
           : e.to === 'fixed'
             ? `✓ ${t.codeReview.status.fixed}`
             : t.codeReview.status[e.to];
-  return `${handedAt(e.at)} · ${l[e.who]} · ${what}${e.note ? `: ${e.note}` : ''}`;
+  return `${handedAt(e.at)} · ${l[e.who]} · ${what}${e.note && !bare ? `: ${e.note}` : ''}`;
 }
 
 /**
- * The one list of a card's code review: the items that need the owner first (raised, reopened), then
- * those the agent is on or the reviewer is to verify, then the fixed, closed and follow-ups, folded to
- * their head line. A click on an item unfolds its text and its log. On an item that needs them the
- * owner decides "Fix it", "As a follow-up task" or "Ignore", with context; a closed or fixed one
- * can be reopened. The decisions stand in the card's draft and go out with the field's one Send.
+ * The one list of a card's code review: the items that need the owner first (raised, reopened,
+ * disputed), then those the agent is on or the reviewer is to verify, then the fixed, closed and
+ * follow-ups, folded to their head line. A click on an item unfolds its text and its log. On an item
+ * that needs them the owner decides "Fix it", "As a follow-up task" or "Ignore", with context; on a
+ * disputed one, "Confirm and close" or "Reject and explain"; a closed or fixed one can be reopened. The decisions stand in the card's draft and go out with the field's one Send.
  */
 function ReviewList({ item, act, decides, again, reviewer }: { item: Item; act: (a: CardAction, done: ActDone) => void; decides: boolean; again: boolean; reviewer?: string }) {
   const r = item.review!.codeReview!;
@@ -2931,7 +2933,8 @@ function ReviewList({ item, act, decides, again, reviewer }: { item: Item; act: 
               </div>
             )}
             {i.status === 'fixing' && <div className={findingStatus(true)}>{t.codeReview.goingFix}</div>}
-            {waits && decides && (
+            {i.status === 'disputed' && <Dispute item={item} review={i} decides={decides} pick={picks[i.number]} choice={(route, label, title) => choice(i, route, label, title)} />}
+            {waits && decides && i.status !== 'disputed' && (
               <>
                 <div className={choicesClass('single', findingChoices)} role="group">
                   {choice(i, 'self', t.codeReview.fix, t.codeReview.fixHint)}
@@ -2944,7 +2947,7 @@ function ReviewList({ item, act, decides, again, reviewer }: { item: Item; act: 
             {!!i.context && !waits && <p className={findingNote}>{i.context}</p>}
             <ol className={findingLog}>
               {i.log.map((e, k) => (
-                <li key={k}>{logLine(e)}</li>
+                <li key={k}>{logLine(e, i.status === 'disputed' && k === i.log.length - 1)}</li>
               ))}
             </ol>
           </>
@@ -2973,6 +2976,49 @@ function ReviewList({ item, act, decides, again, reviewer }: { item: Item; act: 
         </Button>
       )}
     </section>
+  );
+}
+
+/**
+ * A disputed item's alert: the agent's reasons, and the owner's answer to them. "Confirm and close"
+ * picks Ignore; "Reject and explain" asks why in a dialog, keeps that as the item's context and
+ * picks "Fix it". Both stand in the draft and go out with the one Send, as the other choices do.
+ */
+function Dispute({ item, review, decides, pick, choice }: { item: Item; review: ReviewItem; decides: boolean; pick?: FindingPick; choice: (route: FindingPick, label: string, title: string) => ReactNode }) {
+  const d = t.codeReview.dispute;
+  const draft = cardDraft(item.id);
+  const saved = useFindingDraft(item).findingNotes?.[review.number];
+  const [asking, setAsking] = useState(false);
+  const [why, setWhy] = useState('');
+  const reasons = review.log.findLast((e) => e.to === 'disputed')?.note;
+  const reject = () =>
+    updateDraft(draft, (x) => ({ findings: { ...x.findings, [review.number]: 'self' }, findingNotes: { ...x.findingNotes, [review.number]: why.trim() } }));
+  return (
+    <>
+      <Callout kind="warn" className="mt-1.5">
+        <CalloutTitle>{d.title}</CalloutTitle>
+        <CalloutDescription>
+          {reasons && (
+            <p className="m-0">
+              <Inline md={reasons} />
+            </p>
+          )}
+          {decides && (
+            <div className={choicesClass('single', findingChoices)} role="group">
+              {choice('ignore', d.confirm, d.confirmHint)}
+              <button className={choiceClass({ on: pick === 'self' })} aria-pressed={pick === 'self'} title={d.rejectHint} onMouseDown={(e) => e.preventDefault()} onClick={() => (setWhy(saved ?? review.context ?? ''), setAsking(true))}>
+                {d.reject}
+              </button>
+            </div>
+          )}
+        </CalloutDescription>
+      </Callout>
+      {decides && pick === 'self' && <FindingContext item={item} id={review.number} {...(review.context ? { kept: review.context } : {})} />}
+      <ConfirmDialog open={asking} onOpenChange={setAsking} title={d.rejectTitle} confirm={{ label: d.rejectSave, onClick: reject, disabled: !why.trim() }} cancel={d.cancel}>
+        <p>{d.rejectText}</p>
+        <Textarea autoFocus rows={4} className="mb-4 w-full box-border" value={why} onChange={(e) => setWhy(e.target.value)} />
+      </ConfirmDialog>
+    </>
   );
 }
 
