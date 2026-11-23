@@ -72,6 +72,8 @@ fn open(app: &AppHandle, label: &str, own: &str, url: &str, guard: bool) -> taur
   let own = own.to_string();
   #[cfg(windows)]
   let own_frames = own.clone();
+  #[cfg(target_os = "macos")]
+  let own_gate = own.clone();
   let (nav_label, new_label, load_label) = (label.to_string(), label.to_string(), label.to_string());
   let window = WebviewWindowBuilder::new(app, label, WebviewUrl::External(url.parse().unwrap()))
     .title(label)
@@ -100,14 +102,21 @@ fn open(app: &AppHandle, label: &str, own: &str, url: &str, guard: bool) -> taur
     })?;
   }
   // WKWebView attributes a postMessage call to the frame's document URL, so an opaque-origin
-  // sandboxed frame at the workspace's URL passes as the workspace: without that handler only the
-  // fetch IPC is left, which names its sender by the `Origin` header (`null` for such a frame)
+  // sandboxed frame at the workspace's URL passes as the workspace. `off` removes that handler,
+  // leaving the fetch IPC, which names its sender by the `Origin` header (`null` for such a frame)
+  // but cannot be reached from an https page; `main-frame` keeps it for the window's main frame
+  // at the window's own effective origin and drops every other message
   #[cfg(target_os = "macos")]
-  if env("SPIKE_POSTMESSAGE") == "off" {
-    window.with_webview(|webview| unsafe {
+  match env("SPIKE_POSTMESSAGE").as_str() {
+    "off" => window.with_webview(|webview| unsafe {
       let view: &objc2_web_kit::WKWebView = &*webview.inner().cast();
       view.configuration().userContentController().removeScriptMessageHandlerForName(objc2_foundation::ns_string!("ipc"));
-    })?;
+    })?,
+    "main-frame" => {
+      let (own, label) = (own_gate, label.to_string());
+      window.with_webview(move |webview| main_frame_ipc::admit(webview.inner() as usize, own, label))?;
+    }
+    _ => {}
   }
   // WebView2 asks wry's hook for main-frame navigations only (NavigationStarting): a frame's goes to
   // FrameNavigationStarting, which the shell has to guard itself
@@ -136,6 +145,51 @@ fn open(app: &AppHandle, label: &str, own: &str, url: &str, guard: bool) -> taur
   }
   let _ = window;
   Ok(())
+}
+
+/// The `main-frame` gate on WKWebView: wry's script message handler (`WryWebViewDelegate`) runs
+/// only for a message from a window's main frame whose security origin is that window's origin.
+/// Swapping the method's implementation is the spike's way in; W3 would rather patch wry.
+#[cfg(target_os = "macos")]
+mod main_frame_ipc {
+  use std::{collections::HashMap, sync::{Mutex, Once, OnceLock}};
+
+  use objc2::{runtime::{AnyClass, AnyObject, Imp, Sel}, sel};
+  use objc2_web_kit::{WKScriptMessage, WKUserContentController};
+
+  type Handler = unsafe extern "C-unwind" fn(&AnyObject, Sel, &WKUserContentController, &WKScriptMessage);
+
+  static ORIGINAL: OnceLock<Handler> = OnceLock::new();
+  static INSTALL: Once = Once::new();
+  /// each window's WKWebView (by address) with its origin and label
+  static WINDOWS: Mutex<Option<HashMap<usize, (String, String)>>> = Mutex::new(None);
+
+  pub fn admit(view: usize, own: String, label: String) {
+    WINDOWS.lock().unwrap().get_or_insert_with(HashMap::new).insert(view, (own, label));
+    INSTALL.call_once(|| unsafe {
+      // objc2 generates the class's name from wry's `WryWebViewDelegate`, with a suffix of its own
+      let class = AnyClass::classes().iter().copied().find(|c| c.name().to_string_lossy().contains("WryWebViewDelegate")).expect("wry's script message handler class");
+      let method = class.instance_method(sel!(userContentController:didReceiveScriptMessage:)).expect("its message method");
+      let original = method.set_implementation(std::mem::transmute::<Handler, Imp>(gated));
+      let _ = ORIGINAL.set(std::mem::transmute::<Imp, Handler>(original));
+    });
+  }
+
+  unsafe extern "C-unwind" fn gated(this: &AnyObject, cmd: Sel, controller: &WKUserContentController, message: &WKScriptMessage) {
+    let frame = message.frameInfo();
+    let origin = frame.securityOrigin();
+    let (protocol, host, port) = (origin.protocol().to_string(), origin.host().to_string(), origin.port());
+    let effective = if protocol.is_empty() { "null".to_string() } else if port == 0 { format!("{protocol}://{host}") } else { format!("{protocol}://{host}:{port}") };
+    let view = message.webView().map(|v| &*v as *const _ as usize).unwrap_or(0);
+    let window = WINDOWS.lock().unwrap().as_ref().and_then(|w| w.get(&view).cloned());
+    let admitted = frame.isMainFrame() && window.as_ref().is_some_and(|(own, _)| *own == effective);
+    if !admitted {
+      let url = frame.request().URL().and_then(|u| u.absoluteString()).map(|u| u.to_string()).unwrap_or_default();
+      super::report(serde_json::json!({ "kind": "ipcDropped", "window": window.map(|w| w.1), "mainFrame": frame.isMainFrame(), "origin": effective, "url": url }));
+      return;
+    }
+    (ORIGINAL.get().expect("original handler"))(this, cmd, controller, message)
+  }
 }
 
 fn main() {

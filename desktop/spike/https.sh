@@ -13,6 +13,9 @@ else
   exit 1
 fi
 
+# a trust store change that waits for a confirmation nobody can give fails after a minute instead
+bounded() { echo "+ $*" >&2; perl -e 'alarm shift; exec @ARGV or die "$ARGV[0]: $!"' 60 "$@"; }
+
 certs=$(mktemp -d)
 anchor="/usr/local/share/ca-certificates/seismic-spike-${certs##*/}.crt"
 fingerprint=
@@ -26,12 +29,12 @@ cleanup() {
       ;;
     macOS)
       if [ -n "$fingerprint" ]; then
-        sudo security remove-trusted-cert -d "$certs/ca.crt" || true
-        sudo security delete-certificate -Z "$fingerprint" /Library/Keychains/System.keychain
+        bounded sudo security remove-trusted-cert -d "$certs/ca.crt" || true
+        bounded sudo security delete-certificate -Z "$fingerprint" /Library/Keychains/System.keychain
       fi
       ;;
     Windows)
-      if [ -n "$fingerprint" ]; then certutil.exe -user -delstore Root "$fingerprint"; fi
+      if [ -n "$fingerprint" ]; then bounded certutil.exe -delstore Root "$fingerprint"; fi
       ;;
   esac
   rm -rf "$certs"
@@ -70,11 +73,12 @@ case "$platform" in
     ;;
   macOS)
     fingerprint=$(openssl x509 -in "$certs/ca.crt" -noout -sha1 -fingerprint | cut -d= -f2 | tr -d :)
-    sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain "$certs/ca.crt"
+    bounded sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain "$certs/ca.crt"
     ;;
   Windows)
     fingerprint=$(openssl x509 -in "$certs/ca.crt" -noout -sha1 -fingerprint | cut -d= -f2 | tr -d ':\r')
-    certutil.exe -f -user -addstore Root "$(cygpath -w "$certs/ca.crt")"
+    # the machine store: the user's Root store asks for a confirmation in a dialog
+    bounded certutil.exe -f -addstore Root "$(cygpath -w "$certs/ca.crt")"
     certs_for_bun=$(cygpath -w "$certs")
     ;;
   *) echo "Unrecognised runner: $platform" >&2; exit 1 ;;
