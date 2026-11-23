@@ -99,10 +99,13 @@ async function call(cmd, tag) {
   })());
 }
 async function rawFetch(cmd, tag) {
+  let response;
   try {
-    const r = await fetch(IPC + cmd, { method: 'POST', body: JSON.stringify({ tag: tag + '|fetch' }), headers: { 'Content-Type': 'application/json', 'Tauri-Callback': '1', 'Tauri-Error': '2', 'Tauri-Invoke-Key': KEY } });
-    return r.headers.get('Tauri-Response') + ': ' + await r.text();
+    response = await fetch(IPC + cmd, { method: 'POST', body: JSON.stringify({ tag: tag + '|fetch' }), headers: { 'Content-Type': 'application/json', 'Tauri-Callback': '1', 'Tauri-Error': '2', 'Tauri-Invoke-Key': KEY } });
   } catch (e) { return 'failed: ' + e }
+  try {
+    return response.headers.get('Tauri-Response') + ': ' + await response.text();
+  } catch (e) { return 'response body failed: ' + e }
 }
 function rawPost(cmd, tag) {
   const post = window.ipc?.postMessage ? (s) => window.ipc.postMessage(s) : window.webkit?.messageHandlers?.ipc ? (s) => window.webkit.messageHandlers.ipc.postMessage(s) : window.chrome?.webview ? (s) => window.chrome.webview.postMessage(s) : null;
@@ -278,33 +281,50 @@ const exceptions: { mode: string; name: string; events: Event[] }[] = [];
 const check = (name: string, pass: boolean, detail?: unknown) => checks.push({ name: `[${mode}] ${name}`, pass, detail: pass ? undefined : detail });
 const OWN: Record<string, { cmd: string; origin: string }> = { "desk-a": { cmd: "ping_a", origin: at(8901) }, "desk-b": { cmd: "ping_b", origin: at(8902) }, main: { cmd: "ping_local", origin: at(LOCAL) } };
 
-function judgeFrameProbes() {
+function judgeFrameProbes(ran: Event[]) {
   const reports = events.filter((e) => e.source === "page" && e.case === "frame");
   const post = mode.includes("no-postmessage") ? "no handler" : "sent";
   for (const [deskPort, win] of Object.entries(DESKS)) {
     for (const { frame, port, url, sandbox } of frameFixtures(Number(deskPort))) {
       const evidence = reports.filter((e) => e.win === win && e.frame === frame);
       const report = evidence[0];
+      const caller = sandbox ? "null" : at(port);
       const complete = evidence.length === 1 && report !== undefined && report.port === port && report.href === url
-        && report.effectiveOrigin === (sandbox ? "null" : at(port))
+        && report.effectiveOrigin === caller
         && FRAME_COMMANDS.every((cmd) => {
           const result = report[cmd];
           const allowed = frame === "same" && OWN[win]?.cmd === cmd;
-          // Some transports reject at the browser boundary. A dispatched invoke can also go
-          // unanswered (for example, a postMessage with no frame callback). The native command
-          // log is checked independently, including in these cases.
+          // A dispatched invoke can go unanswered (for example, a postMessage with no frame
+          // callback). The raw transports and native command log are checked independently.
           const invoke = result?.invoke;
-          const fetch = result?.raw?.fetch;
           return (report.internals === false ? invoke === "no __TAURI_INTERNALS__"
             : report.internals === true && typeof invoke === "string"
               && (invoke === "timed out" || invoke.startsWith("denied: ") || (allowed && invoke.startsWith("ok: "))))
-            && typeof fetch === "string"
-            && (fetch.startsWith("error: ") || fetch.startsWith("failed: ")
-              || (sandbox && fetch === "null: Origin header is not a valid URL")
-              || (allowed && fetch.startsWith("ok: ")))
+            && typeof result.raw?.fetch === "string"
             && result.raw.postMessage === post;
         });
       check(`${win}'s ${frame} frame reported outcomes for both commands and all three IPC paths`, complete, { url, evidence });
+      for (const cmd of FRAME_COMMANDS) {
+        const reply = report?.[cmd]?.raw?.fetch;
+        const tag = `${win}|frame-${frame}|raw|${cmd}|fetch`;
+        const native = ran.filter((e) => e.tag === tag);
+        const detail = { url, cmd, reply, native };
+        if (tls && os === "macos") {
+          check(`WKWebView blocked ${win}'s ${frame} raw fetch for ${cmd} at the HTTPS browser boundary`,
+            typeof reply === "string" && reply.startsWith("failed: TypeError:") && native.length === 0, detail);
+        } else if (frame === "same" && OWN[win]?.cmd === cmd) {
+          check(`${win}'s same-origin raw fetch reached ${cmd} and received its reply`,
+            reply === `ok: ${JSON.stringify(`${cmd} ran in ${win}`)}`
+              && native.some((e) => e.window === win && e.cmd === cmd && e.originHeader === caller), detail);
+        } else if (sandbox) {
+          check(`IPC rejected ${win}'s sandboxed raw fetch for ${cmd} with an invalid origin`,
+            reply === "null: Origin header is not a valid URL" && native.length === 0, detail);
+        } else {
+          const denial = `${cmd} not allowed on window "${win}", webview "${win}", URL: ${caller}/\n`;
+          check(`the capability denied ${win}'s ${frame} raw fetch for ${cmd} at ${caller}`,
+            typeof reply === "string" && reply.startsWith(`error: ${JSON.stringify(denial).slice(0, -1)}`) && native.length === 0, detail);
+        }
+      }
     }
   }
 }
@@ -357,7 +377,7 @@ function judgeCommands(expectTop: boolean, quirk = false) {
     // passes as the window's page. Still so means the shell still has to unregister that handler.
     check("wry's postMessage still attributes a foreign frame's call to the window's page (why the shell unregisters it)", wrong.some((e) => String(e.tag).includes("|frame-foreign|")), wrong);
   } else check("no calls escaped window and origin scope beyond a recorded exception", wrong.length === 0, wrong);
-  if (mode.startsWith("frames")) judgeFrameProbes();
+  if (mode.startsWith("frames")) judgeFrameProbes(ran);
   if (mainFrameGate) judgeGate();
   if (expectTop) {
     for (const [win, { cmd, origin }] of Object.entries(OWN).filter(([win]) => !tls || win !== "main")) {

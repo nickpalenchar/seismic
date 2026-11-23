@@ -40,18 +40,31 @@ shell currently locks Tauri 2.12.1 and wry 0.57.0 in `desktop/Cargo.lock`. Verif
 IPC behavior against the versions W3 ships. The navigation checks ran over HTTP loopback. The HTTPS
 run (`https.sh`, trusted TLS on loopback, on disposable runners or the Linux container only) covers
 native pairing, the login redirect, a reload and a separate app launch, then the frames check with
-the guard off and each engine's IPC mitigation on. Run 45236604449 on 2026-11-23 recorded the cookie
-lifecycle and native command log on all three runners. The frame checks now also require a report
-from each fixture for both commands, including the sandboxed frame, the other workspace's frame,
-and the foreign frame reached directly or by redirect. The reports capture the page's effective
-origin and the outcome of invoke, raw fetch and postMessage.
+the guard off and each engine's IPC mitigation on.
+
+The table records the earlier W1 observations, including hosted run 45236604449 on 2026-11-23.
+Its HTTPS assertions covered the cookie lifecycle, the main pages' native commands and the absence
+of unexpected native calls.
 
 | | WKWebView (macOS 27) | WebKitGTK 2.50 (Ubuntu 22.04, Xvfb) | WebView2 (Windows runner) |
 |---|---|---|---|
 | HTTP device cookie (`SameSite=Lax`), kept after the login redirect, on a second load and after a relaunch; link single use | observed | observed | observed |
 | HTTPS device cookie (`SameSite=None; Secure`), checked after the login redirect, on reload and after a relaunch; link single use | observed | observed | observed |
 | `on_navigation` keeps the window on its origin: location, link, 302 to another origin, form post, meta refresh, frames of another origin and a frame redirected to one; `window.open` goes to `on_new_window` | yes, before any request leaves | yes, before any request leaves | yes, with the shell guarding frames itself; a refused GET still reaches its server |
-| Per-window capability and frame origin | opaque-origin sandboxed frames reach native commands over wry's postMessage; with it gated to the main frame at the window's origin, none does, over HTTP and HTTPS | no out-of-scope command recorded with postMessage unregistered, over HTTP and HTTPS | no out-of-scope command recorded, over HTTP and HTTPS |
+| Per-window capability and frame origin | opaque-origin sandboxed frames reached native commands over wry's postMessage in the HTTP comparison; the gated runs recorded no sandboxed frame commands over HTTP and HTTPS | no out-of-scope command recorded with postMessage unregistered, over HTTP and HTTPS | no out-of-scope command recorded, over HTTP and HTTPS |
+
+The strengthened checks require each frame's effective origin and outcomes for invoke, raw fetch
+and postMessage. Where raw fetch is available, the same-origin control must return its granted
+command's reply and produce a matching native record. The other probes must show the capability
+denial at the caller's origin or the sandboxed frame's opaque-origin rejection. WKWebView over
+HTTPS has a separate expectation for a browser-level fetch block and verifies the native
+postMessage gate independently.
+
+| Strengthened run (2026-11-23) | HTTP | HTTPS |
+|---|---|---|
+| WKWebView | Passed on the Mac, including independent gate checks for a same-origin subframe and a main frame at another origin | Pending on the hosted matrix |
+| WebKitGTK | Passed in the Linux container | Passed in the Linux container, including both native raw fetch controls and explicit rejections |
+| WebView2 | Pending on the hosted matrix | Pending on the hosted matrix |
 
 **Owner decision:** W3 must enforce the caller's effective origin. Deny shell commands from
 opaque-origin frames even when their document URL matches the workspace. On macOS the spike
@@ -76,8 +89,9 @@ What W3 builds on:
   frame that sent the call, so a foreign frame holding the invoke key passes as the window's page
   (the spike shows it: `ping_a` ran for a frame of the foreign origin in `desk-a`). Unregistering
   wry's `ipc` script message handler (as `437dbe6a` on `backup/desktop-architecture` did) leaves the
-  fetch IPC, which names its sender by the `Origin` header and works from remote http pages there;
-  with it, nothing passes. W3 unregisters it on every Linux window.
+  fetch IPC, which names its sender by the `Origin` header and works from remote HTTP and HTTPS
+  pages there. In the strengthened runs it accepted both same-origin controls and rejected the
+  other probes. W3 unregisters the postMessage handler on every Linux window.
 - **macOS gate (WKWebView):** wry hands Tauri a postMessage call with the frame's document URL
   (`frameInfo.request.URL`), so a sandboxed frame at the workspace's URL passes as the workspace.
   Removing the handler, as on Linux, is no fix there: the fetch IPC (`ipc://localhost`) left over
@@ -105,8 +119,9 @@ What W3 builds on:
 - **Opaque-origin sandboxed frames** (artifacts, answer pages): given the invoke key, they reach
   native commands over postMessage on macOS and on Linux with wry's handler in place (the spike
   still records that as an exception in those runs, to show the mitigations stay needed). With the
-  macOS gate, with the handler unregistered on Linux, and on Windows, none did, over HTTP and HTTPS;
-  the fetch IPC denies them everywhere (`Origin: null`).
+  macOS gate, with the handler unregistered on Linux, and on Windows, the earlier runs recorded no
+  such commands over HTTP and HTTPS. The raw fetch transport rejects their `Origin: null` where it
+  is reachable. WKWebView blocks the raw HTTPS fetch at the browser boundary.
 - **Cookies:** the windows share the app's one cookie store; cookies ignore the port, so the
   per-scheme-and-port cookie names of W2 are what keep two Seismics on one host apart.
 
