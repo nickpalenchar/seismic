@@ -74,6 +74,8 @@ const OLD_DEVICE_COOKIE = 'obeya-device';
 export const PAIRING_MS = 5 * 60_000;
 /** Wrong codes after which a pairing code no longer pairs anything. */
 const PAIRING_TRIES = 5;
+/** How long the one-time link `POST /api/pair` answers with holds. */
+export const LINK_MS = 60_000;
 /** A device unused this long is no longer paired: a phone given away or lost and forgotten. */
 export const UNUSED_MS = 90 * 24 * 3600_000;
 /** How often a device's "last seen" is written. */
@@ -124,6 +126,15 @@ export interface AccessOptions {
 /** What answers on another address: started and stopped by the server, which knows its routes. */
 export type Listen = (address: string | null) => void;
 
+/** The one-time code "Connect a phone" shows; `spent` once `POST /api/pair` traded it for a link, `paired` once a device paired with it. */
+interface PairingCode {
+  code: string;
+  expires: number;
+  tries: number;
+  spent?: boolean;
+  paired?: DeviceView;
+}
+
 export class Access implements Gate {
   /** The owner's key: what a request from this machine names. */
   readonly owner: Owner;
@@ -142,7 +153,9 @@ export class Access implements Gate {
   private problem: RemoteProblem | undefined;
   private port = 0;
   private listen: Listen = () => {};
-  private pairing: { code: string; expires: number; tries: number; paired?: DeviceView } | null = null;
+  private pairing: PairingCode | null = null;
+  /** The one-time links `POST /api/pair` gave out, by their token's hash, with the code each spent. */
+  private readonly links = new Map<string, { expires: number; pairing: PairingCode }>();
   /** The device each admitted remote request came from: its WebSocket closes when the device is removed. */
   private readonly from = new WeakMap<Request, string>();
   private readonly removedFns = new Set<(id: string) => void>();
@@ -316,7 +329,10 @@ export class Access implements Gate {
     if (given !== null && !remoteOf(given)) throw new BadRequest('invalid', 'remote must be null, { via: "tailscale" }, { via: "address", address } or { via: "hosts", hosts }, each with an optional awake: "always"');
     this.setting = this.home ? saveRemote(this.home, input) : remoteOf(given);
     this.problem = undefined;
-    if (!this.setting) this.pairing = null;
+    if (!this.setting) {
+      this.pairing = null;
+      this.links.clear();
+    }
     await this.apply(true);
     return this.view();
   }
@@ -337,8 +353,9 @@ export class Access implements Gate {
   admit(req: Request, server: Bun.Server<unknown>, route: string): Response | null {
     // what a browser fetches to make the home-screen app, maybe without its cookies: nothing in them is the owner's
     if (PUBLIC.has(route)) return null;
-    if (this.isLocal(req, server)) return route === '/login' ? null : this.owner.refusal(req, server.port!, route);
-    if (route === '/pair') return null;
+    // `/api/pair` answers a request from this machine that it needs no pairing, with the key or without
+    if (this.isLocal(req, server)) return route === '/login' || route === '/api/pair' ? null : this.owner.refusal(req, server.port!, route);
+    if (route === '/pair' || route === '/api/pair') return null;
     const device = this.device(req);
     if (device) {
       this.from.set(req, device.id);
@@ -440,13 +457,23 @@ export class Access implements Gate {
   /** Pairs the device that brings the current code; its cookie, or `null` for a wrong or expired code. */
   /** `counts`: a wrong code spends one of the tries; one another site sent the browser here with spends none. */
   redeem(code: string, userAgent: string, counts = true, existing?: { device: DeviceView; token: string }): { token: string; device: DeviceView } | null {
+    return this.check(code, counts) === 'ok' ? this.enroll(this.pairing!, userAgent, existing) : null;
+  }
+
+  /** Whether `code` is the current one; `counts`: a wrong one spends one of the tries. */
+  private check(code: string, counts: boolean): 'ok' | 'wrongCode' | 'codeExpired' {
     const p = this.pairing;
-    if (!p || p.paired || p.expires <= this.now()) return null;
+    if (!p || p.spent || p.paired || p.expires <= this.now()) return 'codeExpired';
     if (code.replace(/\D/g, '') !== p.code) {
       // guessing gets five tries at a code, then it is spent
       if (counts && ++p.tries >= PAIRING_TRIES) this.pairing = null;
-      return null;
+      return 'wrongCode';
     }
+    return 'ok';
+  }
+
+  /** Pairs the browser with the code `p` let in, or pairs it again where it brings its credential of this address (`existing`). */
+  private enroll(p: PairingCode, userAgent: string, existing?: { device: DeviceView; token: string }): { token: string; device: DeviceView } {
     const at = new Date(this.now()).toISOString();
     const device: DeviceView = { id: existing?.device.id ?? crypto.randomUUID(), name: existing?.device.name ?? deviceName(userAgent), pairedAt: at, lastSeen: at };
     const token = existing ? this.store.devices.renew(device, existing.token) : Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64url');
@@ -458,23 +485,65 @@ export class Access implements Gate {
 
   /**
    * `/pair`: the address in the QR code (`?code=`) or the form of the page for devices not paired
-   * yet. A device with the right code gets its cookie and goes to the project.
+   * yet, or the one-time link `POST /api/pair` answers with (`?token=`). A device with the right
+   * code or link gets its cookie and goes to the project; one already paired is paired again.
    */
   async pairRoute(req: Request, server: Bun.Server<unknown>): Promise<Response> {
     const project = () => new Response(null, { status: 303, headers: { location: '/' } });
     if (this.isLocal(req, server)) return project();
     const params = new URL(req.url).searchParams;
-    const code = req.method === 'POST' ? String((await req.formData().catch(() => null))?.get('code') ?? '') : (params.get('code') ?? '');
-    if (req.method === 'GET' && !params.has('code') && this.device(req)) return project();
+    const userAgent = req.headers.get('user-agent') ?? '';
     // Older names let a device in, but may belong to another origin on this host (another port, or
     // the other scheme at this one): only the cookie named for this very address is renewed.
-    const existing = this.credential(req, [deviceCookie(req)]);
+    const existing = () => this.credential(req, [deviceCookie(req)]) ?? undefined;
+    if (req.method === 'GET' && params.has('token')) {
+      const hash = sha256(params.get('token')!);
+      const link = this.links.get(hash);
+      this.links.delete(hash);
+      if (!link || link.expires <= this.now()) return this.notPairedPage(true);
+      return this.paired(req, this.enroll(link.pairing, userAgent, existing()).token);
+    }
+    const code = req.method === 'POST' ? String((await req.formData().catch(() => null))?.get('code') ?? '') : (params.get('code') ?? '');
+    if (req.method === 'GET' && !params.has('code') && this.device(req)) return project();
     // another site may send a browser in the tailnet here as often as it likes, to spend the code's tries
-    const paired = this.redeem(code, req.headers.get('user-agent') ?? '', req.headers.get('sec-fetch-site') !== 'cross-site', existing ?? undefined);
+    const paired = this.redeem(code, userAgent, req.headers.get('sec-fetch-site') !== 'cross-site', existing());
     if (!paired) return this.notPairedPage(true);
+    return this.paired(req, paired.token);
+  }
+
+  /**
+   * `POST /api/pair` with `{ code }`: the desktop app's shell pairing with this Seismic over HTTP,
+   * before it opens a window here. The right code buys a one-time link, valid for `LINK_MS`, that
+   * pairs the browser which opens it (`pairRoute`); the code is spent with it. A wrong code spends
+   * one of its tries, as on the page. Only for a program, not for a page of another site: the guard
+   * turns away what a browser marks as cross-site, and it takes JSON alone, which a browser does not
+   * send to another origin without asking first.
+   */
+  async pairApi(req: Request, server: Bun.Server<unknown>): Promise<Response> {
+    const refuse = (status: number, code: string, error: string) => Response.json({ code, error }, { status });
+    if (this.isLocal(req, server)) return refuse(409, 'onThisMachine', 'this is the Seismic of this machine: it needs no pairing');
+    const body = req.headers.get('content-type')?.split(';')[0]?.trim() === 'application/json' ? ((await req.json().catch(() => null)) as { code?: unknown } | null) : null;
+    if (typeof body?.code !== 'string') return refuse(400, 'invalid', 'send { "code": "123456" } as JSON');
+    const checked = this.check(body.code, true);
+    if (checked === 'wrongCode') return refuse(401, 'wrongCode', 'this code is wrong');
+    if (checked === 'codeExpired') return refuse(410, 'codeExpired', 'this code has expired or was used: "Connect a phone" shows a new one');
+    const p = this.pairing!;
+    p.spent = true;
+    const now = this.now();
+    for (const [hash, link] of this.links) if (link.expires <= now) this.links.delete(hash);
+    const token = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64url');
+    this.links.set(sha256(token), { expires: now + LINK_MS, pairing: p });
+    // the address the shell asked at, as a proxy forwarded it; the guard checked it to be one of Seismic's
+    const host = (req.headers.get('x-forwarded-host')?.split(',')[0]?.trim() || req.headers.get('host')!).toLowerCase();
+    const url = `${schemeOf(req)}://${host}/pair?token=${token}`;
+    return Response.json({ url, expires: new Date(now + LINK_MS).toISOString() });
+  }
+
+  /** The answer that gives a paired browser its cookie and leads it on to the project. */
+  private paired(req: Request, token: string): Response {
     // over HTTPS the cookie goes with what a worker's HTML artifact loads in its sandboxed frame too, which counts as another site
     const https = schemeOf(req) === 'https';
-    const cookie = `${deviceCookie(req)}=${paired.token}; Path=/; Max-Age=${COOKIE_MAX_AGE}; HttpOnly; ${https ? 'SameSite=None; Secure' : 'SameSite=Lax'}`;
+    const cookie = `${deviceCookie(req)}=${token}; Path=/; Max-Age=${COOKIE_MAX_AGE}; HttpOnly; ${https ? 'SameSite=None; Secure' : 'SameSite=Lax'}`;
     return new Response(null, { status: 303, headers: { location: '/', 'set-cookie': cookie } });
   }
 

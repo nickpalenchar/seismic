@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import type { AccessView, Pairing } from '../../core/types';
 import { ProjectRuntime } from '../project';
 import { Store } from '../store';
-import { Access, deviceName, machineAddresses, PAIRING_MS, UNUSED_MS } from '../remote';
+import { Access, deviceName, LINK_MS, machineAddresses, PAIRING_MS, UNUSED_MS } from '../remote';
 import { serve } from '../server';
 import { Tailscale } from '../tailscale';
 import { Push } from '../push';
@@ -434,6 +434,163 @@ describe('pairing', () => {
       expect(cookieOf(res)).toStartWith('seismic-device-http=');
       expect(res.headers.get('set-cookie')).not.toContain('Secure');
     }
+  });
+
+  describe('POST /api/pair', () => {
+    /** The desktop app's shell: no cookies, no browser headers. */
+    const shellPairs = (code: unknown, headers: Record<string, string> = {}) =>
+      viaTailnet('/api/pair', { 'content-type': 'application/json', 'user-agent': 'Seismic desktop', ...headers }, { method: 'POST', body: JSON.stringify({ code }) });
+    const linkOf = async (res: Response) => {
+      const { url } = (await res.json()) as { url: string };
+      const at = new URL(url);
+      return `${at.pathname}${at.search}`;
+    };
+
+    test('the right code buys a one-time link that pairs the window opening it, and the code is spent', async () => {
+      await turnOn();
+      const p = await pairing();
+      const res = await shellPairs(p.code);
+      expect(res.status).toBe(200);
+      const body = (await res.clone().json()) as { url: string; expires: string };
+      expect(body.url).toMatch(new RegExp(`^https://${NAME.replace(/\./g, '\\.')}/pair\\?token=[\\w-]{43}$`));
+      expect(Date.parse(body.expires) - clock).toBe(LINK_MS);
+      const link = await linkOf(res);
+      // nothing paired yet: the shell holds a link, no cookie
+      expect(res.headers.get('set-cookie')).toBeNull();
+      expect((await view()).devices).toEqual([]);
+      // the code is spent: neither the shell nor the QR code's address pairs with it again
+      expect(await (await shellPairs(p.code)).json()).toMatchObject({ code: 'codeExpired' });
+      expect((await viaTailnet(`/pair?code=${p.code}`)).status).toBe(401);
+      // the window opens the link: its own cookie, named for this address, and on to the project
+      const opened = await viaTailnet(link);
+      expect(opened.status).toBe(303);
+      expect(opened.headers.get('location')).toBe('/');
+      expect(opened.headers.get('set-cookie')).toContain('HttpOnly');
+      const cookie = cookieOf(opened);
+      expect(cookie).toStartWith('seismic-device-https=');
+      expect((await viaTailnet('/api/projects', { cookie })).status).toBe(200);
+      const v = await view();
+      expect(v.devices.map((d) => d.name)).toEqual(['iPhone · Safari']);
+      expect(v.pairing?.paired?.name).toBe('iPhone · Safari');
+      // the link pairs once
+      expect((await viaTailnet(link)).status).toBe(401);
+      expect((await view()).devices).toHaveLength(1);
+    });
+
+    test('a wrong code says so and spends a try, five spend the code; an old one has expired, and so has a link not opened within a minute', async () => {
+      await turnOn();
+      expect(await (await shellPairs('123456')).json()).toMatchObject({ code: 'codeExpired' });
+      const p = await pairing();
+      const wrong = p.code === '000000' ? '111111' : '000000';
+      for (let i = 0; i < 4; i++) {
+        const res = await shellPairs(wrong);
+        expect(res.status).toBe(401);
+        expect(await res.json()).toMatchObject({ code: 'wrongCode' });
+      }
+      expect((await shellPairs(wrong)).status).toBe(401);
+      expect((await shellPairs(p.code)).status).toBe(410);
+      const late = await pairing();
+      clock += PAIRING_MS + 1;
+      expect(await (await shellPairs(late.code)).json()).toMatchObject({ code: 'codeExpired' });
+      const link = await linkOf(await shellPairs((await pairing()).code));
+      clock += LINK_MS + 1;
+      expect((await viaTailnet(link)).status).toBe(401);
+      expect((await view()).devices).toEqual([]);
+    });
+
+    test('only JSON from a program at another address: not a form, not a page of another site, not this machine', async () => {
+      await turnOn();
+      const p = await pairing();
+      expect((await viaTailnet('/api/pair', { 'content-type': 'text/plain' }, { method: 'POST', body: JSON.stringify({ code: p.code }) })).status).toBe(400);
+      expect((await viaTailnet('/api/pair', { 'content-type': 'application/x-www-form-urlencoded' }, { method: 'POST', body: `code=${p.code}` })).status).toBe(400);
+      expect((await shellPairs(Number(p.code))).status).toBe(400);
+      expect((await shellPairs(p.code, { 'sec-fetch-site': 'cross-site', origin: 'https://evil.example' })).status).toBe(403);
+      const here = await fetch(new URL('/api/pair', server.url), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code: p.code }) });
+      expect(here.status).toBe(409);
+      expect(await here.json()).toMatchObject({ code: 'onThisMachine' });
+      // none of that spent the code
+      expect((await shellPairs(p.code)).status).toBe(200);
+    });
+
+    test('"Pair again" with a fresh code: a window already paired keeps its device entry and gets a new credential', async () => {
+      await turnOn();
+      const cookie = cookieOf(await viaTailnet(await linkOf(await shellPairs((await pairing()).code))));
+      const id = (await view()).devices[0]!.id;
+      const again = await viaTailnet(await linkOf(await shellPairs((await pairing()).code)), { cookie });
+      expect(again.status).toBe(303);
+      const renewed = cookieOf(again);
+      expect(renewed).not.toBe(cookie);
+      expect((await viaTailnet('/api/projects', { cookie: renewed })).status).toBe(200);
+      expect((await viaTailnet('/api/projects', { cookie })).status).toBe(401);
+      expect((await view()).devices.map((d) => d.id)).toEqual([id]);
+    });
+
+    test('two Seismics on one host, each paired through the shell, the links opened in one cookie jar: each keeps its own pairing', async () => {
+      // this test's Seismic and another beside it, both behind the owner's proxy at NAME, on ports 8443 and 9443
+      await turnOn({ via: 'hosts', hosts: [NAME] });
+      const home = join(dir, 'other');
+      mkdirSync(home);
+      const otherStore = new Store(':memory:');
+      const otherAccess = new Access({ store: otherStore, home, tailscale: new Tailscale(fakeTailscale(join(dir, 'other-ts'))), now: () => clock });
+      const otherProject = new ProjectRuntime({ repos: [{ path: join(dir, 'main') }] }, { store: otherStore, home, runtime: undefined as never, forge: noForge });
+      const other = serve([otherProject], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, undefined, undefined, undefined, undefined, undefined, otherAccess);
+      try {
+        const otherLocal = (path: string, init: RequestInit = {}) => asOwner(() => other).fetch(new URL(path, other.url), init);
+        await otherLocal('/api/access', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ remote: { via: 'hosts', hosts: [NAME] } }) });
+        const seismics = {
+          [`${NAME}:8443`]: { server, code: async () => (await pairing()).code, devices: async () => (await view()).devices },
+          [`${NAME}:9443`]: {
+            server: other,
+            code: async () => ((await (await otherLocal('/api/access/pair', { method: 'POST' })).json()) as Pairing).code,
+            devices: async () => ((await (await otherLocal('/api/access')).json()) as AccessView).devices,
+          },
+        };
+        type At = keyof typeof seismics;
+        const [a, b] = Object.keys(seismics) as [At, At];
+        const to = (at: At, path: string, headers: Record<string, string>, init: RequestInit = {}) =>
+          fetch(new URL(path, seismics[at].server.url), { redirect: 'manual', ...init, headers: { host: at, 'x-forwarded-for': '100.64.0.7', 'x-forwarded-host': at, 'x-forwarded-proto': 'https', ...headers } });
+
+        // the webview's one jar for NAME, whatever the port: what each answer sets, sent along to both
+        const jar = new Map<string, string>();
+        const cookies = () => [...jar].map(([n, v]) => `${n}=${v}`).join('; ');
+        const window = async (at: At, path: string) => {
+          const res = await to(at, path, { 'user-agent': IPHONE, cookie: cookies() });
+          const set = res.headers.get('set-cookie');
+          if (set) {
+            const [name, value] = set.split(';')[0]!.split('=') as [string, string];
+            jar.set(name, value);
+          }
+          return res;
+        };
+        const pairThroughShell = async (at: At) => {
+          const res = await to(at, '/api/pair', { 'content-type': 'application/json' }, { method: 'POST', body: JSON.stringify({ code: await seismics[at].code() }) });
+          expect(res.status).toBe(200);
+          const { url } = (await res.json()) as { url: string };
+          expect(new URL(url).host).toBe(at);
+          expect((await window(at, `${new URL(url).pathname}${new URL(url).search}`)).status).toBe(303);
+        };
+
+        await pairThroughShell(a);
+        await pairThroughShell(b);
+        expect([...jar.keys()]).toEqual(['seismic-device-https-8443', 'seismic-device-https-9443']);
+        expect((await window(a, '/api/projects')).status).toBe(200);
+        expect((await window(b, '/api/projects')).status).toBe(200);
+        // each Seismic turns away the other one's cookie when it is all the jar sends
+        expect((await to(a, '/api/projects', { cookie: `seismic-device-https-9443=${jar.get('seismic-device-https-9443')}` })).status).toBe(401);
+        expect((await to(b, '/api/projects', { cookie: `seismic-device-https-8443=${jar.get('seismic-device-https-8443')}` })).status).toBe(401);
+        // pairing the first again renews its own device, and leaves the second's pairing be
+        const before = jar.get('seismic-device-https-9443');
+        await pairThroughShell(a);
+        expect(jar.get('seismic-device-https-9443')).toBe(before);
+        expect((await window(a, '/api/projects')).status).toBe(200);
+        expect((await window(b, '/api/projects')).status).toBe(200);
+        expect(await seismics[a].devices()).toHaveLength(1);
+        expect(await seismics[b].devices()).toHaveLength(1);
+      } finally {
+        otherAccess.stop();
+        other.stop(true);
+      }
+    });
   });
 
   test('a code typed into the page pairs too; a wrong one says so, and five spend it', async () => {

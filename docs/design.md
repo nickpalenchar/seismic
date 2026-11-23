@@ -414,6 +414,19 @@ Safety rules:
   and treats what the proxy forwards as remote, so those devices pair like any other. The proxy must
   pass `Host` through and set `X-Forwarded-For`, `-Host` and `-Proto`. Chosen over a `tailscale serve`
   entry on port 443 because that port is then free for the proxy (2026-11-20).
+- A paired device's cookie is named for the scheme and port of the address it was set at
+  (`seismic-device-https-8443`, `seismic-device-http` without a port): a browser keeps cookies per
+  host, whatever the port and scheme, so two Seismics on one host, or the `http://` and `https://`
+  addresses of one, would otherwise overwrite each other's pairing. The address's own cookie, once
+  present, decides alone; the older names (`seismic-device-8443`, `seismic-device`, `obeya-device`)
+  still let in a browser that lacks it, and are never renewed. Pairing again with an explicit code
+  or link (even where the browser is paired) keeps the device entry: the new credential waits in
+  `device_renewals` and becomes current when the browser first presents it, so an answer lost on
+  the way leaves the old cookie working (2026-11-23).
+- The desktop app's shell pairs over HTTP (`POST /api/pair` with `{ code }`, JSON only): the
+  answer is a one-time link (`/pair?token=`, valid for a minute, held in memory) or why not
+  (`wrongCode`, `codeExpired`). The code is spent for the link; the device is made when the window
+  opens the link, so it gets the webview's cookie and name, not the shell's (2026-11-23).
 - Landing never loses work: nothing is force-pushed, a direct push only fast-forwards, a merge is
   pinned to the head that was checked; a clone is deleted only when nothing on it would be lost.
 - Approval comes only from the card's button after the demo, never from a list or from words

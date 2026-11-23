@@ -495,6 +495,8 @@ export function serve(
       },
       // another device pairing: the address in the QR code (`?code=`), or the code typed into the page it got
       '/pair': { GET: (req, srv) => access.pairRoute(req, srv), POST: (req, srv) => access.pairRoute(req, srv) },
+      // the desktop app's shell pairing over HTTP: the code for a one-time link that pairs the window it opens
+      '/api/pair': { POST: (req, srv) => access.pairApi(req, srv) },
       // "From other devices": the setting, what the network allows, the devices; only on this machine
       '/api/access': {
         GET: (req, srv) => (access.isLocal(req, srv) ? handle(() => access.view()) : Response.json({ local: false })),
