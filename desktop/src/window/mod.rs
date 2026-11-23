@@ -59,9 +59,24 @@ impl Own {
   }
 }
 
-/// A page the shell bundles (desktop/ui), as each engine names the app's own scheme.
-pub fn bundled(url: &Url) -> bool {
-  url.scheme() == "tauri" || (matches!(url.scheme(), "http" | "https") && url.host_str() == Some("tauri.localhost"))
+#[cfg(windows)]
+const BUNDLE: &str = "http://tauri.localhost";
+#[cfg(not(windows))]
+const BUNDLE: &str = "tauri://localhost";
+
+pub fn bundled_url(path: &str) -> Url {
+  Url::parse(&format!("{BUNDLE}{path}")).expect("bundled page URL")
+}
+
+/// The app's entry points, at the protocol and authority used by this engine.
+fn bundled(url: &Url) -> bool {
+  let entry = bundled_url("/");
+  url.scheme() == entry.scheme()
+    && url.host_str() == entry.host_str()
+    && url.port().is_none()
+    && url.username().is_empty()
+    && url.password().is_none()
+    && matches!(url.path(), "/" | "/index.html" | "/status.html")
 }
 
 /// Where the shell turns a window's navigation away to the system's browser: at most once a second.
@@ -91,9 +106,9 @@ fn free_name(dir: &Path, name: &str) -> PathBuf {
   (2..).map(|i| dir.join(format!("{stem} ({i}){ext}"))).find(|p| !p.exists()).unwrap()
 }
 
-/// Opens the window `label` at `url`, kept on `own`'s origin; where it stood before the shell started
-/// again (`placed`); `handed_over`: the page before may have handed over what a reload keeps (update.rs).
-pub fn build(app: &AppHandle, label: &str, url: WebviewUrl, own: Own, placed: Option<&Placed>, handed_over: bool) -> tauri::Result<WebviewWindow> {
+/// Creates a hidden, inert window on the UI thread. The caller can navigate and show it once the
+/// native guards are installed and the window is ready to receive commands.
+pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, handed_over: bool) -> tauri::Result<WebviewWindow> {
   let local = matches!(own, Own::Local(_));
   let (navigation, loaded) = (own.clone(), own.clone());
   let handoff = Handoff::default();
@@ -104,7 +119,9 @@ pub fn build(app: &AppHandle, label: &str, url: WebviewUrl, own: Own, placed: Op
   let downloads = app.path().download_dir().ok();
   let saved: Arc<Mutex<HashMap<String, PathBuf>>> = Default::default();
   let check = seismic_env("APP_CHECK").and_then(|c| c.into_string().ok());
-  let builder = WebviewWindowBuilder::new(app, label, url)
+  let blank = Url::parse("about:blank").unwrap();
+  let builder = WebviewWindowBuilder::new(app, label, WebviewUrl::External(blank))
+    .visible(false)
     .title("Seismic")
     .inner_size(1440.0, 900.0)
     .min_inner_size(720.0, 480.0)
@@ -123,7 +140,7 @@ pub fn build(app: &AppHandle, label: &str, url: WebviewUrl, own: Own, placed: Op
       if navigation.admits(url) {
         return true;
       }
-      if handoff.may(Instant::now()) {
+      if url.as_str() != "about:blank" && handoff.may(Instant::now()) {
         open_in_browser(url.as_str());
       }
       false
@@ -174,8 +191,7 @@ pub fn build(app: &AppHandle, label: &str, url: WebviewUrl, own: Own, placed: Op
       .position(p.x, p.y)
       .inner_size(p.width, p.height)
       .maximized(p.maximized)
-      .fullscreen(p.fullscreen)
-      .visible(p.visible),
+      .fullscreen(p.fullscreen),
     None => builder,
   };
   // on a Mac the window has no title bar of its own: the project's bar is it, with the traffic lights in it,
@@ -194,17 +210,17 @@ pub fn build(app: &AppHandle, label: &str, url: WebviewUrl, own: Own, placed: Op
     Err(_) => builder,
   };
   let window = builder.build()?;
-  let hears = own.clone();
-  microphone::install(&window, Arc::new(move |url: &Url| hears.at(url)))?;
-  #[cfg(target_os = "linux")]
-  window.with_webview(|webview| {
-    use webkit2gtk::{UserContentManagerExt, WebViewExt};
-    if let Some(manager) = webview.inner().user_content_manager() {
-      manager.unregister_script_message_handler("ipc");
-    }
-  })?;
-  #[cfg(windows)]
-  guard_frames(&window, own)?;
+  let installed = (|| {
+    let hears = own.clone();
+    microphone::install(&window, Arc::new(move |url: &Url| hears.at(url)))?;
+    #[cfg(windows)]
+    guard_frames(&window, own)?;
+    Ok::<_, tauri::Error>(())
+  })();
+  if let Err(error) = installed {
+    let _ = window.destroy();
+    return Err(error);
+  }
   Ok(window)
 }
 
@@ -212,23 +228,30 @@ pub fn build(app: &AppHandle, label: &str, url: WebviewUrl, own: Own, placed: Op
 /// FrameNavigationStarting, which the shell cancels unless it stays at the window's origin.
 #[cfg(windows)]
 fn guard_frames(window: &WebviewWindow, own: Own) -> tauri::Result<()> {
-  window.with_webview(move |webview| unsafe {
+  let (send, receive) = std::sync::mpsc::channel();
+  window.with_webview(move |webview| {
     use webview2_com::{take_pwstr, NavigationStartingEventHandler};
-    let Ok(core) = webview.controller().CoreWebView2() else { return };
-    let mut token = 0i64;
-    let _ = core.add_FrameNavigationStarting(
-      &NavigationStartingEventHandler::create(Box::new(move |_, args| {
-        let Some(args) = args else { return Ok(()) };
-        let mut uri = windows_core::PWSTR::null();
-        args.Uri(&mut uri)?;
-        let uri = take_pwstr(uri);
-        let allowed = uri == "about:blank" || uri == "about:srcdoc" || Url::parse(&uri).is_ok_and(|u| own.at(&u));
-        args.SetCancel(!allowed)?;
-        Ok(())
-      })),
-      &mut token,
-    );
-  })
+    let install = || unsafe {
+      let core = webview.controller().CoreWebView2()?;
+      core.add_FrameNavigationStarting(
+        &NavigationStartingEventHandler::create(Box::new(move |_, args| {
+          let Some(args) = args else { return Ok(()) };
+          let mut uri = windows_core::PWSTR::null();
+          args.Uri(&mut uri)?;
+          let uri = take_pwstr(uri);
+          let allowed = uri == "about:blank" || uri == "about:srcdoc" || Url::parse(&uri).is_ok_and(|u| own.at(&u));
+          args.SetCancel(!allowed)?;
+          Ok(())
+        })),
+        &mut 0,
+      )
+    };
+    let _ = send.send(install());
+  })?;
+  receive
+    .try_recv()
+    .map_err(std::io::Error::other)?
+    .map_err(|e| std::io::Error::other(e.to_string()).into())
 }
 
 /// The window's page, where it is at the window's own origin: its path, query and fragment.
@@ -246,8 +269,14 @@ mod tests {
     let own = Own::Remote("https://studio".into());
     let admits = |u: &str| own.admits(&Url::parse(u).unwrap());
     assert!(admits("https://studio/p/1?x#y"));
-    assert!(admits("tauri://localhost/status.html"));
-    assert!(admits("http://tauri.localhost/status.html"));
+    assert!(admits(bundled_url("/status.html").as_str()));
+    assert!(admits(bundled_url("/index.html?updating").as_str()));
+    assert!(!admits(bundled_url("/other.html").as_str()));
+    assert_eq!(admits("tauri://localhost/status.html"), !cfg!(windows));
+    assert_eq!(admits("http://tauri.localhost/status.html"), cfg!(windows));
+    assert!(!admits("http://tauri.localhost:8000/status.html"));
+    assert!(!admits("https://tauri.localhost/status.html"));
+    assert!(!admits("tauri://other/status.html"));
     assert!(!admits("http://studio/"));
     assert!(!admits("https://studio:8443/"));
     assert!(!admits("https://studio.evil/"));

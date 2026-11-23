@@ -58,7 +58,7 @@ use std::{
   time::{Duration, Instant},
 };
 
-use tauri::{AppHandle, DragDropEvent, Manager, PhysicalPosition, RunEvent, Url, WebviewUrl, WebviewWindow, WindowEvent};
+use tauri::{AppHandle, DragDropEvent, Manager, PhysicalPosition, RunEvent, Url, WebviewWindow, WindowEvent};
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 use window::{placed, Own};
 
@@ -538,8 +538,9 @@ pub(crate) fn relaunch(app: &AppHandle, seismic: &Seismic) {
     let bundle = std::env::current_exe().ok().and_then(|e| Some(e.parent()?.parent()?.parent()?.to_path_buf()));
     if let Some(bundle) = bundle.filter(|b| b.extension().is_some_and(|x| x == "app")) {
       let hidden = !placed.iter().any(|p| p.visible);
+      // Launch Services can still have the old app registered when its process is gone.
       let started = Command::new("/bin/sh")
-        .args(["-c", r#"while kill -0 "$1" 2>/dev/null; do sleep 0.1; done; exec /usr/bin/open $3 "$2""#, "sh"])
+        .args(["-c", r#"while kill -0 "$1" 2>/dev/null; do sleep 0.1; done; exec /usr/bin/open -n $3 "$2""#, "sh"])
         .arg(std::process::id().to_string())
         .arg(&bundle)
         // out of sight it stays so, without coming to the front
@@ -608,7 +609,11 @@ fn main() {
           app.exit(0);
         }
       });
-      window::build(&handle, desks::MAIN, WebviewUrl::App("index.html".into()), Own::Local(for_setup.clone()), main_placed.as_ref(), main_placed.is_some())?;
+      let main = window::build(&handle, desks::MAIN, Own::Local(for_setup.clone()), main_placed.as_ref(), main_placed.is_some())?;
+      main.navigate(window::bundled_url("/"))?;
+      if main_placed.as_ref().is_none_or(|p| p.visible) {
+        main.show()?;
+      }
       desks::reopen(&handle, std::mem::take(&mut placed));
       let updates = update::start(&handle, for_setup.clone());
       let seismic = for_setup.clone();

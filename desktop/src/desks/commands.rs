@@ -14,7 +14,7 @@ use std::sync::Arc;
 use serde_json::{json, Value};
 use tauri::{AppHandle, Manager, Url, Webview};
 
-use super::{changed, close, list, open, open_paired, remote, shell, MAIN};
+use super::{changed, close, list, on_ui, open, open_paired, remote, shell, MAIN};
 use crate::Seismic;
 
 /// Whether this machine's window, at its own origin, called: the one that may change the list.
@@ -37,8 +37,8 @@ pub fn desks(app: AppHandle, webview: Webview) -> Value {
 
 /// Focuses workspace `id`'s window, opening it where it is closed; the calling window stays where it is.
 #[tauri::command]
-pub fn open_desk(app: AppHandle, id: String) -> Result<(), String> {
-  open(&app, &id, None)
+pub async fn open_desk(app: AppHandle, id: String) -> Result<(), String> {
+  on_ui(app, move |app| open(app, &id, None)).await
 }
 
 /// Pairs with the Seismic at `address` by the code its "Connect a device" shows, and once that went
@@ -55,19 +55,20 @@ pub async fn add_desk(app: AppHandle, webview: Webview, address: String, code: S
   let link = tauri::async_runtime::spawn_blocking(move || remote::pair(&at, &code))
     .await
     .map_err(|e| e.to_string())??;
-  let id = format!("w{}", crate::now_ms());
-  {
-    let mut desks = shell.desks.lock().unwrap();
-    let before = desks.clone();
-    desks.add(id.clone(), name.as_deref().unwrap_or_default(), &origin)?;
-    if let Err(e) = shell.save(&desks) {
-      *desks = before;
-      return Err(e);
+  on_ui(app, move |app| {
+    let id = format!("w{}", crate::now_ms());
+    {
+      let mut desks = shell.desks.lock().unwrap();
+      let mut added = desks.clone();
+      added.add(id.clone(), name.as_deref().unwrap_or_default(), &origin)?;
+      shell.save(&added)?;
+      *desks = added;
     }
-  }
-  open_paired(&app, &id, link)?;
-  changed(&app);
-  Ok(json!({ "id": id }))
+    open_paired(app, &id, &origin, link)?;
+    changed(app);
+    Ok(json!({ "id": id }))
+  })
+  .await
 }
 
 /// Names workspace `id` `name`; blank gives it its default (the machine's or the host's name).
@@ -92,13 +93,21 @@ pub fn rename_desk(app: AppHandle, webview: Webview, id: String, name: String) -
 #[tauri::command]
 pub async fn pair_desk(app: AppHandle, webview: Webview, id: String, code: String, address: Option<String>) -> Result<(), String> {
   from_this_machine(&app, &webview)?;
-  let shell = shell(&app);
-  let desk = shell.desks.lock().unwrap().get(&id).cloned().ok_or("unknown")?;
-  let before = desk.origin.clone().ok_or("local")?;
+  let (before, revision) = on_ui(app.clone(), {
+    let id = id.clone();
+    move |app| {
+      let shell = shell(app);
+      let before = shell.desks.lock().unwrap().get(&id).ok_or("unknown")?.origin.clone().ok_or("local")?;
+      let revision = shell.windows.lock().unwrap().revision(&id);
+      Ok((before, revision))
+    }
+  })
+  .await?;
   let origin = match address.as_deref().map(str::trim).filter(|a| !a.is_empty()) {
     Some(a) => list::origin(a).ok_or("address")?,
     None => before.clone(),
   };
+  let shell = shell(&app);
   if shell.desks.lock().unwrap().at_origin(&origin).is_some_and(|d| d.id != id) {
     return Err("known".into());
   }
@@ -106,54 +115,95 @@ pub async fn pair_desk(app: AppHandle, webview: Webview, id: String, code: Strin
   let link = tauri::async_runtime::spawn_blocking(move || remote::pair(&at, &code))
     .await
     .map_err(|e| e.to_string())??;
-  if origin != before {
-    let mut desks = shell.desks.lock().unwrap();
-    let mut moved = desks.clone();
-    moved.move_to(&id, &origin)?;
-    shell.save(&moved)?;
-    *desks = moved;
-  }
-  open_paired(&app, &id, link)?;
-  changed(&app);
-  Ok(())
+  on_ui(app, move |app| {
+    {
+      let mut desks = shell.desks.lock().unwrap();
+      if desks.get(&id).and_then(|d| d.origin.as_deref()) != Some(before.as_str()) || shell.windows.lock().unwrap().revision(&id) != revision {
+        return Err("unknown".into());
+      }
+      if origin != before {
+        let mut moved = desks.clone();
+        moved.move_to(&id, &origin)?;
+        shell.save(&moved)?;
+        *desks = moved;
+      }
+    }
+    open_paired(app, &id, &origin, link)?;
+    changed(app);
+    Ok(())
+  })
+  .await
 }
 
 /// Takes remote workspace `id` off the list; its window closes.
 #[tauri::command]
-pub fn remove_desk(app: AppHandle, webview: Webview, id: String) -> Result<(), String> {
+pub async fn remove_desk(app: AppHandle, webview: Webview, id: String) -> Result<(), String> {
   from_this_machine(&app, &webview)?;
-  let shell = shell(&app);
-  {
-    let mut desks = shell.desks.lock().unwrap();
-    let mut removed = desks.clone();
-    removed.remove(&id)?;
-    shell.save(&removed)?;
-    *desks = removed;
-  }
-  close(&app, &id);
-  changed(&app);
-  Ok(())
+  on_ui(app, move |app| {
+    let shell = shell(app);
+    {
+      let mut desks = shell.desks.lock().unwrap();
+      let mut removed = desks.clone();
+      removed.remove(&id)?;
+      shell.save(&removed)?;
+      *desks = removed;
+    }
+    shell.windows.lock().unwrap().invalidate(&id);
+    close(app, &id);
+    changed(app);
+    Ok(())
+  })
+  .await
 }
 
 /// The status page's "Try again": asks the calling window's workspace again whether it answers, and
 /// where it does, the window goes to its start page; else why not (`unreachable`, `notSeismic`).
 #[tauri::command]
 pub async fn retry_desk(app: AppHandle, webview: Webview) -> Result<(), String> {
-  let shell = shell(&app);
   let label = webview.label().to_string();
-  let (_, origin) = shell.desk_of(&label).ok_or("unknown")?;
-  let origin = origin.ok_or("local")?;
+  let (origin, revision) = on_ui(app.clone(), {
+    let label = label.clone();
+    move |app| {
+      let shell = shell(app);
+      let windows = shell.windows.lock().unwrap();
+      let open = windows.open.get(&label).filter(|o| o.problem.is_some()).ok_or("unknown")?;
+      Ok((open.origin.clone(), windows.revision(&open.desk)))
+    }
+  })
+  .await?;
   let at = origin.clone();
   let health = tauri::async_runtime::spawn_blocking(move || remote::health(&at))
     .await
     .map_err(|e| e.to_string())?;
-  let problem = (health != remote::Health::Seismic).then(|| health.code());
-  if let Some(o) = shell.windows.lock().unwrap().open.get_mut(&label) {
-    o.problem = problem;
-  }
-  if let Some(problem) = problem {
-    return Err(problem.into());
-  }
-  let start = Url::parse(&format!("{origin}/")).map_err(|e| e.to_string())?;
-  webview.navigate(start).map_err(|e| e.to_string())
+  on_ui(app, move |app| {
+    let shell = shell(app);
+    let problem = (health != remote::Health::Seismic).then(|| health.code());
+    let mut windows = shell.windows.lock().unwrap();
+    let open = windows
+      .open
+      .get(&label)
+      .filter(|o| o.problem.is_some() && windows.revision(&o.desk) == revision)
+      .ok_or("unknown")?;
+    let id = open.desk.clone();
+    if let Some(problem) = problem {
+      windows.open.get_mut(&label).unwrap().problem = Some(problem);
+      return Err(problem.into());
+    }
+    let w = app.get_webview_window(&label).ok_or("unknown")?;
+    let start = Url::parse(&format!("{origin}/")).map_err(|e| e.to_string())?;
+    // Publish before the new page can query its state. Release the lock before calling Tauri.
+    windows.open.get_mut(&label).unwrap().problem = None;
+    drop(windows);
+    if let Err(error) = w.navigate(start) {
+      let mut windows = shell.windows.lock().unwrap();
+      if windows.revision(&id) == revision {
+        if let Some(o) = windows.open.get_mut(&label) {
+          o.problem = Some("unreachable");
+        }
+      }
+      return Err(error.to_string());
+    }
+    Ok(())
+  })
+  .await
 }

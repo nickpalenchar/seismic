@@ -5,13 +5,16 @@ use std::{cell::RefCell, rc::Rc};
 use tauri::{webview::PlatformWebview, Url};
 use webkit2gtk::{
   glib::prelude::Cast, LoadEvent, PermissionRequestExt, PolicyDecisionExt, PolicyDecisionType, ResponsePolicyDecision, ResponsePolicyDecisionExt, SettingsExt,
-  URIResponseExt, UserMediaPermissionRequest, UserMediaPermissionRequestExt, WebViewExt,
+  URIResponseExt, UserContentManagerExt, UserMediaPermissionRequest, UserMediaPermissionRequestExt, WebViewExt,
 };
 
 use super::Hears;
 
 pub fn install(webview: PlatformWebview, hears: Hears) {
   let webview = webview.inner();
+  if let Some(manager) = webview.user_content_manager() {
+    manager.unregister_script_message_handler("ipc");
+  }
   // The document shown is the one last committed, until the next commit: a navigation that ends
   // without one (a download, a load that failed or was stopped) leaves it in place, with its
   // microphone, so the start of a load changes nothing here.

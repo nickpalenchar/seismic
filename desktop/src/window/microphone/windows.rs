@@ -18,8 +18,8 @@ use super::Hears;
 static CLEARED: AtomicBool = AtomicBool::new(false);
 
 pub fn install(window: &WebviewWindow, hears: Hears) -> tauri::Result<()> {
-  // Take the controller out of the with_webview callback before pumping Windows messages, which
-  // can dispatch more events to wry.
+  // Window construction runs on the UI thread, so with_webview delivers the controller here.
+  // Pump messages to clear the profile only after the callback returns to release wry's borrow.
   thread_local! {
     static CONTROLLER: RefCell<Option<ICoreWebView2Controller>> = const { RefCell::new(None) };
   }
@@ -31,9 +31,10 @@ pub fn install(window: &WebviewWindow, hears: Hears) -> tauri::Result<()> {
 fn configure(controller: ICoreWebView2Controller, hears: Hears) -> webview2_com::Result<()> {
   unsafe {
     let webview = controller.CoreWebView2()?;
-    if !CLEARED.swap(true, Ordering::SeqCst) {
+    if !CLEARED.load(Ordering::SeqCst) {
       let profile = webview.cast::<ICoreWebView2_13>()?.Profile()?.cast::<ICoreWebView2Profile4>()?;
       clear_saved_grants(&profile)?;
+      CLEARED.store(true, Ordering::SeqCst);
     }
     webview.add_PermissionRequested(
       &PermissionRequestedEventHandler::create(Box::new(move |_, args| {

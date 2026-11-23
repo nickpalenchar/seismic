@@ -19,9 +19,9 @@ use std::{
 };
 
 use serde_json::json;
-use tauri::{ipc::CapabilityBuilder, AppHandle, Manager, Url, WebviewUrl, WebviewWindow};
+use tauri::{ipc::CapabilityBuilder, AppHandle, Manager, Url, WebviewWindow};
 
-pub use list::{Desk, Desks, LOCAL};
+pub use list::{Desks, LOCAL};
 use remote::Health;
 
 use crate::{
@@ -58,15 +58,34 @@ struct Open {
 
 #[derive(Default)]
 struct Windows {
-  /// Each origin's window label, for the run: an origin keeps its label, and its capability, when its
-  /// window closes and opens again, and no label ever names a second origin.
-  labels: HashMap<String, String>,
+  next_label: u64,
   /// The remote workspaces' windows, by label.
   open: HashMap<String, Open>,
-  /// Workspaces whose window is on its way (a health check runs).
-  opening: HashSet<String>,
+  /// The revision of each workspace changes when it is paired again, moved or removed.
+  revisions: HashMap<String, u64>,
+  /// Workspaces with a health check or a native build underway, by revision.
+  opening: HashMap<String, u64>,
   /// The ports of this machine's Seismic its window has a capability for.
   ports: HashSet<u16>,
+}
+
+impl Windows {
+  fn revision(&self, id: &str) -> u64 {
+    self.revisions.get(id).copied().unwrap_or_default()
+  }
+
+  fn invalidate(&mut self, id: &str) -> u64 {
+    self.opening.remove(id);
+    let revision = self.revisions.entry(id.into()).or_default();
+    *revision += 1;
+    *revision
+  }
+
+  fn finish(&mut self, id: &str, revision: u64) {
+    if self.opening.get(id) == Some(&revision) {
+      self.opening.remove(id);
+    }
+  }
 }
 
 pub struct Shell {
@@ -187,19 +206,30 @@ pub fn allow_local(app: &AppHandle, port: u16) {
   }
 }
 
-/// The window label for `origin`, with its capability: the same all run long.
+/// A label belongs to one native window. Its Destroyed event can arrive after a replacement opens.
 fn label_for(app: &AppHandle, shell: &Shell, origin: &str) -> Result<String, String> {
-  let mut windows = shell.windows.lock().unwrap();
-  if let Some(label) = windows.labels.get(origin) {
-    return Ok(label.clone());
-  }
-  let label = format!("desk-{}", windows.labels.len() + 1);
+  let label = {
+    let mut windows = shell.windows.lock().unwrap();
+    windows.next_label += 1;
+    format!("desk-{}", windows.next_label)
+  };
   app.add_capability(capability(&label, origin, &[PAGE])).map_err(|e| {
     eprintln!("seismic: no capability for {origin}: {e}");
     "capability".to_string()
   })?;
-  windows.labels.insert(origin.to_string(), label.clone());
   Ok(label)
+}
+
+/// HTTP runs off the UI thread. Its results and workspace/window mutations are applied on it.
+async fn on_ui<T: Send + 'static>(app: AppHandle, action: impl FnOnce(&AppHandle) -> Result<T, String> + Send + 'static) -> Result<T, String> {
+  let (send, mut receive) = tauri::async_runtime::channel(1);
+  let handle = app.clone();
+  app
+    .run_on_main_thread(move || {
+      let _ = send.try_send(action(&handle));
+    })
+    .map_err(|e| e.to_string())?;
+  receive.recv().await.ok_or_else(|| "window".to_string())?
 }
 
 pub fn show(w: &WebviewWindow) {
@@ -216,78 +246,106 @@ pub fn open(app: &AppHandle, id: &str, placed: Option<Placed>) -> Result<(), Str
     show(&w);
     return Ok(());
   }
-  let desk = shell.desks.lock().unwrap().get(id).cloned().ok_or("unknown")?;
-  let Some(origin) = desk.origin.clone() else { return Err("unknown".into()) };
-  if !shell.windows.lock().unwrap().opening.insert(desk.id.clone()) {
+  let origin = shell.desks.lock().unwrap().get(id).and_then(|d| d.origin.clone()).ok_or("unknown")?;
+  if placed.as_ref().is_some_and(|p| p.origin.as_deref() != Some(origin.as_str())) {
     return Ok(());
   }
+  let revision = {
+    let mut windows = shell.windows.lock().unwrap();
+    if windows.opening.contains_key(id) {
+      return Ok(());
+    }
+    let revision = windows.revision(id);
+    windows.opening.insert(id.into(), revision);
+    revision
+  };
+  let id = id.to_string();
   let app = app.clone();
   thread::spawn(move || {
     let health = remote::health(&origin);
-    let next = placed.as_ref().map_or("/", |p| p.next.as_str());
-    let url = match health {
-      Health::Seismic => Url::parse(&format!("{origin}{next}")).ok(),
-      _ => None,
-    };
-    let opened = build(&app, &desk, url, health.code(), placed.as_ref());
-    shell.windows.lock().unwrap().opening.remove(&desk.id);
-    if let Err(e) = opened {
-      eprintln!("seismic: the window of {origin} cannot open: {e}");
-    }
-    changed(&app);
+    let handle = app.clone();
+    let _ = app.run_on_main_thread(move || {
+      if !can_build(&shell, &id, &origin, revision) {
+        return;
+      }
+      let next = placed.as_ref().map_or("/", |p| p.next.as_str());
+      let url = match health {
+        Health::Seismic => Url::parse(&format!("{origin}{next}")).ok(),
+        _ => None,
+      };
+      let opened = build(&handle, &id, &origin, revision, url, health.code(), placed.as_ref());
+      shell.windows.lock().unwrap().finish(&id, revision);
+      if let Err(e) = opened {
+        eprintln!("seismic: the window of {origin} cannot open: {e}");
+      }
+      changed(&handle);
+    });
   });
   Ok(())
 }
 
-/// Opens workspace `desk`'s window at `url` (at its origin), or at the status page when there is none,
-/// for `problem`.
-fn build(app: &AppHandle, desk: &Desk, url: Option<Url>, problem: &'static str, placed: Option<&Placed>) -> Result<WebviewWindow, String> {
+fn can_build(shell: &Shell, id: &str, origin: &str, revision: u64) -> bool {
+  shell.desks.lock().unwrap().get(id).and_then(|d| d.origin.as_deref()) == Some(origin) && shell.windows.lock().unwrap().opening.get(id) == Some(&revision)
+}
+
+/// Builds for the reservation at `revision`, publishing the window just before its page can run.
+fn build(app: &AppHandle, id: &str, origin: &str, revision: u64, url: Option<Url>, problem: &'static str, placed: Option<&Placed>) -> Result<(), String> {
   let shell = shell(app);
-  let origin = desk.origin.clone().ok_or("local")?;
-  let label = label_for(app, &shell, &origin)?;
-  let page = match &url {
-    Some(url) => WebviewUrl::External(url.clone()),
-    None => WebviewUrl::App("status.html".into()),
-  };
+  let own = Own::Remote(origin.into());
+  if url.as_ref().is_some_and(|u| !own.at(u)) {
+    return Err("elsewhere".into());
+  }
+  let label = label_for(app, &shell, origin)?;
+  let w = window::build(app, &label, own, placed, false).map_err(|e| e.to_string())?;
+  // The native constructor can pump events on Windows. Check again before loading any content.
+  if !can_build(&shell, id, origin, revision) {
+    let _ = w.destroy();
+    return Err("unknown".into());
+  }
+  let showing_status = url.is_none();
   shell.windows.lock().unwrap().open.insert(
     label.clone(),
     Open {
-      desk: desk.id.clone(),
-      origin: origin.clone(),
-      problem: url.is_none().then_some(problem),
+      desk: id.into(),
+      origin: origin.into(),
+      problem: showing_status.then_some(problem),
     },
   );
-  let w = window::build(app, &label, page, Own::Remote(origin), placed, false).map_err(|e| {
+  let page = url.unwrap_or_else(|| window::bundled_url("/status.html"));
+  if let Err(error) = w.navigate(page) {
     shell.windows.lock().unwrap().open.remove(&label);
-    e.to_string()
-  })?;
+    let _ = w.destroy();
+    return Err(error.to_string());
+  }
   if placed.is_none_or(|p| p.visible) {
     show(&w);
   }
-  Ok(w)
+  Ok(())
 }
 
-/// Opens workspace `id`'s window at the one-time link its pairing answered; a window it has at that
-/// origin goes there, one at another origin (the workspace moved) closes first.
-fn open_paired(app: &AppHandle, id: &str, link: Url) -> Result<(), String> {
+/// Applies a pairing on the UI thread, taking over any pending health check.
+fn open_paired(app: &AppHandle, id: &str, origin: &str, link: Url) -> Result<(), String> {
   let shell = shell(app);
-  let desk = shell.desks.lock().unwrap().get(id).cloned().ok_or("unknown")?;
-  if let Some(label) = shell.label_of(id) {
-    let at_origin = shell.desk_of(&label).and_then(|(_, o)| o) == desk.origin;
-    if let Some(w) = app.get_webview_window(&label) {
-      if at_origin {
-        if let Some(o) = shell.windows.lock().unwrap().open.get_mut(&label) {
-          o.problem = None;
-        }
-        w.navigate(link).map_err(|e| e.to_string())?;
-        show(&w);
-        return Ok(());
-      }
-      let _ = w.destroy();
-    }
-    shell.windows.lock().unwrap().open.remove(&label);
+  if !Own::Remote(origin.into()).at(&link) {
+    return Err("elsewhere".into());
   }
-  build(app, &desk, Some(link), "ok", None).map(|_| ())
+  let revision = shell.windows.lock().unwrap().invalidate(id);
+  if let Some(label) = shell.label_of(id) {
+    let at_origin = shell.desk_of(&label).and_then(|(_, o)| o).as_deref() == Some(origin);
+    if let Some(w) = app.get_webview_window(&label).filter(|_| at_origin) {
+      w.navigate(link).map_err(|e| e.to_string())?;
+      if let Some(o) = shell.windows.lock().unwrap().open.get_mut(&label) {
+        o.problem = None;
+      }
+      show(&w);
+      return Ok(());
+    }
+    close(app, id);
+  }
+  shell.windows.lock().unwrap().opening.insert(id.into(), revision);
+  let opened = build(app, id, origin, revision, Some(link), "ok", None);
+  shell.windows.lock().unwrap().finish(id, revision);
+  opened
 }
 
 /// Closes workspace `id`'s window, where it is open.
@@ -325,7 +383,6 @@ pub fn placed(app: &AppHandle, seismic: &Arc<Seismic>) -> Vec<Placed> {
   let main = app.get_webview_window(MAIN).and_then(|w| Placed::of(&w, LOCAL, &Own::Local(seismic.clone())));
   let remote = open
     .into_iter()
-    .filter(|(_, o)| o.problem.is_none())
     .filter_map(|(label, o)| Placed::of(&app.get_webview_window(&label)?, &o.desk, &Own::Remote(o.origin)));
   main.into_iter().chain(remote).collect()
 }
@@ -333,13 +390,49 @@ pub fn placed(app: &AppHandle, seismic: &Arc<Seismic>) -> Vec<Placed> {
 /// Reopens the remote workspaces' windows the shell before left (main.rs), while each is still on
 /// the list at the origin it had; the one the owner was in comes last, to the front.
 pub fn reopen(app: &AppHandle, mut placed: Vec<Placed>) {
-  let shell = shell(app);
   placed.sort_by_key(|p| p.focused);
   for p in placed.into_iter().filter(|p| p.desk != LOCAL) {
-    let still = shell.desks.lock().unwrap().get(&p.desk).is_some_and(|d| d.origin == p.origin);
-    if still {
-      let id = p.desk.clone();
-      let _ = open(app, &id, Some(p));
+    let id = p.desk.clone();
+    let _ = open(app, &id, Some(p));
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn stale_health_check_cannot_build_or_clear_its_replacement() {
+    let shell = Shell {
+      desks: Mutex::new(Desks::default()),
+      windows: Default::default(),
+      home: PathBuf::new(),
+      machine: OnceLock::new(),
+    };
+    let studio = "https://studio";
+    let lab = "https://lab";
+    shell.desks.lock().unwrap().add("desk".into(), "", studio).unwrap();
+    shell.windows.lock().unwrap().opening.insert("desk".into(), 0);
+    assert!(can_build(&shell, "desk", studio, 0));
+
+    // A pairing at the same address supersedes the health check too.
+    {
+      let mut windows = shell.windows.lock().unwrap();
+      let revision = windows.invalidate("desk");
+      windows.opening.insert("desk".into(), revision);
+      windows.finish("desk", 0);
     }
+    assert!(!can_build(&shell, "desk", studio, 0));
+    assert!(can_build(&shell, "desk", studio, 1));
+
+    shell.desks.lock().unwrap().move_to("desk", lab).unwrap();
+    assert!(!can_build(&shell, "desk", studio, 1));
+    shell.windows.lock().unwrap().invalidate("desk");
+
+    // Moving back does not revive the earlier check.
+    shell.desks.lock().unwrap().move_to("desk", studio).unwrap();
+    assert!(!can_build(&shell, "desk", studio, 1));
+    shell.desks.lock().unwrap().remove("desk").unwrap();
+    assert!(!can_build(&shell, "desk", studio, 1));
   }
 }

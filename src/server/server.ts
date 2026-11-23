@@ -530,7 +530,8 @@ export function serve(
           return device ? handle(() => push.unsubscribe(device)) : onlyDevices();
         },
       },
-      '/api/projects': { GET: () => Response.json(projectList()) },
+      // The desktop shell recognizes this response when a proxy lets its health check through without pairing.
+      '/api/projects': { GET: () => Response.json(projectList(), { headers: { 'x-seismic': 'projects' } }) },
       // what waits for the owner on each project, for a page without a project's connection (the feedback log, an address naming none)
       '/api/waiting': { GET: () => Response.json(waiting satisfies Record<string, Waiting>) },
       // the Activity log, newest first: the project's lines, or every project's (`all`); `before` pages back from a line's id

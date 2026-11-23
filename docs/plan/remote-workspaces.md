@@ -147,26 +147,29 @@ wry 0.57.3, the versions the spike verified.
   (`capabilities/status.json`). Pages hear of a change by a `seismic-desks` event on `window` and
   ask for the list again. W4 builds the pages on these.
 - **Labels and capabilities:** `main` for this machine (a capability per port its server ran on in
-  the run, added before the window goes there), `desk-<n>` for a remote origin. A label never names
-  a second origin in a run: a workspace that moved gets a new window and label.
+  the run, added before the window goes there), `desk-<n>` for a remote window. Each native window
+  has its own label so a delayed close event cannot remove a replacement's tracking.
 - **Effective origin:** on macOS wry is vendored (`desktop/vendor/`) with a check in its script
   message handler: only the main frame whose security origin is its document URL's origin may send
   postMessage IPC, so a sandboxed main frame and every subframe are dropped, and the capability's
   origin check does the rest. Linux windows have wry's `ipc` handler unregistered. Windows needs
   neither (W1).
-- **Navigation:** a window admits its own origin and the bundled pages (`tauri://`,
-  `http(s)://tauri.localhost`). What it turns away opens in the system browser, at most one URL a
+- **Navigation:** a window admits its own origin and the bundled entry pages at
+  `tauri://localhost` on macOS and Linux, or `http://tauri.localhost` on Windows. What it turns away opens in the system browser, at most one URL a
   second per window, as the hook cannot tell a frame's navigation from the page's. On Windows the
   shell cancels a frame's navigation off the window's origin itself (FrameNavigationStarting);
   `about:blank` and `about:srcdoc` frames stay.
 - **Health check:** before a remote window opens, the shell asks `GET /api/projects` without a
-  cookie; Seismic answers with JSON (its projects, or `401 { code }`). Nothing answering or
-  something else answering opens the window at the status page instead, which says why, offers
-  Try again and the other workspaces. A window opened by a pairing skips the check, as the pairing
-  just answered.
+  cookie. Seismic answers with its projects (`X-Seismic: projects`) or `401 { code: "notPaired" }`.
+  Nothing answering or something else answering opens the window at the status page, which says
+  why and offers Try again and the other workspaces. Pairing supplies a new link directly and
+  supersedes any pending health check. A check is discarded if the workspace was moved or removed
+  while it was running.
 - **Relaunch:** `app-windows.json` (replacing `app-window.json`, still read once for a shell from
-  before) lists every window with its workspace, place and page; a remote one comes back through
-  the health check, only while its workspace is still on the list at that origin.
+  before) lists every window with its workspace, place and page, including a remote status window.
+  A remote window comes back through the health check while its workspace is still listed at that
+  origin. On macOS the shell requests a fresh app instance because Launch Services can still have
+  the old instance registered after its process exits.
 - **Closing:** a remote window closes for good (opened again, it is checked again). `main` behaves
   as before: hidden on a Mac, quitting elsewhere.
 - **Microphone:** granted to the window's own origin alone, decided by each engine's own hook (the
@@ -178,15 +181,14 @@ wry 0.57.3, the versions the spike verified.
 - **macOS menu:** a Workspace menu before Window lists the workspaces (⌃⌘1 … 9), the one of the
   window in front checked. "New Workspace…" waits for W4's page.
 
-`check-app-desks.ts` passed on the Mac (2026-11-23) for everything but the remote window's
-microphone: there the page's `getUserMedia` never answered and its timers stopped, on a Mac Studio
-with the display asleep and WebKit's mock devices; this machine's window records in `check-app.ts`
-with the same module. A bare debug program keeps no cookie past its run in WKWebView (cookies are
-kept per app bundle), so the check needs a bundled build to see a pairing outlast a relaunch.
+`check-app-desks.ts` uses a localhost proxy for secure-context microphone capture and forwarded
+headers so Seismic still treats it as remote. On macOS it verified microphone capture in the main
+page, an explicit denial in a sandboxed frame, two real relaunches while offline, and recovery with
+the existing pairing. It also held open a health request while pairing again and while removing the
+workspace. A bundled macOS build is needed for the pairing cookie to survive a relaunch.
 
-Not verified here: the remote window's microphone (above), the Windows build (cross-compiling needs
-a Windows SDK) and a run of the app on Linux; `cargo check` and the unit tests passed in the Linux
-image. W5's CI covers Windows and Linux.
+The desktop unit tests passed on macOS and Linux. The WebView2 permission and frame-registration
+code type-checked for Windows. W5's CI covers running the desktop app on Windows and Linux.
 
 ## Boundaries
 

@@ -444,6 +444,12 @@ Safety rules:
   same replacement again to one still bringing the credential it was made from, until the
   replacement is presented or retired. An expired or unknown link says it did not pair, even to
   a browser paired before (2026-11-23).
+- Desktop workspace health checks carry no device cookie. The shell recognizes Seismic's
+  `401 notPaired` response and a projects list marked `X-Seismic: projects` when a proxy
+  admits the request. A generic JSON response at that path cannot authorize opening a workspace.
+- The desktop shell creates webviews on the UI thread with a blank document. It loads the first
+  workspace page only after installing the native guards. WebView2's controller is thread-bound,
+  and WebKitGTK's media policy needs to see the first document commit (2026-11-23).
 - Landing never loses work: nothing is force-pushed, a direct push only fast-forwards, a merge is
   pinned to the head that was checked; a clone is deleted only when nothing on it would be lost.
 - Approval comes only from the card's button after the demo, never from a list or from words

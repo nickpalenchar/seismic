@@ -31,7 +31,7 @@ use std::{
 };
 
 use serde_json::json;
-use tauri::{utils::config::BundleType, AppHandle, Url};
+use tauri::{utils::config::BundleType, AppHandle};
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 use tauri_plugin_updater::{Update, UpdaterExt};
 
@@ -218,10 +218,7 @@ fn start_again(app: &AppHandle, seismic: &Seismic, port: u16) {
 /// if it went in, else this one, after saying why. A new build of the shell is in place already.
 pub fn install(app: &AppHandle, seismic: &Seismic, updates: &Updates) {
   if let Some(w) = main_window(app) {
-    let page = if cfg!(windows) { "http://tauri.localhost/index.html?updating" } else { "tauri://localhost/index.html?updating" };
-    if let Ok(url) = Url::parse(page) {
-      let _ = w.navigate(url);
-    }
+    let _ = w.navigate(crate::window::bundled_url("/index.html?updating"));
   }
   let ready = updates.ready.lock().unwrap().take();
   if let Some(Ready { update, bytes: Some(bytes) }) = ready {

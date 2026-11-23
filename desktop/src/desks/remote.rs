@@ -39,22 +39,23 @@ impl Health {
 }
 
 /// Asks `origin` for its projects, as its page does, without the window's device cookie (the shell
-/// has none of its own): Seismic answers with them or with its JSON refusal (`notPaired`).
+/// has none of its own): Seismic identifies its projects response or returns its JSON refusal (`notPaired`).
 pub fn health(origin: &str) -> Health {
   let res = match agent().get(&format!("{origin}/api/projects")).set("accept", "application/json").call() {
     Ok(res) | Err(ureq::Error::Status(_, res)) => res,
     Err(_) => return Health::Unreachable,
   };
   let status = res.status();
+  let projects = res.header("x-seismic").is_some_and(|value| value == "projects");
   let json = res.content_type().eq_ignore_ascii_case("application/json");
   let body = if json { res.into_json::<Value>().ok() } else { None };
-  judge(status, body.as_ref())
+  judge(status, projects, body.as_ref())
 }
 
-fn judge(status: u16, body: Option<&Value>) -> Health {
+fn judge(status: u16, projects: bool, body: Option<&Value>) -> Health {
   match (status, body) {
-    (200, Some(Value::Array(_) | Value::Object(_))) => Health::Seismic,
-    (401 | 403, Some(b)) if b["code"].is_string() => Health::Seismic,
+    (200, Some(Value::Array(_))) if projects => Health::Seismic,
+    (401, Some(b)) if b["code"].as_str() == Some("notPaired") => Health::Seismic,
     _ => Health::NotSeismic,
   }
 }
@@ -86,7 +87,7 @@ fn paired(origin: &str, status: u16, body: Option<&Value>) -> Result<Url, &'stat
     (200, _) => {
       let url = body["url"].as_str().and_then(|u| Url::parse(u).ok()).ok_or("notSeismic")?;
       // the link leads nowhere but the window's own origin
-      if url.origin().ascii_serialization() != origin {
+      if !matches!(url.scheme(), "http" | "https") || url.origin().ascii_serialization() != origin {
         return Err("elsewhere");
       }
       Ok(url)
@@ -106,10 +107,13 @@ mod tests {
 
   #[test]
   fn seismic_answers_with_its_projects_or_its_refusal() {
-    assert_eq!(judge(200, Some(&json!([]))), Health::Seismic);
-    assert_eq!(judge(401, Some(&json!({ "code": "notPaired" }))), Health::Seismic);
-    assert_eq!(judge(200, None), Health::NotSeismic);
-    assert_eq!(judge(502, Some(&json!({ "error": "bad gateway" }))), Health::NotSeismic);
+    assert_eq!(judge(200, true, Some(&json!([]))), Health::Seismic);
+    assert_eq!(judge(401, false, Some(&json!({ "code": "notPaired" }))), Health::Seismic);
+    assert_eq!(judge(200, false, Some(&json!([]))), Health::NotSeismic);
+    assert_eq!(judge(200, false, Some(&json!({ "projects": [] }))), Health::NotSeismic);
+    assert_eq!(judge(200, true, None), Health::NotSeismic);
+    assert_eq!(judge(401, false, Some(&json!({ "code": "loginRequired" }))), Health::NotSeismic);
+    assert_eq!(judge(403, false, Some(&json!({ "code": "notPaired" }))), Health::NotSeismic);
   }
 
   #[test]

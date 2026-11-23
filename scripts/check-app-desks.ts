@@ -14,7 +14,7 @@
 //     its one-time link, signed in, the list and the page's name follow;
 //   - the remote page lists the workspaces and gets the microphone, but cannot change the list, and a
 //     sandboxed frame of it gets no microphone;
-//   - after a relaunch the remote window comes back; down, it shows the status page, whose Try again
+//   - across two relaunches the offline workspace keeps its status page, whose Try again
 //     takes it to the workspace once it answers, still signed in;
 //   - removing the workspace closes its window.
 // The page reports through SEISMIC_APP_CHECK (desktop/src/window/), which imports this script's
@@ -22,11 +22,11 @@
 // shell commands the script sends it (`/todo`). Prints one line per check; exits 1 when one failed.
 
 import { type Subprocess } from 'bun';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { networkInterfaces, tmpdir } from 'node:os';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { ownerHeaders } from '../src/server/owner';
-import { bad, check, exited, expect, failed, until } from './check-harness';
+import { bad, check, exited, expect, failed, sleep, until } from './check-harness';
 
 const args = process.argv.slice(2);
 const programArg = args.find((a) => !a.startsWith('--'));
@@ -58,24 +58,35 @@ const remote = Bun.spawn(['bun', join(ROOT, 'src', 'server', 'main.ts'), '--port
 });
 const asOwner = (path: string, init: RequestInit = {}) => fetch(`${remoteUrl}${path}`, { ...init, headers: { ...ownerHeaders(remoteHome), 'content-type': 'application/json', ...init.headers } });
 
-/**
- * The proxy: what the shell and the remote window reach, from "another device" as far as the remote
- * can tell. At this machine's LAN address where it has one: WKWebView keeps no cookie of 127.0.0.1
- * past the app's run, so there the check cannot see a pairing outlast a relaunch.
- */
+// Localhost is a secure context for media capture. Forwarded headers make this a remote
+// device to the server, even though the webview and both servers are on the same machine.
 const proxy: { server?: ReturnType<typeof Bun.serve> } = {};
-const lan = Object.values(networkInterfaces())
-  .flat()
-  .find((i) => i && i.family === 'IPv4' && !i.internal)?.address;
-const HOST = lan ?? '127.0.0.1';
+const HOST = 'localhost';
 const proxyPort = free();
 const REMOTE = `http://${HOST}:${proxyPort}`;
+const FRAME = `<!doctype html>
+<script>
+  const report = (result) => parent.postMessage({ origin: self.origin, result }, '*');
+  (async () => {
+    if (!navigator.mediaDevices?.getUserMedia) return report('unavailable');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((t) => t.stop());
+      report('granted');
+    } catch (error) {
+      report(error.name);
+    }
+  })();
+</script>`;
+let onHealth: (() => Promise<void>) | undefined;
 const startProxy = () => {
   proxy.server = Bun.serve({
     port: proxyPort,
     hostname: HOST,
     async fetch(req) {
       const url = new URL(req.url);
+      if (url.pathname === '/__seismic-check-frame') return new Response(FRAME, { headers: { 'content-type': 'text/html' } });
+      if (url.pathname === '/api/projects' && req.headers.get('user-agent')?.startsWith('ureq/')) await onHealth?.();
       const headers = new Headers(req.headers);
       headers.set('x-forwarded-for', '100.64.0.7');
       headers.set('x-forwarded-host', `${HOST}:${proxyPort}`);
@@ -111,17 +122,20 @@ if (location.origin === ${JSON.stringify(REMOTE)}) {
   out.remove = await outcome(invoke('remove_desk', { id: 'local' }));
   out.projects = (await fetch('/api/projects')).status;
   await post('result', out);
-  // the microphone apart: WebKit may hold a request of a window that is out of sight
-  const mic = { kind: 'remoteMic' };
-  mic.mic = await outcome(Promise.race([navigator.mediaDevices.getUserMedia({ audio: true }).then((s) => (s.getTracks().forEach((t) => t.stop()), 'granted')), new Promise((_, no) => setTimeout(() => no(new Error('no answer in 5 s')), 5000))]));
-  // an opaque-origin frame of the page (as a worker's artifact is) asks for the microphone too
+  const mic = { kind: 'remoteMic', secure: isSecureContext };
+  mic.mic = await outcome(Promise.race([
+    Promise.resolve().then(() => navigator.mediaDevices.getUserMedia({ audio: true }))
+      .then((s) => (s.getTracks().forEach((t) => t.stop()), 'granted')),
+    new Promise((_, no) => setTimeout(() => no(new Error('no answer in 8 s')), 8000)),
+  ]));
+  // A sandboxed frame reports its effective origin and the outcome of its capture attempt.
   mic.frameMic = await new Promise((done) => {
     const f = document.createElement('iframe');
     f.sandbox = 'allow-scripts';
     f.allow = 'microphone';
-    f.srcdoc = '<script>navigator.mediaDevices.getUserMedia({ audio: true }).then(() => parent.postMessage("granted", "*"), (e) => parent.postMessage(String(e), "*"))<\\/script>';
-    addEventListener('message', (e) => e.source === f.contentWindow && done(String(e.data)));
-    setTimeout(() => done('no answer'), 5000);
+    f.src = '/__seismic-check-frame';
+    addEventListener('message', (e) => { if (e.source === f.contentWindow) done(e.data); });
+    setTimeout(() => done(null), 8000);
     document.body.append(f);
   });
   await post('result', mic);
@@ -178,6 +192,7 @@ const env: Record<string, string> = {
   SEISMIC_APP_CHECK: `${harness.url.href}check.js`,
   // WebKit's mock microphone on a Mac without one (desktop/src/window/microphone/macos.rs)
   SEISMIC_APP_CHECK_FAKE_MIC: '1',
+  ...(process.platform === 'win32' ? { WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: '--use-fake-device-for-media-stream' } : {}),
   SEISMIC_PORT: String(4600 + Math.floor(Math.random() * 300)),
   // the debug shell runs this checkout's server
   SEISMIC_CHECKOUT: ROOT,
@@ -193,10 +208,46 @@ const entry = () => {
   }
 };
 const startApp = () => Bun.spawn([program], { env, stdout: 'ignore', stderr: 'ignore' });
-const stopApp = async (app: Subprocess) => {
+const appApi = async (path: string, body?: object) => {
   const e = entry();
-  if (e) await fetch(`${e.url}/api/stop`, { method: 'POST', headers: ownerHeaders(home) }).catch(() => null);
-  if ((await exited(app, 30_000)) === null) app.kill();
+  if (!e) return;
+  return fetch(`${e.url}${path}`, {
+    method: 'POST',
+    headers: { ...ownerHeaders(home), 'content-type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+};
+const relaunch = async () => {
+  const res = await appApi('/api/app-update', { rebuilt: true }).catch((error) => {
+    // The server can finish shutting down before it sends the response. The next shell must report.
+    if (error.code !== 'ECONNRESET') throw error;
+    return null;
+  });
+  expect(res === null || (res?.ok && (await res.json()).updating), 'the shell update did not start');
+};
+
+/** Relaunches with the proxy holding the shell's first health request open. */
+const withPendingHealth = async (action: () => Promise<void>) => {
+  const pending = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  onHealth = () => {
+    pending.resolve();
+    return release.promise;
+  };
+  const before = reports.length;
+  try {
+    await relaunch();
+    await report('local', before);
+    await Promise.race([pending.promise, sleep(10_000).then(() => { throw new Error('no health request'); })]);
+    await action();
+  } finally {
+    onHealth = undefined;
+    release.resolve();
+  }
+  // A stale open would load a remote or status page as soon as its check comes back.
+  const halfway = reports.length;
+  await sleep(2000);
+  expect(!reports.slice(halfway).some((r) => r.kind === 'remote' || r.kind === 'status'), 'a stale health check opened another page');
 };
 
 let app: Subprocess | undefined;
@@ -250,10 +301,13 @@ try {
   }
   const mic = (await report('remoteMic').catch((e) => (bad("the remote page's microphone", String(e.message)), null))) as Record<string, unknown> | null;
   if (mic) {
-    await check('the remote page gets the microphone', () => expect((mic.mic as { ok: boolean }).ok, JSON.stringify(mic.mic)));
+    await check('the remote page gets the microphone in a secure context', () => {
+      expect(mic.secure === true && (mic.mic as { ok: boolean }).ok, JSON.stringify(mic));
+    });
     await check('a sandboxed frame of the remote page gets no microphone', () => {
-      expect(mic.frameMic !== 'granted', 'granted');
-      return String(mic.frameMic);
+      const frame = mic.frameMic as { origin: string; result: string } | null;
+      expect(frame?.origin === 'null' && ['NotAllowedError', 'SecurityError', 'unavailable'].includes(frame.result), JSON.stringify(mic.frameMic));
+      return frame!.result;
     });
   }
   await check('a second workspace at the same address is refused', async () => {
@@ -267,14 +321,9 @@ try {
   });
 
   // ---------------------------------------------------------------- after a relaunch, while the workspace is down
-  await stopApp(app);
   proxy.server?.stop(true);
-  writeFileSync(
-    join(home, 'app-windows.json'),
-    JSON.stringify({ at: Date.now(), windows: [{ desk: 'local', x: 40, y: 40, width: 1200, height: 800, visible: true, next: '/' }, { desk: id, origin: REMOTE, x: 80, y: 80, width: 1000, height: 700, visible: true, next: '/', focused: true }] }),
-  );
   const before = reports.length;
-  app = startApp();
+  await relaunch();
   const status = (await report('status', before).catch((e) => (bad('the status page', String(e.message)), null))) as Record<string, unknown> | null;
   if (status) {
     await check('after a relaunch the workspace window comes back; down, it shows the status page', () => {
@@ -287,6 +336,16 @@ try {
       expect(d.current === id && d.problem === 'unreachable' && d.list.length === 2, JSON.stringify(d));
     });
   }
+  await check('after a second relaunch the offline workspace still has its window', async () => {
+    await report('local', before);
+    const beforeSecond = reports.length;
+    await relaunch();
+    const again = await report('status', beforeSecond);
+    const d = (again.desks as { value: Desks }).value;
+    expect(d.current === id && d.problem === 'unreachable' && d.list.find((w) => w.id === id)?.open, JSON.stringify(d));
+    await report('local', beforeSecond);
+    return String(again.title);
+  });
   const afterStatus = reports.length;
   startProxy();
   retryNow = true;
@@ -296,7 +355,6 @@ try {
       expect(String(again.href).startsWith(`${REMOTE}/`) && again.projects === 200, `${again.href}, projects ${again.projects}`);
     });
   }
-  await report('local', afterStatus).catch(() => null);
   await check('removing the workspace closes its window', async () => {
     const r = await run('remove_desk', { id });
     expect(r.ok, JSON.stringify(r));
@@ -305,12 +363,36 @@ try {
     const saved = JSON.parse(readFileSync(join(home, 'app-desks.json'), 'utf8')) as { list: unknown[] };
     expect(saved.list.length === 1, JSON.stringify(saved));
   });
+  const added = await run('add_desk', { address: REMOTE, code: await code(), name: 'Lab' });
+  expect(added.ok, JSON.stringify(added));
+  id = (added.value as { id: string }).id;
+  await check('pairing takes over a pending health check and keeps one tracked window', async () => {
+    await withPendingHealth(async () => {
+      const before = reports.length;
+      const opened = await run('open_desk', { id });
+      expect(opened.ok, JSON.stringify(opened));
+      const paired = await run('pair_desk', { id, code: await code() });
+      expect(paired.ok, JSON.stringify(paired));
+      const page = await report('remote', before);
+      expect(page.projects === 200, JSON.stringify(page));
+    });
+    expect((await desks()).list.find((w) => w.id === id)?.open, 'the paired window is missing');
+  });
+  await check('removal cancels an in-flight health check', async () => {
+    await withPendingHealth(async () => {
+      const removed = await run('remove_desk', { id });
+      expect(removed.ok, JSON.stringify(removed));
+    });
+    expect(!(await desks()).list.some((w) => w.id === id), 'the removed workspace is still listed');
+  });
   await check("this machine's workspace stays", async () => {
     const r = await run('remove_desk', { id: 'local' });
     expect(!r.ok && r.error === 'local', JSON.stringify(r));
   });
 } finally {
-  if (app && app.exitCode === null) await stopApp(app);
+  await appApi('/api/stop').catch(() => null);
+  await until('the local server to stop', 30_000, () => !entry()).catch(() => null);
+  if (app && app.exitCode === null && (await exited(app, 5_000)) === null) app.kill();
   proxy.server?.stop(true);
   remote.kill();
   harness.stop(true);
