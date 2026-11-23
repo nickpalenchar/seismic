@@ -1,6 +1,6 @@
 import { createHash, createHmac, randomBytes } from 'node:crypto';
-import { eq, isNotNull, sql } from 'drizzle-orm';
-import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { and, eq, isNotNull, lt, sql } from 'drizzle-orm';
+import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import type { DeviceView } from '../../core/types';
 import type { Db } from './common';
 import { type Subscription, subscriptionOf } from '../webpush';
@@ -17,7 +17,7 @@ export const devices = sqliteTable('devices', {
   push: text({ mode: 'json' }).$type<Subscription>(),
 });
 
-/** A device's replacement credential from pairing again, not presented by its browser yet: one at most per device. */
+/** A table of an earlier design's credential handover: databases have it, nothing reads or writes it. */
 export const deviceRenewals = sqliteTable('device_renewals', {
   deviceId: text('device_id').primaryKey().references(() => devices.id, { onDelete: 'cascade' }),
   nonce: text().notNull(),
@@ -25,17 +25,32 @@ export const deviceRenewals = sqliteTable('device_renewals', {
 });
 
 /**
- * The credentials a replacement retired: they let nobody in, but a pairing again that brings one
- * (a request sent before its replacement arrived) pairs the device it was of, not a new one.
+ * Every credential a device was given once it was paired again, in the order given (`seq`; 0 the
+ * one of its first pairing, `devices.token_hash`, until then the only one). Presenting one retires
+ * those given before it, never those given after: an answer still on its way keeps working. A
+ * replacement is made from the credential the pairing brought (`source_hash`, `nonce`), so the same
+ * pairing again gets it again; a retired one lets nobody in, but still names its device.
  */
-export const deviceRetired = sqliteTable('device_retired', {
+export const deviceTokens = sqliteTable('device_tokens', {
   tokenHash: text('token_hash').primaryKey(),
   deviceId: text('device_id').notNull().references(() => devices.id, { onDelete: 'cascade' }),
+  seq: integer().notNull(),
+  retired: integer({ mode: 'boolean' }).notNull().default(false),
+  sourceHash: text('source_hash'),
+  nonce: text(),
 });
 
 const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
 /** The replacement credential of `token` with `nonce`: only who holds `token` can make it. */
 const replacement = (token: string, nonce: string) => createHmac('sha256', token).update(nonce).digest('base64url');
+
+/** A credential given in a pairing again. */
+export interface Issued {
+  token: string;
+  nonce: string;
+  hash: string;
+  seq: number;
+}
 
 const view = { id: devices.id, name: devices.name, pairedAt: devices.pairedAt, lastSeen: devices.lastSeen };
 
@@ -77,36 +92,40 @@ export class Devices {
   }
 
   /**
-   * The device whose credential hashes to `hash`; `promoted` where it was the device's replacement,
-   * which this makes current, retiring the one it replaces.
+   * The device whose credential hashes to `hash`, and that credential's place in the order given
+   * (`seq`). Presenting it retires the device's credentials given before it.
    */
-  byToken(hash: string): { device: DeviceView; promoted: boolean } | null {
-    const active = this.db.select(view).from(devices).where(eq(devices.tokenHash, hash)).get();
-    if (active) return { device: active, promoted: false };
-    const pending = this.db.select({ id: deviceRenewals.deviceId }).from(deviceRenewals).where(eq(deviceRenewals.tokenHash, hash)).get();
-    if (!pending) return null;
-    const device = this.db.transaction((tx) => {
-      const received = tx.delete(deviceRenewals).where(eq(deviceRenewals.tokenHash, hash)).returning({ id: deviceRenewals.deviceId }).get();
-      if (!received) return null;
-      const before = tx.select({ tokenHash: devices.tokenHash }).from(devices).where(eq(devices.id, received.id)).get();
-      if (before) tx.insert(deviceRetired).values({ tokenHash: before.tokenHash, deviceId: received.id }).onConflictDoNothing().run();
-      return tx.update(devices).set({ tokenHash: hash }).where(eq(devices.id, received.id)).returning(view).get() ?? null;
-    });
-    return device ? { device, promoted: true } : null;
+  byToken(hash: string): { device: DeviceView; seq: number } | null {
+    const row = this.db.select({ deviceId: deviceTokens.deviceId, seq: deviceTokens.seq, retired: deviceTokens.retired }).from(deviceTokens).where(eq(deviceTokens.tokenHash, hash)).get();
+    if (row) {
+      if (row.retired) return null;
+      this.db.update(deviceTokens).set({ retired: true }).where(and(eq(deviceTokens.deviceId, row.deviceId), lt(deviceTokens.seq, row.seq), eq(deviceTokens.retired, false))).run();
+      const device = this.db.select(view).from(devices).where(eq(devices.id, row.deviceId)).get();
+      return device ? { device, seq: row.seq } : null;
+    }
+    const first = this.db.select(view).from(devices).where(eq(devices.tokenHash, hash)).get();
+    // once paired again, the first credential is in `device_tokens` too, which decides
+    if (!first || this.db.select({ seq: deviceTokens.seq }).from(deviceTokens).where(eq(deviceTokens.deviceId, first.id)).get()) return null;
+    return { device: first, seq: 0 };
   }
 
   /** The device a retired credential (`hash`) was of, for pairing it again; it lets nobody in. */
   retired(hash: string): DeviceView | null {
-    const row = this.db.select({ id: deviceRetired.deviceId }).from(deviceRetired).where(eq(deviceRetired.tokenHash, hash)).get();
+    const row = this.db.select({ id: deviceTokens.deviceId }).from(deviceTokens).where(and(eq(deviceTokens.tokenHash, hash), eq(deviceTokens.retired, true))).get();
     return row ? (this.db.select(view).from(devices).where(eq(devices.id, row.id)).get() ?? null) : null;
   }
 
-  /** The device's replacement credential made from `token`, while its browser has not presented it yet. */
-  pending(id: string, token: string): { token: string; nonce: string } | null {
-    const row = this.db.select({ nonce: deviceRenewals.nonce, tokenHash: deviceRenewals.tokenHash }).from(deviceRenewals).where(eq(deviceRenewals.deviceId, id)).get();
-    if (!row) return null;
-    const made = replacement(token, row.nonce);
-    return sha256(made) === row.tokenHash ? { token: made, nonce: row.nonce } : null;
+  /** What the device's credential `hash` is: its place in the order, whether retired, and what it was made from. */
+  given(hash: string): { deviceId: string; seq: number; retired: boolean; sourceHash: string | null; nonce: string | null } | null {
+    const row = this.db.select({ deviceId: deviceTokens.deviceId, seq: deviceTokens.seq, retired: deviceTokens.retired, sourceHash: deviceTokens.sourceHash, nonce: deviceTokens.nonce }).from(deviceTokens).where(eq(deviceTokens.tokenHash, hash)).get();
+    if (row) return row;
+    const first = this.db.select({ id: devices.id }).from(devices).where(eq(devices.tokenHash, hash)).get();
+    return first ? { deviceId: first.id, seq: 0, retired: false, sourceHash: null, nonce: null } : null;
+  }
+
+  /** The replacement made from `source` again, where `given` says it was made from it. */
+  remake(source: string, nonce: string): string {
+    return replacement(source, nonce);
   }
 
   add(d: DeviceView & { tokenHash: string }) {
@@ -114,22 +133,29 @@ export class Devices {
   }
 
   /**
-   * A replacement for the device's credential `presented` (its current one, or one retired since),
-   * which becomes current, retiring the one before, when the browser first presents it (`byToken`).
-   * Retries with the same credential get the same replacement, even after a restart; the nonce
-   * alone cannot make it, that takes the browser's secret as well. One made from another credential
-   * gives way to this one. `nonce` names the replacement's cookie (`Access.pairRoute`).
+   * A replacement for the device's credential `presented` (its current one, or one retired since,
+   * from a request sent before its replacement arrived), given after all the others. The same
+   * credential brought again, while what it was given is not retired, gets that again, even after
+   * a restart; the nonce alone cannot make it, that takes the browser's secret as well. No other
+   * credential of the device is touched: those on their way keep working.
    */
-  renew(d: DeviceView, presented: string): { token: string; nonce: string } {
+  renew(d: DeviceView, presented: string): Issued {
+    const source = sha256(presented);
     return this.db.transaction((tx) => {
-      const row = tx.select({ nonce: deviceRenewals.nonce, tokenHash: deviceRenewals.tokenHash }).from(deviceRenewals).where(eq(deviceRenewals.deviceId, d.id)).get();
       tx.update(devices).set({ pairedAt: d.pairedAt, lastSeen: d.lastSeen }).where(eq(devices.id, d.id)).run();
-      if (row && sha256(replacement(presented, row.nonce)) === row.tokenHash) return { token: replacement(presented, row.nonce), nonce: row.nonce };
+      const rows = tx.select({ tokenHash: deviceTokens.tokenHash, seq: deviceTokens.seq, retired: deviceTokens.retired, sourceHash: deviceTokens.sourceHash, nonce: deviceTokens.nonce }).from(deviceTokens).where(eq(deviceTokens.deviceId, d.id)).all();
+      const again = rows.find((r) => r.sourceHash === source && !r.retired && r.nonce);
+      if (again) return { token: replacement(presented, again.nonce!), nonce: again.nonce!, hash: again.tokenHash, seq: again.seq };
+      if (!rows.length) {
+        const first = tx.select({ tokenHash: devices.tokenHash }).from(devices).where(eq(devices.id, d.id)).get()!;
+        tx.insert(deviceTokens).values({ tokenHash: first.tokenHash, deviceId: d.id, seq: 0 }).run();
+      }
+      const seq = Math.max(0, ...rows.map((r) => r.seq)) + 1;
       const nonce = randomBytes(32).toString('hex');
       const token = replacement(presented, nonce);
-      tx.delete(deviceRenewals).where(eq(deviceRenewals.deviceId, d.id)).run();
-      tx.insert(deviceRenewals).values({ deviceId: d.id, nonce, tokenHash: sha256(token) }).run();
-      return { token, nonce };
+      const hash = sha256(token);
+      tx.insert(deviceTokens).values({ tokenHash: hash, deviceId: d.id, seq, sourceHash: source, nonce }).run();
+      return { token, nonce, hash, seq };
     });
   }
 

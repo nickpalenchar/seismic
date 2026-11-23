@@ -736,16 +736,20 @@ export const MIGRATIONS = [
   `UPDATE events SET author = 'seismic' WHERE author = 'obeya';
    UPDATE activity SET who = 'seismic' WHERE who = 'obeya';`,
   'ALTER TABLE talk ADD COLUMN agent_setting TEXT;',
-  // A replacement credential becomes current when the browser first presents it.
+  // Device credential renewals (unused; databases already carry this step).
   `CREATE TABLE IF NOT EXISTS device_renewals (
     device_id TEXT PRIMARY KEY NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
     nonce TEXT NOT NULL,
     token_hash TEXT NOT NULL UNIQUE
   );`,
-  // The credentials a replacement retired, so that a pairing again sent before it arrived keeps its device.
-  `CREATE TABLE IF NOT EXISTS device_retired (
+  // Every credential a device was given once paired again, in order; presenting one retires those before it.
+  `CREATE TABLE IF NOT EXISTS device_tokens (
     token_hash TEXT PRIMARY KEY NOT NULL,
-    device_id TEXT NOT NULL REFERENCES devices(id) ON DELETE CASCADE
+    device_id TEXT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+    seq INTEGER NOT NULL,
+    retired INTEGER DEFAULT false NOT NULL,
+    source_hash TEXT,
+    nonce TEXT
   );`,
 ];
 

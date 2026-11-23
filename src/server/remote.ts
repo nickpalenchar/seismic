@@ -57,7 +57,11 @@ function portOnlyDeviceCookie(req: Request): string | null {
  */
 function ownCookies(req: Request): string[] {
   const base = deviceCookie(req);
-  return (req.headers.get('cookie')?.split(';') ?? []).map((c) => c.trim().split('=')[0]!).filter((n) => n === base || n.startsWith(`${base}.`));
+  return (req.headers.get('cookie')?.split(';') ?? [])
+    .map((c) => c.trim())
+    .filter((c) => c.indexOf('=') > 0)
+    .map((c) => c.slice(0, c.indexOf('=')))
+    .filter((n) => n === base || n.startsWith(`${base}.`));
 }
 /** The value of the cookie `name` the request carries, or none. */
 function cookieOf(req: Request, name: string): string | undefined {
@@ -136,11 +140,21 @@ export interface AccessOptions {
   owner?: Owner;
 }
 
-/** A browser paired: its credential, its device, and where it was paired again, the tag of the replacement's cookie name. */
+/** A browser paired: its credential (with its hash and place in the device's order), its device, and where it was paired again, the tag of the replacement's cookie name. */
 interface Enrolled {
   token: string;
+  hash: string;
+  seq: number;
   device: DeviceView;
   tag?: string;
+}
+
+/** A link that paired a browser: the device, the credential it gave, until when it is remembered. */
+interface UsedLink {
+  device: string;
+  hash: string;
+  seq: number;
+  until: number;
 }
 
 /** What answers on another address: started and stopped by the server, which knows its routes. */
@@ -179,7 +193,7 @@ export class Access implements Gate {
   private listen: Listen = () => {};
   private pairing: PairingCode | null = null;
   /** The one-time links `POST /api/pair` gave out, by their token's hash, with the code each spent; once used, `used`: the device it paired, and until when it is remembered. */
-  private readonly links = new Map<string, { expires: number; pairing: PairingCode; used?: { device: string; until: number } }>();
+  private readonly links = new Map<string, { expires: number; pairing: PairingCode; used?: UsedLink }>();
   /** The device each admitted remote request came from: its WebSocket closes when the device is removed. */
   private readonly from = new WeakMap<Request, string>();
   private readonly removedFns = new Set<(id: string) => void>();
@@ -415,14 +429,14 @@ export class Access implements Gate {
   }
 
   /**
-   * The first of the cookies `names` that names a device, with its value and name, each looked up
-   * once. A replacement credential the browser presents becomes current there and counts over the
-   * one it replaces, which may stand before it in the same request and no longer lets anyone in.
+   * Of the cookies `names` that name a device, the one given last, with its value and name, each
+   * looked up once. Presenting a credential retires those given before it, which may stand before
+   * it in the same request and then no longer let anyone in.
    */
-  private credential(req: Request, names: string[]): { device: DeviceView; token: string; name: string } | null {
+  private credential(req: Request, names: string[]): { device: DeviceView; token: string; name: string; seq: number } | null {
     const now = this.now();
     const cookies = req.headers.get('cookie')?.split(';').map((c) => c.trim()) ?? [];
-    let found: { device: DeviceView; token: string; name: string } | null = null;
+    let found: { device: DeviceView; token: string; name: string; seq: number } | null = null;
     for (const name of names) {
       const token = cookies.find((c) => c.startsWith(`${name}=`))?.slice(name.length + 1);
       if (!token) continue;
@@ -435,7 +449,7 @@ export class Access implements Gate {
         continue;
       }
       if (now - seen > SEEN_EVERY_MS) this.store.devices.seen(device.id, new Date(now).toISOString());
-      if (!found || known.promoted) found = { device, token, name };
+      if (!found || known.seq > found.seq) found = { device, token, name, seq: known.seq };
     }
     return found;
   }
@@ -450,9 +464,9 @@ export class Access implements Gate {
     const current = this.credential(req, own);
     if (current) return current;
     for (const name of own) {
-      const token = cookieOf(req, name)!;
-      const device = this.store.devices.retired(sha256(token));
-      if (device) return { device, token };
+      const token = cookieOf(req, name);
+      const device = token ? this.store.devices.retired(sha256(token)) : null;
+      if (device && token) return { device, token };
     }
     return undefined;
   }
@@ -533,19 +547,20 @@ export class Access implements Gate {
   private enroll(p: PairingCode, userAgent: string, existing?: { device: DeviceView; token: string }): Enrolled {
     const at = new Date(this.now()).toISOString();
     const device: DeviceView = { id: existing?.device.id ?? crypto.randomUUID(), name: existing?.device.name ?? deviceName(userAgent), pairedAt: at, lastSeen: at };
-    let token: string;
+    let issued: { token: string; hash: string; seq: number };
     let tag: string | undefined;
     if (existing) {
       const renewed = this.store.devices.renew(device, existing.token);
-      token = renewed.token;
+      issued = renewed;
       tag = renewed.nonce.slice(0, 12);
     } else {
-      token = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64url');
-      this.store.devices.add({ ...device, tokenHash: sha256(token) });
+      const token = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64url');
+      issued = { token, hash: sha256(token), seq: 0 };
+      this.store.devices.add({ ...device, tokenHash: issued.hash });
     }
     p.paired = device;
     console.log(`Seismic: ${device.name} paired`);
-    return { token, device, ...(tag ? { tag } : {}) };
+    return { ...issued, device, ...(tag ? { tag } : {}) };
   }
 
   /**
@@ -566,18 +581,11 @@ export class Access implements Gate {
       const link = this.links.get(sha256(params.get('token')!));
       // a link opened again in the browser it paired, while it is remembered; any other browser, or a
       // link that expired unused (a "Pair again" whose window came too late among them), is told it did not pair
-      if (link?.used) {
-        // only the browser it paired: on to the project where it holds the credential the link set,
-        // or, where that answer did not arrive (its replacement still waits), the same answer again
-        const holder = this.credential(req, ownCookies(req));
-        if (holder?.device.id !== link.used.device) return this.notPairedPage(true);
-        const waiting = this.store.devices.pending(holder.device.id, holder.token);
-        return waiting ? this.paired(req, { token: waiting.token, device: holder.device, tag: waiting.nonce.slice(0, 12) }) : project();
-      }
+      if (link?.used) return this.replay(req, link.used);
       if (!link || link.expires <= this.now()) return this.notPairedPage(true);
       // used up only once the device is written: a failed write leaves the link for another try
       const paired = this.enroll(link.pairing, userAgent, existing());
-      link.used = { device: paired.device.id, until: this.now() + USED_LINK_MS };
+      link.used = { device: paired.device.id, until: this.now() + USED_LINK_MS, hash: paired.hash, seq: paired.seq };
       return this.paired(req, paired);
     }
     const code = req.method === 'POST' ? String((await req.formData().catch(() => null))?.get('code') ?? '') : (params.get('code') ?? '');
@@ -586,6 +594,29 @@ export class Access implements Gate {
     const paired = this.redeem(code, userAgent, req.headers.get('sec-fetch-site') !== 'cross-site', existing());
     if (!paired) return this.notPairedPage(true);
     return this.paired(req, paired);
+  }
+
+  /**
+   * A used link opened again. Only the browser it paired goes on to the project: one that holds the
+   * credential the link gave, or one given after it. One that still holds what the link's pairing
+   * brought, its answer lost on the way, gets the same credential again (while it is not retired);
+   * that takes the credential it was made from, so no other browser gets it, and no other link's.
+   * Any other is told it did not pair.
+   */
+  private replay(req: Request, used: UsedLink): Response {
+    const holder = this.credential(req, ownCookies(req));
+    if (holder?.device.id === used.device && holder.seq >= used.seq) return new Response(null, { status: 303, headers: { location: '/' } });
+    const given = this.store.devices.given(used.hash);
+    if (given && !given.retired && given.sourceHash && given.nonce) {
+      for (const name of ownCookies(req)) {
+        const token = cookieOf(req, name);
+        if (token && sha256(token) === given.sourceHash) {
+          const device = this.store.devices.all().find((d) => d.id === used.device);
+          if (device) return this.paired(req, { token: this.store.devices.remake(token, given.nonce), hash: used.hash, seq: used.seq, device, tag: given.nonce.slice(0, 12) });
+        }
+      }
+    }
+    return this.notPairedPage(true);
   }
 
   /**

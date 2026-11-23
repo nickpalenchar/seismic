@@ -328,25 +328,52 @@ describe('pairing', () => {
     expect((await view()).devices).toHaveLength(1);
   });
 
-  test('a pairing again sent with the old cookie, arriving after its replacement took over, pairs the same device', async () => {
+  test('a pairing again sent with the old cookie, arriving after its replacement took over, pairs the same device and gets the same answer', async () => {
     await turnOn();
     const { jar, keep, header } = jarOf();
     keep(await viaTailnet(`/pair?code=${(await pairing()).code}`));
     const old = header();
-    keep(await viaTailnet(`/pair?code=${(await pairing()).code}`, { cookie: old }));
+    const first = await viaTailnet(`/pair?code=${(await pairing()).code}`, { cookie: old });
+    keep(first);
     // the browser uses the replacement: the old credential is retired
     expect((await viaTailnet('/api/projects', { cookie: header() })).status).toBe(200);
     expect((await viaTailnet('/api/projects', { cookie: old })).status).toBe(401);
     // a second pairing again, sent with the old cookie before the first answer came, arrives only now
-    keep(await viaTailnet(`/pair?code=${(await pairing()).code}`, { cookie: old }));
-    expect((await view()).devices).toHaveLength(1);
-    // the browser has two cookies at this address now, both of the one device; using the newer one retires the other
-    expect(jar.size).toBe(2);
+    const late = await viaTailnet(`/pair?code=${(await pairing()).code}`, { cookie: old });
+    expect(late.headers.getSetCookie()).toEqual(first.headers.getSetCookie());
+    keep(late);
+    expect(jar.size).toBe(1);
     expect((await viaTailnet('/api/projects', { cookie: header() })).status).toBe(200);
-    const [first, latest] = [...jar].map(([name, value]) => `${name}=${value}`);
-    expect((await viaTailnet('/api/projects', { cookie: first! })).status).toBe(401);
-    expect((await viaTailnet('/api/projects', { cookie: latest! })).status).toBe(200);
     expect((await view()).devices).toHaveLength(1);
+  });
+
+  test('a late pairing again with a retired cookie leaves alone a replacement still on its way', async () => {
+    await turnOn();
+    const { keep, header } = jarOf();
+    keep(await viaTailnet(`/pair?code=${(await pairing()).code}`));
+    const c = header();
+    keep(await viaTailnet(`/pair?code=${(await pairing()).code}`, { cookie: c }));
+    const b = header();
+    // B is in use (C retired); a pairing again from B is on its way back
+    expect((await viaTailnet('/api/projects', { cookie: b })).status).toBe(200);
+    const onItsWay = await viaTailnet(`/pair?code=${(await pairing()).code}`, { cookie: b });
+    // B is pairing again once more and that one arrives: C's replacement B is retired now
+    keep(await viaTailnet(`/pair?code=${(await pairing()).code}`, { cookie: b }));
+    expect((await viaTailnet('/api/projects', { cookie: header() })).status).toBe(200);
+    // a request sent long ago with C arrives: a new replacement, given after the others
+    keep(await viaTailnet(`/pair?code=${(await pairing()).code}`, { cookie: c }));
+    // the answer still on its way works when it comes, though it unsets B
+    keep(onItsWay);
+    expect((await viaTailnet('/api/projects', { cookie: onItsWay.headers.getSetCookie()[0]!.split(';')[0]! })).status).toBe(200);
+    expect((await viaTailnet('/api/projects', { cookie: header() })).status).toBe(200);
+    expect((await view()).devices).toHaveLength(1);
+  });
+
+  test('a cookie without a value at this address breaks no pairing', async () => {
+    await turnOn();
+    const res = await viaTailnet(`/pair?code=${(await pairing()).code}`, { cookie: 'seismic-device-https; seismic-device-https.0123456789ab; other=1' });
+    expect(res.status).toBe(303);
+    expect((await viaTailnet('/api/projects', { cookie: `${cookieOf(res)}; seismic-device-https.0123456789ab` })).status).toBe(200);
   });
 
   test('a used link opened again by its browser while the renewal it set has not arrived gives the same answer again', async () => {
@@ -371,6 +398,35 @@ describe('pairing', () => {
     expect(replay.headers.getSetCookie()).toEqual([]);
     // another browser gets nothing from the used link
     expect((await viaTailnet(link)).status).toBe(401);
+    // a later pairing again from its credential, whose answer is not kept: the earlier link gives none of it away
+    const later = await viaTailnet(`/pair?code=${(await pairing()).code}`, { cookie: header() });
+    expect(later.status).toBe(303);
+    const reopened = await viaTailnet(link, { cookie: header() });
+    expect(reopened.status).toBe(303);
+    expect(reopened.headers.getSetCookie()).toEqual([]);
+  });
+
+  test('a link that paired again from a retired cookie, its answer lost, gives it again to the browser bringing that cookie', async () => {
+    await turnOn();
+    const { keep, header } = jarOf();
+    keep(await viaTailnet(`/pair?code=${(await pairing()).code}`));
+    const c = header();
+    keep(await viaTailnet(`/pair?code=${(await pairing()).code}`, { cookie: c }));
+    keep(await viaTailnet(`/pair?code=${(await pairing()).code}`, { cookie: header() }));
+    expect((await viaTailnet('/api/projects', { cookie: header() })).status).toBe(200);
+    // the window opens a link with the retired C, and that answer is lost
+    const traded = await viaTailnet('/api/pair', { 'content-type': 'application/json' }, { method: 'POST', body: JSON.stringify({ code: (await pairing()).code }) });
+    const url = new URL(((await traded.json()) as { url: string }).url);
+    const link = `${url.pathname}${url.search}`;
+    const lost = await viaTailnet(link, { cookie: c });
+    expect(lost.status).toBe(303);
+    const again = await viaTailnet(link, { cookie: c });
+    expect(again.headers.getSetCookie()).toEqual(lost.headers.getSetCookie());
+    expect((await viaTailnet('/api/projects', { cookie: again.headers.getSetCookie()[0]!.split(';')[0]! })).status).toBe(200);
+    // with only its current cookie, which cannot make that replacement, the browser is told the link did not pair it
+    const fresh = jarOf();
+    fresh.jar.set(...(header().split('=') as [string, string]));
+    expect((await viaTailnet(link, { cookie: fresh.header() })).status).toBe(401);
   });
 
   test('a request with one device cookie looks it up once', async () => {

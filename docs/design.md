@@ -421,13 +421,14 @@ Safety rules:
   present, decide alone; the older names (`seismic-device-8443`, `seismic-device`, `obeya-device`)
   still let in a browser that lacks them, and are never renewed. Pairing again with an explicit
   code or link (even where the browser is paired) keeps the device entry and hands over a new
-  credential (`device_renewals`): made from the current one, so a retry gets the same; current, and
-  the one before retired, once the browser first presents it. Its cookie gets a name of its own
-  (`seismic-device-https-8443.<tag>`, the tag from the renewal's nonce) and the answer unsets the
-  one before: answers of overlapping pairings again, arriving late and out of order, then set
-  retired credentials beside the newest instead of over it, and the next pairing again clears them.
-  A retired credential is kept (`device_retired`, hashed): it lets nobody in, but a pairing again
-  that brings it, sent before its replacement arrived, pairs the same device, not a second one.
+  credential. Every credential given is kept, hashed, in the order given (`device_tokens`): the
+  browser presenting one retires those given before it, never one given after, so an answer still
+  on its way keeps working whatever arrives first. A replacement is made from the credential the
+  pairing brought (an HMAC with a nonce), so the same credential brought again, a retry or a
+  request sent before an earlier replacement arrived, gets the same answer and keeps its device;
+  a retired one lets nobody in. Each replacement's cookie has a name of its own
+  (`seismic-device-https-8443.<tag>`, the tag from its nonce) and the answer unsets the cookies the
+  request brought, so a late answer sets its cookie beside the newest, never over it.
   Rejected: one cookie name with the old credential kept valid for a generation or two, which only
   moves that race a renewal on; keeping the credential on pairing again, which leaves a copied
   cookie working (2026-11-23).
@@ -438,8 +439,8 @@ Safety rules:
   deadline too, and that the device connected once it did; the device is made when the window opens the link, so it gets the
   webview's cookie and name, not the shell's. The link is built only on a request address that is
   a plain `host[:port]` of Seismic's as a whole. Opened again within a day of its use, a used link leads
-  on to the project only in the browser it paired, and gives that browser the same answer again
-  where the replacement it set has not arrived; an expired or unknown one says it did not pair, even to a browser
+  on to the project only a browser holding the credential it gave or a later one, and gives the
+  same credential again to one still bringing the credential it was made from (its answer lost); an expired or unknown one says it did not pair, even to a browser
   paired before (2026-11-23).
 - Landing never loses work: nothing is force-pushed, a direct push only fast-forwards, a merge is
   pinned to the head that was checked; a clone is deleted only when nothing on it would be lost.
