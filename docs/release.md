@@ -190,21 +190,16 @@ info", then "Run anyway"); the release notes say so and how to check a download 
 ## Publishing the docs
 
 The user docs at seismic.im/docs live in `docs/site/` and are published by `seismic-site`, which
-pulls that directory from the `docs-vlatest` tag when it builds (its `scripts/fetch-docs.sh`).
-Docs on `main` are not live until the tag moves:
-
-```sh
-git tag -f docs-vlatest <commit>      # a commit on GitHub's main
-git push -f origin docs-vlatest
-```
-
-Pushing the tag runs `.github/workflows/docs-publish.yml`, which asks `seismic-site` to deploy
-(a `repository_dispatch` with the `SEISMIC_SITE_DISPATCH_TOKEN` secret, a fine-grained token with
-Contents read and write on `nickpalenchar/seismic-site`). The pages are markdown with Starlight frontmatter (`title`,
-`description`, `sidebar.label`, `sidebar.order`); links between them are site paths
-(`/docs/workflows/coding/`). Each directory is a sidebar group, and `seismic-site`'s
-`astro.config.mjs` lists the groups: a page in an existing group needs nothing there, a new
-group does.
+pulls that directory from the `docs-vlatest` tag when it builds (its `scripts/fetch-docs.sh`). Docs
+on `main` are not live until the tag moves: `just publish-docs` (`scripts/publish-docs.ts`) moves it
+to GitHub's `main`, or to a commit given, and pushes it. It stops when `docs/site/` is the same as
+at the tag, unless `--force`. Pushing the tag runs `.github/workflows/docs-publish.yml`, which asks
+`seismic-site` to deploy (a `repository_dispatch` with the `SEISMIC_SITE_DISPATCH_TOKEN` secret, a
+fine-grained token with Contents read and write on `nickpalenchar/seismic-site`). The pages are
+markdown with Starlight frontmatter (`title`, `description`, `sidebar.label`, `sidebar.order`);
+links between them are site paths (`/docs/workflows/coding/`). Each directory is a sidebar group,
+and `seismic-site`'s `astro.config.mjs` lists the groups: a page in an existing group needs nothing
+there, a new group does.
 
 ## Rules
 
