@@ -125,6 +125,69 @@ What W3 builds on:
 - **Cookies:** the windows share the app's one cookie store; cookies ignore the port, so the
   per-scheme-and-port cookie names of W2 are what keep two Seismics on one host apart.
 
+## W3 results (2026-11-23)
+
+The shell is in `desktop/src/`: the list and the commands in `desks/`, the windows and what keeps
+each on its origin in `window/`, the macOS menu in `menu.rs`. `scripts/check-app-desks.ts` checks
+it end to end in the real app, against a second Seismic behind a proxy that forwards as
+`tailscale serve` does (so it answers as another machine). The shell now locks Tauri 2.12.7 and
+wry 0.57.3, the versions the spike verified.
+
+- **The list:** `app-desks.json` in the home, the file and format the first attempt wrote
+  (`{ list: [{ id, name, url }] }`; its `active` and `microphone` are read past), so a list made
+  then carries over. This machine's entry has id `local` and no origin; a blank name shows the
+  machine's name (this machine) or the host (a remote one).
+- **Commands** (`desks/commands.rs`; errors are codes for the pages to word): every workspace page
+  gets `desks` (the list, the calling window's workspace as `current`) and `open_desk`, plus moving
+  the window from its bar and the notification plugin's three commands. This machine's page alone
+  gets `add_desk` (address, code, name: pairs over HTTP, then keeps it and opens its window at the
+  link), `rename_desk`, `pair_desk` (code, optional new address: the workspace moves once the
+  pairing went through, its old window closes) and `remove_desk`; they also check that `main`, at
+  its own origin, called. The bundled status page gets `desks`, `open_desk` and `retry_desk`
+  (`capabilities/status.json`). Pages hear of a change by a `seismic-desks` event on `window` and
+  ask for the list again. W4 builds the pages on these.
+- **Labels and capabilities:** `main` for this machine (a capability per port its server ran on in
+  the run, added before the window goes there), `desk-<n>` for a remote origin. A label never names
+  a second origin in a run: a workspace that moved gets a new window and label.
+- **Effective origin:** on macOS wry is vendored (`desktop/vendor/`) with a check in its script
+  message handler: only the main frame whose security origin is its document URL's origin may send
+  postMessage IPC, so a sandboxed main frame and every subframe are dropped, and the capability's
+  origin check does the rest. Linux windows have wry's `ipc` handler unregistered. Windows needs
+  neither (W1).
+- **Navigation:** a window admits its own origin and the bundled pages (`tauri://`,
+  `http(s)://tauri.localhost`). What it turns away opens in the system browser, at most one URL a
+  second per window, as the hook cannot tell a frame's navigation from the page's. On Windows the
+  shell cancels a frame's navigation off the window's origin itself (FrameNavigationStarting);
+  `about:blank` and `about:srcdoc` frames stay.
+- **Health check:** before a remote window opens, the shell asks `GET /api/projects` without a
+  cookie; Seismic answers with JSON (its projects, or `401 { code }`). Nothing answering or
+  something else answering opens the window at the status page instead, which says why, offers
+  Try again and the other workspaces. A window opened by a pairing skips the check, as the pairing
+  just answered.
+- **Relaunch:** `app-windows.json` (replacing `app-window.json`, still read once for a shell from
+  before) lists every window with its workspace, place and page; a remote one comes back through
+  the health check, only while its workspace is still on the list at that origin.
+- **Closing:** a remote window closes for good (opened again, it is checked again). `main` behaves
+  as before: hidden on a Mac, quitting elsewhere.
+- **Microphone:** granted to the window's own origin alone, decided by each engine's own hook (the
+  three modules of `40f8e6b9`, now per window): WKWebView by the requesting frame, WebView2 by its
+  origin, WebKitGTK by the committed page with other origins' frames kept out. The camera goes to
+  no page. No question to the owner: a listed origin is the owner's word.
+- **Drops:** files dropped on a remote window go to its page as in a browser; only `main` hands
+  the page this machine's paths.
+- **macOS menu:** a Workspace menu before Window lists the workspaces (⌃⌘1 … 9), the one of the
+  window in front checked. "New Workspace…" waits for W4's page.
+
+`check-app-desks.ts` passed on the Mac (2026-11-23) for everything but the remote window's
+microphone: there the page's `getUserMedia` never answered and its timers stopped, on a Mac Studio
+with the display asleep and WebKit's mock devices; this machine's window records in `check-app.ts`
+with the same module. A bare debug program keeps no cookie past its run in WKWebView (cookies are
+kept per app bundle), so the check needs a bundled build to see a pairing outlast a relaunch.
+
+Not verified here: the remote window's microphone (above), the Windows build (cross-compiling needs
+a Windows SDK) and a run of the app on Linux; `cargo check` and the unit tests passed in the Linux
+image. W5's CI covers Windows and Linux.
+
 ## Boundaries
 
 The web app does not change how it reaches its server: every page is served by the Seismic it talks to, over relative REST paths and a WebSocket at `location.host`. The shell is a container that keeps the list and pairs over HTTP. What carries over from the first attempt is listed per workstream; the rest of `desktop/src/desks.rs` does not. No syncing of the list between machines.

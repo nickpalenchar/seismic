@@ -21,7 +21,7 @@
 // - Downloads go into the Downloads folder and are shown there.
 // - A newer release is downloaded in the background, shown in the bar and installed when the owner
 //   says so, once the workers paused (update.rs).
-// - SEISMIC_APP_CHECK=<url of a module>: the page imports it once the project has loaded
+// - SEISMIC_APP_CHECK=<url of a module>: each window's page imports it once it has loaded (window/)
 //   (scripts/check-app.ts checks the microphone and video in the webview that way).
 // - SEISMIC_CHECKOUT=<checkout>: started from a checkout (`bun run app`, scripts/app.ts), the shell
 //   starts `bun <checkout>/src/server/main.ts` (SEISMIC_BUN names the bun) instead of the sidecar,

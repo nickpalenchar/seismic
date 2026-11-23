@@ -103,7 +103,7 @@ pub fn build(app: &AppHandle, label: &str, url: WebviewUrl, own: Own, placed: Op
   };
   let downloads = app.path().download_dir().ok();
   let saved: Arc<Mutex<HashMap<String, PathBuf>>> = Default::default();
-  let check = seismic_env("APP_CHECK").and_then(|c| c.into_string().ok()).filter(|_| local);
+  let check = seismic_env("APP_CHECK").and_then(|c| c.into_string().ok());
   let builder = WebviewWindowBuilder::new(app, label, url)
     .title("Seismic")
     .inner_size(1440.0, 900.0)
@@ -160,7 +160,8 @@ pub fn build(app: &AppHandle, label: &str, url: WebviewUrl, own: Own, placed: Op
     })
     .on_page_load(move |webview, payload| {
       if let (PageLoadEvent::Finished, Some(check)) = (payload.event(), &check) {
-        if loaded.at(payload.url()) {
+        // the window's own pages, and a remote workspace's status page (scripts/check-app-desks.ts)
+        if loaded.at(payload.url()) || (!local && bundled(payload.url())) {
           let _ = webview.eval(format!("import({check:?})"));
         }
       }
