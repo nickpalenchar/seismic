@@ -1,4 +1,5 @@
 import { afterEach, expect, spyOn, test } from 'bun:test';
+import { Database } from 'bun:sqlite';
 import { testProcessCode } from '../../../../test-process';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -331,7 +332,39 @@ test('concurrent publications stay ordered and abandonment keeps the last durabl
   await Promise.all([first, last, abandoned]);
   const record = JSON.parse(readFileSync(join(root, `${g.id}.json`), 'utf8'));
   expect(record.processes).toEqual([{ pid: 1, born: 'first' }, { pid: 2, born: 'last' }]);
-  expect(registry.unaccounted('/work')).toEqual([{ generation: g.id, label: 'ordered' }]);
+  // what it names still runs: the record stays, and nothing is ended
+  const running = () => new Map([[2, { pid: 2, born: 'last', parent: 0, group: 0 }]]);
+  expect(registry.unaccounted('/work', { table: running })).toEqual([{ generation: g.id, label: 'ordered' }]);
+  expect(existsSync(join(root, `${g.id}.json`))).toBe(true);
+});
+
+test('an abandoned record of which nothing runs any more blocks no new session in its directory', async () => {
+  const root = scratch();
+  const registry = new SessionRegistry(root, testEnvironment);
+  const g = (await registry.begin('listing models', '/home'))!;
+  await g.publish([{ pid: 7, born: 'gone' }]);
+  await g.abandon();
+  const none = () => new Map();
+  expect(registry.unaccounted('/elsewhere', { table: none })).toEqual([]);
+  expect(existsSync(join(root, `${g.id}.json`))).toBe(true); // another directory's start does not judge it
+  expect(registry.unaccounted('/home', { table: none })).toEqual([]);
+  expect(readdirSync(root)).toEqual([]);
+});
+
+test('a record whose owner still holds its lease stays unaccounted without being judged', async () => {
+  // another Seismic on the same home holds the lease of a session it has running
+  const root = scratch();
+  mkdirSync(root, { recursive: true });
+  const id = crypto.randomUUID();
+  const record: SessionRecord = { version: 1, generation: id, ...testEnvironment, owner: 1, label: 'other Seismic', cwd: '/home', processes: [{ pid: 7, born: 'gone' }] };
+  writeFileSync(join(root, `${id}.json`), JSON.stringify(record));
+  writeFileSync(join(root, `${id}.lease.sqlite`), '');
+  const lease = new Database(join(root, `${id}.lease.sqlite`));
+  lease.exec('BEGIN IMMEDIATE');
+  try {
+    expect(new SessionRegistry(root, testEnvironment).unaccounted('/home', { table: () => new Map() })).toEqual([{ generation: id, label: 'other Seismic' }]);
+    expect(existsSync(join(root, `${id}.json`))).toBe(true);
+  } finally { lease.exec('ROLLBACK'); lease.close(); }
 });
 
 test('finish drains queued publications before removing the record and releasing its lease', async () => {

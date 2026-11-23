@@ -187,11 +187,13 @@ export class SessionRegistry {
 
 
   /**
-   * Records left by sessions in `cwd` that were not accounted for (a sweep could not end their
-   * processes, or could not judge them): a new session there could have a second writer beside
-   * an old one. Records of this Seismic's live sessions are not among them.
+   * Records left by sessions in `cwd` that are not accounted for: a new session there could have a
+   * second writer beside an old one. Records of this Seismic's live sessions are not among them. A
+   * record whose lease is free and of which nothing runs any more (a session that gave up on it while
+   * Seismic kept running) is cleared here rather than at the next start, so it blocks nothing; one
+   * whose processes still run stays, and is ended only by the sweep at a start.
    */
-  unaccounted(cwd: string): { generation: string; label: string }[] {
+  unaccounted(cwd: string, options: { table?: () => Map<number, ProcessInfo> } = {}): { generation: string; label: string }[] {
     let names: string[];
     try { names = readdirSync(this.root); } catch { return []; }
     return names.flatMap((name) => {
@@ -199,9 +201,20 @@ export class SessionRegistry {
       if (!m || live.has(m[1]!)) return [];
       try {
         const record = recordSchema.parse(JSON.parse(readFileSync(join(this.root, name), 'utf8')));
-        return record.cwd === cwd ? [{ generation: record.generation, label: record.label }] : [];
+        if (record.cwd !== cwd || this.cleared(m[1]!, options)) return [];
+        return [{ generation: record.generation, label: record.label }];
       } catch { return []; }
     });
+  }
+
+  /** Whether the record of `id` could be judged under its lease and went, nothing of it running; ends nothing. */
+  private cleared(id: string, options: { table?: () => Map<number, ProcessInfo> }): boolean {
+    const paths = files(this.root, id);
+    const lease = acquire(paths.lease);
+    if (!lease) return false;
+    try { return this.sweep(id, paths, this.env, { ...options, end: false }).outcome === 'cleared'; }
+    catch { return false; }
+    finally { release(lease); }
   }
 
   /**
@@ -229,7 +242,8 @@ export class SessionRegistry {
     return out;
   }
 
-  private sweep(id: string, paths: ReturnType<typeof files>, env: Environment | null, options: Parameters<SessionRegistry['recover']>[0] & object): Recovery {
+  /** With `end: false` a record whose processes still run is left as it is, unrecovered, rather than ended. */
+  private sweep(id: string, paths: ReturnType<typeof files>, env: Environment | null, options: Parameters<SessionRegistry['recover']>[0] & { end?: boolean }): Recovery {
     // A file that cannot be removed is an error (the sweep reports it and the record stays), not a success.
     const remove = () => { for (const file of [paths.record, paths.lease]) try { unlinkSync(file); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; } };
     let record: SessionRecord;
@@ -261,6 +275,7 @@ export class SessionRegistry {
     const before = table();
     const alive = owned.filter((o) => sameRecorded(before.get(o.pid), o));
     if (!alive.length) { remove(); return { generation: id, outcome: 'cleared', detail: 'nothing of it is running', label: record.label }; }
+    if (options.end === false) return { generation: id, outcome: 'unrecovered', detail: `still running: ${alive.map((a) => a.pid).join(', ')}`, label: record.label };
     // The group of a recorded leader is read from the table, not the record: a group number is
     // only trusted for a process verified at this moment.
     const { failure } = (options.kill ?? ((o, t) => terminate(o, t, false)))(owned, before);

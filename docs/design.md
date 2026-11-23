@@ -453,7 +453,11 @@ Safety rules:
 - An agent session (Codex or agy) sends its first turn only once its own identity is durable in the
   session registry (a timed-out first snapshot is taken again), and an observation that fails for good
   after that (not a timed-out snapshot) ends the session and keeps its record for the next start's
-  sweep: what was seen may not be all it started.
+  sweep: what was seen may not be all it started. Such a record blocks new sessions in its directory
+  only while something it names still runs: a start there that can take its lease and finds none of
+  its processes running clears it, ending nothing (2026-11-22). Waiting for the next start's sweep
+  left one failed model listing (Codex's in the home directory, which every listing shares) refusing
+  every later listing until Seismic restarted.
   A process observed later that cannot be written to the record ends the session too. A session's
   end does not wait for its pipes to close beyond 2 s after its process exited: a command it left
   (never observed) can hold them for as long as it runs.
