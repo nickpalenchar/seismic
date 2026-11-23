@@ -1,6 +1,6 @@
 import { createHash, createHmac, randomBytes } from 'node:crypto';
-import { and, eq, isNotNull, lt, sql } from 'drizzle-orm';
-import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { and, desc, eq, isNotNull, lt, sql } from 'drizzle-orm';
+import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import type { DeviceView } from '../../core/types';
 import type { Db } from './common';
 import { type Subscription, subscriptionOf } from '../webpush';
@@ -31,14 +31,24 @@ export const deviceRenewals = sqliteTable('device_renewals', {
  * replacement is made from the credential the pairing brought (`source_hash`, `nonce`), so the same
  * pairing again gets it again; a retired one lets nobody in, but still names its device.
  */
-export const deviceTokens = sqliteTable('device_tokens', {
-  tokenHash: text('token_hash').primaryKey(),
-  deviceId: text('device_id').notNull().references(() => devices.id, { onDelete: 'cascade' }),
-  seq: integer().notNull(),
-  retired: integer({ mode: 'boolean' }).notNull().default(false),
-  sourceHash: text('source_hash'),
-  nonce: text(),
-});
+export const deviceTokens = sqliteTable(
+  'device_tokens',
+  {
+    tokenHash: text('token_hash').primaryKey(),
+    deviceId: text('device_id').notNull().references(() => devices.id, { onDelete: 'cascade' }),
+    seq: integer().notNull(),
+    retired: integer({ mode: 'boolean' }).notNull().default(false),
+    sourceHash: text('source_hash'),
+    nonce: text(),
+  },
+  (t) => [
+    index('device_tokens_by_device').on(t.deviceId, t.seq),
+    index('device_tokens_active').on(t.deviceId, t.seq).where(sql`retired = 0`),
+  ],
+);
+
+// Keep the literal predicate so SQLite can use the partial index at query planning time.
+const activeToken = sql`${deviceTokens.retired} = 0`;
 
 const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
 /** The replacement credential of `token` with `nonce`: only who holds `token` can make it. */
@@ -99,8 +109,11 @@ export class Devices {
     const row = this.db.select({ deviceId: deviceTokens.deviceId, seq: deviceTokens.seq, retired: deviceTokens.retired }).from(deviceTokens).where(eq(deviceTokens.tokenHash, hash)).get();
     if (row) {
       if (row.retired) return null;
-      this.db.update(deviceTokens).set({ retired: true }).where(and(eq(deviceTokens.deviceId, row.deviceId), lt(deviceTokens.seq, row.seq), eq(deviceTokens.retired, false))).run();
-      const device = this.db.select(view).from(devices).where(eq(devices.id, row.deviceId)).get();
+      const older = and(eq(deviceTokens.deviceId, row.deviceId), lt(deviceTokens.seq, row.seq), activeToken);
+      if (row.seq > 0 && this.db.select({ seq: deviceTokens.seq }).from(deviceTokens).where(older).limit(1).get()) {
+        this.db.update(deviceTokens).set({ retired: true }).where(older).run();
+      }
+      const device = this.byId(row.deviceId);
       return device ? { device, seq: row.seq } : null;
     }
     const first = this.db.select(view).from(devices).where(eq(devices.tokenHash, hash)).get();
@@ -112,7 +125,11 @@ export class Devices {
   /** The device a retired credential (`hash`) was of, for pairing it again; it lets nobody in. */
   retired(hash: string): DeviceView | null {
     const row = this.db.select({ id: deviceTokens.deviceId }).from(deviceTokens).where(and(eq(deviceTokens.tokenHash, hash), eq(deviceTokens.retired, true))).get();
-    return row ? (this.db.select(view).from(devices).where(eq(devices.id, row.id)).get() ?? null) : null;
+    return row ? this.byId(row.id) : null;
+  }
+
+  byId(id: string): DeviceView | null {
+    return this.db.select(view).from(devices).where(eq(devices.id, id)).get() ?? null;
   }
 
   /** What the device's credential `hash` is: its place in the order, whether retired, and what it was made from. */
@@ -143,14 +160,16 @@ export class Devices {
     const source = sha256(presented);
     return this.db.transaction((tx) => {
       tx.update(devices).set({ pairedAt: d.pairedAt, lastSeen: d.lastSeen }).where(eq(devices.id, d.id)).run();
-      const rows = tx.select({ tokenHash: deviceTokens.tokenHash, seq: deviceTokens.seq, retired: deviceTokens.retired, sourceHash: deviceTokens.sourceHash, nonce: deviceTokens.nonce }).from(deviceTokens).where(eq(deviceTokens.deviceId, d.id)).all();
-      const again = rows.find((r) => r.sourceHash === source && !r.retired && r.nonce);
-      if (again) return { token: replacement(presented, again.nonce!), nonce: again.nonce!, hash: again.tokenHash, seq: again.seq };
-      if (!rows.length) {
+      const history = eq(deviceTokens.deviceId, d.id);
+      const again = tx.select({ tokenHash: deviceTokens.tokenHash, seq: deviceTokens.seq, nonce: deviceTokens.nonce })
+        .from(deviceTokens).where(and(history, activeToken, eq(deviceTokens.sourceHash, source), isNotNull(deviceTokens.nonce))).limit(1).get();
+      if (again?.nonce) return { token: replacement(presented, again.nonce), nonce: again.nonce, hash: again.tokenHash, seq: again.seq };
+      const last = tx.select({ seq: deviceTokens.seq }).from(deviceTokens).where(history).orderBy(desc(deviceTokens.seq)).limit(1).get();
+      if (!last) {
         const first = tx.select({ tokenHash: devices.tokenHash }).from(devices).where(eq(devices.id, d.id)).get()!;
         tx.insert(deviceTokens).values({ tokenHash: first.tokenHash, deviceId: d.id, seq: 0 }).run();
       }
-      const seq = Math.max(0, ...rows.map((r) => r.seq)) + 1;
+      const seq = (last?.seq ?? 0) + 1;
       const nonce = randomBytes(32).toString('hex');
       const token = replacement(presented, nonce);
       const hash = sha256(token);

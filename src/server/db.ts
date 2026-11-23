@@ -751,6 +751,8 @@ export const MIGRATIONS = [
     source_hash TEXT,
     nonce TEXT
   );`,
+  `CREATE INDEX IF NOT EXISTS device_tokens_by_device ON device_tokens (device_id, seq);
+   CREATE INDEX IF NOT EXISTS device_tokens_active ON device_tokens (device_id, seq) WHERE retired = 0;`,
 ];
 
 /**

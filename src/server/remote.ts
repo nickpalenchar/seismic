@@ -443,12 +443,8 @@ export class Access implements Gate {
       const known = this.store.devices.byToken(sha256(token));
       if (!known) continue;
       const { device } = known;
-      const seen = Date.parse(device.lastSeen);
-      if (now - seen > UNUSED_MS) {
-        this.remove(device.id);
-        continue;
-      }
-      if (now - seen > SEEN_EVERY_MS) this.store.devices.seen(device.id, new Date(now).toISOString());
+      if (!this.stillPaired(device, now)) continue;
+      if (now - Date.parse(device.lastSeen) > SEEN_EVERY_MS) this.store.devices.seen(device.id, new Date(now).toISOString());
       if (!found || known.seq > found.seq) found = { device, token, name, seq: known.seq };
     }
     return found;
@@ -466,9 +462,16 @@ export class Access implements Gate {
     for (const name of own) {
       const token = cookieOf(req, name);
       const device = token ? this.store.devices.retired(sha256(token)) : null;
-      if (device && token) return { device, token };
+      if (device && token && this.stillPaired(device, this.now())) return { device, token };
     }
     return undefined;
+  }
+
+  /** Checks inactivity before a credential can use or renew a device entry. */
+  private stillPaired(device: DeviceView, now: number): boolean {
+    if (now - Date.parse(device.lastSeen) <= UNUSED_MS) return true;
+    this.remove(device.id);
+    return false;
   }
 
   devices(): DeviceView[] {
@@ -611,8 +614,8 @@ export class Access implements Gate {
       for (const name of ownCookies(req)) {
         const token = cookieOf(req, name);
         if (token && sha256(token) === given.sourceHash) {
-          const device = this.store.devices.all().find((d) => d.id === used.device);
-          if (device) return this.paired(req, { token: this.store.devices.remake(token, given.nonce), hash: used.hash, seq: used.seq, device, tag: given.nonce.slice(0, 12) });
+          const device = this.store.devices.byId(used.device);
+          if (device && this.stillPaired(device, this.now())) return this.paired(req, { token: this.store.devices.remake(token, given.nonce), hash: used.hash, seq: used.seq, device, tag: given.nonce.slice(0, 12) });
         }
       }
     }

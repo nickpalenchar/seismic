@@ -351,22 +351,70 @@ describe('pairing', () => {
     await turnOn();
     const { keep, header } = jarOf();
     keep(await viaTailnet(`/pair?code=${(await pairing()).code}`));
-    const c = header();
-    keep(await viaTailnet(`/pair?code=${(await pairing()).code}`, { cookie: c }));
-    const b = header();
-    // B is in use (C retired); a pairing again from B is on its way back
-    expect((await viaTailnet('/api/projects', { cookie: b })).status).toBe(200);
-    const onItsWay = await viaTailnet(`/pair?code=${(await pairing()).code}`, { cookie: b });
-    // B is pairing again once more and that one arrives: C's replacement B is retired now
-    keep(await viaTailnet(`/pair?code=${(await pairing()).code}`, { cookie: b }));
+    const original = header();
+    const renew = async (cookie: string) => viaTailnet(`/pair?code=${(await pairing()).code}`, { cookie });
+    const first = await renew(original);
+    keep(first);
+    keep(await renew(header()));
+    const current = header();
+    expect((await viaTailnet('/api/projects', { cookie: current })).status).toBe(200);
+    expect((await viaTailnet('/api/projects', { cookie: cookieOf(first) })).status).toBe(401);
+
+    const pending = await renew(current);
+    // The original cookie's first replacement has retired. The delayed request issues a
+    // distinct replacement while the browser still holds only its current cookie.
+    const delayed = await renew(original);
+    expect(delayed.status).toBe(303);
+    expect(cookieOf(delayed)).not.toBe(cookieOf(first));
+    expect(cookieOf(delayed)).not.toBe(cookieOf(pending));
+    expect(header()).toBe(current);
+    keep(pending);
+    expect(header()).toBe(cookieOf(pending));
     expect((await viaTailnet('/api/projects', { cookie: header() })).status).toBe(200);
-    // a request sent long ago with C arrives: a new replacement, given after the others
-    keep(await viaTailnet(`/pair?code=${(await pairing()).code}`, { cookie: c }));
-    // the answer still on its way works when it comes, though it unsets B
-    keep(onItsWay);
-    expect((await viaTailnet('/api/projects', { cookie: onItsWay.headers.getSetCookie()[0]!.split(';')[0]! })).status).toBe(200);
+    keep(delayed);
     expect((await viaTailnet('/api/projects', { cookie: header() })).status).toBe(200);
+    expect((await viaTailnet('/api/projects', { cookie: cookieOf(pending) })).status).toBe(401);
     expect((await view()).devices).toHaveLength(1);
+  });
+
+  test('renewed credentials authenticate without a write once their predecessors retire', async () => {
+    await turnOn();
+    const original = cookieOf(await viaTailnet(`/pair?code=${(await pairing()).code}`));
+    const renewed = cookieOf(await viaTailnet(`/pair?code=${(await pairing()).code}`, { cookie: original }));
+    expect((await viaTailnet('/api/projects', { cookie: renewed })).status).toBe(200);
+    expect((await viaTailnet('/api/projects', { cookie: original })).status).toBe(401);
+    store.db.run('PRAGMA query_only = ON');
+    try {
+      expect((await viaTailnet('/api/projects', { cookie: renewed })).status).toBe(200);
+    } finally {
+      store.db.run('PRAGMA query_only = OFF');
+    }
+  });
+
+  test.each(['code', 'link'])('pairing by %s with a retired cookie replaces an expired device entry', async (method) => {
+    await turnOn();
+    const original = cookieOf(await viaTailnet(`/pair?code=${(await pairing()).code}`));
+    const current = cookieOf(await viaTailnet(`/pair?code=${(await pairing()).code}`, { cookie: original }));
+    expect((await viaTailnet('/api/projects', { cookie: current })).status).toBe(200);
+    const id = (await view()).devices[0]!.id;
+    store.devices.setPush(id, { endpoint: 'https://web.push.apple.com/QGx', keys: { p256dh: 'key', auth: 'secret' } });
+    clock += UNUSED_MS + 1;
+
+    const { code } = await pairing();
+    let path = `/pair?code=${code}`;
+    if (method === 'link') {
+      const traded = await viaTailnet('/api/pair', { 'content-type': 'application/json' }, { method: 'POST', body: JSON.stringify({ code }) });
+      const url = new URL(((await traded.json()) as { url: string }).url);
+      path = `${url.pathname}${url.search}`;
+    }
+    const paired = await viaTailnet(path, { cookie: original });
+    expect(paired.status).toBe(303);
+    const devices = store.devices.all();
+    expect(devices).toHaveLength(1);
+    expect(devices[0]!.id).not.toBe(id);
+    expect(devices[0]!.push).toBeUndefined();
+    expect((await viaTailnet('/api/projects', { cookie: cookieOf(paired) })).status).toBe(200);
+    expect((await viaTailnet('/api/projects', { cookie: current })).status).toBe(401);
   });
 
   test('a cookie without a value at this address breaks no pairing', async () => {
@@ -427,6 +475,24 @@ describe('pairing', () => {
     const fresh = jarOf();
     fresh.jar.set(...(header().split('=') as [string, string]));
     expect((await viaTailnet(link, { cookie: fresh.header() })).status).toBe(401);
+  });
+
+  test('a used link cannot reissue a replacement when its device entry has expired', async () => {
+    await turnOn();
+    const original = cookieOf(await viaTailnet(`/pair?code=${(await pairing()).code}`));
+    const current = cookieOf(await viaTailnet(`/pair?code=${(await pairing()).code}`, { cookie: original }));
+    expect((await viaTailnet('/api/projects', { cookie: current })).status).toBe(200);
+    const id = (await view()).devices[0]!.id;
+    const traded = await viaTailnet('/api/pair', { 'content-type': 'application/json' }, { method: 'POST', body: JSON.stringify({ code: (await pairing()).code }) });
+    const url = new URL(((await traded.json()) as { url: string }).url);
+    const link = `${url.pathname}${url.search}`;
+    expect((await viaTailnet(link, { cookie: original })).status).toBe(303);
+    // Keep the link in its replay window while exercising the device's separate expiry check.
+    store.devices.seen(id, new Date(clock - UNUSED_MS - 1).toISOString());
+    const replay = await viaTailnet(link, { cookie: original });
+    expect(replay.status).toBe(401);
+    expect(replay.headers.getSetCookie()).toEqual([]);
+    expect(store.devices.byId(id)).toBeNull();
   });
 
   test('a request with one device cookie looks it up once', async () => {
