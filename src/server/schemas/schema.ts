@@ -15,7 +15,7 @@ export { cardReviewItemEvents, cardReviewItems, cardReviews, cardReviewsRelation
 export { chats } from './chats';
 export { commands } from './commands';
 export { decisions } from './decisions';
-export { devices } from './devices';
+export { devices, deviceRenewals } from './devices';
 export { events } from './events';
 export { feedback } from './feedback';
 export { folderCards } from './folder-cards';

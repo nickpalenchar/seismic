@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { AccessView, Pairing } from '../../core/types';
@@ -246,6 +246,196 @@ describe('pairing', () => {
     expect((await view()).devices).toEqual([]);
   });
 
+  test('reconnecting a paired desktop requires a fresh code and keeps its device entry', async () => {
+    await turnOn();
+    const first = await pairing();
+    const cookie = cookieOf(await viaTailnet(`/pair?code=${first.code}`));
+    const id = (await view()).devices[0]!.id;
+    const reconnect = (code: string) => viaTailnet(`/pair?code=${code}`, { cookie });
+    expect((await viaTailnet('/pair', { cookie })).status).toBe(303);
+    expect((await reconnect(first.code)).status).toBe(401);
+    const posted = await viaTailnet('/pair', { cookie, origin: `https://${NAME}`, 'content-type': 'application/x-www-form-urlencoded' }, { method: 'POST', body: `code=${first.code}` });
+    expect(posted.status).toBe(401);
+    const expired = await pairing();
+    clock += PAIRING_MS + 1;
+    expect((await reconnect(expired.code)).status).toBe(401);
+    const next = await pairing();
+    expect((await reconnect(next.code === '000000' ? '111111' : '000000')).status).toBe(401);
+    expect((await viaTailnet('/api/projects', { cookie })).status).toBe(200);
+    const renewed = await reconnect(next.code);
+    expect(renewed.status).toBe(303);
+    // The response might never reach the webview. Its original cookie still works until receipt.
+    expect((await viaTailnet('/api/projects', { cookie })).status).toBe(200);
+    const freshCookie = cookieOf(renewed);
+    // A second valid submission before either response arrives must not strand the first response.
+    expect(cookieOf(await reconnect((await pairing()).code))).toBe(freshCookie);
+    expect((await viaTailnet('/api/projects', { cookie: freshCookie })).status).toBe(200);
+    expect((await viaTailnet('/api/projects', { cookie })).status).toBe(401);
+    expect((await reconnect(next.code)).status).toBe(401);
+    expect((await view()).devices.map((d) => d.id)).toEqual([id]);
+  });
+
+  test('pairing at a second port preserves the legacy pairing used at the first', async () => {
+    await turnOn();
+    const token = cookieOf(await viaTailnet(`/pair?code=${(await pairing()).code}`)).split('=')[1];
+    const first = `seismic-device=${token}`;
+    const port = { host: `${NAME}:8443`, 'x-forwarded-host': `${NAME}:8443` };
+    const second = cookieOf(await viaTailnet(`/pair?code=${(await pairing()).code}`, { ...port, cookie: first }));
+    const renewed = cookieOf(await viaTailnet(`/pair?code=${(await pairing()).code}`, { ...port, cookie: `${first}; ${second}` }));
+    expect((await viaTailnet('/api/projects', { ...port, cookie: renewed })).status).toBe(200);
+    expect((await viaTailnet('/api/projects', { cookie: first })).status).toBe(200);
+    expect((await view()).devices).toHaveLength(2);
+  });
+
+  test("at an address with a port the cookie is named for it: another Seismic on the same host keeps its own", async () => {
+    await turnOn();
+    const at8443 = { host: `${NAME}:8443`, 'x-forwarded-host': `${NAME}:8443` };
+    const cookie = cookieOf(await viaTailnet(`/pair?code=${(await pairing()).code}`, at8443));
+    expect(cookie).toStartWith('seismic-device-https-8443=');
+    // the browser sends the other Seismic's cookie of that host along, which lets nothing in here
+    expect((await viaTailnet('/api/projects', { ...at8443, cookie: `seismic-device=the-other-ones; ${cookie}` })).status).toBe(200);
+    expect((await viaTailnet('/api/projects', { ...at8443, cookie: 'seismic-device=the-other-ones' })).status).toBe(401);
+    // a device paired under the name without a port or scheme keeps working at the address with one
+    const token = cookieOf(await viaTailnet(`/pair?code=${(await pairing()).code}`)).split('=')[1];
+    expect((await viaTailnet('/api/projects', { ...at8443, cookie: `seismic-device=${token}` })).status).toBe(200);
+    expect((await viaTailnet('/api/projects', { cookie: `seismic-device=${token}` })).status).toBe(200);
+    // so does one paired under the port's name alone, before the scheme joined it
+    expect((await viaTailnet('/api/projects', { ...at8443, cookie: `seismic-device-8443=${token}` })).status).toBe(200);
+    expect((await viaTailnet('/api/projects', { cookie: `seismic-device-8443=${token}` })).status).toBe(401);
+  });
+
+  test('http:// and https:// at one port of one host reaching one Seismic: pairing at the second renews nothing of the first', async () => {
+    await turnOn();
+    const port = { host: `${NAME}:8443`, 'x-forwarded-host': `${NAME}:8443` };
+    const plain = cookieOf(await viaTailnet(`/pair?code=${(await pairing()).code}`, { ...port, 'x-forwarded-proto': 'http' }));
+    expect(plain).toStartWith('seismic-device-http-8443=');
+    const token = plain.split('=')[1]!;
+    // the browser sends the plain cookie along over HTTPS too (it is not Secure): the pairing there is a device of its own
+    const secure = await viaTailnet(`/pair?code=${(await pairing()).code}`, { ...port, cookie: plain });
+    expect(secure.headers.get('set-cookie')).toStartWith('seismic-device-https-8443=');
+    expect(secure.headers.get('set-cookie')).toContain('Secure');
+    expect((await view()).devices).toHaveLength(2);
+    // and the first keeps its access over plain HTTP, its cookie not replaced by a Secure one it would never send there
+    expect((await viaTailnet('/api/projects', { ...port, cookie: cookieOf(secure) })).status).toBe(200);
+    expect((await viaTailnet('/api/projects', { ...port, 'x-forwarded-proto': 'http', cookie: plain })).status).toBe(200);
+    // a cookie of the port's name alone, from before the scheme joined it, lets the device in at both but is renewed at neither
+    const legacy = `seismic-device-8443=${token}`;
+    expect((await viaTailnet('/api/projects', { ...port, cookie: legacy })).status).toBe(200);
+    expect((await viaTailnet('/api/projects', { ...port, 'x-forwarded-proto': 'http', cookie: legacy })).status).toBe(200);
+    const again = cookieOf(await viaTailnet(`/pair?code=${(await pairing()).code}`, { ...port, cookie: legacy }));
+    expect(again).toStartWith('seismic-device-https-8443=');
+    expect((await viaTailnet('/api/projects', { ...port, 'x-forwarded-proto': 'http', cookie: plain })).status).toBe(200);
+    expect((await view()).devices).toHaveLength(3);
+  });
+
+  test('a browser paired again under the address\'s own name is out once that device is removed, whatever older cookie it keeps beside it', async () => {
+    await turnOn();
+    const port = { host: `${NAME}:8443`, 'x-forwarded-host': `${NAME}:8443` };
+    const first = cookieOf(await viaTailnet(`/pair?code=${(await pairing()).code}`, port)).split('=')[1]!;
+    const legacy = `seismic-device-8443=${first}`;
+    expect((await viaTailnet('/api/projects', { ...port, cookie: legacy })).status).toBe(200);
+    // the browser pairs again with that cookie in its jar: a device of its own, under the address's own name
+    const own = cookieOf(await viaTailnet(`/pair?code=${(await pairing()).code}`, { ...port, cookie: legacy }));
+    expect(own).toStartWith('seismic-device-https-8443=');
+    const both = `${legacy}; ${own}`;
+    expect((await viaTailnet('/api/projects', { ...port, cookie: both })).status).toBe(200);
+    expect((await viaTailnet('/pair', { ...port, cookie: both })).status).toBe(303);
+    const [older, newer] = (await view()).devices.map((d) => d.id);
+    expect(await (await local(`/api/access/devices/${newer}`, { method: 'DELETE' })).json()).toEqual({ removed: true });
+    // "Remove" of the device paired last puts the browser out at that address: the older cookie beside the new one no longer lets it in
+    expect((await viaTailnet('/api/projects', { ...port, cookie: both })).status).toBe(401);
+    expect((await viaTailnet('/', { ...port, cookie: both })).status).toBe(401);
+    expect((await viaTailnet('/pair', { ...port, cookie: both })).status).toBe(401);
+    expect(await opens({ host: `${NAME}:8443`, 'x-forwarded-for': '100.64.0.7', 'x-forwarded-proto': 'https', origin: `https://${NAME}:8443`, cookie: both })).toBeNull();
+    // the older cookie may be another origin's on this host: a browser that has only it keeps its access, and the device stays
+    expect((await viaTailnet('/api/projects', { ...port, 'x-forwarded-proto': 'http', cookie: legacy })).status).toBe(200);
+    expect((await view()).devices.map((d) => d.id)).toEqual([older!]);
+    // the same at an address without a port, with the name from before the scheme joined it
+    const bare = `seismic-device=${cookieOf(await viaTailnet(`/pair?code=${(await pairing()).code}`)).split('=')[1]}`;
+    const renamed = cookieOf(await viaTailnet(`/pair?code=${(await pairing()).code}`, { cookie: bare }));
+    expect(renamed).toStartWith('seismic-device-https=');
+    expect((await viaTailnet('/api/projects', { cookie: `${bare}; ${renamed}` })).status).toBe(200);
+    const last = (await view()).devices.at(-1)!.id;
+    await local(`/api/access/devices/${last}`, { method: 'DELETE' });
+    expect((await viaTailnet('/api/projects', { cookie: `${bare}; ${renamed}` })).status).toBe(401);
+    expect((await viaTailnet('/api/projects', { cookie: bare })).status).toBe(200);
+    // a browser whose own cookie is of a device gone unused too long is not let in by an older one beside it either
+    const aged = cookieOf(await viaTailnet(`/pair?code=${(await pairing()).code}`, { cookie: bare }));
+    clock += UNUSED_MS - 1000;
+    expect((await viaTailnet('/api/projects', { cookie: bare })).status).toBe(200);
+    clock += 2000;
+    expect((await viaTailnet('/api/projects', { cookie: `${bare}; ${aged}` })).status).toBe(401);
+  });
+
+  test('at addresses without a port the cookie is named for the scheme: Seismics at http:// and https:// of one host, paired in turn by one browser, keep their own', async () => {
+    // this test's Seismic answers at https://NAME through `tailscale serve`; another one beside it at http://NAME, behind a proxy
+    await turnOn();
+    const home = join(dir, 'other');
+    mkdirSync(home);
+    const otherStore = new Store(':memory:');
+    const otherAccess = new Access({ store: otherStore, home, tailscale: new Tailscale(fakeTailscale(join(dir, 'other-ts'))), now: () => clock });
+    const otherProject = new ProjectRuntime({ repos: [{ path: join(dir, 'main') }] }, { store: otherStore, home, runtime: undefined as never, forge: noForge });
+    const other = serve([otherProject], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, undefined, undefined, undefined, undefined, undefined, otherAccess);
+    try {
+      const otherLocal = (path: string, init: RequestInit = {}) => asOwner(() => other).fetch(new URL(path, other.url), init);
+      await otherLocal('/api/access', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ remote: { via: 'hosts', hosts: [NAME] } }) });
+      const otherCode = async () => ((await (await otherLocal('/api/access/pair', { method: 'POST' })).json()) as Pairing).code;
+
+      // the browser's one jar for NAME: what each answer sets, sent along to both, a Secure cookie over HTTPS only
+      const jar = new Map<string, { value: string; secure: boolean }>();
+      const keep = (res: Response) => {
+        const set = res.headers.get('set-cookie');
+        if (!set) return res;
+        const [pair, ...attributes] = set.split(';').map((p) => p.trim());
+        const [name, value] = pair!.split('=') as [string, string];
+        expect(name).toMatch(/^[\w-]+$/);
+        jar.set(name, { value, secure: attributes.includes('Secure') });
+        return res;
+      };
+      const cookies = (https: boolean) => [...jar].filter(([, c]) => https || !c.secure).map(([n, c]) => `${n}=${c.value}`).join('; ');
+      const overHttps = (path: string) => viaTailnet(path, { cookie: cookies(true) }).then(keep);
+      const overHttp = (path: string) =>
+        fetch(new URL(path, other.url), { redirect: 'manual', headers: { host: NAME, 'x-forwarded-for': '100.64.0.7', 'x-forwarded-host': NAME, 'x-forwarded-proto': 'http', 'user-agent': IPHONE, cookie: cookies(false) } }).then(keep);
+
+      expect((await overHttp(`/pair?code=${await otherCode()}`)).status).toBe(303);
+      expect([...jar.keys()]).toEqual(['seismic-device-http']);
+      // the second pairing goes with the first one's cookie in the jar, and sets a cookie of its own beside it
+      const secure = await overHttps(`/pair?code=${(await pairing()).code}`);
+      expect(secure.headers.get('set-cookie')).toStartWith('seismic-device-https=');
+      expect(secure.headers.get('set-cookie')).toContain('Secure');
+      expect(jar.get('seismic-device-http')!.secure).toBe(false);
+      expect(jar.size).toBe(2);
+      // both let the browser in, each by its own cookie, the other's beside it
+      expect((await overHttp('/api/projects')).status).toBe(200);
+      expect((await overHttps('/api/projects')).status).toBe(200);
+      // and neither takes the other's: alone in the jar, each one's cookie goes along and lets nobody in at the other
+      const [http, https] = [jar.get('seismic-device-http')!, jar.get('seismic-device-https')!];
+      jar.delete('seismic-device-https');
+      expect(cookies(true)).toStartWith('seismic-device-http=');
+      expect((await overHttps('/api/projects')).status).toBe(401);
+      jar.set('seismic-device-https', https).delete('seismic-device-http');
+      // a browser keeps a Secure cookie off plain HTTP; one sent there all the same, a proxy's say, lets nothing in either
+      expect(cookies(false)).toBe('');
+      const sent = (cookie: string) => fetch(new URL('/api/projects', other.url), { headers: { host: NAME, 'x-forwarded-for': '100.64.0.7', 'x-forwarded-host': NAME, 'x-forwarded-proto': 'http', 'user-agent': IPHONE, cookie } });
+      expect((await sent(`seismic-device-https=${https.value}`)).status).toBe(401);
+      expect((await sent(`seismic-device-http=${https.value}`)).status).toBe(401);
+      expect((await sent(`seismic-device-http=${http.value}`)).status).toBe(200);
+    } finally {
+      otherAccess.stop();
+      other.stop(true);
+    }
+  });
+
+  test('a proxy that names neither http nor https as the scheme: the cookie goes by the connection\'s, under a name a browser keeps', async () => {
+    await turnOn();
+    for (const proto of ['ws', 'https;evil=1', 'HTTP ', '']) {
+      const res = await viaTailnet(`/pair?code=${(await pairing()).code}`, { 'x-forwarded-proto': proto });
+      expect(res.status).toBe(303);
+      expect(cookieOf(res)).toStartWith('seismic-device-http=');
+      expect(res.headers.get('set-cookie')).not.toContain('Secure');
+    }
+  });
+
   test('a code typed into the page pairs too; a wrong one says so, and five spend it', async () => {
     await turnOn();
     const p = await pairing();
@@ -406,7 +596,7 @@ describe('on another address', () => {
     const signed = await there(link);
     expect(signed.status).toBe(303);
     const cookie = cookieOf(signed);
-    expect(cookie).toStartWith('seismic-device=');
+    expect(cookie).toStartWith(`seismic-device-http-${server.port}=`);
     expect((await there(`${at}/api/projects`, { cookie })).status).toBe(200);
     // a paired device: no managing access, and the link pairs only once
     expect((await there(`${at}/api/access/pair`, { cookie, origin: at, 'sec-fetch-site': 'same-origin' }, { method: 'POST' })).status).toBe(403);

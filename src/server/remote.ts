@@ -28,6 +28,46 @@ import { remoteOf, remoteSetting, saveRemote } from './settings';
 import { type ServeEntry, Tailscale } from './tailscale';
 
 export const DEVICE_COOKIE = 'seismic-device';
+/**
+ * The device cookie of the Seismic a request reaches: `seismic-device-https-8443` at an address with
+ * a port, `seismic-device-https` or `seismic-device-http` at one without. A cookie belongs to a host,
+ * whatever its port and scheme, so two Seismics on one machine (at `:4417` and `:4418`, `tailscale
+ * serve` at 443 and 8443, or `http://studio` and `https://studio`, which a browser sends without a
+ * port) would each overwrite the other's under one name, and a browser or the desktop app paired with
+ * both would lose the first; over plain HTTP it could not even replace one set Secure over HTTPS. The
+ * scheme goes into the name beside the port too: `http://studio:8443` and `https://studio:8443` may
+ * reach one Seismic, and pairing at the second would otherwise renew the first's credential and
+ * replace its cookie with a Secure one the browser keeps off plain HTTP.
+ */
+export function deviceCookie(req: Request): string {
+  const port = portOf(req);
+  return `${DEVICE_COOKIE}-${schemeOf(req)}${port ? `-${port}` : ''}`;
+}
+/** The cookie's name before the scheme joined the port in it (`seismic-device-8443`); none at an address without a port. */
+function portOnlyDeviceCookie(req: Request): string | null {
+  const port = portOf(req);
+  return port ? `${DEVICE_COOKIE}-${port}` : null;
+}
+/** The value of the cookie `name` the request carries, or none. */
+function cookieOf(req: Request, name: string): string | undefined {
+  const cookies = req.headers.get('cookie')?.split(';').map((c) => c.trim()) ?? [];
+  return cookies.find((c) => c.startsWith(`${name}=`))?.slice(name.length + 1);
+}
+/** The port of the address the browser used, from the host a proxy forwarded or the request's; none where it sent none. */
+function portOf(req: Request): string | undefined {
+  const host = req.headers.get('x-forwarded-host')?.split(',')[0]?.trim() || req.headers.get('host') || '';
+  return /:(\d+)$/.exec(host)?.[1];
+}
+/**
+ * The scheme of the address the browser used: a proxy's `x-forwarded-proto`, else the connection's.
+ * Only `http` or `https`: it goes into a cookie's name, where a stray character from a proxy would
+ * make the browser drop the cookie of a pairing whose code is spent by then.
+ */
+function schemeOf(req: Request): 'http' | 'https' {
+  const forwarded = req.headers.get('x-forwarded-proto')?.split(',')[0]?.trim().toLowerCase();
+  if (forwarded === 'http' || forwarded === 'https') return forwarded;
+  return new URL(req.url).protocol === 'https:' ? 'https' : 'http';
+}
 /** The paired device's cookie before the rename: a device paired before it keeps working, and gets the new one when it pairs again. */
 const OLD_DEVICE_COOKIE = 'obeya-device';
 /** How long a pairing code holds. */
@@ -320,22 +360,35 @@ export class Access implements Gate {
     return this.from.get(req);
   }
 
-  /** The paired device a request's cookie names; one unused for too long is removed. */
+  /**
+   * The paired device a request's cookie names; one unused for too long is removed. The cookie named
+   * for this very address decides where the browser sends one: a device paired here again under it
+   * and removed since is not let in by an older name's cookie beside it, the one it kept from before
+   * cookies had a scheme's or port's name. Only a browser without the address's own cookie is let in
+   * by an older name, from a pairing before the names changed or at another origin of this host.
+   */
   device(req: Request): DeviceView | null {
-    const cookies = req.headers.get('cookie')?.split(';').map((c) => c.trim()) ?? [];
-    const named = (name: string) => cookies.find((c) => c.startsWith(`${name}=`))?.slice(name.length + 1);
-    const token = named(DEVICE_COOKIE) ?? named(OLD_DEVICE_COOKIE);
-    if (!token) return null;
-    const d = this.store.devices.byToken(sha256(token));
-    if (!d) return null;
+    const own = deviceCookie(req);
+    const names = cookieOf(req, own) ? [own] : [portOnlyDeviceCookie(req), DEVICE_COOKIE, OLD_DEVICE_COOKIE].filter((n): n is string => n !== null);
+    return this.credential(req, names)?.device ?? null;
+  }
+
+  private credential(req: Request, names: string[]): { device: DeviceView; token: string } | null {
     const now = this.now();
-    const seen = Date.parse(d.lastSeen);
-    if (now - seen > UNUSED_MS) {
-      this.remove(d.id);
-      return null;
+    for (const name of names) {
+      const token = cookieOf(req, name);
+      if (!token) continue;
+      const device = this.store.devices.byToken(sha256(token));
+      if (!device) continue;
+      const seen = Date.parse(device.lastSeen);
+      if (now - seen > UNUSED_MS) {
+        this.remove(device.id);
+        continue;
+      }
+      if (now - seen > SEEN_EVERY_MS) this.store.devices.seen(device.id, new Date(now).toISOString());
+      return { device, token };
     }
-    if (now - seen > SEEN_EVERY_MS) this.store.devices.seen(d.id, new Date(now).toISOString());
-    return d;
+    return null;
   }
 
   devices(): DeviceView[] {
@@ -386,7 +439,7 @@ export class Access implements Gate {
 
   /** Pairs the device that brings the current code; its cookie, or `null` for a wrong or expired code. */
   /** `counts`: a wrong code spends one of the tries; one another site sent the browser here with spends none. */
-  redeem(code: string, userAgent: string, counts = true): { token: string; device: DeviceView } | null {
+  redeem(code: string, userAgent: string, counts = true, existing?: { device: DeviceView; token: string }): { token: string; device: DeviceView } | null {
     const p = this.pairing;
     if (!p || p.paired || p.expires <= this.now()) return null;
     if (code.replace(/\D/g, '') !== p.code) {
@@ -394,10 +447,10 @@ export class Access implements Gate {
       if (counts && ++p.tries >= PAIRING_TRIES) this.pairing = null;
       return null;
     }
-    const token = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64url');
     const at = new Date(this.now()).toISOString();
-    const device: DeviceView = { id: crypto.randomUUID(), name: deviceName(userAgent), pairedAt: at, lastSeen: at };
-    this.store.devices.add({ ...device, tokenHash: sha256(token) });
+    const device: DeviceView = { id: existing?.device.id ?? crypto.randomUUID(), name: existing?.device.name ?? deviceName(userAgent), pairedAt: at, lastSeen: at };
+    const token = existing ? this.store.devices.renew(device, existing.token) : Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64url');
+    if (!existing) this.store.devices.add({ ...device, tokenHash: sha256(token) });
     p.paired = device;
     console.log(`Seismic: ${device.name} paired`);
     return { token, device };
@@ -408,14 +461,20 @@ export class Access implements Gate {
    * yet. A device with the right code gets its cookie and goes to the project.
    */
   async pairRoute(req: Request, server: Bun.Server<unknown>): Promise<Response> {
-    if (this.isLocal(req, server) || this.device(req)) return new Response(null, { status: 303, headers: { location: '/' } });
-    const code = req.method === 'POST' ? String((await req.formData().catch(() => null))?.get('code') ?? '') : (new URL(req.url).searchParams.get('code') ?? '');
+    const project = () => new Response(null, { status: 303, headers: { location: '/' } });
+    if (this.isLocal(req, server)) return project();
+    const params = new URL(req.url).searchParams;
+    const code = req.method === 'POST' ? String((await req.formData().catch(() => null))?.get('code') ?? '') : (params.get('code') ?? '');
+    if (req.method === 'GET' && !params.has('code') && this.device(req)) return project();
+    // Older names let a device in, but may belong to another origin on this host (another port, or
+    // the other scheme at this one): only the cookie named for this very address is renewed.
+    const existing = this.credential(req, [deviceCookie(req)]);
     // another site may send a browser in the tailnet here as often as it likes, to spend the code's tries
-    const paired = this.redeem(code, req.headers.get('user-agent') ?? '', req.headers.get('sec-fetch-site') !== 'cross-site');
+    const paired = this.redeem(code, req.headers.get('user-agent') ?? '', req.headers.get('sec-fetch-site') !== 'cross-site', existing ?? undefined);
     if (!paired) return this.notPairedPage(true);
     // over HTTPS the cookie goes with what a worker's HTML artifact loads in its sandboxed frame too, which counts as another site
-    const https = (req.headers.get('x-forwarded-proto') ?? new URL(req.url).protocol.replace(':', '')) === 'https';
-    const cookie = `${DEVICE_COOKIE}=${paired.token}; Path=/; Max-Age=${COOKIE_MAX_AGE}; HttpOnly; ${https ? 'SameSite=None; Secure' : 'SameSite=Lax'}`;
+    const https = schemeOf(req) === 'https';
+    const cookie = `${deviceCookie(req)}=${paired.token}; Path=/; Max-Age=${COOKIE_MAX_AGE}; HttpOnly; ${https ? 'SameSite=None; Secure' : 'SameSite=Lax'}`;
     return new Response(null, { status: 303, headers: { location: '/', 'set-cookie': cookie } });
   }
 
