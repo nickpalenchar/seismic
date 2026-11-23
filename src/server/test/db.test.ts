@@ -32,14 +32,17 @@ test('a pending device credential survives restart and is revoked with its devic
   first.db.close();
   const next = new Store(path);
   try {
-    expect(next.devices.byToken(hash('original'))?.id).toBe(device.id);
+    expect(next.devices.byToken(hash('original'))?.device.id).toBe(device.id);
     expect(next.devices.renew(device, 'original').token).toBe(replacement);
-    expect(next.devices.byToken(hash(replacement))?.id).toBe(device.id);
+    expect(next.devices.byToken(hash(replacement))?.device.id).toBe(device.id);
     expect(next.devices.byToken(hash('original'))).toBeNull();
+    // the credential it retired lets nobody in, but still names the device for pairing it again
+    expect(next.devices.retired(hash('original'))?.id).toBe(device.id);
     const undelivered = next.devices.renew(device, replacement).token;
     next.devices.remove(device.id);
     expect(next.devices.byToken(hash(replacement))).toBeNull();
     expect(next.devices.byToken(hash(undelivered))).toBeNull();
+    expect(next.devices.retired(hash('original'))).toBeNull();
   } finally {
     next.db.close();
   }
@@ -846,7 +849,7 @@ test('a pending migration is preceded by a backup of the database, and only the 
     expect(copy.query("SELECT 1 FROM sqlite_master WHERE name = 'backup_probe'").get()).toBeNull();
     copy.close();
     expect(version(path)).toBe(before + 1);
-    expect(readdirSync(dir).filter((f) => f.includes('.before-')).sort()).toEqual(['seismic.db.before-3', 'seismic.db.before-4', `seismic.db.before-${before + 1}`]);
+    expect(readdirSync(dir).filter((f) => f.includes('.before-')).sort()).toEqual(['seismic.db.before-3', 'seismic.db.before-4', `seismic.db.before-${before + 1}`].sort());
     // up to date and fresh databases are not backed up
     const names = readdirSync(dir).sort();
     MIGRATIONS.push('CREATE TABLE backup_probe (id INTEGER)');

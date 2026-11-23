@@ -742,6 +742,11 @@ export const MIGRATIONS = [
     nonce TEXT NOT NULL,
     token_hash TEXT NOT NULL UNIQUE
   );`,
+  // The credentials a replacement retired, so that a pairing again sent before it arrived keeps its device.
+  `CREATE TABLE IF NOT EXISTS device_retired (
+    token_hash TEXT PRIMARY KEY NOT NULL,
+    device_id TEXT NOT NULL REFERENCES devices(id) ON DELETE CASCADE
+  );`,
 ];
 
 /**

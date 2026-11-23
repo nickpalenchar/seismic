@@ -415,30 +415,46 @@ export class Access implements Gate {
   }
 
   /**
-   * The first of the cookies `names` that names a device, with its value and name. Each is looked
-   * up first, so that a replacement credential the browser presents becomes current, and the one
-   * it replaces, beside it in the same request, no longer counts.
+   * The first of the cookies `names` that names a device, with its value and name, each looked up
+   * once. A replacement credential the browser presents becomes current there and counts over the
+   * one it replaces, which may stand before it in the same request and no longer lets anyone in.
    */
   private credential(req: Request, names: string[]): { device: DeviceView; token: string; name: string } | null {
     const now = this.now();
+    const cookies = req.headers.get('cookie')?.split(';').map((c) => c.trim()) ?? [];
+    let found: { device: DeviceView; token: string; name: string } | null = null;
     for (const name of names) {
-      const token = cookieOf(req, name);
-      if (token) this.store.devices.byToken(sha256(token));
-    }
-    for (const name of names) {
-      const token = cookieOf(req, name);
+      const token = cookies.find((c) => c.startsWith(`${name}=`))?.slice(name.length + 1);
       if (!token) continue;
-      const device = this.store.devices.byToken(sha256(token));
-      if (!device) continue;
+      const known = this.store.devices.byToken(sha256(token));
+      if (!known) continue;
+      const { device } = known;
       const seen = Date.parse(device.lastSeen);
       if (now - seen > UNUSED_MS) {
         this.remove(device.id);
         continue;
       }
       if (now - seen > SEEN_EVERY_MS) this.store.devices.seen(device.id, new Date(now).toISOString());
-      return { device, token, name };
+      if (!found || known.promoted) found = { device, token, name };
     }
-    return null;
+    return found;
+  }
+
+  /**
+   * The device the browser pairs again at this address: by a credential of its own there, or by one
+   * a replacement retired, where the request left before the replacement arrived. A browser whose
+   * cookies there name no device pairs as a new one.
+   */
+  private pairedBefore(req: Request): { device: DeviceView; token: string } | undefined {
+    const own = ownCookies(req);
+    const current = this.credential(req, own);
+    if (current) return current;
+    for (const name of own) {
+      const token = cookieOf(req, name)!;
+      const device = this.store.devices.retired(sha256(token));
+      if (device) return { device, token };
+    }
+    return undefined;
   }
 
   devices(): DeviceView[] {
@@ -544,13 +560,20 @@ export class Access implements Gate {
     const userAgent = req.headers.get('user-agent') ?? '';
     // Older names let a device in, but may belong to another origin on this host (another port, or
     // the other scheme at this one): only the cookies named for this very address pair their device again.
-    const existing = () => this.credential(req, ownCookies(req)) ?? undefined;
+    const existing = () => this.pairedBefore(req);
     if (req.method === 'GET' && params.has('token')) {
       this.pruneLinks();
       const link = this.links.get(sha256(params.get('token')!));
       // a link opened again in the browser it paired, while it is remembered; any other browser, or a
       // link that expired unused (a "Pair again" whose window came too late among them), is told it did not pair
-      if (link?.used) return this.device(req)?.id === link.used.device ? project() : this.notPairedPage(true);
+      if (link?.used) {
+        // only the browser it paired: on to the project where it holds the credential the link set,
+        // or, where that answer did not arrive (its replacement still waits), the same answer again
+        const holder = this.credential(req, ownCookies(req));
+        if (holder?.device.id !== link.used.device) return this.notPairedPage(true);
+        const waiting = this.store.devices.pending(holder.device.id, holder.token);
+        return waiting ? this.paired(req, { token: waiting.token, device: holder.device, tag: waiting.nonce.slice(0, 12) }) : project();
+      }
       if (!link || link.expires <= this.now()) return this.notPairedPage(true);
       // used up only once the device is written: a failed write leaves the link for another try
       const paired = this.enroll(link.pairing, userAgent, existing());

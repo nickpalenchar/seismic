@@ -426,6 +426,8 @@ Safety rules:
   (`seismic-device-https-8443.<tag>`, the tag from the renewal's nonce) and the answer unsets the
   one before: answers of overlapping pairings again, arriving late and out of order, then set
   retired credentials beside the newest instead of over it, and the next pairing again clears them.
+  A retired credential is kept (`device_retired`, hashed): it lets nobody in, but a pairing again
+  that brings it, sent before its replacement arrived, pairs the same device, not a second one.
   Rejected: one cookie name with the old credential kept valid for a generation or two, which only
   moves that race a renewal on; keeping the credential on pairing again, which leaves a copied
   cookie working (2026-11-23).
@@ -436,7 +438,8 @@ Safety rules:
   deadline too, and that the device connected once it did; the device is made when the window opens the link, so it gets the
   webview's cookie and name, not the shell's. The link is built only on a request address that is
   a plain `host[:port]` of Seismic's as a whole. Opened again within a day of its use, a used link leads
-  on to the project only in the browser it paired; an expired or unknown one says it did not pair, even to a browser
+  on to the project only in the browser it paired, and gives that browser the same answer again
+  where the replacement it set has not arrived; an expired or unknown one says it did not pair, even to a browser
   paired before (2026-11-23).
 - Landing never loses work: nothing is force-pushed, a direct push only fast-forwards, a merge is
   pinned to the head that was checked; a clone is deleted only when nothing on it would be lost.

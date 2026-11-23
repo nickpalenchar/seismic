@@ -328,6 +328,65 @@ describe('pairing', () => {
     expect((await view()).devices).toHaveLength(1);
   });
 
+  test('a pairing again sent with the old cookie, arriving after its replacement took over, pairs the same device', async () => {
+    await turnOn();
+    const { jar, keep, header } = jarOf();
+    keep(await viaTailnet(`/pair?code=${(await pairing()).code}`));
+    const old = header();
+    keep(await viaTailnet(`/pair?code=${(await pairing()).code}`, { cookie: old }));
+    // the browser uses the replacement: the old credential is retired
+    expect((await viaTailnet('/api/projects', { cookie: header() })).status).toBe(200);
+    expect((await viaTailnet('/api/projects', { cookie: old })).status).toBe(401);
+    // a second pairing again, sent with the old cookie before the first answer came, arrives only now
+    keep(await viaTailnet(`/pair?code=${(await pairing()).code}`, { cookie: old }));
+    expect((await view()).devices).toHaveLength(1);
+    // the browser has two cookies at this address now, both of the one device; using the newer one retires the other
+    expect(jar.size).toBe(2);
+    expect((await viaTailnet('/api/projects', { cookie: header() })).status).toBe(200);
+    const [first, latest] = [...jar].map(([name, value]) => `${name}=${value}`);
+    expect((await viaTailnet('/api/projects', { cookie: first! })).status).toBe(401);
+    expect((await viaTailnet('/api/projects', { cookie: latest! })).status).toBe(200);
+    expect((await view()).devices).toHaveLength(1);
+  });
+
+  test('a used link opened again by its browser while the renewal it set has not arrived gives the same answer again', async () => {
+    await turnOn();
+    const { keep, header } = jarOf();
+    keep(await viaTailnet(`/pair?code=${(await pairing()).code}`));
+    const original = header();
+    const traded = await viaTailnet('/api/pair', { 'content-type': 'application/json' }, { method: 'POST', body: JSON.stringify({ code: (await pairing()).code }) });
+    const url = new URL(((await traded.json()) as { url: string }).url);
+    const link = `${url.pathname}${url.search}`;
+    // the answer is lost: the browser still holds the original cookie
+    const lost = await viaTailnet(link, { cookie: original });
+    const again = await viaTailnet(link, { cookie: original });
+    expect(again.status).toBe(303);
+    expect(again.headers.getSetCookie()).toEqual(lost.headers.getSetCookie());
+    keep(again);
+    expect((await viaTailnet('/api/projects', { cookie: header() })).status).toBe(200);
+    expect((await viaTailnet('/api/projects', { cookie: original })).status).toBe(401);
+    // now it holds the replacement: on to the project, nothing set
+    const replay = await viaTailnet(link, { cookie: header() });
+    expect(replay.status).toBe(303);
+    expect(replay.headers.getSetCookie()).toEqual([]);
+    // another browser gets nothing from the used link
+    expect((await viaTailnet(link)).status).toBe(401);
+  });
+
+  test('a request with one device cookie looks it up once', async () => {
+    await turnOn();
+    const cookie = cookieOf(await viaTailnet(`/pair?code=${(await pairing()).code}`));
+    const byToken = store.devices.byToken.bind(store.devices);
+    let lookups = 0;
+    store.devices.byToken = (hash) => (lookups++, byToken(hash));
+    try {
+      expect((await viaTailnet('/api/projects', { cookie })).status).toBe(200);
+      expect(lookups).toBe(1);
+    } finally {
+      store.devices.byToken = byToken;
+    }
+  });
+
   test('"Remove" puts a browser out whatever generation of its device cookies it holds', async () => {
     await turnOn();
     const { keep, header } = jarOf();
@@ -713,17 +772,9 @@ describe('pairing', () => {
           fetch(new URL(path, seismics[at].server.url), { redirect: 'manual', ...init, headers: { host: at, 'x-forwarded-for': '100.64.0.7', 'x-forwarded-host': at, 'x-forwarded-proto': 'https', ...headers } });
 
         // the webview's one jar for NAME, whatever the port: what each answer sets, sent along to both
-        const jar = new Map<string, string>();
-        const cookies = () => [...jar].map(([n, v]) => `${n}=${v}`).join('; ');
-        const window = async (at: At, path: string) => {
-          const res = await to(at, path, { 'user-agent': IPHONE, cookie: cookies() });
-          const set = res.headers.get('set-cookie');
-          if (set) {
-            const [name, value] = set.split(';')[0]!.split('=') as [string, string];
-            jar.set(name, value);
-          }
-          return res;
-        };
+        // every cookie each answer sets or unsets, as a browser keeps them
+        const { jar, keep, header: cookies } = jarOf();
+        const window = async (at: At, path: string) => keep(await to(at, path, { 'user-agent': IPHONE, cookie: cookies() }));
         const pairThroughShell = async (at: At) => {
           const res = await to(at, '/api/pair', { 'content-type': 'application/json' }, { method: 'POST', body: JSON.stringify({ code: await seismics[at].code() }) });
           expect(res.status).toBe(200);
@@ -740,9 +791,14 @@ describe('pairing', () => {
         // each Seismic turns away the other one's cookie when it is all the jar sends
         expect((await to(a, '/api/projects', { cookie: `seismic-device-https-9443=${jar.get('seismic-device-https-9443')}` })).status).toBe(401);
         expect((await to(b, '/api/projects', { cookie: `seismic-device-https-8443=${jar.get('seismic-device-https-8443')}` })).status).toBe(401);
-        // pairing the first again keeps its own device, and leaves the second's pairing be
+        // pairing the first again keeps its own device under a new cookie, unsets its old one, and leaves the second's be
         const before = jar.get('seismic-device-https-9443');
         await pairThroughShell(a);
+        expect(jar.get('seismic-device-https-9443')).toBe(before);
+        expect([...jar.keys()].sort()).toEqual([expect.stringMatching(/^seismic-device-https-8443\.[0-9a-f]{12}$/), 'seismic-device-https-9443']);
+        // and again: still each one cookie, the other Seismic's untouched
+        await pairThroughShell(a);
+        expect([...jar.keys()].filter((n) => n.startsWith('seismic-device-https-8443'))).toHaveLength(1);
         expect(jar.get('seismic-device-https-9443')).toBe(before);
         expect((await window(a, '/api/projects')).status).toBe(200);
         expect((await window(b, '/api/projects')).status).toBe(200);

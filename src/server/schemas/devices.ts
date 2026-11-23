@@ -17,11 +17,25 @@ export const devices = sqliteTable('devices', {
   push: text({ mode: 'json' }).$type<Subscription>(),
 });
 
+/** A device's replacement credential from pairing again, not presented by its browser yet: one at most per device. */
 export const deviceRenewals = sqliteTable('device_renewals', {
   deviceId: text('device_id').primaryKey().references(() => devices.id, { onDelete: 'cascade' }),
   nonce: text().notNull(),
   tokenHash: text('token_hash').notNull().unique(),
 });
+
+/**
+ * The credentials a replacement retired: they let nobody in, but a pairing again that brings one
+ * (a request sent before its replacement arrived) pairs the device it was of, not a new one.
+ */
+export const deviceRetired = sqliteTable('device_retired', {
+  tokenHash: text('token_hash').primaryKey(),
+  deviceId: text('device_id').notNull().references(() => devices.id, { onDelete: 'cascade' }),
+});
+
+const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
+/** The replacement credential of `token` with `nonce`: only who holds `token` can make it. */
+const replacement = (token: string, nonce: string) => createHmac('sha256', token).update(nonce).digest('base64url');
 
 const view = { id: devices.id, name: devices.name, pairedAt: devices.pairedAt, lastSeen: devices.lastSeen };
 
@@ -62,17 +76,37 @@ export class Devices {
     this.db.update(devices).set({ push }).where(eq(devices.id, id)).run();
   }
 
-  /** The device whose cookie hashes to `hash`. */
-  byToken(hash: string): DeviceView | null {
+  /**
+   * The device whose credential hashes to `hash`; `promoted` where it was the device's replacement,
+   * which this makes current, retiring the one it replaces.
+   */
+  byToken(hash: string): { device: DeviceView; promoted: boolean } | null {
     const active = this.db.select(view).from(devices).where(eq(devices.tokenHash, hash)).get();
-    if (active) return active;
+    if (active) return { device: active, promoted: false };
     const pending = this.db.select({ id: deviceRenewals.deviceId }).from(deviceRenewals).where(eq(deviceRenewals.tokenHash, hash)).get();
     if (!pending) return null;
-    return this.db.transaction((tx) => {
+    const device = this.db.transaction((tx) => {
       const received = tx.delete(deviceRenewals).where(eq(deviceRenewals.tokenHash, hash)).returning({ id: deviceRenewals.deviceId }).get();
       if (!received) return null;
+      const before = tx.select({ tokenHash: devices.tokenHash }).from(devices).where(eq(devices.id, received.id)).get();
+      if (before) tx.insert(deviceRetired).values({ tokenHash: before.tokenHash, deviceId: received.id }).onConflictDoNothing().run();
       return tx.update(devices).set({ tokenHash: hash }).where(eq(devices.id, received.id)).returning(view).get() ?? null;
     });
+    return device ? { device, promoted: true } : null;
+  }
+
+  /** The device a retired credential (`hash`) was of, for pairing it again; it lets nobody in. */
+  retired(hash: string): DeviceView | null {
+    const row = this.db.select({ id: deviceRetired.deviceId }).from(deviceRetired).where(eq(deviceRetired.tokenHash, hash)).get();
+    return row ? (this.db.select(view).from(devices).where(eq(devices.id, row.id)).get() ?? null) : null;
+  }
+
+  /** The device's replacement credential made from `token`, while its browser has not presented it yet. */
+  pending(id: string, token: string): { token: string; nonce: string } | null {
+    const row = this.db.select({ nonce: deviceRenewals.nonce, tokenHash: deviceRenewals.tokenHash }).from(deviceRenewals).where(eq(deviceRenewals.deviceId, id)).get();
+    if (!row) return null;
+    const made = replacement(token, row.nonce);
+    return sha256(made) === row.tokenHash ? { token: made, nonce: row.nonce } : null;
   }
 
   add(d: DeviceView & { tokenHash: string }) {
@@ -80,21 +114,21 @@ export class Devices {
   }
 
   /**
-   * A replacement for the device's credential `currentToken`, which becomes current (and retires
-   * that one) when the browser first presents it (`byToken`). Retries with the current credential
-   * get the same replacement, even after a restart; the nonce alone cannot make it, that takes the
-   * browser's secret as well. `nonce` names the replacement's cookie (`Access.pairRoute`).
+   * A replacement for the device's credential `presented` (its current one, or one retired since),
+   * which becomes current, retiring the one before, when the browser first presents it (`byToken`).
+   * Retries with the same credential get the same replacement, even after a restart; the nonce
+   * alone cannot make it, that takes the browser's secret as well. One made from another credential
+   * gives way to this one. `nonce` names the replacement's cookie (`Access.pairRoute`).
    */
-  renew(d: DeviceView, currentToken: string): { token: string; nonce: string } {
+  renew(d: DeviceView, presented: string): { token: string; nonce: string } {
     return this.db.transaction((tx) => {
-      const pending = tx.select({ nonce: deviceRenewals.nonce }).from(deviceRenewals).where(eq(deviceRenewals.deviceId, d.id)).get();
-      const nonce = pending?.nonce ?? randomBytes(32).toString('hex');
-      const token = createHmac('sha256', currentToken).update(nonce).digest('base64url');
-      if (!pending) {
-        const tokenHash = createHash('sha256').update(token).digest('hex');
-        tx.insert(deviceRenewals).values({ deviceId: d.id, nonce, tokenHash }).run();
-      }
+      const row = tx.select({ nonce: deviceRenewals.nonce, tokenHash: deviceRenewals.tokenHash }).from(deviceRenewals).where(eq(deviceRenewals.deviceId, d.id)).get();
       tx.update(devices).set({ pairedAt: d.pairedAt, lastSeen: d.lastSeen }).where(eq(devices.id, d.id)).run();
+      if (row && sha256(replacement(presented, row.nonce)) === row.tokenHash) return { token: replacement(presented, row.nonce), nonce: row.nonce };
+      const nonce = randomBytes(32).toString('hex');
+      const token = replacement(presented, nonce);
+      tx.delete(deviceRenewals).where(eq(deviceRenewals.deviceId, d.id)).run();
+      tx.insert(deviceRenewals).values({ deviceId: d.id, nonce, tokenHash: sha256(token) }).run();
       return { token, nonce };
     });
   }
