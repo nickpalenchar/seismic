@@ -23,35 +23,6 @@ function withPath(f: (path: string) => void) {
   }
 }
 
-test('a renewed device credential survives restart, holds beside the older one until the next renewal, and goes with its device', () => withPath((path) => {
-  const first = new Store(path);
-  const device = { id: 'desktop', name: 'Desktop', pairedAt: '2026-11-22', lastSeen: '2026-11-22' };
-  const hash = (token: string) => new Bun.CryptoHasher('sha256').update(token).digest('hex');
-  first.devices.add({ ...device, tokenHash: hash('original') });
-  const replacement = first.devices.renew(device, 'original');
-  first.db.close();
-  const next = new Store(path);
-  try {
-    expect(next.devices.byToken(hash('original'))?.id).toBe(device.id);
-    // a retry with the older credential gets the same newer one, after a restart too
-    expect(next.devices.renew(device, 'original')).toBe(replacement);
-    expect(next.devices.byToken(hash(replacement))?.id).toBe(device.id);
-    expect(next.devices.byToken(hash('original'))?.id).toBe(device.id);
-    // renewing with the newer one retires the original; the one presented holds on beside the new one
-    const third = next.devices.renew(device, replacement);
-    expect(third).not.toBe(replacement);
-    expect(next.devices.byToken(hash('original'))).toBeNull();
-    expect(next.devices.byToken(hash(replacement))?.id).toBe(device.id);
-    expect(next.devices.byToken(hash(third))?.id).toBe(device.id);
-    expect(next.devices.renew(device, replacement)).toBe(third);
-    next.devices.remove(device.id);
-    expect(next.devices.byToken(hash(replacement))).toBeNull();
-    expect(next.devices.byToken(hash(third))).toBeNull();
-  } finally {
-    next.db.close();
-  }
-}));
-
 /** The columns of `cards` that moved into the tables of a card's parts, as they were added to it. */
 const MOVED = [
   'pr TEXT', 'demo TEXT', 'idea TEXT', 'prototype_of TEXT REFERENCES cards(id)', 'plan TEXT', 'plan_docs TEXT', 'prototype TEXT',

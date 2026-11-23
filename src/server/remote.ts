@@ -36,7 +36,7 @@ export const DEVICE_COOKIE = 'seismic-device';
  * port) would each overwrite the other's under one name, and a browser or the desktop app paired with
  * both would lose the first; over plain HTTP it could not even replace one set Secure over HTTPS. The
  * scheme goes into the name beside the port too: `http://studio:8443` and `https://studio:8443` may
- * reach one Seismic, and pairing at the second would otherwise renew the first's credential and
+ * reach one Seismic, and pairing at the second would otherwise pair the first's device again and
  * replace its cookie with a Secure one the browser keeps off plain HTTP.
  */
 export function deviceCookie(req: Request): string {
@@ -436,8 +436,10 @@ export class Access implements Gate {
   private livePairing(): Pairing | null {
     const p = this.pairing;
     const address = this.address();
-    // a code traded for a link holds only as long as the link: past it, the dialog asks for a new one
-    const until = p && !p.paired && p.spent !== undefined ? Math.min(p.expires, p.spent) : p?.expires;
+    // a code traded for a link stays as long as the link holds, which may be past the code's own
+    // deadline: until it expires unused (then the dialog asks for a new one), or, once it paired a
+    // device, as long as the code or the link would have held (the dialog says it is connected)
+    const until = !p || p.spent === undefined ? p?.expires : p.paired ? Math.max(p.expires, p.spent) : p.spent;
     if (!p || !address || until! <= this.now()) return null;
     return { code: p.code, url: `${address}/pair?code=${p.code}`, expires: new Date(until!).toISOString(), ...(p.paired ? { paired: p.paired } : {}) };
   }
@@ -480,12 +482,25 @@ export class Access implements Gate {
     return 'ok';
   }
 
-  /** Pairs the browser with the code `p` let in, or pairs it again where it brings its credential of this address (`existing`). */
+  /**
+   * Pairs the browser with the code `p` let in. One that brings a credential of this address
+   * (`existing`) stays the device it is, with the same credential: its cookie is set again as it
+   * was. A new credential there would race the answers of two pairings at once, each of which sets
+   * the cookie when it arrives: a late one would set a credential the other had replaced.
+   */
   private enroll(p: PairingCode, userAgent: string, existing?: { device: DeviceView; token: string }): { token: string; device: DeviceView } {
     const at = new Date(this.now()).toISOString();
-    const device: DeviceView = { id: existing?.device.id ?? crypto.randomUUID(), name: existing?.device.name ?? deviceName(userAgent), pairedAt: at, lastSeen: at };
-    const token = existing ? this.store.devices.renew(device, existing.token) : Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64url');
-    if (!existing) this.store.devices.add({ ...device, tokenHash: sha256(token) });
+    let device: DeviceView;
+    let token: string;
+    if (existing) {
+      ({ token } = existing);
+      device = { ...existing.device, lastSeen: at };
+      this.store.devices.seen(device.id, at);
+    } else {
+      token = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64url');
+      device = { id: crypto.randomUUID(), name: deviceName(userAgent), pairedAt: at, lastSeen: at };
+      this.store.devices.add({ ...device, tokenHash: sha256(token) });
+    }
     p.paired = device;
     console.log(`Seismic: ${device.name} paired`);
     return { token, device };
@@ -502,13 +517,13 @@ export class Access implements Gate {
     const params = new URL(req.url).searchParams;
     const userAgent = req.headers.get('user-agent') ?? '';
     // Older names let a device in, but may belong to another origin on this host (another port, or
-    // the other scheme at this one): only the cookie named for this very address is renewed.
+    // the other scheme at this one): only the cookie named for this very address pairs its device again.
     const existing = () => this.credential(req, [deviceCookie(req)]) ?? undefined;
     if (req.method === 'GET' && params.has('token')) {
-      const hash = sha256(params.get('token')!);
-      const link = this.links.get(hash);
-      // a link opened again in the browser it paired; any other browser, or a link that expired
-      // unused (a "Pair again" whose window came too late among them), is told it did not pair
+      this.pruneLinks();
+      const link = this.links.get(sha256(params.get('token')!));
+      // a link opened again in the browser it paired, while it is remembered; any other browser, or a
+      // link that expired unused (a "Pair again" whose window came too late among them), is told it did not pair
       if (link?.device) return this.device(req)?.id === link.device ? project() : this.notPairedPage(true);
       if (!link || link.expires <= this.now()) return this.notPairedPage(true);
       // used up only once the device is written: a failed write leaves the link for another try
@@ -546,12 +561,18 @@ export class Access implements Gate {
     const p = this.pairing!;
     const now = this.now();
     p.spent = now + LINK_MS;
-    for (const [hash, link] of this.links) if ((link.device ? link.expires + USED_LINK_MS : link.expires) <= now) this.links.delete(hash);
+    this.pruneLinks();
     const token = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64url');
     this.links.set(sha256(token), { expires: now + LINK_MS, pairing: p });
     const url = new URL('/pair', `${schemeOf(req)}://${authority}`);
     url.searchParams.set('token', token);
     return Response.json({ url: url.href, expires: new Date(now + LINK_MS).toISOString() });
+  }
+
+  /** Forgets the links past their time: an unused one past its minute, a used one past `USED_LINK_MS`. */
+  private pruneLinks() {
+    const now = this.now();
+    for (const [hash, link] of this.links) if ((link.device ? link.expires + USED_LINK_MS : link.expires) <= now) this.links.delete(hash);
   }
 
   /**

@@ -246,7 +246,7 @@ describe('pairing', () => {
     expect((await view()).devices).toEqual([]);
   });
 
-  test('reconnecting a paired desktop requires a fresh code and keeps its device entry', async () => {
+  test('reconnecting a paired desktop requires a fresh code, keeps its device entry and its credential', async () => {
     await turnOn();
     const first = await pairing();
     const cookie = cookieOf(await viaTailnet(`/pair?code=${first.code}`));
@@ -262,24 +262,20 @@ describe('pairing', () => {
     const next = await pairing();
     expect((await reconnect(next.code === '000000' ? '111111' : '000000')).status).toBe(401);
     expect((await viaTailnet('/api/projects', { cookie })).status).toBe(200);
+    // the right code pairs it again: the same cookie set anew, so no answer of two pairings at once,
+    // whichever arrives last, nor one lost on the way, leaves the browser with a cookie that does not let it in
     const renewed = await reconnect(next.code);
     expect(renewed.status).toBe(303);
-    // The response might never reach the webview. Its original cookie still works.
+    expect(cookieOf(renewed)).toBe(cookie);
+    expect(renewed.headers.get('set-cookie')).toContain(`Max-Age=${400 * 24 * 3600}`);
+    const later = await reconnect((await pairing()).code);
+    expect(cookieOf(later)).toBe(cookie);
     expect((await viaTailnet('/api/projects', { cookie })).status).toBe(200);
-    const freshCookie = cookieOf(renewed);
-    // A second valid submission before either response arrives must not strand the first response.
-    const late = await reconnect((await pairing()).code);
-    expect(cookieOf(late)).toBe(freshCookie);
-    expect((await viaTailnet('/api/projects', { cookie: freshCookie })).status).toBe(200);
-    // pairing again with the fresh cookie retires the original; the fresh one holds beside the newest
-    const newest = cookieOf(await viaTailnet(`/pair?code=${(await pairing()).code}`, { cookie: freshCookie }));
-    expect(newest).not.toBe(freshCookie);
-    expect((await viaTailnet('/api/projects', { cookie })).status).toBe(401);
-    expect((await viaTailnet('/api/projects', { cookie: newest })).status).toBe(200);
-    // so the late answer of the second submission, arriving only now and setting the fresh cookie over the newest, keeps the browser in
-    expect((await viaTailnet('/api/projects', { cookie: cookieOf(late) })).status).toBe(200);
     expect((await reconnect(next.code)).status).toBe(401);
     expect((await view()).devices.map((d) => d.id)).toEqual([id]);
+    // there is no other credential of the device that could stay behind: "Remove" puts it out
+    await local(`/api/access/devices/${id}`, { method: 'DELETE' });
+    expect((await viaTailnet('/api/projects', { cookie })).status).toBe(401);
   });
 
   test('pairing at a second port preserves the legacy pairing used at the first', async () => {
@@ -311,7 +307,7 @@ describe('pairing', () => {
     expect((await viaTailnet('/api/projects', { cookie: `seismic-device-8443=${token}` })).status).toBe(401);
   });
 
-  test('http:// and https:// at one port of one host reaching one Seismic: pairing at the second renews nothing of the first', async () => {
+  test('http:// and https:// at one port of one host reaching one Seismic: pairing at the second pairs nothing of the first again', async () => {
     await turnOn();
     const port = { host: `${NAME}:8443`, 'x-forwarded-host': `${NAME}:8443` };
     const plain = cookieOf(await viaTailnet(`/pair?code=${(await pairing()).code}`, { ...port, 'x-forwarded-proto': 'http' }));
@@ -325,7 +321,7 @@ describe('pairing', () => {
     // and the first keeps its access over plain HTTP, its cookie not replaced by a Secure one it would never send there
     expect((await viaTailnet('/api/projects', { ...port, cookie: cookieOf(secure) })).status).toBe(200);
     expect((await viaTailnet('/api/projects', { ...port, 'x-forwarded-proto': 'http', cookie: plain })).status).toBe(200);
-    // a cookie of the port's name alone, from before the scheme joined it, lets the device in at both but is renewed at neither
+    // a cookie of the port's name alone, from before the scheme joined it, lets the device in at both but is paired again at neither
     const legacy = `seismic-device-8443=${token}`;
     expect((await viaTailnet('/api/projects', { ...port, cookie: legacy })).status).toBe(200);
     expect((await viaTailnet('/api/projects', { ...port, 'x-forwarded-proto': 'http', cookie: legacy })).status).toBe(200);
@@ -522,16 +518,13 @@ describe('pairing', () => {
       expect((await shellPairs(p.code)).status).toBe(200);
     });
 
-    test('"Pair again" with a fresh code: a window already paired keeps its device entry and gets a new credential', async () => {
+    test('"Pair again" with a fresh code: a window already paired keeps its device entry and its credential', async () => {
       await turnOn();
       const cookie = cookieOf(await viaTailnet(await linkOf(await shellPairs((await pairing()).code))));
       const id = (await view()).devices[0]!.id;
       const again = await viaTailnet(await linkOf(await shellPairs((await pairing()).code)), { cookie });
       expect(again.status).toBe(303);
-      const renewed = cookieOf(again);
-      expect(renewed).not.toBe(cookie);
-      expect((await viaTailnet('/api/projects', { cookie: renewed })).status).toBe(200);
-      // the older one holds until the next renewal, so an answer lost on the way strands nothing
+      expect(cookieOf(again)).toBe(cookie);
       expect((await viaTailnet('/api/projects', { cookie })).status).toBe(200);
       expect((await view()).devices.map((d) => d.id)).toEqual([id]);
     });
@@ -565,6 +558,32 @@ describe('pairing', () => {
       await viaTailnet(await linkOf(await shellPairs(q.code)));
       clock += LINK_MS + 1;
       expect((await view()).pairing?.paired?.name).toBe('iPhone · Safari');
+    });
+
+    test('a code traded in its last minute stays in "Connect a phone" as long as its link holds, and the dialog then says the device connected', async () => {
+      await turnOn();
+      const p = await pairing();
+      clock += PAIRING_MS - 10_000;
+      const link = await linkOf(await shellPairs(p.code));
+      // past the code's own deadline, the link still holds: the dialog keeps the code and asks for no new one
+      clock += 30_000;
+      expect((await view()).pairing?.code).toBe(p.code);
+      expect((await viaTailnet(link)).status).toBe(303);
+      expect((await view()).pairing?.paired?.name).toBe('iPhone · Safari');
+      clock += LINK_MS;
+      expect((await view()).pairing).toBeNull();
+    });
+
+    test('a used link leads its browser on to the project for a day, whatever other links come and go', async () => {
+      await turnOn();
+      const link = await linkOf(await shellPairs((await pairing()).code));
+      const cookie = cookieOf(await viaTailnet(link));
+      clock += 23 * 3600_000;
+      expect((await viaTailnet(link, { cookie })).status).toBe(303);
+      clock += 2 * 3600_000;
+      // past the day, without any other pairing in between to clear it out
+      expect((await viaTailnet(link, { cookie })).status).toBe(401);
+      expect((await viaTailnet('/api/projects', { cookie })).status).toBe(200);
     });
 
     test('a link is built only on an address that is one of Seismic\'s as a whole, and the code is not spent otherwise', async () => {
@@ -652,7 +671,7 @@ describe('pairing', () => {
         // each Seismic turns away the other one's cookie when it is all the jar sends
         expect((await to(a, '/api/projects', { cookie: `seismic-device-https-9443=${jar.get('seismic-device-https-9443')}` })).status).toBe(401);
         expect((await to(b, '/api/projects', { cookie: `seismic-device-https-8443=${jar.get('seismic-device-https-8443')}` })).status).toBe(401);
-        // pairing the first again renews its own device, and leaves the second's pairing be
+        // pairing the first again keeps its own device, and leaves the second's pairing be
         const before = jar.get('seismic-device-https-9443');
         await pairThroughShell(a);
         expect(jar.get('seismic-device-https-9443')).toBe(before);
