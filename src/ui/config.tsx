@@ -71,6 +71,7 @@ declare global {
     seismicHandOver?: (token: string) => Promise<void>;
     seismicRestartHeld?: () => boolean;
     seismicSnapshotSession?: () => string[][];
+    seismicRestoredDrafts?: Set<string>;
   }
 }
 

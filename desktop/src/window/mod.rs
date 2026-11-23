@@ -122,11 +122,15 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
     (!p.drafts.is_empty() && own.origin().as_ref() == Some(origin)).then_some((origin, &p.drafts))
   });
   let restore = drafts.map(|(origin, drafts)| format!(
-    r#"if (window.top === window && location.origin === {} && !sessionStorage.getItem('seismic-desktop-restored')) {{
-        for (const [key, value] of {}) {{
-          if (sessionStorage.getItem(key) === null) sessionStorage.setItem(key, value);
+    r#"if (window.top === window && location.origin === {}) {{
+        const drafts = {};
+        window.seismicRestoredDrafts = new Set(drafts.map(([key]) => key));
+        if (!sessionStorage.getItem('seismic-desktop-restored')) {{
+          for (const [key, value] of drafts) {{
+            if (sessionStorage.getItem(key) === null) sessionStorage.setItem(key, value);
+          }}
+          sessionStorage.setItem('seismic-desktop-restored', '1');
         }}
-        sessionStorage.setItem('seismic-desktop-restored', '1');
       }}"#,
     serde_json::json!(origin),
     serde_json::json!(drafts)
@@ -146,7 +150,7 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
         .or(option_env!("OBEYA_BUILT_COMMIT"))
         .filter(|c| !c.is_empty())
         .map_or("null".to_string(), |c| format!("{c:?}")),
-      handed_over && restore.is_none()
+      handed_over
     ))
     .on_navigation(move |url| {
       if navigation.admits(url) {

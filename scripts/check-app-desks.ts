@@ -23,7 +23,7 @@
 // shell commands the script sends it (`/todo`). Prints one line per check; exits 1 when one failed.
 
 import { type Subprocess } from 'bun';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { ownerHeaders } from '../src/server/owner';
@@ -85,6 +85,9 @@ let onHealth: (() => Promise<void>) | undefined;
 let remoteBusy = false;
 let signedOut = false;
 let busyChecks = 0;
+let proxyError = 0;
+let expireServerHandover = false;
+let acknowledgedHandovers = 0;
 const startProxy = () => {
   proxy.server = Bun.serve({
     port: proxyPort,
@@ -93,6 +96,12 @@ const startProxy = () => {
       const url = new URL(req.url);
       if (url.pathname === '/__seismic-check-frame') return new Response(FRAME, { headers: { 'content-type': 'text/html' } });
       if (url.pathname === '/api/projects' && req.headers.get('user-agent')?.startsWith('ureq/')) await onHealth?.();
+      if (proxyError && url.pathname === '/api/app-rebuilt') {
+        return new Response('Upstream unavailable', { status: proxyError });
+      }
+      if (expireServerHandover && url.pathname === '/api/app-rebuilt/handover' && req.method === 'GET') {
+        return Response.json(null);
+      }
       if (signedOut && url.pathname === '/api/app-rebuilt') {
         return Response.json({ code: 'notPaired' }, { status: 401 });
       }
@@ -109,6 +118,7 @@ const startProxy = () => {
       headers.set('x-forwarded-proto', 'http');
       const body = req.method === 'GET' || req.method === 'HEAD' ? undefined : await req.arrayBuffer();
       const res = await fetch(`${remoteUrl}${url.pathname}${url.search}`, { method: req.method, headers, body, redirect: 'manual' });
+      if (url.pathname === '/api/app-rebuilt/handover' && req.method === 'POST' && res.ok) acknowledgedHandovers++;
       // fetch has decoded the body already
       const back = new Headers(res.headers);
       back.delete('content-encoding');
@@ -402,6 +412,51 @@ try {
     const restored = await report('remote', before);
     expect(restored.previousSession === 'kept' && restored.projects === 200, JSON.stringify(restored));
     await report('local', before);
+  });
+
+  for (const error of [502, 503]) {
+    await check(`an HTTP ${error} from the remote proxy allows the update and keeps the draft`, async () => {
+      const before = reports.length;
+      proxyError = error;
+      try {
+        await relaunch();
+        const restored = await report('remote', before);
+        expect(restored.previousDraft === 'Unsent note for Lab', JSON.stringify(restored));
+        await report('local', before);
+      } finally {
+        proxyError = 0;
+      }
+    });
+  }
+
+  await check('a successful handover keeps a local draft even if the server copy expires', async () => {
+    const before = reports.length;
+    const writes = acknowledgedHandovers;
+    expireServerHandover = true;
+    try {
+      await relaunch();
+      const restored = await report('remote', before);
+      expect(acknowledgedHandovers > writes, 'the remote server never accepted its handover');
+      expect(restored.previousDraft === 'Unsent note for Lab' && restored.previousSession === null, JSON.stringify(restored));
+      await report('local', before);
+    } finally {
+      expireServerHandover = false;
+    }
+  });
+
+  await check('a duplicate app launch leaves the installer snapshot for the primary', async () => {
+    const path = join(home, 'app-windows.json');
+    const snapshot = JSON.stringify({ at: Date.now(), installer: true, windows: [] });
+    writeFileSync(path, snapshot);
+    const secondary = startApp();
+    try {
+      expect((await exited(secondary, 10_000)) === 0, 'the duplicate app did not exit');
+      expect(readFileSync(path, 'utf8') === snapshot, 'the duplicate modified the installer snapshot');
+      expect((await desks()).current === 'local', 'the primary stopped responding');
+    } finally {
+      if (secondary.exitCode === null) secondary.kill();
+      rmSync(path, { force: true });
+    }
   });
 
   // ---------------------------------------------------------------- after a relaunch, while the workspace is down

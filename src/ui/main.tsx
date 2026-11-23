@@ -15,7 +15,7 @@ if (window.seismicApp) {
   window.seismicRestartHeld = restartHeld;
   window.seismicSnapshotSession = snapshotSession;
 }
-if (window.seismicApp?.handedOver) await takeHandOver();
+if (window.seismicApp?.handedOver) await takeHandOver(window.seismicRestoredDrafts);
 takeAppDrops();
 pinAboveKeyboard();
 createRoot(document.getElementById('root')!).render(

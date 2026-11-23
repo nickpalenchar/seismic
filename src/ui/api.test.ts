@@ -67,6 +67,20 @@ test('before the app starts again, the page hands what a reload keeps to the ser
 });
 
 
+test('server handover fills in session state while keeping the locally restored draft', async () => {
+  const real = globalThis.sessionStorage;
+  globalThis.fetch = (async (_url: string) => Response.json([['seismic-drafts-shop', 'older draft'], ['check-view', 'open']])) as typeof fetch;
+  try {
+    globalThis.sessionStorage = storage();
+    sessionStorage.setItem('seismic-drafts-shop', 'newest draft');
+    await takeHandOver(new Set(['seismic-drafts-shop']));
+    expect(sessionStorage.getItem('seismic-drafts-shop')).toBe('newest draft');
+    expect(sessionStorage.getItem('check-view')).toBe('open');
+  } finally {
+    globalThis.sessionStorage = real;
+  }
+});
+
 test('a delayed chat command keeps the project and chat captured at Send', async () => {
   let body: unknown;
   globalThis.fetch = (async (url: string, init?: RequestInit) => {

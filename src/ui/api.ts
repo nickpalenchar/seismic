@@ -623,10 +623,12 @@ export function snapshotSession() {
 }
 
 /** In the window of a shell that started again: what the page before it handed over, back into session storage, once. */
-export async function takeHandOver() {
+export async function takeHandOver(restoredDrafts?: ReadonlySet<string>) {
   try {
     const entries = (await call<[string, string][] | null>('GET', '/api/app-rebuilt/handover')) ?? [];
-    for (const [k, v] of entries) sessionStorage.setItem(k, v);
+    for (const [k, v] of entries) {
+      if (!restoredDrafts?.has(k)) sessionStorage.setItem(k, v);
+    }
   } catch {}
 }
 

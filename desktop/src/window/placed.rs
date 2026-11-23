@@ -129,10 +129,22 @@ pub fn keep(home: &Path, windows: &[Placed], installer: bool) -> io::Result<()> 
 
 /// The windows the shell before this one left, this machine's first; none where it left none lately.
 pub fn take(home: &Path) -> Vec<Placed> {
+  read_saved(home, true)
+}
+
+/// The builder needs the initial visibility on macOS before the single-instance check runs.
+#[cfg(target_os = "macos")]
+pub fn peek(home: &Path) -> Vec<Placed> {
+  read_saved(home, false)
+}
+
+fn read_saved(home: &Path, consume: bool) -> Vec<Placed> {
   let read = |name: &str| {
     let path = home.join(name);
     let text = fs::read_to_string(&path).ok()?;
-    let _ = fs::remove_file(&path);
+    if consume {
+      let _ = fs::remove_file(&path);
+    }
     serde_json::from_str::<Value>(&text).ok()
   };
   let (now, former) = (read(FILE), read(FORMER));
@@ -206,6 +218,8 @@ mod tests {
     let mut snapshot: Value = serde_json::from_slice(&fs::read(&file).unwrap()).unwrap();
     snapshot["at"] = json!(now_ms() - 5 * 60_000);
     fs::write(file, snapshot.to_string()).unwrap();
+    // Reading placement before instance arbitration must leave the snapshot available.
+    assert_eq!(read_saved(&home, false), vec![remote.clone()]);
     assert_eq!(take(&home), vec![remote]);
     assert!(take(&home).is_empty());
     let _ = fs::remove_dir_all(home);

@@ -547,15 +547,14 @@ pub(crate) fn relaunch(app: &AppHandle, seismic: &Seismic, _placed: &[placed::Pl
 fn main() {
   let seismic = Arc::new(Seismic::default());
   let for_setup = seismic.clone();
-  // started again by the shell before it (`relaunch`): this machine's window first, then the others
-  let mut placed = placed::take(&home());
-  let main_placed = placed.first().filter(|p| p.desk == desks::LOCAL).cloned();
-  placed.retain(|p| p.desk != desks::LOCAL);
-  *seismic.first.lock().unwrap() = main_placed.as_ref().map(|p| p.next.clone());
   let builder = tauri::Builder::default();
-  // a window that was out of sight comes back so, and the app stays behind the one the owner is in
+  // A hidden app stays behind the one the owner is using. Only peek until setup: a
+  // duplicate launch must leave the installer snapshot for the next primary instance.
   #[cfg(target_os = "macos")]
-  let builder = builder.activate_ignoring_other_apps(main_placed.as_ref().is_none_or(|p| p.visible) || placed.iter().any(|p| p.visible));
+  let builder = {
+    let windows = placed::peek(&home());
+    builder.activate_ignoring_other_apps(windows.is_empty() || windows.iter().any(|p| p.visible))
+  };
   let app = builder
     .plugin(tauri_plugin_single_instance::init(|app, _, _| show(app)))
     // the opener's functions only, not its plugin: that puts a script into the page that takes each click
@@ -577,6 +576,11 @@ fn main() {
     .setup(move |app| {
       let handle = app.handle().clone();
       let _ = HOME.set(home());
+      // The single-instance plugin initializes before setup. Only the primary consumes this.
+      let mut placed = placed::take(&home());
+      let main_placed = placed.first().filter(|p| p.desk == desks::LOCAL).cloned();
+      placed.retain(|p| p.desk != desks::LOCAL);
+      *for_setup.first.lock().unwrap() = main_placed.as_ref().map(|p| p.next.clone());
       app.manage(Arc::new(desks::Shell::new(home())));
       if cfg!(target_os = "macos") {
         app.set_menu(menu::menu(&handle)?)?;

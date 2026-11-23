@@ -49,12 +49,13 @@ pub fn ready(app: &AppHandle, hand_over: bool) -> Option<Drafts> {
               method: 'POST', headers: {{ 'content-type': 'application/json' }}, body: '{{}}',
               signal: controller.signal,
             }});
+            if (response.status >= 500 && response.status <= 599) return window.seismicRestartHeld?.() === false;
             const state = await response.json().catch(() => null);
-            if (response.status === 401) return state?.code === 'notPaired' ? 'local' : false;
+            if (response.status === 401) return state?.code === 'notPaired';
             if (!response.ok || state?.now !== true) return false;
           }} catch {{
             // A disconnected page can still know whether its own recording or playback is active.
-            return window.seismicRestartHeld?.() === false ? 'local' : false;
+            return window.seismicRestartHeld?.() === false;
           }} finally {{
             clearTimeout(timeout);
           }}
@@ -65,7 +66,7 @@ pub fn ready(app: &AppHandle, hand_over: bool) -> Option<Drafts> {
               await window.seismicHandOver(check.token);
             }} catch {{
               // The connection or pairing can be lost after the readiness response.
-              return 'local';
+              return !window.seismicRestartHeld();
             }}
           }}
           return !window.seismicRestartHeld?.();
@@ -84,8 +85,9 @@ pub fn ready(app: &AppHandle, hand_over: bool) -> Option<Drafts> {
         r#"(() => {{
           const check = window.seismicRebuildCheck;
           if (location.origin !== {origin:?} || check?.token !== {token:?} || window.seismicRestartHeld?.()) return false;
-          if (check.ready !== 'local') return check.ready;
-          if (!{hand_over}) return true;
+          // Keep an origin-scoped copy even after a successful server handover: it can expire
+          // during installation or before a workspace comes back online.
+          if (check.ready !== true || !{hand_over}) return check.ready;
           const entries = window.seismicSnapshotSession?.() ?? Object.entries(sessionStorage);
           return entries.filter(([key]) => /^(seismic-(drafts|markups|setting-draft|kept)-)/.test(key));
         }})()"#
