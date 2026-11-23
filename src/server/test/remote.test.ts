@@ -472,8 +472,11 @@ describe('pairing', () => {
       const v = await view();
       expect(v.devices.map((d) => d.name)).toEqual(['iPhone · Safari']);
       expect(v.pairing?.paired?.name).toBe('iPhone · Safari');
-      // the link pairs once
+      // the link pairs once; opened again in the browser it paired, it leads to the project
       expect((await viaTailnet(link)).status).toBe(401);
+      const reopened = await viaTailnet(link, { cookie });
+      expect(reopened.status).toBe(303);
+      expect(reopened.headers.get('set-cookie')).toBeNull();
       expect((await view()).devices).toHaveLength(1);
     });
 

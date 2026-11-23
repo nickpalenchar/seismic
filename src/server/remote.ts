@@ -500,7 +500,8 @@ export class Access implements Gate {
       const hash = sha256(params.get('token')!);
       const link = this.links.get(hash);
       this.links.delete(hash);
-      if (!link || link.expires <= this.now()) return this.notPairedPage(true);
+      // a link opened again in the browser it paired
+      if (!link || link.expires <= this.now()) return this.device(req) ? project() : this.notPairedPage(true);
       return this.paired(req, this.enroll(link.pairing, userAgent, existing()).token);
     }
     const code = req.method === 'POST' ? String((await req.formData().catch(() => null))?.get('code') ?? '') : (params.get('code') ?? '');
