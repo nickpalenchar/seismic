@@ -630,7 +630,8 @@ export class Access implements Gate {
   async pairApi(req: Request, server: Bun.Server<unknown>): Promise<Response> {
     const refuse = (status: number, code: string, error: string) => Response.json({ code, error }, { status });
     if (this.isLocal(req, server)) return refuse(409, 'onThisMachine', 'this is the Seismic of this machine: it needs no pairing');
-    const body = req.headers.get('content-type')?.split(';')[0]?.trim() === 'application/json' ? ((await req.json().catch(() => null)) as { code?: unknown } | null) : null;
+    const mediaType = req.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase();
+    const body = mediaType === 'application/json' ? ((await req.json().catch(() => null)) as { code?: unknown } | null) : null;
     if (typeof body?.code !== 'string') return refuse(400, 'invalid', 'send { "code": "123456" } as JSON');
     // the link carries a credential: built only on an address that is one of Seismic's as a whole, before the code is spent
     const authority = this.authorityOf(req);

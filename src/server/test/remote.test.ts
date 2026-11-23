@@ -820,12 +820,23 @@ describe('pairing', () => {
       expect((await viaTailnet('/api/pair', { 'content-type': 'text/plain' }, { method: 'POST', body: JSON.stringify({ code: p.code }) })).status).toBe(400);
       expect((await viaTailnet('/api/pair', { 'content-type': 'application/x-www-form-urlencoded' }, { method: 'POST', body: `code=${p.code}` })).status).toBe(400);
       expect((await shellPairs(Number(p.code))).status).toBe(400);
+      expect((await shellPairs(p.code, { 'content-type': 'Application/JSON-extra' })).status).toBe(400);
       expect((await shellPairs(p.code, { 'sec-fetch-site': 'cross-site', origin: 'https://evil.example' })).status).toBe(403);
       const here = await fetch(new URL('/api/pair', server.url), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code: p.code }) });
       expect(here.status).toBe(409);
       expect(await here.json()).toMatchObject({ code: 'onThisMachine' });
       // none of that spent the code
       expect((await shellPairs(p.code)).status).toBe(200);
+    });
+
+    test.each(['Application/JSON', 'application/Json; charset=UTF-8'])('a JSON media type labeled %s can be traded for a working link', async (mediaType) => {
+      await turnOn();
+      const code = (await pairing()).code;
+      const traded = await shellPairs(code, { 'content-type': mediaType });
+      expect(traded.status).toBe(200);
+      const opened = await viaTailnet(await linkOf(traded));
+      expect(opened.status).toBe(303);
+      expect((await viaTailnet('/api/projects', { cookie: cookieOf(opened) })).status).toBe(200);
     });
 
     test('"Pair again" with a fresh code: a window already paired keeps its device entry and gets a new credential', async () => {
