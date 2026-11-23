@@ -462,6 +462,12 @@ Safety rules:
   end does not wait for its pipes to close beyond 2 s after its process exited: a command it left
   (never observed) can hold them for as long as it runs.
 
+- The pickers never wait on a harness's CLIs once they have answered: the harness list takes the last
+  readiness check (`HarnessCheck.known`), and the Codex and Antigravity model lists the last listing
+  (`ModelCatalog`, listed again in the background after 5 minutes, and once when Seismic starts or a
+  harness is connected). Each takes seconds and varies widely (`agy models` 0.2–21 s, a Codex listing
+  0.15–12 s, 2026-11-22). Rejected: a fresh run per picker, which left the Harness select empty and
+  the model list loading for as long as the slowest CLI took.
 - Harness readiness is machine discovery. The owner’s confirmed harnesses are stored separately in the machine’s settings and
   control new agent choices and usage polling. Before the first saved list, existing agent defaults and project overrides provide
   the compatibility list because earlier onboarding did not record its selection. A disconnected default falls back to a connected
