@@ -22,7 +22,7 @@ Three rules carry the design:
 
 ## Workstreams
 
-- [ ] **W1:** Spike on all three webviews (WKWebView, WebView2, WebKitGTK). Prove that a second window opened at a one-time login link keeps the device cookie for later loads at that origin, that the navigation hook keeps the window on its origin (redirects and frames included), and that a capability scoped to one window and one origin admits only that window's calls. Write the result and any platform quirk into this plan before W3 starts. If a webview cannot do one of these, stop and bring it to the owner.
+- [x] **W1:** Spike on all three webviews (WKWebView, WebView2, WebKitGTK). Prove that a second window opened at a one-time login link keeps the device cookie for later loads at that origin, that the navigation hook keeps the window on its origin (redirects and frames included), and that a capability scoped to one window and one origin admits only that window's calls. Write the result and any platform quirk into this plan before W3 starts. If a webview cannot do one of these, stop and bring it to the owner.
 - [ ] **W2:** Server side. `POST /api/pair` with the one-time login link; device cookies per scheme and port, with the renewal rules (bring back the device-cookie commits from `backup/desktop-architecture`: per-scheme names, explicit-code redemption, the `device_renewals` credential handover); tests with two Seismics on one host paired by one cookie jar. Independent of W1.
 - [ ] **W3:** Shell. The workspace list and its file, one window per workspace with its fixed capability, the navigation guard, the shell's health check before a window opens and the status page when it fails, reopening windows after a relaunch, the macOS menu. The microphone is granted to listed origins only (bring back that commit). Builds on W1 and W2.
 - [ ] **W4:** Pages. The workspaces page and cog dialog on this machine's page, the switcher in every page's left menu, the setup's first step ("How do you want to use Seismic?" with "On this machine" and "Remote connection"), and a remote Seismic without projects offering "Set up <its name>" or "Connect to remote Seismic". shadcn/ui parts, strings in `src/ui/strings.ts`, the phone view untouched. The UI work of the backup branch (wrapping long addresses, "Learn more" outside the radio label, "Delete workspace" in the cog's dialog alone) carries over as decisions, not as code.
@@ -34,13 +34,14 @@ Three rules carry the design:
 The spike is `desktop/spike/` (a small Tauri app, `src/main.rs`, and its harness, `run.ts`, which
 serves this machine's origin, two workspaces and a foreign site on 127.0.0.1 and judges what the
 shell and the pages report); `desktop/spike/linux.sh` runs it on WebKitGTK in the Linux image, and
-the "Webview spike" workflow (run by hand) on all three runners. Tauri 2.12, wry 0.57.
+the "Webview spike" workflow on all three GitHub runners (by hand, and on a push that changes the
+spike). Tauri 2.12, wry 0.57; all three pass.
 
-| | WKWebView (macOS 27) | WebKitGTK 2.50 (Ubuntu 22.04, Xvfb) | WebView2 (Windows) |
+| | WKWebView (macOS 27) | WebKitGTK 2.50 (Ubuntu 22.04, Xvfb) | WebView2 (Windows runner) |
 |---|---|---|---|
-| Device cookie from the one-time login link, kept on reloads and after a relaunch; link single use | yes | yes | not run yet |
-| `on_navigation` keeps the window on its origin: location, link, 302 to another origin, form post, meta refresh, frames of another origin and a frame redirected to one; `window.open` goes to `on_new_window` | yes, before any request leaves | yes, before any request leaves | not run yet |
-| A capability for one window and one origin admits only that window's page | yes | yes, with postMessage unregistered | not run yet |
+| Device cookie from the one-time login link, kept on reloads and after a relaunch; link single use | yes | yes | yes |
+| `on_navigation` keeps the window on its origin: location, link, 302 to another origin, form post, meta refresh, frames of another origin and a frame redirected to one; `window.open` goes to `on_new_window` | yes, before any request leaves | yes, before any request leaves | yes, with the shell guarding frames itself; a refused GET still reaches its server |
+| A capability for one window and one origin admits only that window's page | yes | yes, with postMessage unregistered | yes |
 
 What W3 builds on:
 
@@ -50,9 +51,9 @@ What W3 builds on:
   from the other workspace's origin and from this machine's page are denied with Tauri's message
   naming the capability.
 - **The hook sees subframes and redirects:** a 302 from the window's origin to another one reaches
-  `on_navigation` with the target URL, for the main frame and for frames, and returning `false`
-  stops it before the request is sent (the foreign server saw no request on either engine). So the
-  hook alone keeps foreign frames out. It is given only the URL, not whether a frame asked, so
+  `on_navigation` with the target URL, for the main frame and for frames (macOS and Linux), and
+  returning `false` stops it before the request is sent (the foreign server saw no request). So
+  there the hook alone keeps foreign frames out. It is given only the URL, not whether a frame asked, so
   handing every refused URL to the system browser would let a page open browser tabs by embedding
   frames: W3 decides which refused navigations go to the browser.
 - **Linux quirk (WebKitGTK):** wry's postMessage IPC names the page the webview shows, not the
@@ -61,16 +62,25 @@ What W3 builds on:
   wry's `ipc` script message handler (as `437dbe6a` on `backup/desktop-architecture` did) leaves the
   fetch IPC, which names its sender by the `Origin` header and works from remote http pages there;
   with it, nothing passes. W3 unregisters it on every Linux window.
+- **Windows quirks (WebView2):** wry hooks `NavigationStarting` only, so frames never reach
+  `on_navigation` and a foreign frame loads. The shell adds its own `FrameNavigationStarting`
+  handler on the window's `ICoreWebView2` (`with_webview`, then `controller().CoreWebView2()`, as
+  `desktop/spike/src/main.rs` does) and cancels off-origin frames; with it no foreign page renders.
+  And WebView2 sends a navigation's GET while it asks the handler: a refused navigation (main frame
+  or frame, a redirect's target too) still reaches its server, though its answer is dropped and the
+  window stays; a form POST was not sent. The window stays on its origin; if a request leaving
+  matters, `WebResourceRequested` with a filter is where it could be stopped (not tried).
 - **Subframes get no Tauri internals on macOS and Linux** (Tauri's init scripts are main frame
   only), so a frame cannot call the shell unless it learns the invoke key. On Windows, wry adds init
   scripts to subframes regardless (wry's docs), so there a frame has `__TAURI_INTERNALS__` and the
-  key: the capability and the hook are what stop it; the Windows run has to confirm that.
+  key: the capability and the frame guard are what stop it, and the run shows they do (the foreign
+  frame's fetch IPC names its own origin and is denied; a frame's postMessage never reaches the
+  shell there).
 - **Sandboxed frames of the window's own origin** (artifacts, answer pages): their fetch IPC fails
   (`Origin: null` is not a URL to Tauri) and their postMessage call is matched by the frame's URL,
   the window's origin, so one holding the key would pass. They hold no key on macOS and Linux (and
-  Linux has no postMessage in W3); on Windows they get it with the init scripts. W3 decides there:
-  the init script that makes the page's internals checks it runs in the top frame, or the shell's
-  commands stay harmless for the workspace's own content.
+  Linux has no postMessage in W3). On Windows they get it with the init scripts, but their fetch
+  fails and their postMessage does not reach the shell, so none ran there either.
 - **Cookies:** the windows share the app's one cookie store; cookies ignore the port, so the
   per-scheme-and-port cookie names of W2 are what keep two Seismics on one host apart.
 
