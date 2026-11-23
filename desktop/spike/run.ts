@@ -21,6 +21,9 @@
 //   the shell is to run there: no call may pass.
 //
 // It prints each check with PASS or FAIL and the events behind a failure, and exits 1 on a FAIL.
+// With SPIKE_TLS_CERT and SPIKE_TLS_KEY set, run only the HTTPS cookie lifecycle. Both the shell
+// and the webview must trust the fixture certificate. SPIKE_TLS_CA can specify a separate CA file
+// for the harness's login-link replay check; it defaults to the fixture certificate.
 
 
 const binary = process.argv[2] ?? "";
@@ -29,20 +32,42 @@ if (!binary) throw new Error("usage: bun desktop/spike/run.ts <webview-spike bin
 const LOCAL = 8900;
 const DESKS = { 8901: "desk-a", 8902: "desk-b" } as Record<number, string>;
 const FOREIGN = 8903;
-const at = (port: number) => `http://127.0.0.1:${port}`;
+const cert = process.env.SPIKE_TLS_CERT;
+const privateKey = process.env.SPIKE_TLS_KEY;
+if (!!cert !== !!privateKey) throw new Error("Set both SPIKE_TLS_CERT and SPIKE_TLS_KEY");
+const tls = cert && privateKey ? { cert: Bun.file(cert), key: Bun.file(privateKey) } : undefined;
+const scheme = tls ? "https" : "http";
+const cookieAttributes = tls ? "SameSite=None; Secure" : "SameSite=Lax";
+const at = (port: number) => `${DESKS[port] ? scheme : "http"}://127.0.0.1:${port}`;
 const device = crypto.randomUUID();
-const cookieName = (port: number) => `seismic-device-http-${port}`;
+const cookieName = (port: number) => `seismic-device-${scheme}-${port}`;
 
 type Event = Record<string, any>;
 let events: Event[] = [];
 let mode = "first";
 let key = "";
 let os = "";
-const tokens = new Map<string, boolean>();
+const tokens = new Map<string, number>();
 const links: string[] = [];
 
 const html = (body: string) => new Response(`<!doctype html><meta charset="utf-8">${body}`, { headers: { "content-type": "text/html" } });
 const hasCookie = (req: Request, port: number) => (req.headers.get("cookie") ?? "").split(/;\s*/).includes(`${cookieName(port)}=${device}`);
+
+function httpsCookiePage(req: Request, port: number) {
+  const loginRedirect = new URL(req.url).searchParams.get("n") === "1";
+  const response = html(`<title>${DESKS[port]}</title><h1>${DESKS[port]}</h1><script>
+    (async () => {
+      const reload = performance.getEntriesByType('navigation')[0]?.type === 'reload';
+      await fetch('/report', { method: 'POST', body: JSON.stringify({
+        case: 'cookie', win: ${JSON.stringify(DESKS[port])}, origin: location.origin,
+        n: reload ? 2 : ${loginRedirect ? 1 : 0}, cookie: ${hasCookie(req, port)}
+      }) });
+      if (${loginRedirect} && !reload) location.reload();
+    })();
+  </script>`);
+  response.headers.set("Cache-Control", "no-store");
+  return response;
+}
 
 // what every page shares: report to its own origin, call the shell through Tauri and around it
 const common = (win: string) => `<script>
@@ -146,7 +171,8 @@ async function handle(req: Request, port: number): Promise<Response> {
   const path = url.pathname;
   if (path === "/shell") {
     const e = await req.json();
-    if (e.kind === "key") ({ key, os } = e);
+    if (e.kind === "key") key = e.key;
+    if (e.kind === "key" || e.kind === "platform") os = e.os;
     events.push({ source: "shell", ...e });
     return new Response("ok");
   }
@@ -165,60 +191,70 @@ async function handle(req: Request, port: number): Promise<Response> {
     const { code } = await req.json();
     if (code !== "123456") return Response.json({ error: "wrong code" }, { status: 401 });
     const token = crypto.randomUUID();
-    tokens.set(token, false);
+    tokens.set(token, port);
     const link = `${at(port)}/login?once=${token}`;
     links.push(link);
     return Response.json({ link });
   }
   if (path === "/login") {
     const token = url.searchParams.get("once") ?? "";
-    if (tokens.get(token) !== false) return new Response("this login link is used or unknown", { status: 403 });
-    tokens.set(token, true);
+    if (tokens.get(token) !== port) return new Response("this login link is used or unknown", { status: 403 });
+    tokens.delete(token);
     return new Response(null, {
       status: 302,
-      headers: { location: "/?n=1", "set-cookie": `${cookieName(port)}=${device}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000` },
+      headers: {
+        location: "/?n=1",
+        "set-cookie": `${cookieName(port)}=${device}; Path=/; HttpOnly; ${cookieAttributes}; Max-Age=31536000`,
+      },
     });
   }
-  if (path === "/") return deskPage(req, port);
+  if (path === "/") return tls ? httpsCookiePage(req, port) : deskPage(req, port);
   return new Response("not found", { status: 404 });
 }
 
-for (const port of [LOCAL, ...Object.keys(DESKS).map(Number), FOREIGN]) {
-  Bun.serve({ hostname: "127.0.0.1", port, fetch: (req) => handle(req, port) });
+for (const port of [LOCAL, ...Object.keys(DESKS).map(Number), ...(tls ? [] : [FOREIGN])]) {
+  Bun.serve({ hostname: "127.0.0.1", port, tls: DESKS[port] ? tls : undefined, fetch: (req) => handle(req, port) });
 }
 
 function runApp(env: Record<string, string>) {
-  return new Promise<void>((resolve) => {
-    const child = Bun.spawn([binary], { env: { ...process.env, ...env }, stdio: ["ignore", "inherit", "inherit"] });
+  return new Promise<number>((resolve) => {
+    const child = Bun.spawn([binary], {
+      env: { ...process.env, ...env, SPIKE_HTTPS_COOKIES: tls ? "1" : "0" },
+      stdio: ["ignore", "inherit", "inherit"],
+    });
     const kill = setTimeout(() => child.kill(), 60_000);
-    void child.exited.then(() => (clearTimeout(kill), resolve()));
+    void child.exited.then((status) => (clearTimeout(kill), resolve(status)));
   });
 }
 
 type Check = { name: string; pass: boolean; detail?: unknown };
 const checks: Check[] = [];
+const exceptions: { mode: string; name: string; events: Event[] }[] = [];
 const check = (name: string, pass: boolean, detail?: unknown) => checks.push({ name: `[${mode}] ${name}`, pass, detail: pass ? undefined : detail });
 const OWN: Record<string, { cmd: string; origin: string }> = { "desk-a": { cmd: "ping_a", origin: at(8901) }, "desk-b": { cmd: "ping_b", origin: at(8902) }, main: { cmd: "ping_local", origin: at(LOCAL) } };
 
-/// Every command that ran: the window and the sender (taken from its tag) have to be the
-/// capability's own, so a frame's call ran only where the frame is that window's origin.
+/// Judge the allowed window and effective origin, recording known engine exceptions separately.
 function judgeCommands(expectTop: boolean, quirk = false) {
   const ran = events.filter((e) => e.kind === "cmd");
+  const engine = os === "macos" ? "WKWebView" : os === "linux" && mode !== "frames-no-postmessage" ? "WebKitGTK" : "";
+  const knownOpaqueCalls = engine ? ran.filter((e) => {
+    const [win, from, ...call] = String(e.tag).split("|");
+    return from === "frame-sandboxed" && e.window === win && OWN[e.window]?.cmd === e.cmd && call.at(-1) === "postMessage";
+  }) : [];
+  if (knownOpaqueCalls.length) exceptions.push({
+    mode, name: `${engine} admitted native calls from opaque-origin sandboxed frames`, events: knownOpaqueCalls,
+  });
   const wrong = ran.filter((e) => {
     const [win, from] = String(e.tag).split("|");
     const own = OWN[e.window];
-    // a sandboxed frame has an opaque origin but its server's URL, which is what a frame's
-    // postMessage call is matched by: it is the window's own origin's content, reported apart
-    const sameOrigin = from === "top" || from === "frame-same" || from === "frame-sandboxed";
-    return e.window !== win || own?.cmd !== e.cmd || !sameOrigin;
+    const sameOrigin = from === "top" || from === "frame-same";
+    return !knownOpaqueCalls.includes(e) && (e.window !== win || own?.cmd !== e.cmd || !sameOrigin);
   });
   if (quirk) {
     // wry on Linux hands a postMessage call to Tauri as the page the webview shows: a foreign frame
     // passes as the window's page. Still so means the shell still has to unregister that handler.
     check("wry's postMessage still attributes a foreign frame's call to the window's page (why the shell unregisters it)", wrong.some((e) => String(e.tag).includes("|frame-foreign|")), wrong);
-  } else check("no call ran outside its window's capability (window and origin)", wrong.length === 0, wrong);
-  const sandboxed = ran.filter((e) => String(e.tag).includes("|frame-sandboxed|"));
-  if (sandboxed.length) console.log(`note [${mode}] a sandboxed same-origin frame holding the invoke key ran: ${sandboxed.map((e) => e.tag).join(", ")}`);
+  } else check("no calls escaped window and origin scope beyond a recorded exception", wrong.length === 0, wrong);
   if (expectTop) {
     for (const [win, { cmd }] of Object.entries(OWN)) {
       check(`${win}'s own page may call ${cmd}`, ran.some((e) => e.window === win && e.cmd === cmd && String(e.tag).includes("|top|")), events.filter((e) => e.win === win && e.case === "top-call"));
@@ -250,38 +286,56 @@ async function runMode(name: string, env: Record<string, string>) {
   mode = name;
   events = [];
   console.log(`\n== ${name}`);
-  await runApp(env);
+  const status = await runApp(env);
+  if (tls) check("the app reported its platform and quit cleanly",
+    status === 0 && events.some((e) => e.kind === "platform") && events.some((e) => e.kind === "quit"), { status, events });
   return events;
 }
 
 const log: Record<string, Event[]> = {};
 
-log.first = await runMode("first", { SPIKE_RUN: "first", SPIKE_SECONDS: "20" });
-for (const win of Object.values(DESKS)) {
-  const cookies = events.filter((e) => e.case === "cookie" && e.win === win);
-  check(`${win} has the device cookie after the login link (n=1) and on a reload (n=2)`, cookies.some((e) => e.n === 1 && e.cookie) && cookies.some((e) => e.n === 2 && e.cookie), cookies);
+console.log(`Checking ${scheme.toUpperCase()} cookies (${cookieAttributes})`);
+log.first = await runMode("first", { SPIKE_RUN: "first", SPIKE_SECONDS: tls ? "8" : "20" });
+for (const [deskPort, win] of Object.entries(DESKS)) {
+  const port = Number(deskPort);
+  const cookies = events.filter((e) => e.source === "page" && e.case === "cookie" && e.win === win && e.port === port && e.origin === at(port));
+  const authenticatedLoads = events.filter((e) => e.source === "http" && e.port === port && e.method === "GET" && e.path === "/" && e.cookie);
+  check(`${win} has the ${scheme.toUpperCase()} cookie after the login redirect and ${tls ? "on reload" : "on a second load"}`,
+    cookies.some((e) => e.n === 1 && e.cookie) && cookies.some((e) => e.n === 2 && e.cookie) && authenticatedLoads.length >= 2,
+    { cookies, authenticatedLoads });
+  check(`${win} received exactly one login link`, links.filter((link) => new URL(link).origin === at(port)).length === 1);
 }
 for (const link of links) {
-  const again = await fetch(link, { redirect: "manual" });
-  check(`the login link is single use (${new URL(link).port})`, again.status === 403, again.status);
+  const options = cert ? { tls: { ca: await Bun.file(process.env.SPIKE_TLS_CA ?? cert).text() } } : {};
+  const again = await fetch(link, { redirect: "manual", ...options });
+  check(`the ${scheme.toUpperCase()} login link is single use (${new URL(link).port})`, again.status === 403, again.status);
 }
-judgeGuard(true);
-judgeCommands(true);
+if (!tls) {
+  judgeGuard(true);
+  judgeCommands(true);
+}
 
 log.again = await runMode("again", { SPIKE_RUN: "again", SPIKE_SECONDS: "8" });
-for (const win of Object.values(DESKS)) {
-  const cookies = events.filter((e) => e.case === "cookie" && e.win === win);
-  check(`${win} still has the device cookie after a relaunch`, cookies.some((e) => e.cookie), cookies);
+for (const [port, win] of Object.entries(DESKS)) {
+  const cookies = events.filter((e) => e.source === "page" && e.case === "cookie" && e.win === win && e.port === Number(port) && e.origin === at(Number(port)));
+  const requests = events.filter((e) => e.source === "http" && e.port === Number(port));
+  check(`${win} still has the ${scheme.toUpperCase()} cookie on relaunch without another login`,
+    cookies.some((e) => e.n === 0 && e.cookie)
+      && requests.some((e) => e.method === "GET" && e.path === "/" && e.cookie)
+      && !requests.some((e) => e.path === "/login" || e.path === "/api/pair"),
+    { cookies, requests });
 }
-judgeGuard(false);
-judgeCommands(true);
-
-log.frames = await runMode("frames", { SPIKE_RUN: "again", SPIKE_GUARD: "off", SPIKE_SECONDS: "10" });
-judgeCommands(false, os === "linux");
-
-if (os === "linux") {
-  log["frames-no-postmessage"] = await runMode("frames-no-postmessage", { SPIKE_RUN: "again", SPIKE_GUARD: "off", SPIKE_POSTMESSAGE: "off", SPIKE_SECONDS: "10" });
+if (!tls) {
+  judgeGuard(false);
   judgeCommands(true);
+
+  log.frames = await runMode("frames", { SPIKE_RUN: "again", SPIKE_GUARD: "off", SPIKE_SECONDS: "10" });
+  judgeCommands(false, os === "linux");
+
+  if (os === "linux") {
+    log["frames-no-postmessage"] = await runMode("frames-no-postmessage", { SPIKE_RUN: "again", SPIKE_GUARD: "off", SPIKE_POSTMESSAGE: "off", SPIKE_SECONDS: "10" });
+    judgeCommands(true);
+  }
 }
 
 console.log(`\n== results (${os})`);
@@ -289,5 +343,7 @@ for (const c of checks) {
   console.log(`${c.pass ? "PASS" : "FAIL"} ${c.name}`);
   if (!c.pass) console.log("     " + JSON.stringify(c.detail, null, 1).replaceAll("\n", "\n     "));
 }
-await Bun.write(`${import.meta.dirname}/target/spike-${os}.json`, JSON.stringify({ checks, log }, null, 1));
+for (const exception of exceptions) console.log(`EXCEPTION [${exception.mode}] ${exception.name}`);
+await Bun.write(`${import.meta.dirname}/target/spike-${os || "unknown"}${tls ? "-https" : ""}.json`,
+  JSON.stringify({ scheme, cookieAttributes, checks, exceptions, log }, null, 1));
 process.exit(checks.every((c) => c.pass) ? 0 : 1);

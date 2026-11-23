@@ -3,7 +3,7 @@
 // binary and judges what both report. Each run:
 //
 // - opens `main` at this machine's origin, with a capability that grants it `ping_local`;
-// - pairs each workspace over HTTP (`POST /api/pair` with its code), then grants a capability for
+// - pairs each workspace over HTTP or HTTPS (`POST /api/pair` with its code), then grants a capability for
 //   that workspace's window and origin alone (`ping_a` or `ping_b`) and opens the window at the
 //   one-time login link the server answered (`SPIKE_RUN=first`), or at the start page
 //   (`SPIKE_RUN=again`, a relaunch that has to find the device cookie still there);
@@ -60,7 +60,7 @@ fn ping_local(webview: Webview, request: tauri::ipc::Request<'_>, tag: String) -
   ran("ping_local", &webview, &request, &tag)
 }
 
-/// Pairs over HTTP, as the shell is to: the server answers with a one-time login link or why not.
+/// The server answers with a one-time login link or a pairing error.
 fn pair(origin: &str) -> Result<String, String> {
   let response = ureq::post(&format!("{origin}/api/pair")).send_json(serde_json::json!({ "code": "123456" })).map_err(|e| e.to_string())?;
   let body: serde_json::Value = response.into_json().map_err(|e| e.to_string())?;
@@ -129,6 +129,7 @@ fn open(app: &AppHandle, label: &str, own: &str, url: &str, guard: bool) -> taur
 
 fn main() {
   let run = env("SPIKE_RUN");
+  let https_cookies = env("SPIKE_HTTPS_COOKIES") == "1";
   let guard = env("SPIKE_GUARD") != "off";
   let seconds: u64 = env("SPIKE_SECONDS").parse().unwrap_or(14);
   tauri::Builder::default()
@@ -137,10 +138,21 @@ fn main() {
       let handle = app.handle().clone();
       // the frame pages get the invoke key, as a page that learned it would have it: the capability
       // is what has to turn their calls away then
-      report(serde_json::json!({ "kind": "key", "key": handle.invoke_key(), "os": std::env::consts::OS }));
-      handle.add_capability(CapabilityBuilder::new("main").window("main").local(false).remote("http://127.0.0.1:8900".into()).permission("allow-ping-local"))?;
-      open(&handle, "main", "http://127.0.0.1:8900", "http://127.0.0.1:8900/local", true)?;
+      if https_cookies {
+        report(serde_json::json!({ "kind": "platform", "os": std::env::consts::OS }));
+      } else {
+        report(serde_json::json!({ "kind": "key", "key": handle.invoke_key(), "os": std::env::consts::OS }));
+        handle.add_capability(CapabilityBuilder::new("main").window("main").local(false).remote(HARNESS.into()).permission("allow-ping-local"))?;
+        open(&handle, "main", HARNESS, &format!("{HARNESS}/local"), true)?;
+      }
       for (label, own, permission) in DESKS {
+        let https_origin;
+        let own = if https_cookies {
+          https_origin = own.replacen("http:", "https:", 1);
+          https_origin.as_str()
+        } else {
+          own
+        };
         let url = if run == "again" {
           format!("{own}/")
         } else {
@@ -154,7 +166,9 @@ fn main() {
         };
         report(serde_json::json!({ "kind": "paired", "window": label, "url": url }));
         // one window, one origin, fixed for the window's life
-        handle.add_capability(CapabilityBuilder::new(label).window(label).local(false).remote(own.into()).permission(permission))?;
+        if !https_cookies {
+          handle.add_capability(CapabilityBuilder::new(label).window(label).local(false).remote(own.into()).permission(permission))?;
+        }
         open(&handle, label, own, &url, guard)?;
       }
       std::thread::spawn(move || {

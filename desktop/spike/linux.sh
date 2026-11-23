@@ -16,6 +16,12 @@ Xvfb :99 -screen 0 1600x1000x24 >/dev/null 2>&1 &
 eval "$(dbus-launch --sh-syntax)"
 sleep 1
 status=0
+rm -f target/spike-linux.json target/spike-linux-https.json
 bun run.ts target/debug/webview-spike || status=1
-[ -d /out ] && cp target/spike-linux.json /out/
+bash https.sh target/debug/webview-spike || status=1
+if [ -d /out ]; then
+  for result in target/spike-linux.json target/spike-linux-https.json; do
+    if [ -f "$result" ]; then cp "$result" /out/; fi
+  done
+fi
 exit $status
