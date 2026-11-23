@@ -1,10 +1,12 @@
 # The W1 spike of docs/plan/remote-workspaces.md on each platform's webview (desktop/spike/run.ts
 # describes the checks): WKWebView on macOS, WebView2 on Windows, WebKitGTK on Linux under Xvfb.
-# Run by hand; each job uploads its findings (spike-<os>.json).
+# Runs by hand and on a push that changes the spike; each job uploads its findings (spike-<os>.json).
 name: Webview spike
 
 on:
   workflow_dispatch:
+  push:
+    paths: ['desktop/spike/**', '.github/workflows/webview-spike.yml']
 
 permissions:
   contents: read
