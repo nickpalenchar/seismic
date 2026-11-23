@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "status",
+  "description": "The status page the shell bundles (ui/status.html), shown in a remote workspace's window when it does not answer, may move the window from its bar, list the workspaces, open one and ask its own again. The workspaces' pages get their capabilities as their windows are made (src/desks/mod.rs).",
+  "windows": ["desk-*"],
+  "permissions": ["core:window:allow-start-dragging", "core:window:allow-internal-toggle-maximize", "allow-desks", "allow-open-desk", "allow-retry-desk"]
+}

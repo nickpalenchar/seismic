@@ -19,9 +19,9 @@
     "externalBin": ["binaries/seismic-server"],
     "resources": { "staged/resources/": "resources/" },
     "macOS": { "minimumSystemVersion": "11.0", "signingIdentity": "-", "entitlements": "entitlements.plist" },
-    "windows": { "nsis": { "installMode": "currentUser" } },
+    "windows": { "minimumWebview2Version": "111.0.1661.34", "nsis": { "installMode": "currentUser" } },
     "linux": {
-      "deb": { "depends": ["git", "gstreamer1.0-plugins-good", "gstreamer1.0-plugins-bad", "gstreamer1.0-libav"] },
+      "deb": { "depends": ["libwebkit2gtk-4.1-0 (>= 2.40.0)", "git", "gstreamer1.0-plugins-good", "gstreamer1.0-plugins-bad", "gstreamer1.0-libav"] },
       "appimage": { "bundleMediaFramework": true }
     }
   },

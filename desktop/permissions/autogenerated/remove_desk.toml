@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-remove-desk"
+description = "Enables the remove_desk command without any pre-configured scope."
+commands.allow = ["remove_desk"]
+
+[[permission]]
+identifier = "deny-remove-desk"
+description = "Denies the remove_desk command without any pre-configured scope."
+commands.deny = ["remove_desk"]

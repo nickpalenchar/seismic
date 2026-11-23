@@ -28,18 +28,23 @@
 //   which then updates itself from its checkout as `bun start` does. Installed from a checkout
 //   (`bun run app install`), the shell has both compiled in (SEISMIC_BUILT_CHECKOUT, SEISMIC_BUILT_BUN),
 //   and builds itself anew when desktop/ changes there (update.rs).
-// - Starting again (an update, a new build) brings the window back where it was, on the page it showed
-//   (`relaunch`).
+// - Starting again (an update, a new build) brings the windows back where they were, on the pages they
+//   showed (`relaunch`, window/placed.rs).
+// - Remote workspaces (docs/plan/remote-workspaces.md): one window each, on its one origin, beside this
+//   machine's (`main`); the list, the pairing and the commands their pages call are in desks/, the
+//   windows and what keeps each on its origin in window/, the macOS menu in menu.rs.
 // - On a Mac an Seismic that runs without the app that started it lacks the system's permissions for
 //   that app (the local network): the shell has it end once its workers paused and starts it again
 //   under itself (`orphaned`).
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod desks;
+mod menu;
 mod update;
+mod window;
 
 use std::{
-  collections::HashMap,
   fs,
   io::{Read, Write},
   net::{SocketAddr, TcpListener, TcpStream},
@@ -53,13 +58,9 @@ use std::{
   time::{Duration, Instant},
 };
 
-use tauri::{
-  menu::{Menu, MenuItem, MenuItemKind},
-  webview::{DownloadEvent, NewWindowResponse, PageLoadEvent, PermissionKind, PermissionResponse},
-  AppHandle, DragDropEvent, Manager, PhysicalPosition, RunEvent, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
-  WindowEvent,
-};
+use tauri::{AppHandle, DragDropEvent, Manager, PhysicalPosition, RunEvent, Url, WebviewUrl, WebviewWindow, WindowEvent};
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+use window::{placed, Own};
 
 const SERVER: &str = if cfg!(windows) { "seismic-server.exe" } else { "seismic-server" };
 const DEFAULT_PORT: u16 = 4417;
@@ -108,12 +109,14 @@ impl Seismic {
     }
   }
 
-  /// Whether `url` is the project or the page the shell shows until it answers.
-  fn ours(&self, url: &Url) -> bool {
-    let port = self.port.load(Ordering::SeqCst);
-    url.scheme() == "tauri"
-      || url.host_str() == Some("tauri.localhost")
-      || (matches!(url.host_str(), Some("127.0.0.1" | "localhost")) && port != 0 && url.port() == Some(port))
+  /// Its origin, once its port is known: the one origin of this machine's window.
+  pub(crate) fn origin(&self) -> Option<String> {
+    self.url().map(|u| u.trim_end_matches('/').to_string())
+  }
+
+  /// Whether `url` is a page of it.
+  pub(crate) fn serves(&self, url: &Url) -> bool {
+    url.scheme() == "http" && self.origin().is_some_and(|o| o == url.origin().ascii_serialization())
   }
 }
 
@@ -252,22 +255,20 @@ fn dragged(w: &WebviewWindow, drag: &DragDropEvent) {
   let _ = w.eval(js);
 }
 
-fn main_window(app: &AppHandle) -> Option<WebviewWindow> {
-  app.get_webview_window("main")
+pub(crate) fn main_window(app: &AppHandle) -> Option<WebviewWindow> {
+  app.get_webview_window(desks::MAIN)
 }
 
 fn show(app: &AppHandle) {
   if let Some(w) = main_window(app) {
-    let _ = w.show();
-    let _ = w.unminimize();
-    let _ = w.set_focus();
+    desks::show(&w);
   }
 }
 
 /// A page of Seismic's in the system's browser, signed in there through a link of its own; another link as `open_in_browser`.
-fn open_outside(seismic: &Seismic, url: &Url) {
+pub(crate) fn open_outside(seismic: &Seismic, url: &Url) {
   let port = seismic.port.load(Ordering::SeqCst);
-  if !seismic.ours(url) || url.scheme() != "http" || port == 0 {
+  if !seismic.serves(url) {
     return open_in_browser(url.as_str());
   }
   let next = next_of(url);
@@ -276,7 +277,7 @@ fn open_outside(seismic: &Seismic, url: &Url) {
 }
 
 /// Where `url` leads within Seismic, for a link that signs in and leads there.
-fn next_of(url: &Url) -> String {
+pub(crate) fn next_of(url: &Url) -> String {
   match (url.query(), url.fragment()) {
     (Some(q), Some(f)) => format!("{}?{q}#{f}", url.path()),
     (Some(q), None) => format!("{}?{q}", url.path()),
@@ -287,7 +288,7 @@ fn next_of(url: &Url) -> String {
 
 /// A link out of Seismic, in the system's browser. Other schemes stay closed: the system would hand
 /// `file:`, `smb:` or an app's own scheme to whatever program claims it, and a worker's page may link anywhere.
-fn open_in_browser(url: &str) {
+pub(crate) fn open_in_browser(url: &str) {
   let scheme = url.split(':').next().unwrap_or("").to_ascii_lowercase();
   if matches!(scheme.as_str(), "http" | "https" | "mailto") {
     let _ = tauri_plugin_opener::open_url(url, None::<&str>);
@@ -378,7 +379,7 @@ fn serve(app: AppHandle, seismic: Arc<Seismic>, updates: Arc<update::Updates>) {
         return;
       }
       // it ended for this shell to start it under itself: the window comes back on the page it showed
-      let page = main_window(&app).and_then(|w| w.url().ok()).filter(|u| seismic.ours(u) && u.scheme() == "http");
+      let page = main_window(&app).and_then(|w| w.url().ok()).filter(|u| seismic.serves(u));
       *seismic.first.lock().unwrap() = page.map(|u| next_of(&u));
     }
     if let Started::Ended = start(&app, &seismic, &updates, &home, &attach) {
@@ -480,6 +481,7 @@ fn watch(app: &AppHandle, seismic: &Seismic, home: &Path) -> bool {
 /// Shows the project once it answers, signed in, and tells it to stop when the owner quit meanwhile.
 fn navigate(app: &AppHandle, seismic: &Seismic) {
   let (Some(_), Some(w)) = (seismic.url(), main_window(app)) else { return };
+  desks::allow_local(app, seismic.port.load(Ordering::SeqCst));
   let next = seismic.first.lock().unwrap().take().unwrap_or_else(|| "/".into());
   if let Ok(url) = Url::parse(&login_link(seismic.port.load(Ordering::SeqCst), &next, false)) {
     let _ = w.navigate(url);
@@ -505,104 +507,37 @@ fn quit(app: &AppHandle, seismic: &Seismic) -> bool {
   }
 }
 
-/// The window as the shell left it to start again (`relaunch`), for the new one to open it the same:
-/// where it stood and how large, the page it showed. A file in the home, taken once and only fresh.
-#[derive(Clone, Default)]
-struct Placed {
-  x: f64,
-  y: f64,
-  width: f64,
-  height: f64,
-  maximized: bool,
-  fullscreen: bool,
-  /// Shown: closed on a Mac, the window is hidden while the app stays in the Dock.
-  visible: bool,
-  next: String,
-}
-
-const PLACED: &str = "app-window.json";
-/// How old the file may be: starting again takes seconds, a start much later opens the window afresh.
-const PLACED_FRESH: Duration = Duration::from_secs(60);
-
 pub(crate) fn now_ms() -> u64 {
   std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64)
 }
 
-impl Placed {
-  fn of(w: &WebviewWindow, seismic: &Seismic) -> Option<Placed> {
-    let scale = w.scale_factor().ok()?;
-    let at = w.outer_position().ok()?.to_logical::<f64>(scale);
-    let size = w.inner_size().ok()?.to_logical::<f64>(scale);
-    let next = w.url().ok().filter(|u| seismic.ours(u) && u.scheme() == "http").map_or_else(|| "/".into(), |u| next_of(&u));
-    Some(Placed {
-      x: at.x,
-      y: at.y,
-      width: size.width,
-      height: size.height,
-      maximized: w.is_maximized().unwrap_or(false),
-      fullscreen: w.is_fullscreen().unwrap_or(false),
-      visible: w.is_visible().unwrap_or(true),
-      next,
-    })
-  }
-
-  fn keep(&self, home: &Path) {
-    let json = serde_json::json!({
-      "at": now_ms(), "x": self.x, "y": self.y, "width": self.width, "height": self.height,
-      "maximized": self.maximized, "fullscreen": self.fullscreen, "visible": self.visible, "next": self.next,
-    });
-    let _ = fs::write(home.join(PLACED), json.to_string());
-  }
-
-  fn take(home: &Path) -> Option<Placed> {
-    let path = home.join(PLACED);
-    let text = fs::read_to_string(&path).ok()?;
-    let _ = fs::remove_file(&path);
-    let v: serde_json::Value = serde_json::from_str(&text).ok()?;
-    if now_ms().saturating_sub(v["at"].as_u64()?) > PLACED_FRESH.as_millis() as u64 {
-      return None;
-    }
-    let n = |k: &str| v[k].as_f64();
-    let b = |k: &str| v[k].as_bool().unwrap_or(false);
-    Some(Placed {
-      x: n("x")?,
-      y: n("y")?,
-      width: n("width")?,
-      height: n("height")?,
-      maximized: b("maximized"),
-      fullscreen: b("fullscreen"),
-      visible: v["visible"].as_bool().unwrap_or(true),
-      next: v["next"].as_str().unwrap_or("/").to_string(),
-    })
-  }
-}
-
-/// Whether the shell may start again now without the owner noticing more than the page reloading:
-/// its window is out of sight (closed on a Mac), or in front with the owner in it, where the new one
-/// takes its place. Not while it is minimized or behind another app's windows, where the new window
-/// would come up on top of what the owner works in.
+/// Whether the shell may start again now without the owner noticing more than the pages reloading:
+/// its windows are out of sight (closed on a Mac), or one is in front with the owner in it, where the
+/// new ones take their place. Not while one is minimized or they are behind another app's windows,
+/// where the new windows would come up on top of what the owner works in.
 pub(crate) fn may_relaunch(app: &AppHandle) -> bool {
-  let Some(w) = main_window(app) else { return true };
+  let windows: Vec<WebviewWindow> = app.webview_windows().into_values().collect();
   // a minimized window counts as not visible on a Mac
-  !w.is_minimized().unwrap_or(false) && (!w.is_visible().unwrap_or(true) || w.is_focused().unwrap_or(false))
+  let minimized = windows.iter().any(|w| w.is_minimized().unwrap_or(false));
+  let shown = windows.iter().any(|w| w.is_visible().unwrap_or(true));
+  let front = windows.iter().any(|w| w.is_focused().unwrap_or(false));
+  !minimized && (!shown || front)
 }
 
-/// Starts the shell again, whichever build is in its place now, with its window as it was (`Placed`);
-/// the server runs on unless it ended already. On a Mac through the system, as the Dock starts it, once
-/// this one has ended: run from this process instead, the new shell would count as this one's for the
-/// system's permissions (the microphone), which ends with it.
+/// Starts the shell again, whichever build is in its place now, with its windows as they were
+/// (window/placed.rs); the server runs on unless it ended already. On a Mac through the system, as the
+/// Dock starts it, once this one has ended: run from this process instead, the new shell would count
+/// as this one's for the system's permissions (the microphone), which ends with it.
 pub(crate) fn relaunch(app: &AppHandle, seismic: &Seismic) {
   seismic.relaunching.store(true, Ordering::SeqCst);
-  let placed = main_window(app).and_then(|w| Placed::of(&w, seismic));
-  if let Some(p) = &placed {
-    p.keep(&home());
-  }
+  let placed = desks::placed(app, app.state::<Arc<Seismic>>().inner());
+  placed::keep(&home(), &placed);
   #[cfg(target_os = "macos")]
   {
     // …/Seismic.app/Contents/MacOS/seismic
     let bundle = std::env::current_exe().ok().and_then(|e| Some(e.parent()?.parent()?.parent()?.to_path_buf()));
     if let Some(bundle) = bundle.filter(|b| b.extension().is_some_and(|x| x == "app")) {
-      let hidden = placed.as_ref().is_some_and(|p| !p.visible);
+      let hidden = !placed.iter().any(|p| p.visible);
       let started = Command::new("/bin/sh")
         .args(["-c", r#"while kill -0 "$1" 2>/dev/null; do sleep 0.1; done; exec /usr/bin/open $3 "$2""#, "sh"])
         .arg(std::process::id().to_string())
@@ -621,171 +556,60 @@ pub(crate) fn relaunch(app: &AppHandle, seismic: &Seismic) {
   app.restart();
 }
 
-/// A file name in `dir` that is not taken yet: `name`, else `name (2)` and so on.
-fn free_name(dir: &Path, name: &str) -> PathBuf {
-  let path = dir.join(name);
-  if !path.exists() {
-    return path;
-  }
-  let (stem, ext) = name.rsplit_once('.').map_or((name, String::new()), |(s, e)| (s, format!(".{e}")));
-  (2..).map(|i| dir.join(format!("{stem} ({i}){ext}"))).find(|p| !p.exists()).unwrap()
-}
-
-fn window(app: &AppHandle, seismic: Arc<Seismic>, placed: Option<&Placed>) -> tauri::Result<WebviewWindow> {
-  let navigation = seismic.clone();
-  let outside = seismic.clone();
-  let loaded = seismic.clone();
-  let downloads = app.path().download_dir().ok();
-  let saved: Arc<Mutex<HashMap<String, PathBuf>>> = Default::default();
-  let check = seismic_env("APP_CHECK").and_then(|c| c.into_string().ok());
-  let builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
-    .title("Seismic")
-    .inner_size(1440.0, 900.0)
-    .min_inner_size(720.0, 480.0)
-    .initialization_script(format!(
-      "window.seismicApp = {{ version: {:?}, platform: {:?}, built: {}, handedOver: {} }};",
-      app.package_info().version.to_string(),
-      std::env::consts::OS,
-      // installed from a checkout: the commit it was built from, which the settings show
-      option_env!("SEISMIC_BUILT_COMMIT").or(option_env!("OBEYA_BUILT_COMMIT")).filter(|c| !c.is_empty()).map_or("null".to_string(), |c| format!("{c:?}")),
-      // started again: the page before may have handed over what a reload keeps (update.rs)
-      placed.is_some()
-    ))
-    .on_permission_request(|_, kind| match kind {
-      PermissionKind::Microphone => PermissionResponse::Allow,
-      _ => PermissionResponse::Default,
-    })
-    .on_navigation(move |url| {
-      if navigation.ours(url) {
-        return true;
-      }
-      open_in_browser(url.as_str());
-      false
-    })
-    .on_new_window(move |url, _| {
-      open_outside(&outside, &url);
-      NewWindowResponse::Deny
-    })
-    .on_download(move |_, event| {
-      match event {
-        DownloadEvent::Requested { url, destination } => {
-          if let Some(dir) = &downloads {
-            let name = destination
-              .file_name()
-              .map(|n| n.to_string_lossy().into_owned())
-              .unwrap_or_else(|| "download".into());
-            *destination = free_name(dir, &name);
-            saved.lock().unwrap().insert(url.to_string(), destination.clone());
-          }
-        }
-        DownloadEvent::Finished { url, path, success } => {
-          let path = path.or_else(|| saved.lock().unwrap().remove(url.as_str()));
-          if let (true, Some(path)) = (success, path) {
-            let _ = tauri_plugin_opener::reveal_item_in_dir(path);
-          }
-        }
-        _ => {}
-      }
-      true
-    })
-    .on_page_load(move |webview, payload| {
-      if let (PageLoadEvent::Finished, Some(check)) = (payload.event(), &check) {
-        if loaded.ours(payload.url()) && payload.url().scheme() == "http" && payload.url().host_str() != Some("tauri.localhost") {
-          let _ = webview.eval(format!("import({check:?})"));
-        }
-      }
-    });
-  let builder = match placed {
-    Some(p) => builder
-      .position(p.x, p.y)
-      .inner_size(p.width, p.height)
-      .maximized(p.maximized)
-      .fullscreen(p.fullscreen)
-      .visible(p.visible),
-    None => builder,
-  };
-  // on a Mac the window has no title bar of its own: the project's bar is it, with the traffic lights in it,
-  // centred on the bar's height (50 px, #bar in src/ui/App.tsx). tao makes the title bar the buttons'
-  // height plus y and leaves them 9 px above its bottom: the 14 px buttons' centre is y - 2 from the top
-  #[cfg(target_os = "macos")]
-  let builder = builder
-    .title_bar_style(tauri::TitleBarStyle::Overlay)
-    .hidden_title(true)
-    .traffic_light_position(tauri::LogicalPosition::new(18.0, 27.0));
-  // WebView2 drops WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS when the app sets arguments of its own, as wry
-  // does: they go together (scripts/check-app.ts gives it a fake microphone that way)
-  #[cfg(windows)]
-  let builder = match std::env::var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS") {
-    Ok(extra) => builder.additional_browser_args(&format!("--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection {extra}")),
-    Err(_) => builder,
-  };
-  let window = builder.build()?;
-  #[cfg(target_os = "linux")]
-  window.with_webview(|webview| {
-    use webkit2gtk::{SettingsExt, WebViewExt};
-    if let Some(settings) = webview.inner().settings() {
-      // getUserMedia is off in WebKitGTK unless the app turns it on
-      settings.set_enable_media_stream(true);
-      settings.set_enable_mediasource(true);
-    }
-  })?;
-  Ok(window)
-}
-
-fn menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
-  let menu = Menu::default(app)?;
-  let browser = MenuItem::with_id(app, "browser", "Open in Browser", true, Some("CmdOrCtrl+Shift+B"))?;
-  let items = menu.items()?;
-  // the default menu's File menu, after the app's own
-  if let Some(MenuItemKind::Submenu(file)) = items.get(1) {
-    file.insert(&browser, 0)?;
-  }
-  // the default Quit (the app menu's last item) ends the app at once, which a Mac does not let an app
-  // put off: this one stops Seismic first, as closing the window does elsewhere
-  if let Some(MenuItemKind::Submenu(own)) = items.first() {
-    let n = own.items()?.len();
-    own.remove_at(n - 1)?;
-    own.append(&MenuItem::with_id(app, "quit", "Quit Seismic", true, Some("CmdOrCtrl+Q"))?)?;
-  }
-  Ok(menu)
-}
-
 fn main() {
   let seismic = Arc::new(Seismic::default());
   let for_setup = seismic.clone();
-  // started again by the shell before it (`relaunch`)
-  let placed = Placed::take(&home());
-  *seismic.first.lock().unwrap() = placed.as_ref().map(|p| p.next.clone());
+  // started again by the shell before it (`relaunch`): this machine's window first, then the others
+  let mut placed = placed::take(&home());
+  let main_placed = placed.first().filter(|p| p.desk == desks::LOCAL).cloned();
+  placed.retain(|p| p.desk != desks::LOCAL);
+  *seismic.first.lock().unwrap() = main_placed.as_ref().map(|p| p.next.clone());
   let builder = tauri::Builder::default();
   // a window that was out of sight comes back so, and the app stays behind the one the owner is in
   #[cfg(target_os = "macos")]
-  let builder = builder.activate_ignoring_other_apps(placed.as_ref().is_none_or(|p| p.visible));
+  let builder = builder.activate_ignoring_other_apps(main_placed.as_ref().is_none_or(|p| p.visible) || placed.iter().any(|p| p.visible));
   let app = builder
     .plugin(tauri_plugin_single_instance::init(|app, _, _| show(app)))
     // the opener's functions only, not its plugin: that puts a script into the page that takes each click
     // on a link with target=_blank and hands it to the plugin over IPC, which the page may not call
-    // (capabilities/window.json), so the click would do nothing; the shell opens such links itself
+    // (desks/mod.rs, `PAGE`), so the click would do nothing; the shell opens such links itself
     .plugin(tauri_plugin_dialog::init())
-    // system notifications, which the project page asks for when a card needs the owner (capabilities/window.json)
+    // system notifications, which the project page asks for when a card needs the owner (desks/mod.rs, `PAGE`)
     .plugin(tauri_plugin_notification::init())
     .plugin(tauri_plugin_updater::Builder::new().build())
+    .invoke_handler(tauri::generate_handler![
+      desks::commands::desks,
+      desks::commands::open_desk,
+      desks::commands::add_desk,
+      desks::commands::rename_desk,
+      desks::commands::pair_desk,
+      desks::commands::remove_desk,
+      desks::commands::retry_desk,
+    ])
     .setup(move |app| {
       let handle = app.handle().clone();
       let _ = HOME.set(home());
+      app.manage(for_setup.clone());
+      app.manage(Arc::new(desks::Shell::new(home())));
       if cfg!(target_os = "macos") {
-        app.set_menu(menu(&handle)?)?;
+        app.set_menu(menu::menu(&handle)?)?;
       }
       let for_menu = for_setup.clone();
       app.on_menu_event(move |app, event| {
-        if event.id() == "browser" {
-          if let Some(url) = main_window(app).and_then(|w| w.url().ok()) {
+        let id = event.id().as_ref();
+        if id == "browser" {
+          let front = app.webview_windows().into_values().find(|w| w.is_focused().unwrap_or(false));
+          if let Some(url) = front.or_else(|| main_window(app)).and_then(|w| w.url().ok()) {
             open_outside(&for_menu, &url);
           }
-        } else if event.id() == "quit" && !quit(app, &for_menu) {
+        } else if let Some(desk) = id.strip_prefix(menu::DESK) {
+          let _ = desks::open(app, desk, None);
+        } else if id == "quit" && !quit(app, &for_menu) {
           app.exit(0);
         }
       });
-      window(&handle, for_setup.clone(), placed.as_ref())?;
+      window::build(&handle, desks::MAIN, WebviewUrl::App("index.html".into()), Own::Local(for_setup.clone()), main_placed.as_ref(), main_placed.is_some())?;
+      desks::reopen(&handle, std::mem::take(&mut placed));
       let updates = update::start(&handle, for_setup.clone());
       let seismic = for_setup.clone();
       thread::spawn(move || serve(handle, seismic, updates));
@@ -803,7 +627,7 @@ fn main() {
       label,
       event: WindowEvent::CloseRequested { api, .. },
       ..
-    } if label == "main" => {
+    } if label == desks::MAIN => {
       api.prevent_close();
       if cfg!(target_os = "macos") {
         // as Mac apps do: the window goes, the app stays in the Dock
@@ -814,11 +638,14 @@ fn main() {
         app.exit(0);
       }
     }
+    // a remote workspace's window closes for good; opened again, it asks its workspace anew
+    RunEvent::WindowEvent { label, event: WindowEvent::Destroyed, .. } => desks::closed(app, &label),
+    RunEvent::WindowEvent { event: WindowEvent::Focused(true), .. } => menu::refresh(app),
     RunEvent::WindowEvent {
       label,
       event: WindowEvent::DragDrop(drag),
       ..
-    } if label == "main" => {
+    } if label == desks::MAIN => {
       if let Some(w) = main_window(app) {
         dragged(&w, &drag);
       }

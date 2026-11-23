@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-rename-desk"
+description = "Enables the rename_desk command without any pre-configured scope."
+commands.allow = ["rename_desk"]
+
+[[permission]]
+identifier = "deny-rename-desk"
+description = "Denies the rename_desk command without any pre-configured scope."
+commands.deny = ["rename_desk"]

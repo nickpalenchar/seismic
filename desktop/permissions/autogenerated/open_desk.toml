@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-open-desk"
+description = "Enables the open_desk command without any pre-configured scope."
+commands.allow = ["open_desk"]
+
+[[permission]]
+identifier = "deny-open-desk"
+description = "Denies the open_desk command without any pre-configured scope."
+commands.deny = ["open_desk"]
