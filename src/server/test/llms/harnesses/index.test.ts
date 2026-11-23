@@ -184,6 +184,29 @@ test('the harness check never keeps a caller waiting: it answers with what the l
   expect(check.current()).toEqual(['agy']);
 });
 
+test('what is known waits only for the first finding of every harness, then answers at once while the next check runs', async () => {
+  let clock = 0;
+  let calls = 0;
+  let answer: (found: Harness[]) => void = () => {};
+  const check = new HarnessCheck(() => (calls++, new Promise<Harness[]>((r) => (answer = r))), 60_000, () => clock);
+  // the setup assistant found Codex alone: the others are not known yet, so the caller waits for a check of all
+  check.set(['codex'], check.begin(), ['codex']);
+  let first: Harness[] | undefined;
+  const pending = check.known().then((found) => (first = found));
+  await Promise.resolve();
+  expect(first).toBeUndefined();
+  answer(['claude', 'codex']);
+  await pending;
+  expect(first).toEqual(['claude', 'codex']);
+  // stale: the last finding at once, with a check started behind it that it does not wait for
+  clock = 200_000;
+  expect(await check.known()).toEqual(['claude', 'codex']);
+  expect(calls).toBe(2);
+  answer(['agy']);
+  await Promise.resolve();
+  expect(await check.known()).toEqual(['agy']);
+});
+
 test('a check that started earlier but answers later does not overwrite a newer finding, also within the same millisecond', async () => {
   // a clock that stands still: only the order the checks began in tells them apart
   let answer: (found: Harness[]) => void = () => {};

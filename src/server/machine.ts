@@ -292,7 +292,7 @@ export interface MachineOptions {
   /** Whether this is the compiled binary, which runs the machine's Claude Code rather than the SDK's. */
   compiled?: boolean;
   /** Told of each check, as it starts and then which harnesses are installed and signed in (`HarnessCheck`). */
-  agents?: Pick<HarnessCheck, 'begin' | 'set' | 'refresh'>;
+  agents?: Pick<HarnessCheck, 'begin' | 'set' | 'known'>;
   onHarnessesChange?: (configured: Harness[]) => void;
 }
 
@@ -308,7 +308,7 @@ export class MachineSetup {
 
   /** Readiness is transient and only affects choices among explicitly connected harnesses. */
   async harnessAvailability() {
-    const found = await (this.o.agents?.refresh() ?? connectedHarnesses());
+    const found = await (this.o.agents?.known() ?? connectedHarnesses());
     const configured = this.harnesses();
     return { configured, ready: configured.filter((h) => found.includes(h)) };
   }

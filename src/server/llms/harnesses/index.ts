@@ -57,6 +57,15 @@ export class HarnessCheck {
     return this.found;
   }
 
+  /**
+   * What the last check found, for a caller that must not wait on the CLIs (a check takes as long as
+   * the slowest, `agy models` up to its 15 s limit); only before every harness has been found by
+   * some check does it wait, for the check under way or a new one.
+   */
+  async known(): Promise<Harness[]> {
+    return HARNESSES.every((h) => this.at[h] !== -Infinity) ? this.current() : this.refresh();
+  }
+
   /** Checks again, or joins the check under way. */
   refresh(): Promise<Harness[]> {
     if (!this.running) {

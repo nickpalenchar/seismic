@@ -513,8 +513,12 @@ export function cleanEnv(env: Record<string, string | undefined> = process.env):
   return Object.fromEntries(Object.entries(env).filter(([k]) => k === 'CLAUDE_CODE_OAUTH_TOKEN' || !/^(CLAUDE_CODE_|CLAUDECODE$|CLAUDE_PID$|SEISMIC_SUPERVISED$|SEISMIC_FROM_APP$|OBEYA_SUPERVISED$|OBEYA_FROM_APP$|BUN_BE_BUN$)/.test(k)));
 }
 
-/** What an agent's command line printed once it exited well within `timeout` ms, in the agents' environment; null otherwise. Never holds up the server. */
-export function answered(command: string, args: string[], timeout = 5000): Promise<string | null> {
+/**
+ * What an agent's command line printed once it exited within `timeout` ms, in the agents' environment; null otherwise.
+ * Never holds up the server. The limit is the one `agy models` has: a login check that answers a cold start or a
+ * slow network in 5 s or more is still signed in, and no page waits on it (`HarnessCheck.known`).
+ */
+export function answered(command: string, args: string[], timeout = 15_000): Promise<string | null> {
   return new Promise((resolve) => {
     execFile(command, args, { env: cleanEnv(), timeout, maxBuffer: 1 << 20, windowsHide: true }, (error, stdout) => resolve(error ? null : String(stdout)));
   });
