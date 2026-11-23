@@ -232,7 +232,8 @@ export function AccessSection({ on, onConnect }: { on: boolean; onConnect: () =>
 
 /**
  * "Connect a phone": with other devices reaching Seismic, a QR code of the address with a one-time
- * code (a new one once it expires) until a phone paired with it; else what is still missing, to set
+ * code (a new one once it expires) until a phone paired with it, or what became of a code the
+ * desktop app took for its window; else what is still missing, to set
  * right here.
  */
 export function PhoneDialog({ onClose, onSection }: { onClose: () => void; onSection: () => void }) {
@@ -262,6 +263,15 @@ export function PhoneDialog({ onClose, onSection }: { onClose: () => void; onSec
     body = (
       <div className="acc-done">
         <p className={`acc-connected text-lg font-semibold my-2 mx-0 ${okClass}`}>{a.connected(pairing.paired.name)}</p>
+        <Button size="small" onClick={() => void another()}>
+          {a.another}
+        </Button>
+      </div>
+    );
+  else if (pairing?.linked)
+    body = (
+      <div className="acc-done">
+        <p className="acc-linked my-2 mx-0">{a.linked(clock(pairing.expires))}</p>
         <Button size="small" onClick={() => void another()}>
           {a.another}
         </Button>

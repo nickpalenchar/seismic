@@ -1371,6 +1371,7 @@ const en = {
     orType: 'Or open the address on the phone and type this code:',
     validUntil: (time: string) => `valid until ${time}`,
     connected: (name: string) => `${name} is connected.`,
+    linked: (time: string) => `The desktop app on another computer took this code. Its window connects until ${time}; the code pairs nothing else.`,
     another: 'Connect another device',
     first: 'For your phone to reach Seismic:',
     toSection: 'Devices and settings',

@@ -246,36 +246,98 @@ describe('pairing', () => {
     expect((await view()).devices).toEqual([]);
   });
 
-  test('reconnecting a paired desktop requires a fresh code, keeps its device entry and its credential', async () => {
+  /** A browser's jar for NAME: what each answer sets or unsets, sent along with every request. */
+  const jarOf = () => {
+    const jar = new Map<string, string>();
+    const keep = (res: Response) => {
+      for (const set of res.headers.getSetCookie()) {
+        const [pair, ...attributes] = set.split(';').map((p) => p.trim());
+        const [name, value] = [pair!.slice(0, pair!.indexOf('=')), pair!.slice(pair!.indexOf('=') + 1)];
+        if (attributes.includes('Max-Age=0')) jar.delete(name);
+        else jar.set(name, value);
+      }
+      return res;
+    };
+    const header = () => [...jar].map(([n, v]) => `${n}=${v}`).join('; ');
+    return { jar, keep, header };
+  };
+
+  test('reconnecting a paired desktop requires a fresh code, keeps its device entry, and hands over a new credential', async () => {
     await turnOn();
     const first = await pairing();
-    const cookie = cookieOf(await viaTailnet(`/pair?code=${first.code}`));
+    const { jar, keep, header } = jarOf();
+    keep(await viaTailnet(`/pair?code=${first.code}`));
+    const original = header();
     const id = (await view()).devices[0]!.id;
-    const reconnect = (code: string) => viaTailnet(`/pair?code=${code}`, { cookie });
-    expect((await viaTailnet('/pair', { cookie })).status).toBe(303);
+    const reconnect = (code: string) => viaTailnet(`/pair?code=${code}`, { cookie: header() });
+    expect((await viaTailnet('/pair', { cookie: header() })).status).toBe(303);
     expect((await reconnect(first.code)).status).toBe(401);
-    const posted = await viaTailnet('/pair', { cookie, origin: `https://${NAME}`, 'content-type': 'application/x-www-form-urlencoded' }, { method: 'POST', body: `code=${first.code}` });
+    const posted = await viaTailnet('/pair', { cookie: header(), origin: `https://${NAME}`, 'content-type': 'application/x-www-form-urlencoded' }, { method: 'POST', body: `code=${first.code}` });
     expect(posted.status).toBe(401);
     const expired = await pairing();
     clock += PAIRING_MS + 1;
     expect((await reconnect(expired.code)).status).toBe(401);
     const next = await pairing();
     expect((await reconnect(next.code === '000000' ? '111111' : '000000')).status).toBe(401);
-    expect((await viaTailnet('/api/projects', { cookie })).status).toBe(200);
-    // the right code pairs it again: the same cookie set anew, so no answer of two pairings at once,
-    // whichever arrives last, nor one lost on the way, leaves the browser with a cookie that does not let it in
+    expect((await viaTailnet('/api/projects', { cookie: header() })).status).toBe(200);
+    // the right code: a new credential under a name of its own, the original's unset
     const renewed = await reconnect(next.code);
     expect(renewed.status).toBe(303);
-    expect(cookieOf(renewed)).toBe(cookie);
-    expect(renewed.headers.get('set-cookie')).toContain(`Max-Age=${400 * 24 * 3600}`);
-    const later = await reconnect((await pairing()).code);
-    expect(cookieOf(later)).toBe(cookie);
-    expect((await viaTailnet('/api/projects', { cookie })).status).toBe(200);
+    const sets = renewed.headers.getSetCookie();
+    expect(sets[0]).toMatch(/^seismic-device-https\.[0-9a-f]{12}=/);
+    expect(sets[1]).toStartWith('seismic-device-https=; Max-Age=0');
+    // the answer might never reach the webview: the original cookie still works, and a retry gets the same answer
+    expect((await viaTailnet('/api/projects', { cookie: original })).status).toBe(200);
+    const retried = await reconnect((await pairing()).code);
+    expect(retried.headers.getSetCookie()).toEqual(sets);
+    keep(renewed);
+    expect([...jar.keys()]).toEqual([sets[0]!.split('=')[0]!]);
+    // the browser presents the new one: it becomes current, and the original no longer lets anyone in
+    expect((await viaTailnet('/api/projects', { cookie: header() })).status).toBe(200);
+    expect((await viaTailnet('/api/projects', { cookie: original })).status).toBe(401);
     expect((await reconnect(next.code)).status).toBe(401);
     expect((await view()).devices.map((d) => d.id)).toEqual([id]);
-    // there is no other credential of the device that could stay behind: "Remove" puts it out
-    await local(`/api/access/devices/${id}`, { method: 'DELETE' });
-    expect((await viaTailnet('/api/projects', { cookie })).status).toBe(401);
+  });
+
+  test('answers of overlapping pairings again that arrive late, out of order, never put the browser out', async () => {
+    await turnOn();
+    const { jar, keep, header } = jarOf();
+    keep(await viaTailnet(`/pair?code=${(await pairing()).code}`));
+    // two pairings again at once, with the same cookie: both answers carry credential B
+    const sent = header();
+    const one = await viaTailnet(`/pair?code=${(await pairing()).code}`, { cookie: sent });
+    const late = await viaTailnet(`/pair?code=${(await pairing()).code}`, { cookie: sent });
+    keep(one);
+    expect((await viaTailnet('/api/projects', { cookie: header() })).status).toBe(200);
+    // two more rounds: C from B, then D from C, which retires B for good
+    for (let i = 0; i < 2; i++) {
+      keep(await viaTailnet(`/pair?code=${(await pairing()).code}`, { cookie: header() }));
+      expect((await viaTailnet('/api/projects', { cookie: header() })).status).toBe(200);
+    }
+    const newest = header();
+    // the late answer sets B, retired by now, under its own name beside D, not over it
+    keep(late);
+    expect(jar.size).toBe(2);
+    expect((await viaTailnet('/api/projects', { cookie: late.headers.getSetCookie()[0]!.split(';')[0]! })).status).toBe(401);
+    expect((await viaTailnet('/api/projects', { cookie: header() })).status).toBe(200);
+    // and the next pairing again clears it out
+    keep(await viaTailnet(`/pair?code=${(await pairing()).code}`, { cookie: header() }));
+    expect(jar.size).toBe(1);
+    expect((await viaTailnet('/api/projects', { cookie: header() })).status).toBe(200);
+    expect((await viaTailnet('/api/projects', { cookie: newest })).status).toBe(401);
+    expect((await view()).devices).toHaveLength(1);
+  });
+
+  test('"Remove" puts a browser out whatever generation of its device cookies it holds', async () => {
+    await turnOn();
+    const { keep, header } = jarOf();
+    keep(await viaTailnet(`/pair?code=${(await pairing()).code}`));
+    const late = await viaTailnet(`/pair?code=${(await pairing()).code}`, { cookie: header() });
+    keep(await viaTailnet(`/pair?code=${(await pairing()).code}`, { cookie: header() }));
+    keep(late);
+    expect((await viaTailnet('/api/projects', { cookie: header() })).status).toBe(200);
+    await local(`/api/access/devices/${(await view()).devices[0]!.id}`, { method: 'DELETE' });
+    expect((await viaTailnet('/api/projects', { cookie: header() })).status).toBe(401);
   });
 
   test('pairing at a second port preserves the legacy pairing used at the first', async () => {
@@ -518,14 +580,16 @@ describe('pairing', () => {
       expect((await shellPairs(p.code)).status).toBe(200);
     });
 
-    test('"Pair again" with a fresh code: a window already paired keeps its device entry and its credential', async () => {
+    test('"Pair again" with a fresh code: a window already paired keeps its device entry and gets a new credential', async () => {
       await turnOn();
       const cookie = cookieOf(await viaTailnet(await linkOf(await shellPairs((await pairing()).code))));
       const id = (await view()).devices[0]!.id;
       const again = await viaTailnet(await linkOf(await shellPairs((await pairing()).code)), { cookie });
       expect(again.status).toBe(303);
-      expect(cookieOf(again)).toBe(cookie);
-      expect((await viaTailnet('/api/projects', { cookie })).status).toBe(200);
+      const renewed = cookieOf(again);
+      expect(renewed).toMatch(/^seismic-device-https\.[0-9a-f]{12}=/);
+      expect((await viaTailnet('/api/projects', { cookie: renewed })).status).toBe(200);
+      expect((await viaTailnet('/api/projects', { cookie })).status).toBe(401);
       expect((await view()).devices.map((d) => d.id)).toEqual([id]);
     });
 
@@ -548,8 +612,9 @@ describe('pairing', () => {
       await turnOn();
       const p = await pairing();
       expect((await shellPairs(p.code)).status).toBe(200);
-      // while the link holds, the dialog keeps the code, valid until the link expires
-      expect(Date.parse((await view()).pairing!.expires)).toBe(clock + LINK_MS);
+      // while the link holds, the dialog says the desktop app took the code, until the link expires
+      expect((await view()).pairing).toMatchObject({ linked: true, expires: new Date(clock + LINK_MS).toISOString() });
+      expect((await view()).pairing?.paired).toBeUndefined();
       clock += LINK_MS + 1;
       expect((await view()).pairing).toBeNull();
       expect((await pairing()).code).toMatch(/^\d{6}$/);
@@ -568,8 +633,10 @@ describe('pairing', () => {
       // past the code's own deadline, the link still holds: the dialog keeps the code and asks for no new one
       clock += 30_000;
       expect((await view()).pairing?.code).toBe(p.code);
+      expect((await view()).pairing?.linked).toBe(true);
       expect((await viaTailnet(link)).status).toBe(303);
       expect((await view()).pairing?.paired?.name).toBe('iPhone · Safari');
+      expect((await view()).pairing?.linked).toBeUndefined();
       clock += LINK_MS;
       expect((await view()).pairing).toBeNull();
     });
@@ -577,10 +644,12 @@ describe('pairing', () => {
     test('a used link leads its browser on to the project for a day, whatever other links come and go', async () => {
       await turnOn();
       const link = await linkOf(await shellPairs((await pairing()).code));
+      clock += 30_000;
       const cookie = cookieOf(await viaTailnet(link));
-      clock += 23 * 3600_000;
+      // a day from when it was used, not from when it was made
+      clock += 24 * 3600_000 - 1;
       expect((await viaTailnet(link, { cookie })).status).toBe(303);
-      clock += 2 * 3600_000;
+      clock += 1;
       // past the day, without any other pairing in between to clear it out
       expect((await viaTailnet(link, { cookie })).status).toBe(401);
       expect((await viaTailnet('/api/projects', { cookie })).status).toBe(200);

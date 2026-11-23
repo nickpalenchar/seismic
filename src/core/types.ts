@@ -3368,6 +3368,8 @@ export interface Pairing {
   /** The address with the code, which the QR code holds. */
   url: string;
   expires: string;
+  /** The desktop app traded the code for its one-time link (`POST /api/pair`): it pairs nothing else, and `expires` is the link's. */
+  linked?: true;
   /** The device it paired, once one did. */
   paired?: DeviceView;
 }

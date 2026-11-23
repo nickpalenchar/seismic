@@ -1,3 +1,4 @@
+import { createHash, createHmac, randomBytes } from 'node:crypto';
 import { eq, isNotNull, sql } from 'drizzle-orm';
 import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import type { DeviceView } from '../../core/types';
@@ -16,7 +17,6 @@ export const devices = sqliteTable('devices', {
   push: text({ mode: 'json' }).$type<Subscription>(),
 });
 
-/** A table of an earlier design's credential handover: databases have it, nothing reads or writes it (see docs/design.md). */
 export const deviceRenewals = sqliteTable('device_renewals', {
   deviceId: text('device_id').primaryKey().references(() => devices.id, { onDelete: 'cascade' }),
   nonce: text().notNull(),
@@ -64,11 +64,39 @@ export class Devices {
 
   /** The device whose cookie hashes to `hash`. */
   byToken(hash: string): DeviceView | null {
-    return this.db.select(view).from(devices).where(eq(devices.tokenHash, hash)).get() ?? null;
+    const active = this.db.select(view).from(devices).where(eq(devices.tokenHash, hash)).get();
+    if (active) return active;
+    const pending = this.db.select({ id: deviceRenewals.deviceId }).from(deviceRenewals).where(eq(deviceRenewals.tokenHash, hash)).get();
+    if (!pending) return null;
+    return this.db.transaction((tx) => {
+      const received = tx.delete(deviceRenewals).where(eq(deviceRenewals.tokenHash, hash)).returning({ id: deviceRenewals.deviceId }).get();
+      if (!received) return null;
+      return tx.update(devices).set({ tokenHash: hash }).where(eq(devices.id, received.id)).returning(view).get() ?? null;
+    });
   }
 
   add(d: DeviceView & { tokenHash: string }) {
     this.db.insert(devices).values({ id: d.id, tokenHash: d.tokenHash, name: d.name, pairedAt: d.pairedAt, lastSeen: d.lastSeen }).run();
+  }
+
+  /**
+   * A replacement for the device's credential `currentToken`, which becomes current (and retires
+   * that one) when the browser first presents it (`byToken`). Retries with the current credential
+   * get the same replacement, even after a restart; the nonce alone cannot make it, that takes the
+   * browser's secret as well. `nonce` names the replacement's cookie (`Access.pairRoute`).
+   */
+  renew(d: DeviceView, currentToken: string): { token: string; nonce: string } {
+    return this.db.transaction((tx) => {
+      const pending = tx.select({ nonce: deviceRenewals.nonce }).from(deviceRenewals).where(eq(deviceRenewals.deviceId, d.id)).get();
+      const nonce = pending?.nonce ?? randomBytes(32).toString('hex');
+      const token = createHmac('sha256', currentToken).update(nonce).digest('base64url');
+      if (!pending) {
+        const tokenHash = createHash('sha256').update(token).digest('hex');
+        tx.insert(deviceRenewals).values({ deviceId: d.id, nonce, tokenHash }).run();
+      }
+      tx.update(devices).set({ pairedAt: d.pairedAt, lastSeen: d.lastSeen }).where(eq(devices.id, d.id)).run();
+      return { token, nonce };
+    });
   }
 
   seen(id: string, at: string) {
