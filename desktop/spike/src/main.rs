@@ -185,7 +185,14 @@ mod main_frame_ipc {
     let admitted = frame.isMainFrame() && window.as_ref().is_some_and(|(own, _)| *own == effective);
     if !admitted {
       let url = frame.request().URL().and_then(|u| u.absoluteString()).map(|u| u.to_string()).unwrap_or_default();
-      super::report(serde_json::json!({ "kind": "ipcDropped", "window": window.map(|w| w.1), "mainFrame": frame.isMainFrame(), "origin": effective, "url": url }));
+      super::report(serde_json::json!({
+        "kind": "ipcDropped",
+        "window": window.as_ref().map(|(_, label)| label),
+        "expectedOrigin": window.as_ref().map(|(own, _)| own),
+        "mainFrame": frame.isMainFrame(),
+        "origin": effective,
+        "url": url,
+      }));
       return;
     }
     (ORIGINAL.get().expect("original handler"))(this, cmd, controller, message)
@@ -231,6 +238,15 @@ fn main() {
         // one window, one origin, fixed for the window's life
         handle.add_capability(CapabilityBuilder::new(label).window(label).local(false).remote(own.into()).permission(permission))?;
         open(&handle, label, own, &url, guard)?;
+      }
+      #[cfg(target_os = "macos")]
+      if !guard && env("SPIKE_POSTMESSAGE") == "main-frame" {
+        // Keep the normal desk windows as positive controls. This window has desk-a's gate
+        // origin but starts at desk-b; its document really is a main frame at another origin.
+        let scheme = if https_cookies { "https" } else { "http" };
+        let own = format!("{scheme}://127.0.0.1:8901");
+        let url = format!("{scheme}://127.0.0.1:8902/gate-probe");
+        open(&handle, "gate-probe", &own, &url, false)?;
       }
       std::thread::spawn(move || {
         std::thread::sleep(Duration::from_secs(seconds));

@@ -40,8 +40,11 @@ shell currently locks Tauri 2.12.1 and wry 0.57.0 in `desktop/Cargo.lock`. Verif
 IPC behavior against the versions W3 ships. The navigation checks ran over HTTP loopback. The HTTPS
 run (`https.sh`, trusted TLS on loopback, on disposable runners or the Linux container only) covers
 native pairing, the login redirect, a reload and a separate app launch, then the frames check with
-the guard off and each engine's IPC mitigation on. All three runners passed both on 2026-11-23
-(run 45236604449).
+the guard off and each engine's IPC mitigation on. Run 45236604449 on 2026-11-23 recorded the cookie
+lifecycle and native command log on all three runners. The frame checks now also require a report
+from each fixture for both commands, including the sandboxed frame, the other workspace's frame,
+and the foreign frame reached directly or by redirect. The reports capture the page's effective
+origin and the outcome of invoke, raw fetch and postMessage.
 
 | | WKWebView (macOS 27) | WebKitGTK 2.50 (Ubuntu 22.04, Xvfb) | WebView2 (Windows runner) |
 |---|---|---|---|
@@ -51,10 +54,10 @@ the guard off and each engine's IPC mitigation on. All three runners passed both
 | Per-window capability and frame origin | opaque-origin sandboxed frames reach native commands over wry's postMessage; with it gated to the main frame at the window's origin, none does, over HTTP and HTTPS | no out-of-scope command recorded with postMessage unregistered, over HTTP and HTTPS | no out-of-scope command recorded, over HTTP and HTTPS |
 
 **Owner decision:** W3 must enforce the caller's effective origin. Deny shell commands from
-opaque-origin frames even when their document URL matches the workspace. On macOS the gate below
-does it, verified over HTTP and HTTPS: the sandboxed frames' calls are dropped and each window's own
-page keeps its granted commands. Keeping the invoke key out of subframes (Tauri's default there)
-protects in addition.
+opaque-origin frames even when their document URL matches the workspace. On macOS the spike
+requires the gate below to drop same-origin and sandboxed subframes as well as a main frame loaded
+at a different effective origin. Each workspace's own top page must still reach its granted
+command. Keeping the invoke key out of subframes (Tauri's default there) protects in addition.
 
 What W3 builds on:
 

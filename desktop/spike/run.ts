@@ -22,7 +22,7 @@
 //   and each window's own page still reaches its command over the fetch IPC;
 // - frames-main-frame-ipc (macOS only): the same with wry's postMessage IPC kept but gated to the
 //   window's main frame at the window's own effective origin (the fetch IPC cannot be reached from
-//   https pages there): no call may pass, the sandboxed frames' messages are dropped.
+//   https pages there): the gate drops subframes and a separate off-origin main frame.
 //
 // It prints each check with PASS or FAIL and the events behind a failure, and exits 1 on a FAIL.
 // With SPIKE_TLS_CERT and SPIKE_TLS_KEY set, run the HTTPS cookie lifecycle, then the frames run
@@ -37,13 +37,15 @@ if (!binary) throw new Error("usage: bun desktop/spike/run.ts <webview-spike bin
 const LOCAL = 8900;
 const DESKS = { 8901: "desk-a", 8902: "desk-b" } as Record<number, string>;
 const FOREIGN = 8903;
+const GATE_PROBE = "gate-probe";
+const FRAME_COMMANDS = ["ping_a", "ping_b"] as const;
 const cert = process.env.SPIKE_TLS_CERT;
 const privateKey = process.env.SPIKE_TLS_KEY;
 if (!!cert !== !!privateKey) throw new Error("Set both SPIKE_TLS_CERT and SPIKE_TLS_KEY");
 const tls = cert && privateKey ? { cert: Bun.file(cert), key: Bun.file(privateKey) } : undefined;
 const scheme = tls ? "https" : "http";
 const cookieAttributes = tls ? "SameSite=None; Secure" : "SameSite=Lax";
-const at = (port: number) => `${DESKS[port] ? scheme : "http"}://127.0.0.1:${port}`;
+const at = (port: number) => `${port === LOCAL ? "http" : scheme}://127.0.0.1:${port}`;
 const device = crypto.randomUUID();
 const cookieName = (port: number) => `seismic-device-${scheme}-${port}`;
 
@@ -77,41 +79,61 @@ function httpsCookiePage(req: Request, port: number) {
 // what every page shares: report to its own origin, call the shell through Tauri and around it
 const common = (win: string) => `<script>
 const win = ${JSON.stringify(win)};
-const rep = (o) => fetch('/report', { method: 'POST', body: JSON.stringify({ ...o, win, origin: location.origin, href: location.href }) });
+const rep = (o) => fetch('/report', { method: 'POST', credentials: 'omit', body: JSON.stringify({ ...o, win, origin: location.origin, href: location.href }) });
 const T = window.__TAURI_INTERNALS__;
 const KEY = ${JSON.stringify(key)};
 const IPC = ${JSON.stringify(os === "windows" ? "http://ipc.localhost/" : "ipc://localhost/")};
+async function withDeadline(probe) {
+  let timer;
+  try {
+    return await Promise.race([probe, new Promise((r) => { timer = setTimeout(() => r('timed out'), 2500) })]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 async function call(cmd, tag) {
   if (!T) return 'no __TAURI_INTERNALS__';
-  try { return 'ok: ' + await T.invoke(cmd, { tag }) } catch (e) { return 'denied: ' + e }
+  if (typeof T.invoke !== 'function') return 'no invoke function';
+  return withDeadline((async () => {
+    try { return 'ok: ' + await T.invoke(cmd, { tag }) } catch (e) { return 'denied: ' + e }
+  })());
 }
-async function raw(cmd, tag) {
-  const out = {};
+async function rawFetch(cmd, tag) {
   try {
     const r = await fetch(IPC + cmd, { method: 'POST', body: JSON.stringify({ tag: tag + '|fetch' }), headers: { 'Content-Type': 'application/json', 'Tauri-Callback': '1', 'Tauri-Error': '2', 'Tauri-Invoke-Key': KEY } });
-    out.fetch = r.headers.get('Tauri-Response') + ': ' + await r.text();
-  } catch (e) { out.fetch = 'failed: ' + e }
+    return r.headers.get('Tauri-Response') + ': ' + await r.text();
+  } catch (e) { return 'failed: ' + e }
+}
+function rawPost(cmd, tag) {
   const post = window.ipc?.postMessage ? (s) => window.ipc.postMessage(s) : window.webkit?.messageHandlers?.ipc ? (s) => window.webkit.messageHandlers.ipc.postMessage(s) : window.chrome?.webview ? (s) => window.chrome.webview.postMessage(s) : null;
-  if (post) {
-    try { post(JSON.stringify({ cmd, callback: 1, error: 2, payload: { tag: tag + '|postMessage' }, __TAURI_INVOKE_KEY__: KEY })); out.postMessage = 'sent' } catch (e) { out.postMessage = 'failed: ' + e }
-  } else out.postMessage = 'no handler';
-  return out;
+  if (!post) return 'no handler';
+  try {
+    post(JSON.stringify({ cmd, callback: 1, error: 2, payload: { tag: tag + '|postMessage' }, __TAURI_INVOKE_KEY__: KEY }));
+    return 'sent';
+  } catch (e) { return 'failed: ' + e }
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 </script>`;
 
-function deskPage(req: Request, port: number) {
-  const url = new URL(req.url);
-  const n = Number(url.searchParams.get("n") ?? "0");
+function frameFixtures(port: number) {
   const win = DESKS[port]!;
   const other = Number(Object.keys(DESKS).find((p) => Number(p) !== port));
-  const frames = [
-    ["same", `${at(port)}/frame?case=same&win=${win}`, ""],
-    ["sandboxed", `${at(port)}/frame?case=sandboxed&win=${win}`, "allow-scripts"],
-    ["otherdesk", `${at(other)}/frame?case=otherdesk&win=${win}`, ""],
-    ["foreign", `${at(FOREIGN)}/frame?case=foreign&win=${win}`, ""],
-    ["redirect-frame", `${at(port)}/redirect?to=${encodeURIComponent(`${at(FOREIGN)}/frame?case=redirect-frame&win=${win}`)}`, ""],
-  ];
+  return [
+    { frame: "same", port },
+    { frame: "sandboxed", port },
+    { frame: "otherdesk", port: other },
+    { frame: "foreign", port: FOREIGN },
+    { frame: "redirect-frame", port: FOREIGN },
+  ].map((fixture) => {
+    const url = `${at(fixture.port)}/frame?case=${fixture.frame}&win=${win}`;
+    const src = fixture.frame === "redirect-frame" ? `${at(port)}/redirect?to=${encodeURIComponent(url)}` : url;
+    return { ...fixture, url, src, sandbox: fixture.frame === "sandboxed" };
+  });
+}
+
+function deskPage(req: Request, port: number) {
+  const n = Number(new URL(req.url).searchParams.get("n") ?? "0");
+  const win = DESKS[port]!;
   const away = (c: string) => `${at(FOREIGN)}/land?case=${c}&win=${win}`;
   return html(`<title>${win}</title><h1>${win} at ${at(port)}</h1><p>device cookie: ${hasCookie(req, port)}</p><div id=frames></div>
 <a id=link href="${away("link")}">away</a>
@@ -119,12 +141,14 @@ function deskPage(req: Request, port: number) {
 ${common(win)}<script>
 (async () => {
   await rep({ case: 'cookie', n: ${n}, cookie: ${hasCookie(req, port)}, mode: ${JSON.stringify(mode)} });
-  for (const cmd of ['ping_a', 'ping_b', 'ping_local']) await rep({ case: 'top-call', cmd, result: await call(cmd, win + '|top|invoke|' + cmd) });
-  if (${n} === 1) { await sleep(300); location.replace('/?n=2'); return }
-  for (const [c, src, sandbox] of ${JSON.stringify(frames)}) {
+  const calls = (async () => {
+    for (const cmd of ['ping_a', 'ping_b', 'ping_local']) await rep({ case: 'top-call', cmd, result: await call(cmd, win + '|top|invoke|' + cmd) });
+  })();
+  if (${n} === 1) { await calls; await sleep(300); location.replace('/?n=2'); return }
+  for (const { src, sandbox } of ${JSON.stringify(frameFixtures(port))}) {
     const f = document.createElement('iframe');
     f.src = src; f.width = 260; f.height = 80;
-    if (sandbox) f.setAttribute('sandbox', sandbox);
+    if (sandbox) f.setAttribute('sandbox', 'allow-scripts');
     document.getElementById('frames').append(f);
   }
   await sleep(4000);
@@ -154,12 +178,26 @@ function framePage(req: Request) {
   return html(`<body style="font:11px sans-serif">frame ${c} at ${url.origin}${common(win)}<script>
 (async () => {
   const tag = win + '|frame-' + ${JSON.stringify(c)} + '|';
-  const out = { case: 'frame', frame: ${JSON.stringify(c)}, internals: !!T };
-  for (const cmd of ['ping_a', 'ping_b']) {
-    out[cmd] = { invoke: await call(cmd, tag + 'invoke|' + cmd), raw: await raw(cmd, tag + 'raw|' + cmd) };
+  const identity = { frame: ${JSON.stringify(c)}, effectiveOrigin: self.origin };
+  void rep({ case: 'frame-loaded', ...identity });
+  const out = { case: 'frame', ...identity, internals: !!T };
+  for (const cmd of ${JSON.stringify(FRAME_COMMANDS)}) {
+    const postMessage = rawPost(cmd, tag + 'raw|' + cmd);
+    const [invoke, fetch] = await Promise.all([
+      call(cmd, tag + 'invoke|' + cmd),
+      withDeadline(rawFetch(cmd, tag + 'raw|' + cmd)),
+    ]);
+    out[cmd] = { invoke, raw: { fetch, postMessage } };
   }
   await rep(out);
 })();
+</script>`);
+}
+
+function gateProbePage() {
+  return html(`<title>WKWebView origin check</title>${common(GATE_PROBE)}<script>
+  rep({ case: 'gate-probe', effectiveOrigin: self.origin,
+    postMessage: rawPost('ping_a', win + '|top|raw|ping_a') });
 </script>`);
 }
 
@@ -183,10 +221,12 @@ async function handle(req: Request, port: number): Promise<Response> {
   }
   if (path === "/report") {
     events.push({ source: "page", port, ...(await req.json()) });
-    return new Response("ok");
+    // The sandboxed fixture has an opaque origin even though its document URL is the workspace's.
+    return new Response("ok", { headers: { "Access-Control-Allow-Origin": "*" } });
   }
   events.push({ source: "http", port, method: req.method, path, case: url.searchParams.get("case"), win: url.searchParams.get("win"), cookie: DESKS[port] ? hasCookie(req, port) : undefined });
   if (path === "/frame") return framePage(req);
+  if (port === 8902 && path === `/${GATE_PROBE}` && mode.includes("main-frame")) return gateProbePage();
   if (path === "/land") return html(`<h1>left the window's origin: ${url.searchParams.get("case")}</h1>`);
   if (path === "/redirect") return new Response(null, { status: 302, headers: { location: url.searchParams.get("to")! } });
   if (path === "/meta") return html(`<meta http-equiv="refresh" content="0;url=${url.searchParams.get("to")}">`);
@@ -218,7 +258,7 @@ async function handle(req: Request, port: number): Promise<Response> {
 }
 
 for (const port of [LOCAL, ...Object.keys(DESKS).map(Number), FOREIGN]) {
-  Bun.serve({ hostname: "127.0.0.1", port, tls: DESKS[port] ? tls : undefined, fetch: (req) => handle(req, port) });
+  Bun.serve({ hostname: "127.0.0.1", port, tls: port === LOCAL ? undefined : tls, fetch: (req) => handle(req, port) });
 }
 
 function runApp(env: Record<string, string>) {
@@ -238,9 +278,63 @@ const exceptions: { mode: string; name: string; events: Event[] }[] = [];
 const check = (name: string, pass: boolean, detail?: unknown) => checks.push({ name: `[${mode}] ${name}`, pass, detail: pass ? undefined : detail });
 const OWN: Record<string, { cmd: string; origin: string }> = { "desk-a": { cmd: "ping_a", origin: at(8901) }, "desk-b": { cmd: "ping_b", origin: at(8902) }, main: { cmd: "ping_local", origin: at(LOCAL) } };
 
+function judgeFrameProbes() {
+  const reports = events.filter((e) => e.source === "page" && e.case === "frame");
+  const post = mode.includes("no-postmessage") ? "no handler" : "sent";
+  for (const [deskPort, win] of Object.entries(DESKS)) {
+    for (const { frame, port, url, sandbox } of frameFixtures(Number(deskPort))) {
+      const evidence = reports.filter((e) => e.win === win && e.frame === frame);
+      const report = evidence[0];
+      const complete = evidence.length === 1 && report !== undefined && report.port === port && report.href === url
+        && report.effectiveOrigin === (sandbox ? "null" : at(port))
+        && FRAME_COMMANDS.every((cmd) => {
+          const result = report[cmd];
+          const allowed = frame === "same" && OWN[win]?.cmd === cmd;
+          // Some transports reject at the browser boundary. A dispatched invoke can also go
+          // unanswered (for example, a postMessage with no frame callback). The native command
+          // log is checked independently, including in these cases.
+          const invoke = result?.invoke;
+          const fetch = result?.raw?.fetch;
+          return (report.internals === false ? invoke === "no __TAURI_INTERNALS__"
+            : report.internals === true && typeof invoke === "string"
+              && (invoke === "timed out" || invoke.startsWith("denied: ") || (allowed && invoke.startsWith("ok: "))))
+            && typeof fetch === "string"
+            && (fetch.startsWith("error: ") || fetch.startsWith("failed: ")
+              || (sandbox && fetch === "null: Origin header is not a valid URL")
+              || (allowed && fetch.startsWith("ok: ")))
+            && result.raw.postMessage === post;
+        });
+      check(`${win}'s ${frame} frame reported outcomes for both commands and all three IPC paths`, complete, { url, evidence });
+    }
+  }
+}
+
+function judgeGate() {
+  const dropped = events.filter((e) => e.source === "shell" && e.kind === "ipcDropped");
+  function requireDrop(name: string, win: string, url: string, mainFrame: boolean, origin: string, expectedOrigin: string) {
+    const evidence = dropped.filter((e) => e.window === win && e.url === url);
+    check(name, evidence.some((e) => e.mainFrame === mainFrame && e.origin === origin && e.expectedOrigin === expectedOrigin),
+      { win, url, mainFrame, origin, expectedOrigin, evidence });
+  }
+  for (const [port, win] of Object.entries(DESKS)) {
+    const own = at(Number(port));
+    for (const { frame, url, sandbox } of frameFixtures(Number(port))) {
+      requireDrop(`WKWebView dropped ${win}'s ${frame} subframe at the gate`, win, url, false, sandbox ? "null" : new URL(url).origin, own);
+    }
+  }
+  const probeOrigin = at(8902);
+  const probeUrl = `${probeOrigin}/${GATE_PROBE}`;
+  const probes = events.filter((e) => e.source === "page" && e.case === "gate-probe");
+  check("the mismatched-origin page sent a main-frame postMessage probe",
+    probes.some((e) => e.win === GATE_PROBE && e.port === 8902 && e.href === probeUrl && e.effectiveOrigin === probeOrigin && e.postMessage === "sent"), probes);
+  requireDrop("WKWebView dropped a main-frame message from a mismatched effective origin",
+    GATE_PROBE, probeUrl, true, probeOrigin, at(8901));
+}
+
 /// Judge the allowed window and effective origin, recording known engine exceptions separately.
 function judgeCommands(expectTop: boolean, quirk = false) {
-  const ran = events.filter((e) => e.kind === "cmd");
+  const ran = events.filter((e) => e.source === "shell" && e.kind === "cmd");
+  const mainFrameGate = mode.includes("main-frame");
   const postMessage = !mode.includes("no-postmessage") && !mode.includes("main-frame");
   const engine = os === "macos" && postMessage ? "WKWebView" : os === "linux" && postMessage ? "WebKitGTK" : "";
   const knownOpaqueCalls = engine ? ran.filter((e) => {
@@ -251,26 +345,33 @@ function judgeCommands(expectTop: boolean, quirk = false) {
     mode, name: `${engine} admitted native calls from opaque-origin sandboxed frames`, events: knownOpaqueCalls,
   });
   const wrong = ran.filter((e) => {
-    const [win, from] = String(e.tag).split("|");
+    const [win, from, ...call] = String(e.tag).split("|");
     const own = OWN[e.window];
-    const sameOrigin = from === "top" || from === "frame-same";
-    return !knownOpaqueCalls.includes(e) && (e.window !== win || own?.cmd !== e.cmd || !sameOrigin);
+    // The WKWebView gate controls postMessage only. Its HTTP fetch transport can still serve
+    // the window's own origin, including a same-origin frame.
+    const allowedSender = from === "top" || (from === "frame-same" && (!mainFrameGate || (!tls && call.at(-1) === "fetch")));
+    return !knownOpaqueCalls.includes(e) && (e.window !== win || own?.cmd !== e.cmd || !allowedSender);
   });
   if (quirk) {
     // wry on Linux hands a postMessage call to Tauri as the page the webview shows: a foreign frame
     // passes as the window's page. Still so means the shell still has to unregister that handler.
     check("wry's postMessage still attributes a foreign frame's call to the window's page (why the shell unregisters it)", wrong.some((e) => String(e.tag).includes("|frame-foreign|")), wrong);
   } else check("no calls escaped window and origin scope beyond a recorded exception", wrong.length === 0, wrong);
-  if (mode.includes("main-frame")) {
-    const dropped = events.filter((e) => e.kind === "ipcDropped");
-    for (const win of Object.values(DESKS)) {
-      check(`${win}'s sandboxed frame sent postMessage calls and the gate dropped them`,
-        dropped.some((e) => e.window === win && !e.mainFrame && String(e.url).includes("case=sandboxed")), dropped);
-    }
-  }
+  if (mode.startsWith("frames")) judgeFrameProbes();
+  if (mainFrameGate) judgeGate();
   if (expectTop) {
-    for (const [win, { cmd }] of Object.entries(OWN).filter(([win]) => !tls || win !== "main")) {
-      check(`${win}'s own page may call ${cmd}`, ran.some((e) => e.window === win && e.cmd === cmd && String(e.tag).includes("|top|")), events.filter((e) => e.win === win && e.case === "top-call"));
+    for (const [win, { cmd, origin }] of Object.entries(OWN).filter(([win]) => !tls || win !== "main")) {
+      const calls = events.filter((e) => e.source === "page" && e.win === win && e.case === "top-call" && e.origin === origin);
+      check(`${win}'s own page may call ${cmd}`,
+        ran.some((e) => e.window === win && e.cmd === cmd && e.tag === `${win}|top|invoke|${cmd}`)
+          && calls.some((e) => e.cmd === cmd && e.result === `ok: ${cmd} ran in ${win}`), calls);
+      if (mode.startsWith("frames")) {
+        for (const wrongCmd of [...FRAME_COMMANDS, "ping_local"].filter((c) => c !== cmd)) {
+          const replies = calls.filter((e) => e.cmd === wrongCmd);
+          check(`${win}'s top page received a denial for ${wrongCmd}`,
+            replies.some((e) => typeof e.result === "string" && e.result.startsWith("denied: ")), replies);
+        }
+      }
     }
   }
   return ran;
@@ -278,7 +379,8 @@ function judgeCommands(expectTop: boolean, quirk = false) {
 
 function judgeGuard(navigated: boolean) {
   const sent = events.filter((e) => e.source === "http" && (e.port === FOREIGN || (DESKS[e.port] && e.win && e.win !== DESKS[e.port])));
-  const rendered = events.filter((e) => e.case === "frame" && e.port !== Number(Object.keys(DESKS).find((p) => DESKS[Number(p)] === e.win)));
+  const rendered = events.filter((e) => e.source === "page" && (e.case === "frame-loaded" || e.case === "frame")
+    && e.port !== Number(Object.keys(DESKS).find((p) => DESKS[Number(p)] === e.win)));
   check("no page of another origin rendered in a workspace window's frames", rendered.length === 0, rendered);
   // WebView2 sends a navigation's GET while it asks the hook, and drops the answer when the hook
   // says no: the window stays, the request has left
