@@ -35,10 +35,12 @@ The spike is `desktop/spike/` (a small Tauri app, `src/main.rs`, and its harness
 serves this machine's origin, two workspaces and a foreign site on 127.0.0.1 and judges what the
 shell and the pages report); `desktop/spike/linux.sh` runs it on WebKitGTK in the Linux image, and
 the "Webview spike" workflow on all three GitHub runners (by hand, and on a push that changes the
-spike). Tauri 2.12, wry 0.57. The original runs used HTTP loopback. The HTTPS cookie check uses trusted
-TLS on loopback and exercises native pairing, the login redirect, a browser reload and a separate
-app launch. HTTPS results apply to the cookie lifecycle only. The HTTPS check passed for both
-workspace windows in the WebKitGTK container. The workflow now runs it on all three runners.
+spike). The results use Tauri 2.12.7 and wry 0.57.3, from `desktop/spike/Cargo.lock`. The desktop
+shell currently locks Tauri 2.12.1 and wry 0.57.0 in `desktop/Cargo.lock`. Verify navigation and
+IPC behavior against the versions W3 ships. The original runs used HTTP loopback. The HTTPS cookie
+check uses trusted TLS on loopback and exercises native pairing, the login redirect, a browser reload
+and a separate app launch. HTTPS results apply to the cookie lifecycle only. The HTTPS check passed
+for both workspace windows in the WebKitGTK container. The workflow now runs it on all three runners.
 
 | | WKWebView (macOS 27) | WebKitGTK 2.50 (Ubuntu 22.04, Xvfb) | WebView2 (Windows runner) |
 |---|---|---|---|

@@ -303,12 +303,19 @@ for (const [deskPort, win] of Object.entries(DESKS)) {
   check(`${win} has the ${scheme.toUpperCase()} cookie after the login redirect and ${tls ? "on reload" : "on a second load"}`,
     cookies.some((e) => e.n === 1 && e.cookie) && cookies.some((e) => e.n === 2 && e.cookie) && authenticatedLoads.length >= 2,
     { cookies, authenticatedLoads });
-  check(`${win} received exactly one login link`, links.filter((link) => new URL(link).origin === at(port)).length === 1);
+  const linkCount = links.filter((link) => new URL(link).origin === at(port)).length;
+  const pairingErrors = events.filter((e) => e.source === "shell" && e.kind === "pairFailed" && e.window === win);
+  check(`${win} received exactly one login link`, linkCount === 1, { linkCount, pairingErrors });
 }
 for (const link of links) {
-  const options = cert ? { tls: { ca: await Bun.file(process.env.SPIKE_TLS_CA ?? cert).text() } } : {};
-  const again = await fetch(link, { redirect: "manual", ...options });
-  check(`the ${scheme.toUpperCase()} login link is single use (${new URL(link).port})`, again.status === 403, again.status);
+  const name = `the ${scheme.toUpperCase()} login link is single use (${new URL(link).port})`;
+  try {
+    const options = cert ? { tls: { ca: await Bun.file(process.env.SPIKE_TLS_CA ?? cert).text() } } : {};
+    const again = await fetch(link, { redirect: "manual", ...options });
+    check(name, again.status === 403, again.status);
+  } catch (error) {
+    check(name, false, String(error));
+  }
 }
 if (!tls) {
   judgeGuard(true);
@@ -338,12 +345,13 @@ if (!tls) {
   }
 }
 
+await Bun.write(`${import.meta.dirname}/target/spike-${os || "unknown"}${tls ? "-https" : ""}.json`,
+  JSON.stringify({ scheme, cookieAttributes, checks, exceptions, log }, null, 1));
 console.log(`\n== results (${os})`);
 for (const c of checks) {
   console.log(`${c.pass ? "PASS" : "FAIL"} ${c.name}`);
-  if (!c.pass) console.log("     " + JSON.stringify(c.detail, null, 1).replaceAll("\n", "\n     "));
+  const detail = c.pass ? undefined : JSON.stringify(c.detail, null, 1);
+  if (detail !== undefined) console.log("     " + detail.replaceAll("\n", "\n     "));
 }
 for (const exception of exceptions) console.log(`EXCEPTION [${exception.mode}] ${exception.name}`);
-await Bun.write(`${import.meta.dirname}/target/spike-${os || "unknown"}${tls ? "-https" : ""}.json`,
-  JSON.stringify({ scheme, cookieAttributes, checks, exceptions, log }, null, 1));
 process.exit(checks.every((c) => c.pass) ? 0 : 1);

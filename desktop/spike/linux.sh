@@ -6,22 +6,26 @@
 #   docker run --rm -v "$PWD":/src:ro -v seismic-cargo:/root/.cargo/registry -v seismic-spike-target:/work/desktop/spike/target \
 #     -v "$PWD/dist/spike":/out seismic-linux-app bash /src/desktop/spike/linux.sh
 set -euo pipefail
+reports=(spike-linux.json spike-linux-https.json)
+if [ -d /out ]; then
+  for report in "${reports[@]}"; do rm -f "/out/$report"; done
+fi
 mkdir -p /work/desktop
 rsync -a --delete --exclude /target /src/desktop/spike/ /work/desktop/spike/
 cp -r /src/desktop/icons /work/desktop/
 cd /work/desktop/spike
-cargo build
+for report in "${reports[@]}"; do rm -f "target/$report"; done
+cargo build --locked
 export DISPLAY=:99
 Xvfb :99 -screen 0 1600x1000x24 >/dev/null 2>&1 &
 eval "$(dbus-launch --sh-syntax)"
 sleep 1
 status=0
-rm -f target/spike-linux.json target/spike-linux-https.json
 bun run.ts target/debug/webview-spike || status=1
 bash https.sh target/debug/webview-spike || status=1
 if [ -d /out ]; then
-  for result in target/spike-linux.json target/spike-linux-https.json; do
-    if [ -f "$result" ]; then cp "$result" /out/; fi
+  for report in "${reports[@]}"; do
+    if [ -f "target/$report" ]; then cp "target/$report" /out/; fi
   done
 fi
 exit $status

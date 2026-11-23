@@ -29,12 +29,13 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with: { workspaces: 'desktop/spike -> target' }
+      - run: rm -f desktop/spike/target/spike-*.json
       - name: WebKitGTK and a display
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev xvfb dbus-x11
-      - run: cargo build
+      - run: cargo build --locked
         id: build
         working-directory: desktop/spike
       - name: The spike

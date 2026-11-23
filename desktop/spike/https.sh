@@ -2,11 +2,19 @@
 # Run the HTTPS cookie spike on a disposable GitHub runner or in the Linux test container.
 # Both the shell and the native webview use the runner's trust store.
 set -euo pipefail
+if [ "${GITHUB_ACTIONS:-}" = true ] && [ "${RUNNER_ENVIRONMENT:-}" = github-hosted ]; then
+  platform=${RUNNER_OS:?Missing GitHub runner OS}
+  trust=(sudo)
+elif [ "$(uname -s)" = Linux ] && [ -f /.dockerenv ] && [ "$(id -u)" = 0 ]; then
+  platform=Linux
+  trust=()
+else
+  echo "Use a disposable GitHub-hosted runner or the Linux spike Docker container." >&2
+  exit 1
+fi
+
 certs=$(mktemp -d)
-trust=()
-if [ "$(id -u)" != 0 ]; then trust=(sudo); fi
 anchor="/usr/local/share/ca-certificates/seismic-spike-${certs##*/}.crt"
-platform=${RUNNER_OS:-Linux}
 fingerprint=
 cleanup() {
   case "$platform" in
@@ -29,11 +37,8 @@ cleanup() {
   rm -rf "$certs"
 }
 trap cleanup EXIT
-
-if [ "${GITHUB_ACTIONS:-}" != true ] && [ "$(uname -s)" != Linux ]; then
-  echo "Use a disposable GitHub runner to install the test CA." >&2
-  exit 1
-fi
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 cat >"$certs/openssl.cnf" <<'EOF'
 [ req ]
