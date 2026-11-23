@@ -658,13 +658,16 @@ export class Access implements Gate {
 
   /**
    * The address the request was sent to (a proxy's `X-Forwarded-Host`, else `Host`), where it is a
-   * plain `host[:port]` that a URL parser reads back as the same host, one of Seismic's; else none.
+   * plain `host[:port]` with a port other than zero that a URL parser reads back as the same host,
+   * one of Seismic's; else none.
    * The guard checks only the name before a colon, which `example.ts.net@evil` or one with a path
    * passes.
    */
   private authorityOf(req: Request): string | null {
     const raw = (req.headers.get('x-forwarded-host')?.split(',')[0]?.trim() || req.headers.get('host') || '').toLowerCase();
-    if (!/^(?:[a-z0-9-]+(?:\.[a-z0-9-]+)*|\[[0-9a-f:.]+\])(?::\d{1,5})?$/.test(raw)) return null;
+    const plain = /^(?:[a-z0-9-]+(?:\.[a-z0-9-]+)*|\[[0-9a-f:.]+\])(?::(\d{1,5}))?$/.exec(raw);
+    // port zero (`:0`, `:00000`) parses, but no browser can open a link on it
+    if (!plain || (plain[1] !== undefined && Number(plain[1]) === 0)) return null;
     try {
       const parsed = new URL(`${schemeOf(req)}://${raw}`);
       return parsed.hostname === hostname(raw) && this.hosts().includes(parsed.hostname) ? raw : null;

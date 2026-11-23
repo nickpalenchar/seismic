@@ -926,6 +926,23 @@ describe('pairing', () => {
       expect(new URL(((await ok.json()) as { url: string }).url).host).toBe(`${NAME}:8443`);
     });
 
+    test('an address with port zero gets no link, forwarded or direct, and the code stays usable', async () => {
+      await turnOn();
+      const p = await pairing();
+      for (const port of ['0', '00', '00000']) {
+        const host = `${NAME}:${port}`;
+        // a proxy's forwarded host, then the request's own when no proxy names one
+        for (const headers of [{ host: NAME, 'x-forwarded-host': host }, { host, 'x-forwarded-host': '' }]) {
+          const res = await shellPairs(p.code, headers);
+          expect(res.status).toBe(400);
+          expect(((await res.json()) as { code: string }).code).toBe('invalidHost');
+        }
+      }
+      const ok = await shellPairs(p.code, { host: NAME, 'x-forwarded-host': NAME });
+      expect(ok.status).toBe(200);
+      expect(new URL(((await ok.json()) as { url: string }).url).host).toBe(NAME);
+    });
+
     test('a link stays usable when pairing the browser fails to write the device', async () => {
       await turnOn();
       const link = await linkOf(await shellPairs((await pairing()).code));
