@@ -532,6 +532,7 @@ function notice(n: Notice) {
 // What the owner does in this page that a restart would cut off, by who holds it (the demo video,
 // push-to-talk); the server hears every change, and again after a reconnect.
 const holds = new Map<string, OwnerHold>();
+export const restartHeld = () => holds.size > 0;
 /** The page's open WebSockets: one for the project it shows, one per project in the phone view. */
 const sockets = new Map<string, WebSocket>();
 const sendHolds = () => {

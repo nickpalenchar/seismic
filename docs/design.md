@@ -453,6 +453,11 @@ Safety rules:
 - Tauri's runtime capability grants are tied to a window label and accumulate. The desktop shell
   retires the local webview and uses a fresh label when its server changes ports, so each window
   has one fixed origin for navigation, microphone access and native commands.
+- A desktop shell rebuild waits for activity in every open workspace. A remote page asks its server
+  with its existing pairing and also contributes its own holds, which may not have reached that
+  server yet. Remote session handover is scoped to the paired device and origin.
+- A workspace's IPv6 origin stays in canonical URL form on disk. Only the hostname's colons are
+  escaped when the shell builds its native capability URL pattern.
 - Landing never loses work: nothing is force-pushed, a direct push only fast-forwards, a merge is
   pinned to the head that was checked; a clone is deleted only when nothing on it would be lost.
 - Approval comes only from the card's button after the demo, never from a list or from words

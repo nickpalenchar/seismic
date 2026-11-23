@@ -186,17 +186,27 @@ pub fn shell(app: &AppHandle) -> Arc<Shell> {
   app.state::<Arc<Shell>>().inner().clone()
 }
 
-/// A capability for window `label` and pages at `origin` alone (none of the bundled pages, which
-/// Tauri would grant it too by default), with `permissions`.
-fn capability(label: &str, origin: &str, permissions: &[&[&str]]) -> CapabilityBuilder {
+/// URLPattern treats colons in an IPv6 host as pattern syntax. The port separator stays literal.
+fn remote_pattern(origin: &str) -> Result<String, String> {
+  let url = Url::parse(origin).map_err(|e| e.to_string())?;
+  let host = url.host_str().ok_or("address")?.replace(':', r"\:");
+  let port = url.port().map_or(String::new(), |p| format!(":{p}"));
+  let pattern = format!("{}://{host}{port}", url.scheme());
+  // Tauri registers a URLPattern, which must be valid before it touches the runtime ACL.
+  pattern.parse::<tauri::utils::acl::RemoteUrlPattern>().map_err(|e| e.to_string())?;
+  Ok(pattern)
+}
+
+/// Grants `permissions` to the window at its own origin alone.
+fn capability(label: &str, origin: &str, permissions: &[&[&str]]) -> Result<CapabilityBuilder, String> {
   let mut cap = CapabilityBuilder::new(format!("{label}-{}", origin.replace(|c: char| !c.is_ascii_alphanumeric(), "-")))
     .window(label)
-    .remote(origin.to_string())
+    .remote(remote_pattern(origin)?)
     .local(false);
   for p in permissions.iter().flat_map(|p| p.iter()) {
     cap = cap.permission(*p);
   }
-  cap
+  Ok(cap)
 }
 
 /// Allocates a fresh label for every native window. A capability never grants a second origin
@@ -223,7 +233,7 @@ pub fn connect_local(app: &AppHandle, port: u16, page: Url, handed_over: bool) -
   let placed = Placed::of(&old, LOCAL, &Own::Local(previous));
   let label = label_for(&shell, "main");
   let origin = own.origin().expect("local server port");
-  app.add_capability(capability(&label, &origin, &[PAGE, LOCAL_PAGE])).map_err(|e| e.to_string())?;
+  app.add_capability(capability(&label, &origin, &[PAGE, LOCAL_PAGE])?).map_err(|e| e.to_string())?;
   let w = window::build(app, &label, own, placed.as_ref(), previous.is_none() && handed_over).map_err(|e| e.to_string())?;
   if let Err(error) = old.as_ref().close() {
     let _ = w.destroy();
@@ -317,11 +327,11 @@ fn build(app: &AppHandle, id: &str, origin: &str, revision: u64, url: Option<Url
     return Err("elsewhere".into());
   }
   let label = label_for(&shell, "desk");
-  app.add_capability(capability(&label, origin, &[PAGE])).map_err(|e| {
+  app.add_capability(capability(&label, origin, &[PAGE])?).map_err(|e| {
     eprintln!("seismic: no capability for {origin}: {e}");
     "capability".to_string()
   })?;
-  let w = window::build(app, &label, own, placed, false).map_err(|e| e.to_string())?;
+  let w = window::build(app, &label, own, placed, placed.is_some()).map_err(|e| e.to_string())?;
   // The native constructor can pump events on Windows. Check again before loading any content.
   if !can_build(&shell, id, origin, revision) {
     let _ = w.destroy();
@@ -426,6 +436,16 @@ pub fn reopen(app: &AppHandle, mut placed: Vec<Placed>) {
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  #[test]
+  fn an_ipv6_capability_matches_only_its_origin() {
+    let origin = "https://[fd7a::2]:4417";
+    let pattern: tauri::utils::acl::RemoteUrlPattern = remote_pattern(origin).unwrap().parse().unwrap();
+    assert!(pattern.test(&Url::parse(&format!("{origin}/p/x")).unwrap()));
+    for other in ["https://[fd7a::3]:4417/", "https://[fd7a::2]:4418/", "http://[fd7a::2]:4417/"] {
+      assert!(!pattern.test(&Url::parse(other).unwrap()));
+    }
+  }
 
   #[test]
   fn stale_health_check_cannot_build_or_clear_its_replacement() {

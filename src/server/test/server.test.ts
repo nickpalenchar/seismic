@@ -7,7 +7,7 @@ import type { Board } from '../board';
 import { Projects, ProjectRuntime } from '../project';
 import type { Command } from '../commands';
 import { Store } from '../store';
-import { AppUpdates } from '../app-update';
+import { AppUpdates, HandOver } from '../app-update';
 import { Restarter } from '../self-update';
 import { SourceUpdates } from '../source-update';
 import { UsageMeter } from '../usage';
@@ -1085,6 +1085,17 @@ describe('a newer version of the app', () => {
     busy = [];
     await until(() => gone.length === 1);
     expect(gone).toEqual(['takeover']);
+  });
+
+  test('window handover is independent for each device and origin', () => {
+    const handover = new HandOver();
+    handover.give('device-a at https://studio', { token: 'a', entries: [['draft', 'Studio']] });
+    handover.give('device-a at https://lab', { token: 'b', entries: [['draft', 'Lab']] });
+    expect(handover.has('device-b at https://studio', 'a')).toBe(false);
+    expect(handover.take('device-b at https://studio')).toBeNull();
+    expect(handover.take('device-a at https://lab')).toEqual([['draft', 'Lab']]);
+    expect(handover.take('device-a at https://studio')).toEqual([['draft', 'Studio']]);
+    expect(handover.take('device-a at https://studio')).toBeNull();
   });
 
   test('a new build of the shell starts again without the server, not while the owner speaks, and the page hands over what a reload keeps', async () => {

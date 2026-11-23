@@ -154,6 +154,15 @@ pub async fn remove_desk(app: AppHandle, webview: Webview, id: String) -> Result
   .await
 }
 
+fn status_window(app: &AppHandle, label: &str) -> Result<tauri::WebviewWindow, String> {
+  let w = app.get_webview_window(label).ok_or("unknown")?;
+  if w.url().is_ok_and(|url| url == crate::window::bundled_url("/status.html")) {
+    Ok(w)
+  } else {
+    Err("unknown".into())
+  }
+}
+
 /// The status page's "Try again": asks the calling window's workspace again whether it answers, and
 /// where it does, the window goes to its start page; else why not (`unreachable`, `notSeismic`).
 #[tauri::command]
@@ -162,6 +171,7 @@ pub async fn retry_desk(app: AppHandle, webview: Webview) -> Result<(), String> 
   let (origin, revision) = on_ui(app.clone(), {
     let label = label.clone();
     move |app| {
+      status_window(app, &label)?;
       let shell = shell(app);
       let windows = shell.windows.lock().unwrap();
       let open = windows.open.get(&label).filter(|o| o.problem.is_some()).ok_or("unknown")?;
@@ -174,6 +184,7 @@ pub async fn retry_desk(app: AppHandle, webview: Webview) -> Result<(), String> 
     .await
     .map_err(|e| e.to_string())?;
   on_ui(app, move |app| {
+    let w = status_window(app, &label)?;
     let shell = shell(app);
     let problem = (health != remote::Health::Seismic).then(|| health.code());
     let mut windows = shell.windows.lock().unwrap();
@@ -187,7 +198,6 @@ pub async fn retry_desk(app: AppHandle, webview: Webview) -> Result<(), String> 
       windows.open.get_mut(&label).unwrap().problem = Some(problem);
       return Err(problem.into());
     }
-    let w = app.get_webview_window(&label).ok_or("unknown")?;
     let start = Url::parse(&format!("{origin}/")).map_err(|e| e.to_string())?;
     // Publish before the new page can query its state. Release the lock before calling Tauri.
     windows.open.get_mut(&label).unwrap().problem = None;

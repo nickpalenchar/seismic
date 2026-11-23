@@ -200,6 +200,13 @@ export function serve(
   };
   const byId = new Map<string, ProjectRuntime>();
   const handOver = new HandOver();
+  // A shared server can serve several app windows and paired devices. Keep each one's draft
+  // and view state with the paired device and the address it originally opened.
+  const handOverScope = (req: Request) => JSON.stringify([
+    access.deviceOf(req) ?? null,
+    req.headers.get('x-forwarded-host') ?? req.headers.get('host'),
+    req.headers.get('x-forwarded-proto') ?? new URL(req.url).protocol,
+  ]);
   const started = crypto.randomUUID();
   const sockets = new Map<string, Set<ServerWebSocket<Socket>>>();
   // a device removed loses its open pages at once
@@ -972,13 +979,13 @@ export function serve(
         POST: (req) =>
           handle(async () => {
             const { kept } = ((await req.json().catch(() => null)) ?? {}) as { kept?: unknown };
-            return { now: !restarter?.owner().length, kept: handOver.has(kept) };
+            return { now: !restarter?.owner().length, kept: handOver.has(handOverScope(req), kept) };
           }),
       },
       // what a reload keeps, from the page before the shell started again to the page after
       '/api/app-rebuilt/handover': {
-        GET: () => Response.json(handOver.take()),
-        POST: (req) => handle(async () => (handOver.give(await req.json()), { ok: true })),
+        GET: (req) => Response.json(handOver.take(handOverScope(req))),
+        POST: (req) => handle(async () => (handOver.give(handOverScope(req), await req.json()), { ok: true })),
       },
       // the owner installs it: once the workers paused, Seismic ends for the shell to install it and start again
       '/api/app-update/install': {

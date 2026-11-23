@@ -58,13 +58,13 @@ impl Default for Desks {
   }
 }
 
-/// A host with any of these names no origin: the URL parser lets them through, and a capability's
+/// A domain with any of these names no origin: the URL parser lets them through, and a capability's
 /// URLPattern would read them as its own syntax (a wildcard, a group, an escape).
 const PATTERN_SYNTAX: &[char] = &['*', '?', '+', '{', '}', '(', ')', '\\', ':', '[', ']'];
 
 /// The origin an address names: `https://studio.example.ts.net`, `http://100.64.0.2:4417`. Without a
 /// scheme it is HTTPS, as `tailscale serve` gives it; a path, query or fragment is dropped. Only
-/// http and https, and no host a URL pattern would misread (an IPv6 literal among them).
+/// HTTP and HTTPS. IPv6 literals are escaped separately when building the capability pattern.
 pub fn origin(address: &str) -> Option<String> {
   let a = address.trim();
   if a.is_empty() {
@@ -76,7 +76,8 @@ pub fn origin(address: &str) -> Option<String> {
     Url::parse(&format!("https://{a}")).ok()?
   };
   let host = url.host_str()?;
-  if !matches!(url.scheme(), "http" | "https") || host.is_empty() || host.contains(PATTERN_SYNTAX) || !url.username().is_empty() || url.password().is_some() {
+  let ipv6 = host.starts_with('[') && host.ends_with(']');
+  if !matches!(url.scheme(), "http" | "https") || host.is_empty() || (!ipv6 && host.contains(PATTERN_SYNTAX)) || !url.username().is_empty() || url.password().is_some() {
     return None;
   }
   Some(url.origin().ascii_serialization())
@@ -201,6 +202,7 @@ mod tests {
     assert_eq!(origin("studio.example.ts.net").as_deref(), Some("https://studio.example.ts.net"));
     assert_eq!(origin(" http://100.64.0.2:4417/pair?code=1 ").as_deref(), Some("http://100.64.0.2:4417"));
     assert_eq!(origin("https://Studio.Example:443/").as_deref(), Some("https://studio.example"));
+    assert_eq!(origin("http://[FD7A:0::2]:4417/p").as_deref(), Some("http://[fd7a::2]:4417"));
     assert_eq!(origin("http://studio:80").as_deref(), Some("http://studio"));
   }
 
@@ -210,7 +212,6 @@ mod tests {
       "",
       "file:///etc",
       "ftp://studio",
-      "https://[fd7a::2]:4417",
       "https://user@studio",
       "https://a*b",
       "javascript:alert(1)",
@@ -227,10 +228,11 @@ mod tests {
       { "id": "b", "name": "Again", "url": "https://studio/" },
       { "id": "c", "name": "", "url": "not an address" },
       { "id": "d", "name": "", "url": "http://10.0.0.2:4417" },
+      { "id": "v6", "name": "", "url": "https://[fd7a::2]:4417" },
     ]});
     let all = Desks::from_json(Some(&read));
     let ids: Vec<&str> = all.list.iter().map(|d| d.id.as_str()).collect();
-    assert_eq!(ids, ["local", "a", "d"]);
+    assert_eq!(ids, ["local", "a", "d", "v6"]);
     assert_eq!(all.list[0].name, "Laptop");
   }
 
@@ -239,6 +241,7 @@ mod tests {
     let home = std::env::temp_dir().join(format!("seismic-desks-{}", crate::now_ms()));
     let mut all = Desks::default();
     all.add("a".into(), " Studio ", "https://studio").unwrap();
+    all.add("v6".into(), "", "https://[fd7a::2]:4417").unwrap();
     all.rename(LOCAL, "Laptop").unwrap();
     all.save(&home).unwrap();
     assert_eq!(Desks::load(&home), all);

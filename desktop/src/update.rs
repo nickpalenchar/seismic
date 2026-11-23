@@ -21,11 +21,13 @@
 //   is in app-build.log in the home) is tried again for the next change of app/.
 // - SEISMIC_UPDATE_EVERY=<seconds> asks that often instead (scripts/check-update.ts).
 
+mod workspaces;
+
 use std::{
   fs,
   path::Path,
   process::{Command, Stdio},
-  sync::{atomic::Ordering, Arc, Mutex},
+  sync::{atomic::{AtomicBool, Ordering}, Arc, Mutex},
   thread,
   time::Duration,
 };
@@ -58,6 +60,7 @@ pub struct Updates {
   ready: Mutex<Option<Ready>>,
   /// Installed from a checkout: a new build of the shell is in this one's place.
   rebuilt: Mutex<bool>,
+  installing: AtomicBool,
 }
 
 fn deb() -> bool {
@@ -165,7 +168,7 @@ fn check(app: &AppHandle, updates: &Updates) -> Result<(), String> {
 /// again by itself (`start_again`).
 fn report(app: &AppHandle, seismic: &Seismic, updates: &Updates) {
   let port = seismic.port.load(Ordering::SeqCst);
-  if port == 0 || seismic.stopping.load(Ordering::SeqCst) {
+  if port == 0 || seismic.stopping.load(Ordering::SeqCst) || updates.installing.load(Ordering::SeqCst) {
     return;
   }
   if !seismic.child.load(Ordering::SeqCst) {
@@ -184,7 +187,11 @@ fn report(app: &AppHandle, seismic: &Seismic, updates: &Updates) {
       "download": bytes.is_none().then(|| format!("{RELEASES}/tag/v{}", update.version)),
     }),
   };
-  post(port, "/api/app-update", &body);
+  // The local server can defer for its own activity. Check the remote pages before asking it
+  // to stop, and again once it has stopped, since workers may take time to finish.
+  if body["rebuilt"] != true || workspaces::ready(app, false) {
+    post(port, "/api/app-update", &body);
+  }
 }
 
 /// A new build of the shell is in place, and the server runs on without it: it starts again once the
@@ -194,7 +201,7 @@ fn report(app: &AppHandle, seismic: &Seismic, updates: &Updates) {
 fn start_again(app: &AppHandle, seismic: &Seismic, port: u16) {
   let ask = |kept: &str| post(port, "/api/app-rebuilt", &json!({ "kept": kept }));
   let now = |a: &Option<serde_json::Value>| a.as_ref().is_some_and(|a| a["now"] == true);
-  if !now(&ask("")) || !crate::may_relaunch(app) {
+  if !now(&ask("")) || !crate::may_relaunch(app) || !workspaces::ready(app, false) {
     return;
   }
   let token = format!("{}", crate::now_ms());
@@ -209,7 +216,7 @@ fn start_again(app: &AppHandle, seismic: &Seismic, port: u16) {
     }
   }
   // the owner may have begun to speak meanwhile; what was handed over waits for the next try
-  if now(&ask("")) && crate::may_relaunch(app) {
+  if workspaces::ready(app, true) && now(&ask("")) && crate::may_relaunch(app) {
     crate::relaunch(app, seismic);
   }
 }
@@ -217,6 +224,18 @@ fn start_again(app: &AppHandle, seismic: &Seismic, port: u16) {
 /// The server ended to be updated: installs the update and starts the app again, the new version
 /// if it went in, else this one, after saying why. A new build of the shell is in place already.
 pub fn install(app: &AppHandle, seismic: &Seismic, updates: &Updates) {
+  updates.installing.store(true, Ordering::SeqCst);
+  // The local server has already exited. Keep the shell running until its remote pages can
+  // hand over, without cutting off activity that began while the local server was stopping.
+  while !workspaces::ready(app, true) {
+    if seismic.stopping.load(Ordering::SeqCst) {
+      return;
+    }
+    thread::sleep(Duration::from_secs(1));
+  }
+  if seismic.stopping.load(Ordering::SeqCst) {
+    return;
+  }
   if let Some(w) = main_window(app) {
     let _ = w.navigate(crate::window::bundled_url("/index.html?updating"));
   }

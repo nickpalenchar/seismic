@@ -72,23 +72,25 @@ const HANDED_OVER_MS = 2 * 60_000;
  * opens takes it back, once.
  */
 export class HandOver {
-  private kept: { token: string; entries: [string, string][]; at: number } | null = null;
+  private kept = new Map<string, { token: string; entries: [string, string][]; at: number }>();
 
-  give(input: unknown) {
+  give(scope: string, input: unknown) {
     const { token, entries } = (input ?? {}) as { token?: unknown; entries?: unknown };
     const pair = (e: unknown): e is [string, string] => Array.isArray(e) && e.length === 2 && typeof e[0] === 'string' && typeof e[1] === 'string';
     if (typeof token !== 'string' || !Array.isArray(entries) || !entries.every(pair)) throw new BadRequest('invalid', 'token and entries expected');
-    this.kept = { token, entries, at: Date.now() };
+    const at = Date.now();
+    for (const [key, saved] of this.kept) if (at - saved.at >= HANDED_OVER_MS) this.kept.delete(key);
+    this.kept.set(scope, { token, entries, at });
   }
 
   /** Whether the page handed over when the shell asked with `token`. */
-  has(token: unknown): boolean {
-    return typeof token === 'string' && this.kept?.token === token;
+  has(scope: string, token: unknown): boolean {
+    return typeof token === 'string' && this.kept.get(scope)?.token === token;
   }
 
-  take(now = Date.now()): [string, string][] | null {
-    const kept = this.kept;
-    this.kept = null;
+  take(scope: string, now = Date.now()): [string, string][] | null {
+    const kept = this.kept.get(scope);
+    this.kept.delete(scope);
     return kept && now - kept.at < HANDED_OVER_MS ? kept.entries : null;
   }
 }

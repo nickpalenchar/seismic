@@ -2,7 +2,7 @@
 // webview of this machine, against a second Seismic that counts as remote: a proxy in front of it
 // forwards as `tailscale serve` does, so it answers the shell as another machine would.
 //
-//   bun scripts/check-app-desks.ts <the app's program> [--keep]
+//   bun scripts/check-app-desks.ts <the app's program> [--ipv6] [--keep]
 //
 // The program: a build from scripts/build-app.ts, or a debug build of the shell, which runs this
 // checkout's server. On a Mac it has to be an app bundle: WKWebView keeps the cookies of a bare
@@ -32,7 +32,7 @@ import { bad, check, exited, expect, failed, sleep, until } from './check-harnes
 const args = process.argv.slice(2);
 const programArg = args.find((a) => !a.startsWith('--'));
 if (!programArg) {
-  console.error("usage: bun scripts/check-app-desks.ts <the app's program> [--keep]");
+  console.error("usage: bun scripts/check-app-desks.ts <the app's program> [--ipv6] [--keep]");
   process.exit(2);
 }
 const program = resolve(programArg);
@@ -62,7 +62,8 @@ const asOwner = (path: string, init: RequestInit = {}) => fetch(`${remoteUrl}${p
 // Localhost is a secure context for media capture. Forwarded headers make this a remote
 // device to the server, even though the webview and both servers are on the same machine.
 const proxy: { server?: ReturnType<typeof Bun.serve> } = {};
-const HOST = 'localhost';
+const useIPv6 = args.includes('--ipv6');
+const HOST = useIPv6 ? '[::1]' : 'localhost';
 const proxyPort = free();
 const oldPort = free();
 const REMOTE = `http://${HOST}:${proxyPort}`;
@@ -81,14 +82,20 @@ const FRAME = `<!doctype html>
   })();
 </script>`;
 let onHealth: (() => Promise<void>) | undefined;
+let remoteBusy = false;
+let busyChecks = 0;
 const startProxy = () => {
   proxy.server = Bun.serve({
     port: proxyPort,
-    hostname: HOST,
+    hostname: useIPv6 ? '::1' : HOST,
     async fetch(req) {
       const url = new URL(req.url);
       if (url.pathname === '/__seismic-check-frame') return new Response(FRAME, { headers: { 'content-type': 'text/html' } });
       if (url.pathname === '/api/projects' && req.headers.get('user-agent')?.startsWith('ureq/')) await onHealth?.();
+      if (url.pathname === '/api/app-rebuilt' && remoteBusy) {
+        busyChecks++;
+        return Response.json({ now: false, kept: false });
+      }
       const headers = new Headers(req.headers);
       headers.set('x-forwarded-for', '100.64.0.7');
       headers.set('x-forwarded-host', `${HOST}:${proxyPort}`);
@@ -118,7 +125,12 @@ const post = (path, body) => fetch(new URL(path, base), { method: 'POST', body: 
 const invoke = (cmd, args) => window.__TAURI_INTERNALS__.invoke(cmd, args);
 const outcome = (p) => p.then((value) => ({ ok: true, value }), (e) => ({ ok: false, error: String(e) }));
 if (location.origin === ${JSON.stringify(REMOTE)}) {
-  const out = { kind: 'remote', href: location.href };
+  // A restored page reads its handover before mounting the app.
+  for (let n = 0; n < 60 && !document.getElementById('root')?.firstChild; n++) {
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  const out = { kind: 'remote', href: location.href, handedOver: window.seismicApp?.handedOver, previousSession: sessionStorage.getItem('check-workspace-session') };
+  sessionStorage.setItem('check-workspace-session', 'kept');
   out.desks = await outcome(invoke('desks'));
   out.add = await outcome(invoke('add_desk', { address: 'https://elsewhere.example', code: '123456' }));
   out.rename = await outcome(invoke('rename_desk', { id: 'local', name: 'Taken over' }));
@@ -265,7 +277,7 @@ let app: Subprocess | undefined;
 let terminal: Subprocess | undefined;
 try {
   await until('the remote Seismic to answer', 60_000, async () => (await fetch(`${remoteUrl}/api/projects`, { headers: ownerHeaders(remoteHome) }).catch(() => null))?.ok);
-  const on = await asOwner('/api/access', { method: 'PUT', body: JSON.stringify({ remote: { via: 'hosts', hosts: [HOST] } }) });
+  const on = await asOwner('/api/access', { method: 'PUT', body: JSON.stringify({ remote: { via: 'hosts', hosts: ['localhost'] } }) });
   expect(on.ok, `the remote's access: ${on.status} ${await on.text()}`);
   startProxy();
 
@@ -322,13 +334,14 @@ try {
     expect(!r.ok && r.error === 'wrongCode', JSON.stringify(r));
     expect((await desks()).list.length === 1, 'the list grew');
   });
-  await check('the right code pairs, and the workspace opens in a window of its own', async () => {
+  const paired = await check('the right code pairs, and the workspace opens in a window of its own', async () => {
     const r = await run('add_desk', { address: REMOTE, code: await code(), name: 'Studio' });
     expect(r.ok, JSON.stringify(r));
     id = (r.value as { id: string }).id;
     const d = await until('the window to open', 20_000, async () => (await desks()).list.find((w) => w.id === id && w.open));
     return `${d.name} at ${d.origin}`;
   });
+  expect(paired, 'the remote workspace did not pair');
   const first = (await report('remote').catch((e) => (bad('the remote page', String(e.message)), null))) as Record<string, { ok: boolean; value?: unknown; error?: string }> | null;
   if (first) {
     await check("the remote window shows the workspace's own project, signed in by the one-time link", () => {
@@ -366,6 +379,21 @@ try {
     expect((await desks()).list.find((w) => w.id === id)?.name === 'Lab', 'not renamed');
   });
 
+  await check('a rebuild waits for remote activity and preserves the remote session', async () => {
+    const before = reports.length;
+    remoteBusy = true;
+    try {
+      await relaunch();
+      await until('the shell to check remote activity', 10_000, () => busyChecks >= 2);
+      expect(!reports.slice(before).some((r) => r.kind === 'local'), 'the app relaunched while the remote workspace was busy');
+    } finally {
+      remoteBusy = false;
+    }
+    const restored = await report('remote', before);
+    expect(restored.previousSession === 'kept' && restored.projects === 200, JSON.stringify(restored));
+    await report('local', before);
+  });
+
   // ---------------------------------------------------------------- after a relaunch, while the workspace is down
   proxy.server?.stop(true);
   const before = reports.length;
@@ -401,6 +429,36 @@ try {
       expect(String(again.href).startsWith(`${REMOTE}/`) && again.projects === 200, `${again.href}, projects ${again.projects}`);
     });
   }
+  await check('a pending status retry cannot overwrite a re-pair', async () => {
+    const before = reports.length;
+    retryNow = false;
+    proxy.server?.stop(true);
+    await relaunch();
+    await report('status', before);
+    await report('local', before);
+    const pending = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    onHealth = async () => {
+      pending.resolve();
+      await release.promise;
+    };
+    try {
+      startProxy();
+      retryNow = true;
+      await Promise.race([pending.promise, sleep(10_000).then(() => { throw new Error('no status retry'); })]);
+      const afterRetry = reports.length;
+      const paired = await run('pair_desk', { id, code: await code() });
+      expect(paired.ok, JSON.stringify(paired));
+      const restored = await report('remote', afterRetry);
+      expect(restored.projects === 200 && (restored.desks as { value: Desks }).value.problem === null, JSON.stringify(restored));
+    } finally {
+      onHealth = undefined;
+      release.resolve();
+    }
+    const afterPair = reports.length;
+    await sleep(1000);
+    expect(!reports.slice(afterPair).some((r) => r.kind === 'remote' || r.kind === 'status'), 'the stale retry navigated the window');
+  });
   await check('removing the workspace closes its window', async () => {
     const r = await run('remove_desk', { id });
     expect(r.ok, JSON.stringify(r));
