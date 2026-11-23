@@ -40,7 +40,8 @@ import emojiDataFile from 'emojibase-data/en/data.json' with { type: 'file' };
 import emojiMessagesFile from 'emojibase-data/en/messages.json' with { type: 'file' };
 import { servePdfjs } from './pdfjs';
 import { Tailscale } from './tailscale';
-import { catalogs } from './llms/harnesses/catalog';
+import { codexModels } from './llms/harnesses/codex';
+import { agyModels } from './llms/harnesses/agy';
 import { savedHarnesses, agentsView, ownerLanguage } from './settings';
 import { proposeTags, TagProposals } from './llms/agents/agentJobs/tagProposal';
 import { parseTagLines, tagLines } from '../core/page-tags';
@@ -638,8 +639,8 @@ export function serve(
         GET: needs(machine, (m) => m.harnesses()),
         PUT: needs(machine, async (m, req) => m.setHarness(await req.json())),
       },
-      '/api/agents/codex-models': { GET: needs(config, (c) => offersCatalog(c, 'codex', machine) ? catalogs.codex.models() : []) },
-      '/api/agents/agy-models': { GET: needs(config, (c) => offersCatalog(c, 'agy', machine) ? catalogs.agy.models() : []) },
+      '/api/agents/codex-models': { GET: needs(config, (c) => offersCatalog(c, 'codex', machine) ? codexModels() : []) },
+      '/api/agents/agy-models': { GET: needs(config, (c) => offersCatalog(c, 'agy', machine) ? agyModels() : []) },
       // this machine's demo sites: listed, added (set up at a host or entered by hand, once a publish there
       // went through), connected with another machine's code, removed from this machine
       '/api/demo-sites': {
