@@ -29,6 +29,8 @@ cleanup() {
       ;;
     macOS)
       if [ -n "$fingerprint" ]; then
+        # waits for an authorization on the macOS runner and is given up after the minute; deleting
+        # the certificate below still removes the anchor
         bounded sudo security remove-trusted-cert -d "$certs/ca.crt" || true
         bounded sudo security delete-certificate -Z "$fingerprint" /Library/Keychains/System.keychain
       fi

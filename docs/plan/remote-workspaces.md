@@ -22,7 +22,7 @@ Three rules carry the design:
 
 ## Workstreams
 
-- [ ] **W1:** Spike on all three webviews (WKWebView, WebView2, WebKitGTK). Prove that a second window opened at a one-time login link keeps the device cookie for later loads at that origin over HTTP and HTTPS, that the navigation hook keeps the window on its origin (redirects and frames included), and that shell commands are scoped to their window and the caller's effective origin. Before W3 starts, verify a WKWebView mitigation for opaque-origin callers and the HTTPS cookie path on the remaining engines.
+- [x] **W1:** Spike on all three webviews (WKWebView, WebView2, WebKitGTK). Prove that a second window opened at a one-time login link keeps the device cookie for later loads at that origin over HTTP and HTTPS, that the navigation hook keeps the window on its origin (redirects and frames included), and that shell commands are scoped to their window and the caller's effective origin. Before W3 starts, verify a WKWebView mitigation for opaque-origin callers and the HTTPS cookie path on the remaining engines.
 - [x] **W2:** Server side. `POST /api/pair` with the one-time login link; device cookies per scheme and port, with the renewal rules (bring back the device-cookie commits from `backup/desktop-architecture`: per-scheme names, explicit-code redemption, the `device_renewals` credential handover); the handover's new cookie gets a name of its own, so late answers cannot overwrite a newer one; tests with two Seismics on one host paired by one cookie jar. Independent of W1.
 - [ ] **W3:** Shell. The workspace list and its file, one window per workspace with its fixed capability, enforcement of the caller's effective origin, the navigation guard, the shell's health check before a window opens and the status page when it fails, reopening windows after a relaunch, the macOS menu. The microphone is granted to listed origins only (bring back that commit). Builds on W1 and W2.
 - [ ] **W4:** Pages. The workspaces page and cog dialog on this machine's page, the switcher in every page's left menu, the setup's first step ("How do you want to use Seismic?" with "On this machine" and "Remote connection"), and a remote Seismic without projects offering "Set up <its name>" or "Connect to remote Seismic". shadcn/ui parts, strings in `src/ui/strings.ts`, the phone view untouched. The UI work of the backup branch (wrapping long addresses, "Learn more" outside the radio label, "Delete workspace" in the cog's dialog alone) carries over as decisions, not as code.
@@ -37,23 +37,24 @@ shell and the pages report); `desktop/spike/linux.sh` runs it on WebKitGTK in th
 the "Webview spike" workflow on all three GitHub runners (by hand, and on a push that changes the
 spike). The results use Tauri 2.12.7 and wry 0.57.3, from `desktop/spike/Cargo.lock`. The desktop
 shell currently locks Tauri 2.12.1 and wry 0.57.0 in `desktop/Cargo.lock`. Verify navigation and
-IPC behavior against the versions W3 ships. The original runs used HTTP loopback. The HTTPS cookie
-check uses trusted TLS on loopback and exercises native pairing, the login redirect, a browser reload
-and a separate app launch. HTTPS results apply to the cookie lifecycle only. The HTTPS check passed
-for both workspace windows in the WebKitGTK container. The workflow now runs it on all three runners.
+IPC behavior against the versions W3 ships. The navigation checks ran over HTTP loopback. The HTTPS
+run (`https.sh`, trusted TLS on loopback, on disposable runners or the Linux container only) covers
+native pairing, the login redirect, a reload and a separate app launch, then the frames check with
+the guard off and each engine's IPC mitigation on. All three runners passed both on 2026-11-23
+(run 45236604449).
 
 | | WKWebView (macOS 27) | WebKitGTK 2.50 (Ubuntu 22.04, Xvfb) | WebView2 (Windows runner) |
 |---|---|---|---|
 | HTTP device cookie (`SameSite=Lax`), kept after the login redirect, on a second load and after a relaunch; link single use | observed | observed | observed |
-| HTTPS device cookie (`SameSite=None; Secure`), checked after the login redirect, on reload and after a relaunch; link single use | pending | observed in both windows | pending |
+| HTTPS device cookie (`SameSite=None; Secure`), checked after the login redirect, on reload and after a relaunch; link single use | observed | observed | observed |
 | `on_navigation` keeps the window on its origin: location, link, 302 to another origin, form post, meta refresh, frames of another origin and a frame redirected to one; `window.open` goes to `on_new_window` | yes, before any request leaves | yes, before any request leaves | yes, with the shell guarding frames itself; a refused GET still reaches its server |
-| Per-window capability and frame origin | **Exception:** two opaque-origin sandboxed frames reached native commands | no out-of-scope command recorded with postMessage unregistered | no out-of-scope command recorded |
+| Per-window capability and frame origin | opaque-origin sandboxed frames reach native commands over wry's postMessage; with it gated to the main frame at the window's origin, none does, over HTTP and HTTPS | no out-of-scope command recorded with postMessage unregistered, over HTTP and HTTPS | no out-of-scope command recorded, over HTTP and HTTPS |
 
 **Owner decision:** W3 must enforce the caller's effective origin. Deny shell commands from
-opaque-origin frames even when their document URL matches the workspace. W1 will verify that
-a WKWebView mitigation blocks those calls while the workspace's own page can still use its
-granted commands. In normal macOS operation, keeping the invoke key out of subframes provides
-an additional protection.
+opaque-origin frames even when their document URL matches the workspace. On macOS the gate below
+does it, verified over HTTP and HTTPS: the sandboxed frames' calls are dropped and each window's own
+page keeps its granted commands. Keeping the invoke key out of subframes (Tauri's default there)
+protects in addition.
 
 What W3 builds on:
 
@@ -74,6 +75,16 @@ What W3 builds on:
   wry's `ipc` script message handler (as `437dbe6a` on `backup/desktop-architecture` did) leaves the
   fetch IPC, which names its sender by the `Origin` header and works from remote http pages there;
   with it, nothing passes. W3 unregisters it on every Linux window.
+- **macOS gate (WKWebView):** wry hands Tauri a postMessage call with the frame's document URL
+  (`frameInfo.request.URL`), so a sandboxed frame at the workspace's URL passes as the workspace.
+  Removing the handler, as on Linux, is no fix there: the fetch IPC (`ipc://localhost`) left over
+  cannot be reached from an `https://` page on WKWebView, so the windows' own commands hang (seen
+  on the runner). What works: let wry's handler run only for a message whose `frameInfo.isMainFrame`
+  is true and whose `frameInfo.securityOrigin` is the window's origin (an opaque origin reports an
+  empty protocol); every other message is dropped, same-origin subframes too, which W3 does not
+  need. The spike swaps the method of wry's `WryWebViewDelegate` class (objc2 names it with a
+  generated suffix, so it is found by that part of its name) for one that checks first; W3 should
+  carry the check as a patch to wry, or upstream it, rather than swap a method at runtime.
 - **Windows quirks (WebView2):** wry hooks `NavigationStarting` only, so frames never reach
   `on_navigation` and a foreign frame loads. The shell adds its own `FrameNavigationStarting`
   handler on the window's `ICoreWebView2` (`with_webview`, then `controller().CoreWebView2()`, as
@@ -88,12 +99,11 @@ What W3 builds on:
   key: the capability and the frame guard are what stop it, and the run shows they do (the foreign
   frame's fetch IPC names its own origin and is denied; a frame's postMessage never reaches the
   shell there).
-- **Opaque-origin sandboxed frames** (artifacts, answer pages): the macOS artifact records native
-  commands from both test frames when supplied the fixture's invoke key. WKWebView attributed the
-  messages by the frames' document URLs, which match their respective workspace origins. The
-  spike reports those events as an exception to effective-origin isolation. Linux with
-  postMessage enabled also recorded opaque-origin calls. In the Linux run with postMessage
-  unregistered and in the Windows run, no sandboxed-frame command was recorded.
+- **Opaque-origin sandboxed frames** (artifacts, answer pages): given the invoke key, they reach
+  native commands over postMessage on macOS and on Linux with wry's handler in place (the spike
+  still records that as an exception in those runs, to show the mitigations stay needed). With the
+  macOS gate, with the handler unregistered on Linux, and on Windows, none did, over HTTP and HTTPS;
+  the fetch IPC denies them everywhere (`Origin: null`).
 - **Cookies:** the windows share the app's one cookie store; cookies ignore the port, so the
   per-scheme-and-port cookie names of W2 are what keep two Seismics on one host apart.
 
