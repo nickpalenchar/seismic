@@ -10,7 +10,7 @@ Three rules carry the design:
 
 1. **One window per workspace, one origin per window.** Each workspace opens in its own native window, whose webview shows that workspace's origin and nothing else for the window's life. Switching focuses another window (opening it if closed); it never navigates a webview to another origin. The navigation hook hands any navigation off the window's origin to the system browser. A workspace the shell finds down shows the shell's bundled status page in its window (try again, open another), the only other page a workspace window may show.
 2. **The shell pairs over HTTP, never through the webview.** The shell posts the address and code to the server itself and learns the outcome from the response: Seismic answers, the code is right, or it is not. Only after that does it open the workspace's window, at a one-time login link of that origin that sets the device cookie in the webview and leads on to the start page, as `/login?token=` already does for the owner's link (`src/server/owner.ts`). Nothing is judged from navigation events.
-3. **Remote pages get a small, fixed set of shell commands, granted when their window is created.** Listing the workspaces, focusing or opening one (which never moves the calling window), moving the window from its bar and showing a notification. The capability names the window and its one origin; it never grows or needs taking back, since a removed workspace's window closes with it. Adding, pairing, editing and removing workspaces happen only on this machine's own page, which holds the commands that change the list.
+3. **Remote pages get a small, fixed set of shell commands, granted when their window is created.** Listing the workspaces, focusing or opening one (which never moves the calling window), moving the window from its bar and showing a notification. The capability names the window and its one origin; it never grows or needs taking back, since a removed workspace's window closes with it. The shell authorizes calls using the caller's effective origin and denies opaque-origin callers even when their document URL matches the workspace. Adding, pairing, editing and removing workspaces happen only on this machine's own page, which holds the commands that change the list.
 
 **Workspaces list:** kept by the shell in its home (one file), one entry per origin. This machine's workspace is always on it and cannot be removed. In code a workspace stays a *desk* (the word *workspace* already names the former projects and the Koordinator's pool), and the UI strings say "workspace".
 
@@ -22,9 +22,9 @@ Three rules carry the design:
 
 ## Workstreams
 
-- [ ] **W1:** Spike on all three webviews (WKWebView, WebView2, WebKitGTK). Prove that a second window opened at a one-time login link keeps the device cookie for later loads at that origin over HTTP and HTTPS, that the navigation hook keeps the window on its origin (redirects and frames included), and that a capability scoped to one window and one origin admits only that window's calls. Before W3 starts, settle the WKWebView exception with the owner and verify the HTTPS cookie path on the remaining engines.
+- [ ] **W1:** Spike on all three webviews (WKWebView, WebView2, WebKitGTK). Prove that a second window opened at a one-time login link keeps the device cookie for later loads at that origin over HTTP and HTTPS, that the navigation hook keeps the window on its origin (redirects and frames included), and that shell commands are scoped to their window and the caller's effective origin. Before W3 starts, verify a WKWebView mitigation for opaque-origin callers and the HTTPS cookie path on the remaining engines.
 - [ ] **W2:** Server side. `POST /api/pair` with the one-time login link; device cookies per scheme and port, with the renewal rules (bring back the device-cookie commits from `backup/desktop-architecture`: per-scheme names, explicit-code redemption, the `device_renewals` credential handover); tests with two Seismics on one host paired by one cookie jar. Independent of W1.
-- [ ] **W3:** Shell. The workspace list and its file, one window per workspace with its fixed capability, the navigation guard, the shell's health check before a window opens and the status page when it fails, reopening windows after a relaunch, the macOS menu. The microphone is granted to listed origins only (bring back that commit). Builds on W1 and W2.
+- [ ] **W3:** Shell. The workspace list and its file, one window per workspace with its fixed capability, enforcement of the caller's effective origin, the navigation guard, the shell's health check before a window opens and the status page when it fails, reopening windows after a relaunch, the macOS menu. The microphone is granted to listed origins only (bring back that commit). Builds on W1 and W2.
 - [ ] **W4:** Pages. The workspaces page and cog dialog on this machine's page, the switcher in every page's left menu, the setup's first step ("How do you want to use Seismic?" with "On this machine" and "Remote connection"), and a remote Seismic without projects offering "Set up <its name>" or "Connect to remote Seismic". shadcn/ui parts, strings in `src/ui/strings.ts`, the phone view untouched. The UI work of the backup branch (wrapping long addresses, "Learn more" outside the radio label, "Delete workspace" in the cog's dialog alone) carries over as decisions, not as code.
 - [ ] **W5:** Windows and Linux. The app check in CI on WebView2 (bring back that commit) covers pairing, switching and a removed workspace's window; a Linux run in its container. User guide page in `docs/site/` and its sidebar entry. Demo video of the whole feature on a Mac.
 - [ ] **W6:** Move the decisions and constraints into a design chapter (`docs/design/desktop-workspaces.md`, linked from `docs/design.md`) and delete this plan doc.
@@ -47,12 +47,11 @@ workspace windows in the WebKitGTK container. The workflow now runs it on all th
 | `on_navigation` keeps the window on its origin: location, link, 302 to another origin, form post, meta refresh, frames of another origin and a frame redirected to one; `window.open` goes to `on_new_window` | yes, before any request leaves | yes, before any request leaves | yes, with the shell guarding frames itself; a refused GET still reaches its server |
 | Per-window capability and frame origin | **Exception:** two opaque-origin sandboxed frames reached native commands | no out-of-scope command recorded with postMessage unregistered | no out-of-scope command recorded |
 
-**Owner decision before W1 can close:** Can W3 treat a sandboxed frame's matching document
-URL as sufficient for shell commands, or must it enforce the frame's effective origin?
-The recommended requirement is to reject opaque-origin callers even when the document URL
-matches. If that is required, demonstrate a WKWebView mitigation before relying on
-the capability in W3. The invoke key being withheld from frames in normal macOS operation
-is a separate protection from origin enforcement.
+**Owner decision:** W3 must enforce the caller's effective origin. Deny shell commands from
+opaque-origin frames even when their document URL matches the workspace. W1 will verify that
+a WKWebView mitigation blocks those calls while the workspace's own page can still use its
+granted commands. In normal macOS operation, keeping the invoke key out of subframes provides
+an additional protection.
 
 What W3 builds on:
 
