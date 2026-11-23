@@ -17,11 +17,13 @@
 //   shell with the invoke key (the worst case): the capability alone has to turn them away;
 //   On Linux that run has to show wry's quirk instead (a foreign frame's postMessage call passes as
 //   the window's page), so the fix below stays needed;
-// - frames-no-postmessage (Linux only): the same with wry's postMessage IPC unregistered, the way
-//   the shell is to run there: no call may pass.
+// - frames-no-postmessage (Linux and macOS): the same with wry's postMessage IPC unregistered, the
+//   way the shell is to run there: no call may pass, an opaque-origin sandboxed frame's included,
+//   and each window's own page still reaches its command over the fetch IPC.
 //
 // It prints each check with PASS or FAIL and the events behind a failure, and exits 1 on a FAIL.
-// With SPIKE_TLS_CERT and SPIKE_TLS_KEY set, run only the HTTPS cookie lifecycle. Both the shell
+// With SPIKE_TLS_CERT and SPIKE_TLS_KEY set, run the HTTPS cookie lifecycle, then the frames run
+// once more over HTTPS (postMessage unregistered on Linux and macOS). Both the shell
 // and the webview must trust the fixture certificate. SPIKE_TLS_CA can specify a separate CA file
 // for the harness's login-link replay check; it defaults to the fixture certificate.
 
@@ -208,11 +210,11 @@ async function handle(req: Request, port: number): Promise<Response> {
       },
     });
   }
-  if (path === "/") return tls ? httpsCookiePage(req, port) : deskPage(req, port);
+  if (path === "/") return tls && !mode.startsWith("frames-https") ? httpsCookiePage(req, port) : deskPage(req, port);
   return new Response("not found", { status: 404 });
 }
 
-for (const port of [LOCAL, ...Object.keys(DESKS).map(Number), ...(tls ? [] : [FOREIGN])]) {
+for (const port of [LOCAL, ...Object.keys(DESKS).map(Number), FOREIGN]) {
   Bun.serve({ hostname: "127.0.0.1", port, tls: DESKS[port] ? tls : undefined, fetch: (req) => handle(req, port) });
 }
 
@@ -236,7 +238,8 @@ const OWN: Record<string, { cmd: string; origin: string }> = { "desk-a": { cmd: 
 /// Judge the allowed window and effective origin, recording known engine exceptions separately.
 function judgeCommands(expectTop: boolean, quirk = false) {
   const ran = events.filter((e) => e.kind === "cmd");
-  const engine = os === "macos" ? "WKWebView" : os === "linux" && mode !== "frames-no-postmessage" ? "WebKitGTK" : "";
+  const postMessage = !mode.includes("no-postmessage");
+  const engine = os === "macos" && postMessage ? "WKWebView" : os === "linux" && postMessage ? "WebKitGTK" : "";
   const knownOpaqueCalls = engine ? ran.filter((e) => {
     const [win, from, ...call] = String(e.tag).split("|");
     return from === "frame-sandboxed" && e.window === win && OWN[e.window]?.cmd === e.cmd && call.at(-1) === "postMessage";
@@ -256,7 +259,7 @@ function judgeCommands(expectTop: boolean, quirk = false) {
     check("wry's postMessage still attributes a foreign frame's call to the window's page (why the shell unregisters it)", wrong.some((e) => String(e.tag).includes("|frame-foreign|")), wrong);
   } else check("no calls escaped window and origin scope beyond a recorded exception", wrong.length === 0, wrong);
   if (expectTop) {
-    for (const [win, { cmd }] of Object.entries(OWN)) {
+    for (const [win, { cmd }] of Object.entries(OWN).filter(([win]) => !tls || win !== "main")) {
       check(`${win}'s own page may call ${cmd}`, ran.some((e) => e.window === win && e.cmd === cmd && String(e.tag).includes("|top|")), events.filter((e) => e.win === win && e.case === "top-call"));
     }
   }
@@ -288,7 +291,7 @@ async function runMode(name: string, env: Record<string, string>) {
   console.log(`\n== ${name}`);
   const status = await runApp(env);
   if (tls) check("the app reported its platform and quit cleanly",
-    status === 0 && events.some((e) => e.kind === "platform") && events.some((e) => e.kind === "quit"), { status, events });
+    status === 0 && events.some((e) => e.kind === "key") && events.some((e) => e.kind === "quit"), { status, events });
   return events;
 }
 
@@ -339,10 +342,18 @@ if (!tls) {
   log.frames = await runMode("frames", { SPIKE_RUN: "again", SPIKE_GUARD: "off", SPIKE_SECONDS: "10" });
   judgeCommands(false, os === "linux");
 
-  if (os === "linux") {
+  if (os === "linux" || os === "macos") {
     log["frames-no-postmessage"] = await runMode("frames-no-postmessage", { SPIKE_RUN: "again", SPIKE_GUARD: "off", SPIKE_POSTMESSAGE: "off", SPIKE_SECONDS: "10" });
     judgeCommands(true);
   }
+}
+
+if (tls) {
+  // the guard is off, so foreign frames load: the capability and the effective origin alone have
+  // to turn their calls away, and the windows' own pages have to reach their commands over HTTPS
+  const postMessage = os === "linux" || os === "macos" ? "off" : "on";
+  log["frames-https"] = await runMode(postMessage === "off" ? "frames-https-no-postmessage" : "frames-https", { SPIKE_RUN: "again", SPIKE_GUARD: "off", SPIKE_POSTMESSAGE: postMessage, SPIKE_SECONDS: "10" });
+  judgeCommands(true);
 }
 
 await Bun.write(`${import.meta.dirname}/target/spike-${os || "unknown"}${tls ? "-https" : ""}.json`,

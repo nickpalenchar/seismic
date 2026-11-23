@@ -14,8 +14,9 @@
 //   SPIKE_SECONDS.
 //
 // On Windows the shell also guards frames (FrameNavigationStarting), which wry's hook does not see.
-// On Linux `SPIKE_POSTMESSAGE=off` unregisters wry's postMessage IPC (the backup branch's fix), as
-// wry attributes such a call to the page the webview shows, not the frame that sent it.
+// On Linux and macOS `SPIKE_POSTMESSAGE=off` unregisters wry's postMessage IPC (the backup branch's
+// fix on Linux), as wry attributes such a call to the page the webview shows (Linux) or to the
+// frame's document URL whatever its effective origin (macOS), not to the frame's origin.
 
 use std::time::Duration;
 
@@ -98,6 +99,16 @@ fn open(app: &AppHandle, label: &str, own: &str, url: &str, guard: bool) -> taur
       }
     })?;
   }
+  // WKWebView attributes a postMessage call to the frame's document URL, so an opaque-origin
+  // sandboxed frame at the workspace's URL passes as the workspace: without that handler only the
+  // fetch IPC is left, which names its sender by the `Origin` header (`null` for such a frame)
+  #[cfg(target_os = "macos")]
+  if env("SPIKE_POSTMESSAGE") == "off" {
+    window.with_webview(|webview| unsafe {
+      let view: &objc2_web_kit::WKWebView = &*webview.inner().cast();
+      view.configuration().userContentController().removeScriptMessageHandlerForName(objc2_foundation::ns_string!("ipc"));
+    })?;
+  }
   // WebView2 asks wry's hook for main-frame navigations only (NavigationStarting): a frame's goes to
   // FrameNavigationStarting, which the shell has to guard itself
   #[cfg(windows)]
@@ -138,10 +149,8 @@ fn main() {
       let handle = app.handle().clone();
       // the frame pages get the invoke key, as a page that learned it would have it: the capability
       // is what has to turn their calls away then
-      if https_cookies {
-        report(serde_json::json!({ "kind": "platform", "os": std::env::consts::OS }));
-      } else {
-        report(serde_json::json!({ "kind": "key", "key": handle.invoke_key(), "os": std::env::consts::OS }));
+      report(serde_json::json!({ "kind": "key", "key": handle.invoke_key(), "os": std::env::consts::OS }));
+      if !https_cookies {
         handle.add_capability(CapabilityBuilder::new("main").window("main").local(false).remote(HARNESS.into()).permission("allow-ping-local"))?;
         open(&handle, "main", HARNESS, &format!("{HARNESS}/local"), true)?;
       }
@@ -166,9 +175,7 @@ fn main() {
         };
         report(serde_json::json!({ "kind": "paired", "window": label, "url": url }));
         // one window, one origin, fixed for the window's life
-        if !https_cookies {
-          handle.add_capability(CapabilityBuilder::new(label).window(label).local(false).remote(own.into()).permission(permission))?;
-        }
+        handle.add_capability(CapabilityBuilder::new(label).window(label).local(false).remote(own.into()).permission(permission))?;
         open(&handle, label, own, &url, guard)?;
       }
       std::thread::spawn(move || {
