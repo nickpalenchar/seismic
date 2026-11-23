@@ -29,6 +29,51 @@ Three rules carry the design:
 - [ ] **W5:** Windows and Linux. The app check in CI on WebView2 (bring back that commit) covers pairing, switching and a removed workspace's window; a Linux run in its container. User guide page in `docs/site/` and its sidebar entry. Demo video of the whole feature on a Mac.
 - [ ] **W6:** Move the decisions and constraints into a design chapter (`docs/design/desktop-workspaces.md`, linked from `docs/design.md`) and delete this plan doc.
 
+## W1 results (2026-11-23)
+
+The spike is `desktop/spike/` (a small Tauri app, `src/main.rs`, and its harness, `run.ts`, which
+serves this machine's origin, two workspaces and a foreign site on 127.0.0.1 and judges what the
+shell and the pages report); `desktop/spike/linux.sh` runs it on WebKitGTK in the Linux image, and
+the "Webview spike" workflow (run by hand) on all three runners. Tauri 2.12, wry 0.57.
+
+| | WKWebView (macOS 27) | WebKitGTK 2.50 (Ubuntu 22.04, Xvfb) | WebView2 (Windows) |
+|---|---|---|---|
+| Device cookie from the one-time login link, kept on reloads and after a relaunch; link single use | yes | yes | not run yet |
+| `on_navigation` keeps the window on its origin: location, link, 302 to another origin, form post, meta refresh, frames of another origin and a frame redirected to one; `window.open` goes to `on_new_window` | yes, before any request leaves | yes, before any request leaves | not run yet |
+| A capability for one window and one origin admits only that window's page | yes | yes, with postMessage unregistered | not run yet |
+
+What W3 builds on:
+
+- **Capabilities at window creation work as planned:** `add_capability` with `window(label)`,
+  `remote(origin)`, `local(false)` and the app command's permission (`build.rs` lists the commands in
+  an `AppManifest`, so a command without a granting capability is denied). Calls from another window,
+  from the other workspace's origin and from this machine's page are denied with Tauri's message
+  naming the capability.
+- **The hook sees subframes and redirects:** a 302 from the window's origin to another one reaches
+  `on_navigation` with the target URL, for the main frame and for frames, and returning `false`
+  stops it before the request is sent (the foreign server saw no request on either engine). So the
+  hook alone keeps foreign frames out. It is given only the URL, not whether a frame asked, so
+  handing every refused URL to the system browser would let a page open browser tabs by embedding
+  frames: W3 decides which refused navigations go to the browser.
+- **Linux quirk (WebKitGTK):** wry's postMessage IPC names the page the webview shows, not the
+  frame that sent the call, so a foreign frame holding the invoke key passes as the window's page
+  (the spike shows it: `ping_a` ran for a frame of the foreign origin in `desk-a`). Unregistering
+  wry's `ipc` script message handler (as `437dbe6a` on `backup/desktop-architecture` did) leaves the
+  fetch IPC, which names its sender by the `Origin` header and works from remote http pages there;
+  with it, nothing passes. W3 unregisters it on every Linux window.
+- **Subframes get no Tauri internals on macOS and Linux** (Tauri's init scripts are main frame
+  only), so a frame cannot call the shell unless it learns the invoke key. On Windows, wry adds init
+  scripts to subframes regardless (wry's docs), so there a frame has `__TAURI_INTERNALS__` and the
+  key: the capability and the hook are what stop it; the Windows run has to confirm that.
+- **Sandboxed frames of the window's own origin** (artifacts, answer pages): their fetch IPC fails
+  (`Origin: null` is not a URL to Tauri) and their postMessage call is matched by the frame's URL,
+  the window's origin, so one holding the key would pass. They hold no key on macOS and Linux (and
+  Linux has no postMessage in W3); on Windows they get it with the init scripts. W3 decides there:
+  the init script that makes the page's internals checks it runs in the top frame, or the shell's
+  commands stay harmless for the workspace's own content.
+- **Cookies:** the windows share the app's one cookie store; cookies ignore the port, so the
+  per-scheme-and-port cookie names of W2 are what keep two Seismics on one host apart.
+
 ## Boundaries
 
 The web app does not change how it reaches its server: every page is served by the Seismic it talks to, over relative REST paths and a WebSocket at `location.host`. The shell is a container that keeps the list and pairs over HTTP. What carries over from the first attempt is listed per workstream; the rest of `desktop/src/desks.rs` does not. No syncing of the list between machines.

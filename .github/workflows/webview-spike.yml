@@ -1,0 +1,49 @@
+# The W1 spike of docs/plan/remote-workspaces.md on each platform's webview (desktop/spike/run.ts
+# describes the checks): WKWebView on macOS, WebView2 on Windows, WebKitGTK on Linux under Xvfb.
+# Run by hand; each job uploads its findings (spike-<os>.json).
+name: Webview spike
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  spike:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version: 1.4.3 }
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: 'desktop/spike -> target' }
+      - name: WebKitGTK and a display
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev xvfb dbus-x11
+      - run: cargo build
+        working-directory: desktop/spike
+      - name: The spike
+        run: |
+          binary=desktop/spike/target/debug/webview-spike
+          if [ "$RUNNER_OS" = Linux ]; then
+            xvfb-run -a dbus-run-session -- bun desktop/spike/run.ts "$binary"
+          else
+            bun desktop/spike/run.ts "$binary${{ runner.os == 'Windows' && '.exe' || '' }}"
+          fi
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: spike-${{ matrix.os }}
+          path: desktop/spike/target/spike-*.json
