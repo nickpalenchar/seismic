@@ -1,0 +1,30 @@
+/* Frost's slate palette (src/ui/tailwind.css), kept local to the bundled pages. */
+:root {
+  color-scheme: light;
+  --background: #e2e8f0; /* slate-200 */
+  --foreground: #0f172a; /* slate-900 */
+  --muted-foreground: #475569; /* slate-600 */
+  --surface: #f8fafc; /* slate-50 */
+  --border: #cbd5e1; /* slate-300 */
+  --ring: #2563eb; /* blue-600 */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --background: #020617; /* slate-950 */
+    --foreground: #f1f5f9; /* slate-100 */
+    --muted-foreground: #94a3b8; /* slate-400 */
+    --surface: #0f172a; /* slate-900 */
+    --border: #334155; /* slate-700 */
+    --ring: #60a5fa; /* blue-400 */
+  }
+}
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--background);
+  color: var(--foreground);
+  font: 15px/1.45 system-ui, sans-serif;
+}

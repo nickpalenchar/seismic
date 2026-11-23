@@ -5,25 +5,19 @@
   <head>
     <meta charset="utf-8" />
     <title>Seismic</title>
+    <link rel="stylesheet" href="frost.css" />
     <style>
-      html, body { margin: 0; height: 100%; background: #f4f2ee; color: #3b3833; font: 15px/1.45 system-ui, sans-serif; }
-      @media (prefers-color-scheme: dark) { html, body { background: #151412; color: #e4e0d8; } }
       body { display: grid; place-content: center; padding: 24px; box-sizing: border-box; }
       main { max-width: 28rem; display: grid; gap: 14px; justify-items: start; }
       img { width: 48px; height: 48px; }
       h1 { margin: 0; font-size: 20px; font-weight: 600; overflow-wrap: anywhere; }
-      p { margin: 0; color: #75716a; overflow-wrap: anywhere; }
-      @media (prefers-color-scheme: dark) { p { color: #a39e94; } }
+      p { margin: 0; color: var(--muted-foreground); overflow-wrap: anywhere; }
       .row { display: flex; flex-wrap: wrap; gap: 8px; }
-      button { font: inherit; padding: 7px 14px; border-radius: 8px; border: 1px solid #d6d1c7; background: #fff; color: inherit; cursor: pointer; }
-      button.primary { background: #3b3833; border-color: #3b3833; color: #f4f2ee; }
+      button { font: inherit; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: inherit; cursor: pointer; }
+      button.primary { background: var(--foreground); border-color: var(--foreground); color: var(--background); }
       button:disabled { opacity: .55; cursor: default; }
-      button:focus-visible { outline: 2px solid #7a8fd6; outline-offset: 2px; }
-      @media (prefers-color-scheme: dark) {
-        button { background: #24221f; border-color: #3a3732; }
-        button.primary { background: #e4e0d8; border-color: #e4e0d8; color: #151412; }
-      }
-      h2 { margin: 10px 0 0; font-size: 13px; font-weight: 600; color: #75716a; text-transform: uppercase; letter-spacing: .04em; }
+      button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+      h2 { margin: 10px 0 0; font-size: 13px; font-weight: 600; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: .04em; }
       [data-tauri-drag-region] { position: fixed; inset: 0 0 auto; height: 50px; }
     </style>
   </head>
