@@ -2,7 +2,7 @@
 // webview of this machine, against a second Seismic that counts as remote: a proxy in front of it
 // forwards as `tailscale serve` does, so it answers the shell as another machine would.
 //
-//   bun scripts/check-app-desks.ts <the app's program> [--ipv6] [--keep]
+//   bun scripts/check-app-desks.ts <the app's program> [--ipv6] [--legacy-mic] [--keep]
 //
 // The program: a build from scripts/build-app.ts, or a debug build of the shell, which runs this
 // checkout's server. On a Mac it has to be an app bundle: WKWebView keeps the cookies of a bare
@@ -24,7 +24,7 @@
 
 import { type Subprocess } from 'bun';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { release, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { ownerHeaders } from '../src/server/owner';
 import { bad, check, exited, expect, failed, sleep, until } from './check-harness';
@@ -32,11 +32,14 @@ import { bad, check, exited, expect, failed, sleep, until } from './check-harnes
 const args = process.argv.slice(2);
 const programArg = args.find((a) => !a.startsWith('--'));
 if (!programArg) {
-  console.error("usage: bun scripts/check-app-desks.ts <the app's program> [--ipv6] [--keep]");
+  console.error("usage: bun scripts/check-app-desks.ts <the app's program> [--ipv6] [--legacy-mic] [--keep]");
   process.exit(2);
 }
 const program = resolve(programArg);
 const ROOT = resolve(import.meta.dir, '..');
+// On newer macOS, a debug app can exercise Big Sur's fail-closed path with real WebKit.
+const forceLegacyMic = args.includes('--legacy-mic');
+const legacyMic = process.platform === 'darwin' && (forceLegacyMic || Number(release().split('.')[0]) <= 20);
 
 const dir = mkdtempSync(join(tmpdir(), 'seismic-desks-check-'));
 const [home, remoteHome] = [join(dir, 'home'), join(dir, 'remote-home')];
@@ -162,11 +165,19 @@ if (location.origin === ${JSON.stringify(REMOTE)} && document.getElementById('si
   out.projects = (await fetch('/api/projects')).status;
   await post('result', out);
   const mic = { kind: 'remoteMic', secure: isSecureContext };
-  mic.mic = await outcome(Promise.race([
-    Promise.resolve().then(() => navigator.mediaDevices.getUserMedia({ audio: true }))
+  const capture = (options) => outcome(Promise.race([
+    Promise.resolve().then(() => {
+      if (!navigator.mediaDevices?.getUserMedia) throw new DOMException('Media devices are unavailable', 'NotSupportedError');
+      return navigator.mediaDevices.getUserMedia(options);
+    })
       .then((s) => (s.getTracks().forEach((t) => t.stop()), 'granted')),
     new Promise((_, no) => setTimeout(() => no(new Error('no answer in 8 s')), 8000)),
   ]));
+  mic.mic = await capture({ audio: true });
+  if (${legacyMic}) {
+    mic.camera = await capture({ video: true });
+    mic.legacyApi = typeof navigator.getUserMedia === 'function' || typeof navigator.webkitGetUserMedia === 'function';
+  }
   // A sandboxed frame reports its effective origin and the outcome of its capture attempt.
   mic.frameMic = await new Promise((done) => {
     const f = document.createElement('iframe');
@@ -237,6 +248,7 @@ const env: Record<string, string> = {
   SEISMIC_APP_CHECK: `${harness.url.href}check.js`,
   // WebKit's mock microphone on a Mac without one (desktop/src/window/microphone/macos.rs)
   SEISMIC_APP_CHECK_FAKE_MIC: '1',
+  ...(legacyMic && forceLegacyMic ? { SEISMIC_APP_CHECK_LEGACY_MIC: '1' } : {}),
   ...(process.platform === 'win32' ? { WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: '--use-fake-device-for-media-stream' } : {}),
   SEISMIC_PORT: String(4600 + Math.floor(Math.random() * 300)),
   // the debug shell runs this checkout's server
@@ -384,8 +396,16 @@ try {
   }
   const mic = (await report('remoteMic').catch((e) => (bad("the remote page's microphone", String(e.message)), null))) as Record<string, unknown> | null;
   if (mic) {
-    await check('the remote page gets the microphone in a secure context', () => {
-      expect(mic.secure === true && (mic.mic as { ok: boolean }).ok, JSON.stringify(mic));
+    await check(legacyMic ? 'the legacy Mac guard denies capture in a secure context' : 'the remote page gets the microphone in a secure context', () => {
+      const result = mic.mic as { ok: boolean; error?: string };
+      expect(mic.secure === true, JSON.stringify(mic));
+      if (legacyMic) {
+        const camera = mic.camera as typeof result;
+        expect(mic.legacyApi === false, JSON.stringify(mic));
+        for (const device of [result, camera]) expect(!device.ok && /^(NotAllowedError|NotSupportedError):/.test(device.error ?? ''), JSON.stringify(mic));
+        return 'microphone and camera denied';
+      }
+      expect(result.ok, JSON.stringify(mic));
     });
     await check('a sandboxed frame of the remote page gets no microphone', () => {
       const frame = mic.frameMic as { origin: string; result: string } | null;

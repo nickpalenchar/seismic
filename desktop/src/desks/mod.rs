@@ -494,28 +494,28 @@ mod tests {
     };
     let studio = "https://studio";
     let lab = "https://lab";
-    shell.desks.lock().unwrap().add("desk".into(), "", studio).unwrap();
-    shell.windows.lock().unwrap().opening.insert("desk".into(), 0);
-    assert!(can_build(&shell, "desk", studio, 0));
+    let id = shell.desks.lock().unwrap().add("", studio).unwrap().id;
+    shell.windows.lock().unwrap().opening.insert(id.clone(), 0);
+    assert!(can_build(&shell, &id, studio, 0));
 
     // A pairing at the same address supersedes the health check too.
     {
       let mut windows = shell.windows.lock().unwrap();
-      let revision = windows.invalidate("desk");
-      windows.opening.insert("desk".into(), revision);
-      windows.finish("desk", 0);
+      let revision = windows.invalidate(&id);
+      windows.opening.insert(id.clone(), revision);
+      windows.finish(&id, 0);
     }
-    assert!(!can_build(&shell, "desk", studio, 0));
-    assert!(can_build(&shell, "desk", studio, 1));
+    assert!(!can_build(&shell, &id, studio, 0));
+    assert!(can_build(&shell, &id, studio, 1));
 
-    shell.desks.lock().unwrap().move_to("desk", lab).unwrap();
-    assert!(!can_build(&shell, "desk", studio, 1));
-    shell.windows.lock().unwrap().invalidate("desk");
+    shell.desks.lock().unwrap().move_to(&id, lab).unwrap();
+    assert!(!can_build(&shell, &id, studio, 1));
+    shell.windows.lock().unwrap().invalidate(&id);
 
     // Moving back does not revive the earlier check.
-    shell.desks.lock().unwrap().move_to("desk", studio).unwrap();
-    assert!(!can_build(&shell, "desk", studio, 1));
-    shell.desks.lock().unwrap().remove("desk").unwrap();
-    assert!(!can_build(&shell, "desk", studio, 1));
+    shell.desks.lock().unwrap().move_to(&id, studio).unwrap();
+    assert!(!can_build(&shell, &id, studio, 1));
+    shell.desks.lock().unwrap().remove(&id).unwrap();
+    assert!(!can_build(&shell, &id, studio, 1));
   }
 }

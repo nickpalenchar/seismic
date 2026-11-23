@@ -450,6 +450,8 @@ Safety rules:
 - The desktop shell creates webviews on the UI thread with a blank document. It loads the first
   workspace page only after installing the native guards. WebView2's controller is thread-bound,
   and WebKitGTK's media policy needs to see the first document commit (2026-11-23).
+- On macOS 11, WebKit's older media delegate only provides frame URLs. The desktop shell disables
+  native media capture there because those URLs cannot prove the initiating frame's origin.
 - Tauri's runtime capability grants are tied to a window label and accumulate. The desktop shell
   retires the local webview and uses a fresh label when its server changes ports, so each window
   has one fixed origin for navigation, microphone access and native commands.

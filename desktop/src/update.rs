@@ -37,6 +37,7 @@ use tauri::{utils::config::BundleType, AppHandle};
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 use tauri_plugin_updater::{Update, UpdaterExt};
 
+use crate::window::placed::{self, Placed};
 use crate::{main_window, no_window, post, Seismic};
 
 /// The exit code with which the server asks the shell to install the update (src/server/self-update.ts).
@@ -220,7 +221,7 @@ fn start_again(app: &AppHandle, seismic: &Seismic, port: u16) -> io::Result<()> 
   }
   // the owner may have begun to speak meanwhile; what was handed over waits for the next try
   if now(&ask("")) && crate::may_relaunch(app) {
-    if let Some(placed) = prepare_relaunch(app, false)? {
+    if let Some(placed) = prepare_relaunch(app, false, None)? {
       crate::relaunch(app, seismic, &placed);
     }
   }
@@ -228,12 +229,31 @@ fn start_again(app: &AppHandle, seismic: &Seismic, port: u16) -> io::Result<()> 
 }
 
 /// Publish the snapshot before anything that can exit, including the installer itself.
-fn prepare_relaunch(app: &AppHandle, installer: bool) -> io::Result<Option<Vec<crate::window::placed::Placed>>> {
-  let Some(placed) = workspaces::ready(app, true).and_then(|drafts| crate::desks::placed(app, drafts)) else {
+fn prepare_relaunch(app: &AppHandle, installer: bool, local_page: Option<&str>) -> io::Result<Option<Vec<Placed>>> {
+  let Some(windows) = workspaces::ready(app, true).and_then(|drafts| crate::desks::placed(app, drafts)) else {
     return Ok(None); // a remote workspace is still in use or changing windows
   };
-  crate::window::placed::keep(&crate::home(), &placed, installer)?;
-  Ok(Some(placed))
+  keep_placements(&crate::home(), windows, installer, local_page).map(Some)
+}
+
+fn keep_placements(home: &Path, mut windows: Vec<Placed>, installer: bool, local_page: Option<&str>) -> io::Result<Vec<Placed>> {
+  // After an installer returns the local window shows the updater. Keep its previous route,
+  // alongside the geometry, open windows and drafts captured after the dialog closes.
+  if let (Some(next), Some(local)) = (local_page, windows.iter_mut().find(|p| p.desk == crate::desks::LOCAL)) {
+    local.next = next.to_string();
+  }
+  placed::keep(home, &windows, installer)?;
+  Ok(windows)
+}
+
+fn wait_for_placements(app: &AppHandle, seismic: &Seismic, installer: bool, local_page: Option<&str>) -> io::Result<Option<Vec<Placed>>> {
+  while !seismic.stopping.load(Ordering::SeqCst) {
+    if let Some(windows) = prepare_relaunch(app, installer, local_page)? {
+      return Ok(Some(windows));
+    }
+    thread::sleep(Duration::from_secs(1));
+  }
+  Ok(None)
 }
 
 pub enum Installed {
@@ -269,17 +289,13 @@ pub fn install(app: &AppHandle, seismic: &Seismic, updates: &Updates) -> Install
   // hand over, without cutting off activity that began while the local server was stopping.
   let ready = updates.ready.lock().unwrap().take();
   let installer = cfg!(windows) && ready.as_ref().is_some_and(|r| r.bytes.is_some());
-  let placed = loop {
-    if seismic.stopping.load(Ordering::SeqCst) {
-      return Installed::Restarting;
-    }
-    match prepare_relaunch(app, installer) {
-      Ok(Some(placed)) => break placed,
-      Ok(None) => thread::sleep(Duration::from_secs(1)),
-      Err(error) => return resume_server(app, updates, &error),
-    }
+  let mut windows = match wait_for_placements(app, seismic, installer, None) {
+    Ok(Some(windows)) => windows,
+    Ok(None) => return Installed::Restarting,
+    Err(error) => return resume_server(app, updates, &error),
   };
   if seismic.stopping.load(Ordering::SeqCst) {
+    placed::discard(&crate::home());
     return Installed::Restarting;
   }
   if let Some(w) = main_window(app) {
@@ -295,18 +311,59 @@ pub fn install(app: &AppHandle, seismic: &Seismic, updates: &Updates) -> Install
         .kind(MessageDialogKind::Error)
         .blocking_show();
     }
-    if seismic.stopping.load(Ordering::SeqCst) {
-      return Installed::Restarting;
-    }
-    // Installation or its error dialog may outlast the snapshot. Renew the original
-    // placements, since the local window is now showing the updater screen.
-    if let Err(error) = crate::window::placed::keep(&crate::home(), &placed, false) {
-      if let Some(local) = placed.iter().find(|p| p.desk == crate::desks::LOCAL) {
-        seismic.remember_page(Some(local.next.clone()));
+    let local_page = windows.iter().find(|p| p.desk == crate::desks::LOCAL).map(|p| p.next.as_str());
+    windows = match wait_for_placements(app, seismic, false, local_page) {
+      Ok(Some(current)) => current,
+      Ok(None) => {
+        placed::discard(&crate::home());
+        return Installed::Restarting;
       }
-      return resume_server(app, updates, &error);
-    }
+      Err(error) => {
+        placed::discard(&crate::home());
+        seismic.remember_page(local_page.map(str::to_string));
+        return resume_server(app, updates, &error);
+      }
+    };
   }
-  crate::relaunch(app, seismic, &placed);
+  if seismic.stopping.load(Ordering::SeqCst) {
+    placed::discard(&crate::home());
+    return Installed::Restarting;
+  }
+  crate::relaunch(app, seismic, &windows);
   Installed::Restarting
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::desks::LOCAL;
+
+  #[test]
+  fn installer_fallback_keeps_current_windows_and_drafts_with_the_previous_local_route() {
+    let home = std::env::temp_dir().join(format!("seismic-installer-error-{}", uuid::Uuid::new_v4()));
+    fs::create_dir_all(&home).unwrap();
+    let local = Placed {
+      desk: LOCAL.into(),
+      next: "/p/local".into(),
+      ..Default::default()
+    };
+    let remote = |id: &str, draft: &str| Placed {
+      desk: id.to_string(),
+      origin: Some(format!("https://{id}")),
+      next: "/p/remote".into(),
+      drafts: vec![("seismic-drafts-note".into(), draft.into())],
+      ..Default::default()
+    };
+    let before = [local.clone(), remote("closed", "closed draft"), remote("edited", "old draft")];
+    placed::keep(&home, &before, true).unwrap();
+
+    let current_local = Placed { next: "/".into(), x: 100., focused: true, ..local.clone() };
+    let current = vec![current_local, remote("edited", "new draft"), remote("opened", "another draft")];
+    keep_placements(&home, current.clone(), false, Some(&local.next)).unwrap();
+    let mut expected = current;
+    expected[0].next = local.next;
+    assert_eq!(placed::take(&home), expected);
+    assert!(placed::take(&home).is_empty());
+    fs::remove_dir_all(home).unwrap();
+  }
 }

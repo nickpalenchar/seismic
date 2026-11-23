@@ -3,10 +3,9 @@
 // Besides it a window may show only the pages the shell bundles (desktop/ui: the start page, the
 // status page of a workspace that does not answer).
 //
-// - The navigation guard keeps the window on its origin; what it turns away opens in the system's
-//   browser, at most one a second (`Handoff`): the hook is not told whether a frame asked, and a page
-//   could otherwise open a tab per frame it embeds. On Windows frames do not reach the hook
-//   (WebView2's FrameNavigationStarting, guarded here).
+// - The navigation guard keeps the window on its origin. Rejected navigations and remote popups
+//   share one browser handoff per second: a page could otherwise open a tab per frame it embeds.
+//   Windows frame navigation has a separate guard through WebView2's FrameNavigationStarting.
 // - Only the window's main frame at its own effective origin reaches the shell: wry's postMessage
 //   IPC is gated on macOS (vendor/README.md) and unregistered on Linux, where wry names a call by
 //   the page the webview shows, not the frame that sent it; the fetch IPC that stays names its
@@ -79,14 +78,17 @@ fn bundled(url: &Url) -> bool {
     && matches!(url.path(), "/" | "/index.html" | "/status.html")
 }
 
-/// Where the shell turns a window's navigation away to the system's browser: at most once a second.
+/// Where the shell turns a window's requests away to the system's browser: at most once a second.
 #[derive(Default)]
 struct Handoff(Mutex<Option<Instant>>);
 
 const HANDOFF_GAP: Duration = Duration::from_secs(1);
 
 impl Handoff {
-  fn may(&self, now: Instant) -> bool {
+  fn may(&self, url: &Url, now: Instant) -> bool {
+    if !matches!(url.scheme(), "http" | "https" | "mailto") {
+      return false;
+    }
     let mut last = self.0.lock().unwrap();
     if last.is_some_and(|l| now.duration_since(l) < HANDOFF_GAP) {
       return false;
@@ -169,7 +171,8 @@ fn show_background(w: &WebviewWindow) -> tauri::Result<()> {
 pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, handed_over: bool) -> tauri::Result<WebviewWindow> {
   let local = matches!(own, Own::Local(_));
   let (navigation, loaded) = (own.clone(), own.clone());
-  let handoff = Handoff::default();
+  let handoff = Arc::new(Handoff::default());
+  let popup_handoff = handoff.clone();
   let popup = own.clone();
   let downloads = app.path().download_dir().ok();
   let saved: Arc<Mutex<HashMap<String, PathBuf>>> = Default::default();
@@ -214,7 +217,7 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
       if navigation.admits(url) {
         return true;
       }
-      if url.as_str() != "about:blank" && handoff.may(Instant::now()) {
+      if handoff.may(url, Instant::now()) {
         open_in_browser(url.as_str());
       }
       false
@@ -223,7 +226,8 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
       match &popup {
         Own::Local(port) => open_outside(*port, &url),
         // a remote page in the browser plainly: that browser pairs on its own
-        Own::Remote(_) => open_in_browser(url.as_str()),
+        Own::Remote(_) if popup_handoff.may(&url, Instant::now()) => open_in_browser(url.as_str()),
+        Own::Remote(_) => {}
       }
       NewWindowResponse::Deny
     })
@@ -379,11 +383,17 @@ mod tests {
   }
 
   #[test]
-  fn a_window_hands_off_at_most_one_navigation_a_second() {
-    let handoff = Handoff::default();
+  fn navigation_and_popup_share_the_windows_browser_limit() {
+    let navigation = Arc::new(Handoff::default());
+    let popup = navigation.clone();
+    let url = Url::parse("https://example.com").unwrap();
+    let blank = Url::parse("about:blank").unwrap();
     let start = Instant::now();
-    assert!(handoff.may(start));
-    assert!(!handoff.may(start + Duration::from_millis(500)));
-    assert!(handoff.may(start + Duration::from_millis(1100)));
+    assert!(!popup.may(&blank, start));
+    assert!(navigation.may(&url, start));
+    assert!(!popup.may(&url, start + Duration::from_millis(500)));
+    assert!(popup.may(&url, start + HANDOFF_GAP));
+    assert!(!navigation.may(&url, start + HANDOFF_GAP));
+    assert!(Handoff::default().may(&url, start));
   }
 }

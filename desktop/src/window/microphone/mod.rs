@@ -21,7 +21,7 @@ pub type Hears = Arc<dyn Fn(&Url) -> bool + Send + Sync>;
 
 pub fn install(window: &WebviewWindow, hears: Hears) -> tauri::Result<()> {
   #[cfg(target_os = "macos")]
-  window.with_webview(move |webview| macos::install(webview, hears))?;
+  macos::install(window, hears)?;
   #[cfg(windows)]
   windows::install(window, hears)?;
   #[cfg(target_os = "linux")]

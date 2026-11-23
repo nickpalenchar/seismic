@@ -54,14 +54,14 @@ pub async fn add_desk(app: AppHandle, webview: Webview, address: String, code: S
     .await
     .map_err(|e| e.to_string())??;
   on_ui(app, move |app| {
-    let id = format!("w{}", crate::now_ms());
-    {
+    let id = {
       let mut desks = shell.desks.lock().unwrap();
       let mut added = desks.clone();
-      added.add(id.clone(), name.as_deref().unwrap_or_default(), &origin)?;
+      let desk = added.add(name.as_deref().unwrap_or_default(), &origin)?;
       shell.save(&added)?;
       *desks = added;
-    }
+      desk.id
+    };
     open_paired(app, &id, &origin, link)?;
     changed(app);
     Ok(json!({ "id": id }))

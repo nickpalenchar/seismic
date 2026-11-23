@@ -99,7 +99,7 @@ impl Desks {
 
   fn from_json(read: Option<&Value>) -> Desks {
     let mut all = Desks::default();
-    let entries = read.and_then(|v| v["list"].as_array()).cloned().unwrap_or_default();
+    let entries = read.and_then(|v| v["list"].as_array()).map(Vec::as_slice).unwrap_or_default();
     for e in entries {
       let (Some(id), name) = (e["id"].as_str(), e["name"].as_str().unwrap_or_default()) else {
         continue;
@@ -110,11 +110,20 @@ impl Desks {
       }
       // one per origin: a second at the same origin goes
       let Some(o) = e["url"].as_str().and_then(origin) else { continue };
-      if id.is_empty() || all.get(id).is_some() || all.at_origin(&o).is_some() {
+      if id.is_empty() || all.at_origin(&o).is_some() {
         continue;
       }
+      // Old builds could save one ID for two origins. Keep both and leave every other saved ID alone.
+      let id = if all.get(id).is_some() {
+        (2..)
+          .map(|n| format!("{id}-{n}"))
+          .find(|candidate| all.get(candidate).is_none() && !entries.iter().any(|entry| entry["id"].as_str() == Some(candidate.as_str())))
+          .unwrap()
+      } else {
+        id.to_string()
+      };
       all.list.push(Desk {
-        id: id.to_string(),
+        id,
         name: name.to_string(),
         origin: Some(o),
       });
@@ -150,12 +159,12 @@ impl Desks {
   }
 
   /// A new remote desk at `origin`; refused where one is there already (`known`).
-  pub fn add(&mut self, id: String, name: &str, origin: &str) -> Result<Desk, &'static str> {
+  pub fn add(&mut self, name: &str, origin: &str) -> Result<Desk, &'static str> {
     if self.at_origin(origin).is_some() {
       return Err("known");
     }
     let desk = Desk {
-      id,
+      id: std::iter::repeat_with(|| format!("w{}", uuid::Uuid::new_v4())).find(|id| self.get(id).is_none()).unwrap(),
       name: name.trim().to_string(),
       origin: Some(origin.to_string()),
     };
@@ -238,10 +247,10 @@ mod tests {
 
   #[test]
   fn the_list_survives_a_save_and_a_load() {
-    let home = std::env::temp_dir().join(format!("seismic-desks-{}", crate::now_ms()));
+    let home = std::env::temp_dir().join(format!("seismic-desks-{}", uuid::Uuid::new_v4()));
     let mut all = Desks::default();
-    all.add("a".into(), " Studio ", "https://studio").unwrap();
-    all.add("v6".into(), "", "https://[fd7a::2]:4417").unwrap();
+    all.add(" Studio ", "https://studio").unwrap();
+    all.add("", "https://[fd7a::2]:4417").unwrap();
     all.rename(LOCAL, "Laptop").unwrap();
     all.save(&home).unwrap();
     assert_eq!(Desks::load(&home), all);
@@ -252,17 +261,57 @@ mod tests {
   }
 
   #[test]
+  fn additions_finishing_together_keep_distinct_ids_on_disk() {
+    use std::sync::{Barrier, Mutex};
+    let home = std::env::temp_dir().join(format!("seismic-desks-{}", uuid::Uuid::new_v4()));
+    let all = Mutex::new(Desks::default());
+    let finish = Barrier::new(2);
+    let ids = std::thread::scope(|scope| {
+      let add = |origin| {
+        finish.wait();
+        let mut desks = all.lock().unwrap();
+        let desk = desks.add("", origin).unwrap();
+        desks.save(&home).unwrap();
+        desk.id
+      };
+      let studio = scope.spawn(move || add("https://studio"));
+      let lab = scope.spawn(move || add("https://lab"));
+      [studio.join().unwrap(), lab.join().unwrap()]
+    });
+    assert_ne!(ids[0], ids[1]);
+    let mut saved = Desks::load(&home);
+    assert_eq!(saved.remove(&ids[0]).unwrap().origin.as_deref(), Some("https://studio"));
+    assert_eq!(saved.get(&ids[1]).unwrap().origin.as_deref(), Some("https://lab"));
+    fs::remove_dir_all(home).unwrap();
+  }
+
+  #[test]
+  fn a_saved_id_collision_keeps_both_origins_and_reserves_later_ids() {
+    let file = json!({ "list": [
+      { "id": "w1", "url": "https://studio" },
+      { "id": "w1", "url": "https://lab" },
+      { "id": "w1-2", "url": "https://office" },
+    ] });
+    let mut all = Desks::from_json(Some(&file));
+    assert_eq!(all.at_origin("https://studio").unwrap().id, "w1");
+    assert_eq!(all.at_origin("https://lab").unwrap().id, "w1-3");
+    assert_eq!(all.at_origin("https://office").unwrap().id, "w1-2");
+    assert_eq!(all.remove("w1-3").unwrap().origin.as_deref(), Some("https://lab"));
+    assert!(all.get("w1").is_some());
+  }
+
+  #[test]
   fn changes_keep_one_desk_per_origin_and_this_machines() {
     let mut all = Desks::default();
-    all.add("a".into(), "", "https://studio").unwrap();
-    all.add("b".into(), "", "https://lab").unwrap();
-    assert_eq!(all.add("c".into(), "", "https://studio"), Err("known"));
-    assert_eq!(all.move_to("b", "https://studio"), Err("known"));
-    all.move_to("b", "https://lab2").unwrap();
+    let a = all.add("", "https://studio").unwrap().id;
+    let b = all.add("", "https://lab").unwrap().id;
+    assert_eq!(all.add("", "https://studio"), Err("known"));
+    assert_eq!(all.move_to(&b, "https://studio"), Err("known"));
+    all.move_to(&b, "https://lab2").unwrap();
     assert_eq!(all.remove(LOCAL), Err("local"));
     assert_eq!(all.move_to(LOCAL, "https://x"), Err("local"));
-    assert_eq!(all.remove("a").map(|d| d.id), Ok("a".into()));
-    assert_eq!(all.get("b").unwrap().shown_name("Mac"), "lab2");
+    assert_eq!(all.remove(&a).map(|d| d.id), Ok(a));
+    assert_eq!(all.get(&b).unwrap().shown_name("Mac"), "lab2");
     assert_eq!(all.get(LOCAL).unwrap().shown_name("Mac"), "Mac");
   }
 }

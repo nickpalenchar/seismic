@@ -132,6 +132,15 @@ pub fn take(home: &Path) -> Vec<Placed> {
   read_saved(home, true)
 }
 
+/// No app will relaunch from the staged installer snapshot.
+pub fn discard(home: &Path) {
+  if let Err(error) = fs::remove_file(home.join(FILE)) {
+    if error.kind() != io::ErrorKind::NotFound {
+      eprintln!("seismic: cannot remove restart snapshot: {error}");
+    }
+  }
+}
+
 /// The builder needs the initial visibility on macOS before the single-instance check runs.
 #[cfg(target_os = "macos")]
 pub fn peek(home: &Path) -> Vec<Placed> {

@@ -1,7 +1,12 @@
 // WKWebView names the requesting frame even when an iframe asks. The media decision of each window's
 // wry UI delegate is overridden (a subclass of its class, registered once and given to each
 // delegate), wry's implementation of its other callbacks kept.
-use std::{cell::RefCell, collections::HashMap, sync::OnceLock};
+use std::{
+  cell::RefCell,
+  collections::HashMap,
+  io,
+  sync::{mpsc, OnceLock},
+};
 
 use block2::Block;
 use objc2::{
@@ -11,7 +16,7 @@ use objc2::{
   sel,
 };
 use objc2_web_kit::{WKFrameInfo, WKMediaCaptureType, WKPermissionDecision, WKSecurityOrigin, WKWebView};
-use tauri::{webview::PlatformWebview, Url};
+use tauri::{webview::PlatformWebview, Url, WebviewWindow};
 
 use super::Hears;
 
@@ -23,11 +28,46 @@ thread_local! {
 /// The subclass's address: the class is registered once and lives for the program's life.
 static CLASS: OnceLock<usize> = OnceLock::new();
 
-pub fn install(webview: PlatformWebview, hears: Hears) {
+pub fn install(window: &WebviewWindow, hears: Hears) -> tauri::Result<()> {
+  let (send, receive) = mpsc::channel();
+  window.with_webview(move |webview| {
+    let _ = send.send(configure(webview, hears));
+  })?;
+  receive.try_recv().map_err(io::Error::other)?
+}
+
+fn configure(webview: PlatformWebview, hears: Hears) -> tauri::Result<()> {
   // SAFETY: Tauri calls this with a live WKWebView on the main thread. The subclass adds no
   // ivars and wry continues to own and retain the original delegate instance.
   unsafe {
     let view = &*webview.inner().cast::<WKWebView>();
+    let checking = crate::seismic_env("APP_CHECK").is_some();
+    if checking {
+      visible_unattended(view);
+      if crate::seismic_env("APP_CHECK_FAKE_MIC").is_some() {
+        mock_capture_devices(view);
+      }
+    }
+    let check_legacy = cfg!(debug_assertions) && checking && crate::seismic_env("APP_CHECK_LEGACY_MIC").is_some();
+    if !objc2::available!(macos = 12.0) || check_legacy {
+      // Big Sur's legacy delegate only gets URLs, which can't prove an iframe's effective
+      // origin. Disable WebKit's media devices preference before the first workspace page.
+      let configuration: Retained<AnyObject> = msg_send![view, configuration];
+      let preferences: Retained<AnyObject> = msg_send![&*configuration, preferences];
+      let setter: Bool = msg_send![&*preferences, respondsToSelector: sel!(_setMediaDevicesEnabled:)];
+      let getter: Bool = msg_send![&*preferences, respondsToSelector: sel!(_mediaDevicesEnabled)];
+      let quirks: Bool = msg_send![&*preferences, respondsToSelector: sel!(_setNeedsSiteSpecificQuirks:)];
+      if setter.as_bool() && getter.as_bool() && quirks.as_bool() {
+        let _: () = msg_send![&*preferences, _setMediaDevicesEnabled: Bool::NO];
+        // Some sites get a separate legacy getUserMedia API via WebKit's compatibility quirks.
+        let _: () = msg_send![&*preferences, _setNeedsSiteSpecificQuirks: Bool::NO];
+        let enabled: Bool = msg_send![&*preferences, _mediaDevicesEnabled];
+        if !enabled.as_bool() {
+          return Ok(());
+        }
+      }
+      return Err(io::Error::other("WebKit media devices could not be disabled").into());
+    }
     WINDOWS.with_borrow_mut(|w| w.insert(view as *const WKWebView as usize, hears));
     let delegate: Retained<AnyObject> = msg_send![view, UIDelegate];
     let class = *CLASS.get_or_init(|| {
@@ -39,13 +79,8 @@ pub fn install(webview: PlatformWebview, hears: Hears) {
       class.register() as *const AnyClass as usize
     });
     AnyObject::set_class(&delegate, &*(class as *const AnyClass));
-    if crate::seismic_env("APP_CHECK").is_some() {
-      visible_unattended(view);
-      if crate::seismic_env("APP_CHECK_FAKE_MIC").is_some() {
-        mock_capture_devices(view);
-      }
-    }
   }
+  Ok(())
 }
 
 /// The check (scripts/check-app.ts) on a Mac nobody sits at: with the display asleep or the screen
