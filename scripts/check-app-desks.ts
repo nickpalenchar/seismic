@@ -9,6 +9,7 @@
 // program for its run alone, so a pairing would not outlast the relaunch. In desktop/:
 //   bun x tauri build --debug --bundles app --config '{"identifier":"im.seismic.desks-check","bundle":{"externalBin":null,"resources":null}}'
 // then target/debug/bundle/macos/Seismic.app/Contents/MacOS/seismic. It checks:
+//   - taking over a local server on a new port replaces the local webview and its permissions;
 //   - this machine's page lists the workspaces and pairs one over HTTP: a bad address, a wrong code
 //     and an address already on the list are refused, the right code opens the workspace's window at
 //     its one-time link, signed in, the list and the page's name follow;
@@ -63,6 +64,7 @@ const asOwner = (path: string, init: RequestInit = {}) => fetch(`${remoteUrl}${p
 const proxy: { server?: ReturnType<typeof Bun.serve> } = {};
 const HOST = 'localhost';
 const proxyPort = free();
+const oldPort = free();
 const REMOTE = `http://${HOST}:${proxyPort}`;
 const FRAME = `<!doctype html>
 <script>
@@ -109,6 +111,7 @@ const todo: { id: number; cmd: string; args?: unknown }[] = [];
 const done = new Map<number, Done>();
 const reports: Record<string, unknown>[] = [];
 let retryNow = false;
+const polls = new Map<string, number>();
 const MODULE = `
 const base = new URL('.', import.meta.url);
 const post = (path, body) => fetch(new URL(path, base), { method: 'POST', body: JSON.stringify(body) });
@@ -148,9 +151,11 @@ if (location.origin === ${JSON.stringify(REMOTE)}) {
   }
   document.getElementById('retry').click();
 } else if (location.protocol === 'http:') {
-  await post('result', { kind: 'local', href: location.href });
+  const label = window.__TAURI_INTERNALS__.metadata.currentWindow.label;
+  if (location.port === ${JSON.stringify(String(oldPort))}) history.replaceState(null, '', '/?takeover-check=kept');
+  await post('result', { kind: 'local', href: location.href, label });
   for (;;) {
-    const next = await (await fetch(new URL('todo', base))).json();
+    const next = await (await fetch(new URL('todo?label=' + label, base))).json();
     if (next) await post('done', { id: next.id, ...(await outcome(invoke(next.cmd, next.args))) });
     else await new Promise((r) => setTimeout(r, 200));
   }
@@ -161,10 +166,14 @@ const harness = Bun.serve({
   hostname: '127.0.0.1',
   async fetch(req) {
     const cors = { 'access-control-allow-origin': '*' };
-    const path = new URL(req.url).pathname;
+    const { pathname: path, searchParams } = new URL(req.url);
     const json = (v: unknown) => Response.json(v, { headers: cors });
     if (path === '/check.js') return new Response(MODULE, { headers: { ...cors, 'content-type': 'text/javascript' } });
-    if (path === '/todo') return json(todo.shift() ?? null);
+    if (path === '/todo') {
+      const label = searchParams.get('label') ?? '';
+      polls.set(label, (polls.get(label) ?? 0) + 1);
+      return json(todo.shift() ?? null);
+    }
     if (path === '/retry') return json({ now: retryNow });
     if (req.method === 'POST' && path === '/result') reports.push(JSON.parse(await req.text()));
     if (req.method === 'POST' && path === '/done') {
@@ -200,6 +209,8 @@ const env: Record<string, string> = {
 };
 delete env.SEISMIC_SUPERVISED;
 delete env.OBEYA_SUPERVISED;
+delete env.SEISMIC_FROM_APP;
+delete env.OBEYA_FROM_APP;
 const entry = () => {
   try {
     return JSON.parse(readFileSync(join(home, 'server.json'), 'utf8')) as { url: string };
@@ -251,6 +262,7 @@ const withPendingHealth = async (action: () => Promise<void>) => {
 };
 
 let app: Subprocess | undefined;
+let terminal: Subprocess | undefined;
 try {
   await until('the remote Seismic to answer', 60_000, async () => (await fetch(`${remoteUrl}/api/projects`, { headers: ownerHeaders(remoteHome) }).catch(() => null))?.ok);
   const on = await asOwner('/api/access', { method: 'PUT', body: JSON.stringify({ remote: { via: 'hosts', hosts: [HOST] } }) });
@@ -258,8 +270,42 @@ try {
   startProxy();
 
   // ---------------------------------------------------------------- pairing from this machine's page
+  terminal = Bun.spawn([process.execPath, join(ROOT, 'src', 'server', 'main.ts'), '--port', String(oldPort)], {
+    env,
+    stdout: 'ignore',
+    stderr: 'ignore',
+  });
+  await until('the terminal server to answer', 60_000, async () => {
+    const res = await fetch(`http://127.0.0.1:${oldPort}/api/projects`, { headers: ownerHeaders(home) });
+    return res.ok;
+  });
   app = startApp();
-  await report('local').catch((e) => bad("this machine's page", String(e.message)));
+  const initial = await report('local');
+  const transferred = await check('taking over on a different port replaces the local webview and keeps local commands', async () => {
+    const oldLabel = String(initial.label);
+    expect(String(initial.href).startsWith(`http://127.0.0.1:${oldPort}/`), JSON.stringify(initial));
+    expect((await desks()).current === 'local', 'the original window cannot use its local capability');
+    const before = reports.length;
+    const res = await appApi('/api/app-takeover').catch((error) => {
+      if (error.code !== 'ECONNRESET') throw error;
+      return null;
+    });
+    expect(res === null || (res?.ok && (await res.json()).taking), 'the takeover did not start');
+    const next = await report('local', before);
+    expect(new URL(String(next.href)).origin !== new URL(String(initial.href)).origin, JSON.stringify(next));
+    expect(typeof next.label === 'string' && next.label !== oldLabel, JSON.stringify(next));
+    expect(new URL(String(next.href)).searchParams.get('takeover-check') === 'kept', JSON.stringify(next));
+    expect((await desks()).current === 'local', 'the replacement window cannot use its local capability');
+    if (process.platform === 'darwin') {
+      const drag = await run('plugin:window|start_dragging');
+      expect(drag.ok, JSON.stringify(drag));
+    }
+    const polled = polls.get(oldLabel);
+    await sleep(1000);
+    expect(polls.get(oldLabel) === polled, 'the previous webview is still running');
+    return `${oldLabel} at ${new URL(String(initial.href)).origin} → ${next.label} at ${new URL(String(next.href)).origin}`;
+  });
+  expect(transferred, 'the local server was not taken over');
   let id = '';
   await check('this machine has its own workspace and nothing else', async () => {
     const d = await desks();
@@ -394,6 +440,7 @@ try {
   await until('the local server to stop', 30_000, () => !entry()).catch(() => null);
   if (app && app.exitCode === null && (await exited(app, 5_000)) === null) app.kill();
   proxy.server?.stop(true);
+  terminal?.kill();
   remote.kill();
   harness.stop(true);
   if (!args.includes('--keep')) rmSync(dir, { recursive: true, force: true });

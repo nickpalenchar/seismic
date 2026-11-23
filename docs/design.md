@@ -450,6 +450,9 @@ Safety rules:
 - The desktop shell creates webviews on the UI thread with a blank document. It loads the first
   workspace page only after installing the native guards. WebView2's controller is thread-bound,
   and WebKitGTK's media policy needs to see the first document commit (2026-11-23).
+- Tauri's runtime capability grants are tied to a window label and accumulate. The desktop shell
+  retires the local webview and uses a fresh label when its server changes ports, so each window
+  has one fixed origin for navigation, microphone access and native commands.
 - Landing never loses work: nothing is force-pushed, a direct push only fast-forwards, a merge is
   pinned to the head that was checked; a clone is deleted only when nothing on it would be lost.
 - Approval comes only from the card's button after the demo, never from a list or from words

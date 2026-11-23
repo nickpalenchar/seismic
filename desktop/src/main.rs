@@ -101,22 +101,11 @@ pub(crate) struct Seismic {
   first: Mutex<Option<String>>,
 }
 
-impl Seismic {
-  fn url(&self) -> Option<String> {
-    match self.port.load(Ordering::SeqCst) {
-      0 => None,
-      port => Some(format!("http://127.0.0.1:{port}/")),
-    }
-  }
-
-  /// Its origin, once its port is known: the one origin of this machine's window.
-  pub(crate) fn origin(&self) -> Option<String> {
-    self.url().map(|u| u.trim_end_matches('/').to_string())
-  }
-
-  /// Whether `url` is a page of it.
-  pub(crate) fn serves(&self, url: &Url) -> bool {
-    url.scheme() == "http" && self.origin().is_some_and(|o| o == url.origin().ascii_serialization())
+pub(crate) fn local_origin(port: u16) -> String {
+  if port == 80 {
+    "http://127.0.0.1".into()
+  } else {
+    format!("http://127.0.0.1:{port}")
   }
 }
 
@@ -256,7 +245,8 @@ fn dragged(w: &WebviewWindow, drag: &DragDropEvent) {
 }
 
 pub(crate) fn main_window(app: &AppHandle) -> Option<WebviewWindow> {
-  app.get_webview_window(desks::MAIN)
+  let shell = app.try_state::<Arc<desks::Shell>>()?;
+  app.get_webview_window(&shell.local().0)
 }
 
 fn show(app: &AppHandle) {
@@ -266,11 +256,10 @@ fn show(app: &AppHandle) {
 }
 
 /// A page of Seismic's in the system's browser, signed in there through a link of its own; another link as `open_in_browser`.
-pub(crate) fn open_outside(seismic: &Seismic, url: &Url) {
-  let port = seismic.port.load(Ordering::SeqCst);
-  if !seismic.serves(url) {
+pub(crate) fn open_outside(port: Option<u16>, url: &Url) {
+  let Some(port) = port.filter(|p| Own::Local(Some(*p)).at(url)) else {
     return open_in_browser(url.as_str());
-  }
+  };
   let next = next_of(url);
   // off the main thread: it asks the server first
   thread::spawn(move || open_in_browser(&login_link(port, &next, true)));
@@ -366,11 +355,12 @@ pub(crate) fn no_window(cmd: &mut Command) {
 
 /// Brings up the Seismic of this home (the running one, else a new server) and shows its project;
 /// ends the app when that server has ended.
-fn serve(app: AppHandle, seismic: Arc<Seismic>, updates: Arc<update::Updates>) {
+fn serve(app: AppHandle, seismic: Arc<Seismic>, updates: Arc<update::Updates>, handed_over: bool) {
   let home = home();
   let attach = |port: u16| {
-    seismic.port.store(port, Ordering::SeqCst);
-    navigate(&app, &seismic);
+    if let Err(error) = navigate(&app, &seismic, port, handed_over) {
+      fail(&app, format!("Seismic could not open its local workspace: {error}"));
+    }
   };
   loop {
     if let Some(port) = running(&home) {
@@ -379,8 +369,8 @@ fn serve(app: AppHandle, seismic: Arc<Seismic>, updates: Arc<update::Updates>) {
         return;
       }
       // it ended for this shell to start it under itself: the window comes back on the page it showed
-      let page = main_window(&app).and_then(|w| w.url().ok()).filter(|u| seismic.serves(u));
-      *seismic.first.lock().unwrap() = page.map(|u| next_of(&u));
+      let page = main_window(&app).and_then(|w| window::page(&w, &Own::Local(Some(port))));
+      *seismic.first.lock().unwrap() = page;
     }
     if let Started::Ended = start(&app, &seismic, &updates, &home, &attach) {
       return;
@@ -479,16 +469,15 @@ fn watch(app: &AppHandle, seismic: &Seismic, home: &Path) -> bool {
 }
 
 /// Shows the project once it answers, signed in, and tells it to stop when the owner quit meanwhile.
-fn navigate(app: &AppHandle, seismic: &Seismic) {
-  let (Some(_), Some(w)) = (seismic.url(), main_window(app)) else { return };
-  desks::allow_local(app, seismic.port.load(Ordering::SeqCst));
+fn navigate(app: &AppHandle, seismic: &Seismic, port: u16, handed_over: bool) -> Result<(), String> {
   let next = seismic.first.lock().unwrap().take().unwrap_or_else(|| "/".into());
-  if let Ok(url) = Url::parse(&login_link(seismic.port.load(Ordering::SeqCst), &next, false)) {
-    let _ = w.navigate(url);
-  }
+  let page = Url::parse(&login_link(port, &next, false)).map_err(|e| e.to_string())?;
+  tauri::async_runtime::block_on(desks::on_ui(app.clone(), move |app| desks::connect_local(app, port, page, handed_over)))?;
+  seismic.port.store(port, Ordering::SeqCst);
   if seismic.stopping.load(Ordering::SeqCst) {
-    http(seismic.port.load(Ordering::SeqCst), "POST", "/api/stop");
+    http(port, "POST", "/api/stop");
   }
+  Ok(())
 }
 
 /// The owner quits: Seismic is told to stop, and the app waits for it (true).
@@ -530,7 +519,7 @@ pub(crate) fn may_relaunch(app: &AppHandle) -> bool {
 /// as this one's for the system's permissions (the microphone), which ends with it.
 pub(crate) fn relaunch(app: &AppHandle, seismic: &Seismic) {
   seismic.relaunching.store(true, Ordering::SeqCst);
-  let placed = desks::placed(app, app.state::<Arc<Seismic>>().inner());
+  let placed = desks::placed(app);
   placed::keep(&home(), &placed);
   #[cfg(target_os = "macos")]
   {
@@ -590,7 +579,6 @@ fn main() {
     .setup(move |app| {
       let handle = app.handle().clone();
       let _ = HOME.set(home());
-      app.manage(for_setup.clone());
       app.manage(Arc::new(desks::Shell::new(home())));
       if cfg!(target_os = "macos") {
         app.set_menu(menu::menu(&handle)?)?;
@@ -600,8 +588,11 @@ fn main() {
         let id = event.id().as_ref();
         if id == "browser" {
           let front = app.webview_windows().into_values().find(|w| w.is_focused().unwrap_or(false));
-          if let Some(url) = front.or_else(|| main_window(app)).and_then(|w| w.url().ok()) {
-            open_outside(&for_menu, &url);
+          if let Some(w) = front.or_else(|| main_window(app)) {
+            if let Ok(url) = w.url() {
+              let (label, port) = desks::shell(app).local();
+              open_outside(port.filter(|_| w.label() == label), &url);
+            }
           }
         } else if let Some(desk) = id.strip_prefix(menu::DESK) {
           let _ = desks::open(app, desk, None);
@@ -609,7 +600,7 @@ fn main() {
           app.exit(0);
         }
       });
-      let main = window::build(&handle, desks::MAIN, Own::Local(for_setup.clone()), main_placed.as_ref(), main_placed.is_some())?;
+      let main = window::build(&handle, desks::STARTUP, Own::Local(None), main_placed.as_ref(), false)?;
       main.navigate(window::bundled_url("/"))?;
       if main_placed.as_ref().is_none_or(|p| p.visible) {
         main.show()?;
@@ -617,7 +608,8 @@ fn main() {
       desks::reopen(&handle, std::mem::take(&mut placed));
       let updates = update::start(&handle, for_setup.clone());
       let seismic = for_setup.clone();
-      thread::spawn(move || serve(handle, seismic, updates));
+      let handed_over = main_placed.is_some();
+      thread::spawn(move || serve(handle, seismic, updates, handed_over));
       Ok(())
     })
     .build(tauri::generate_context!())
@@ -632,7 +624,7 @@ fn main() {
       label,
       event: WindowEvent::CloseRequested { api, .. },
       ..
-    } if label == desks::MAIN => {
+    } if label == desks::shell(app).local().0 => {
       api.prevent_close();
       if cfg!(target_os = "macos") {
         // as Mac apps do: the window goes, the app stays in the Dock
@@ -650,7 +642,7 @@ fn main() {
       label,
       event: WindowEvent::DragDrop(drag),
       ..
-    } if label == desks::MAIN => {
+    } if label == desks::shell(app).local().0 => {
       if let Some(w) = main_window(app) {
         dragged(&w, &drag);
       }

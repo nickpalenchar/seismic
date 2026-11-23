@@ -9,18 +9,16 @@
 // `unsaved`, and from a pairing `wrongCode`, `codeExpired`, `onThisMachine`, `unreachable`,
 // `notSeismic`, `elsewhere` (the link led to another origin), `invalid`.
 
-use std::sync::Arc;
-
 use serde_json::{json, Value};
 use tauri::{AppHandle, Manager, Url, Webview};
 
-use super::{changed, close, list, on_ui, open, open_paired, remote, shell, MAIN};
-use crate::Seismic;
+use super::{changed, close, list, on_ui, open, open_paired, remote, shell};
+use crate::window::Own;
 
 /// Whether this machine's window, at its own origin, called: the one that may change the list.
 fn from_this_machine(app: &AppHandle, webview: &Webview) -> Result<(), String> {
-  let seismic = app.state::<Arc<Seismic>>();
-  let here = webview.label() == MAIN && webview.url().is_ok_and(|u| seismic.serves(&u));
+  let (label, port) = shell(app).local();
+  let here = webview.label() == label && webview.url().is_ok_and(|u| Own::Local(port).at(&u));
   if here {
     Ok(())
   } else {

@@ -142,13 +142,16 @@ wry 0.57.3, the versions the spike verified.
   the window from its bar and the notification plugin's three commands. This machine's page alone
   gets `add_desk` (address, code, name: pairs over HTTP, then keeps it and opens its window at the
   link), `rename_desk`, `pair_desk` (code, optional new address: the workspace moves once the
-  pairing went through, its old window closes) and `remove_desk`; they also check that `main`, at
+  pairing went through, its old window closes) and `remove_desk`; they also check that the current local window, at
   its own origin, called. The bundled status page gets `desks`, `open_desk` and `retry_desk`
   (`capabilities/status.json`). Pages hear of a change by a `seismic-desks` event on `window` and
   ask for the list again. W4 builds the pages on these.
-- **Labels and capabilities:** `main` for this machine (a capability per port its server ran on in
-  the run, added before the window goes there), `desk-<n>` for a remote window. Each native window
-  has its own label so a delayed close event cannot remove a replacement's tracking.
+- **Labels and capabilities:** `main-<n>` for this machine, `desk-<n>` for a remote workspace.
+  Each native window has its own label and an origin fixed before its first server document loads.
+  The bundled startup window has no origin grant. When the local server takes a different port,
+  the shell replaces its window and closes the old webview before the replacement loads. The
+  old capability matches only its retired label. A late close event cannot remove a
+  replacement's tracking.
 - **Effective origin:** on macOS wry is vendored (`desktop/vendor/`) with a check in its script
   message handler: only the main frame whose security origin is its document URL's origin may send
   postMessage IPC, so a sandboxed main frame and every subframe are dropped, and the capability's
@@ -170,13 +173,13 @@ wry 0.57.3, the versions the spike verified.
   A remote window comes back through the health check while its workspace is still listed at that
   origin. On macOS the shell requests a fresh app instance because Launch Services can still have
   the old instance registered after its process exits.
-- **Closing:** a remote window closes for good (opened again, it is checked again). `main` behaves
+- **Closing:** a remote window closes for good (opened again, it is checked again). The local window behaves
   as before: hidden on a Mac, quitting elsewhere.
 - **Microphone:** granted to the window's own origin alone, decided by each engine's own hook (the
   three modules of `40f8e6b9`, now per window): WKWebView by the requesting frame, WebView2 by its
   origin, WebKitGTK by the committed page with other origins' frames kept out. The camera goes to
   no page. No question to the owner: a listed origin is the owner's word.
-- **Drops:** files dropped on a remote window go to its page as in a browser; only `main` hands
+- **Drops:** files dropped on a remote window go to its page as in a browser; only the local window hands
   the page this machine's paths.
 - **macOS menu:** a Workspace menu before Window lists the workspaces (⌃⌘1 … 9), the one of the
   window in front checked. "New Workspace…" waits for W4's page.

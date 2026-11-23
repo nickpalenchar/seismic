@@ -1,5 +1,5 @@
 // The app's windows: one per workspace (docs/plan/remote-workspaces.md), each with the one origin
-// it shows for its life (`Own`): this machine's Seismic (`main`) or a remote one's (`desk-<n>`).
+// it shows for its life (`Own`): this machine's Seismic (`main-<n>`) or a remote one's (`desk-<n>`).
 // Besides it a window may show only the pages the shell bundles (desktop/ui: the start page, the
 // status page of a workspace that does not answer).
 //
@@ -28,14 +28,14 @@ use tauri::{
   AppHandle, Manager, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
 };
 
-use crate::{open_in_browser, open_outside, seismic_env, Seismic};
+use crate::{open_in_browser, open_outside, seismic_env};
 use placed::Placed;
 
 /// The origin a window shows for its life.
 #[derive(Clone)]
 pub enum Own {
-  /// This machine's Seismic, at whichever port it answers on.
-  Local(Arc<Seismic>),
+  /// This machine's server at a fixed port. The startup window has no server origin.
+  Local(Option<u16>),
   /// A remote workspace's origin (`https://studio.example.ts.net`).
   Remote(String),
 }
@@ -43,7 +43,7 @@ pub enum Own {
 impl Own {
   pub fn origin(&self) -> Option<String> {
     match self {
-      Own::Local(seismic) => seismic.origin(),
+      Own::Local(port) => port.map(crate::local_origin),
       Own::Remote(origin) => Some(origin.clone()),
     }
   }
@@ -112,10 +112,7 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
   let local = matches!(own, Own::Local(_));
   let (navigation, loaded) = (own.clone(), own.clone());
   let handoff = Handoff::default();
-  let seismic = match &own {
-    Own::Local(s) => Some(s.clone()),
-    Own::Remote(_) => None,
-  };
+  let popup = own.clone();
   let downloads = app.path().download_dir().ok();
   let saved: Arc<Mutex<HashMap<String, PathBuf>>> = Default::default();
   let check = seismic_env("APP_CHECK").and_then(|c| c.into_string().ok());
@@ -146,10 +143,10 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
       false
     })
     .on_new_window(move |url, _| {
-      match &seismic {
-        Some(seismic) => open_outside(seismic, &url),
+      match &popup {
+        Own::Local(port) => open_outside(*port, &url),
         // a remote page in the browser plainly: that browser pairs on its own
-        None => open_in_browser(url.as_str()),
+        Own::Remote(_) => open_in_browser(url.as_str()),
       }
       NewWindowResponse::Deny
     })
@@ -262,7 +259,6 @@ pub fn page(w: &WebviewWindow, own: &Own) -> Option<String> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use std::sync::atomic::Ordering;
 
   #[test]
   fn a_window_admits_its_origin_and_the_bundled_pages_alone() {
@@ -286,13 +282,15 @@ mod tests {
 
   #[test]
   fn this_machines_window_admits_its_port_alone() {
-    let seismic = Arc::new(Seismic::default());
-    let own = Own::Local(seismic.clone());
-    assert!(!own.at(&Url::parse("http://127.0.0.1:4417/").unwrap()));
-    seismic.port.store(4417, Ordering::SeqCst);
-    assert!(own.at(&Url::parse("http://127.0.0.1:4417/p").unwrap()));
-    assert!(!own.at(&Url::parse("http://127.0.0.1:4418/").unwrap()));
-    assert!(!own.at(&Url::parse("http://localhost:4417/").unwrap()));
+    let origin = |port| Url::parse(&format!("http://127.0.0.1:{port}/p")).unwrap();
+    assert!(!Own::Local(None).at(&origin(4417)));
+    let old = Own::Local(Some(4417));
+    let replacement = Own::Local(Some(4418));
+    assert!(old.at(&origin(4417)));
+    assert!(!old.at(&origin(4418)));
+    assert!(replacement.at(&origin(4418)));
+    assert!(!replacement.at(&origin(4417)));
+    assert!(!replacement.at(&Url::parse("http://localhost:4418/").unwrap()));
   }
 
   #[test]

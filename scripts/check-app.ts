@@ -130,7 +130,7 @@ await new Promise((r) => setTimeout(r, 1000));
 out.browserButton = [...document.querySelectorAll('button')].some((b) => /^Open in browser$/.test(b.textContent));
 // on a Mac the bar is the title bar: the page may move the window (desktop/capabilities/window.json)
 if (window.seismicApp?.platform === 'macos')
-  out.drag = await window.__TAURI_INTERNALS__.invoke('plugin:window|start_dragging', { label: 'main' }).then(() => 'allowed', (e) => String(e));
+  out.drag = await window.__TAURI_INTERNALS__.invoke('plugin:window|start_dragging').then(() => 'allowed', (e) => String(e));
 await report(out);
 `;
 const harness = Bun.serve({

@@ -24,10 +24,7 @@ use tauri::{ipc::CapabilityBuilder, AppHandle, Manager, Url, WebviewWindow};
 pub use list::{Desks, LOCAL};
 use remote::Health;
 
-use crate::{
-  window::{self, placed::Placed, Own},
-  Seismic,
-};
+use crate::window::{self, placed::Placed, Own};
 
 /// What every workspace's page may ask of the shell: move the window from its bar, show the system's
 /// notifications, list the workspaces and focus or open one.
@@ -44,8 +41,8 @@ const PAGE: &[&str] = &[
 /// What this machine's page may besides: change the list.
 const LOCAL_PAGE: &[&str] = &["allow-add-desk", "allow-rename-desk", "allow-pair-desk", "allow-remove-desk"];
 
-/// The label of this machine's window.
-pub const MAIN: &str = "main";
+/// The startup window has no server origin or native capability.
+pub const STARTUP: &str = "main";
 
 /// A remote workspace's window.
 #[derive(Clone)]
@@ -65,8 +62,8 @@ struct Windows {
   revisions: HashMap<String, u64>,
   /// Workspaces with a health check or a native build underway, by revision.
   opening: HashMap<String, u64>,
-  /// The ports of this machine's Seismic its window has a capability for.
-  ports: HashSet<u16>,
+  /// The active local window and its fixed port, once the server answers.
+  local: Option<(String, u16)>,
 }
 
 impl Windows {
@@ -117,9 +114,16 @@ impl Shell {
     })
   }
 
+  pub fn local(&self) -> (String, Option<u16>) {
+    match &self.windows.lock().unwrap().local {
+      Some((label, port)) => (label.clone(), Some(*port)),
+      None => (STARTUP.into(), None),
+    }
+  }
+
   /// The workspace window `label` shows, and its origin for a remote one.
   pub fn desk_of(&self, label: &str) -> Option<(String, Option<String>)> {
-    if label == MAIN {
+    if label == self.local().0 {
       return Some((LOCAL.into(), None));
     }
     self.windows.lock().unwrap().open.get(label).map(|o| (o.desk.clone(), Some(o.origin.clone())))
@@ -128,7 +132,7 @@ impl Shell {
   /// The label of workspace `id`'s window, where it is open.
   fn label_of(&self, id: &str) -> Option<String> {
     if id == LOCAL {
-      return Some(MAIN.into());
+      return Some(self.local().0);
     }
     self.windows.lock().unwrap().open.iter().find(|(_, o)| o.desk == id).map(|(l, _)| l.clone())
   }
@@ -137,10 +141,11 @@ impl Shell {
   pub fn view(&self, label: &str) -> serde_json::Value {
     let desks = self.desks.lock().unwrap().clone();
     let windows = self.windows.lock().unwrap();
+    let local = windows.local.as_ref().map_or(STARTUP, |(label, _)| label.as_str());
     let open: HashSet<String> = windows.open.values().map(|o| o.desk.clone()).collect();
     let (current, problem) = match windows.open.get(label) {
       Some(o) => (Some(o.desk.clone()), o.problem),
-      None if label == MAIN => (Some(LOCAL.to_string()), None),
+      None if label == local => (Some(LOCAL.to_string()), None),
       None => (None, None),
     };
     drop(windows);
@@ -177,7 +182,7 @@ fn machine_name() -> String {
     .unwrap_or_else(|| "This machine".into())
 }
 
-fn shell(app: &AppHandle) -> Arc<Shell> {
+pub fn shell(app: &AppHandle) -> Arc<Shell> {
   app.state::<Arc<Shell>>().inner().clone()
 }
 
@@ -194,34 +199,50 @@ fn capability(label: &str, origin: &str, permissions: &[&[&str]]) -> CapabilityB
   cap
 }
 
-/// Lets this machine's page at `port` call the shell, once per port: its server picks the port as it
-/// starts (main.rs, `serve`), before the window goes there.
-pub fn allow_local(app: &AppHandle, port: u16) {
-  let shell = shell(app);
-  if !shell.windows.lock().unwrap().ports.insert(port) {
-    return;
-  }
-  if let Err(e) = app.add_capability(capability(MAIN, &format!("http://127.0.0.1:{port}"), &[PAGE, LOCAL_PAGE])) {
-    eprintln!("seismic: no capability for this machine's page: {e}");
-  }
+/// Allocates a fresh label for every native window. A capability never grants a second origin
+/// to the same label, and a late Destroyed event cannot remove a replacement's tracking.
+fn label_for(shell: &Shell, prefix: &str) -> String {
+  let mut windows = shell.windows.lock().unwrap();
+  windows.next_label += 1;
+  format!("{prefix}-{}", windows.next_label)
 }
 
-/// A label belongs to one native window. Its Destroyed event can arrive after a replacement opens.
-fn label_for(app: &AppHandle, shell: &Shell, origin: &str) -> Result<String, String> {
-  let label = {
-    let mut windows = shell.windows.lock().unwrap();
-    windows.next_label += 1;
-    format!("desk-{}", windows.next_label)
-  };
-  app.add_capability(capability(&label, origin, &[PAGE])).map_err(|e| {
-    eprintln!("seismic: no capability for {origin}: {e}");
-    "capability".to_string()
-  })?;
-  Ok(label)
+/// Connects this machine's window to the server. Runs on the UI thread, where closing the old
+/// webview removes it immediately, even though destroying its native window queues an event.
+pub fn connect_local(app: &AppHandle, port: u16, page: Url, handed_over: bool) -> Result<(), String> {
+  let shell = shell(app);
+  let (label, previous) = shell.local();
+  let old = app.get_webview_window(&label).ok_or("window")?;
+  let own = Own::Local(Some(port));
+  if !own.at(&page) {
+    return Err("elsewhere".into());
+  }
+  if previous == Some(port) {
+    return old.navigate(page).map_err(|e| e.to_string());
+  }
+  let placed = Placed::of(&old, LOCAL, &Own::Local(previous));
+  let label = label_for(&shell, "main");
+  let origin = own.origin().expect("local server port");
+  app.add_capability(capability(&label, &origin, &[PAGE, LOCAL_PAGE])).map_err(|e| e.to_string())?;
+  let w = window::build(app, &label, own, placed.as_ref(), previous.is_none() && handed_over).map_err(|e| e.to_string())?;
+  if let Err(error) = old.as_ref().close() {
+    let _ = w.destroy();
+    return Err(error.to_string());
+  }
+  shell.windows.lock().unwrap().local = Some((label, port));
+  let _ = old.destroy();
+  w.navigate(page).map_err(|e| e.to_string())?;
+  if placed.as_ref().is_none_or(|p| p.visible) {
+    w.show().map_err(|e| e.to_string())?;
+    if placed.as_ref().is_some_and(|p| p.focused) {
+      let _ = w.set_focus();
+    }
+  }
+  Ok(())
 }
 
 /// HTTP runs off the UI thread. Its results and workspace/window mutations are applied on it.
-async fn on_ui<T: Send + 'static>(app: AppHandle, action: impl FnOnce(&AppHandle) -> Result<T, String> + Send + 'static) -> Result<T, String> {
+pub async fn on_ui<T: Send + 'static>(app: AppHandle, action: impl FnOnce(&AppHandle) -> Result<T, String> + Send + 'static) -> Result<T, String> {
   let (send, mut receive) = tauri::async_runtime::channel(1);
   let handle = app.clone();
   app
@@ -295,7 +316,11 @@ fn build(app: &AppHandle, id: &str, origin: &str, revision: u64, url: Option<Url
   if url.as_ref().is_some_and(|u| !own.at(u)) {
     return Err("elsewhere".into());
   }
-  let label = label_for(app, &shell, origin)?;
+  let label = label_for(&shell, "desk");
+  app.add_capability(capability(&label, origin, &[PAGE])).map_err(|e| {
+    eprintln!("seismic: no capability for {origin}: {e}");
+    "capability".to_string()
+  })?;
   let w = window::build(app, &label, own, placed, false).map_err(|e| e.to_string())?;
   // The native constructor can pump events on Windows. Check again before loading any content.
   if !can_build(&shell, id, origin, revision) {
@@ -351,7 +376,7 @@ fn open_paired(app: &AppHandle, id: &str, origin: &str, link: Url) -> Result<(),
 /// Closes workspace `id`'s window, where it is open.
 fn close(app: &AppHandle, id: &str) {
   let shell = shell(app);
-  if let Some(label) = shell.label_of(id).filter(|l| l != MAIN) {
+  if let Some(label) = shell.label_of(id).filter(|_| id != LOCAL) {
     shell.windows.lock().unwrap().open.remove(&label);
     if let Some(w) = app.get_webview_window(&label) {
       let _ = w.destroy();
@@ -377,10 +402,11 @@ pub fn changed(app: &AppHandle) {
 }
 
 /// The windows as they are now, for the shell that starts next (main.rs, `relaunch`).
-pub fn placed(app: &AppHandle, seismic: &Arc<Seismic>) -> Vec<Placed> {
+pub fn placed(app: &AppHandle) -> Vec<Placed> {
   let shell = shell(app);
   let open = shell.windows.lock().unwrap().open.clone();
-  let main = app.get_webview_window(MAIN).and_then(|w| Placed::of(&w, LOCAL, &Own::Local(seismic.clone())));
+  let (label, port) = shell.local();
+  let main = app.get_webview_window(&label).and_then(|w| Placed::of(&w, LOCAL, &Own::Local(port)));
   let remote = open
     .into_iter()
     .filter_map(|(label, o)| Placed::of(&app.get_webview_window(&label)?, &o.desk, &Own::Remote(o.origin)));
