@@ -15,6 +15,7 @@ export const devices = sqliteTable('devices', {
   lastSeen: text('last_seen').notNull(),
   /** Where it turned notifications on: its push subscription. */
   push: text({ mode: 'json' }).$type<Subscription>(),
+  enrollmentOrder: integer('enrollment_order').notNull().default(0),
 });
 
 /** A table of an earlier design's credential handover: databases have it, nothing reads or writes it. */
@@ -40,6 +41,8 @@ export const deviceTokens = sqliteTable(
     retired: integer({ mode: 'boolean' }).notNull().default(false),
     sourceHash: text('source_hash'),
     nonce: text(),
+    /** Null on credentials issued before presentation was recorded. */
+    presented: integer({ mode: 'boolean' }),
   },
   (t) => [
     index('device_tokens_by_device').on(t.deviceId, t.seq),
@@ -55,14 +58,20 @@ const sha256 = (text: string) => createHash('sha256').update(text).digest('hex')
 const replacement = (token: string, nonce: string) => createHmac('sha256', token).update(nonce).digest('base64url');
 
 /** A credential given in a pairing again. */
-export interface Issued {
+interface Issued {
   token: string;
-  nonce: string;
   hash: string;
   seq: number;
 }
 
 const view = { id: devices.id, name: devices.name, pairedAt: devices.pairedAt, lastSeen: devices.lastSeen };
+const enrollment = { device: view, enrollmentOrder: devices.enrollmentOrder };
+
+interface Credential {
+  device: DeviceView;
+  enrollmentOrder: number;
+  seq: number;
+}
 
 /** The paired devices' queries (`Store.devices`). */
 export class Devices {
@@ -70,7 +79,7 @@ export class Devices {
 
   /** Every paired device, the first paired first. */
   all(): DeviceView[] {
-    const rows = this.db.select({ ...view, push: isNotNull(devices.push).mapWith(Boolean) }).from(devices).orderBy(devices.pairedAt).all();
+    const rows = this.db.select({ ...view, push: isNotNull(devices.push).mapWith(Boolean) }).from(devices).orderBy(devices.pairedAt, devices.enrollmentOrder).all();
     return rows.map(({ push, ...d }) => (push ? { ...d, push: true } : d));
   }
 
@@ -105,48 +114,54 @@ export class Devices {
    * The device whose credential hashes to `hash`, and that credential's place in the order given
    * (`seq`). Presenting it retires the device's credentials given before it.
    */
-  byToken(hash: string): { device: DeviceView; seq: number } | null {
-    const row = this.db.select({ deviceId: deviceTokens.deviceId, seq: deviceTokens.seq, retired: deviceTokens.retired }).from(deviceTokens).where(eq(deviceTokens.tokenHash, hash)).get();
+  byToken(hash: string): Credential | null {
+    const token = eq(deviceTokens.tokenHash, hash);
+    const row = this.db.select({ deviceId: deviceTokens.deviceId, seq: deviceTokens.seq, retired: deviceTokens.retired, presented: deviceTokens.presented }).from(deviceTokens).where(token).get();
     if (row) {
       if (row.retired) return null;
-      const older = and(eq(deviceTokens.deviceId, row.deviceId), lt(deviceTokens.seq, row.seq), activeToken);
-      if (row.seq > 0 && this.db.select({ seq: deviceTokens.seq }).from(deviceTokens).where(older).limit(1).get()) {
-        this.db.update(deviceTokens).set({ retired: true }).where(older).run();
+      const device = this.db.select(enrollment).from(devices).where(eq(devices.id, row.deviceId)).get();
+      if (!device) return null;
+      if (row.seq > 0 && !row.presented) {
+        const confirmed = this.db.transaction((tx) => {
+          if (!tx.update(deviceTokens).set({ presented: true }).where(and(token, activeToken)).returning({ seq: deviceTokens.seq }).get()) return false;
+          const older = and(eq(deviceTokens.deviceId, row.deviceId), lt(deviceTokens.seq, row.seq), activeToken);
+          tx.update(deviceTokens).set({ retired: true }).where(older).run();
+          return true;
+        });
+        if (!confirmed) return null;
       }
-      const device = this.byId(row.deviceId);
-      return device ? { device, seq: row.seq } : null;
+      return { ...device, seq: row.seq };
     }
-    const first = this.db.select(view).from(devices).where(eq(devices.tokenHash, hash)).get();
+    const first = this.db.select(enrollment).from(devices).where(eq(devices.tokenHash, hash)).get();
     // once paired again, the first credential is in `device_tokens` too, which decides
-    if (!first || this.db.select({ seq: deviceTokens.seq }).from(deviceTokens).where(eq(deviceTokens.deviceId, first.id)).get()) return null;
-    return { device: first, seq: 0 };
+    if (!first || this.db.select({ seq: deviceTokens.seq }).from(deviceTokens).where(eq(deviceTokens.deviceId, first.device.id)).get()) return null;
+    return { ...first, seq: 0 };
   }
 
   /** The device a retired credential (`hash`) was of, for pairing it again; it lets nobody in. */
-  retired(hash: string): DeviceView | null {
-    const row = this.db.select({ id: deviceTokens.deviceId }).from(deviceTokens).where(and(eq(deviceTokens.tokenHash, hash), eq(deviceTokens.retired, true))).get();
-    return row ? this.byId(row.id) : null;
+  retired(hash: string): Credential | null {
+    return this.db.select({ ...enrollment, seq: deviceTokens.seq }).from(deviceTokens)
+      .innerJoin(devices, eq(devices.id, deviceTokens.deviceId))
+      .where(and(eq(deviceTokens.tokenHash, hash), eq(deviceTokens.retired, true))).get() ?? null;
   }
 
-  byId(id: string): DeviceView | null {
-    return this.db.select(view).from(devices).where(eq(devices.id, id)).get() ?? null;
+  /** What an undelivered replacement was made from, while it still works and has never been presented. */
+  pending(hash: string) {
+    return this.db.select({ ...enrollment, sourceHash: deviceTokens.sourceHash, nonce: deviceTokens.nonce }).from(deviceTokens)
+      .innerJoin(devices, eq(devices.id, deviceTokens.deviceId))
+      .where(and(eq(deviceTokens.tokenHash, hash), activeToken, eq(deviceTokens.presented, false))).get();
   }
 
-  /** What the device's credential `hash` is: its place in the order, whether retired, and what it was made from. */
-  given(hash: string): { deviceId: string; seq: number; retired: boolean; sourceHash: string | null; nonce: string | null } | null {
-    const row = this.db.select({ deviceId: deviceTokens.deviceId, seq: deviceTokens.seq, retired: deviceTokens.retired, sourceHash: deviceTokens.sourceHash, nonce: deviceTokens.nonce }).from(deviceTokens).where(eq(deviceTokens.tokenHash, hash)).get();
-    if (row) return row;
-    const first = this.db.select({ id: devices.id }).from(devices).where(eq(devices.tokenHash, hash)).get();
-    return first ? { deviceId: first.id, seq: 0, retired: false, sourceHash: null, nonce: null } : null;
-  }
-
-  /** The replacement made from `source` again, where `given` says it was made from it. */
+  /** The replacement made from `source` again, where `pending` says it was made from it. */
   remake(source: string, nonce: string): string {
     return replacement(source, nonce);
   }
 
   add(d: DeviceView & { tokenHash: string }) {
-    this.db.insert(devices).values({ id: d.id, tokenHash: d.tokenHash, name: d.name, pairedAt: d.pairedAt, lastSeen: d.lastSeen }).run();
+    this.db.insert(devices).values({
+      id: d.id, tokenHash: d.tokenHash, name: d.name, pairedAt: d.pairedAt, lastSeen: d.lastSeen,
+      enrollmentOrder: sql`(SELECT coalesce(max(enrollment_order), 0) + 1 FROM devices)`,
+    }).run();
   }
 
   /**
@@ -161,9 +176,11 @@ export class Devices {
     return this.db.transaction((tx) => {
       tx.update(devices).set({ pairedAt: d.pairedAt, lastSeen: d.lastSeen }).where(eq(devices.id, d.id)).run();
       const history = eq(deviceTokens.deviceId, d.id);
+      // A pre-upgrade credential's delivery is unknown. Leave it valid and issue a trackable replacement.
       const again = tx.select({ tokenHash: deviceTokens.tokenHash, seq: deviceTokens.seq, nonce: deviceTokens.nonce })
-        .from(deviceTokens).where(and(history, activeToken, eq(deviceTokens.sourceHash, source), isNotNull(deviceTokens.nonce))).limit(1).get();
-      if (again?.nonce) return { token: replacement(presented, again.nonce), nonce: again.nonce, hash: again.tokenHash, seq: again.seq };
+        .from(deviceTokens).where(and(history, activeToken, eq(deviceTokens.sourceHash, source), isNotNull(deviceTokens.presented)))
+        .orderBy(desc(deviceTokens.seq)).limit(1).get();
+      if (again?.nonce) return { token: replacement(presented, again.nonce), hash: again.tokenHash, seq: again.seq };
       const last = tx.select({ seq: deviceTokens.seq }).from(deviceTokens).where(history).orderBy(desc(deviceTokens.seq)).limit(1).get();
       if (!last) {
         const first = tx.select({ tokenHash: devices.tokenHash }).from(devices).where(eq(devices.id, d.id)).get()!;
@@ -173,8 +190,8 @@ export class Devices {
       const nonce = randomBytes(32).toString('hex');
       const token = replacement(presented, nonce);
       const hash = sha256(token);
-      tx.insert(deviceTokens).values({ tokenHash: hash, deviceId: d.id, seq, sourceHash: source, nonce }).run();
-      return { token, nonce, hash, seq };
+      tx.insert(deviceTokens).values({ tokenHash: hash, deviceId: d.id, seq, sourceHash: source, nonce, presented: false }).run();
+      return { token, hash, seq };
     });
   }
 

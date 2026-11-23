@@ -753,6 +753,9 @@ export const MIGRATIONS = [
   );`,
   `CREATE INDEX IF NOT EXISTS device_tokens_by_device ON device_tokens (device_id, seq);
    CREATE INDEX IF NOT EXISTS device_tokens_active ON device_tokens (device_id, seq) WHERE retired = 0;`,
+  `ALTER TABLE device_tokens ADD COLUMN presented INTEGER;
+   ALTER TABLE devices ADD COLUMN enrollment_order INTEGER NOT NULL DEFAULT 0;
+   UPDATE devices SET enrollment_order = rowid;`,
 ];
 
 /**

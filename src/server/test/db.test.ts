@@ -37,7 +37,7 @@ test('a pending device credential survives restart and is revoked with its devic
     expect(next.devices.byToken(hash(replacement))?.device.id).toBe(device.id);
     expect(next.devices.byToken(hash('original'))).toBeNull();
     // the credential it retired lets nobody in, but still names the device for pairing it again
-    expect(next.devices.retired(hash('original'))?.id).toBe(device.id);
+    expect(next.devices.retired(hash('original'))?.device.id).toBe(device.id);
     const undelivered = next.devices.renew(device, replacement).token;
     next.devices.remove(device.id);
     expect(next.devices.byToken(hash(replacement))).toBeNull();
@@ -45,6 +45,42 @@ test('a pending device credential survives restart and is revoked with its devic
     expect(next.devices.retired(hash('original'))).toBeNull();
   } finally {
     next.db.close();
+  }
+}));
+
+/** The older fixtures keep device tables from the current schema; undo their added columns. */
+function rewind(db: Database, version: number) {
+  if (db.query("SELECT 1 FROM pragma_table_info('device_tokens') WHERE name = 'presented'").get()) db.run('ALTER TABLE device_tokens DROP COLUMN presented');
+  if (db.query("SELECT 1 FROM pragma_table_info('devices') WHERE name = 'enrollment_order'").get()) db.run('ALTER TABLE devices DROP COLUMN enrollment_order');
+  db.run(`PRAGMA user_version = ${version}`);
+}
+
+test('migrating renewals preserves older credentials and tracks newly issued replacements', () => withPath((path) => {
+  const before = new Store(path);
+  const device = { id: 'desktop', name: 'Desktop', pairedAt: '2026-11-22', lastSeen: '2026-11-22' };
+  const hash = (token: string) => new Bun.CryptoHasher('sha256').update(token).digest('hex');
+  before.devices.add({ ...device, tokenHash: hash('original') });
+  const delivered = before.devices.renew(device, 'original');
+  expect(before.devices.byToken(delivered.hash)).toBeTruthy();
+  const old = before.devices.renew(device, delivered.token);
+  before.devices.add({ ...device, id: 'other', tokenHash: hash('other') });
+  rewind(before.db, RELEASED + MIGRATIONS.findIndex((m) => m.includes('ADD COLUMN presented')));
+  before.db.close();
+
+  const after = new Store(path);
+  try {
+    expect(after.devices.pending(delivered.hash)).toBeUndefined();
+    const fresh = after.devices.renew(device, delivered.token);
+    expect(fresh.hash).not.toBe(old.hash);
+    const pending = after.devices.pending(fresh.hash);
+    expect(pending?.sourceHash).toBe(delivered.hash);
+    const restored = after.devices.byToken(old.hash);
+    const other = after.devices.byToken(hash('other'));
+    expect(restored?.enrollmentOrder).toBeLessThan(other!.enrollmentOrder);
+    expect(after.devices.byToken(fresh.hash)?.device.id).toBe(device.id);
+    expect(after.devices.pending(fresh.hash)).toBeUndefined();
+  } finally {
+    after.db.close();
   }
 }));
 
@@ -201,7 +237,7 @@ test('what an Seismic before the release kept in earlier shapes is in today’s'
     s.db.run("UPDATE cards SET kind = 'project' WHERE kind = 'plan'");
     s.db.query('INSERT INTO workspaces (path, canvas_id, card_id) VALUES ($path, $c, $card)').run({ path: '/w/1', c: 'c', card: video!.id });
     s.db.query(`UPDATE cards SET workspace = '/w/1', queue = '{"since":"2026-01-01","workspace":"dirty","begun":true}' WHERE id = $id`).run({ id: video!.id });
-    s.db.run(`PRAGMA user_version = ${RELEASED}`);
+    rewind(s.db, RELEASED);
     s.db.close();
 
     const after = new Store(path);
@@ -267,7 +303,7 @@ test('the migration gives the cards there are codes of their own, longer where t
     s.db.run('ALTER TABLE cards RENAME COLUMN becomes_plan TO becomes_project; ALTER TABLE decisions RENAME COLUMN plan_id TO project_id');
     s.db.run('ALTER TABLE workstations RENAME TO workspaces; ALTER TABLE cards RENAME COLUMN workstation TO workspace');
     s.db.run("UPDATE cards SET kind = 'project' WHERE kind = 'plan'");
-    s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('ADD COLUMN short'))}`);
+    rewind(s.db, RELEASED + MIGRATIONS.findIndex((m) => m.includes('ADD COLUMN short')));
     s.db.close();
     const after = new Store(path);
     expect(ids.map((id) => after.cards.get(id)!.short)).toEqual(['12345678000040008000000000000001', '12345678000040008000000000000002', '1234aa', 'ffffff']);
@@ -302,7 +338,7 @@ test('the sessions of cards from before runs were recorded: the last as pinned, 
     s.db.run('ALTER TABLE cards RENAME COLUMN becomes_plan TO becomes_project; ALTER TABLE decisions RENAME COLUMN plan_id TO project_id');
     s.db.run('ALTER TABLE workstations RENAME TO workspaces; ALTER TABLE cards RENAME COLUMN workstation TO workspace');
     s.db.run("UPDATE cards SET kind = 'project' WHERE kind = 'plan'");
-    s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('CREATE TABLE agent_runs'))}`);
+    rewind(s.db, RELEASED + MIGRATIONS.findIndex((m) => m.includes('CREATE TABLE agent_runs')));
     s.db.close();
 
     const after = new Store(path);
@@ -436,7 +472,7 @@ test('what was said before chats existed becomes one chat per project', () =>
     store.db.run('ALTER TABLE cards RENAME COLUMN becomes_plan TO becomes_project; ALTER TABLE decisions RENAME COLUMN plan_id TO project_id');
     store.db.run('ALTER TABLE workstations RENAME TO workspaces; ALTER TABLE cards RENAME COLUMN workstation TO workspace');
     store.db.run("UPDATE cards SET kind = 'project' WHERE kind = 'plan'");
-    store.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('CREATE TABLE chats'))}`);
+    rewind(store.db, RELEASED + MIGRATIONS.findIndex((m) => m.includes('CREATE TABLE chats')));
     store.db.run('DROP INDEX talk_chat');
     store.db.run('ALTER TABLE talk DROP COLUMN chat');
     store.db.run('DROP TABLE chats');
@@ -462,7 +498,7 @@ test('what an Seismic kept while projects were canvases is in today’s names, t
     s.db.run(`UPDATE talk SET moved = '{"card":"x","title":"T","canvas":"d","canvasName":"Site"}' WHERE moved IS NOT NULL`);
     s.db.run(`UPDATE cards SET new_repo = '{"path":"/r","canvas":true,"by":"owner"}' WHERE id = '${card!.id}'`);
     s.db.query('UPDATE events SET made = $made WHERE id = $id').run({ made: '{"card":"y","title":"U","canvas":"d"}', id: made.id });
-    s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes("ALTER TABLE canvases RENAME TO projects"))}`);
+    rewind(s.db, RELEASED + MIGRATIONS.findIndex((m) => m.includes("ALTER TABLE canvases RENAME TO projects")));
     s.db.close();
 
     const after = new Store(path);
@@ -496,7 +532,7 @@ test('the migration gives every project a canvas main holding all its cards and 
     s.cards.setGroup([a!.id], g.id);
     s.db.run('DROP TABLE activity');
     withoutCanvases(s.db);
-    s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('CREATE TABLE canvases'))}`);
+    rewind(s.db, RELEASED + MIGRATIONS.findIndex((m) => m.includes('CREATE TABLE canvases')));
     s.db.close();
 
     const after = new Store(path);
@@ -519,7 +555,7 @@ test('the pause, the pause at a safe point, the usage limit, the snooze and the 
     withoutParts(s.db);
     s.db.run('DROP TABLE card_ideas');
     s.db.run('ALTER TABLE cards DROP COLUMN hold');
-    s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('ADD `hold`'))}`);
+    rewind(s.db, RELEASED + MIGRATIONS.findIndex((m) => m.includes('ADD `hold`')));
     const set = (id: string, column: string, value: string) => s.db.run(`UPDATE cards SET ${column} = ? WHERE id = ?`, [value, id]);
     const held = [{ text: 'The review came in.', images: ['img-1'] }];
     set(paused!, 'paused', JSON.stringify({ held }));
@@ -555,7 +591,7 @@ test('an idea, a prototype, a proposal, a card built on a prototype, one that be
     const [idea, prototype, proposed, built, plan, repo, plain] = rows.map((r) => r.id);
     withoutParts(s.db);
     s.db.run('DROP TABLE card_ideas');
-    s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('CREATE TABLE `card_ideas`'))}`);
+    rewind(s.db, RELEASED + MIGRATIONS.findIndex((m) => m.includes('CREATE TABLE `card_ideas`')));
     const set = (id: string, column: string, value: string | number) => s.db.run(`UPDATE cards SET ${column} = ? WHERE id = ?`, [value, id]);
     set(idea!, 'idea', JSON.stringify({ status: 'open', brief: 'A shop', yourTurn: true }));
     set(prototype!, 'prototype_of', idea!);
@@ -601,7 +637,7 @@ test('a pull request, a demo with earlier ones, a plan, labels and a hold move i
     s.ensureProject('c', 'Shop');
     const [reviewed, demoed, planned, labelled, held, plain] = s.addCards(Array.from({ length: 6 }, () => ({ project_id: 'c', kind: 'task' as const, x: 0, y: 0 }))).map((r) => r.id);
     withoutParts(s.db);
-    s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('CREATE TABLE \`card_reviews\`'))}`);
+    rewind(s.db, RELEASED + MIGRATIONS.findIndex((m) => m.includes('CREATE TABLE \`card_reviews\`')));
     const set = (id: string, column: string, value: unknown) => s.db.run(`UPDATE cards SET ${column} = ? WHERE id = ?`, [typeof value === 'object' ? JSON.stringify(value) : (value as string | number), id]);
     const pr = { url: 'https://github.com/a/b/pull/1', number: 1, seen: [], reported: [] };
     set(reviewed!, 'pr', pr);
@@ -665,7 +701,7 @@ test('the latest completed run of a code review becomes the list of items, the i
     s.db.run('ALTER TABLE cards DROP COLUMN stopped_at');
     s.db.run('DROP TABLE card_review_item_events');
     s.db.run('DROP TABLE card_review_items');
-    s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('CREATE TABLE \`card_review_items\`'))}`);
+    rewind(s.db, RELEASED + MIGRATIONS.findIndex((m) => m.includes('CREATE TABLE \`card_review_items\`')));
     s.db.close();
 
     const after = new Store(path);
@@ -713,7 +749,7 @@ test('the columns that moved into the tables of the parts leave cards; each card
     const rowids = () => s.db.query('SELECT id, rowid FROM cards ORDER BY rowid').all();
     const before = rowids();
     withMovedColumns(s.db);
-    s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('__new_cards'))}`);
+    rewind(s.db, RELEASED + MIGRATIONS.findIndex((m) => m.includes('__new_cards')));
     s.db.close();
 
     const after = new Store(path);
@@ -892,7 +928,7 @@ test('the cards’ open waits move into needs_you, with when they began; waiting
     ]);
     s.db.query("UPDATE cards SET state = 'waiting', need = 'question', waiting_since = '2026-11-05T08:00:00.000Z' WHERE id = ?").run(asks!.id);
     s.db.query("UPDATE cards SET state = 'waiting', need = 'review', waiting_since = '2026-11-05T09:30:00.250Z' WHERE id = ?").run(done!.id);
-    s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('CREATE TABLE `needs_you`'))}`);
+    rewind(s.db, RELEASED + MIGRATIONS.findIndex((m) => m.includes('CREATE TABLE `needs_you`')));
     s.db.close();
 
     const after = new Store(path);
@@ -947,7 +983,7 @@ test('a workstream that sits on another canvas than its plan\'s, archived or not
     s.cards.update(archived!.id, { archived_at: new Date().toISOString() });
     s.db.run('UPDATE cards SET canvas_id = ? WHERE id IN (?, ?)', [main, live!.id, archived!.id]);
     s.db.run('ALTER TABLE talk DROP COLUMN agent_setting');
-    s.db.run(`PRAGMA user_version = ${RELEASED + MIGRATIONS.findIndex((m) => m.includes('SELECT p.canvas_id FROM cards p'))}`);
+    rewind(s.db, RELEASED + MIGRATIONS.findIndex((m) => m.includes('SELECT p.canvas_id FROM cards p')));
     s.db.close();
     const after = new Store(path);
     expect([live!.id, archived!.id, plan!.id, free!.id].map((id) => after.cards.get(id)!.canvas_id)).toEqual([later, later, later, main]);

@@ -415,7 +415,7 @@ Safety rules:
   pass `Host` through and set `X-Forwarded-For`, `-Host` and `-Proto`. Chosen over a `tailscale serve`
   entry on port 443 because that port is then free for the proxy (2026-11-20).
 - A paired device's cookie is named for the scheme and port of the address it was set at
-  (`seismic-device-https-8443`, `seismic-device-http` without a port): a browser keeps cookies per
+  (`seismic-device-https-8443.<tag>`, `seismic-device-http.<tag>` without a port): a browser keeps cookies per
   host, whatever the port and scheme, so two Seismics on one host, or the `http://` and `https://`
   addresses of one, would otherwise overwrite each other's pairing. The address's own cookies, once
   present, decide alone; the older names (`seismic-device-8443`, `seismic-device`, `obeya-device`)
@@ -426,9 +426,10 @@ Safety rules:
   on its way keeps working whatever arrives first. A replacement is made from the credential the
   pairing brought (an HMAC with a nonce), so the same credential brought again, a retry or a
   request sent before an earlier replacement arrived, gets the same answer and keeps its device;
-  a retired one lets nobody in. Each replacement's cookie has a name of its own
-  (`seismic-device-https-8443.<tag>`, the tag from its nonce) and the answer unsets the cookies the
-  request brought, so a late answer sets its cookie beside the newest, never over it.
+  a retired one lets nobody in. The tag comes from the credential's hash, including for first
+  pairings. The answer unsets the cookies the request brought, so a late answer sets its cookie
+  beside the newest. Where a browser opened two first pairings before receiving either answer,
+  Seismic prefers the device enrolled last, even if the answers arrive in reverse order.
   Rejected: one cookie name with the old credential kept valid for a generation or two, which only
   moves that race a renewal on; keeping the credential on pairing again, which leaves a copied
   cookie working (2026-11-23).
@@ -440,8 +441,9 @@ Safety rules:
   webview's cookie and name, not the shell's. The link is built only on a request address that is
   a plain `host[:port]` of Seismic's as a whole. Opened again within a day of its use, a used link leads
   on to the project only a browser holding the credential it gave or a later one, and gives the
-  same credential again to one still bringing the credential it was made from (its answer lost); an expired or unknown one says it did not pair, even to a browser
-  paired before (2026-11-23).
+  same replacement again to one still bringing the credential it was made from, until the
+  replacement is presented or retired. An expired or unknown link says it did not pair, even to
+  a browser paired before (2026-11-23).
 - Landing never loses work: nothing is force-pushed, a direct push only fast-forwards, a merge is
   pinned to the head that was checked; a clone is deleted only when nothing on it would be lost.
 - Approval comes only from the card's button after the demo, never from a list or from words

@@ -49,11 +49,9 @@ function portOnlyDeviceCookie(req: Request): string | null {
   return port ? `${DEVICE_COOKIE}-${port}` : null;
 }
 /**
- * The device cookies named for the address a request reaches: `deviceCookie(req)` itself, and those
- * of a pairing again there, each under a name of its own (`seismic-device-https-8443.<tag>`). A
- * pairing again gives the device a new credential, which the answer sets under a new name and
- * unsets the one before: answers of two pairings at once that arrive late, out of order, set
- * cookies beside the newest one and never over it.
+ * The device cookies named for the address a request reaches: the former base name and the names
+ * of individual credentials (`seismic-device-https-8443.<tag>`). A late answer sets its cookie
+ * beside newer ones and unsets only names that its request carried.
  */
 function ownCookies(req: Request): string[] {
   const base = deviceCookie(req);
@@ -140,13 +138,12 @@ export interface AccessOptions {
   owner?: Owner;
 }
 
-/** A browser paired: its credential (with its hash and place in the device's order), its device, and where it was paired again, the tag of the replacement's cookie name. */
+/** A browser paired: its credential (with its hash and place in the device's order) and its device. */
 interface Enrolled {
   token: string;
   hash: string;
   seq: number;
   device: DeviceView;
-  tag?: string;
 }
 
 /** A link that paired a browser: the device, the credential it gave, until when it is remembered. */
@@ -155,6 +152,13 @@ interface UsedLink {
   hash: string;
   seq: number;
   until: number;
+}
+
+interface AddressCredential {
+  device: DeviceView;
+  token: string;
+  enrollmentOrder: number;
+  seq: number;
 }
 
 /** What answers on another address: started and stopped by the server, which knows its routes. */
@@ -429,24 +433,24 @@ export class Access implements Gate {
   }
 
   /**
-   * Of the cookies `names` that name a device, the one given last, with its value and name, each
-   * looked up once. Presenting a credential retires those given before it, which may stand before
-   * it in the same request and then no longer let anyone in.
+   * Prefer the newest enrollment, then its newest credential, regardless of cookie header order.
+   * Presenting an active replacement retires its predecessors on that device.
    */
-  private credential(req: Request, names: string[]): { device: DeviceView; token: string; name: string; seq: number } | null {
+  private credential(req: Request, names: string[], retired = false): AddressCredential | null {
     const now = this.now();
     const cookies = req.headers.get('cookie')?.split(';').map((c) => c.trim()) ?? [];
-    let found: { device: DeviceView; token: string; name: string; seq: number } | null = null;
+    let found: AddressCredential | null = null;
     for (const name of names) {
       const token = cookies.find((c) => c.startsWith(`${name}=`))?.slice(name.length + 1);
       if (!token) continue;
-      const known = this.store.devices.byToken(sha256(token));
-      if (!known) continue;
-      const { device } = known;
-      if (!this.stillPaired(device, now)) continue;
-      if (now - Date.parse(device.lastSeen) > SEEN_EVERY_MS) this.store.devices.seen(device.id, new Date(now).toISOString());
-      if (!found || known.seq > found.seq) found = { device, token, name, seq: known.seq };
+      const hash = sha256(token);
+      const known = retired ? this.store.devices.retired(hash) : this.store.devices.byToken(hash);
+      if (!known || !this.stillPaired(known.device, now)) continue;
+      if (!found || known.enrollmentOrder > found.enrollmentOrder || (known.enrollmentOrder === found.enrollmentOrder && known.seq > found.seq)) {
+        found = { ...known, token };
+      }
     }
+    if (found && !retired && now - Date.parse(found.device.lastSeen) > SEEN_EVERY_MS) this.store.devices.seen(found.device.id, new Date(now).toISOString());
     return found;
   }
 
@@ -458,13 +462,9 @@ export class Access implements Gate {
   private pairedBefore(req: Request): { device: DeviceView; token: string } | undefined {
     const own = ownCookies(req);
     const current = this.credential(req, own);
-    if (current) return current;
-    for (const name of own) {
-      const token = cookieOf(req, name);
-      const device = token ? this.store.devices.retired(sha256(token)) : null;
-      if (device && token && this.stillPaired(device, this.now())) return { device, token };
-    }
-    return undefined;
+    if (current && own.length === 1) return current;
+    const retired = this.credential(req, own, true);
+    return retired && (!current || retired.enrollmentOrder > current.enrollmentOrder) ? retired : current ?? undefined;
   }
 
   /** Checks inactivity before a credential can use or renew a device entry. */
@@ -551,11 +551,8 @@ export class Access implements Gate {
     const at = new Date(this.now()).toISOString();
     const device: DeviceView = { id: existing?.device.id ?? crypto.randomUUID(), name: existing?.device.name ?? deviceName(userAgent), pairedAt: at, lastSeen: at };
     let issued: { token: string; hash: string; seq: number };
-    let tag: string | undefined;
     if (existing) {
-      const renewed = this.store.devices.renew(device, existing.token);
-      issued = renewed;
-      tag = renewed.nonce.slice(0, 12);
+      issued = this.store.devices.renew(device, existing.token);
     } else {
       const token = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64url');
       issued = { token, hash: sha256(token), seq: 0 };
@@ -563,7 +560,7 @@ export class Access implements Gate {
     }
     p.paired = device;
     console.log(`Seismic: ${device.name} paired`);
-    return { ...issued, device, ...(tag ? { tag } : {}) };
+    return { ...issued, device };
   }
 
   /**
@@ -602,20 +599,20 @@ export class Access implements Gate {
   /**
    * A used link opened again. Only the browser it paired goes on to the project: one that holds the
    * credential the link gave, or one given after it. One that still holds what the link's pairing
-   * brought, its answer lost on the way, gets the same credential again (while it is not retired);
-   * that takes the credential it was made from, so no other browser gets it, and no other link's.
+   * brought gets the same credential again until it is presented or retired. Recovering it takes
+   * the credential it was made from and the link that issued it.
    * Any other is told it did not pair.
    */
   private replay(req: Request, used: UsedLink): Response {
-    const holder = this.credential(req, ownCookies(req));
+    const own = ownCookies(req);
+    const holder = this.credential(req, own);
     if (holder?.device.id === used.device && holder.seq >= used.seq) return new Response(null, { status: 303, headers: { location: '/' } });
-    const given = this.store.devices.given(used.hash);
-    if (given && !given.retired && given.sourceHash && given.nonce) {
-      for (const name of ownCookies(req)) {
+    const pending = this.store.devices.pending(used.hash);
+    if (pending?.sourceHash && pending.nonce && (!holder || holder.enrollmentOrder <= pending.enrollmentOrder)) {
+      for (const name of own) {
         const token = cookieOf(req, name);
-        if (token && sha256(token) === given.sourceHash) {
-          const device = this.store.devices.byId(used.device);
-          if (device && this.stillPaired(device, this.now())) return this.paired(req, { token: this.store.devices.remake(token, given.nonce), hash: used.hash, seq: used.seq, device, tag: given.nonce.slice(0, 12) });
+        if (token && sha256(token) === pending.sourceHash) {
+          if (this.stillPaired(pending.device, this.now())) return this.paired(req, { token: this.store.devices.remake(token, pending.nonce), hash: used.hash });
         }
       }
     }
@@ -679,10 +676,10 @@ export class Access implements Gate {
    * The answer that gives a paired browser its cookie and leads it on to the project; the other
    * device cookies of this address it brought go, the one a pairing again replaces among them.
    */
-  private paired(req: Request, paired: Enrolled): Response {
+  private paired(req: Request, paired: Pick<Enrolled, 'token' | 'hash'>): Response {
     // over HTTPS the cookie goes with what a worker's HTML artifact loads in its sandboxed frame too, which counts as another site
     const attributes = `Path=/; HttpOnly; ${schemeOf(req) === 'https' ? 'SameSite=None; Secure' : 'SameSite=Lax'}`;
-    const name = paired.tag ? `${deviceCookie(req)}.${paired.tag}` : deviceCookie(req);
+    const name = `${deviceCookie(req)}.${paired.hash.slice(0, 24)}`;
     const headers = new Headers({ location: '/' });
     headers.append('set-cookie', `${name}=${paired.token}; Max-Age=${COOKIE_MAX_AGE}; ${attributes}`);
     for (const other of ownCookies(req)) if (other !== name) headers.append('set-cookie', `${other}=; Max-Age=0; ${attributes}`);
