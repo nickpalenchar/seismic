@@ -517,16 +517,14 @@ pub(crate) fn may_relaunch(app: &AppHandle) -> bool {
 /// (window/placed.rs); the server runs on unless it ended already. On a Mac through the system, as the
 /// Dock starts it, once this one has ended: run from this process instead, the new shell would count
 /// as this one's for the system's permissions (the microphone), which ends with it.
-pub(crate) fn relaunch(app: &AppHandle, seismic: &Seismic) {
+pub(crate) fn relaunch(app: &AppHandle, seismic: &Seismic, _placed: &[placed::Placed]) {
   seismic.relaunching.store(true, Ordering::SeqCst);
-  let placed = desks::placed(app);
-  placed::keep(&home(), &placed);
   #[cfg(target_os = "macos")]
   {
     // …/Seismic.app/Contents/MacOS/seismic
     let bundle = std::env::current_exe().ok().and_then(|e| Some(e.parent()?.parent()?.parent()?.to_path_buf()));
     if let Some(bundle) = bundle.filter(|b| b.extension().is_some_and(|x| x == "app")) {
-      let hidden = !placed.iter().any(|p| p.visible);
+      let hidden = !_placed.iter().any(|p| p.visible);
       // Launch Services can still have the old app registered when its process is gone.
       let started = Command::new("/bin/sh")
         .args(["-c", r#"while kill -0 "$1" 2>/dev/null; do sleep 0.1; done; exec /usr/bin/open -n $3 "$2""#, "sh"])

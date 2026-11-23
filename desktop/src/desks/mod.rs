@@ -51,6 +51,7 @@ struct Open {
   origin: String,
   /// Why the window shows the status page instead of the workspace (remote.rs, `Health::code`).
   problem: Option<&'static str>,
+  drafts: Vec<(String, String)>,
 }
 
 #[derive(Default)]
@@ -62,6 +63,8 @@ struct Windows {
   revisions: HashMap<String, u64>,
   /// Workspaces with a health check or a native build underway, by revision.
   opening: HashMap<String, u64>,
+  /// Snapshots carrying drafts while their restored windows wait for a health check.
+  restoring_drafts: HashMap<String, Placed>,
   /// The active local window and its fixed port, once the server answers.
   local: Option<(String, u16)>,
 }
@@ -73,6 +76,7 @@ impl Windows {
 
   fn invalidate(&mut self, id: &str) -> u64 {
     self.opening.remove(id);
+    self.restoring_drafts.remove(id);
     let revision = self.revisions.entry(id.into()).or_default();
     *revision += 1;
     *revision
@@ -81,6 +85,7 @@ impl Windows {
   fn finish(&mut self, id: &str, revision: u64) {
     if self.opening.get(id) == Some(&revision) {
       self.opening.remove(id);
+      self.restoring_drafts.remove(id);
     }
   }
 }
@@ -288,6 +293,9 @@ pub fn open(app: &AppHandle, id: &str, placed: Option<Placed>) -> Result<(), Str
     }
     let revision = windows.revision(id);
     windows.opening.insert(id.into(), revision);
+    if let Some(placed) = placed.as_ref().filter(|p| !p.drafts.is_empty()) {
+      windows.restoring_drafts.insert(id.into(), placed.clone());
+    }
     revision
   };
   let id = id.to_string();
@@ -344,6 +352,7 @@ fn build(app: &AppHandle, id: &str, origin: &str, revision: u64, url: Option<Url
       desk: id.into(),
       origin: origin.into(),
       problem: showing_status.then_some(problem),
+      drafts: placed.map_or_else(Vec::new, |p| p.drafts.clone()),
     },
   );
   let page = url.unwrap_or_else(|| window::bundled_url("/status.html"));
@@ -364,7 +373,16 @@ fn open_paired(app: &AppHandle, id: &str, origin: &str, link: Url) -> Result<(),
   if !Own::Remote(origin.into()).at(&link) {
     return Err("elsewhere".into());
   }
-  let revision = shell.windows.lock().unwrap().invalidate(id);
+  let (revision, restoring) = {
+    let mut windows = shell.windows.lock().unwrap();
+    let mut restoring = windows.restoring_drafts.remove(id).filter(|p| p.origin.as_deref() == Some(origin));
+    let revision = windows.invalidate(id);
+    if let Some(p) = &mut restoring {
+      p.visible = true;
+      windows.restoring_drafts.insert(id.into(), p.clone());
+    }
+    (revision, restoring)
+  };
   if let Some(label) = shell.label_of(id) {
     let at_origin = shell.desk_of(&label).and_then(|(_, o)| o).as_deref() == Some(origin);
     if let Some(w) = app.get_webview_window(&label).filter(|_| at_origin) {
@@ -378,7 +396,7 @@ fn open_paired(app: &AppHandle, id: &str, origin: &str, link: Url) -> Result<(),
     close(app, id);
   }
   shell.windows.lock().unwrap().opening.insert(id.into(), revision);
-  let opened = build(app, id, origin, revision, Some(link), "ok", None);
+  let opened = build(app, id, origin, revision, Some(link), "ok", restoring.as_ref());
   shell.windows.lock().unwrap().finish(id, revision);
   opened
 }
@@ -402,6 +420,13 @@ pub fn closed(app: &AppHandle, label: &str) {
   }
 }
 
+/// The page at the workspace's origin now owns its restored drafts in session storage.
+pub fn drafts_restored(app: &AppHandle, label: &str) {
+  if let Some(window) = shell(app).windows.lock().unwrap().open.get_mut(label) {
+    window.drafts.clear();
+  }
+}
+
 /// The list or the windows changed: the pages hear of it (`seismic-desks`, they ask for the list
 /// again), the macOS menu shows it.
 pub fn changed(app: &AppHandle) {
@@ -412,15 +437,29 @@ pub fn changed(app: &AppHandle) {
 }
 
 /// The windows as they are now, for the shell that starts next (main.rs, `relaunch`).
-pub fn placed(app: &AppHandle) -> Vec<Placed> {
+pub fn placed(app: &AppHandle, mut drafts: HashMap<String, Vec<(String, String)>>) -> Option<Vec<Placed>> {
   let shell = shell(app);
-  let open = shell.windows.lock().unwrap().open.clone();
+  let (open, pending) = {
+    let windows = shell.windows.lock().unwrap();
+    let pending: Vec<_> = windows.restoring_drafts.values()
+      .filter(|p| !windows.open.values().any(|o| o.desk == p.desk))
+      .cloned().collect();
+    (windows.open.clone(), pending)
+  };
   let (label, port) = shell.local();
   let main = app.get_webview_window(&label).and_then(|w| Placed::of(&w, LOCAL, &Own::Local(port)));
-  let remote = open
-    .into_iter()
-    .filter_map(|(label, o)| Placed::of(&app.get_webview_window(&label)?, &o.desk, &Own::Remote(o.origin)));
-  main.into_iter().chain(remote).collect()
+  let mut snapshots: Vec<_> = main.into_iter().chain(pending).collect();
+  for (label, o) in open {
+    let Some(w) = app.get_webview_window(&label) else { continue };
+    let unsent = drafts.remove(&label).unwrap_or(o.drafts);
+    if let Some(mut placed) = Placed::of(&w, &o.desk, &Own::Remote(o.origin)) {
+      placed.drafts = unsent;
+      snapshots.push(placed);
+    } else if !unsent.is_empty() {
+      return None;
+    }
+  }
+  drafts.is_empty().then_some(snapshots)
 }
 
 /// Reopens the remote workspaces' windows the shell before left (main.rs), while each is still on

@@ -3,7 +3,12 @@
 // A file in the home, taken once and only fresh. A shell from before the workspaces wrote its one
 // window to `app-window.json`, which counts as this machine's.
 
-use std::{fs, path::Path, time::Duration};
+use std::{
+  fs,
+  io::{self, Write},
+  path::Path,
+  time::Duration,
+};
 
 use serde_json::{json, Value};
 use tauri::WebviewWindow;
@@ -29,12 +34,16 @@ pub struct Placed {
   pub next: String,
   /// The window the owner was in.
   pub focused: bool,
+  /// Unsent work captured locally when a remote server could not receive its handover.
+  pub drafts: Vec<(String, String)>,
 }
 
 const FILE: &str = "app-windows.json";
 const FORMER: &str = "app-window.json";
 /// How old the file may be: starting again takes seconds, a start much later opens the windows afresh.
 const FRESH: Duration = Duration::from_secs(60);
+/// A Windows installer can spend several minutes replacing the app before starting it again.
+const INSTALL_FRESH: Duration = Duration::from_secs(30 * 60);
 
 impl Placed {
   pub fn of(w: &WebviewWindow, desk: &str, own: &Own) -> Option<Placed> {
@@ -56,14 +65,19 @@ impl Placed {
       visible: w.is_visible().unwrap_or(true),
       next: page(w, own).unwrap_or_else(|| "/".into()),
       focused: w.is_focused().unwrap_or(false),
+      drafts: vec![],
     })
   }
 
   fn json(&self) -> Value {
-    json!({
+    let mut value = json!({
       "desk": self.desk, "origin": self.origin, "x": self.x, "y": self.y, "width": self.width, "height": self.height,
       "maximized": self.maximized, "fullscreen": self.fullscreen, "visible": self.visible, "next": self.next, "focused": self.focused,
-    })
+    });
+    if !self.drafts.is_empty() {
+      value["drafts"] = json!(self.drafts);
+    }
+    value
   }
 
   fn read(v: &Value) -> Option<Placed> {
@@ -81,13 +95,36 @@ impl Placed {
       visible: v["visible"].as_bool().unwrap_or(true),
       next: v["next"].as_str().filter(|n| n.starts_with('/')).unwrap_or("/").to_string(),
       focused: b("focused"),
+      drafts: serde_json::from_value(v["drafts"].clone()).unwrap_or_default(),
     })
   }
 }
 
-pub fn keep(home: &Path, windows: &[Placed]) {
+pub fn keep(home: &Path, windows: &[Placed], installer: bool) -> io::Result<()> {
   let all: Vec<Value> = windows.iter().map(Placed::json).collect();
-  let _ = fs::write(home.join(FILE), json!({ "at": now_ms(), "windows": all }).to_string());
+  let text = json!({ "at": now_ms(), "installer": installer, "windows": all }).to_string();
+  let part = home.join(format!("{FILE}.part"));
+  let mut options = fs::OpenOptions::new();
+  options.write(true).create_new(true);
+  #[cfg(unix)]
+  {
+    use std::os::unix::fs::OpenOptionsExt;
+    options.mode(0o600);
+  }
+  // Discard a partial snapshot from an interrupted write. Publish only after all drafts
+  // and placements are on disk, since a successful Windows installer exits this process.
+  let _ = fs::remove_file(&part);
+  let result = (|| {
+    let mut file = options.open(&part)?;
+    file.write_all(text.as_bytes())?;
+    file.sync_all()?;
+    drop(file);
+    fs::rename(&part, home.join(FILE))
+  })();
+  if result.is_err() {
+    let _ = fs::remove_file(part);
+  }
+  result
 }
 
 /// The windows the shell before this one left, this machine's first; none where it left none lately.
@@ -99,7 +136,10 @@ pub fn take(home: &Path) -> Vec<Placed> {
     serde_json::from_str::<Value>(&text).ok()
   };
   let (now, former) = (read(FILE), read(FORMER));
-  let fresh = |v: &Value| v["at"].as_u64().is_some_and(|at| now_ms().saturating_sub(at) <= FRESH.as_millis() as u64);
+  let fresh = |v: &Value| {
+    let max = if v["installer"] == true { INSTALL_FRESH } else { FRESH };
+    v["at"].as_u64().is_some_and(|at| now_ms().saturating_sub(at) <= max.as_millis() as u64)
+  };
   let mut windows: Vec<Placed> = match (now.filter(fresh), former.filter(fresh)) {
     (Some(v), _) => v["windows"].as_array().map(|a| a.iter().filter_map(Placed::read).collect()).unwrap_or_default(),
     (None, Some(v)) => Placed::read(&v).into_iter().collect(),
@@ -140,10 +180,35 @@ mod tests {
       next: "/".into(),
       ..Default::default()
     };
-    keep(&home, &[remote.clone(), local.clone()]);
+    keep(&home, &[remote.clone(), local.clone()], false).unwrap();
     assert_eq!(take(&home), vec![local, remote]);
     assert_eq!(take(&home), vec![]);
     let _ = fs::remove_dir_all(&home);
+  }
+
+  #[test]
+  fn an_installer_relaunch_restores_remote_windows_and_drafts_after_a_long_install() {
+    let home = home("installer");
+    let remote = Placed {
+      desk: "lab".into(),
+      origin: Some("https://lab".into()),
+      next: "/p/lab".into(),
+      drafts: vec![("seismic-drafts-project".into(), "unsent".into())],
+      ..Default::default()
+    };
+    keep(&home, &[remote.clone()], true).unwrap();
+    #[cfg(unix)]
+    {
+      use std::os::unix::fs::PermissionsExt;
+      assert_eq!(fs::metadata(home.join(FILE)).unwrap().permissions().mode() & 0o777, 0o600);
+    }
+    let file = home.join(FILE);
+    let mut snapshot: Value = serde_json::from_slice(&fs::read(&file).unwrap()).unwrap();
+    snapshot["at"] = json!(now_ms() - 5 * 60_000);
+    fs::write(file, snapshot.to_string()).unwrap();
+    assert_eq!(take(&home), vec![remote]);
+    assert!(take(&home).is_empty());
+    let _ = fs::remove_dir_all(home);
   }
 
   #[test]

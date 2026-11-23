@@ -70,6 +70,7 @@ declare global {
     /** Called by the app before its shell starts again while the server runs on (`handOver`). */
     seismicHandOver?: (token: string) => Promise<void>;
     seismicRestartHeld?: () => boolean;
+    seismicSnapshotSession?: () => string[][];
   }
 }
 

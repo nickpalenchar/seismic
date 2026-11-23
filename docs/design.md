@@ -458,6 +458,10 @@ Safety rules:
   server yet. Remote session handover is scoped to the paired device and origin.
 - A workspace's IPv6 origin stays in canonical URL form on disk. Only the hostname's colons are
   escaped when the shell builds its native capability URL pattern.
+- The desktop app saves window placements before an installer can exit the shell. The restart
+  snapshot can also carry unsent drafts when a remote server cannot take handover. Those drafts
+  are restored only into the same workspace and origin, including after a restart to its offline
+  status page.
 - Landing never loses work: nothing is force-pushed, a direct push only fast-forwards, a merge is
   pinned to the head that was checked; a clone is deleted only when nothing on it would be lost.
 - Approval comes only from the card's button after the demo, never from a list or from words

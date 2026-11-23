@@ -613,9 +613,13 @@ export function reload() {
  * storage, which the new shell's webview starts without. `token` tells the shell it is there.
  */
 export async function handOver(token: string) {
+  await send('POST', '/api/app-rebuilt/handover', { token, entries: snapshotSession() });
+}
+
+/** Flushes pending drafts and view state before the shell snapshots a disconnected window. */
+export function snapshotSession() {
   for (const fn of reloadListeners) fn();
-  const entries = Array.from({ length: sessionStorage.length }, (_, i) => sessionStorage.key(i)!).map((k) => [k, sessionStorage.getItem(k) ?? '']);
-  await send('POST', '/api/app-rebuilt/handover', { token, entries });
+  return Array.from({ length: sessionStorage.length }, (_, i) => sessionStorage.key(i)!).map((k) => [k, sessionStorage.getItem(k) ?? '']);
 }
 
 /** In the window of a shell that started again: what the page before it handed over, back into session storage, once. */

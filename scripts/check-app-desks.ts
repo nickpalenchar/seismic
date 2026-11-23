@@ -15,8 +15,8 @@
 //     its one-time link, signed in, the list and the page's name follow;
 //   - the remote page lists the workspaces and gets the microphone, but cannot change the list, and a
 //     sandboxed frame of it gets no microphone;
-//   - across two relaunches the offline workspace keeps its status page, whose Try again
-//     takes it to the workspace once it answers, still signed in;
+//   - across two relaunches the offline workspace keeps its status page and unsent draft;
+//   - a signed-out remote page leaves the local update free to finish;
 //   - removing the workspace closes its window.
 // The page reports through SEISMIC_APP_CHECK (desktop/src/window/), which imports this script's
 // module into each window's own page and a remote window's status page. This machine's page runs the
@@ -83,6 +83,7 @@ const FRAME = `<!doctype html>
 </script>`;
 let onHealth: (() => Promise<void>) | undefined;
 let remoteBusy = false;
+let signedOut = false;
 let busyChecks = 0;
 const startProxy = () => {
   proxy.server = Bun.serve({
@@ -92,6 +93,12 @@ const startProxy = () => {
       const url = new URL(req.url);
       if (url.pathname === '/__seismic-check-frame') return new Response(FRAME, { headers: { 'content-type': 'text/html' } });
       if (url.pathname === '/api/projects' && req.headers.get('user-agent')?.startsWith('ureq/')) await onHealth?.();
+      if (signedOut && url.pathname === '/api/app-rebuilt') {
+        return Response.json({ code: 'notPaired' }, { status: 401 });
+      }
+      if (signedOut && url.pathname === '/') {
+        return new Response('<h1 id="signed-out">This device is not paired</h1>', { headers: { 'content-type': 'text/html' } });
+      }
       if (url.pathname === '/api/app-rebuilt' && remoteBusy) {
         busyChecks++;
         return Response.json({ now: false, kept: false });
@@ -124,13 +131,16 @@ const base = new URL('.', import.meta.url);
 const post = (path, body) => fetch(new URL(path, base), { method: 'POST', body: JSON.stringify(body) });
 const invoke = (cmd, args) => window.__TAURI_INTERNALS__.invoke(cmd, args);
 const outcome = (p) => p.then((value) => ({ ok: true, value }), (e) => ({ ok: false, error: String(e) }));
-if (location.origin === ${JSON.stringify(REMOTE)}) {
+if (location.origin === ${JSON.stringify(REMOTE)} && document.getElementById('signed-out')) {
+  await post('result', { kind: 'signedOut', title: document.getElementById('signed-out').textContent });
+} else if (location.origin === ${JSON.stringify(REMOTE)}) {
   // A restored page reads its handover before mounting the app.
   for (let n = 0; n < 60 && !document.getElementById('root')?.firstChild; n++) {
     await new Promise((r) => setTimeout(r, 50));
   }
-  const out = { kind: 'remote', href: location.href, handedOver: window.seismicApp?.handedOver, previousSession: sessionStorage.getItem('check-workspace-session') };
+  const out = { kind: 'remote', href: location.href, handedOver: window.seismicApp?.handedOver, previousSession: sessionStorage.getItem('check-workspace-session'), previousDraft: sessionStorage.getItem('seismic-drafts-check') };
   sessionStorage.setItem('check-workspace-session', 'kept');
+  sessionStorage.setItem('seismic-drafts-check', 'Unsent note for Lab');
   out.desks = await outcome(invoke('desks'));
   out.add = await outcome(invoke('add_desk', { address: 'https://elsewhere.example', code: '123456' }));
   out.rename = await outcome(invoke('rename_desk', { id: 'local', name: 'Taken over' }));
@@ -425,8 +435,10 @@ try {
   retryNow = true;
   const again = (await report('remote', afterStatus).catch((e) => (bad('Try again', String(e.message)), null))) as Record<string, unknown> | null;
   if (again) {
-    await check('Try again takes the window to the workspace, still signed in', () => {
+    await check('Try again restores the offline draft after two relaunches', () => {
       expect(String(again.href).startsWith(`${REMOTE}/`) && again.projects === 200, `${again.href}, projects ${again.projects}`);
+      expect(again.previousDraft === 'Unsent note for Lab', JSON.stringify(again));
+      return String(again.previousDraft);
     });
   }
   await check('a pending status retry cannot overwrite a re-pair', async () => {
@@ -458,6 +470,24 @@ try {
     const afterPair = reports.length;
     await sleep(1000);
     expect(!reports.slice(afterPair).some((r) => r.kind === 'remote' || r.kind === 'status'), 'the stale retry navigated the window');
+  });
+  await check('a signed-out workspace leaves the local update free to finish', async () => {
+    signedOut = true;
+    try {
+      const before = reports.length;
+      await relaunch();
+      await report('signedOut', before);
+      await report('local', before);
+      // The remote document now has no app hooks, like the real sign-in page.
+      const beforeSignedOut = reports.length;
+      await relaunch();
+      const signedOutPage = await report('signedOut', beforeSignedOut);
+      await report('local', beforeSignedOut);
+      expect((await desks()).current === 'local', 'the local window did not come back');
+      return String(signedOutPage.title);
+    } finally {
+      signedOut = false;
+    }
   });
   await check('removing the workspace closes its window', async () => {
     const r = await run('remove_desk', { id });

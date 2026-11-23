@@ -2,6 +2,7 @@
 // and also read the page's own holds, which can be newer than the server's WebSocket state.
 
 use std::{
+  collections::HashMap,
   sync::mpsc,
   thread,
   time::{Duration, Instant},
@@ -25,10 +26,12 @@ fn pages(app: &AppHandle) -> Option<Vec<(WebviewWindow, String)>> {
   Some(pages)
 }
 
-pub fn ready(app: &AppHandle, hand_over: bool) -> bool {
-  let Some(windows) = pages(app) else { return false };
+pub type Drafts = HashMap<String, Vec<(String, String)>>;
+
+pub fn ready(app: &AppHandle, hand_over: bool) -> Option<Drafts> {
+  let windows = pages(app)?;
   if windows.is_empty() {
-    return true;
+    return Some(HashMap::new());
   }
   let token = crate::now_ms().to_string();
   for (w, origin) in &windows {
@@ -46,57 +49,74 @@ pub fn ready(app: &AppHandle, hand_over: bool) -> bool {
               method: 'POST', headers: {{ 'content-type': 'application/json' }}, body: '{{}}',
               signal: controller.signal,
             }});
-            if (!response.ok || (await response.json()).now !== true) return false;
+            const state = await response.json().catch(() => null);
+            if (response.status === 401) return state?.code === 'notPaired' ? 'local' : false;
+            if (!response.ok || state?.now !== true) return false;
           }} catch {{
             // A disconnected page can still know whether its own recording or playback is active.
-            return window.seismicRestartHeld?.() === false;
+            return window.seismicRestartHeld?.() === false ? 'local' : false;
           }} finally {{
             clearTimeout(timeout);
           }}
           // This hook also indicates support for handover storage scoped to the paired device.
           if ({hand_over} && window.seismicRestartHeld) {{
             if (window.seismicRestartHeld() || !window.seismicHandOver) return false;
-            await window.seismicHandOver(check.token);
+            try {{
+              await window.seismicHandOver(check.token);
+            }} catch {{
+              // The connection or pairing can be lost after the readiness response.
+              return 'local';
+            }}
           }}
           return !window.seismicRestartHeld?.();
         }})().then((ready) => {{ check.ready = ready; }}, () => {{ check.ready = false; }});
       }})()"#
     );
-    if w.eval(js).is_err() {
-      return false;
-    }
+    w.eval(js).ok()?;
   }
   let deadline = Instant::now() + Duration::from_secs(3);
   loop {
     let (send, receive) = mpsc::channel();
     for (w, origin) in &windows {
       let send = send.clone();
+      let label = w.label().to_string();
       let js = format!(
-        "location.origin === {origin:?} && window.seismicRebuildCheck?.token === {token:?} && !window.seismicRestartHeld?.() ? window.seismicRebuildCheck.ready : false"
+        r#"(() => {{
+          const check = window.seismicRebuildCheck;
+          if (location.origin !== {origin:?} || check?.token !== {token:?} || window.seismicRestartHeld?.()) return false;
+          if (check.ready !== 'local') return check.ready;
+          if (!{hand_over}) return true;
+          const entries = window.seismicSnapshotSession?.() ?? Object.entries(sessionStorage);
+          return entries.filter(([key]) => /^(seismic-(drafts|markups|setting-draft|kept)-)/.test(key));
+        }})()"#
       );
-      if w
-        .eval_with_callback(js, move |value| {
-          let _ = send.send(serde_json::from_str::<bool>(&value).ok());
-        })
-        .is_err()
-      {
-        return false;
-      }
+      w.eval_with_callback(js, move |value| {
+        let _ = send.send((label.clone(), value));
+      })
+      .ok()?;
     }
     drop(send);
     let mut all_ready = true;
+    let mut drafts = HashMap::new();
     for _ in 0..windows.len() {
-      match receive.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
-        Ok(Some(true)) => {}
-        Ok(None) => all_ready = false, // the fetch or handover is still in flight
-        _ => return false,
+      let (label, value) = receive.recv_timeout(deadline.saturating_duration_since(Instant::now())).ok()?;
+      match value.as_str() {
+        "true" => {}
+        "false" => return None,
+        "" | "null" => all_ready = false, // the fetch or handover is still in flight
+        _ => {
+          let entries: Vec<(String, String)> = serde_json::from_str(&value).ok()?;
+          if !entries.is_empty() {
+            drafts.insert(label, entries);
+          }
+        }
       }
     }
     if all_ready {
-      return pages(app).is_some_and(|now| now == windows);
+      return pages(app).is_some_and(|now| now == windows).then_some(drafts);
     }
     if Instant::now() >= deadline {
-      return false;
+      return None;
     }
     thread::sleep(Duration::from_millis(50));
   }

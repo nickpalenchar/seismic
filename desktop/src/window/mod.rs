@@ -117,6 +117,21 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
   let saved: Arc<Mutex<HashMap<String, PathBuf>>> = Default::default();
   let check = seismic_env("APP_CHECK").and_then(|c| c.into_string().ok());
   let blank = Url::parse("about:blank").unwrap();
+  let drafts = placed.and_then(|p| {
+    let origin = p.origin.as_ref()?;
+    (!p.drafts.is_empty() && own.origin().as_ref() == Some(origin)).then_some((origin, &p.drafts))
+  });
+  let restore = drafts.map(|(origin, drafts)| format!(
+    r#"if (window.top === window && location.origin === {} && !sessionStorage.getItem('seismic-desktop-restored')) {{
+        for (const [key, value] of {}) {{
+          if (sessionStorage.getItem(key) === null) sessionStorage.setItem(key, value);
+        }}
+        sessionStorage.setItem('seismic-desktop-restored', '1');
+      }}"#,
+    serde_json::json!(origin),
+    serde_json::json!(drafts)
+  ));
+  let restoring_drafts = restore.is_some();
   let builder = WebviewWindowBuilder::new(app, label, WebviewUrl::External(blank))
     .visible(false)
     .title("Seismic")
@@ -131,7 +146,7 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
         .or(option_env!("OBEYA_BUILT_COMMIT"))
         .filter(|c| !c.is_empty())
         .map_or("null".to_string(), |c| format!("{c:?}")),
-      handed_over
+      handed_over && restore.is_none()
     ))
     .on_navigation(move |url| {
       if navigation.admits(url) {
@@ -173,13 +188,21 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
       true
     })
     .on_page_load(move |webview, payload| {
-      if let (PageLoadEvent::Finished, Some(check)) = (payload.event(), &check) {
-        // the window's own pages, and a remote workspace's status page (scripts/check-app-desks.ts)
-        if loaded.at(payload.url()) || (!local && bundled(payload.url())) {
+      if let PageLoadEvent::Finished = payload.event() {
+        let own_page = loaded.at(payload.url());
+        if restoring_drafts && own_page {
+          crate::desks::drafts_restored(webview.app_handle(), webview.label());
+        }
+        // The check runs in the workspace and in the bundled status page.
+        if let Some(check) = check.as_ref().filter(|_| own_page || (!local && bundled(payload.url()))) {
           let _ = webview.eval(format!("import({check:?})"));
         }
       }
     });
+  let builder = match restore {
+    Some(script) => builder.initialization_script(script),
+    None => builder,
+  };
   // files dropped on this machine's page reach the shell, which hands their paths to it
   // (main.rs, `dragged`); a remote page gets them as a browser would, without this machine's paths
   let builder = if local { builder } else { builder.disable_drag_drop_handler() };
