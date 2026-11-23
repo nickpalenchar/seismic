@@ -88,6 +88,7 @@ let busyChecks = 0;
 let proxyError = 0;
 let expireServerHandover = false;
 let acknowledgedHandovers = 0;
+let delayHandover: (() => Promise<void>) | undefined;
 const startProxy = () => {
   proxy.server = Bun.serve({
     port: proxyPort,
@@ -118,7 +119,10 @@ const startProxy = () => {
       headers.set('x-forwarded-proto', 'http');
       const body = req.method === 'GET' || req.method === 'HEAD' ? undefined : await req.arrayBuffer();
       const res = await fetch(`${remoteUrl}${url.pathname}${url.search}`, { method: req.method, headers, body, redirect: 'manual' });
-      if (url.pathname === '/api/app-rebuilt/handover' && req.method === 'POST' && res.ok) acknowledgedHandovers++;
+      if (url.pathname === '/api/app-rebuilt/handover' && req.method === 'POST' && res.ok) {
+        acknowledgedHandovers++;
+        await delayHandover?.();
+      }
       // fetch has decoded the body already
       const back = new Headers(res.headers);
       back.delete('content-encoding');
@@ -245,7 +249,7 @@ delete env.SEISMIC_FROM_APP;
 delete env.OBEYA_FROM_APP;
 const entry = () => {
   try {
-    return JSON.parse(readFileSync(join(home, 'server.json'), 'utf8')) as { url: string };
+    return JSON.parse(readFileSync(join(home, 'server.json'), 'utf8')) as { url: string; pid: number };
   } catch {
     return null;
   }
@@ -414,6 +418,26 @@ try {
     await report('local', before);
   });
 
+  await check('a stuck handover response does not delay the restart or lose the draft', async () => {
+    const before = reports.length;
+    const held = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    delayHandover = () => {
+      held.resolve();
+      return release.promise;
+    };
+    try {
+      await relaunch();
+      await Promise.race([held.promise, sleep(10_000).then(() => { throw new Error('the proxy did not receive handover'); })]);
+      await report('local', before);
+      const restored = await report('remote', before);
+      expect(restored.previousDraft === 'Unsent note for Lab', JSON.stringify(restored));
+    } finally {
+      delayHandover = undefined;
+      release.resolve();
+    }
+  });
+
   for (const error of [502, 503]) {
     await check(`an HTTP ${error} from the remote proxy allows the update and keeps the draft`, async () => {
       const before = reports.length;
@@ -573,6 +597,26 @@ try {
       expect(removed.ok, JSON.stringify(removed));
     });
     expect(!(await desks()).list.some((w) => w.id === id), 'the removed workspace is still listed');
+  });
+  await check('a snapshot write error brings the local server back without closing remote windows', async () => {
+    const added = await run('add_desk', { address: REMOTE, code: await code(), name: 'Lab' });
+    expect(added.ok, JSON.stringify(added));
+    const recoveryId = (added.value as { id: string }).id;
+    const path = join(home, 'app-windows.json');
+    const previous = entry();
+    expect(previous, 'the local server is missing');
+    mkdirSync(path);
+    try {
+      const before = reports.length;
+      await relaunch();
+      await report('local', before);
+      const d = await desks();
+      expect(entry()?.pid !== previous?.pid, 'the local server did not restart');
+      expect(d.list.find((w) => w.id === recoveryId)?.open, 'the remote workspace window closed');
+      expect(!reports.slice(before).some((r) => r.kind === 'remote' || r.kind === 'status'), 'the remote window reloaded');
+    } finally {
+      rmSync(path, { recursive: true, force: true });
+    }
   });
   await check("this machine's workspace stays", async () => {
     const r = await run('remove_desk', { id: 'local' });

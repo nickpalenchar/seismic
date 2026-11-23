@@ -461,6 +461,9 @@ Safety rules:
 - The desktop app saves window placements before an installer can exit the shell, and only the
   primary instance consumes them. The snapshot keeps an origin-scoped copy of unsent remote drafts
   even when the server accepts handover, since its copy can expire before the workspace reopens.
+- A restored workspace opens without taking focus unless it was the window the owner last used.
+  Native show and fullscreen calls can activate a window, so the shell uses background presentation
+  for the others and postpones fullscreen until they receive focus.
 - Landing never loses work: nothing is force-pushed, a direct push only fast-forwards, a merge is
   pinned to the head that was checked; a clone is deleted only when nothing on it would be lost.
 - Approval comes only from the card's button after the demo, never from a list or from words

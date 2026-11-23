@@ -612,8 +612,14 @@ export function reload() {
  * it, app/src/update.rs): what a reload keeps goes to the server rather than this tab's session
  * storage, which the new shell's webview starts without. `token` tells the shell it is there.
  */
-export async function handOver(token: string) {
-  await send('POST', '/api/app-rebuilt/handover', { token, entries: snapshotSession() });
+export async function handOver(token: string, signal?: AbortSignal) {
+  const response = await fetch('/api/app-rebuilt/handover', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ token, entries: snapshotSession() }),
+    signal,
+  });
+  await refused(response);
 }
 
 /** Flushes pending drafts and view state before the shell snapshots a disconnected window. */

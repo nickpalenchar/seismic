@@ -101,6 +101,12 @@ pub(crate) struct Seismic {
   first: Mutex<Option<String>>,
 }
 
+impl Seismic {
+  pub(crate) fn remember_page(&self, next: Option<String>) {
+    *self.first.lock().unwrap() = next;
+  }
+}
+
 pub(crate) fn local_origin(port: u16) -> String {
   if port == 80 {
     "http://127.0.0.1".into()
@@ -364,13 +370,15 @@ fn serve(app: AppHandle, seismic: Arc<Seismic>, updates: Arc<update::Updates>, h
   };
   loop {
     if let Some(port) = running(&home) {
+      seismic.child.store(false, Ordering::SeqCst);
       attach(port);
+      update::server_ready(&updates);
       if !watch(&app, &seismic, &home) {
         return;
       }
       // it ended for this shell to start it under itself: the window comes back on the page it showed
       let page = main_window(&app).and_then(|w| window::page(&w, &Own::Local(Some(port))));
-      *seismic.first.lock().unwrap() = page;
+      seismic.remember_page(page);
     }
     if let Started::Ended = start(&app, &seismic, &updates, &home, &attach) {
       return;
@@ -382,8 +390,8 @@ fn serve(app: AppHandle, seismic: Arc<Seismic>, updates: Arc<update::Updates>, h
 enum Started {
   /// It ran, and has ended (the app with it, or for an update).
   Ended,
-  /// Another start on this home got there first: the server said so and ended.
-  Beaten,
+  /// Another server got there first, or the local server needs to resume after a failed update.
+  Retry,
 }
 
 /// Starts the server, shows its project once it answers, and waits for it to end.
@@ -410,7 +418,7 @@ fn start(app: &AppHandle, seismic: &Seismic, updates: &update::Updates, home: &P
   while !answers(port) {
     if let Ok(Some(status)) = child.try_wait() {
       if running(home).is_some() {
-        return Started::Beaten;
+        return Started::Retry;
       }
       fail(app, ended(status, &log.1));
       return Started::Ended;
@@ -426,8 +434,15 @@ fn start(app: &AppHandle, seismic: &Seismic, updates: &update::Updates, home: &P
   }
   attach(port);
   seismic.child.store(true, Ordering::SeqCst);
+  update::server_ready(updates);
   match child.wait() {
-    Ok(status) if status.code() == Some(update::EXIT) => update::install(app, seismic, updates),
+    Ok(status) if status.code() == Some(update::EXIT) => {
+      let local_page = main_window(app).and_then(|w| window::page(&w, &Own::Local(Some(port))));
+      seismic.remember_page(local_page);
+      if matches!(update::install(app, seismic, updates), update::Installed::ResumeServer) {
+        return Started::Retry;
+      }
+    }
     Ok(status) if status.success() || seismic.stopping.load(Ordering::SeqCst) => app.exit(0),
     Ok(status) => fail(app, ended(status, &log.1)),
     Err(e) => fail(app, e.to_string()),
@@ -604,9 +619,7 @@ fn main() {
       });
       let main = window::build(&handle, desks::STARTUP, Own::Local(None), main_placed.as_ref(), false)?;
       main.navigate(window::bundled_url("/"))?;
-      if main_placed.as_ref().is_none_or(|p| p.visible) {
-        main.show()?;
-      }
+      window::show_placed(&main, main_placed.as_ref(), main_placed.as_ref().is_some_and(|p| p.focused))?;
       desks::reopen(&handle, std::mem::take(&mut placed));
       let updates = update::start(&handle, for_setup.clone());
       let seismic = for_setup.clone();

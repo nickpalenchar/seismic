@@ -61,12 +61,20 @@ pub fn ready(app: &AppHandle, hand_over: bool) -> Option<Drafts> {
           }}
           // This hook also indicates support for handover storage scoped to the paired device.
           if ({hand_over} && window.seismicRestartHeld) {{
-            if (window.seismicRestartHeld() || !window.seismicHandOver) return false;
+            if (window.seismicRestartHeld()) return false;
+            // The local draft snapshot is authoritative. Server handover is best-effort
+            // and must finish within the time left in this probe.
+            const handover = new AbortController();
+            let timer;
             try {{
-              await window.seismicHandOver(check.token);
-            }} catch {{
-              // The connection or pairing can be lost after the readiness response.
-              return !window.seismicRestartHeld();
+              await Promise.race([
+                window.seismicHandOver?.(check.token, handover.signal),
+                new Promise((resolve) => {{
+                  timer = setTimeout(() => {{ handover.abort(); resolve(); }}, 600);
+                }}),
+              ]);
+            }} catch {{}} finally {{
+              clearTimeout(timer);
             }}
           }}
           return !window.seismicRestartHeld?.();

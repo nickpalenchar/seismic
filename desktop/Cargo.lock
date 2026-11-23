@@ -3437,6 +3437,7 @@ name = "seismic-app"
 version = "0.1.0"
 dependencies = [
  "block2",
+ "gtk",
  "objc2",
  "objc2-web-kit",
  "serde_json",
@@ -3451,6 +3452,7 @@ dependencies = [
  "webkit2gtk",
  "webview2-com",
  "windows-core",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

@@ -106,6 +106,64 @@ fn free_name(dir: &Path, name: &str) -> PathBuf {
   (2..).map(|i| dir.join(format!("{stem} ({i}){ext}"))).find(|p| !p.exists()).unwrap()
 }
 
+/// Shows a restored window on the UI thread without activating a background window.
+pub fn show_placed(w: &WebviewWindow, placed: Option<&Placed>, focus: bool) -> tauri::Result<()> {
+  let fullscreen = placed.is_some_and(|p| p.fullscreen);
+  if fullscreen && !focus {
+    // Entering fullscreen on a background window can activate it or switch Spaces.
+    let app = w.app_handle().clone();
+    let label = w.label().to_string();
+    let pending = std::sync::atomic::AtomicBool::new(true);
+    w.on_window_event(move |event| {
+      if matches!(event, tauri::WindowEvent::Focused(true)) && pending.swap(false, std::sync::atomic::Ordering::Relaxed) {
+        if let Some(window) = app.get_webview_window(&label) {
+          let _ = window.set_fullscreen(true);
+        }
+      }
+    });
+  }
+  if placed.is_some_and(|p| !p.visible) {
+    return Ok(());
+  }
+  if placed.is_none() || focus {
+    w.show()?;
+    let _ = w.set_focus();
+  } else {
+    show_background(w)?;
+  }
+  if fullscreen && focus {
+    let _ = w.set_fullscreen(true);
+  }
+  Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn show_background(w: &WebviewWindow) -> tauri::Result<()> {
+  // Tao's show makes the window key. Order it behind the other workspace windows.
+  unsafe {
+    let window = &*w.ns_window()?.cast::<objc2::runtime::AnyObject>();
+    let _: () = objc2::msg_send![window, orderBack: std::ptr::null::<objc2::runtime::AnyObject>()];
+  }
+  Ok(())
+}
+
+#[cfg(windows)]
+fn show_background(w: &WebviewWindow) -> tauri::Result<()> {
+  use windows_sys::Win32::UI::WindowsAndMessaging::{SetWindowPos, HWND_BOTTOM, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW};
+  let flags = SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW;
+  if unsafe { SetWindowPos(w.hwnd()?.0, HWND_BOTTOM, 0, 0, 0, 0, flags) } == 0 {
+    return Err(std::io::Error::last_os_error().into());
+  }
+  Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn show_background(w: &WebviewWindow) -> tauri::Result<()> {
+  use gtk::prelude::GtkWindowExt;
+  w.gtk_window()?.set_focus_on_map(false);
+  w.show()
+}
+
 /// Creates a hidden, inert window on the UI thread. The caller can navigate and show it once the
 /// native guards are installed and the window is ready to receive commands.
 pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, handed_over: bool) -> tauri::Result<WebviewWindow> {
@@ -212,10 +270,10 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
   let builder = if local { builder } else { builder.disable_drag_drop_handler() };
   let builder = match placed {
     Some(p) => builder
+      .focused(false)
       .position(p.x, p.y)
       .inner_size(p.width, p.height)
-      .maximized(p.maximized)
-      .fullscreen(p.fullscreen),
+      .maximized(p.maximized),
     None => builder,
   };
   // on a Mac the window has no title bar of its own: the project's bar is it, with the traffic lights in it,

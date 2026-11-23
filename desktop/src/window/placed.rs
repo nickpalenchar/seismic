@@ -226,6 +226,28 @@ mod tests {
   }
 
   #[test]
+  fn a_snapshot_is_fresh_again_after_an_installer_error_dialog() {
+    let home = home("installer-dialog");
+    let placements = [Placed {
+      desk: "lab".into(),
+      origin: Some("https://lab".into()),
+      next: "/p/lab".into(),
+      drafts: vec![("seismic-drafts-lab".into(), "unsent".into())],
+      ..Default::default()
+    }];
+    keep(&home, &placements, true).unwrap();
+    let file = home.join(FILE);
+    let mut snapshot: Value = serde_json::from_slice(&fs::read(&file).unwrap()).unwrap();
+    snapshot["at"] = json!(now_ms() - INSTALL_FRESH.as_millis() as u64 - 1);
+    fs::write(file, snapshot.to_string()).unwrap();
+    assert!(read_saved(&home, false).is_empty());
+
+    keep(&home, &placements, false).unwrap();
+    assert_eq!(take(&home), placements);
+    let _ = fs::remove_dir_all(home);
+  }
+
+  #[test]
   fn a_former_shells_window_is_this_machines() {
     let home = home("former");
     let former = json!({ "at": now_ms(), "x": 1.0, "y": 2.0, "width": 800.0, "height": 600.0, "maximized": true, "visible": true, "next": "/x" });

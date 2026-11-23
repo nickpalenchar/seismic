@@ -247,12 +247,7 @@ pub fn connect_local(app: &AppHandle, port: u16, page: Url, handed_over: bool) -
   shell.windows.lock().unwrap().local = Some((label, port));
   let _ = old.destroy();
   w.navigate(page).map_err(|e| e.to_string())?;
-  if placed.as_ref().is_none_or(|p| p.visible) {
-    w.show().map_err(|e| e.to_string())?;
-    if placed.as_ref().is_some_and(|p| p.focused) {
-      let _ = w.set_focus();
-    }
-  }
+  window::show_placed(&w, placed.as_ref(), placed.as_ref().is_some_and(|p| p.focused)).map_err(|e| e.to_string())?;
   Ok(())
 }
 
@@ -361,10 +356,9 @@ fn build(app: &AppHandle, id: &str, origin: &str, revision: u64, url: Option<Url
     let _ = w.destroy();
     return Err(error.to_string());
   }
-  if placed.is_none_or(|p| p.visible) {
-    show(&w);
-  }
-  Ok(())
+  let focus = placed.is_some_and(|p| p.focused)
+    && !app.webview_windows().values().any(|other| other.label() != label && other.is_focused().unwrap_or(false));
+  window::show_placed(&w, placed, focus).map_err(|e| e.to_string())
 }
 
 /// Applies a pairing on the UI thread, taking over any pending health check.
@@ -398,6 +392,11 @@ fn open_paired(app: &AppHandle, id: &str, origin: &str, link: Url) -> Result<(),
   shell.windows.lock().unwrap().opening.insert(id.into(), revision);
   let opened = build(app, id, origin, revision, Some(link), "ok", restoring.as_ref());
   shell.windows.lock().unwrap().finish(id, revision);
+  if opened.is_ok() && restoring.is_some() {
+    if let Some(w) = shell.label_of(id).and_then(|l| app.get_webview_window(&l)) {
+      show(&w);
+    }
+  }
   opened
 }
 
@@ -463,9 +462,8 @@ pub fn placed(app: &AppHandle, mut drafts: HashMap<String, Vec<(String, String)>
 }
 
 /// Reopens the remote workspaces' windows the shell before left (main.rs), while each is still on
-/// the list at the origin it had; the one the owner was in comes last, to the front.
-pub fn reopen(app: &AppHandle, mut placed: Vec<Placed>) {
-  placed.sort_by_key(|p| p.focused);
+/// the list at the origin it had. Only the previously focused window can ask for focus.
+pub fn reopen(app: &AppHandle, placed: Vec<Placed>) {
   for p in placed.into_iter().filter(|p| p.desk != LOCAL) {
     let id = p.desk.clone();
     let _ = open(app, &id, Some(p));
