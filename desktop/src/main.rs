@@ -614,7 +614,9 @@ fn main() {
             }
           }
         } else if let Some(desk) = id.strip_prefix(menu::DESK) {
-          let _ = desks::open(app, desk, false, None);
+          if desks::open(app, desk, false, None).is_ok() {
+            show(app);
+          }
         } else if id == "quit" && !quit(app, &for_menu) {
           app.exit(0);
         }

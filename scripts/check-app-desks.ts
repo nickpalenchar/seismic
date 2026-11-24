@@ -217,7 +217,10 @@ if (location.origin === ${JSON.stringify(REMOTE)}) {
   for (let n = 0; n < 60 && !document.getElementById('root')?.firstChild; n++) {
     await new Promise((r) => setTimeout(r, 50));
   }
-  await window.seismicDraftsReady;
+  await Promise.race([
+    window.seismicDraftsReady,
+    new Promise((resolve) => setTimeout(resolve, 1500)),
+  ]);
   const entries = new Map([
     ...(window.seismicSnapshotSession?.() ?? Object.entries(sessionStorage)),
     ...(window.seismicDraftOverflow ?? []),
@@ -539,8 +542,12 @@ try {
   const select = async (id: string, kind: string) => {
     const before = reports.length;
     const previous = displayed();
-    send('open_desk', { id });
-    const next = await report(kind, before, 15_000);
+    const request = send('open_desk', { id });
+    const next = await until(`the ${kind} page to report after selection`, 15_000, () => {
+      const result = done.get(request);
+      if (result?.ok === false) throw new Error(result.error);
+      return reports.slice(before).find((r) => r.kind === kind);
+    });
     expect(next.window === previous?.window && next.windows === 1 && next.label !== previous?.label, JSON.stringify({ previous, next }));
     return next;
   };
