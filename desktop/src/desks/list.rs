@@ -12,6 +12,7 @@ use tauri::Url;
 /// This machine's desk, always on the list.
 pub const LOCAL: &str = "local";
 const FILE: &str = "app-desks.json";
+const FORMER: &str = "app-workspaces.json";
 const UNREADABLE: &str = "app-desks.unreadable.json";
 
 #[derive(Clone, Debug, PartialEq)]
@@ -87,7 +88,19 @@ impl Desks {
   /// The list in `home`, with this machine's first; this machine's alone without one. A file that
   /// cannot be read is put aside (`app-desks.unreadable.json`), not overwritten by the next save.
   pub fn load(home: &Path) -> Desks {
-    let path = home.join(FILE);
+    Self::load_renaming(home, |from, to| fs::rename(from, to))
+  }
+
+  fn load_renaming(home: &Path, rename: impl FnOnce(&Path, &Path) -> std::io::Result<()>) -> Desks {
+    let mut path = home.join(FILE);
+    let former = home.join(FORMER);
+    // An existing current list takes precedence, even if it cannot be read right now.
+    if matches!(path.try_exists(), Ok(false)) && former.exists() {
+      if let Err(error) = rename(&former, &path) {
+        eprintln!("seismic: {} could not be moved to {FILE}: {error}", former.display());
+        path = former;
+      }
+    }
     let text = fs::read(&path).ok();
     let read = text.as_deref().and_then(|t| serde_json::from_slice::<Value>(t).ok());
     if text.is_some() && read.is_none() {
@@ -298,6 +311,31 @@ mod tests {
     assert_eq!(all.at_origin("https://office").unwrap().id, "w1-2");
     assert_eq!(all.remove("w1-3").unwrap().origin.as_deref(), Some("https://lab"));
     assert!(all.get("w1").is_some());
+  }
+
+  #[test]
+  fn the_former_workspace_file_is_migrated_and_the_current_list_takes_precedence() {
+    let home = std::env::temp_dir().join(format!("seismic-desks-{}", uuid::Uuid::new_v4()));
+    fs::create_dir_all(&home).unwrap();
+    let former = home.join(FORMER);
+    let entries = json!({ "active": "old", "list": [
+      { "id": "local", "name": "Laptop" },
+      { "id": "old", "name": "Studio", "url": "http://[fd7a::2]:4417", "microphone": true },
+    ] });
+    fs::write(&former, entries.to_string()).unwrap();
+    let fallback = Desks::load_renaming(&home, |_, _| Err(std::io::ErrorKind::PermissionDenied.into()));
+    assert_eq!(fallback.get("old").unwrap().origin.as_deref(), Some("http://[fd7a::2]:4417"));
+    assert_eq!(fallback.get(LOCAL).unwrap().name, "Laptop");
+    assert!(!home.join(FILE).exists());
+    assert_eq!(Desks::load(&home), fallback);
+    assert!(!former.exists());
+    let mut saved = fallback;
+    saved.rename("old", "New name").unwrap();
+    saved.save(&home).unwrap();
+    fs::write(&former, entries.to_string()).unwrap();
+    assert_eq!(Desks::load(&home), saved);
+    assert!(former.exists());
+    fs::remove_dir_all(home).unwrap();
   }
 
   #[test]

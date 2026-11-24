@@ -40,7 +40,7 @@ pub async fn open_desk(app: AppHandle, id: String) -> Result<(), String> {
 }
 
 /// Pairs with the Seismic at `address` by the code its "Connect a device" shows, and once that went
-/// through keeps it on the list (named `name`, blank for its host) and opens its window: `{ id }`.
+/// through keeps it on the list (named `name`, blank for its host): `{ id, opened }`.
 #[tauri::command]
 pub async fn add_desk(app: AppHandle, webview: Webview, address: String, code: String, name: Option<String>) -> Result<Value, String> {
   from_this_machine(&app, &webview)?;
@@ -62,9 +62,8 @@ pub async fn add_desk(app: AppHandle, webview: Webview, address: String, code: S
       *desks = added;
       desk.id
     };
-    open_paired(app, &id, &origin, link)?;
-    changed(app);
-    Ok(json!({ "id": id }))
+    let opened = finish_pairing(app, &id, &origin, link);
+    Ok(json!({ "id": id, "opened": opened }))
   })
   .await
 }
@@ -87,9 +86,9 @@ pub fn rename_desk(app: AppHandle, webview: Webview, id: String, name: String) -
 
 /// Pairs remote workspace `id` again by `code`, at `address` where it is given (the workspace moves
 /// there once the pairing went through; its window, at the old origin, closes): its window opens
-/// at the new link.
+/// at the new link where it can (`{ opened }`).
 #[tauri::command]
-pub async fn pair_desk(app: AppHandle, webview: Webview, id: String, code: String, address: Option<String>) -> Result<(), String> {
+pub async fn pair_desk(app: AppHandle, webview: Webview, id: String, code: String, address: Option<String>) -> Result<Value, String> {
   from_this_machine(&app, &webview)?;
   let (before, revision) = on_ui(app.clone(), {
     let id = id.clone();
@@ -126,11 +125,18 @@ pub async fn pair_desk(app: AppHandle, webview: Webview, id: String, code: Strin
         *desks = moved;
       }
     }
-    open_paired(app, &id, &origin, link)?;
-    changed(app);
-    Ok(())
+    Ok(json!({ "opened": finish_pairing(app, &id, &origin, link) }))
   })
   .await
+}
+
+/// The pairing was accepted and any list change saved. Opening its window is a separate outcome.
+fn finish_pairing(app: &AppHandle, id: &str, origin: &str, link: Url) -> bool {
+  let opened = open_paired(app, id, origin, link).map_err(|error| {
+    eprintln!("seismic: the paired workspace window at {origin} could not open: {error}");
+  });
+  changed(app);
+  opened.is_ok()
 }
 
 /// Takes remote workspace `id` off the list; its window closes.

@@ -135,7 +135,8 @@ wry 0.57.3, the versions the spike verified.
 
 - **The list:** `app-desks.json` in the home, the file and format the first attempt wrote
   (`{ list: [{ id, name, url }] }`; its `active` and `microphone` are read past), so a list made
-  then carries over. This machine's entry has id `local` and no origin; a blank name shows the
+  then carries over. A list under `app-workspaces.json` is migrated when the current file is absent.
+  This machine's entry has id `local` and no origin; a blank name shows the
   machine's name (this machine) or the host (a remote one).
 - **Commands** (`desks/commands.rs`; errors are codes for the pages to word): every workspace page
   gets `desks` (the list, the calling window's workspace as `current`) and `open_desk`, plus moving
@@ -145,7 +146,9 @@ wry 0.57.3, the versions the spike verified.
   pairing went through, its old window closes) and `remove_desk`; they also check that the current local window, at
   its own origin, called. The bundled status page gets `desks`, `open_desk` and `retry_desk`
   (`capabilities/status.json`). Pages hear of a change by a `seismic-desks` event on `window` and
-  ask for the list again. W4 builds the pages on these.
+  ask for the list again. `add_desk` returns `{ id, opened }` and `pair_desk` returns `{ opened }`
+  after saving any list change. If `opened` is false the list change still succeeded and the page can show that
+  the workspace was saved and offer to open it. W4 builds the pages on these.
 - **Labels and capabilities:** `main-<n>` for this machine, `desk-<n>` for a remote workspace.
   Each native window has its own label and an origin fixed before its first server document loads.
   The bundled startup window has no origin grant. When the local server takes a different port,

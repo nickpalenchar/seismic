@@ -18,6 +18,8 @@ longer to reconnect opens in the background if it was in the background before t
 Seismic reports that it could not save the open windows, it defers the update and keeps them open.
 If the installer reports an error and Seismic restarts, it restores the windows and drafts as they
 were when the error dialog closed.
+If the remote server takes too long to return drafts during startup, the workspace opens with the
+drafts Seismic saved on this device.
 
 On macOS Big Sur, the desktop app disables microphone and camera capture. Desktop dictation
 requires macOS Monterey or newer.

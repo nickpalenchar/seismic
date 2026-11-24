@@ -630,12 +630,21 @@ export function snapshotSession() {
 
 /** In the window of a shell that started again: what the page before it handed over, back into session storage, once. */
 export async function takeHandOver(restoredDrafts?: ReadonlySet<string>) {
+  // Startup also uses the local draft snapshot. Give the optional server copy a short deadline,
+  // including the response body. AbortController works on older desktop webviews too.
+  const controller = new AbortController();
+  const deadline = setTimeout(() => controller.abort(), 1_500);
   try {
-    const entries = (await call<[string, string][] | null>('GET', '/api/app-rebuilt/handover')) ?? [];
+    const response = await fetch('/api/app-rebuilt/handover', { signal: controller.signal });
+    await refused(response);
+    if (response.status === 204) return;
+    const entries = (await response.json() as [string, string][] | null) ?? [];
     for (const [k, v] of entries) {
       if (!restoredDrafts?.has(k)) sessionStorage.setItem(k, v);
     }
-  } catch {}
+  } catch {} finally {
+    clearTimeout(deadline);
+  }
 }
 
 /** How many snapshots the page took in, by project: a write's answer is older than one that came after the write went out. */

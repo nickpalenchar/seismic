@@ -2,7 +2,7 @@
 // webview of this machine, against a second Seismic that counts as remote: a proxy in front of it
 // forwards as `tailscale serve` does, so it answers the shell as another machine would.
 //
-//   bun scripts/check-app-desks.ts <the app's program> [--ipv6] [--legacy-mic] [--keep]
+//   bun scripts/check-app-desks.ts <the app's program> [--ipv6] [--legacy-mic] [--debug-failures] [--keep]
 //
 // The program: a build from scripts/build-app.ts, or a debug build of the shell, which runs this
 // checkout's server. On a Mac it has to be an app bundle: WKWebView keeps the cookies of a bare
@@ -15,6 +15,8 @@
 //     its one-time link, signed in, the list and the page's name follow;
 //   - the remote page lists the workspaces and gets the microphone, but cannot change the list, and a
 //     sandboxed frame of it gets no microphone;
+//   - on macOS, the bundled postMessage gate lets a main-frame probe reach the IPC decoder and
+//     drops the probes sent from same-origin and sandboxed subframes;
 //   - across two relaunches the offline workspace keeps its status page and unsent draft;
 //   - a signed-out remote page leaves the local update free to finish;
 //   - removing the workspace closes its window.
@@ -32,11 +34,12 @@ import { bad, check, exited, expect, failed, sleep, until } from './check-harnes
 const args = process.argv.slice(2);
 const programArg = args.find((a) => !a.startsWith('--'));
 if (!programArg) {
-  console.error("usage: bun scripts/check-app-desks.ts <the app's program> [--ipv6] [--legacy-mic] [--keep]");
+  console.error("usage: bun scripts/check-app-desks.ts <the app's program> [--ipv6] [--legacy-mic] [--debug-failures] [--keep]");
   process.exit(2);
 }
 const program = resolve(programArg);
 const ROOT = resolve(import.meta.dir, '..');
+const debugFailures = args.includes('--debug-failures');
 // On newer macOS, a debug app can exercise Big Sur's fail-closed path with real WebKit.
 const forceLegacyMic = args.includes('--legacy-mic');
 const legacyMic = process.platform === 'darwin' && (forceLegacyMic || Number(release().split('.')[0]) <= 20);
@@ -84,6 +87,58 @@ const FRAME = `<!doctype html>
     }
   })();
 </script>`;
+const IPC_PROBES = { top: 73111801, same: 73111802, sandbox: 73111803 };
+const IPC_FRAME = `<!doctype html><script>
+  const probe = new URL(location.href).searchParams.get('probe');
+  const bridge = window.webkit?.messageHandlers?.ipc;
+  let sent = false;
+  if (bridge) {
+    // A number in place of a command is inert, but it leaves an identifiable decoder error.
+    bridge.postMessage(JSON.stringify({ cmd: ${JSON.stringify(IPC_PROBES)}[probe] }));
+    sent = true;
+  }
+  parent.postMessage({ probe, origin: self.origin, sent }, '*');
+</script>`;
+const IPC_CHECK = `async () => {
+  const marks = ${JSON.stringify(IPC_PROBES)};
+  const decoded = [];
+  const original = console.error;
+  console.error = (...args) => {
+    for (const [probe, mark] of Object.entries(marks)) {
+      if (args.some((value) => String(value).includes(String(mark)))) decoded.push(probe);
+    }
+    original.apply(console, args);
+  };
+  const frames = [];
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const probeFrame = (kind) => new Promise((resolve) => {
+    const frame = document.createElement('iframe');
+    frames.push(frame);
+    if (kind === 'sandbox') frame.sandbox = 'allow-scripts';
+    frame.src = '/__seismic-check-ipc?probe=' + kind;
+    const receive = (event) => {
+      if (event.source === frame.contentWindow) finish(event.data);
+    };
+    const timer = setTimeout(() => finish(null), 5000);
+    function finish(value) {
+      clearTimeout(timer);
+      removeEventListener('message', receive);
+      resolve(value);
+    }
+    addEventListener('message', receive);
+    document.body.append(frame);
+  });
+  try {
+    const reports = await Promise.all([probeFrame('same'), probeFrame('sandbox')]);
+    window.webkit?.messageHandlers?.ipc?.postMessage(JSON.stringify({ cmd: marks.top }));
+    for (let i = 0; i < 40 && !decoded.includes('top'); i++) await sleep(50);
+    await sleep(500);
+    return { frames: reports, decoded };
+  } finally {
+    console.error = original;
+    for (const frame of frames) frame.remove();
+  }
+}`;
 let onHealth: (() => Promise<void>) | undefined;
 let remoteBusy = false;
 let signedOut = false;
@@ -92,19 +147,39 @@ let proxyError = 0;
 let expireServerHandover = false;
 let acknowledgedHandovers = 0;
 let delayHandover: (() => Promise<void>) | undefined;
-const startProxy = () => {
-  proxy.server = Bun.serve({
-    port: proxyPort,
+let stallRestore: { body: boolean; reached: () => void; release: Promise<void> } | undefined;
+const startProxy = (port = proxyPort) => {
+  return Bun.serve({
+    port,
     hostname: useIPv6 ? '::1' : HOST,
-    async fetch(req) {
+    async fetch(req, server) {
       const url = new URL(req.url);
       if (url.pathname === '/__seismic-check-frame') return new Response(FRAME, { headers: { 'content-type': 'text/html' } });
+      if (url.pathname === '/__seismic-check-ipc') return new Response(IPC_FRAME, { headers: { 'content-type': 'text/html' } });
       if (url.pathname === '/api/projects' && req.headers.get('user-agent')?.startsWith('ureq/')) await onHealth?.();
       if (proxyError && url.pathname === '/api/app-rebuilt') {
         return new Response('Upstream unavailable', { status: proxyError });
       }
       if (expireServerHandover && url.pathname === '/api/app-rebuilt/handover' && req.method === 'GET') {
         return Response.json(null);
+      }
+      if (stallRestore && url.pathname === '/api/app-rebuilt/handover' && req.method === 'GET') {
+        server.timeout(req, 0); // Only the client may end this request before the harness releases it.
+        const { body, reached, release } = stallRestore;
+        reached();
+        if (!body) {
+          await release;
+          return Response.json(null);
+        }
+        const bytes = new TextEncoder();
+        return new Response(new ReadableStream({
+          start(stream) {
+            stream.enqueue(bytes.encode('['));
+            void release.then(() => {
+              try { stream.enqueue(bytes.encode(']')); stream.close(); } catch {} // The deadline may have cancelled it.
+            });
+          },
+        }), { headers: { 'content-type': 'application/json' } });
       }
       if (signedOut && url.pathname === '/api/app-rebuilt') {
         return Response.json({ code: 'notPaired' }, { status: 401 });
@@ -118,7 +193,7 @@ const startProxy = () => {
       }
       const headers = new Headers(req.headers);
       headers.set('x-forwarded-for', '100.64.0.7');
-      headers.set('x-forwarded-host', `${HOST}:${proxyPort}`);
+      headers.set('x-forwarded-host', `${HOST}:${port}`);
       headers.set('x-forwarded-proto', 'http');
       const body = req.method === 'GET' || req.method === 'HEAD' ? undefined : await req.arrayBuffer();
       const res = await fetch(`${remoteUrl}${url.pathname}${url.search}`, { method: req.method, headers, body, redirect: 'manual' });
@@ -155,7 +230,7 @@ if (location.origin === ${JSON.stringify(REMOTE)} && document.getElementById('si
   for (let n = 0; n < 60 && !document.getElementById('root')?.firstChild; n++) {
     await new Promise((r) => setTimeout(r, 50));
   }
-  const out = { kind: 'remote', href: location.href, handedOver: window.seismicApp?.handedOver, previousSession: sessionStorage.getItem('check-workspace-session'), previousDraft: sessionStorage.getItem('seismic-drafts-check') };
+  const out = { kind: 'remote', href: location.href, mounted: !!document.getElementById('root')?.firstElementChild, handedOver: window.seismicApp?.handedOver, previousSession: sessionStorage.getItem('check-workspace-session'), previousDraft: sessionStorage.getItem('seismic-drafts-check') };
   sessionStorage.setItem('check-workspace-session', 'kept');
   sessionStorage.setItem('seismic-drafts-check', 'Unsent note for Lab');
   out.desks = await outcome(invoke('desks'));
@@ -164,6 +239,7 @@ if (location.origin === ${JSON.stringify(REMOTE)} && document.getElementById('si
   out.remove = await outcome(invoke('remove_desk', { id: 'local' }));
   out.projects = (await fetch('/api/projects')).status;
   await post('result', out);
+  if (${process.platform === 'darwin'}) await post('result', { kind: 'ipcGate', ...(await (${IPC_CHECK})()) });
   const mic = { kind: 'remoteMic', secure: isSecureContext };
   const capture = (options) => outcome(Promise.race([
     Promise.resolve().then(() => {
@@ -200,6 +276,7 @@ if (location.origin === ${JSON.stringify(REMOTE)} && document.getElementById('si
 } else if (location.protocol === 'http:') {
   const label = window.__TAURI_INTERNALS__.metadata.currentWindow.label;
   if (location.port === ${JSON.stringify(String(oldPort))}) history.replaceState(null, '', '/?takeover-check=kept');
+  addEventListener('seismic-desks', async () => post('result', { kind: 'desksChanged', ...(await outcome(invoke('desks'))) }));
   await post('result', { kind: 'local', href: location.href, label });
   for (;;) {
     const next = await (await fetch(new URL('todo?label=' + label, base))).json();
@@ -238,9 +315,13 @@ const run = async (cmd: string, args?: Record<string, unknown>) => {
   todo.push({ id, cmd, args });
   return until(`${cmd} to answer`, 30_000, () => done.get(id));
 };
-const report = (kind: string, after = 0) => until(`the ${kind} page to report`, 60_000, () => reports.slice(after).find((r) => r.kind === kind));
+const report = (kind: string, after = 0, timeout = 60_000) => until(`the ${kind} page to report`, timeout, () => reports.slice(after).find((r) => r.kind === kind));
 type Desks = { current: string | null; problem: string | null; list: { id: string; name: string; origin: string | null; local: boolean; open: boolean }[] };
 const desks = async () => (await run('desks')).value as Desks;
+const changedDesk = (after: number, id: string, origin: string) => until('the workspace list to refresh', 5_000, () =>
+  reports.slice(after).some((r) => r.kind === 'desksChanged' && r.ok === true &&
+    (r.value as Desks).list.some((w) => w.id === id && w.origin === origin && !w.open)),
+);
 
 const env: Record<string, string> = {
   ...(process.env as Record<string, string>),
@@ -315,7 +396,7 @@ try {
   await until('the remote Seismic to answer', 60_000, async () => (await fetch(`${remoteUrl}/api/projects`, { headers: ownerHeaders(remoteHome) }).catch(() => null))?.ok);
   const on = await asOwner('/api/access', { method: 'PUT', body: JSON.stringify({ remote: { via: 'hosts', hosts: ['localhost'] } }) });
   expect(on.ok, `the remote's access: ${on.status} ${await on.text()}`);
-  startProxy();
+  proxy.server = startProxy();
 
   // ---------------------------------------------------------------- pairing from this machine's page
   terminal = Bun.spawn([process.execPath, join(ROOT, 'src', 'server', 'main.ts'), '--port', String(oldPort)], {
@@ -370,10 +451,25 @@ try {
     expect(!r.ok && r.error === 'wrongCode', JSON.stringify(r));
     expect((await desks()).list.length === 1, 'the list grew');
   });
+  if (debugFailures) {
+    await check('a saved workspace is reported and listed even if its first window fails', async () => {
+      const before = reports.length;
+      writeFileSync(join(home, 'check-window-open-error'), '');
+      const result = await run('add_desk', { address: REMOTE, code: await code(), name: 'Studio' });
+      const value = result.value as { id: string; opened: boolean } | undefined;
+      expect(result.ok && value?.opened === false, JSON.stringify(result));
+      id = value!.id;
+      await changedDesk(before, id, REMOTE);
+      const saved = JSON.parse(readFileSync(join(home, 'app-desks.json'), 'utf8')) as { list: { id: string; url: string }[] };
+      expect(saved.list.some((w) => w.id === id && w.url === REMOTE), 'the new workspace was not saved');
+    });
+  }
   const paired = await check('the right code pairs, and the workspace opens in a window of its own', async () => {
-    const r = await run('add_desk', { address: REMOTE, code: await code(), name: 'Studio' });
+    const r = id ? await run('pair_desk', { id, code: await code() }) : await run('add_desk', { address: REMOTE, code: await code(), name: 'Studio' });
     expect(r.ok, JSON.stringify(r));
-    id = (r.value as { id: string }).id;
+    const value = r.value as { id?: string; opened: boolean };
+    expect(value?.opened === true, JSON.stringify(r));
+    id = value.id ?? id;
     const d = await until('the window to open', 20_000, async () => (await desks()).list.find((w) => w.id === id && w.open));
     return `${d.name} at ${d.origin}`;
   });
@@ -392,6 +488,16 @@ try {
     await check('the remote page cannot change the list', () => {
       for (const k of ['add', 'rename', 'remove']) expect(!first[k]!.ok && /not allowed/i.test(first[k]!.error ?? ''), `${k}: ${JSON.stringify(first[k])}`);
       return first.remove!.error;
+    });
+  }
+  if (process.platform === 'darwin') {
+    await check('the bundled macOS IPC decoder receives only the main-frame probe', async () => {
+      const result = await report('ipcGate');
+      const frames = result.frames as { probe: string; origin: string; sent: boolean }[];
+      expect(frames[0]?.probe === 'same' && frames[0].sent && frames[0].origin === REMOTE, JSON.stringify(result));
+      expect(frames[1]?.probe === 'sandbox' && frames[1].sent && frames[1].origin === 'null', JSON.stringify(result));
+      expect(JSON.stringify(result.decoded) === '["top"]', JSON.stringify(result));
+      return 'both subframes sent a probe and the decoder saw only the main frame';
     });
   }
   const mic = (await report('remoteMic').catch((e) => (bad("the remote page's microphone", String(e.message)), null))) as Record<string, unknown> | null;
@@ -457,6 +563,26 @@ try {
       release.resolve();
     }
   });
+
+  for (const body of [false, true]) {
+    await check(`the workspace renders with its draft while handover GET stalls on ${body ? 'the body' : 'headers'}`, async () => {
+      const before = reports.length;
+      const reached = Promise.withResolvers<void>();
+      const release = Promise.withResolvers<void>();
+      stallRestore = { body, reached: reached.resolve, release: release.promise };
+      try {
+        await relaunch();
+        await Promise.race([reached.promise, sleep(10_000).then(() => { throw new Error('the proxy did not see the restore request'); })]);
+        const restored = await report('remote', before, 8_000);
+        expect(restored.mounted === true && restored.previousDraft === 'Unsent note for Lab', JSON.stringify(restored));
+        await report('local', before);
+        return String(restored.previousDraft);
+      } finally {
+        stallRestore = undefined;
+        release.resolve();
+      }
+    });
+  }
 
   for (const error of [502, 503]) {
     await check(`an HTTP ${error} from the remote proxy allows the update and keeps the draft`, async () => {
@@ -530,7 +656,7 @@ try {
     return String(again.title);
   });
   const afterStatus = reports.length;
-  startProxy();
+  proxy.server = startProxy();
   retryNow = true;
   const again = (await report('remote', afterStatus).catch((e) => (bad('Try again', String(e.message)), null))) as Record<string, unknown> | null;
   if (again) {
@@ -554,7 +680,7 @@ try {
       await release.promise;
     };
     try {
-      startProxy();
+      proxy.server = startProxy();
       retryNow = true;
       await Promise.race([pending.promise, sleep(10_000).then(() => { throw new Error('no status retry'); })]);
       const afterRetry = reports.length;
@@ -637,7 +763,26 @@ try {
     } finally {
       rmSync(path, { recursive: true, force: true });
     }
+    id = recoveryId;
   });
+  if (debugFailures) {
+    await check('a changed address is saved and refreshed even if its replacement window fails', async () => {
+      const port = free();
+      const other = startProxy(port);
+      const address = `http://${HOST}:${port}`;
+      try {
+        const before = reports.length;
+        writeFileSync(join(home, 'check-window-open-error'), '');
+        const result = await run('pair_desk', { id, address, code: await code() });
+        expect(result.ok && (result.value as { opened: boolean })?.opened === false, JSON.stringify(result));
+        await changedDesk(before, id, address);
+        const saved = JSON.parse(readFileSync(join(home, 'app-desks.json'), 'utf8')) as { list: { id: string; url: string }[] };
+        expect(saved.list.some((w) => w.id === id && w.url === address), 'the changed address was not saved');
+      } finally {
+        other.stop(true);
+      }
+    });
+  }
   await check("this machine's workspace stays", async () => {
     const r = await run('remove_desk', { id: 'local' });
     expect(!r.ok && r.error === 'local', JSON.stringify(r));

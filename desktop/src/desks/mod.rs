@@ -351,14 +351,23 @@ fn build(app: &AppHandle, id: &str, origin: &str, revision: u64, url: Option<Url
     },
   );
   let page = url.unwrap_or_else(|| window::bundled_url("/status.html"));
-  if let Err(error) = w.navigate(page) {
+  let present = || -> tauri::Result<()> {
+    // The debug app check exercises cleanup after native window creation.
+    #[cfg(debug_assertions)]
+    if crate::seismic_env("APP_CHECK").is_some() && std::fs::remove_file(shell.home.join("check-window-open-error")).is_ok() {
+      return Err(std::io::Error::other("test window open error").into());
+    }
+    w.navigate(page)?;
+    let focus = placed.is_some_and(|p| p.focused)
+      && !app.webview_windows().values().any(|other| other.label() != label && other.is_focused().unwrap_or(false));
+    window::show_placed(&w, placed, focus)
+  };
+  if let Err(error) = present() {
     shell.windows.lock().unwrap().open.remove(&label);
     let _ = w.destroy();
     return Err(error.to_string());
   }
-  let focus = placed.is_some_and(|p| p.focused)
-    && !app.webview_windows().values().any(|other| other.label() != label && other.is_focused().unwrap_or(false));
-  window::show_placed(&w, placed, focus).map_err(|e| e.to_string())
+  Ok(())
 }
 
 /// Applies a pairing on the UI thread, taking over any pending health check.
