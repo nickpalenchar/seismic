@@ -189,10 +189,9 @@ const code = async () => ((await (await asOwner('/api/access/pair', { method: 'P
 
 // ---------------------------------------------------------------- what the pages run, and where they report
 type Done = { id: number; ok: boolean; value?: unknown; error?: string };
-const todo: { id: number; label: string; cmd: string; args?: unknown }[] = [];
+const todo: { id: number; label: string; kind: string; cmd: string; args?: unknown }[] = [];
 const done = new Map<number, Done>();
 const reports: Record<string, unknown>[] = [];
-let retryNow = false;
 let statusAction: { name: string; open?: boolean } | undefined;
 const polls = new Map<string, number>();
 const MODULE = `
@@ -203,9 +202,9 @@ const outcome = (p) => p.then((value) => ({ ok: true, value }), (e) => ({ ok: fa
 const metadata = window.__TAURI_INTERNALS__.metadata;
 const label = metadata.currentWebview.label;
 const identity = { label, window: metadata.currentWindow.label, windows: window.seismicCheckWindowCount };
-async function runCommands() {
+async function runCommands(kind) {
   for (;;) {
-    const next = await (await fetch(new URL('todo?label=' + label, base))).json();
+    const next = await (await fetch(new URL('todo?label=' + label + '&kind=' + kind, base))).json();
     if (next) {
       const work = next.cmd === 'check_eval' ? Promise.resolve().then(() => (0, eval)(next.args.js)) : invoke(next.cmd, next.args);
       void outcome(work).then((result) => post('done', { id: next.id, ...result }));
@@ -229,7 +228,9 @@ if (location.origin === ${JSON.stringify(REMOTE)}) {
   out.previousOverflowDraft = JSON.parse(entries.get('seismic-drafts-quota-check') ?? '{}')['card:q']?.text;
   out.previousOverflowConfig = JSON.parse(entries.get('seismic-config-draft-project:quota-check') ?? '{}').name;
   out.restoredInMemory = sessionStorage.getItem('seismic-drafts-quota-check') === null && out.previousOverflowDraft !== undefined;
-  for (const key of Object.keys(localStorage)) if (key.startsWith('seismic-check-storage-fill-')) localStorage.removeItem(key);
+  // Inspect the recovered drafts while storage is still full. Remove the fixture
+  // filler before attempting any writes for the next step.
+  for (const key of Object.keys(sessionStorage)) if (key.startsWith('quota-')) sessionStorage.removeItem(key);
   sessionStorage.setItem('check-workspace-session', 'kept');
   sessionStorage.setItem('seismic-wish-check', 'Unsent issue for Lab');
   sessionStorage.setItem('seismic-config-draft-check', 'Unapplied settings for Lab');
@@ -243,7 +244,7 @@ if (location.origin === ${JSON.stringify(REMOTE)}) {
   out.genericWindowControl = await outcome(invoke('plugin:window|internal_toggle_maximize'));
   out.genericDrag = await outcome(invoke('plugin:window|start_dragging'));
   await post('result', out);
-  void runCommands();
+  void runCommands('remote');
   if (${process.platform === 'darwin'}) await post('result', { kind: 'ipcGate', ...(await (${IPC_CHECK})()) });
   const mic = { kind: 'remoteMic', secure: isSecureContext };
   const capture = (options) => outcome(Promise.race([
@@ -272,12 +273,11 @@ if (location.origin === ${JSON.stringify(REMOTE)}) {
   await post('result', mic);
 } else if (location.pathname.endsWith('/status.html')) {
   let openingButton;
-  void runCommands();
+  void runCommands('status');
   async function checkStatus() {
     await new Promise((r) => setTimeout(r, 500));
     await post('result', { ...identity, kind: 'status', title: document.getElementById('title').textContent, why: document.getElementById('why').textContent, desks: await outcome(invoke('desks')) });
     for (;;) {
-      if ((await (await fetch(new URL('retry', base))).json()).now) break;
       const action = await (await fetch(new URL('status-action', base))).json();
       if (action) {
         const button = [...document.querySelectorAll('#others button')].find((b) => b.textContent === action.name);
@@ -290,7 +290,6 @@ if (location.origin === ${JSON.stringify(REMOTE)}) {
       }
       await new Promise((r) => setTimeout(r, 250));
     }
-    document.getElementById('retry').click();
   }
   addEventListener('pageshow', (event) => { if (event.persisted) void checkStatus(); });
   await checkStatus();
@@ -298,7 +297,7 @@ if (location.origin === ${JSON.stringify(REMOTE)}) {
   if (location.port === ${JSON.stringify(String(oldPort))}) history.replaceState(null, '', '/?takeover-check=kept');
   addEventListener('seismic-desks', async () => post('result', { kind: 'desksChanged', ...(await outcome(invoke('desks'))) }));
   await post('result', { ...identity, kind: 'local', href: location.href, minimized: window.seismicCheckMinimized });
-  void runCommands();
+  void runCommands('local');
 }
 `;
 const harness = Bun.serve({
@@ -320,10 +319,9 @@ const harness = Bun.serve({
     if (path === '/todo') {
       const label = searchParams.get('label') ?? '';
       polls.set(label, (polls.get(label) ?? 0) + 1);
-      const next = todo.findIndex((task) => task.label === label);
+      const next = todo.findIndex((task) => task.label === label && task.kind === searchParams.get('kind'));
       return json(next === -1 ? null : todo.splice(next, 1)[0]);
     }
-    if (path === '/retry') return json({ now: retryNow });
     if (path === '/status-action') {
       const action = statusAction;
       statusAction = undefined;
@@ -342,7 +340,8 @@ let n = 0;
 const displayed = () => reports.findLast((r) => ['local', 'remote', 'status'].includes(String(r.kind)));
 const send = (cmd: string, args?: Record<string, unknown>) => {
   const id = ++n;
-  todo.push({ id, label: String(displayed()?.label), cmd, args });
+  const page = displayed();
+  todo.push({ id, label: String(page?.label), kind: String(page?.kind), cmd, args });
   return id;
 };
 const run = (cmd: string, args?: Record<string, unknown>) => {
@@ -551,6 +550,15 @@ try {
     expect(next.window === previous?.window && next.windows === 1 && next.label !== previous?.label, JSON.stringify({ previous, next }));
     return next;
   };
+  const reconnect = () => {
+    const before = reports.length;
+    const request = send('retry_desk');
+    return until('the selected workspace to reconnect', 15_000, () => {
+      const result = done.get(request);
+      if (result?.ok === false) throw new Error(result.error);
+      return reports.slice(before).find((r) => r.kind === 'remote');
+    });
+  };
   await check('switching local and back keeps the window, pairing, route, and drafts', async () => {
     const edited = await run('check_eval', { js: `history.replaceState(null, '', ${JSON.stringify(LAST_PAGE)}); sessionStorage.setItem('seismic-drafts-check', 'Draft before switching')` });
     expect(edited.ok, JSON.stringify(edited));
@@ -595,11 +603,8 @@ try {
   });
   await check('Try again reconnects the current workspace in the same view', async () => {
     const status = await select(id, 'status');
-    const before = reports.length;
     proxy.server = startProxy();
-    retryNow = true;
-    const remote = await report('remote', before, 12_000);
-    retryNow = false;
+    const remote = await reconnect();
     expect(remote.label === status.label && remote.windows === 1 && String(remote.href).endsWith(LAST_PAGE), JSON.stringify(remote));
   });
   await check('Try again keeps newer drafts that could only fit in memory', async () => {
@@ -617,13 +622,8 @@ try {
     const before = reports.length;
     send('check_eval', { js: 'history.back()' });
     const status = await report('status', before, 12_000);
-    const again = reports.length;
-    retryNow = true;
-    const remote = await report('remote', again, 12_000);
-    retryNow = false;
+    const remote = await reconnect();
     expect(remote.label === status.label && remote.previousOverflowDraft === OVERFLOW_DRAFT && remote.previousOverflowConfig === OVERFLOW_DRAFT && String(remote.href).endsWith(PAGE_BEFORE_BACK), JSON.stringify(remote));
-    // Free filler entries so the following tests can make additional edits.
-    await run('check_eval', { js: "for (const key of Object.keys(sessionStorage)) if (key.startsWith('quota-')) sessionStorage.removeItem(key)" });
   });
   await check('rebuilding restores only the selected workspace and keeps parked drafts', async () => {
     await select('local', 'local');
@@ -655,11 +655,8 @@ try {
       const restored = await report('status', before, 20_000);
       expect(restored.windows === 1, JSON.stringify(restored));
     }
-    const before = reports.length;
     proxy.server = startProxy();
-    retryNow = true;
-    const remote = await report('remote', before, 12_000);
-    retryNow = false;
+    const remote = await reconnect();
     expect(remote.previousOverflowDraft === OVERFLOW_DRAFT && String(remote.href).endsWith(PAGE_BEFORE_BACK), JSON.stringify(remote));
   });
   if (debugFailures) {
