@@ -192,4 +192,8 @@ test("a worktree of a project's repository follows the move, and a paused worker
   expect(after.runtime.last.spec.resume).toBe('sess-1');
   await after.workers.stop(card.id);
   await after.workers.freed();
+  // the board tells its listeners of the last changes after this turn: the workers must not hear it once the home is gone
+  after.workers.shutdown();
+  before.store.db.close();
+  after.store.db.close();
 });

@@ -3434,7 +3434,8 @@ export class WorkerSupervisor {
     this.settling = true;
     queueMicrotask(() => {
       this.settling = false;
-      this.settleLeases();
+      // shut down meanwhile: the repository's workers started afresh settle the leases now
+      if (!this.shut) this.settleLeases();
     });
   }
 
