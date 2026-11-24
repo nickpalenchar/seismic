@@ -1400,6 +1400,7 @@ const en = {
       check: (origin: string) => `Check whether Seismic answers at ${origin}.`,
       retry: 'Try again',
       retrying: 'Trying …',
+      help: 'Recovery help',
       others: 'Switch workspace',
       switching: (workspace: string) => `Switching to ${workspace} …`,
       gone: (workspace: string) => `${workspace} is no longer available.`,

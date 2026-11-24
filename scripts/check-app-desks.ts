@@ -378,7 +378,12 @@ if (location.origin === ${JSON.stringify(REMOTE)}) {
   startCommands('status');
   async function checkStatus() {
     await new Promise((r) => setTimeout(r, 500));
-    await post('result', { ...identity, kind: 'status', title: document.getElementById('title').textContent, documentTitle: document.title, why: document.getElementById('why').textContent, desks: await outcome(invoke('desks')) });
+    const help = document.getElementById('recovery-help');
+    await post('result', {
+      ...identity, kind: 'status', title: document.getElementById('title').textContent,
+      documentTitle: document.title, why: document.getElementById('why').textContent,
+      help: help?.textContent, helpHref: help?.href, desks: await outcome(invoke('desks')),
+    });
   }
   addEventListener('pageshow', (event) => { if (event.persisted) void checkStatus(); });
   await checkStatus();
@@ -514,6 +519,7 @@ const expectStatusCopy = (report: (typeof reports)[number]) => {
   const reason = problem === 'unreachable' || problem === 'notSeismic' || problem === 'notLoaded'
     ? strings[problem] : strings.check;
   expect(report.title === title && report.documentTitle === title && report.why === reason(workspace.origin), JSON.stringify(report));
+  expect(report.help === strings.help && report.helpHref === 'https://seismic.im/docs/install/', JSON.stringify(report));
 };
 const report = async (kind: string, after = 0, timeout = 60_000) => {
   const result = await until(`the ${kind} page to report`, timeout, () => reports.slice(after).find((r) => r.kind === kind));

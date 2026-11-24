@@ -12,11 +12,13 @@
       h1 { margin: 0; font-size: 20px; font-weight: 600; overflow-wrap: anywhere; }
       p { margin: 0; color: var(--muted-foreground); overflow-wrap: anywhere; }
       .row { display: flex; flex-wrap: wrap; gap: 8px; }
+      .actions { align-items: center; gap: 14px; }
       button { font: inherit; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: inherit; cursor: pointer; }
       button.primary { background: var(--foreground); border-color: var(--foreground); color: var(--background); }
       button:disabled { opacity: .55; cursor: default; }
       button[aria-disabled="true"] { opacity: .55; cursor: default; }
-      button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+      a { color: var(--link); text-underline-offset: 2px; }
+      a:focus-visible, button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
       #open-result:empty { position: absolute; }
       h2 { margin: 10px 0 0; font-size: 13px; font-weight: 600; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: .04em; }
       [data-tauri-drag-region] { position: fixed; inset: 0 0 auto; height: 50px; }
@@ -47,7 +49,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 12v4" /><path d="M12 20h.01" /><path d="M8.128 16.949A7 7 0 1 1 15.71 8h1.79a1 1 0 0 1 0 9h-1.642" /></svg>
       <h1 id="title"></h1>
       <p id="why"></p>
-      <div class="row"><button id="retry" class="primary" type="button"></button></div>
+      <div class="row actions">
+        <button id="retry" class="primary" type="button"></button>
+        <a id="recovery-help" href="https://seismic.im/docs/install/"></a>
+      </div>
       <h2 id="others-title" hidden></h2>
       <div id="others" class="row"></div>
       <p id="open-result" role="status"></p>
@@ -62,6 +67,7 @@
       const heading = $('title');
       heading.textContent = document.title = title;
       $('retry').textContent = s.retry;
+      $('recovery-help').textContent = s.help;
       $('others-title').textContent = s.others;
       const others = $('others');
       const buttons = new Map();

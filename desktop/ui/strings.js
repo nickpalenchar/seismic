@@ -11,6 +11,7 @@ window.SEISMIC_STRINGS = {
     "check": "Check whether Seismic answers at {0}.",
     "retry": "Try again",
     "retrying": "Trying …",
+    "help": "Recovery help",
     "others": "Switch workspace",
     "switching": "Switching to {0} …",
     "gone": "{0} is no longer available.",
