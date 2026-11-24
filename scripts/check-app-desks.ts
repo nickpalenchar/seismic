@@ -568,7 +568,11 @@ async function checkApp() {
       `]);
       expect(quit.exitCode === 0, quit.stderr.toString());
       expect(await exited(app!, 15_000) === 0, 'the app did not quit with the upload still held');
-      expect(!entry(), 'Quit left the replacement server running');
+      await until('Quit to stop the replacement server', 15_000, async () => {
+        if (entry()) return false;
+        const response = await fetch(`${replacement!.url}/api/projects`, { signal: AbortSignal.timeout(500) }).catch(() => null);
+        return response === null;
+      });
       return;
     }
     await decideAttachment('Go back');
