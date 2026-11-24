@@ -446,13 +446,13 @@ pub fn show(w: &Window) {
 
 /// Stop input before sampling so the owner cannot edit or navigate the outgoing page
 /// during native construction. Every failed or superseded attempt releases its hold.
-struct CaptureHold {
+pub(crate) struct CaptureHold {
   app: AppHandle,
-  label: String,
+  label: Option<String>,
 }
 
 impl CaptureHold {
-  fn acquire(app: &AppHandle, label: String) -> Result<Self, String> {
+  pub(crate) fn acquire(app: &AppHandle, label: String) -> Result<Self, String> {
     tauri::async_runtime::block_on(on_ui(app.clone(), move |app| {
       let state = shell(app);
       if !state.is_current(&label) {
@@ -461,14 +461,19 @@ impl CaptureHold {
       let view = app.get_webview(&label).ok_or("window")?;
       view.hide().map_err(|e| e.to_string())?;
       *state.views.lock().unwrap().hidden_for_capture.entry(label.clone()).or_default() += 1;
-      Ok(Self { app: app.clone(), label })
+      Ok(Self { app: app.clone(), label: Some(label) })
     }))
+  }
+
+  pub(crate) fn keep_until_exit(mut self) {
+    self.label.take();
   }
 }
 
 impl Drop for CaptureHold {
   fn drop(&mut self) {
-    let (app, label) = (self.app.clone(), self.label.clone());
+    let Some(label) = self.label.take() else { return };
+    let app = self.app.clone();
     let _ = self.app.run_on_main_thread(move || {
       let state = shell(&app);
       let mut views = state.views.lock().unwrap();

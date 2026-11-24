@@ -58,7 +58,8 @@ If you use a terminal to run Seismic’s server, the desktop app waits to restar
 is minimized or behind another app. On macOS, closing the window lets the rebuild retry in the
 background and keeps the window closed until you reopen it.
 If you switch workspaces while the app prepares to restart, it retries with the workspace you
-switched to.
+switched to. If you edit a draft during preparation, Seismic retries with the newer draft.
+It waits if you start dictating or playing a demo in the displayed workspace.
 
 Seismic keeps a copy of a malformed workspace list as `app-desks.unreadable.json` in its home
 directory. Later backups get numbered filenames.

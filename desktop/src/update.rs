@@ -248,6 +248,14 @@ fn start_again(app: &AppHandle, port: u16) -> io::Result<()> {
     },
     |windows| placed::publish_rebuild(&crate::home(), windows),
     || now(&ask("")),
+    |revision| {
+      if rebuild_revision(app) != Some(revision) {
+        return Ok(None);
+      }
+      let Some((drafts, hold)) = workspaces::hold_for_rebuild(app) else { return Ok(None) };
+      let Some(latest) = crate::desks::placed(app, revision.draft_generation, drafts)? else { return Ok(None) };
+      Ok(Some((latest, hold)))
+    },
     |commit| tauri::async_runtime::block_on(crate::desks::on_ui(app.clone(), move |app| Ok(commit(app)))).map_err(io::Error::other),
     move |app| {
       let seismic = app.state::<Arc<Seismic>>();
@@ -260,7 +268,12 @@ fn start_again(app: &AppHandle, port: u16) -> io::Result<()> {
       }
       Some((rebuild_revision(app)?, RebuildWindow::current(app)?))
     },
-    |app, ticket, windows| crate::relaunch(app, &app.state::<Arc<Seismic>>(), windows, Some(ticket)),
+    |app, ticket, windows, hold| {
+      if let Some(hold) = hold {
+        hold.keep_until_exit();
+      }
+      crate::relaunch(app, &app.state::<Arc<Seismic>>(), windows, Some(ticket));
+    },
   )
 }
 
@@ -291,32 +304,71 @@ impl RebuildWindow {
   }
 }
 
-type RebuildCommit<T> = Box<dyn FnOnce(&T) + Send>;
+type RebuildCommit<T> = Box<dyn FnOnce(&T) -> bool + Send>;
 
-fn rebuild_after_handover<T>(
+fn same_workspace_snapshot(before: &[Placed], after: &[Placed]) -> bool {
+  let (Some(before), Some(after)) = (placed::primary(before), placed::primary(after)) else { return false };
+  before.desk == after.desk && before.origin == after.origin && before.next == after.next
+    && before.draft_checkpoint == after.draft_checkpoint
+    && same_drafts(&before.drafts, &after.drafts)
+}
+
+fn same_drafts(before: &[(String, String)], after: &[(String, String)]) -> bool {
+  let after = after.iter().map(|(key, value)| (key.as_str(), value)).collect::<std::collections::HashMap<_, _>>();
+  before.len() == after.len() && before.iter().all(|(key, value)| {
+    let Some(&latest) = after.get(key.as_str()) else { return false };
+    if value == latest {
+      return true;
+    }
+    // snapshotSession flushes the kept view state on each read, renewing its
+    // timestamp even when the text fields and everything else stayed the same.
+    if key.starts_with("seismic-kept-") {
+      let state = |text: &str| {
+        let mut view = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(text).ok()?;
+        view.remove("at");
+        Some(view)
+      };
+      return state(value).is_some_and(|view| Some(view) == state(latest));
+    }
+    false
+  })
+}
+
+fn rebuild_after_handover<T, H: Send + 'static>(
   capture: impl FnOnce() -> io::Result<Option<(Vec<Placed>, RebuildRevision)>>,
-  publish: impl FnOnce(&[Placed]) -> io::Result<Uuid>,
-  still_idle: impl FnOnce() -> bool,
-  on_ui: impl FnOnce(RebuildCommit<T>) -> io::Result<()>,
+  publish: impl FnOnce(&[Placed]) -> io::Result<placed::RebuildSnapshot>,
+  local_idle: impl FnOnce() -> bool,
+  verify: impl FnOnce(RebuildRevision) -> io::Result<Option<(Vec<Placed>, H)>>,
+  on_ui: impl FnOnce(RebuildCommit<T>) -> io::Result<bool>,
   current: impl FnOnce(&T) -> Option<(RebuildRevision, RebuildWindow)> + Send + 'static,
-  relaunch: impl FnOnce(&T, Uuid, &[Placed]) + Send + 'static,
+  relaunch: impl FnOnce(&T, Uuid, &[Placed], H) + Send + 'static,
 ) -> io::Result<()> {
   let Some((windows, revision)) = capture()? else { return Ok(()) };
   let Some(captured) = placed::primary(&windows).and_then(|p| RebuildWindow::eligible(p.minimized, p.visible, p.focused)) else {
     return Ok(());
   };
-  let ticket = publish(&windows)?;
-  if !still_idle() {
+  let snapshot = publish(&windows)?;
+  if !local_idle() {
+    return Ok(());
+  }
+  let Some((latest, hold)) = verify(revision)? else { return Ok(()) };
+  if !same_workspace_snapshot(&windows, &latest) {
     return Ok(());
   }
   // A close on macOS hides the window. Both states permit a rebuild, but each needs
   // different startup activation. Check the workspace and presentation on the event
   // thread after disk publication and the server request. Only relaunch uses the ticket.
-  on_ui(Box::new(move |ui| {
-    if current(ui) == Some((revision, captured)) {
-      relaunch(ui, ticket, &windows);
+  let ticket = snapshot.ticket();
+  if on_ui(Box::new(move |ui| {
+    if current(ui) != Some((revision, captured)) {
+      return false;
     }
-  }))
+    relaunch(ui, ticket, &windows, hold);
+    true
+  }))? {
+    snapshot.hand_over();
+  }
+  Ok(())
 }
 
 fn capture_relaunch(app: &AppHandle, hand_over: bool) -> io::Result<Option<Vec<Placed>>> {
@@ -444,7 +496,7 @@ pub fn install(app: &AppHandle, seismic: &Seismic, updates: &Updates) -> Install
     let result = update.install(bytes.as_deref().unwrap());
     // If the installer returned, it did not take over. Disarm its snapshot before any
     // dialog or recapture can wait indefinitely.
-    let cleanup = installer_snapshot.map_or(Ok(()), placed::InstallerSnapshot::discard);
+    let cleanup = installer_snapshot.map_or(Ok(()), placed::PublishedSnapshot::discard);
     if let Err(e) = result {
       app
         .dialog()
@@ -521,11 +573,21 @@ mod tests {
   const MINIMIZED: Presentation = (true, false, false);
   const CAPTURED: RebuildRevision = RebuildRevision { draft_generation: 3, selection_turn: 4 };
 
+  #[derive(Clone, Copy)]
+  enum FinalPage {
+    Unchanged,
+    TimestampRefreshed,
+    Busy,
+    Edited,
+    Deleted,
+  }
+
   fn check_rebuild(
     before: Presentation,
     after_publish: Presentation,
     after_request: Option<RebuildRevision>,
     idle: bool,
+    page: FinalPage,
     expect_restart: bool,
   ) {
     struct Ui {
@@ -540,34 +602,53 @@ mod tests {
     let (minimized, visible, focused) = before;
     let windows = vec![Placed {
       desk: LOCAL.into(), next: "/p/local".into(), minimized, visible, focused,
-      drafts: vec![("seismic-drafts-note".into(), "unsent".into())], ..Default::default()
+      drafts: vec![
+        ("seismic-drafts-note".into(), "unsent".into()),
+        ("seismic-kept-local".into(), r#"{"at":1,"drafts":[["composer","unsent"]]}"#.into()),
+      ],
+      ..Default::default()
     }];
     let ui = Ui {
       presentation: Cell::new(before), revision: Cell::new(Some(CAPTURED)),
       restored: std::cell::RefCell::default(), ticket: Cell::new(None),
     };
     let named_ticket = Cell::new(None);
+    let final_page = Cell::new(FinalPage::Unchanged);
     rebuild_after_handover(
       || Ok(Some((windows.clone(), CAPTURED))),
       |captured| {
         // The OS can change focus before the publication call returns.
-        let ticket = placed::publish_rebuild(&home, captured)?;
-        named_ticket.set(Some(ticket));
+        let snapshot = placed::publish_rebuild(&home, captured)?;
+        named_ticket.set(Some(snapshot.ticket()));
         ui.presentation.set(after_publish);
-        Ok(ticket)
+        Ok(snapshot)
       },
       || {
         assert!(named_ticket.get().is_some(), "publication precedes the final server request");
         // The native window can stay focused while a switch starts or completes.
         ui.revision.set(after_request);
+        final_page.set(page);
         idle
       },
-      |commit| { commit(&ui); Ok(()) },
+      |_| {
+        let mut latest = windows.clone();
+        match final_page.get() {
+          FinalPage::Busy => return Ok(None),
+          FinalPage::Edited => latest[0].drafts[0].1 = "latest edit".into(),
+          FinalPage::Deleted => latest[0].drafts.clear(),
+          FinalPage::TimestampRefreshed => {
+            latest[0].drafts[1].1 = r#"{"at":2,"drafts":[["composer","unsent"]]}"#.into();
+          }
+          FinalPage::Unchanged => {}
+        }
+        Ok(Some((latest, ())))
+      },
+      |commit| Ok(commit(&ui)),
       |ui| {
         let (minimized, visible, focused) = ui.presentation.get();
         Some((ui.revision.get()?, RebuildWindow::eligible(minimized, visible, focused)?))
       },
-      |ui, ticket, placements| {
+      |ui, ticket, placements, ()| {
         ui.ticket.set(Some(ticket));
         ui.restored.replace(placements.to_vec());
       },
@@ -575,19 +656,19 @@ mod tests {
     assert_eq!(ui.ticket.get(), if expect_restart { named_ticket.get() } else { None });
     let expected = if expect_restart { windows } else { vec![] };
     assert_eq!(ui.restored.into_inner(), expected);
-    assert!(placed::take(&home).is_empty(), "an ordinary launch ignores a rebuild snapshot");
+    assert_eq!(home.join("app-windows.json.rebuild").exists(), expect_restart);
     assert_eq!(placed::take_for_launch(&home, ui.ticket.get()), expected);
     fs::remove_dir_all(home).unwrap();
   }
 
   #[test]
   fn rebuild_checks_presentation_after_publication_and_only_then_relaunches() {
-    check_rebuild(FOREGROUND, BACKGROUND, Some(CAPTURED), true, false);
-    check_rebuild(FOREGROUND, HIDDEN, Some(CAPTURED), true, false);
-    check_rebuild(FOREGROUND, MINIMIZED, Some(CAPTURED), true, false);
-    check_rebuild(HIDDEN, FOREGROUND, Some(CAPTURED), true, false);
-    check_rebuild(FOREGROUND, FOREGROUND, Some(CAPTURED), true, true);
-    check_rebuild(HIDDEN, HIDDEN, Some(CAPTURED), true, true);
+    check_rebuild(FOREGROUND, BACKGROUND, Some(CAPTURED), true, FinalPage::Unchanged, false);
+    check_rebuild(FOREGROUND, HIDDEN, Some(CAPTURED), true, FinalPage::Unchanged, false);
+    check_rebuild(FOREGROUND, MINIMIZED, Some(CAPTURED), true, FinalPage::Unchanged, false);
+    check_rebuild(HIDDEN, FOREGROUND, Some(CAPTURED), true, FinalPage::Unchanged, false);
+    check_rebuild(FOREGROUND, FOREGROUND, Some(CAPTURED), true, FinalPage::TimestampRefreshed, true);
+    check_rebuild(HIDDEN, HIDDEN, Some(CAPTURED), true, FinalPage::Unchanged, true);
   }
 
   #[test]
@@ -595,10 +676,17 @@ mod tests {
     let switched = RebuildRevision { draft_generation: 4, selection_turn: 5 };
     let superseded = RebuildRevision { selection_turn: 5, ..CAPTURED };
     let drafts_changed = RebuildRevision { draft_generation: 4, ..CAPTURED };
-    check_rebuild(FOREGROUND, FOREGROUND, Some(switched), true, false);
-    check_rebuild(FOREGROUND, FOREGROUND, Some(superseded), true, false);
-    check_rebuild(FOREGROUND, FOREGROUND, Some(drafts_changed), true, false);
-    check_rebuild(FOREGROUND, FOREGROUND, None, true, false);
-    check_rebuild(FOREGROUND, FOREGROUND, Some(CAPTURED), false, false);
+    check_rebuild(FOREGROUND, FOREGROUND, Some(switched), true, FinalPage::Unchanged, false);
+    check_rebuild(FOREGROUND, FOREGROUND, Some(superseded), true, FinalPage::Unchanged, false);
+    check_rebuild(FOREGROUND, FOREGROUND, Some(drafts_changed), true, FinalPage::Unchanged, false);
+    check_rebuild(FOREGROUND, FOREGROUND, None, true, FinalPage::Unchanged, false);
+    check_rebuild(FOREGROUND, FOREGROUND, Some(CAPTURED), false, FinalPage::Unchanged, false);
+  }
+
+  #[test]
+  fn rebuild_preserves_draft_edits_and_remote_activity_started_during_the_local_request() {
+    for page in [FinalPage::Edited, FinalPage::Deleted, FinalPage::Busy] {
+      check_rebuild(FOREGROUND, FOREGROUND, Some(CAPTURED), true, page, false);
+    }
   }
 }

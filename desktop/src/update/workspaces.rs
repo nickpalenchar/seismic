@@ -12,7 +12,7 @@ use tauri::{AppHandle, Webview};
 
 use crate::{
   desks,
-  window::{drafts::{self, SESSION_DRAFTS}, Own},
+  window::{drafts::{self, RESTART_HELD, SESSION_DRAFTS}, Own},
 };
 
 fn page(app: &AppHandle) -> Option<(Webview, Own)> {
@@ -29,6 +29,10 @@ pub fn ready(app: &AppHandle, hand_over: bool) -> Option<Drafts> {
 
 pub fn probe(app: &AppHandle, snapshot: bool, hand_over: bool) -> Option<Drafts> {
   let Some((w, own)) = page(app) else { return Some(HashMap::new()) };
+  probe_page(app, w, own, snapshot, hand_over)
+}
+
+fn probe_page(app: &AppHandle, w: Webview, own: Own, snapshot: bool, hand_over: bool) -> Option<Drafts> {
   let origin = own.origin()?;
   if matches!(own, Own::Local(_)) {
     // The local server is checked by the caller. Read drafts here, including when
@@ -46,7 +50,7 @@ pub fn probe(app: &AppHandle, snapshot: bool, hand_over: bool) -> Option<Drafts>
         const check = {{ token: {token:?}, ready: null }};
         window.seismicRebuildCheck = check;
         (async () => {{
-          if (window.seismicRestartHeld?.()) return false;
+          if (({RESTART_HELD})()) return false;
           const controller = new AbortController();
           const timeout = setTimeout(() => controller.abort(), 2000);
           try {{
@@ -82,7 +86,7 @@ pub fn probe(app: &AppHandle, snapshot: bool, hand_over: bool) -> Option<Drafts>
               clearTimeout(timer);
             }}
           }}
-          return !window.seismicRestartHeld?.();
+          return !({RESTART_HELD})();
         }})().then((ready) => {{ check.ready = ready; }}, () => {{ check.ready = false; }});
       }})()"#
     );
@@ -93,7 +97,7 @@ pub fn probe(app: &AppHandle, snapshot: bool, hand_over: bool) -> Option<Drafts>
     let js = format!(
       r#"(() => {{
         const check = window.seismicRebuildCheck;
-        if (location.origin !== {origin:?} || check?.token !== {token:?} || window.seismicRestartHeld?.()) return false;
+        if (location.origin !== {origin:?} || check?.token !== {token:?} || ({RESTART_HELD})()) return false;
         if (check.ready !== true || !{snapshot}) return check.ready;
         return ({SESSION_DRAFTS})();
       }})()"#
@@ -116,4 +120,18 @@ pub fn probe(app: &AppHandle, snapshot: bool, hand_over: bool) -> Option<Drafts>
     }
     thread::sleep(Duration::from_millis(50));
   }
+}
+
+/// Recheck remote activity after the local server has answered. Then close the
+/// gap between checking the page and exiting by holding input through the commit.
+pub fn hold_for_rebuild(app: &AppHandle) -> Option<(Drafts, Option<desks::CaptureHold>)> {
+  let Some((w, own)) = page(app) else { return Some((HashMap::new(), None)) };
+  if !matches!(own, Own::Local(_)) {
+    probe_page(app, w.clone(), own.clone(), false, false)?;
+  }
+  let hold = desks::CaptureHold::acquire(app, w.label().to_string()).ok()?;
+  let (_, entries) = drafts::sample_for_rebuild(&w, &own.origin()?)?;
+  (page(app).as_ref() == Some(&(w.clone(), own))).then(|| {
+    (HashMap::from([(w.label().to_string(), entries)]), Some(hold))
+  })
 }
