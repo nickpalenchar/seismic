@@ -5,6 +5,8 @@ import { ConfirmDialog } from './components/dialog';
 import { t } from './strings';
 
 const pending = new Set<AbortController>();
+// A shell switch owns the outgoing document through capture and native navigation.
+const switches = new Set<string>();
 const onIdle = new Set<() => void>();
 type Choice = 'ask' | 'wait' | 'discard' | 'back';
 let request: { id: string; choice: Choice } | null = null;
@@ -12,6 +14,13 @@ const listeners = new Set<() => void>();
 function setRequest(next: typeof request) {
   request = next;
   for (const listener of listeners) listener();
+}
+
+function navigateWhenIdle() {
+  if (pending.size || switches.size) return;
+  const ready = [...onIdle];
+  onIdle.clear();
+  for (const action of ready) action();
 }
 
 export function beginAttachment() {
@@ -24,28 +33,27 @@ export function beginAttachment() {
       if (!ok && !controller.signal.aborted && request && (request.choice === 'wait' || request.choice === 'ask')) {
         setRequest({ ...request, choice: 'back' });
       }
-      if (!pending.size) {
-        const ready = [...onIdle];
-        onIdle.clear();
-        for (const action of ready) action();
-      }
+      navigateWhenIdle();
     },
   };
 }
 
-/** Run an automatic navigation after uploads have finished writing their drafts. */
+/** Run an automatic navigation when uploads and the native switch have released the page. */
 export function afterAttachments(action: () => void) {
-  if (pending.size) onIdle.add(action);
-  else action();
+  onIdle.add(action);
+  navigateWhenIdle();
 }
 
 // The shell checks again with input hidden before sampling. Discard applies only to
 // the attachments pending when the owner makes the choice.
 export function attachmentSwitch(id: string, action: 'ask' | 'check' | 'end') {
   if (action === 'end') {
+    switches.delete(id);
     if (request?.id === id) setRequest(null);
+    navigateWhenIdle();
     return 'ready';
   }
+  switches.add(id);
   if (request?.id === id) {
     if (request.choice === 'back') return 'back';
     if (request.choice === 'discard') {

@@ -30,7 +30,8 @@ finishes. The app then reconnects automatically. When adding or pairing a worksp
 **Go back** leaves the pairing code unused. If the code expires while you wait for the upload,
 get a new one from the workspace you are pairing.
 When a server reconnects at the same address, its page waits for pending uploads before
-reloading.
+reloading. If you chose **Switch after upload**, the app opens the selected workspace when the
+upload finishes.
 
 ### Reconnect an offline workspace
 

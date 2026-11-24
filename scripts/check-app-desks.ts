@@ -175,6 +175,8 @@ let seedDraft = true;
 // The next page request finds the remote gone, after its health check answered.
 let nextPage: (() => Promise<void>) | undefined;
 let liveComposer = false;
+let reconnectRemote: (() => void) | undefined;
+let replacementHello = false;
 let imageUpload: (() => Promise<Response>) | undefined;
 let pairRequests = 0;
 let dropPage = false;
@@ -238,8 +240,18 @@ const startProxy = (port = proxyPort) => {
     },
     websocket: {
       open(socket) {
+        reconnectRemote = () => socket.close();
         const upstream = socket.data.upstream;
-        upstream.onmessage = event => socket.send(event.data);
+        upstream.onmessage = event => {
+          if (replacementHello && typeof event.data === 'string') {
+            const message = JSON.parse(event.data);
+            if (message.type === 'hello') {
+              socket.send(JSON.stringify({ ...message, server: 'check-replacement-server' }));
+              return;
+            }
+          }
+          socket.send(event.data);
+        };
         upstream.onclose = () => socket.close();
         upstream.onerror = () => socket.close();
       },
@@ -1002,14 +1014,29 @@ async function checkApp() {
         await decideAttachment(choice);
         if (choice === 'Switch after upload') {
           expect((await desks()).current === id, 'switched with the upload pending');
+          await run('check_eval', { js: `window.WebSocket = class extends WebSocket {
+            constructor(...args) {
+              super(...args);
+              this.addEventListener('message', ({ data }) => {
+                if (JSON.parse(data).server === 'check-replacement-server') window.checkReplacementHello = true;
+              });
+            }
+          }` });
+          expect(reconnectRemote, 'the remote project has no WebSocket');
+          replacementHello = true;
+          reconnectRemote!();
+          await until('the waiting document to hear from the replacement server', 6000, async () =>
+            (await run('check_eval', { js: 'window.checkReplacementHello === true' })).value === true);
           release.resolve();
         }
         await report('local', before);
+        replacementHello = false;
         release.resolve();
         await select(id, 'remote');
         const saved = await run('check_eval', { js: "JSON.stringify(Object.entries(sessionStorage))" });
         expect(String(saved.value).includes('completed-shot') && !String(saved.value).includes('discarded-shot'), 'unexpected saved screenshots');
       } finally {
+        replacementHello = false;
         imageUpload = undefined; release.resolve();
       }
     }

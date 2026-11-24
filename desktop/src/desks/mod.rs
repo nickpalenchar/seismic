@@ -491,7 +491,7 @@ impl Drop for CaptureHold {
 }
 
 struct Capture {
-  _hold: Option<CaptureHold>,
+  hold: Option<attachments::Hold>,
   label: String,
   generation: u64,
   workspace: Option<Placed>,
@@ -507,14 +507,25 @@ impl Capture {
 /// origin-scoped departure instead. A failed read leaves the current page in place.
 fn capture(app: &AppHandle, turn: u64, on_back: OnBack) -> Result<Capture, String> {
   let state = shell(app);
-  let (active, label, generation) = {
+  let (active, label) = {
     let views = state.views.lock().unwrap();
-    (views.active.clone(), views.label().to_string(), views.draft_generation)
+    (views.active.is_some(), views.label().to_string())
   };
-  let mut hold = None;
+  let hold = if active {
+    let view = app.get_webview(&label).ok_or("window")?;
+    Some(attachments::hold(app, &state, &view, turn, on_back)?)
+  } else {
+    None
+  };
+  let (active, generation) = {
+    let views = state.views.lock().unwrap();
+    if views.turn != turn || views.label() != label {
+      return Err("superseded".into());
+    }
+    (views.active.clone(), views.draft_generation)
+  };
   let workspace = if let Some(active) = active {
     let view = app.get_webview(&label).ok_or("window")?;
-    hold = Some(attachments::hold(app, &state, &view, turn, on_back)?);
     let url = view.url().map_err(|_| "window")?;
     let sample = if active.own.at(&url) {
       let origin = active.own.origin().ok_or("elsewhere")?;
@@ -526,7 +537,7 @@ fn capture(app: &AppHandle, turn: u64, on_back: OnBack) -> Result<Capture, Strin
   } else {
     None
   };
-  Ok(Capture { _hold: hold, label, generation, workspace })
+  Ok(Capture { hold, label, generation, workspace })
 }
 
 /// The outgoing view's drafts and route take precedence over any older parked copy.
@@ -559,7 +570,7 @@ struct Destination {
 
 /// Prepare the new view before closing the old one. Every view has its own capability
 /// label and immutable origin, even if the selected workspace was visited earlier.
-fn mount(app: &AppHandle, target: Destination, turn: u64, outgoing: Capture) -> Result<(), String> {
+fn mount(app: &AppHandle, target: Destination, turn: u64, mut outgoing: Capture) -> Result<(), String> {
   let state = shell(app);
   let (label, restore) = {
     let mut views = state.views.lock().unwrap();
@@ -613,6 +624,9 @@ fn mount(app: &AppHandle, target: Destination, turn: u64, outgoing: Capture) -> 
     if let Err(error) = navigate() {
       state.views.lock().unwrap().active = old;
       return Err(error.to_string());
+    }
+    if let Some(hold) = &mut outgoing.hold {
+      hold.navigating();
     }
     {
       let mut views = state.views.lock().unwrap();
@@ -689,7 +703,7 @@ pub fn connect_local(app: &AppHandle, port: u16, page: Url, handed_over: bool) -
     };
     // Reauthenticating at the same port also unloads the document doing the upload.
     enum Attach {
-      Reload(CaptureHold),
+      Reload(attachments::Hold),
       Replace(Capture),
     }
     let outgoing = if same_origin {
@@ -707,7 +721,11 @@ pub fn connect_local(app: &AppHandle, port: u16, page: Url, handed_over: bool) -
         return Err("superseded".into());
       }
       match outgoing? {
-        Attach::Reload(_hold) => local_view(app).ok_or("window")?.navigate(page).map_err(|e| e.to_string()),
+        Attach::Reload(mut hold) => {
+          local_view(app).ok_or("window")?.navigate(page).map_err(|e| e.to_string())?;
+          hold.navigating();
+          Ok(())
+        }
         Attach::Replace(captured) => {
           let target = Destination { desk: LOCAL.into(), own, url: page, problem: None, handed_over: previous.is_none() && handed_over };
           mount(app, target, turn, captured)

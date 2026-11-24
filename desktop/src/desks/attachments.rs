@@ -5,12 +5,17 @@ use tauri::{AppHandle, Webview};
 
 use super::{CaptureHold, Shell};
 
-struct Decision<'a> {
-  view: &'a Webview,
+struct Decision {
+  view: Webview,
   id: uuid::Uuid,
+  release: bool,
 }
 
-impl Decision<'_> {
+impl Decision {
+  fn new(view: &Webview) -> Self {
+    Self { view: view.clone(), id: uuid::Uuid::new_v4(), release: true }
+  }
+
   fn script(&self, action: &str) -> String {
     format!(r#"window.seismicAttachmentSwitch?.("{}", "{action}") ?? "ready""#, self.id)
   }
@@ -35,9 +40,24 @@ impl Decision<'_> {
   }
 }
 
-impl Drop for Decision<'_> {
+impl Drop for Decision {
   fn drop(&mut self) {
-    let _ = self.view.eval(self.script("end"));
+    if self.release {
+      let _ = self.view.eval(self.script("end"));
+    }
+  }
+}
+
+pub(super) struct Hold {
+  _input: CaptureHold,
+  decision: Decision,
+}
+
+impl Hold {
+  /// Navigation has been queued or the old view is being retired. Its queued page
+  /// reload must not run while the native navigation is still on its way.
+  pub(super) fn navigating(&mut self) {
+    self.decision.release = false;
   }
 }
 
@@ -47,9 +67,9 @@ pub(super) enum OnBack {
   Wait,
 }
 
-pub(super) fn hold(app: &AppHandle, shell: &Shell, view: &Webview, turn: u64, on_back: OnBack) -> Result<CaptureHold, String> {
+pub(super) fn hold(app: &AppHandle, shell: &Shell, view: &Webview, turn: u64, on_back: OnBack) -> Result<Hold, String> {
   let _asking = shell.attachment_decision.lock().unwrap();
-  let mut decision = Decision { view, id: uuid::Uuid::new_v4() };
+  let mut decision = Decision::new(view);
   let mut action = "ask";
   loop {
     if crate::is_stopping(app) {
@@ -62,12 +82,14 @@ pub(super) fn hold(app: &AppHandle, shell: &Shell, view: &Webview, turn: u64, on
       }
     }
     match decision.hold_when_ready(app, action) {
-      Ok(Some(hold)) => return Ok(hold),
+      Ok(Some(input)) => return Ok(Hold { _input: input, decision }),
       Ok(None) => {}
       Err(error) if error == "cancelled" && matches!(on_back, OnBack::Wait) => {
         // A replacement local server still needs attaching. End the dismissed prompt
         // and start checking for idle uploads without opening another dialog.
-        decision = Decision { view, id: uuid::Uuid::new_v4() };
+        let quiet = Decision::new(view);
+        quiet.ready("check")?;
+        decision = quiet;
         action = "check";
       }
       Err(error) => return Err(error),

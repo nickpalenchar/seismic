@@ -28,11 +28,38 @@ test('a workspace switch sees pending files from lookup through inserting the fi
     expect(paths).toEqual(['/uploads/first.txt', '/project/second.txt']);
     expect(state()).toBe('ready');
   } finally {
+    attachmentSwitch('select', 'end');
     found.resolve(null);
     uploaded.resolve('/uploads/first.txt');
     upload.mockRestore();
     find.mockRestore();
   }
+});
+
+test('a queued reconnect waits for the shell to finish capturing after the last upload', () => {
+  const upload = beginAttachment();
+  let reloads = 0;
+  expect(attachmentSwitch('old-switch', 'check')).toBe('pending');
+  afterAttachments(() => { reloads++; });
+  upload.finish(true);
+  expect(attachmentSwitch('old-switch', 'check')).toBe('ready');
+  expect(reloads).toBe(0);
+  expect(attachmentSwitch('new-switch', 'check')).toBe('ready');
+  attachmentSwitch('old-switch', 'end');
+  expect(reloads).toBe(0);
+  attachmentSwitch('new-switch', 'end');
+  expect(reloads).toBe(1);
+});
+
+test('a cancelled decision lets a reconnect resume once the upload settles', () => {
+  const upload = beginAttachment();
+  expect(attachmentSwitch('cancelled-switch', 'ask')).toBe('pending');
+  let reloaded = false;
+  afterAttachments(() => { reloaded = true; });
+  attachmentSwitch('cancelled-switch', 'end');
+  expect(reloaded).toBe(false);
+  upload.finish(true);
+  expect(reloaded).toBe(true);
 });
 
 test('a reconnect waits for every attachment and runs its reload once', () => {
