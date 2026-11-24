@@ -81,7 +81,7 @@ pub async fn add_desk(app: AppHandle, webview: Webview, address: String, code: S
   }
   let at = origin.clone();
   let (outgoing, link) = prepare_pairing(&app, &webview, origin.clone(), code, move |app| {
-    if shell(app).desks.lock().unwrap().at_origin(&at).is_some() {
+    if super::shell(app).desks.lock().unwrap().at_origin(&at).is_some() {
       return Err("known".into());
     }
     Ok(())

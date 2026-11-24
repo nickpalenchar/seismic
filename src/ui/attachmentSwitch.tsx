@@ -87,7 +87,7 @@ export function AttachmentSwitchDialog() {
     return <Dialog open>
       <DialogContent className="w-[min(360px,100%)] rounded-sm p-6">
         <DialogTitle className="m-0 flex items-center gap-3 text-lg font-semibold" role="status">
-          <Spinner /> {t.attachmentSwitch.connecting}
+          <Spinner aria-hidden /> {t.attachmentSwitch.connecting}
         </DialogTitle>
       </DialogContent>
     </Dialog>;

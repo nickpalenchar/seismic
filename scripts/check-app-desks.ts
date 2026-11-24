@@ -466,9 +466,18 @@ const holdLocalScreenshot = async (image: string) => {
     (await run('check_eval', { js: "typeof window.releaseScreenshot === 'function'" })).value === true);
 };
 const releaseLocalScreenshot = () => run('check_eval', { js: 'window.releaseScreenshot(); delete window.releaseScreenshot' });
+const expectConnectionProgress = () => until('connection progress on the visible workspace', 5000, async () => {
+  const result = await run('check_eval', {
+    js: "[document.visibilityState, document.querySelector('[role=dialog] [role=status]')?.textContent.trim()]",
+  });
+  return JSON.stringify(result.value) === '["visible","Connecting to workspace…"]';
+});
 const pairAfterUpload = async (cmd: 'add_desk' | 'pair_desk', args: Record<string, string>) => {
   const attempts = pairRequests;
   await holdLocalScreenshot(cmd + '-shot');
+  const probe = Promise.withResolvers<void>();
+  const answer = Promise.withResolvers<void>();
+  let uploadReleased = false;
   try {
     const cancelled = send(cmd, args);
     await decideAttachment('Go back');
@@ -479,9 +488,16 @@ const pairAfterUpload = async (cmd: 'add_desk' | 'pair_desk', args: Record<strin
     // The one-minute link cannot age while the upload is held because the POST hasn't happened.
     await sleep(400);
     expect(pairRequests === attempts && !done.has(retry), 'the code was spent while the attachment was pending');
+    onHealth = () => { probe.resolve(); return answer.promise; };
+    uploadReleased = true;
+    await releaseLocalScreenshot();
+    await Promise.race([probe.promise, sleep(5000).then(() => { throw new Error('no pairing health check'); })]);
+    await expectConnectionProgress();
     return retry;
   } finally {
-    await releaseLocalScreenshot();
+    onHealth = undefined;
+    answer.resolve();
+    if (!uploadReleased) await releaseLocalScreenshot();
   }
 };
 const report = (kind: string, after = 0, timeout = 60_000) => until(`the ${kind} page to report`, timeout, () => reports.slice(after).find((r) => r.kind === kind));
@@ -1103,11 +1119,8 @@ async function checkApp() {
       onHealth = () => { probe.resolve(); return answer.promise; };
       await releaseLocalScreenshot();
       await Promise.race([probe.promise, sleep(5000).then(() => { throw new Error('no second health check'); })]);
-      const progress = await run('check_eval', {
-        js: "[document.visibilityState, document.querySelector('[role=status]')?.textContent.trim()]",
-      });
-      expect(displayed()?.label === local.label && JSON.stringify(progress.value) === '["visible","Connecting to workspace…"]',
-        JSON.stringify(progress));
+      await expectConnectionProgress();
+      expect(displayed()?.label === local.label, 'the current workspace changed during the probe');
     } finally {
       rejectHealth = false;
       onHealth = undefined;
