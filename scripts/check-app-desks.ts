@@ -76,6 +76,7 @@ const HOST = useIPv6 ? '[::1]' : 'localhost';
 const proxyPort = free();
 const oldPort = free();
 const REMOTE = `http://${HOST}:${proxyPort}`;
+const LAST_PAGE = '/p/lab?view=table#draft';
 const FRAME = `<!doctype html>
 <script>
   const report = (result) => parent.postMessage({ origin: self.origin, result }, '*');
@@ -225,6 +226,8 @@ const done = new Map<number, Done>();
 const reports: Record<string, unknown>[] = [];
 let retryNow = false;
 let backToStatus = false;
+let rememberLastPage = false;
+let statusAction: { name: string; open?: boolean } | undefined;
 const polls = new Map<string, number>();
 const MODULE = `
 const base = new URL('.', import.meta.url);
@@ -248,6 +251,10 @@ if (location.origin === ${JSON.stringify(REMOTE)} && document.getElementById('si
   out.remove = await outcome(invoke('remove_desk', { id: 'local' }));
   out.projects = (await fetch('/api/projects')).status;
   await post('result', out);
+  if ((await (await fetch(new URL('remember-page', base))).json()).now) {
+    history.replaceState(null, '', ${JSON.stringify(LAST_PAGE)});
+    await post('result', { kind: 'lastPage', href: location.href });
+  }
   if ((await (await fetch(new URL('back-to-status', base))).json()).now) history.back();
   if (${process.platform === 'darwin'}) await post('result', { kind: 'ipcGate', ...(await (${IPC_CHECK})()) });
   const mic = { kind: 'remoteMic', secure: isSecureContext };
@@ -276,25 +283,36 @@ if (location.origin === ${JSON.stringify(REMOTE)} && document.getElementById('si
   });
   await post('result', mic);
 } else if (location.pathname.endsWith('/status.html')) {
+  let openingButton;
   async function checkStatus() {
     await new Promise((r) => setTimeout(r, 500));
     await post('result', { kind: 'status', title: document.getElementById('title').textContent, why: document.getElementById('why').textContent, desks: await outcome(invoke('desks')) });
     for (;;) {
       if ((await (await fetch(new URL('retry', base))).json()).now) break;
+      const action = await (await fetch(new URL('status-action', base))).json();
+      if (action) {
+        const button = [...document.querySelectorAll('#others button')].find((b) => b.textContent === action.name);
+        if (action.open && button) {
+          openingButton = button;
+          button.focus();
+          button.click();
+        }
+        await post('result', { kind: 'statusAction', name: action.name, notice: document.getElementById('open-result').textContent, focused: !!button && document.activeElement === button, same: !!button && button === openingButton });
+      }
       await new Promise((r) => setTimeout(r, 250));
     }
     document.getElementById('retry').click();
   }
   addEventListener('pageshow', (event) => { if (event.persisted) void checkStatus(); });
   await checkStatus();
-} else if (location.protocol === 'http:') {
+} else if (location.protocol === 'http:' && location.hostname === '127.0.0.1') {
   const label = window.__TAURI_INTERNALS__.metadata.currentWindow.label;
   if (location.port === ${JSON.stringify(String(oldPort))}) history.replaceState(null, '', '/?takeover-check=kept');
   addEventListener('seismic-desks', async () => post('result', { kind: 'desksChanged', ...(await outcome(invoke('desks'))) }));
   await post('result', { kind: 'local', href: location.href, label, minimized: window.seismicCheckMinimized });
   for (;;) {
     const next = await (await fetch(new URL('todo?label=' + label, base))).json();
-    if (next) await post('done', { id: next.id, ...(await outcome(invoke(next.cmd, next.args))) });
+    if (next) void outcome(invoke(next.cmd, next.args)).then((result) => post('done', { id: next.id, ...result }));
     else await new Promise((r) => setTimeout(r, 200));
   }
 }
@@ -314,6 +332,16 @@ const harness = Bun.serve({
       return json(todo.shift() ?? null);
     }
     if (path === '/retry') return json({ now: retryNow });
+    if (path === '/remember-page') {
+      const now = rememberLastPage;
+      rememberLastPage = false;
+      return json({ now });
+    }
+    if (path === '/status-action') {
+      const action = statusAction;
+      statusAction = undefined;
+      return json(action ?? null);
+    }
     if (path === '/back-to-status') {
       const now = backToStatus;
       if (now) retryNow = backToStatus = false;
@@ -336,6 +364,11 @@ const run = async (cmd: string, args?: Record<string, unknown>) => {
   return until(`${cmd} to answer`, 30_000, () => done.get(id));
 };
 const report = (kind: string, after = 0, timeout = 60_000) => until(`the ${kind} page to report`, timeout, () => reports.slice(after).find((r) => r.kind === kind));
+const fromStatus = async (name: string, open = false) => {
+  const before = reports.length;
+  statusAction = { name, open };
+  return report('statusAction', before, 5_000);
+};
 type Desks = { current: string | null; problem: string | null; list: { id: string; name: string; origin: string | null; local: boolean; open: boolean }[] };
 const desks = async () => (await run('desks')).value as Desks;
 const changedDesk = (after: number, id: string, origin: string) => until('the workspace list to refresh', 5_000, () =>
@@ -631,14 +664,17 @@ try {
     const before = reports.length;
     const writes = acknowledgedHandovers;
     expireServerHandover = true;
+    rememberLastPage = true;
     try {
       await relaunch();
       const restored = await report('remote', before);
       expect(acknowledgedHandovers > writes, 'the remote server never accepted its handover');
       expect(restored.previousDraft === 'Unsent note for Lab' && restored.previousSession === null, JSON.stringify(restored));
+      expect((await report('lastPage', before)).href === `${REMOTE}${LAST_PAGE}`, 'the fixture did not visit the page that should be restored');
       await report('local', before);
     } finally {
       expireServerHandover = false;
+      rememberLastPage = false;
     }
   });
 
@@ -683,6 +719,52 @@ try {
     await report('local', beforeSecond);
     return String(again.title);
   });
+  if (debugFailures) {
+    await check('opening from status shows progress, keeps focus on refresh and reports a native failure', async () => {
+      const port = free();
+      const other = startProxy(port);
+      const address = `http://${HOST}:${port}`;
+      const fault = join(home, 'check-window-open-error');
+      const release = Promise.withResolvers<void>();
+      const checking = Promise.withResolvers<void>();
+      let otherId: string | undefined;
+      try {
+        writeFileSync(fault, '');
+        const added = await run('add_desk', { address, code: await code(), name: 'Studio' });
+        const value = added.value as { id: string; opened: boolean };
+        otherId = value?.id;
+        expect(added.ok && value?.opened === false, JSON.stringify(added));
+        onHealth = () => { checking.resolve(); return release.promise; };
+        writeFileSync(fault, '');
+        const opening = await fromStatus('Studio', true);
+        expect(opening.notice === 'Opening Studio …' && opening.focused, JSON.stringify(opening));
+        await Promise.race([checking.promise, sleep(5_000).then(() => { throw new Error('no open health check'); })]);
+
+        expect((await run('rename_desk', { id: otherId, name: 'Side studio' })).ok, 'the list refresh did not start');
+        const refreshed = await until<Record<string, unknown>>('the focused workspace button to refresh', 5_000, async () => {
+          const state = await fromStatus('Side studio');
+          return state.same === true ? state : undefined;
+        });
+        expect(refreshed.focused && refreshed.notice === 'Opening Studio …', JSON.stringify(refreshed));
+
+        onHealth = undefined;
+        release.resolve();
+        await until('the native window error to show', 5_000, async () => {
+          const state = await fromStatus('Side studio');
+          return state.notice === 'Couldn’t open Side studio. Try again.';
+        });
+        expect(!(await desks()).list.find((d) => d.id === otherId)?.open, 'the failed window still appears open');
+        await fromStatus('Side studio', true);
+        await until('retrying the workspace open to succeed', 5_000, async () => (await desks()).list.find((d) => d.id === otherId)?.open);
+      } finally {
+        onHealth = undefined;
+        release.resolve();
+        rmSync(fault, { force: true });
+        if (otherId) await run('remove_desk', { id: otherId });
+        other.stop(true);
+      }
+    });
+  }
   const afterStatus = reports.length;
   proxy.server = startProxy();
   backToStatus = true;
@@ -692,6 +774,7 @@ try {
     await check('Try again restores the offline draft after two relaunches', () => {
       expect(String(again.href).startsWith(`${REMOTE}/`) && again.projects === 200, `${again.href}, projects ${again.projects}`);
       expect(again.previousDraft === 'Unsent note for Lab', JSON.stringify(again));
+      expect(again.href === `${REMOTE}${LAST_PAGE}`, `Try again lost the saved page (${again.href})`);
       return String(again.previousDraft);
     });
     await check('Try again works after going Back to a recovered status page', async () => {
@@ -702,6 +785,7 @@ try {
       retryNow = true;
       const reopened = await report('remote', before, 10_000);
       expect(reopened.projects === 200 && reopened.label === again.label, JSON.stringify(reopened));
+      expect(reopened.href === `${REMOTE}${LAST_PAGE}`, `the history retry lost the saved page (${reopened.href})`);
     });
   }
   await check('a pending status retry cannot overwrite a re-pair', async () => {
@@ -864,10 +948,11 @@ try {
   await check('pairing takes over a pending health check and keeps one tracked window', async () => {
     await withPendingHealth(async () => {
       const before = reports.length;
-      const opened = await run('open_desk', { id });
-      expect(opened.ok, JSON.stringify(opened));
+      const opening = run('open_desk', { id });
       const paired = await run('pair_desk', { id, code: await code() });
       expect(paired.ok, JSON.stringify(paired));
+      const opened = await opening;
+      expect(opened.ok, JSON.stringify(opened));
       const page = await report('remote', before);
       expect(page.projects === 200, JSON.stringify(page));
     });
@@ -875,8 +960,11 @@ try {
   });
   await check('removal cancels an in-flight health check', async () => {
     await withPendingHealth(async () => {
+      const opening = run('open_desk', { id });
       const removed = await run('remove_desk', { id });
       expect(removed.ok, JSON.stringify(removed));
+      const cancelled = await opening;
+      expect(!cancelled.ok && cancelled.error === 'unknown', JSON.stringify(cancelled));
     });
     expect(!(await desks()).list.some((w) => w.id === id), 'the removed workspace is still listed');
   });

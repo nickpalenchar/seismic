@@ -48,7 +48,7 @@ const FRESH: Duration = Duration::from_secs(60);
 const INSTALL_FRESH: Duration = Duration::from_secs(30 * 60);
 
 impl Placed {
-  pub fn of(w: &WebviewWindow, desk: &str, own: &Own) -> Option<Placed> {
+  pub fn of(w: &WebviewWindow, desk: &str, own: &Own, next: &str) -> Option<Placed> {
     let minimized = w.is_minimized().unwrap_or(false);
     let (at, size) = bounds(w, minimized)?;
     Some(Placed {
@@ -65,7 +65,7 @@ impl Placed {
       fullscreen: w.is_fullscreen().unwrap_or(false),
       minimized,
       visible: w.is_visible().unwrap_or(true),
-      next: page(w, own).unwrap_or_else(|| "/".into()),
+      next: page(w, own).unwrap_or_else(|| next.into()),
       focused: w.is_focused().unwrap_or(false),
       drafts: vec![],
     })

@@ -15,6 +15,21 @@ const FILE: &str = "app-desks.json";
 const FORMER: &str = "app-workspaces.json";
 const UNREADABLE: &str = "app-desks.unreadable.json";
 
+fn read_list(text: &[u8]) -> Option<Value> {
+  serde_json::from_slice::<Value>(text).ok().filter(|value| value.get("list").is_some_and(Value::is_array))
+}
+
+fn put_aside(path: &Path, home: &Path) -> std::io::Result<()> {
+  let mut backup = home.join(UNREADABLE);
+  for number in 2.. {
+    if !backup.try_exists()? {
+      break;
+    }
+    backup = home.join(format!("app-desks.unreadable.{number}.json"));
+  }
+  fs::rename(path, backup)
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Desk {
   pub id: String,
@@ -102,10 +117,12 @@ impl Desks {
       }
     }
     let text = fs::read(&path).ok();
-    let read = text.as_deref().and_then(|t| serde_json::from_slice::<Value>(t).ok());
+    let read = text.as_deref().and_then(read_list);
     if text.is_some() && read.is_none() {
-      eprintln!("seismic: {} cannot be read, put aside", path.display());
-      let _ = fs::rename(&path, home.join(UNREADABLE));
+      match put_aside(&path, home) {
+        Ok(()) => eprintln!("seismic: {} is malformed, put aside", path.display()),
+        Err(error) => eprintln!("seismic: could not put aside {}: {error}", path.display()),
+      }
     }
     Self::from_json(read.as_ref())
   }
@@ -154,6 +171,14 @@ impl Desks {
       let mut f = fs::File::create(&part)?;
       f.write_all(text.as_bytes())?;
       f.sync_all()?;
+      drop(f);
+      // If startup could not back up the existing list, never write over it here.
+      match fs::read(&path) {
+        Ok(existing) if read_list(&existing).is_none() => put_aside(&path, home)?,
+        Ok(_) => {},
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
+        Err(error) => return Err(error),
+      }
       fs::rename(&part, &path)
     };
     write().map_err(|e| {
@@ -335,6 +360,39 @@ mod tests {
     fs::write(&former, entries.to_string()).unwrap();
     assert_eq!(Desks::load(&home), saved);
     assert!(former.exists());
+    fs::remove_dir_all(home).unwrap();
+  }
+
+  #[test]
+  fn malformed_lists_are_backed_up_at_load_and_before_save() {
+    let home = std::env::temp_dir().join(format!("seismic-desks-{}", uuid::Uuid::new_v4()));
+    fs::create_dir_all(&home).unwrap();
+    let path = home.join(FILE);
+    fs::write(&path, r#"{"unexpected":true}"#).unwrap();
+    let desks = Desks::load(&home);
+    assert_eq!(desks, Desks::default());
+    assert_eq!(fs::read_to_string(home.join(UNREADABLE)).unwrap(), r#"{"unexpected":true}"#);
+
+    fs::write(&path, r#"{"list":{"bad":true}}"#).unwrap();
+    desks.save(&home).unwrap();
+    assert_eq!(fs::read_to_string(home.join("app-desks.unreadable.2.json")).unwrap(), r#"{"list":{"bad":true}}"#);
+    assert_eq!(Desks::load(&home), desks);
+    fs::remove_dir_all(home).unwrap();
+  }
+
+  #[cfg(unix)]
+  #[test]
+  fn a_malformed_list_is_kept_if_it_cannot_be_backed_up() {
+    let home = std::env::temp_dir().join(format!("seismic-desks-{}", uuid::Uuid::new_v4()));
+    fs::create_dir_all(&home).unwrap();
+    let path = home.join(FILE);
+    let malformed = r#"{"list":null}"#;
+    fs::write(&path, malformed).unwrap();
+    // A loop forces a filesystem error while checking the backup destination.
+    std::os::unix::fs::symlink(UNREADABLE, home.join(UNREADABLE)).unwrap();
+    let desks = Desks::load(&home);
+    assert!(desks.save(&home).is_err());
+    assert_eq!(fs::read_to_string(path).unwrap(), malformed);
     fs::remove_dir_all(home).unwrap();
   }
 

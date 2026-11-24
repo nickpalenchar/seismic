@@ -49,6 +49,8 @@ pub const STARTUP: &str = "main";
 struct Open {
   desk: String,
   origin: String,
+  /// The last page at this origin, also used while showing the bundled status page.
+  next: String,
   /// Why the window shows the status page instead of the workspace (remote.rs, `Health::code`).
   problem: Option<&'static str>,
   /// The backup until a document at this window's origin confirms receipt.
@@ -64,6 +66,8 @@ struct Windows {
   revisions: HashMap<String, u64>,
   /// Workspaces with a health check or a native build underway, by revision.
   opening: HashMap<String, u64>,
+  /// Callers awaiting the native result, including callers joining an in-flight restore.
+  waiting: HashMap<String, Vec<OpenWaiter>>,
   /// Saved placements waiting for a window, including ones whose first restore failed.
   restoring: HashMap<String, Placed>,
   /// Changes when a saved draft moves from the native backup to its page's session storage.
@@ -71,6 +75,8 @@ struct Windows {
   /// The active local window and its fixed port, once the server answers.
   local: Option<(String, u16)>,
 }
+
+type OpenWaiter = tauri::async_runtime::Sender<Result<(), String>>;
 
 impl Windows {
   fn revision(&self, id: &str) -> u64 {
@@ -80,17 +86,25 @@ impl Windows {
   fn invalidate(&mut self, id: &str) -> u64 {
     self.opening.remove(id);
     self.restoring.remove(id);
+    self.notify(id, Err("unknown".into()));
     let revision = self.revisions.entry(id.into()).or_default();
     *revision += 1;
     *revision
   }
 
-  fn finish(&mut self, id: &str, revision: u64, opened: bool) {
+  fn finish(&mut self, id: &str, revision: u64, opened: &Result<(), String>) {
     if self.opening.get(id) == Some(&revision) {
       self.opening.remove(id);
-      if opened {
+      if opened.is_ok() {
         self.restoring.remove(id);
       }
+      self.notify(id, opened.as_ref().map(|_| ()).map_err(|error| if error == "unknown" { "unknown" } else { "window" }.into()));
+    }
+  }
+
+  fn notify(&mut self, id: &str, result: Result<(), String>) {
+    for waiter in self.waiting.remove(id).into_iter().flatten() {
+      let _ = waiter.try_send(result.clone());
     }
   }
 
@@ -247,7 +261,7 @@ pub fn connect_local(app: &AppHandle, port: u16, page: Url, handed_over: bool) -
   if previous == Some(port) {
     return old.navigate(page).map_err(|e| e.to_string());
   }
-  let placed = Placed::of(&old, LOCAL, &Own::Local(previous));
+  let placed = Placed::of(&old, LOCAL, &Own::Local(previous), "/");
   let label = label_for(&shell, "main");
   let origin = own.origin().expect("local server port");
   app.add_capability(capability(&label, &origin, &[PAGE, LOCAL_PAGE])?).map_err(|e| e.to_string())?;
@@ -276,17 +290,33 @@ pub async fn on_ui<T: Send + 'static>(app: AppHandle, action: impl FnOnce(&AppHa
 }
 
 pub fn show(w: &WebviewWindow) {
-  let _ = w.show();
-  let _ = w.unminimize();
-  let _ = w.set_focus();
+  let _ = bring_to_front(w);
+}
+
+fn bring_to_front(w: &WebviewWindow) -> tauri::Result<()> {
+  w.show()?;
+  w.unminimize()?;
+  w.set_focus()
 }
 
 /// Brings workspace `id` to the front: its window, or a new one once the shell asked whether it
 /// answers (on a thread of its own: that takes up to seconds), at the page `placed` names.
-pub fn open(app: &AppHandle, id: &str, placed: Option<Placed>) -> Result<(), String> {
+pub fn open(app: &AppHandle, id: &str, placed: Option<Placed>, waiter: Option<OpenWaiter>) -> Result<(), String> {
   let shell = shell(app);
+  {
+    let mut windows = shell.windows.lock().unwrap();
+    if windows.opening.contains_key(id) {
+      if let Some(waiter) = waiter {
+        windows.waiting.entry(id.into()).or_default().push(waiter);
+      }
+      return Ok(());
+    }
+  }
   if let Some(w) = shell.label_of(id).and_then(|l| app.get_webview_window(&l)) {
-    show(&w);
+    bring_to_front(&w).map_err(|_| "window".to_string())?;
+    if let Some(waiter) = waiter {
+      let _ = waiter.try_send(Ok(()));
+    }
     return Ok(());
   }
   let origin = shell.desks.lock().unwrap().get(id).and_then(|d| d.origin.clone()).ok_or("unknown")?;
@@ -296,8 +326,8 @@ pub fn open(app: &AppHandle, id: &str, placed: Option<Placed>) -> Result<(), Str
   let manual = placed.is_none();
   let (revision, mut placed) = {
     let mut windows = shell.windows.lock().unwrap();
-    if windows.opening.contains_key(id) {
-      return Ok(());
+    if let Some(waiter) = waiter {
+      windows.waiting.entry(id.into()).or_default().push(waiter);
     }
     let revision = windows.revision(id);
     windows.opening.insert(id.into(), revision);
@@ -316,8 +346,11 @@ pub fn open(app: &AppHandle, id: &str, placed: Option<Placed>) -> Result<(), Str
   thread::spawn(move || {
     let health = remote::health(&origin);
     let handle = app.clone();
-    let _ = app.run_on_main_thread(move || {
+    let queued_shell = shell.clone();
+    let queued_id = id.clone();
+    let queued = app.run_on_main_thread(move || {
       if !can_build(&shell, &id, &origin, revision) {
+        shell.windows.lock().unwrap().finish(&id, revision, &Err("unknown".into()));
         return;
       }
       let next = placed.as_ref().map_or("/", |p| p.next.as_str());
@@ -326,8 +359,7 @@ pub fn open(app: &AppHandle, id: &str, placed: Option<Placed>) -> Result<(), Str
         _ => None,
       };
       let opened = build(&handle, &id, &origin, revision, url, health.code(), placed.as_ref());
-      shell.windows.lock().unwrap().finish(&id, revision, opened.is_ok());
-      if let Err(e) = opened {
+      if let Err(e) = &opened {
         eprintln!("seismic: the window of {origin} cannot open: {e}");
       } else if manual && placed.is_some() {
         if let Some(w) = shell.label_of(&id).and_then(|l| handle.get_webview_window(&l)) {
@@ -335,7 +367,12 @@ pub fn open(app: &AppHandle, id: &str, placed: Option<Placed>) -> Result<(), Str
         }
       }
       changed(&handle);
+      shell.windows.lock().unwrap().finish(&id, revision, &opened);
     });
+    if let Err(error) = queued {
+      eprintln!("seismic: could not schedule the workspace window: {error}");
+      queued_shell.windows.lock().unwrap().finish(&queued_id, revision, &Err("window".into()));
+    }
   });
   Ok(())
 }
@@ -368,6 +405,7 @@ fn build(app: &AppHandle, id: &str, origin: &str, revision: u64, url: Option<Url
     Open {
       desk: id.into(),
       origin: origin.into(),
+      next: placed.map_or_else(|| "/".into(), |p| p.next.clone()),
       problem: showing_status.then_some(problem),
       drafts: placed.map_or_else(Vec::new, |p| p.drafts.clone()),
     },
@@ -401,33 +439,40 @@ fn open_paired(app: &AppHandle, id: &str, origin: &str, link: Url) -> Result<(),
   let (revision, restoring) = {
     let mut windows = shell.windows.lock().unwrap();
     let mut restoring = windows.restoring.remove(id).filter(|p| p.origin.as_deref() == Some(origin));
+    let waiting = windows.waiting.remove(id);
     let revision = windows.invalidate(id);
+    if let Some(waiting) = waiting {
+      windows.waiting.insert(id.into(), waiting);
+    }
     if let Some(p) = &mut restoring {
       p.visible = true;
       windows.restoring.insert(id.into(), p.clone());
     }
+    windows.opening.insert(id.into(), revision);
     (revision, restoring)
   };
-  if let Some(label) = shell.label_of(id) {
-    let at_origin = shell.desk_of(&label).and_then(|(_, o)| o).as_deref() == Some(origin);
-    if let Some(w) = app.get_webview_window(&label).filter(|_| at_origin) {
-      w.navigate(link).map_err(|e| e.to_string())?;
-      if let Some(o) = shell.windows.lock().unwrap().open.get_mut(&label) {
-        o.problem = None;
+  let opened = (|| {
+    if let Some(label) = shell.label_of(id) {
+      let at_origin = shell.desk_of(&label).and_then(|(_, o)| o).as_deref() == Some(origin);
+      if let Some(w) = app.get_webview_window(&label).filter(|_| at_origin) {
+        w.navigate(link).map_err(|e| e.to_string())?;
+        if let Some(o) = shell.windows.lock().unwrap().open.get_mut(&label) {
+          o.problem = None;
+        }
+        show(&w);
+        return Ok(());
       }
-      show(&w);
-      return Ok(());
+      close(app, id);
     }
-    close(app, id);
-  }
-  shell.windows.lock().unwrap().opening.insert(id.into(), revision);
-  let opened = build(app, id, origin, revision, Some(link), "ok", restoring.as_ref());
-  shell.windows.lock().unwrap().finish(id, revision, opened.is_ok());
-  if opened.is_ok() && restoring.is_some() {
-    if let Some(w) = shell.label_of(id).and_then(|l| app.get_webview_window(&l)) {
-      show(&w);
+    let opened = build(app, id, origin, revision, Some(link), "ok", restoring.as_ref());
+    if opened.is_ok() && restoring.is_some() {
+      if let Some(w) = shell.label_of(id).and_then(|l| app.get_webview_window(&l)) {
+        show(&w);
+      }
     }
-  }
+    opened
+  })();
+  shell.windows.lock().unwrap().finish(id, revision, &opened);
   opened
 }
 
@@ -465,6 +510,12 @@ pub fn draft_generation(app: &AppHandle) -> u64 {
   shell(app).windows.lock().unwrap().draft_generation
 }
 
+pub fn page_loaded(app: &AppHandle, label: &str, url: &Url) {
+  if let Some(window) = shell(app).windows.lock().unwrap().open.get_mut(label) {
+    window.next = crate::next_of(url);
+  }
+}
+
 /// The list or the windows changed: the pages hear of it (`seismic-desks`, they ask for the list
 /// again), the macOS menu shows it.
 pub fn changed(app: &AppHandle) {
@@ -486,7 +537,7 @@ pub fn placed(app: &AppHandle, draft_generation: u64, mut drafts: HashMap<String
     (windows.open.clone(), windows.restoring.clone())
   };
   let (label, port) = shell.local();
-  let main = app.get_webview_window(&label).and_then(|w| Placed::of(&w, LOCAL, &Own::Local(port)));
+  let main = app.get_webview_window(&label).and_then(|w| Placed::of(&w, LOCAL, &Own::Local(port), "/"));
   let mut snapshots: Vec<_> = main.into_iter().collect();
   for (label, o) in open {
     // A native window can be registered before navigation and presentation finish. Until then
@@ -507,7 +558,7 @@ pub fn placed(app: &AppHandle, draft_generation: u64, mut drafts: HashMap<String
         unsent.push((key, value));
       }
     }
-    if let Some(mut placed) = Placed::of(&w, &o.desk, &own) {
+    if let Some(mut placed) = Placed::of(&w, &o.desk, &own, &o.next) {
       placed.drafts = unsent;
       snapshots.push(placed);
     } else if !unsent.is_empty() {
@@ -523,7 +574,7 @@ pub fn placed(app: &AppHandle, draft_generation: u64, mut drafts: HashMap<String
 pub fn reopen(app: &AppHandle, placed: Vec<Placed>) {
   for p in placed.into_iter().filter(|p| p.desk != LOCAL) {
     let id = p.desk.clone();
-    let _ = open(app, &id, Some(p));
+    let _ = open(app, &id, Some(p), None);
   }
 }
 
@@ -560,7 +611,7 @@ mod tests {
       let mut windows = shell.windows.lock().unwrap();
       let revision = windows.invalidate(&id);
       windows.opening.insert(id.clone(), revision);
-      windows.finish(&id, 0, true);
+      windows.finish(&id, 0, &Ok(()));
     }
     assert!(!can_build(&shell, &id, studio, 0));
     assert!(can_build(&shell, &id, studio, 1));

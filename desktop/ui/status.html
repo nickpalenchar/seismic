@@ -16,7 +16,9 @@
       button { font: inherit; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: inherit; cursor: pointer; }
       button.primary { background: var(--foreground); border-color: var(--foreground); color: var(--background); }
       button:disabled { opacity: .55; cursor: default; }
+      button[aria-disabled="true"] { opacity: .55; cursor: default; }
       button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+      #open-result:empty { position: absolute; }
       h2 { margin: 10px 0 0; font-size: 13px; font-weight: 600; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: .04em; }
       [data-tauri-drag-region] { position: fixed; inset: 0 0 auto; height: 50px; }
     </style>
@@ -30,6 +32,7 @@
       <div class="row"><button id="retry" class="primary" type="button">Try again</button></div>
       <h2 id="others-title" hidden>Open another workspace</h2>
       <div id="others" class="row"></div>
+      <p id="open-result" role="status"></p>
     </main>
     <script>
       const invoke = (cmd, args) => window.__TAURI_INTERNALS__.invoke(cmd, args);
@@ -38,25 +41,58 @@
         notSeismic: (o) => `Something answers at ${o}, but it is not Seismic.`,
       };
       const $ = (id) => document.getElementById(id);
-      let desks;
+      const others = $('others');
+      const buttons = new Map();
+      let opening = false;
+      let listLoad = 0;
+      async function openWorkspace(id, name) {
+        if (opening) return;
+        opening = true;
+        for (const button of buttons.values()) button.setAttribute('aria-disabled', 'true');
+        $('open-result').textContent = `Opening ${name} …`;
+        try {
+          await invoke('open_desk', { id });
+          $('open-result').textContent = '';
+        } catch (error) {
+          const currentName = buttons.get(id)?.textContent || name;
+          $('open-result').textContent = error === 'unknown' ? `${currentName} is no longer available.` : `Couldn’t open ${currentName}. Try again.`;
+        } finally {
+          opening = false;
+          for (const button of buttons.values()) button.removeAttribute('aria-disabled');
+        }
+      }
       async function load() {
-        desks = await invoke('desks');
+        const request = ++listLoad;
+        const desks = await invoke('desks');
+        if (request !== listLoad) return;
         const own = desks.list.find((d) => d.id === desks.current);
         if (!own) return;
         const reason = WHY[desks.problem];
         $('title').textContent = reason ? `${own.name} does not answer` : own.name;
         $('why').textContent = reason ? reason(own.origin) : `Check whether Seismic answers at ${own.origin}.`;
-        const others = desks.list.filter((d) => d.id !== own.id);
-        $('others-title').hidden = !others.length;
-        $('others').replaceChildren(
-          ...others.map((d) => {
-            const b = document.createElement('button');
-            b.type = 'button';
-            b.textContent = d.name;
-            b.onclick = () => invoke('open_desk', { id: d.id });
-            return b;
-          }),
-        );
+        const workspaces = desks.list.filter((d) => d.id !== own.id);
+        $('others-title').hidden = !workspaces.length;
+        const focused = others.contains(document.activeElement) ? document.activeElement : null;
+        const ids = new Set(workspaces.map((d) => d.id));
+        for (const [id, button] of buttons) {
+          if (!ids.has(id)) {
+            button.remove();
+            buttons.delete(id);
+          }
+        }
+        workspaces.forEach((d, index) => {
+          let button = buttons.get(d.id);
+          if (!button) {
+            button = document.createElement('button');
+            button.type = 'button';
+            buttons.set(d.id, button);
+            if (opening) button.setAttribute('aria-disabled', 'true');
+          }
+          if (button.textContent !== d.name) button.textContent = d.name;
+          button.onclick = () => openWorkspace(d.id, d.name);
+          if (others.children[index] !== button) others.insertBefore(button, others.children[index] ?? null);
+        });
+        if (focused?.isConnected && document.activeElement !== focused) focused.focus();
       }
       $('retry').onclick = async () => {
         const b = $('retry');

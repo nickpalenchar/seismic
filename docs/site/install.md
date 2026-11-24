@@ -26,7 +26,13 @@ If a workspace reconnects while Seismic is preparing another restart, its draft 
 
 On a workspace status screen, **File → Open in Browser** opens the workspace’s saved address.
 If you use Back to return to that screen after reconnecting, **Try again** checks the workspace again.
+After a restart while a workspace was offline, **Try again** returns to the page you last had open.
+If you open another workspace from the status screen, Seismic shows progress and tells you if its
+window could not open so you can try again.
 The local window stays minimized when Seismic reconnects it to a server on a different port.
+
+Seismic keeps a copy of a malformed workspace list as `app-desks.unreadable.json` in its home
+directory. Later backups get numbered filenames.
 
 On macOS Big Sur, the desktop app disables microphone and camera capture. Desktop dictation
 requires macOS Monterey or newer.

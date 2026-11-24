@@ -36,7 +36,9 @@ pub fn desks(app: AppHandle, webview: Webview) -> Value {
 /// Focuses workspace `id`'s window, opening it where it is closed; the calling window stays where it is.
 #[tauri::command]
 pub async fn open_desk(app: AppHandle, id: String) -> Result<(), String> {
-  on_ui(app, move |app| open(app, &id, None)).await
+  let (send, mut receive) = tauri::async_runtime::channel(1);
+  on_ui(app, move |app| open(app, &id, None, Some(send))).await?;
+  receive.recv().await.ok_or_else(|| "window".to_string())?
 }
 
 /// Pairs with the Seismic at `address` by the code its "Connect a device" shows, and once that went
@@ -170,7 +172,7 @@ fn status_window(app: &AppHandle, label: &str) -> Result<tauri::WebviewWindow, S
 }
 
 /// The status page's "Try again": asks the calling window's workspace again whether it answers, and
-/// where it does, the window goes to its start page; else why not (`unreachable`, `notSeismic`).
+/// where it does, the window returns to its last page; else why not (`unreachable`, `notSeismic`).
 #[tauri::command]
 pub async fn retry_desk(app: AppHandle, webview: Webview) -> Result<(), String> {
   let label = webview.label().to_string();
@@ -206,7 +208,7 @@ pub async fn retry_desk(app: AppHandle, webview: Webview) -> Result<(), String> 
       windows.open.get_mut(&label).unwrap().problem = Some(problem);
       return Err(problem.into());
     }
-    let start = Url::parse(&format!("{origin}/")).map_err(|e| e.to_string())?;
+    let start = Url::parse(&format!("{origin}{}", open.next)).map_err(|e| e.to_string())?;
     // Publish before the new page can query its state. Release the lock before calling Tauri.
     windows.open.get_mut(&label).unwrap().problem = None;
     drop(windows);

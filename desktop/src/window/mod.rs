@@ -296,6 +296,9 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
     .on_page_load(move |webview, payload| {
       if let PageLoadEvent::Finished = payload.event() {
         let own_page = loaded.at(payload.url());
+        if own_page && !local {
+          crate::desks::page_loaded(webview.app_handle(), webview.label(), payload.url());
+        }
         if restoring_drafts && own_page {
           let app = webview.app_handle().clone();
           let label = webview.label().to_string();
