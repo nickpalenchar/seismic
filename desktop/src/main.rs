@@ -606,9 +606,13 @@ fn main() {
         if id == "browser" {
           let front = app.webview_windows().into_values().find(|w| w.is_focused().unwrap_or(false));
           if let Some(w) = front.or_else(|| main_window(app)) {
-            if let Ok(url) = w.url() {
-              let (label, port) = desks::shell(app).local();
-              open_outside(port.filter(|_| w.label() == label), &url);
+            let shell = desks::shell(app);
+            if let (Ok(url), Some((_, origin))) = (w.url(), shell.desk_of(w.label())) {
+              let port = origin.is_none().then(|| shell.local().1).flatten();
+              let own = origin.map_or(Own::Local(port), Own::Remote);
+              if let Some(target) = window::browser_target(url, &own) {
+                open_outside(port, &target);
+              }
             }
           }
         } else if let Some(desk) = id.strip_prefix(menu::DESK) {
@@ -651,7 +655,13 @@ fn main() {
       }
     }
     // a remote workspace's window closes for good; opened again, it asks its workspace anew
-    RunEvent::WindowEvent { label, event: WindowEvent::Destroyed, .. } => desks::closed(app, &label),
+    RunEvent::WindowEvent { label, event: WindowEvent::Destroyed, .. } => {
+      if seismic_env("APP_CHECK").is_some() {
+        // The workspace check observes the runtime's Destroyed event independently of the list.
+        let _ = fs::write(home().join(format!("check-destroyed-{label}")), "");
+      }
+      desks::closed(app, &label);
+    }
     RunEvent::WindowEvent { event: WindowEvent::Focused(true), .. } => menu::refresh(app),
     RunEvent::WindowEvent {
       label,

@@ -51,6 +51,7 @@ struct Open {
   origin: String,
   /// Why the window shows the status page instead of the workspace (remote.rs, `Health::code`).
   problem: Option<&'static str>,
+  /// The backup until a document at this window's origin confirms receipt.
   drafts: Vec<(String, String)>,
 }
 
@@ -63,8 +64,8 @@ struct Windows {
   revisions: HashMap<String, u64>,
   /// Workspaces with a health check or a native build underway, by revision.
   opening: HashMap<String, u64>,
-  /// Snapshots carrying drafts while their restored windows wait for a health check.
-  restoring_drafts: HashMap<String, Placed>,
+  /// Saved placements waiting for a window, including ones whose first restore failed.
+  restoring: HashMap<String, Placed>,
   /// The active local window and its fixed port, once the server answers.
   local: Option<(String, u16)>,
 }
@@ -76,16 +77,18 @@ impl Windows {
 
   fn invalidate(&mut self, id: &str) -> u64 {
     self.opening.remove(id);
-    self.restoring_drafts.remove(id);
+    self.restoring.remove(id);
     let revision = self.revisions.entry(id.into()).or_default();
     *revision += 1;
     *revision
   }
 
-  fn finish(&mut self, id: &str, revision: u64) {
+  fn finish(&mut self, id: &str, revision: u64, opened: bool) {
     if self.opening.get(id) == Some(&revision) {
       self.opening.remove(id);
-      self.restoring_drafts.remove(id);
+      if opened {
+        self.restoring.remove(id);
+      }
     }
   }
 }
@@ -281,18 +284,24 @@ pub fn open(app: &AppHandle, id: &str, placed: Option<Placed>) -> Result<(), Str
   if placed.as_ref().is_some_and(|p| p.origin.as_deref() != Some(origin.as_str())) {
     return Ok(());
   }
-  let revision = {
+  let manual = placed.is_none();
+  let (revision, mut placed) = {
     let mut windows = shell.windows.lock().unwrap();
     if windows.opening.contains_key(id) {
       return Ok(());
     }
     let revision = windows.revision(id);
     windows.opening.insert(id.into(), revision);
-    if let Some(placed) = placed.as_ref().filter(|p| !p.drafts.is_empty()) {
-      windows.restoring_drafts.insert(id.into(), placed.clone());
+    if let Some(placed) = placed {
+      windows.restoring.insert(id.into(), placed);
     }
-    revision
+    (revision, windows.restoring.get(id).filter(|p| p.origin.as_deref() == Some(origin.as_str())).cloned())
   };
+  if let Some(p) = &mut placed {
+    if manual {
+      p.visible = true;
+    }
+  }
   let id = id.to_string();
   let app = app.clone();
   thread::spawn(move || {
@@ -308,9 +317,13 @@ pub fn open(app: &AppHandle, id: &str, placed: Option<Placed>) -> Result<(), Str
         _ => None,
       };
       let opened = build(&handle, &id, &origin, revision, url, health.code(), placed.as_ref());
-      shell.windows.lock().unwrap().finish(&id, revision);
+      shell.windows.lock().unwrap().finish(&id, revision, opened.is_ok());
       if let Err(e) = opened {
         eprintln!("seismic: the window of {origin} cannot open: {e}");
+      } else if manual && placed.is_some() {
+        if let Some(w) = shell.label_of(&id).and_then(|l| handle.get_webview_window(&l)) {
+          show(&w);
+        }
       }
       changed(&handle);
     });
@@ -378,11 +391,11 @@ fn open_paired(app: &AppHandle, id: &str, origin: &str, link: Url) -> Result<(),
   }
   let (revision, restoring) = {
     let mut windows = shell.windows.lock().unwrap();
-    let mut restoring = windows.restoring_drafts.remove(id).filter(|p| p.origin.as_deref() == Some(origin));
+    let mut restoring = windows.restoring.remove(id).filter(|p| p.origin.as_deref() == Some(origin));
     let revision = windows.invalidate(id);
     if let Some(p) = &mut restoring {
       p.visible = true;
-      windows.restoring_drafts.insert(id.into(), p.clone());
+      windows.restoring.insert(id.into(), p.clone());
     }
     (revision, restoring)
   };
@@ -400,7 +413,7 @@ fn open_paired(app: &AppHandle, id: &str, origin: &str, link: Url) -> Result<(),
   }
   shell.windows.lock().unwrap().opening.insert(id.into(), revision);
   let opened = build(app, id, origin, revision, Some(link), "ok", restoring.as_ref());
-  shell.windows.lock().unwrap().finish(id, revision);
+  shell.windows.lock().unwrap().finish(id, revision, opened.is_ok());
   if opened.is_ok() && restoring.is_some() {
     if let Some(w) = shell.label_of(id).and_then(|l| app.get_webview_window(&l)) {
       show(&w);
@@ -449,17 +462,25 @@ pub fn placed(app: &AppHandle, mut drafts: HashMap<String, Vec<(String, String)>
   let shell = shell(app);
   let (open, pending) = {
     let windows = shell.windows.lock().unwrap();
-    let pending: Vec<_> = windows.restoring_drafts.values()
-      .filter(|p| !windows.open.values().any(|o| o.desk == p.desk))
-      .cloned().collect();
-    (windows.open.clone(), pending)
+    (windows.open.clone(), windows.restoring.clone())
   };
   let (label, port) = shell.local();
   let main = app.get_webview_window(&label).and_then(|w| Placed::of(&w, LOCAL, &Own::Local(port)));
-  let mut snapshots: Vec<_> = main.into_iter().chain(pending).collect();
+  let mut snapshots: Vec<_> = main.into_iter().collect();
   for (label, o) in open {
+    // A native window can be registered before navigation and presentation finish. Until then
+    // the saved placement is the complete one, including its intended route and geometry.
+    if pending.contains_key(&o.desk) {
+      continue;
+    }
     let Some(w) = app.get_webview_window(&label) else { continue };
-    let unsent = drafts.remove(&label).unwrap_or(o.drafts);
+    let mut unsent = drafts.remove(&label).unwrap_or_default();
+    // Until the document confirms delivery, preserve any backup entries the page has not supplied.
+    for (key, value) in o.drafts {
+      if !unsent.iter().any(|(k, _)| *k == key) {
+        unsent.push((key, value));
+      }
+    }
     if let Some(mut placed) = Placed::of(&w, &o.desk, &Own::Remote(o.origin)) {
       placed.drafts = unsent;
       snapshots.push(placed);
@@ -467,6 +488,7 @@ pub fn placed(app: &AppHandle, mut drafts: HashMap<String, Vec<(String, String)>
       return None;
     }
   }
+  snapshots.extend(pending.into_values());
   drafts.is_empty().then_some(snapshots)
 }
 
@@ -512,7 +534,7 @@ mod tests {
       let mut windows = shell.windows.lock().unwrap();
       let revision = windows.invalidate(&id);
       windows.opening.insert(id.clone(), revision);
-      windows.finish(&id, 0);
+      windows.finish(&id, 0, true);
     }
     assert!(!can_build(&shell, &id, studio, 0));
     assert!(can_build(&shell, &id, studio, 1));

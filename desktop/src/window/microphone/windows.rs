@@ -17,6 +17,10 @@ use super::Hears;
 /// The saved grants of older versions go once a run: the profile is the windows' one.
 static CLEARED: AtomicBool = AtomicBool::new(false);
 
+fn controlled(kind: COREWEBVIEW2_PERMISSION_KIND) -> bool {
+  kind == COREWEBVIEW2_PERMISSION_KIND_MICROPHONE || kind == COREWEBVIEW2_PERMISSION_KIND_CAMERA
+}
+
 pub fn install(window: &WebviewWindow, hears: Hears) -> tauri::Result<()> {
   // Window construction runs on the UI thread, so with_webview delivers the controller here.
   // Pump messages to clear the profile only after the callback returns to release wry's borrow.
@@ -41,7 +45,7 @@ fn configure(controller: ICoreWebView2Controller, hears: Hears) -> webview2_com:
         let Some(args) = args else { return Ok(()) };
         let mut kind = COREWEBVIEW2_PERMISSION_KIND::default();
         args.PermissionKind(&mut kind)?;
-        if kind != COREWEBVIEW2_PERMISSION_KIND_MICROPHONE && kind != COREWEBVIEW2_PERMISSION_KIND_CAMERA {
+        if !controlled(kind) {
           return Ok(());
         }
         // decided here for every origin: Default would defer to the browser's permission state
@@ -72,7 +76,7 @@ fn clear_saved_grants(profile: &ICoreWebView2Profile4) -> webview2_com::Result<(
     Box::new(move |handler| unsafe { query.GetNonDefaultPermissionSettings(&handler).map_err(Into::into) }),
     Box::new(move |result, settings| {
       result?;
-      let mut origins = Vec::new();
+      let mut grants = Vec::new();
       if let Some(settings) = settings {
         unsafe {
           let mut count = 0;
@@ -83,25 +87,25 @@ fn clear_saved_grants(profile: &ICoreWebView2Profile4) -> webview2_com::Result<(
             let mut state = COREWEBVIEW2_PERMISSION_STATE::default();
             setting.PermissionKind(&mut kind)?;
             setting.PermissionState(&mut state)?;
-            if kind == COREWEBVIEW2_PERMISSION_KIND_MICROPHONE && state == COREWEBVIEW2_PERMISSION_STATE_ALLOW {
+            if controlled(kind) && state == COREWEBVIEW2_PERMISSION_STATE_ALLOW {
               let mut origin = PWSTR::null();
               setting.PermissionOrigin(&mut origin)?;
-              origins.push(take_pwstr(origin));
+              grants.push((kind, take_pwstr(origin)));
             }
           }
         }
       }
-      let _ = send.send(origins);
+      let _ = send.send(grants);
       Ok(())
     }),
   )?;
-  for origin in receive.try_iter().flatten() {
+  for (kind, origin) in receive.try_iter().flatten() {
     let profile = profile.clone();
     SetPermissionStateCompletedHandler::wait_for_async_operation(
       Box::new(move |handler| unsafe {
         profile
           .SetPermissionState(
-            COREWEBVIEW2_PERMISSION_KIND_MICROPHONE,
+            kind,
             &windows_core::HSTRING::from(origin),
             COREWEBVIEW2_PERMISSION_STATE_DEFAULT,
             &handler,

@@ -18,14 +18,16 @@
 //   - on macOS, the bundled postMessage gate lets a main-frame probe reach the IPC decoder and
 //     drops the probes sent from same-origin and sandboxed subframes;
 //   - across two relaunches the offline workspace keeps its status page and unsent draft;
+//   - another relaunch keeps a workspace with a health check still running;
+//   - with --debug-failures, retrying a failed restore recovers the unsent draft;
 //   - a signed-out remote page leaves the local update free to finish;
-//   - removing the workspace closes its window.
+//   - removing the workspace emits the native window's Destroyed event.
 // The page reports through SEISMIC_APP_CHECK (desktop/src/window/), which imports this script's
 // module into each window's own page and a remote window's status page. This machine's page runs the
 // shell commands the script sends it (`/todo`). Prints one line per check; exits 1 when one failed.
 
 import { type Subprocess } from 'bun';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { release, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { ownerHeaders } from '../src/server/owner';
@@ -146,6 +148,7 @@ let busyChecks = 0;
 let proxyError = 0;
 let expireServerHandover = false;
 let acknowledgedHandovers = 0;
+let seedDraft = true;
 let delayHandover: (() => Promise<void>) | undefined;
 let stallRestore: { body: boolean; reached: () => void; release: Promise<void> } | undefined;
 const startProxy = (port = proxyPort) => {
@@ -156,7 +159,10 @@ const startProxy = (port = proxyPort) => {
       const url = new URL(req.url);
       if (url.pathname === '/__seismic-check-frame') return new Response(FRAME, { headers: { 'content-type': 'text/html' } });
       if (url.pathname === '/__seismic-check-ipc') return new Response(IPC_FRAME, { headers: { 'content-type': 'text/html' } });
-      if (url.pathname === '/api/projects' && req.headers.get('user-agent')?.startsWith('ureq/')) await onHealth?.();
+      if (onHealth && url.pathname === '/api/projects' && req.headers.get('user-agent')?.startsWith('ureq/')) {
+        server.timeout(req, 0);
+        await onHealth();
+      }
       if (proxyError && url.pathname === '/api/app-rebuilt') {
         return new Response('Upstream unavailable', { status: proxyError });
       }
@@ -230,9 +236,10 @@ if (location.origin === ${JSON.stringify(REMOTE)} && document.getElementById('si
   for (let n = 0; n < 60 && !document.getElementById('root')?.firstChild; n++) {
     await new Promise((r) => setTimeout(r, 50));
   }
-  const out = { kind: 'remote', href: location.href, mounted: !!document.getElementById('root')?.firstElementChild, handedOver: window.seismicApp?.handedOver, previousSession: sessionStorage.getItem('check-workspace-session'), previousDraft: sessionStorage.getItem('seismic-drafts-check') };
+  const out = { kind: 'remote', href: location.href, label: window.__TAURI_INTERNALS__.metadata.currentWindow.label, mounted: !!document.getElementById('root')?.firstElementChild, handedOver: window.seismicApp?.handedOver, previousSession: sessionStorage.getItem('check-workspace-session'), previousDraft: sessionStorage.getItem('seismic-drafts-check') };
   sessionStorage.setItem('check-workspace-session', 'kept');
-  sessionStorage.setItem('seismic-drafts-check', 'Unsent note for Lab');
+  if ((await (await fetch(new URL('seed-draft', base))).json()).seed) sessionStorage.setItem('seismic-drafts-check', 'Unsent note for Lab');
+  else sessionStorage.removeItem('seismic-drafts-check');
   out.desks = await outcome(invoke('desks'));
   out.add = await outcome(invoke('add_desk', { address: 'https://elsewhere.example', code: '123456' }));
   out.rename = await outcome(invoke('rename_desk', { id: 'local', name: 'Taken over' }));
@@ -293,6 +300,7 @@ const harness = Bun.serve({
     const { pathname: path, searchParams } = new URL(req.url);
     const json = (v: unknown) => Response.json(v, { headers: cors });
     if (path === '/check.js') return new Response(MODULE, { headers: { ...cors, 'content-type': 'text/javascript' } });
+    if (path === '/seed-draft') return json({ seed: seedDraft });
     if (path === '/todo') {
       const label = searchParams.get('label') ?? '';
       polls.set(label, (polls.get(label) ?? 0) + 1);
@@ -714,9 +722,70 @@ try {
       signedOut = false;
     }
   });
-  await check('removing the workspace closes its window', async () => {
+  await check('a second relaunch remembers a workspace whose first health check is still pending', async () => {
+    const reached = Promise.withResolvers<void>();
+    const unblock = Promise.withResolvers<void>();
+    let checks = 0;
+    try {
+      seedDraft = false;
+      const before = reports.length;
+      await relaunch();
+      await report('local', before);
+      await report('remote', before); // The fixture has just removed its sample draft.
+
+      onHealth = async () => {
+        if (++checks === 1) {
+          reached.resolve();
+          await unblock.promise;
+        }
+      };
+      const first = reports.length;
+      await relaunch();
+      await report('local', first);
+      await Promise.race([reached.promise, sleep(10_000).then(() => { throw new Error('no pending health check'); })]);
+      expect(!reports.slice(first).some((r) => r.kind === 'remote' || r.kind === 'status'), 'the first restore has already opened a window');
+
+      seedDraft = true;
+      const second = reports.length;
+      await relaunch();
+      const restored = await report('remote', second, 10_000);
+      expect(checks >= 2 && restored.previousDraft === null && restored.projects === 200, JSON.stringify({ checks, restored }));
+    } finally {
+      seedDraft = true;
+      onHealth = undefined;
+      unblock.resolve();
+    }
+  });
+  if (debugFailures) {
+    await check('a failed startup restore keeps its draft for the next explicit open', async () => {
+      const failure = join(home, 'check-window-open-error');
+      const before = reports.length;
+      expireServerHandover = true;
+      writeFileSync(failure, '');
+      try {
+        await relaunch();
+        await report('local', before);
+        await until('the forced restore failure', 10_000, () => !existsSync(failure));
+        expect((await desks()).list.find((w) => w.id === id)?.open === false, 'the first restore did not fail');
+        const reopened = await run('open_desk', { id });
+        expect(reopened.ok, JSON.stringify(reopened));
+        const restored = await report('remote', before, 10_000);
+        expect(restored.previousDraft === 'Unsent note for Lab' && restored.previousSession === null, JSON.stringify(restored));
+        return String(restored.previousDraft);
+      } finally {
+        expireServerHandover = false;
+        rmSync(failure, { force: true });
+      }
+    });
+  }
+  await check('removing the workspace destroys its native window', async () => {
+    const page = reports.findLast((r) => r.kind === 'remote');
+    expect(typeof page?.label === 'string', 'the open workspace did not report its native window label');
+    const destroyed = join(home, `check-destroyed-${page!.label}`);
+    rmSync(destroyed, { force: true });
     const r = await run('remove_desk', { id });
     expect(r.ok, JSON.stringify(r));
+    await until('the removed workspace window to emit Destroyed', 10_000, () => existsSync(destroyed));
     const d = await desks();
     expect(d.list.length === 1 && d.list[0]!.local, JSON.stringify(d));
     const saved = JSON.parse(readFileSync(join(home, 'app-desks.json'), 'utf8')) as { list: unknown[] };

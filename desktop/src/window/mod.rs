@@ -67,6 +67,19 @@ pub fn bundled_url(path: &str) -> Url {
   Url::parse(&format!("{BUNDLE}{path}")).expect("bundled page URL")
 }
 
+/// Open a workspace page in the browser. The bundled status screen stands in for its origin.
+pub fn browser_target(page: Url, own: &Own) -> Option<Url> {
+  if own.at(&page) {
+    return Some(page);
+  }
+  if let Own::Remote(origin) = own {
+    if page == bundled_url("/status.html") {
+      return Url::parse(origin).ok();
+    }
+  }
+  None
+}
+
 /// The app's entry points, at the protocol and authority used by this engine.
 fn bundled(url: &Url) -> bool {
   let entry = bundled_url("/");
@@ -257,7 +270,15 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
       if let PageLoadEvent::Finished = payload.event() {
         let own_page = loaded.at(payload.url());
         if restoring_drafts && own_page {
-          crate::desks::drafts_restored(webview.app_handle(), webview.label());
+          let app = webview.app_handle().clone();
+          let label = webview.label().to_string();
+          let origin = serde_json::json!(loaded.origin());
+          let confirms = format!("location.origin === {origin} && sessionStorage.getItem('seismic-desktop-restored') === '1'");
+          let _ = webview.eval_with_callback(confirms, move |restored| {
+            if restored == "true" {
+              crate::desks::drafts_restored(&app, &label);
+            }
+          });
         }
         // The check runs in the workspace and in the bundled status page.
         if let Some(check) = check.as_ref().filter(|_| own_page || (!local && bundled(payload.url()))) {
@@ -380,6 +401,19 @@ mod tests {
     assert!(replacement.at(&origin(4418)));
     assert!(!replacement.at(&origin(4417)));
     assert!(!replacement.at(&Url::parse("http://localhost:4418/").unwrap()));
+  }
+
+  #[test]
+  fn the_browser_opens_a_workspace_page_or_its_origin_from_status() {
+    let remote = Own::Remote("https://[fd7a::2]:4417".into());
+    let project = Url::parse("https://[fd7a::2]:4417/projects/lab?view=table#card").unwrap();
+    assert_eq!(browser_target(project.clone(), &remote), Some(project));
+    assert_eq!(browser_target(bundled_url("/status.html"), &remote).unwrap().as_str(), "https://[fd7a::2]:4417/");
+    assert!(browser_target(bundled_url("/index.html?updating"), &remote).is_none());
+    let local = Own::Local(Some(4417));
+    let local_page = Url::parse("http://127.0.0.1:4417/lab").unwrap();
+    assert_eq!(browser_target(local_page.clone(), &local), Some(local_page));
+    assert!(browser_target(bundled_url("/status.html"), &local).is_none());
   }
 
   #[test]
