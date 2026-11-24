@@ -9,11 +9,12 @@ import { Sign } from '../../logo';
 import { t } from '../../strings';
 import { Button, LinkButton } from '../../components/button';
 import { RadioGroup, RadioOption } from '../../components/radio';
+import { ConfirmDialog } from '../../components/dialog';
 import { Spinner } from '../../components/spinner';
 import { cn } from 'cn';
 import { ConnectForm, errorClass } from '../../desks/connect';
 import { DeskIcon, Unread } from '../../desks/page';
-import { deskError, desks, GUIDE, LOCAL, onThisMachine, useDesks, useDesksFailed } from '../../desks/shell';
+import { currentDesk, deskError, desks, GUIDE, LOCAL, onThisMachine, useDesks, useDesksFailed } from '../../desks/shell';
 
 const CHOSEN = 'seismic-setup-here';
 /** Whether "On this machine" (or "Set up …") was chosen in this tab: a reload goes on with the setup. */
@@ -115,6 +116,51 @@ export function HowStep({ onHere }: { onHere: () => void }) {
           {problem && <p role="alert" className={errorClass}>{problem}</p>}
         </>
       )}
+    </div>
+  );
+}
+
+/**
+ * Under the first start's page in the app, while another workspace is on the list: "Exit setup"
+ * switches the window there after a confirmation, this machine's from a remote one, else the first
+ * remote one. The setup stays where it was and goes on when its workspace is opened again; without
+ * it, a machine in setup has no way to another outside a Mac's Workspace menu.
+ */
+export function ExitSetup() {
+  const x = t.desks.exit;
+  const all = useDesks();
+  const [asking, setAsking] = useState(false);
+  const [going, setGoing] = useState(false);
+  const [problem, setProblem] = useState('');
+  const shown = currentDesk(all);
+  const to = shown && (shown.local ? all?.list.find((d) => !d.local) : all?.list.find((d) => d.local));
+  if (!shown || !to) return null;
+  const exit = () => {
+    setGoing(true);
+    setProblem('');
+    // once it opens, the window shows that workspace and this page goes
+    desks.open(to.id).then(
+      () => setGoing(false),
+      (e) => (setGoing(false), setAsking(false), setProblem(deskError(e, to.origin ?? ''))),
+    );
+  };
+  return (
+    <div className="desk-exit mx-auto mb-12 grid max-w-[720px] justify-items-center gap-2">
+      <Button size="small" variant="ghost" onClick={() => setAsking(true)}>
+        {x.button}
+      </Button>
+      {problem && <p role="alert" className={errorClass}>{problem}</p>}
+      <ConfirmDialog
+        open={asking}
+        onOpenChange={(open) => !going && setAsking(open)}
+        layerClassName="z-90"
+        title={x.title}
+        confirm={{ label: <>{going && <Spinner className="size-3.5" />}{x.confirm(to.name)}</>, onClick: exit, keepOpen: true }}
+        cancel={x.stay}
+        busy={going}
+      >
+        <p className="[overflow-wrap:anywhere]">{x.text(shown.name, to.name)}</p>
+      </ConfirmDialog>
     </div>
   );
 }

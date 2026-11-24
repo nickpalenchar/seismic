@@ -199,7 +199,11 @@ cog's dialog (`edit.tsx`) and the workspaces page (`page.tsx`); the switcher is 
   set itself up, as "On this machine" would there (owner, 2026-11-24); pairing yet another machine
   from it goes through the switcher's "New workspace". The choice to set up holds for the tab
   (session storage); the agents step has a Back to the question on this machine.
-- **Carried over as decisions from the first attempt:** long addresses and names wrap
+- **"Exit setup"** stands under the first start's page in the app while another workspace is on
+  the list (owner, 2026-11-24): after a confirmation the window switches to this machine's
+  workspace from a remote one, else to the first remote one. The setup page has no left menu, so
+  outside a Mac's Workspace menu it is the way off a machine still in setup.
+ from the first attempt:** long addresses and names wrap
   (`overflow-wrap: anywhere`), never scroll sideways; "Learn more" stands outside the radio's
   label; "Delete workspace" is in the cog's dialog alone, never on a row.
 - **Learn more** opens `https://seismic.im/docs/workspaces/`: W5's guide page goes to

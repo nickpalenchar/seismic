@@ -2511,6 +2511,13 @@ const en = {
       back: 'Back',
       known: 'Your workspaces',
     },
+    exit: {
+      button: 'Exit setup',
+      title: 'Exit setup?',
+      text: (here: string, to: string) => `The window switches to ${to}. The setup of ${here} stays where it is, and goes on the next time you open ${here}.`,
+      confirm: (to: string) => `Exit to ${to}`,
+      stay: 'Stay in setup',
+    },
     connect: {
       title: 'Connect to another machine',
       how: 'On the other machine, open Seismic’s Configuration, turn on “Reachable from other devices” and choose “Connect a phone”. It shows the address and a 6-digit code.',

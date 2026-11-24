@@ -114,6 +114,7 @@ export function ConfirmDialog({
   cancel,
   busy,
   className,
+  layerClassName,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -124,6 +125,8 @@ export function ConfirmDialog({
   cancel: ReactNode;
   busy?: boolean;
   className?: string;
+  /** Over a layer higher than a dialog's own (the setup's first-start page). */
+  layerClassName?: string;
 }) {
   const opener = useOpenerFocus();
   const action = (
@@ -134,7 +137,7 @@ export function ConfirmDialog({
   return (
     <AlertDialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <AlertDialogPrimitive.Portal container={uiPortal()}>
-        <AlertDialogPrimitive.Overlay data-slot="confirm-layer" className={cn(layer, 'z-70 p-6')}>
+        <AlertDialogPrimitive.Overlay data-slot="confirm-layer" className={cn(layer, 'z-70 p-6', layerClassName)}>
           <AlertDialogPrimitive.Content
             data-slot="confirm-dialog"
             {...opener}
