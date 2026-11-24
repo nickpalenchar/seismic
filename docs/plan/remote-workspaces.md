@@ -149,7 +149,8 @@ wry 0.57.3, the versions the spike verified.
   `add_desk`, `rename_desk`, `pair_desk` and `remove_desk`. A successful pairing can save the
   workspace even if the shell cannot display it.
 - **Labels and capabilities:** the native window keeps the `main` label. Each active webview gets a
-  new `local-<n>` or `desk-<n>` label. Its dynamic capability matches the webview label and origin.
+  new `local-<origin>-<n>` or `desk-<origin>-<n>` label. One dynamic capability per origin matches
+  that label family and the origin.
 - **Effective origin:** on macOS wry is vendored (`desktop/vendor/`) with a check in its script
   message handler: only the main frame whose security origin is its document URL's origin may send
   postMessage IPC, so a sandboxed main frame and every subframe are dropped, and the capability's
@@ -171,7 +172,8 @@ wry 0.57.3, the versions the spike verified.
 
 `check-app-desks.ts` checks the native window count, workspace switching, stale selections,
 offline recovery, origin-scoped commands, microphone capture and draft restoration. A bundled
-macOS build is needed for the pairing cookie to survive a relaunch.
+macOS build is needed for the pairing cookie to survive a relaunch. `check-desktop-windows.ts`
+type-checks the Windows-only code from a Mac or Linux machine.
 
 ## Boundaries
 

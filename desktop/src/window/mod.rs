@@ -407,9 +407,9 @@ pub fn close(webview: &Webview) -> tauri::Result<()> {
 /// WebView2 asks wry's hook for main-frame navigations alone (NavigationStarting): a frame's goes to
 /// FrameNavigationStarting, which the shell cancels unless it stays at the window's origin.
 #[cfg(windows)]
-fn guard_frames(window: &Window, own: Own) -> tauri::Result<()> {
+fn guard_frames(webview: &Webview, own: Own) -> tauri::Result<()> {
   let (send, receive) = std::sync::mpsc::channel();
-  window.with_webview(move |webview| {
+  webview.with_webview(move |webview| {
     use webview2_com::{take_pwstr, NavigationStartingEventHandler};
     let install = || unsafe {
       let core = webview.controller().CoreWebView2()?;
@@ -432,6 +432,17 @@ fn guard_frames(window: &Window, own: Own) -> tauri::Result<()> {
     .try_recv()
     .map_err(std::io::Error::other)?
     .map_err(|e| std::io::Error::other(e.to_string()).into())
+}
+
+/// Whether the webview's document is at `origin`: an engine's error page is not, nor the page
+/// that stayed when a load failed.
+pub fn shows_origin(webview: &Webview, origin: &str, timeout: Duration) -> bool {
+  let (send, receive) = std::sync::mpsc::channel();
+  let script = format!("location.origin === {}", serde_json::json!(origin));
+  if webview.eval_with_callback(script, move |value| { let _ = send.send(value); }).is_err() {
+    return false;
+  }
+  receive.recv_timeout(timeout).is_ok_and(|value| value == "true")
 }
 
 /// The window's page, where it is at the window's own origin: its path, query and fragment.

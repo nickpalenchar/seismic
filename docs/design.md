@@ -444,6 +444,11 @@ Safety rules:
   same replacement again to one still bringing the credential it was made from, until the
   replacement is presented or retired. An expired or unknown link says it did not pair, even to
   a browser paired before (2026-11-23).
+- A passing health check does not prove that the page loads: the server can go away in between. The
+  shell treats a workspace page as shown once its document is at its origin and the server answers
+  again, checked when the load finishes or after 15 seconds (WebKit reports no event for a failed
+  load), and otherwise shows the status page. Selecting this machine's workspace first asks its
+  server for a sign-in link, since the shell keeps the port while that server stops (2026-11-24).
 - Desktop workspace health checks carry no device cookie. The shell recognizes Seismic's
   `401 notPaired` response and a projects list marked `X-Seismic: projects` when a proxy
   admits the request. A generic JSON response at that path cannot authorize opening a workspace.
@@ -455,8 +460,9 @@ Safety rules:
 - The desktop app has one native window. Switching workspaces attaches a webview at the selected
   workspace's origin, then retires the previous webview. The local server can change ports while a
   remote workspace is displayed. It leaves the displayed workspace in place.
-- Tauri's runtime grants accumulate. Each attached webview gets a fresh label and an immutable
-  origin for navigation, microphone access and native commands. Title-bar commands act on the
+- Tauri's runtime grants accumulate and cannot be removed. The shell grants each origin once, to a
+  label family (`desk-<origin>-*`, `local-<origin>-*`), and every attached webview gets a fresh label
+  in it and an immutable origin for navigation, microphone access and native commands (2026-11-24). Title-bar commands act on the
   invoking webview's window. The app grants no window controls that take a target label.
 - Before replacing a webview, the shell samples its last route and unsent drafts, including edits
   held in memory when session storage is full. The shell keeps that copy for the workspace and
@@ -476,7 +482,9 @@ Safety rules:
   If session storage rejects a draft write, the page keeps the newer value in memory and includes it
   in the snapshot. The departure records the current full route, including in-page address changes.
   A returning document receives the native departure copy before it mounts its editors. An activation
-  change leaves that copy pending until the receiving document confirms delivery.
+  change leaves that copy pending until the receiving document confirms delivery. A document that
+  stops waiting for the copy tells the shell, and from then on its own drafts take precedence over
+  any copy it did not receive, including a checkpoint that arrives after its deadline (2026-11-24).
   An update that cannot confirm receipt keeps the windows alive and resumes the local server.
   Failed snapshot preparation retains a downloaded release and the pending checkout rebuild.
   Automatic retries test that a snapshot can be saved before asking the server to stop again.

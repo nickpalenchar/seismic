@@ -7,7 +7,7 @@
 use serde_json::{json, Value};
 use tauri::{AppHandle, Manager, Url, Webview};
 
-use super::{capture, changed, list, on_ui, open, open_paired, remote, shell, Capture};
+use super::{capture, changed, list, on_ui, open, open_paired, remote, shell, watch_load, Capture};
 use crate::window::Own;
 
 /// Whether this machine's window, at its own origin, called: the one that may change the list.
@@ -217,14 +217,19 @@ pub async fn retry_desk(app: AppHandle, webview: Webview) -> Result<(), String> 
     }
     let start = Url::parse(&format!("{origin}{}", active.next)).map_err(|e| e.to_string())?;
     active.problem = None;
+    let load = views.load();
+    let token = load.token;
+    views.active.as_mut().ok_or("unknown")?.loading = Some(load);
     drop(views);
     if let Err(error) = w.navigate(start) {
       let mut views = state.views.lock().unwrap();
       if let Some(active) = views.active.as_mut().filter(|v| v.label == label) {
         active.problem = Some("unreachable");
+        active.loading = None;
       }
       return Err(error.to_string());
     }
+    watch_load(app, &label, token);
     Ok(())
   }).await
 }

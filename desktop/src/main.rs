@@ -81,9 +81,13 @@ fn key() -> Option<String> {
 /// goes through the system's `open` is seen by other accounts in the process list. The plain address
 /// from an Seismic that has no such link.
 pub(crate) fn login_link(port: u16, next: &str, once: bool) -> String {
+  sign_in_link(port, next, once).unwrap_or_else(|| format!("http://127.0.0.1:{port}{next}"))
+}
+
+/// The server's sign-in link, which only a server that answers at `port` gives.
+pub(crate) fn sign_in_link(port: u16, next: &str, once: bool) -> Option<String> {
   post(port, "/api/login-link", &serde_json::json!({ "next": next, "once": once }))
     .and_then(|v| v["url"].as_str().map(String::from))
-    .unwrap_or_else(|| format!("http://127.0.0.1:{port}{next}"))
 }
 
 /// What the shell knows of the Seismic its window shows.

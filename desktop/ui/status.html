@@ -38,6 +38,7 @@
       const WHY = {
         unreachable: (o) => `Nothing answers at ${o}. The machine may be off or asleep, or not on this network.`,
         notSeismic: (o) => `Something answers at ${o}, but it is not Seismic.`,
+        notLoaded: (o) => `Seismic answers at ${o}, but its page did not load.`,
       };
       const $ = (id) => document.getElementById(id);
       const others = $('others');

@@ -155,6 +155,8 @@ let onHealth: (() => Promise<void>) | undefined;
 let remoteBusy = false;
 let busyChecks = 0;
 let seedDraft = true;
+// The next page request finds the remote gone, after its health check answered.
+let dropPage = false;
 const startProxy = (port = proxyPort) => {
   return Bun.serve({
     port,
@@ -163,6 +165,12 @@ const startProxy = (port = proxyPort) => {
       const url = new URL(req.url);
       if (url.pathname === '/__seismic-check-frame') return new Response(FRAME, { headers: { 'content-type': 'text/html' } });
       if (url.pathname === '/__seismic-check-ipc') return new Response(IPC_FRAME, { headers: { 'content-type': 'text/html' } });
+      if (dropPage && !req.headers.get('user-agent')?.startsWith('ureq/')) {
+        dropPage = false;
+        proxy.server?.stop(true);
+        proxy.server = undefined;
+        return new Promise<Response>(() => {});
+      }
       if (onHealth && url.pathname === '/api/projects' && req.headers.get('user-agent')?.startsWith('ureq/')) {
         server.timeout(req, 0);
         await onHealth();
@@ -647,6 +655,43 @@ try {
     proxy.server = startProxy();
     const remote = await reconnect();
     expect(remote.previousOverflowDraft === OVERFLOW_DRAFT && String(remote.href).endsWith(PAGE_BEFORE_BACK), JSON.stringify(remote));
+  });
+  await check('a workspace that goes away while its page loads shows status, also after Try again', async () => {
+    await select('local', 'local');
+    dropPage = true;
+    const before = reports.length;
+    send('open_desk', { id });
+    const status = await report('status', before, 40_000);
+    expect(String(status.title).includes('does not answer') && status.windows === 1, JSON.stringify(status));
+    expect((await desks()).problem === 'unreachable', 'the status page has no problem to show');
+    const again = reports.length;
+    proxy.server = startProxy();
+    dropPage = true;
+    send('retry_desk');
+    const second = await report('status', again, 40_000);
+    expect(second.label === status.label && String(second.title).includes('does not answer'), JSON.stringify(second));
+    proxy.server = startProxy();
+    const remote = await reconnect();
+    expect(remote.label === status.label && remote.projects === 200, JSON.stringify(remote));
+  });
+  await check("selecting this machine while its server does not answer keeps the current workspace", async () => {
+    const remote = displayed()!;
+    // The process that listens: the server's entry names the process that started it.
+    const port = new URL(entry()!.url).port;
+    const pid = Number(Bun.spawnSync(['lsof', '-ti', `tcp:${port}`, '-sTCP:LISTEN']).stdout.toString().trim().split('\n')[0]);
+    expect(pid > 0, `nothing listens on ${port}`);
+    process.kill(pid, 'SIGSTOP');
+    try {
+      const result = await run('open_desk', { id: 'local' });
+      expect(!result.ok && result.error === 'unreachable', JSON.stringify(result));
+    } finally {
+      process.kill(pid, 'SIGCONT');
+    }
+    await sleep(700);
+    expect(displayed()?.label === remote.label && (await desks()).current === id, 'the remote workspace was replaced');
+    await select('local', 'local');
+    await select(id, 'remote');
+    return 'unreachable, then selected once it answered';
   });
   if (debugFailures) {
     await check('a failed switch leaves the current page, window, and saved drafts in place', async () => {

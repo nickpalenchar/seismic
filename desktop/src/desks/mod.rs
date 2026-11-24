@@ -6,7 +6,7 @@ mod list;
 mod remote;
 
 use std::{
-  collections::HashMap,
+  collections::{HashMap, HashSet},
   io,
   path::PathBuf,
   sync::{Arc, Mutex, OnceLock},
@@ -61,6 +61,14 @@ struct WorkspaceView {
   draft_checkpoint: Option<Uuid>, // only for a placement saved by an older shell
   awaiting_drafts: bool,
   departure: Departure,
+  /// A workspace page the shell navigated to that has not been seen at its origin yet (`verify_load`).
+  loading: Option<Load>,
+}
+
+#[derive(Clone)]
+struct Load {
+  token: u64,
+  verifying: bool,
 }
 
 #[derive(Clone, Default)]
@@ -73,6 +81,11 @@ struct Departure {
   returning: Vec<(String, String)>,
   returning_from: Option<f64>,
   offered: bool,
+  /// The activation whose document stopped waiting for the copy and runs its editors with its own
+  /// drafts, newer than a copy it did not take: the previous checkpoint can arrive after its deadline.
+  /// Its message can also overtake the activation's own.
+  settled: Option<f64>,
+  previous_settled: bool,
 }
 
 pub type DraftOffer = (Option<f64>, Vec<(String, String)>);
@@ -86,12 +99,28 @@ fn include_missing(entries: &mut Vec<(String, String)>, backup: Vec<(String, Str
 }
 
 impl Departure {
-  fn carry(&mut self, activation: f64, entries: Vec<(String, String)>) {
-    let before = self.returning.len();
-    include_missing(&mut self.returning, entries);
-    if self.returning.len() != before {
-      self.returning_from = if before == 0 { Some(activation) } else { self.returning_from.filter(|a| *a == activation) };
+  /// `wins`: the entries come from a document that settled, and replace the held copy's.
+  fn carry(&mut self, activation: f64, entries: Vec<(String, String)>, wins: bool) {
+    let merged = if wins {
+      let mut merged = entries;
+      include_missing(&mut merged, self.returning.clone());
+      merged
+    } else {
+      let mut merged = self.returning.clone();
+      include_missing(&mut merged, entries);
+      merged
+    };
+    if merged != self.returning {
+      self.returning_from = if self.returning.is_empty() { Some(activation) } else { self.returning_from.filter(|a| *a == activation) };
+      self.returning = merged;
     }
+  }
+
+  /// What a departing or sampled document holds, merged with the held copy by which is newer.
+  fn with_returning(&self, entries: Vec<(String, String)>) -> Vec<(String, String)> {
+    let (mut first, rest) = if self.is_settled() { (entries, self.returning.clone()) } else { (self.returning.clone(), entries) };
+    include_missing(&mut first, rest);
+    first
   }
 
   fn receive(&mut self, activation: f64, drafts: Option<Vec<(String, String)>>) -> bool {
@@ -99,7 +128,7 @@ impl Departure {
       if self.previous_in_flight == Some(activation) {
         if let Some(entries) = drafts {
           self.previous_in_flight = None;
-          self.carry(activation, entries);
+          self.carry(activation, entries, self.previous_settled);
           return true;
         }
       }
@@ -111,8 +140,9 @@ impl Departure {
     if activation > self.activation {
       self.offered = false;
       self.previous_in_flight = (self.activation > 0.0 && self.drafts.is_none()).then_some(self.activation);
+      self.previous_settled = self.is_settled();
       if let Some(previous) = self.drafts.take() {
-        self.carry(self.activation, previous);
+        self.carry(self.activation, previous, self.previous_settled);
       }
     }
     self.observed = true;
@@ -130,6 +160,19 @@ impl Departure {
     }
     self.offered = !self.returning.is_empty();
     Ok(self.offered.then(|| (self.returning_from, self.returning.clone())))
+  }
+
+  /// The document gave up waiting for the copy (`drafts.rs`, `restoreDeparture`).
+  fn settle(&mut self, activation: f64) -> bool {
+    if activation < self.activation || (activation == self.activation && self.offered) || self.settled == Some(activation) {
+      return false;
+    }
+    self.settled = Some(activation);
+    true
+  }
+
+  fn is_settled(&self) -> bool {
+    self.settled == Some(self.activation)
   }
 
   fn confirm(&mut self, activation: f64) -> bool {
@@ -157,6 +200,7 @@ struct Views {
   parked: HashMap<String, Placed>,
   restore: Option<String>,
   draft_generation: u64,
+  next_load: u64,
 }
 
 struct Selection {
@@ -196,6 +240,11 @@ impl Views {
     }
   }
 
+  fn load(&mut self) -> Load {
+    self.next_load += 1;
+    Load { token: self.next_load, verifying: false }
+  }
+
   fn drafts_restored(&mut self, label: &str) -> bool {
     let Some(view) = self.active.as_mut().filter(|w| w.label == label && w.awaiting_drafts) else { return false };
     view.awaiting_drafts = false;
@@ -211,6 +260,8 @@ pub struct Shell {
   views: Mutex<Views>,
   home: PathBuf,
   machine: OnceLock<String>,
+  /// The label families with a capability (`grant`).
+  granted: Mutex<HashSet<String>>,
 }
 
 impl Shell {
@@ -224,6 +275,7 @@ impl Shell {
       views: Mutex::new(Views { parked, restore, ..Default::default() }),
       home,
       machine: OnceLock::new(),
+      granted: Mutex::default(),
     }
   }
 
@@ -326,16 +378,33 @@ fn remote_pattern(origin: &str) -> Result<String, String> {
   Ok(pattern)
 }
 
-/// Grants `permissions` to the window at its own origin alone.
-fn capability(label: &str, origin: &str, permissions: &[&[&str]]) -> Result<CapabilityBuilder, String> {
-  let mut cap = CapabilityBuilder::new(format!("{label}-{}", origin.replace(|c: char| !c.is_ascii_alphanumeric(), "-")))
-    .webview(label)
+/// Grants `permissions` to the webviews labelled `{family}-*`, at `origin` alone.
+fn capability(family: &str, origin: &str, permissions: &[&[&str]]) -> Result<CapabilityBuilder, String> {
+  let mut cap = CapabilityBuilder::new(family)
+    .webview(format!("{family}-*"))
     .remote(remote_pattern(origin)?)
     .local(false);
   for p in permissions.iter().flat_map(|p| p.iter()) {
     cap = cap.permission(*p);
   }
   Ok(cap)
+}
+
+/// The label family of a workspace's webviews at `origin`. Tauri keeps a capability for the life of
+/// the app, so each family gets its one once (`grant`) and every webview of it a fresh label.
+fn family(desk: &str, origin: &str) -> String {
+  let prefix = if desk == LOCAL { "local" } else { "desk" };
+  format!("{prefix}-{}", origin.replace(|c: char| !c.is_ascii_alphanumeric(), "-"))
+}
+
+fn grant(app: &AppHandle, family: &str, origin: &str, permissions: &[&[&str]]) -> Result<(), String> {
+  let state = shell(app);
+  let mut granted = state.granted.lock().unwrap();
+  if !granted.contains(family) {
+    app.add_capability(capability(family, origin, permissions)?).map_err(|e| e.to_string())?;
+    granted.insert(family.into());
+  }
+  Ok(())
 }
 
 /// HTTP and draft sampling run off the UI thread. Native view changes run on it.
@@ -399,8 +468,7 @@ fn saved_view(view: &WorkspaceView, sample: Option<(String, Vec<(String, String)
     None if view.departure.observed => (view.next.clone(), view.departure.drafts.clone().ok_or("drafts")?),
     None => (view.next.clone(), vec![]),
   };
-  let mut drafts = view.departure.returning.clone();
-  include_missing(&mut drafts, sampled);
+  let mut drafts = view.departure.with_returning(sampled);
   include_missing(&mut drafts, view.drafts.clone());
   Ok(Placed {
     desk: view.desk.clone(),
@@ -434,12 +502,13 @@ fn mount(app: &AppHandle, target: Destination, turn: u64, outgoing: Capture) -> 
       .filter(|p| match &target.own { Own::Remote(o) => p.origin.as_ref() == Some(o), Own::Local(_) => p.origin.is_none() })
       .cloned();
     views.next_label += 1;
-    let prefix = if target.desk == LOCAL { "local" } else { "desk" };
-    (format!("{prefix}-{}", views.next_label), restore)
+    (views.next_label, restore)
   };
   let origin = target.own.origin().ok_or("elsewhere")?;
+  let family = family(&target.desk, &origin);
+  let label = format!("{family}-{label}");
   let permissions = if target.desk == LOCAL { LOCAL_PAGE } else { &[] };
-  app.add_capability(capability(&label, &origin, &[PAGE, DRAFTS, permissions])?).map_err(|e| e.to_string())?;
+  grant(app, &family, &origin, &[PAGE, DRAFTS, permissions])?;
   let w = window::build(app, &label, target.own.clone(), restore.as_ref(), target.handed_over).map_err(|e| e.to_string())?;
   let mounted = (|| {
     let mut views = state.views.lock().unwrap();
@@ -447,6 +516,8 @@ fn mount(app: &AppHandle, target: Destination, turn: u64, outgoing: Capture) -> 
     if views.turn != turn || !outgoing.matches(&views) {
       return Err("superseded".into());
     }
+    let loading = (matches!(target.own, Own::Remote(_)) && target.problem.is_none()).then(|| views.load());
+    let watched = loading.as_ref().map(|load| (label.clone(), load.token));
     let new = WorkspaceView {
       label,
       desk: target.desk.clone(),
@@ -457,6 +528,7 @@ fn mount(app: &AppHandle, target: Destination, turn: u64, outgoing: Capture) -> 
       draft_checkpoint: restore.as_ref().and_then(|p| p.draft_checkpoint),
       awaiting_drafts: restore.as_ref().is_some_and(|p| p.draft_checkpoint.is_some() || !p.drafts.is_empty()),
       departure: Departure::default(),
+      loading,
     };
     let old = views.active.replace(new);
     views.draft_generation += 1;
@@ -486,6 +558,9 @@ fn mount(app: &AppHandle, target: Destination, turn: u64, outgoing: Capture) -> 
         eprintln!("seismic: the previous workspace could not be closed: {e}");
         let _ = old.hide();
       }
+    }
+    if let Some((label, token)) = watched {
+      watch_load(app, &label, token);
     }
     if w.window().is_focused().unwrap_or(false) {
       let _ = w.set_focus();
@@ -523,36 +598,44 @@ pub fn connect_local(app: &AppHandle, port: u16, page: Url, handed_over: bool) -
     }
   }
 
-  let (turn, same_origin) = loop {
-    let (send, mut receive) = tauri::async_runtime::channel(1);
-    {
-      let mut views = state.views.lock().unwrap();
-      if views.active.as_ref().is_some_and(|v| v.desk != LOCAL) {
-        return Ok(());
+  // The watcher records each port once. A selection that starts before the page is attached
+  // must settle first, after which this attaches the current port or yields to the remote.
+  loop {
+    let (turn, same_origin) = loop {
+      let (send, mut receive) = tauri::async_runtime::channel(1);
+      {
+        let mut views = state.views.lock().unwrap();
+        if views.active.as_ref().is_some_and(|v| v.desk != LOCAL) {
+          return Ok(());
+        }
+        if let Some(pending) = &mut views.pending {
+          pending.waiters.push(send);
+        } else {
+          views.restore = None;
+          break (views.turn, views.active.as_ref().is_some_and(|v| v.own == own));
+        }
       }
-      if let Some(pending) = &mut views.pending {
-        pending.waiters.push(send);
+      // If a switch fails while the local port changed, attach the current local
+      // page once the switch settles. A successful switch leaves the remote in place.
+      let _ = tauri::async_runtime::block_on(receive.recv());
+    };
+    let outgoing = if same_origin { None } else { Some(capture(app)?) };
+    let (state, own, page) = (state.clone(), own.clone(), page.clone());
+    let attached = tauri::async_runtime::block_on(on_ui(app.clone(), move |app| {
+      if state.views.lock().unwrap().turn != turn {
+        return Err("superseded".into());
+      }
+      if let Some(outgoing) = outgoing {
+        let destination = Destination { desk: LOCAL.into(), own, url: page, problem: None, handed_over: previous.is_none() && handed_over };
+        mount(app, destination, turn, outgoing)
       } else {
-        views.restore = None;
-        break (views.turn, views.active.as_ref().is_some_and(|v| v.own == own));
+        local_view(app).ok_or("window")?.navigate(page).map_err(|e| e.to_string())
       }
+    }));
+    if !matches!(&attached, Err(e) if e == "superseded") {
+      return attached;
     }
-    // If a switch fails while the local port changed, attach the current local
-    // page once the switch settles. A successful switch leaves the remote in place.
-    let _ = tauri::async_runtime::block_on(receive.recv());
-  };
-  let outgoing = if same_origin { None } else { Some(capture(app)?) };
-  tauri::async_runtime::block_on(on_ui(app.clone(), move |app| {
-    if state.views.lock().unwrap().turn != turn {
-      return Ok(());
-    }
-    if let Some(outgoing) = outgoing {
-      let destination = Destination { desk: LOCAL.into(), own, url: page, problem: None, handed_over: previous.is_none() && handed_over };
-      mount(app, destination, turn, outgoing)
-    } else {
-      local_view(app).ok_or("window")?.navigate(page).map_err(|e| e.to_string())
-    }
-  }))
+  }
 }
 
 /// Select one workspace. The last selection wins, even when earlier health checks
@@ -587,59 +670,82 @@ pub fn open(app: &AppHandle, id: &str, handed_over: bool, waiter: Option<OpenWai
   let app = app.clone();
   thread::spawn(move || {
     let health = origin.as_deref().map(remote::health);
-    if state.views.lock().unwrap().turn != turn {
-      return;
-    }
-    let outgoing = capture(&app);
-    let pending = state.clone();
-    let queued = tauri::async_runtime::block_on(on_ui(app, move |app| {
-      let opened = (|| {
-        if !state.desks.lock().unwrap().get(&id).is_some_and(|d| d.origin == origin) {
-          return Err("unknown".to_string());
-        }
+    loop {
+      // This machine's sign-in link also proves that its server answers at the port it had:
+      // the watcher keeps that port while the server stops for an update or a takeover.
+      let local = origin.is_none().then(|| {
         let (port, next) = {
           let views = state.views.lock().unwrap();
-          if views.turn != turn || views.revision(&id) != revision {
-            return Err("superseded".to_string());
-          }
           (views.local_port, views.parked.get(&id).map_or_else(|| "/".into(), |p| p.next.clone()))
         };
-        let (own, url, problem) = match origin {
-          Some(origin) => {
-            let problem = health.filter(|h| *h != Health::Seismic).map(|h| h.code());
-            let url = if problem.is_some() { window::bundled_url("/status.html") } else {
-              Url::parse(&format!("{origin}{next}")).map_err(|_| "address")?
-            };
-            (Own::Remote(origin), url, problem)
+        port.and_then(|port| crate::sign_in_link(port, &next, false).map(|link| (port, link)))
+      });
+      if state.views.lock().unwrap().turn != turn {
+        return;
+      }
+      let outgoing = capture(&app);
+      let (state, id, origin, health) = (state.clone(), id.clone(), origin.clone(), health.as_ref().map(Health::code));
+      let pending = state.clone();
+      let queued = tauri::async_runtime::block_on(on_ui(app.clone(), move |app| {
+        let opened = (|| {
+          if !state.desks.lock().unwrap().get(&id).is_some_and(|d| d.origin == origin) {
+            return Err("unknown".to_string());
           }
-          None => {
-            let port = port.ok_or("unreachable")?;
-            let url = Url::parse(&crate::login_link(port, &next, false)).map_err(|_| "address")?;
-            (Own::Local(Some(port)), url, None)
+          let (port, next) = {
+            let views = state.views.lock().unwrap();
+            if views.turn != turn || views.revision(&id) != revision {
+              return Err("superseded".to_string());
+            }
+            (views.local_port, views.parked.get(&id).map_or_else(|| "/".into(), |p| p.next.clone()))
+          };
+          let (own, url, problem) = match origin {
+            Some(origin) => {
+              let problem = health.filter(|h| *h != Health::Seismic.code());
+              let url = if problem.is_some() { window::bundled_url("/status.html") } else {
+                Url::parse(&format!("{origin}{next}")).map_err(|_| "address")?
+              };
+              (Own::Remote(origin), url, problem)
+            }
+            None => {
+              let (answered, link) = local.flatten().ok_or("unreachable")?;
+              if port != Some(answered) {
+                return Err("moved".to_string());
+              }
+              (Own::Local(Some(answered)), Url::parse(&link).map_err(|_| "address")?, None)
+            }
+          };
+          let target = Destination { desk: id, own, url, problem, handed_over };
+          mount(app, target, turn, outgoing?)
+        })();
+        if opened.as_ref().is_err_and(|e| e == "moved") {
+          return Ok(false);
+        }
+        if let Err(error) = &opened {
+          if error != "superseded" {
+            eprintln!("seismic: the workspace could not be selected: {error}");
           }
-        };
-        let target = Destination { desk: id, own, url, problem, handed_over };
-        mount(app, target, turn, outgoing?)
-      })();
-      if let Err(error) = &opened {
-        if error != "superseded" {
-          eprintln!("seismic: the workspace could not be selected: {error}");
+        }
+        let mut views = state.views.lock().unwrap();
+        if views.turn == turn {
+          views.finish(opened.map_err(|e| match e.as_str() {
+            "drafts" | "unreachable" | "superseded" | "unknown" => e,
+            _ => "window".into(),
+          }));
+        }
+        Ok(true)
+      }));
+      match queued {
+        // the local server answered at a new port meanwhile: ask that one
+        Ok(false) => continue,
+        Ok(true) => {}
+        Err(_) => {
+          let mut views = pending.views.lock().unwrap();
+          if views.turn == turn {
+            views.finish(Err("window".into()));
+          }
         }
       }
-      let mut views = state.views.lock().unwrap();
-      if views.turn == turn {
-        views.finish(opened.map_err(|e| match e.as_str() {
-          "drafts" | "unreachable" | "superseded" | "unknown" => e,
-          _ => "window".into(),
-        }));
-      }
-      Ok(())
-    }));
-    if queued.is_err() {
-      let mut views = pending.views.lock().unwrap();
-      if views.turn == turn {
-        views.finish(Err("window".into()));
-      }
+      return;
     }
   });
   Ok(())
@@ -685,10 +791,67 @@ pub fn page_loaded(app: &AppHandle, label: &str, url: &Url) {
   let mut windows = shell.views.lock().unwrap();
   if let Some(window) = windows.active.as_mut().filter(|v| v.label == label) {
     window.next = crate::next_of(url);
+    // An engine's error page also finishes at the address it could not load.
+    if let Some(token) = window.loading.as_ref().filter(|l| !l.verifying).map(|l| l.token) {
+      let (app, label) = (app.clone(), label.to_string());
+      thread::spawn(move || verify_load(&app, &label, token));
+    }
     if !window.departure.observed {
       window.departure.observed = true;
       windows.draft_generation += 1;
     }
+  }
+}
+
+/// How long a workspace page may take before the shell looks at what its window shows. A failed
+/// load leaves WebKit on the page before, without a load event.
+const LOAD_PATIENCE: Duration = Duration::from_secs(15);
+
+/// The health check comes before the page loads, and the server can go away in between.
+pub(super) fn watch_load(app: &AppHandle, label: &str, token: u64) {
+  let (app, label) = (app.clone(), label.to_string());
+  thread::spawn(move || {
+    thread::sleep(LOAD_PATIENCE);
+    verify_load(&app, &label, token);
+  });
+}
+
+/// Once its load finishes or the patience runs out: the page counts as shown with its document at
+/// its origin and the server answering. Otherwise the window shows the status page and Try again.
+fn verify_load(app: &AppHandle, label: &str, token: u64) {
+  let state = shell(app);
+  let origin = {
+    let mut views = state.views.lock().unwrap();
+    let Some(view) = views.active.as_mut().filter(|v| v.label == label) else { return };
+    let Own::Remote(origin) = view.own.clone() else { return };
+    let Some(load) = view.loading.as_mut().filter(|l| l.token == token && !l.verifying) else { return };
+    load.verifying = true;
+    origin
+  };
+  let shown = app.get_webview(label).is_some_and(|w| window::shows_origin(&w, &origin, Duration::from_secs(2)));
+  let health = remote::health(&origin);
+  let problem = match health {
+    Health::Seismic if shown => None,
+    Health::Seismic => Some("notLoaded"),
+    other => Some(other.code()),
+  };
+  let label = label.to_string();
+  let result = tauri::async_runtime::block_on(on_ui(app.clone(), move |app| {
+    let state = shell(app);
+    let mut views = state.views.lock().unwrap();
+    let Some(view) = views.active.as_mut().filter(|v| v.label == label && v.loading.as_ref().is_some_and(|l| l.token == token)) else {
+      return Ok(());
+    };
+    view.loading = None;
+    let Some(problem) = problem else { return Ok(()) };
+    view.problem = Some(problem);
+    drop(views);
+    app.get_webview(&label).ok_or("window")?.navigate(window::bundled_url("/status.html")).map_err(|e| e.to_string())?;
+    changed(app);
+    Ok(())
+  }));
+  if let Err(error) = result {
+    eprintln!("seismic: the status page could not be shown: {error}");
   }
 }
 
@@ -717,6 +880,13 @@ pub fn restore_departure(shell: &Shell, label: &str, activation: f64) -> Result<
   let mut windows = shell.views.lock().unwrap();
   let window = windows.active.as_mut().filter(|v| v.label == label).ok_or("unknown")?;
   window.departure.restore(activation)
+}
+
+pub fn settle_departure(shell: &Shell, label: &str, activation: f64) {
+  let mut windows = shell.views.lock().unwrap();
+  if windows.active.as_mut().filter(|v| v.label == label).is_some_and(|w| w.departure.settle(activation)) {
+    windows.draft_generation += 1;
+  }
 }
 
 /// Let the displayed page and the native menu refresh after a selection or list change.
@@ -814,6 +984,58 @@ mod tests {
     assert_eq!(departure.restore(2.0), Ok(Some((Some(1.0), latest))));
     assert!(!departure.receive(1.0, Some(vec![])));
     assert!(departure.confirm(2.0));
+  }
+
+  #[test]
+  fn a_late_checkpoint_fills_only_what_the_settled_page_lacks() {
+    let mut departure = Departure::default();
+    let draft = |v: &str| ("seismic-drafts-shop".to_string(), v.to_string());
+    let wish = |v: &str| ("seismic-wish-shop".to_string(), v.to_string());
+    assert!(departure.receive(1.0, None));
+    assert!(departure.receive(2.0, None));
+    assert_eq!(departure.restore(2.0), Err("pending"));
+    // The returning page stops waiting, then the previous page's checkpoint arrives.
+    assert!(departure.settle(2.0));
+    assert!(departure.receive(1.0, Some(vec![draft("older"), wish("unfinished")])));
+    let view = |departure: &Departure| WorkspaceView {
+      label: "desk-1".into(), desk: "studio".into(), own: Own::Remote("https://studio".into()), next: "/".into(),
+      problem: None, drafts: vec![], draft_checkpoint: None, awaiting_drafts: false, departure: departure.clone(), loading: None,
+    };
+    // A relaunch while that page is open keeps its newer edit and the draft it lacks.
+    let saved = saved_view(&view(&departure), Some(("/".into(), vec![draft("newer")]))).unwrap();
+    assert_eq!(saved.drafts, vec![draft("newer"), wish("unfinished")]);
+    // So do Back and Try again.
+    assert!(departure.receive(2.0, Some(vec![draft("newer")])));
+    assert_eq!(saved_view(&view(&departure), None).unwrap().drafts, vec![draft("newer"), wish("unfinished")]);
+    assert!(departure.receive(3.0, None));
+    assert_eq!(departure.restore(3.0), Ok(Some((None, vec![draft("newer"), wish("unfinished")]))));
+  }
+
+  #[test]
+  fn a_page_still_waiting_takes_the_copy_over_its_stored_drafts() {
+    let mut departure = Departure::default();
+    let draft = |v: &str| ("seismic-drafts-shop".to_string(), v.to_string());
+    assert!(departure.receive(1.0, Some(vec![draft("in memory")])));
+    // The next page leaves before its editors start, with what its session store held.
+    assert!(departure.receive(2.0, None));
+    assert!(departure.receive(2.0, Some(vec![draft("stored")])));
+    assert!(departure.receive(3.0, None));
+    assert_eq!(departure.restore(3.0), Ok(Some((Some(1.0), vec![draft("in memory")]))));
+    // A settle message can overtake its page's activation.
+    let mut departure = Departure::default();
+    assert!(departure.receive(1.0, Some(vec![draft("older")])));
+    assert!(departure.settle(2.0));
+    assert!(departure.receive(2.0, None));
+    assert!(departure.receive(2.0, Some(vec![draft("newer")])));
+    assert!(departure.receive(3.0, None));
+    assert_eq!(departure.restore(3.0), Ok(Some((None, vec![draft("newer")]))));
+  }
+
+  #[test]
+  fn each_origin_gets_one_capability_family() {
+    assert_eq!(family(LOCAL, "http://127.0.0.1:4417"), "local-http---127-0-0-1-4417");
+    assert_eq!(family("studio", "https://[fd7a::2]:4417"), "desk-https----fd7a--2--4417");
+    assert_ne!(family(LOCAL, "http://127.0.0.1:4417"), family(LOCAL, "http://127.0.0.1:4418"));
   }
 
   #[test]

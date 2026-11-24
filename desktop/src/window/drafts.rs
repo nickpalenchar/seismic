@@ -38,8 +38,13 @@ pub fn workspace_draft_checkpoint(app: AppHandle, webview: Webview, activation: 
 }
 
 #[tauri::command]
-pub fn workspace_restore_drafts(app: AppHandle, webview: Webview, activation: f64) -> Result<Option<crate::desks::DraftOffer>, &'static str> {
-  crate::desks::restore_departure(&crate::desks::shell(&app), webview.label(), activation)
+pub fn workspace_restore_drafts(app: AppHandle, webview: Webview, activation: f64, settle: Option<bool>) -> Result<Option<crate::desks::DraftOffer>, &'static str> {
+  let shell = crate::desks::shell(&app);
+  if settle == Some(true) {
+    crate::desks::settle_departure(&shell, webview.label(), activation);
+    return Ok(None);
+  }
+  crate::desks::restore_departure(&shell, webview.label(), activation)
 }
 
 fn receive(shell: &crate::desks::Shell, label: &str, activation: f64, url: &str, entries: Option<Vec<(String, String)>>, received: bool) {
@@ -164,6 +169,8 @@ pub fn script(origin: &str, restore: Option<&Placed>, message_key: &str) -> Stri
             await new Promise((resolve) => setTimeout(resolve, 25));
           }} finally {{ clearTimeout(timeout); }}
         }}
+        // The editors start without the copy. One that comes later fills only what this document lacks.
+        if (active === activation) api.invoke('workspace_restore_drafts', {{ activation: active, settle: true }}).catch(() => {{}});
       }}
       let entries = {};
       if (oldCheckpoint) try {{
