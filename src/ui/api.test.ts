@@ -1,8 +1,9 @@
 import { afterEach, expect, test } from 'bun:test';
 import { api, beforeReload, cardsOn, handOver, setProject, snapshotSession, takeHandOver, withCard, withCardBack, withoutCard, withUnchanged } from './api';
 import { keepConfigDraft } from './configDraft';
-import { keepDrafts, updateDraft } from './draft';
-import { draftSession, restoreDraftOverflow } from './draftSession';
+import { draftOf, keepDrafts, markupOf, updateDraft } from './draft';
+import { draftSession, onHandOverEntries, restoreDraftOverflow } from './draftSession';
+import { keepWish, wishNow } from './wish';
 import type { Item, ProjectSnapshot } from '../core/types';
 
 const fetched: string[] = [];
@@ -88,28 +89,66 @@ test('server handover fills in session state while keeping the locally restored 
 test('a slow handover answer holds startup only briefly, still fills in what is missing, and only then frees the server copy', async () => {
   const real = globalThis.sessionStorage;
   const answer = Promise.withResolvers<Response>();
+  const applied = Promise.withResolvers<void>();
   const asked: string[] = [];
+  const markup = { original: 'source-image', marks: [] };
+  const issue = { title: 'Unsent wish', body: 'Details', images: [] };
   globalThis.fetch = (async (url: string, init?: RequestInit) => {
     asked.push(`${init?.method ?? 'GET'} ${url}`);
+    if (init?.method === 'DELETE') applied.resolve();
     return init?.method === 'DELETE' ? new Response(null, { status: 204 }) : answer.promise;
   }) as typeof fetch;
+  const viewReady = Promise.withResolvers<void>();
+  const viewArrived = Promise.withResolvers<void>();
+  const off = onHandOverEntries((keys) => {
+    if (keys.has('seismic-kept-lab')) {
+      viewArrived.resolve();
+      return viewReady.promise;
+    }
+  });
   try {
     globalThis.sessionStorage = storage();
     sessionStorage.setItem('seismic-drafts-shop', 'restored by the shell');
     sessionStorage.setItem('seismic-kept-shop', 'edited since');
     const started = performance.now();
     await takeHandOver(new Set(['seismic-drafts-shop']), 50);
+    keepDrafts(draftSession, 'lab');
+    keepWish(draftSession, 'lab');
+    draftSession.removeItem('seismic-kept-shop'); // already consumed by startup
+    draftSession.setItem('seismic-setting-draft-2', 'new edit');
+    draftSession.removeItem('seismic-setting-draft-2'); // then cleared by the owner
     expect(performance.now() - started).toBeLessThan(1_000);
     expect(asked).toEqual(['GET /api/app-rebuilt/handover']);
-    answer.resolve(Response.json({ token: '9', entries: [['seismic-drafts-shop', 'older'], ['seismic-kept-shop', 'older'], ['seismic-wish-shop', 'unsent wish'], ['check-view', 'open']] }));
-    const freed = () => asked.length === 2;
-    for (let i = 0; i < 100 && !freed(); i++) await Bun.sleep(5);
+    answer.resolve(Response.json({ token: '9', entries: [
+      ['seismic-drafts-shop', 'older'],
+      ['seismic-kept-shop', 'older'],
+      ['seismic-setting-draft-2', 'older'],
+      ['seismic-drafts-lab', JSON.stringify({ 'card:recovered': { text: 'unsent note', images: [] } })],
+      ['seismic-markups-lab', JSON.stringify({ marked: markup })],
+      ['seismic-wish-lab', JSON.stringify(issue)],
+      ['seismic-kept-lab', '{"sheet":"koordinator"}'],
+      ['check-view', 'open'],
+    ] }));
+    await viewArrived.promise;
+    expect(asked).toHaveLength(1);
+    expect(draftOf('card:recovered').text).toBe('unsent note');
+    expect(markupOf('marked')).toEqual(markup);
+    expect(wishNow().issue).toEqual(issue);
+    updateDraft('card:other', { text: 'a newer edit' });
+    expect(JSON.parse(draftSession.getItem('seismic-drafts-lab')!)).toMatchObject({
+      'card:recovered': { text: 'unsent note' },
+      'card:other': { text: 'a newer edit' },
+    });
+    viewReady.resolve();
+    await applied.promise;
     expect(asked[1]).toBe('DELETE /api/app-rebuilt/handover?token=9');
     expect(sessionStorage.getItem('seismic-drafts-shop')).toBe('restored by the shell');
-    expect(sessionStorage.getItem('seismic-kept-shop')).toBe('edited since');
-    expect(sessionStorage.getItem('seismic-wish-shop')).toBe('unsent wish');
+    expect(sessionStorage.getItem('seismic-kept-shop')).toBeNull();
+    expect(sessionStorage.getItem('seismic-setting-draft-2')).toBeNull();
     expect(sessionStorage.getItem('check-view')).toBe('open');
   } finally {
+    off();
+    viewReady.resolve();
     globalThis.sessionStorage = real;
   }
 });

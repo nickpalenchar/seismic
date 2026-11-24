@@ -266,6 +266,15 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
   let downloads = app.path().download_dir().ok();
   let saved: Arc<Mutex<HashMap<String, PathBuf>>> = Default::default();
   let check = seismic_env("APP_CHECK").and_then(|c| c.into_string().ok());
+  // The restart check observes the canvas before the webview has finished its startup requests.
+  let early_check = cfg!(debug_assertions) && seismic_env("APP_CHECK_LEASE").is_some();
+  let check_script = if early_check {
+    check.as_ref().zip(own.origin()).map(|(check, origin)| format!(
+      "if (window === window.top && location.origin === {origin:?}) import({check:?});"
+    ))
+  } else {
+    None
+  };
   let blank = Url::parse("about:blank").unwrap();
   #[cfg(target_os = "linux")]
   let message_key = uuid::Uuid::new_v4().to_string();
@@ -346,7 +355,7 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
           });
         }
         // The check runs in the workspace and in the bundled status page.
-        if let Some(check) = check.as_ref().filter(|_| own_page || (!local && bundled(payload.url()))) {
+        if let Some(check) = check.as_ref().filter(|_| !early_check && (own_page || (!local && bundled(payload.url())))) {
           let minimized = webview.window().is_minimized().unwrap_or(false);
           let windows = webview.app_handle().windows().len();
           let _ = webview.eval(format!("window.seismicCheckMinimized = {minimized}; window.seismicCheckWindowCount = {windows}; import({check:?})"));
@@ -354,6 +363,10 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
       }
     });
   let builder = match draft_script {
+    Some(script) => builder.initialization_script(script),
+    None => builder,
+  };
+  let builder = match check_script {
     Some(script) => builder.initialization_script(script),
     None => builder,
   };

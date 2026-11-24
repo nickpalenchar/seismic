@@ -21,7 +21,7 @@ import { CiteButton } from './cite';
 import { Composer } from './composer';
 import { cardDraft, SEISMIC_DRAFT, updateDraft } from './draft';
 import { Shots } from './shots';
-import { draftSession } from './draftSession';
+import { draftSession, onHandOverEntries } from './draftSession';
 import { usePageVisible } from './seen';
 import { Conversation as Scroll } from './components/ai/conversation';
 import { useFitHeight } from './fitHeight';
@@ -615,6 +615,9 @@ function GearIcon() {
 function useSettingDraft(id: number, proposed: string): [string, (v: string) => void] {
   const key = `seismic-setting-draft-${id}`;
   const [draft, setDraft] = useState(() => draftSession.getItem(key) ?? proposed);
+  useEffect(() => onHandOverEntries((keys) => {
+    if (keys.has(key)) setDraft(draftSession.getItem(key) ?? proposed);
+  }), [key, proposed]);
   return [
     draft,
     (v) => {

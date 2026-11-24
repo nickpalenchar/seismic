@@ -8,7 +8,7 @@
  */
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { afterAttachments } from './attachmentSwitch';
-import { draftSession, isDraftSessionKey, sessionWithDrafts } from './draftSession';
+import { prepareSessionHandOver, sessionWithDrafts } from './draftSession';
 import type { CardDiff } from '../core/diff';
 import { type Place, placeParam } from '../core/layout';
 import type { ProjectReposView, RepoConfig, AccessView, ActivityPage, Pairing, RemoteSetting, ModelInfo, Harness, HarnessAvailability, CloudPreset, ProjectConfig, ProjectInfo, ProjectSnapshot, ChatElsewhere, ClientMessage, ConfigSaved, CardAction, ConfigChecked, DemoSettings, Group, DemoSettingsView, DemoVoiceCheck, ProjectDemoSiteState, DemoSitesView, GithubRepoList, GithubRepoView, TagProposalJob, PageTags, NarrationLanguage, FirstProject, GitSetupPreview, MachineItem, MachineSectionId, MachineView, SetupCheck, SetupFolder, SetupRepoCheck, VoiceSetupView, CardEvent, Item, NewCard, Notice, OwnerHold, PendingRestart, PlanHistory, RepoTrust, ServerMessage, SettingsShared, Skill, SourceUpdate, SpotInput, TalkRef, AppUpdate, Usage, Waiting, Feedback, FeedbackAnswer, ProjectSettings, ProjectSettingsView, DeveloperView, Canvas } from '../core/types';
@@ -636,21 +636,16 @@ export function snapshotSession() {
  * in, and the server keeps its copy until this page has taken it.
  */
 export async function takeHandOver(restoredDrafts?: ReadonlySet<string>, wait = 1_500) {
+  const session = prepareSessionHandOver(restoredDrafts);
   const taking = (async () => {
     const response = await fetch('/api/app-rebuilt/handover');
     await refused(response);
     if (response.status === 204) return;
     const handed = await response.json() as { token: string; entries: [string, string][] } | null;
     if (!handed) return;
-    // Only what this page lacks: the shell restored its own copy of the drafts, and the owner may
-    // have edited them meanwhile.
-    for (const [k, v] of handed.entries) {
-      if (restoredDrafts?.has(k)) continue;
-      if (isDraftSessionKey(k)) { if (draftSession.getItem(k) === null) draftSession.setItem(k, v); }
-      else try { if (sessionStorage.getItem(k) === null) sessionStorage.setItem(k, v); } catch {}
-    }
+    await session.apply(handed.entries);
     await fetch(`/api/app-rebuilt/handover?token=${encodeURIComponent(handed.token)}`, { method: 'DELETE' });
-  })().catch(() => {});
+  })().catch(() => {}).finally(session.close);
   let deadline: ReturnType<typeof setTimeout> | undefined;
   await Promise.race([taking, new Promise<void>((resolve) => { deadline = setTimeout(resolve, wait); })]);
   clearTimeout(deadline);

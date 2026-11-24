@@ -19,8 +19,8 @@ import { LANGUAGES } from '../core/locale';
 import { SUGGEST_TOGGLES, type SuggestSettings, type SuggestToggle, suggestToggles } from '../core/labels';
 import { AccessSection } from './access';
 import { type AddSiteInput, api, onAgentSettingsChange, reload, type SiteHow } from './api';
-import { draftSession } from './draftSession';
-import { keepConfigDraft, keptConfigDraft } from './configDraft';
+import { draftSession, onHandOverEntries } from './draftSession';
+import { configDraftKey, keepConfigDraft, keptConfigDraft } from './configDraft';
 import { keep } from './keep';
 import { plain } from './markdown';
 import { demoState, GitSetup, platformName, RecognitionDetail, Setup, SetupList, useFolderWithoutGit, useWorkerConfiguration, voiceState } from './views/setup';
@@ -1012,6 +1012,14 @@ function DemoBlock({ on }: { on: boolean }) {
   useEffect(() => {
     if (view && draft) keepConfigDraft(draftSession, 'demo', draft, view.settings);
   }, [draft, view]);
+  useEffect(() => {
+    if (!on || !view) return;
+    return onHandOverEntries((keys) => {
+      if (!keys.has(configDraftKey('demo'))) return;
+      const kept = keptConfigDraft<DemoSettings>(draftSession, 'demo', view.settings);
+      if (kept) setDraft(kept);
+    });
+  }, [on, view]);
   const installing = !!view?.job?.running;
   // the voice as it is being chosen: its problems, what it still needs installed
   useEffect(() => {

@@ -12,6 +12,7 @@ import { issueUrl, type Wish, withoutFooter } from '../core/wish';
 import { api, ApiError } from './api';
 import { Composer } from './composer';
 import { WISH_DRAFT } from './draft';
+import { draftSession, onHandOverEntries } from './draftSession';
 import { useFitHeight } from './fitHeight';
 import { imageUrl, Shots } from './shots';
 import { clock, errorText, t } from './strings';
@@ -100,6 +101,12 @@ export function keepWish(store: Pick<Storage, 'getItem' | 'setItem' | 'removeIte
   writeAgain();
   for (const fn of listeners) fn();
 }
+
+onHandOverEntries((keys) => {
+  if (kept?.store !== draftSession || !keys.has(kept.key) || state.issue || state.writing) return;
+  const issue = storedIssue(kept);
+  if (issue) set({ issue });
+});
 
 export const useWish = () =>
   useSyncExternalStore(

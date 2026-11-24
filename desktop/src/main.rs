@@ -24,6 +24,8 @@
 //   says so, once the workers paused (update.rs).
 // - SEISMIC_APP_CHECK=<url of a module>: each window's page imports it once it has loaded (window/)
 //   (scripts/check-app.ts checks the microphone and video in the webview that way).
+// - In debug builds, SEISMIC_APP_CHECK_LEASE=<file> starts the check at document initialization.
+//   The scratch check removes the lease to stop its shell, including any relaunched instance.
 // - SEISMIC_CHECKOUT=<checkout>: started from a checkout (`bun run app`, scripts/app.ts), the shell
 //   starts `bun <checkout>/src/server/main.ts` (SEISMIC_BUN names the bun) instead of the sidecar,
 //   which then updates itself from its checkout as `bun start` does. Installed from a checkout
@@ -624,6 +626,25 @@ fn main() {
     .setup(move |app| {
       let handle = app.handle().clone();
       let _ = HOME.set(home());
+      #[cfg(debug_assertions)]
+      if seismic_env("APP_CHECK").is_some() {
+        if let Some(lease) = seismic_env("APP_CHECK_LEASE").map(PathBuf::from) {
+          // A relaunched check app may have a different parent. It still belongs to the
+          // same scratch run and exits even if setup finishes after that run ended.
+          if !lease.is_file() {
+            std::process::exit(0);
+          }
+          fs::write(lease.with_extension("pid"), std::process::id().to_string())?;
+          let check_app = handle.clone();
+          thread::spawn(move || loop {
+            if !lease.is_file() {
+              check_app.exit(0);
+              break;
+            }
+            thread::sleep(Duration::from_millis(100));
+          });
+        }
+      }
       // The single-instance plugin initializes before setup. Only the primary consumes this.
       let saved = placed::take(&home());
       let primary = placed::primary(&saved).cloned();

@@ -1,4 +1,4 @@
-import { draftSession } from './draftSession';
+import { draftSession, onHandOverEntries } from './draftSession';
 import { activeMergeCard } from '../core/merge';
 import { FullPageHost, useFullPage } from './fullPage';
 import { DockShell, useDock, type DockView } from './dockViews';
@@ -51,7 +51,7 @@ import { ParkedView, QueueView, type SwitchedView, ViewSwitcher } from './views'
 import { depsOf, handleAt, manualPrerequisites, nearestHandle, settledAmong, type Side, waitsAmong, withoutImplied } from './deps';
 import { anchoredPath, nearestEdge } from './manualLinks';
 import type { ManualAnchor } from '../core/types';
-import { collect, keep, type Kept, leaveSheet, restore, type SideSheet, takeKept, takeSheetLeft } from './keep';
+import { collect, keep, keptKey, type Kept, leaveSheet, restore, sheetKey, type SideSheet, takeKept, takeSheetLeft } from './keep';
 import { Sign } from './logo';
 import { Help, HelpButton, HELP_KEY_KNOWN } from './help';
 import { know, known } from './known';
@@ -1186,8 +1186,9 @@ function Project({
     };
   }, []);
   useEffect(() => {
-    let k = takeKept(draftSession, snapshot.project.id);
-    const sheetLeft = takeSheetLeft(sessionStorage, snapshot.project.id);
+    const project = snapshot.project.id;
+    const k = takeKept(draftSession, project);
+    const sheetLeft = takeSheetLeft(sessionStorage, project);
     // the project's own address, where the page came without one or with another project's; `?talk`
     // (Seismic's answer in another project's navigation) opens Seismic's sheet, once
     const a = readAddress();
@@ -1209,16 +1210,44 @@ function Project({
       if (gone.current) return;
       history.replaceState(history.state, '', pathOf(openNow()));
     };
-    // an address on another card than the one kept (a card on this project opened from another) opens that one
-    if (k && code && named(itemsRef.current, code)?.id !== k.card) k = { ...k, card: code, plan: undefined, scroll: [], drafts: [], video: undefined };
-    if (k && talk !== null) k = { ...k, sheet: 'koordinator' };
-    if (k) return void reopen(k).catch(console.error).finally(done);
-    if (sheetLeft || talk !== null) {
+    const restoreView = (kept: Kept) => {
+      // An explicit card address takes precedence over the card in the snapshot.
+      if (code && named(itemsRef.current, code)?.id !== kept.card) kept = { ...kept, card: code, plan: undefined, scroll: [], drafts: [], video: undefined };
+      if (talk !== null) kept = { ...kept, sheet: 'koordinator' };
+      return reopen(kept).catch(console.error).finally(done);
+    };
+    const showSheet = () => {
       // beside the sheet at once, as the project comes back
       quickSide.current = Date.now() + 2000;
       setKOn(true);
-    }
-    (code ? openAddress(code, true) : Promise.resolve()).catch(console.error).finally(done);
+    };
+    if (!k && (sheetLeft || talk !== null)) showSheet();
+    const opened = k ? restoreView(k) : (code ? openAddress(code, true) : Promise.resolve()).catch(console.error).finally(done);
+    if (!window.seismicApp?.handedOver) return;
+    // Once the owner has used the new page, its view takes precedence over the old one.
+    let used = false;
+    const usePage = (event: Event) => { if (event.isTrusted) used = true; };
+    const events = ['pointerdown', 'keydown', 'wheel', 'input', 'popstate'] as const;
+    for (const event of events) addEventListener(event, usePage, true);
+    const off = onHandOverEntries((keys) => {
+      if (gone.current) return;
+      const late = keys.has(keptKey(project)) ? takeKept(draftSession, project) : null;
+      const lateSheet = keys.has(sheetKey(project)) && takeSheetLeft(sessionStorage, project);
+      if ((!late && !lateSheet) || k) return;
+      return opened.then(() => {
+        if (used || gone.current) return;
+        if (late) {
+          addressSet.current = true;
+          restoring.current = true;
+          return restoreView(late);
+        }
+        showSheet();
+      });
+    });
+    return () => {
+      off();
+      for (const event of events) removeEventListener(event, usePage, true);
+    };
   }, []);
   async function reopen(k: Kept) {
     // the sheet that comes back sets the camera beside it at once, as the rest comes back without flights

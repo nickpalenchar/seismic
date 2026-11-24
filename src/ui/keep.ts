@@ -29,21 +29,21 @@ export const ROOTS = ['panel', 'sheet', 'ksheet', 'nav', 'amenu', 'config'];
 
 /** How old what was kept may be to come back: a restart takes seconds, a page reloaded much later starts afresh. */
 const FRESH_MS = 5 * 60_000;
-const key = (project: string) => `seismic-kept-${project}`;
+export const keptKey = (project: string) => `seismic-kept-${project}`;
 
 type Store = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
 export function keep(store: Store, project: string, kept: Kept) {
   try {
-    store.setItem(key(project), JSON.stringify(kept));
+    store.setItem(keptKey(project), JSON.stringify(kept));
   } catch {}
 }
 
 /** What the reload before this page kept, once. */
 export function takeKept(store: Store, project: string, now = Date.now()): Kept | null {
   try {
-    const raw = store.getItem(key(project));
-    store.removeItem(key(project));
+    const raw = store.getItem(keptKey(project));
+    store.removeItem(keptKey(project));
     const k = raw ? (JSON.parse(raw) as Kept) : null;
     return k && now - k.at < FRESH_MS ? k : null;
   } catch {
@@ -146,7 +146,7 @@ export function restore(k: Pick<Kept, 'scroll' | 'drafts' | 'video'>): () => voi
   return owner;
 }
 
-const sheetKey = (project: string) => `seismic-sheet-left-open-${project}`;
+export const sheetKey = (project: string) => `seismic-sheet-left-open-${project}`;
 
 /**
  * Whether the owner left the project (for another project, or a reload) with Seismic's sheet open and

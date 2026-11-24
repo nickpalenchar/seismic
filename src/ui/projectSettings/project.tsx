@@ -17,8 +17,8 @@ import { ConfirmDialog } from '../components/dialog';
 import { Tooltip } from '../components/tooltip';
 import { statusClass } from '../setupClasses';
 import { qmovesClass } from '../queue';
-import { draftSession } from '../draftSession';
-import { keepConfigDraft, keptConfigDraft } from '../configDraft';
+import { draftSession, onHandOverEntries } from '../draftSession';
+import { configDraftKey, keepConfigDraft, keptConfigDraft } from '../configDraft';
 import { holdLeaving, leave } from '../leaving';
 import { entryDraft, type EntryDraft, mergedEntry, withEntry } from './entry';
 import { showSettingsAt } from './focus';
@@ -141,6 +141,16 @@ function useProjectEntry(project: string | null, on: boolean) {
   useEffect(() => {
     if (project !== null && loaded && entry) keepConfigDraft(draftSession, `project:${project}`, entry, loaded.entry);
   }, [JSON.stringify(entry), loaded]);
+  useEffect(() => {
+    const saved = loaded?.saved;
+    if (!on || project === null || !saved) return;
+    const name = `project:${project}` as const;
+    return onHandOverEntries((keys) => {
+      if (!keys.has(configDraftKey(name))) return;
+      const kept = keptConfigDraft<ProjectConfig>(draftSession, name, loaded.entry);
+      if (kept) setEntry(entryDraft(kept, saved.projects[loaded.at]));
+    });
+  }, [on, project, loaded]);
   const shown = changed ? (checked?.result ?? null) : (loaded?.saved ?? null);
   const at = (changed ? checked?.at : undefined) ?? loaded?.at ?? 0;
   const problems = shown?.problems ?? [];

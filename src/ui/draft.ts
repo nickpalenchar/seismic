@@ -11,6 +11,7 @@ import type { AgentSetting, FindingPick } from '../core/types';
 import { useEffect, useSyncExternalStore } from 'react';
 import type { Mark } from './marks';
 import type { Reply } from './reply';
+import { draftSession, onHandOverEntries } from './draftSession';
 
 export type StartAgentChoice = AgentSetting & { followProjectModel?: true };
 
@@ -168,18 +169,36 @@ export function keepDrafts(store: Store, project: string) {
     markups.clear();
   }
   kept = { store, project };
+  readKeptDrafts(store, project);
+  readKeptMarkups(store, project);
+  listeners.add(writeDown);
+  changed();
+}
+
+function readKeptDrafts(store: Store, project: string) {
   try {
     const saved = JSON.parse(store.getItem(storeKey(project)) ?? '{}') as Record<string, Kept>;
     for (const [oldKey, { text, images, picks, reply, files, findings, findingNotes, findingNoteEdits, reviewKey, agent }] of Object.entries(saved))
       if (!drafts.has(renamedDraftKey(oldKey))) drafts.set(renamedDraftKey(oldKey), { ...EMPTY, text, images, ...(picks ? { picks } : {}), ...(reply ? { reply } : {}), ...(files ? { files } : {}), ...(findings ? { findings } : {}), ...(findingNotes ? { findingNotes } : {}), ...(findingNoteEdits ? { findingNoteEdits } : {}), ...(reviewKey ? { reviewKey } : {}), ...(agent ? { agent } : {}) });
   } catch {}
+}
+
+function readKeptMarkups(store: Store, project: string) {
   try {
     const saved = JSON.parse(store.getItem(markupsKey(project)) ?? '{}') as Record<string, Markup>;
     for (const [id, m] of Object.entries(saved)) if (!markups.has(id)) markups.set(id, m);
   } catch {}
-  listeners.add(writeDown);
-  changed();
 }
+
+onHandOverEntries((keys) => {
+  if (kept?.store !== draftSession) return;
+  const { store, project } = kept;
+  const hasDrafts = keys.has(storeKey(project));
+  const hasMarkups = keys.has(markupsKey(project));
+  if (hasDrafts) readKeptDrafts(store, project);
+  if (hasMarkups) readKeptMarkups(store, project);
+  if (hasDrafts || hasMarkups) changed();
+});
 
 function writeDown() {
   if (!kept) return;
