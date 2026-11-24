@@ -2,7 +2,7 @@
 // webview of this machine, against a second Seismic that counts as remote: a proxy in front of it
 // forwards as `tailscale serve` does, so it answers the shell as another machine would.
 //
-//   bun scripts/check-app-desks.ts <the app's program> [--ipv6] [--legacy-mic] [--debug-failures] [--keep]
+//   bun scripts/check-app-desks.ts <the app's program> [--ipv6] [--legacy-mic] [--debug-failures] [--minimized-takeover] [--keep]
 //
 // The program: a build from scripts/build-app.ts, or a debug build of the shell, which runs this
 // checkout's server. On a Mac it has to be an app bundle: WKWebView keeps the cookies of a bare
@@ -27,7 +27,7 @@
 // shell commands the script sends it (`/todo`). Prints one line per check; exits 1 when one failed.
 
 import { type Subprocess } from 'bun';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { release, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { ownerHeaders } from '../src/server/owner';
@@ -36,12 +36,13 @@ import { bad, check, exited, expect, failed, sleep, until } from './check-harnes
 const args = process.argv.slice(2);
 const programArg = args.find((a) => !a.startsWith('--'));
 if (!programArg) {
-  console.error("usage: bun scripts/check-app-desks.ts <the app's program> [--ipv6] [--legacy-mic] [--debug-failures] [--keep]");
+  console.error("usage: bun scripts/check-app-desks.ts <the app's program> [--ipv6] [--legacy-mic] [--debug-failures] [--minimized-takeover] [--keep]");
   process.exit(2);
 }
 const program = resolve(programArg);
 const ROOT = resolve(import.meta.dir, '..');
 const debugFailures = args.includes('--debug-failures');
+const minimizedTakeover = args.includes('--minimized-takeover');
 // On newer macOS, a debug app can exercise Big Sur's fail-closed path with real WebKit.
 const forceLegacyMic = args.includes('--legacy-mic');
 const legacyMic = process.platform === 'darwin' && (forceLegacyMic || Number(release().split('.')[0]) <= 20);
@@ -223,6 +224,7 @@ const todo: { id: number; cmd: string; args?: unknown }[] = [];
 const done = new Map<number, Done>();
 const reports: Record<string, unknown>[] = [];
 let retryNow = false;
+let backToStatus = false;
 const polls = new Map<string, number>();
 const MODULE = `
 const base = new URL('.', import.meta.url);
@@ -246,6 +248,7 @@ if (location.origin === ${JSON.stringify(REMOTE)} && document.getElementById('si
   out.remove = await outcome(invoke('remove_desk', { id: 'local' }));
   out.projects = (await fetch('/api/projects')).status;
   await post('result', out);
+  if ((await (await fetch(new URL('back-to-status', base))).json()).now) history.back();
   if (${process.platform === 'darwin'}) await post('result', { kind: 'ipcGate', ...(await (${IPC_CHECK})()) });
   const mic = { kind: 'remoteMic', secure: isSecureContext };
   const capture = (options) => outcome(Promise.race([
@@ -273,18 +276,22 @@ if (location.origin === ${JSON.stringify(REMOTE)} && document.getElementById('si
   });
   await post('result', mic);
 } else if (location.pathname.endsWith('/status.html')) {
-  await new Promise((r) => setTimeout(r, 500));
-  await post('result', { kind: 'status', title: document.getElementById('title').textContent, why: document.getElementById('why').textContent, desks: await outcome(invoke('desks')) });
-  for (;;) {
-    if ((await (await fetch(new URL('retry', base))).json()).now) break;
-    await new Promise((r) => setTimeout(r, 250));
+  async function checkStatus() {
+    await new Promise((r) => setTimeout(r, 500));
+    await post('result', { kind: 'status', title: document.getElementById('title').textContent, why: document.getElementById('why').textContent, desks: await outcome(invoke('desks')) });
+    for (;;) {
+      if ((await (await fetch(new URL('retry', base))).json()).now) break;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    document.getElementById('retry').click();
   }
-  document.getElementById('retry').click();
+  addEventListener('pageshow', (event) => { if (event.persisted) void checkStatus(); });
+  await checkStatus();
 } else if (location.protocol === 'http:') {
   const label = window.__TAURI_INTERNALS__.metadata.currentWindow.label;
   if (location.port === ${JSON.stringify(String(oldPort))}) history.replaceState(null, '', '/?takeover-check=kept');
   addEventListener('seismic-desks', async () => post('result', { kind: 'desksChanged', ...(await outcome(invoke('desks'))) }));
-  await post('result', { kind: 'local', href: location.href, label });
+  await post('result', { kind: 'local', href: location.href, label, minimized: window.seismicCheckMinimized });
   for (;;) {
     const next = await (await fetch(new URL('todo?label=' + label, base))).json();
     if (next) await post('done', { id: next.id, ...(await outcome(invoke(next.cmd, next.args))) });
@@ -307,6 +314,11 @@ const harness = Bun.serve({
       return json(todo.shift() ?? null);
     }
     if (path === '/retry') return json({ now: retryNow });
+    if (path === '/back-to-status') {
+      const now = backToStatus;
+      if (now) retryNow = backToStatus = false;
+      return json({ now });
+    }
     if (req.method === 'POST' && path === '/result') reports.push(JSON.parse(await req.text()));
     if (req.method === 'POST' && path === '/done') {
       const d = JSON.parse(await req.text()) as Done;
@@ -416,6 +428,11 @@ try {
     const res = await fetch(`http://127.0.0.1:${oldPort}/api/projects`, { headers: ownerHeaders(home) });
     return res.ok;
   });
+  if (minimizedTakeover) {
+    writeFileSync(join(home, 'app-windows.json'), JSON.stringify({ at: Date.now(), windows: [{
+      desk: 'local', x: 40, y: 40, width: 900, height: 700, minimized: true, visible: false, next: '/',
+    }] }));
+  }
   app = startApp();
   const initial = await report('local');
   const transferred = await check('taking over on a different port replaces the local webview and keeps local commands', async () => {
@@ -432,6 +449,9 @@ try {
     expect(new URL(String(next.href)).origin !== new URL(String(initial.href)).origin, JSON.stringify(next));
     expect(typeof next.label === 'string' && next.label !== oldLabel, JSON.stringify(next));
     expect(new URL(String(next.href)).searchParams.get('takeover-check') === 'kept', JSON.stringify(next));
+    if (minimizedTakeover) {
+      expect(initial.minimized === true && next.minimized === true, JSON.stringify({ initial, next }));
+    }
     expect((await desks()).current === 'local', 'the replacement window cannot use its local capability');
     if (process.platform === 'darwin') {
       const drag = await run('plugin:window|start_dragging');
@@ -440,7 +460,7 @@ try {
     const polled = polls.get(oldLabel);
     await sleep(1000);
     expect(polls.get(oldLabel) === polled, 'the previous webview is still running');
-    return `${oldLabel} at ${new URL(String(initial.href)).origin} → ${next.label} at ${new URL(String(next.href)).origin}`;
+    return `${oldLabel} at ${new URL(String(initial.href)).origin} → ${next.label} at ${new URL(String(next.href)).origin}${minimizedTakeover ? ', both minimized' : ''}`;
   });
   expect(transferred, 'the local server was not taken over');
   let id = '';
@@ -665,6 +685,7 @@ try {
   });
   const afterStatus = reports.length;
   proxy.server = startProxy();
+  backToStatus = true;
   retryNow = true;
   const again = (await report('remote', afterStatus).catch((e) => (bad('Try again', String(e.message)), null))) as Record<string, unknown> | null;
   if (again) {
@@ -672,6 +693,15 @@ try {
       expect(String(again.href).startsWith(`${REMOTE}/`) && again.projects === 200, `${again.href}, projects ${again.projects}`);
       expect(again.previousDraft === 'Unsent note for Lab', JSON.stringify(again));
       return String(again.previousDraft);
+    });
+    await check('Try again works after going Back to a recovered status page', async () => {
+      const revisited = await report('status', afterStatus, 10_000);
+      const state = (revisited.desks as { value: Desks }).value;
+      expect(state.problem === null && revisited.title === 'Lab' && String(revisited.why).includes(REMOTE), JSON.stringify(revisited));
+      const before = reports.length;
+      retryNow = true;
+      const reopened = await report('remote', before, 10_000);
+      expect(reopened.projects === 200 && reopened.label === again.label, JSON.stringify(reopened));
     });
   }
   await check('a pending status retry cannot overwrite a re-pair', async () => {
@@ -757,6 +787,43 @@ try {
     }
   });
   if (debugFailures) {
+    await check('a draft survives when a workspace finishes restoring during restart capture', async () => {
+      const held = Promise.withResolvers<void>();
+      const release = Promise.withResolvers<void>();
+      const pause = join(home, 'check-pause-placement');
+      const paused = join(home, 'check-placement-paused');
+      onHealth = () => { held.resolve(); return release.promise; };
+      expireServerHandover = true;
+      try {
+        const first = reports.length;
+        await relaunch();
+        await report('local', first);
+        await Promise.race([held.promise, sleep(10_000).then(() => { throw new Error('no pending health check'); })]);
+        for (const name of readdirSync(home).filter((name) => name.startsWith('check-drafts-received-'))) rmSync(join(home, name));
+        writeFileSync(pause, '');
+        await relaunch();
+        await until('placement capture to pause after readiness', 10_000, () => existsSync(paused));
+
+        onHealth = undefined;
+        release.resolve();
+        const connected = await report('remote', first, 8_000);
+        expect(connected.previousDraft === 'Unsent note for Lab', JSON.stringify(connected));
+        const received = join(home, `check-drafts-received-${connected.label}`);
+        await until('the restored document to acknowledge its draft', 8_000, () => existsSync(received));
+
+        const second = reports.length;
+        rmSync(paused);
+        const restored = await report('remote', second, 15_000);
+        expect(restored.previousDraft === 'Unsent note for Lab' && restored.previousSession === null, JSON.stringify(restored));
+        return String(restored.previousDraft);
+      } finally {
+        onHealth = undefined;
+        expireServerHandover = false;
+        release.resolve();
+        rmSync(pause, { force: true });
+        rmSync(paused, { force: true });
+      }
+    });
     await check('a failed startup restore keeps its draft for the next explicit open', async () => {
       const failure = join(home, 'check-window-open-error');
       const before = reports.length;

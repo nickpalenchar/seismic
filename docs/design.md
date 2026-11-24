@@ -463,6 +463,8 @@ Safety rules:
 - The desktop app saves window placements before an installer can exit the shell, and only the
   primary instance consumes them. The snapshot keeps an origin-scoped copy of unsent remote drafts
   even when the server accepts handover, since its copy can expire before the workspace reopens.
+  If a restored page takes ownership of its draft after readiness sampling starts, the shell
+  retries the capture before publishing a snapshot. An empty sample still counts as a sampled page.
 - A restored workspace opens without taking focus unless it was the window the owner last used.
   Native show and fullscreen calls can activate a window, so the shell uses background presentation
   for the others and postpones fullscreen until they receive focus.

@@ -180,7 +180,9 @@ pub async fn retry_desk(app: AppHandle, webview: Webview) -> Result<(), String> 
       status_window(app, &label)?;
       let shell = shell(app);
       let windows = shell.windows.lock().unwrap();
-      let open = windows.open.get(&label).filter(|o| o.problem.is_some()).ok_or("unknown")?;
+      // A status document reached with Back is still the window's status page, even when
+      // the last retry cleared its problem. The URL and revision guard the retry itself.
+      let open = windows.open.get(&label).ok_or("unknown")?;
       Ok((open.origin.clone(), windows.revision(&open.desk)))
     }
   })
@@ -197,7 +199,7 @@ pub async fn retry_desk(app: AppHandle, webview: Webview) -> Result<(), String> 
     let open = windows
       .open
       .get(&label)
-      .filter(|o| o.problem.is_some() && windows.revision(&o.desk) == revision)
+      .filter(|o| o.origin == origin && windows.revision(&o.desk) == revision)
       .ok_or("unknown")?;
     let id = open.desk.clone();
     if let Some(problem) = problem {

@@ -230,10 +230,31 @@ fn start_again(app: &AppHandle, seismic: &Seismic, port: u16) -> io::Result<()> 
 
 /// Publish the snapshot before anything that can exit, including the installer itself.
 fn prepare_relaunch(app: &AppHandle, installer: bool, local_page: Option<&str>) -> io::Result<Option<Vec<Placed>>> {
-  let Some(windows) = workspaces::ready(app, true).and_then(|drafts| crate::desks::placed(app, drafts)) else {
+  let generation = crate::desks::draft_generation(app);
+  let Some(drafts) = workspaces::ready(app, true) else {
+    return Ok(None);
+  };
+  #[cfg(debug_assertions)]
+  pause_check_placement();
+  let Some(windows) = crate::desks::placed(app, generation, drafts) else {
     return Ok(None); // a remote workspace is still in use or changing windows
   };
   keep_placements(&crate::home(), windows, installer, local_page).map(Some)
+}
+
+#[cfg(debug_assertions)]
+fn pause_check_placement() {
+  // The app check lets a pending restore finish in the gap before placement capture.
+  if crate::seismic_env("APP_CHECK").is_some() {
+    let home = crate::home();
+    let paused = home.join("check-placement-paused");
+    if fs::rename(home.join("check-pause-placement"), &paused).is_ok() {
+      let deadline = std::time::Instant::now() + Duration::from_secs(10);
+      while paused.exists() && std::time::Instant::now() < deadline {
+        thread::sleep(Duration::from_millis(25));
+      }
+    }
+  }
 }
 
 fn keep_placements(home: &Path, mut windows: Vec<Placed>, installer: bool, local_page: Option<&str>) -> io::Result<Vec<Placed>> {

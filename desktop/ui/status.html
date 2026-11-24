@@ -43,8 +43,9 @@
         desks = await invoke('desks');
         const own = desks.list.find((d) => d.id === desks.current);
         if (!own) return;
-        $('title').textContent = `${own.name} does not answer`;
-        $('why').textContent = (WHY[desks.problem] ?? WHY.unreachable)(own.origin);
+        const reason = WHY[desks.problem];
+        $('title').textContent = reason ? `${own.name} does not answer` : own.name;
+        $('why').textContent = reason ? reason(own.origin) : `Check whether Seismic answers at ${own.origin}.`;
         const others = desks.list.filter((d) => d.id !== own.id);
         $('others-title').hidden = !others.length;
         $('others').replaceChildren(
@@ -71,6 +72,7 @@
         }
       };
       window.addEventListener('seismic-desks', load);
+      window.addEventListener('pageshow', (event) => { if (event.persisted) load(); });
       load();
     </script>
   </body>

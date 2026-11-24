@@ -123,6 +123,8 @@ fn free_name(dir: &Path, name: &str) -> PathBuf {
 
 /// Shows a restored window on the UI thread without activating a background window.
 pub fn show_placed(w: &WebviewWindow, placed: Option<&Placed>, focus: bool) -> tauri::Result<()> {
+  let minimized = placed.is_some_and(|p| p.minimized);
+  let focus = focus && !minimized;
   let fullscreen = placed.is_some_and(|p| p.fullscreen);
   if fullscreen && !focus {
     // Entering fullscreen on a background window can activate it or switch Spaces.
@@ -137,6 +139,10 @@ pub fn show_placed(w: &WebviewWindow, placed: Option<&Placed>, focus: bool) -> t
       }
     });
   }
+  if minimized {
+    // The window must be available from the Dock or taskbar even if it was reported hidden.
+    return show_minimized(w);
+  }
   if placed.is_some_and(|p| !p.visible) {
     return Ok(());
   }
@@ -148,6 +154,27 @@ pub fn show_placed(w: &WebviewWindow, placed: Option<&Placed>, focus: bool) -> t
   }
   if fullscreen && focus {
     let _ = w.set_fullscreen(true);
+  }
+  Ok(())
+}
+
+#[cfg(not(windows))]
+fn show_minimized(w: &WebviewWindow) -> tauri::Result<()> {
+  show_background(w)?;
+  w.minimize()
+}
+
+#[cfg(windows)]
+fn show_minimized(w: &WebviewWindow) -> tauri::Result<()> {
+  use windows_sys::Win32::UI::WindowsAndMessaging::{GetWindowPlacement, SetWindowPlacement, WINDOWPLACEMENT, SW_SHOWMINNOACTIVE};
+  let hwnd = w.hwnd()?.0;
+  let mut placement = WINDOWPLACEMENT { length: std::mem::size_of::<WINDOWPLACEMENT>() as u32, ..Default::default() };
+  if unsafe { GetWindowPlacement(hwnd, &mut placement) } == 0 {
+    return Err(std::io::Error::last_os_error().into());
+  }
+  placement.showCmd = SW_SHOWMINNOACTIVE as u32;
+  if unsafe { SetWindowPlacement(hwnd, &placement) } == 0 {
+    return Err(std::io::Error::last_os_error().into());
   }
   Ok(())
 }
@@ -282,7 +309,8 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
         }
         // The check runs in the workspace and in the bundled status page.
         if let Some(check) = check.as_ref().filter(|_| own_page || (!local && bundled(payload.url()))) {
-          let _ = webview.eval(format!("import({check:?})"));
+          let minimized = webview.app_handle().get_webview_window(webview.label()).is_some_and(|w| w.is_minimized().unwrap_or(false));
+          let _ = webview.eval(format!("window.seismicCheckMinimized = {minimized}; import({check:?})"));
         }
       }
     });

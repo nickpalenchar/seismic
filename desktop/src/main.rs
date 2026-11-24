@@ -539,7 +539,7 @@ pub(crate) fn relaunch(app: &AppHandle, seismic: &Seismic, _placed: &[placed::Pl
     // …/Seismic.app/Contents/MacOS/seismic
     let bundle = std::env::current_exe().ok().and_then(|e| Some(e.parent()?.parent()?.parent()?.to_path_buf()));
     if let Some(bundle) = bundle.filter(|b| b.extension().is_some_and(|x| x == "app")) {
-      let hidden = !_placed.iter().any(|p| p.visible);
+      let hidden = !_placed.iter().any(|p| p.visible && !p.minimized);
       // Launch Services can still have the old app registered when its process is gone.
       let started = Command::new("/bin/sh")
         .args(["-c", r#"while kill -0 "$1" 2>/dev/null; do sleep 0.1; done; exec /usr/bin/open -n $3 "$2""#, "sh"])
@@ -568,7 +568,7 @@ fn main() {
   #[cfg(target_os = "macos")]
   let builder = {
     let windows = placed::peek(&home());
-    builder.activate_ignoring_other_apps(windows.is_empty() || windows.iter().any(|p| p.visible))
+    builder.activate_ignoring_other_apps(windows.is_empty() || windows.iter().any(|p| p.visible && !p.minimized))
   };
   let app = builder
     .plugin(tauri_plugin_single_instance::init(|app, _, _| show(app)))

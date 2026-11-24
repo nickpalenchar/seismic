@@ -22,8 +22,11 @@ If the remote server takes too long to return drafts during startup, the workspa
 drafts Seismic saved on this device.
 If a workspace window fails to reopen, opening it again can recover those drafts. A second restart
 also keeps windows that are still waiting for their first connection check.
+If a workspace reconnects while Seismic is preparing another restart, its draft carries over too.
 
 On a workspace status screen, **File → Open in Browser** opens the workspace’s saved address.
+If you use Back to return to that screen after reconnecting, **Try again** checks the workspace again.
+The local window stays minimized when Seismic reconnects it to a server on a different port.
 
 On macOS Big Sur, the desktop app disables microphone and camera capture. Desktop dictation
 requires macOS Monterey or newer.

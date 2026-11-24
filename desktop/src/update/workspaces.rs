@@ -116,9 +116,7 @@ pub fn ready(app: &AppHandle, hand_over: bool) -> Option<Drafts> {
         "" | "null" => all_ready = false, // the fetch or handover is still in flight
         _ => {
           let entries: Vec<(String, String)> = serde_json::from_str(&value).ok()?;
-          if !entries.is_empty() {
-            drafts.insert(label, entries);
-          }
+          drafts.insert(label, entries);
         }
       }
     }

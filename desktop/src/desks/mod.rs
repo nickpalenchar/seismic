@@ -66,6 +66,8 @@ struct Windows {
   opening: HashMap<String, u64>,
   /// Saved placements waiting for a window, including ones whose first restore failed.
   restoring: HashMap<String, Placed>,
+  /// Changes when a saved draft moves from the native backup to its page's session storage.
+  draft_generation: u64,
   /// The active local window and its fixed port, once the server answers.
   local: Option<(String, u16)>,
 }
@@ -90,6 +92,13 @@ impl Windows {
         self.restoring.remove(id);
       }
     }
+  }
+
+  fn drafts_restored(&mut self, label: &str) -> bool {
+    let Some(window) = self.open.get_mut(label).filter(|w| !w.drafts.is_empty()) else { return false };
+    window.drafts.clear();
+    self.draft_generation += 1;
+    true
   }
 }
 
@@ -443,9 +452,17 @@ pub fn closed(app: &AppHandle, label: &str) {
 
 /// The page at the workspace's origin now owns its restored drafts in session storage.
 pub fn drafts_restored(app: &AppHandle, label: &str) {
-  if let Some(window) = shell(app).windows.lock().unwrap().open.get_mut(label) {
-    window.drafts.clear();
+  let restored = shell(app).windows.lock().unwrap().drafts_restored(label);
+  #[cfg(debug_assertions)]
+  if restored && crate::seismic_env("APP_CHECK").is_some() {
+    let _ = std::fs::write(crate::home().join(format!("check-drafts-received-{label}")), "");
   }
+  #[cfg(not(debug_assertions))]
+  let _ = restored;
+}
+
+pub fn draft_generation(app: &AppHandle) -> u64 {
+  shell(app).windows.lock().unwrap().draft_generation
 }
 
 /// The list or the windows changed: the pages hear of it (`seismic-desks`, they ask for the list
@@ -458,10 +475,14 @@ pub fn changed(app: &AppHandle) {
 }
 
 /// The windows as they are now, for the shell that starts next (main.rs, `relaunch`).
-pub fn placed(app: &AppHandle, mut drafts: HashMap<String, Vec<(String, String)>>) -> Option<Vec<Placed>> {
+pub fn placed(app: &AppHandle, draft_generation: u64, mut drafts: HashMap<String, Vec<(String, String)>>) -> Option<Vec<Placed>> {
   let shell = shell(app);
   let (open, pending) = {
     let windows = shell.windows.lock().unwrap();
+    // A page may have taken over its backup after the readiness probe sampled the old windows.
+    if windows.draft_generation != draft_generation {
+      return None;
+    }
     (windows.open.clone(), windows.restoring.clone())
   };
   let (label, port) = shell.local();
@@ -474,14 +495,19 @@ pub fn placed(app: &AppHandle, mut drafts: HashMap<String, Vec<(String, String)>
       continue;
     }
     let Some(w) = app.get_webview_window(&label) else { continue };
-    let mut unsent = drafts.remove(&label).unwrap_or_default();
+    let own = Own::Remote(o.origin);
+    let sampled = drafts.remove(&label);
+    if sampled.is_none() && own.at(&w.url().ok()?) {
+      return None; // a newly connected page was not sampled, even if its draft list might be empty
+    }
+    let mut unsent = sampled.unwrap_or_default();
     // Until the document confirms delivery, preserve any backup entries the page has not supplied.
     for (key, value) in o.drafts {
       if !unsent.iter().any(|(k, _)| *k == key) {
         unsent.push((key, value));
       }
     }
-    if let Some(mut placed) = Placed::of(&w, &o.desk, &Own::Remote(o.origin)) {
+    if let Some(mut placed) = Placed::of(&w, &o.desk, &own) {
       placed.drafts = unsent;
       snapshots.push(placed);
     } else if !unsent.is_empty() {

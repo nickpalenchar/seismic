@@ -11,7 +11,7 @@ use std::{
 };
 
 use serde_json::{json, Value};
-use tauri::WebviewWindow;
+use tauri::{LogicalPosition, LogicalSize, WebviewWindow};
 
 use super::{page, Own};
 use crate::{desks::LOCAL, now_ms};
@@ -28,6 +28,8 @@ pub struct Placed {
   pub height: f64,
   pub maximized: bool,
   pub fullscreen: bool,
+  /// Minimized windows may be reported as visible or hidden, depending on the platform.
+  pub minimized: bool,
   /// Shown: closed on a Mac, this machine's window is hidden while the app stays in the Dock.
   pub visible: bool,
   /// The page it showed at its origin.
@@ -47,9 +49,8 @@ const INSTALL_FRESH: Duration = Duration::from_secs(30 * 60);
 
 impl Placed {
   pub fn of(w: &WebviewWindow, desk: &str, own: &Own) -> Option<Placed> {
-    let scale = w.scale_factor().ok()?;
-    let at = w.outer_position().ok()?.to_logical::<f64>(scale);
-    let size = w.inner_size().ok()?.to_logical::<f64>(scale);
+    let minimized = w.is_minimized().unwrap_or(false);
+    let (at, size) = bounds(w, minimized)?;
     Some(Placed {
       desk: desk.to_string(),
       origin: match own {
@@ -62,6 +63,7 @@ impl Placed {
       height: size.height,
       maximized: w.is_maximized().unwrap_or(false),
       fullscreen: w.is_fullscreen().unwrap_or(false),
+      minimized,
       visible: w.is_visible().unwrap_or(true),
       next: page(w, own).unwrap_or_else(|| "/".into()),
       focused: w.is_focused().unwrap_or(false),
@@ -72,7 +74,8 @@ impl Placed {
   fn json(&self) -> Value {
     let mut value = json!({
       "desk": self.desk, "origin": self.origin, "x": self.x, "y": self.y, "width": self.width, "height": self.height,
-      "maximized": self.maximized, "fullscreen": self.fullscreen, "visible": self.visible, "next": self.next, "focused": self.focused,
+      "maximized": self.maximized, "fullscreen": self.fullscreen, "minimized": self.minimized,
+      "visible": self.visible, "next": self.next, "focused": self.focused,
     });
     if !self.drafts.is_empty() {
       value["drafts"] = json!(self.drafts);
@@ -92,12 +95,58 @@ impl Placed {
       height: n("height")?,
       maximized: b("maximized"),
       fullscreen: b("fullscreen"),
+      minimized: b("minimized"),
       visible: v["visible"].as_bool().unwrap_or(true),
       next: v["next"].as_str().filter(|n| n.starts_with('/')).unwrap_or("/").to_string(),
       focused: b("focused"),
       drafts: serde_json::from_value(v["drafts"].clone()).unwrap_or_default(),
     })
   }
+}
+
+fn bounds(w: &WebviewWindow, minimized: bool) -> Option<(LogicalPosition<f64>, LogicalSize<f64>)> {
+  #[cfg(windows)]
+  if minimized {
+    return restored_bounds(w);
+  }
+  #[cfg(not(windows))]
+  let _ = minimized;
+  let scale = w.scale_factor().ok()?;
+  Some((w.outer_position().ok()?.to_logical(scale), w.inner_size().ok()?.to_logical(scale)))
+}
+
+#[cfg(windows)]
+fn restored_bounds(w: &WebviewWindow) -> Option<(LogicalPosition<f64>, LogicalSize<f64>)> {
+  use windows_sys::Win32::{
+    Foundation::RECT,
+    UI::{HiDpi::AdjustWindowRectExForDpi, WindowsAndMessaging::*},
+  };
+  let hwnd = w.hwnd().ok()?.0;
+  let mut placement = WINDOWPLACEMENT { length: std::mem::size_of::<WINDOWPLACEMENT>() as u32, ..Default::default() };
+  if unsafe { GetWindowPlacement(hwnd, &mut placement) } == 0 {
+    return None;
+  }
+  // The minimized window's live bounds can belong to its taskbar icon. Use the restore rectangle,
+  // converted from workspace to screen coordinates and from frame size to content size.
+  let monitor = w.current_monitor().ok()??;
+  let scale = monitor.scale_factor();
+  let rect = placement.rcNormalPosition;
+  let style = unsafe { GetWindowLongW(hwnd, GWL_STYLE) } as u32 & !(WS_MINIMIZE | WS_MAXIMIZE);
+  let ex = unsafe { GetWindowLongW(hwnd, GWL_EXSTYLE) } as u32;
+  let mut frame = RECT::default();
+  let menu = !unsafe { GetMenu(hwnd) }.is_null();
+  if unsafe { AdjustWindowRectExForDpi(&mut frame, style, menu.into(), ex, (scale * 96.0).round() as u32) } == 0 {
+    return None;
+  }
+  let mut at = tauri::PhysicalPosition::new(rect.left, rect.top);
+  if ex & WS_EX_TOOLWINDOW == 0 {
+    at.x += monitor.work_area().position.x - monitor.position().x;
+    at.y += monitor.work_area().position.y - monitor.position().y;
+  }
+  let width = (rect.right - rect.left) - (frame.right - frame.left);
+  let height = (rect.bottom - rect.top) - (frame.bottom - frame.top);
+  let size = tauri::PhysicalSize::new(width.max(1) as u32, height.max(1) as u32);
+  Some((at.to_logical(scale), size.to_logical(scale)))
 }
 
 pub fn keep(home: &Path, windows: &[Placed], installer: bool) -> io::Result<()> {
@@ -197,6 +246,7 @@ mod tests {
       desk: LOCAL.into(),
       width: 1440.0,
       height: 900.0,
+      minimized: true,
       visible: false,
       next: "/".into(),
       ..Default::default()
@@ -264,6 +314,7 @@ mod tests {
     let taken = take(&home);
     assert_eq!(taken.len(), 1);
     assert_eq!((taken[0].desk.as_str(), taken[0].next.as_str(), taken[0].maximized), (LOCAL, "/x", true));
+    assert!(!taken[0].minimized);
     let _ = fs::remove_dir_all(&home);
   }
 
