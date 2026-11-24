@@ -73,7 +73,6 @@ struct Load {
 
 #[derive(Clone, Default)]
 struct Departure {
-  observed: bool,
   activation: f64,
   drafts: Option<Vec<(String, String)>>,
   previous_in_flight: Option<f64>,
@@ -145,7 +144,6 @@ impl Departure {
         self.carry(self.activation, previous, self.previous_settled);
       }
     }
-    self.observed = true;
     self.activation = activation;
     self.drafts = drafts;
     true
@@ -394,7 +392,13 @@ fn capability(family: &str, origin: &str, permissions: &[&[&str]]) -> Result<Cap
 /// the app, so each family gets its one once (`grant`) and every webview of it a fresh label.
 fn family(desk: &str, origin: &str) -> String {
   let prefix = if desk == LOCAL { "local" } else { "desk" };
-  format!("{prefix}-{}", origin.replace(|c: char| !c.is_ascii_alphanumeric(), "-"))
+  // Hex keeps every origin byte distinct and excludes the delimiter before the instance number.
+  use std::fmt::Write;
+  let mut label = format!("{prefix}-");
+  for byte in origin.bytes() {
+    write!(label, "{byte:02x}").unwrap();
+  }
+  label
 }
 
 fn grant(app: &AppHandle, family: &str, origin: &str, permissions: &[&[&str]]) -> Result<(), String> {
@@ -465,7 +469,8 @@ fn capture(app: &AppHandle) -> Result<Capture, String> {
 fn saved_view(view: &WorkspaceView, sample: Option<(String, Vec<(String, String)>)>) -> Result<Placed, String> {
   let (next, sampled) = match sample {
     Some((next, entries)) => (next, entries),
-    None if view.departure.observed => (view.next.clone(), view.departure.drafts.clone().ok_or("drafts")?),
+    // Only a workspace document that reported its activation owes a departure checkpoint.
+    None if view.departure.activation > 0.0 => (view.next.clone(), view.departure.drafts.clone().ok_or("drafts")?),
     None => (view.next.clone(), vec![]),
   };
   let mut drafts = view.departure.with_returning(sampled);
@@ -619,7 +624,7 @@ pub fn connect_local(app: &AppHandle, port: u16, page: Url, handed_over: bool) -
       // page once the switch settles. A successful switch leaves the remote in place.
       let _ = tauri::async_runtime::block_on(receive.recv());
     };
-    let outgoing = if same_origin { None } else { Some(capture(app)?) };
+    let outgoing = (!same_origin).then(|| capture(app));
     let (state, own, page) = (state.clone(), own.clone(), page.clone());
     let attached = tauri::async_runtime::block_on(on_ui(app.clone(), move |app| {
       if state.views.lock().unwrap().turn != turn {
@@ -627,7 +632,7 @@ pub fn connect_local(app: &AppHandle, port: u16, page: Url, handed_over: bool) -
       }
       if let Some(outgoing) = outgoing {
         let destination = Destination { desk: LOCAL.into(), own, url: page, problem: None, handed_over: previous.is_none() && handed_over };
-        mount(app, destination, turn, outgoing)
+        mount(app, destination, turn, outgoing?)
       } else {
         local_view(app).ok_or("window")?.navigate(page).map_err(|e| e.to_string())
       }
@@ -796,10 +801,6 @@ pub fn page_loaded(app: &AppHandle, label: &str, url: &Url) {
       let (app, label) = (app.clone(), label.to_string());
       thread::spawn(move || verify_load(&app, &label, token));
     }
-    if !window.departure.observed {
-      window.departure.observed = true;
-      windows.draft_generation += 1;
-    }
   }
 }
 
@@ -942,11 +943,25 @@ mod tests {
   use super::*;
 
   #[test]
+  fn status_keeps_the_saved_drafts_when_the_first_document_never_runs() {
+    let mut view = WorkspaceView {
+      label: "desk-1".into(), desk: "studio".into(), own: Own::Remote("https://studio".into()), next: "/p/lab".into(),
+      problem: Some("notLoaded"), drafts: vec![("seismic-drafts-lab".into(), "saved".into())], draft_checkpoint: None,
+      awaiting_drafts: true, departure: Departure::default(), loading: None,
+    };
+    let saved = saved_view(&view, None).unwrap();
+    assert_eq!(saved.drafts, view.drafts);
+    assert_eq!(saved.next, view.next);
+    view.departure.receive(1.0, None);
+    assert_eq!(saved_view(&view, None).err().as_deref(), Some("drafts"));
+  }
+
+  #[test]
   fn status_needs_the_latest_documents_departure_even_when_its_drafts_are_empty() {
     let mut departure = Departure::default();
     assert!(departure.receive(1.0, Some(vec![("seismic-drafts-shop".into(), "old".into())])));
     assert!(departure.receive(2.0, None));
-    assert!(departure.observed && departure.drafts.is_none());
+    assert!(departure.activation == 2.0 && departure.drafts.is_none());
     assert!(!departure.receive(1.0, Some(vec![])));
     assert!(departure.receive(2.0, Some(vec![])));
     assert!(!departure.receive(2.0, None));
@@ -1033,8 +1048,9 @@ mod tests {
 
   #[test]
   fn each_origin_gets_one_capability_family() {
-    assert_eq!(family(LOCAL, "http://127.0.0.1:4417"), "local-http---127-0-0-1-4417");
-    assert_eq!(family("studio", "https://[fd7a::2]:4417"), "desk-https----fd7a--2--4417");
+    assert_ne!(family("a", "https://studio.lab"), family("b", "https://studio-lab"));
+    assert_eq!(family("a", "https://[fd7a::2]:4417"), family("b", "https://[fd7a::2]:4417"));
+    assert_ne!(family(LOCAL, "http://localhost"), family("a", "http://localhost"));
     assert_ne!(family(LOCAL, "http://127.0.0.1:4417"), family(LOCAL, "http://127.0.0.1:4418"));
   }
 

@@ -664,15 +664,21 @@ try {
     const status = await report('status', before, 40_000);
     expect(String(status.title).includes('does not answer') && status.windows === 1, JSON.stringify(status));
     expect((await desks()).problem === 'unreachable', 'the status page has no problem to show');
+    // No document ran at the attempted origin. The shell must be able to park its backup.
+    await select('local', 'local');
+    const offline = await select(id, 'status');
     const again = reports.length;
     proxy.server = startProxy();
     dropPage = true;
     send('retry_desk');
     const second = await report('status', again, 40_000);
-    expect(second.label === status.label && String(second.title).includes('does not answer'), JSON.stringify(second));
+    expect(second.label === offline.label && String(second.title).includes('does not answer'), JSON.stringify(second));
+    const beforeRestart = reports.length;
+    await relaunch();
+    const restored = await report('status', beforeRestart, 20_000);
     proxy.server = startProxy();
     const remote = await reconnect();
-    expect(remote.label === status.label && remote.projects === 200, JSON.stringify(remote));
+    expect(remote.label === restored.label && remote.projects === 200, JSON.stringify(remote));
   });
   await check("selecting this machine while its server does not answer keeps the current workspace", async () => {
     const remote = displayed()!;
