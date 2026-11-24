@@ -963,8 +963,9 @@ try {
       }
     }
   });
-  await check('switching to this machine checks that its server still answers after waiting for an upload', async () => {
+  await check('switching to this machine needs a fresh sign-in link after waiting for an upload', async () => {
     const label = displayed()?.label;
+    const key = join(home, 'owner.key');
     const hit = Promise.withResolvers<void>(), release = Promise.withResolvers<void>();
     imageUpload = async () => { hit.resolve(); await release.promise; return Response.json({ id: 'kept-while-offline' }); };
     try {
@@ -972,26 +973,22 @@ try {
       await Promise.race([hit.promise, sleep(5000).then(() => { throw new Error('no upload'); })]);
       const selection = send('open_desk', { id: 'local' });
       await decideAttachment('Switch after upload');
-      await appApi('/api/stop').catch(() => null);
-      await until('the local server to stop during the upload', 15_000, () => !entry());
-      release.resolve();
-      const result = await until('the local selection to finish', 5000, () => done.get(selection));
-      expect(result.error === 'unreachable' && displayed()?.label === label, JSON.stringify(result));
+      // Keep the same server and port, but make a new sign-in request fail.
+      renameSync(key, key + '.held');
+      try {
+        release.resolve();
+        const result = await until('the local selection to finish', 5000, () => done.get(selection));
+        expect(result.error === 'unreachable' && displayed()?.label === label, JSON.stringify(result));
+      } finally {
+        renameSync(key + '.held', key);
+      }
       expect((await run('check_eval', { js: "JSON.stringify(Object.entries(sessionStorage))" })).value?.toString().includes('kept-while-offline'), 'the remote draft lost its screenshot');
     } finally {
       imageUpload = undefined;
       release.resolve();
     }
-    const port = free();
-    terminal = Bun.spawn([process.execPath, join(ROOT, 'src', 'server', 'main.ts'), '--port', String(port)], {
-      env, stdout: 'ignore', stderr: 'ignore',
-    });
-    await until('the restarted local server', 15_000, () => entry()?.url.endsWith(':' + port));
-    await until('the restarted local workspace to become selectable', 10_000, async () => {
-      if (displayed()?.kind === 'local') return true;
-      await select('local', 'local');
-      return true;
-    });
+    await select('local', 'local');
+    await select(id, 'remote');
   });
   liveComposer = false;
   await check('removing a workspace cancels a pending switch without closing the window', async () => {
