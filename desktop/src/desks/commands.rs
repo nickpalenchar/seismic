@@ -1,7 +1,7 @@
 // The active workspace can list or switch workspaces. Only this machine's page can change the list.
 // An error is a code the pages turn into words: `address` (no address of a Seismic), `known` (a
 // workspace is at that origin already), `unknown`, `local` (this machine's workspace stays),
-// `unsaved`, and from a pairing `wrongCode`, `codeExpired`, `onThisMachine`, `unreachable`,
+// `unsaved`, `page` (a page of this machine's that may not be asked for), and from a pairing `wrongCode`, `codeExpired`, `onThisMachine`, `unreachable`,
 // `notSeismic`, `elsewhere` (the link led to another origin), `invalid`.
 
 use serde_json::{json, Value};
@@ -30,15 +30,23 @@ pub fn desks(app: AppHandle, webview: Webview) -> Value {
   shell(&app).view(webview.label())
 }
 
-/// Selects the workspace in the same native window.
+/// This machine's page `page` names: its workspaces page (`/workspaces`, with a query or none).
+pub fn workspaces_page(page: &str) -> bool {
+  page == "/workspaces" || page.starts_with("/workspaces?")
+}
+
+/// Selects the workspace in the same native window; this machine's at `page`, its workspaces page.
 #[tauri::command]
-pub async fn open_desk(app: AppHandle, webview: Webview, id: String) -> Result<(), String> {
+pub async fn open_desk(app: AppHandle, webview: Webview, id: String, page: Option<String>) -> Result<(), String> {
+  if page.as_deref().is_some_and(|p| id != super::LOCAL || !workspaces_page(p)) {
+    return Err("page".into());
+  }
   let (send, mut receive) = tauri::async_runtime::channel(1);
   on_ui(app, move |app| {
     if !shell(app).is_current(webview.label()) {
       return Err("superseded".into());
     }
-    open(app, &id, false, Some(send))
+    open(app, &id, false, Some(send), page)
   }).await?;
   receive.recv().await.ok_or_else(|| "window".to_string())?
 }

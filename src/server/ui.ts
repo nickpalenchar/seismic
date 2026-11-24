@@ -52,5 +52,5 @@ async function serve(req: Request, page = false) {
 export function uiRoutes(development: boolean) {
   // Keep Bun's native HMR in hot mode. A compiled HTML manifest is already split at build time.
   const page = development || index.files ? index : (req: Request) => serve(req, true);
-  return { '/': page, '/p/*': page, '/c/*': page, [`${BASE}*`]: (req: Request) => index.files ? new Response('not found', { status: 404 }) : serve(req) };
+  return { '/': page, '/p/*': page, '/c/*': page, '/workspaces': page, [`${BASE}*`]: (req: Request) => index.files ? new Response('not found', { status: 404 }) : serve(req) };
 }

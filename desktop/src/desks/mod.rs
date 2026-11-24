@@ -675,7 +675,7 @@ fn mount(app: &AppHandle, target: Destination, turn: u64, mut outgoing: Capture)
 pub fn restore_selected(app: &AppHandle) -> Result<(), String> {
   let restore = shell(app).views.lock().unwrap().restore.clone();
   if let Some(id) = restore {
-    open(app, &id, true, None)?;
+    open(app, &id, true, None, None)?;
   }
   Ok(())
 }
@@ -760,7 +760,9 @@ pub fn connect_local(app: &AppHandle, port: u16, page: Url, handed_over: bool) -
 
 /// Select one workspace. The last selection wins, even when earlier health checks
 /// are still running. Repeated selections of the same destination share its result.
-pub fn open(app: &AppHandle, id: &str, handed_over: bool, waiter: Option<OpenWaiter>) -> Result<(), String> {
+/// Selects workspace `id` in the window, at its last page; this machine's at `page` where one is given
+/// (`/workspaces…`, which a remote page's switcher and the menu lead to).
+pub fn open(app: &AppHandle, id: &str, handed_over: bool, waiter: Option<OpenWaiter>, page: Option<String>) -> Result<(), String> {
   let state = shell(app);
   let origin = state.desks.lock().unwrap().get(id).ok_or("unknown")?.origin.clone();
   let (turn, revision) = {
@@ -777,7 +779,12 @@ pub fn open(app: &AppHandle, id: &str, handed_over: bool, waiter: Option<OpenWai
       if let Some(waiter) = waiter {
         let _ = waiter.try_send(Ok(()));
       }
+      let label = views.label().to_string();
       drop(views);
+      // the page shown already goes there itself, keeping what it has open (src/ui/desks/shell.ts)
+      if let (Some(page), Some(w)) = (page.as_ref(), app.get_webview(&label)) {
+        let _ = w.eval(format!("window.dispatchEvent(new CustomEvent('seismic-desk-page', {{ detail: {} }}))", json!(page)));
+      }
       crate::menu::refresh(app);
       return Ok(());
     }
@@ -807,7 +814,8 @@ pub fn open(app: &AppHandle, id: &str, handed_over: bool, waiter: Option<OpenWai
             // The local server can stop or move while the outgoing page waits.
             let (port, next) = {
               let views = state.views.lock().unwrap();
-              (views.local_port, views.parked.get(&id).map_or_else(|| "/".into(), |p| p.next.clone()))
+              let next = page.clone().unwrap_or_else(|| views.parked.get(&id).map_or_else(|| "/".into(), |p| p.next.clone()));
+              (views.local_port, next)
             };
             Ok((None, Some((port, port.and_then(|port| crate::sign_in_link(port, &next, false))))))
           }

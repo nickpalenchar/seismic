@@ -4,6 +4,7 @@ import { AttachmentSwitchDialog, attachmentSwitch } from './attachmentSwitch';
 import { App } from './App';
 import { UiRoot } from './components/ui';
 import { upgradeAddress } from './address';
+import { followShell } from './desks/shell';
 import { handOver, restartHeld, snapshotSession, takeHandOver } from './api';
 import { restoreDraftOverflow } from './draftSession';
 import { takeAppDrops } from './appDrop';
@@ -11,6 +12,7 @@ import { pinAboveKeyboard } from './keyboard';
 import { loadLanguageAndTheme } from './theme';
 
 upgradeAddress();
+followShell();
 if (window.seismicApp) {
   window.seismicAttachmentSwitch = attachmentSwitch;
   window.seismicHandOver = handOver;

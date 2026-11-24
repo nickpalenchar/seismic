@@ -25,6 +25,8 @@ import { CheckLabel } from '../../components/check-label';
 import { Badge } from '../../components/badge';
 import { Spinner } from '../../components/spinner';
 import { SeismicAgentStep } from './seismicAgent';
+import { askAgain, HowStep, setUpHereChosen } from './how';
+import { inApp } from '../../desks/shell';
 import { Callout, CalloutDescription, type CalloutKind, CalloutTitle } from '../../components/callout';
 import { Check, CircleCheck, Info, TriangleAlert } from 'lucide-react';
 import { Input } from '../../components/input';
@@ -333,6 +335,8 @@ export function Setup({ first, onClose, wizard, notice }: { first?: boolean; onC
   const [connectionsError, setConnectionsError] = useState('');
   const [connectionsAttempt, setConnectionsAttempt] = useState(0);
   const reopened = !first && !wizard;
+  // in the desktop app the first start asks first how Seismic is to be used (how.tsx)
+  const [asking, setAsking] = useState(() => !!first && inApp() && !setUpHereChosen());
   useEffect(() => {
     if (!reopened) return;
     let revision = 0;
@@ -701,6 +705,8 @@ export function Setup({ first, onClose, wizard, notice }: { first?: boolean; onC
     );
   }
 
+  if (asking) return <SetupShell first><HowStep onHere={() => setAsking(false)} /></SetupShell>;
+
   return (
     <SetupShell first={first} onClose={onClose}>
         <header ref={top} className={cn('setup-head scroll-mt-14 flex items-center gap-3.5', !first && 'flex-none pr-7')}>
@@ -749,6 +755,11 @@ export function Setup({ first, onClose, wizard, notice }: { first?: boolean; onC
                 callout={configured.length ? 'success' : 'info'}
                 text={!configured.length ? s.proceed.none : configured.length === 1 ? s.proceed.one(s.agentNames[configured[0]!]) : s.proceed.many(configured.length)}
               >
+                {first && inApp() && (
+                  <Button size="small" onClick={() => (askAgain(), setAsking(true))}>
+                    {s.back}
+                  </Button>
+                )}
                 <Button variant="primary" disabled={!configured.length} onClick={() => go('seismic')}>
                   {s.next}
                 </Button>

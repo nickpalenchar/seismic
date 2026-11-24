@@ -669,7 +669,11 @@ fn main() {
             }
           }
         } else if let Some(desk) = id.strip_prefix(menu::DESK) {
-          if desks::open(app, desk, false, None).is_ok() {
+          if desks::open(app, desk, false, None, None).is_ok() {
+            show(app);
+          }
+        } else if id == menu::NEW_DESK {
+          if desks::open(app, desks::LOCAL, false, None, Some("/workspaces?new".into())).is_ok() {
             show(app);
           }
         } else if id == "quit" && !quit(app, &for_menu) {

@@ -1,10 +1,10 @@
 // The macOS menu: the system's default one, with "Open in Browser" in File, a Quit that stops
-// Seismic first, and the workspaces in a menu of their own (⌃⌘1 … 9), with the current one checked.
+// Seismic first, and the workspaces in a menu of their own (⌃⌘1 … 9), with the current one checked, and "New Workspace…".
 
 use std::sync::Arc;
 
 use tauri::{
-  menu::{CheckMenuItem, Menu, MenuItem, MenuItemKind, Submenu},
+  menu::{CheckMenuItem, Menu, MenuItem, MenuItemKind, PredefinedMenuItem, Submenu},
   AppHandle, Manager,
 };
 
@@ -12,6 +12,8 @@ use crate::desks::Shell;
 
 /// The id of the menu item of workspace `id`.
 pub const DESK: &str = "desk:";
+/// The id of "New Workspace…", which opens this machine's workspaces page with the form to pair one.
+pub const NEW_DESK: &str = "new-desk";
 
 fn desks(app: &AppHandle) -> tauri::Result<Submenu<tauri::Wry>> {
   let shell = app.state::<Arc<Shell>>();
@@ -29,6 +31,8 @@ fn desks(app: &AppHandle) -> tauri::Result<Submenu<tauri::Wry>> {
       key.as_deref(),
     )?)?;
   }
+  menu.append(&PredefinedMenuItem::separator(app)?)?;
+  menu.append(&MenuItem::with_id(app, NEW_DESK, "New Workspace…", true, None::<&str>)?)?;
   Ok(menu)
 }
 

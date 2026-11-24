@@ -38,6 +38,8 @@ import { OpenPerformance, PerformanceDialog } from './performance';
 import { FeedbackLog } from './feedbackLog';
 import { LOG_KEYS, readLogQuery } from '../core/feedback-log';
 import { Setup } from './views/setup';
+import { WorkspacesPage } from './desks/page';
+import { inApp, WORKSPACES_PATH } from './desks/shell';
 import { phoneView } from './phoneEnvironment';
 import { PhoneNext } from './phoneNext';
 import { KoordinatorSheet } from './koordinator';
@@ -118,6 +120,8 @@ export function App() {
     const h = setTimeout(() => setProjects((c) => c ?? keptProjects()), quietAtStart ? 0 : 3000);
     return () => clearTimeout(h);
   }, []);
+  // this machine's workspaces page in the desktop app, with projects or none (desks/page.tsx)
+  if (!phone && inApp() && location.pathname === WORKSPACES_PATH) return <WorkspacesPage key={location.search} />;
   if (!projects) return <Splash offline={failed} />;
   // the project in the address, else the first
   const { project: wanted, page } = readAddress();

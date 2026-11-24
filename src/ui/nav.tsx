@@ -4,9 +4,11 @@
 // drops down under ☰, or stays docked as a sidebar on the left, the project the rest. On the phone the
 // same menu opens over the whole screen from the logo at the top left, with the entries the phone has a
 // view for. The floating row's project switcher lists the projects alone, while the menu is not docked.
-// What waits itself is in the inbox (src/ui/inbox.tsx), on every project at once.
+// What waits itself is in the inbox (src/ui/inbox.tsx), on every project at once. In the desktop app
+// the workspace switcher heads it (not on the phone): the Seismic the window shows, this machine's or
+// another's, the others a click away, and its cog to this machine's workspaces page (src/ui/desks/).
 
-import { Archive, ArrowLeft, Bot, Car, ChartLine, ChevronDown, ChevronRight, FileCheck, Inbox, ListOrdered, Menu as Menu_, PanelLeft, PanelLeftClose, Plus, ScrollText, Settings, SlidersHorizontal, Users, X } from 'lucide-react';
+import { Archive, ArrowLeft, Bot, Car, ChartLine, Check, ChevronDown, ChevronRight, Cog, FileCheck, Inbox, ListOrdered, Menu as Menu_, PanelLeft, PanelLeftClose, Plus, ScrollText, Settings, SlidersHorizontal, Users, X } from 'lucide-react';
 import { type ComponentProps, createContext, type ReactNode, type Ref, useContext, useLayoutEffect, useRef, useState } from 'react';
 import type { Canvas, ProjectInfo } from '../core/types';
 import { projectPath, switchTo } from './address';
@@ -22,6 +24,8 @@ import { PillButton } from './components/pill';
 import { cn } from 'cn';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from './components/sidebar';
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle } from './components/sheet';
+import { DeskIcon } from './desks/page';
+import { currentDesk, deskError, desks, openWorkspaces, useDesks } from './desks/shell';
 
 // the looks the menu's pieces share, docked or dropped down
 const list = 'm-0 list-none p-0';
@@ -297,7 +301,7 @@ export function PhoneNavSheet({ open, onOpenChange, ...p }: MenuProps & { open: 
         </div>
         {/* the sidebar's entries are its buttons; a tap on one does its action and closes the sheet */}
         <SidebarProvider open className="contents text-lg [&_[data-sidebar=menu-button]]:min-h-11 [&_[data-sidebar=menu-button]]:text-base">
-          <MenuBody {...p} />
+          <MenuBody {...p} phone />
         </SidebarProvider>
       </SheetContent>
     </Sheet>
@@ -305,7 +309,7 @@ export function PhoneNavSheet({ open, onOpenChange, ...p }: MenuProps & { open: 
 }
 
 /** The menu's two pages, the main one and "Configure agents", the second sliding in over the first. */
-function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean; titlebar?: boolean }) {
+function MenuBody({ floating, titlebar, phone, ...p }: MenuProps & { floating?: boolean; titlebar?: boolean; phone?: boolean }) {
   const [page, setPage] = useState<'main' | 'agents' | 'inbox'>('main');
   const previousPage = useRef(page);
   const configureButton = useRef<HTMLButtonElement>(null);
@@ -353,6 +357,7 @@ function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean
           {!titlebar && <NavList className={cn(list, 'min-w-0 flex-1')}>{inbox}</NavList>}
           {pin}
         </div>
+        {!phone && <DeskSwitcher />}
         <NavList className={list}>
           {titlebar && inbox}
           {hasAgentsPage && <Entry icon={<Bot size={16} strokeWidth={2} aria-hidden />} label={m.configureAgents} focusRef={configureButton} keep onClick={() => setPage('agents')} end={<ChevronRight size={16} strokeWidth={2} className="ml-auto flex-none text-muted-foreground" aria-hidden />} />}
@@ -435,6 +440,54 @@ function MenuBody({ floating, titlebar, ...p }: MenuProps & { floating?: boolean
         )}
       </div>
       </InMenu.Provider>
+    </div>
+  );
+}
+
+/**
+ * The workspace switcher, in the desktop app alone: the workspace the window shows (its name, this
+ * machine or remote), a click away from the others and "New workspace"; its cog opens that
+ * workspace's dialog on this machine's workspaces page.
+ */
+function DeskSwitcher() {
+  const all = useDesks();
+  const [open, setOpen] = useState(false);
+  const [problem, setProblem] = useState('');
+  const shown = currentDesk(all);
+  if (!all || !shown) return null;
+  const w = t.desks;
+  const failed = (about = '') => (e: unknown) => setProblem(deskError(e, about));
+  return (
+    <div className="desk-switcher mt-1 mb-2 rounded-md border border-border">
+      <div className="flex items-center gap-1 p-1">
+        <Act sidebarItem={false} keep className={cn(rowButton, 'min-w-0 flex-1 px-2 text-foreground')} tip={w.switcher} aria-expanded={open} onAct={() => (setOpen(!open), setProblem(''))}>
+          <DeskIcon desk={shown} size={15} />
+          <b className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{shown.name}</b>
+          <span className="flex-none text-xs text-muted-foreground">{shown.local ? w.thisMachine : w.remote}</span>
+          <ChevronDown size={14} strokeWidth={2} className={cn('ml-auto text-muted-foreground transition-transform', open && 'rotate-180')} aria-hidden />
+        </Act>
+        <Act sidebarItem={false} className="grid size-[30px] flex-none cursor-pointer place-items-center rounded-xs bg-transparent p-0 text-muted-foreground hover:bg-muted hover:text-foreground data-highlighted:bg-muted" tip={w.settings} aria-label={w.settings} onAct={() => void openWorkspaces(all, `?edit=${encodeURIComponent(shown.id)}`).catch(failed())}>
+          <Cog size={16} strokeWidth={2} aria-hidden />
+        </Act>
+      </div>
+      {open && (
+        <NavList className={cn(list, 'border-t border-border p-1')}>
+          {all.list.map((d) => (
+            <Entry
+              key={d.id}
+              sub
+              keep={d.id === shown.id}
+              icon={<DeskIcon desk={d} size={15} />}
+              label={d.name}
+              on={d.id === shown.id}
+              end={<span className="ml-auto flex flex-none items-center gap-1.5 text-xs text-muted-foreground">{d.local ? w.thisMachine : w.remote}{d.id === shown.id ? <Check size={14} strokeWidth={2.25} aria-hidden /> : <span className="w-3.5" />}</span>}
+              onClick={() => d.id !== shown.id && void desks.open(d.id).catch(failed(d.origin ?? ''))}
+            />
+          ))}
+          <Entry sub icon={<Plus size={15} strokeWidth={2} aria-hidden />} label={w.newDesk} onClick={() => void openWorkspaces(all, '?new').catch(failed())} />
+        </NavList>
+      )}
+      {problem && <p role="alert" className="m-0 px-2.5 pb-2 text-xs text-destructive [overflow-wrap:anywhere]">{problem}</p>}
     </div>
   );
 }
