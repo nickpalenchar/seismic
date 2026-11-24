@@ -1,7 +1,4 @@
-// The app's windows: one per workspace (docs/plan/remote-workspaces.md), each with the one origin
-// it shows for its life (`Own`): this machine's Seismic (`main-<n>`) or a remote one's (`desk-<n>`).
-// Besides it a window may show only the pages the shell bundles (desktop/ui: the start page, the
-// status page of a workspace that does not answer).
+// One native window hosts the current workspace. Each attached webview has a fixed origin.
 //
 // - The navigation guard keeps the window on its origin. Rejected navigations and remote popups
 //   share one browser handoff per second: a page could otherwise open a tab per frame it embeds.
@@ -17,12 +14,19 @@ mod microphone;
 pub mod placed;
 
 #[tauri::command]
-pub async fn workspace_start_dragging(window: tauri::Window) -> tauri::Result<()> {
-  window.start_dragging()
+pub async fn workspace_start_dragging(webview: Webview) -> tauri::Result<()> {
+  if !crate::desks::shell(webview.app_handle()).is_current(webview.label()) {
+    return Ok(());
+  }
+  webview.window().start_dragging()
 }
 
 #[tauri::command]
-pub async fn workspace_toggle_maximize(window: tauri::Window) -> tauri::Result<()> {
+pub async fn workspace_toggle_maximize(webview: Webview) -> tauri::Result<()> {
+  if !crate::desks::shell(webview.app_handle()).is_current(webview.label()) {
+    return Ok(());
+  }
+  let window = webview.window();
   if window.is_resizable()? {
     if window.is_maximized()? {
       window.unmaximize()?;
@@ -41,15 +45,16 @@ use std::{
 };
 
 use tauri::{
-  webview::{DownloadEvent, NewWindowResponse, PageLoadEvent},
-  AppHandle, Manager, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
+  webview::{DownloadEvent, NewWindowResponse, PageLoadEvent, WebviewBuilder},
+  window::WindowBuilder,
+  AppHandle, Manager, PhysicalPosition, Url, Webview, WebviewEvent, WebviewUrl, Window,
 };
 
 use crate::{open_in_browser, open_outside, seismic_env};
 use placed::Placed;
 
-/// The origin a window shows for its life.
-#[derive(Clone)]
+/// The origin a webview shows for its life.
+#[derive(Clone, PartialEq, Eq)]
 pub enum Own {
   /// This machine's server at a fixed port. The startup window has no server origin.
   Local(Option<u16>),
@@ -72,7 +77,10 @@ impl Own {
 
   /// Whether the window may show `url`: its origin's page, or one the shell bundles.
   pub fn admits(&self, url: &Url) -> bool {
-    bundled(url) || self.at(url)
+    self.at(url) || bundled(url) && match self {
+      Own::Local(_) => matches!(url.path(), "/" | "/index.html"),
+      Own::Remote(_) => *url == bundled_url("/status.html"),
+    }
   }
 }
 
@@ -140,7 +148,7 @@ fn free_name(dir: &Path, name: &str) -> PathBuf {
 }
 
 /// Shows a restored window on the UI thread without activating a background window.
-pub fn show_placed(w: &WebviewWindow, placed: Option<&Placed>, focus: bool) -> tauri::Result<()> {
+pub fn show_placed(w: &Window, placed: Option<&Placed>, focus: bool) -> tauri::Result<()> {
   let minimized = placed.is_some_and(|p| p.minimized);
   let focus = focus && !minimized;
   let fullscreen = placed.is_some_and(|p| p.fullscreen);
@@ -151,7 +159,7 @@ pub fn show_placed(w: &WebviewWindow, placed: Option<&Placed>, focus: bool) -> t
     let pending = std::sync::atomic::AtomicBool::new(true);
     w.on_window_event(move |event| {
       if matches!(event, tauri::WindowEvent::Focused(true)) && pending.swap(false, std::sync::atomic::Ordering::Relaxed) {
-        if let Some(window) = app.get_webview_window(&label) {
+        if let Some(window) = app.get_window(&label) {
           let _ = window.set_fullscreen(true);
         }
       }
@@ -177,13 +185,13 @@ pub fn show_placed(w: &WebviewWindow, placed: Option<&Placed>, focus: bool) -> t
 }
 
 #[cfg(not(windows))]
-fn show_minimized(w: &WebviewWindow) -> tauri::Result<()> {
+fn show_minimized(w: &Window) -> tauri::Result<()> {
   show_background(w)?;
   w.minimize()
 }
 
 #[cfg(windows)]
-fn show_minimized(w: &WebviewWindow) -> tauri::Result<()> {
+fn show_minimized(w: &Window) -> tauri::Result<()> {
   use windows_sys::Win32::UI::WindowsAndMessaging::{GetWindowPlacement, SetWindowPlacement, WINDOWPLACEMENT, SW_SHOWMINNOACTIVE};
   let hwnd = w.hwnd()?.0;
   let mut placement = WINDOWPLACEMENT { length: std::mem::size_of::<WINDOWPLACEMENT>() as u32, ..Default::default() };
@@ -198,8 +206,8 @@ fn show_minimized(w: &WebviewWindow) -> tauri::Result<()> {
 }
 
 #[cfg(target_os = "macos")]
-fn show_background(w: &WebviewWindow) -> tauri::Result<()> {
-  // Tao's show makes the window key. Order it behind the other workspace windows.
+fn show_background(w: &Window) -> tauri::Result<()> {
+  // Tao's show makes the window key. Keep it behind the app the owner is using.
   unsafe {
     let window = &*w.ns_window()?.cast::<objc2::runtime::AnyObject>();
     let _: () = objc2::msg_send![window, orderBack: std::ptr::null::<objc2::runtime::AnyObject>()];
@@ -208,7 +216,7 @@ fn show_background(w: &WebviewWindow) -> tauri::Result<()> {
 }
 
 #[cfg(windows)]
-fn show_background(w: &WebviewWindow) -> tauri::Result<()> {
+fn show_background(w: &Window) -> tauri::Result<()> {
   use windows_sys::Win32::UI::WindowsAndMessaging::{SetWindowPos, HWND_BOTTOM, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW};
   let flags = SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW;
   if unsafe { SetWindowPos(w.hwnd()?.0, HWND_BOTTOM, 0, 0, 0, 0, flags) } == 0 {
@@ -218,15 +226,38 @@ fn show_background(w: &WebviewWindow) -> tauri::Result<()> {
 }
 
 #[cfg(target_os = "linux")]
-fn show_background(w: &WebviewWindow) -> tauri::Result<()> {
+fn show_background(w: &Window) -> tauri::Result<()> {
   use gtk::prelude::GtkWindowExt;
   w.gtk_window()?.set_focus_on_map(false);
   w.show()
 }
 
-/// Creates a hidden, inert window on the UI thread. The caller can navigate and show it once the
-/// native guards are installed and the window is ready to receive commands.
-pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, handed_over: bool) -> tauri::Result<WebviewWindow> {
+/// Builds the single native window. Workspace changes leave this window in place.
+pub fn create(app: &AppHandle, placed: Option<&Placed>) -> tauri::Result<Window> {
+  let mut config = tauri::utils::config::WindowConfig {
+    label: crate::desks::WINDOW.into(), title: "Seismic".into(), visible: false,
+    width: 1440.0, height: 900.0, min_width: Some(720.0), min_height: Some(480.0),
+    ..Default::default()
+  };
+  #[cfg(target_os = "macos")]
+  {
+    config.title_bar_style = tauri::TitleBarStyle::Overlay;
+    config.hidden_title = true;
+    config.traffic_light_position = Some(tauri::utils::config::LogicalPosition { x: 18.0, y: 27.0 });
+  }
+  if let Some(p) = placed {
+    config.focus = false;
+    config.x = Some(p.x);
+    config.y = Some(p.y);
+    config.width = p.width;
+    config.height = p.height;
+    config.maximized = p.maximized;
+  }
+  WindowBuilder::from_config(app, &config)?.build()
+}
+
+/// Attach a blank webview, with native guards installed before the first page loads.
+pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, handed_over: bool) -> tauri::Result<Webview> {
   let local = matches!(own, Own::Local(_));
   let (navigation, loaded) = (own.clone(), own.clone());
   let handoff = Arc::new(Handoff::default());
@@ -240,16 +271,11 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
   let message_key = uuid::Uuid::new_v4().to_string();
   #[cfg(not(target_os = "linux"))]
   let message_key = app.invoke_key();
-  let draft_script = match &own {
-    Own::Remote(origin) => Some(drafts::script(origin, placed, message_key.as_ref())),
-    Own::Local(_) => None,
-  };
+  let draft_script = own.origin().map(|origin| drafts::script(&origin, placed, message_key.as_ref()));
   let restoring_drafts = draft_script.is_some() && placed.is_some_and(|p| p.draft_checkpoint.is_some() || !p.drafts.is_empty());
-  let builder = WebviewWindowBuilder::new(app, label, WebviewUrl::External(blank))
-    .visible(false)
-    .title("Seismic")
-    .inner_size(1440.0, 900.0)
-    .min_inner_size(720.0, 480.0)
+  let builder = WebviewBuilder::new(label, WebviewUrl::External(blank))
+    .focused(false)
+    .auto_resize()
     .initialization_script(format!(
       "window.seismicApp = {{ version: {:?}, platform: {:?}, built: {}, handedOver: {} }};",
       app.package_info().version.to_string(),
@@ -305,7 +331,7 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
     .on_page_load(move |webview, payload| {
       if let PageLoadEvent::Finished = payload.event() {
         let own_page = loaded.at(payload.url());
-        if own_page && !local {
+        if own_page {
           crate::desks::page_loaded(webview.app_handle(), webview.label(), payload.url());
         }
         if restoring_drafts && own_page {
@@ -321,8 +347,9 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
         }
         // The check runs in the workspace and in the bundled status page.
         if let Some(check) = check.as_ref().filter(|_| own_page || (!local && bundled(payload.url()))) {
-          let minimized = webview.app_handle().get_webview_window(webview.label()).is_some_and(|w| w.is_minimized().unwrap_or(false));
-          let _ = webview.eval(format!("window.seismicCheckMinimized = {minimized}; import({check:?})"));
+          let minimized = webview.window().is_minimized().unwrap_or(false);
+          let windows = webview.app_handle().windows().len();
+          let _ = webview.eval(format!("window.seismicCheckMinimized = {minimized}; window.seismicCheckWindowCount = {windows}; import({check:?})"));
         }
       }
     });
@@ -333,22 +360,6 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
   // files dropped on this machine's page reach the shell, which hands their paths to it
   // (main.rs, `dragged`); a remote page gets them as a browser would, without this machine's paths
   let builder = if local { builder } else { builder.disable_drag_drop_handler() };
-  let builder = match placed {
-    Some(p) => builder
-      .focused(false)
-      .position(p.x, p.y)
-      .inner_size(p.width, p.height)
-      .maximized(p.maximized),
-    None => builder,
-  };
-  // on a Mac the window has no title bar of its own: the project's bar is it, with the traffic lights in it,
-  // centred on the bar's height (50 px, #bar in src/ui/App.tsx). tao makes the title bar the buttons'
-  // height plus y and leaves them 9 px above its bottom: the 14 px buttons' centre is y - 2 from the top
-  #[cfg(target_os = "macos")]
-  let builder = builder
-    .title_bar_style(tauri::TitleBarStyle::Overlay)
-    .hidden_title(true)
-    .traffic_light_position(tauri::LogicalPosition::new(18.0, 27.0));
   // WebView2 drops WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS when the app sets arguments of its own, as wry
   // does: they go together (scripts/check-app.ts gives it a fake microphone that way)
   #[cfg(windows)]
@@ -356,29 +367,47 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
     Ok(extra) => builder.additional_browser_args(&format!("--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection {extra}")),
     Err(_) => builder,
   };
-  let window = builder.build()?;
+  let window = app.get_window(crate::desks::WINDOW).ok_or(tauri::Error::WindowNotFound)?;
+  let webview = window.add_child(builder, PhysicalPosition::new(0, 0), window.inner_size()?)?;
+  if local {
+    let app = app.clone();
+    let label = label.to_string();
+    webview.on_webview_event(move |event| {
+      if let WebviewEvent::DragDrop(drag) = event {
+        if let Some(w) = crate::desks::local_view(&app).filter(|w| w.label() == label) {
+          crate::dragged(&w, drag);
+        }
+      }
+    });
+  }
   let installed = (|| {
     let hears = own.clone();
-    microphone::install(&window, Arc::new(move |url: &Url| hears.at(url)))?;
+    microphone::install(&webview, Arc::new(move |url: &Url| hears.at(url)))?;
     #[cfg(target_os = "linux")]
-    if !local {
-      drafts::install(&window, message_key)?;
+    if own.origin().is_some() {
+      drafts::install(&webview, message_key)?;
     }
     #[cfg(windows)]
-    guard_frames(&window, own)?;
+    guard_frames(&webview, own)?;
     Ok::<_, tauri::Error>(())
   })();
   if let Err(error) = installed {
-    let _ = window.destroy();
+    let _ = close(&webview);
     return Err(error);
   }
-  Ok(window)
+  Ok(webview)
+}
+
+pub fn close(webview: &Webview) -> tauri::Result<()> {
+  #[cfg(target_os = "macos")]
+  microphone::uninstall(webview);
+  webview.close()
 }
 
 /// WebView2 asks wry's hook for main-frame navigations alone (NavigationStarting): a frame's goes to
 /// FrameNavigationStarting, which the shell cancels unless it stays at the window's origin.
 #[cfg(windows)]
-fn guard_frames(window: &WebviewWindow, own: Own) -> tauri::Result<()> {
+fn guard_frames(window: &Window, own: Own) -> tauri::Result<()> {
   let (send, receive) = std::sync::mpsc::channel();
   window.with_webview(move |webview| {
     use webview2_com::{take_pwstr, NavigationStartingEventHandler};
@@ -406,7 +435,7 @@ fn guard_frames(window: &WebviewWindow, own: Own) -> tauri::Result<()> {
 }
 
 /// The window's page, where it is at the window's own origin: its path, query and fragment.
-pub fn page(w: &WebviewWindow, own: &Own) -> Option<String> {
+pub fn page(w: &Webview, own: &Own) -> Option<String> {
   w.url().ok().filter(|u| own.at(u)).map(|u| crate::next_of(&u))
 }
 
@@ -420,7 +449,7 @@ mod tests {
     let admits = |u: &str| own.admits(&Url::parse(u).unwrap());
     assert!(admits("https://studio/p/1?x#y"));
     assert!(admits(bundled_url("/status.html").as_str()));
-    assert!(admits(bundled_url("/index.html?updating").as_str()));
+    assert!(!admits(bundled_url("/index.html?updating").as_str()));
     assert!(!admits(bundled_url("/other.html").as_str()));
     assert_eq!(admits("tauri://localhost/status.html"), !cfg!(windows));
     assert_eq!(admits("http://tauri.localhost/status.html"), cfg!(windows));

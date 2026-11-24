@@ -5,7 +5,7 @@ use std::{
   sync::atomic::{AtomicBool, Ordering},
 };
 
-use tauri::{Url, WebviewWindow};
+use tauri::{Url, Webview};
 use webview2_com::{
   take_pwstr, GetNonDefaultPermissionSettingsCompletedHandler, Microsoft::Web::WebView2::Win32::*, PermissionRequestedEventHandler,
   SetPermissionStateCompletedHandler,
@@ -21,7 +21,7 @@ fn controlled(kind: COREWEBVIEW2_PERMISSION_KIND) -> bool {
   kind == COREWEBVIEW2_PERMISSION_KIND_MICROPHONE || kind == COREWEBVIEW2_PERMISSION_KIND_CAMERA
 }
 
-pub fn install(window: &WebviewWindow, hears: Hears) -> tauri::Result<()> {
+pub fn install(window: &Webview, hears: Hears) -> tauri::Result<()> {
   // Window construction runs on the UI thread, so with_webview delivers the controller here.
   // Pump messages to clear the profile only after the callback returns to release wry's borrow.
   thread_local! {

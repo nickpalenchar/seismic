@@ -16,7 +16,7 @@ use objc2::{
   sel,
 };
 use objc2_web_kit::{WKFrameInfo, WKMediaCaptureType, WKPermissionDecision, WKSecurityOrigin, WKWebView};
-use tauri::{webview::PlatformWebview, Url, WebviewWindow};
+use tauri::{webview::PlatformWebview, Url, Webview};
 
 use super::Hears;
 
@@ -28,12 +28,18 @@ thread_local! {
 /// The subclass's address: the class is registered once and lives for the program's life.
 static CLASS: OnceLock<usize> = OnceLock::new();
 
-pub fn install(window: &WebviewWindow, hears: Hears) -> tauri::Result<()> {
+pub fn install(window: &Webview, hears: Hears) -> tauri::Result<()> {
   let (send, receive) = mpsc::channel();
   window.with_webview(move |webview| {
     let _ = send.send(configure(webview, hears));
   })?;
   receive.try_recv().map_err(io::Error::other)?
+}
+
+pub fn uninstall(webview: &Webview) {
+  let _ = webview.with_webview(|webview| {
+    WINDOWS.with_borrow_mut(|windows| windows.remove(&(webview.inner() as usize)));
+  });
 }
 
 fn configure(webview: PlatformWebview, hears: Hears) -> tauri::Result<()> {

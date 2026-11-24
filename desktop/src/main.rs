@@ -58,7 +58,7 @@ use std::{
   time::{Duration, Instant},
 };
 
-use tauri::{AppHandle, DragDropEvent, Manager, PhysicalPosition, RunEvent, Url, WebviewWindow, WindowEvent};
+use tauri::{AppHandle, DragDropEvent, Manager, PhysicalPosition, RunEvent, Url, Webview, WindowEvent};
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 use window::{placed, Own};
 
@@ -228,10 +228,10 @@ fn pick_port() -> u16 {
 /// Files dragged over the window: the webview hands them to the app rather than the page (so the app
 /// learns their paths, which a page never does), and the app passes on to the page where the drag is
 /// and, at the drop, the paths (src/ui/appDrop.ts).
-fn dragged(w: &WebviewWindow, drag: &DragDropEvent) {
+fn dragged(w: &Webview, drag: &DragDropEvent) {
   // where, in the page's CSS pixels: Windows gives the window's own pixels, macOS and Linux points already
   let at = |p: &PhysicalPosition<f64>| {
-    let scale = if cfg!(windows) { w.scale_factor().unwrap_or(1.0) } else { 1.0 };
+    let scale = if cfg!(windows) { w.window().scale_factor().unwrap_or(1.0) } else { 1.0 };
     (p.x / scale, p.y / scale)
   };
   let js = match drag {
@@ -250,9 +250,8 @@ fn dragged(w: &WebviewWindow, drag: &DragDropEvent) {
   let _ = w.eval(js);
 }
 
-pub(crate) fn main_window(app: &AppHandle) -> Option<WebviewWindow> {
-  let shell = app.try_state::<Arc<desks::Shell>>()?;
-  app.get_webview_window(&shell.local().0)
+pub(crate) fn main_window(app: &AppHandle) -> Option<tauri::Window> {
+  app.get_window(desks::WINDOW)
 }
 
 fn show(app: &AppHandle) {
@@ -377,7 +376,7 @@ fn serve(app: AppHandle, seismic: Arc<Seismic>, updates: Arc<update::Updates>, h
         return;
       }
       // it ended for this shell to start it under itself: the window comes back on the page it showed
-      let page = main_window(&app).and_then(|w| window::page(&w, &Own::Local(Some(port))));
+      let page = desks::local_view(&app).and_then(|w| window::page(&w, &Own::Local(Some(port))));
       seismic.remember_page(page);
     }
     if let Started::Ended = start(&app, &seismic, &updates, &home, &attach) {
@@ -437,7 +436,7 @@ fn start(app: &AppHandle, seismic: &Seismic, updates: &update::Updates, home: &P
   update::server_ready(updates);
   match child.wait() {
     Ok(status) if status.code() == Some(update::EXIT) => {
-      let local_page = main_window(app).and_then(|w| window::page(&w, &Own::Local(Some(port))));
+      let local_page = desks::local_view(app).and_then(|w| window::page(&w, &Own::Local(Some(port))));
       seismic.remember_page(local_page);
       if matches!(update::install(app, seismic, updates), update::Installed::ResumeServer) {
         return Started::Retry;
@@ -487,7 +486,7 @@ fn watch(app: &AppHandle, seismic: &Seismic, home: &Path) -> bool {
 fn navigate(app: &AppHandle, seismic: &Seismic, port: u16, handed_over: bool) -> Result<(), String> {
   let next = seismic.first.lock().unwrap().take().unwrap_or_else(|| "/".into());
   let page = Url::parse(&login_link(port, &next, false)).map_err(|e| e.to_string())?;
-  tauri::async_runtime::block_on(desks::on_ui(app.clone(), move |app| desks::connect_local(app, port, page, handed_over)))?;
+  desks::connect_local(app, port, page, handed_over)?;
   seismic.port.store(port, Ordering::SeqCst);
   if seismic.stopping.load(Ordering::SeqCst) {
     http(port, "POST", "/api/stop");
@@ -520,12 +519,9 @@ pub(crate) fn now_ms() -> u64 {
 /// new ones take their place. Not while one is minimized or they are behind another app's windows,
 /// where the new windows would come up on top of what the owner works in.
 pub(crate) fn may_relaunch(app: &AppHandle) -> bool {
-  let windows: Vec<WebviewWindow> = app.webview_windows().into_values().collect();
-  // a minimized window counts as not visible on a Mac
-  let minimized = windows.iter().any(|w| w.is_minimized().unwrap_or(false));
-  let shown = windows.iter().any(|w| w.is_visible().unwrap_or(true));
-  let front = windows.iter().any(|w| w.is_focused().unwrap_or(false));
-  !minimized && (!shown || front)
+  main_window(app).is_some_and(|w| {
+    !w.is_minimized().unwrap_or(false) && (!w.is_visible().unwrap_or(true) || w.is_focused().unwrap_or(false))
+  })
 }
 
 /// Starts the shell again, whichever build is in its place now, with its windows as they were
@@ -539,7 +535,7 @@ pub(crate) fn relaunch(app: &AppHandle, seismic: &Seismic, _placed: &[placed::Pl
     // …/Seismic.app/Contents/MacOS/seismic
     let bundle = std::env::current_exe().ok().and_then(|e| Some(e.parent()?.parent()?.parent()?.to_path_buf()));
     if let Some(bundle) = bundle.filter(|b| b.extension().is_some_and(|x| x == "app")) {
-      let hidden = !_placed.iter().any(|p| p.visible && !p.minimized);
+      let hidden = placed::primary(_placed).is_some_and(|p| !p.visible || p.minimized);
       // Launch Services can still have the old app registered when its process is gone.
       let started = Command::new("/bin/sh")
         .args(["-c", r#"while kill -0 "$1" 2>/dev/null; do sleep 0.1; done; exec /usr/bin/open -n $3 "$2""#, "sh"])
@@ -568,7 +564,7 @@ fn main() {
   #[cfg(target_os = "macos")]
   let builder = {
     let windows = placed::peek(&home());
-    builder.activate_ignoring_other_apps(windows.is_empty() || windows.iter().any(|p| p.visible && !p.minimized))
+    builder.activate_ignoring_other_apps(placed::primary(&windows).is_none_or(|p| p.visible && !p.minimized))
   };
   let app = builder
     .plugin(tauri_plugin_single_instance::init(|app, _, _| show(app)))
@@ -596,11 +592,12 @@ fn main() {
       let handle = app.handle().clone();
       let _ = HOME.set(home());
       // The single-instance plugin initializes before setup. Only the primary consumes this.
-      let mut placed = placed::take(&home());
-      let main_placed = placed.first().filter(|p| p.desk == desks::LOCAL).cloned();
-      placed.retain(|p| p.desk != desks::LOCAL);
-      *for_setup.first.lock().unwrap() = main_placed.as_ref().map(|p| p.next.clone());
-      app.manage(Arc::new(desks::Shell::new(home())));
+      let saved = placed::take(&home());
+      let primary = placed::primary(&saved).cloned();
+      let local = saved.iter().find(|p| p.desk == desks::LOCAL);
+      *for_setup.first.lock().unwrap() = local.map(|p| p.next.clone());
+      let handed_over = local.is_some();
+      app.manage(Arc::new(desks::Shell::new(home(), saved)));
       if cfg!(target_os = "macos") {
         app.set_menu(menu::menu(&handle)?)?;
       }
@@ -608,30 +605,26 @@ fn main() {
       app.on_menu_event(move |app, event| {
         let id = event.id().as_ref();
         if id == "browser" {
-          let front = app.webview_windows().into_values().find(|w| w.is_focused().unwrap_or(false));
-          if let Some(w) = front.or_else(|| main_window(app)) {
-            let shell = desks::shell(app);
-            if let (Ok(url), Some((_, origin))) = (w.url(), shell.desk_of(w.label())) {
-              let port = origin.is_none().then(|| shell.local().1).flatten();
-              let own = origin.map_or(Own::Local(port), Own::Remote);
+          if let Some(w) = desks::active_view(app) {
+            if let (Ok(url), Some((_, own))) = (w.url(), desks::shell(app).desk_of(w.label())) {
+              let port = match &own { Own::Local(port) => *port, _ => None };
               if let Some(target) = window::browser_target(url, &own) {
                 open_outside(port, &target);
               }
             }
           }
         } else if let Some(desk) = id.strip_prefix(menu::DESK) {
-          let _ = desks::open(app, desk, None, None);
+          let _ = desks::open(app, desk, false, None);
         } else if id == "quit" && !quit(app, &for_menu) {
           app.exit(0);
         }
       });
-      let main = window::build(&handle, desks::STARTUP, Own::Local(None), main_placed.as_ref(), false)?;
-      main.navigate(window::bundled_url("/"))?;
-      window::show_placed(&main, main_placed.as_ref(), main_placed.as_ref().is_some_and(|p| p.focused))?;
-      desks::reopen(&handle, std::mem::take(&mut placed));
+      let native = window::create(&handle, primary.as_ref())?;
+      let startup = window::build(&handle, desks::STARTUP, Own::Local(None), None, false)?;
+      startup.navigate(window::bundled_url("/"))?;
+      window::show_placed(&native, primary.as_ref(), primary.as_ref().is_some_and(|p| p.focused))?;
       let updates = update::start(&handle, for_setup.clone());
       let seismic = for_setup.clone();
-      let handed_over = main_placed.is_some();
       thread::spawn(move || serve(handle, seismic, updates, handed_over));
       Ok(())
     })
@@ -647,7 +640,7 @@ fn main() {
       label,
       event: WindowEvent::CloseRequested { api, .. },
       ..
-    } if label == desks::shell(app).local().0 => {
+    } if label == desks::WINDOW => {
       api.prevent_close();
       if cfg!(target_os = "macos") {
         // as Mac apps do: the window goes, the app stays in the Dock
@@ -656,24 +649,6 @@ fn main() {
         }
       } else if !quit(app, &seismic) {
         app.exit(0);
-      }
-    }
-    // a remote workspace's window closes for good; opened again, it asks its workspace anew
-    RunEvent::WindowEvent { label, event: WindowEvent::Destroyed, .. } => {
-      if seismic_env("APP_CHECK").is_some() {
-        // The workspace check observes the runtime's Destroyed event independently of the list.
-        let _ = fs::write(home().join(format!("check-destroyed-{label}")), "");
-      }
-      desks::closed(app, &label);
-    }
-    RunEvent::WindowEvent { event: WindowEvent::Focused(true), .. } => menu::refresh(app),
-    RunEvent::WindowEvent {
-      label,
-      event: WindowEvent::DragDrop(drag),
-      ..
-    } if label == desks::shell(app).local().0 => {
-      if let Some(w) = main_window(app) {
-        dragged(&w, &drag);
       }
     }
     #[cfg(target_os = "macos")]

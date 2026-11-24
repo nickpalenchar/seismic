@@ -38,7 +38,7 @@ use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 use tauri_plugin_updater::{Update, UpdaterExt};
 
 use crate::window::placed::{self, Placed};
-use crate::{main_window, no_window, post, Seismic};
+use crate::{desks::local_view, no_window, post, Seismic};
 
 /// The exit code with which the server asks the shell to install the update (src/server/self-update.ts).
 pub const EXIT: i32 = 77;
@@ -226,7 +226,7 @@ fn start_again(app: &AppHandle, seismic: &Seismic, port: u16) -> io::Result<()> 
     return Ok(());
   }
   let token = format!("{}", crate::now_ms());
-  if let Some(w) = main_window(app) {
+  if let Some(w) = local_view(app) {
     let _ = w.eval(format!("window.seismicHandOver?.({token:?})"));
   }
   for _ in 0..25 {
@@ -311,7 +311,7 @@ fn snapshot_notice(app: &AppHandle, error: &io::Error, outcome: &str) {
   eprintln!("seismic: cannot save the windows for restart: {error}");
   app
     .dialog()
-    .message(format!("Seismic could not save its open windows for the update: {error}\n\n{outcome}"))
+    .message(format!("Seismic could not save its workspace for the update: {error}\n\n{outcome}"))
     .title("Seismic")
     .kind(MessageDialogKind::Error)
     .show(|_| {});
@@ -326,7 +326,7 @@ fn defer_snapshot(app: &AppHandle, updates: &Updates, error: &io::Error, outcome
 }
 
 fn resume_server(app: &AppHandle, updates: &Updates, error: &io::Error) -> Installed {
-  defer_snapshot(app, updates, error, "Seismic will restart the local server and keep your windows open.");
+  defer_snapshot(app, updates, error, "Seismic will restart the local server and keep your workspace open.");
   Installed::ResumeServer
 }
 
@@ -351,7 +351,7 @@ pub fn install(app: &AppHandle, seismic: &Seismic, updates: &Updates) -> Install
     placed::discard(&crate::home());
     return Installed::Restarting;
   }
-  if let Some(w) = main_window(app) {
+  if let Some(w) = local_view(app) {
     let _ = w.navigate(crate::window::bundled_url("/index.html?updating"));
   }
   if let Some(release) = ready.as_ref().filter(|r| r.bytes.is_some()) {

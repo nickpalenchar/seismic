@@ -1,7 +1,5 @@
-// The windows as the shell left them to start again (main.rs, `relaunch`), for the new one to open
-// them the same: which workspace each showed, where it stood and how large, the page at its origin.
-// A file in the home, taken once and only fresh. A shell from before the workspaces wrote its one
-// window to `app-window.json`, which counts as this machine's.
+// Relaunch state: one native placement, the selected workspace, and routes and drafts for
+// workspaces previously visited. Older multi-window snapshots remain readable.
 
 use std::{
   fs,
@@ -11,14 +9,15 @@ use std::{
 };
 
 use serde_json::{json, Value};
-use tauri::{LogicalPosition, LogicalSize, WebviewWindow};
+use tauri::{LogicalPosition, LogicalSize, Window};
 use uuid::Uuid;
 
-use super::{page, Own};
 use crate::{desks::LOCAL, now_ms};
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Placed {
+  /// This record owns the single native window. Older snapshots used the focused window.
+  pub primary: bool,
   /// The workspace's id on the list.
   pub desk: String,
   /// A remote one's origin: reopened only while the workspace is still there.
@@ -51,15 +50,12 @@ const FRESH: Duration = Duration::from_secs(60);
 const INSTALL_FRESH: Duration = Duration::from_secs(30 * 60);
 
 impl Placed {
-  pub fn of(w: &WebviewWindow, desk: &str, own: &Own, next: &str) -> Option<Placed> {
+  pub fn layout(w: &Window) -> Option<Placed> {
     let minimized = w.is_minimized().unwrap_or(false);
     let (at, size) = bounds(w, minimized)?;
     Some(Placed {
-      desk: desk.to_string(),
-      origin: match own {
-        Own::Local(_) => None,
-        Own::Remote(o) => Some(o.clone()),
-      },
+      primary: true,
+      desk: LOCAL.into(),
       x: at.x,
       y: at.y,
       width: size.width,
@@ -68,16 +64,15 @@ impl Placed {
       fullscreen: w.is_fullscreen().unwrap_or(false),
       minimized,
       visible: w.is_visible().unwrap_or(true),
-      next: page(w, own).unwrap_or_else(|| next.into()),
+      next: "/".into(),
       focused: w.is_focused().unwrap_or(false),
-      drafts: vec![],
-      draft_checkpoint: None,
+      ..Default::default()
     })
   }
 
   fn json(&self) -> Value {
     let mut value = json!({
-      "desk": self.desk, "origin": self.origin, "x": self.x, "y": self.y, "width": self.width, "height": self.height,
+      "primary": self.primary, "desk": self.desk, "origin": self.origin, "x": self.x, "y": self.y, "width": self.width, "height": self.height,
       "maximized": self.maximized, "fullscreen": self.fullscreen, "minimized": self.minimized,
       "visible": self.visible, "next": self.next, "focused": self.focused,
     });
@@ -94,6 +89,7 @@ impl Placed {
     let n = |k: &str| v[k].as_f64();
     let b = |k: &str| v[k].as_bool().unwrap_or(false);
     Some(Placed {
+      primary: b("primary"),
       desk: v["desk"].as_str().unwrap_or(LOCAL).to_string(),
       origin: v["origin"].as_str().map(String::from),
       x: n("x")?,
@@ -112,7 +108,7 @@ impl Placed {
   }
 }
 
-fn bounds(w: &WebviewWindow, minimized: bool) -> Option<(LogicalPosition<f64>, LogicalSize<f64>)> {
+fn bounds(w: &Window, minimized: bool) -> Option<(LogicalPosition<f64>, LogicalSize<f64>)> {
   #[cfg(windows)]
   if minimized {
     return restored_bounds(w);
@@ -124,7 +120,7 @@ fn bounds(w: &WebviewWindow, minimized: bool) -> Option<(LogicalPosition<f64>, L
 }
 
 #[cfg(windows)]
-fn restored_bounds(w: &WebviewWindow) -> Option<(LogicalPosition<f64>, LogicalSize<f64>)> {
+fn restored_bounds(w: &Window) -> Option<(LogicalPosition<f64>, LogicalSize<f64>)> {
   use windows_sys::Win32::{
     Foundation::RECT,
     UI::{HiDpi::AdjustWindowRectExForDpi, WindowsAndMessaging::*},
@@ -204,6 +200,14 @@ fn write_snapshot(home: &Path, windows: &[Placed], installer: bool, publish: boo
   result
 }
 
+/// Read the explicitly selected workspace, or migrate the focused legacy window.
+pub fn primary(saved: &[Placed]) -> Option<&Placed> {
+  saved.iter().find(|p| p.primary)
+    .or_else(|| saved.iter().find(|p| p.focused && p.visible && !p.minimized))
+    .or_else(|| saved.iter().find(|p| p.desk == LOCAL))
+    .or_else(|| saved.first())
+}
+
 /// The windows the shell before this one left, this machine's first; none where it left none lately.
 pub fn take(home: &Path) -> Vec<Placed> {
   read_saved(home, true)
@@ -251,6 +255,15 @@ fn read_saved(home: &Path, consume: bool) -> Vec<Placed> {
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  #[test]
+  fn the_selected_workspace_takes_precedence_over_legacy_window_focus() {
+    let local = Placed { desk: LOCAL.into(), focused: true, visible: true, ..Default::default() };
+    let mut remote = Placed { desk: "studio".into(), primary: true, ..Default::default() };
+    assert_eq!(primary(&[local.clone(), remote.clone()]).map(|p| p.desk.as_str()), Some("studio"));
+    remote.primary = false;
+    assert_eq!(primary(&[local, remote]).map(|p| p.desk.as_str()), Some(LOCAL));
+  }
 
   #[test]
   fn a_retry_probe_leaves_published_placements_alone_and_checks_a_blocked_target() {

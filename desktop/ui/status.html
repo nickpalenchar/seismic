@@ -1,6 +1,5 @@
 <!doctype html>
-<!-- What a remote workspace's window shows when the shell found it does not answer (src/desks/mod.rs):
-     try again, or open another workspace. The only page besides the workspace's own its window shows. -->
+<!-- What the app shows when the selected remote workspace does not answer. -->
 <html>
   <head>
     <meta charset="utf-8" />
@@ -30,7 +29,7 @@
       <h1 id="title">Seismic</h1>
       <p id="why"></p>
       <div class="row"><button id="retry" class="primary" type="button">Try again</button></div>
-      <h2 id="others-title" hidden>Open another workspace</h2>
+      <h2 id="others-title" hidden>Switch workspace</h2>
       <div id="others" class="row"></div>
       <p id="open-result" role="status"></p>
     </main>
@@ -49,13 +48,16 @@
         if (opening) return;
         opening = true;
         for (const button of buttons.values()) button.setAttribute('aria-disabled', 'true');
-        $('open-result').textContent = `Opening ${name} …`;
+        $('open-result').textContent = `Switching to ${name} …`;
         try {
           await invoke('open_desk', { id });
           $('open-result').textContent = '';
         } catch (error) {
           const currentName = buttons.get(id)?.textContent || name;
-          $('open-result').textContent = error === 'unknown' ? `${currentName} is no longer available.` : `Couldn’t open ${currentName}. Try again.`;
+          $('open-result').textContent = error === 'superseded' ? ''
+            : error === 'unknown' ? `${currentName} is no longer available.`
+            : error === 'drafts' ? 'Couldn’t save the drafts from this workspace. Reconnect it or use Forward to return to its page, then try again.'
+            : `Couldn’t switch to ${currentName}. Try again.`;
         } finally {
           opening = false;
           for (const button of buttons.values()) button.removeAttribute('aria-disabled');

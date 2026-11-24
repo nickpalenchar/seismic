@@ -8,27 +8,17 @@ use std::{
   time::{Duration, Instant},
 };
 
-use tauri::{AppHandle, Manager, WebviewWindow};
+use tauri::{AppHandle, Webview};
 
 use crate::{
   desks,
-  window::{drafts::SESSION_DRAFTS, Own},
+  window::{drafts::{self, SESSION_DRAFTS}, Own},
 };
 
-fn pages(app: &AppHandle) -> Option<Vec<(WebviewWindow, String)>> {
-  let mut pages = Vec::new();
-  for w in app.webview_windows().into_values() {
-    let Some((_, Some(origin))) = desks::shell(app).desk_of(w.label()) else {
-      continue;
-    };
-    // Status documents have no server or activity to query. Their placement keeps the
-    // workspace-origin checkpoint made when leaving the workspace page.
-    if Own::Remote(origin.clone()).at(&w.url().ok()?) {
-      pages.push((w, origin));
-    }
-  }
-  pages.sort_by(|(a, _), (b, _)| a.label().cmp(b.label()));
-  Some(pages)
+fn page(app: &AppHandle) -> Option<(Webview, Own)> {
+  let webview = desks::active_view(app)?;
+  let (_, own) = desks::shell(app).desk_of(webview.label())?;
+  own.at(&webview.url().ok()?).then_some((webview, own))
 }
 
 pub type Drafts = HashMap<String, Vec<(String, String)>>;
@@ -38,13 +28,19 @@ pub fn ready(app: &AppHandle, hand_over: bool) -> Option<Drafts> {
 }
 
 pub fn probe(app: &AppHandle, snapshot: bool, hand_over: bool) -> Option<Drafts> {
-  let windows = pages(app)?;
-  if windows.is_empty() {
+  let Some((w, own)) = page(app) else { return Some(HashMap::new()) };
+  let origin = own.origin()?;
+  if matches!(own, Own::Local(_)) {
+    // The local server is checked by the caller. Read drafts here, including when
+    // that server has already stopped and its page is still displaying.
+    if snapshot {
+      let (_, entries) = drafts::sample(&w, &origin, Duration::from_secs(2))?;
+      return Some(HashMap::from([(w.label().to_string(), entries)]));
+    }
     return Some(HashMap::new());
   }
   let token = crate::now_ms().to_string();
-  for (w, origin) in &windows {
-    let js = format!(
+  let js = format!(
       r#"(() => {{
         if (location.origin !== {origin:?}) return;
         const check = {{ token: {token:?}, ready: null }};
@@ -90,46 +86,30 @@ pub fn probe(app: &AppHandle, snapshot: bool, hand_over: bool) -> Option<Drafts>
         }})().then((ready) => {{ check.ready = ready; }}, () => {{ check.ready = false; }});
       }})()"#
     );
-    w.eval(js).ok()?;
-  }
+  w.eval(js).ok()?;
   let deadline = Instant::now() + Duration::from_secs(3);
   loop {
     let (send, receive) = mpsc::channel();
-    for (w, origin) in &windows {
-      let send = send.clone();
-      let label = w.label().to_string();
-      let js = format!(
-        r#"(() => {{
-          const check = window.seismicRebuildCheck;
-          if (location.origin !== {origin:?} || check?.token !== {token:?} || window.seismicRestartHeld?.()) return false;
-          // Keep an origin-scoped copy even after a successful server handover: it can expire
-          // during installation or before a workspace comes back online.
-          if (check.ready !== true || !{snapshot}) return check.ready;
-          return ({SESSION_DRAFTS})();
-        }})()"#
-      );
-      w.eval_with_callback(js, move |value| {
-        let _ = send.send((label.clone(), value));
-      })
-      .ok()?;
-    }
-    drop(send);
-    let mut all_ready = true;
-    let mut drafts = HashMap::new();
-    for _ in 0..windows.len() {
-      let (label, value) = receive.recv_timeout(deadline.saturating_duration_since(Instant::now())).ok()?;
-      match value.as_str() {
-        "true" => {}
-        "false" => return None,
-        "" | "null" => all_ready = false, // the fetch or handover is still in flight
-        _ => {
-          let entries: Vec<(String, String)> = serde_json::from_str(&value).ok()?;
-          drafts.insert(label, entries);
-        }
-      }
-    }
-    if all_ready {
-      return pages(app).is_some_and(|now| now == windows).then_some(drafts);
+    let js = format!(
+      r#"(() => {{
+        const check = window.seismicRebuildCheck;
+        if (location.origin !== {origin:?} || check?.token !== {token:?} || window.seismicRestartHeld?.()) return false;
+        if (check.ready !== true || !{snapshot}) return check.ready;
+        return ({SESSION_DRAFTS})();
+      }})()"#
+    );
+    w.eval_with_callback(js, move |value| {
+      let _ = send.send(value);
+    }).ok()?;
+    let value = receive.recv_timeout(deadline.saturating_duration_since(Instant::now())).ok()?;
+    let entries = match value.as_str() {
+      "false" => return None,
+      "" | "null" => None,
+      "true" => Some(HashMap::new()),
+      _ => Some(HashMap::from([(w.label().to_string(), serde_json::from_str(&value).ok()?)])),
+    };
+    if let Some(entries) = entries {
+      return (page(app) == Some((w, own))).then_some(entries);
     }
     if Instant::now() >= deadline {
       return None;

@@ -452,19 +452,23 @@ Safety rules:
   and WebKitGTK's media policy needs to see the first document commit (2026-11-23).
 - On macOS 11, WebKit's older media delegate only provides frame URLs. The desktop shell disables
   native media capture there because those URLs cannot prove the initiating frame's origin.
-- Tauri's runtime capability grants are tied to a window label and accumulate. The desktop shell
-  retires the local webview and uses a fresh label when its server changes ports, so each window
-  has one fixed origin for navigation, microphone access and native commands.
-  Title-bar commands act on the invoking window supplied by Tauri. The app grants no window
-  controls that resolve a caller-supplied target label.
-- A desktop shell rebuild waits for activity in every open workspace. A remote page asks its server
-  with its existing pairing and also contributes its own holds, which may not have reached that
-  server yet. Remote session handover is scoped to the paired device and origin.
+- The desktop app has one native window. Switching workspaces attaches a webview at the selected
+  workspace's origin, then retires the previous webview. The local server can change ports while a
+  remote workspace is displayed. It leaves the displayed workspace in place.
+- Tauri's runtime grants accumulate. Each attached webview gets a fresh label and an immutable
+  origin for navigation, microphone access and native commands. Title-bar commands act on the
+  invoking webview's window. The app grants no window controls that take a target label.
+- Before replacing a webview, the shell samples its last route and unsent drafts, including edits
+  held in memory when session storage is full. The shell keeps that copy for the workspace and
+  restores it only at its saved origin. A bundled status page uses the latest departure checkpoint.
+- A desktop rebuild checks the displayed remote workspace for activity. It asks the remote server
+  with its existing pairing and reads the page's own holds. Server handover is scoped to the paired
+  device and origin.
 - A workspace's IPv6 origin stays in canonical URL form on disk. Only the hostname's colons are
   escaped when the shell builds its native capability URL pattern.
-- The desktop app saves window placements before an installer can exit the shell, and only the
-  primary instance consumes them. The snapshot keeps an origin-scoped copy of unsent remote drafts
-  even when the server accepts handover, since its copy can expire before the workspace reopens.
+- The desktop app saves its selected workspace, window placement and unsent drafts before an
+  installer can exit the shell, and only the primary instance consumes the snapshot. It keeps
+  origin-scoped copies of unsent drafts even when the server accepts handover, since its copy can expire before the workspace reopens.
   If a restored page takes ownership of its draft after readiness sampling starts, the shell
   retries the capture before publishing a snapshot. An empty sample still counts as a sampled page.
   A workspace page also sends its drafts to its own native window before yielding to the status page.

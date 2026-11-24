@@ -19,6 +19,19 @@ pub const SESSION_DRAFTS: &str = r#"(entries) => {
     /^seismic-(drafts|markups|setting-draft|kept|wish|config-draft)-/.test(entry[0]));
 }"#;
 
+/// Read the current document's route and drafts before the old webview closes.
+pub fn sample(webview: &Webview, origin: &str, timeout: std::time::Duration) -> Option<(String, Vec<(String, String)>)> {
+  let (send, receive) = std::sync::mpsc::channel();
+  let script = format!(r#"location.origin === {} ? [location.href, ({SESSION_DRAFTS})()] : null"#, serde_json::json!(origin));
+  webview.eval_with_callback(script, move |value| {
+    let _ = send.send(value);
+  }).ok()?;
+  let text = receive.recv_timeout(timeout).ok()?;
+  let (url, entries): (String, Vec<(String, String)>) = serde_json::from_str(&text).ok()?;
+  let url = tauri::Url::parse(&url).ok()?;
+  (url.origin().ascii_serialization() == origin).then(|| (crate::next_of(&url), entries))
+}
+
 #[tauri::command]
 pub fn workspace_draft_checkpoint(app: AppHandle, webview: Webview, activation: f64, url: String, entries: Option<Vec<(String, String)>>, received: bool) {
   receive(&crate::desks::shell(&app), webview.label(), activation, &url, entries, received);
@@ -42,7 +55,7 @@ fn receive(shell: &crate::desks::Shell, label: &str, activation: f64, url: &str,
 }
 
 #[cfg(target_os = "linux")]
-pub fn install(window: &tauri::WebviewWindow, token: String) -> tauri::Result<()> {
+pub fn install(window: &tauri::Webview, token: String) -> tauri::Result<()> {
   use tauri::Manager;
   use webkit2gtk::{UserContentManagerExt, WebViewExt};
 
@@ -69,7 +82,6 @@ pub fn install(window: &tauri::WebviewWindow, token: String) -> tauri::Result<()
 }
 
 pub fn script(origin: &str, restore: Option<&Placed>, message_key: &str) -> String {
-  let restore = restore.filter(|p| p.origin.as_deref() == Some(origin));
   let checkpoint = restore.and_then(|p| p.draft_checkpoint).map(|id| id.to_string());
   let drafts = restore.map(|p| p.drafts.as_slice()).unwrap_or_default();
   format!(

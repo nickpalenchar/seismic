@@ -14,12 +14,12 @@ mod windows;
 
 use std::sync::Arc;
 
-use tauri::{Url, WebviewWindow};
+use tauri::{Url, Webview};
 
 /// Whether a page at that URL may have the microphone.
 pub type Hears = Arc<dyn Fn(&Url) -> bool + Send + Sync>;
 
-pub fn install(window: &WebviewWindow, hears: Hears) -> tauri::Result<()> {
+pub fn install(window: &Webview, hears: Hears) -> tauri::Result<()> {
   #[cfg(target_os = "macos")]
   macos::install(window, hears)?;
   #[cfg(windows)]
@@ -30,3 +30,6 @@ pub fn install(window: &WebviewWindow, hears: Hears) -> tauri::Result<()> {
   let _ = (window, hears);
   Ok(())
 }
+
+#[cfg(target_os = "macos")]
+pub use macos::uninstall;

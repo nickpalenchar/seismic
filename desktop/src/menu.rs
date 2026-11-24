@@ -1,6 +1,5 @@
 // The macOS menu: the system's default one, with "Open in Browser" in File, a Quit that stops
-// Seismic first, and the workspaces in a menu of their own (⌃⌘1 … 9), the one of the window in
-// front checked. Made anew whenever the list, the windows or the window in front change.
+// Seismic first, and the workspaces in a menu of their own (⌃⌘1 … 9), with the current one checked.
 
 use std::sync::Arc;
 
@@ -9,19 +8,14 @@ use tauri::{
   AppHandle, Manager,
 };
 
-use crate::desks::{Shell, LOCAL};
+use crate::desks::Shell;
 
 /// The id of the menu item of workspace `id`.
 pub const DESK: &str = "desk:";
 
 fn desks(app: &AppHandle) -> tauri::Result<Submenu<tauri::Wry>> {
   let shell = app.state::<Arc<Shell>>();
-  let front = app
-    .webview_windows()
-    .into_iter()
-    .find(|(_, w)| w.is_focused().unwrap_or(false))
-    .and_then(|(label, _)| shell.desk_of(&label))
-    .map_or_else(|| LOCAL.to_string(), |(id, _)| id);
+  let current = shell.current();
   let list = shell.desks.lock().unwrap().list.clone();
   let menu = Submenu::with_id(app, "desks", "Workspace", true)?;
   for (i, d) in list.iter().enumerate() {
@@ -31,7 +25,7 @@ fn desks(app: &AppHandle) -> tauri::Result<Submenu<tauri::Wry>> {
       format!("{DESK}{}", d.id),
       d.shown_name(shell.machine()),
       true,
-      d.id == front,
+      d.id == current,
       key.as_deref(),
     )?)?;
   }
