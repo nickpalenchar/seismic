@@ -455,6 +455,8 @@ Safety rules:
 - Tauri's runtime capability grants are tied to a window label and accumulate. The desktop shell
   retires the local webview and uses a fresh label when its server changes ports, so each window
   has one fixed origin for navigation, microphone access and native commands.
+  Title-bar commands act on the invoking window supplied by Tauri. The app grants no window
+  controls that resolve a caller-supplied target label.
 - A desktop shell rebuild waits for activity in every open workspace. A remote page asks its server
   with its existing pairing and also contributes its own holds, which may not have reached that
   server yet. Remote session handover is scoped to the paired device and origin.
@@ -465,9 +467,9 @@ Safety rules:
   even when the server accepts handover, since its copy can expire before the workspace reopens.
   If a restored page takes ownership of its draft after readiness sampling starts, the shell
   retries the capture before publishing a snapshot. An empty sample still counts as a sampled page.
-  A workspace page also checkpoints unsent work to its own webview profile when leaving the page.
-  While the window shows its bundled status screen, its placement carries the checkpoint ID.
-  Only a window restored from that placement can use the copy when it reaches the workspace origin.
+  A workspace page also sends its drafts to its own native window before yielding to the status page.
+  This copy uses native messaging so it does not depend on browser storage quota or a server connection.
+  An update that cannot confirm receipt keeps the windows alive and resumes the local server.
 - A restored workspace opens without taking focus unless it was the window the owner last used.
   Native show and fullscreen calls can activate a window, so the shell uses background presentation
   for the others and postpones fullscreen until they receive focus.

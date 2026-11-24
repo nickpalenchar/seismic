@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-workspace-draft-checkpoint"
+description = "Enables the workspace_draft_checkpoint command without any pre-configured scope."
+commands.allow = ["workspace_draft_checkpoint"]
+
+[[permission]]
+identifier = "deny-workspace-draft-checkpoint"
+description = "Denies the workspace_draft_checkpoint command without any pre-configured scope."
+commands.deny = ["workspace_draft_checkpoint"]

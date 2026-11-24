@@ -243,6 +243,7 @@ if (location.origin === ${JSON.stringify(REMOTE)} && document.getElementById('si
     await new Promise((r) => setTimeout(r, 50));
   }
   const out = { kind: 'remote', href: location.href, label: window.__TAURI_INTERNALS__.metadata.currentWindow.label, mounted: !!document.getElementById('root')?.firstElementChild, handedOver: window.seismicApp?.handedOver, previousSession: sessionStorage.getItem('check-workspace-session'), previousDraft: sessionStorage.getItem('seismic-drafts-check'), previousWish: sessionStorage.getItem('seismic-wish-check'), previousConfig: sessionStorage.getItem('seismic-config-draft-check') };
+  for (const key of Object.keys(localStorage)) if (key.startsWith('seismic-check-storage-fill-')) localStorage.removeItem(key);
   sessionStorage.setItem('check-workspace-session', 'kept');
   sessionStorage.setItem('seismic-wish-check', 'Unsent issue for Lab');
   sessionStorage.setItem('seismic-config-draft-check', 'Unapplied settings for Lab');
@@ -253,6 +254,8 @@ if (location.origin === ${JSON.stringify(REMOTE)} && document.getElementById('si
   out.rename = await outcome(invoke('rename_desk', { id: 'local', name: 'Taken over' }));
   out.remove = await outcome(invoke('remove_desk', { id: 'local' }));
   out.projects = (await fetch('/api/projects')).status;
+  out.genericWindowControl = await outcome(invoke('plugin:window|internal_toggle_maximize'));
+  out.genericDrag = await outcome(invoke('plugin:window|start_dragging'));
   await post('result', out);
   if ((await (await fetch(new URL('remember-page', base))).json()).now) {
     history.replaceState(null, '', ${JSON.stringify(LAST_PAGE)});
@@ -264,6 +267,18 @@ if (location.origin === ${JSON.stringify(REMOTE)} && document.getElementById('si
       sessionStorage.setItem('seismic-drafts-check', 'Edited just before Back');
       sessionStorage.setItem('seismic-wish-check', 'New issue just before Back');
       sessionStorage.setItem('seismic-config-draft-check', 'New settings just before Back');
+      const prefix = 'seismic-check-storage-fill-';
+      for (let size = 512 * 1024; size >= 16; size = Math.floor(size / 2)) {
+        for (let index = 0; index < 20; index++) {
+          try { localStorage.setItem(prefix + size + '-' + index, 'x'.repeat(size)); }
+          catch { break; }
+        }
+      }
+      let full = false;
+      try { localStorage.setItem('seismic-check-storage-probe', 'x'.repeat(512)); }
+      catch (error) { full = error.name === 'QuotaExceededError'; }
+      finally { localStorage.removeItem('seismic-check-storage-probe'); }
+      await post('result', { kind: 'profileQuota', full });
     }
     history.back();
   }
@@ -500,7 +515,7 @@ try {
     }
     expect((await desks()).current === 'local', 'the replacement window cannot use its local capability');
     if (process.platform === 'darwin') {
-      const drag = await run('plugin:window|start_dragging');
+      const drag = await run('workspace_start_dragging');
       expect(drag.ok, JSON.stringify(drag));
     }
     const polled = polls.get(oldLabel);
@@ -562,6 +577,11 @@ try {
     await check('the remote page cannot change the list', () => {
       for (const k of ['add', 'rename', 'remove']) expect(!first[k]!.ok && /not allowed/i.test(first[k]!.error ?? ''), `${k}: ${JSON.stringify(first[k])}`);
       return first.remove!.error;
+    });
+    await check('generic window controls are unavailable to a workspace', () => {
+      for (const control of [first.genericWindowControl, first.genericDrag]) {
+        expect(control?.ok === false && /not allowed/i.test(control.error ?? ''), JSON.stringify(control));
+      }
     });
   }
   if (process.platform === 'darwin') {
@@ -805,9 +825,10 @@ try {
       expect(reopened.projects === 200 && reopened.label === again.label, JSON.stringify(reopened));
       expect(reopened.href === `${REMOTE}${LAST_PAGE}`, `the history retry lost the saved page (${reopened.href})`);
     });
-    await check('drafts edited before Back survive two restarts on the status page', async () => {
+    await check('drafts survive two restarts from status with a full browser profile', async () => {
       try {
         await report('status', edited, 10_000);
+        expect((await report('profileQuota', edited, 5_000)).full === true, 'browser profile quota was not exhausted');
         expireServerHandover = true;
         const writes = acknowledgedHandovers;
         proxy.server?.stop(true);

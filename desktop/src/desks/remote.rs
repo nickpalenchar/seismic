@@ -3,10 +3,27 @@
 // (`POST /api/pair`, src/server/remote.ts `pairApi`), whose answer is a one-time login link for the
 // window to open.
 
-use std::time::Duration;
+use std::{io::Read, time::Duration};
 
 use serde_json::Value;
 use tauri::Url;
+
+const PROJECTS_LIMIT: u64 = 1024 * 1024;
+const PAIR_LIMIT: u64 = 16 * 1024;
+
+fn bounded_json(reader: impl Read, limit: u64) -> Option<Value> {
+  let mut bytes = Vec::new();
+  reader.take(limit + 1).read_to_end(&mut bytes).ok()?;
+  if bytes.len() as u64 > limit {
+    return None;
+  }
+  serde_json::from_slice(&bytes).ok()
+}
+
+fn response_json(response: ureq::Response, limit: u64) -> Option<Value> {
+  response.content_type().eq_ignore_ascii_case("application/json").then_some(())?;
+  bounded_json(response.into_reader(), limit)
+}
 
 fn agent() -> ureq::Agent {
   // no redirect: what answers at the address is what the window would show
@@ -47,8 +64,11 @@ pub fn health(origin: &str) -> Health {
   };
   let status = res.status();
   let projects = res.header("x-seismic").is_some_and(|value| value == "projects");
-  let json = res.content_type().eq_ignore_ascii_case("application/json");
-  let body = if json { res.into_json::<Value>().ok() } else { None };
+  let body = match (status, projects) {
+    (200, true) => response_json(res, PROJECTS_LIMIT),
+    (401, _) => response_json(res, PAIR_LIMIT),
+    _ => None,
+  };
   judge(status, projects, body.as_ref())
 }
 
@@ -73,11 +93,7 @@ pub fn pair(origin: &str, code: &str) -> Result<Url, &'static str> {
     Err(_) => return Err("unreachable"),
   };
   let status = res.status();
-  let body = if res.content_type().eq_ignore_ascii_case("application/json") {
-    res.into_json::<Value>().ok()
-  } else {
-    None
-  };
+  let body = response_json(res, PAIR_LIMIT);
   paired(origin, status, body.as_ref())
 }
 
@@ -104,6 +120,41 @@ fn paired(origin: &str, status: u16, body: Option<&Value>) -> Result<Url, &'stat
 mod tests {
   use super::*;
   use serde_json::json;
+  use std::{io::Write, net::TcpListener};
+
+  fn reply(header: &str, body: String) -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let origin = format!("http://{}", listener.local_addr().unwrap());
+    let header = header.to_string();
+    std::thread::spawn(move || {
+      let (mut stream, _) = listener.accept().unwrap();
+      let mut request = [0; 1024];
+      let _ = stream.read(&mut request);
+      // A chunked response does not advertise its size. The client can stop as soon as it hits its limit.
+      let _ = write!(stream, "HTTP/1.1 {header}\r\nTransfer-Encoding: chunked\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{:x}\r\n{body}\r\n0\r\n\r\n", body.len());
+    });
+    origin
+  }
+
+  #[test]
+  fn decoding_checks_the_entire_body_even_after_valid_json() {
+    assert_eq!(bounded_json(&b"[]  "[..], 4), Some(json!([])));
+    assert_eq!(bounded_json(&b"[]   "[..], 4), None);
+    let mut endless = std::io::repeat(b' ');
+    let mut body = (&b"[]"[..]).chain(&mut endless);
+    assert_eq!(bounded_json(&mut body, 4), None);
+    assert_eq!(bounded_json(&b"[broken"[..], 16), None);
+  }
+
+  #[test]
+  fn oversized_health_and_pairing_responses_use_the_normal_error_paths() {
+    let projects = reply("200 OK\r\nX-Seismic: projects", format!("[]{}", " ".repeat(PROJECTS_LIMIT as usize)));
+    assert_eq!(health(&projects), Health::NotSeismic);
+    let refused = reply("401 Unauthorized", format!(r#"{{"code":"notPaired"}}{}"#, " ".repeat(PAIR_LIMIT as usize)));
+    assert_eq!(health(&refused), Health::NotSeismic);
+    let pairing = reply("401 Unauthorized", format!(r#"{{"code":"wrongCode"}}{}"#, " ".repeat(PAIR_LIMIT as usize)));
+    assert_eq!(pair(&pairing, "123456"), Err("notSeismic"));
+  }
 
   #[test]
   fn seismic_answers_with_its_projects_or_its_refusal() {

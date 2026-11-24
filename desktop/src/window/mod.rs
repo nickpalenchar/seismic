@@ -16,6 +16,23 @@ pub mod drafts;
 mod microphone;
 pub mod placed;
 
+#[tauri::command]
+pub async fn workspace_start_dragging(window: tauri::Window) -> tauri::Result<()> {
+  window.start_dragging()
+}
+
+#[tauri::command]
+pub async fn workspace_toggle_maximize(window: tauri::Window) -> tauri::Result<()> {
+  if window.is_resizable()? {
+    if window.is_maximized()? {
+      window.unmaximize()?;
+    } else if window.is_maximizable()? {
+      window.maximize()?;
+    }
+  }
+  Ok(())
+}
+
 use std::{
   collections::HashMap,
   path::{Path, PathBuf},
@@ -27,7 +44,6 @@ use tauri::{
   webview::{DownloadEvent, NewWindowResponse, PageLoadEvent},
   AppHandle, Manager, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
 };
-use uuid::Uuid;
 
 use crate::{open_in_browser, open_outside, seismic_env};
 use placed::Placed;
@@ -210,7 +226,7 @@ fn show_background(w: &WebviewWindow) -> tauri::Result<()> {
 
 /// Creates a hidden, inert window on the UI thread. The caller can navigate and show it once the
 /// native guards are installed and the window is ready to receive commands.
-pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, handed_over: bool, draft_checkpoint: Option<Uuid>) -> tauri::Result<WebviewWindow> {
+pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, handed_over: bool) -> tauri::Result<WebviewWindow> {
   let local = matches!(own, Own::Local(_));
   let (navigation, loaded) = (own.clone(), own.clone());
   let handoff = Arc::new(Handoff::default());
@@ -220,7 +236,14 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
   let saved: Arc<Mutex<HashMap<String, PathBuf>>> = Default::default();
   let check = seismic_env("APP_CHECK").and_then(|c| c.into_string().ok());
   let blank = Url::parse("about:blank").unwrap();
-  let draft_script = draft_checkpoint.zip(own.origin()).map(|(id, origin)| drafts::script(&origin, id, placed));
+  #[cfg(target_os = "linux")]
+  let message_key = uuid::Uuid::new_v4().to_string();
+  #[cfg(not(target_os = "linux"))]
+  let message_key = app.invoke_key();
+  let draft_script = match &own {
+    Own::Remote(origin) => Some(drafts::script(origin, placed, message_key.as_ref())),
+    Own::Local(_) => None,
+  };
   let restoring_drafts = draft_script.is_some() && placed.is_some_and(|p| p.draft_checkpoint.is_some() || !p.drafts.is_empty());
   let builder = WebviewWindowBuilder::new(app, label, WebviewUrl::External(blank))
     .visible(false)
@@ -238,6 +261,7 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
         .map_or("null".to_string(), |c| format!("{c:?}")),
       handed_over
     ))
+    .initialization_script(include_str!("controls.js"))
     .on_navigation(move |url| {
       if navigation.admits(url) {
         return true;
@@ -336,6 +360,10 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
   let installed = (|| {
     let hears = own.clone();
     microphone::install(&window, Arc::new(move |url: &Url| hears.at(url)))?;
+    #[cfg(target_os = "linux")]
+    if !local {
+      drafts::install(&window, message_key)?;
+    }
     #[cfg(windows)]
     guard_frames(&window, own)?;
     Ok::<_, tauri::Error>(())

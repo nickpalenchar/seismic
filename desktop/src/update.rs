@@ -236,7 +236,7 @@ fn prepare_relaunch(app: &AppHandle, installer: bool, local_page: Option<&str>) 
   };
   #[cfg(debug_assertions)]
   pause_check_placement();
-  let Some(windows) = crate::desks::placed(app, generation, drafts) else {
+  let Some(windows) = crate::desks::placed(app, generation, drafts)? else {
     return Ok(None); // a remote workspace is still in use or changing windows
   };
   keep_placements(&crate::home(), windows, installer, local_page).map(Some)

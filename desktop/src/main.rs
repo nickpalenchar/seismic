@@ -587,6 +587,9 @@ fn main() {
       desks::commands::pair_desk,
       desks::commands::remove_desk,
       desks::commands::retry_desk,
+      window::workspace_start_dragging,
+      window::workspace_toggle_maximize,
+      window::drafts::workspace_draft_checkpoint,
     ])
     .setup(move |app| {
       let handle = app.handle().clone();
@@ -621,7 +624,7 @@ fn main() {
           app.exit(0);
         }
       });
-      let main = window::build(&handle, desks::STARTUP, Own::Local(None), main_placed.as_ref(), false, None)?;
+      let main = window::build(&handle, desks::STARTUP, Own::Local(None), main_placed.as_ref(), false)?;
       main.navigate(window::bundled_url("/"))?;
       window::show_placed(&main, main_placed.as_ref(), main_placed.as_ref().is_some_and(|p| p.focused))?;
       desks::reopen(&handle, std::mem::take(&mut placed));

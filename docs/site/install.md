@@ -31,6 +31,8 @@ when opening a window and lets you retry if it fails. On macOS, **File → Open 
 If you go Back to the status screen after reconnecting, **Try again** checks the workspace again.
 Unsent conversations, issue drafts, and settings edits are saved locally across updates, including
 when you restart from the status screen.
+If Seismic cannot save a workspace’s drafts, it keeps the window open. Reconnect the workspace or
+use Forward to return to its page, then try the update again.
 
 ### After an update
 

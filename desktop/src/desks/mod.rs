@@ -13,6 +13,7 @@ mod remote;
 
 use std::{
   collections::{HashMap, HashSet},
+  io,
   path::PathBuf,
   sync::{Arc, Mutex, OnceLock},
   thread,
@@ -30,8 +31,8 @@ use crate::window::{self, placed::Placed, Own};
 /// What every workspace's page may ask of the shell: move the window from its bar, show the system's
 /// notifications, list the workspaces and focus or open one.
 const PAGE: &[&str] = &[
-  "core:window:allow-start-dragging",
-  "core:window:allow-internal-toggle-maximize",
+  "allow-workspace-start-dragging",
+  "allow-workspace-toggle-maximize",
   "notification:allow-is-permission-granted",
   "notification:allow-request-permission",
   "notification:allow-notify",
@@ -41,6 +42,10 @@ const PAGE: &[&str] = &[
 
 /// What this machine's page may besides: change the list.
 const LOCAL_PAGE: &[&str] = &["allow-add-desk", "allow-rename-desk", "allow-pair-desk", "allow-remove-desk"];
+#[cfg(not(target_os = "linux"))]
+const REMOTE_PAGE: &[&str] = &["allow-workspace-draft-checkpoint"];
+#[cfg(target_os = "linux")]
+const REMOTE_PAGE: &[&str] = &[];
 
 /// The startup window has no server origin or native capability.
 pub const STARTUP: &str = "main";
@@ -56,8 +61,28 @@ struct Open {
   problem: Option<&'static str>,
   /// The backup until a document at this window's origin confirms receipt.
   drafts: Vec<(String, String)>,
-  draft_checkpoint: Uuid,
+  draft_checkpoint: Option<Uuid>, // only for a placement saved by an older shell
   awaiting_drafts: bool,
+  departure: Departure,
+}
+
+#[derive(Clone, Default)]
+struct Departure {
+  observed: bool,
+  activation: f64,
+  drafts: Option<Vec<(String, String)>>,
+}
+
+impl Departure {
+  fn receive(&mut self, activation: f64, drafts: Option<Vec<(String, String)>>) -> bool {
+    if activation < self.activation || (activation == self.activation && drafts.is_none()) {
+      return false;
+    }
+    self.observed = true;
+    self.activation = activation;
+    self.drafts = drafts;
+    true
+  }
 }
 
 #[derive(Default)]
@@ -115,6 +140,7 @@ impl Windows {
     let Some(window) = self.open.get_mut(label).filter(|w| w.awaiting_drafts) else { return false };
     window.awaiting_drafts = false;
     window.drafts.clear();
+    window.draft_checkpoint = None;
     self.draft_generation += 1;
     true
   }
@@ -269,7 +295,7 @@ pub fn connect_local(app: &AppHandle, port: u16, page: Url, handed_over: bool) -
   let label = label_for(&shell, "main");
   let origin = own.origin().expect("local server port");
   app.add_capability(capability(&label, &origin, &[PAGE, LOCAL_PAGE])?).map_err(|e| e.to_string())?;
-  let w = window::build(app, &label, own, placed.as_ref(), previous.is_none() && handed_over, None).map_err(|e| e.to_string())?;
+  let w = window::build(app, &label, own, placed.as_ref(), previous.is_none() && handed_over).map_err(|e| e.to_string())?;
   if let Err(error) = old.as_ref().close() {
     let _ = w.destroy();
     return Err(error.to_string());
@@ -393,12 +419,12 @@ fn build(app: &AppHandle, id: &str, origin: &str, revision: u64, url: Option<Url
     return Err("elsewhere".into());
   }
   let label = label_for(&shell, "desk");
-  app.add_capability(capability(&label, origin, &[PAGE])?).map_err(|e| {
+  app.add_capability(capability(&label, origin, &[PAGE, REMOTE_PAGE])?).map_err(|e| {
     eprintln!("seismic: no capability for {origin}: {e}");
     "capability".to_string()
   })?;
-  let draft_checkpoint = placed.and_then(|p| p.draft_checkpoint).unwrap_or_else(Uuid::new_v4);
-  let w = window::build(app, &label, own, placed, placed.is_some(), Some(draft_checkpoint)).map_err(|e| e.to_string())?;
+  let draft_checkpoint = placed.and_then(|p| p.draft_checkpoint);
+  let w = window::build(app, &label, own, placed, placed.is_some()).map_err(|e| e.to_string())?;
   // The native constructor can pump events on Windows. Check again before loading any content.
   if !can_build(&shell, id, origin, revision) {
     let _ = w.destroy();
@@ -415,6 +441,7 @@ fn build(app: &AppHandle, id: &str, origin: &str, revision: u64, url: Option<Url
       drafts: placed.map_or_else(Vec::new, |p| p.drafts.clone()),
       draft_checkpoint,
       awaiting_drafts: placed.is_some_and(|p| p.draft_checkpoint.is_some() || !p.drafts.is_empty()),
+      departure: Departure::default(),
     },
   );
   let page = url.unwrap_or_else(|| window::bundled_url("/status.html"));
@@ -518,8 +545,24 @@ pub fn draft_generation(app: &AppHandle) -> u64 {
 }
 
 pub fn page_loaded(app: &AppHandle, label: &str, url: &Url) {
-  if let Some(window) = shell(app).windows.lock().unwrap().open.get_mut(label) {
+  let shell = shell(app);
+  let mut windows = shell.windows.lock().unwrap();
+  if let Some(window) = windows.open.get_mut(label) {
     window.next = crate::next_of(url);
+    if !window.departure.observed {
+      window.departure.observed = true;
+      windows.draft_generation += 1;
+    }
+  }
+}
+
+/// Only the remote capability for this exact window label and origin grants the checkpoint command.
+pub fn departure(shell: &Shell, label: &str, activation: f64, entries: Option<Vec<(String, String)>>) {
+  let mut windows = shell.windows.lock().unwrap();
+  if let Some(window) = windows.open.get_mut(label) {
+    if window.departure.receive(activation, entries) {
+      windows.draft_generation += 1;
+    }
   }
 }
 
@@ -533,13 +576,13 @@ pub fn changed(app: &AppHandle) {
 }
 
 /// The windows as they are now, for the shell that starts next (main.rs, `relaunch`).
-pub fn placed(app: &AppHandle, draft_generation: u64, mut drafts: HashMap<String, Vec<(String, String)>>) -> Option<Vec<Placed>> {
+pub fn placed(app: &AppHandle, draft_generation: u64, mut drafts: HashMap<String, Vec<(String, String)>>) -> io::Result<Option<Vec<Placed>>> {
   let shell = shell(app);
   let (open, pending) = {
     let windows = shell.windows.lock().unwrap();
     // A page may have taken over its backup after the readiness probe sampled the old windows.
     if windows.draft_generation != draft_generation {
-      return None;
+      return Ok(None);
     }
     (windows.open.clone(), windows.restoring.clone())
   };
@@ -553,13 +596,18 @@ pub fn placed(app: &AppHandle, draft_generation: u64, mut drafts: HashMap<String
       continue;
     }
     let Some(w) = app.get_webview_window(&label) else { continue };
-    let own = Own::Remote(o.origin);
+    let own = Own::Remote(o.origin.clone());
     let sampled = drafts.remove(&label);
-    let at_origin = own.at(&w.url().ok()?);
+    let Ok(url) = w.url() else { return Ok(None) };
+    let at_origin = own.at(&url);
     if sampled.is_none() && at_origin {
-      return None; // a newly connected page was not sampled, even if its draft list might be empty
+      return Ok(None); // a newly connected page was not sampled, even if its draft list might be empty
     }
-    let mut unsent = sampled.unwrap_or_default();
+    let mut unsent = if !at_origin && o.departure.observed {
+      o.departure.drafts.ok_or_else(|| io::Error::other(format!("Seismic could not save drafts from {}. Reconnect the workspace or use Forward to return to its page, then try the update again.", o.origin)))?
+    } else {
+      sampled.unwrap_or_default()
+    };
     // Until the document confirms delivery, preserve any backup entries the page has not supplied.
     for (key, value) in o.drafts {
       if !unsent.iter().any(|(k, _)| *k == key) {
@@ -568,14 +616,14 @@ pub fn placed(app: &AppHandle, draft_generation: u64, mut drafts: HashMap<String
     }
     if let Some(mut placed) = Placed::of(&w, &o.desk, &own, &o.next) {
       placed.drafts = unsent;
-      placed.draft_checkpoint = (!at_origin).then_some(o.draft_checkpoint);
+      placed.draft_checkpoint = o.draft_checkpoint;
       snapshots.push(placed);
     } else if !unsent.is_empty() {
-      return None;
+      return Ok(None);
     }
   }
   snapshots.extend(pending.into_values());
-  drafts.is_empty().then_some(snapshots)
+  Ok((drafts.is_empty() && shell.windows.lock().unwrap().draft_generation == draft_generation).then_some(snapshots))
 }
 
 /// Reopens the remote workspaces' windows the shell before left (main.rs), while each is still on
@@ -590,6 +638,18 @@ pub fn reopen(app: &AppHandle, placed: Vec<Placed>) {
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  #[test]
+  fn status_needs_the_latest_documents_departure_even_when_its_drafts_are_empty() {
+    let mut departure = Departure::default();
+    assert!(departure.receive(1.0, Some(vec![("seismic-drafts-shop".into(), "old".into())])));
+    assert!(departure.receive(2.0, None));
+    assert!(departure.observed && departure.drafts.is_none());
+    assert!(!departure.receive(1.0, Some(vec![])));
+    assert!(departure.receive(2.0, Some(vec![])));
+    assert!(!departure.receive(2.0, None));
+    assert_eq!(departure.drafts, Some(vec![]));
+  }
 
   #[test]
   fn an_ipv6_capability_matches_only_its_origin() {
