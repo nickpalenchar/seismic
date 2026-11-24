@@ -120,18 +120,30 @@ fn paired(origin: &str, status: u16, body: Option<&Value>) -> Result<Url, &'stat
 mod tests {
   use super::*;
   use serde_json::json;
-  use std::{io::Write, net::TcpListener};
+  use std::{io::{self, BufRead, BufReader, Write}, net::TcpListener};
 
   fn reply(header: &str, body: String) -> String {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let origin = format!("http://{}", listener.local_addr().unwrap());
     let header = header.to_string();
     std::thread::spawn(move || {
-      let (mut stream, _) = listener.accept().unwrap();
-      let mut request = [0; 1024];
-      let _ = stream.read(&mut request);
+      let (stream, _) = listener.accept().unwrap();
+      let mut stream = BufReader::new(stream);
+      let mut line = String::new();
+      let mut length = 0;
+      while stream.read_line(&mut line).unwrap() != 0 && !line.trim().is_empty() {
+        if let Some((name, value)) = line.split_once(':') {
+          if name.eq_ignore_ascii_case("content-length") {
+            length = value.trim().parse().unwrap();
+          }
+        }
+        line.clear();
+      }
+      // Pairing is a POST. Closing while request bytes are unread can reset the connection
+      // instead of letting the client read the oversized response.
+      io::copy(&mut stream.by_ref().take(length), &mut io::sink()).unwrap();
       // A chunked response does not advertise its size. The client can stop as soon as it hits its limit.
-      let _ = write!(stream, "HTTP/1.1 {header}\r\nTransfer-Encoding: chunked\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{:x}\r\n{body}\r\n0\r\n\r\n", body.len());
+      let _ = write!(stream.get_mut(), "HTTP/1.1 {header}\r\nTransfer-Encoding: chunked\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{:x}\r\n{body}\r\n0\r\n\r\n", body.len());
     });
     origin
   }
