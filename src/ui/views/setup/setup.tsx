@@ -25,7 +25,7 @@ import { CheckLabel } from '../../components/check-label';
 import { Badge } from '../../components/badge';
 import { Spinner } from '../../components/spinner';
 import { SeismicAgentStep } from './seismicAgent';
-import { askAgain, ExitSetup, HowStep, setUpHereChosen } from './how';
+import { askAgain, ExitSetup, FirstStart, HowStep, setUpHereChosen } from './how';
 import { inApp, onThisMachine, useDesks } from '../../desks/shell';
 import { Callout, CalloutDescription, type CalloutKind, CalloutTitle } from '../../components/callout';
 import { Check, CircleCheck, Info, TriangleAlert } from 'lucide-react';
@@ -809,6 +809,7 @@ export function Setup({ first, onClose, wizard, notice }: { first?: boolean; onC
             <>
               <FirstProject view={view} ready={configured.length > 0} agents={configured} onView={update} />
               <div className={actionsClass}>
+                <ExitSetup />
                 <Button size="small" onClick={() => go('recommended')}>
                   {s.back}
                 </Button>
@@ -830,7 +831,10 @@ function StepFooter({ callout, text, children }: { callout?: CalloutKind; text: 
           <CalloutTitle>{text}</CalloutTitle>
         </Callout>
       )}
-      <div className="c-actions flex gap-2 justify-end">{children}</div>
+      <div className="c-actions flex gap-2 justify-end">
+        <ExitSetup />
+        {children}
+      </div>
     </div>
   );
 }
@@ -845,7 +849,7 @@ const sectionHeadClass = 'setup-sh flex items-baseline gap-2 mb-0.5';
 /** The whole page on the first start; over the project from the settings, a dialog within the window. */
 function SetupShell({ first, onClose, children }: { first?: boolean; onClose?: () => void; children: ReactNode }) {
   const [opener] = useState(() => document.activeElement instanceof HTMLElement ? document.activeElement : null);
-  if (first) return <div className="setup first fixed inset-0 overflow-y-auto z-80 bg-background"><div className={cn(pageClass, 'frost-pane mx-auto mt-14 mb-4')}>{children}</div><ExitSetup /></div>;
+  if (first) return <div className="setup first fixed inset-0 overflow-y-auto z-80 bg-background"><div className={cn(pageClass, 'frost-pane mx-auto mt-14 mb-12')}><FirstStart.Provider value>{children}</FirstStart.Provider></div></div>;
   return <Dialog open onOpenChange={(open) => !open && onClose?.()}>
     <DialogContent layerClassName="setup over z-80 overflow-hidden py-12 px-6 bg-scrim" className={cn(pageClass, 'w-full my-0 mx-auto flex flex-col rounded-2xl pr-0 pb-0')} onCloseAutoFocus={(e) => {
       e.preventDefault();

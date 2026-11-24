@@ -10,6 +10,7 @@ import { catalogDefault, DefaultEffort, ModelOptions } from '../../agent-options
 import { api } from '../../api';
 import { getSetting, saveSetting } from '../../clients/seismic';
 import { Button } from '../../components/button';
+import { ExitSetup } from './how';
 import { Select, SelectItem } from '../../components/select';
 import { failText, t } from '../../strings';
 
@@ -129,6 +130,7 @@ export function SeismicAgentStep({ harnesses, onConfirm, onBack }: { harnesses: 
         </p>
       )}
       <div className="flex gap-2 mt-4">
+        <ExitSetup />
         <Button size="small" disabled={busy} onClick={onBack}>{t.setup.back}</Button>
         <Button variant="primary" disabled={busy || !canConfirm} onClick={() => void confirm()}>{s.confirm}</Button>
       </div>

@@ -4,7 +4,7 @@
 // projects does not ask: it goes on to set itself up. "Learn more" stands outside the radio's label,
 // so a click on it opens the guide without choosing.
 
-import { useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { Sign } from '../../logo';
 import { t } from '../../strings';
 import { Button, LinkButton } from '../../components/button';
@@ -105,9 +105,13 @@ export function HowStep({ onHere }: { onHere: () => void }) {
                 <h3 className="m-0 text-base">{t.desks.connect.title}</h3>
                 <ConnectForm />
               </section>
+              <div className="flex">
+                <ExitSetup />
+              </div>
             </>
           ) : (
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
+              <ExitSetup />
               <Button variant="primary" onClick={next}>
                 {h.next}
               </Button>
@@ -120,36 +124,40 @@ export function HowStep({ onHere }: { onHere: () => void }) {
   );
 }
 
+/** The setup fills the page on the first start: the only place "Exit setup" shows. */
+export const FirstStart = createContext(false);
+
 /**
- * Under the first start's page in the app, while another workspace is on the list: "Exit setup"
- * switches the window there after a confirmation, this machine's from a remote one, else the first
- * remote one. The setup stays where it was and goes on when its workspace is opened again; without
- * it, a machine in setup has no way to another outside a Mac's Workspace menu.
+ * "Exit setup", on the left of each step's buttons on the first start in the app, while another
+ * workspace is on the list: after a confirmation the window switches there, to this machine's from a
+ * remote one, else to the first remote one. The setup stays where it was and goes on when its
+ * workspace is opened again; without it, a machine in setup has no way to another outside a Mac's
+ * Workspace menu.
  */
 export function ExitSetup() {
   const x = t.desks.exit;
+  const first = useContext(FirstStart);
   const all = useDesks();
   const [asking, setAsking] = useState(false);
   const [going, setGoing] = useState(false);
   const [problem, setProblem] = useState('');
   const shown = currentDesk(all);
   const to = shown && (shown.local ? all?.list.find((d) => !d.local) : all?.list.find((d) => d.local));
-  if (!shown || !to) return null;
+  if (!first || !shown || !to) return null;
   const exit = () => {
     setGoing(true);
     setProblem('');
     // once it opens, the window shows that workspace and this page goes
     desks.open(to.id).then(
       () => setGoing(false),
-      (e) => (setGoing(false), setAsking(false), setProblem(deskError(e, to.origin ?? ''))),
+      (e) => (setGoing(false), setProblem(deskError(e, to.origin ?? ''))),
     );
   };
   return (
-    <div className="desk-exit mx-auto mb-12 grid max-w-[720px] justify-items-center gap-2">
-      <Button size="small" variant="ghost" onClick={() => setAsking(true)}>
+    <>
+      <Button size="small" className="desk-exit mr-auto" onClick={() => (setProblem(''), setAsking(true))}>
         {x.button}
       </Button>
-      {problem && <p role="alert" className={errorClass}>{problem}</p>}
       <ConfirmDialog
         open={asking}
         onOpenChange={(open) => !going && setAsking(open)}
@@ -160,7 +168,8 @@ export function ExitSetup() {
         busy={going}
       >
         <p className="[overflow-wrap:anywhere]">{x.text(shown.name, to.name)}</p>
+        {problem && <p role="alert" className={errorClass}>{problem}</p>}
       </ConfirmDialog>
-    </div>
+    </>
   );
 }

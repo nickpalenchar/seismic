@@ -199,8 +199,8 @@ cog's dialog (`edit.tsx`) and the workspaces page (`page.tsx`); the switcher is 
   set itself up, as "On this machine" would there (owner, 2026-11-24); pairing yet another machine
   from it goes through the switcher's "New workspace". The choice to set up holds for the tab
   (session storage); the agents step has a Back to the question on this machine.
-- **"Exit setup"** stands under the first start's page in the app while another workspace is on
-  the list (owner, 2026-11-24): after a confirmation the window switches to this machine's
+- **"Exit setup"** is a secondary button on the left of each step's buttons on the first start in
+  the app, while another workspace is on the list (owner, 2026-11-24): after a confirmation the window switches to this machine's
   workspace from a remote one, else to the first remote one. The setup page has no left menu, so
   outside a Mac's Workspace menu it is the way off a machine still in setup.
  from the first attempt:** long addresses and names wrap
