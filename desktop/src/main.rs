@@ -104,6 +104,8 @@ pub(crate) struct Seismic {
   pub(crate) stopping: AtomicBool,
   /// The shell starts again (`relaunch`): leaving, it does not stop the server.
   relaunching: AtomicBool,
+  /// For Tauri's fallback launcher, which runs once its old instance has cleaned up.
+  rebuild_on_exit: Mutex<Option<uuid::Uuid>>,
   /// Where the window opens: the page it showed before the shell started again, else the project.
   first: Mutex<Option<String>>,
 }
@@ -547,7 +549,7 @@ pub(crate) fn now_ms() -> u64 {
 /// (window/placed.rs); the server runs on unless it ended already. On a Mac through the system, as the
 /// Dock starts it, once this one has ended: run from this process instead, the new shell would count
 /// as this one's for the system's permissions (the microphone), which ends with it.
-pub(crate) fn relaunch(app: &AppHandle, seismic: &Seismic, _placed: &[placed::Placed]) {
+pub(crate) fn relaunch(app: &AppHandle, seismic: &Seismic, _placed: &[placed::Placed], ticket: Option<uuid::Uuid>) {
   seismic.relaunching.store(true, Ordering::SeqCst);
   #[cfg(target_os = "macos")]
   {
@@ -556,22 +558,34 @@ pub(crate) fn relaunch(app: &AppHandle, seismic: &Seismic, _placed: &[placed::Pl
     if let Some(bundle) = bundle.filter(|b| b.extension().is_some_and(|x| x == "app")) {
       let hidden = placed::primary(_placed).is_some_and(|p| !p.visible || p.minimized);
       // Launch Services can still have the old app registered when its process is gone.
-      let started = Command::new("/bin/sh")
-        .args(["-c", r#"while kill -0 "$1" 2>/dev/null; do sleep 0.1; done; exec /usr/bin/open -n $3 "$2""#, "sh"])
+      let mut launch = Command::new("/bin/sh");
+      launch
+        .args(["-c", r#"
+          pid=$1; bundle=$2; mode=$3; shift 3
+          while kill -0 "$pid" 2>/dev/null; do sleep 0.1; done
+          exec /usr/bin/open -n $mode "$bundle" "$@"
+        "#, "sh"])
         .arg(std::process::id().to_string())
         .arg(&bundle)
         // out of sight it stays so, without coming to the front
         .arg(if hidden { "-g" } else { "" })
         .stdin(Stdio::null())
         .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn();
-      if started.is_ok() {
+        .stderr(Stdio::null());
+      if let Some(ticket) = ticket {
+        launch.args(["--args", &format!("{}{ticket}", placed::REBUILD_ARG)]);
+      }
+      if launch.spawn().is_ok() {
         return app.exit(0);
       }
     }
   }
-  app.request_restart();
+  if let Some(ticket) = ticket {
+    *seismic.rebuild_on_exit.lock().unwrap() = Some(ticket);
+    app.exit(0);
+  } else {
+    app.request_restart();
+  }
 }
 
 fn main() {
@@ -676,10 +690,19 @@ fn main() {
     }
     #[cfg(target_os = "macos")]
     RunEvent::Reopen { .. } => show(app),
-    // ended without asking (the Dock's Quit, logging out): the server is told on the way out and
-    // stops on its own once its workers paused
-    RunEvent::Exit if !seismic.stopping.load(Ordering::SeqCst) && !seismic.relaunching.load(Ordering::SeqCst) => {
-      http(seismic.port.load(Ordering::SeqCst), "POST", "/api/stop");
+    RunEvent::Exit => {
+      let ticket = seismic.rebuild_on_exit.lock().unwrap().take();
+      if let Some(ticket) = ticket {
+        let mut env = app.env();
+        env.args_os.retain(|arg| !arg.to_str().is_some_and(|arg| arg.starts_with(placed::REBUILD_ARG)));
+        env.args_os.push(format!("{}{ticket}", placed::REBUILD_ARG).into());
+        app.cleanup_before_exit();
+        tauri::process::restart(&env);
+      }
+      // Ended without asking (Dock Quit or logout). The server stops once its workers pause.
+      if !seismic.stopping.load(Ordering::SeqCst) && !seismic.relaunching.load(Ordering::SeqCst) {
+        http(seismic.port.load(Ordering::SeqCst), "POST", "/api/stop");
+      }
     }
     _ => {}
   });

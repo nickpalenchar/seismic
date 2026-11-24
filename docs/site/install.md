@@ -57,6 +57,8 @@ available to install again. For a source checkout, a queued rebuild retries auto
 If you use a terminal to run Seismic’s server, the desktop app waits to restart while its window
 is minimized or behind another app. On macOS, closing the window lets the rebuild retry in the
 background and keeps the window closed until you reopen it.
+If you switch workspaces while the app prepares to restart, it retries with the workspace you
+switched to.
 
 Seismic keeps a copy of a malformed workspace list as `app-desks.unreadable.json` in its home
 directory. Later backups get numbered filenames.

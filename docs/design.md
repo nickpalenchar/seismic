@@ -481,10 +481,11 @@ Safety rules:
   decision (2026-11-24).
 - A desktop rebuild checks the displayed remote workspace for activity. It asks the remote server
   with its existing pairing and reads the page's own holds. Server handover is scoped to the paired
-  device and origin. When the shell is attached to a terminal's server, the final native check
-  compares the live window's presentation with the one in the snapshot. Closing a macOS window
-  hides it, so a rebuild captured in front must retry with the hidden placement. Startup can read
-  the snapshot only after that final check publishes it.
+  device and origin. When the shell is attached to a terminal's server, it finishes writing the
+  snapshot and rechecks server activity before comparing the live workspace revision and window
+  presentation with the captured values on the native event thread. Closing a macOS window
+  hides it, so a rebuild captured in front must retry with the hidden placement. Only the
+  replacement process given the matching launch ticket can read that rebuild's snapshot.
 - A workspace's IPv6 origin stays in canonical URL form on disk. Only the hostname's colons are
   escaped when the shell builds its native capability URL pattern.
 - The desktop app saves its selected workspace, window placement and unsent drafts before an

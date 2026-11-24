@@ -43,6 +43,8 @@ pub struct Placed {
 }
 
 const FILE: &str = "app-windows.json";
+const REBUILD: &str = "app-windows.json.rebuild";
+pub const REBUILD_ARG: &str = "--seismic-rebuild=";
 const FORMER: &str = "app-window.json";
 /// How old the file may be: starting again takes seconds, a start much later opens the windows afresh.
 const FRESH: Duration = Duration::from_secs(60);
@@ -160,20 +162,33 @@ pub fn keep(home: &Path, windows: &[Placed], installer: bool) -> io::Result<()> 
 
 pub fn stage(home: &Path, windows: &[Placed], installer: bool) -> io::Result<Staged> {
   check_destination(home)?;
-  stage_at(home.join("app-windows.json.part"), windows, installer)
+  stage_at(home.join("app-windows.json.part"), windows, installer, None)
 }
 
-/// The automatic rebuild can still be deferred after writing and syncing the data.
-/// Startup only reads the published name, even if cleanup of this file fails.
-pub fn stage_rebuild(home: &Path, windows: &[Placed]) -> io::Result<Staged> {
-  stage_at(home.join("app-windows.json.rebuild"), windows, false)
+/// Finish all filesystem work before deciding whether to restart. Only the
+/// replacement process given this ticket is allowed to restore the snapshot.
+pub fn publish_rebuild(home: &Path, windows: &[Placed]) -> io::Result<Uuid> {
+  let ticket = Uuid::new_v4();
+  stage_at(home.join("app-windows.json.rebuild.part"), windows, false, Some(ticket))?
+    .publish_to(&home.join(REBUILD))?;
+  Ok(ticket)
+}
+
+pub fn rebuild_ticket() -> Option<Uuid> {
+  std::env::args_os().skip(1).filter_map(|arg| {
+    Uuid::parse_str(arg.to_str()?.strip_prefix(REBUILD_ARG)?).ok()
+  }).last()
 }
 
 pub struct Staged(Option<PathBuf>);
 
 impl Staged {
-  pub fn publish(mut self, home: &Path) -> io::Result<()> {
-    fs::rename(self.0.as_ref().unwrap(), home.join(FILE))?;
+  pub fn publish(self, home: &Path) -> io::Result<()> {
+    self.publish_to(&home.join(FILE))
+  }
+
+  fn publish_to(mut self, destination: &Path) -> io::Result<()> {
+    fs::rename(self.0.as_ref().unwrap(), destination)?;
     self.0.take();
     Ok(())
   }
@@ -200,7 +215,7 @@ impl Drop for Staged {
 /// A deferred automatic rebuild checks storage before asking the local server to stop again.
 pub fn probe_write(home: &Path, windows: &[Placed]) -> io::Result<()> {
   check_destination(home)?;
-  let mut probe = stage_at(home.join("app-windows.json.probe"), windows, false)?;
+  let mut probe = stage_at(home.join("app-windows.json.probe"), windows, false, None)?;
   remove_snapshot(&probe.0.take().unwrap())
 }
 
@@ -214,9 +229,13 @@ fn check_destination(home: &Path) -> io::Result<()> {
   }
 }
 
-fn stage_at(path: PathBuf, windows: &[Placed], installer: bool) -> io::Result<Staged> {
+fn stage_at(path: PathBuf, windows: &[Placed], installer: bool, ticket: Option<Uuid>) -> io::Result<Staged> {
   let all: Vec<Value> = windows.iter().map(Placed::json).collect();
-  let text = json!({ "at": now_ms(), "installer": installer, "windows": all }).to_string();
+  let mut snapshot = json!({ "at": now_ms(), "installer": installer, "windows": all });
+  if let Some(ticket) = ticket {
+    snapshot["ticket"] = json!(ticket.to_string());
+  }
+  let text = snapshot.to_string();
   let mut options = fs::OpenOptions::new();
   options.write(true).create_new(true);
   #[cfg(unix)]
@@ -243,7 +262,11 @@ pub fn primary(saved: &[Placed]) -> Option<&Placed> {
 
 /// The windows the shell before this one left, this machine's first; none where it left none lately.
 pub fn take(home: &Path) -> Vec<Placed> {
-  read_saved(home, true)
+  take_for_launch(home, rebuild_ticket())
+}
+
+pub fn take_for_launch(home: &Path, ticket: Option<Uuid>) -> Vec<Placed> {
+  read_saved_for_launch(home, true, ticket)
 }
 
 fn remove_snapshot(path: &Path) -> io::Result<()> {
@@ -270,24 +293,44 @@ impl InstallerSnapshot {
 /// The builder needs the initial visibility on macOS before the single-instance check runs.
 #[cfg(target_os = "macos")]
 pub fn peek(home: &Path) -> Vec<Placed> {
-  read_saved(home, false)
+  read_saved_for_launch(home, false, rebuild_ticket())
 }
 
+#[cfg(test)]
 fn read_saved(home: &Path, consume: bool) -> Vec<Placed> {
-  let read = |name: &str| {
+  read_saved_for_launch(home, consume, None)
+}
+
+fn read_saved_for_launch(home: &Path, consume: bool, ticket: Option<Uuid>) -> Vec<Placed> {
+  let read = |name: &str, ticket: Option<Uuid>| {
     let path = home.join(name);
     let text = fs::read_to_string(&path).ok()?;
+    let value = serde_json::from_str::<Value>(&text).ok();
+    if let Some(ticket) = ticket {
+      if value.as_ref()?["ticket"].as_str().and_then(|s| Uuid::parse_str(s).ok()) != Some(ticket) {
+        return None;
+      }
+    }
     if consume {
       let _ = fs::remove_file(&path);
     }
-    serde_json::from_str::<Value>(&text).ok()
+    value
   };
-  let (now, former) = (read(FILE), read(FORMER));
+  // A Windows installer can forward the previous launch's arguments. Its own
+  // handover takes priority over a checkout snapshot from an earlier launch.
+  let (now, former) = (read(FILE, None), read(FORMER, None));
+  let rebuild = ticket.and_then(|ticket| read(REBUILD, Some(ticket)));
   let fresh = |v: &Value| {
     let max = if v["installer"] == true { INSTALL_FRESH } else { FRESH };
     v["at"].as_u64().is_some_and(|at| now_ms().saturating_sub(at) <= max.as_millis() as u64)
   };
-  let mut windows: Vec<Placed> = match (now.filter(fresh), former.filter(fresh)) {
+  let now = now.filter(fresh);
+  let current = if now.as_ref().is_some_and(|v| v["installer"] == true) {
+    now
+  } else {
+    rebuild.filter(fresh).or(now)
+  };
+  let mut windows: Vec<Placed> = match (current, former.filter(fresh)) {
     (Some(v), _) => v["windows"].as_array().map(|a| a.iter().filter_map(Placed::read).collect()).unwrap_or_default(),
     (None, Some(v)) => Placed::read(&v).into_iter().collect(),
     (None, None) => vec![],
@@ -331,13 +374,16 @@ mod tests {
   fn startup_ignores_a_complete_rebuild_snapshot_left_on_disk() {
     let home = home("abandoned-rebuild");
     let windows = [Placed { desk: LOCAL.into(), visible: true, focused: true, next: "/p/abandoned".into(), ..Default::default() }];
-    // Model failed cleanup by leaving the complete, fresh staged file in place.
-    std::mem::forget(stage_rebuild(&home, &windows).unwrap());
+    let abandoned = publish_rebuild(&home, &windows).unwrap();
+    // A denied restart leaves the complete, fresh snapshot on disk.
     assert!(home.join("app-windows.json.rebuild").is_file());
     assert!(read_saved(&home, false).is_empty());
     assert!(take(&home).is_empty());
-    stage_rebuild(&home, &windows).unwrap().publish(&home).unwrap();
-    assert_eq!(take(&home), windows);
+    let new_ticket = publish_rebuild(&home, &windows).unwrap();
+    assert!(take_for_launch(&home, Some(abandoned)).is_empty());
+    assert_eq!(read_saved_for_launch(&home, false, Some(new_ticket)), windows);
+    assert_eq!(take_for_launch(&home, Some(new_ticket)), windows);
+    assert!(take_for_launch(&home, Some(new_ticket)).is_empty());
     fs::remove_dir_all(home).unwrap();
   }
 

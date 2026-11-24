@@ -221,6 +221,7 @@ impl Views {
     }
     self.parked.remove(id);
     *self.revisions.entry(id.into()).or_default() += 1;
+    self.draft_generation += 1;
   }
 
   fn cancel(&mut self) {
@@ -910,17 +911,35 @@ pub fn draft_generation(app: &AppHandle) -> u64 {
   shell(app).views.lock().unwrap().draft_generation
 }
 
+/// A pending selection is still choosing which workspace will own the native window.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RebuildRevision {
+  pub draft_generation: u64,
+  pub selection_turn: u64,
+}
+
+pub fn rebuild_revision(app: &AppHandle) -> Option<RebuildRevision> {
+  let state = shell(app);
+  let views = state.views.lock().unwrap();
+  views.pending.is_none().then_some(RebuildRevision { draft_generation: views.draft_generation, selection_turn: views.turn })
+}
+
 pub fn page_loaded(app: &AppHandle, label: &str, url: &Url) {
   let shell = shell(app);
   let mut windows = shell.views.lock().unwrap();
   let Some(window) = windows.active.as_mut().filter(|v| v.label == label) else { return };
-  window.next = crate::next_of(url);
+  let next = crate::next_of(url);
+  let changed = window.next != next;
+  window.next = next;
   if window.loading.is_some() {
     // A Finished event supersedes even a verification already waiting for the server.
     let token = windows.load();
     windows.active.as_mut().unwrap().loading = Some(token);
     let (app, label) = (app.clone(), label.to_string());
     thread::spawn(move || verify_load(&app, &label, token));
+  }
+  if changed {
+    windows.draft_generation += 1;
   }
 }
 
