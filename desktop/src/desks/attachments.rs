@@ -51,6 +51,7 @@ impl Drop for Decision {
 pub(super) struct Hold {
   _input: CaptureHold,
   decision: Decision,
+  pub(super) waited: bool,
 }
 
 impl Hold {
@@ -58,6 +59,17 @@ impl Hold {
   /// reload must not run while the native navigation is still on its way.
   pub(super) fn navigating(&mut self) {
     self.decision.release = false;
+  }
+
+  /// A same-webview navigation can fail before replacing its document. Give it
+  /// time to start, then release this decision even if the old document remains.
+  pub(super) fn awaiting_navigation(self) {
+    let Self { _input, decision, .. } = self;
+    drop(_input);
+    thread::spawn(move || {
+      thread::sleep(super::LOAD_PATIENCE);
+      drop(decision);
+    });
   }
 }
 
@@ -71,6 +83,7 @@ pub(super) fn hold(app: &AppHandle, shell: &Shell, view: &Webview, turn: u64, on
   let _asking = shell.attachment_decision.lock().unwrap();
   let mut decision = Decision::new(view);
   let mut action = "ask";
+  let mut waited = false;
   loop {
     if crate::is_stopping(app) {
       return Err("superseded".into());
@@ -82,8 +95,8 @@ pub(super) fn hold(app: &AppHandle, shell: &Shell, view: &Webview, turn: u64, on
       }
     }
     match decision.hold_when_ready(app, action) {
-      Ok(Some(input)) => return Ok(Hold { _input: input, decision }),
-      Ok(None) => {}
+      Ok(Some(input)) => return Ok(Hold { _input: input, decision, waited }),
+      Ok(None) => waited = true,
       Err(error) if error == "cancelled" && matches!(on_back, OnBack::Wait) => {
         // A replacement local server still needs attaching. End the dismissed prompt
         // and start checking for idle uploads without opening another dialog.

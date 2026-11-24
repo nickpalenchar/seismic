@@ -32,6 +32,9 @@ get a new one from the workspace you are pairing.
 When a server reconnects at the same address, its page waits for pending uploads before
 reloading. If you chose **Switch after upload**, the app opens the selected workspace when the
 upload finishes.
+If the selected workspace comes online during the wait, it opens directly when the upload
+finishes. Adding or pairing a workspace again checks that its address serves Seismic before
+opening it.
 
 ### Reconnect an offline workspace
 

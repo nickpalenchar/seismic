@@ -472,6 +472,9 @@ Safety rules:
   retrying without another prompt (2026-11-24).
   A WebSocket reconnect can also reload a page, so it waits for attachments before navigating.
   An active native switch keeps the outgoing document through draft capture and navigation.
+  A same-webview navigation releases its hold by the load deadline, since a failed provisional
+  load can leave the old document visible. A remote switch checks again after an attachment wait,
+  and pairing verifies the origin with the workspace probe before opening a webview (2026-11-24).
   Server shutdown tracks the answering server before the local webview waits for its attachment
   decision (2026-11-24).
 - A desktop rebuild checks the displayed remote workspace for activity. It asks the remote server

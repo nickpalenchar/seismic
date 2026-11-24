@@ -4,6 +4,7 @@
 //
 //   bun scripts/check-app-desks.ts <the app's program> [--ipv6] [--legacy-mic] [--debug-failures] [--minimized-takeover] [--keep]
 //   Add --same-port-takeover or --quit-during-takeover for an isolated takeover check.
+//   With --same-port-takeover, --failed-same-port-navigation simulates an uncommitted load.
 //
 // The program: a build from scripts/build-app.ts, or a debug build of the shell, which runs this
 // checkout's server. On a Mac it has to be an app bundle: WKWebView keeps the cookies of a bare
@@ -31,6 +32,8 @@ const ROOT = resolve(import.meta.dir, '..');
 const debugFailures = args.includes('--debug-failures');
 const minimizedTakeover = args.includes('--minimized-takeover');
 const samePortTakeover = args.includes('--same-port-takeover');
+const failedSamePortNavigation = args.includes('--failed-same-port-navigation');
+if (failedSamePortNavigation && !samePortTakeover) throw new Error('--failed-same-port-navigation requires --same-port-takeover');
 const quitDuringTakeover = args.includes('--quit-during-takeover');
 if (quitDuringTakeover && (process.platform !== 'darwin' || samePortTakeover)) {
   throw new Error('--quit-during-takeover requires macOS and a different-port takeover');
@@ -179,6 +182,10 @@ let reconnectRemote: (() => void) | undefined;
 let replacementHello = false;
 let imageUpload: (() => Promise<Response>) | undefined;
 let pairRequests = 0;
+let unrelatedPairing = false;
+let unrelatedPageRequests = 0;
+let rejectHealth = false;
+let rejectedHealthChecks = 0;
 let dropPage = false;
 let pageError: 'http' | 'legacy' | undefined;
 const startProxy = (port = proxyPort) => {
@@ -188,6 +195,11 @@ const startProxy = (port = proxyPort) => {
     async fetch(req, server) {
       const url = new URL(req.url);
       if (req.method === 'POST' && url.pathname === '/api/pair') pairRequests++;
+      if (unrelatedPairing) {
+        if (url.pathname === '/api/pair') return Response.json({ url: new URL('/unrelated', req.url).href });
+        if (url.pathname === '/unrelated') unrelatedPageRequests++;
+        return Response.json({ service: 'unrelated' });
+      }
       if (url.pathname === '/__seismic-check-frame') return new Response(FRAME, { headers: { 'content-type': 'text/html' } });
       if (url.pathname === '/__seismic-check-ipc') return new Response(IPC_FRAME, { headers: { 'content-type': 'text/html' } });
       if (req.method === 'POST' && url.pathname.endsWith('/images') && imageUpload) return imageUpload();
@@ -211,6 +223,10 @@ const startProxy = (port = proxyPort) => {
       if (onHealth && url.pathname === '/api/projects' && req.headers.get('user-agent')?.startsWith('ureq/')) {
         server.timeout(req, 0);
         await onHealth();
+      }
+      if (rejectHealth && url.pathname === '/api/projects' && req.headers.get('user-agent')?.startsWith('ureq/')) {
+        rejectedHealthChecks++;
+        return new Response(null, { status: 503 });
       }
       if (url.pathname === '/api/app-rebuilt' && remoteBusy) {
         busyChecks++;
@@ -546,7 +562,8 @@ async function checkApp() {
   const initial = await report('local');
   const description = quitDuringTakeover
     ? 'Quit stops the replacement server while the attachment dialog is open'
-    : `taking over on ${samePortTakeover ? 'the same port' : 'a different port'} honors Go back and reconnects after the upload`;
+    : failedSamePortNavigation ? 'the queued reload recovers when same-port navigation never commits'
+      : `taking over on ${samePortTakeover ? 'the same port' : 'a different port'} honors Go back and reconnects after the upload`;
   const transferred = await check(description, async () => {
     const oldLabel = String(initial.label);
     expect(String(initial.href).startsWith(`http://127.0.0.1:${oldPort}/`), JSON.stringify(initial));
@@ -597,6 +614,7 @@ async function checkApp() {
     }
     const kept = await run('check_eval', { js: "!document.querySelector('[role=alertdialog]') && !!window.releaseScreenshot" });
     expect(displayed()?.label === oldLabel && kept.value === true, 'Go back switched, cancelled the upload, or prompted again');
+    if (failedSamePortNavigation) writeFileSync(join(home, 'check-local-navigation-not-committed'), '');
     send('check_eval', { js: 'window.releaseScreenshot()' });
     const next = await report('local', before);
     expect((await run('check_eval', { js: "JSON.stringify(Object.entries(sessionStorage))" })).value?.toString().includes('takeover-shot'), 'the screenshot was lost during reattachment');
@@ -633,6 +651,17 @@ async function checkApp() {
     const r = await run('add_desk', { address: REMOTE, code: right === '000000' ? '000001' : '000000' });
     expect(!r.ok && r.error === 'wrongCode', JSON.stringify(r));
     expect((await desks()).list.length === 1, 'the list grew');
+  });
+  await check('Add refuses a pairing reply from an unrelated service', async () => {
+    const label = displayed()?.label;
+    unrelatedPairing = true;
+    try {
+      const result = await run('add_desk', { address: REMOTE, code: '123456' });
+      expect(result.error === 'notSeismic' && (await desks()).list.length === 1, JSON.stringify(result));
+      expect(displayed()?.label === label && unrelatedPageRequests === 0, 'the unrelated page was requested');
+    } finally {
+      unrelatedPairing = false;
+    }
   });
   if (debugFailures) {
     await check('a saved workspace is reported and listed even if its first window fails', async () => {
@@ -734,6 +763,23 @@ async function checkApp() {
       return reports.slice(before).find((r) => r.kind === 'remote');
     });
   };
+  await check('Pair again verifies the current and proposed addresses before opening them', async () => {
+    const local = await select('local', 'local');
+    const other = startProxy(0);
+    unrelatedPairing = true;
+    try {
+      for (const address of [REMOTE, `http://${HOST}:${other.port}`]) {
+        const result = await run('pair_desk', { id, address, code: '123456' });
+        expect(result.error === 'notSeismic', JSON.stringify(result));
+      }
+      expect((await desks()).list.find(d => d.id === id)?.origin === REMOTE, 'the saved workspace moved');
+      expect(displayed()?.label === local.label && unrelatedPageRequests === 0, 'the unrelated page was requested');
+    } finally {
+      unrelatedPairing = false;
+      other.stop(true);
+    }
+    await select(id, 'remote');
+  });
   await check('switching local and back keeps the window, pairing, route, and drafts', async () => {
     const edited = await run('check_eval', { js: `history.replaceState(null, '', ${JSON.stringify(LAST_PAGE)}); sessionStorage.setItem('seismic-drafts-check', 'Draft before switching')` });
     expect(edited.ok, JSON.stringify(edited));
@@ -1040,6 +1086,25 @@ async function checkApp() {
         imageUpload = undefined; release.resolve();
       }
     }
+  });
+  await check('a remote workspace that recovers during the attachment wait opens directly', async () => {
+    await select('local', 'local');
+    await holdLocalScreenshot('fresh-health-shot');
+    const before = reports.length;
+    const previous = rejectedHealthChecks;
+    rejectHealth = true;
+    try {
+      send('open_desk', { id });
+      await decideAttachment('Switch after upload');
+      expect(rejectedHealthChecks > previous, 'the initial probe did not see the destination unavailable');
+      rejectHealth = false;
+    } finally {
+      rejectHealth = false;
+      await releaseLocalScreenshot();
+    }
+    const result = await until('the destination to open', 10_000, () =>
+      reports.slice(before).find(item => item.kind === 'remote' || item.kind === 'status'));
+    expect(result.kind === 'remote' && result.projects === 200, JSON.stringify(result));
   });
   await check('switching to this machine needs a fresh sign-in link after waiting for an upload', async () => {
     const label = displayed()?.label;

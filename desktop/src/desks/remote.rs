@@ -94,7 +94,13 @@ pub fn pair(origin: &str, code: &str) -> Result<Url, &'static str> {
   };
   let status = res.status();
   let body = response_json(res, PAIR_LIMIT);
-  paired(origin, status, body.as_ref())
+  let link = paired(origin, status, body.as_ref())?;
+  // A same-origin URL in the pairing response is not proof that the origin
+  // serves Seismic. Verify it before saving or granting a workspace webview.
+  match health(origin) {
+    Health::Seismic => Ok(link),
+    problem => Err(problem.code()),
+  }
 }
 
 fn paired(origin: &str, status: u16, body: Option<&Value>) -> Result<Url, &'static str> {

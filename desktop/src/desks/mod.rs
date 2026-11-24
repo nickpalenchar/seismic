@@ -721,9 +721,15 @@ pub fn connect_local(app: &AppHandle, port: u16, page: Url, handed_over: bool) -
         return Err("superseded".into());
       }
       match outgoing? {
-        Attach::Reload(mut hold) => {
+        Attach::Reload(hold) => {
+          #[cfg(debug_assertions)]
+          if crate::seismic_env("APP_CHECK").is_some() && std::fs::remove_file(state.home.join("check-local-navigation-not-committed")).is_ok() {
+            // Exercise the fallback when the runtime accepts navigation but leaves the old document.
+            hold.awaiting_navigation();
+            return Ok(());
+          }
           local_view(app).ok_or("window")?.navigate(page).map_err(|e| e.to_string())?;
-          hold.navigating();
+          hold.awaiting_navigation();
           Ok(())
         }
         Attach::Replace(captured) => {
@@ -779,6 +785,13 @@ pub fn open(app: &AppHandle, id: &str, handed_over: bool, waiter: Option<OpenWai
       } else {
         capture(&app, turn, OnBack::Cancel)
       };
+      // Keep the outgoing page editable during the initial probe. An attachment
+      // decision may take arbitrarily long, so probe again if capture had to wait.
+      let health = if outgoing.as_ref().is_ok_and(|capture| capture.hold.as_ref().is_some_and(|hold| hold.waited)) {
+        origin.as_deref().map(|origin| remote::health(origin).code())
+      } else {
+        health.as_ref().map(Health::code)
+      };
       // Ask this machine for a sign-in link after the attachment decision: the
       // server can stop or change ports while the outgoing page waits for uploads.
       let local = (origin.is_none() && outgoing.is_ok()).then(|| {
@@ -788,7 +801,7 @@ pub fn open(app: &AppHandle, id: &str, handed_over: bool, waiter: Option<OpenWai
         };
         (port, port.and_then(|port| crate::sign_in_link(port, &next, false)))
       });
-      let (state, id, origin, health) = (state.clone(), id.clone(), origin.clone(), health.as_ref().map(Health::code));
+      let (state, id, origin) = (state.clone(), id.clone(), origin.clone());
       let pending = state.clone();
       let queued = tauri::async_runtime::block_on(on_ui(app.clone(), move |app| {
         let opened = (|| {
