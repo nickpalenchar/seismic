@@ -64,19 +64,20 @@ fn get(origin: &str, path: &str) -> Result<ureq::Response, Health> {
 
 /// Asks `origin` whether Seismic answers there (`GET /api/v1/health`), without the window's device
 /// cookie (the shell has none of its own): Seismic names itself in a few bytes, however large its
-/// workspace, or returns its JSON refusal (`notPaired`). A Seismic from before that route answers
-/// it with a 404 and is asked for its projects instead.
+/// workspace, or returns its JSON refusal (`notPaired`). A Seismic from before that route does not
+/// know it (a 404, or its "Not connected" page to a device it does not know) and is asked for its
+/// projects instead.
 pub fn health(origin: &str) -> Health {
   let res = match get(origin, "/api/v1/health") {
     Ok(res) => res,
     Err(problem) => return problem,
   };
   let status = res.status();
-  if status == 404 {
-    return earlier_health(origin);
-  }
   let body = matches!(status, 200 | 401).then(|| response_json(res, HEALTH_LIMIT)).flatten();
-  judge(status, body.as_ref())
+  match judge(status, body.as_ref()) {
+    Health::Seismic => Health::Seismic,
+    _ => earlier_health(origin),
+  }
 }
 
 /// A Seismic from before `/api/v1/health` marks its projects response (`X-Seismic: projects`); the
@@ -183,7 +184,8 @@ mod tests {
           continue;
         };
         // A chunked response does not advertise its size. The client can stop as soon as it hits its limit.
-        let _ = write!(stream.get_mut(), "HTTP/1.1 {header}\r\nTransfer-Encoding: chunked\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{:x}\r\n{body}\r\n0\r\n\r\n", body.len());
+        let header = if header.contains("Content-Type") { header.clone() } else { format!("{header}\r\nContent-Type: application/json") };
+        let _ = write!(stream.get_mut(), "HTTP/1.1 {header}\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n{:x}\r\n{body}\r\n0\r\n\r\n", body.len());
       }
     });
     origin
@@ -228,7 +230,10 @@ mod tests {
     let large = serve(vec![("/api/projects", "200 OK\r\nX-Seismic: projects", many_projects())]);
     assert_eq!(health(&large), Health::Seismic);
     assert_eq!(health(&large), Health::Seismic);
-    let signed_out = serve(vec![("/api/projects", "401 Unauthorized", NOT_PAIRED.into())]);
+    // to a device it does not know, it answers the unknown route with its "Not connected" page
+    let page = "401 Unauthorized\r\nContent-Type: text/html; charset=utf-8";
+    let signed_out = serve(vec![("/api/v1/health", page, "<!doctype html><title>Not connected</title>".into()), ("/api/projects", "401 Unauthorized", NOT_PAIRED.into())]);
+    assert_eq!(health(&signed_out), Health::Seismic);
     assert_eq!(health(&signed_out), Health::Seismic);
   }
 
@@ -239,9 +244,9 @@ mod tests {
     assert_eq!(health(&serve(vec![("/api/v1/health", "200 OK", r#"{"status":"ok"}"#.into())])), Health::NotSeismic);
     assert_eq!(health(&serve(vec![("/api/v1/health", "200 OK", r#"{"service":"other","status":"ok"}"#.into())])), Health::NotSeismic);
     assert_eq!(health(&serve(vec![("/api/v1/health", "403 Forbidden", NOT_PAIRED.into())])), Health::NotSeismic);
-    // a health answer that is not a 404 is final: a marked projects list does not overrule it
-    let both = serve(vec![("/api/v1/health", "500 Internal Server Error", "{}".into()), ("/api/projects", "200 OK\r\nX-Seismic: projects", "[]".into())]);
-    assert_eq!(health(&both), Health::NotSeismic);
+    // the earlier check stays as strict: an unmarked list or another refusal is no Seismic either
+    assert_eq!(health(&serve(vec![("/api/v1/health", "500 Internal Server Error", "{}".into()), ("/api/projects", "200 OK", "[]".into())])), Health::NotSeismic);
+    assert_eq!(health(&serve(vec![("/api/projects", "401 Unauthorized", r#"{"code":"loginRequired"}"#.into())])), Health::NotSeismic);
   }
 
   #[test]
