@@ -88,7 +88,7 @@ fn earlier_health(origin: &str) -> Health {
     Err(problem) => return problem,
   };
   let status = res.status();
-  if status == 200 && res.header("x-seismic") == Some("projects") {
+  if status == 200 && res.header("x-seismic") == Some("projects") && res.content_type().eq_ignore_ascii_case("application/json") {
     return Health::Seismic;
   }
   let body = (status == 401).then(|| response_json(res, PAIR_LIMIT)).flatten();
@@ -156,7 +156,7 @@ mod tests {
   fn serve(routes: Vec<(&str, &str, String)>) -> String {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let origin = format!("http://{}", listener.local_addr().unwrap());
-    let routes: Vec<(String, String, String)> = routes.into_iter().map(|(p, h, b)| (p.into(), h.into(), b)).collect();
+    let routes: Vec<(String, String, String)> = routes.into_iter().map(|(p, h, b)| (p.into(), h.into(), b.replace("{origin}", &origin))).collect();
     std::thread::spawn(move || {
       for stream in listener.incoming() {
         let Ok(stream) = stream else { return };
@@ -247,6 +247,20 @@ mod tests {
     // the earlier check stays as strict: an unmarked list or another refusal is no Seismic either
     assert_eq!(health(&serve(vec![("/api/v1/health", "500 Internal Server Error", "{}".into()), ("/api/projects", "200 OK", "[]".into())])), Health::NotSeismic);
     assert_eq!(health(&serve(vec![("/api/projects", "401 Unauthorized", r#"{"code":"loginRequired"}"#.into())])), Health::NotSeismic);
+  }
+
+  #[test]
+  fn marked_non_json_projects_cannot_authorize_a_workspace_or_pairing() {
+    for content_type in ["text/html; charset=utf-8", "text/plain"] {
+      let marked = format!("200 OK\r\nX-Seismic: projects\r\nContent-Type: {content_type}");
+      let studio = serve(vec![("/api/projects", &marked, "<!doctype html><title>Sign in</title>".into())]);
+      assert_eq!(health(&studio), Health::NotSeismic);
+    }
+    let studio = serve(vec![
+      ("/api/projects", "200 OK\r\nX-Seismic: projects\r\nContent-Type: text/html", "<!doctype html><title>Sign in</title>".into()),
+      ("/api/pair", "200 OK", r#"{"url":"{origin}/pair?token=abc"}"#.into()),
+    ]);
+    assert_eq!(pair(&studio, "123456"), Err("notSeismic"));
   }
 
   #[test]
