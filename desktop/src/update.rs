@@ -239,10 +239,25 @@ fn start_again(app: &AppHandle, seismic: &Seismic, port: u16) -> io::Result<()> 
   // the owner may have begun to speak meanwhile; what was handed over waits for the next try
   if now(&ask("")) && crate::may_relaunch(app) {
     if let Some(placed) = prepare_relaunch(app, false, None)? {
-      crate::relaunch(app, seismic, &placed);
+      // probing the remote pages and saving the snapshot take a while, in which the owner can
+      // switch to another app or minimize the window
+      let allowed = || now(&ask("")) && crate::may_relaunch(app);
+      relaunch_if_allowed(&crate::home(), &placed, allowed, |placed| crate::relaunch(app, seismic, placed));
     }
   }
   Ok(())
+}
+
+/// The final relaunch decision of an automatic rebuild: relaunches with the published snapshot while
+/// it is still allowed, else removes the snapshot, so that the next start of the shell restores no
+/// windows from an abandoned try; the next try captures them afresh.
+fn relaunch_if_allowed(home: &Path, placed: &[Placed], allowed: impl FnOnce() -> bool, relaunch: impl FnOnce(&[Placed])) -> bool {
+  if !allowed() {
+    placed::discard(home);
+    return false;
+  }
+  relaunch(placed);
+  true
 }
 
 /// Publish the snapshot before anything that can exit, including the installer itself.
@@ -420,6 +435,35 @@ mod tests {
     expected[0].next = local.next;
     assert_eq!(placed::take(&home), expected);
     assert!(placed::take(&home).is_empty());
+    fs::remove_dir_all(home).unwrap();
+  }
+
+  fn snapshot_home(name: &str) -> (std::path::PathBuf, Vec<Placed>) {
+    let home = std::env::temp_dir().join(format!("seismic-{name}-{}", uuid::Uuid::new_v4()));
+    fs::create_dir_all(&home).unwrap();
+    let windows = vec![Placed { desk: LOCAL.into(), next: "/p/local".into(), focused: true, ..Default::default() }];
+    placed::keep(&home, &windows, false).unwrap();
+    (home, windows)
+  }
+
+  #[test]
+  fn a_rebuild_whose_window_lost_the_foreground_while_preparing_does_not_relaunch() {
+    let (home, windows) = snapshot_home("rebuild-backgrounded");
+    let mut relaunched = false;
+    assert!(!relaunch_if_allowed(&home, &windows, || false, |_| relaunched = true));
+    assert!(!relaunched);
+    // the abandoned snapshot is gone: the next start of the shell restores nothing from it
+    assert!(placed::take(&home).is_empty());
+    fs::remove_dir_all(home).unwrap();
+  }
+
+  #[test]
+  fn a_rebuild_still_in_the_foreground_relaunches_with_its_snapshot() {
+    let (home, windows) = snapshot_home("rebuild-foreground");
+    let mut relaunched = Vec::new();
+    assert!(relaunch_if_allowed(&home, &windows, || true, |placed| relaunched = placed.to_vec()));
+    assert_eq!(relaunched, windows);
+    assert_eq!(placed::take(&home), windows);
     fs::remove_dir_all(home).unwrap();
   }
 }
