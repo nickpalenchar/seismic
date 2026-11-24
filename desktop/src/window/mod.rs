@@ -492,6 +492,22 @@ mod tests {
     assert!(!admits("https://studio.evil/"));
     assert!(!admits("about:blank"));
     assert!(!admits("data:text/html,hi"));
+    // the startup and updater screens belong to this machine's window
+    assert!(!admits(bundled_url("/").as_str()));
+    assert!(!admits(bundled_url("/index.html").as_str()));
+  }
+
+  #[test]
+  fn this_machines_window_admits_the_startup_and_updater_screens_alone() {
+    for own in [Own::Local(None), Own::Local(Some(4417))] {
+      let admits = |u: &str| own.admits(&Url::parse(u).unwrap());
+      assert!(admits(bundled_url("/").as_str()));
+      assert!(admits(bundled_url("/index.html?updating").as_str()));
+      assert_eq!(admits("tauri://localhost/index.html?updating"), !cfg!(windows));
+      assert_eq!(admits("http://tauri.localhost/index.html?updating"), cfg!(windows));
+      assert!(!admits(bundled_url("/status.html").as_str()));
+      assert!(!admits("https://tauri.localhost/"));
+    }
   }
 
   #[test]
