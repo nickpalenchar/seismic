@@ -79,21 +79,23 @@ const REMOTE = `http://${HOST}:${proxyPort}`;
 const LAST_PAGE = '/p/lab?view=table#draft';
 const PAGE_BEFORE_BACK = '/p/lab?view=canvas#new-anchor';
 const OVERFLOW_DRAFT = 'The latest edit lives only in memory. '.repeat(40);
+const STALE_CONFIG = '{"name":"Older stored settings"}';
 const quotaFixture = join(dir, 'quota.ts');
 writeFileSync(quotaFixture, `
   import { snapshotSession } from ${JSON.stringify(join(ROOT, 'src/ui/api'))};
   import { draftSession } from ${JSON.stringify(join(ROOT, 'src/ui/draftSession'))};
   import { keepDrafts, updateDraft } from ${JSON.stringify(join(ROOT, 'src/ui/draft'))};
   import { keepConfigDraft } from ${JSON.stringify(join(ROOT, 'src/ui/configDraft'))};
-  export function edit() {
+  export function edit(text) {
     keepDrafts(draftSession, 'quota-check');
-    updateDraft('card:q', { text: ${JSON.stringify(OVERFLOW_DRAFT)} });
-    keepConfigDraft(draftSession, 'project:quota-check', { name: ${JSON.stringify(OVERFLOW_DRAFT)} }, { name: 'Saved name' });
+    updateDraft('card:q', { text });
+    keepConfigDraft(draftSession, 'project:quota-check', { name: text }, { name: 'Saved name' });
     draftSession.setItem('seismic-drafts-check', 'Edited just before Back');
     draftSession.setItem('seismic-wish-check', 'New issue just before Back');
     draftSession.setItem('seismic-config-draft-check', 'New settings just before Back');
     window.seismicSnapshotSession = snapshotSession;
-    return sessionStorage.getItem('seismic-drafts-quota-check') === null && draftSession.getItem('seismic-drafts-quota-check') !== null;
+    return sessionStorage.getItem('seismic-drafts-quota-check') === null && draftSession.getItem('seismic-drafts-quota-check') !== null &&
+      sessionStorage.getItem('seismic-config-draft-project:quota-check') === ${JSON.stringify(STALE_CONFIG)};
   }
 `);
 let quotaBundle: Promise<string> | undefined;
@@ -247,6 +249,7 @@ const reports: Record<string, unknown>[] = [];
 let retryNow = false;
 let backToStatus = false;
 let editBeforeBack = false;
+let draftRevision = 0;
 let rememberLastPage = false;
 let statusAction: { name: string; open?: boolean } | undefined;
 const polls = new Map<string, number>();
@@ -262,9 +265,11 @@ if (location.origin === ${JSON.stringify(REMOTE)} && document.getElementById('si
   for (let n = 0; n < 60 && !document.getElementById('root')?.firstChild; n++) {
     await new Promise((r) => setTimeout(r, 50));
   }
-  const out = { kind: 'remote', href: location.href, label: window.__TAURI_INTERNALS__.metadata.currentWindow.label, mounted: !!document.getElementById('root')?.firstElementChild, handedOver: window.seismicApp?.handedOver, previousSession: sessionStorage.getItem('check-workspace-session'), previousDraft: sessionStorage.getItem('seismic-drafts-check'), previousWish: sessionStorage.getItem('seismic-wish-check'), previousConfig: sessionStorage.getItem('seismic-config-draft-check') };
-  out.previousOverflowDraft = JSON.parse(sessionStorage.getItem('seismic-drafts-quota-check') ?? '{}')['card:q']?.text;
-  out.previousOverflowConfig = JSON.parse(sessionStorage.getItem('seismic-config-draft-project:quota-check') ?? '{}').name;
+  const entries = new Map(window.seismicSnapshotSession?.() ?? Object.entries(sessionStorage));
+  const out = { kind: 'remote', href: location.href, label: window.__TAURI_INTERNALS__.metadata.currentWindow.label, mounted: !!document.getElementById('root')?.firstElementChild, handedOver: window.seismicApp?.handedOver, previousSession: entries.get('check-workspace-session') ?? null, previousDraft: entries.get('seismic-drafts-check') ?? null, previousWish: entries.get('seismic-wish-check') ?? null, previousConfig: entries.get('seismic-config-draft-check') ?? null };
+  out.previousOverflowDraft = JSON.parse(entries.get('seismic-drafts-quota-check') ?? '{}')['card:q']?.text;
+  out.previousOverflowConfig = JSON.parse(entries.get('seismic-config-draft-project:quota-check') ?? '{}').name;
+  out.restoredInMemory = sessionStorage.getItem('seismic-drafts-quota-check') === null && out.previousOverflowDraft !== undefined;
   for (const key of Object.keys(localStorage)) if (key.startsWith('seismic-check-storage-fill-')) localStorage.removeItem(key);
   sessionStorage.setItem('check-workspace-session', 'kept');
   sessionStorage.setItem('seismic-wish-check', 'Unsent issue for Lab');
@@ -287,6 +292,7 @@ if (location.origin === ${JSON.stringify(REMOTE)} && document.getElementById('si
   if (back.now) {
     if (back.edit) {
       history.replaceState(null, '', ${JSON.stringify(PAGE_BEFORE_BACK)});
+      sessionStorage.setItem('seismic-config-draft-project:quota-check', ${JSON.stringify(STALE_CONFIG)});
       const prefix = 'seismic-check-storage-fill-';
       const fill = (store) => {
         for (let size = 512 * 1024; size >= 16; size = Math.floor(size / 2)) {
@@ -302,7 +308,8 @@ if (location.origin === ${JSON.stringify(REMOTE)} && document.getElementById('si
       const { edit } = await import(new URL('quota.js', base).href);
       const localFull = fill(localStorage);
       const sessionFull = fill(sessionStorage);
-      await post('result', { kind: 'profileQuota', localFull, sessionFull, overflow: edit() });
+      const text = ${JSON.stringify(OVERFLOW_DRAFT)} + back.edit;
+      await post('result', { kind: 'profileQuota', localFull, sessionFull, overflow: edit(text), revision: back.edit });
     }
     history.back();
   }
@@ -401,7 +408,7 @@ const harness = Bun.serve({
     }
     if (path === '/back-to-status') {
       const now = backToStatus;
-      const edit = now && editBeforeBack;
+      const edit = now && editBeforeBack ? ++draftRevision : 0;
       if (now) retryNow = backToStatus = false;
       if (edit) editBeforeBack = false;
       return json({ now, edit });
@@ -856,6 +863,33 @@ try {
       expect(reopened.projects === 200 && reopened.label === again.label, JSON.stringify(reopened));
       expect(reopened.href === `${REMOTE}${LAST_PAGE}`, `the history retry lost the saved page (${reopened.href})`);
     });
+    await check('Try again restores memory-only edits in the same native window', async () => {
+      await report('status', edited, 10_000);
+      const quota = await report('profileQuota', edited, 5_000);
+      expect(quota.sessionFull === true && quota.overflow === true, JSON.stringify(quota));
+      const before = reports.length;
+      const pid = entry()?.pid;
+      editBeforeBack = backToStatus = retryNow = true;
+      const reopened = await report('remote', before, 10_000);
+      expect(reopened.label === again.label && entry()?.pid === pid, 'the workspace or local server was replaced');
+      const latest = OVERFLOW_DRAFT + quota.revision;
+      expect(reopened.restoredInMemory === true && reopened.previousOverflowDraft === latest && reopened.previousOverflowConfig === latest, 'the latest edits were not restored in memory');
+      expect(reopened.href === `${REMOTE}${PAGE_BEFORE_BACK}`, JSON.stringify(reopened));
+      edited = before;
+      return 'the latest conversation and settings edits';
+    });
+    await check('pairing again at the same address also restores the latest departing edits', async () => {
+      await report('status', edited, 10_000);
+      const quota = await report('profileQuota', edited, 5_000);
+      const before = reports.length;
+      editBeforeBack = backToStatus = true;
+      const paired = await run('pair_desk', { id, code: await code() });
+      expect(paired.ok, JSON.stringify(paired));
+      const reopened = await report('remote', before, 10_000);
+      const latest = OVERFLOW_DRAFT + quota.revision;
+      expect(reopened.label === again.label && reopened.previousOverflowDraft === latest && reopened.previousOverflowConfig === latest, 're-pair did not recover the latest edits in the existing window');
+      edited = before;
+    });
     await check('drafts survive two restarts from status with a full browser profile', async () => {
       try {
         await report('status', edited, 10_000);
@@ -877,7 +911,8 @@ try {
         expect(acknowledgedHandovers === writes, 'the server accepted handover from a status page');
         expect(restored.previousDraft === 'Edited just before Back' && restored.previousWish === 'New issue just before Back' &&
           restored.previousConfig === 'New settings just before Back' && restored.previousSession === null, JSON.stringify(restored));
-        expect(restored.previousOverflowDraft === OVERFLOW_DRAFT && restored.previousOverflowConfig === OVERFLOW_DRAFT, 'the edits that did not fit in session storage were lost');
+        const latest = OVERFLOW_DRAFT + quota.revision;
+        expect(restored.previousOverflowDraft === latest && restored.previousOverflowConfig === latest, 'the edits that did not fit in session storage were lost');
         expect(restored.href === `${REMOTE}${PAGE_BEFORE_BACK}`, `Try again lost the in-page address (${restored.href})`);
         return 'conversation, issue, and settings drafts';
       } finally {

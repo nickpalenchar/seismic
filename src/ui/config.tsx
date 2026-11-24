@@ -75,6 +75,8 @@ declare global {
     seismicRestoredDrafts?: Set<string>;
     seismicDraftOverflow?: [string, string][];
     seismicDraftsReceived?: boolean;
+    seismicDraftsReady?: Promise<void>;
+    seismicConfirmDeparture?: () => void;
   }
 }
 

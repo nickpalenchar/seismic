@@ -471,6 +471,8 @@ Safety rules:
   This copy uses native messaging so it does not depend on browser storage quota or a server connection.
   If session storage rejects a draft write, the page keeps the newer value in memory and includes it
   in the snapshot. The departure records the current full route, including in-page address changes.
+  A returning document receives the native departure copy before it mounts its editors. An activation
+  change leaves that copy pending until the receiving document confirms delivery.
   An update that cannot confirm receipt keeps the windows alive and resumes the local server.
   Failed snapshot preparation retains a downloaded release and the pending checkout rebuild.
   Automatic retries test that a snapshot can be saved before asking the server to stop again.

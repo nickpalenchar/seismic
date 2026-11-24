@@ -590,6 +590,7 @@ fn main() {
       window::workspace_start_dragging,
       window::workspace_toggle_maximize,
       window::drafts::workspace_draft_checkpoint,
+      window::drafts::workspace_restore_drafts,
     ])
     .setup(move |app| {
       let handle = app.handle().clone();

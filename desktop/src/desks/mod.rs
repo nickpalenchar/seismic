@@ -43,9 +43,9 @@ const PAGE: &[&str] = &[
 /// What this machine's page may besides: change the list.
 const LOCAL_PAGE: &[&str] = &["allow-add-desk", "allow-rename-desk", "allow-pair-desk", "allow-remove-desk"];
 #[cfg(not(target_os = "linux"))]
-const REMOTE_PAGE: &[&str] = &["allow-workspace-draft-checkpoint"];
+const REMOTE_PAGE: &[&str] = &["allow-workspace-draft-checkpoint", "allow-workspace-restore-drafts"];
 #[cfg(target_os = "linux")]
-const REMOTE_PAGE: &[&str] = &[];
+const REMOTE_PAGE: &[&str] = &["allow-workspace-restore-drafts"];
 
 /// The startup window has no server origin or native capability.
 pub const STARTUP: &str = "main";
@@ -71,16 +71,77 @@ struct Departure {
   observed: bool,
   activation: f64,
   drafts: Option<Vec<(String, String)>>,
+  previous_in_flight: Option<f64>,
+  /// A previous document's completed checkpoint, held until its successor confirms delivery.
+  returning: Vec<(String, String)>,
+  returning_from: Option<f64>,
+  offered: bool,
+}
+
+pub type DraftOffer = (Option<f64>, Vec<(String, String)>);
+
+fn include_missing(entries: &mut Vec<(String, String)>, backup: Vec<(String, String)>) {
+  for (key, value) in backup {
+    if !entries.iter().any(|(k, _)| *k == key) {
+      entries.push((key, value));
+    }
+  }
 }
 
 impl Departure {
+  fn carry(&mut self, activation: f64, entries: Vec<(String, String)>) {
+    let before = self.returning.len();
+    include_missing(&mut self.returning, entries);
+    if self.returning.len() != before {
+      self.returning_from = if before == 0 { Some(activation) } else { self.returning_from.filter(|a| *a == activation) };
+    }
+  }
+
   fn receive(&mut self, activation: f64, drafts: Option<Vec<(String, String)>>) -> bool {
-    if activation < self.activation || (activation == self.activation && drafts.is_none()) {
+    if activation < self.activation {
+      if self.previous_in_flight == Some(activation) {
+        if let Some(entries) = drafts {
+          self.previous_in_flight = None;
+          self.carry(activation, entries);
+          return true;
+        }
+      }
       return false;
+    }
+    if activation == self.activation && drafts.is_none() {
+      return false;
+    }
+    if activation > self.activation {
+      self.offered = false;
+      self.previous_in_flight = (self.activation > 0.0 && self.drafts.is_none()).then_some(self.activation);
+      if let Some(previous) = self.drafts.take() {
+        self.carry(self.activation, previous);
+      }
     }
     self.observed = true;
     self.activation = activation;
     self.drafts = drafts;
+    true
+  }
+
+  fn restore(&mut self, activation: f64) -> Result<Option<DraftOffer>, &'static str> {
+    if activation > self.activation || (activation == self.activation && self.previous_in_flight.is_some()) {
+      return Err("pending"); // A lifecycle message is still in the native queue.
+    }
+    if activation != self.activation {
+      return Err("stale");
+    }
+    self.offered = !self.returning.is_empty();
+    Ok(self.offered.then(|| (self.returning_from, self.returning.clone())))
+  }
+
+  fn confirm(&mut self, activation: f64) -> bool {
+    if activation != self.activation || !self.offered {
+      return false;
+    }
+    self.returning.clear();
+    self.returning_from = None;
+    self.offered = false;
     true
   }
 }
@@ -557,18 +618,30 @@ pub fn page_loaded(app: &AppHandle, label: &str, url: &Url) {
 }
 
 /// Only the remote capability for this exact window label and origin grants the checkpoint command.
-pub fn departure(shell: &Shell, label: &str, activation: f64, url: &str, entries: Option<Vec<(String, String)>>) {
+pub fn departure(shell: &Shell, label: &str, activation: f64, url: &str, entries: Option<Vec<(String, String)>>, received: bool) {
   let mut windows = shell.windows.lock().unwrap();
   if let Some(window) = windows.open.get_mut(label) {
-    if window.departure.receive(activation, entries) {
+    let confirmed = received && window.departure.confirm(activation);
+    let recorded = window.departure.receive(activation, entries);
+    if recorded && activation == window.departure.activation {
       if let Ok(url) = Url::parse(url) {
         if Own::Remote(window.origin.clone()).at(&url) {
           window.next = crate::next_of(&url);
         }
       }
+    }
+    if confirmed || recorded {
       windows.draft_generation += 1;
     }
   }
+}
+
+/// The capability belongs only to the invoking workspace's label and origin. An old document
+/// cannot read or clear what is waiting for a newer activation in the same window.
+pub fn restore_departure(shell: &Shell, label: &str, activation: f64) -> Result<Option<DraftOffer>, &'static str> {
+  let mut windows = shell.windows.lock().unwrap();
+  let window = windows.open.get_mut(label).ok_or("unknown")?;
+  window.departure.restore(activation)
 }
 
 /// The list or the windows changed: the pages hear of it (`seismic-desks`, they ask for the list
@@ -608,17 +681,16 @@ pub fn placed(app: &AppHandle, draft_generation: u64, mut drafts: HashMap<String
     if sampled.is_none() && at_origin {
       return Ok(None); // a newly connected page was not sampled, even if its draft list might be empty
     }
-    let mut unsent = if !at_origin && o.departure.observed {
+    let sampled = if !at_origin && o.departure.observed {
       o.departure.drafts.ok_or_else(|| io::Error::other(format!("Seismic could not save drafts from {}. Reconnect the workspace or use Forward to return to its page, then try the update again.", o.origin)))?
     } else {
       sampled.unwrap_or_default()
     };
     // Until the document confirms delivery, preserve any backup entries the page has not supplied.
-    for (key, value) in o.drafts {
-      if !unsent.iter().any(|(k, _)| *k == key) {
-        unsent.push((key, value));
-      }
-    }
+    // An unacknowledged reconnect copy is newer than any stale values in session storage.
+    let mut unsent = o.departure.returning;
+    include_missing(&mut unsent, sampled);
+    include_missing(&mut unsent, o.drafts);
     if let Some(mut placed) = Placed::of(&w, &o.desk, &own, &o.next) {
       placed.drafts = unsent;
       placed.draft_checkpoint = o.draft_checkpoint;
@@ -654,6 +726,39 @@ mod tests {
     assert!(departure.receive(2.0, Some(vec![])));
     assert!(!departure.receive(2.0, None));
     assert_eq!(departure.drafts, Some(vec![]));
+  }
+
+  #[test]
+  fn a_reconnect_keeps_the_previous_draft_until_the_right_document_receives_it() {
+    let mut departure = Departure::default();
+    let latest = vec![("seismic-drafts-shop".into(), "newest".into())];
+    assert!(departure.receive(1.0, Some(latest.clone())));
+    assert_eq!(departure.restore(2.0), Err("pending"));
+    assert!(departure.receive(2.0, None));
+    assert_eq!(departure.restore(2.0), Ok(Some((Some(1.0), latest.clone()))));
+    // The first returning document leaves before committing the delivered drafts.
+    assert!(departure.receive(2.0, Some(vec![])));
+    assert!(departure.receive(3.0, None));
+    assert!(!departure.confirm(2.0));
+    assert!(!departure.confirm(3.0));
+    assert_eq!(departure.restore(3.0), Ok(Some((Some(1.0), latest))));
+    assert!(departure.confirm(3.0));
+    assert!(departure.receive(3.0, Some(vec![])));
+    assert!(departure.receive(4.0, None));
+    assert_eq!(departure.restore(4.0), Ok(None));
+  }
+
+  #[test]
+  fn a_returning_page_waits_for_the_departure_message_when_it_arrives_late() {
+    let mut departure = Departure::default();
+    let latest = vec![("seismic-wish-shop".into(), "unfinished".into())];
+    assert!(departure.receive(1.0, None));
+    assert!(departure.receive(2.0, None));
+    assert_eq!(departure.restore(2.0), Err("pending"));
+    assert!(departure.receive(1.0, Some(latest.clone())));
+    assert_eq!(departure.restore(2.0), Ok(Some((Some(1.0), latest))));
+    assert!(!departure.receive(1.0, Some(vec![])));
+    assert!(departure.confirm(2.0));
   }
 
   #[test]

@@ -14,11 +14,14 @@ if (window.seismicApp) {
   window.seismicHandOver = handOver;
   window.seismicRestartHeld = restartHeld;
   window.seismicSnapshotSession = snapshotSession;
+  await window.seismicDraftsReady;
   if (window.seismicDraftOverflow) {
     restoreDraftOverflow(window.seismicDraftOverflow);
     delete window.seismicDraftOverflow;
     window.seismicDraftsReceived = true;
   }
+  window.seismicConfirmDeparture?.();
+  delete window.seismicConfirmDeparture;
 }
 await loadLanguageAndTheme();
 if (window.seismicApp?.handedOver) await takeHandOver(window.seismicRestoredDrafts);
