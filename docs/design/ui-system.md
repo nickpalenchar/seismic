@@ -29,7 +29,10 @@ Screens are built from React components in `src/ui/components/` (and the feature
 components built on them), not from class strings handed around between files. A look used in two
 places becomes a component or a cva variant; layout (gap, alignment, margin) belongs to the
 container. A bespoke control is built only where no part exists, and then as a component in the
-same style. UI text comes from `src/ui/strings.ts`, never a literal.
+same style. UI text comes from `src/ui/strings.ts`, never a literal. The desktop shell's bundled
+pages (`desktop/ui/`) show before any server answers and are embedded as they are, so they read
+theirs (`desktopPages`) from the committed `desktop/ui/strings.js`, which `bun
+scripts/desktop-strings.ts` writes and a test keeps current (2026-11-24).
 
 ## Frost, Seismic's look
 

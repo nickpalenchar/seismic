@@ -1385,6 +1385,28 @@ const en = {
     first: 'For your phone to reach Seismic:',
     toSection: 'Devices and settings',
   },
+  /** The pages the desktop shell bundles (desktop/ui/), which load before any server answers: they read
+   * these from desktop/ui/strings.js, which `bun scripts/desktop-strings.ts` writes from here. A
+   * function here takes strings only and puts each in its text unchanged. */
+  desktopPages: {
+    starting: 'Seismic is starting …',
+    updating: 'Seismic is updating …',
+    status: {
+      title: 'Seismic',
+      doesNotAnswer: (workspace: string) => `${workspace} does not answer`,
+      unreachable: (origin: string) => `Nothing answers at ${origin}. The machine may be off or asleep, or not on this network.`,
+      notSeismic: (origin: string) => `Something answers at ${origin}, but it is not Seismic.`,
+      notLoaded: (origin: string) => `Seismic answers at ${origin}, but its page did not load.`,
+      check: (origin: string) => `Check whether Seismic answers at ${origin}.`,
+      retry: 'Try again',
+      retrying: 'Trying …',
+      others: 'Switch workspace',
+      switching: (workspace: string) => `Switching to ${workspace} …`,
+      gone: (workspace: string) => `${workspace} is no longer available.`,
+      drafts: 'Couldn’t save the drafts from this workspace. Reconnect it or use Forward to return to its page, then try again.',
+      switchFailed: (workspace: string) => `Couldn’t switch to ${workspace}. Try again.`,
+    },
+  },
   quick: {
     answered: (option: string) => `Answered: ${option}`,
     pickHint: 'The agent’s choice',

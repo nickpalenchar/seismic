@@ -5,6 +5,7 @@
     <meta charset="utf-8" />
     <title>Seismic</title>
     <link rel="stylesheet" href="frost.css" />
+    <script src="strings.js"></script>
     <style>
       body { display: grid; place-content: center; padding: 24px; box-sizing: border-box; }
       main { max-width: 28rem; display: grid; gap: 14px; justify-items: start; }
@@ -26,21 +27,23 @@
     <div data-tauri-drag-region></div>
     <main>
       <img src="logo.svg" alt="" />
-      <h1 id="title">Seismic</h1>
+      <h1 id="title"></h1>
       <p id="why"></p>
-      <div class="row"><button id="retry" class="primary" type="button">Try again</button></div>
-      <h2 id="others-title" hidden>Switch workspace</h2>
+      <div class="row"><button id="retry" class="primary" type="button"></button></div>
+      <h2 id="others-title" hidden></h2>
       <div id="others" class="row"></div>
       <p id="open-result" role="status"></p>
     </main>
     <script>
       const invoke = (cmd, args) => window.__TAURI_INTERNALS__.invoke(cmd, args);
-      const WHY = {
-        unreachable: (o) => `Nothing answers at ${o}. The machine may be off or asleep, or not on this network.`,
-        notSeismic: (o) => `Something answers at ${o}, but it is not Seismic.`,
-        notLoaded: (o) => `Seismic answers at ${o}, but its page did not load.`,
-      };
+      // the text, from src/ui/strings.ts (desktopPages) through strings.js
+      const s = window.SEISMIC_STRINGS.status;
+      const fill = window.fillString;
+      const WHY = ['unreachable', 'notSeismic', 'notLoaded'];
       const $ = (id) => document.getElementById(id);
+      $('title').textContent = s.title;
+      $('retry').textContent = s.retry;
+      $('others-title').textContent = s.others;
       const others = $('others');
       const buttons = new Map();
       let opening = false;
@@ -49,16 +52,16 @@
         if (opening) return;
         opening = true;
         for (const button of buttons.values()) button.setAttribute('aria-disabled', 'true');
-        $('open-result').textContent = `Switching to ${name} …`;
+        $('open-result').textContent = fill(s.switching, name);
         try {
           await invoke('open_desk', { id });
           $('open-result').textContent = '';
         } catch (error) {
           const currentName = buttons.get(id)?.textContent || name;
           $('open-result').textContent = error === 'superseded' ? ''
-            : error === 'unknown' ? `${currentName} is no longer available.`
-            : error === 'drafts' ? 'Couldn’t save the drafts from this workspace. Reconnect it or use Forward to return to its page, then try again.'
-            : `Couldn’t switch to ${currentName}. Try again.`;
+            : error === 'unknown' ? fill(s.gone, currentName)
+            : error === 'drafts' ? s.drafts
+            : fill(s.switchFailed, currentName);
         } finally {
           opening = false;
           for (const button of buttons.values()) button.removeAttribute('aria-disabled');
@@ -70,9 +73,8 @@
         if (request !== listLoad) return;
         const own = desks.list.find((d) => d.id === desks.current);
         if (!own) return;
-        const reason = WHY[desks.problem];
-        $('title').textContent = desks.problem === 'unreachable' ? `${own.name} does not answer` : own.name;
-        $('why').textContent = reason ? reason(own.origin) : `Check whether Seismic answers at ${own.origin}.`;
+        $('title').textContent = desks.problem === 'unreachable' ? fill(s.doesNotAnswer, own.name) : own.name;
+        $('why').textContent = fill(WHY.includes(desks.problem) ? s[desks.problem] : s.check, own.origin);
         const workspaces = desks.list.filter((d) => d.id !== own.id);
         $('others-title').hidden = !workspaces.length;
         const focused = others.contains(document.activeElement) ? document.activeElement : null;
@@ -100,14 +102,14 @@
       $('retry').onclick = async () => {
         const b = $('retry');
         b.disabled = true;
-        b.textContent = 'Trying …';
+        b.textContent = s.retrying;
         try {
           await invoke('retry_desk');
         } catch {
           await load();
         } finally {
           b.disabled = false;
-          b.textContent = 'Try again';
+          b.textContent = s.retry;
         }
       };
       window.addEventListener('seismic-desks', load);

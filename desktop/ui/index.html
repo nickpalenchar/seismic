@@ -5,6 +5,7 @@
     <meta charset="utf-8" />
     <title>Seismic</title>
     <link rel="stylesheet" href="frost.css" />
+    <script src="strings.js"></script>
     <style>
       body { display: grid; place-content: center; justify-items: center; gap: 16px; color: var(--muted-foreground); }
       img { width: 64px; height: 64px; animation: breathe 1.6s ease-in-out infinite; }
@@ -16,7 +17,7 @@
     <div id="what"></div>
     <script>
       // ?updating: the shell installs an update (src/update.rs) and then starts the app again
-      document.getElementById('what').textContent = location.search === '?updating' ? 'Seismic is updating …' : 'Seismic is starting …';
+      document.getElementById('what').textContent = SEISMIC_STRINGS[location.search === '?updating' ? 'updating' : 'starting'];
     </script>
   </body>
 </html>
