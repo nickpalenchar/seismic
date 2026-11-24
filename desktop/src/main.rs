@@ -543,16 +543,6 @@ pub(crate) fn now_ms() -> u64 {
   std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64)
 }
 
-/// Whether the shell may start again now without the owner noticing more than the pages reloading:
-/// its windows are out of sight (closed on a Mac), or one is in front with the owner in it, where the
-/// new ones take their place. Not while one is minimized or they are behind another app's windows,
-/// where the new windows would come up on top of what the owner works in.
-pub(crate) fn may_relaunch(app: &AppHandle) -> bool {
-  main_window(app).is_some_and(|w| {
-    !w.is_minimized().unwrap_or(false) && (!w.is_visible().unwrap_or(true) || w.is_focused().unwrap_or(false))
-  })
-}
-
 /// Starts the shell again, whichever build is in its place now, with its windows as they were
 /// (window/placed.rs); the server runs on unless it ended already. On a Mac through the system, as the
 /// Dock starts it, once this one has ended: run from this process instead, the new shell would count
@@ -581,7 +571,7 @@ pub(crate) fn relaunch(app: &AppHandle, seismic: &Seismic, _placed: &[placed::Pl
       }
     }
   }
-  app.restart();
+  app.request_restart();
 }
 
 fn main() {

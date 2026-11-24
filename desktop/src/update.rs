@@ -33,7 +33,7 @@ use std::{
 };
 
 use serde_json::json;
-use tauri::{utils::config::BundleType, AppHandle};
+use tauri::{utils::config::BundleType, AppHandle, Manager};
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 use tauri_plugin_updater::{Update, UpdaterExt};
 
@@ -192,7 +192,7 @@ fn report(app: &AppHandle, seismic: &Seismic, updates: &Updates) {
   }
   if !seismic.child.load(Ordering::SeqCst) {
     if *updates.rebuilt.lock().unwrap() && retry_snapshot_ready(app, updates) {
-      if let Err(error) = start_again(app, seismic, port) {
+      if let Err(error) = start_again(app, port) {
         defer_snapshot(app, updates, &error, "The update will retry when Seismic can save the windows.");
       }
     }
@@ -217,12 +217,12 @@ fn report(app: &AppHandle, seismic: &Seismic, updates: &Updates) {
 
 /// A new build of the shell is in place, and the server runs on without it: it starts again once the
 /// owner neither dictates nor watches a video (as the server's restart waits for them, which says
-/// so) and its window allows (`may_relaunch`), after the page handed over what a reload keeps
+/// so) and its window is hidden or in front, after the page handed over what a reload keeps
 /// (src/ui/api.ts, `handOver`), or did not within a few seconds (a page that does not know how).
-fn start_again(app: &AppHandle, seismic: &Seismic, port: u16) -> io::Result<()> {
+fn start_again(app: &AppHandle, port: u16) -> io::Result<()> {
   let ask = |kept: &str| post(port, "/api/app-rebuilt", &json!({ "kept": kept }));
   let now = |a: &Option<serde_json::Value>| a.as_ref().is_some_and(|a| a["now"] == true);
-  if !now(&ask("")) || !crate::may_relaunch(app) || workspaces::ready(app, false).is_none() {
+  if !now(&ask("")) || RebuildWindow::current(app).is_none() || workspaces::ready(app, false).is_none() {
     return Ok(());
   }
   let token = format!("{}", crate::now_ms());
@@ -237,33 +237,81 @@ fn start_again(app: &AppHandle, seismic: &Seismic, port: u16) -> io::Result<()> 
     }
   }
   // the owner may have begun to speak meanwhile; what was handed over waits for the next try
-  if now(&ask("")) && crate::may_relaunch(app) {
-    if let Some(placed) = prepare_relaunch(app, false, None)? {
-      // probing the remote pages and saving the snapshot take a while, in which the owner can
-      // switch to another app or minimize the window
-      let allowed = || now(&ask("")) && crate::may_relaunch(app);
-      relaunch_if_allowed(&crate::home(), &placed, allowed, |placed| crate::relaunch(app, seismic, placed));
+  if !now(&ask("")) || RebuildWindow::current(app).is_none() {
+    return Ok(());
+  }
+  let home = crate::home();
+  prepare_rebuild(&home, || capture_relaunch(app, true), || now(&ask("")), |snapshot, windows| {
+    // Check and commit on the native event thread so a pending close is handled before
+    // reading the live window, or after the decision to restart.
+    let home = home.clone();
+    tauri::async_runtime::block_on(crate::desks::on_ui(app.clone(), move |app| {
+      let seismic = app.state::<Arc<Seismic>>();
+      let current = || {
+        if seismic.stopping.load(Ordering::SeqCst)
+          || seismic.attaching.load(Ordering::SeqCst)
+          || seismic.child.load(Ordering::SeqCst)
+          || seismic.port.load(Ordering::SeqCst) != port
+        {
+          return None;
+        }
+        RebuildWindow::current(app)
+      };
+      Ok(commit_rebuild(&home, snapshot, &windows, current, |placed| crate::relaunch(app, &seismic, placed)))
+    })).map_err(io::Error::other)?
+  })
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum RebuildWindow {
+  Hidden,
+  Foreground,
+}
+
+impl RebuildWindow {
+  fn eligible(minimized: bool, visible: bool, focused: bool) -> Option<Self> {
+    match (minimized, visible, focused) {
+      (false, false, _) => Some(Self::Hidden),
+      (false, true, true) => Some(Self::Foreground),
+      _ => None,
     }
+  }
+
+  fn current(app: &AppHandle) -> Option<Self> {
+    let w = crate::main_window(app)?;
+    Self::eligible(w.is_minimized().ok()?, w.is_visible().ok()?, w.is_focused().ok()?)
+  }
+}
+
+fn prepare_rebuild(
+  home: &Path,
+  capture: impl FnOnce() -> io::Result<Option<Vec<Placed>>>,
+  still_idle: impl FnOnce() -> bool,
+  commit: impl FnOnce(placed::Staged, Vec<Placed>) -> io::Result<()>,
+) -> io::Result<()> {
+  let Some(windows) = capture()? else { return Ok(()) };
+  let snapshot = placed::stage_rebuild(home, &windows)?;
+  if still_idle() {
+    commit(snapshot, windows)?;
   }
   Ok(())
 }
 
-/// The final relaunch decision of an automatic rebuild: relaunches with the published snapshot while
-/// it is still allowed, else removes the snapshot, so that the next start of the shell restores no
-/// windows from an abandoned try; the next try captures them afresh.
-fn relaunch_if_allowed(home: &Path, placed: &[Placed], allowed: impl FnOnce() -> bool, relaunch: impl FnOnce(&[Placed])) -> bool {
-  if !allowed() {
-    placed::discard(home);
-    return false;
+fn commit_rebuild(
+  home: &Path,
+  snapshot: placed::Staged,
+  windows: &[Placed],
+  current: impl FnOnce() -> Option<RebuildWindow>,
+  relaunch: impl FnOnce(&[Placed]),
+) -> io::Result<()> {
+  let captured = placed::primary(windows).and_then(|p| RebuildWindow::eligible(p.minimized, p.visible, p.focused));
+  // A close on macOS hides the window. Both states permit a rebuild, but each needs
+  // different startup activation. Leave that transition to a fresh capture.
+  if captured.is_some() && current() == captured {
+    snapshot.publish(home)?;
+    relaunch(windows);
   }
-  relaunch(placed);
-  true
-}
-
-/// Publish the snapshot before anything that can exit, including the installer itself.
-fn prepare_relaunch(app: &AppHandle, installer: bool, local_page: Option<&str>) -> io::Result<Option<Vec<Placed>>> {
-  let Some(windows) = capture_relaunch(app, true)? else { return Ok(None) };
-  keep_placements(&crate::home(), windows, installer, local_page).map(Some)
+  Ok(())
 }
 
 fn capture_relaunch(app: &AppHandle, hand_over: bool) -> io::Result<Option<Vec<Placed>>> {
@@ -297,20 +345,20 @@ fn pause_check_placement() {
   }
 }
 
-fn keep_placements(home: &Path, mut windows: Vec<Placed>, installer: bool, local_page: Option<&str>) -> io::Result<Vec<Placed>> {
+fn stage_placements(home: &Path, mut windows: Vec<Placed>, installer: bool, local_page: Option<&str>) -> io::Result<(placed::Staged, Vec<Placed>)> {
   // After an installer returns the local window shows the updater. Keep its previous route,
   // alongside the geometry, open windows and drafts captured after the dialog closes.
   if let (Some(next), Some(local)) = (local_page, windows.iter_mut().find(|p| p.desk == crate::desks::LOCAL)) {
     local.next = next.to_string();
   }
-  placed::keep(home, &windows, installer)?;
-  Ok(windows)
+  let snapshot = placed::stage(home, &windows, installer)?;
+  Ok((snapshot, windows))
 }
 
-fn wait_for_placements(app: &AppHandle, seismic: &Seismic, installer: bool, local_page: Option<&str>) -> io::Result<Option<Vec<Placed>>> {
+fn wait_for_placements(app: &AppHandle, seismic: &Seismic, installer: bool, local_page: Option<&str>) -> io::Result<Option<(placed::Staged, Vec<Placed>)>> {
   while !seismic.stopping.load(Ordering::SeqCst) {
-    if let Some(windows) = prepare_relaunch(app, installer, local_page)? {
-      return Ok(Some(windows));
+    if let Some(windows) = capture_relaunch(app, true)? {
+      return stage_placements(&crate::home(), windows, installer, local_page).map(Some);
     }
     thread::sleep(Duration::from_secs(1));
   }
@@ -356,23 +404,40 @@ pub fn install(app: &AppHandle, seismic: &Seismic, updates: &Updates) -> Install
   // The local server has already exited. Keep the shell running until its remote pages can
   // hand over, without cutting off activity that began while the local server was stopping.
   let ready = updates.ready.lock().unwrap().clone();
-  let installer = cfg!(windows) && ready.as_ref().is_some_and(|r| r.bytes.is_some());
-  let mut windows = match wait_for_placements(app, seismic, installer, None) {
-    Ok(Some(windows)) => windows,
+  let release = ready.as_ref().filter(|r| r.bytes.is_some());
+  let installer = cfg!(windows) && release.is_some();
+  let home = crate::home();
+  let (snapshot, windows) = match wait_for_placements(app, seismic, installer, None) {
+    Ok(Some(prepared)) => prepared,
     Ok(None) => return Installed::Restarting,
     Err(error) => return resume_server(app, updates, &error),
   };
   if seismic.stopping.load(Ordering::SeqCst) {
-    placed::discard(&crate::home());
     return Installed::Restarting;
   }
   if let Some(w) = local_view(app) {
     let _ = w.navigate(crate::window::bundled_url("/index.html?updating"));
   }
-  if let Some(release) = ready.as_ref().filter(|r| r.bytes.is_some()) {
+  let (snapshot, windows) = if let Some(release) = release {
+    if seismic.stopping.load(Ordering::SeqCst) {
+      return Installed::Restarting;
+    }
+    // The Windows installer exits this process on success and launches the replacement itself.
+    let installer_snapshot = if installer {
+      match snapshot.publish_for_installer(&home) {
+        Ok(snapshot) => Some(snapshot),
+        Err(error) => return resume_server(app, updates, &error),
+      }
+    } else {
+      drop(snapshot);
+      None
+    };
     let Ready { update, bytes } = release.as_ref();
-    // on Windows the installer takes over here: it replaces the app and starts it again
-    if let Err(e) = update.install(bytes.as_deref().unwrap()) {
+    let result = update.install(bytes.as_deref().unwrap());
+    // If the installer returned, it did not take over. Disarm its snapshot before any
+    // dialog or recapture can wait indefinitely.
+    let cleanup = installer_snapshot.map_or(Ok(()), placed::InstallerSnapshot::discard);
+    if let Err(e) = result {
       app
         .dialog()
         .message(format!("Seismic {} could not be installed: {e}\n\nSeismic starts again in the version it had.", update.version))
@@ -383,22 +448,23 @@ pub fn install(app: &AppHandle, seismic: &Seismic, updates: &Updates) -> Install
       updates.installed(release);
     }
     let local_page = windows.iter().find(|p| p.desk == crate::desks::LOCAL).map(|p| p.next.as_str());
-    windows = match wait_for_placements(app, seismic, false, local_page) {
-      Ok(Some(current)) => current,
-      Ok(None) => {
-        placed::discard(&crate::home());
-        return Installed::Restarting;
-      }
+    match cleanup.and_then(|()| wait_for_placements(app, seismic, false, local_page)) {
+      Ok(Some(prepared)) => prepared,
+      Ok(None) => return Installed::Restarting,
       Err(error) => {
-        placed::discard(&crate::home());
         seismic.remember_page(local_page.map(str::to_string));
         return resume_server(app, updates, &error);
       }
-    };
-  }
+    }
+  } else {
+    (snapshot, windows)
+  };
   if seismic.stopping.load(Ordering::SeqCst) {
-    placed::discard(&crate::home());
     return Installed::Restarting;
+  }
+  if let Err(error) = snapshot.publish(&home) {
+    seismic.remember_page(windows.iter().find(|p| p.desk == crate::desks::LOCAL).map(|p| p.next.clone()));
+    return resume_server(app, updates, &error);
   }
   crate::relaunch(app, seismic, &windows);
   Installed::Restarting
@@ -408,6 +474,7 @@ pub fn install(app: &AppHandle, seismic: &Seismic, updates: &Updates) -> Install
 mod tests {
   use super::*;
   use crate::desks::LOCAL;
+  use std::cell::Cell;
 
   #[test]
   fn installer_fallback_keeps_current_windows_and_drafts_with_the_previous_local_route() {
@@ -430,7 +497,8 @@ mod tests {
 
     let current_local = Placed { next: "/".into(), x: 100., focused: true, ..local.clone() };
     let current = vec![current_local, remote("edited", "new draft"), remote("opened", "another draft")];
-    keep_placements(&home, current.clone(), false, Some(&local.next)).unwrap();
+    let (snapshot, _) = stage_placements(&home, current.clone(), false, Some(&local.next)).unwrap();
+    snapshot.publish(&home).unwrap();
     let mut expected = current;
     expected[0].next = local.next;
     assert_eq!(placed::take(&home), expected);
@@ -438,32 +506,51 @@ mod tests {
     fs::remove_dir_all(home).unwrap();
   }
 
-  fn snapshot_home(name: &str) -> (std::path::PathBuf, Vec<Placed>) {
-    let home = std::env::temp_dir().join(format!("seismic-{name}-{}", uuid::Uuid::new_v4()));
+  fn rebuild_with_window_change(
+    before: (bool, bool, bool), after: (bool, bool, bool), idle: bool, expect_restart: bool,
+  ) {
+    let home = std::env::temp_dir().join(format!("seismic-rebuild-{}", uuid::Uuid::new_v4()));
     fs::create_dir_all(&home).unwrap();
-    let windows = vec![Placed { desk: LOCAL.into(), next: "/p/local".into(), focused: true, ..Default::default() }];
-    placed::keep(&home, &windows, false).unwrap();
-    (home, windows)
-  }
-
-  #[test]
-  fn a_rebuild_whose_window_lost_the_foreground_while_preparing_does_not_relaunch() {
-    let (home, windows) = snapshot_home("rebuild-backgrounded");
-    let mut relaunched = false;
-    assert!(!relaunch_if_allowed(&home, &windows, || false, |_| relaunched = true));
-    assert!(!relaunched);
-    // the abandoned snapshot is gone: the next start of the shell restores nothing from it
+    let (minimized, visible, focused) = before;
+    let windows = vec![Placed {
+      desk: LOCAL.into(), next: "/p/local".into(), minimized, visible, focused,
+      drafts: vec![("seismic-drafts-note".into(), "unsent".into())], ..Default::default()
+    }];
+    let presentation = Cell::new(before);
+    let mut relaunched = Vec::new();
+    prepare_rebuild(&home, || Ok(Some(windows.clone())), || {
+      // The draft data is already written and synced. Simulate the owner changing
+      // the window while that work completes, before the final native check.
+      assert!(home.join("app-windows.json.rebuild").is_file());
+      assert!(placed::take(&home).is_empty());
+      presentation.set(after);
+      idle
+    }, |snapshot, captured| {
+      commit_rebuild(&home, snapshot, &captured, || {
+        let (minimized, visible, focused) = presentation.get();
+        RebuildWindow::eligible(minimized, visible, focused)
+      }, |placements| {
+        relaunched = placements.to_vec();
+        assert_eq!(placed::take(&home), placements);
+      })
+    }).unwrap();
+    assert_eq!(relaunched, if expect_restart { windows } else { vec![] });
     assert!(placed::take(&home).is_empty());
     fs::remove_dir_all(home).unwrap();
   }
 
   #[test]
-  fn a_rebuild_still_in_the_foreground_relaunches_with_its_snapshot() {
-    let (home, windows) = snapshot_home("rebuild-foreground");
-    let mut relaunched = Vec::new();
-    assert!(relaunch_if_allowed(&home, &windows, || true, |placed| relaunched = placed.to_vec()));
-    assert_eq!(relaunched, windows);
-    assert_eq!(placed::take(&home), windows);
-    fs::remove_dir_all(home).unwrap();
+  fn rebuild_rechecks_window_presentation_after_preparing_the_snapshot() {
+    let foreground = (false, true, true);
+    let background = (false, true, false);
+    let closed = (false, false, false);
+    let minimized = (true, false, false);
+    rebuild_with_window_change(foreground, background, true, false);
+    rebuild_with_window_change(foreground, closed, true, false);
+    rebuild_with_window_change(foreground, minimized, true, false);
+    rebuild_with_window_change(closed, foreground, true, false);
+    rebuild_with_window_change(foreground, foreground, true, true);
+    rebuild_with_window_change(closed, closed, true, true);
+    rebuild_with_window_change(foreground, foreground, false, false);
   }
 }

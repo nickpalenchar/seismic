@@ -54,6 +54,9 @@ you switched away from. A selected remote workspace reopens even if this machine
 start. If the remote workspace is offline, the app opens its recovery screen.
 If Seismic cannot save your work for the restart, it defers the update. A downloaded release remains
 available to install again. For a source checkout, a queued rebuild retries automatically.
+If you use a terminal to run Seismic’s server, the desktop app waits to restart while its window
+is minimized or behind another app. On macOS, closing the window lets the rebuild retry in the
+background and keeps the window closed until you reopen it.
 
 Seismic keeps a copy of a malformed workspace list as `app-desks.unreadable.json` in its home
 directory. Later backups get numbered filenames.

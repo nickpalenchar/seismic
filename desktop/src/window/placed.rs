@@ -4,7 +4,7 @@
 use std::{
   fs,
   io::{self, Write},
-  path::Path,
+  path::{Path, PathBuf},
   time::Duration,
 };
 
@@ -153,26 +153,70 @@ fn restored_bounds(w: &Window) -> Option<(LogicalPosition<f64>, LogicalSize<f64>
   Some((at.to_logical(scale), size.to_logical(scale)))
 }
 
+#[cfg(test)]
 pub fn keep(home: &Path, windows: &[Placed], installer: bool) -> io::Result<()> {
-  write_snapshot(home, windows, installer, true)
+  stage(home, windows, installer)?.publish(home)
+}
+
+pub fn stage(home: &Path, windows: &[Placed], installer: bool) -> io::Result<Staged> {
+  check_destination(home)?;
+  stage_at(home.join("app-windows.json.part"), windows, installer)
+}
+
+/// The automatic rebuild can still be deferred after writing and syncing the data.
+/// Startup only reads the published name, even if cleanup of this file fails.
+pub fn stage_rebuild(home: &Path, windows: &[Placed]) -> io::Result<Staged> {
+  stage_at(home.join("app-windows.json.rebuild"), windows, false)
+}
+
+pub struct Staged(Option<PathBuf>);
+
+impl Staged {
+  pub fn publish(mut self, home: &Path) -> io::Result<()> {
+    fs::rename(self.0.as_ref().unwrap(), home.join(FILE))?;
+    self.0.take();
+    Ok(())
+  }
+
+  pub fn publish_for_installer(self, home: &Path) -> io::Result<InstallerSnapshot> {
+    // Keep a writable handle so we can invalidate the contents if the installer returns,
+    // even if the directory or file permissions have since changed.
+    let file = fs::OpenOptions::new().write(true).open(self.0.as_ref().unwrap())?;
+    self.publish(home)?;
+    Ok(InstallerSnapshot { path: home.join(FILE), file })
+  }
+}
+
+impl Drop for Staged {
+  fn drop(&mut self) {
+    if let Some(path) = self.0.take() {
+      if let Err(error) = remove_snapshot(&path) {
+        eprintln!("seismic: cannot remove staged restart snapshot: {error}");
+      }
+    }
+  }
 }
 
 /// A deferred automatic rebuild checks storage before asking the local server to stop again.
 pub fn probe_write(home: &Path, windows: &[Placed]) -> io::Result<()> {
-  match fs::symlink_metadata(home.join(FILE)) {
-    Ok(meta) if meta.is_dir() => return Err(io::Error::other("the restart snapshot destination is a directory")),
-    #[cfg(windows)]
-    Ok(meta) if meta.permissions().readonly() => return Err(io::Error::other("the restart snapshot is read-only")),
-    Err(error) if error.kind() != io::ErrorKind::NotFound => return Err(error),
-    _ => {}
-  }
-  write_snapshot(home, windows, false, false)
+  check_destination(home)?;
+  let mut probe = stage_at(home.join("app-windows.json.probe"), windows, false)?;
+  remove_snapshot(&probe.0.take().unwrap())
 }
 
-fn write_snapshot(home: &Path, windows: &[Placed], installer: bool, publish: bool) -> io::Result<()> {
+fn check_destination(home: &Path) -> io::Result<()> {
+  match fs::symlink_metadata(home.join(FILE)) {
+    Ok(meta) if meta.is_dir() => Err(io::Error::other("the restart snapshot destination is a directory")),
+    #[cfg(windows)]
+    Ok(meta) if meta.permissions().readonly() => Err(io::Error::other("the restart snapshot is read-only")),
+    Err(error) if error.kind() != io::ErrorKind::NotFound => Err(error),
+    _ => Ok(()),
+  }
+}
+
+fn stage_at(path: PathBuf, windows: &[Placed], installer: bool) -> io::Result<Staged> {
   let all: Vec<Value> = windows.iter().map(Placed::json).collect();
   let text = json!({ "at": now_ms(), "installer": installer, "windows": all }).to_string();
-  let part = home.join(if publish { "app-windows.json.part" } else { "app-windows.json.probe" });
   let mut options = fs::OpenOptions::new();
   options.write(true).create_new(true);
   #[cfg(unix)]
@@ -180,24 +224,13 @@ fn write_snapshot(home: &Path, windows: &[Placed], installer: bool, publish: boo
     use std::os::unix::fs::OpenOptionsExt;
     options.mode(0o600);
   }
-  // Discard a partial snapshot from an interrupted write. Publish only after all drafts
-  // and placements are on disk, since a successful Windows installer exits this process.
-  let _ = fs::remove_file(&part);
-  let result = (|| {
-    let mut file = options.open(&part)?;
-    file.write_all(text.as_bytes())?;
-    file.sync_all()?;
-    drop(file);
-    if publish {
-      fs::rename(&part, home.join(FILE))
-    } else {
-      fs::remove_file(&part)
-    }
-  })();
-  if result.is_err() {
-    let _ = fs::remove_file(part);
-  }
-  result
+  // Discard a partial snapshot from an interrupted write.
+  remove_snapshot(&path)?;
+  let mut file = options.open(&path)?;
+  let staged = Staged(Some(path));
+  let result = file.write_all(text.as_bytes()).and_then(|()| file.sync_all());
+  drop(file);
+  result.map(|()| staged)
 }
 
 /// Read the explicitly selected workspace, or migrate the focused legacy window.
@@ -213,12 +246,24 @@ pub fn take(home: &Path) -> Vec<Placed> {
   read_saved(home, true)
 }
 
-/// No app will relaunch from the staged installer snapshot.
-pub fn discard(home: &Path) {
-  if let Err(error) = fs::remove_file(home.join(FILE)) {
-    if error.kind() != io::ErrorKind::NotFound {
-      eprintln!("seismic: cannot remove restart snapshot: {error}");
-    }
+fn remove_snapshot(path: &Path) -> io::Result<()> {
+  match fs::remove_file(path) {
+    Err(error) if error.kind() != io::ErrorKind::NotFound => Err(error),
+    _ => Ok(()),
+  }
+}
+
+pub struct InstallerSnapshot {
+  path: PathBuf,
+  file: fs::File,
+}
+
+impl InstallerSnapshot {
+  /// An installer that came back did not exit the shell and will not use this snapshot.
+  pub fn discard(self) -> io::Result<()> {
+    let Err(remove_error) = remove_snapshot(&self.path) else { return Ok(()) };
+    self.file.set_len(0).and_then(|()| self.file.sync_all())
+      .map_err(|error| io::Error::other(format!("cannot remove restart snapshot: {remove_error}; cannot invalidate it: {error}")))
   }
 }
 
@@ -279,6 +324,48 @@ mod tests {
     probe_write(&home, &[Placed { next: "/probe".into(), ..Default::default() }]).unwrap();
     assert_eq!(fs::read(path).unwrap(), previous);
     assert!(!home.join("app-windows.json.probe").exists());
+    fs::remove_dir_all(home).unwrap();
+  }
+
+  #[test]
+  fn startup_ignores_a_complete_rebuild_snapshot_left_on_disk() {
+    let home = home("abandoned-rebuild");
+    let windows = [Placed { desk: LOCAL.into(), visible: true, focused: true, next: "/p/abandoned".into(), ..Default::default() }];
+    // Model failed cleanup by leaving the complete, fresh staged file in place.
+    std::mem::forget(stage_rebuild(&home, &windows).unwrap());
+    assert!(home.join("app-windows.json.rebuild").is_file());
+    assert!(read_saved(&home, false).is_empty());
+    assert!(take(&home).is_empty());
+    stage_rebuild(&home, &windows).unwrap().publish(&home).unwrap();
+    assert_eq!(take(&home), windows);
+    fs::remove_dir_all(home).unwrap();
+  }
+
+  #[cfg(unix)]
+  #[test]
+  fn a_returned_installer_invalidates_its_snapshot_when_unlink_is_denied() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let home = home("installer-discard");
+    let windows = [Placed { desk: LOCAL.into(), visible: true, next: "/p/installing".into(), ..Default::default() }];
+    let installer = stage(&home, &windows, true).unwrap().publish_for_installer(&home).unwrap();
+    let path = home.join(FILE);
+    assert_eq!(read_saved(&home, false), windows);
+
+    let permissions = fs::metadata(&home).unwrap().permissions();
+    fs::set_permissions(&home, fs::Permissions::from_mode(0o500)).unwrap();
+    let discarded = installer.discard();
+    let contents = fs::read(&path);
+    fs::set_permissions(&home, permissions).unwrap();
+
+    discarded.unwrap();
+    match contents {
+      Ok(bytes) => assert!(bytes.is_empty()),
+      // A privileged test user can unlink the file despite the directory permissions.
+      Err(error) => assert_eq!(error.kind(), io::ErrorKind::NotFound),
+    }
+    assert!(read_saved(&home, false).is_empty());
+    assert!(take(&home).is_empty());
     fs::remove_dir_all(home).unwrap();
   }
 
