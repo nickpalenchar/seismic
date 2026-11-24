@@ -652,6 +652,10 @@ pub fn restore_selected(app: &AppHandle) -> Result<(), String> {
   Ok(())
 }
 
+pub fn cancel_selection(app: &AppHandle) {
+  shell(app).views.lock().unwrap().cancel();
+}
+
 /// Switch to this machine after the local server answers, or remember its port while
 /// the owner is using a remote workspace. Runs on the server watcher thread.
 pub fn connect_local(app: &AppHandle, port: u16, page: Url, handed_over: bool) -> Result<(), String> {
@@ -669,7 +673,7 @@ pub fn connect_local(app: &AppHandle, port: u16, page: Url, handed_over: bool) -
       let (send, mut receive) = tauri::async_runtime::channel(1);
       {
         let mut views = state.views.lock().unwrap();
-        if views.active.as_ref().is_some_and(|v| v.desk != LOCAL) {
+        if crate::is_stopping(app) || views.active.as_ref().is_some_and(|v| v.desk != LOCAL) {
           return Ok(());
         }
         if let Some(pending) = &mut views.pending {
@@ -696,6 +700,9 @@ pub fn connect_local(app: &AppHandle, port: u16, page: Url, handed_over: bool) -
     };
     let (state, own, page) = (state.clone(), own.clone(), page.clone());
     let attached = tauri::async_runtime::block_on(on_ui(app.clone(), move |app| {
+      if crate::is_stopping(app) {
+        return Ok(());
+      }
       if state.views.lock().unwrap().turn != turn {
         return Err("superseded".into());
       }

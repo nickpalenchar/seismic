@@ -470,6 +470,9 @@ Safety rules:
   Resolve pending attachments before redeeming a pairing code, since the resulting link lasts
   only a minute. Going back during automatic local reattachment waits for idle uploads before
   retrying without another prompt (2026-11-24).
+  A WebSocket reconnect can also reload a page, so it waits for attachments before navigating.
+  Server shutdown tracks the answering server before the local webview waits for its attachment
+  decision (2026-11-24).
 - A desktop rebuild checks the displayed remote workspace for activity. It asks the remote server
   with its existing pairing and reads the page's own holds. Server handover is scoped to the paired
   device and origin.

@@ -98,6 +98,8 @@ pub(crate) struct Seismic {
   pub(crate) port: AtomicU16,
   /// Started in this run: the shell sees it end, and how (an update is installed then).
   pub(crate) child: AtomicBool,
+  /// The server answers, but its webview can still be waiting for an attachment.
+  pub(crate) attaching: AtomicBool,
   /// The owner quit; the server is told once it answers.
   pub(crate) stopping: AtomicBool,
   /// The shell starts again (`relaunch`): leaving, it does not stop the server.
@@ -367,15 +369,31 @@ pub(crate) fn no_window(cmd: &mut Command) {
 /// keeps an active remote workspace open if the local server ends.
 fn serve(app: AppHandle, seismic: Arc<Seismic>, updates: Arc<update::Updates>, handed_over: bool) {
   let home = home();
-  let attach = |port: u16| {
-    if let Err(error) = navigate(&app, &seismic, port, handed_over) {
+  let attach = |port: u16, child: bool| {
+    // Server control is available as soon as it answers. The webview can wait
+    // for an attachment decision long after this point.
+    seismic.attaching.store(true, Ordering::SeqCst);
+    seismic.child.store(child, Ordering::SeqCst);
+    seismic.port.store(port, Ordering::SeqCst);
+    if seismic.stopping.load(Ordering::SeqCst) {
+      http(port, "POST", "/api/stop");
+      return;
+    }
+    let result = navigate(&app, &seismic, port, handed_over);
+    seismic.attaching.store(false, Ordering::SeqCst);
+    if let Err(error) = result {
+      if seismic.stopping.load(Ordering::SeqCst) { return; }
       fail(&app, format!("Seismic could not open its local workspace: {error}"));
     }
   };
   loop {
+    seismic.port.store(0, Ordering::SeqCst);
+    if seismic.stopping.load(Ordering::SeqCst) {
+      app.exit(0);
+      return;
+    }
     if let Some(port) = running(&home) {
-      seismic.child.store(false, Ordering::SeqCst);
-      attach(port);
+      attach(port, false);
       update::server_ready(&updates);
       if matches!(watch(&app, &seismic, &home), Started::Ended) {
         return;
@@ -400,7 +418,7 @@ enum Started {
 }
 
 /// Starts the server, shows its project once it answers, and waits for it to end.
-fn start(app: &AppHandle, seismic: &Seismic, updates: &update::Updates, home: &Path, attach: &dyn Fn(u16)) -> Started {
+fn start(app: &AppHandle, seismic: &Seismic, updates: &update::Updates, home: &Path, attach: &dyn Fn(u16, bool)) -> Started {
   let Some(log) = log_file(home) else {
     return local_ended(app, seismic, home, Some(format!("Seismic cannot write to {}.", home.display())));
   };
@@ -424,11 +442,10 @@ fn start(app: &AppHandle, seismic: &Seismic, updates: &update::Updates, home: &P
     }
     thread::sleep(Duration::from_millis(150));
   }
-  attach(port);
-  seismic.child.store(true, Ordering::SeqCst);
+  attach(port, true);
   update::server_ready(updates);
   match child.wait() {
-    Ok(status) if status.code() == Some(update::EXIT) => {
+    Ok(status) if status.code() == Some(update::EXIT) && !seismic.stopping.load(Ordering::SeqCst) => {
       let local_page = desks::local_view(app).and_then(|w| window::page(&w, &Own::Local(Some(port))));
       seismic.remember_page(local_page);
       if matches!(update::install(app, seismic, updates), update::Installed::ResumeServer) {
@@ -492,21 +509,23 @@ fn watch(app: &AppHandle, seismic: &Seismic, home: &Path) -> Started {
   }
 }
 
-/// Shows the project once it answers, signed in, and tells it to stop when the owner quit meanwhile.
+/// Shows the project once it answers, signed in.
 fn navigate(app: &AppHandle, seismic: &Seismic, port: u16, handed_over: bool) -> Result<(), String> {
   let next = seismic.first.lock().unwrap().take().unwrap_or_else(|| "/".into());
   let page = Url::parse(&login_link(port, &next, false)).map_err(|e| e.to_string())?;
-  desks::connect_local(app, port, page, handed_over)?;
-  seismic.port.store(port, Ordering::SeqCst);
-  if seismic.stopping.load(Ordering::SeqCst) {
-    http(port, "POST", "/api/stop");
-  }
-  Ok(())
+  desks::connect_local(app, port, page, handed_over)
+}
+
+pub(crate) fn is_stopping(app: &AppHandle) -> bool {
+  app.state::<Arc<Seismic>>().stopping.load(Ordering::SeqCst)
 }
 
 /// The owner quits: Seismic is told to stop, and the app waits for it (true).
 fn quit(app: &AppHandle, seismic: &Seismic) -> bool {
   let first = !seismic.stopping.swap(true, Ordering::SeqCst);
+  if first {
+    desks::cancel_selection(app);
+  }
   match seismic.port.load(Ordering::SeqCst) {
     // still starting: told once it answers
     0 => true,
@@ -608,6 +627,7 @@ fn main() {
       *for_setup.first.lock().unwrap() = local.map(|p| p.next.clone());
       let handed_over = local.is_some();
       app.manage(Arc::new(desks::Shell::new(home(), saved)));
+      app.manage(for_setup.clone());
       if cfg!(target_os = "macos") {
         app.set_menu(menu::menu(&handle)?)?;
       }

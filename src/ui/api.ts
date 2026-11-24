@@ -7,6 +7,7 @@
  * `src/server/routes/v1/`. The WebSocket, `call` and the snapshot helpers here stay.
  */
 import { useEffect, useState, useSyncExternalStore } from 'react';
+import { afterAttachments } from './attachmentSwitch';
 import { draftSession, isDraftSessionKey, sessionWithDrafts } from './draftSession';
 import type { CardDiff } from '../core/diff';
 import { type Place, placeParam } from '../core/layout';
@@ -843,7 +844,7 @@ export function useProject(id = projectId): {
         // a new server process may run new code: the page loads it, and keeps what was open
         if (msg.type === 'pong') return;
         if (msg.type === 'hello') {
-          if (server && server !== msg.server) reload();
+          if (server && server !== msg.server) afterAttachments(reload);
           server = msg.server;
           setOldBun(msg.oldBun ?? null);
         } else if (msg.type === 'snapshot') {
@@ -872,8 +873,14 @@ export function useProject(id = projectId): {
         // device removed from Seismic's devices, or a browser whose cookie no longer names the
         // owner's key, gets the page that says how to connect or sign in again
         api.projects().then(
-          (list) => list.some((c) => c.id === id) || location.replace('/'),
-          (e) => e instanceof ApiError && (e.code === 'notPaired' || e.code === 'notOwner') && location.reload(),
+          (list) => {
+            if (!closed && !list.some((c) => c.id === id)) afterAttachments(() => {
+              if (!closed) location.replace('/');
+            });
+          },
+          (e) => {
+            if (!closed && e instanceof ApiError && (e.code === 'notPaired' || e.code === 'notOwner')) afterAttachments(reload);
+          },
         );
         retry = setTimeout(connect, delay);
         delay = Math.min(delay * 2, 8000);

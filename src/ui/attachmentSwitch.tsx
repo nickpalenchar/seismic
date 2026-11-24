@@ -5,6 +5,7 @@ import { ConfirmDialog } from './components/dialog';
 import { t } from './strings';
 
 const pending = new Set<AbortController>();
+const onIdle = new Set<() => void>();
 type Choice = 'ask' | 'wait' | 'discard' | 'back';
 let request: { id: string; choice: Choice } | null = null;
 const listeners = new Set<() => void>();
@@ -23,8 +24,19 @@ export function beginAttachment() {
       if (!ok && !controller.signal.aborted && request && (request.choice === 'wait' || request.choice === 'ask')) {
         setRequest({ ...request, choice: 'back' });
       }
+      if (!pending.size) {
+        const ready = [...onIdle];
+        onIdle.clear();
+        for (const action of ready) action();
+      }
     },
   };
+}
+
+/** Run an automatic navigation after uploads have finished writing their drafts. */
+export function afterAttachments(action: () => void) {
+  if (pending.size) onIdle.add(action);
+  else action();
 }
 
 // The shell checks again with input hidden before sampling. Discard applies only to

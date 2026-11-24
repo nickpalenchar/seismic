@@ -1,6 +1,6 @@
 import { expect, spyOn, test } from 'bun:test';
 import { api } from './api';
-import { attachmentSwitch } from './attachmentSwitch';
+import { afterAttachments, attachmentSwitch, beginAttachment } from './attachmentSwitch';
 import { fileTo } from './shots';
 
 test('a workspace switch sees pending files from lookup through inserting the final path', async () => {
@@ -33,4 +33,19 @@ test('a workspace switch sees pending files from lookup through inserting the fi
     upload.mockRestore();
     find.mockRestore();
   }
+});
+
+test('a reconnect waits for every attachment and runs its reload once', () => {
+  const first = beginAttachment();
+  const last = beginAttachment();
+  let reloads = 0;
+  const reload = () => { reloads++; };
+  afterAttachments(reload);
+  afterAttachments(reload);
+  first.finish(true);
+  expect(reloads).toBe(0);
+  last.finish(false);
+  expect(reloads).toBe(1);
+  afterAttachments(reload);
+  expect(reloads).toBe(2);
 });

@@ -29,6 +29,8 @@ If the local server restarts on a new port, **Go back** lets you keep working wh
 finishes. The app then reconnects automatically. When adding or pairing a workspace again,
 **Go back** leaves the pairing code unused. If the code expires while you wait for the upload,
 get a new one from the workspace you are pairing.
+When a server reconnects at the same address, its page waits for pending uploads before
+reloading.
 
 ### Reconnect an offline workspace
 

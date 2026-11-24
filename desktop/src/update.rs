@@ -183,7 +183,7 @@ fn check(app: &AppHandle, updates: &Updates) -> Result<(), String> {
 /// again by itself (`start_again`).
 fn report(app: &AppHandle, seismic: &Seismic, updates: &Updates) {
   let port = seismic.port.load(Ordering::SeqCst);
-  if port == 0 || seismic.stopping.load(Ordering::SeqCst) || updates.installing.load(Ordering::SeqCst) {
+  if port == 0 || seismic.attaching.load(Ordering::SeqCst) || seismic.stopping.load(Ordering::SeqCst) || updates.installing.load(Ordering::SeqCst) {
     return;
   }
   #[cfg(debug_assertions)]

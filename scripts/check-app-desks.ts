@@ -3,6 +3,7 @@
 // forwards as `tailscale serve` does, so it answers the shell as another machine would.
 //
 //   bun scripts/check-app-desks.ts <the app's program> [--ipv6] [--legacy-mic] [--debug-failures] [--minimized-takeover] [--keep]
+//   Add --same-port-takeover or --quit-during-takeover for an isolated takeover check.
 //
 // The program: a build from scripts/build-app.ts, or a debug build of the shell, which runs this
 // checkout's server. On a Mac it has to be an app bundle: WKWebView keeps the cookies of a bare
@@ -22,13 +23,18 @@ import { bad, check, exited, expect, failed, sleep, until } from './check-harnes
 const args = process.argv.slice(2);
 const programArg = args.find((a) => !a.startsWith('--'));
 if (!programArg) {
-  console.error("usage: bun scripts/check-app-desks.ts <the app's program> [--ipv6] [--legacy-mic] [--debug-failures] [--minimized-takeover] [--keep]");
+  console.error("usage: bun scripts/check-app-desks.ts <the app's program> [--ipv6] [--legacy-mic] [--debug-failures] [--minimized-takeover] [--same-port-takeover] [--quit-during-takeover] [--keep]");
   process.exit(2);
 }
 const program = resolve(programArg);
 const ROOT = resolve(import.meta.dir, '..');
 const debugFailures = args.includes('--debug-failures');
 const minimizedTakeover = args.includes('--minimized-takeover');
+const samePortTakeover = args.includes('--same-port-takeover');
+const quitDuringTakeover = args.includes('--quit-during-takeover');
+if (quitDuringTakeover && (process.platform !== 'darwin' || samePortTakeover)) {
+  throw new Error('--quit-during-takeover requires macOS and a different-port takeover');
+}
 // On newer macOS, a debug app can exercise Big Sur's fail-closed path with real WebKit.
 const forceLegacyMic = args.includes('--legacy-mic');
 const legacyMic = process.platform === 'darwin' && (forceLegacyMic || Number(release().split('.')[0]) <= 20);
@@ -466,7 +472,7 @@ const env: Record<string, string> = {
   SEISMIC_APP_CHECK_FAKE_MIC: '1',
   ...(legacyMic && forceLegacyMic ? { SEISMIC_APP_CHECK_LEGACY_MIC: '1' } : {}),
   ...(process.platform === 'win32' ? { WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: '--use-fake-device-for-media-stream' } : {}),
-  SEISMIC_PORT: String(4600 + Math.floor(Math.random() * 300)),
+  SEISMIC_PORT: String(samePortTakeover ? oldPort : 4600 + Math.floor(Math.random() * 300)),
   // the debug shell runs this checkout's server
   SEISMIC_CHECKOUT: ROOT,
   SEISMIC_BUN: join(launcherDir, basename(process.execPath)),
@@ -503,7 +509,7 @@ const relaunch = async () => {
 
 let app: Subprocess | undefined;
 let terminal: Subprocess | undefined;
-try {
+async function checkApp() {
   await until('the remote Seismic to answer', 60_000, async () => (await fetch(`${remoteUrl}/api/projects`, { headers: ownerHeaders(remoteHome) }).catch(() => null))?.ok);
   const on = await asOwner('/api/access', { method: 'PUT', body: JSON.stringify({ remote: { via: 'hosts', hosts: ['localhost'] } }) });
   expect(on.ok, `the remote's access: ${on.status} ${await on.text()}`);
@@ -526,27 +532,60 @@ try {
   }
   app = startApp();
   const initial = await report('local');
-  const transferred = await check('taking over on a different port honors Go back and reattaches after the upload', async () => {
+  const description = quitDuringTakeover
+    ? 'Quit stops the replacement server while the attachment dialog is open'
+    : `taking over on ${samePortTakeover ? 'the same port' : 'a different port'} honors Go back and reconnects after the upload`;
+  const transferred = await check(description, async () => {
     const oldLabel = String(initial.label);
     expect(String(initial.href).startsWith(`http://127.0.0.1:${oldPort}/`), JSON.stringify(initial));
     expect((await desks()).current === 'local', 'the original window cannot use its local capability');
     const before = reports.length;
     await holdLocalScreenshot('takeover-shot');
+    if (samePortTakeover) {
+      await run('check_eval', { js: `window.WebSocket = class extends WebSocket {
+        constructor(...args) {
+          super(...args);
+          this.addEventListener('message', ({ data }) => {
+            if (JSON.parse(data).type === 'hello') window.checkReconnected = true;
+          });
+        }
+      }` });
+    }
     const res = await appApi('/api/app-takeover').catch((error) => {
       if (error.code !== 'ECONNRESET') throw error;
       return null;
     });
     expect(res === null || (res?.ok && (await res.json()).taking), 'the takeover did not start');
+    if (quitDuringTakeover) {
+      await until('the attachment dialog', 15_000, async () =>
+        (await run('check_eval', { js: "!!document.querySelector('[role=alertdialog]')" })).value === true);
+      const replacement = entry();
+      expect(replacement && new URL(replacement.url).port !== String(oldPort), 'no replacement server');
+      // Send the same standard termination request as macOS Quit, to this scratch app alone.
+      const quit = Bun.spawnSync(['swift', '-e', `
+        import AppKit
+        guard NSRunningApplication(processIdentifier: ${app!.pid})?.terminate() == true else { exit(1) }
+      `]);
+      expect(quit.exitCode === 0, quit.stderr.toString());
+      expect(await exited(app!, 15_000) === 0, 'the app did not quit with the upload still held');
+      expect(!entry(), 'Quit left the replacement server running');
+      return;
+    }
     await decideAttachment('Go back');
-    // Keep the upload held long enough for another attachment poll.
-    await sleep(400);
+    if (samePortTakeover) {
+      await until('the old document to receive the new server hello', 15_000, async () =>
+        (await run('check_eval', { js: 'window.checkReconnected === true' })).value === true);
+    } else {
+      // Keep the upload held long enough for another attachment poll.
+      await sleep(400);
+    }
     const kept = await run('check_eval', { js: "!document.querySelector('[role=alertdialog]') && !!window.releaseScreenshot" });
     expect(displayed()?.label === oldLabel && kept.value === true, 'Go back switched, cancelled the upload, or prompted again');
     send('check_eval', { js: 'window.releaseScreenshot()' });
     const next = await report('local', before);
     expect((await run('check_eval', { js: "JSON.stringify(Object.entries(sessionStorage))" })).value?.toString().includes('takeover-shot'), 'the screenshot was lost during reattachment');
-    expect(new URL(String(next.href)).origin !== new URL(String(initial.href)).origin, JSON.stringify(next));
-    expect(typeof next.label === 'string' && next.label !== oldLabel, JSON.stringify(next));
+    expect((new URL(String(next.href)).origin === new URL(String(initial.href)).origin) === samePortTakeover, JSON.stringify(next));
+    expect(typeof next.label === 'string' && (next.label === oldLabel) === samePortTakeover, JSON.stringify(next));
     expect(new URL(String(next.href)).searchParams.get('takeover-check') === 'kept', JSON.stringify(next));
     if (minimizedTakeover) {
       expect(initial.minimized === true && next.minimized === true, JSON.stringify({ initial, next }));
@@ -558,10 +597,11 @@ try {
     }
     const polled = polls.get(oldLabel);
     await sleep(1000);
-    expect(polls.get(oldLabel) === polled, 'the previous webview is still running');
+    expect((polls.get(oldLabel) !== polled) === samePortTakeover, 'unexpected polling from the original webview');
     return `${oldLabel} at ${new URL(String(initial.href)).origin} → ${next.label} at ${new URL(String(next.href)).origin}${minimizedTakeover ? ', both minimized' : ''}`;
   });
   expect(transferred, 'the local server was not taken over');
+  if (samePortTakeover || quitDuringTakeover) return;
   let id = '';
   await check('this machine has its own workspace and nothing else', async () => {
     const d = await desks();
@@ -1010,6 +1050,9 @@ try {
     const saved = JSON.parse(readFileSync(join(home, 'app-desks.json'), 'utf8')) as { list: { id: string }[] };
     expect(!saved.list.some((d) => d.id === id), 'removal was not saved');
   });
+}
+try {
+  await checkApp();
 } finally {
   await appApi('/api/stop').catch(() => null);
   await until('the local server to stop', 30_000, () => !entry()).catch(() => null);

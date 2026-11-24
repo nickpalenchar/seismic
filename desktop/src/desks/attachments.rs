@@ -52,6 +52,9 @@ pub(super) fn hold(app: &AppHandle, shell: &Shell, view: &Webview, turn: u64, on
   let mut decision = Decision { view, id: uuid::Uuid::new_v4() };
   let mut action = "ask";
   loop {
+    if crate::is_stopping(app) {
+      return Err("superseded".into());
+    }
     {
       let views = shell.views.lock().unwrap();
       if views.turn != turn || views.label() != view.label() {
