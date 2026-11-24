@@ -42,7 +42,9 @@ mkdirSync(remoteHome);
 const repo = join(dir, 'lab');
 mkdirSync(repo);
 Bun.spawnSync(['git', 'init', '-q', repo]);
-writeFileSync(join(remoteHome, 'projects.json'), JSON.stringify([{ name: 'Lab', repos: [{ path: repo }] }]));
+for (const workspaceHome of [home, remoteHome]) {
+  writeFileSync(join(workspaceHome, 'projects.json'), JSON.stringify([{ name: 'Lab', repos: [{ path: repo }] }]));
+}
 // Take the launcher out of reach for one relaunch, even where a running executable is locked.
 const launcherDir = join(dir, 'launcher');
 symlinkSync(dirname(process.execPath), launcherDir, 'junction');
@@ -168,6 +170,7 @@ let seedDraft = true;
 let nextPage: (() => Promise<void>) | undefined;
 let liveComposer = false;
 let imageUpload: (() => Promise<Response>) | undefined;
+let pairRequests = 0;
 let dropPage = false;
 let pageError: 'http' | 'legacy' | undefined;
 const startProxy = (port = proxyPort) => {
@@ -176,6 +179,7 @@ const startProxy = (port = proxyPort) => {
     hostname: useIPv6 ? '::1' : HOST,
     async fetch(req, server) {
       const url = new URL(req.url);
+      if (req.method === 'POST' && url.pathname === '/api/pair') pairRequests++;
       if (url.pathname === '/__seismic-check-frame') return new Response(FRAME, { headers: { 'content-type': 'text/html' } });
       if (url.pathname === '/__seismic-check-ipc') return new Response(IPC_FRAME, { headers: { 'content-type': 'text/html' } });
       if (req.method === 'POST' && url.pathname.endsWith('/images') && imageUpload) return imageUpload();
@@ -393,6 +397,59 @@ const run = (cmd: string, args?: Record<string, unknown>) => {
   const id = send(cmd, args);
   return until(`${cmd} to answer`, 10_000, () => done.get(id));
 };
+const pasteScreenshot = `(async () => {
+  const canvas = document.createElement('canvas'); canvas.width = canvas.height = 10;
+  const blob = await new Promise(resolve => canvas.toBlob(resolve));
+  const transfer = new DataTransfer(); transfer.items.add(new File([blob], 'capture.png', {type:'image/png'}));
+  const event = new Event('paste', {bubbles:true,cancelable:true});
+  Object.defineProperty(event, 'clipboardData', {value:transfer}); document.body.dispatchEvent(event);
+  return event.defaultPrevented;
+})()`;
+const decideAttachment = async (button: string) => {
+  const js = `(() => {
+    const buttons = [...document.querySelectorAll('[role=alertdialog] button')];
+    if (buttons.map(b => b.textContent).join('|') !== 'Switch after upload|Discard and switch|Go back') return false;
+    buttons.find(b => b.textContent === ${JSON.stringify(button)}).click(); return true;
+  })()`;
+  await until('the three attachment choices', 6000, async () => (await run('check_eval', { js })).value === true);
+};
+// Hold the local composer at the response boundary so it can finish even after its server goes away.
+const holdLocalScreenshot = async (image: string) => {
+  const js = `(() => {
+    const realFetch = window.fetch;
+    window.fetch = (input, init) => {
+      if (init?.method !== 'POST' || !String(input).endsWith('/images')) return realFetch(input, init);
+      window.fetch = realFetch;
+      return new Promise(resolve => {
+        window.releaseScreenshot = () => resolve(Response.json({ id: ${JSON.stringify(image)} }));
+      });
+    };
+  })()`;
+  await run('check_eval', { js });
+  const pasted = await run('check_eval', { js: pasteScreenshot });
+  expect(pasted.value === true, 'the local project did not accept the pasted screenshot');
+  await until('the local screenshot upload', 6000, async () =>
+    (await run('check_eval', { js: "typeof window.releaseScreenshot === 'function'" })).value === true);
+};
+const releaseLocalScreenshot = () => run('check_eval', { js: 'window.releaseScreenshot(); delete window.releaseScreenshot' });
+const pairAfterUpload = async (cmd: 'add_desk' | 'pair_desk', args: Record<string, string>) => {
+  const attempts = pairRequests;
+  await holdLocalScreenshot(cmd + '-shot');
+  try {
+    const cancelled = send(cmd, args);
+    await decideAttachment('Go back');
+    const result = await until('Go back to cancel pairing', 5000, () => done.get(cancelled));
+    expect(result.error === 'cancelled' && pairRequests === attempts, JSON.stringify(result));
+    const retry = send(cmd, args);
+    await decideAttachment('Switch after upload');
+    // The one-minute link cannot age while the upload is held because the POST hasn't happened.
+    await sleep(400);
+    expect(pairRequests === attempts && !done.has(retry), 'the code was spent while the attachment was pending');
+    return retry;
+  } finally {
+    await releaseLocalScreenshot();
+  }
+};
 const report = (kind: string, after = 0, timeout = 60_000) => until(`the ${kind} page to report`, timeout, () => reports.slice(after).find((r) => r.kind === kind));
 type Desks = { current: string | null; problem: string | null; list: { id: string; name: string; origin: string | null; local: boolean; open: boolean }[] };
 const desks = async () => (await run('desks')).value as Desks;
@@ -469,17 +526,25 @@ try {
   }
   app = startApp();
   const initial = await report('local');
-  const transferred = await check('taking over on a different port replaces the local webview and keeps local commands', async () => {
+  const transferred = await check('taking over on a different port honors Go back and reattaches after the upload', async () => {
     const oldLabel = String(initial.label);
     expect(String(initial.href).startsWith(`http://127.0.0.1:${oldPort}/`), JSON.stringify(initial));
     expect((await desks()).current === 'local', 'the original window cannot use its local capability');
     const before = reports.length;
+    await holdLocalScreenshot('takeover-shot');
     const res = await appApi('/api/app-takeover').catch((error) => {
       if (error.code !== 'ECONNRESET') throw error;
       return null;
     });
     expect(res === null || (res?.ok && (await res.json()).taking), 'the takeover did not start');
+    await decideAttachment('Go back');
+    // Keep the upload held long enough for another attachment poll.
+    await sleep(400);
+    const kept = await run('check_eval', { js: "!document.querySelector('[role=alertdialog]') && !!window.releaseScreenshot" });
+    expect(displayed()?.label === oldLabel && kept.value === true, 'Go back switched, cancelled the upload, or prompted again');
+    send('check_eval', { js: 'window.releaseScreenshot()' });
     const next = await report('local', before);
+    expect((await run('check_eval', { js: "JSON.stringify(Object.entries(sessionStorage))" })).value?.toString().includes('takeover-shot'), 'the screenshot was lost during reattachment');
     expect(new URL(String(next.href)).origin !== new URL(String(initial.href)).origin, JSON.stringify(next));
     expect(typeof next.label === 'string' && next.label !== oldLabel, JSON.stringify(next));
     expect(new URL(String(next.href)).searchParams.get('takeover-check') === 'kept', JSON.stringify(next));
@@ -516,10 +581,12 @@ try {
   if (debugFailures) {
     await check('a saved workspace is reported and listed even if its first window fails', async () => {
       const before = reports.length;
+      const attempts = pairRequests;
       writeFileSync(join(home, 'check-window-open-error'), '');
-      const result = await run('add_desk', { address: REMOTE, code: await code(), name: 'Studio' });
+      const request = await pairAfterUpload('add_desk', { address: REMOTE, code: await code(), name: 'Studio' });
+      const result = await until('the accepted add to report its failed open', 5000, () => done.get(request));
       const value = result.value as { id: string; opened: boolean } | undefined;
-      expect(result.ok && value?.opened === false, JSON.stringify(result));
+      expect(result.ok && value?.opened === false && pairRequests === attempts + 1, JSON.stringify(result));
       id = value!.id;
       await changedDesk(before, id, REMOTE);
       const saved = JSON.parse(readFileSync(join(home, 'app-desks.json'), 'utf8')) as { list: { id: string; url: string }[] };
@@ -527,7 +594,8 @@ try {
     });
   }
   const pairBefore = reports.length;
-  send(id ? 'pair_desk' : 'add_desk', { ...(id ? { id } : { address: REMOTE, name: 'Studio' }), code: await code() });
+  const attempts = pairRequests;
+  await pairAfterUpload(id ? 'pair_desk' : 'add_desk', { ...(id ? { id } : { address: REMOTE, name: 'Studio' }), code: await code() });
   const first = await report('remote', pairBefore) as Record<string, { ok: boolean; value?: unknown; error?: string }>;
   id ||= (first.desks!.value as Desks).current!;
   await check('pairing loads the remote address in the same native window', () => {
@@ -536,7 +604,7 @@ try {
   if (first) {
     await check("the window shows the remote project, signed in by the one-time link", () => {
       expect(String(first.href).startsWith(`${REMOTE}/`) && !String(first.href).includes('/pair'), String(first.href));
-      expect((first.projects as unknown as number) === 200, `GET /api/projects: ${first.projects}`);
+      expect((first.projects as unknown as number) === 200 && pairRequests === attempts + 1, `GET /api/projects: ${first.projects}`);
       return String(first.href);
     });
     await check('the remote page lists the workspaces, its own as the current one', () => {
@@ -866,37 +934,21 @@ try {
     await select('local', 'local');
     liveComposer = true;
     await select(id, 'remote');
-    const paste = `(async () => {
-      const canvas = document.createElement('canvas'); canvas.width = canvas.height = 10;
-      const blob = await new Promise(resolve => canvas.toBlob(resolve));
-      const transfer = new DataTransfer(); transfer.items.add(new File([blob], 'capture.png', {type:'image/png'}));
-      const event = new Event('paste', {bubbles:true,cancelable:true});
-      Object.defineProperty(event, 'clipboardData', {value:transfer}); document.body.dispatchEvent(event);
-      return event.defaultPrevented;
-    })()`;
     for (const choice of ['Switch after upload', 'Discard and switch']) {
       const hit = Promise.withResolvers<void>(), release = Promise.withResolvers<void>();
       const image = choice === 'Switch after upload' ? 'completed-shot' : 'discarded-shot';
       imageUpload = async () => { hit.resolve(); await release.promise; return Response.json({ id: image }); };
       try {
-        const pasted = await run('check_eval', { js: paste });
+        const pasted = await run('check_eval', { js: pasteScreenshot });
         if (pasted.value !== true) throw new Error('the project did not accept the pasted screenshot: ' + JSON.stringify(await run('check_eval', { js: 'document.body.innerText.slice(0,300)' })));
         await Promise.race([hit.promise, sleep(5000).then(() => { throw new Error('no upload'); })]);
-        const decide = async (button: string) => {
-          const js = `(() => {
-            const buttons = [...document.querySelectorAll('[role=alertdialog] button')];
-            if (buttons.map(b => b.textContent).join('|') !== 'Switch after upload|Discard and switch|Go back') return false;
-            buttons.find(b => b.textContent === ${JSON.stringify(button)}).click(); return true;
-          })()`;
-          await until('the three attachment choices', 6000, async () => (await run('check_eval', { js })).value === true);
-        };
         const cancelled = send('open_desk', { id: 'local' });
-        await decide('Go back');
+        await decideAttachment('Go back');
         await until('Go back to cancel the selection', 5000, () => done.get(cancelled)?.error === 'cancelled');
         expect((await desks()).current === id, 'Go back left the workspace');
         const before = reports.length;
         send('open_desk', { id: 'local' });
-        await decide(choice);
+        await decideAttachment(choice);
         if (choice === 'Switch after upload') {
           expect((await desks()).current === id, 'switched with the upload pending');
           release.resolve();
@@ -910,6 +962,36 @@ try {
         imageUpload = undefined; release.resolve();
       }
     }
+  });
+  await check('switching to this machine checks that its server still answers after waiting for an upload', async () => {
+    const label = displayed()?.label;
+    const hit = Promise.withResolvers<void>(), release = Promise.withResolvers<void>();
+    imageUpload = async () => { hit.resolve(); await release.promise; return Response.json({ id: 'kept-while-offline' }); };
+    try {
+      expect((await run('check_eval', { js: pasteScreenshot })).value === true, 'the project did not accept the screenshot');
+      await Promise.race([hit.promise, sleep(5000).then(() => { throw new Error('no upload'); })]);
+      const selection = send('open_desk', { id: 'local' });
+      await decideAttachment('Switch after upload');
+      await appApi('/api/stop').catch(() => null);
+      await until('the local server to stop during the upload', 15_000, () => !entry());
+      release.resolve();
+      const result = await until('the local selection to finish', 5000, () => done.get(selection));
+      expect(result.error === 'unreachable' && displayed()?.label === label, JSON.stringify(result));
+      expect((await run('check_eval', { js: "JSON.stringify(Object.entries(sessionStorage))" })).value?.toString().includes('kept-while-offline'), 'the remote draft lost its screenshot');
+    } finally {
+      imageUpload = undefined;
+      release.resolve();
+    }
+    const port = free();
+    terminal = Bun.spawn([process.execPath, join(ROOT, 'src', 'server', 'main.ts'), '--port', String(port)], {
+      env, stdout: 'ignore', stderr: 'ignore',
+    });
+    await until('the restarted local server', 15_000, () => entry()?.url.endsWith(':' + port));
+    await until('the restarted local workspace to become selectable', 10_000, async () => {
+      if (displayed()?.kind === 'local') return true;
+      await select('local', 'local');
+      return true;
+    });
   });
   liveComposer = false;
   await check('removing a workspace cancels a pending switch without closing the window', async () => {

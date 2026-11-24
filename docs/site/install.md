@@ -25,6 +25,10 @@ in a remote workspace, you can keep working there. Start the local server again 
 When a draft attachment is still uploading, choose **Switch after upload** to keep it in your
 draft. **Discard and switch** cancels the pending attachment. **Go back** keeps the current
 workspace open and the upload running. The prompt requires an updated workspace and desktop app.
+If the local server is reconnecting, **Go back** lets you keep working while the upload finishes.
+The app then reconnects automatically. When adding or pairing a workspace again, Seismic
+redeems the pairing code after the attachment decision. If the code itself expires while you
+wait, get a new one from the workspace you are pairing.
 
 ### Reconnect an offline workspace
 

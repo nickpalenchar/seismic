@@ -467,6 +467,9 @@ Safety rules:
 - Before replacing a webview, the shell samples its last route and unsent drafts, including edits
   held in memory when session storage is full. The shell keeps that copy for the workspace and
   restores it only at its saved origin. A bundled status page uses the latest departure checkpoint.
+  Resolve pending attachments before redeeming a pairing code, since the resulting link lasts
+  only a minute. Going back during automatic local reattachment waits for idle uploads before
+  retrying without another prompt (2026-11-24).
 - A desktop rebuild checks the displayed remote workspace for activity. It asks the remote server
   with its existing pairing and reads the page's own holds. Server handover is scoped to the paired
   device and origin.

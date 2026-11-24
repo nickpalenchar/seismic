@@ -19,6 +19,7 @@ use serde_json::json;
 use tauri::{ipc::CapabilityBuilder, AppHandle, Manager, Url, Webview, Window};
 use uuid::Uuid;
 
+use attachments::OnBack;
 pub use list::{Desks, LOCAL};
 use remote::Health;
 
@@ -504,7 +505,7 @@ impl Capture {
 
 /// Read the outgoing page before destroying its webview. A status page uses the last
 /// origin-scoped departure instead. A failed read leaves the current page in place.
-fn capture(app: &AppHandle, turn: u64) -> Result<Capture, String> {
+fn capture(app: &AppHandle, turn: u64, on_back: OnBack) -> Result<Capture, String> {
   let state = shell(app);
   let (active, label, generation) = {
     let views = state.views.lock().unwrap();
@@ -513,7 +514,7 @@ fn capture(app: &AppHandle, turn: u64) -> Result<Capture, String> {
   let mut hold = None;
   let workspace = if let Some(active) = active {
     let view = app.get_webview(&label).ok_or("window")?;
-    hold = Some(attachments::hold(app, &state, &view, turn)?);
+    hold = Some(attachments::hold(app, &state, &view, turn, on_back)?);
     let url = view.url().map_err(|_| "window")?;
     let sample = if active.own.at(&url) {
       let origin = active.own.origin().ok_or("elsewhere")?;
@@ -689,9 +690,9 @@ pub fn connect_local(app: &AppHandle, port: u16, page: Url, handed_over: bool) -
     }
     let outgoing = if same_origin {
       local_view(app).ok_or_else(|| "window".to_string())
-        .and_then(|view| attachments::hold(app, &state, &view, turn)).map(Attach::Reload)
+        .and_then(|view| attachments::hold(app, &state, &view, turn, OnBack::Wait)).map(Attach::Reload)
     } else {
-      capture(app, turn).map(Attach::Replace)
+      capture(app, turn, OnBack::Wait).map(Attach::Replace)
     };
     let (state, own, page) = (state.clone(), own.clone(), page.clone());
     let attached = tauri::async_runtime::block_on(on_ui(app.clone(), move |app| {
@@ -706,9 +707,6 @@ pub fn connect_local(app: &AppHandle, port: u16, page: Url, handed_over: bool) -
         }
       }
     }));
-    if attached.as_ref().is_err_and(|e| e == "cancelled") {
-      return Ok(());
-    }
     if !matches!(&attached, Err(e) if e == "superseded") {
       return attached;
     }
@@ -748,23 +746,23 @@ pub fn open(app: &AppHandle, id: &str, handed_over: bool, waiter: Option<OpenWai
   thread::spawn(move || {
     let health = origin.as_deref().map(remote::health);
     loop {
-      // This machine's sign-in link also proves that its server answers at the port it had:
-      // the watcher keeps that port while the server stops for an update or a takeover.
-      let local = origin.is_none().then(|| {
+      if state.views.lock().unwrap().turn != turn {
+        return;
+      }
+      let outgoing = if origin.is_none() && state.local_port().is_none() {
+        Err("unreachable".into())
+      } else {
+        capture(&app, turn, OnBack::Cancel)
+      };
+      // Ask this machine for a sign-in link after the attachment decision: the
+      // server can stop or change ports while the outgoing page waits for uploads.
+      let local = (origin.is_none() && outgoing.is_ok()).then(|| {
         let (port, next) = {
           let views = state.views.lock().unwrap();
           (views.local_port, views.parked.get(&id).map_or_else(|| "/".into(), |p| p.next.clone()))
         };
-        port.and_then(|port| crate::sign_in_link(port, &next, false).map(|link| (port, link)))
+        (port, port.and_then(|port| crate::sign_in_link(port, &next, false)))
       });
-      if state.views.lock().unwrap().turn != turn {
-        return;
-      }
-      let outgoing = if local.as_ref().is_some_and(Option::is_none) {
-        Err("unreachable".into())
-      } else {
-        capture(&app, turn)
-      };
       let (state, id, origin, health) = (state.clone(), id.clone(), origin.clone(), health.as_ref().map(Health::code));
       let pending = state.clone();
       let queued = tauri::async_runtime::block_on(on_ui(app.clone(), move |app| {
@@ -779,6 +777,7 @@ pub fn open(app: &AppHandle, id: &str, handed_over: bool, waiter: Option<OpenWai
             }
             (views.local_port, views.parked.get(&id).map_or_else(|| "/".into(), |p| p.next.clone()))
           };
+          let outgoing = outgoing?;
           let (own, url, problem) = match origin {
             Some(origin) => {
               let problem = health.filter(|h| *h != Health::Seismic.code());
@@ -788,15 +787,15 @@ pub fn open(app: &AppHandle, id: &str, handed_over: bool, waiter: Option<OpenWai
               (Own::Remote(origin), url, problem)
             }
             None => {
-              let (answered, link) = local.flatten().ok_or("unreachable")?;
-              if port != Some(answered) {
+              let (asked, link) = local.ok_or("unreachable")?;
+              if port != asked {
                 return Err("moved".to_string());
               }
-              (Own::Local(Some(answered)), Url::parse(&link).map_err(|_| "address")?, None)
+              (Own::Local(asked), Url::parse(&link.ok_or("unreachable")?).map_err(|_| "address")?, None)
             }
           };
           let target = Destination { desk: id, own, url, problem, handed_over };
-          mount(app, target, turn, outgoing?)
+          mount(app, target, turn, outgoing)
         })();
         if opened.as_ref().is_err_and(|e| e == "moved") {
           return Ok(false);
@@ -833,7 +832,7 @@ pub fn open(app: &AppHandle, id: &str, handed_over: bool, waiter: Option<OpenWai
 }
 
 /// Start the paired workspace at its fresh login link.
-fn open_paired(app: &AppHandle, id: &str, origin: &str, link: Url, outgoing: Result<Capture, String>) -> Result<(), String> {
+fn open_paired(app: &AppHandle, id: &str, origin: &str, link: Url, outgoing: Capture) -> Result<(), String> {
   let state = shell(app);
   let own = Own::Remote(origin.into());
   if !own.at(&link) {
@@ -849,7 +848,7 @@ fn open_paired(app: &AppHandle, id: &str, origin: &str, link: Url, outgoing: Res
     }
     views.turn
   };
-  mount(app, Destination { desk: id.into(), own, url: link, problem: None, handed_over: false }, turn, outgoing?)
+  mount(app, Destination { desk: id.into(), own, url: link, problem: None, handed_over: false }, turn, outgoing)
 }
 
 

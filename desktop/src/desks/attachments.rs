@@ -25,6 +25,14 @@ impl Decision<'_> {
       _ => Err("drafts".into()),
     }
   }
+
+  fn hold_when_ready(&self, app: &AppHandle, action: &str) -> Result<Option<CaptureHold>, String> {
+    if !self.ready(action)? {
+      return Ok(None);
+    }
+    let hold = CaptureHold::acquire(app, self.view.label().to_string())?;
+    Ok(self.ready("check")?.then_some(hold))
+  }
 }
 
 impl Drop for Decision<'_> {
@@ -33,9 +41,16 @@ impl Drop for Decision<'_> {
   }
 }
 
-pub(super) fn hold(app: &AppHandle, shell: &Shell, view: &Webview, turn: u64) -> Result<CaptureHold, String> {
+#[derive(Clone, Copy)]
+pub(super) enum OnBack {
+  Cancel,
+  Wait,
+}
+
+pub(super) fn hold(app: &AppHandle, shell: &Shell, view: &Webview, turn: u64, on_back: OnBack) -> Result<CaptureHold, String> {
   let _asking = shell.attachment_decision.lock().unwrap();
-  let decision = Decision { view, id: uuid::Uuid::new_v4() };
+  let mut decision = Decision { view, id: uuid::Uuid::new_v4() };
+  let mut action = "ask";
   loop {
     {
       let views = shell.views.lock().unwrap();
@@ -43,11 +58,16 @@ pub(super) fn hold(app: &AppHandle, shell: &Shell, view: &Webview, turn: u64) ->
         return Err("superseded".into());
       }
     }
-    if decision.ready("ask")? {
-      let hold = CaptureHold::acquire(app, view.label().to_string())?;
-      if decision.ready("check")? {
-        return Ok(hold);
+    match decision.hold_when_ready(app, action) {
+      Ok(Some(hold)) => return Ok(hold),
+      Ok(None) => {}
+      Err(error) if error == "cancelled" && matches!(on_back, OnBack::Wait) => {
+        // A replacement local server still needs attaching. End the dismissed prompt
+        // and start checking for idle uploads without opening another dialog.
+        decision = Decision { view, id: uuid::Uuid::new_v4() };
+        action = "check";
       }
+      Err(error) => return Err(error),
     }
     thread::sleep(Duration::from_millis(150));
   }
