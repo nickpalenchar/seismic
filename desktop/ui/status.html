@@ -71,7 +71,7 @@
         const own = desks.list.find((d) => d.id === desks.current);
         if (!own) return;
         const reason = WHY[desks.problem];
-        $('title').textContent = reason ? `${own.name} does not answer` : own.name;
+        $('title').textContent = desks.problem === 'unreachable' ? `${own.name} does not answer` : own.name;
         $('why').textContent = reason ? reason(own.origin) : `Check whether Seismic answers at ${own.origin}.`;
         const workspaces = desks.list.filter((d) => d.id !== own.id);
         $('others-title').hidden = !workspaces.length;

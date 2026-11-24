@@ -434,11 +434,18 @@ fn guard_frames(webview: &Webview, own: Own) -> tauri::Result<()> {
     .map_err(|e| std::io::Error::other(e.to_string()).into())
 }
 
-/// Whether the webview's document is at `origin`: an engine's error page is not, nor the page
-/// that stayed when a load failed.
-pub fn shows_origin(webview: &Webview, origin: &str, timeout: Duration) -> bool {
+/// Verify the displayed navigation, including HTTP failures rendered at the workspace origin.
+pub fn shows_workspace(webview: &Webview, origin: &str, timeout: Duration) -> bool {
   let (send, receive) = std::sync::mpsc::channel();
-  let script = format!("location.origin === {}", serde_json::json!(origin));
+  // The navigation entry describes this response, including redirects and the device cookie.
+  // Older engines omit responseStatus. Recognize the workspace and its signed-out pairing form.
+  let script = format!(r#"(() => {{
+    if (location.origin !== {}) return false;
+    const status = performance.getEntriesByType('navigation')[0]?.responseStatus || 0;
+    if ((!status || status === 401) && document.querySelector('form[action="/pair"] input[name="code"]')) return true;
+    return status ? status >= 200 && status < 300 :
+      !!(document.getElementById('root') && document.querySelector('link[rel="manifest"]'));
+  }})()"#, serde_json::json!(origin));
   if webview.eval_with_callback(script, move |value| { let _ = send.send(value); }).is_err() {
     return false;
   }

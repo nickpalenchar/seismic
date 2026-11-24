@@ -157,6 +157,7 @@ let busyChecks = 0;
 let seedDraft = true;
 // The next page request finds the remote gone, after its health check answered.
 let dropPage = false;
+let pageError: 'http' | 'legacy' | undefined;
 const startProxy = (port = proxyPort) => {
   return Bun.serve({
     port,
@@ -165,6 +166,11 @@ const startProxy = (port = proxyPort) => {
       const url = new URL(req.url);
       if (url.pathname === '/__seismic-check-frame') return new Response(FRAME, { headers: { 'content-type': 'text/html' } });
       if (url.pathname === '/__seismic-check-ipc') return new Response(IPC_FRAME, { headers: { 'content-type': 'text/html' } });
+      if (pageError && req.headers.get('accept')?.includes('text/html')) {
+        // Older webviews omit the HTTP status from navigation timing entries.
+        const timing = pageError === 'legacy' ? "<script>performance.getEntriesByType = () => []</script>" : '';
+        return new Response(timing + '<title>Service unavailable</title>', { status: 503, headers: { 'content-type': 'text/html' } });
+      }
       if (dropPage && !req.headers.get('user-agent')?.startsWith('ureq/')) {
         dropPage = false;
         proxy.server?.stop(true);
@@ -568,6 +574,33 @@ try {
     expect(String(remote.href).endsWith(LAST_PAGE) && remote.previousDraft === 'Draft before switching' && remote.projects === 200, JSON.stringify(remote));
     expect((await desks()).list.filter((d) => d.open).map((d) => d.id).join() === id, 'more than the selected workspace was active');
   });
+  await check('the last edit and route before the outgoing page is hidden survive switching', async () => {
+    await select('local', 'local');
+    const hit = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    onHealth = () => { hit.resolve(); return release.promise; };
+    const before = reports.length;
+    send('open_desk', { id });
+    try {
+      await Promise.race([hit.promise, sleep(6000).then(() => { throw new Error('no held health check'); })]);
+      const edit = await run('check_eval', { js: `
+        history.replaceState(null, '', '/?view=last-edit');
+        sessionStorage.setItem('seismic-drafts-last-edit', 'edited during the switch');
+        const snapshot = window.seismicSnapshotSession;
+        window.seismicSnapshotSession = () => [...(snapshot?.() ?? Object.entries(sessionStorage)),
+          ['seismic-drafts-capture-visibility', document.visibilityState]];
+      ` });
+      expect(edit.ok, JSON.stringify(edit));
+    } finally {
+      onHealth = undefined;
+      release.resolve();
+    }
+    await report('remote', before);
+    const local = await select('local', 'local');
+    const saved = await run('check_eval', { js: "[sessionStorage.getItem('seismic-drafts-last-edit'), sessionStorage.getItem('seismic-drafts-capture-visibility')]" });
+    expect(String(local.href).endsWith('/?view=last-edit') && JSON.stringify(saved.value) === JSON.stringify(['edited during the switch', 'hidden']), JSON.stringify({ local, saved }));
+    await select(id, 'remote');
+  });
   await check('a newer selection supersedes an earlier health check', async () => {
     await select('local', 'local');
     const hit = Promise.withResolvers<void>();
@@ -656,6 +689,22 @@ try {
     const remote = await reconnect();
     expect(remote.previousOverflowDraft === OVERFLOW_DRAFT && String(remote.href).endsWith(PAGE_BEFORE_BACK), JSON.stringify(remote));
   });
+  await check('a same-origin HTTP error shows recovery while the projects endpoint stays healthy', async () => {
+    await select('local', 'local');
+    pageError = 'http';
+    try {
+      const status = await select(id, 'status');
+      expect((await desks()).problem === 'notLoaded' && status.title === 'Studio', JSON.stringify(status));
+      pageError = 'legacy';
+      const before = reports.length;
+      send('retry_desk');
+      const again = await report('status', before, 40_000);
+      expect(again.label === status.label && (await desks()).problem === 'notLoaded', JSON.stringify(again));
+    } finally {
+      pageError = undefined;
+    }
+    await reconnect();
+  });
   await check('a workspace that goes away while its page loads shows status, also after Try again', async () => {
     await select('local', 'local');
     dropPage = true;
@@ -698,6 +747,30 @@ try {
     await select('local', 'local');
     await select(id, 'remote');
     return 'unreachable, then selected once it answered';
+  });
+  await check('a remote document keeps its edits when the local child or terminal server stops', async () => {
+    const remoteLabel = displayed()?.label;
+    let draft = 'Draft before the stop.';
+    await run('check_eval', { js: `sessionStorage.setItem('seismic-drafts-stop', ${JSON.stringify(draft)})` });
+    for (const owner of ['shell', 'terminal']) {
+      await appApi('/api/stop').catch(() => null);
+      await until(`the ${owner} server to stop`, 20_000, () => !entry());
+      await sleep(1600);
+      const edit = await run('check_eval', { js: "sessionStorage.getItem('seismic-drafts-stop')" });
+      expect(edit.value === draft && displayed()?.label === remoteLabel, JSON.stringify(edit));
+      draft += ` Edited after the ${owner} server stopped.`;
+      expect((await run('check_eval', { js: `sessionStorage.setItem('seismic-drafts-stop', ${JSON.stringify(draft)})` })).ok, 'edit failed');
+      expect((await run('open_desk', { id: 'local' })).error === 'unreachable', 'stopped server selected');
+      const port = free();
+      terminal = Bun.spawn([process.execPath, join(ROOT, 'src', 'server', 'main.ts'), '--port', String(port)], {
+        env, stdout: 'ignore', stderr: 'ignore',
+      });
+      await until('the restarted terminal server to answer', 15_000, async () => (await fetch(`http://127.0.0.1:${port}/api/projects`, { headers: ownerHeaders(home) })).ok);
+      await sleep(1500);
+    }
+    await select('local', 'local');
+    await select(id, 'remote');
+    expect((await run('check_eval', { js: "sessionStorage.getItem('seismic-drafts-stop')" })).value === draft, 'parked edit missing');
   });
   if (debugFailures) {
     await check('a failed switch leaves the current page, window, and saved drafts in place', async () => {

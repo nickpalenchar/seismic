@@ -187,6 +187,8 @@ impl Departure {
 #[derive(Default)]
 struct Views {
   next_label: u64,
+  /// Concurrent switch attempts can be sampling the same outgoing webview.
+  hidden_for_capture: HashMap<String, usize>,
   active: Option<WorkspaceView>,
   local_port: Option<u16>,
   /// Each selection supersedes the last one, including while a health check is running.
@@ -286,6 +288,20 @@ impl Shell {
       eprintln!("seismic: the workspaces cannot be saved: {e}");
       "unsaved".to_string()
     })
+  }
+
+  /// A local stop may leave the shell serving the selected remote workspace.
+  pub fn disconnect_if_remote(&self) -> bool {
+    let mut views = self.views.lock().unwrap();
+    if !views.active.as_ref().is_some_and(|view| view.desk != LOCAL) {
+      return false;
+    }
+    views.local_port = None;
+    if views.pending.as_ref().is_some_and(|p| p.desk == LOCAL) {
+      views.turn += 1;
+      views.finish(Err("unreachable".into()));
+    }
+    true
   }
 
   pub fn local_port(&self) -> Option<u16> {
@@ -429,7 +445,55 @@ pub fn show(w: &Window) {
   let _ = w.set_focus();
 }
 
+/// Stop input before sampling so the owner cannot edit or navigate the outgoing page
+/// during native construction. Every failed or superseded attempt releases its hold.
+struct CaptureHold {
+  app: AppHandle,
+  label: String,
+}
+
+impl CaptureHold {
+  fn acquire(app: &AppHandle, label: String) -> Result<Self, String> {
+    tauri::async_runtime::block_on(on_ui(app.clone(), move |app| {
+      let state = shell(app);
+      if !state.is_current(&label) {
+        return Err("superseded".into());
+      }
+      let view = app.get_webview(&label).ok_or("window")?;
+      view.hide().map_err(|e| e.to_string())?;
+      *state.views.lock().unwrap().hidden_for_capture.entry(label.clone()).or_default() += 1;
+      Ok(Self { app: app.clone(), label })
+    }))
+  }
+}
+
+impl Drop for CaptureHold {
+  fn drop(&mut self) {
+    let (app, label) = (self.app.clone(), self.label.clone());
+    let _ = self.app.run_on_main_thread(move || {
+      let state = shell(&app);
+      let mut views = state.views.lock().unwrap();
+      let Some(count) = views.hidden_for_capture.get_mut(&label) else { return };
+      *count -= 1;
+      if *count != 0 {
+        return;
+      }
+      views.hidden_for_capture.remove(&label);
+      if views.label() == label {
+        drop(views);
+        if let Some(view) = app.get_webview(&label) {
+          let _ = view.show();
+          if view.window().is_focused().unwrap_or(false) {
+            let _ = view.set_focus();
+          }
+        }
+      }
+    });
+  }
+}
+
 struct Capture {
+  _hold: Option<CaptureHold>,
   label: String,
   generation: u64,
   workspace: Option<Placed>,
@@ -449,6 +513,7 @@ fn capture(app: &AppHandle) -> Result<Capture, String> {
     let views = state.views.lock().unwrap();
     (views.active.clone(), views.label().to_string(), views.draft_generation)
   };
+  let hold = active.as_ref().map(|_| CaptureHold::acquire(app, label.clone())).transpose()?;
   let workspace = if let Some(active) = active {
     let view = app.get_webview(&label).ok_or("window")?;
     let url = view.url().map_err(|_| "window")?;
@@ -462,7 +527,7 @@ fn capture(app: &AppHandle) -> Result<Capture, String> {
   } else {
     None
   };
-  Ok(Capture { label, generation, workspace })
+  Ok(Capture { _hold: hold, label, generation, workspace })
 }
 
 /// The outgoing view's drafts and route take precedence over any older parked copy.
@@ -688,7 +753,11 @@ pub fn open(app: &AppHandle, id: &str, handed_over: bool, waiter: Option<OpenWai
       if state.views.lock().unwrap().turn != turn {
         return;
       }
-      let outgoing = capture(&app);
+      let outgoing = if local.as_ref().is_some_and(Option::is_none) {
+        Err("unreachable".into())
+      } else {
+        capture(&app)
+      };
       let (state, id, origin, health) = (state.clone(), id.clone(), origin.clone(), health.as_ref().map(Health::code));
       let pending = state.clone();
       let queued = tauri::async_runtime::block_on(on_ui(app.clone(), move |app| {
@@ -829,7 +898,7 @@ fn verify_load(app: &AppHandle, label: &str, token: u64) {
     load.verifying = true;
     origin
   };
-  let shown = app.get_webview(label).is_some_and(|w| window::shows_origin(&w, &origin, Duration::from_secs(2)));
+  let shown = app.get_webview(label).is_some_and(|w| window::shows_workspace(&w, &origin, Duration::from_secs(2)));
   let health = remote::health(&origin);
   let problem = match health {
     Health::Seismic if shown => None,

@@ -3,7 +3,8 @@
 //
 // - One Seismic per home: when one runs on the home already ($SEISMIC_HOME/server.json, written by the
 //   server), the window opens on it instead of starting a second. Whoever started it (the app, or
-//   `bun start` in a terminal), it stops when the app quits, and the app ends when it does.
+//   `bun start` in a terminal), it stops when the app quits. A selected remote workspace stays
+//   open when only the local server stops.
 // - The server picks no port of its own: 4417 ($SEISMIC_PORT) when free, else one the system hands out.
 // - Quitting stops the server through `POST /api/stop`, the way Ctrl-C does: workers in the middle
 //   of a turn pause first (at most 15 minutes), and the window shows that until the server is gone.
@@ -363,7 +364,7 @@ pub(crate) fn no_window(cmd: &mut Command) {
 }
 
 /// Brings up the Seismic of this home (the running one, else a new server) and shows its project;
-/// ends the app when that server has ended.
+/// keeps an active remote workspace open if the local server ends.
 fn serve(app: AppHandle, seismic: Arc<Seismic>, updates: Arc<update::Updates>, handed_over: bool) {
   let home = home();
   let attach = |port: u16| {
@@ -376,12 +377,13 @@ fn serve(app: AppHandle, seismic: Arc<Seismic>, updates: Arc<update::Updates>, h
       seismic.child.store(false, Ordering::SeqCst);
       attach(port);
       update::server_ready(&updates);
-      if !watch(&app, &seismic, &home) {
+      if matches!(watch(&app, &seismic, &home), Started::Ended) {
         return;
       }
       // it ended for this shell to start it under itself: the window comes back on the page it showed
       let page = desks::local_view(&app).and_then(|w| window::page(&w, &Own::Local(Some(port))));
       seismic.remember_page(page);
+      continue;
     }
     if let Started::Ended = start(&app, &seismic, &updates, &home, &attach) {
       return;
@@ -400,21 +402,13 @@ enum Started {
 /// Starts the server, shows its project once it answers, and waits for it to end.
 fn start(app: &AppHandle, seismic: &Seismic, updates: &update::Updates, home: &Path, attach: &dyn Fn(u16)) -> Started {
   let Some(log) = log_file(home) else {
-    fail(
-      app,
-      format!("Seismic cannot write to {}.", home.display()),
-    );
-    return Started::Ended;
+    return local_ended(app, seismic, home, Some(format!("Seismic cannot write to {}.", home.display())));
   };
   let port = pick_port();
   let mut child = match start_server(app, home, port, &log) {
     Ok(c) => c,
     Err(e) => {
-      fail(
-        app,
-        format!("Seismic could not be started: {e}"),
-      );
-      return Started::Ended;
+      return local_ended(app, seismic, home, Some(format!("Seismic could not be started: {e}")));
     }
   };
   let started = Instant::now();
@@ -423,15 +417,10 @@ fn start(app: &AppHandle, seismic: &Seismic, updates: &update::Updates, home: &P
       if running(home).is_some() {
         return Started::Retry;
       }
-      fail(app, ended(status, &log.1));
-      return Started::Ended;
+      return local_ended(app, seismic, home, Some(ended(status, &log.1)));
     }
     if started.elapsed() > START_PATIENCE {
-      fail(
-        app,
-        format!("Seismic does not answer.\n\n{}", tail(&log.1)),
-      );
-      return Started::Ended;
+      return local_ended(app, seismic, home, Some(format!("Seismic does not answer.\n\n{}", tail(&log.1))));
     }
     thread::sleep(Duration::from_millis(150));
   }
@@ -446,9 +435,29 @@ fn start(app: &AppHandle, seismic: &Seismic, updates: &update::Updates, home: &P
         return Started::Retry;
       }
     }
-    Ok(status) if status.success() || seismic.stopping.load(Ordering::SeqCst) => app.exit(0),
-    Ok(status) => fail(app, ended(status, &log.1)),
-    Err(e) => fail(app, e.to_string()),
+    Ok(status) => return local_ended(app, seismic, home, (!status.success()).then(|| ended(status, &log.1))),
+    Err(e) => return local_ended(app, seismic, home, Some(e.to_string())),
+  }
+  Started::Ended
+}
+
+/// Keep the remote document alive while its local server is down. Rejoin the normal
+/// attachment loop when the owner starts the server again. Explicit Quit still ends the shell.
+fn local_ended(app: &AppHandle, seismic: &Seismic, home: &Path, error: Option<String>) -> Started {
+  if !seismic.stopping.load(Ordering::SeqCst) && desks::shell(app).disconnect_if_remote() {
+    seismic.port.store(0, Ordering::SeqCst);
+    seismic.child.store(false, Ordering::SeqCst);
+    while !seismic.stopping.load(Ordering::SeqCst) {
+      if running(home).is_some() {
+        return Started::Retry;
+      }
+      thread::sleep(Duration::from_millis(250));
+    }
+  }
+  if let Some(why) = error.filter(|_| !seismic.stopping.load(Ordering::SeqCst)) {
+    fail(app, why);
+  } else {
+    app.exit(0);
   }
   Started::Ended
 }
@@ -457,11 +466,9 @@ fn ended(status: std::process::ExitStatus, log: &Path) -> String {
   format!("Seismic ended ({status}).\n\n{}", tail(log))
 }
 
-/// An Seismic the shell did not start in this run (an earlier run of the app did, or a terminal): the
-/// app ends with it. One that runs without the app that started it (`orphaned`) is asked to end once
-/// its workers paused (`POST /api/app-takeover`); true once it has (its entry says so, `takenOver`),
-/// for this shell to start it again under itself. A stop meanwhile ends it for good, the app with it.
-fn watch(app: &AppHandle, seismic: &Seismic, home: &Path) -> bool {
+/// Watch a server started outside this run. An orphaned server hands over after its
+/// workers pause. An ordinary stop ends the local session or leaves a remote page running.
+fn watch(app: &AppHandle, seismic: &Seismic, home: &Path) -> Started {
   let port = seismic.port.load(Ordering::SeqCst);
   let mut silent = 0;
   let mut taking = false;
@@ -476,12 +483,11 @@ fn watch(app: &AppHandle, seismic: &Seismic, home: &Path) -> bool {
     let entry = fs::read_to_string(home.join("server.json")).ok();
     let stopped = seismic.stopping.load(Ordering::SeqCst) || entry.is_none();
     if silent > 0 && !stopped && entry.as_ref().is_some_and(|e| e.contains("\"takenOver\"")) {
-      return true;
+      return Started::Retry;
     }
     let patience = if entry.is_some_and(|e| e.contains("\"restarting\"")) { 90 } else { 30 };
     if silent > 0 && stopped || silent > patience {
-      app.exit(0);
-      return false;
+      return local_ended(app, seismic, home, None);
     }
   }
 }

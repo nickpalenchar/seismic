@@ -19,7 +19,8 @@ On macOS, open the **Workspace** menu to switch between this machine and your pa
 The menu marks the current workspace. Choosing another workspace loads its address in the same
 app window. Press **Control–Command–1** for this machine and **Control–Command–2** through
 **Control–Command–9** for the next eight workspaces in menu order. Returning to a workspace
-brings back its last page and unsent drafts.
+brings back its last page and unsent drafts. If this machine’s server stops while you are working
+in a remote workspace, you can keep working there. Start the local server again to switch back.
 
 ### Reconnect an offline workspace
 
