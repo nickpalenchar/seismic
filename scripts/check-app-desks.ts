@@ -695,15 +695,21 @@ async function checkApp() {
     });
   }
   // The destination reports success because switching retires the invoking document.
-  const select = async (id: string, kind: string) => {
+  const select = async (id: string, kind: string, waitForLocalServer = false) => {
     const before = reports.length;
     const previous = displayed();
-    const request = send('open_desk', { id });
-    const next = await until(`the ${kind} page to report after selection`, 15_000, () => {
-      const result = done.get(request);
-      if (result?.ok === false) throw new Error(result.error);
-      return reports.slice(before).find((r) => r.kind === kind);
+    let request = send('open_desk', { id });
+    const result = await until(`the ${kind} page to report after selection`, 15_000, () => {
+      const answer = done.get(request);
+      if (answer?.ok === false) {
+        if (!waitForLocalServer || answer.error !== 'unreachable') return { error: answer.error };
+        request = send('open_desk', { id });
+      }
+      const next = reports.slice(before).find((r) => r.kind === kind);
+      return next ? { next } : undefined;
     });
+    if (!result.next) throw new Error(result.error);
+    const next = result.next;
     expect(next.window === previous?.window && next.windows === 1 && next.label !== previous?.label, JSON.stringify({ previous, next }));
     return next;
   };
@@ -825,7 +831,8 @@ async function checkApp() {
     }
     const restored = await report('remote', before, 20_000);
     expect(restored.windows === 1 && restored.projects === 200 && restored.previousOverflowDraft === OVERFLOW_DRAFT, JSON.stringify(restored));
-    await select('local', 'local');
+    // The selected remote can restore before the server on this machine has started.
+    await select('local', 'local', true);
     const local = await run('check_eval', { js: "new Map(window.seismicSnapshotSession?.() ?? Object.entries(sessionStorage)).get('seismic-drafts-check')" });
     expect(local.value === 'Draft on this machine', JSON.stringify(local));
   });
