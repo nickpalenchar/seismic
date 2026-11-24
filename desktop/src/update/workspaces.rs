@@ -10,7 +10,10 @@ use std::{
 
 use tauri::{AppHandle, Manager, WebviewWindow};
 
-use crate::{desks, window::Own};
+use crate::{
+  desks,
+  window::{drafts::SESSION_DRAFTS, Own},
+};
 
 fn pages(app: &AppHandle) -> Option<Vec<(WebviewWindow, String)>> {
   let mut pages = Vec::new();
@@ -18,6 +21,8 @@ fn pages(app: &AppHandle) -> Option<Vec<(WebviewWindow, String)>> {
     let Some((_, Some(origin))) = desks::shell(app).desk_of(w.label()) else {
       continue;
     };
+    // Status documents have no server or activity to query. Their placement keeps the
+    // workspace-origin checkpoint made when leaving the workspace page.
     if Own::Remote(origin.clone()).at(&w.url().ok()?) {
       pages.push((w, origin));
     }
@@ -96,8 +101,7 @@ pub fn ready(app: &AppHandle, hand_over: bool) -> Option<Drafts> {
           // Keep an origin-scoped copy even after a successful server handover: it can expire
           // during installation or before a workspace comes back online.
           if (check.ready !== true || !{hand_over}) return check.ready;
-          const entries = window.seismicSnapshotSession?.() ?? Object.entries(sessionStorage);
-          return entries.filter(([key]) => /^(seismic-(drafts|markups|setting-draft|kept)-)/.test(key));
+          return ({SESSION_DRAFTS})();
         }})()"#
       );
       w.eval_with_callback(js, move |value| {

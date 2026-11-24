@@ -621,7 +621,7 @@ fn main() {
           app.exit(0);
         }
       });
-      let main = window::build(&handle, desks::STARTUP, Own::Local(None), main_placed.as_ref(), false)?;
+      let main = window::build(&handle, desks::STARTUP, Own::Local(None), main_placed.as_ref(), false, None)?;
       main.navigate(window::bundled_url("/"))?;
       window::show_placed(&main, main_placed.as_ref(), main_placed.as_ref().is_some_and(|p| p.focused))?;
       desks::reopen(&handle, std::mem::take(&mut placed));

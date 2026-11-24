@@ -465,6 +465,9 @@ Safety rules:
   even when the server accepts handover, since its copy can expire before the workspace reopens.
   If a restored page takes ownership of its draft after readiness sampling starts, the shell
   retries the capture before publishing a snapshot. An empty sample still counts as a sampled page.
+  A workspace page also checkpoints unsent work to its own webview profile when leaving the page.
+  While the window shows its bundled status screen, its placement carries the checkpoint ID.
+  Only a window restored from that placement can use the copy when it reaches the workspace origin.
 - A restored workspace opens without taking focus unless it was the window the owner last used.
   Native show and fullscreen calls can activate a window, so the shell uses background presentation
   for the others and postpones fullscreen until they receive focus.

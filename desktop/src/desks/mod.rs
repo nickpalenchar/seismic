@@ -20,6 +20,7 @@ use std::{
 
 use serde_json::json;
 use tauri::{ipc::CapabilityBuilder, AppHandle, Manager, Url, WebviewWindow};
+use uuid::Uuid;
 
 pub use list::{Desks, LOCAL};
 use remote::Health;
@@ -55,6 +56,8 @@ struct Open {
   problem: Option<&'static str>,
   /// The backup until a document at this window's origin confirms receipt.
   drafts: Vec<(String, String)>,
+  draft_checkpoint: Uuid,
+  awaiting_drafts: bool,
 }
 
 #[derive(Default)]
@@ -109,7 +112,8 @@ impl Windows {
   }
 
   fn drafts_restored(&mut self, label: &str) -> bool {
-    let Some(window) = self.open.get_mut(label).filter(|w| !w.drafts.is_empty()) else { return false };
+    let Some(window) = self.open.get_mut(label).filter(|w| w.awaiting_drafts) else { return false };
+    window.awaiting_drafts = false;
     window.drafts.clear();
     self.draft_generation += 1;
     true
@@ -265,7 +269,7 @@ pub fn connect_local(app: &AppHandle, port: u16, page: Url, handed_over: bool) -
   let label = label_for(&shell, "main");
   let origin = own.origin().expect("local server port");
   app.add_capability(capability(&label, &origin, &[PAGE, LOCAL_PAGE])?).map_err(|e| e.to_string())?;
-  let w = window::build(app, &label, own, placed.as_ref(), previous.is_none() && handed_over).map_err(|e| e.to_string())?;
+  let w = window::build(app, &label, own, placed.as_ref(), previous.is_none() && handed_over, None).map_err(|e| e.to_string())?;
   if let Err(error) = old.as_ref().close() {
     let _ = w.destroy();
     return Err(error.to_string());
@@ -393,7 +397,8 @@ fn build(app: &AppHandle, id: &str, origin: &str, revision: u64, url: Option<Url
     eprintln!("seismic: no capability for {origin}: {e}");
     "capability".to_string()
   })?;
-  let w = window::build(app, &label, own, placed, placed.is_some()).map_err(|e| e.to_string())?;
+  let draft_checkpoint = placed.and_then(|p| p.draft_checkpoint).unwrap_or_else(Uuid::new_v4);
+  let w = window::build(app, &label, own, placed, placed.is_some(), Some(draft_checkpoint)).map_err(|e| e.to_string())?;
   // The native constructor can pump events on Windows. Check again before loading any content.
   if !can_build(&shell, id, origin, revision) {
     let _ = w.destroy();
@@ -408,6 +413,8 @@ fn build(app: &AppHandle, id: &str, origin: &str, revision: u64, url: Option<Url
       next: placed.map_or_else(|| "/".into(), |p| p.next.clone()),
       problem: showing_status.then_some(problem),
       drafts: placed.map_or_else(Vec::new, |p| p.drafts.clone()),
+      draft_checkpoint,
+      awaiting_drafts: placed.is_some_and(|p| p.draft_checkpoint.is_some() || !p.drafts.is_empty()),
     },
   );
   let page = url.unwrap_or_else(|| window::bundled_url("/status.html"));
@@ -548,7 +555,8 @@ pub fn placed(app: &AppHandle, draft_generation: u64, mut drafts: HashMap<String
     let Some(w) = app.get_webview_window(&label) else { continue };
     let own = Own::Remote(o.origin);
     let sampled = drafts.remove(&label);
-    if sampled.is_none() && own.at(&w.url().ok()?) {
+    let at_origin = own.at(&w.url().ok()?);
+    if sampled.is_none() && at_origin {
       return None; // a newly connected page was not sampled, even if its draft list might be empty
     }
     let mut unsent = sampled.unwrap_or_default();
@@ -560,6 +568,7 @@ pub fn placed(app: &AppHandle, draft_generation: u64, mut drafts: HashMap<String
     }
     if let Some(mut placed) = Placed::of(&w, &o.desk, &own, &o.next) {
       placed.drafts = unsent;
+      placed.draft_checkpoint = (!at_origin).then_some(o.draft_checkpoint);
       snapshots.push(placed);
     } else if !unsent.is_empty() {
       return None;

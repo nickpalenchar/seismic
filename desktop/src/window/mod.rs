@@ -12,6 +12,7 @@
 //   sender by the `Origin` header there.
 // - The microphone goes to the window's own origin alone (microphone/).
 
+pub mod drafts;
 mod microphone;
 pub mod placed;
 
@@ -26,6 +27,7 @@ use tauri::{
   webview::{DownloadEvent, NewWindowResponse, PageLoadEvent},
   AppHandle, Manager, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
 };
+use uuid::Uuid;
 
 use crate::{open_in_browser, open_outside, seismic_env};
 use placed::Placed;
@@ -208,7 +210,7 @@ fn show_background(w: &WebviewWindow) -> tauri::Result<()> {
 
 /// Creates a hidden, inert window on the UI thread. The caller can navigate and show it once the
 /// native guards are installed and the window is ready to receive commands.
-pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, handed_over: bool) -> tauri::Result<WebviewWindow> {
+pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, handed_over: bool, draft_checkpoint: Option<Uuid>) -> tauri::Result<WebviewWindow> {
   let local = matches!(own, Own::Local(_));
   let (navigation, loaded) = (own.clone(), own.clone());
   let handoff = Arc::new(Handoff::default());
@@ -218,25 +220,8 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
   let saved: Arc<Mutex<HashMap<String, PathBuf>>> = Default::default();
   let check = seismic_env("APP_CHECK").and_then(|c| c.into_string().ok());
   let blank = Url::parse("about:blank").unwrap();
-  let drafts = placed.and_then(|p| {
-    let origin = p.origin.as_ref()?;
-    (!p.drafts.is_empty() && own.origin().as_ref() == Some(origin)).then_some((origin, &p.drafts))
-  });
-  let restore = drafts.map(|(origin, drafts)| format!(
-    r#"if (window.top === window && location.origin === {}) {{
-        const drafts = {};
-        window.seismicRestoredDrafts = new Set(drafts.map(([key]) => key));
-        if (!sessionStorage.getItem('seismic-desktop-restored')) {{
-          for (const [key, value] of drafts) {{
-            if (sessionStorage.getItem(key) === null) sessionStorage.setItem(key, value);
-          }}
-          sessionStorage.setItem('seismic-desktop-restored', '1');
-        }}
-      }}"#,
-    serde_json::json!(origin),
-    serde_json::json!(drafts)
-  ));
-  let restoring_drafts = restore.is_some();
+  let draft_script = draft_checkpoint.zip(own.origin()).map(|(id, origin)| drafts::script(&origin, id, placed));
+  let restoring_drafts = draft_script.is_some() && placed.is_some_and(|p| p.draft_checkpoint.is_some() || !p.drafts.is_empty());
   let builder = WebviewWindowBuilder::new(app, label, WebviewUrl::External(blank))
     .visible(false)
     .title("Seismic")
@@ -317,7 +302,7 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
         }
       }
     });
-  let builder = match restore {
+  let builder = match draft_script {
     Some(script) => builder.initialization_script(script),
     None => builder,
   };

@@ -12,6 +12,7 @@ use std::{
 
 use serde_json::{json, Value};
 use tauri::{LogicalPosition, LogicalSize, WebviewWindow};
+use uuid::Uuid;
 
 use super::{page, Own};
 use crate::{desks::LOCAL, now_ms};
@@ -36,8 +37,10 @@ pub struct Placed {
   pub next: String,
   /// The window the owner was in.
   pub focused: bool,
-  /// Unsent work captured locally when a remote server could not receive its handover.
+  /// Unsent work sampled from a live workspace, independent of its server handover.
   pub drafts: Vec<(String, String)>,
+  /// Identifies the last workspace document's draft copy when the window is showing status.
+  pub draft_checkpoint: Option<Uuid>,
 }
 
 const FILE: &str = "app-windows.json";
@@ -68,6 +71,7 @@ impl Placed {
       next: page(w, own).unwrap_or_else(|| next.into()),
       focused: w.is_focused().unwrap_or(false),
       drafts: vec![],
+      draft_checkpoint: None,
     })
   }
 
@@ -79,6 +83,9 @@ impl Placed {
     });
     if !self.drafts.is_empty() {
       value["drafts"] = json!(self.drafts);
+    }
+    if let Some(checkpoint) = self.draft_checkpoint {
+      value["draftCheckpoint"] = json!(checkpoint.to_string());
     }
     value
   }
@@ -100,6 +107,7 @@ impl Placed {
       next: v["next"].as_str().filter(|n| n.starts_with('/')).unwrap_or("/").to_string(),
       focused: b("focused"),
       drafts: serde_json::from_value(v["drafts"].clone()).unwrap_or_default(),
+      draft_checkpoint: v["draftCheckpoint"].as_str().and_then(|id| Uuid::parse_str(id).ok()),
     })
   }
 }
@@ -265,6 +273,7 @@ mod tests {
       origin: Some("https://lab".into()),
       next: "/p/lab".into(),
       drafts: vec![("seismic-drafts-project".into(), "unsent".into())],
+      draft_checkpoint: Some(Uuid::new_v4()),
       ..Default::default()
     };
     keep(&home, &[remote.clone()], true).unwrap();

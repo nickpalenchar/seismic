@@ -13,6 +13,27 @@ coming soon.
 Once Seismic runs, set up each repository it works on with its
 [repository settings](/docs/reference/settings/).
 
+## Switch desktop workspaces
+
+On macOS, open the **Workspace** menu to switch between this machine and your paired workspaces.
+The menu marks the workspace in front. Selecting a workspace brings its window forward or opens
+it if it’s closed. Press **Control–Command–1** for this machine, and **Control–Command–2** through
+**Control–Command–9** for the next eight workspaces in menu order.
+
+### Reconnect an offline workspace
+
+When a workspace is unreachable, its window shows a status screen with the address and the reason
+it could not connect. Choose **Try again** when the server is reachable to return to the page you
+last had open, or choose another workspace under **Open another workspace**. Seismic shows progress
+when opening a window and lets you retry if it fails. On macOS, **File → Open in Browser**
+(**Shift–Command–B**) opens the offline workspace’s saved address in your browser.
+
+If you go Back to the status screen after reconnecting, **Try again** checks the workspace again.
+Unsent conversations, issue drafts, and settings edits are saved locally across updates, including
+when you restart from the status screen.
+
+### After an update
+
 The desktop app restores your open workspace windows after an update. A workspace that takes
 longer to reconnect opens in the background if it was in the background before the update. If
 Seismic reports that it could not save the open windows, it defers the update and keeps them open.
@@ -24,11 +45,6 @@ If a workspace window fails to reopen, opening it again can recover those drafts
 also keeps windows that are still waiting for their first connection check.
 If a workspace reconnects while Seismic is preparing another restart, its draft carries over too.
 
-On a workspace status screen, **File → Open in Browser** opens the workspace’s saved address.
-If you use Back to return to that screen after reconnecting, **Try again** checks the workspace again.
-After a restart while a workspace was offline, **Try again** returns to the page you last had open.
-If you open another workspace from the status screen, Seismic shows progress and tells you if its
-window could not open so you can try again.
 The local window stays minimized when Seismic reconnects it to a server on a different port.
 
 Seismic keeps a copy of a malformed workspace list as `app-desks.unreadable.json` in its home

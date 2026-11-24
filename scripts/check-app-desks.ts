@@ -226,6 +226,7 @@ const done = new Map<number, Done>();
 const reports: Record<string, unknown>[] = [];
 let retryNow = false;
 let backToStatus = false;
+let editBeforeBack = false;
 let rememberLastPage = false;
 let statusAction: { name: string; open?: boolean } | undefined;
 const polls = new Map<string, number>();
@@ -241,8 +242,10 @@ if (location.origin === ${JSON.stringify(REMOTE)} && document.getElementById('si
   for (let n = 0; n < 60 && !document.getElementById('root')?.firstChild; n++) {
     await new Promise((r) => setTimeout(r, 50));
   }
-  const out = { kind: 'remote', href: location.href, label: window.__TAURI_INTERNALS__.metadata.currentWindow.label, mounted: !!document.getElementById('root')?.firstElementChild, handedOver: window.seismicApp?.handedOver, previousSession: sessionStorage.getItem('check-workspace-session'), previousDraft: sessionStorage.getItem('seismic-drafts-check') };
+  const out = { kind: 'remote', href: location.href, label: window.__TAURI_INTERNALS__.metadata.currentWindow.label, mounted: !!document.getElementById('root')?.firstElementChild, handedOver: window.seismicApp?.handedOver, previousSession: sessionStorage.getItem('check-workspace-session'), previousDraft: sessionStorage.getItem('seismic-drafts-check'), previousWish: sessionStorage.getItem('seismic-wish-check'), previousConfig: sessionStorage.getItem('seismic-config-draft-check') };
   sessionStorage.setItem('check-workspace-session', 'kept');
+  sessionStorage.setItem('seismic-wish-check', 'Unsent issue for Lab');
+  sessionStorage.setItem('seismic-config-draft-check', 'Unapplied settings for Lab');
   if ((await (await fetch(new URL('seed-draft', base))).json()).seed) sessionStorage.setItem('seismic-drafts-check', 'Unsent note for Lab');
   else sessionStorage.removeItem('seismic-drafts-check');
   out.desks = await outcome(invoke('desks'));
@@ -255,7 +258,15 @@ if (location.origin === ${JSON.stringify(REMOTE)} && document.getElementById('si
     history.replaceState(null, '', ${JSON.stringify(LAST_PAGE)});
     await post('result', { kind: 'lastPage', href: location.href });
   }
-  if ((await (await fetch(new URL('back-to-status', base))).json()).now) history.back();
+  const back = await (await fetch(new URL('back-to-status', base))).json();
+  if (back.now) {
+    if (back.edit) {
+      sessionStorage.setItem('seismic-drafts-check', 'Edited just before Back');
+      sessionStorage.setItem('seismic-wish-check', 'New issue just before Back');
+      sessionStorage.setItem('seismic-config-draft-check', 'New settings just before Back');
+    }
+    history.back();
+  }
   if (${process.platform === 'darwin'}) await post('result', { kind: 'ipcGate', ...(await (${IPC_CHECK})()) });
   const mic = { kind: 'remoteMic', secure: isSecureContext };
   const capture = (options) => outcome(Promise.race([
@@ -344,8 +355,10 @@ const harness = Bun.serve({
     }
     if (path === '/back-to-status') {
       const now = backToStatus;
+      const edit = now && editBeforeBack;
       if (now) retryNow = backToStatus = false;
-      return json({ now });
+      if (edit) editBeforeBack = false;
+      return json({ now, edit });
     }
     if (req.method === 'POST' && path === '/result') reports.push(JSON.parse(await req.text()));
     if (req.method === 'POST' && path === '/done') {
@@ -670,6 +683,7 @@ try {
       const restored = await report('remote', before);
       expect(acknowledgedHandovers > writes, 'the remote server never accepted its handover');
       expect(restored.previousDraft === 'Unsent note for Lab' && restored.previousSession === null, JSON.stringify(restored));
+      expect(restored.previousWish === 'Unsent issue for Lab' && restored.previousConfig === 'Unapplied settings for Lab', JSON.stringify(restored));
       expect((await report('lastPage', before)).href === `${REMOTE}${LAST_PAGE}`, 'the fixture did not visit the page that should be restored');
       await report('local', before);
     } finally {
@@ -777,15 +791,43 @@ try {
       expect(again.href === `${REMOTE}${LAST_PAGE}`, `Try again lost the saved page (${again.href})`);
       return String(again.previousDraft);
     });
+    let edited = reports.length;
     await check('Try again works after going Back to a recovered status page', async () => {
       const revisited = await report('status', afterStatus, 10_000);
       const state = (revisited.desks as { value: Desks }).value;
       expect(state.problem === null && revisited.title === 'Lab' && String(revisited.why).includes(REMOTE), JSON.stringify(revisited));
       const before = reports.length;
+      edited = before;
+      editBeforeBack = true;
+      backToStatus = true;
       retryNow = true;
       const reopened = await report('remote', before, 10_000);
       expect(reopened.projects === 200 && reopened.label === again.label, JSON.stringify(reopened));
       expect(reopened.href === `${REMOTE}${LAST_PAGE}`, `the history retry lost the saved page (${reopened.href})`);
+    });
+    await check('drafts edited before Back survive two restarts on the status page', async () => {
+      try {
+        await report('status', edited, 10_000);
+        expireServerHandover = true;
+        const writes = acknowledgedHandovers;
+        proxy.server?.stop(true);
+        for (let i = 0; i < 2; i++) {
+          const before = reports.length;
+          await relaunch();
+          await report('status', before, 15_000);
+          await report('local', before, 15_000);
+        }
+        proxy.server = startProxy();
+        const before = reports.length;
+        retryNow = true;
+        const restored = await report('remote', before, 10_000);
+        expect(acknowledgedHandovers === writes, 'the server accepted handover from a status page');
+        expect(restored.previousDraft === 'Edited just before Back' && restored.previousWish === 'New issue just before Back' &&
+          restored.previousConfig === 'New settings just before Back' && restored.previousSession === null, JSON.stringify(restored));
+        return 'conversation, issue, and settings drafts';
+      } finally {
+        expireServerHandover = editBeforeBack = backToStatus = retryNow = false;
+      }
     });
   }
   await check('a pending status retry cannot overwrite a re-pair', async () => {
