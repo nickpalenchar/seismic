@@ -3,7 +3,6 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Seismic</title>
     <link rel="stylesheet" href="frost.css" />
     <script src="strings.js"></script>
     <style>
@@ -17,6 +16,7 @@
     <div id="what"></div>
     <script>
       // ?updating: the shell installs an update (src/update.rs) and then starts the app again
+      document.title = SEISMIC_STRINGS.title;
       document.getElementById('what').textContent = SEISMIC_STRINGS[location.search === '?updating' ? 'updating' : 'starting'];
     </script>
   </body>

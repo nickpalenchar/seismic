@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { DESKTOP_STRINGS, desktopStrings } from './desktop-strings';
 
 test('desktop/ui/strings.js is current with src/ui/strings.ts (else: bun scripts/desktop-strings.ts)', () => {
-  expect(readFileSync(DESKTOP_STRINGS, 'utf8')).toBe(desktopStrings());
+  expect(readFileSync(DESKTOP_STRINGS, 'utf8').replace(/\r\n/g, '\n')).toBe(desktopStrings());
 });
 
 test('the bundled pages fill templates in, also with braces in the values', () => {

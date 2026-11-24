@@ -1,9 +1,8 @@
 <!doctype html>
-<!-- What the app shows when the selected remote workspace does not answer. -->
+<!-- What the app shows when it cannot load the selected remote workspace. -->
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Seismic</title>
     <link rel="stylesheet" href="frost.css" />
     <script src="strings.js"></script>
     <style>
@@ -26,7 +25,25 @@
   <body>
     <div data-tauri-drag-region></div>
     <main>
-      <!-- Lucide's cloud-alert (ISC) -->
+      <!--
+      Lucide's cloud-alert
+
+      ISC License
+
+      Copyright (c) 2026 Lucide Icons and Contributors
+
+      Permission to use, copy, modify, and/or distribute this software for any
+      purpose with or without fee is hereby granted, provided that the above
+      copyright notice and this permission notice appear in all copies.
+
+      THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+      WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+      MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+      ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+      WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+      ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+      OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+      -->
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 12v4" /><path d="M12 20h.01" /><path d="M8.128 16.949A7 7 0 1 1 15.71 8h1.79a1 1 0 0 1 0 9h-1.642" /></svg>
       <h1 id="title"></h1>
       <p id="why"></p>
@@ -38,11 +55,12 @@
     <script>
       const invoke = (cmd, args) => window.__TAURI_INTERNALS__.invoke(cmd, args);
       // the text, from src/ui/strings.ts (desktopPages) through strings.js
-      const s = window.SEISMIC_STRINGS.status;
+      const { title, status: s } = window.SEISMIC_STRINGS;
       const fill = window.fillString;
       const WHY = ['unreachable', 'notSeismic', 'notLoaded'];
       const $ = (id) => document.getElementById(id);
-      $('title').textContent = s.title;
+      const heading = $('title');
+      heading.textContent = document.title = title;
       $('retry').textContent = s.retry;
       $('others-title').textContent = s.others;
       const others = $('others');
@@ -74,7 +92,7 @@
         if (request !== listLoad) return;
         const own = desks.list.find((d) => d.id === desks.current);
         if (!own) return;
-        $('title').textContent = fill(s.unresponsive, own.name);
+        heading.textContent = document.title = fill(s.unresponsive, own.name);
         $('why').textContent = fill(WHY.includes(desks.problem) ? s[desks.problem] : s.check, own.origin);
         const workspaces = desks.list.filter((d) => d.id !== own.id);
         $('others-title').hidden = !workspaces.length;

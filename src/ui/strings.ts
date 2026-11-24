@@ -1389,10 +1389,10 @@ const en = {
    * these from desktop/ui/strings.js, which `bun scripts/desktop-strings.ts` writes from here. A
    * function here takes strings only and puts each in its text unchanged. */
   desktopPages: {
+    title: 'Seismic',
     starting: 'Seismic is starting …',
     updating: 'Seismic is updating …',
     status: {
-      title: 'Seismic',
       unresponsive: (workspace: string) => `${workspace} is unresponsive`,
       unreachable: (origin: string) => `Nothing answers at ${origin}. The machine may be off or asleep, or not on this network.`,
       notSeismic: (origin: string) => `Something answers at ${origin}, but it is not Seismic.`,

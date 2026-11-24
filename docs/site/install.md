@@ -44,11 +44,13 @@ After the upload, the current workspace stays visible while Seismic checks the d
 If the selected workspace has come online, it opens directly. Adding or pairing a workspace
 again checks that its address serves Seismic before opening it.
 
-### Reconnect an offline workspace
+### Reconnect an unresponsive workspace
 
-When the selected workspace is unreachable, the app shows its address and the reason it could
-not connect. Choose **Try again** to return to your last page when the server is reachable, or
-choose another workspace under **Switch workspace**. On macOS, **File → Open in Browser**
+If the app cannot open the selected workspace, it shows **&lt;workspace&gt; is unresponsive** with
+the workspace’s name in the heading. Read the reason below it. It shows the workspace’s address
+and explains what happened, including when Seismic answers but its page fails to load.
+Choose **Try again** to reopen your last page, or choose another workspace under
+**Switch workspace**. On macOS, **File → Open in Browser**
 (**Shift–Command–B**) opens the workspace’s address in your browser.
 
 If you go Back to the status screen after reconnecting, **Try again** checks the workspace again
@@ -59,7 +61,7 @@ current workspace’s drafts, reconnect it or use Forward to return to its page,
 
 Seismic restores the selected workspace in the app window and keeps unsent drafts from workspaces
 you switched away from. A selected remote workspace reopens even if this machine’s server cannot
-start. If the remote workspace is offline, the app opens its recovery screen.
+start. If the app cannot load the remote workspace, it opens the recovery screen described above.
 If Seismic cannot save your work for the restart, it defers the update. A downloaded release remains
 available to install again. For a source checkout, a queued rebuild retries automatically.
 If you use a terminal to run Seismic’s server, the desktop app waits to restart while its window

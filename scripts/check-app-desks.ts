@@ -19,6 +19,7 @@ import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, 
 import { release, tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { ownerHeaders } from '../src/server/owner';
+import { t } from '../src/ui/strings';
 import { bad, check, exited, expect, failed, sleep, until } from './check-harness';
 
 const args = process.argv.slice(2);
@@ -377,7 +378,7 @@ if (location.origin === ${JSON.stringify(REMOTE)}) {
   startCommands('status');
   async function checkStatus() {
     await new Promise((r) => setTimeout(r, 500));
-    await post('result', { ...identity, kind: 'status', title: document.getElementById('title').textContent, why: document.getElementById('why').textContent, desks: await outcome(invoke('desks')) });
+    await post('result', { ...identity, kind: 'status', title: document.getElementById('title').textContent, documentTitle: document.title, why: document.getElementById('why').textContent, desks: await outcome(invoke('desks')) });
   }
   addEventListener('pageshow', (event) => { if (event.persisted) void checkStatus(); });
   await checkStatus();
@@ -502,8 +503,23 @@ const pairAfterUpload = async (cmd: 'add_desk' | 'pair_desk', args: Record<strin
     if (!uploadReleased) await releaseLocalScreenshot();
   }
 };
-const report = (kind: string, after = 0, timeout = 60_000) => until(`the ${kind} page to report`, timeout, () => reports.slice(after).find((r) => r.kind === kind));
 type Desks = { current: string | null; problem: string | null; list: { id: string; name: string; origin: string | null; local: boolean; open: boolean }[] };
+const expectStatusCopy = (report: (typeof reports)[number]) => {
+  const desks = (report.desks as { value?: Desks }).value;
+  const workspace = desks?.list.find((desk) => desk.id === desks.current);
+  if (!workspace?.origin) throw new Error(`Status has no remote workspace: ${JSON.stringify(report)}`);
+  const strings = t.desktopPages.status;
+  const title = strings.unresponsive(workspace.name);
+  const problem = desks?.problem;
+  const reason = problem === 'unreachable' || problem === 'notSeismic' || problem === 'notLoaded'
+    ? strings[problem] : strings.check;
+  expect(report.title === title && report.documentTitle === title && report.why === reason(workspace.origin), JSON.stringify(report));
+};
+const report = async (kind: string, after = 0, timeout = 60_000) => {
+  const result = await until(`the ${kind} page to report`, timeout, () => reports.slice(after).find((r) => r.kind === kind));
+  if (kind === 'status') expectStatusCopy(result);
+  return result;
+};
 const desks = async () => (await run('desks')).value as Desks;
 const changedDesk = (after: number, id: string, origin: string) => until('the workspace list to refresh', 5_000, () =>
   reports.slice(after).some((r) => r.kind === 'desksChanged' && r.ok === true &&
@@ -861,6 +877,7 @@ async function checkApp() {
     if (!result.next) throw new Error(result.error);
     const next = result.next;
     expect(next.window === previous?.window && next.windows === 1 && next.label !== previous?.label, JSON.stringify({ previous, next }));
+    if (kind === 'status') expectStatusCopy(next);
     return next;
   };
   const reconnect = () => {
@@ -952,7 +969,6 @@ async function checkApp() {
     proxy.server!.stop(true);
     proxy.server = undefined;
     const status = await select(id, 'status');
-    expect(String(status.title).includes('is unresponsive'), JSON.stringify(status));
     const before = reports.length;
     const name = JSON.stringify((await desks()).list[0]!.name);
     send('check_eval', { js: `[...document.querySelectorAll('#others button')].find(button => button.textContent === ${name}).click()` });
@@ -1043,7 +1059,7 @@ async function checkApp() {
     pageError = 'http';
     try {
       const status = await select(id, 'status');
-      expect((await desks()).problem === 'notLoaded' && status.title === 'Studio', JSON.stringify(status));
+      expect((await desks()).problem === 'notLoaded', JSON.stringify(status));
       pageError = 'legacy';
       const before = reports.length;
       send('retry_desk');
@@ -1060,7 +1076,7 @@ async function checkApp() {
     const before = reports.length;
     send('open_desk', { id });
     const status = await report('status', before, 40_000);
-    expect(String(status.title).includes('is unresponsive') && status.windows === 1, JSON.stringify(status));
+    expect(status.windows === 1, JSON.stringify(status));
     expect((await desks()).problem === 'unreachable', 'the status page has no problem to show');
     // No document ran at the attempted origin. The shell must be able to park its backup.
     await select('local', 'local');
@@ -1070,7 +1086,7 @@ async function checkApp() {
     dropPage = true;
     send('retry_desk');
     const second = await report('status', again, 40_000);
-    expect(second.label === offline.label && String(second.title).includes('is unresponsive'), JSON.stringify(second));
+    expect(second.label === offline.label, JSON.stringify(second));
     const beforeRestart = reports.length;
     await relaunch();
     const restored = await report('status', beforeRestart, 20_000);
