@@ -32,6 +32,7 @@ const en = {
     title: 'An attachment is still uploading',
     message: 'Switch after the upload finishes to keep the attachment with your draft.',
     waiting: 'Waiting for attachments to finish uploading…',
+    connecting: 'Connecting to workspace…',
     wait: 'Switch after upload',
     discard: 'Discard and switch',
     back: 'Go back',

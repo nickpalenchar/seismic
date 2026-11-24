@@ -506,16 +506,24 @@ impl Capture {
 /// Read the outgoing page before destroying its webview. A status page uses the last
 /// origin-scoped departure instead. A failed read leaves the current page in place.
 fn capture(app: &AppHandle, turn: u64, on_back: OnBack) -> Result<Capture, String> {
+  capture_after(app, turn, on_back, false, |_| Ok(())).map(|(capture, ())| capture)
+}
+
+fn capture_after<T>(
+  app: &AppHandle, turn: u64, on_back: OnBack, connecting: bool,
+  mut prepare: impl FnMut(bool) -> Result<T, String>,
+) -> Result<(Capture, T), String> {
   let state = shell(app);
   let (active, label) = {
     let views = state.views.lock().unwrap();
     (views.active.is_some(), views.label().to_string())
   };
-  let hold = if active {
+  let (hold, prepared) = if active {
     let view = app.get_webview(&label).ok_or("window")?;
-    Some(attachments::hold(app, &state, &view, turn, on_back)?)
+    let (hold, prepared) = attachments::hold_after(app, &state, &view, turn, on_back, connecting, prepare)?;
+    (Some(hold), prepared)
   } else {
-    None
+    (None, prepare(false)?)
   };
   let (active, generation) = {
     let views = state.views.lock().unwrap();
@@ -537,7 +545,7 @@ fn capture(app: &AppHandle, turn: u64, on_back: OnBack) -> Result<Capture, Strin
   } else {
     None
   };
-  Ok(Capture { hold, label, generation, workspace })
+  Ok((Capture { hold, label, generation, workspace }, prepared))
 }
 
 /// The outgoing view's drafts and route take precedence over any older parked copy.
@@ -783,24 +791,22 @@ pub fn open(app: &AppHandle, id: &str, handed_over: bool, waiter: Option<OpenWai
       let outgoing = if origin.is_none() && state.local_port().is_none() {
         Err("unreachable".into())
       } else {
-        capture(&app, turn, OnBack::Cancel)
+        capture_after(&app, turn, OnBack::Cancel, origin.is_none(), |waited| {
+          if let Some(origin) = &origin {
+            // An attachment decision may take arbitrarily long. Refresh the probe
+            // while the outgoing page is still visible, then sample its drafts.
+            let checked = if waited { remote::health(origin).code() } else { health.as_ref().map_or("unreachable", Health::code) };
+            Ok((Some(checked), None))
+          } else {
+            // The local server can stop or move while the outgoing page waits.
+            let (port, next) = {
+              let views = state.views.lock().unwrap();
+              (views.local_port, views.parked.get(&id).map_or_else(|| "/".into(), |p| p.next.clone()))
+            };
+            Ok((None, Some((port, port.and_then(|port| crate::sign_in_link(port, &next, false))))))
+          }
+        })
       };
-      // Keep the outgoing page editable during the initial probe. An attachment
-      // decision may take arbitrarily long, so probe again if capture had to wait.
-      let health = if outgoing.as_ref().is_ok_and(|capture| capture.hold.as_ref().is_some_and(|hold| hold.waited)) {
-        origin.as_deref().map(|origin| remote::health(origin).code())
-      } else {
-        health.as_ref().map(Health::code)
-      };
-      // Ask this machine for a sign-in link after the attachment decision: the
-      // server can stop or change ports while the outgoing page waits for uploads.
-      let local = (origin.is_none() && outgoing.is_ok()).then(|| {
-        let (port, next) = {
-          let views = state.views.lock().unwrap();
-          (views.local_port, views.parked.get(&id).map_or_else(|| "/".into(), |p| p.next.clone()))
-        };
-        (port, port.and_then(|port| crate::sign_in_link(port, &next, false)))
-      });
       let (state, id, origin) = (state.clone(), id.clone(), origin.clone());
       let pending = state.clone();
       let queued = tauri::async_runtime::block_on(on_ui(app.clone(), move |app| {
@@ -815,7 +821,7 @@ pub fn open(app: &AppHandle, id: &str, handed_over: bool, waiter: Option<OpenWai
             }
             (views.local_port, views.parked.get(&id).map_or_else(|| "/".into(), |p| p.next.clone()))
           };
-          let outgoing = outgoing?;
+          let (outgoing, (health, local)) = outgoing?;
           let (own, url, problem) = match origin {
             Some(origin) => {
               let problem = health.filter(|h| *h != Health::Seismic.code());

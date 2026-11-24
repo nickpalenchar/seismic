@@ -1087,20 +1087,31 @@ async function checkApp() {
       }
     }
   });
-  await check('a remote workspace that recovers during the attachment wait opens directly', async () => {
-    await select('local', 'local');
+  await check('the current workspace stays visible while checking a recovered destination', async () => {
+    const local = await select('local', 'local');
     await holdLocalScreenshot('fresh-health-shot');
     const before = reports.length;
     const previous = rejectedHealthChecks;
+    const probe = Promise.withResolvers<void>();
+    const answer = Promise.withResolvers<void>();
     rejectHealth = true;
     try {
       send('open_desk', { id });
       await decideAttachment('Switch after upload');
       expect(rejectedHealthChecks > previous, 'the initial probe did not see the destination unavailable');
       rejectHealth = false;
+      onHealth = () => { probe.resolve(); return answer.promise; };
+      await releaseLocalScreenshot();
+      await Promise.race([probe.promise, sleep(5000).then(() => { throw new Error('no second health check'); })]);
+      const progress = await run('check_eval', {
+        js: "[document.visibilityState, document.querySelector('[role=status]')?.textContent.trim()]",
+      });
+      expect(displayed()?.label === local.label && JSON.stringify(progress.value) === '["visible","Connecting to workspace…"]',
+        JSON.stringify(progress));
     } finally {
       rejectHealth = false;
-      await releaseLocalScreenshot();
+      onHealth = undefined;
+      answer.resolve();
     }
     const result = await until('the destination to open', 10_000, () =>
       reports.slice(before).find(item => item.kind === 'remote' || item.kind === 'status'));

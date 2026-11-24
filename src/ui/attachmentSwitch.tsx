@@ -1,14 +1,15 @@
 // A desktop switch can retire the document doing an attachment upload. Keep the choice
 // with that document, including uploads whose editor or project has since changed.
 import { useSyncExternalStore } from 'react';
-import { ConfirmDialog } from './components/dialog';
+import { ConfirmDialog, Dialog, DialogContent, DialogTitle } from './components/dialog';
+import { Spinner } from './components/spinner';
 import { t } from './strings';
 
 const pending = new Set<AbortController>();
 // A shell switch owns the outgoing document through capture and native navigation.
 const switches = new Set<string>();
 const onIdle = new Set<() => void>();
-type Choice = 'ask' | 'wait' | 'discard' | 'back';
+type Choice = 'ask' | 'wait' | 'discard' | 'back' | 'connecting';
 let request: { id: string; choice: Choice } | null = null;
 const listeners = new Set<() => void>();
 function setRequest(next: typeof request) {
@@ -46,7 +47,7 @@ export function afterAttachments(action: () => void) {
 
 // The shell checks again with input hidden before sampling. Discard applies only to
 // the attachments pending when the owner makes the choice.
-export function attachmentSwitch(id: string, action: 'ask' | 'check' | 'end') {
+export function attachmentSwitch(id: string, action: 'ask' | 'check' | 'connecting' | 'end') {
   if (action === 'end') {
     switches.delete(id);
     if (request?.id === id) setRequest(null);
@@ -54,16 +55,23 @@ export function attachmentSwitch(id: string, action: 'ask' | 'check' | 'end') {
     return 'ready';
   }
   switches.add(id);
+  const ready = () => {
+    if (action === 'connecting' && (request?.id !== id || request.choice !== 'connecting')) {
+      setRequest({ id, choice: 'connecting' });
+    }
+    return 'ready';
+  };
   if (request?.id === id) {
     if (request.choice === 'back') return 'back';
     if (request.choice === 'discard') {
-      if (![...pending].some(upload => !upload.signal.aborted)) return 'ready';
+      if (![...pending].some(upload => !upload.signal.aborted)) return ready();
       if (action === 'ask') setRequest({ id, choice: 'ask' });
     }
-    if (request.choice === 'wait' && !pending.size) return 'ready';
-    return 'pending';
+    if (request.choice !== 'connecting') {
+      return request.choice === 'wait' && !pending.size ? ready() : 'pending';
+    }
   }
-  if (!pending.size) return 'ready';
+  if (![...pending].some(upload => !upload.signal.aborted)) return ready();
   if (action === 'ask') setRequest({ id, choice: 'ask' });
   return 'pending';
 }
@@ -75,6 +83,15 @@ function subscribe(listener: () => void) {
 
 export function AttachmentSwitchDialog() {
   const current = useSyncExternalStore(subscribe, () => request);
+  if (current?.choice === 'connecting') {
+    return <Dialog open>
+      <DialogContent className="w-[min(360px,100%)] rounded-sm p-6">
+        <DialogTitle className="m-0 flex items-center gap-3 text-lg font-semibold" role="status">
+          <Spinner /> {t.attachmentSwitch.connecting}
+        </DialogTitle>
+      </DialogContent>
+    </Dialog>;
+  }
   if (!current || (current.choice !== 'ask' && current.choice !== 'wait')) return null;
   const choose = (choice: Choice) => {
     if (request !== current) return;

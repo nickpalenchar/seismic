@@ -30,14 +30,6 @@ impl Decision {
       _ => Err("drafts".into()),
     }
   }
-
-  fn hold_when_ready(&self, app: &AppHandle, action: &str) -> Result<Option<CaptureHold>, String> {
-    if !self.ready(action)? {
-      return Ok(None);
-    }
-    let hold = CaptureHold::acquire(app, self.view.label().to_string())?;
-    Ok(self.ready("check")?.then_some(hold))
-  }
 }
 
 impl Drop for Decision {
@@ -51,7 +43,6 @@ impl Drop for Decision {
 pub(super) struct Hold {
   _input: CaptureHold,
   decision: Decision,
-  pub(super) waited: bool,
 }
 
 impl Hold {
@@ -80,22 +71,45 @@ pub(super) enum OnBack {
 }
 
 pub(super) fn hold(app: &AppHandle, shell: &Shell, view: &Webview, turn: u64, on_back: OnBack) -> Result<Hold, String> {
-  let _asking = shell.attachment_decision.lock().unwrap();
+  hold_after(app, shell, view, turn, on_back, false, |_| Ok(())).map(|(hold, ())| hold)
+}
+
+pub(super) fn hold_after<T>(
+  app: &AppHandle, shell: &Shell, view: &Webview, turn: u64, on_back: OnBack, connecting: bool,
+  mut prepare: impl FnMut(bool) -> Result<T, String>,
+) -> Result<(Hold, T), String> {
   let mut decision = Decision::new(view);
   let mut action = "ask";
   let mut waited = false;
+  let current = || {
+    let views = shell.views.lock().unwrap();
+    !crate::is_stopping(app) && views.turn == turn && views.label() == view.label()
+  };
   loop {
-    if crate::is_stopping(app) {
+    let asking = shell.attachment_decision.lock().unwrap();
+    if !current() {
       return Err("superseded".into());
     }
-    {
-      let views = shell.views.lock().unwrap();
-      if views.turn != turn || views.label() != view.label() {
+    let ready: Result<Option<(CaptureHold, T)>, String> = (|| {
+      if !decision.ready(action)? {
+        return Ok(None);
+      }
+      if (connecting || waited && matches!(on_back, OnBack::Cancel)) && !decision.ready("connecting")? {
+        return Ok(None);
+      }
+      // Keep the document visible while the destination answers. The page
+      // claim still blocks reconnect reloads, and a newer selection can proceed.
+      drop(asking);
+      let prepared = prepare(waited)?;
+      let _asking = shell.attachment_decision.lock().unwrap();
+      if !current() {
         return Err("superseded".into());
       }
-    }
-    match decision.hold_when_ready(app, action) {
-      Ok(Some(input)) => return Ok(Hold { _input: input, decision, waited }),
+      let input = CaptureHold::acquire(app, view.label().to_string())?;
+      Ok(decision.ready("check")?.then_some((input, prepared)))
+    })();
+    match ready {
+      Ok(Some((input, prepared))) => return Ok((Hold { _input: input, decision }, prepared)),
       Ok(None) => waited = true,
       Err(error) if error == "cancelled" && matches!(on_back, OnBack::Wait) => {
         // A replacement local server still needs attaching. End the dismissed prompt

@@ -475,6 +475,8 @@ Safety rules:
   A same-webview navigation releases its hold by the load deadline, since a failed provisional
   load can leave the old document visible. A remote switch checks again after an attachment wait,
   and pairing verifies the origin with the workspace probe before opening a webview (2026-11-24).
+  Connection requests keep the outgoing page visible. The shell hides it only when it is ready
+  to sample its drafts and replace it.
   Server shutdown tracks the answering server before the local webview waits for its attachment
   decision (2026-11-24).
 - A desktop rebuild checks the displayed remote workspace for activity. It asks the remote server

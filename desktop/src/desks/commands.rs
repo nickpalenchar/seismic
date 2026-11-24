@@ -7,7 +7,7 @@
 use serde_json::{json, Value};
 use tauri::{AppHandle, Manager, Url, Webview};
 
-use super::{capture, changed, list, on_ui, open, open_paired, remote, shell, watch_load, Capture, OnBack};
+use super::{capture_after, changed, list, on_ui, open, open_paired, remote, shell, watch_load, Capture, OnBack};
 use crate::window::Own;
 
 /// Whether this machine's window, at its own origin, called: the one that may change the list.
@@ -43,23 +43,30 @@ pub async fn open_desk(app: AppHandle, webview: Webview, id: String) -> Result<(
   receive.recv().await.ok_or_else(|| "window".to_string())?
 }
 
-async fn prepare_pairing(app: &AppHandle, webview: &Webview) -> Result<Capture, String> {
+async fn prepare_pairing(
+  app: &AppHandle, webview: &Webview, origin: String, code: String,
+  verify: impl FnOnce(&AppHandle) -> Result<(), String> + Send + 'static,
+) -> Result<(Capture, Url), String> {
   let turn = shell(app).views.lock().unwrap().turn;
-  let outgoing = tauri::async_runtime::spawn_blocking({
-    let app = app.clone();
-    move || capture(&app, turn, OnBack::Cancel)
-  }).await.map_err(|e| e.to_string())??;
-  // Resolve any attachment decision before spending the code on a short-lived link.
+  let app = app.clone();
   let webview = webview.clone();
-  on_ui(app.clone(), move |app| {
-    from_this_machine(app, &webview)?;
-    let shell = shell(app);
-    let views = shell.views.lock().unwrap();
-    if views.turn != turn || !outgoing.matches(&views) {
-      return Err("superseded".into());
-    }
-    Ok(outgoing)
-  }).await
+  tauri::async_runtime::spawn_blocking(move || {
+    let mut verify = Some(verify);
+    // Resolve the attachment decision before redeeming the code. Keep the
+    // workspace visible while pairing and verifying the remote address.
+    capture_after(&app, turn, OnBack::Cancel, true, |_| {
+      let verify = verify.take().ok_or("drafts")?;
+      let caller = webview.clone();
+      tauri::async_runtime::block_on(on_ui(app.clone(), move |app| {
+        from_this_machine(app, &caller)?;
+        if shell(app).views.lock().unwrap().turn != turn {
+          return Err("superseded".into());
+        }
+        verify(app)
+      }))?;
+      remote::pair(&origin, &code).map_err(String::from)
+    })
+  }).await.map_err(|e| e.to_string())?
 }
 
 /// Pairs with the Seismic at `address` by the code its "Connect a device" shows, and once that went
@@ -72,11 +79,13 @@ pub async fn add_desk(app: AppHandle, webview: Webview, address: String, code: S
   if shell.desks.lock().unwrap().at_origin(&origin).is_some() {
     return Err("known".into());
   }
-  let outgoing = prepare_pairing(&app, &webview).await?;
   let at = origin.clone();
-  let link = tauri::async_runtime::spawn_blocking(move || remote::pair(&at, &code))
-    .await
-    .map_err(|e| e.to_string())??;
+  let (outgoing, link) = prepare_pairing(&app, &webview, origin.clone(), code, move |app| {
+    if shell(app).desks.lock().unwrap().at_origin(&at).is_some() {
+      return Err("known".into());
+    }
+    Ok(())
+  }).await?;
   on_ui(app, move |app| {
     from_this_machine(app, &webview)?;
     let id = {
@@ -132,17 +141,17 @@ pub async fn pair_desk(app: AppHandle, webview: Webview, id: String, code: Strin
   if shell.desks.lock().unwrap().at_origin(&origin).is_some_and(|d| d.id != id) {
     return Err("known".into());
   }
-  let outgoing = prepare_pairing(&app, &webview).await?;
-  {
-    let desks = shell.desks.lock().unwrap();
-    if desks.get(&id).and_then(|d| d.origin.as_deref()) != Some(before.as_str()) || shell.views.lock().unwrap().revision(&id) != revision {
-      return Err("unknown".into());
+  let (outgoing, link) = prepare_pairing(&app, &webview, origin.clone(), code, {
+    let (id, before) = (id.clone(), before.clone());
+    move |app| {
+      let state = super::shell(app);
+      let desks = state.desks.lock().unwrap();
+      if desks.get(&id).and_then(|d| d.origin.as_deref()) != Some(before.as_str()) || state.views.lock().unwrap().revision(&id) != revision {
+        return Err("unknown".into());
+      }
+      Ok(())
     }
-  }
-  let at = origin.clone();
-  let link = tauri::async_runtime::spawn_blocking(move || remote::pair(&at, &code))
-    .await
-    .map_err(|e| e.to_string())??;
+  }).await?;
   on_ui(app, move |app| {
     from_this_machine(app, &webview)?;
     {
