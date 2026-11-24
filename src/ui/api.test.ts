@@ -48,7 +48,8 @@ test('before the app starts again, the page hands what a reload keeps to the ser
   let handed: unknown = null;
   globalThis.fetch = (async (_url: string, init?: RequestInit) => {
     if (init?.method === 'POST') handed = JSON.parse(String(init.body));
-    return Response.json(init?.method === 'POST' ? { ok: true } : (handed as { entries: unknown }).entries);
+    if (init?.method === 'DELETE') return new Response(null, { status: 204 });
+    return Response.json(init?.method === 'POST' ? { ok: true } : handed);
   }) as typeof fetch;
   try {
     globalThis.sessionStorage = storage();
@@ -72,7 +73,7 @@ test('before the app starts again, the page hands what a reload keeps to the ser
 
 test('server handover fills in session state while keeping the locally restored draft', async () => {
   const real = globalThis.sessionStorage;
-  globalThis.fetch = (async (_url: string) => Response.json([['seismic-drafts-shop', 'older draft'], ['check-view', 'open']])) as typeof fetch;
+  globalThis.fetch = (async (_url: string) => Response.json({ token: '1', entries: [['seismic-drafts-shop', 'older draft'], ['check-view', 'open']] })) as typeof fetch;
   try {
     globalThis.sessionStorage = storage();
     sessionStorage.setItem('seismic-drafts-shop', 'newest draft');
@@ -82,6 +83,45 @@ test('server handover fills in session state while keeping the locally restored 
   } finally {
     globalThis.sessionStorage = real;
   }
+});
+
+test('a slow handover answer holds startup only briefly, still fills in what is missing, and only then frees the server copy', async () => {
+  const real = globalThis.sessionStorage;
+  const answer = Promise.withResolvers<Response>();
+  const asked: string[] = [];
+  globalThis.fetch = (async (url: string, init?: RequestInit) => {
+    asked.push(`${init?.method ?? 'GET'} ${url}`);
+    return init?.method === 'DELETE' ? new Response(null, { status: 204 }) : answer.promise;
+  }) as typeof fetch;
+  try {
+    globalThis.sessionStorage = storage();
+    sessionStorage.setItem('seismic-drafts-shop', 'restored by the shell');
+    sessionStorage.setItem('seismic-kept-shop', 'edited since');
+    const started = performance.now();
+    await takeHandOver(new Set(['seismic-drafts-shop']), 50);
+    expect(performance.now() - started).toBeLessThan(1_000);
+    expect(asked).toEqual(['GET /api/app-rebuilt/handover']);
+    answer.resolve(Response.json({ token: '9', entries: [['seismic-drafts-shop', 'older'], ['seismic-kept-shop', 'older'], ['seismic-wish-shop', 'unsent wish'], ['check-view', 'open']] }));
+    const freed = () => asked.length === 2;
+    for (let i = 0; i < 100 && !freed(); i++) await Bun.sleep(5);
+    expect(asked[1]).toBe('DELETE /api/app-rebuilt/handover?token=9');
+    expect(sessionStorage.getItem('seismic-drafts-shop')).toBe('restored by the shell');
+    expect(sessionStorage.getItem('seismic-kept-shop')).toBe('edited since');
+    expect(sessionStorage.getItem('seismic-wish-shop')).toBe('unsent wish');
+    expect(sessionStorage.getItem('check-view')).toBe('open');
+  } finally {
+    globalThis.sessionStorage = real;
+  }
+});
+
+test('a handover read that fails leaves the server copy for the next load', async () => {
+  const asked: string[] = [];
+  globalThis.fetch = (async (url: string, init?: RequestInit) => {
+    asked.push(`${init?.method ?? 'GET'} ${url}`);
+    throw new TypeError('connection reset');
+  }) as unknown as typeof fetch;
+  await takeHandOver();
+  expect(asked).toEqual(['GET /api/app-rebuilt/handover']);
 });
 
 test('snapshots take the latest draft when session storage rejects writes, removals, and restored entries', async () => {
@@ -109,7 +149,7 @@ test('snapshots take the latest draft when session storage rejects writes, remov
       [draftKey, JSON.stringify({ 'card:q': { text: 'latest draft', images: [] } })],
       ['check-view', 'open'], [configKey, '{"name":"latest settings"}'], ['seismic-markups-quota', 'restored marks'],
     ]));
-    globalThis.fetch = (async (_url: string) => Response.json([['unimportant-view', 'absent'], [configKey, 'older'], ['seismic-setting-draft-2', 'restored proposal']])) as typeof fetch;
+    globalThis.fetch = (async (_url: string) => Response.json({ token: '1', entries: [['unimportant-view', 'absent'], [configKey, 'older'], ['seismic-setting-draft-2', 'restored proposal']] })) as typeof fetch;
     await takeHandOver(new Set([configKey]));
     expect(draftSession.getItem(configKey)).toBe('{"name":"latest settings"}');
     expect(draftSession.getItem('seismic-setting-draft-2')).toBe('restored proposal');

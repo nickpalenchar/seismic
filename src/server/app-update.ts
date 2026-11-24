@@ -69,7 +69,8 @@ const HANDED_OVER_MS = 2 * 60_000;
  * on (a new build of a shell installed from a checkout, desktop/src/update.rs). A reload keeps it in
  * the tab's session storage (keep.ts, draft.ts), which the new shell's webview starts without: the
  * page hands it over here first (`token`: which time the shell asked), and the page the new shell
- * opens takes it back, once.
+ * opens reads it back. The copy stays until that page says it took it (`taken`): a read cut short
+ * at startup leaves it for the next load of the page rather than losing it.
  */
 export class HandOver {
   private kept = new Map<string, { token: string; entries: [string, string][]; at: number }>();
@@ -88,9 +89,16 @@ export class HandOver {
     return typeof token === 'string' && this.kept.get(scope)?.token === token;
   }
 
-  take(scope: string, now = Date.now()): [string, string][] | null {
+  /** What the page handed over, while it is recent enough, with the token that names this copy. */
+  read(scope: string, now = Date.now()): { token: string; entries: [string, string][] } | null {
     const kept = this.kept.get(scope);
+    if (kept && now - kept.at < HANDED_OVER_MS) return { token: kept.token, entries: kept.entries };
     this.kept.delete(scope);
-    return kept && now - kept.at < HANDED_OVER_MS ? kept.entries : null;
+    return null;
+  }
+
+  /** The page of the new shell took the copy named `token`; a newer one stays. */
+  taken(scope: string, token: unknown) {
+    if (typeof token === 'string' && this.kept.get(scope)?.token === token) this.kept.delete(scope);
   }
 }

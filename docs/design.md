@@ -481,7 +481,11 @@ Safety rules:
   decision (2026-11-24).
 - A desktop rebuild checks the displayed remote workspace for activity. It asks the remote server
   with its existing pairing and reads the page's own holds. Server handover is scoped to the paired
-  device and origin. When the shell is attached to a terminal's server, it finishes writing the
+  device and origin. The new page waits for it 1.5 s at most, fills in only keys it lacks, and frees
+  the server copy by its token once applied: a read cut short at startup (a busy terminal-owned
+  server, a slow proxy) no longer consumes the only copy, and an answer that arrives late still
+  fills in (2026-11-24).
+  When the shell is attached to a terminal's server, it finishes writing the
   snapshot and rechecks the local server and displayed workspace for activity. It then holds
   input in that webview, samples the live drafts again, and compares the workspace revision and
   window presentation on the native event thread. Closing a macOS window hides it, so a rebuild

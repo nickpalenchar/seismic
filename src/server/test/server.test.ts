@@ -1092,10 +1092,26 @@ describe('a newer version of the app', () => {
     handover.give('device-a at https://studio', { token: 'a', entries: [['draft', 'Studio']] });
     handover.give('device-a at https://lab', { token: 'b', entries: [['draft', 'Lab']] });
     expect(handover.has('device-b at https://studio', 'a')).toBe(false);
-    expect(handover.take('device-b at https://studio')).toBeNull();
-    expect(handover.take('device-a at https://lab')).toEqual([['draft', 'Lab']]);
-    expect(handover.take('device-a at https://studio')).toEqual([['draft', 'Studio']]);
-    expect(handover.take('device-a at https://studio')).toBeNull();
+    expect(handover.read('device-b at https://studio')).toBeNull();
+    expect(handover.read('device-a at https://lab')).toEqual({ token: 'b', entries: [['draft', 'Lab']] });
+    expect(handover.read('device-a at https://studio')).toEqual({ token: 'a', entries: [['draft', 'Studio']] });
+    handover.taken('device-a at https://studio', 'a');
+    expect(handover.read('device-a at https://studio')).toBeNull();
+    expect(handover.read('device-a at https://lab')).not.toBeNull();
+  });
+
+  test('a window handover stays until its page took it, and a newer one outlives the older copy taken', () => {
+    const handover = new HandOver();
+    handover.give('local', { token: '1', entries: [['seismic-drafts-shop', 'first']] });
+    // a read cut short at startup takes nothing away
+    expect(handover.read('local')?.entries).toEqual([['seismic-drafts-shop', 'first']]);
+    expect(handover.read('local')?.token).toBe('1');
+    handover.give('local', { token: '2', entries: [['seismic-drafts-shop', 'second']] });
+    handover.taken('local', '1');
+    expect(handover.read('local')?.token).toBe('2');
+    // it expires by itself
+    expect(handover.read('local', Date.now() + 3 * 60_000)).toBeNull();
+    expect(handover.read('local')).toBeNull();
   });
 
   test('a new build of the shell starts again without the server, not while the owner speaks, and the page hands over what a reload keeps', async () => {
@@ -1115,9 +1131,14 @@ describe('a newer version of the app', () => {
     await post('/api/app-rebuilt/handover', JSON.stringify({ token: '7', entries }));
     expect(await ask('6')).toEqual({ now: true, kept: false });
     expect(await ask('7')).toEqual({ now: true, kept: true });
-    // the page of the new shell takes it, once
-    expect(await (await fetch(new URL('/api/app-rebuilt/handover', server.url))).json()).toEqual(entries);
-    expect(await (await fetch(new URL('/api/app-rebuilt/handover', server.url))).json()).toBeNull();
+    // the page of the new shell reads it, as often as it needs, until it says it took it
+    const read = async () => (await fetch(new URL('/api/app-rebuilt/handover', server.url))).json();
+    expect(await read()).toEqual({ token: '7', entries });
+    expect(await read()).toEqual({ token: '7', entries });
+    await fetch(new URL('/api/app-rebuilt/handover?token=6', server.url), { method: 'DELETE' });
+    expect(await read()).toEqual({ token: '7', entries });
+    await fetch(new URL('/api/app-rebuilt/handover?token=7', server.url), { method: 'DELETE' });
+    expect(await read()).toBeNull();
     // and the server never ended for it
     expect(gone).toEqual([]);
     expect(restarter.due()).toBeNull();

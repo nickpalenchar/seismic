@@ -984,8 +984,9 @@ export function serve(
       },
       // what a reload keeps, from the page before the shell started again to the page after
       '/api/app-rebuilt/handover': {
-        GET: (req) => Response.json(handOver.take(handOverScope(req))),
+        GET: (req) => Response.json(handOver.read(handOverScope(req))),
         POST: (req) => handle(async () => (handOver.give(handOverScope(req), await req.json()), { ok: true })),
+        DELETE: (req) => (handOver.taken(handOverScope(req), new URL(req.url).searchParams.get('token')), new Response(null, { status: 204 })),
       },
       // the owner installs it: once the workers paused, Seismic ends for the shell to install it and start again
       '/api/app-update/install': {

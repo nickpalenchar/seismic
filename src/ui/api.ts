@@ -630,25 +630,30 @@ export function snapshotSession() {
   return sessionWithDrafts();
 }
 
-/** In the window of a shell that started again: what the page before it handed over, back into session storage, once. */
-export async function takeHandOver(restoredDrafts?: ReadonlySet<string>) {
-  // Startup also uses the local draft snapshot. Give the optional server copy a short deadline,
-  // including the response body. AbortController works on older desktop webviews too.
-  const controller = new AbortController();
-  const deadline = setTimeout(() => controller.abort(), 1_500);
-  try {
-    const response = await fetch('/api/app-rebuilt/handover', { signal: controller.signal });
+/**
+ * In the window of a shell that started again: what the page before it handed over, back into
+ * session storage. Startup waits for it a short while only; an answer that comes later still fills
+ * in, and the server keeps its copy until this page has taken it.
+ */
+export async function takeHandOver(restoredDrafts?: ReadonlySet<string>, wait = 1_500) {
+  const taking = (async () => {
+    const response = await fetch('/api/app-rebuilt/handover');
     await refused(response);
     if (response.status === 204) return;
-    const entries = (await response.json() as [string, string][] | null) ?? [];
-    for (const [k, v] of entries) {
+    const handed = await response.json() as { token: string; entries: [string, string][] } | null;
+    if (!handed) return;
+    // Only what this page lacks: the shell restored its own copy of the drafts, and the owner may
+    // have edited them meanwhile.
+    for (const [k, v] of handed.entries) {
       if (restoredDrafts?.has(k)) continue;
-      if (isDraftSessionKey(k)) draftSession.setItem(k, v);
-      else try { sessionStorage.setItem(k, v); } catch {}
+      if (isDraftSessionKey(k)) { if (draftSession.getItem(k) === null) draftSession.setItem(k, v); }
+      else try { if (sessionStorage.getItem(k) === null) sessionStorage.setItem(k, v); } catch {}
     }
-  } catch {} finally {
-    clearTimeout(deadline);
-  }
+    await fetch(`/api/app-rebuilt/handover?token=${encodeURIComponent(handed.token)}`, { method: 'DELETE' });
+  })().catch(() => {});
+  let deadline: ReturnType<typeof setTimeout> | undefined;
+  await Promise.race([taking, new Promise<void>((resolve) => { deadline = setTimeout(resolve, wait); })]);
+  clearTimeout(deadline);
 }
 
 /** How many snapshots the page took in, by project: a write's answer is older than one that came after the write went out. */
