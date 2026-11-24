@@ -2515,7 +2515,7 @@ const en = {
       button: 'Exit setup',
       title: 'Exit setup?',
       text: (here: string, to: string) => `The window switches to ${to}. The setup of ${here} stays where it is, and goes on the next time you open ${here}.`,
-      confirm: (to: string) => `Exit to ${to}`,
+      confirm: 'Switch workspace',
       stay: 'Stay in setup',
     },
     connect: {

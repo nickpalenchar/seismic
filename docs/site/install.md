@@ -22,6 +22,11 @@ app window. Press **Control–Command–1** for this machine and **Control–Com
 brings back its last page and unsent drafts. If this machine’s server stops while you are working
 in a remote workspace, you can keep working there. Start the local server again to switch back.
 
+**Workspace → New Workspace…** opens the pairing form on this machine. If the local server
+cannot be reached, Seismic shows a message and keeps your current workspace open. When adding
+or pairing a workspace again, enter the address first. If you change the address, enter a fresh
+code for that machine.
+
 When a draft attachment is still uploading, choose **Switch after upload** to keep it in your
 draft. **Discard and switch** cancels the pending attachment. **Go back** keeps the current
 workspace open and the upload running. The prompt requires an updated workspace and desktop app.

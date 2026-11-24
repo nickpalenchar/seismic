@@ -162,13 +162,16 @@ export function ExitSetup() {
         open={asking}
         onOpenChange={(open) => !going && setAsking(open)}
         layerClassName="z-90"
+        className="flex flex-col"
         title={x.title}
-        confirm={{ label: <>{going && <Spinner className="size-3.5" />}{x.confirm(to.name)}</>, onClick: exit, keepOpen: true }}
+        confirm={{ label: <>{going && <Spinner className="size-3.5" />}{x.confirm}</>, onClick: exit, keepOpen: true }}
         cancel={x.stay}
         busy={going}
       >
-        <p className="[overflow-wrap:anywhere]">{x.text(shown.name, to.name)}</p>
-        {problem && <p role="alert" className={errorClass}>{problem}</p>}
+        <div tabIndex={0} className="min-h-0 overflow-y-auto [overflow-wrap:anywhere] focus-visible:outline focus-visible:-outline-offset-2 focus-visible:outline-ring">
+          <p>{x.text(shown.name, to.name)}</p>
+          {problem && <p role="alert" className={errorClass}>{problem}</p>}
+        </div>
       </ConfirmDialog>
     </>
   );

@@ -7,13 +7,50 @@ use tauri::{
   menu::{CheckMenuItem, Menu, MenuItem, MenuItemKind, PredefinedMenuItem, Submenu},
   AppHandle, Manager,
 };
+use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 
-use crate::desks::Shell;
+use crate::desks::{self, Shell};
 
 /// The id of the menu item of workspace `id`.
 pub const DESK: &str = "desk:";
 /// The id of "New Workspace…", which opens this machine's workspaces page with the form to pair one.
 pub const NEW_DESK: &str = "new-desk";
+
+/// Keep the menu responsive while the switch waits for attachments and the destination.
+pub fn select(app: &AppHandle, id: &str, page: Option<&str>) {
+  let (send, mut receive) = tauri::async_runtime::channel(1);
+  let queued = desks::open(app, id, false, Some(send), page.map(str::to_owned));
+  crate::show(app);
+  let app = app.clone();
+  let new_workspace = page.is_some();
+  let local = id == desks::LOCAL;
+  tauri::async_runtime::spawn(async move {
+    let result = match queued {
+      Ok(()) => receive.recv().await.unwrap_or_else(|| Err("window".into())),
+      Err(error) => Err(error),
+    };
+    let Err(error) = result else { return };
+    let why = match error.as_str() {
+      "cancelled" | "superseded" => return,
+      "unreachable" if local => "Seismic on this machine isn’t responding. Start the local server and try again.",
+      "drafts" => "Seismic couldn’t keep this page’s unsent drafts. Try again.",
+      "unknown" => "The workspace is no longer on the list.",
+      _ => "Seismic couldn’t open the destination. Try again.",
+    };
+    let title = if new_workspace { "Couldn’t open New Workspace" } else { "Couldn’t switch workspaces" };
+    let handle = app.clone();
+    let _ = app.run_on_main_thread(move || {
+      if !crate::is_stopping(&handle) {
+        let dialog = handle.dialog().message(why).title(title).kind(MessageDialogKind::Error);
+        let dialog = match crate::main_window(&handle) {
+          Some(window) => dialog.parent(&window),
+          None => dialog,
+        };
+        dialog.show(|_| {});
+      }
+    });
+  });
+}
 
 fn desks(app: &AppHandle) -> tauri::Result<Submenu<tauri::Wry>> {
   let shell = app.state::<Arc<Shell>>();

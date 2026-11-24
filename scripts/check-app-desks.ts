@@ -443,7 +443,9 @@ const decideAttachment = async (button: string) => {
   const js = `(() => {
     const buttons = [...document.querySelectorAll('[role=alertdialog] button')];
     if (buttons.map(b => b.textContent).join('|') !== 'Switch after upload|Discard and switch|Go back') return false;
-    buttons.find(b => b.textContent === ${JSON.stringify(button)}).click(); return true;
+    const action = buttons.find(b => b.textContent === ${JSON.stringify(button)});
+    if (!action || action.disabled) return false;
+    action.click(); return true;
   })()`;
   await until('the three attachment choices', 6000, async () => (await run('check_eval', { js })).value === true);
 };
@@ -1156,6 +1158,39 @@ async function checkApp() {
     }
     await select('local', 'local');
     await select(id, 'remote');
+  });
+  await check('a later Workspaces destination replaces the one waiting on an attachment', async () => {
+    const cases = [
+      { first: undefined, next: '/workspaces?new', form: '.desk-connect' },
+      { first: '/workspaces?new', next: `/workspaces?edit=${encodeURIComponent(id)}`, form: '.desk-edit' },
+    ];
+    for (const { first, next, form } of cases) {
+      const hit = Promise.withResolvers<void>(), release = Promise.withResolvers<void>();
+      imageUpload = async () => { hit.resolve(); await release.promise; return Response.json({ id: 'destination-shot' }); };
+      try {
+        expect((await run('check_eval', { js: pasteScreenshot })).value === true, 'the project did not accept the screenshot');
+        await Promise.race([hit.promise, sleep(5000).then(() => { throw new Error('no upload'); })]);
+        const original = send('open_desk', { id: 'local', page: first });
+        await decideAttachment('Switch after upload');
+        const before = reports.length;
+        send('open_desk', { id: 'local', page: next });
+        await until('the previous destination to be superseded', 5000, () => done.get(original)?.error === 'superseded');
+        // The new destination asks what to do with the same pending upload.
+        await decideAttachment('Switch after upload');
+        release.resolve();
+        await until(`the local page at ${next}`, 10_000, () => reports.slice(before).find((r) => {
+          if (r.kind !== 'local') return false;
+          const at = new URL(String(r.href));
+          return `${at.pathname}${at.search}` === next;
+        }));
+        await until('the requested Workspaces form', 5000, async () =>
+          (await run('check_eval', { js: `!!document.querySelector(${JSON.stringify(form)})` })).value === true);
+      } finally {
+        imageUpload = undefined;
+        release.resolve();
+      }
+      await select(id, 'remote');
+    }
   });
   liveComposer = false;
   await check('removing a workspace cancels a pending switch without closing the window', async () => {

@@ -201,7 +201,14 @@ struct Views {
 
 struct Selection {
   desk: String,
+  page: Option<String>,
   waiters: Vec<OpenWaiter>,
+}
+
+impl Selection {
+  fn matches(&self, desk: &str, page: Option<&str>) -> bool {
+    self.desk == desk && self.page.as_deref() == page
+  }
 }
 
 type OpenWaiter = tauri::async_runtime::Sender<Result<(), String>>;
@@ -770,25 +777,27 @@ pub fn open(app: &AppHandle, id: &str, handed_over: bool, waiter: Option<OpenWai
     if !handed_over {
       views.restore = None;
     }
-    if let Some(pending) = views.pending.as_mut().filter(|p| p.desk == id) {
+    if let Some(pending) = views.pending.as_mut().filter(|p| p.matches(id, page.as_deref())) {
       pending.waiters.extend(waiter);
       return Ok(());
     }
     views.cancel();
     if views.active.as_ref().is_some_and(|v| v.desk == id && (id != LOCAL || v.own == Own::Local(views.local_port))) {
+      let label = views.label().to_string();
+      drop(views);
+      crate::menu::refresh(app);
+      // the page shown already goes there itself, keeping what it has open (src/ui/desks/shell.ts)
+      if let Some(page) = page {
+        let w = app.get_webview(&label).ok_or("window")?;
+        w.eval(format!("window.dispatchEvent(new CustomEvent('seismic-desk-page', {{ detail: {} }}))", json!(page)))
+          .map_err(|_| "window")?;
+      }
       if let Some(waiter) = waiter {
         let _ = waiter.try_send(Ok(()));
       }
-      let label = views.label().to_string();
-      drop(views);
-      // the page shown already goes there itself, keeping what it has open (src/ui/desks/shell.ts)
-      if let (Some(page), Some(w)) = (page.as_ref(), app.get_webview(&label)) {
-        let _ = w.eval(format!("window.dispatchEvent(new CustomEvent('seismic-desk-page', {{ detail: {} }}))", json!(page)));
-      }
-      crate::menu::refresh(app);
       return Ok(());
     }
-    views.pending = Some(Selection { desk: id.into(), waiters: waiter.into_iter().collect() });
+    views.pending = Some(Selection { desk: id.into(), page: page.clone(), waiters: waiter.into_iter().collect() });
     (views.turn, views.revision(id))
   };
   crate::menu::refresh(app);
@@ -1218,11 +1227,25 @@ mod tests {
   fn replacing_a_switch_settles_waiters_without_reusing_its_turn() {
     let mut views = Views::default();
     let (send, mut receive) = tauri::async_runtime::channel(1);
-    views.pending = Some(Selection { desk: "studio".into(), waiters: vec![send] });
+    views.pending = Some(Selection { desk: "studio".into(), page: None, waiters: vec![send] });
     let studio_turn = views.turn;
     views.cancel();
     assert_ne!(views.turn, studio_turn);
     assert_eq!(receive.try_recv().unwrap(), Err("superseded".into()));
     assert!(views.pending.is_none());
+  }
+
+  #[test]
+  fn only_identical_destinations_share_a_pending_switch() {
+    let plain = Selection { desk: LOCAL.into(), page: None, waiters: vec![] };
+    assert!(plain.matches(LOCAL, None));
+    assert!(!plain.matches(LOCAL, Some("/workspaces?new")));
+
+    let settings = Selection { desk: LOCAL.into(), page: Some("/workspaces?edit=studio".into()), waiters: vec![] };
+    assert!(settings.matches(LOCAL, Some("/workspaces?edit=studio")));
+    assert!(!settings.matches(LOCAL, Some("/workspaces?edit=buildbox")));
+    assert!(!settings.matches(LOCAL, Some("/workspaces?new")));
+    assert!(!settings.matches(LOCAL, None));
+    assert!(!settings.matches("studio", Some("/workspaces?edit=studio")));
   }
 }

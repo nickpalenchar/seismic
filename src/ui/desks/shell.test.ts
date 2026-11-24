@@ -6,6 +6,8 @@ test('a pairing link gives its origin and code; anything else gives nothing', ()
   expect(fromPairingLink('http://10.0.0.5:4417/pair?code=000123')).toEqual({ address: 'http://10.0.0.5:4417', code: '000123' });
   expect(fromPairingLink('https://studio.tail1234.ts.net/pair?code=4829')).toBeNull();
   expect(fromPairingLink('https://studio.tail1234.ts.net/?code=482913')).toBeNull();
+  expect(fromPairingLink('ftp://studio.tail1234.ts.net/pair?code=482913')).toBeNull();
+  expect(fromPairingLink('seismic://studio.tail1234.ts.net/pair?code=482913')).toBeNull();
   expect(fromPairingLink('studio.tail1234.ts.net')).toBeNull();
 });
 

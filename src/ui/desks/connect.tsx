@@ -32,7 +32,10 @@ export function ConnectForm({ onCancel, autoFocus }: { onCancel?: () => void; au
     if (link) {
       setAddress(link.address);
       setCode(link.code);
-    } else setAddress(text);
+    } else {
+      if (originOf(text) !== origin) setCode('');
+      setAddress(text);
+    }
     setProblem('');
   };
   const connect = async () => {

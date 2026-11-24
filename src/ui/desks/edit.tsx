@@ -37,6 +37,12 @@ export function EditDesk({ desk, onClose }: { desk: Desk; onClose: () => void })
     }
   };
   const moved = originOf(address);
+  const editAddress = (text: string) => {
+    if (originOf(text) !== moved) setCode('');
+    setAddress(text);
+    setProblem('');
+    setDone('');
+  };
   const save = () => run('save', async () => (await desks.rename(desk.id, name.trim()), e.saved));
   const pair = () => {
     if (!moved) return setProblem(t.desks.connect.badAddress);
@@ -81,7 +87,7 @@ export function EditDesk({ desk, onClose }: { desk: Desk; onClose: () => void })
           >
             <label className={fieldClass}>
               <span className={fieldLabelClass}>{e.address}</span>
-              <Input spellCheck={false} autoCapitalize="off" value={address} disabled={!!busy} onChange={(ev) => (setAddress(ev.target.value), setProblem(''))} />
+              <Input spellCheck={false} autoCapitalize="off" value={address} disabled={!!busy} onChange={(ev) => editAddress(ev.target.value)} />
             </label>
             <p className="m-0 text-sm text-muted-foreground">{e.pairHint}</p>
             <div className="flex items-end gap-2">

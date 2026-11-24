@@ -151,6 +151,7 @@ export function followShell() {
 export function fromPairingLink(text: string): { address: string; code: string } | null {
   try {
     const url = new URL(text.trim());
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
     const code = url.searchParams.get('code');
     return url.pathname === '/pair' && code && /^\d{6}$/.test(code) ? { address: url.origin, code } : null;
   } catch {
