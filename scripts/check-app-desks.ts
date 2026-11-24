@@ -192,7 +192,6 @@ type Done = { id: number; ok: boolean; value?: unknown; error?: string };
 const todo: { id: number; label: string; kind: string; cmd: string; args?: unknown }[] = [];
 const done = new Map<number, Done>();
 const reports: Record<string, unknown>[] = [];
-let statusAction: { name: string; open?: boolean } | undefined;
 const polls = new Map<string, number>();
 const MODULE = `
 const base = new URL('.', import.meta.url);
@@ -202,10 +201,18 @@ const outcome = (p) => p.then((value) => ({ ok: true, value }), (e) => ({ ok: fa
 const metadata = window.__TAURI_INTERNALS__.metadata;
 const label = metadata.currentWebview.label;
 const identity = { label, window: metadata.currentWindow.label, windows: window.seismicCheckWindowCount };
-async function runCommands(kind) {
-  for (;;) {
-    const next = await (await fetch(new URL('todo?label=' + label + '&kind=' + kind, base))).json();
-    if (next) {
+let pollTurn = 0;
+function startCommands(kind) {
+  const start = () => void runCommands(kind, ++pollTurn);
+  addEventListener('pagehide', () => { pollTurn++; });
+  addEventListener('pageshow', (event) => { if (event.persisted) start(); });
+  start();
+}
+async function runCommands(kind, turn) {
+  while (turn === pollTurn) {
+    const next = await fetch(new URL('todo?label=' + label + '&kind=' + kind, base))
+      .then((res) => res.json()).catch(() => null);
+    if (next && turn === pollTurn) {
       const work = next.cmd === 'check_eval' ? Promise.resolve().then(() => (0, eval)(next.args.js)) : invoke(next.cmd, next.args);
       void outcome(work).then((result) => post('done', { id: next.id, ...result }));
     } else await new Promise((r) => setTimeout(r, 200));
@@ -244,7 +251,7 @@ if (location.origin === ${JSON.stringify(REMOTE)}) {
   out.genericWindowControl = await outcome(invoke('plugin:window|internal_toggle_maximize'));
   out.genericDrag = await outcome(invoke('plugin:window|start_dragging'));
   await post('result', out);
-  void runCommands('remote');
+  startCommands('remote');
   if (${process.platform === 'darwin'}) await post('result', { kind: 'ipcGate', ...(await (${IPC_CHECK})()) });
   const mic = { kind: 'remoteMic', secure: isSecureContext };
   const capture = (options) => outcome(Promise.race([
@@ -272,24 +279,10 @@ if (location.origin === ${JSON.stringify(REMOTE)}) {
   });
   await post('result', mic);
 } else if (location.pathname.endsWith('/status.html')) {
-  let openingButton;
-  void runCommands('status');
+  startCommands('status');
   async function checkStatus() {
     await new Promise((r) => setTimeout(r, 500));
     await post('result', { ...identity, kind: 'status', title: document.getElementById('title').textContent, why: document.getElementById('why').textContent, desks: await outcome(invoke('desks')) });
-    for (;;) {
-      const action = await (await fetch(new URL('status-action', base))).json();
-      if (action) {
-        const button = [...document.querySelectorAll('#others button')].find((b) => b.textContent === action.name);
-        if (action.open && button) {
-          openingButton = button;
-          button.focus();
-          button.click();
-        }
-        await post('result', { kind: 'statusAction', name: action.name, notice: document.getElementById('open-result').textContent, focused: !!button && document.activeElement === button, same: !!button && button === openingButton });
-      }
-      await new Promise((r) => setTimeout(r, 250));
-    }
   }
   addEventListener('pageshow', (event) => { if (event.persisted) void checkStatus(); });
   await checkStatus();
@@ -297,7 +290,7 @@ if (location.origin === ${JSON.stringify(REMOTE)}) {
   if (location.port === ${JSON.stringify(String(oldPort))}) history.replaceState(null, '', '/?takeover-check=kept');
   addEventListener('seismic-desks', async () => post('result', { kind: 'desksChanged', ...(await outcome(invoke('desks'))) }));
   await post('result', { ...identity, kind: 'local', href: location.href, minimized: window.seismicCheckMinimized });
-  void runCommands('local');
+  startCommands('local');
 }
 `;
 const harness = Bun.serve({
@@ -321,11 +314,6 @@ const harness = Bun.serve({
       polls.set(label, (polls.get(label) ?? 0) + 1);
       const next = todo.findIndex((task) => task.label === label && task.kind === searchParams.get('kind'));
       return json(next === -1 ? null : todo.splice(next, 1)[0]);
-    }
-    if (path === '/status-action') {
-      const action = statusAction;
-      statusAction = undefined;
-      return json(action ?? null);
     }
     if (req.method === 'POST' && path === '/result') reports.push(JSON.parse(await req.text()));
     if (req.method === 'POST' && path === '/done') {
@@ -597,7 +585,8 @@ try {
     const status = await select(id, 'status');
     expect(String(status.title).includes('does not answer'), JSON.stringify(status));
     const before = reports.length;
-    statusAction = { name: (await desks()).list[0]!.name, open: true };
+    const name = JSON.stringify((await desks()).list[0]!.name);
+    send('check_eval', { js: `[...document.querySelectorAll('#others button')].find(button => button.textContent === ${name}).click()` });
     const local = await report('local', before, 15_000);
     expect(local.windows === 1 && local.window === status.window && local.label !== status.label, JSON.stringify(local));
   });
