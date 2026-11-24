@@ -77,8 +77,7 @@ export function goTo(path: string) {
     dispatchEvent(new PopStateEvent('popstate', { state: null }));
   };
   // another project's page (or another page of the app) replaces this one: an unsaved draft on it asks first (`leaving`)
-  if (leavesPage(location.href, path)) leave(go);
-  else go();
+  leave(go, path);
 }
 
 /** A plain click on a link switches within the page, without loading it again; one for a new tab or window stays the link's. */

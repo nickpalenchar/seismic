@@ -14,7 +14,7 @@ import { Spinner } from '../../components/spinner';
 import { cn } from 'cn';
 import { ConnectForm, errorClass } from '../../desks/connect';
 import { DeskIcon, Unread } from '../../desks/page';
-import { currentDesk, deskError, desks, GUIDE, LOCAL, onThisMachine, useDesks, useDesksFailed } from '../../desks/shell';
+import { currentDesk, deskError, desks, GUIDE, LOCAL, onThisMachine, useDesks, useDesksFailed, usePairing } from '../../desks/shell';
 
 const CHOSEN = 'seismic-setup-here';
 /** Whether "On this machine" (or "Set up …") was chosen in this tab: a reload goes on with the setup. */
@@ -38,6 +38,7 @@ export function HowStep({ onHere }: { onHere: () => void }) {
   const h = t.desks.how;
   const all = useDesks();
   const failed = useDesksFailed();
+  const pairing = usePairing();
   const [choice, setChoice] = useState<'here' | 'remote'>('here');
   const [problem, setProblem] = useState('');
   const local = onThisMachine(all);
@@ -69,7 +70,7 @@ export function HowStep({ onHere }: { onHere: () => void }) {
         <>
           <RadioGroup className="grid grid-cols-2 gap-2.5" label={h.title} value={choice} onValueChange={(v) => (setChoice(v as typeof choice), setProblem(''))}>
             {(['here', 'remote'] as const).map((c) => (
-              <RadioOption key={c} value={c} className={cn('grid grid-cols-[auto_1fr] content-start items-center gap-x-2.5 gap-y-0.5 m-0 rounded-lg border cursor-pointer [&_.hint]:col-start-2', choice === c ? 'border-2 border-foreground p-3' : 'border-border px-3.5 py-3 hover:border-foreground')}>
+              <RadioOption key={c} value={c} disabled={pairing} className={cn('grid grid-cols-[auto_1fr] content-start items-center gap-x-2.5 gap-y-0.5 m-0 rounded-lg border cursor-pointer [&_.hint]:col-start-2', choice === c ? 'border-2 border-foreground p-3' : 'border-border px-3.5 py-3 hover:border-foreground')}>
                 <b className="[overflow-wrap:anywhere]">{options[c].title}</b>
                 <span className="hint">{options[c].hint}</span>
               </RadioOption>
@@ -93,7 +94,7 @@ export function HowStep({ onHere }: { onHere: () => void }) {
                           <b className="block [overflow-wrap:anywhere]">{d.name}</b>
                           <span className="block text-xs text-muted-foreground [overflow-wrap:anywhere]">{d.origin}</span>
                         </span>
-                        <Button size="small" onClick={() => void desks.open(d.id).catch((e) => setProblem(deskError(e, d.origin ?? '')))}>
+                        <Button size="small" disabled={pairing} onClick={() => void desks.open(d.id).catch((e) => setProblem(deskError(e, d.origin ?? '')))}>
                           {t.desks.page.open}
                         </Button>
                       </li>
@@ -138,6 +139,7 @@ export function ExitSetup() {
   const x = t.desks.exit;
   const first = useContext(FirstStart);
   const all = useDesks();
+  const pairing = usePairing();
   const [asking, setAsking] = useState(false);
   const [going, setGoing] = useState(false);
   const [problem, setProblem] = useState('');
@@ -155,23 +157,21 @@ export function ExitSetup() {
   };
   return (
     <>
-      <Button size="small" className="desk-exit mr-auto" onClick={() => (setProblem(''), setAsking(true))}>
+      <Button size="small" className="desk-exit mr-auto" disabled={pairing} onClick={() => (setProblem(''), setAsking(true))}>
         {x.button}
       </Button>
       <ConfirmDialog
         open={asking}
         onOpenChange={(open) => !going && setAsking(open)}
         layerClassName="z-90"
-        className="flex flex-col"
+        scrollBody
         title={x.title}
         confirm={{ label: <>{going && <Spinner className="size-3.5" />}{x.confirm}</>, onClick: exit, keepOpen: true }}
         cancel={x.stay}
         busy={going}
       >
-        <div tabIndex={0} className="min-h-0 overflow-y-auto [overflow-wrap:anywhere] focus-visible:outline focus-visible:-outline-offset-2 focus-visible:outline-ring">
-          <p>{x.text(shown.name, to.name)}</p>
-          {problem && <p role="alert" className={errorClass}>{problem}</p>}
-        </div>
+        <p>{x.text(shown.name, to.name)}</p>
+        {problem && <p role="alert" className={errorClass}>{problem}</p>}
       </ConfirmDialog>
     </>
   );

@@ -14,7 +14,7 @@ import { Spinner } from '../components/spinner';
 import { cn } from 'cn';
 import { ConnectForm, errorClass } from './connect';
 import { EditDesk } from './edit';
-import { backFromWorkspaces, currentDesk, type Desk, deskError, desks, LOCAL, onThisMachine, openWorkspaces, readDesks, useDesks, useDesksFailed } from './shell';
+import { backFromWorkspaces, currentDesk, type Desk, deskError, desks, LOCAL, onThisMachine, openWorkspaces, readDesks, useDesks, useDesksFailed, usePairing } from './shell';
 
 /** The page's pane, as the setup's first start has it. */
 export const deskPageClass = 'fixed inset-0 overflow-y-auto bg-background';
@@ -24,6 +24,7 @@ export function WorkspacesPage() {
   const p = t.desks.page;
   const all = useDesks();
   const failed = useDesksFailed();
+  const pairing = usePairing();
   const [asked] = useState(() => new URLSearchParams(location.search));
   const [adding, setAdding] = useState(asked.has('new'));
   const [editing, setEditing] = useState<string | null>(asked.get('edit'));
@@ -38,7 +39,7 @@ export function WorkspacesPage() {
             <div className="p-kind">{p.kind}</div>
             <h2 className="m-0">{p.title}</h2>
           </div>
-          <Button size="small" onClick={backFromWorkspaces}>
+          <Button size="small" disabled={pairing} onClick={backFromWorkspaces}>
             <ArrowLeft aria-hidden />
             {p.back}
           </Button>
@@ -52,7 +53,7 @@ export function WorkspacesPage() {
             <p className="m-0 text-sm text-muted-foreground">{p.intro}</p>
             <ul className="m-0 grid list-none gap-2 p-0">
               {all.list.map((d) => (
-                <DeskRow key={d.id} desk={d} shown={d.id === all.current} onEdit={() => setEditing(d.id)} />
+                <DeskRow key={d.id} desk={d} shown={d.id === all.current} pairing={pairing} onEdit={() => setEditing(d.id)} />
               ))}
             </ul>
             {adding ? (
@@ -82,7 +83,7 @@ export function DeskIcon({ desk, size = 16 }: { desk: Pick<Desk, 'local'>; size?
   return <Icon size={size} strokeWidth={2} className="flex-none text-muted-foreground" aria-hidden />;
 }
 
-function DeskRow({ desk, shown, onEdit }: { desk: Desk; shown: boolean; onEdit: () => void }) {
+function DeskRow({ desk, shown, pairing, onEdit }: { desk: Desk; shown: boolean; pairing: boolean; onEdit: () => void }) {
   const p = t.desks.page;
   const [opening, setOpening] = useState(false);
   const [problem, setProblem] = useState('');
@@ -110,12 +111,12 @@ function DeskRow({ desk, shown, onEdit }: { desk: Desk; shown: boolean; onEdit: 
         {shown ? (
           <Badge variant="secondary">{p.shown}</Badge>
         ) : (
-          <Button size="small" disabled={opening} onClick={open}>
+          <Button size="small" disabled={opening || pairing} onClick={open}>
             {opening && <Spinner className="size-3.5" />}
             {p.open}
           </Button>
         )}
-        <IconButton icon={<Cog />} label={t.desks.settings} variant="ghost" onClick={onEdit} />
+        <IconButton icon={<Cog />} label={t.desks.settings} variant="ghost" disabled={pairing} onClick={onEdit} />
       </div>
       {problem && <p role="alert" className={cn(errorClass, 'col-[2/-1]')}>{problem}</p>}
     </li>

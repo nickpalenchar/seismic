@@ -12,7 +12,6 @@ import { pinAboveKeyboard } from './keyboard';
 import { loadLanguageAndTheme } from './theme';
 
 upgradeAddress();
-followShell();
 if (window.seismicApp) {
   window.seismicAttachmentSwitch = attachmentSwitch;
   window.seismicHandOver = handOver;
@@ -31,6 +30,7 @@ await loadLanguageAndTheme();
 if (window.seismicApp?.handedOver) await takeHandOver(window.seismicRestoredDrafts);
 takeAppDrops();
 pinAboveKeyboard();
+followShell();
 createRoot(document.getElementById('root')!).render(
   <UiRoot>
     <App />

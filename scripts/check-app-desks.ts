@@ -382,7 +382,7 @@ if (location.origin === ${JSON.stringify(REMOTE)}) {
   addEventListener('pageshow', (event) => { if (event.persisted) void checkStatus(); });
   await checkStatus();
 } else if (location.protocol === 'http:' && location.hostname === '127.0.0.1') {
-  if (location.port === ${JSON.stringify(String(oldPort))}) history.replaceState(null, '', '/?takeover-check=kept');
+  if (location.port === ${JSON.stringify(String(oldPort))} && location.pathname !== '/workspaces') history.replaceState(null, '', '/?takeover-check=kept');
   addEventListener('seismic-desks', async () => post('result', { kind: 'desksChanged', ...(await outcome(invoke('desks'))) }));
   await post('result', { ...identity, kind: 'local', href: location.href, minimized: window.seismicCheckMinimized });
   startCommands('local');
@@ -632,13 +632,25 @@ async function checkApp() {
     }
     const kept = await run('check_eval', { js: "!document.querySelector('[role=alertdialog]') && !!window.releaseScreenshot" });
     expect(displayed()?.label === oldLabel && kept.value === true, 'Go back switched, cancelled the upload, or prompted again');
+    const workspacesDuringReload = samePortTakeover && !failedSamePortNavigation;
+    if (workspacesDuringReload) {
+      send('open_desk', { id: 'local', page: '/workspaces?new' });
+      // The request supersedes the earlier attachment check. Release the upload
+      // only after the new check has reached the still-visible old document.
+      await decideAttachment('Go back');
+    }
     if (failedSamePortNavigation) writeFileSync(join(home, 'check-local-navigation-not-committed'), '');
     send('check_eval', { js: 'window.releaseScreenshot()' });
     const next = await report('local', before);
     expect((await run('check_eval', { js: "JSON.stringify(Object.entries(sessionStorage))" })).value?.toString().includes('takeover-shot'), 'the screenshot was lost during reattachment');
     expect((new URL(String(next.href)).origin === new URL(String(initial.href)).origin) === samePortTakeover, JSON.stringify(next));
     expect(typeof next.label === 'string' && (next.label === oldLabel) === samePortTakeover, JSON.stringify(next));
-    expect(new URL(String(next.href)).searchParams.get('takeover-check') === 'kept', JSON.stringify(next));
+    if (workspacesDuringReload) {
+      await until('New Workspace on the reauthenticated document', 5000, async () =>
+        (await run('check_eval', { js: "location.search === '?new' && !!document.querySelector('.desk-connect')" })).value === true);
+    } else {
+      expect(new URL(String(next.href)).searchParams.get('takeover-check') === 'kept', JSON.stringify(next));
+    }
     if (minimizedTakeover) {
       expect(initial.minimized === true && next.minimized === true, JSON.stringify({ initial, next }));
     }
@@ -659,6 +671,36 @@ async function checkApp() {
     const d = await desks();
     expect(d.current === 'local' && d.list.length === 1 && d.list[0]!.local, JSON.stringify(d));
     return d.list[0]!.name;
+  });
+  await check('an in-place Workspaces request waits for the local page to handle it', async () => {
+    const label = displayed()?.label;
+    await until('the local route handler to start', 5000, async () =>
+      (await run('check_eval', { js: "typeof window.seismicDeskPage === 'function'" })).value === true);
+    const held = await run('check_eval', { js: `(() => {
+      if (typeof window.seismicDeskPage !== 'function') return false;
+      const ready = window.seismicDeskPage;
+      window.seismicDeskPage = () => { window.checkDeskWaiting = true; return false; };
+      window.checkDeskReady = () => { window.seismicDeskPage = ready; };
+      return true;
+    })()` });
+    expect(held.value === true, 'the local page did not start');
+    try {
+      const first = send('open_desk', { id: 'local', page: '/workspaces' });
+      await until('the shell to try the unready document', 5000, async () =>
+        (await run('check_eval', { js: 'window.checkDeskWaiting === true' })).value === true);
+      expect(!done.has(first), 'the shell reported success before the page handled it');
+      const next = send('open_desk', { id: 'local', page: '/workspaces?new' });
+      await until('the earlier destination to be superseded', 5000, () => done.get(first)?.error === 'superseded');
+      await run('check_eval', { js: 'window.checkDeskReady()' });
+      const answer = await until('the page to acknowledge New Workspace', 5000, () => done.get(next));
+      expect(answer.ok && displayed()?.label === label, JSON.stringify(answer));
+      await until('the form to open in place', 5000, async () =>
+        (await run('check_eval', { js: "location.search === '?new' && !!document.querySelector('.desk-connect')" })).value === true);
+      const back = await run('check_eval', { js: `[...document.querySelectorAll('.desks-page button')].find(b => b.textContent.trim() === 'Back').click()` });
+      expect(back.ok, JSON.stringify(back));
+    } finally {
+      await run('check_eval', { js: 'window.checkDeskReady()' });
+    }
   });
   await check('an address of no Seismic is refused', async () => {
     const r = await run('add_desk', { address: 'ftp://studio', code: '123456' });

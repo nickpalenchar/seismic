@@ -606,6 +606,8 @@ export function beforeReload(fn: () => void): () => void {
 /** Loads the page again, keeping what is open, as after a restart. */
 export function reload() {
   for (const fn of reloadListeners) fn();
+  // A native route sent during the reload belongs to the document that starts next.
+  delete window.seismicDeskPage;
   location.reload();
 }
 

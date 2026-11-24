@@ -54,15 +54,20 @@ pub async fn open_desk(app: AppHandle, webview: Webview, id: String, page: Optio
 async fn prepare_pairing(
   app: &AppHandle, webview: &Webview, origin: String, code: String,
   verify: impl FnOnce(&AppHandle) -> Result<(), String> + Send + 'static,
-) -> Result<(Capture, Url), String> {
-  let turn = shell(app).views.lock().unwrap().turn;
+) -> Result<(u64, Capture, Url), String> {
+  let state = shell(app);
+  let (turn, activation) = {
+    let views = state.views.lock().unwrap();
+    let active = views.active.as_ref().filter(|v| v.label == webview.label()).ok_or("superseded")?;
+    (views.turn, active.departure.activation)
+  };
   let app = app.clone();
   let webview = webview.clone();
   tauri::async_runtime::spawn_blocking(move || {
     let mut verify = Some(verify);
     // Resolve the attachment decision before redeeming the code. Keep the
     // workspace visible while pairing and verifying the remote address.
-    capture_after(&app, turn, OnBack::Cancel, true, |_| {
+    let (outgoing, link) = capture_after(&app, turn, OnBack::Cancel, true, |_| {
       let verify = verify.take().ok_or("drafts")?;
       let caller = webview.clone();
       tauri::async_runtime::block_on(on_ui(app.clone(), move |app| {
@@ -73,8 +78,22 @@ async fn prepare_pairing(
         verify(app)
       }))?;
       remote::pair(&origin, &code).map_err(String::from)
-    })
+    })?;
+    let views = state.views.lock().unwrap();
+    if !views.active.as_ref().is_some_and(|v| v.label == webview.label() && v.departure.activation == activation) {
+      return Err("superseded".into());
+    }
+    Ok((turn, outgoing, link))
   }).await.map_err(|e| e.to_string())?
+}
+
+fn pairing_still_current(app: &AppHandle, turn: u64, outgoing: &Capture) -> Result<(), String> {
+  let state = shell(app);
+  let views = state.views.lock().unwrap();
+  if views.turn != turn || !outgoing.matches(&views) {
+    return Err("superseded".into());
+  }
+  Ok(())
 }
 
 /// Pairs with the Seismic at `address` by the code its "Connect a device" shows, and once that went
@@ -88,7 +107,7 @@ pub async fn add_desk(app: AppHandle, webview: Webview, address: String, code: S
     return Err("known".into());
   }
   let at = origin.clone();
-  let (outgoing, link) = prepare_pairing(&app, &webview, origin.clone(), code, move |app| {
+  let (turn, outgoing, link) = prepare_pairing(&app, &webview, origin.clone(), code, move |app| {
     if super::shell(app).desks.lock().unwrap().at_origin(&at).is_some() {
       return Err("known".into());
     }
@@ -96,6 +115,7 @@ pub async fn add_desk(app: AppHandle, webview: Webview, address: String, code: S
   }).await?;
   on_ui(app, move |app| {
     from_this_machine(app, &webview)?;
+    pairing_still_current(app, turn, &outgoing)?;
     let id = {
       let mut desks = shell.desks.lock().unwrap();
       let mut added = desks.clone();
@@ -149,7 +169,7 @@ pub async fn pair_desk(app: AppHandle, webview: Webview, id: String, code: Strin
   if shell.desks.lock().unwrap().at_origin(&origin).is_some_and(|d| d.id != id) {
     return Err("known".into());
   }
-  let (outgoing, link) = prepare_pairing(&app, &webview, origin.clone(), code, {
+  let (turn, outgoing, link) = prepare_pairing(&app, &webview, origin.clone(), code, {
     let (id, before) = (id.clone(), before.clone());
     move |app| {
       let state = super::shell(app);
@@ -162,6 +182,7 @@ pub async fn pair_desk(app: AppHandle, webview: Webview, id: String, code: Strin
   }).await?;
   on_ui(app, move |app| {
     from_this_machine(app, &webview)?;
+    pairing_still_current(app, turn, &outgoing)?;
     {
       let mut desks = shell.desks.lock().unwrap();
       if desks.get(&id).and_then(|d| d.origin.as_deref()) != Some(before.as_str()) || shell.views.lock().unwrap().revision(&id) != revision {

@@ -3,20 +3,21 @@
 // first. A view with something unsaved holds the leaving and goes on with it once the owner
 // discards it; without one, it goes on at once.
 
-/** Holds the leaving where something is unsaved: says so (true) and calls `proceed` itself once the owner discards it. */
+/** Returns true to hold navigation. A confirmation can call `proceed` after the owner discards a draft. */
 export type LeaveGuard = (proceed: () => void) => boolean;
 
-const guards = new Set<LeaveGuard>();
+const guards = new Map<LeaveGuard, boolean>();
 
-/** Asks `guard` before anything leaves, until the returned function is called. */
-export function holdLeaving(guard: LeaveGuard): () => void {
-  guards.add(guard);
+/** Asks `guard` before leaving until released. `allRoutes` also guards in-page address changes. */
+export function holdLeaving(guard: LeaveGuard, allRoutes = false): () => void {
+  guards.set(guard, allRoutes);
   return () => void guards.delete(guard);
 }
 
 /** Does `proceed`, once nothing unsaved holds it. */
-export function leave(proceed: () => void) {
-  for (const g of guards) if (g(proceed)) return;
+export function leave(proceed: () => void, to?: string) {
+  const leaving = to === undefined || leavesPage(location.href, to);
+  for (const [guard, allRoutes] of guards) if ((leaving || allRoutes) && guard(proceed)) return;
   proceed();
 }
 
@@ -85,7 +86,7 @@ if (typeof window !== 'undefined' && typeof history !== 'undefined') {
     e.stopImmediatePropagation();
   });
 
-  let returning: { origin: Cursor; delta: number } | null = null;
+  let returning: { origin: Cursor; delta: number; target: string } | null = null;
   addEventListener('popstate', (e) => {
     const there = cursor();
     const from = at;
@@ -99,19 +100,19 @@ if (typeof window !== 'undefined' && typeof history !== 'undefined') {
         e.stopImmediatePropagation();
         hide();
         if (back !== 0) return history.go(back);
-        const { delta } = returning;
+        const { delta, target } = returning;
         returning = null;
         here = there;
-        leave(() => history.go(delta));
+        leave(() => history.go(delta), target);
         return;
       }
       returning = null;
     }
     const delta = distance(here, there);
-    if (e.isTrusted && guards.size && delta && leavesPage(here.href, there.href)) {
+    if (e.isTrusted && guards.size && delta && (leavesPage(here.href, there.href) || [...guards.values()].some(Boolean))) {
       e.stopImmediatePropagation();
       hide();
-      returning = { origin: here, delta };
+      returning = { origin: here, delta, target: there.href };
       history.go(-delta);
       return;
     }

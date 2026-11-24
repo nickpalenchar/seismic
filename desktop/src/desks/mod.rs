@@ -10,9 +10,9 @@ use std::{
   collections::{HashMap, HashSet},
   io,
   path::PathBuf,
-  sync::{Arc, Mutex, OnceLock},
+  sync::{mpsc, Arc, Mutex, OnceLock},
   thread,
-  time::Duration,
+  time::{Duration, Instant},
 };
 
 use serde_json::json;
@@ -65,6 +65,8 @@ struct WorkspaceView {
   departure: Departure,
   /// A workspace page the shell navigated to that has not been seen at its origin yet (`verify_load`).
   loading: Option<u64>,
+  /// A same-origin sign-in has been queued and can still replace the old local document.
+  local_reloading: Option<Instant>,
 }
 
 #[derive(Clone, Default)]
@@ -187,6 +189,7 @@ struct Views {
   hidden_for_capture: HashMap<String, usize>,
   active: Option<WorkspaceView>,
   local_port: Option<u16>,
+  attaching_local: bool,
   /// Each selection supersedes the last one, including while a health check is running.
   turn: u64,
   pending: Option<Selection>,
@@ -202,6 +205,7 @@ struct Views {
 struct Selection {
   desk: String,
   page: Option<String>,
+  in_place: bool,
   waiters: Vec<OpenWaiter>,
 }
 
@@ -630,6 +634,7 @@ fn mount(app: &AppHandle, target: Destination, turn: u64, mut outgoing: Capture)
       awaiting_drafts: restore.as_ref().is_some_and(|p| p.draft_checkpoint.is_some() || !p.drafts.is_empty()),
       departure: Departure::default(),
       loading,
+      local_reloading: None,
     };
     let old = views.active.replace(new);
     views.draft_generation += 1;
@@ -695,7 +700,17 @@ pub fn cancel_selection(app: &AppHandle) {
 /// the owner is using a remote workspace. Runs on the server watcher thread.
 pub fn connect_local(app: &AppHandle, port: u16, page: Url, handed_over: bool) -> Result<(), String> {
   let state = shell(app);
-  let previous = state.views.lock().unwrap().local_port.replace(port);
+  let previous = {
+    let mut views = state.views.lock().unwrap();
+    views.attaching_local = true;
+    views.local_port.replace(port)
+  };
+  let attached = attach_local(app, &state, port, page, handed_over && previous.is_none());
+  state.views.lock().unwrap().attaching_local = false;
+  attached
+}
+
+fn attach_local(app: &AppHandle, state: &Arc<Shell>, port: u16, page: Url, handed_over: bool) -> Result<(), String> {
   let own = Own::Local(Some(port));
   if !own.at(&page) {
     return Err("elsewhere".into());
@@ -706,21 +721,30 @@ pub fn connect_local(app: &AppHandle, port: u16, page: Url, handed_over: bool) -
   loop {
     let (turn, same_origin) = loop {
       let (send, mut receive) = tauri::async_runtime::channel(1);
-      {
+      let outgoing = {
         let mut views = state.views.lock().unwrap();
         if crate::is_stopping(app) || views.active.as_ref().is_some_and(|v| v.desk != LOCAL) {
           return Ok(());
         }
-        if let Some(pending) = &mut views.pending {
+        let same_origin = views.active.as_ref().is_some_and(|v| v.own == own);
+        // An in-place route needs the reauthenticated document. Let the reload
+        // proceed, then deliver the route once that document is ready.
+        let outgoing = views.label().to_string();
+        if let Some(pending) = views.pending.as_mut().filter(|p| !(p.in_place && same_origin)) {
           pending.waiters.push(send);
+          outgoing
         } else {
           views.restore = None;
-          break (views.turn, views.active.as_ref().is_some_and(|v| v.own == own));
+          break (views.turn, same_origin);
         }
-      }
+      };
       // If a switch fails while the local port changed, attach the current local
-      // page once the switch settles. A successful switch leaves the remote in place.
-      let _ = tauri::async_runtime::block_on(receive.recv());
+      // page once it settles. A switch that already signed into the new port has
+      // its own destination and does not need another login.
+      let result = tauri::async_runtime::block_on(receive.recv());
+      if matches!(result, Some(Ok(()))) && state.views.lock().unwrap().active.as_ref().is_some_and(|v| v.label != outgoing && v.own == own) {
+        return Ok(());
+      }
     };
     // Reauthenticating at the same port also unloads the document doing the upload.
     enum Attach {
@@ -729,7 +753,7 @@ pub fn connect_local(app: &AppHandle, port: u16, page: Url, handed_over: bool) -
     }
     let outgoing = if same_origin {
       local_view(app).ok_or_else(|| "window".to_string())
-        .and_then(|view| attachments::hold(app, &state, &view, turn, OnBack::Wait)).map(Attach::Reload)
+        .and_then(|view| attachments::hold(app, state, &view, turn, OnBack::Wait)).map(Attach::Reload)
     } else {
       capture(app, turn, OnBack::Wait).map(Attach::Replace)
     };
@@ -749,12 +773,21 @@ pub fn connect_local(app: &AppHandle, port: u16, page: Url, handed_over: bool) -
             hold.awaiting_navigation();
             return Ok(());
           }
-          local_view(app).ok_or("window")?.navigate(page).map_err(|e| e.to_string())?;
+          let view = local_view(app).ok_or("window")?;
+          if let Some(active) = state.views.lock().unwrap().active.as_mut().filter(|v| v.label == view.label()) {
+            active.local_reloading = Some(Instant::now());
+          }
+          if let Err(error) = view.navigate(page) {
+            if let Some(active) = state.views.lock().unwrap().active.as_mut().filter(|v| v.label == view.label()) {
+              active.local_reloading = None;
+            }
+            return Err(error.to_string());
+          }
           hold.awaiting_navigation();
           Ok(())
         }
         Attach::Replace(captured) => {
-          let target = Destination { desk: LOCAL.into(), own, url: page, problem: None, handed_over: previous.is_none() && handed_over };
+          let target = Destination { desk: LOCAL.into(), own, url: page, problem: None, handed_over };
           mount(app, target, turn, captured)
         }
       }
@@ -772,7 +805,7 @@ pub fn connect_local(app: &AppHandle, port: u16, page: Url, handed_over: bool) -
 pub fn open(app: &AppHandle, id: &str, handed_over: bool, waiter: Option<OpenWaiter>, page: Option<String>) -> Result<(), String> {
   let state = shell(app);
   let origin = state.desks.lock().unwrap().get(id).ok_or("unknown")?.origin.clone();
-  let (turn, revision) = {
+  let (turn, revision, in_place) = {
     let mut views = state.views.lock().unwrap();
     if !handed_over {
       views.restore = None;
@@ -782,25 +815,25 @@ pub fn open(app: &AppHandle, id: &str, handed_over: bool, waiter: Option<OpenWai
       return Ok(());
     }
     views.cancel();
-    if views.active.as_ref().is_some_and(|v| v.desk == id && (id != LOCAL || v.own == Own::Local(views.local_port))) {
-      let label = views.label().to_string();
-      drop(views);
-      crate::menu::refresh(app);
-      // the page shown already goes there itself, keeping what it has open (src/ui/desks/shell.ts)
-      if let Some(page) = page {
-        let w = app.get_webview(&label).ok_or("window")?;
-        w.eval(format!("window.dispatchEvent(new CustomEvent('seismic-desk-page', {{ detail: {} }}))", json!(page)))
-          .map_err(|_| "window")?;
-      }
+    let active = views.active.as_ref().filter(|v| v.desk == id && (id != LOCAL || v.own == Own::Local(views.local_port)));
+    if active.is_some() && page.is_none() {
       if let Some(waiter) = waiter {
         let _ = waiter.try_send(Ok(()));
       }
+      drop(views);
+      crate::menu::refresh(app);
       return Ok(());
     }
-    views.pending = Some(Selection { desk: id.into(), page: page.clone(), waiters: waiter.into_iter().collect() });
-    (views.turn, views.revision(id))
+    let in_place = active.and_then(|v| Some((v.label.clone(), v.own.origin()?)));
+    views.pending = Some(Selection { desk: id.into(), page: page.clone(), in_place: in_place.is_some(), waiters: waiter.into_iter().collect() });
+    (views.turn, views.revision(id), in_place)
   };
   crate::menu::refresh(app);
+
+  if let (Some((label, origin)), Some(page)) = (in_place, page.as_ref()) {
+    open_local_page(app.clone(), state, turn, label, origin, page.clone());
+    return Ok(());
+  }
 
   let id = id.to_string();
   let app = app.clone();
@@ -898,6 +931,48 @@ pub fn open(app: &AppHandle, id: &str, handed_over: bool, waiter: Option<OpenWai
   Ok(())
 }
 
+/// Ask the running UI to navigate in place. A queued evaluation can reach a blank,
+/// sign-in or reloading document, so only the app's acknowledgement settles the switch.
+fn open_local_page(app: AppHandle, state: Arc<Shell>, turn: u64, label: String, origin: String, page: String) {
+  let script = format!(
+    "location.origin === {} && window.seismicDeskPage?.({}) === true", json!(origin), json!(page),
+  );
+  thread::spawn(move || {
+    let deadline = Instant::now() + LOAD_PATIENCE;
+    let result = loop {
+      let (send, receive) = mpsc::channel();
+      let (state, label, script) = (state.clone(), label.clone(), script.clone());
+      let queued = tauri::async_runtime::block_on(on_ui(app.clone(), move |app| {
+        let views = state.views.lock().unwrap();
+        let active = views.active.as_ref().filter(|v| v.label == label && v.own == Own::Local(views.local_port));
+        if views.turn != turn || crate::is_stopping(app) {
+          return Err("superseded".into());
+        }
+        let active = active.ok_or("unreachable")?;
+        if views.attaching_local || active.local_reloading.is_some_and(|since| since.elapsed() < LOAD_PATIENCE) {
+          return Ok(false);
+        }
+        drop(views);
+        let view = app.get_webview(&label).ok_or("window")?;
+        Ok(view.eval_with_callback(script, move |value| { let _ = send.send(value); }).is_ok())
+      }));
+      match queued {
+        Err(error) => break Err(error),
+        Ok(true) if receive.recv_timeout(Duration::from_secs(1)).is_ok_and(|value| value == "true") => break Ok(()),
+        _ => {}
+      }
+      if Instant::now() >= deadline {
+        break Err("window".into());
+      }
+      thread::sleep(Duration::from_millis(100));
+    };
+    let mut views = state.views.lock().unwrap();
+    if views.turn == turn {
+      views.finish(result);
+    }
+  });
+}
+
 /// Start the paired workspace at its fresh login link.
 fn open_paired(app: &AppHandle, id: &str, origin: &str, link: Url, outgoing: Capture) -> Result<(), String> {
   let state = shell(app);
@@ -951,6 +1026,9 @@ pub fn page_loaded(app: &AppHandle, label: &str, url: &Url) {
   let mut windows = shell.views.lock().unwrap();
   let Some(window) = windows.active.as_mut().filter(|v| v.label == label) else { return };
   let next = crate::next_of(url);
+  if url.path() != "/login" {
+    window.local_reloading = None;
+  }
   let changed = window.next != next;
   window.next = next;
   if window.loading.is_some() {
@@ -1106,7 +1184,7 @@ mod tests {
     let mut view = WorkspaceView {
       label: "desk-1".into(), desk: "studio".into(), own: Own::Remote("https://studio".into()), next: "/p/lab".into(),
       problem: Some("notLoaded"), drafts: vec![("seismic-drafts-lab".into(), "saved".into())], draft_checkpoint: None,
-      awaiting_drafts: true, departure: Departure::default(), loading: None,
+      awaiting_drafts: true, departure: Departure::default(), loading: None, local_reloading: None,
     };
     let saved = saved_view(&view, None).unwrap();
     assert_eq!(saved.drafts, view.drafts);
@@ -1173,7 +1251,7 @@ mod tests {
     assert!(departure.receive(1.0, Some(vec![draft("older"), wish("unfinished")])));
     let view = |departure: &Departure| WorkspaceView {
       label: "desk-1".into(), desk: "studio".into(), own: Own::Remote("https://studio".into()), next: "/".into(),
-      problem: None, drafts: vec![], draft_checkpoint: None, awaiting_drafts: false, departure: departure.clone(), loading: None,
+      problem: None, drafts: vec![], draft_checkpoint: None, awaiting_drafts: false, departure: departure.clone(), loading: None, local_reloading: None,
     };
     // A relaunch while that page is open keeps its newer edit and the draft it lacks.
     let saved = saved_view(&view(&departure), Some(("/".into(), vec![draft("newer")]))).unwrap();
@@ -1227,7 +1305,7 @@ mod tests {
   fn replacing_a_switch_settles_waiters_without_reusing_its_turn() {
     let mut views = Views::default();
     let (send, mut receive) = tauri::async_runtime::channel(1);
-    views.pending = Some(Selection { desk: "studio".into(), page: None, waiters: vec![send] });
+    views.pending = Some(Selection { desk: "studio".into(), page: None, in_place: false, waiters: vec![send] });
     let studio_turn = views.turn;
     views.cancel();
     assert_ne!(views.turn, studio_turn);
@@ -1237,11 +1315,11 @@ mod tests {
 
   #[test]
   fn only_identical_destinations_share_a_pending_switch() {
-    let plain = Selection { desk: LOCAL.into(), page: None, waiters: vec![] };
+    let plain = Selection { desk: LOCAL.into(), page: None, in_place: false, waiters: vec![] };
     assert!(plain.matches(LOCAL, None));
     assert!(!plain.matches(LOCAL, Some("/workspaces?new")));
 
-    let settings = Selection { desk: LOCAL.into(), page: Some("/workspaces?edit=studio".into()), waiters: vec![] };
+    let settings = Selection { desk: LOCAL.into(), page: Some("/workspaces?edit=studio".into()), in_place: false, waiters: vec![] };
     assert!(settings.matches(LOCAL, Some("/workspaces?edit=studio")));
     assert!(!settings.matches(LOCAL, Some("/workspaces?edit=buildbox")));
     assert!(!settings.matches(LOCAL, Some("/workspaces?new")));

@@ -5,6 +5,7 @@
 
 import { useSyncExternalStore } from 'react';
 import { goTo } from '../address';
+import { holdLeaving } from '../leaving';
 import { t } from '../strings';
 
 export interface Desk {
@@ -31,6 +32,13 @@ export const LOCAL = 'local';
 /** This machine's page that lists the workspaces; `?new` opens the form to pair one, `?edit=<id>` the dialog of one. */
 export const WORKSPACES_PATH = '/workspaces';
 
+declare global {
+  interface Window {
+    /** Accepts a native Workspaces route once this document can handle it. */
+    seismicDeskPage?: (page: string) => boolean;
+  }
+}
+
 type Tauri = { invoke: <T>(cmd: string, args?: Record<string, unknown>) => Promise<T> };
 const tauri = () => (window as unknown as { __TAURI_INTERNALS__?: Tauri }).__TAURI_INTERNALS__;
 
@@ -43,16 +51,40 @@ const call = <T = void>(cmd: string, args?: Record<string, unknown>): Promise<T>
   return app ? app.invoke<T>(cmd, args) : Promise.reject(new Error('not in the app'));
 };
 
+let pairing = false;
+const pairingListeners = new Set<() => void>();
+const subscribePairing = (listener: () => void) => {
+  pairingListeners.add(listener);
+  return () => { pairingListeners.delete(listener); };
+};
+
+export const usePairing = () => useSyncExternalStore(subscribePairing, () => pairing);
+
+/** Keep the initiating form in view until pairing either switches workspaces or returns its result. */
+async function whilePairing<T>(run: () => Promise<T>): Promise<T> {
+  if (pairing) throw new Error('window');
+  const release = holdLeaving(() => true, true);
+  pairing = true;
+  pairingListeners.forEach((tell) => tell());
+  try {
+    return await run();
+  } finally {
+    release();
+    pairing = false;
+    pairingListeners.forEach((tell) => tell());
+  }
+}
+
 export const desks = {
   list: () => call<DeskList>('desks'),
   /** Shows workspace `id` in the window; this machine's at `page`, its workspaces page, where given. */
   open: (id: string, page?: string) => call('open_desk', page ? { id, page } : { id }),
   /** Pairs with the Seismic at `address` by the code of its "Connect a phone", and keeps it on the list. */
-  add: (address: string, code: string, name: string) => call<{ id: string; opened: boolean }>('add_desk', { address, code, name: name.trim() || null }),
+  add: (address: string, code: string, name: string) => whilePairing(() => call<{ id: string; opened: boolean }>('add_desk', { address, code, name: name.trim() || null })),
   /** Blank gives it back its default name. */
   rename: (id: string, name: string) => call('rename_desk', { id, name }),
   /** Pairs again by a new code, at a new `address` where it moved. */
-  pair: (id: string, code: string, address?: string) => call<{ opened: boolean }>('pair_desk', address ? { id, code, address } : { id, code }),
+  pair: (id: string, code: string, address?: string) => whilePairing(() => call<{ opened: boolean }>('pair_desk', address ? { id, code, address } : { id, code })),
   remove: (id: string) => call('remove_desk', { id }),
 };
 
@@ -139,12 +171,12 @@ export function followShell() {
     if (location.pathname === WORKSPACES_PATH) history.replaceState(history.state, '', '/');
     return;
   }
-  addEventListener('seismic-desk-page', (e) => {
-    const page = (e as CustomEvent<unknown>).detail;
-    if (typeof page !== 'string' || !(page === WORKSPACES_PATH || page.startsWith(`${WORKSPACES_PATH}?`))) return;
+  window.seismicDeskPage = (page) => {
+    if (pairing || !(page === WORKSPACES_PATH || page.startsWith(`${WORKSPACES_PATH}?`))) return false;
     rememberBack();
     goTo(page);
-  });
+    return true;
+  };
 }
 
 /** A pasted pairing link (`https://studio…/pair?code=482913`) as its address and code. */

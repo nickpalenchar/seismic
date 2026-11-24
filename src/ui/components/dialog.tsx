@@ -113,6 +113,7 @@ export function ConfirmDialog({
   also,
   cancel,
   busy,
+  scrollBody,
   className,
   layerClassName,
 }: {
@@ -124,6 +125,8 @@ export function ConfirmDialog({
   also?: { label: ReactNode; onClick: () => void; variant?: ButtonVariant; className?: string; disabled?: boolean };
   cancel: ReactNode;
   busy?: boolean;
+  /** For unbounded content, keep the title and actions visible while the description scrolls. */
+  scrollBody?: boolean;
   className?: string;
   /** Over a layer higher than a dialog's own (the setup's first-start page). */
   layerClassName?: string;
@@ -143,11 +146,15 @@ export function ConfirmDialog({
             {...opener}
             onEscapeKeyDown={(e) => { if (busy) e.preventDefault(); }}
             aria-describedby={undefined}
-            className={cn(box, surface.solid, 'w-[min(440px,100%)] rounded-sm p-6 [&_p]:mb-5.5 [&_p]:leading-normal', className)}
+            className={cn(box, surface.solid, 'w-[min(440px,100%)] rounded-sm p-6 [&_p]:mb-5.5 [&_p]:leading-normal', scrollBody && 'flex flex-col', className)}
           >
             <AlertDialogPrimitive.Title className="m-0 mb-2.5 text-2xl font-semibold">{title}</AlertDialogPrimitive.Title>
-            {children}
-            <div className="flex flex-wrap gap-2">
+            {scrollBody ? (
+              <div tabIndex={0} className="min-h-0 overflow-y-auto [overflow-wrap:anywhere] focus-visible:outline focus-visible:-outline-offset-2 focus-visible:outline-ring">
+                {children}
+              </div>
+            ) : children}
+            <div className="flex shrink-0 flex-wrap gap-2">
               {confirm.keepOpen ? action : <AlertDialogPrimitive.Action asChild>{action}</AlertDialogPrimitive.Action>}
               {also && (
                 <AlertDialogPrimitive.Action asChild>

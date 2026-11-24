@@ -123,7 +123,8 @@ export function EditDesk({ desk, onClose }: { desk: Desk; onClose: () => void })
         <ConfirmDialog
           open={removing}
           onOpenChange={setRemoving}
-          title={<span className="[overflow-wrap:anywhere]">{e.removeTitle(desk.name)}</span>}
+          title={e.removeTitle}
+          scrollBody
           confirm={{
             label: e.remove,
             variant: 'destructive',
@@ -132,7 +133,7 @@ export function EditDesk({ desk, onClose }: { desk: Desk; onClose: () => void })
           cancel={t.desks.connect.cancel}
           busy={!!busy}
         >
-          <p>{e.removeHint}</p>
+          <p>{e.removeHint(desk.name)}</p>
         </ConfirmDialog>
       </DialogContent>
     </Dialog>
