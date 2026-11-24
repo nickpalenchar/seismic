@@ -25,10 +25,10 @@ in a remote workspace, you can keep working there. Start the local server again 
 When a draft attachment is still uploading, choose **Switch after upload** to keep it in your
 draft. **Discard and switch** cancels the pending attachment. **Go back** keeps the current
 workspace open and the upload running. The prompt requires an updated workspace and desktop app.
-If the local server is reconnecting, **Go back** lets you keep working while the upload finishes.
-The app then reconnects automatically. When adding or pairing a workspace again, **Go back**
-leaves the pairing code unused. If the code expires while you wait for the upload, get a new
-one from the workspace you are pairing.
+If the local server restarts on a new port, **Go back** lets you keep working while the upload
+finishes. The app then reconnects automatically. When adding or pairing a workspace again,
+**Go back** leaves the pairing code unused. If the code expires while you wait for the upload,
+get a new one from the workspace you are pairing.
 
 ### Reconnect an offline workspace
 
