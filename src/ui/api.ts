@@ -334,14 +334,14 @@ export const api = {
   /** Puts the cards into the group, or with `null` into none. */
   assign: (cards: string[], group: string | null) => call<void>('POST', at('/assign'), { cards, group }),
   /** Stores a screenshot for a message; the message names it by the id. */
-  uploadImage: async (image: Blob, project?: string) => {
-    const res = await fetch(at('/images', project), { method: 'POST', headers: { 'content-type': image.type }, body: image });
+  uploadImage: async (image: Blob, project?: string, signal?: AbortSignal) => {
+    const res = await fetch(at('/images', project), { method: 'POST', headers: { 'content-type': image.type }, body: image, signal });
     await refused(res);
     return ((await res.json()) as { id: string }).id;
   },
   /** Stores another kind of file for a message; returns the path the agent reads it at. */
-  uploadFile: async (file: File, project?: string) => {
-    const res = await fetch(at(`/files?name=${encodeURIComponent(file.name)}`, project), { method: 'POST', headers: { 'content-type': 'application/octet-stream' }, body: file });
+  uploadFile: async (file: File, project?: string, signal?: AbortSignal) => {
+    const res = await fetch(at(`/files?name=${encodeURIComponent(file.name)}`, project), { method: 'POST', headers: { 'content-type': 'application/octet-stream' }, body: file, signal });
     await refused(res);
     return ((await res.json()) as { path: string }).path;
   },

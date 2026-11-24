@@ -1,6 +1,7 @@
 // The shell selects one workspace for its native window. Switching replaces only the webview,
 // whose capability and native guards belong to one origin for its lifetime.
 
+mod attachments;
 pub mod commands;
 mod list;
 mod remote;
@@ -62,13 +63,7 @@ struct WorkspaceView {
   awaiting_drafts: bool,
   departure: Departure,
   /// A workspace page the shell navigated to that has not been seen at its origin yet (`verify_load`).
-  loading: Option<Load>,
-}
-
-#[derive(Clone)]
-struct Load {
-  token: u64,
-  verifying: bool,
+  loading: Option<u64>,
 }
 
 #[derive(Clone, Default)]
@@ -240,9 +235,9 @@ impl Views {
     }
   }
 
-  fn load(&mut self) -> Load {
+  fn load(&mut self) -> u64 {
     self.next_load += 1;
-    Load { token: self.next_load, verifying: false }
+    self.next_load
   }
 
   fn drafts_restored(&mut self, label: &str) -> bool {
@@ -262,6 +257,7 @@ pub struct Shell {
   machine: OnceLock<String>,
   /// The label families with a capability (`grant`).
   granted: Mutex<HashSet<String>>,
+  attachment_decision: Mutex<()>,
 }
 
 impl Shell {
@@ -276,6 +272,7 @@ impl Shell {
       home,
       machine: OnceLock::new(),
       granted: Mutex::default(),
+      attachment_decision: Mutex::default(),
     }
   }
 
@@ -293,7 +290,7 @@ impl Shell {
   /// A local stop may leave the shell serving the selected remote workspace.
   pub fn disconnect_if_remote(&self) -> bool {
     let mut views = self.views.lock().unwrap();
-    if !views.active.as_ref().is_some_and(|view| view.desk != LOCAL) {
+    if !views.active.as_ref().is_some_and(|view| view.desk != LOCAL) && views.restore.is_none() {
       return false;
     }
     views.local_port = None;
@@ -507,15 +504,16 @@ impl Capture {
 
 /// Read the outgoing page before destroying its webview. A status page uses the last
 /// origin-scoped departure instead. A failed read leaves the current page in place.
-fn capture(app: &AppHandle) -> Result<Capture, String> {
+fn capture(app: &AppHandle, turn: u64) -> Result<Capture, String> {
   let state = shell(app);
   let (active, label, generation) = {
     let views = state.views.lock().unwrap();
     (views.active.clone(), views.label().to_string(), views.draft_generation)
   };
-  let hold = active.as_ref().map(|_| CaptureHold::acquire(app, label.clone())).transpose()?;
+  let mut hold = None;
   let workspace = if let Some(active) = active {
     let view = app.get_webview(&label).ok_or("window")?;
+    hold = Some(attachments::hold(app, &state, &view, turn)?);
     let url = view.url().map_err(|_| "window")?;
     let sample = if active.own.at(&url) {
       let origin = active.own.origin().ok_or("elsewhere")?;
@@ -587,7 +585,7 @@ fn mount(app: &AppHandle, target: Destination, turn: u64, outgoing: Capture) -> 
       return Err("superseded".into());
     }
     let loading = (matches!(target.own, Own::Remote(_)) && target.problem.is_none()).then(|| views.load());
-    let watched = loading.as_ref().map(|load| (label.clone(), load.token));
+    let watched = loading.map(|token| (label.clone(), token));
     let new = WorkspaceView {
       label,
       desk: target.desk.clone(),
@@ -644,6 +642,15 @@ fn mount(app: &AppHandle, target: Destination, turn: u64, outgoing: Capture) -> 
   mounted
 }
 
+/// Begin restoration from the startup view independently of local server startup.
+pub fn restore_selected(app: &AppHandle) -> Result<(), String> {
+  let restore = shell(app).views.lock().unwrap().restore.clone();
+  if let Some(id) = restore {
+    open(app, &id, true, None)?;
+  }
+  Ok(())
+}
+
 /// Switch to this machine after the local server answers, or remember its port while
 /// the owner is using a remote workspace. Runs on the server watcher thread.
 pub fn connect_local(app: &AppHandle, port: u16, page: Url, handed_over: bool) -> Result<(), String> {
@@ -652,20 +659,6 @@ pub fn connect_local(app: &AppHandle, port: u16, page: Url, handed_over: bool) -
   let own = Own::Local(Some(port));
   if !own.at(&page) {
     return Err("elsewhere".into());
-  }
-
-  // The selected remote can follow the startup screen directly. Loading the local
-  // page first would race its document initialization against the draft capture.
-  if previous.is_none() {
-    let (send, mut receive) = tauri::async_runtime::channel(1);
-    let restoring = tauri::async_runtime::block_on(on_ui(app.clone(), move |app| {
-      let state = shell(app);
-      let restore = state.views.lock().unwrap().restore.clone();
-      restore.map_or(Ok(false), |id| open(app, &id, true, Some(send)).map(|_| true))
-    }))?;
-    if restoring && tauri::async_runtime::block_on(receive.recv()).is_some_and(|result| result.is_ok()) {
-      return Ok(());
-    }
   }
 
   // The watcher records each port once. A selection that starts before the page is attached
@@ -689,19 +682,33 @@ pub fn connect_local(app: &AppHandle, port: u16, page: Url, handed_over: bool) -
       // page once the switch settles. A successful switch leaves the remote in place.
       let _ = tauri::async_runtime::block_on(receive.recv());
     };
-    let outgoing = (!same_origin).then(|| capture(app));
+    // Reauthenticating at the same port also unloads the document doing the upload.
+    enum Attach {
+      Reload(CaptureHold),
+      Replace(Capture),
+    }
+    let outgoing = if same_origin {
+      local_view(app).ok_or_else(|| "window".to_string())
+        .and_then(|view| attachments::hold(app, &state, &view, turn)).map(Attach::Reload)
+    } else {
+      capture(app, turn).map(Attach::Replace)
+    };
     let (state, own, page) = (state.clone(), own.clone(), page.clone());
     let attached = tauri::async_runtime::block_on(on_ui(app.clone(), move |app| {
       if state.views.lock().unwrap().turn != turn {
         return Err("superseded".into());
       }
-      if let Some(outgoing) = outgoing {
-        let destination = Destination { desk: LOCAL.into(), own, url: page, problem: None, handed_over: previous.is_none() && handed_over };
-        mount(app, destination, turn, outgoing?)
-      } else {
-        local_view(app).ok_or("window")?.navigate(page).map_err(|e| e.to_string())
+      match outgoing? {
+        Attach::Reload(_hold) => local_view(app).ok_or("window")?.navigate(page).map_err(|e| e.to_string()),
+        Attach::Replace(captured) => {
+          let target = Destination { desk: LOCAL.into(), own, url: page, problem: None, handed_over: previous.is_none() && handed_over };
+          mount(app, target, turn, captured)
+        }
       }
     }));
+    if attached.as_ref().is_err_and(|e| e == "cancelled") {
+      return Ok(());
+    }
     if !matches!(&attached, Err(e) if e == "superseded") {
       return attached;
     }
@@ -723,7 +730,7 @@ pub fn open(app: &AppHandle, id: &str, handed_over: bool, waiter: Option<OpenWai
       return Ok(());
     }
     views.cancel();
-    if views.active.as_ref().is_some_and(|v| v.desk == id) {
+    if views.active.as_ref().is_some_and(|v| v.desk == id && (id != LOCAL || v.own == Own::Local(views.local_port))) {
       if let Some(waiter) = waiter {
         let _ = waiter.try_send(Ok(()));
       }
@@ -756,7 +763,7 @@ pub fn open(app: &AppHandle, id: &str, handed_over: bool, waiter: Option<OpenWai
       let outgoing = if local.as_ref().is_some_and(Option::is_none) {
         Err("unreachable".into())
       } else {
-        capture(&app)
+        capture(&app, turn)
       };
       let (state, id, origin, health) = (state.clone(), id.clone(), origin.clone(), health.as_ref().map(Health::code));
       let pending = state.clone();
@@ -795,14 +802,14 @@ pub fn open(app: &AppHandle, id: &str, handed_over: bool, waiter: Option<OpenWai
           return Ok(false);
         }
         if let Err(error) = &opened {
-          if error != "superseded" {
+          if error != "superseded" && error != "cancelled" {
             eprintln!("seismic: the workspace could not be selected: {error}");
           }
         }
         let mut views = state.views.lock().unwrap();
         if views.turn == turn {
           views.finish(opened.map_err(|e| match e.as_str() {
-            "drafts" | "unreachable" | "superseded" | "unknown" => e,
+            "drafts" | "unreachable" | "superseded" | "cancelled" | "unknown" => e,
             _ => "window".into(),
           }));
         }
@@ -863,13 +870,14 @@ pub fn draft_generation(app: &AppHandle) -> u64 {
 pub fn page_loaded(app: &AppHandle, label: &str, url: &Url) {
   let shell = shell(app);
   let mut windows = shell.views.lock().unwrap();
-  if let Some(window) = windows.active.as_mut().filter(|v| v.label == label) {
-    window.next = crate::next_of(url);
-    // An engine's error page also finishes at the address it could not load.
-    if let Some(token) = window.loading.as_ref().filter(|l| !l.verifying).map(|l| l.token) {
-      let (app, label) = (app.clone(), label.to_string());
-      thread::spawn(move || verify_load(&app, &label, token));
-    }
+  let Some(window) = windows.active.as_mut().filter(|v| v.label == label) else { return };
+  window.next = crate::next_of(url);
+  if window.loading.is_some() {
+    // A Finished event supersedes even a verification already waiting for the server.
+    let token = windows.load();
+    windows.active.as_mut().unwrap().loading = Some(token);
+    let (app, label) = (app.clone(), label.to_string());
+    thread::spawn(move || verify_load(&app, &label, token));
   }
 }
 
@@ -891,15 +899,13 @@ pub(super) fn watch_load(app: &AppHandle, label: &str, token: u64) {
 fn verify_load(app: &AppHandle, label: &str, token: u64) {
   let state = shell(app);
   let origin = {
-    let mut views = state.views.lock().unwrap();
-    let Some(view) = views.active.as_mut().filter(|v| v.label == label) else { return };
+    let views = state.views.lock().unwrap();
+    let Some(view) = views.active.as_ref().filter(|v| v.label == label && v.loading == Some(token)) else { return };
     let Own::Remote(origin) = view.own.clone() else { return };
-    let Some(load) = view.loading.as_mut().filter(|l| l.token == token && !l.verifying) else { return };
-    load.verifying = true;
     origin
   };
-  let shown = app.get_webview(label).is_some_and(|w| window::shows_workspace(&w, &origin, Duration::from_secs(2)));
   let health = remote::health(&origin);
+  let shown = app.get_webview(label).is_some_and(|w| window::shows_workspace(&w, &origin, Duration::from_secs(2)));
   let problem = match health {
     Health::Seismic if shown => None,
     Health::Seismic => Some("notLoaded"),
@@ -909,7 +915,7 @@ fn verify_load(app: &AppHandle, label: &str, token: u64) {
   let result = tauri::async_runtime::block_on(on_ui(app.clone(), move |app| {
     let state = shell(app);
     let mut views = state.views.lock().unwrap();
-    let Some(view) = views.active.as_mut().filter(|v| v.label == label && v.loading.as_ref().is_some_and(|l| l.token == token)) else {
+    let Some(view) = views.active.as_mut().filter(|v| v.label == label && v.loading == Some(token)) else {
       return Ok(());
     };
     view.loading = None;

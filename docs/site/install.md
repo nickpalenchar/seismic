@@ -22,6 +22,10 @@ app window. Press **Control–Command–1** for this machine and **Control–Com
 brings back its last page and unsent drafts. If this machine’s server stops while you are working
 in a remote workspace, you can keep working there. Start the local server again to switch back.
 
+When a draft attachment is still uploading, choose **Switch after upload** to keep it in your
+draft. **Discard and switch** cancels the pending attachment. **Go back** keeps the current
+workspace open and the upload running. The prompt requires an updated workspace and desktop app.
+
 ### Reconnect an offline workspace
 
 When the selected workspace is unreachable, the app shows its address and the reason it could
@@ -36,7 +40,8 @@ current workspace’s drafts, reconnect it or use Forward to return to its page,
 ### After an update
 
 Seismic restores the selected workspace in the app window and keeps unsent drafts from workspaces
-you switched away from. If the selected workspace is offline, it opens the recovery screen.
+you switched away from. A selected remote workspace reopens even if this machine’s server cannot
+start. If the remote workspace is offline, the app opens its recovery screen.
 If Seismic cannot save your work for the restart, it defers the update. A downloaded release remains
 available to install again. For a source checkout, a queued rebuild retries automatically.
 

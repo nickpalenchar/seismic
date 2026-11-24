@@ -1,5 +1,6 @@
 import './browserStateMigration';
 import { createRoot } from 'react-dom/client';
+import { AttachmentSwitchDialog, attachmentSwitch } from './attachmentSwitch';
 import { App } from './App';
 import { UiRoot } from './components/ui';
 import { upgradeAddress } from './address';
@@ -11,6 +12,7 @@ import { loadLanguageAndTheme } from './theme';
 
 upgradeAddress();
 if (window.seismicApp) {
+  window.seismicAttachmentSwitch = attachmentSwitch;
   window.seismicHandOver = handOver;
   window.seismicRestartHeld = restartHeld;
   window.seismicSnapshotSession = snapshotSession;
@@ -30,5 +32,6 @@ pinAboveKeyboard();
 createRoot(document.getElementById('root')!).render(
   <UiRoot>
     <App />
+    {window.seismicApp && <AttachmentSwitchDialog />}
   </UiRoot>,
 );

@@ -45,7 +45,8 @@ pub async fn open_desk(app: AppHandle, webview: Webview, id: String) -> Result<(
 
 async fn outgoing(app: &AppHandle) -> Result<Capture, String> {
   let app = app.clone();
-  tauri::async_runtime::spawn_blocking(move || capture(&app)).await.map_err(|e| e.to_string())?
+  let turn = shell(&app).views.lock().unwrap().turn;
+  tauri::async_runtime::spawn_blocking(move || capture(&app, turn)).await.map_err(|e| e.to_string())?
 }
 
 /// Pairs with the Seismic at `address` by the code its "Connect a device" shows, and once that went
@@ -217,9 +218,8 @@ pub async fn retry_desk(app: AppHandle, webview: Webview) -> Result<(), String> 
     }
     let start = Url::parse(&format!("{origin}{}", active.next)).map_err(|e| e.to_string())?;
     active.problem = None;
-    let load = views.load();
-    let token = load.token;
-    views.active.as_mut().ok_or("unknown")?.loading = Some(load);
+    let token = views.load();
+    views.active.as_mut().ok_or("unknown")?.loading = Some(token);
     drop(views);
     if let Err(error) = w.navigate(start) {
       let mut views = state.views.lock().unwrap();

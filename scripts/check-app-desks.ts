@@ -13,9 +13,9 @@
 // the native window count and the webview labels independently of the workspace list.
 
 import { type Subprocess } from 'bun';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { release, tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { ownerHeaders } from '../src/server/owner';
 import { bad, check, exited, expect, failed, sleep, until } from './check-harness';
 
@@ -37,6 +37,15 @@ const dir = mkdtempSync(join(tmpdir(), 'seismic-desks-check-'));
 const [home, remoteHome] = [join(dir, 'home'), join(dir, 'remote-home')];
 mkdirSync(home);
 mkdirSync(remoteHome);
+
+// A real project supplies the desktop composer and its paste/upload path.
+const repo = join(dir, 'lab');
+mkdirSync(repo);
+Bun.spawnSync(['git', 'init', '-q', repo]);
+writeFileSync(join(remoteHome, 'projects.json'), JSON.stringify([{ name: 'Lab', repos: [{ path: repo }] }]));
+// Take the launcher out of reach for one relaunch, even where a running executable is locked.
+const launcherDir = join(dir, 'launcher');
+symlinkSync(dirname(process.execPath), launcherDir, 'junction');
 
 // ---------------------------------------------------------------- the remote Seismic, behind a proxy
 const free = () => {
@@ -156,16 +165,26 @@ let remoteBusy = false;
 let busyChecks = 0;
 let seedDraft = true;
 // The next page request finds the remote gone, after its health check answered.
+let nextPage: (() => Promise<void>) | undefined;
+let liveComposer = false;
+let imageUpload: (() => Promise<Response>) | undefined;
 let dropPage = false;
 let pageError: 'http' | 'legacy' | undefined;
 const startProxy = (port = proxyPort) => {
-  return Bun.serve({
+  return Bun.serve<{ upstream: WebSocket }>({
     port,
     hostname: useIPv6 ? '::1' : HOST,
     async fetch(req, server) {
       const url = new URL(req.url);
       if (url.pathname === '/__seismic-check-frame') return new Response(FRAME, { headers: { 'content-type': 'text/html' } });
       if (url.pathname === '/__seismic-check-ipc') return new Response(IPC_FRAME, { headers: { 'content-type': 'text/html' } });
+      if (req.method === 'POST' && url.pathname.endsWith('/images') && imageUpload) return imageUpload();
+      if (nextPage && req.headers.get('accept')?.includes('text/html')) {
+        server.timeout(req, 0);
+        const held = nextPage;
+        nextPage = undefined;
+        await held();
+      }
       if (pageError && req.headers.get('accept')?.includes('text/html')) {
         // Older webviews omit the HTTP status from navigation timing entries.
         const timing = pageError === 'legacy' ? "<script>performance.getEntriesByType = () => []</script>" : '';
@@ -189,6 +208,16 @@ const startProxy = (port = proxyPort) => {
       headers.set('x-forwarded-for', '100.64.0.7');
       headers.set('x-forwarded-host', `${HOST}:${port}`);
       headers.set('x-forwarded-proto', 'http');
+      if (liveComposer && req.headers.get('upgrade')?.toLowerCase() === 'websocket') {
+        const ProxySocket = WebSocket as unknown as new (url: string, options: Bun.WebSocketOptions) => WebSocket;
+        const upstream = new ProxySocket(remoteUrl.replace('http:', 'ws:') + url.pathname, { headers: {
+          cookie: headers.get('cookie') ?? '', 'x-forwarded-for': '100.64.0.7',
+          'x-forwarded-host': `${HOST}:${port}`, 'x-forwarded-proto': 'http',
+        } });
+        if (server.upgrade(req, { data: { upstream } })) return;
+        upstream.close();
+        return new Response(null, { status: 400 });
+      }
       const body = req.method === 'GET' || req.method === 'HEAD' ? undefined : await req.arrayBuffer();
       const res = await fetch(`${remoteUrl}${url.pathname}${url.search}`, { method: req.method, headers, body, redirect: 'manual' });
       // fetch has decoded the body already
@@ -196,6 +225,20 @@ const startProxy = (port = proxyPort) => {
       back.delete('content-encoding');
       back.delete('content-length');
       return new Response(res.body, { status: res.status, headers: back });
+    },
+    websocket: {
+      open(socket) {
+        const upstream = socket.data.upstream;
+        upstream.onmessage = event => socket.send(event.data);
+        upstream.onclose = () => socket.close();
+        upstream.onerror = () => socket.close();
+      },
+      message(socket, data) {
+        const upstream = socket.data.upstream;
+        if (upstream.readyState === WebSocket.OPEN) upstream.send(data);
+        else upstream.addEventListener('open', () => upstream.send(data), { once: true });
+      },
+      close(socket) { socket.data.upstream.close(); },
     },
   });
 };
@@ -369,7 +412,7 @@ const env: Record<string, string> = {
   SEISMIC_PORT: String(4600 + Math.floor(Math.random() * 300)),
   // the debug shell runs this checkout's server
   SEISMIC_CHECKOUT: ROOT,
-  SEISMIC_BUN: process.execPath,
+  SEISMIC_BUN: join(launcherDir, basename(process.execPath)),
 };
 delete env.SEISMIC_SUPERVISED;
 delete env.OBEYA_SUPERVISED;
@@ -689,6 +732,26 @@ try {
     const remote = await reconnect();
     expect(remote.previousOverflowDraft === OVERFLOW_DRAFT && String(remote.href).endsWith(PAGE_BEFORE_BACK), JSON.stringify(remote));
   });
+  await check('a finished page supersedes the load check started while it was slow', async () => {
+    await select('local', 'local');
+    const page = Promise.withResolvers<void>(), checking = Promise.withResolvers<void>(), old = Promise.withResolvers<void>();
+    let probes = 0;
+    nextPage = () => page.promise;
+    onHealth = async () => { if (++probes === 2) { checking.resolve(); await old.promise; } };
+    const before = reports.length;
+    try {
+      send('open_desk', { id });
+      await Promise.race([checking.promise, sleep(22_000).then(() => { throw new Error('no timeout verification'); })]);
+      page.resolve();
+      await report('remote', before);
+      await until('a new verification for the finished page', 4000, () => probes >= 3);
+      old.resolve();
+      await sleep(700);
+      expect(displayed()?.kind === 'remote' && (await desks()).problem === null, 'stale check replaced the page');
+    } finally {
+      onHealth = undefined; page.resolve(); old.resolve(); nextPage = undefined;
+    }
+  });
   await check('a same-origin HTTP error shows recovery while the projects endpoint stays healthy', async () => {
     await select('local', 'local');
     pageError = 'http';
@@ -748,6 +811,23 @@ try {
     await select(id, 'remote');
     return 'unreachable, then selected once it answered';
   });
+  await check('relaunch restores the selected remote draft with the local executable missing', async () => {
+    const before = reports.length;
+    renameSync(launcherDir, launcherDir + '.held');
+    try {
+      await relaunch();
+      const restored = await report('remote', before, 20_000);
+      expect(!entry() && restored.previousOverflowDraft === OVERFLOW_DRAFT, 'lost the remote draft or started the local server');
+      expect((await run('open_desk', { id: 'local' })).error === 'unreachable', 'selected a missing local server');
+    } finally {
+      renameSync(launcherDir + '.held', launcherDir);
+    }
+    terminal = Bun.spawn([process.execPath, join(ROOT, 'src', 'server', 'main.ts'), '--port', String(oldPort)], { env, stdout: 'ignore', stderr: 'ignore' });
+    await until('the terminal server to return', 15_000, () => entry()?.url.endsWith(':' + oldPort));
+    await sleep(1200);
+    await appApi('/api/app-takeover').catch(() => null);
+    await until('the app-owned server after takeover', 20_000, () => entry() && !entry()!.url.endsWith(':' + oldPort));
+  });
   await check('a remote document keeps its edits when the local child or terminal server stops', async () => {
     const remoteLabel = displayed()?.label;
     let draft = 'Draft before the stop.';
@@ -782,6 +862,56 @@ try {
       expect(restored.previousOverflowDraft === OVERFLOW_DRAFT, JSON.stringify(restored));
     });
   }
+  await check('a pending screenshot offers wait, discard, and go back', async () => {
+    await select('local', 'local');
+    liveComposer = true;
+    await select(id, 'remote');
+    const paste = `(async () => {
+      const canvas = document.createElement('canvas'); canvas.width = canvas.height = 10;
+      const blob = await new Promise(resolve => canvas.toBlob(resolve));
+      const transfer = new DataTransfer(); transfer.items.add(new File([blob], 'capture.png', {type:'image/png'}));
+      const event = new Event('paste', {bubbles:true,cancelable:true});
+      Object.defineProperty(event, 'clipboardData', {value:transfer}); document.body.dispatchEvent(event);
+      return event.defaultPrevented;
+    })()`;
+    for (const choice of ['Switch after upload', 'Discard and switch']) {
+      const hit = Promise.withResolvers<void>(), release = Promise.withResolvers<void>();
+      const image = choice === 'Switch after upload' ? 'completed-shot' : 'discarded-shot';
+      imageUpload = async () => { hit.resolve(); await release.promise; return Response.json({ id: image }); };
+      try {
+        const pasted = await run('check_eval', { js: paste });
+        if (pasted.value !== true) throw new Error('the project did not accept the pasted screenshot: ' + JSON.stringify(await run('check_eval', { js: 'document.body.innerText.slice(0,300)' })));
+        await Promise.race([hit.promise, sleep(5000).then(() => { throw new Error('no upload'); })]);
+        const decide = async (button: string) => {
+          const js = `(() => {
+            const buttons = [...document.querySelectorAll('[role=alertdialog] button')];
+            if (buttons.map(b => b.textContent).join('|') !== 'Switch after upload|Discard and switch|Go back') return false;
+            buttons.find(b => b.textContent === ${JSON.stringify(button)}).click(); return true;
+          })()`;
+          await until('the three attachment choices', 6000, async () => (await run('check_eval', { js })).value === true);
+        };
+        const cancelled = send('open_desk', { id: 'local' });
+        await decide('Go back');
+        await until('Go back to cancel the selection', 5000, () => done.get(cancelled)?.error === 'cancelled');
+        expect((await desks()).current === id, 'Go back left the workspace');
+        const before = reports.length;
+        send('open_desk', { id: 'local' });
+        await decide(choice);
+        if (choice === 'Switch after upload') {
+          expect((await desks()).current === id, 'switched with the upload pending');
+          release.resolve();
+        }
+        await report('local', before);
+        release.resolve();
+        await select(id, 'remote');
+        const saved = await run('check_eval', { js: "JSON.stringify(Object.entries(sessionStorage))" });
+        expect(String(saved.value).includes('completed-shot') && !String(saved.value).includes('discarded-shot'), 'unexpected saved screenshots');
+      } finally {
+        imageUpload = undefined; release.resolve();
+      }
+    }
+  });
+  liveComposer = false;
   await check('removing a workspace cancels a pending switch without closing the window', async () => {
     const local = await select('local', 'local');
     const hit = Promise.withResolvers<void>();

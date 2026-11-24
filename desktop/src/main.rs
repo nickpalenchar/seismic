@@ -635,6 +635,7 @@ fn main() {
       let startup = window::build(&handle, desks::STARTUP, Own::Local(None), None, false)?;
       startup.navigate(window::bundled_url("/"))?;
       window::show_placed(&native, primary.as_ref(), primary.as_ref().is_some_and(|p| p.focused))?;
+      desks::restore_selected(&handle).map_err(std::io::Error::other)?;
       let updates = update::start(&handle, for_setup.clone());
       let seismic = for_setup.clone();
       thread::spawn(move || serve(handle, seismic, updates, handed_over));

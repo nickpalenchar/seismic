@@ -28,6 +28,14 @@ const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDat
 const escapeKey = 'Esc';
 
 const en = {
+  attachmentSwitch: {
+    title: 'An attachment is still uploading',
+    message: 'Switch after the upload finishes to keep the attachment with your draft.',
+    waiting: 'Waiting for attachments to finish uploading…',
+    wait: 'Switch after upload',
+    discard: 'Discard and switch',
+    back: 'Go back',
+  },
   extensionActions: 'More actions',
   kind: { task: 'Task', question: 'Question', plan: 'Plan', workstream: 'Workstream', idea: 'Idea', prototype: 'Prototype', becomesPlan: 'Idea → Plan', taskBecomesPlan: 'Task → Plan' },
   state: {

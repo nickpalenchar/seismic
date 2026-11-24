@@ -70,6 +70,7 @@ declare global {
     seismicApp?: { version: string; platform: string; built?: string | null; handedOver?: boolean };
     /** Called by the app before its shell starts again while the server runs on (`handOver`). */
     seismicHandOver?: (token: string, signal?: AbortSignal) => Promise<void>;
+    seismicAttachmentSwitch?: typeof import('./attachmentSwitch').attachmentSwitch;
     seismicRestartHeld?: () => boolean;
     seismicSnapshotSession?: () => string[][];
     seismicRestoredDrafts?: Set<string>;

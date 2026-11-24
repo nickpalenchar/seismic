@@ -3,6 +3,7 @@
 // those not sent yet take marks (marks.ts). Other files dropped go into the text by their path, for
 // the agent to read them (`fileTo`).
 
+import { beginAttachment } from './attachmentSwitch';
 import { cn } from 'cn';
 import { Image as ImageIcon, Undo2 } from 'lucide-react';
 import { type ClipboardEvent, type DragEvent, type MouseEvent, type PointerEvent, useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -69,15 +70,20 @@ export async function attachTo(key: string, files: File[], added?: () => void) {
   const into = draftIn(key);
   // stored with the project they were added on, also once the owner has switched to another
   const project = shownProject();
-  for (const f of files) {
+  for (const { f, signal, finish } of files.map(f => ({ f, ...beginAttachment() }))) {
+    let ok = false;
     try {
-      const id = await api.uploadImage(await prepareImage(await withBytes(f)), project);
+      if (signal.aborted) continue;
+      const id = await api.uploadImage(await prepareImage(await withBytes(f)), project, signal);
+      if (signal.aborted) continue;
       into.update((d) => ({ images: [...d.images, id] }));
       arrived++;
+      ok = true;
       if (into.here()) added?.();
     } catch (e) {
-      into.update({ error: failText(e) });
+      if (!signal.aborted) into.update({ error: failText(e) });
     } finally {
+      finish(ok);
       into.update((d) => ({ uploading: d.uploading - 1, uploadingImages: d.uploadingImages - 1 }));
     }
   }
@@ -96,20 +102,25 @@ export async function fileTo(key: string, files: File[], put: (path: string) => 
   updateDraft(key, (d) => ({ error: '', uploading: d.uploading + files.length }));
   const into = draftIn(key);
   const project = shownProject();
-  for (const f of files) {
+  for (const { f, signal, finish } of files.map(f => ({ f, ...beginAttachment() }))) {
+    let ok = false;
     try {
+      if (signal.aborted) continue;
       const own = droppedPath(f) ?? (await api.findFile(f, project).catch(() => null));
       if (!own && f.size > MAX_FILE_BYTES) throw new ApiError('fileTooLarge', '');
-      const path = own ?? (await api.uploadFile(f, project));
+      const path = own ?? (await api.uploadFile(f, project, signal));
+      if (signal.aborted) continue;
       if (into.here()) put(path);
       else {
         const word = pathWord(path);
         into.update((d) => ({ text: appended(d.text, word), files: [...(d.files ?? []), word] }));
       }
       arrived++;
+      ok = true;
     } catch (e) {
-      into.update({ error: failText(e) });
+      if (!signal.aborted) into.update({ error: failText(e) });
     } finally {
+      finish(ok);
       into.update((d) => ({ uploading: d.uploading - 1 }));
     }
   }
@@ -210,17 +221,22 @@ export function useShotInput({ draft, name, initial = [], onChange, off = false,
       };
       if (!marks.length) return into(original);
       updateDraft(key, (d) => ({ error: '', marking: [...d.marking, id] }));
+      const { signal, finish } = beginAttachment();
+      let ok = false;
       const draft = draftIn(key);
       const project = shownProject();
       try {
-        const next = await api.uploadImage(await markedImage(imageUrl(original), marks), project);
+        const next = await api.uploadImage(await markedImage(imageUrl(original), marks), project, signal);
+        if (signal.aborted) return;
+        ok = true;
         // a switch to another project meanwhile: the marked image takes the original's place in the draft kept for the one it was marked on
         if (!draft.here()) return draft.update((d) => ({ images: d.images.map((x) => (x === id ? next : x)) }));
         setMarkup(next, { original, marks });
         into(next);
       } catch (e) {
-        if (draft.here()) failed(e);
+        if (!signal.aborted && draft.here()) failed(e);
       } finally {
+        finish(ok);
         draft.update((d) => ({ marking: d.marking.filter((x) => x !== id) }));
         settle();
       }
