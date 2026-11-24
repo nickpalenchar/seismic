@@ -449,9 +449,14 @@ Safety rules:
   again, checked when the load finishes or after 15 seconds (WebKit reports no event for a failed
   load), and otherwise shows the status page. Selecting this machine's workspace first asks its
   server for a sign-in link, since the shell keeps the port while that server stops (2026-11-24).
-- Desktop workspace health checks carry no device cookie. The shell recognizes Seismic's
-  `401 notPaired` response and a projects list marked `X-Seismic: projects` when a proxy
-  admits the request. A generic JSON response at that path cannot authorize opening a workspace.
+- Desktop workspace health checks carry no device cookie. The shell asks `GET /api/v1/health`,
+  a fixed answer (`{ service: "seismic", status: "ok" }`) whose size does not grow with the
+  workspace, and reads at most 4 KiB of it. It recognizes that answer and Seismic's
+  `401 notPaired` response. A Seismic from before that route answers it with a 404: the shell then
+  asks `/api/projects` and accepts a 200 marked `X-Seismic: projects` without reading the list, or
+  `401 notPaired`. Any other answer, a generic JSON response included, cannot authorize opening a
+  workspace. The local server checks (`instance.ts`, the shell's local `answers()`) stay on
+  `/api/projects`, since during an update the old server may not have the route (2026-11-24).
 - The desktop shell creates webviews on the UI thread with a blank document. It loads the first
   workspace page only after installing the native guards. WebView2's controller is thread-bound,
   and WebKitGTK's media policy needs to see the first document commit (2026-11-23).

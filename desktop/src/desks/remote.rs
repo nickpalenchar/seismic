@@ -8,7 +8,7 @@ use std::{io::Read, time::Duration};
 use serde_json::Value;
 use tauri::Url;
 
-const PROJECTS_LIMIT: u64 = 1024 * 1024;
+const HEALTH_LIMIT: u64 = 4 * 1024;
 const PAIR_LIMIT: u64 = 16 * 1024;
 
 fn bounded_json(reader: impl Read, limit: u64) -> Option<Value> {
@@ -37,7 +37,7 @@ fn agent() -> ureq::Agent {
 /// What answers at an origin.
 #[derive(Debug, PartialEq)]
 pub enum Health {
-  /// Seismic: its projects, or its refusal of a device it does not know.
+  /// Seismic: its health answer, or its refusal of a device it does not know.
   Seismic,
   /// Nothing answers: no such name, no connection, a certificate the system does not trust.
   Unreachable,
@@ -55,26 +55,48 @@ impl Health {
   }
 }
 
-/// Asks `origin` for its projects, as its page does, without the window's device cookie (the shell
-/// has none of its own): Seismic identifies its projects response or returns its JSON refusal (`notPaired`).
-pub fn health(origin: &str) -> Health {
-  let res = match agent().get(&format!("{origin}/api/projects")).set("accept", "application/json").call() {
-    Ok(res) | Err(ureq::Error::Status(_, res)) => res,
-    Err(_) => return Health::Unreachable,
-  };
-  let status = res.status();
-  let projects = res.header("x-seismic").is_some_and(|value| value == "projects");
-  let body = match (status, projects) {
-    (200, true) => response_json(res, PROJECTS_LIMIT),
-    (401, _) => response_json(res, PAIR_LIMIT),
-    _ => None,
-  };
-  judge(status, projects, body.as_ref())
+fn get(origin: &str, path: &str) -> Result<ureq::Response, Health> {
+  match agent().get(&format!("{origin}{path}")).set("accept", "application/json").call() {
+    Ok(res) | Err(ureq::Error::Status(_, res)) => Ok(res),
+    Err(_) => Err(Health::Unreachable),
+  }
 }
 
-fn judge(status: u16, projects: bool, body: Option<&Value>) -> Health {
+/// Asks `origin` whether Seismic answers there (`GET /api/v1/health`), without the window's device
+/// cookie (the shell has none of its own): Seismic names itself in a few bytes, however large its
+/// workspace, or returns its JSON refusal (`notPaired`). A Seismic from before that route answers
+/// it with a 404 and is asked for its projects instead.
+pub fn health(origin: &str) -> Health {
+  let res = match get(origin, "/api/v1/health") {
+    Ok(res) => res,
+    Err(problem) => return problem,
+  };
+  let status = res.status();
+  if status == 404 {
+    return earlier_health(origin);
+  }
+  let body = matches!(status, 200 | 401).then(|| response_json(res, HEALTH_LIMIT)).flatten();
+  judge(status, body.as_ref())
+}
+
+/// A Seismic from before `/api/v1/health` marks its projects response (`X-Seismic: projects`); the
+/// list itself goes unread, as long as it may be.
+fn earlier_health(origin: &str) -> Health {
+  let res = match get(origin, "/api/projects") {
+    Ok(res) => res,
+    Err(problem) => return problem,
+  };
+  let status = res.status();
+  if status == 200 && res.header("x-seismic") == Some("projects") {
+    return Health::Seismic;
+  }
+  let body = (status == 401).then(|| response_json(res, PAIR_LIMIT)).flatten();
+  judge(status, body.as_ref())
+}
+
+fn judge(status: u16, body: Option<&Value>) -> Health {
   match (status, body) {
-    (200, Some(Value::Array(_))) if projects => Health::Seismic,
+    (200, Some(b)) if b["service"].as_str() == Some("seismic") => Health::Seismic,
     (401, Some(b)) if b["code"].as_str() == Some("notPaired") => Health::Seismic,
     _ => Health::NotSeismic,
   }
@@ -128,30 +150,52 @@ mod tests {
   use serde_json::json;
   use std::{io::{self, BufRead, BufReader, Write}, net::TcpListener};
 
-  fn reply(header: &str, body: String) -> String {
+  /// A server answering each path it is given with its status line (and headers) and body, as long
+  /// as the test runs; any other path gets a plain 404, as Bun's does for an unknown route.
+  fn serve(routes: Vec<(&str, &str, String)>) -> String {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let origin = format!("http://{}", listener.local_addr().unwrap());
-    let header = header.to_string();
+    let routes: Vec<(String, String, String)> = routes.into_iter().map(|(p, h, b)| (p.into(), h.into(), b)).collect();
     std::thread::spawn(move || {
-      let (stream, _) = listener.accept().unwrap();
-      let mut stream = BufReader::new(stream);
-      let mut line = String::new();
-      let mut length = 0;
-      while stream.read_line(&mut line).unwrap() != 0 && !line.trim().is_empty() {
-        if let Some((name, value)) = line.split_once(':') {
-          if name.eq_ignore_ascii_case("content-length") {
-            length = value.trim().parse().unwrap();
-          }
+      for stream in listener.incoming() {
+        let Ok(stream) = stream else { return };
+        let mut stream = BufReader::new(stream);
+        let mut line = String::new();
+        if stream.read_line(&mut line).is_err() {
+          continue;
         }
+        let path = line.split_whitespace().nth(1).unwrap_or("").to_string();
+        let mut length = 0;
         line.clear();
+        while stream.read_line(&mut line).unwrap_or(0) != 0 && !line.trim().is_empty() {
+          if let Some((name, value)) = line.split_once(':') {
+            if name.eq_ignore_ascii_case("content-length") {
+              length = value.trim().parse().unwrap();
+            }
+          }
+          line.clear();
+        }
+        // Pairing is a POST. Closing while request bytes are unread can reset the connection
+        // instead of letting the client read the oversized response.
+        let _ = io::copy(&mut stream.by_ref().take(length), &mut io::sink());
+        let Some((_, header, body)) = routes.iter().find(|(p, _, _)| *p == path) else {
+          let _ = write!(stream.get_mut(), "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\nContent-Length: 9\r\nConnection: close\r\n\r\nNot found");
+          continue;
+        };
+        // A chunked response does not advertise its size. The client can stop as soon as it hits its limit.
+        let _ = write!(stream.get_mut(), "HTTP/1.1 {header}\r\nTransfer-Encoding: chunked\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{:x}\r\n{body}\r\n0\r\n\r\n", body.len());
       }
-      // Pairing is a POST. Closing while request bytes are unread can reset the connection
-      // instead of letting the client read the oversized response.
-      io::copy(&mut stream.by_ref().take(length), &mut io::sink()).unwrap();
-      // A chunked response does not advertise its size. The client can stop as soon as it hits its limit.
-      let _ = write!(stream.get_mut(), "HTTP/1.1 {header}\r\nTransfer-Encoding: chunked\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{:x}\r\n{body}\r\n0\r\n\r\n", body.len());
     });
     origin
+  }
+
+  const HEALTHY: &str = r#"{"service":"seismic","status":"ok"}"#;
+  const NOT_PAIRED: &str = r#"{"code":"notPaired","error":"this device is not paired with Seismic"}"#;
+
+  /// A project list well beyond any limit the shell reads to.
+  fn many_projects() -> String {
+    let project = r#"{"id":"web","name":"Web","waiting":0},"#;
+    format!("[{}{{}}]", project.repeat(4 * 1024 * 1024 / project.len()))
   }
 
   #[test]
@@ -165,24 +209,62 @@ mod tests {
   }
 
   #[test]
+  fn a_large_workspace_answers_on_opening_and_on_retrying() {
+    let studio = serve(vec![("/api/v1/health", "200 OK", HEALTHY.into()), ("/api/projects", "200 OK\r\nX-Seismic: projects", many_projects())]);
+    assert_eq!(health(&studio), Health::Seismic);
+    assert_eq!(health(&studio), Health::Seismic);
+  }
+
+  #[test]
+  fn a_signed_out_seismic_answers_with_its_refusal() {
+    let studio = serve(vec![("/api/v1/health", "401 Unauthorized", NOT_PAIRED.into()), ("/api/projects", "401 Unauthorized", NOT_PAIRED.into())]);
+    assert_eq!(health(&studio), Health::Seismic);
+    let login = serve(vec![("/api/v1/health", "401 Unauthorized", r#"{"code":"loginRequired"}"#.into())]);
+    assert_eq!(health(&login), Health::NotSeismic);
+  }
+
+  #[test]
+  fn a_seismic_from_before_the_health_route_answers_with_its_marked_projects() {
+    let large = serve(vec![("/api/projects", "200 OK\r\nX-Seismic: projects", many_projects())]);
+    assert_eq!(health(&large), Health::Seismic);
+    assert_eq!(health(&large), Health::Seismic);
+    let signed_out = serve(vec![("/api/projects", "401 Unauthorized", NOT_PAIRED.into())]);
+    assert_eq!(health(&signed_out), Health::Seismic);
+  }
+
+  #[test]
+  fn another_service_is_not_seismic() {
+    assert_eq!(health(&serve(vec![])), Health::NotSeismic);
+    assert_eq!(health(&serve(vec![("/api/projects", "200 OK", "[]".into())])), Health::NotSeismic);
+    assert_eq!(health(&serve(vec![("/api/v1/health", "200 OK", r#"{"status":"ok"}"#.into())])), Health::NotSeismic);
+    assert_eq!(health(&serve(vec![("/api/v1/health", "200 OK", r#"{"service":"other","status":"ok"}"#.into())])), Health::NotSeismic);
+    assert_eq!(health(&serve(vec![("/api/v1/health", "403 Forbidden", NOT_PAIRED.into())])), Health::NotSeismic);
+    // a health answer that is not a 404 is final: a marked projects list does not overrule it
+    let both = serve(vec![("/api/v1/health", "500 Internal Server Error", "{}".into()), ("/api/projects", "200 OK\r\nX-Seismic: projects", "[]".into())]);
+    assert_eq!(health(&both), Health::NotSeismic);
+  }
+
+  #[test]
   fn oversized_health_and_pairing_responses_use_the_normal_error_paths() {
-    let projects = reply("200 OK\r\nX-Seismic: projects", format!("[]{}", " ".repeat(PROJECTS_LIMIT as usize)));
-    assert_eq!(health(&projects), Health::NotSeismic);
-    let refused = reply("401 Unauthorized", format!(r#"{{"code":"notPaired"}}{}"#, " ".repeat(PAIR_LIMIT as usize)));
+    let healthy = serve(vec![("/api/v1/health", "200 OK", format!("{HEALTHY}{}", " ".repeat(HEALTH_LIMIT as usize)))]);
+    assert_eq!(health(&healthy), Health::NotSeismic);
+    let refused = serve(vec![("/api/v1/health", "401 Unauthorized", format!("{NOT_PAIRED}{}", " ".repeat(HEALTH_LIMIT as usize)))]);
     assert_eq!(health(&refused), Health::NotSeismic);
-    let pairing = reply("401 Unauthorized", format!(r#"{{"code":"wrongCode"}}{}"#, " ".repeat(PAIR_LIMIT as usize)));
+    let earlier = serve(vec![("/api/projects", "401 Unauthorized", format!("{NOT_PAIRED}{}", " ".repeat(PAIR_LIMIT as usize)))]);
+    assert_eq!(health(&earlier), Health::NotSeismic);
+    let pairing = serve(vec![("/api/pair", "401 Unauthorized", format!(r#"{{"code":"wrongCode"}}{}"#, " ".repeat(PAIR_LIMIT as usize)))]);
     assert_eq!(pair(&pairing, "123456"), Err("notSeismic"));
   }
 
   #[test]
-  fn seismic_answers_with_its_projects_or_its_refusal() {
-    assert_eq!(judge(200, true, Some(&json!([]))), Health::Seismic);
-    assert_eq!(judge(401, false, Some(&json!({ "code": "notPaired" }))), Health::Seismic);
-    assert_eq!(judge(200, false, Some(&json!([]))), Health::NotSeismic);
-    assert_eq!(judge(200, false, Some(&json!({ "projects": [] }))), Health::NotSeismic);
-    assert_eq!(judge(200, true, None), Health::NotSeismic);
-    assert_eq!(judge(401, false, Some(&json!({ "code": "loginRequired" }))), Health::NotSeismic);
-    assert_eq!(judge(403, false, Some(&json!({ "code": "notPaired" }))), Health::NotSeismic);
+  fn seismic_answers_with_its_name_or_its_refusal() {
+    assert_eq!(judge(200, Some(&json!({ "service": "seismic", "status": "ok" }))), Health::Seismic);
+    assert_eq!(judge(401, Some(&json!({ "code": "notPaired" }))), Health::Seismic);
+    assert_eq!(judge(200, Some(&json!([]))), Health::NotSeismic);
+    assert_eq!(judge(200, None), Health::NotSeismic);
+    assert_eq!(judge(401, Some(&json!({ "service": "seismic" }))), Health::NotSeismic);
+    assert_eq!(judge(401, Some(&json!({ "code": "loginRequired" }))), Health::NotSeismic);
+    assert_eq!(judge(403, Some(&json!({ "code": "notPaired" }))), Health::NotSeismic);
   }
 
   #[test]

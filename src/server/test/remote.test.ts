@@ -205,9 +205,14 @@ describe('pairing', () => {
     expect(page.status).toBe(401);
     expect(await page.text()).toContain('This device is not connected to Seismic');
     expect(await (await viaTailnet('/api/projects')).json()).toMatchObject({ code: 'notPaired' });
+    // the desktop shell's health check takes this refusal as Seismic's
+    const health = await viaTailnet('/api/v1/health');
+    expect(health.status).toBe(401);
+    expect(await health.json()).toMatchObject({ code: 'notPaired' });
     expect(await opens({ host: NAME, 'x-forwarded-for': '100.64.0.7', origin: `https://${NAME}` })).toBeNull();
     // this machine itself needs none
     expect((await local('/api/projects')).status).toBe(200);
+    expect(await (await local('/api/v1/health')).json()).toEqual({ service: 'seismic', status: 'ok' });
   });
 
   test('the code from the QR code pairs the phone once; it then opens the project, until it is removed', async () => {

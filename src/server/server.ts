@@ -537,7 +537,7 @@ export function serve(
           return device ? handle(() => push.unsubscribe(device)) : onlyDevices();
         },
       },
-      // The desktop shell recognizes this response when a proxy lets its health check through without pairing.
+      // Desktop shells from before /api/v1/health recognize this marker in their health check.
       '/api/projects': { GET: () => Response.json(projectList(), { headers: { 'x-seismic': 'projects' } }) },
       // what waits for the owner on each project, for a page without a project's connection (the feedback log, an address naming none)
       '/api/waiting': { GET: () => Response.json(waiting satisfies Record<string, Waiting>) },

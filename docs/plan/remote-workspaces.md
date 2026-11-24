@@ -158,8 +158,9 @@ wry 0.57.3, the versions the spike verified.
   neither (W1).
 - **Navigation and health:** each remote webview admits its origin and the bundled status page.
   WebView2 also checks frame navigations. Off-origin links and popups share a browser handoff limit.
-  The shell asks the destination for `GET /api/projects` without a cookie before switching.
-  It expects the `X-Seismic: projects` response marker or Seismic's `401 notPaired` response.
+  The shell asks the destination for `GET /api/v1/health` without a cookie before switching.
+  It expects that route's fixed answer naming Seismic or Seismic's `401 notPaired` response; a
+  404 from an older Seismic falls back to `/api/projects` and its `X-Seismic: projects` marker.
   The latest selection takes precedence while a health check is running.
 - **Relaunch:** `app-windows.json` records the selected workspace and one native placement, plus
   each visited workspace's last page and unsent drafts. Older snapshots retain their routes and
