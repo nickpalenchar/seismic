@@ -405,6 +405,18 @@ fn pause_check_placement() {
   }
 }
 
+#[cfg(debug_assertions)]
+fn pause_check_updating(home: &Path) {
+  // The app check lets the updating screen finish loading before relaunch exits.
+  if crate::seismic_env("APP_CHECK").is_some() {
+    let held = home.join("check-hold-updating");
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    while held.exists() && std::time::Instant::now() < deadline {
+      thread::sleep(Duration::from_millis(25));
+    }
+  }
+}
+
 fn stage_placements(home: &Path, mut windows: Vec<Placed>, installer: bool, local_page: Option<&str>) -> io::Result<(placed::Staged, Vec<Placed>)> {
   // After an installer returns the local window shows the updater. Keep its previous route,
   // alongside the geometry, open windows and drafts captured after the dialog closes.
@@ -477,6 +489,8 @@ pub fn install(app: &AppHandle, seismic: &Seismic, updates: &Updates) -> Install
   }
   if let Some(w) = local_view(app) {
     let _ = w.navigate(crate::window::bundled_url("/index.html?updating"));
+    #[cfg(debug_assertions)]
+    pause_check_updating(&crate::home());
   }
   let (snapshot, windows) = if let Some(release) = release {
     if seismic.stopping.load(Ordering::SeqCst) {

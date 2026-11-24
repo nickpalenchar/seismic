@@ -15,7 +15,7 @@
 // the native window count and the webview labels independently of the workspace list.
 
 import { type Subprocess } from 'bun';
-import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { release, tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { ownerHeaders } from '../src/server/owner';
@@ -374,19 +374,25 @@ if (location.origin === ${JSON.stringify(REMOTE)}) {
     document.body.append(f);
   });
   await post('result', mic);
-} else if (location.pathname.endsWith('/status.html')) {
-  startCommands('status');
-  async function checkStatus() {
-    await new Promise((r) => setTimeout(r, 500));
-    const help = document.getElementById('recovery-help');
-    await post('result', {
-      ...identity, kind: 'status', title: document.getElementById('title').textContent,
-      documentTitle: document.title, why: document.getElementById('why').textContent,
-      help: help?.textContent, helpHref: help?.href, desks: await outcome(invoke('desks')),
-    });
+} else if (location.protocol === 'tauri:' || location.hostname === 'tauri.localhost') {
+  if (location.pathname === '/' || (location.pathname === '/index.html' && location.search !== '?updating')) {
+    await post('result', { ...identity, kind: 'startup', href: location.href, what: document.getElementById('what')?.textContent ?? null });
+  } else if (location.pathname === '/index.html' && location.search === '?updating') {
+    await post('result', { ...identity, kind: 'updating', href: location.href, what: document.getElementById('what')?.textContent ?? null });
+  } else if (location.pathname === '/status.html') {
+    startCommands('status');
+    async function checkStatus() {
+      await new Promise((r) => setTimeout(r, 500));
+      const help = document.getElementById('recovery-help');
+      await post('result', {
+        ...identity, kind: 'status', title: document.getElementById('title').textContent,
+        documentTitle: document.title, why: document.getElementById('why').textContent,
+        help: help?.textContent, helpHref: help?.href, desks: await outcome(invoke('desks')),
+      });
+    }
+    addEventListener('pageshow', (event) => { if (event.persisted) void checkStatus(); });
+    await checkStatus();
   }
-  addEventListener('pageshow', (event) => { if (event.persisted) void checkStatus(); });
-  await checkStatus();
 } else if (location.protocol === 'http:' && location.hostname === '127.0.0.1') {
   if (location.port === ${JSON.stringify(String(oldPort))} && location.pathname !== '/workspaces') history.replaceState(null, '', '/?takeover-check=kept');
   addEventListener('seismic-desks', async () => post('result', { kind: 'desksChanged', ...(await outcome(invoke('desks'))) }));
@@ -536,6 +542,7 @@ const env: Record<string, string> = {
   ...(process.env as Record<string, string>),
   SEISMIC_HOME: home,
   SEISMIC_APP_CHECK: `${harness.url.href}check.js`,
+  SEISMIC_APP_CHECK_BUNDLED: '1',
   // WebKit's mock microphone on a Mac without one (desktop/src/window/microphone/macos.rs)
   SEISMIC_APP_CHECK_FAKE_MIC: '1',
   ...(legacyMic && forceLegacyMic ? { SEISMIC_APP_CHECK_LEGACY_MIC: '1' } : {}),
@@ -1025,6 +1032,31 @@ async function checkApp() {
     const local = await run('check_eval', { js: "new Map(window.seismicSnapshotSession?.() ?? Object.entries(sessionStorage)).get('seismic-drafts-check')" });
     expect(local.value === 'Draft on this machine', JSON.stringify(local));
   });
+  const bundleOrigin = process.platform === 'win32' ? 'http://tauri.localhost' : 'tauri://localhost';
+  if (debugFailures) {
+    await check('updating and startup screens load in this machine’s window and complete startup', async () => {
+      const current = displayed()!;
+      const holdUpdating = join(home, 'check-hold-updating');
+      const holdStartup = join(home, 'check-hold-startup');
+      writeFileSync(holdUpdating, '');
+      writeFileSync(holdStartup, '');
+      const before = reports.length;
+      try {
+        await relaunch();
+        const updating = await report('updating', before, 15_000);
+        expect(updating.label === current.label && updating.what === 'Seismic is updating …' && String(updating.href) === `${bundleOrigin}/index.html?updating`, JSON.stringify(updating));
+        rmSync(holdUpdating, { force: true });
+        const startup = await report('startup', before, 20_000);
+        expect(startup.label === 'startup' && startup.what === 'Seismic is starting …' && String(startup.href) === `${bundleOrigin}/`, JSON.stringify(startup));
+        rmSync(holdStartup, { force: true });
+        const resumed = await report('local', before, 20_000);
+        expect(resumed.windows === 1 && resumed.label !== 'startup', JSON.stringify(resumed));
+      } finally {
+        rmSync(holdUpdating, { force: true });
+        rmSync(holdStartup, { force: true });
+      }
+    });
+  }
   await check('two offline rebuilds keep the selected workspace and its drafts', async () => {
     proxy.server!.stop(true);
     proxy.server = undefined;
@@ -1306,6 +1338,43 @@ async function checkApp() {
     }
   });
   liveComposer = false;
+  const rejectBundledNavigations = async (paths: string[], expectedOrigin: string) => {
+    const before = reports.length;
+    const handoffs = join(home, 'check-browser-handoffs');
+    rmSync(handoffs, { force: true });
+    const href = await run('check_eval', {
+      js: `(async () => {
+        for (const path of ${JSON.stringify(paths)}) {
+          try { location.assign(${JSON.stringify(bundleOrigin)} + path); } catch {}
+          await new Promise((r) => setTimeout(r, 120));
+        }
+        return location.href;
+      })()`,
+    });
+    expect(href.ok && String(href.value).startsWith(expectedOrigin), JSON.stringify(href));
+    await sleep(250);
+    expect(!existsSync(handoffs), `blocked bundled URL opened in browser: ${existsSync(handoffs) ? readFileSync(handoffs, 'utf8') : ''}`);
+    expect(
+      !reports.slice(before).some((r) => ['startup', 'updating', 'status'].includes(String(r.kind))),
+      `blocked navigation loaded a bundled screen: ${JSON.stringify(reports.slice(before))}`,
+    );
+  };
+  await check('native navigation keeps disallowed bundled screens out of each workspace', async () => {
+    const remoteBefore = displayed()!;
+    expect(String(remoteBefore.href).startsWith(REMOTE), JSON.stringify(remoteBefore));
+    await rejectBundledNavigations(['/', '/index.html', '/index.html?updating', '/status.html?x', '/status.html#y', '/other.html'], REMOTE);
+    const localPage = await select('local', 'local');
+    await rejectBundledNavigations(['/status.html', '/status.html?x', '/other.html'], new URL(String(localPage.href)).origin);
+    proxy.server!.stop(true);
+    proxy.server = undefined;
+    try {
+      await select(id, 'status');
+      await rejectBundledNavigations(['/', '/index.html', '/index.html?updating', '/status.html?x', '/other.html'], `${bundleOrigin}/status.html`);
+    } finally {
+      proxy.server = startProxy();
+    }
+    await reconnect();
+  });
   await check('removing a workspace cancels a pending switch without closing the window', async () => {
     const local = await select('local', 'local');
     const hit = Promise.withResolvers<void>();

@@ -77,29 +77,46 @@ impl Own {
 
   /// Whether the window may show `url`: its origin's page, or one the shell bundles.
   pub fn admits(&self, url: &Url) -> bool {
-    self.at(url) || bundled(url) && match self {
+    self.admits_at(BUNDLE, url)
+  }
+
+  fn admits_at(&self, bundle: &str, url: &Url) -> bool {
+    self.at(url) || bundled_at(bundle, url) && match self {
       Own::Local(_) => matches!(url.path(), "/" | "/index.html"),
-      Own::Remote(_) => *url == bundled_url("/status.html"),
+      Own::Remote(_) => *url == bundled_url_at(bundle, "/status.html"),
     }
   }
 }
 
+#[cfg_attr(windows, allow(dead_code))]
+const BUNDLE_UNIX: &str = "tauri://localhost";
+#[cfg_attr(not(windows), allow(dead_code))]
+const BUNDLE_WINDOWS: &str = "http://tauri.localhost";
+
 #[cfg(windows)]
-const BUNDLE: &str = "http://tauri.localhost";
+const BUNDLE: &str = BUNDLE_WINDOWS;
 #[cfg(not(windows))]
-const BUNDLE: &str = "tauri://localhost";
+const BUNDLE: &str = BUNDLE_UNIX;
 
 pub fn bundled_url(path: &str) -> Url {
-  Url::parse(&format!("{BUNDLE}{path}")).expect("bundled page URL")
+  bundled_url_at(BUNDLE, path)
+}
+
+fn bundled_url_at(bundle: &str, path: &str) -> Url {
+  Url::parse(&format!("{bundle}{path}")).expect("bundled page URL")
 }
 
 /// Open a workspace page in the browser. The bundled status screen stands in for its origin.
 pub fn browser_target(page: Url, own: &Own) -> Option<Url> {
+  browser_target_at(BUNDLE, page, own)
+}
+
+fn browser_target_at(bundle: &str, page: Url, own: &Own) -> Option<Url> {
   if own.at(&page) {
     return Some(page);
   }
   if let Own::Remote(origin) = own {
-    if page == bundled_url("/status.html") {
+    if page == bundled_url_at(bundle, "/status.html") {
       return Url::parse(origin).ok();
     }
   }
@@ -108,7 +125,11 @@ pub fn browser_target(page: Url, own: &Own) -> Option<Url> {
 
 /// The app's entry points, at the protocol and authority used by this engine.
 fn bundled(url: &Url) -> bool {
-  let entry = bundled_url("/");
+  bundled_at(BUNDLE, url)
+}
+
+fn bundled_at(bundle: &str, url: &Url) -> bool {
+  let entry = bundled_url_at(bundle, "/");
   url.scheme() == entry.scheme()
     && url.host_str() == entry.host_str()
     && url.port().is_none()
@@ -125,7 +146,7 @@ const HANDOFF_GAP: Duration = Duration::from_secs(1);
 
 impl Handoff {
   fn may(&self, url: &Url, now: Instant) -> bool {
-    if !matches!(url.scheme(), "http" | "https" | "mailto") {
+    if !matches!(url.scheme(), "http" | "https" | "mailto") || url.host_str() == Some("tauri.localhost") {
       return false;
     }
     let mut last = self.0.lock().unwrap();
@@ -135,6 +156,33 @@ impl Handoff {
     *last = Some(now);
     true
   }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum Navigation {
+  Allow,
+  OpenInBrowser,
+  Block,
+}
+
+fn decide_navigation_with(admitted: bool, handoff: &Handoff, url: &Url, now: Instant) -> Navigation {
+  if admitted {
+    return Navigation::Allow;
+  }
+  if handoff.may(url, now) {
+    Navigation::OpenInBrowser
+  } else {
+    Navigation::Block
+  }
+}
+
+fn decide_navigation(own: &Own, handoff: &Handoff, url: &Url, now: Instant) -> Navigation {
+  decide_navigation_with(own.admits(url), handoff, url, now)
+}
+
+#[cfg(test)]
+fn decide_navigation_at(own: &Own, handoff: &Handoff, bundle: &str, url: &Url, now: Instant) -> Navigation {
+  decide_navigation_with(own.admits_at(bundle, url), handoff, url, now)
 }
 
 /// A file name in `dir` that is not taken yet: `name`, else `name (2)` and so on.
@@ -275,6 +323,7 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
   } else {
     None
   };
+  let check_bundled = seismic_env("APP_CHECK_BUNDLED").is_some();
   let blank = Url::parse("about:blank").unwrap();
   #[cfg(target_os = "linux")]
   let message_key = uuid::Uuid::new_v4().to_string();
@@ -297,14 +346,13 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
       handed_over
     ))
     .initialization_script(include_str!("controls.js"))
-    .on_navigation(move |url| {
-      if navigation.admits(url) {
-        return true;
-      }
-      if handoff.may(url, Instant::now()) {
+    .on_navigation(move |url| match decide_navigation(&navigation, &handoff, url, Instant::now()) {
+      Navigation::Allow => true,
+      Navigation::OpenInBrowser => {
         open_in_browser(url.as_str());
+        false
       }
-      false
+      Navigation::Block => false,
     })
     .on_new_window(move |url, _| {
       match &popup {
@@ -354,8 +402,8 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
             }
           });
         }
-        // The check runs in the workspace and in the bundled status page.
-        if let Some(check) = check.as_ref().filter(|_| !early_check && (own_page || (!local && bundled(payload.url())))) {
+        // The check runs in the workspace and in the bundled status page (plus startup/updating when asked).
+        if let Some(check) = check.as_ref().filter(|_| !early_check && (own_page || ((!local || check_bundled) && bundled(payload.url())))) {
           let minimized = webview.window().is_minimized().unwrap_or(false);
           let windows = webview.app_handle().windows().len();
           let _ = webview.eval(format!("window.seismicCheckMinimized = {minimized}; window.seismicCheckWindowCount = {windows}; import({check:?})"));
@@ -417,6 +465,11 @@ pub fn close(webview: &Webview) -> tauri::Result<()> {
   webview.close()
 }
 
+#[cfg(any(windows, test))]
+fn frame_allowed(own: &Own, uri: &str) -> bool {
+  uri == "about:blank" || uri == "about:srcdoc" || Url::parse(uri).is_ok_and(|u| own.at(&u))
+}
+
 /// WebView2 asks wry's hook for main-frame navigations alone (NavigationStarting): a frame's goes to
 /// FrameNavigationStarting, which the shell cancels unless it stays at the window's origin.
 #[cfg(windows)]
@@ -432,7 +485,7 @@ fn guard_frames(webview: &Webview, own: Own) -> tauri::Result<()> {
           let mut uri = windows_core::PWSTR::null();
           args.Uri(&mut uri)?;
           let uri = take_pwstr(uri);
-          let allowed = uri == "about:blank" || uri == "about:srcdoc" || Url::parse(&uri).is_ok_and(|u| own.at(&u));
+          let allowed = frame_allowed(&own, &uri);
           args.SetCancel(!allowed)?;
           Ok(())
         })),
@@ -474,40 +527,85 @@ pub fn page(w: &Webview, own: &Own) -> Option<String> {
 mod tests {
   use super::*;
 
+  const BUNDLES: [(&str, &str); 2] = [(BUNDLE_UNIX, BUNDLE_WINDOWS), (BUNDLE_WINDOWS, BUNDLE_UNIX)];
+
   #[test]
   fn a_window_admits_its_origin_and_the_bundled_pages_alone() {
     let own = Own::Remote("https://studio".into());
-    let admits = |u: &str| own.admits(&Url::parse(u).unwrap());
-    assert!(admits("https://studio/p/1?x#y"));
-    assert!(admits(bundled_url("/status.html").as_str()));
-    assert!(!admits(bundled_url("/index.html?updating").as_str()));
-    assert!(!admits(bundled_url("/other.html").as_str()));
-    assert_eq!(admits("tauri://localhost/status.html"), !cfg!(windows));
-    assert_eq!(admits("http://tauri.localhost/status.html"), cfg!(windows));
-    assert!(!admits("http://tauri.localhost:8000/status.html"));
-    assert!(!admits("https://tauri.localhost/status.html"));
-    assert!(!admits("tauri://other/status.html"));
-    assert!(!admits("http://studio/"));
-    assert!(!admits("https://studio:8443/"));
-    assert!(!admits("https://studio.evil/"));
-    assert!(!admits("about:blank"));
-    assert!(!admits("data:text/html,hi"));
-    // the startup and updater screens belong to this machine's window
-    assert!(!admits(bundled_url("/").as_str()));
-    assert!(!admits(bundled_url("/index.html").as_str()));
+    for (bundle, other) in BUNDLES {
+      let url = |path: &str| bundled_url_at(bundle, path);
+      let nav = |u: &str| decide_navigation_at(&own, &Handoff::default(), bundle, &Url::parse(u).unwrap(), Instant::now());
+      assert_eq!(nav("https://studio/p/1?x#y"), Navigation::Allow);
+      assert_eq!(nav(url("/status.html").as_str()), Navigation::Allow);
+      // exact status URL alone: query, fragment, startup, updater, and other bundled paths are rejected
+      assert_eq!(nav(url("/status.html?x").as_str()), Navigation::Block);
+      assert_eq!(nav(url("/status.html#y").as_str()), Navigation::Block);
+      assert_eq!(nav(url("/status.html?x#y").as_str()), Navigation::Block);
+      assert_eq!(nav(url("/").as_str()), Navigation::Block);
+      assert_eq!(nav(url("/index.html").as_str()), Navigation::Block);
+      assert_eq!(nav(url("/index.html?updating").as_str()), Navigation::Block);
+      assert_eq!(nav(url("/other.html").as_str()), Navigation::Block);
+      assert_eq!(nav(&format!("{other}/status.html")), Navigation::Block);
+      assert_eq!(nav("http://tauri.localhost:8000/status.html"), Navigation::Block);
+      assert_eq!(nav("https://tauri.localhost/status.html"), Navigation::Block);
+      assert_eq!(nav("tauri://other/status.html"), Navigation::Block);
+      assert_eq!(nav("http://studio/"), Navigation::OpenInBrowser);
+      assert_eq!(nav("https://studio:8443/"), Navigation::OpenInBrowser);
+      assert_eq!(nav("https://studio.evil/"), Navigation::OpenInBrowser);
+      assert_eq!(nav("about:blank"), Navigation::Block);
+      assert_eq!(nav("data:text/html,hi"), Navigation::Block);
+    }
+    // active platform wrapper matches the platform's bundled origin
+    assert_eq!(own.admits(&Url::parse("tauri://localhost/status.html").unwrap()), !cfg!(windows));
+    assert_eq!(own.admits(&Url::parse("http://tauri.localhost/status.html").unwrap()), cfg!(windows));
+    assert!(!own.admits(&bundled_url("/status.html?x")));
+    assert!(!own.admits(&bundled_url("/status.html#y")));
   }
 
   #[test]
   fn this_machines_window_admits_the_startup_and_updater_screens_alone() {
-    for own in [Own::Local(None), Own::Local(Some(4417))] {
-      let admits = |u: &str| own.admits(&Url::parse(u).unwrap());
-      assert!(admits(bundled_url("/").as_str()));
-      assert!(admits(bundled_url("/index.html?updating").as_str()));
-      assert_eq!(admits("tauri://localhost/index.html?updating"), !cfg!(windows));
-      assert_eq!(admits("http://tauri.localhost/index.html?updating"), cfg!(windows));
-      assert!(!admits(bundled_url("/status.html").as_str()));
-      assert!(!admits("https://tauri.localhost/"));
+    for (bundle, other) in BUNDLES {
+      let url = |path: &str| bundled_url_at(bundle, path);
+      for own in [Own::Local(None), Own::Local(Some(4417))] {
+        let nav = |u: &str| decide_navigation_at(&own, &Handoff::default(), bundle, &Url::parse(u).unwrap(), Instant::now());
+        assert_eq!(nav(url("/").as_str()), Navigation::Allow);
+        assert_eq!(nav(url("/index.html").as_str()), Navigation::Allow);
+        assert_eq!(nav(url("/index.html?updating").as_str()), Navigation::Allow);
+        assert_eq!(nav(url("/status.html").as_str()), Navigation::Block);
+        assert_eq!(nav(url("/status.html?x").as_str()), Navigation::Block);
+        assert_eq!(nav(url("/status.html#y").as_str()), Navigation::Block);
+        assert_eq!(nav(url("/other.html").as_str()), Navigation::Block);
+        assert_eq!(nav(&format!("{other}/index.html?updating")), Navigation::Block);
+        assert_eq!(nav("https://tauri.localhost/"), Navigation::Block);
+        assert_eq!(nav("https://example.com/"), Navigation::OpenInBrowser);
+      }
+      assert_eq!(
+        decide_navigation_at(&Own::Local(None), &Handoff::default(), bundle, &Url::parse("http://127.0.0.1:4417/").unwrap(), Instant::now()),
+        Navigation::OpenInBrowser,
+      );
+      assert_eq!(
+        decide_navigation_at(&Own::Local(Some(4417)), &Handoff::default(), bundle, &Url::parse("http://127.0.0.1:4417/").unwrap(), Instant::now()),
+        Navigation::Allow,
+      );
     }
+    let local = Own::Local(None);
+    assert_eq!(local.admits(&Url::parse("tauri://localhost/index.html?updating").unwrap()), !cfg!(windows));
+    assert_eq!(local.admits(&Url::parse("http://tauri.localhost/index.html?updating").unwrap()), cfg!(windows));
+  }
+
+  #[test]
+  fn subframes_never_load_bundled_screens() {
+    for own in [Own::Local(None), Own::Local(Some(4417)), Own::Remote("https://studio".into())] {
+      assert!(frame_allowed(&own, "about:blank"));
+      assert!(frame_allowed(&own, "about:srcdoc"));
+      assert!(!frame_allowed(&own, "tauri://localhost/"));
+      assert!(!frame_allowed(&own, "tauri://localhost/status.html"));
+      assert!(!frame_allowed(&own, "http://tauri.localhost/"));
+      assert!(!frame_allowed(&own, "http://tauri.localhost/index.html?updating"));
+      assert!(!frame_allowed(&own, "http://tauri.localhost/status.html"));
+    }
+    assert!(frame_allowed(&Own::Local(Some(4417)), "http://127.0.0.1:4417/p"));
+    assert!(frame_allowed(&Own::Remote("https://studio".into()), "https://studio/p"));
   }
 
   #[test]
@@ -527,13 +625,18 @@ mod tests {
   fn the_browser_opens_a_workspace_page_or_its_origin_from_status() {
     let remote = Own::Remote("https://[fd7a::2]:4417".into());
     let project = Url::parse("https://[fd7a::2]:4417/projects/lab?view=table#card").unwrap();
-    assert_eq!(browser_target(project.clone(), &remote), Some(project));
+    for (bundle, _) in BUNDLES {
+      assert_eq!(browser_target_at(bundle, project.clone(), &remote), Some(project.clone()));
+      assert_eq!(browser_target_at(bundle, bundled_url_at(bundle, "/status.html"), &remote).unwrap().as_str(), "https://[fd7a::2]:4417/");
+      assert!(browser_target_at(bundle, bundled_url_at(bundle, "/status.html?x"), &remote).is_none());
+      assert!(browser_target_at(bundle, bundled_url_at(bundle, "/status.html#y"), &remote).is_none());
+      assert!(browser_target_at(bundle, bundled_url_at(bundle, "/index.html?updating"), &remote).is_none());
+      let local = Own::Local(Some(4417));
+      let local_page = Url::parse("http://127.0.0.1:4417/lab").unwrap();
+      assert_eq!(browser_target_at(bundle, local_page.clone(), &local), Some(local_page));
+      assert!(browser_target_at(bundle, bundled_url_at(bundle, "/status.html"), &local).is_none());
+    }
     assert_eq!(browser_target(bundled_url("/status.html"), &remote).unwrap().as_str(), "https://[fd7a::2]:4417/");
-    assert!(browser_target(bundled_url("/index.html?updating"), &remote).is_none());
-    let local = Own::Local(Some(4417));
-    let local_page = Url::parse("http://127.0.0.1:4417/lab").unwrap();
-    assert_eq!(browser_target(local_page.clone(), &local), Some(local_page));
-    assert!(browser_target(bundled_url("/status.html"), &local).is_none());
   }
 
   #[test]
@@ -542,8 +645,10 @@ mod tests {
     let popup = navigation.clone();
     let url = Url::parse("https://example.com").unwrap();
     let blank = Url::parse("about:blank").unwrap();
+    let bundled_win = Url::parse("http://tauri.localhost/index.html?updating").unwrap();
     let start = Instant::now();
     assert!(!popup.may(&blank, start));
+    assert!(!navigation.may(&bundled_win, start));
     assert!(navigation.may(&url, start));
     assert!(!popup.may(&url, start + Duration::from_millis(500)));
     assert!(popup.may(&url, start + HANDOFF_GAP));

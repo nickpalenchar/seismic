@@ -295,7 +295,13 @@ pub(crate) fn next_of(url: &Url) -> String {
 /// `file:`, `smb:` or an app's own scheme to whatever program claims it, and a worker's page may link anywhere.
 pub(crate) fn open_in_browser(url: &str) {
   let scheme = url.split(':').next().unwrap_or("").to_ascii_lowercase();
-  if matches!(scheme.as_str(), "http" | "https" | "mailto") {
+  if matches!(scheme.as_str(), "http" | "https" | "mailto") && Url::parse(url).is_ok_and(|u| u.host_str() != Some("tauri.localhost")) {
+    #[cfg(debug_assertions)]
+    if seismic_env("APP_CHECK").is_some() {
+      if let Ok(mut file) = fs::OpenOptions::new().create(true).append(true).open(home().join("check-browser-handoffs")) {
+        let _ = writeln!(file, "{url}");
+      }
+    }
     let _ = tauri_plugin_opener::open_url(url, None::<&str>);
   }
 }
@@ -369,10 +375,24 @@ pub(crate) fn no_window(cmd: &mut Command) {
   let _ = cmd;
 }
 
+#[cfg(debug_assertions)]
+fn pause_check_startup(home: &Path) {
+  // The app check lets the startup screen finish loading before attach replaces it.
+  if seismic_env("APP_CHECK").is_some() {
+    let held = home.join("check-hold-startup");
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while held.exists() && Instant::now() < deadline {
+      thread::sleep(Duration::from_millis(25));
+    }
+  }
+}
+
 /// Brings up the Seismic of this home (the running one, else a new server) and shows its project;
 /// keeps an active remote workspace open if the local server ends.
 fn serve(app: AppHandle, seismic: Arc<Seismic>, updates: Arc<update::Updates>, handed_over: bool) {
   let home = home();
+  #[cfg(debug_assertions)]
+  pause_check_startup(&home);
   let attach = |port: u16, child: bool| {
     // Server control is available as soon as it answers. The webview can wait
     // for an attachment decision long after this point.
