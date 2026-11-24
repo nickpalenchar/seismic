@@ -1,11 +1,10 @@
-// The setup's first step in the desktop app: "How do you want to use Seismic?". On this machine's
-// page, "On this machine" goes on to the setup's steps here, "Remote connection" shows the remote
-// workspaces the app knows and the form that pairs another. A remote Seismic without projects asks
-// the same: "Set up <its name>" goes on to the setup there, on that machine, and "Connect to remote
-// Seismic" leads to this machine's workspaces page, the one page that may pair. "Learn more" stands
-// outside the radio's label, so a click on it opens the guide without choosing.
+// The setup's first step in the desktop app, on this machine's first start alone: "How do you want
+// to use Seismic?". "On this machine" goes on to the setup's steps here, "Remote connection" shows
+// the remote workspaces the app knows and the form that pairs another. A remote Seismic without
+// projects does not ask: it goes on to set itself up. "Learn more" stands outside the radio's label,
+// so a click on it opens the guide without choosing.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Sign } from '../../logo';
 import { t } from '../../strings';
 import { Button, LinkButton } from '../../components/button';
@@ -14,7 +13,7 @@ import { Spinner } from '../../components/spinner';
 import { cn } from 'cn';
 import { ConnectForm, errorClass } from '../../desks/connect';
 import { DeskIcon, Unread } from '../../desks/page';
-import { currentDesk, deskError, desks, GUIDE, LOCAL, onThisMachine, openWorkspaces, useDesks, useDesksFailed } from '../../desks/shell';
+import { deskError, desks, GUIDE, LOCAL, onThisMachine, useDesks, useDesksFailed } from '../../desks/shell';
 
 const CHOSEN = 'seismic-setup-here';
 /** Whether "On this machine" (or "Set up …") was chosen in this tab: a reload goes on with the setup. */
@@ -39,22 +38,19 @@ export function HowStep({ onHere }: { onHere: () => void }) {
   const all = useDesks();
   const failed = useDesksFailed();
   const [choice, setChoice] = useState<'here' | 'remote'>('here');
-  const [going, setGoing] = useState(false);
   const [problem, setProblem] = useState('');
   const local = onThisMachine(all);
-  const name = currentDesk(all)?.name ?? location.host;
+  // a remote Seismic's page sets that machine up without asking
+  useEffect(() => {
+    if (all && !local) onHere();
+  }, [all, local]);
   const options = {
-    here: local ? { title: h.local, hint: h.localHint } : { title: h.setUp(name), hint: h.setUpHint(name) },
-    remote: local ? { title: h.remote, hint: h.remoteHint } : { title: h.connect, hint: h.connectHint },
+    here: { title: h.local, hint: h.localHint },
+    remote: { title: h.remote, hint: h.remoteHint },
   };
   const next = () => {
-    if (choice === 'here') {
-      choose(true);
-      return onHere();
-    }
-    setGoing(true);
-    setProblem('');
-    openWorkspaces(all, '?new').catch((e) => (setGoing(false), setProblem(deskError(e))));
+    choose(true);
+    onHere();
   };
   const known = all?.list.filter((d) => d.id !== LOCAL) ?? [];
   return (
@@ -66,7 +62,7 @@ export function HowStep({ onHere }: { onHere: () => void }) {
           <h2 className="m-0">{h.title}</h2>
         </div>
       </header>
-      {!all ? (
+      {!all || !local ? (
         failed ? <Unread /> : <Spinner className="justify-self-center text-muted-foreground" />
       ) : (
         <>
@@ -83,7 +79,7 @@ export function HowStep({ onHere }: { onHere: () => void }) {
               {h.learnMore}
             </LinkButton>
           </div>
-          {choice === 'remote' && local ? (
+          {choice === 'remote' ? (
             <>
               {known.length > 0 && (
                 <section className="grid gap-2">
@@ -111,8 +107,7 @@ export function HowStep({ onHere }: { onHere: () => void }) {
             </>
           ) : (
             <div className="flex justify-end">
-              <Button variant="primary" disabled={going} onClick={next}>
-                {going && <Spinner className="size-3.5" />}
+              <Button variant="primary" onClick={next}>
                 {h.next}
               </Button>
             </div>

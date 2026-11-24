@@ -26,7 +26,7 @@ import { Badge } from '../../components/badge';
 import { Spinner } from '../../components/spinner';
 import { SeismicAgentStep } from './seismicAgent';
 import { askAgain, HowStep, setUpHereChosen } from './how';
-import { inApp } from '../../desks/shell';
+import { inApp, onThisMachine, useDesks } from '../../desks/shell';
 import { Callout, CalloutDescription, type CalloutKind, CalloutTitle } from '../../components/callout';
 import { Check, CircleCheck, Info, TriangleAlert } from 'lucide-react';
 import { Input } from '../../components/input';
@@ -337,6 +337,8 @@ export function Setup({ first, onClose, wizard, notice }: { first?: boolean; onC
   const reopened = !first && !wizard;
   // in the desktop app the first start asks first how Seismic is to be used (how.tsx)
   const [asking, setAsking] = useState(() => !!first && inApp() && !setUpHereChosen());
+  // only this machine's first start asks: a remote Seismic without projects goes on to set itself up
+  const here = onThisMachine(useDesks());
   useEffect(() => {
     if (!reopened) return;
     let revision = 0;
@@ -755,7 +757,7 @@ export function Setup({ first, onClose, wizard, notice }: { first?: boolean; onC
                 callout={configured.length ? 'success' : 'info'}
                 text={!configured.length ? s.proceed.none : configured.length === 1 ? s.proceed.one(s.agentNames[configured[0]!]) : s.proceed.many(configured.length)}
               >
-                {first && inApp() && (
+                {first && here && (
                   <Button size="small" onClick={() => (askAgain(), setAsking(true))}>
                     {s.back}
                   </Button>

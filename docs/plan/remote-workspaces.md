@@ -31,7 +31,7 @@ Three rules carry the design:
 - [x] **W1:** Spike on all three webviews (WKWebView, WebView2, WebKitGTK). Prove that a second window opened at a one-time login link keeps the device cookie for later loads at that origin over HTTP and HTTPS, that the navigation hook keeps the window on its origin (redirects and frames included), and that shell commands are scoped to their window and the caller's effective origin. Before W3 starts, verify a WKWebView mitigation for opaque-origin callers and the HTTPS cookie path on the remaining engines.
 - [x] **W2:** Server side. `POST /api/pair` with the one-time login link; device cookies per scheme and port, with the renewal rules (bring back the device-cookie commits from `backup/desktop-architecture`: per-scheme names, explicit-code redemption, the `device_renewals` credential handover); the handover's new cookie gets a name of its own, so late answers cannot overwrite a newer one; tests with two Seismics on one host paired by one cookie jar. Independent of W1.
 - [ ] **W3:** Shell. The workspace list and its file, one window per workspace with its fixed capability, enforcement of the caller's effective origin, the navigation guard, the shell's health check before a window opens and the status page when it fails, reopening windows after a relaunch, the macOS menu. The microphone is granted to listed origins only (bring back that commit). Builds on W1 and W2.
-- [x] **W4:** Pages. The workspaces page and cog dialog on this machine's page, the switcher in every page's left menu, the setup's first step ("How do you want to use Seismic?" with "On this machine" and "Remote connection"), and a remote Seismic without projects offering "Set up <its name>" or "Connect to remote Seismic". shadcn/ui parts, strings in `src/ui/strings.ts`, the phone view untouched. The UI work of the backup branch (wrapping long addresses, "Learn more" outside the radio label, "Delete workspace" in the cog's dialog alone) carries over as decisions, not as code.
+- [x] **W4:** Pages. The workspaces page and cog dialog on this machine's page, the switcher in every page's left menu, the setup's first step ("How do you want to use Seismic?" with "On this machine" and "Remote connection", on this machine's first start only; a remote Seismic without projects goes straight on to set itself up). shadcn/ui parts, strings in `src/ui/strings.ts`, the phone view untouched. The UI work of the backup branch (wrapping long addresses, "Learn more" outside the radio label, "Delete workspace" in the cog's dialog alone) carries over as decisions, not as code.
 - [ ] **W5:** Windows and Linux. The app check in CI on WebView2 (bring back that commit) covers pairing, switching in the same window and canceling a selection when its workspace is removed; a Linux run in its container. User guide page in `docs/site/` and its sidebar entry. Demo video of the whole feature on a Mac.
 - [ ] **W6:** Move the decisions and constraints into a design chapter (`docs/design/desktop-workspaces.md`, linked from `docs/design.md`) and delete this plan doc.
 
@@ -193,12 +193,12 @@ cog's dialog (`edit.tsx`) and the workspaces page (`page.tsx`); the switcher is 
 - **The switcher** heads the left menu on every page in the app, docked or dropped down, never on
   the phone: the shown workspace with this machine or remote, the list a click away with "New
   workspace", and a cog that opens the shown workspace's dialog on this machine's page.
-- **The setup's first step** shows in the app only, on the first start: "On this machine" /
-  "Remote connection" on this machine's page, "Set up <its name>" / "Connect to remote Seismic" on
-  a remote Seismic without projects. "Remote connection" shows the known remote workspaces and the
-  connect form in place; "Connect to remote Seismic" goes to this machine's page, since only that
-  one may pair. The choice to set up holds for the tab (session storage); the agents step has a
-  Back to the question.
+- **The setup's first step** shows in the app only, on this machine's first start: "On this
+  machine" / "Remote connection". "Remote connection" shows the known remote workspaces and the
+  connect form in place. A remote Seismic without projects does not ask: it goes straight on to
+  set itself up, as "On this machine" would there (owner, 2026-11-24); pairing yet another machine
+  from it goes through the switcher's "New workspace". The choice to set up holds for the tab
+  (session storage); the agents step has a Back to the question on this machine.
 - **Carried over as decisions from the first attempt:** long addresses and names wrap
   (`overflow-wrap: anywhere`), never scroll sideways; "Learn more" stands outside the radio's
   label; "Delete workspace" is in the cog's dialog alone, never on a row.
