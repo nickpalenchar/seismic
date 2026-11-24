@@ -19,6 +19,7 @@ import { LANGUAGES } from '../core/locale';
 import { SUGGEST_TOGGLES, type SuggestSettings, type SuggestToggle, suggestToggles } from '../core/labels';
 import { AccessSection } from './access';
 import { type AddSiteInput, api, onAgentSettingsChange, reload, type SiteHow } from './api';
+import { draftSession } from './draftSession';
 import { keepConfigDraft, keptConfigDraft } from './configDraft';
 import { keep } from './keep';
 import { plain } from './markdown';
@@ -72,6 +73,8 @@ declare global {
     seismicRestartHeld?: () => boolean;
     seismicSnapshotSession?: () => string[][];
     seismicRestoredDrafts?: Set<string>;
+    seismicDraftOverflow?: [string, string][];
+    seismicDraftsReceived?: boolean;
   }
 }
 
@@ -998,13 +1001,13 @@ function DemoBlock({ on }: { on: boolean }) {
     if (!on) return;
     getSetting('demo').then((v) => {
       setView(v);
-      setDraft(keptConfigDraft<DemoSettings>(sessionStorage, 'demo', v.settings) ?? v.settings);
+      setDraft(keptConfigDraft<DemoSettings>(draftSession, 'demo', v.settings) ?? v.settings);
       setStatus('');
     }, console.error);
   }, [on]);
   // a draft not saved yet is written down as it changes: closing the dialog or a reload brings it back
   useEffect(() => {
-    if (view && draft) keepConfigDraft(sessionStorage, 'demo', draft, view.settings);
+    if (view && draft) keepConfigDraft(draftSession, 'demo', draft, view.settings);
   }, [draft, view]);
   const installing = !!view?.job?.running;
   // the voice as it is being chosen: its problems, what it still needs installed
@@ -3044,7 +3047,7 @@ export function AdapterSetup({ project, repo, takeover, label = t.config.adapter
       if (!saved && !(await prepare?.())) return setBusy(false);
       const card = await api.adapterSetup(project, repo);
       // the project loads with the card open, as after a restart
-      keep(sessionStorage, project, { at: Date.now(), card: card.id, scroll: [], drafts: [] });
+      keep(draftSession, project, { at: Date.now(), card: card.id, scroll: [], drafts: [] });
       location.assign(projectPath(project));
     } catch (e) {
       setError(failText(e));

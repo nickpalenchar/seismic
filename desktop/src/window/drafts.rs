@@ -5,16 +5,26 @@ const MAX_DRAFT_BYTES: usize = 32 * 1024 * 1024;
 
 // Shared by restart sampling and the workspace's departure snapshot. Session storage also contains
 // temporary UI state and pairing setup; only unsent work belongs in a durable copy.
-pub const SESSION_DRAFTS: &str = r#"(entries = window.seismicSnapshotSession?.() ?? Object.entries(sessionStorage)) =>
-  entries.filter((entry) => Array.isArray(entry) && typeof entry[0] === 'string' && typeof entry[1] === 'string' &&
-    /^seismic-(drafts|markups|setting-draft|kept|wish|config-draft)-/.test(entry[0]))"#;
+pub const SESSION_DRAFTS: &str = r#"(entries) => {
+  if (entries === undefined) {
+    if (window.seismicSnapshotSession) entries = window.seismicSnapshotSession();
+    else {
+      let stored = [];
+      try { stored = Object.entries(sessionStorage); } catch {}
+      if (window.seismicDraftOverflow) stored = [...new Map([...stored, ...window.seismicDraftOverflow])];
+      entries = stored;
+    }
+  }
+  return entries.filter((entry) => Array.isArray(entry) && typeof entry[0] === 'string' && typeof entry[1] === 'string' &&
+    /^seismic-(drafts|markups|setting-draft|kept|wish|config-draft)-/.test(entry[0]));
+}"#;
 
 #[tauri::command]
-pub fn workspace_draft_checkpoint(app: AppHandle, webview: Webview, activation: f64, entries: Option<Vec<(String, String)>>) {
-  receive(&crate::desks::shell(&app), webview.label(), activation, entries);
+pub fn workspace_draft_checkpoint(app: AppHandle, webview: Webview, activation: f64, url: String, entries: Option<Vec<(String, String)>>) {
+  receive(&crate::desks::shell(&app), webview.label(), activation, &url, entries);
 }
 
-fn receive(shell: &crate::desks::Shell, label: &str, activation: f64, entries: Option<Vec<(String, String)>>) {
+fn receive(shell: &crate::desks::Shell, label: &str, activation: f64, url: &str, entries: Option<Vec<(String, String)>>) {
   if !activation.is_finite() || activation <= 0.0 {
     return;
   }
@@ -23,7 +33,7 @@ fn receive(shell: &crate::desks::Shell, label: &str, activation: f64, entries: O
     entries.retain(|(key, _)| prefixes.iter().any(|prefix| key.starts_with(prefix)));
     (entries.iter().map(|(k, v)| k.len() + v.len()).sum::<usize>() <= MAX_DRAFT_BYTES).then_some(entries)
   });
-  crate::desks::departure(shell, label, activation, entries);
+  crate::desks::departure(shell, label, activation, url, entries);
 }
 
 #[cfg(target_os = "linux")]
@@ -44,9 +54,9 @@ pub fn install(window: &tauri::WebviewWindow, token: String) -> tauri::Result<()
       if !message.starts_with(&expected) || message.len() > MAX_DRAFT_BYTES * 2 {
         return;
       }
-      let Ok((_, activation, entries)) = serde_json::from_str::<(String, f64, Option<Vec<(String, String)>>)>(&message) else { return };
+      let Ok((_, activation, url, entries)) = serde_json::from_str::<(String, f64, String, Option<Vec<(String, String)>>)>(&message) else { return };
       if let Some(shell) = shell.upgrade() {
-        receive(&shell, &label, activation, entries);
+        receive(&shell, &label, activation, &url, entries);
       }
     });
     manager.register_script_message_handler("seismicDrafts");
@@ -73,13 +83,14 @@ pub fn script(origin: &str, restore: Option<&Placed>, message_key: &str) -> Stri
       const received = 'seismic-desktop-restored';
       let activation;
       function send(entries) {{
-        const payload = {{ activation, entries }};
+        const url = location.href;
+        const payload = {{ activation, url, entries }};
         // Hand the data to the native message queue before the document goes away.
         if (usesTauri) {{
           const callback = api.transformCallback(() => {{}}, true);
           post?.(stringify({{ cmd: command, callback, error: callback, payload, __TAURI_INVOKE_KEY__: messageKey }}));
         }} else {{
-          post?.(stringify([messageKey, activation, entries]));
+          post?.(stringify([messageKey, activation, url, entries]));
         }}
       }}
       function begin() {{
@@ -92,17 +103,27 @@ pub fn script(origin: &str, restore: Option<&Placed>, message_key: &str) -> Stri
         const checkpoint = JSON.parse(localStorage.getItem(key));
         if (checkpoint?.windowId === oldCheckpoint && Array.isArray(checkpoint.entries)) entries = save(checkpoint.entries);
       }} catch {{}}
+      window.seismicRestoredDrafts = new Set(entries.map(([key]) => key));
+      let alreadyRestored = false;
       try {{
-        window.seismicRestoredDrafts = new Set(entries.map(([key]) => key));
-        if (!sessionStorage.getItem(received)) {{
-          for (const [key, value] of entries) {{
+        alreadyRestored = sessionStorage.getItem(received) === '1';
+        // Reserve the marker before the restored drafts can fill the store.
+        if (!alreadyRestored) sessionStorage.setItem(received, '1');
+      }} catch {{}}
+      if (!alreadyRestored) {{
+        const overflow = [];
+        for (const [key, value] of entries) {{
+          try {{
             if (sessionStorage.getItem(key) === null) sessionStorage.setItem(key, value);
-          }}
-          sessionStorage.setItem(received, '1');
+          }} catch {{ overflow.push([key, value]); }}
         }}
+        if (overflow.length) window.seismicDraftOverflow = overflow;
+      }}
+      if (!window.seismicDraftOverflow) {{
+        window.seismicDraftsReceived = true;
         // Clean up the previous shell's departure copy after restoring the session.
         try {{ localStorage.removeItem(key); }} catch {{}}
-      }} catch {{}}
+      }}
       begin();
       addEventListener('pageshow', (event) => {{ if (event.persisted) begin(); }});
       addEventListener('pagehide', () => {{

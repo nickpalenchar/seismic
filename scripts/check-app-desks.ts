@@ -77,6 +77,26 @@ const proxyPort = free();
 const oldPort = free();
 const REMOTE = `http://${HOST}:${proxyPort}`;
 const LAST_PAGE = '/p/lab?view=table#draft';
+const PAGE_BEFORE_BACK = '/p/lab?view=canvas#new-anchor';
+const OVERFLOW_DRAFT = 'The latest edit lives only in memory. '.repeat(40);
+const quotaFixture = join(dir, 'quota.ts');
+writeFileSync(quotaFixture, `
+  import { snapshotSession } from ${JSON.stringify(join(ROOT, 'src/ui/api'))};
+  import { draftSession } from ${JSON.stringify(join(ROOT, 'src/ui/draftSession'))};
+  import { keepDrafts, updateDraft } from ${JSON.stringify(join(ROOT, 'src/ui/draft'))};
+  import { keepConfigDraft } from ${JSON.stringify(join(ROOT, 'src/ui/configDraft'))};
+  export function edit() {
+    keepDrafts(draftSession, 'quota-check');
+    updateDraft('card:q', { text: ${JSON.stringify(OVERFLOW_DRAFT)} });
+    keepConfigDraft(draftSession, 'project:quota-check', { name: ${JSON.stringify(OVERFLOW_DRAFT)} }, { name: 'Saved name' });
+    draftSession.setItem('seismic-drafts-check', 'Edited just before Back');
+    draftSession.setItem('seismic-wish-check', 'New issue just before Back');
+    draftSession.setItem('seismic-config-draft-check', 'New settings just before Back');
+    window.seismicSnapshotSession = snapshotSession;
+    return sessionStorage.getItem('seismic-drafts-quota-check') === null && draftSession.getItem('seismic-drafts-quota-check') !== null;
+  }
+`);
+let quotaBundle: Promise<string> | undefined;
 const FRAME = `<!doctype html>
 <script>
   const report = (result) => parent.postMessage({ origin: self.origin, result }, '*');
@@ -243,6 +263,8 @@ if (location.origin === ${JSON.stringify(REMOTE)} && document.getElementById('si
     await new Promise((r) => setTimeout(r, 50));
   }
   const out = { kind: 'remote', href: location.href, label: window.__TAURI_INTERNALS__.metadata.currentWindow.label, mounted: !!document.getElementById('root')?.firstElementChild, handedOver: window.seismicApp?.handedOver, previousSession: sessionStorage.getItem('check-workspace-session'), previousDraft: sessionStorage.getItem('seismic-drafts-check'), previousWish: sessionStorage.getItem('seismic-wish-check'), previousConfig: sessionStorage.getItem('seismic-config-draft-check') };
+  out.previousOverflowDraft = JSON.parse(sessionStorage.getItem('seismic-drafts-quota-check') ?? '{}')['card:q']?.text;
+  out.previousOverflowConfig = JSON.parse(sessionStorage.getItem('seismic-config-draft-project:quota-check') ?? '{}').name;
   for (const key of Object.keys(localStorage)) if (key.startsWith('seismic-check-storage-fill-')) localStorage.removeItem(key);
   sessionStorage.setItem('check-workspace-session', 'kept');
   sessionStorage.setItem('seismic-wish-check', 'Unsent issue for Lab');
@@ -264,21 +286,23 @@ if (location.origin === ${JSON.stringify(REMOTE)} && document.getElementById('si
   const back = await (await fetch(new URL('back-to-status', base))).json();
   if (back.now) {
     if (back.edit) {
-      sessionStorage.setItem('seismic-drafts-check', 'Edited just before Back');
-      sessionStorage.setItem('seismic-wish-check', 'New issue just before Back');
-      sessionStorage.setItem('seismic-config-draft-check', 'New settings just before Back');
+      history.replaceState(null, '', ${JSON.stringify(PAGE_BEFORE_BACK)});
       const prefix = 'seismic-check-storage-fill-';
-      for (let size = 512 * 1024; size >= 16; size = Math.floor(size / 2)) {
-        for (let index = 0; index < 20; index++) {
-          try { localStorage.setItem(prefix + size + '-' + index, 'x'.repeat(size)); }
-          catch { break; }
+      const fill = (store) => {
+        for (let size = 512 * 1024; size >= 16; size = Math.floor(size / 2)) {
+          for (let index = 0; index < 20; index++) {
+            try { store.setItem(prefix + size + '-' + index, 'x'.repeat(size)); }
+            catch { break; }
+          }
         }
-      }
-      let full = false;
-      try { localStorage.setItem('seismic-check-storage-probe', 'x'.repeat(512)); }
-      catch (error) { full = error.name === 'QuotaExceededError'; }
-      finally { localStorage.removeItem('seismic-check-storage-probe'); }
-      await post('result', { kind: 'profileQuota', full });
+        try { store.setItem(prefix + 'probe', 'x'.repeat(512)); return false; }
+        catch (error) { return error.name === 'QuotaExceededError'; }
+        finally { store.removeItem(prefix + 'probe'); }
+      };
+      const { edit } = await import(new URL('quota.js', base).href);
+      const localFull = fill(localStorage);
+      const sessionFull = fill(sessionStorage);
+      await post('result', { kind: 'profileQuota', localFull, sessionFull, overflow: edit() });
     }
     history.back();
   }
@@ -351,6 +375,13 @@ const harness = Bun.serve({
     const { pathname: path, searchParams } = new URL(req.url);
     const json = (v: unknown) => Response.json(v, { headers: cors });
     if (path === '/check.js') return new Response(MODULE, { headers: { ...cors, 'content-type': 'text/javascript' } });
+    if (path === '/quota.js') {
+      const bundle = await (quotaBundle ??= Bun.build({ entrypoints: [quotaFixture], target: 'browser' }).then(async (built) => {
+        if (!built.success || !built.outputs[0]) throw new Error(built.logs.join('\n'));
+        return built.outputs[0].text();
+      }));
+      return new Response(bundle, { headers: { ...cors, 'content-type': 'text/javascript' } });
+    }
     if (path === '/seed-draft') return json({ seed: seedDraft });
     if (path === '/todo') {
       const label = searchParams.get('label') ?? '';
@@ -828,7 +859,8 @@ try {
     await check('drafts survive two restarts from status with a full browser profile', async () => {
       try {
         await report('status', edited, 10_000);
-        expect((await report('profileQuota', edited, 5_000)).full === true, 'browser profile quota was not exhausted');
+        const quota = await report('profileQuota', edited, 5_000);
+        expect(quota.localFull === true && quota.sessionFull === true && quota.overflow === true, JSON.stringify(quota));
         expireServerHandover = true;
         const writes = acknowledgedHandovers;
         proxy.server?.stop(true);
@@ -845,6 +877,8 @@ try {
         expect(acknowledgedHandovers === writes, 'the server accepted handover from a status page');
         expect(restored.previousDraft === 'Edited just before Back' && restored.previousWish === 'New issue just before Back' &&
           restored.previousConfig === 'New settings just before Back' && restored.previousSession === null, JSON.stringify(restored));
+        expect(restored.previousOverflowDraft === OVERFLOW_DRAFT && restored.previousOverflowConfig === OVERFLOW_DRAFT, 'the edits that did not fit in session storage were lost');
+        expect(restored.href === `${REMOTE}${PAGE_BEFORE_BACK}`, `Try again lost the in-page address (${restored.href})`);
         return 'conversation, issue, and settings drafts';
       } finally {
         expireServerHandover = editBeforeBack = backToStatus = retryNow = false;
@@ -1031,7 +1065,7 @@ try {
     });
     expect(!(await desks()).list.some((w) => w.id === id), 'the removed workspace is still listed');
   });
-  await check('a snapshot write error brings the local server back without closing remote windows', async () => {
+  await check('a snapshot write error keeps windows open and a queued rebuild can retry', async () => {
     const added = await run('add_desk', { address: REMOTE, code: await code(), name: 'Lab' });
     expect(added.ok, JSON.stringify(added));
     const recoveryId = (added.value as { id: string }).id;
@@ -1041,12 +1075,23 @@ try {
     mkdirSync(path);
     try {
       const before = reports.length;
-      await relaunch();
+      if (debugFailures) writeFileSync(join(home, 'check-queue-rebuild'), '');
+      else await relaunch();
       await report('local', before);
       const d = await desks();
       expect(entry()?.pid !== previous?.pid, 'the local server did not restart');
       expect(d.list.find((w) => w.id === recoveryId)?.open, 'the remote workspace window closed');
       expect(!reports.slice(before).some((r) => r.kind === 'remote' || r.kind === 'status'), 'the remote window reloaded');
+      if (debugFailures) {
+        const resumed = entry()?.pid;
+        await sleep(3_500); // Span another automatic report while the target is still blocked.
+        expect(entry()?.pid === resumed, 'a blocked rebuild stopped the resumed local server again');
+        const afterRepair = reports.length;
+        rmSync(path, { recursive: true, force: true });
+        await report('remote', afterRepair, 20_000);
+        await report('local', afterRepair, 20_000);
+        expect(entry()?.pid !== resumed, 'the queued rebuild did not retry after the snapshot path was repaired');
+      }
     } finally {
       rmSync(path, { recursive: true, force: true });
     }

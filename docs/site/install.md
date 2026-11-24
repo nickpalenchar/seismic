@@ -39,6 +39,8 @@ use Forward to return to its page, then try the update again.
 The desktop app restores your open workspace windows after an update. A workspace that takes
 longer to reconnect opens in the background if it was in the background before the update. If
 Seismic reports that it could not save the open windows, it defers the update and keeps them open.
+A downloaded release remains available to install again. If Seismic was installed from a source
+checkout, a queued rebuild retries automatically once the windows can be saved.
 If the installer reports an error and Seismic restarts, it restores the windows and drafts as they
 were when the error dialog closed.
 If the remote server takes too long to return drafts during startup, the workspace opens with the

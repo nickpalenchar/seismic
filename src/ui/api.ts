@@ -7,6 +7,7 @@
  * `src/server/routes/v1/`. The WebSocket, `call` and the snapshot helpers here stay.
  */
 import { useEffect, useState, useSyncExternalStore } from 'react';
+import { draftSession, isDraftSessionKey, sessionWithDrafts } from './draftSession';
 import type { CardDiff } from '../core/diff';
 import { type Place, placeParam } from '../core/layout';
 import type { ProjectReposView, RepoConfig, AccessView, ActivityPage, Pairing, RemoteSetting, ModelInfo, Harness, HarnessAvailability, CloudPreset, ProjectConfig, ProjectInfo, ProjectSnapshot, ChatElsewhere, ClientMessage, ConfigSaved, CardAction, ConfigChecked, DemoSettings, Group, DemoSettingsView, DemoVoiceCheck, ProjectDemoSiteState, DemoSitesView, GithubRepoList, GithubRepoView, TagProposalJob, PageTags, NarrationLanguage, FirstProject, GitSetupPreview, MachineItem, MachineSectionId, MachineView, SetupCheck, SetupFolder, SetupRepoCheck, VoiceSetupView, CardEvent, Item, NewCard, Notice, OwnerHold, PendingRestart, PlanHistory, RepoTrust, ServerMessage, SettingsShared, Skill, SourceUpdate, SpotInput, TalkRef, AppUpdate, Usage, Waiting, Feedback, FeedbackAnswer, ProjectSettings, ProjectSettingsView, DeveloperView, Canvas } from '../core/types';
@@ -625,7 +626,7 @@ export async function handOver(token: string, signal?: AbortSignal) {
 /** Flushes pending drafts and view state before the shell snapshots a disconnected window. */
 export function snapshotSession() {
   for (const fn of reloadListeners) fn();
-  return Array.from({ length: sessionStorage.length }, (_, i) => sessionStorage.key(i)!).map((k) => [k, sessionStorage.getItem(k) ?? '']);
+  return sessionWithDrafts();
 }
 
 /** In the window of a shell that started again: what the page before it handed over, back into session storage, once. */
@@ -640,7 +641,9 @@ export async function takeHandOver(restoredDrafts?: ReadonlySet<string>) {
     if (response.status === 204) return;
     const entries = (await response.json() as [string, string][] | null) ?? [];
     for (const [k, v] of entries) {
-      if (!restoredDrafts?.has(k)) sessionStorage.setItem(k, v);
+      if (restoredDrafts?.has(k)) continue;
+      if (isDraftSessionKey(k)) draftSession.setItem(k, v);
+      else try { sessionStorage.setItem(k, v); } catch {}
     }
   } catch {} finally {
     clearTimeout(deadline);

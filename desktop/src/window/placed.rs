@@ -158,9 +158,25 @@ fn restored_bounds(w: &WebviewWindow) -> Option<(LogicalPosition<f64>, LogicalSi
 }
 
 pub fn keep(home: &Path, windows: &[Placed], installer: bool) -> io::Result<()> {
+  write_snapshot(home, windows, installer, true)
+}
+
+/// A deferred automatic rebuild checks storage before asking the local server to stop again.
+pub fn probe_write(home: &Path, windows: &[Placed]) -> io::Result<()> {
+  match fs::symlink_metadata(home.join(FILE)) {
+    Ok(meta) if meta.is_dir() => return Err(io::Error::other("the restart snapshot destination is a directory")),
+    #[cfg(windows)]
+    Ok(meta) if meta.permissions().readonly() => return Err(io::Error::other("the restart snapshot is read-only")),
+    Err(error) if error.kind() != io::ErrorKind::NotFound => return Err(error),
+    _ => {}
+  }
+  write_snapshot(home, windows, false, false)
+}
+
+fn write_snapshot(home: &Path, windows: &[Placed], installer: bool, publish: bool) -> io::Result<()> {
   let all: Vec<Value> = windows.iter().map(Placed::json).collect();
   let text = json!({ "at": now_ms(), "installer": installer, "windows": all }).to_string();
-  let part = home.join(format!("{FILE}.part"));
+  let part = home.join(if publish { "app-windows.json.part" } else { "app-windows.json.probe" });
   let mut options = fs::OpenOptions::new();
   options.write(true).create_new(true);
   #[cfg(unix)]
@@ -176,7 +192,11 @@ pub fn keep(home: &Path, windows: &[Placed], installer: bool) -> io::Result<()> 
     file.write_all(text.as_bytes())?;
     file.sync_all()?;
     drop(file);
-    fs::rename(&part, home.join(FILE))
+    if publish {
+      fs::rename(&part, home.join(FILE))
+    } else {
+      fs::remove_file(&part)
+    }
   })();
   if result.is_err() {
     let _ = fs::remove_file(part);
@@ -231,6 +251,23 @@ fn read_saved(home: &Path, consume: bool) -> Vec<Placed> {
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  #[test]
+  fn a_retry_probe_leaves_published_placements_alone_and_checks_a_blocked_target() {
+    let home = home("retry-probe");
+    let path = home.join(FILE);
+    fs::create_dir(&path).unwrap();
+    assert!(probe_write(&home, &[]).is_err());
+    fs::remove_dir(&path).unwrap();
+    probe_write(&home, &[]).unwrap();
+    assert!(!path.exists());
+    keep(&home, &[], true).unwrap();
+    let previous = fs::read(&path).unwrap();
+    probe_write(&home, &[Placed { next: "/probe".into(), ..Default::default() }]).unwrap();
+    assert_eq!(fs::read(path).unwrap(), previous);
+    assert!(!home.join("app-windows.json.probe").exists());
+    fs::remove_dir_all(home).unwrap();
+  }
 
   fn home(name: &str) -> std::path::PathBuf {
     let home = std::env::temp_dir().join(format!("seismic-placed-{name}-{}", now_ms()));

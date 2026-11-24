@@ -557,10 +557,15 @@ pub fn page_loaded(app: &AppHandle, label: &str, url: &Url) {
 }
 
 /// Only the remote capability for this exact window label and origin grants the checkpoint command.
-pub fn departure(shell: &Shell, label: &str, activation: f64, entries: Option<Vec<(String, String)>>) {
+pub fn departure(shell: &Shell, label: &str, activation: f64, url: &str, entries: Option<Vec<(String, String)>>) {
   let mut windows = shell.windows.lock().unwrap();
   if let Some(window) = windows.open.get_mut(label) {
     if window.departure.receive(activation, entries) {
+      if let Ok(url) = Url::parse(url) {
+        if Own::Remote(window.origin.clone()).at(&url) {
+          window.next = crate::next_of(&url);
+        }
+      }
       windows.draft_generation += 1;
     }
   }

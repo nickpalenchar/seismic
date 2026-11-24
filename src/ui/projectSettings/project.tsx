@@ -17,6 +17,7 @@ import { ConfirmDialog } from '../components/dialog';
 import { Tooltip } from '../components/tooltip';
 import { statusClass } from '../setupClasses';
 import { qmovesClass } from '../queue';
+import { draftSession } from '../draftSession';
 import { keepConfigDraft, keptConfigDraft } from '../configDraft';
 import { holdLeaving, leave } from '../leaving';
 import { entryDraft, type EntryDraft, mergedEntry, withEntry } from './entry';
@@ -64,7 +65,7 @@ function useProjectEntry(project: string | null, on: boolean) {
     const original = saved.projects[at]!;
     const baseline = entryDraft(original);
     setLoaded({ view: { ...view, projects: saved.projects }, at, saved, entry: baseline });
-    const kept = keptConfigDraft<ProjectConfig>(sessionStorage, `project:${project}`, baseline);
+    const kept = keptConfigDraft<ProjectConfig>(draftSession, `project:${project}`, baseline);
     setEntry(kept ? entryDraft(kept, original) : baseline);
   };
   const retryLoad = async () => {
@@ -138,7 +139,7 @@ function useProjectEntry(project: string | null, on: boolean) {
   }, [on, serialized, loaded]);
   // the edit is written down as it changes, and forgotten once it is as saved
   useEffect(() => {
-    if (project !== null && loaded && entry) keepConfigDraft(sessionStorage, `project:${project}`, entry, loaded.entry);
+    if (project !== null && loaded && entry) keepConfigDraft(draftSession, `project:${project}`, entry, loaded.entry);
   }, [JSON.stringify(entry), loaded]);
   const shown = changed ? (checked?.result ?? null) : (loaded?.saved ?? null);
   const at = (changed ? checked?.at : undefined) ?? loaded?.at ?? 0;
@@ -169,7 +170,7 @@ function useProjectEntry(project: string | null, on: boolean) {
       // The saved entry can include server-generated old names and fresher repository fields.
       // The draft that produced it has been saved even when its JSON differs from that entry.
       if (project !== null) {
-        keepConfigDraft(sessionStorage, `project:${project}`, null, null);
+        keepConfigDraft(draftSession, `project:${project}`, null, null);
         if (!restarting) await load();
       }
       const s = t.config;
@@ -340,7 +341,7 @@ export function ProjectEntrySection({ project, on, onShowProject }: { project: s
   const e = useProjectEntry(project, on);
   const [question] = useLeaveGuard(e.changed, () => {
     e.reset();
-    keepConfigDraft(sessionStorage, `project:${project}`, null, null);
+    keepConfigDraft(draftSession, `project:${project}`, null, null);
   });
   const l = t.projectSettings;
   const c = t.config;

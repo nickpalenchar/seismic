@@ -58,10 +58,23 @@ struct Ready {
 
 #[derive(Default)]
 pub struct Updates {
-  ready: Mutex<Option<Ready>>,
+  ready: Mutex<Option<Arc<Ready>>>,
   /// Installed from a checkout: a new build of the shell is in this one's place.
   rebuilt: Mutex<bool>,
   installing: AtomicBool,
+  snapshot_deferred: AtomicBool,
+}
+
+impl Updates {
+  fn installed(&self, release: &Arc<Ready>) {
+    let mut ready = self.ready.lock().unwrap();
+    if ready.as_ref().is_some_and(|r| Arc::ptr_eq(r, release)) {
+      ready.take();
+    }
+    // A successful installer which returns has replaced the shell. If recapture fails,
+    // retry the relaunch without running the same installer again.
+    *self.rebuilt.lock().unwrap() = true;
+  }
 }
 
 fn deb() -> bool {
@@ -71,11 +84,12 @@ fn deb() -> bool {
 pub fn start(app: &AppHandle, seismic: Arc<Seismic>) -> Arc<Updates> {
   let updates = Arc::new(Updates::default());
   if let Some(checkout) = crate::checkout() {
-    let Some(built) = option_env!("SEISMIC_BUILT_TREE").or(option_env!("OBEYA_BUILT_TREE")).filter(|t| !t.is_empty()) else {
+    if let Some(built) = option_env!("SEISMIC_BUILT_TREE").or(option_env!("OBEYA_BUILT_TREE")).filter(|t| !t.is_empty()) {
+      let (home, u) = (crate::home(), updates.clone());
+      thread::spawn(move || rebuild(&checkout, built, &home, &u));
+    } else if !(cfg!(debug_assertions) && crate::seismic_env("APP_CHECK").is_some()) {
       return updates;
-    };
-    let (home, u) = (crate::home(), updates.clone());
-    thread::spawn(move || rebuild(&checkout, built, &home, &u));
+    }
   } else if CHECK_RELEASES {
     check_releases(app, &updates);
   }
@@ -160,7 +174,7 @@ fn check(app: &AppHandle, updates: &Updates) -> Result<(), String> {
   } else {
     Some(tauri::async_runtime::block_on(update.download(|_, _| {}, || {})).map_err(|e| e.to_string())?)
   };
-  *updates.ready.lock().unwrap() = Some(Ready { update, bytes });
+  *updates.ready.lock().unwrap() = Some(Arc::new(Ready { update, bytes }));
   Ok(())
 }
 
@@ -172,16 +186,19 @@ fn report(app: &AppHandle, seismic: &Seismic, updates: &Updates) {
   if port == 0 || seismic.stopping.load(Ordering::SeqCst) || updates.installing.load(Ordering::SeqCst) {
     return;
   }
+  #[cfg(debug_assertions)]
+  if crate::seismic_env("APP_CHECK").is_some() && fs::remove_file(crate::home().join("check-queue-rebuild")).is_ok() {
+    *updates.rebuilt.lock().unwrap() = true;
+  }
   if !seismic.child.load(Ordering::SeqCst) {
-    if *updates.rebuilt.lock().unwrap() {
+    if *updates.rebuilt.lock().unwrap() && retry_snapshot_ready(app, updates) {
       if let Err(error) = start_again(app, seismic, port) {
-        *updates.rebuilt.lock().unwrap() = false;
-        snapshot_notice(app, &error, "The update was deferred.");
+        defer_snapshot(app, updates, &error, "The update will retry when Seismic can save the windows.");
       }
     }
     return;
   }
-  let body = match updates.ready.lock().unwrap().as_ref() {
+  let body = match updates.ready.lock().unwrap().as_deref() {
     None if *updates.rebuilt.lock().unwrap() => json!({ "rebuilt": true }),
     None => return,
     Some(Ready { update, bytes }) => json!({
@@ -193,7 +210,7 @@ fn report(app: &AppHandle, seismic: &Seismic, updates: &Updates) {
   };
   // The local server can defer for its own activity. Check the remote pages before asking it
   // to stop, and again once it has stopped, since workers may take time to finish.
-  if body["rebuilt"] != true || workspaces::ready(app, false).is_some() {
+  if body["rebuilt"] != true || (retry_snapshot_ready(app, updates) && workspaces::ready(app, false).is_some()) {
     post(port, "/api/app-update", &body);
   }
 }
@@ -230,16 +247,24 @@ fn start_again(app: &AppHandle, seismic: &Seismic, port: u16) -> io::Result<()> 
 
 /// Publish the snapshot before anything that can exit, including the installer itself.
 fn prepare_relaunch(app: &AppHandle, installer: bool, local_page: Option<&str>) -> io::Result<Option<Vec<Placed>>> {
+  let Some(windows) = capture_relaunch(app, true)? else { return Ok(None) };
+  keep_placements(&crate::home(), windows, installer, local_page).map(Some)
+}
+
+fn capture_relaunch(app: &AppHandle, hand_over: bool) -> io::Result<Option<Vec<Placed>>> {
   let generation = crate::desks::draft_generation(app);
-  let Some(drafts) = workspaces::ready(app, true) else {
+  let Some(drafts) = workspaces::probe(app, true, hand_over) else {
     return Ok(None);
   };
   #[cfg(debug_assertions)]
-  pause_check_placement();
-  let Some(windows) = crate::desks::placed(app, generation, drafts)? else {
-    return Ok(None); // a remote workspace is still in use or changing windows
-  };
-  keep_placements(&crate::home(), windows, installer, local_page).map(Some)
+  if hand_over { pause_check_placement(); }
+  crate::desks::placed(app, generation, drafts)
+}
+
+fn retry_snapshot_ready(app: &AppHandle, updates: &Updates) -> bool {
+  !updates.snapshot_deferred.load(Ordering::SeqCst) || capture_relaunch(app, false).is_ok_and(|windows| {
+    windows.is_some_and(|windows| placed::probe_write(&crate::home(), &windows).is_ok())
+  })
 }
 
 #[cfg(debug_assertions)]
@@ -292,9 +317,16 @@ fn snapshot_notice(app: &AppHandle, error: &io::Error, outcome: &str) {
     .show(|_| {});
 }
 
+fn defer_snapshot(app: &AppHandle, updates: &Updates, error: &io::Error, outcome: &str) {
+  // A checkout rebuild retries automatically. A release remains available to install manually.
+  let first = !updates.snapshot_deferred.swap(true, Ordering::SeqCst);
+  if first || updates.ready.lock().unwrap().is_some() {
+    snapshot_notice(app, error, outcome);
+  }
+}
+
 fn resume_server(app: &AppHandle, updates: &Updates, error: &io::Error) -> Installed {
-  *updates.rebuilt.lock().unwrap() = false;
-  snapshot_notice(app, error, "Seismic will restart the local server and keep your windows open.");
+  defer_snapshot(app, updates, error, "Seismic will restart the local server and keep your windows open.");
   Installed::ResumeServer
 }
 
@@ -308,7 +340,7 @@ pub fn install(app: &AppHandle, seismic: &Seismic, updates: &Updates) -> Install
   updates.installing.store(true, Ordering::SeqCst);
   // The local server has already exited. Keep the shell running until its remote pages can
   // hand over, without cutting off activity that began while the local server was stopping.
-  let ready = updates.ready.lock().unwrap().take();
+  let ready = updates.ready.lock().unwrap().clone();
   let installer = cfg!(windows) && ready.as_ref().is_some_and(|r| r.bytes.is_some());
   let mut windows = match wait_for_placements(app, seismic, installer, None) {
     Ok(Some(windows)) => windows,
@@ -322,15 +354,18 @@ pub fn install(app: &AppHandle, seismic: &Seismic, updates: &Updates) -> Install
   if let Some(w) = main_window(app) {
     let _ = w.navigate(crate::window::bundled_url("/index.html?updating"));
   }
-  if let Some(Ready { update, bytes: Some(bytes) }) = ready {
+  if let Some(release) = ready.as_ref().filter(|r| r.bytes.is_some()) {
+    let Ready { update, bytes } = release.as_ref();
     // on Windows the installer takes over here: it replaces the app and starts it again
-    if let Err(e) = update.install(bytes) {
+    if let Err(e) = update.install(bytes.as_deref().unwrap()) {
       app
         .dialog()
         .message(format!("Seismic {} could not be installed: {e}\n\nSeismic starts again in the version it had.", update.version))
         .title("Seismic")
         .kind(MessageDialogKind::Error)
         .blocking_show();
+    } else {
+      updates.installed(release);
     }
     let local_page = windows.iter().find(|p| p.desk == crate::desks::LOCAL).map(|p| p.next.as_str());
     windows = match wait_for_placements(app, seismic, false, local_page) {

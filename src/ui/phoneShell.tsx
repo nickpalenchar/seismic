@@ -12,6 +12,7 @@ import { patchCard, removeCard, restoreCard } from './clients/seismic';
 import { inboxEntries, readMark } from '../core/inbox';
 import { useInboxRead } from './inboxRead';
 import { type ActDone, Detail, type Pending, TalkElsewhere, useEvents } from './detail';
+import { draftSession } from './draftSession';
 import { cardDraft, fieldOn, focusedDraft, keepDrafts, MIC_DRAFT, seismicDraft } from './draft';
 import { plain } from './markdown';
 import { Cards, KoordinatorAgent } from './message';
@@ -55,7 +56,7 @@ export type PhoneShell = ReturnType<typeof usePhoneShell>;
  * project makes that project the one in view.
  */
 export function usePhoneShell(loaded: ProjectInfo[]) {
-  keepDrafts(sessionStorage, DRAFTS);
+  keepDrafts(draftSession, DRAFTS);
   usePhoneEnvironment();
   const { projects, snaps, usage, feeds, banner } = usePhoneProjects(loaded);
   const snapsRef = useRef(snaps);

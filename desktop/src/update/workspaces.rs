@@ -34,6 +34,10 @@ fn pages(app: &AppHandle) -> Option<Vec<(WebviewWindow, String)>> {
 pub type Drafts = HashMap<String, Vec<(String, String)>>;
 
 pub fn ready(app: &AppHandle, hand_over: bool) -> Option<Drafts> {
+  probe(app, hand_over, hand_over)
+}
+
+pub fn probe(app: &AppHandle, snapshot: bool, hand_over: bool) -> Option<Drafts> {
   let windows = pages(app)?;
   if windows.is_empty() {
     return Some(HashMap::new());
@@ -100,7 +104,7 @@ pub fn ready(app: &AppHandle, hand_over: bool) -> Option<Drafts> {
           if (location.origin !== {origin:?} || check?.token !== {token:?} || window.seismicRestartHeld?.()) return false;
           // Keep an origin-scoped copy even after a successful server handover: it can expire
           // during installation or before a workspace comes back online.
-          if (check.ready !== true || !{hand_over}) return check.ready;
+          if (check.ready !== true || !{snapshot}) return check.ready;
           return ({SESSION_DRAFTS})();
         }})()"#
       );

@@ -1,5 +1,8 @@
 import { afterEach, expect, test } from 'bun:test';
-import { api, beforeReload, cardsOn, handOver, setProject, takeHandOver, withCard, withCardBack, withoutCard, withUnchanged } from './api';
+import { api, beforeReload, cardsOn, handOver, setProject, snapshotSession, takeHandOver, withCard, withCardBack, withoutCard, withUnchanged } from './api';
+import { keepConfigDraft } from './configDraft';
+import { keepDrafts, updateDraft } from './draft';
+import { draftSession, restoreDraftOverflow } from './draftSession';
 import type { Item, ProjectSnapshot } from '../core/types';
 
 const fetched: string[] = [];
@@ -78,6 +81,40 @@ test('server handover fills in session state while keeping the locally restored 
     expect(sessionStorage.getItem('check-view')).toBe('open');
   } finally {
     globalThis.sessionStorage = real;
+  }
+});
+
+test('snapshots take the latest draft when session storage rejects writes, removals, and restored entries', async () => {
+  const original = globalThis.sessionStorage;
+  const store = globalThis.sessionStorage = storage();
+  const draftKey = 'seismic-drafts-quota';
+  const wishKey = 'seismic-wish-quota';
+  const configKey = 'seismic-config-draft-project:quota';
+  const old = JSON.stringify({ 'card:q': { text: 'old draft', images: [] } });
+  store.setItem(draftKey, old);
+  store.setItem(wishKey, 'already sent');
+  store.setItem('check-view', 'open');
+  const full = () => { throw new DOMException('full', 'QuotaExceededError'); };
+  try {
+    keepDrafts(draftSession, 'quota');
+    store.setItem = full;
+    store.removeItem = full;
+    updateDraft('card:q', { text: 'latest draft' });
+    draftSession.removeItem(wishKey);
+    keepConfigDraft(draftSession, 'project:quota', { name: 'latest settings' }, { name: 'saved' });
+    restoreDraftOverflow([['seismic-markups-quota', 'restored marks']]);
+    expect(store.getItem(draftKey)).toBe(old);
+    expect(store.getItem(wishKey)).toBe('already sent');
+    expect(new Map(snapshotSession())).toEqual(new Map([
+      [draftKey, JSON.stringify({ 'card:q': { text: 'latest draft', images: [] } })],
+      ['check-view', 'open'], [configKey, '{"name":"latest settings"}'], ['seismic-markups-quota', 'restored marks'],
+    ]));
+    globalThis.fetch = (async (_url: string) => Response.json([['unimportant-view', 'absent'], [configKey, 'older'], ['seismic-setting-draft-2', 'restored proposal']])) as typeof fetch;
+    await takeHandOver(new Set([configKey]));
+    expect(draftSession.getItem(configKey)).toBe('{"name":"latest settings"}');
+    expect(draftSession.getItem('seismic-setting-draft-2')).toBe('restored proposal');
+  } finally {
+    globalThis.sessionStorage = original;
   }
 });
 

@@ -469,7 +469,11 @@ Safety rules:
   retries the capture before publishing a snapshot. An empty sample still counts as a sampled page.
   A workspace page also sends its drafts to its own native window before yielding to the status page.
   This copy uses native messaging so it does not depend on browser storage quota or a server connection.
+  If session storage rejects a draft write, the page keeps the newer value in memory and includes it
+  in the snapshot. The departure records the current full route, including in-page address changes.
   An update that cannot confirm receipt keeps the windows alive and resumes the local server.
+  Failed snapshot preparation retains a downloaded release and the pending checkout rebuild.
+  Automatic retries test that a snapshot can be saved before asking the server to stop again.
 - A restored workspace opens without taking focus unless it was the window the owner last used.
   Native show and fullscreen calls can activate a window, so the shell uses background presentation
   for the others and postpones fullscreen until they receive focus.

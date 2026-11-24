@@ -312,7 +312,7 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
           let app = webview.app_handle().clone();
           let label = webview.label().to_string();
           let origin = serde_json::json!(loaded.origin());
-          let confirms = format!("location.origin === {origin} && sessionStorage.getItem('seismic-desktop-restored') === '1'");
+          let confirms = format!("location.origin === {origin} && window.seismicDraftsReceived === true");
           let _ = webview.eval_with_callback(confirms, move |restored| {
             if restored == "true" {
               crate::desks::drafts_restored(&app, &label);

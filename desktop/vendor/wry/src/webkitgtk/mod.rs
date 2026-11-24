@@ -88,6 +88,7 @@ impl Drop for X11Data {
 pub(crate) struct InnerWebView {
   id: String,
   pub webview: WebView,
+  download_handler: Option<(webkit2gtk::WebContext, glib::SignalHandlerId)>,
   #[cfg(any(debug_assertions, feature = "devtools"))]
   is_inspector_open: Arc<AtomicBool>,
   pending_scripts: Arc<Mutex<Option<Vec<String>>>>,
@@ -99,6 +100,9 @@ pub(crate) struct InnerWebView {
 
 impl Drop for InnerWebView {
   fn drop(&mut self) {
+    if let Some((context, handler)) = self.download_handler.take() {
+      context.disconnect(handler);
+    }
     unsafe { self.webview.destroy() }
   }
 }
@@ -308,7 +312,7 @@ impl InnerWebView {
     Self::set_webview_settings(&webview, &attributes);
 
     // Webview handlers
-    Self::attach_handlers(&webview, web_context, &mut attributes);
+    let download_handler = Self::attach_handlers(&webview, web_context, &mut attributes);
 
     // IPC handler
     let ipc_enabled = attributes.ipc_handler.is_some();
@@ -337,6 +341,7 @@ impl InnerWebView {
     let w = Self {
       id,
       webview,
+      download_handler,
       pending_scripts: Arc::new(Mutex::new(Some(Vec::new()))),
 
       is_in_fixed_parent,
@@ -469,7 +474,7 @@ impl InnerWebView {
     webview: &WebView,
     web_context: &mut WebContext,
     attributes: &mut WebViewAttributes,
-  ) {
+  ) -> Option<(webkit2gtk::WebContext, glib::SignalHandlerId)> {
     // window.close()
     webview.connect_close(move |webview| unsafe { webview.destroy() });
 
@@ -681,10 +686,14 @@ impl InnerWebView {
     if attributes.download_started_handler.is_some()
       || attributes.download_completed_handler.is_some()
     {
-      web_context.register_download_handler(
+      let handler = web_context.register_download_handler(
+        webview,
         attributes.download_started_handler.take(),
         attributes.download_completed_handler.take(),
-      )
+      );
+      Some((web_context.context().clone(), handler))
+    } else {
+      None
     }
   }
 

@@ -1,3 +1,4 @@
+import { draftSession } from './draftSession';
 import { activeMergeCard } from '../core/merge';
 import { FullPageHost, useFullPage } from './fullPage';
 import { DockShell, useDock, type DockView } from './dockViews';
@@ -151,8 +152,8 @@ function Shown({ id, projects, onProjects }: { id: string; projects: ProjectInfo
   const [ready, setReady] = useState<string | null>(null);
   useEffect(() => {
     setProject(id);
-    keepDrafts(sessionStorage, id);
-    keepWish(sessionStorage, id);
+    keepDrafts(draftSession, id);
+    keepWish(draftSession, id);
     setReady(id);
   }, [id]);
   if (ready !== id) return <Splash offline={false} />;
@@ -1149,7 +1150,7 @@ function Project({
     const f = focusRef.current;
     const plan = f?.type === 'plan' ? f.id : f?.type === 'card' ? f.plan?.id : undefined;
     const sheet: SideSheet | undefined = kOn ? 'koordinator' : nyOn ? 'needs-you' : csOn ? 'settings' : agentsOn ? 'agents' : aOn ? 'archive' : undefined;
-    keep(sessionStorage, snapshot.project.id, {
+    keep(draftSession, snapshot.project.id, {
       at: Date.now(),
       ...(f?.type === 'card' ? { card: f.id } : {}),
       ...(plan ? { plan, reading: !!readingRef.current } : {}),
@@ -1185,7 +1186,7 @@ function Project({
     };
   }, []);
   useEffect(() => {
-    let k = takeKept(sessionStorage, snapshot.project.id);
+    let k = takeKept(draftSession, snapshot.project.id);
     const sheetLeft = takeSheetLeft(sessionStorage, snapshot.project.id);
     // the project's own address, where the page came without one or with another project's; `?talk`
     // (Seismic's answer in another project's navigation) opens Seismic's sheet, once

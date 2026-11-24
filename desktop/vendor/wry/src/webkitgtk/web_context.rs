@@ -117,9 +117,10 @@ pub trait WebContextExt {
 
   fn register_download_handler(
     &mut self,
+    webview: &WebView,
     download_started_callback: Option<Box<dyn FnMut(String, &mut PathBuf) -> bool>>,
     download_completed_callback: Option<Rc<dyn Fn(String, Option<PathBuf>, bool) + 'static>>,
-  );
+  ) -> glib::SignalHandlerId;
 }
 
 impl WebContextExt for super::WebContext {
@@ -304,14 +305,21 @@ impl WebContextExt for super::WebContext {
 
   fn register_download_handler(
     &mut self,
+    webview: &WebView,
     download_started_handler: Option<Box<dyn FnMut(String, &mut PathBuf) -> bool>>,
     download_completed_handler: Option<Rc<dyn Fn(String, Option<PathBuf>, bool) + 'static>>,
-  ) {
+  ) -> glib::SignalHandlerId {
     let context = &self.os.context;
-
+    let owner = webview.downgrade();
     let download_started_handler = Rc::new(RefCell::new(download_started_handler));
 
     context.connect_download_started(move |_context, download| {
+      // A shared context announces every download to each subscriber. Only the webview that
+      // initiated it can choose a destination or cancel it.
+      let Some(owner) = owner.upgrade() else { return };
+      if download.web_view().as_ref() != Some(&owner) {
+        return;
+      }
       // Failure belongs to this download, not every download in the context.
       let failed = Rc::new(RefCell::new(false));
       let download_started_handler = download_started_handler.clone();
@@ -387,7 +395,7 @@ impl WebContextExt for super::WebContext {
           }
         });
       }
-    });
+    })
   }
 }
 

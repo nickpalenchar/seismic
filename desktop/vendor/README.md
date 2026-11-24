@@ -10,9 +10,11 @@ in place of the crates.io wry (`[patch.crates-io]`).
 On Linux, `src/webkitgtk/mod.rs` subscribes to the `ipc` message name only. The shell disables
 that Tauri channel but adds a separate one-way channel for draft recovery. Listening for every
 message name would also route that channel's messages into the general IPC decoder.
+The same GTK backend scopes download callbacks to the originating webview and disconnects the
+context subscription when that view is dropped. A shared context announces downloads from every view.
 
 Moving to a newer wry: copy its crate from `~/.cargo/registry/src/*/wry-<version>/` (src, build.rs,
-the licenses, Cargo.toml without its `[[example]]` tables), then reapply both changes. On macOS,
+the licenses, Cargo.toml without its `[[example]]` tables), then reapply these changes. On macOS,
 build the actual desktop bundle from the repository root and run its workspace check:
 
 ```sh
