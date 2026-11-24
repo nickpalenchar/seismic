@@ -4,7 +4,7 @@ window.SEISMIC_STRINGS = {
   "updating": "Seismic is updating …",
   "status": {
     "title": "Seismic",
-    "doesNotAnswer": "{0} does not answer",
+    "unresponsive": "{0} is unresponsive",
     "unreachable": "Nothing answers at {0}. The machine may be off or asleep, or not on this network.",
     "notSeismic": "Something answers at {0}, but it is not Seismic.",
     "notLoaded": "Seismic answers at {0}, but its page did not load.",

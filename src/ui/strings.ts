@@ -1393,7 +1393,7 @@ const en = {
     updating: 'Seismic is updating …',
     status: {
       title: 'Seismic',
-      doesNotAnswer: (workspace: string) => `${workspace} does not answer`,
+      unresponsive: (workspace: string) => `${workspace} is unresponsive`,
       unreachable: (origin: string) => `Nothing answers at ${origin}. The machine may be off or asleep, or not on this network.`,
       notSeismic: (origin: string) => `Something answers at ${origin}, but it is not Seismic.`,
       notLoaded: (origin: string) => `Seismic answers at ${origin}, but its page did not load.`,

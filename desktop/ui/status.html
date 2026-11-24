@@ -9,7 +9,7 @@
     <style>
       body { display: grid; place-content: center; padding: 24px; box-sizing: border-box; }
       main { max-width: 28rem; display: grid; gap: 14px; justify-items: start; }
-      img { width: 48px; height: 48px; }
+      svg { width: 48px; height: 48px; color: var(--muted-foreground); }
       h1 { margin: 0; font-size: 20px; font-weight: 600; overflow-wrap: anywhere; }
       p { margin: 0; color: var(--muted-foreground); overflow-wrap: anywhere; }
       .row { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -26,7 +26,8 @@
   <body>
     <div data-tauri-drag-region></div>
     <main>
-      <img src="logo.svg" alt="" />
+      <!-- Lucide's cloud-alert (ISC) -->
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 12v4" /><path d="M12 20h.01" /><path d="M8.128 16.949A7 7 0 1 1 15.71 8h1.79a1 1 0 0 1 0 9h-1.642" /></svg>
       <h1 id="title"></h1>
       <p id="why"></p>
       <div class="row"><button id="retry" class="primary" type="button"></button></div>
@@ -73,7 +74,7 @@
         if (request !== listLoad) return;
         const own = desks.list.find((d) => d.id === desks.current);
         if (!own) return;
-        $('title').textContent = desks.problem === 'unreachable' ? fill(s.doesNotAnswer, own.name) : own.name;
+        $('title').textContent = fill(s.unresponsive, own.name);
         $('why').textContent = fill(WHY.includes(desks.problem) ? s[desks.problem] : s.check, own.origin);
         const workspaces = desks.list.filter((d) => d.id !== own.id);
         $('others-title').hidden = !workspaces.length;

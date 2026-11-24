@@ -952,7 +952,7 @@ async function checkApp() {
     proxy.server!.stop(true);
     proxy.server = undefined;
     const status = await select(id, 'status');
-    expect(String(status.title).includes('does not answer'), JSON.stringify(status));
+    expect(String(status.title).includes('is unresponsive'), JSON.stringify(status));
     const before = reports.length;
     const name = JSON.stringify((await desks()).list[0]!.name);
     send('check_eval', { js: `[...document.querySelectorAll('#others button')].find(button => button.textContent === ${name}).click()` });
@@ -1060,7 +1060,7 @@ async function checkApp() {
     const before = reports.length;
     send('open_desk', { id });
     const status = await report('status', before, 40_000);
-    expect(String(status.title).includes('does not answer') && status.windows === 1, JSON.stringify(status));
+    expect(String(status.title).includes('is unresponsive') && status.windows === 1, JSON.stringify(status));
     expect((await desks()).problem === 'unreachable', 'the status page has no problem to show');
     // No document ran at the attempted origin. The shell must be able to park its backup.
     await select('local', 'local');
@@ -1070,7 +1070,7 @@ async function checkApp() {
     dropPage = true;
     send('retry_desk');
     const second = await report('status', again, 40_000);
-    expect(second.label === offline.label && String(second.title).includes('does not answer'), JSON.stringify(second));
+    expect(second.label === offline.label && String(second.title).includes('is unresponsive'), JSON.stringify(second));
     const beforeRestart = reports.length;
     await relaunch();
     const restored = await report('status', beforeRestart, 20_000);
