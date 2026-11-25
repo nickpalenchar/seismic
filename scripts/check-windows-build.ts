@@ -1,5 +1,4 @@
 import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 const ROOT = resolve(import.meta.dir, '..');
@@ -8,7 +7,7 @@ const ROOT = resolve(import.meta.dir, '..');
  * Type-check the desktop shell and its tests for Windows from macOS or Linux: `cargo check --tests`
  * for an installed `*-pc-windows-msvc` Rust target (`rustup target add aarch64-pc-windows-msvc`).
  * Nothing is linked, so stand-ins replace the MSVC headers, `lib.exe` and `llvm-rc` that build
- * scripts call. On Windows, run `cargo test` in `desktop/` instead.
+ * scripts call; they live in /tmp, as CFLAGS cannot quote a path with spaces. On Windows, run `cargo test` in `desktop/` instead.
  * Usage: bun scripts/check-windows-build.ts [target triple] [extra cargo arguments]
  */
 function main() {
@@ -23,7 +22,7 @@ function main() {
     console.error(`No Windows target installed: rustup target add ${target ?? 'aarch64-pc-windows-msvc'}`);
     return 2;
   }
-  const stubs = mkdtempSync(join(tmpdir(), 'seismic-windows-check-'));
+  const stubs = mkdtempSync('/tmp/seismic-windows-check-');
   try {
     writeFileSync(join(stubs, 'assert.h'), '#define assert(x) ((void)0)\n');
     writeFileSync(join(stubs, 'string.h'), [
@@ -38,9 +37,9 @@ function main() {
     const lib = join(stubs, 'lib');
     writeFileSync(lib, [
       '#!/bin/sh',
-      'out=""; files=""',
-      'for a in "$@"; do case "$a" in -out:*) out="${a#-out:}";; -nologo) ;; *) files="$files $a";; esac; done',
-      'exec ar rcs "$out" $files',
+      'out=""',
+      'for a do shift; case "$a" in -out:*) out="${a#-out:}";; -nologo) ;; *) set -- "$@" "$a";; esac; done',
+      'exec ar rcs "$out" "$@"',
     ].join('\n') + '\n');
     const rc = join(stubs, 'llvm-rc');
     writeFileSync(rc, [

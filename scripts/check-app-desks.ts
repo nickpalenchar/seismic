@@ -192,6 +192,7 @@ let unrelatedPairing = false;
 let unrelatedPageRequests = 0;
 let rejectHealth = false;
 let rejectedHealthChecks = 0;
+let healthProbes = 0;
 let dropPage = false;
 let pageError: 'http' | 'legacy' | undefined;
 let placeholder: { redirect: boolean; hideTiming: boolean; cache?: boolean; fragment?: string; path?: string } | undefined;
@@ -279,6 +280,7 @@ const startProxy = (port = proxyPort) => {
       }
       
       const health = ['/api/v1/health', '/api/projects'].includes(url.pathname) && req.headers.get('user-agent')?.startsWith('ureq/');
+      if (health) healthProbes++;
       if (onHealth && health) {
         server.timeout(req, 0);
         await onHealth();
@@ -1837,7 +1839,7 @@ async function checkApp() {
   await check('an embedded HTML preview leaves the top-level workspace open during a health failure', async () => {
     const before = reports.length;
     await sleep(800);
-    const rejected = rejectedHealthChecks;
+    const probed = healthProbes;
     try {
       rejectHealth = true;
       const loaded = await run('check_eval', { js: `new Promise(resolve => {
@@ -1856,7 +1858,7 @@ async function checkApp() {
       expect(loaded.value === 'Release notes', JSON.stringify(loaded));
       await sleep(16_000);
       expect(!reports.slice(before).some((r) => r.kind === 'status'), 'opening a preview sent the workspace to recovery');
-      expect(rejectedHealthChecks === rejected, 'the preview started a workspace health check');
+      expect(healthProbes === probed, 'the preview started a workspace health check');
       const live = await run('check_eval', { js: "!!document.querySelector('#check-html-preview')" });
       expect(live.value === true && (await desks()).problem === null, JSON.stringify(live));
       return 'preview contents and workspace stayed available';
@@ -1905,16 +1907,19 @@ async function checkApp() {
   await check('a fragment move loads no document, a reload of the fragment URL checks it', async () => {
     await sleep(800);
     const before = reports.length;
-    const rejected = rejectedHealthChecks;
-    const moved = await run('check_eval', { js: "location.hash = 'check-fragment'; location.href" });
-    expect(String(moved.value).endsWith('#check-fragment'), JSON.stringify(moved));
+    const [rejected, probed] = [rejectedHealthChecks, healthProbes];
+    rejectHealth = true;
     try {
-      rejectHealth = true;
+      const moved = await run('check_eval', { js: "location.hash = 'check-fragment'; location.href" });
+      expect(String(moved.value).endsWith('#check-fragment'), JSON.stringify(moved));
       await sleep(16_000);
       expect(!reports.slice(before).some((r) => ['remote', 'status'].includes(String(r.kind))), 'the fragment move loaded the document again');
-      expect(rejectedHealthChecks === rejected && (await desks()).problem === null, 'the fragment move started a workspace check');
+      expect(healthProbes === probed && (await desks()).problem === null, 'the fragment move started a workspace check');
       const reloading = reports.length;
-      send('check_eval', { js: 'location.reload()' });
+      const reloaded = await run('check_eval', {
+        js: "location.hash === '#check-fragment' && setTimeout(() => location.reload()); location.href",
+      });
+      expect(String(reloaded.value).endsWith('#check-fragment'), `the page left the fragment before its reload: ${JSON.stringify(reloaded)}`);
       await report('status', reloading, 25_000);
       expect(rejectedHealthChecks > rejected && (await desks()).problem === 'notSeismic', 'the reload was not checked');
       return 'only the reload checked the workspace';
@@ -1969,7 +1974,7 @@ async function checkApp() {
     await check('a top-level attachment download leaves the workspace open during a health failure', async () => {
       await sleep(800);
       const before = reports.length;
-      const rejected = rejectedHealthChecks;
+      const probed = healthProbes;
       const file = join(home, 'check-download.txt');
       try {
         rejectHealth = true;
@@ -1977,7 +1982,7 @@ async function checkApp() {
         await until('the attachment to download', 8000, () => existsSync(file) && readFileSync(file, 'utf8') === 'Workspace export');
         await sleep(16_000);
         expect(!reports.slice(before).some((r) => r.kind === 'status'), 'the download sent the workspace to recovery');
-        expect(rejectedHealthChecks === rejected && (await desks()).problem === null, 'the download left a workspace check armed');
+        expect(healthProbes === probed && (await desks()).problem === null, 'the download left a workspace check armed');
       } finally {
         rejectHealth = false;
       }
@@ -2063,7 +2068,7 @@ async function checkApp() {
       const before = reports.length;
       const kept = displayed();
       const reached = Promise.withResolvers<void>(), redirect = Promise.withResolvers<void>();
-      const rejected = rejectedHealthChecks;
+      const probed = healthProbes;
       try {
         rejectHealth = true;
         nextPage = () => { reached.resolve(); return redirect.promise; };
@@ -2074,7 +2079,7 @@ async function checkApp() {
           existsSync(handoffs) && readFileSync(handoffs, 'utf8').includes('https://example.invalid/workspace-export'));
         await sleep(16_000);
         expect(displayed() === kept && !reports.slice(before).some(r => r.kind === 'status'), 'the handoff replaced the workspace');
-        expect(rejectedHealthChecks === rejected && (await desks()).problem === null, 'the handoff left a workspace check armed');
+        expect(healthProbes === probed && (await desks()).problem === null, 'the handoff left a workspace check armed');
       } finally {
         rejectHealth = false;
         nextPage = undefined;

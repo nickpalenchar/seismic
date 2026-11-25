@@ -116,6 +116,11 @@ jobs:
           APPLE_NOTARY_KEY: ${{ env.SIGN_MACOS == 'true' && secrets.APPLE_NOTARY_KEY || '' }}
           APPLE_NOTARY_KEY_ID: ${{ env.SIGN_MACOS == 'true' && secrets.APPLE_NOTARY_KEY_ID || '' }}
           APPLE_NOTARY_ISSUER: ${{ env.SIGN_MACOS == 'true' && secrets.APPLE_NOTARY_ISSUER || '' }}
+      # the shell's own tests, also those for one platform alone (cfg(windows), say), with the server
+      # and resources that the build above staged for tauri-build
+      - name: The shell's Rust tests
+        working-directory: desktop
+        run: cargo test
       - name: Smoke test of the compiled server
         shell: bash
         run: |
