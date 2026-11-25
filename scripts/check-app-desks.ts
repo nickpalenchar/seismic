@@ -193,9 +193,6 @@ let rejectHealth = false;
 let rejectedHealthChecks = 0;
 let dropPage = false;
 let pageError: 'http' | 'legacy' | undefined;
-// A proxy's own page: at every workspace route, or behind a redirect to /maintenance; hideTiming
-// gives it the timing entries of older webviews, which omit the HTTP status; cache lets the
-// browser keep it, and the redirect, for ten minutes.
 let placeholder: { redirect: boolean; hideTiming: boolean; cache?: boolean; fragment?: string } | undefined;
 let signedOut = false;
 let placeholdersServed = 0;
@@ -232,7 +229,6 @@ const startProxy = (port = proxyPort) => {
         });
       }
       if (url.pathname + url.search === dropReloadAt && req.headers.get('accept')?.includes('text/html')) {
-        // Let the connection time out before sending headers while the health route still answers.
         droppedReloads++;
         server.timeout(req, 1);
         return new Promise<Response>(() => {});
@@ -251,7 +247,6 @@ const startProxy = (port = proxyPort) => {
           const cache = placeholder.cache ? { 'cache-control': 'max-age=600' } : { 'cache-control': 'no-store' };
           return new Response(null, { status: 302, headers: { location: new URL('/maintenance', req.url).href, ...cache } });
         }
-        // The root element and manifest any web app has.
         placeholdersServed++;
         const timing = placeholder.hideTiming ? '<script>performance.getEntriesByType = () => []</script>' : '';
         const fragment = placeholder.fragment === undefined ? '' : `<script>history.replaceState(null, '', ${JSON.stringify(placeholder.fragment)})</script>`;
@@ -284,7 +279,6 @@ const startProxy = (port = proxyPort) => {
         return Response.json({ now: false, kept: false });
       }
       const headers = new Headers(req.headers);
-      // The browser without its device cookie: Seismic answers with its pairing form.
       if (signedOut) headers.delete('cookie');
       headers.set('x-forwarded-for', '100.64.0.7');
       headers.set('x-forwarded-host', `${HOST}:${port}`);
@@ -1229,8 +1223,6 @@ async function checkApp() {
     await select('local', 'local');
     const route = String((await select(id, 'remote')).href);
     await select('local', 'local');
-    // Opening follows a cacheable redirect to the placeholder. The load check waits for the
-    // placeholder's own report, with the HTTP status the engine gave it.
     placeholder = { redirect: true, hideTiming: false, cache: true };
     const seen = Promise.withResolvers<void>(), served = placeholdersServed;
     let held = false;
@@ -1241,13 +1233,10 @@ async function checkApp() {
       const page = await until('the placeholder to report', 20_000, () =>
         reports.slice(before).find((r) => r.kind === 'remote' && new URL(String(r.href)).pathname === '/maintenance'));
       seen.resolve();
-      // WebKit gives no responseStatus; where the engine gives one, the 2xx branch rejected the page.
       expect((page.responseStatus ?? 200) === 200 && page.mounted === false, JSON.stringify(page));
       const status = await report('status', before, 40_000);
       expect((await desks()).problem === 'notLoaded', JSON.stringify(status));
       onHealth = undefined;
-      // Try again gets it at the route itself, without the HTTP status in its timing entry, then
-      // behind the redirect again, which the cache keeps for the route.
       for (const shape of [{ redirect: false, hideTiming: true, cache: true }, { redirect: true, hideTiming: false, cache: true }]) {
         placeholder = shape;
         const retried = reports.length;
@@ -1273,13 +1262,11 @@ async function checkApp() {
     placeholder = { redirect: false, hideTiming: false };
     onHealth = async () => { if (++probes === 1) await held.promise; };
     try {
-      // The workspace reloads into a placeholder; its check waits on the server.
       const before = reports.length;
       send('check_eval', { js: 'location.reload()' });
       await until('the placeholder to report', 20_000, () =>
         reports.slice(before).find((r) => r.kind === 'remote' && r.mounted === false));
       await until('the check of the placeholder to wait on the server', 5000, () => probes >= 1);
-      // The owner moves on to the workspace while that check still waits: its page is slow.
       placeholder = undefined;
       nextPage = () => page.promise;
       const moved = reports.length;
@@ -1308,7 +1295,6 @@ async function checkApp() {
       const page = await select(id, 'remote');
       const form = await run('check_eval', { js: "!!document.querySelector('form[action=\"/pair\"] input[name=\"code\"]')" });
       expect(form.value === true && page.mounted === false && page.projects === 401, JSON.stringify({ form, page }));
-      // The load check runs as the page finishes: the form is still the page after it.
       await sleep(3000);
       expect(displayed()?.kind === 'remote' && displayed()?.label === page.label && (await desks()).problem === null, JSON.stringify(displayed()));
     } finally {
@@ -1593,8 +1579,6 @@ async function checkApp() {
   await check("a reload of the workspace that never finishes shows status after the patience", async () => {
     await select('local', 'local');
     await select(id, 'remote');
-    // The server goes away and the owner reloads: the load fails without a Finished event and
-    // leaves the page before in place. Late in the run: the reload drops drafts held in memory.
     proxy.server!.stop(true);
     proxy.server = undefined;
     try {
@@ -1650,7 +1634,6 @@ async function checkApp() {
   });
   await check('an embedded HTML preview leaves the top-level workspace open during a health failure', async () => {
     const before = reports.length;
-    // Let the verification of the workspace above finish before making health fail.
     await sleep(800);
     const rejected = rejectedHealthChecks;
     try {
@@ -1681,7 +1664,6 @@ async function checkApp() {
     }
   });
   await check('a stalled reload gets its own timeout while the previous check is pending', async () => {
-    // Establish a new document with a fragment, then hold its verification while reloading it.
     const route = new URL(String(displayed()?.href));
     route.searchParams.set('check-navigation', 'stalled');
     route.hash = 'reload';
