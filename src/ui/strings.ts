@@ -990,7 +990,6 @@ const en = {
       confirmHint: 'You agree with the agent: the item is closed, as if ignored',
       reject: 'Reject and explain',
       rejectHint: 'The agent fixes it after all, with your explanation',
-      rejectTitle: 'Reject the dispute',
       rejectText: 'Say why the item holds. The agent reads it with the item and fixes it.',
       rejectSave: 'Reject dispute',
       cancel: 'Cancel',

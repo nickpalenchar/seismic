@@ -23,5 +23,6 @@ made and raises any flaws it finds, each with a severity level.
 A worker asked to fix an item it holds wrong disputes it instead, with its reasons. The item comes
 back to you marked "Disputed", with the worker's reasons in a box inside it; later reviews leave it
 alone, since the decision is yours. "Confirm and close" agrees with the worker and closes the item.
-"Reject and explain" asks why the item holds; your words go to the worker with the item, which it
-then fixes. Either choice goes out with your next Send, like the others on the Review tab.
+"Reject and explain" asks, in the same box, why the item holds. Once you confirm, the item offers the
+usual "Fix it", "As a follow-up task" and "Ignore", with "Fix it" chosen and your words as its
+context. Your choice goes out with your next Send, like the others on the Review tab.

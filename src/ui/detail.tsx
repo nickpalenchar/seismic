@@ -2933,17 +2933,20 @@ function ReviewList({ item, act, decides, again, reviewer }: { item: Item; act: 
               </div>
             )}
             {i.status === 'fixing' && <div className={findingStatus(true)}>{t.codeReview.goingFix}</div>}
-            {i.status === 'disputed' && <Dispute item={item} review={i} decides={decides} pick={picks[i.number]} choice={(route, label, title) => choice(i, route, label, title)} />}
-            {waits && decides && i.status !== 'disputed' && (
-              <>
-                <div className={choicesClass('single', findingChoices)} role="group">
-                  {choice(i, 'self', t.codeReview.fix, t.codeReview.fixHint)}
-                  {choice(i, 'later', t.review.later, t.codeReview.laterHint)}
-                  {choice(i, 'ignore', t.review.ignore, t.review.ignoreHint)}
-                </div>
-                <FindingContext item={item} id={i.number} {...(i.context ? { kept: i.context } : {})} />
-              </>
-            )}
+            {waits && decides && (() => {
+              const regular = (
+                <>
+                  <div className={choicesClass('single', findingChoices)} role="group">
+                    {choice(i, 'self', t.codeReview.fix, t.codeReview.fixHint)}
+                    {choice(i, 'later', t.review.later, t.codeReview.laterHint)}
+                    {choice(i, 'ignore', t.review.ignore, t.review.ignoreHint)}
+                  </div>
+                  <FindingContext item={item} id={i.number} {...(i.context ? { kept: i.context } : {})} />
+                </>
+              );
+              return i.status === 'disputed' ? <Dispute item={item} review={i} pick={picks[i.number]} confirm={choice(i, 'ignore', t.codeReview.dispute.confirm, t.codeReview.dispute.confirmHint)} regular={regular} /> : regular;
+            })()}
+            {i.status === 'disputed' && !decides && <Dispute item={item} review={i} />}
             {!!i.context && !waits && <p className={findingNote}>{i.context}</p>}
             <ol className={findingLog}>
               {i.log.map((e, k) => (
@@ -2980,19 +2983,27 @@ function ReviewList({ item, act, decides, again, reviewer }: { item: Item; act: 
 }
 
 /**
- * A disputed item's alert: the agent's reasons, and the owner's answer to them. "Confirm and close"
- * picks Ignore; "Reject and explain" asks why in a dialog, keeps that as the item's context and
- * picks "Fix it". Both stand in the draft and go out with the one Send, as the other choices do.
+ * A disputed item's alert: the agent's reasons, and the owner's answer to them (`confirm`, where the
+ * owner decides). "Confirm and close" picks Ignore; "Reject and explain" opens a field for why inside
+ * the alert. Once rejected, the item offers the regular choices (`regular`) with "Fix it" picked and
+ * the explanation as its context. All of it stands in the draft and goes out with the one Send.
  */
-function Dispute({ item, review, decides, pick, choice }: { item: Item; review: ReviewItem; decides: boolean; pick?: FindingPick; choice: (route: FindingPick, label: string, title: string) => ReactNode }) {
+function Dispute({ item, review, pick, confirm, regular }: { item: Item; review: ReviewItem; pick?: FindingPick; confirm?: ReactNode; regular?: ReactNode }) {
   const d = t.codeReview.dispute;
   const draft = cardDraft(item.id);
   const saved = useFindingDraft(item).findingNotes?.[review.number];
-  const [asking, setAsking] = useState(false);
-  const [why, setWhy] = useState('');
+  // rejected once the owner explained why, or chose a route only the regular choices offer
+  const [rejected, setRejected] = useState(() => !!saved?.trim() || pick === 'self' || pick === 'later');
+  const [why, setWhy] = useState<string | undefined>(undefined);
   const reasons = review.log.findLast((e) => e.to === 'disputed')?.note;
-  const reject = () =>
-    updateDraft(draft, (x) => ({ findings: { ...x.findings, [review.number]: 'self' }, findingNotes: { ...x.findingNotes, [review.number]: why.trim() } }));
+  const reject = () => {
+    const words = why?.trim();
+    if (!words) return;
+    updateDraft(draft, (x) => ({ findings: { ...x.findings, [review.number]: 'self' }, findingNotes: { ...x.findingNotes, [review.number]: words } }));
+    setWhy(undefined);
+    setRejected(true);
+  };
+  const deciding = !!confirm && !rejected;
   return (
     <>
       <Callout kind="warn" className="mt-1.5">
@@ -3003,21 +3014,40 @@ function Dispute({ item, review, decides, pick, choice }: { item: Item; review: 
               <Inline md={reasons} />
             </p>
           )}
-          {decides && (
+          {deciding && why === undefined && (
             <div className={choicesClass('single', findingChoices)} role="group">
-              {choice('ignore', d.confirm, d.confirmHint)}
-              <button className={choiceClass({ on: pick === 'self' })} aria-pressed={pick === 'self'} title={d.rejectHint} onMouseDown={(e) => e.preventDefault()} onClick={() => (setWhy(saved ?? review.context ?? ''), setAsking(true))}>
+              {confirm}
+              <button className={choiceClass({})} title={d.rejectHint} onMouseDown={(e) => e.preventDefault()} onClick={() => setWhy(review.context ?? '')}>
                 {d.reject}
               </button>
             </div>
           )}
+          {deciding && why !== undefined && (
+            <div className="mt-1.5 flex w-full flex-col gap-2">
+              <span className="text-sm">{d.rejectText}</span>
+              <Textarea
+                autoFocus
+                rows={3}
+                className="w-full box-border"
+                aria-label={d.reject}
+                value={why}
+                onChange={(e) => setWhy(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) (e.preventDefault(), reject());
+                  else if (e.key === 'Escape') (e.stopPropagation(), setWhy(undefined));
+                }}
+              />
+              <div className="flex gap-2">
+                <Button variant="primary" disabled={!why.trim()} onClick={reject}>
+                  {d.rejectSave}
+                </Button>
+                <Button onClick={() => setWhy(undefined)}>{d.cancel}</Button>
+              </div>
+            </div>
+          )}
         </CalloutDescription>
       </Callout>
-      {decides && pick === 'self' && <FindingContext item={item} id={review.number} {...(review.context ? { kept: review.context } : {})} />}
-      <ConfirmDialog open={asking} onOpenChange={setAsking} title={d.rejectTitle} confirm={{ label: d.rejectSave, onClick: reject, disabled: !why.trim() }} cancel={d.cancel}>
-        <p>{d.rejectText}</p>
-        <Textarea autoFocus rows={4} className="mb-4 w-full box-border" value={why} onChange={(e) => setWhy(e.target.value)} />
-      </ConfirmDialog>
+      {confirm && rejected && regular}
     </>
   );
 }
