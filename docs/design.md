@@ -97,6 +97,12 @@ cycling through terminals.
   `UPDATES_ENABLED` in `src/server/app-update.ts`. `docs/release.md` has the process.
 - **The Koordinator is called Seismic in the UI** (2026-10-09): the owner has one counterpart, not a
   product plus a component in it.
+- **Opening the chat panel writes nothing** (2026-11-25): within 15 minutes of closing it, the panel
+  resumes the chat it showed, asking `GET /api/v1/chats/recent?project=` (the server keeps the answer for
+  an hour, until the board changes); after longer, or when nothing was said in the chat for that long on a
+  first open, it shows a new window with no call. A new chat's row is made when its first words are sent.
+  Rejected: `POST /chat/enter`, which wrote a row and the open time on every open and so rebuilt and pushed
+  the whole snapshot before the panel showed anything.
 - **A persistent local store** (SQLite in Seismic's home), not an ephemeral one.
 - **A write's answer goes out before the snapshot is built** (2026-11-21): the board's listeners
   hear of a change on `setImmediate` (`Board.tell`), after the request that made it has its
