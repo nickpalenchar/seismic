@@ -50,7 +50,8 @@ If the app cannot open the selected workspace, it shows **&lt;workspace&gt; is u
 the workspace’s name in the heading. Read the reason below it. It shows the workspace’s address
 and explains what happened, including when Seismic answers but its page fails to load.
 Choose **Try again** to reopen your last page, or choose another workspace under
-**Switch workspace**. On macOS, **File → Open in Browser**
+**Switch workspace**. **Recovery help**, beside **Try again**, opens the public Seismic guide
+in your system browser. On macOS, **File → Open in Browser**
 (**Shift–Command–B**) opens the workspace’s address in your browser.
 
 If you go Back to the status screen after reconnecting, **Try again** checks the workspace again
