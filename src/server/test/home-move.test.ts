@@ -159,18 +159,26 @@ test("a worktree of a project's repository follows the move, and a paused worker
     const runtime = new FakeRuntime();
     const spaces = new Workstations(store, 'c', { mode: 'worktrees', repoPath: repo, dir });
     const workers = new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'worktrees' } });
-    return { store, board, runtime, spaces, workers };
+    return { store, board, runtime, workers };
   };
-  const before = build(join(user, 'build.db'), join(h, 'workspaces', 'shop'));
-  const card = before.board.create({ title: 'Export readings', x: 0, y: 0 });
-  await before.workers.start(card.id);
-  before.runtime.last.emit({ type: 'session', id: 'sess-1' });
-  const was = before.board.row(card.id).workstation!;
-  expect(was.startsWith(`${h}/workspaces/shop/`)).toBe(true);
-  before.workers.shutdown();
-  await before.workers.freed();
-  // the home as Seismic left it: one database file, and Claude Code's folder of the checkout
-  new Database(join(user, 'build.db')).run(`VACUUM INTO '${join(h, 'obeya.db')}'`);
+  let cardId: string;
+  let was: string;
+  {
+    const before = build(join(user, 'build.db'), join(h, 'workspaces', 'shop'));
+    using db = before.store.db;
+    try {
+      cardId = before.board.create({ title: 'Export readings', x: 0, y: 0 }).id;
+      await before.workers.start(cardId);
+      before.runtime.last.emit({ type: 'session', id: 'sess-1' });
+      was = before.board.row(cardId).workstation!;
+      expect(was.startsWith(`${h}/workspaces/shop/`)).toBe(true);
+    } finally {
+      before.workers.shutdown();
+      await before.workers.freed();
+    }
+    // the home as Seismic left it: one database file, and Claude Code's folder of the checkout
+    db.run('VACUUM INTO ?', [join(h, 'obeya.db')]);
+  }
   mkdirSync(join(claudeDir, 'projects', claudeFolderName(was)), { recursive: true });
 
   const r = await moveDefaultHome({ user, claudeDir });
@@ -186,14 +194,15 @@ test("a worktree of a project's repository follows the move, and a paused worker
 
   // Seismic starts on the moved home: the card's worker resumes its session, in the checkout's new path
   const after = build(databaseFile(moved()), join(moved(), 'workspaces', 'shop'));
-  after.workers.resumeAll();
-  expect(after.board.row(card.id).workstation).toBe(now);
-  expect(after.runtime.last.spec.cwd).toBe(now);
-  expect(after.runtime.last.spec.resume).toBe('sess-1');
-  await after.workers.stop(card.id);
-  await after.workers.freed();
-  // the board tells its listeners of the last changes after this turn: the workers must not hear it once the home is gone
-  after.workers.shutdown();
-  before.store.db.close();
-  after.store.db.close();
+  using _db = after.store.db;
+  try {
+    after.workers.resumeAll();
+    expect(after.board.row(cardId).workstation).toBe(now);
+    expect(after.runtime.last.spec.cwd).toBe(now);
+    expect(after.runtime.last.spec.resume).toBe('sess-1');
+  } finally {
+    // Shut down the session with its lease intact. Stopping the card starts a separate Git release.
+    after.workers.shutdown();
+    await after.workers.freed();
+  }
 });
