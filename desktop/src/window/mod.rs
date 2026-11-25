@@ -424,7 +424,7 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
         match wry::desktop_load_event() {
           Some(wry::DesktopLoadEvent::Committed) => crate::desks::navigation_committed(webview.app_handle(), webview.label(), payload.url()),
           Some(wry::DesktopLoadEvent::Cancelled) => crate::desks::navigation_cancelled(webview.app_handle(), webview.label()),
-          None => crate::desks::navigation_started(webview.app_handle(), webview.label()),
+          None => crate::desks::navigation_started(webview.app_handle(), webview.label(), payload.url()),
         }
       } else {
         let own_page = loaded.at(payload.url());

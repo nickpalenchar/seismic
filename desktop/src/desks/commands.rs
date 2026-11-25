@@ -246,7 +246,7 @@ fn status_window(app: &AppHandle, label: &str) -> Result<Webview, String> {
 }
 
 /// The status page's "Try again": asks the calling window's workspace again whether it answers, and
-/// where it does, the window returns to its last page; else why not (`unreachable`, `notSeismic`).
+/// where it does, the window opens the page that failed to load; else why not (`unreachable`, `notSeismic`).
 #[tauri::command]
 pub async fn retry_desk(app: AppHandle, webview: Webview) -> Result<(), String> {
   let label = webview.label().to_string();
@@ -279,7 +279,7 @@ pub async fn retry_desk(app: AppHandle, webview: Webview) -> Result<(), String> 
       active.problem = Some(health.code());
       return Err(health.code().into());
     }
-    let start = Url::parse(&format!("{origin}{}", active.next)).map_err(|e| e.to_string())?;
+    let start = Url::parse(&format!("{origin}{}", active.retry_route())).map_err(|e| e.to_string())?;
     active.problem = None;
     active.revalidated = false;
     let token = views.load();

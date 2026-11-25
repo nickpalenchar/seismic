@@ -56,6 +56,11 @@ struct WorkspaceView {
   own: Own,
   /// The last page at this origin, also used while showing the bundled status page.
   next: String,
+  /// The route the main-document load now under way asked for, before redirects (`provisional`)
+  /// and once it committed (`requested`), until a workspace document verifies. Recovery fetches and
+  /// Try again opens it; restoration keeps `next`, the route last verified.
+  provisional: Option<String>,
+  requested: Option<String>,
   /// Why the window shows the status page instead of the workspace (remote.rs, `Health::code`).
   problem: Option<&'static str>,
   /// The backup until a document at this window's origin confirms receipt.
@@ -79,6 +84,11 @@ struct WorkspaceView {
 }
 
 impl WorkspaceView {
+  /// Where recovery leads: the route the failed load asked for, else the last verified one.
+  fn retry_route(&self) -> &str {
+    self.requested.as_deref().unwrap_or(&self.next)
+  }
+
   fn remember_route(&mut self, activation: f64, next: String) -> bool {
     if activation < self.route_activation {
       return false;
@@ -659,6 +669,8 @@ fn mount(app: &AppHandle, target: Destination, turn: u64, mut outgoing: Capture)
       desk: target.desk.clone(),
       own: target.own,
       next: restore.as_ref().map_or_else(|| "/".into(), |p| p.next.clone()),
+      provisional: None,
+      requested: None,
       problem: target.problem,
       drafts: restore.as_ref().map_or_else(Vec::new, |p| p.drafts.clone()),
       draft_checkpoint: restore.as_ref().and_then(|p| p.draft_checkpoint),
@@ -1112,7 +1124,8 @@ pub fn page_loaded(app: &AppHandle, label: &str, url: &Url) {
 
 /// Only main-document starts reach this hook. Invalidate earlier checks synchronously,
 /// while the old document may still be visible and the new response is on its way.
-pub fn navigation_started(app: &AppHandle, label: &str) {
+/// The address it starts at is the one asked for: a redirect arrives later and does not start a load.
+pub fn navigation_started(app: &AppHandle, label: &str, url: &Url) {
   let state = shell(app);
   let token = {
     let mut views = state.views.lock().unwrap();
@@ -1120,7 +1133,10 @@ pub fn navigation_started(app: &AppHandle, label: &str) {
       return;
     }
     let token = views.load();
-    views.active.as_mut().unwrap().loading = Some(token);
+    let view = views.active.as_mut().unwrap();
+    view.loading = Some(token);
+    // A login link is spent once used, and the bundled status page is no route at the origin.
+    view.provisional = (view.own.at(url) && url.path() != "/login").then(|| crate::next_of(url));
     token
   };
   watch_load(app, label, token);
@@ -1142,6 +1158,7 @@ pub fn navigation_committed(app: &AppHandle, label: &str, url: &Url) {
   } else {
     view.committed_load = view.loading;
     view.visible_load = VisibleLoad::AwaitingFinish;
+    view.requested = view.provisional.take();
   }
 }
 
@@ -1152,6 +1169,8 @@ pub fn navigation_cancelled(app: &AppHandle, label: &str) {
     let Some(view) = views.active.as_mut().filter(|v|
       v.label == label && v.committed_load.is_some() && v.loading.is_some() && v.loading != v.committed_load
     ) else { return };
+    // The document still visible keeps the route its own load asked for.
+    view.provisional = None;
     let visible = view.visible_load;
     if visible == VisibleLoad::Settled {
       view.loading = None;
@@ -1223,6 +1242,7 @@ fn verify_load(app: &AppHandle, label: &str, token: u64) {
     view.loading = None;
     if let Some((next, activation)) = document {
       view.revalidated = false;
+      view.requested = None;
       let recovered = view.problem.take().is_some();
       view.visible_load = VisibleLoad::Settled;
       if view.remember_route(activation, next) {
@@ -1244,7 +1264,7 @@ fn verify_load(app: &AppHandle, label: &str, token: u64) {
       // fragment differs, which would not load the page again).
       view.revalidated = true;
       view.visible_load = VisibleLoad::Checking;
-      let route = Url::parse(&format!("{origin}{}", view.next)).map_err(|e| e.to_string())?;
+      let route = Url::parse(&format!("{origin}{}", view.retry_route())).map_err(|e| e.to_string())?;
       let token = views.load();
       views.active.as_mut().unwrap().loading = Some(token);
       drop(views);
@@ -1447,7 +1467,7 @@ mod tests {
   #[test]
   fn capture_accepts_a_live_workspace_route_during_verification() {
     let view = WorkspaceView {
-      label: "desk-1".into(), desk: "studio".into(), own: Own::Remote("https://studio".into()), next: "/p/lab".into(),
+      label: "desk-1".into(), desk: "studio".into(), own: Own::Remote("https://studio".into()), next: "/p/lab".into(), provisional: None, requested: None,
       problem: None, drafts: vec![], draft_checkpoint: None, awaiting_drafts: false, departure: Departure::default(),
       route_activation: 0.0, loading: Some(1), committed_load: None, visible_load: VisibleLoad::Settled, local_reloading: None, revalidated: false,
     };
@@ -1464,9 +1484,22 @@ mod tests {
   }
 
   #[test]
+  fn recovery_retries_the_failed_route_while_restoration_keeps_the_verified_one() {
+    let mut view = WorkspaceView {
+      label: "desk-1".into(), desk: "studio".into(), own: Own::Remote("https://studio".into()), next: "/p/lab".into(), provisional: None, requested: None,
+      problem: Some("notLoaded"), drafts: vec![], draft_checkpoint: None, awaiting_drafts: false, departure: Departure::default(),
+      route_activation: 0.0, loading: None, committed_load: None, visible_load: VisibleLoad::Settled, local_reloading: None, revalidated: false,
+    };
+    assert_eq!(view.retry_route(), "/p/lab");
+    view.requested = Some("/p/lab/feedback".into());
+    assert_eq!(view.retry_route(), "/p/lab/feedback");
+    assert_eq!(saved_view(&view, None).unwrap().next, "/p/lab");
+  }
+
+  #[test]
   fn status_keeps_the_saved_drafts_when_the_first_document_never_runs() {
     let mut view = WorkspaceView {
-      label: "desk-1".into(), desk: "studio".into(), own: Own::Remote("https://studio".into()), next: "/p/lab".into(),
+      label: "desk-1".into(), desk: "studio".into(), own: Own::Remote("https://studio".into()), next: "/p/lab".into(), provisional: None, requested: None,
       problem: Some("notLoaded"), drafts: vec![("seismic-drafts-lab".into(), "saved".into())], draft_checkpoint: None,
       awaiting_drafts: true, departure: Departure::default(), route_activation: 0.0, loading: None, committed_load: None, visible_load: VisibleLoad::Settled, local_reloading: None, revalidated: false,
     };
@@ -1534,7 +1567,7 @@ mod tests {
     assert!(departure.settle(2.0));
     assert!(departure.receive(1.0, Some(vec![draft("older"), wish("unfinished")])));
     let view = |departure: &Departure| WorkspaceView {
-      label: "desk-1".into(), desk: "studio".into(), own: Own::Remote("https://studio".into()), next: "/".into(),
+      label: "desk-1".into(), desk: "studio".into(), own: Own::Remote("https://studio".into()), next: "/".into(), provisional: None, requested: None,
       problem: None, drafts: vec![], draft_checkpoint: None, awaiting_drafts: false, departure: departure.clone(), route_activation: 0.0, loading: None, committed_load: None, visible_load: VisibleLoad::Settled, local_reloading: None, revalidated: false,
     };
     // A relaunch while that page is open keeps its newer edit and the draft it lacks.

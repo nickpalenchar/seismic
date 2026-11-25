@@ -465,7 +465,11 @@ Safety rules:
   fetched once past the cache and opened again: a plain navigation or reload reuses a placeholder,
   or a redirect to one, that the proxy let the cache keep. The shell owns the recovery navigation,
   including after the cache fetch completes. When only the fragment differs, recovery restores
-  it before reloading so the saved canvas or anchor comes back. A new main-document load supersedes older checks
+  it before reloading so the saved canvas or anchor comes back. Recovery and Try again fetch and
+  open the route the failed load asked for (its address when it started, before any redirect),
+  while restoration keeps the route a workspace document last verified: a project that loads must
+  not stand in for its Feedback Log that does not, and a maintenance redirect's target is neither.
+  A cancelled load leaves the visible document's route in place. A new main-document load supersedes older checks
   and pending recovery navigation as soon as it starts, even before its response arrives
   (2026-11-25).
   Selecting this machine's workspace first asks its server for a sign-in link, since the shell

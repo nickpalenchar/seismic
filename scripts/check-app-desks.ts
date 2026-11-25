@@ -193,7 +193,7 @@ let rejectHealth = false;
 let rejectedHealthChecks = 0;
 let dropPage = false;
 let pageError: 'http' | 'legacy' | undefined;
-let placeholder: { redirect: boolean; hideTiming: boolean; cache?: boolean; fragment?: string } | undefined;
+let placeholder: { redirect: boolean; hideTiming: boolean; cache?: boolean; fragment?: string; path?: string } | undefined;
 let signedOut = false;
 let placeholdersServed = 0;
 const startProxy = (port = proxyPort) => {
@@ -242,7 +242,8 @@ const startProxy = (port = proxyPort) => {
       if (url.pathname === '/__seismic-check-browser-redirect') {
         return Response.redirect('https://example.invalid/workspace-export', 302);
       }
-      if (placeholder && req.headers.get('accept')?.includes('text/html')) {
+      const placeheld = placeholder && (!placeholder.path || [placeholder.path, '/maintenance'].includes(url.pathname));
+      if (placeholder && placeheld && req.headers.get('accept')?.includes('text/html')) {
         if (placeholder.redirect && url.pathname !== '/maintenance') {
           const cache = placeholder.cache ? { 'cache-control': 'max-age=600' } : { 'cache-control': 'no-store' };
           return new Response(null, { status: 302, headers: { location: new URL('/maintenance', req.url).href, ...cache } });
@@ -1308,6 +1309,46 @@ async function checkApp() {
     expect(remote.href === route && (await desks()).problem === null, `${route} → ${JSON.stringify(remote)}`);
     return route;
   });
+  await check('a failing Feedback Log keeps recovery, retries that page and opens it once it returns', async () => {
+    await select('local', 'local');
+    const project = new URL(String((await select(id, 'remote')).href));
+    const log = new URL(`${project.pathname}/feedback`, REMOTE);
+    const isOpen = (r: Record<string, unknown>) => r.kind === 'remote' && r.mounted === true;
+    const fail = async (redirect: boolean) => {
+      placeholder = { redirect, hideTiming: false, path: log.pathname };
+      const before = reports.length;
+      send('check_eval', { js: `location.assign(${JSON.stringify(log.href)})` });
+      const status = await report('status', before, 40_000);
+      expect(!reports.slice(before).some(isOpen) && (await desks()).problem === 'notLoaded', JSON.stringify({ redirect, status }));
+      return status;
+    };
+    for (const redirect of [true, false]) {
+      try {
+        const status = await fail(redirect);
+        const retried = reports.length;
+        send('retry_desk');
+        const again = await report('status', retried, 40_000);
+        expect(again.label === status.label && !reports.slice(retried).some(isOpen) && (await desks()).problem === 'notLoaded',
+          `Try again left recovery: ${JSON.stringify({ redirect, again })}`);
+      } finally {
+        placeholder = undefined;
+      }
+      const opened = await reconnect(true);
+      expect(new URL(String(opened.href)).pathname === log.pathname && (await desks()).problem === null, JSON.stringify({ redirect, opened }));
+      const back = reports.length;
+      send('check_eval', { js: `location.assign(${JSON.stringify(project.href)})` });
+      await until('the project to open again', 15_000, () => reports.slice(back).find(isOpen));
+    }
+    await sleep(800);
+    try {
+      await fail(true);
+      await select('local', 'local');
+    } finally {
+      placeholder = undefined;
+    }
+    const restored = await select(id, 'remote');
+    expect(restored.href === project.href, `${project.href} → ${JSON.stringify(restored)}`);
+  });
   await check('a newer navigation outranks the failed check of the page before it', async () => {
     await select('local', 'local');
     const route = String((await select(id, 'remote')).href);
@@ -1657,7 +1698,7 @@ async function checkApp() {
     try {
       placeholder = { redirect: true, hideTiming: false };
       holdCacheRefresh = {
-        route: current.pathname + current.search,
+        route: '/__seismic-check-maintenance',
         wait: () => { refreshing.resolve(); return refresh.promise; },
       };
       const before = reports.length;
