@@ -221,11 +221,13 @@ const startProxy = (port = proxyPort) => {
         proxy.server = undefined;
         return new Promise<Response>(() => {});
       }
-      if (onHealth && url.pathname === '/api/projects' && req.headers.get('user-agent')?.startsWith('ureq/')) {
+      // the shell's health check: its route, and the projects of a Seismic from before it
+      const health = ['/api/v1/health', '/api/projects'].includes(url.pathname) && req.headers.get('user-agent')?.startsWith('ureq/');
+      if (onHealth && health) {
         server.timeout(req, 0);
         await onHealth();
       }
-      if (rejectHealth && url.pathname === '/api/projects' && req.headers.get('user-agent')?.startsWith('ureq/')) {
+      if (rejectHealth && health) {
         rejectedHealthChecks++;
         return new Response(null, { status: 503 });
       }
