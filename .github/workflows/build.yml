@@ -2,7 +2,10 @@
 # smoke test runs where the build ran). A push to main that changes code (not only docs or the site)
 # builds the unsigned installers, checks the compiled server (scripts/check-binary.ts: a scratch
 # project answers, with the version, a repository's own adapter, Playwright and the adapter kit
-# from the resources) and runs the tests and the type check; the installers stay a week as the
+# from the resources) and runs the tests and the type check; on Windows it also installs the app
+# and runs scripts/check-app.ts and scripts/check-app-desks.ts (pairing a remote workspace,
+# switching in the same window, a removed workspace cancelling its pending selection) in WebView2
+# with a fake microphone, their output an artifact of the run. The installers stay a week as the
 # run's artifacts. A tag v<version of package.json> does the same and then makes a draft release
 # with every installer, SHA256SUMS and latest.json for the updater (scripts/release.ts), its notes
 # the version's section of CHANGELOG.md with the commits since the tag before folded under it; the
@@ -118,6 +121,32 @@ jobs:
         run: |
           version="$(bun -p "require('./package.json').version")"
           bun scripts/check-binary.ts "dist/seismic-$version-${{ matrix.target }}/seismic${{ runner.os == 'Windows' && '.exe' || '' }}"
+      # the installed app in WebView2 (scripts/check-app.ts, then its workspaces with
+      # scripts/check-app-desks.ts): the runner has no microphone, so Chromium's fake one; the
+      # installer for the current user puts it in %LOCALAPPDATA%\Seismic
+      - name: The installed app in WebView2
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          choco install ffmpeg -y --no-progress >/dev/null
+          export PATH="$PATH:/c/ProgramData/chocolatey/bin"
+          git config --global user.name CI
+          git config --global user.email ci@example.com
+          setup="$(ls desktop/target/release/bundle/nsis/*-setup.exe)"
+          powershell -NoProfile -Command "Start-Process -Wait -FilePath '$setup' -ArgumentList '/S'"
+          mkdir -p app-check
+          set -o pipefail
+          status=0
+          bun scripts/check-app.ts "$LOCALAPPDATA/Seismic/seismic.exe" --fake-mic --screenshot app-check/windows.png 2>&1 | tee app-check/windows.txt || status=1
+          bun scripts/check-app-desks.ts "$LOCALAPPDATA/Seismic/seismic.exe" 2>&1 | tee app-check/windows-desks.txt || status=1
+          exit $status
+      - uses: actions/upload-artifact@v7
+        if: always() && runner.os == 'Windows'
+        with:
+          name: app-check-${{ matrix.target }}
+          path: app-check
+          retention-days: 7
+          if-no-files-found: ignore
       - run: bun scripts/release.ts collect ${{ matrix.target }} release
       - uses: actions/upload-artifact@v7
         with:
