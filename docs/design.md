@@ -477,8 +477,10 @@ Safety rules:
   held in memory when session storage is full. The shell keeps that copy for the workspace and
   restores it only at its saved origin. A bundled status page uses the latest departure checkpoint.
   Resolve pending attachments before redeeming a pairing code, since the resulting link lasts
-  only a minute. Verify the destination (`/api/projects`) before redeeming it too, so a timeout
-  or a proxy error leaves the code usable for the next try (2026-11-24). Going back during automatic local reattachment waits for idle uploads before
+  only a minute. Run the health check above (`/api/v1/health`, then `/api/projects` for an earlier
+  Seismic) before redeeming it too, so a timeout or a proxy error leaves the code usable for the
+  next try; whether the pairing is still current is checked after that probe, right before the
+  `POST /api/pair` (2026-11-24). Going back during automatic local reattachment waits for idle uploads before
   retrying without another prompt (2026-11-24).
   A WebSocket reconnect can also reload a page, so it waits for attachments before navigating.
   An active native switch keeps the outgoing document through draft capture and navigation.
