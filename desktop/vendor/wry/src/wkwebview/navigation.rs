@@ -20,11 +20,6 @@ pub(crate) fn did_commit_navigation(
   _navigation: &WKNavigation,
 ) {
   unsafe {
-    // Call on_load_handler
-    if let Some(on_page_load) = &this.ivars().on_page_load_handler {
-      on_page_load(PageLoadEvent::Started);
-    }
-
     // Inject scripts
     let mut pending_scripts = this.ivars().pending_scripts.lock().unwrap();
     if let Some(scripts) = &*pending_scripts {
@@ -53,7 +48,6 @@ pub(crate) fn did_commit_navigation(
 pub(crate) fn did_finish_navigation(
   this: &WryNavigationDelegate,
   _webview: &WKWebView,
-  _navigation: &WKNavigation,
 ) {
   if let Some(on_page_load) = &this.ivars().on_page_load_handler {
     on_page_load(PageLoadEvent::Finished);

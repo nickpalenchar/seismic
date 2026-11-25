@@ -451,14 +451,16 @@ Safety rules:
   placeholder page of its own, also with status 200 or a redirect. The shell treats a workspace
   page as shown once the server answers again and the document at its origin is Seismic's own
   (its root, manifest and `apple-mobile-web-app-title` "Seismic", with a 2xx status where the
-  engine reports one) or its `401` pairing form, checked when each load finishes or 15 seconds
-  after it starts, whoever started it (WebKit reports no event for a failed load, which leaves the
-  page before in place), and otherwise shows the status page. Only a page so verified becomes the
-  route Try again opens. Before a rejected page at the origin gives way to the status page, the
-  workspace route is fetched once past the cache and opened again: a plain navigation or reload
-  reuses a placeholder, or a redirect to one, that the proxy let the cache keep. A failed check yields to a document load that began after it, whose own event or
-  patience decides: WebKit's loading flag tells, which frames do not set; WebView2 has none, but
-  asks the shell about main-frame navigations alone, so their start tells (2026-11-24).
+  engine reports one) or its `401` pairing form, checked when each main-document load finishes
+  or 15 seconds after it starts, and otherwise shows the status page. WKWebView can leave the
+  previous page in place without a completion event when a load fails. Only a verified page can
+  set the route Try again opens, including when it records its final route as it leaves.
+  Before a rejected page at the origin gives way to the status page, the workspace route is
+  fetched once past the cache and opened again: a plain navigation or reload reuses a placeholder,
+  or a redirect to one, that the proxy let the cache keep. The shell owns the recovery navigation,
+  including after the cache fetch completes. A new main-document load supersedes older checks
+  and pending recovery navigation as soon as it starts, even before its response arrives
+  (2026-11-25).
   Selecting this machine's workspace first asks its server for a sign-in link, since the shell
   keeps the port while that server stops (2026-11-24).
 - Desktop workspace health checks carry no device cookie. The shell asks `GET /api/v1/health`,

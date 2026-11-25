@@ -2,9 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::sync::{Arc, Mutex};
+use std::{
+  cell::RefCell,
+  sync::{Arc, Mutex},
+};
 
-use objc2::{MainThreadOnly, define_class, msg_send, rc::Retained, runtime::NSObject};
+use objc2::{DeclaredClass, Message, MainThreadOnly, define_class, msg_send, rc::Retained, runtime::NSObject};
 use objc2_foundation::{MainThreadMarker, NSObjectProtocol};
 use objc2_web_kit::{
   WKDownload, WKNavigation, WKNavigationAction, WKNavigationActionPolicy, WKNavigationDelegate,
@@ -30,6 +33,7 @@ use crate::{
 use super::wry_download_delegate::WryDownloadDelegate;
 
 pub struct WryNavigationDelegateIvars {
+  started: RefCell<Option<Retained<WKNavigation>>>,
   pub pending_scripts: Arc<Mutex<Option<Vec<String>>>>,
   pub has_download_handler: bool,
   pub navigation_policy_function: Box<dyn Fn(String) -> bool>,
@@ -67,9 +71,21 @@ define_class!(
       navigation_policy_response(self, webview, response, handler);
     }
 
+    #[unsafe(method(webView:didStartProvisionalNavigation:))]
+    fn did_start_navigation(&self, _webview: &WKWebView, navigation: Option<&WKNavigation>) {
+      self.ivars().started.replace(navigation.map(WKNavigation::retain));
+      if let Some(on_page_load) = &self.ivars().on_page_load_handler {
+        on_page_load(PageLoadEvent::Started);
+      }
+    }
+
     #[unsafe(method(webView:didFinishNavigation:))]
-    fn did_finish_navigation(&self, webview: &WKWebView, navigation: &WKNavigation) {
-      did_finish_navigation(self, webview, navigation);
+    fn did_finish_navigation(&self, webview: &WKWebView, navigation: Option<&WKNavigation>) {
+      let current = self.ivars().started.borrow().as_deref().map(std::ptr::from_ref);
+      if current == navigation.map(std::ptr::from_ref) {
+        self.ivars().started.take();
+        did_finish_navigation(self, webview);
+      }
     }
 
     #[unsafe(method(webView:didCommitNavigation:))]
@@ -124,7 +140,7 @@ impl WryNavigationDelegate {
 
     let on_page_load_handler = if let Some(handler) = on_page_load_handler {
       let custom_handler = Box::new(move |event| {
-        handler(event, url_from_webview(&webview).unwrap_or_default());
+        handler(event, url_from_webview(&webview).unwrap_or_else(|_| "about:blank".into()));
       }) as Box<dyn Fn(PageLoadEvent)>;
       Some(custom_handler)
     } else {
@@ -144,6 +160,7 @@ impl WryNavigationDelegate {
     let delegate = mtm
       .alloc::<WryNavigationDelegate>()
       .set_ivars(WryNavigationDelegateIvars {
+        started: RefCell::default(),
         pending_scripts,
         navigation_policy_function,
         has_download_handler,

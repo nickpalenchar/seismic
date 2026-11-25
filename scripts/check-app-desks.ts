@@ -178,6 +178,8 @@ let busyChecks = 0;
 let seedDraft = true;
 
 let nextPage: (() => Promise<void>) | undefined;
+let holdCacheRefresh: { route: string; wait: () => Promise<void> } | undefined;
+const previewPath = '/__seismic-check-preview';
 let liveComposer = false;
 let reconnectRemote: (() => void) | undefined;
 let replacementHello = false;
@@ -210,6 +212,18 @@ const startProxy = (port = proxyPort) => {
       if (url.pathname === '/__seismic-check-frame') return new Response(FRAME, { headers: { 'content-type': 'text/html' } });
       if (url.pathname === '/__seismic-check-ipc') return new Response(IPC_FRAME, { headers: { 'content-type': 'text/html' } });
       if (req.method === 'POST' && url.pathname.endsWith('/images') && imageUpload) return imageUpload();
+      if (url.pathname === previewPath) {
+        return new Response(`<h1>Release notes</h1><p>Review the workspace update.</p>
+          <script>parent.postMessage(document.querySelector('h1').textContent, '*')</script>`, {
+          headers: { 'content-type': 'text/html' },
+        });
+      }
+      if (holdCacheRefresh?.route === url.pathname + url.search && req.headers.get('accept')?.includes('text/html')) {
+        server.timeout(req, 0);
+        const held = holdCacheRefresh;
+        holdCacheRefresh = undefined;
+        await held.wait();
+      }
       if (nextPage && req.headers.get('accept')?.includes('text/html')) {
         server.timeout(req, 0);
         const held = nextPage;
@@ -942,13 +956,13 @@ async function checkApp() {
     if (kind === 'status') expectStatusCopy(next);
     return next;
   };
-  const reconnect = () => {
+  const reconnect = (mounted = false) => {
     const before = reports.length;
     const request = send('retry_desk');
     return until('the selected workspace to reconnect', 15_000, () => {
       const result = done.get(request);
       if (result?.ok === false) throw new Error(result.error);
-      return reports.slice(before).find((r) => r.kind === 'remote');
+      return reports.slice(before).find((r) => r.kind === 'remote' && (!mounted || r.mounted === true));
     });
   };
   await check('Pair again verifies the current and proposed addresses before opening them', async () => {
@@ -1228,7 +1242,7 @@ async function checkApp() {
       onHealth = undefined;
       seen.resolve();
     }
-    const remote = await reconnect();
+    const remote = await reconnect(true);
     expect(remote.href === route && remote.mounted === true && (await desks()).problem === null, `${route} → ${JSON.stringify(remote)}`);
     return route;
   });
@@ -1267,6 +1281,79 @@ async function checkApp() {
       nextPage = undefined;
       held.resolve();
       page.resolve();
+    }
+  });
+  await check('a delayed cache refresh leaves a newer main-document navigation in flight', async () => {
+    await select('local', 'local');
+    const current = new URL(String((await select(id, 'remote')).href));
+    const maintenance = new URL('/maintenance', current);
+    const newer = new URL(current);
+    newer.searchParams.set('view', current.searchParams.get('view') === 'table' ? 'canvas' : 'table');
+    const refreshing = Promise.withResolvers<void>(), refresh = Promise.withResolvers<void>();
+    const navigating = Promise.withResolvers<void>(), page = Promise.withResolvers<void>();
+    try {
+      placeholder = { redirect: true, hideTiming: false };
+      holdCacheRefresh = {
+        route: current.pathname + current.search,
+        wait: () => { refreshing.resolve(); return refresh.promise; },
+      };
+      const before = reports.length;
+      send('check_eval', { js: `location.replace(${JSON.stringify(new URL('/__seismic-check-maintenance', current).href)})` });
+      await until('the maintenance document', 10_000, () =>
+        reports.slice(before).find((r) => r.href === maintenance.href && r.mounted === false));
+      await Promise.race([refreshing.promise, sleep(5000).then(() => { throw new Error('no cache refresh to hold'); })]);
+
+      placeholder = undefined;
+      nextPage = () => { navigating.resolve(); return page.promise; };
+      const moved = reports.length;
+      send('check_eval', { js: `location.replace(${JSON.stringify(newer.href)})` });
+      await Promise.race([navigating.promise, sleep(5000).then(() => { throw new Error('no newer navigation to hold'); })]);
+      refresh.resolve();
+      await sleep(1200);
+      expect(!reports.slice(moved).some((r) => ['remote', 'status'].includes(String(r.kind))), 'the delayed refresh interrupted the newer navigation');
+      page.resolve();
+      const remote = await report('remote', moved, 15_000);
+      expect(remote.href === newer.href && remote.mounted === true && (await desks()).problem === null, JSON.stringify(remote));
+      await run('check_eval', { js: `history.replaceState(null, '', ${JSON.stringify(current.href)})` });
+      return 'the newer page opened after the old refresh completed';
+    } finally {
+      holdCacheRefresh = undefined;
+      placeholder = undefined;
+      nextPage = undefined;
+      refresh.resolve();
+      page.resolve();
+    }
+  });
+  await check('an embedded HTML preview leaves the top-level workspace open during a health failure', async () => {
+    const before = reports.length;
+    // Let the verification of the workspace above finish before making health fail.
+    await sleep(800);
+    const rejected = rejectedHealthChecks;
+    try {
+      rejectHealth = true;
+      const loaded = await run('check_eval', { js: `new Promise(resolve => {
+        const frame = document.createElement('iframe');
+        frame.id = 'check-html-preview';
+        frame.sandbox = 'allow-scripts';
+        frame.src = ${JSON.stringify(previewPath)};
+        const received = event => {
+          if (event.source !== frame.contentWindow) return;
+          removeEventListener('message', received);
+          resolve(event.data);
+        };
+        addEventListener('message', received);
+        document.body.append(frame);
+      })` });
+      expect(loaded.value === 'Release notes', JSON.stringify(loaded));
+      await sleep(16_000);
+      expect(!reports.slice(before).some((r) => r.kind === 'status'), 'opening a preview sent the workspace to recovery');
+      expect(rejectedHealthChecks === rejected, 'the preview started a workspace health check');
+      const live = await run('check_eval', { js: "!!document.querySelector('#check-html-preview')" });
+      expect(live.value === true && (await desks()).problem === null, JSON.stringify(live));
+      return 'preview contents and workspace stayed available';
+    } finally {
+      rejectHealth = false;
+      if (displayed()?.kind === 'remote') send('check_eval', { js: "document.querySelector('#check-html-preview')?.remove()" });
     }
   });
   await check("a signed-out workspace keeps its pairing form in the window", async () => {
@@ -1575,6 +1662,44 @@ async function checkApp() {
     }
     await reconnect();
   });
+  await check('a stalled reload gets its own timeout while the previous check is pending', async () => {
+    // Establish a new document with a fragment, then hold its verification while reloading it.
+    const route = new URL(String(displayed()?.href));
+    route.searchParams.set('check-navigation', 'stalled');
+    route.hash = 'reload';
+    const checking = Promise.withResolvers<void>(), checked = Promise.withResolvers<void>();
+    const navigating = Promise.withResolvers<void>(), page = Promise.withResolvers<void>();
+    let first = true;
+    onHealth = async () => {
+      if (!first) return;
+      first = false;
+      checking.resolve();
+      await checked.promise;
+    };
+    try {
+      const before = reports.length;
+      send('check_eval', { js: `location.replace(${JSON.stringify(route.href)})` });
+      await report('remote', before);
+      await Promise.race([checking.promise, sleep(5000).then(() => { throw new Error('no verification to hold'); })]);
+      nextPage = () => { navigating.resolve(); return page.promise; };
+      send('check_eval', { js: 'location.reload()' });
+      await Promise.race([navigating.promise, sleep(5000).then(() => { throw new Error('no reload to hold'); })]);
+      checked.resolve();
+      await sleep(800);
+      const stalled = reports.length;
+      rejectHealth = true;
+      await report('status', stalled, 25_000);
+      expect((await desks()).problem === 'notSeismic', 'recovery did not report the failed health check');
+      return 'recovery opened while the second reload was still waiting';
+    } finally {
+      onHealth = undefined;
+      rejectHealth = false;
+      nextPage = undefined;
+      checked.resolve();
+      page.resolve();
+    }
+  });
+  if (displayed()?.kind === 'status') await reconnect();
   await check('removing a workspace cancels a pending switch without closing the window', async () => {
     const local = await select('local', 'local');
     const hit = Promise.withResolvers<void>();

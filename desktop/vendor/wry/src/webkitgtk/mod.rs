@@ -492,8 +492,9 @@ impl InnerWebView {
     // Page load handler
     if let Some(on_page_load_handler) = attributes.on_page_load_handler.take() {
       webview.connect_load_changed(move |webview, load_event| match load_event {
-        LoadEvent::Committed => {
-          on_page_load_handler(PageLoadEvent::Started, webview.uri().unwrap().to_string());
+        LoadEvent::Started => {
+          let url = webview.uri().map(|uri| uri.to_string()).unwrap_or_default();
+          on_page_load_handler(PageLoadEvent::Started, url);
         }
         LoadEvent::Finished => {
           on_page_load_handler(PageLoadEvent::Finished, webview.uri().unwrap().to_string());

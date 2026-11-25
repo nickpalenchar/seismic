@@ -13,6 +13,12 @@ message name would also route that channel's messages into the general IPC decod
 The same GTK backend scopes download callbacks to the originating webview and disconnects the
 context subscription when that view is dropped. A shared context announces downloads from every view.
 
+On desktop, the page-load handler reports `Started` at the start of a main-document load:
+WKWebView's provisional navigation, WebKitGTK's `LoadEvent::Started`, or an allowed WebView2
+`NavigationStarting`. The navigation policy still checks subframes where the engine reports them.
+WKWebView and WebView2 match completions to their latest start by navigation identity, so a late
+completion cannot supersede a newer load.
+
 Moving to a newer wry: copy its crate from `~/.cargo/registry/src/*/wry-<version>/` (src, build.rs,
 the licenses, Cargo.toml without its `[[example]]` tables), then reapply these changes. On macOS,
 build the actual desktop bundle from the repository root and run its workspace check:

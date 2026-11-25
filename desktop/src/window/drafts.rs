@@ -208,6 +208,7 @@ pub fn script(origin: &str, restore: Option<&Placed>, message_key: &str) -> Stri
         // Clean up the previous shell's departure copy after restoring the session.
         try {{ localStorage.removeItem(key); }} catch {{}}
       }}
+      window.seismicDraftActivation = () => activation;
       begin();
       window.seismicDraftsReady = restoreDeparture(activation);
       addEventListener('pageshow', (event) => {{

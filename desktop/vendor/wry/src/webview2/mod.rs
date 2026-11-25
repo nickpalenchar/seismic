@@ -7,7 +7,7 @@ mod util;
 
 use std::{
   borrow::Cow,
-  cell::RefCell,
+  cell::{Cell, RefCell},
   collections::HashSet,
   fmt::Write,
   fs,
@@ -745,54 +745,52 @@ impl InnerWebView {
         )?;
       }
 
-      // Page load handler
-      if let Some(on_page_load_handler) = attributes.on_page_load_handler.take() {
-        let on_page_load_handler = Rc::new(on_page_load_handler);
-        let on_page_load_handler_ = on_page_load_handler.clone();
-
-        webview.add_ContentLoading(
-          &ContentLoadingEventHandler::create(Box::new(move |webview, _| {
-            let Some(webview) = webview else {
+      // NavigationStarting belongs to the main frame and arrives before the response.
+      let started = Rc::new(Cell::new(None));
+      let on_page_load_handler = attributes.on_page_load_handler.take().map(Rc::new);
+      let nav_callback = attributes.navigation_handler.take();
+      if nav_callback.is_some() || on_page_load_handler.is_some() {
+        let started = started.clone();
+        let on_page_load = on_page_load_handler.clone();
+        webview.add_NavigationStarting(
+          &NavigationStartingEventHandler::create(Box::new(move |_, args| {
+            let Some(args) = args else {
               return Ok(());
             };
-
-            on_page_load_handler_(PageLoadEvent::Started, Self::url_from_webview(&webview)?);
-
-            Ok(())
-          })),
-          token,
-        )?;
-        webview.add_NavigationCompleted(
-          &NavigationCompletedEventHandler::create(Box::new(move |webview, _| {
-            let Some(webview) = webview else {
-              return Ok(());
-            };
-
-            on_page_load_handler(PageLoadEvent::Finished, Self::url_from_webview(&webview)?);
-
+            let mut uri = PWSTR::null();
+            args.Uri(&mut uri)?;
+            let uri = take_pwstr(uri);
+            let allow = nav_callback.as_ref().is_none_or(|callback| callback(uri.clone()));
+            args.SetCancel(!allow)?;
+            if allow {
+              let mut id = 0;
+              args.NavigationId(&mut id)?;
+              // A redirect keeps the navigation ID.
+              if started.replace(Some(id)) != Some(id) {
+                if let Some(on_page_load) = &on_page_load {
+                  on_page_load(PageLoadEvent::Started, uri);
+                }
+              }
+            }
             Ok(())
           })),
           token,
         )?;
       }
 
-      // Navigation handler
-      if let Some(nav_callback) = attributes.navigation_handler.take() {
-        webview.add_NavigationStarting(
-          &NavigationStartingEventHandler::create(Box::new(move |_, args| {
-            let Some(args) = args else {
+      if let Some(on_page_load) = on_page_load_handler {
+        webview.add_NavigationCompleted(
+          &NavigationCompletedEventHandler::create(Box::new(move |webview, args| {
+            let (Some(webview), Some(args)) = (webview, args) else {
               return Ok(());
             };
-
-            let uri = {
-              let mut uri = PWSTR::null();
-              args.Uri(&mut uri)?;
-              take_pwstr(uri)
-            };
-
-            let allow = nav_callback(uri);
-            args.SetCancel(!allow)?;
-
+            let mut id = 0;
+            args.NavigationId(&mut id)?;
+            // A cancelled or superseded load can complete after a newer one starts.
+            if started.get() == Some(id) {
+              started.set(None);
+              on_page_load(PageLoadEvent::Finished, Self::url_from_webview(&webview)?);
+            }
             Ok(())
           })),
           token,
