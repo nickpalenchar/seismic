@@ -31,11 +31,11 @@
 //   which then updates itself from its checkout as `bun start` does. Installed from a checkout
 //   (`bun run app install`), the shell has both compiled in (SEISMIC_BUILT_CHECKOUT, SEISMIC_BUILT_BUN),
 //   and builds itself anew when desktop/ changes there (update.rs).
-// - Starting again (an update, a new build) brings the windows back where they were, on the pages they
-//   showed (`relaunch`, window/placed.rs).
-// - Remote workspaces (docs/plan/remote-workspaces.md): one window each, on its one origin, beside this
-//   machine's (`main`); the list, the pairing and the commands their pages call are in desks/, the
-//   windows and what keeps each on its origin in window/, the macOS menu in menu.rs.
+// - Starting again (an update, a new build) restores the window's placement, selected workspace
+//   and route (`relaunch`, window/placed.rs).
+// - Desktop workspaces (docs/design/desktop-workspaces.md): one native window, with a fresh
+//   origin-scoped webview per switch. Workspace state and commands are in desks/, with native
+//   webview policy in window/ and the macOS Workspace menu in menu.rs.
 // - On a Mac an Seismic that runs without the app that started it lacks the system's permissions for
 //   that app (the local network): the shell has it end once its workers paused and starts it again
 //   under itself (`orphaned`).

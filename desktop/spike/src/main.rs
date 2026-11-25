@@ -1,4 +1,4 @@
-// The W1 spike of docs/plan/remote-workspaces.md: the shell's half. `run.ts` beside it starts the
+// The desktop workspace spike (docs/design/desktop-workspaces.md). `run.ts` beside it starts the
 // servers (this machine's Seismic and two remote workspaces, plus a foreign origin), runs this
 // binary and judges what both report. Each run:
 //
