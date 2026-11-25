@@ -180,7 +180,7 @@ let seedDraft = true;
 let nextPage: (() => Promise<void>) | undefined;
 let dropDocumentAt: string | undefined;
 let droppedDocuments = 0;
-let holdCacheRefresh: { route: string; wait: () => Promise<void> } | undefined;
+let holdCacheRefresh: { route: string; afterPlaceholder: number; wait: () => Promise<void> } | undefined;
 const previewPath = '/__seismic-check-preview';
 let liveComposer = false;
 let reconnectRemote: (() => void) | undefined;
@@ -219,7 +219,8 @@ const startProxy = (port = proxyPort) => {
           headers: { 'content-type': 'text/html' },
         });
       }
-      if (holdCacheRefresh?.route === url.pathname + url.search && req.headers.get('accept')?.includes('text/html')) {
+      if (holdCacheRefresh?.route === url.pathname + url.search &&
+        placeholdersServed > holdCacheRefresh.afterPlaceholder && req.headers.get('accept')?.includes('text/html')) {
         server.timeout(req, 0);
         const held = holdCacheRefresh;
         holdCacheRefresh = undefined;
@@ -1746,6 +1747,7 @@ async function checkApp() {
       placeholder = { redirect: true, hideTiming: false };
       holdCacheRefresh = {
         route: '/__seismic-check-maintenance',
+        afterPlaceholder: placeholdersServed,
         wait: () => { refreshing.resolve(); return refresh.promise; },
       };
       const before = reports.length;
