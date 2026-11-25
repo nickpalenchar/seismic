@@ -197,6 +197,8 @@ let pageError: 'http' | 'legacy' | undefined;
 let placeholder: { redirect: boolean; hideTiming: boolean; cache?: boolean; fragment?: string; path?: string } | undefined;
 let signedOut = false;
 let placeholdersServed = 0;
+let failedDestinationRequests = 0;
+let barePairGets = 0;
 const startProxy = (port = proxyPort) => {
   return Bun.serve<{ upstream: WebSocket }>({
     port,
@@ -205,6 +207,7 @@ const startProxy = (port = proxyPort) => {
       const url = new URL(req.url);
       if (req.method === 'POST' && url.pathname === '/api/pair') pairRequests++;
       if (req.method === 'GET' && url.pathname === '/pair' && url.searchParams.has('token')) pairingLinkLoads++;
+      if (req.method === 'GET' && url.pathname === '/pair' && !url.search) barePairGets++;
       if (unrelatedPairing) {
         if (url.pathname === '/api/pair') return Response.json({ url: new URL('/unrelated', req.url).href });
         if (url.pathname === '/unrelated') unrelatedPageRequests++;
@@ -247,6 +250,7 @@ const startProxy = (port = proxyPort) => {
       }
       const placeheld = placeholder && url.pathname !== '/pair' && (!placeholder.path || [placeholder.path, '/maintenance'].includes(url.pathname));
       if (placeholder && placeheld && req.headers.get('accept')?.includes('text/html')) {
+        if (url.pathname === placeholder.path) failedDestinationRequests++;
         if (placeholder.redirect && url.pathname !== '/maintenance') {
           const cache = placeholder.cache ? { 'cache-control': 'max-age=600' } : { 'cache-control': 'no-store' };
           return new Response(null, { status: 302, headers: { location: new URL('/maintenance', req.url).href, ...cache } });
@@ -254,7 +258,12 @@ const startProxy = (port = proxyPort) => {
         placeholdersServed++;
         const timing = placeholder.hideTiming ? '<script>performance.getEntriesByType = () => []</script>' : '';
         const fragment = placeholder.fragment === undefined ? '' : `<script>history.replaceState(null, '', ${JSON.stringify(placeholder.fragment)})</script>`;
-        const page = `${timing}${fragment}<title>Down for maintenance</title><link rel="manifest" href="/manifest.webmanifest"><div id="root">Back soon</div>`;
+        const show = `<script>addEventListener('pageshow', () => {
+          void fetch(${JSON.stringify(new URL('result', harness.url).href)}, {
+            method: 'POST', body: JSON.stringify({ kind: 'placeholderShown', href: location.href }),
+          });
+        });</script>`;
+        const page = `${timing}${fragment}${show}<title>Down for maintenance</title><link rel="manifest" href="/manifest.webmanifest"><div id="root">Back soon</div>`;
         return new Response(page, { headers: { 'content-type': 'text/html', 'cache-control': placeholder.cache ? 'max-age=600' : 'no-store' } });
       }
       if (pageError && req.headers.get('accept')?.includes('text/html')) {
@@ -1329,10 +1338,12 @@ async function checkApp() {
       try {
         const status = await fail(redirect);
         const retried = reports.length;
+        const previousRequests = failedDestinationRequests;
         send('retry_desk');
         const again = await report('status', retried, 40_000);
         expect(again.label === status.label && !reports.slice(retried).some(isOpen) && (await desks()).problem === 'notLoaded',
           `Try again left recovery: ${JSON.stringify({ redirect, again })}`);
+        expect(failedDestinationRequests > previousRequests, 'Try again did not request Feedback Log');
       } finally {
         placeholder = undefined;
       }
@@ -1342,6 +1353,28 @@ async function checkApp() {
       send('check_eval', { js: `location.assign(${JSON.stringify(project.href)})` });
       await until('the project to open again', 15_000, () => reports.slice(back).find(isOpen));
     }
+    const verifyBack = Promise.withResolvers<void>();
+    try {
+      await fail(true);
+      onHealth = () => verifyBack.promise;
+      const back = reports.length;
+      send('check_eval', { js: 'history.back()' });
+      await until('Back to restore the placeholder', 15_000, () =>
+        reports.slice(back).find(r => r.kind === 'placeholderShown' && r.href === new URL('/maintenance', REMOTE).href));
+      onHealth = undefined;
+      verifyBack.resolve();
+      await report('status', back, 25_000);
+      placeholder = { redirect: false, hideTiming: false, path: '/maintenance' };
+      const opened = await reconnect(true);
+      expect(opened.href === log.href, `Try again after Back opened ${opened.href}`);
+    } finally {
+      onHealth = undefined;
+      verifyBack.resolve();
+      placeholder = undefined;
+    }
+    const backFromLog = reports.length;
+    send('check_eval', { js: `location.assign(${JSON.stringify(project.href)})` });
+    await until('the project to open again', 15_000, () => reports.slice(backFromLog).find(isOpen));
     if (process.platform === 'darwin') {
       const dropped = droppedDocuments;
       dropDocumentAt = log.pathname;
@@ -1434,9 +1467,11 @@ async function checkApp() {
   });
   await check("a signed-out workspace keeps its pairing form in the window", async () => {
     await select('local', 'local');
+    let workspace: unknown;
     signedOut = true;
     try {
       const page = await select(id, 'remote');
+      workspace = page.href;
       const form = await run('check_eval', { js: "!!document.querySelector('form[action=\"/pair\"] input[name=\"code\"]')" });
       expect(form.value === true && page.mounted === false && page.projects === 401, JSON.stringify({ form, page }));
       await sleep(3000);
@@ -1444,6 +1479,28 @@ async function checkApp() {
     } finally {
       signedOut = false;
     }
+    const submitCode = (value: string) => send('check_eval', { js: `(() => {
+      const field = document.querySelector('form[action="/pair"] input[name="code"]');
+      field.value = ${JSON.stringify(value)};
+      field.form.requestSubmit();
+    })()` });
+    const actualCode = await code();
+    const rejected = reports.length;
+    submitCode(actualCode === '000000' ? '000001' : '000000');
+    const form = await report('remote', rejected, 15_000);
+    expect(new URL(String(form.href)).pathname === '/pair' && form.mounted === false, JSON.stringify(form));
+    const gets = barePairGets;
+    try {
+      placeholder = { redirect: true, hideTiming: false };
+      const before = reports.length;
+      submitCode(actualCode);
+      await report('status', before, 25_000);
+      expect(barePairGets === gets, 'cache recovery fetched the pairing form action');
+    } finally {
+      placeholder = undefined;
+    }
+    const opened = await reconnect(true);
+    expect(opened.href === workspace && barePairGets === gets, `Pairing recovery opened ${opened.href}`);
     await select('local', 'local');
     await select(id, 'remote');
   });

@@ -102,7 +102,8 @@ When the selected workspace cannot be opened, the window shows **<workspace> is 
 with the workspace's address and what happened below it, including when Seismic answers but its
 page fails to load. **Try again** opens the page that failed and shows recovery again if it still
 cannot load. After an interrupted pairing, it opens the last workspace page, or the workspace
-home if you have yet to open a page. **Switch workspace** lists the others.
+home if you have yet to open a page. If Back returns to a maintenance page, **Try again** still
+opens the page you originally asked for. **Switch workspace** lists the others.
 **Recovery help**, beside **Try again**, opens this guide in your
 browser. On a Mac, **File → Open in Browser** (**Shift–Command–B**) opens the workspace's address
 in your browser.

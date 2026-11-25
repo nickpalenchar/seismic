@@ -457,7 +457,8 @@ Safety rules:
   document committed by that load. A main-frame response turned into a download in WKWebView
   ends the provisional load's watchdog and resumes any check of the document still visible.
   A cancelled redirect handed to the browser has the same effect on the provisional load.
-  Back from recovery checks the document it restores. Route capture and departure checkpoints
+  Back from recovery checks the document it restores and keeps the original retry destination
+  if it returns to the rejected redirect target. Route capture and departure checkpoints
   check the page's markers together with its live route and drafts, so switching or leaving the
   workspace keeps that route while the server check is pending. An older activation's checkpoint
   cannot overwrite a route already accepted from a newer document.
@@ -469,9 +470,9 @@ Safety rules:
   open the route the failed load asked for (its address when it started, before any redirect),
   while restoration keeps the route a workspace document last verified: a project that loads must
   not stand in for its Feedback Log that does not, and a maintenance redirect's target is neither.
-  A load that fails before commit still supplies its destination to recovery. One-time sign-in and
-  pairing links are excluded from recovery and restoration, including when an expired link returns
-  the pairing form. The form at a workspace route is still accepted for a signed-out device.
+  A load that fails before commit still supplies its destination to recovery. Authentication URLs
+  are excluded from recovery and restoration, including the pairing form's submission endpoint.
+  An invalid code can leave that form visible for another attempt without changing the saved route.
   A cancelled load leaves the visible document's route in place. A new main-document load supersedes older checks
   and pending recovery navigation as soon as it starts, even before its response arrives
   (2026-11-25).

@@ -551,11 +551,9 @@ const WORKSPACE_DOCUMENT: &str = r#"() => {
   );
 }"#;
 
-/// A pairing form at a workspace page can be valid, but a one-time authentication
-/// link is never a workspace destination, even when it returns that same form.
+/// Authentication endpoints, including the action of the pairing form, are transient.
 pub(super) fn is_workspace_route(url: &Url) -> bool {
-  url.path() != "/login" &&
-    !(url.path() == "/pair" && url.query_pairs().any(|(key, _)| key == "token" || key == "code"))
+  !matches!(url.path(), "/login" | "/pair")
 }
 
 /// Read the live route and draft activation of the same document that passed the marker check.
@@ -569,7 +567,11 @@ pub fn workspace_document(webview: &Webview, origin: &str, timeout: Duration) ->
   // Draft checkpoint IPC also uses serde_json, with exact round-trip float decoding.
   let (url, activation): (String, f64) = serde_json::from_str(&receive.recv_timeout(timeout).ok()?).ok()?;
   let url = Url::parse(&url).ok()?;
-  (url.origin().ascii_serialization() == origin && is_workspace_route(&url)).then(|| (crate::next_of(&url), activation))
+  // A rejected form submission can show the pairing form at /pair itself.
+  // Accept that document while excluding spent authentication links.
+  let pairing_form = url.path() == "/pair" && !url.query_pairs().any(|(key, _)| key == "token" || key == "code");
+  (url.origin().ascii_serialization() == origin && (is_workspace_route(&url) || pairing_form))
+    .then(|| (crate::next_of(&url), activation))
 }
 
 /// The window's page, where it is at the window's own origin: its path, query and fragment.
