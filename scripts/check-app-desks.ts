@@ -977,6 +977,50 @@ async function checkApp() {
       return reports.slice(before).find((r) => r.kind === 'remote' && (!mounted || r.mounted === true));
     });
   };
+  /**
+   * Clicks the displayed status page's Try again once it is visible and enabled, and holds the
+   * retry's health check until the click has shown on the button, so a click that never reaches
+   * retry_desk fails here.
+   */
+  const clickTryAgain = async () => {
+    const { retry, retrying } = t.desktopPages.status;
+    const ready = `(() => {
+      const button = document.getElementById('retry');
+      if (!button) return { found: false };
+      const box = button.getBoundingClientRect(), style = getComputedStyle(button);
+      const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      return {
+        found: true, text: button.textContent,
+        visible: box.width > 0 && box.height > 0 && style.display !== 'none' && style.visibility === 'visible' &&
+          Number(style.opacity) > 0 && !button.closest('[hidden]') && !!hit && button.contains(hit),
+        enabled: !button.disabled && button.getAttribute('aria-disabled') !== 'true',
+      };
+    })()`;
+    type Button = { found: boolean; text?: string; visible?: boolean; enabled?: boolean; disabled?: boolean };
+    let last: Button | undefined;
+    try {
+      await until('Try again to be visible and enabled', 10_000, async () => {
+        last = (await run('check_eval', { js: ready })).value as Button;
+        return last?.found && last.visible && last.enabled && last.text === retry;
+      });
+    } catch (error) {
+      throw new Error(`${(error as Error).message}: ${JSON.stringify(last)}`);
+    }
+    const hit = Promise.withResolvers<void>(), release = Promise.withResolvers<void>();
+    onHealth = () => { hit.resolve(); return release.promise; };
+    try {
+      const clicked = (await run('check_eval', { js: `(() => {
+        const button = document.getElementById('retry');
+        button.click();
+        return { found: true, text: button.textContent, disabled: button.disabled };
+      })()` })).value as Button;
+      expect(clicked.disabled === true && clicked.text === retrying, `the click did not start a retry: ${JSON.stringify(clicked)}`);
+      await Promise.race([hit.promise, sleep(6000).then(() => { throw new Error('Try again did not ask the workspace again'); })]);
+    } finally {
+      onHealth = undefined;
+      release.resolve();
+    }
+  };
   await check('Pair again verifies the current and proposed addresses before opening them', async () => {
     const local = await select('local', 'local');
     const other = startProxy(0);
@@ -1239,9 +1283,10 @@ async function checkApp() {
       onHealth = undefined;
       for (const shape of [{ redirect: false, hideTiming: true, cache: true }, { redirect: true, hideTiming: false, cache: true }]) {
         placeholder = shape;
-        const retried = reports.length;
-        send('retry_desk');
+        const [retried, shown] = [reports.length, placeholdersServed];
+        await clickTryAgain();
         const again = await report('status', retried, 40_000);
+        expect(placeholdersServed > shown, `Try again did not load the workspace: ${JSON.stringify(shape)}`);
         expect(again.label === status.label && (await desks()).problem === 'notLoaded', JSON.stringify({ shape, again }));
       }
     } finally {
@@ -1249,8 +1294,11 @@ async function checkApp() {
       onHealth = undefined;
       seen.resolve();
     }
-    const remote = await reconnect(true);
-    expect(remote.href === route && remote.mounted === true && (await desks()).problem === null, `${route} → ${JSON.stringify(remote)}`);
+    const before = reports.length;
+    await clickTryAgain();
+    const remote = await until('the restored workspace to display', 15_000, () =>
+      reports.slice(before).find((r) => r.kind === 'remote' && r.mounted === true));
+    expect(remote.href === route && (await desks()).problem === null, `${route} → ${JSON.stringify(remote)}`);
     return route;
   });
   await check('a newer navigation outranks the failed check of the page before it', async () => {
