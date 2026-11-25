@@ -28,4 +28,6 @@ bun scripts/check-app.ts /usr/bin/seismic --screenshot /out/linux-deb.png || sta
 echo "== the AppImage"
 chmod +x /out/*.AppImage
 bun scripts/check-app.ts "$(ls /out/*.AppImage)" --screenshot /out/linux-appimage.png || status=1
+echo "== the workspaces in the .deb"
+bun scripts/check-app-desks.ts /usr/bin/seismic 2>&1 | tee /out/linux-desks.txt || status=1
 exit $status
