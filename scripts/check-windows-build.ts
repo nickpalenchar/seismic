@@ -7,7 +7,9 @@ const ROOT = resolve(import.meta.dir, '..');
  * Type-check the desktop shell and its tests for Windows from macOS or Linux: `cargo check --tests`
  * for an installed `*-pc-windows-msvc` Rust target (`rustup target add aarch64-pc-windows-msvc`).
  * Nothing is linked, so stand-ins replace the MSVC headers, `lib.exe` and `llvm-rc` that build
- * scripts call; they live in /tmp, as CFLAGS cannot quote a path with spaces. On Windows, run `cargo test` in `desktop/` instead.
+ * scripts call (the archiver adds to an archive in place, so lib.exe's merge of it into itself is
+ * dropped); they live in /tmp, as CFLAGS cannot quote a path with spaces. On Windows, run
+ * `cargo test` in `desktop/` instead.
  * Usage: bun scripts/check-windows-build.ts [target triple] [extra cargo arguments]
  */
 function main() {
@@ -18,6 +20,14 @@ function main() {
   const [given, ...extra] = process.argv.slice(2);
   const installed = Bun.spawnSync(['rustup', 'target', 'list', '--installed']).stdout.toString().split('\n');
   const target = given ?? installed.find((t) => t.endsWith('-pc-windows-msvc'));
+  if (target && !target.endsWith('-pc-windows-msvc')) {
+    console.error(`${target} is no Windows MSVC target: name one such as aarch64-pc-windows-msvc`);
+    return 2;
+  }
+  if (extra.some((a) => a === '--target' || a.startsWith('--target='))) {
+    console.error('The target goes first, without --target: bun scripts/check-windows-build.ts <target triple> [cargo arguments]');
+    return 2;
+  }
   if (!target || !installed.includes(target)) {
     console.error(`No Windows target installed: rustup target add ${target ?? 'aarch64-pc-windows-msvc'}`);
     return 2;
@@ -38,7 +48,8 @@ function main() {
     writeFileSync(lib, [
       '#!/bin/sh',
       'out=""',
-      'for a do shift; case "$a" in -out:*) out="${a#-out:}";; -nologo) ;; *) set -- "$@" "$a";; esac; done',
+      'for a do case "$a" in -out:*) out="${a#-out:}";; esac; done',
+      'for a do shift; case "$a" in -*) ;; "$out") ;; *) set -- "$@" "$a";; esac; done',
       'exec ar rcs "$out" "$@"',
     ].join('\n') + '\n');
     const rc = join(stubs, 'llvm-rc');
