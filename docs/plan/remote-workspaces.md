@@ -188,8 +188,9 @@ cog's dialog (`edit.tsx`) and the workspaces page (`page.tsx`); the switcher is 
   and offers to go there.
 - **A remote page reaches it through the shell:** `open_desk` takes an optional `page`, allowed only
   for `local` and only for `/workspaces…` (`page` error otherwise). Where this machine's page is
-  shown already, the shell waits for the local page to accept the route. The app navigates
-  in place, keeping what it has open. A request that outlasts the load deadline fails.
+  shown already, the shell waits for the local page and any unsaved-draft decision. The app
+  navigates in place after permission to leave, and reports Stay as a cancellation. A request
+  that outlasts the load deadline fails.
 - **The switcher** heads the left menu on every page in the app, docked or dropped down, never on
   the phone: the shown workspace with this machine or remote, the list a click away with "New
   workspace", and a cog that opens the shown workspace's dialog on this machine's page.

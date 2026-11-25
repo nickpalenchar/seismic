@@ -4,7 +4,7 @@
 // discards it; without one, it goes on at once.
 
 /** Returns true to hold navigation. A confirmation can call `proceed` after the owner discards a draft. */
-export type LeaveGuard = (proceed: () => void) => boolean;
+export type LeaveGuard = (proceed: () => void, cancel: () => void, signal?: AbortSignal) => boolean;
 
 const guards = new Map<LeaveGuard, boolean>();
 
@@ -15,9 +15,9 @@ export function holdLeaving(guard: LeaveGuard, allRoutes = false): () => void {
 }
 
 /** Does `proceed`, once nothing unsaved holds it. */
-export function leave(proceed: () => void, to?: string) {
+export function leave(proceed: () => void, to?: string, cancel = () => {}, signal?: AbortSignal) {
   const leaving = to === undefined || leavesPage(location.href, to);
-  for (const [guard, allRoutes] of guards) if ((leaving || allRoutes) && guard(proceed)) return;
+  for (const [guard, allRoutes] of guards) if ((leaving || allRoutes) && guard(proceed, cancel, signal)) return;
   proceed();
 }
 

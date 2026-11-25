@@ -641,7 +641,8 @@ async function checkApp() {
     }
     if (failedSamePortNavigation) writeFileSync(join(home, 'check-local-navigation-not-committed'), '');
     send('check_eval', { js: 'window.releaseScreenshot()' });
-    const next = await report('local', before);
+    const next = await until('the local page after sign-in', 60_000, () => reports.slice(before).find((r) =>
+      r.kind === 'local' && new URL(String(r.href)).pathname !== '/login'));
     expect((await run('check_eval', { js: "JSON.stringify(Object.entries(sessionStorage))" })).value?.toString().includes('takeover-shot'), 'the screenshot was lost during reattachment');
     expect((new URL(String(next.href)).origin === new URL(String(initial.href)).origin) === samePortTakeover, JSON.stringify(next));
     expect(typeof next.label === 'string' && (next.label === oldLabel) === samePortTakeover, JSON.stringify(next));
@@ -700,6 +701,54 @@ async function checkApp() {
       expect(back.ok, JSON.stringify(back));
     } finally {
       await run('check_eval', { js: 'window.checkDeskReady()' });
+    }
+  });
+  await check('Workspaces reports the draft decision and only succeeds after navigation', async () => {
+    const evaluate = async (js: string) => (await run('check_eval', { js })).value;
+    const click = (selector: string, label: string) => evaluate(`(() => {
+      const button = [...document.querySelectorAll(${JSON.stringify(selector)})].find((b) =>
+        b.getAttribute('aria-label') === ${JSON.stringify(label)} || b.textContent.trim() === ${JSON.stringify(label)});
+      if (!button) return false;
+      button.click();
+      return true;
+    })()`);
+    const name = "[...document.querySelectorAll('.cs-entry input')].find((input) => input.value === 'Lab' || input.value === 'Draft Lab')";
+    await until('the project settings button', 5000, () => click('button', 'Settings of this project'));
+    await until('project Configuration', 5000, () => click('#project-settings button', 'Configuration'));
+    await until('the editable project name', 5000, () => evaluate(`(() => {
+      const input = ${name};
+      if (!input) return false;
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, 'Draft Lab');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      return true;
+    })()`));
+    const at = await evaluate('location.href');
+    const prompt = '[data-slot=confirm-dialog].cs-unsaved';
+    const waitForPrompt = () => until('the unsaved changes prompt', 5000, () =>
+      evaluate(`!!document.querySelector(${JSON.stringify(prompt)})`));
+    const request = send('open_desk', { id: 'local', page: '/workspaces?new' });
+    await waitForPrompt();
+    expect(!done.has(request) && await evaluate('location.href') === at, 'New Workspace completed while asking');
+    expect(await click(`${prompt} button`, 'Stay'), 'the Stay button was unavailable');
+    const stayed = await until('Stay to cancel the request', 5000, () => done.get(request));
+    expect(stayed.error === 'cancelled' && await evaluate(`${name}?.value`) === 'Draft Lab', JSON.stringify(stayed));
+    const replaced = send('open_desk', { id: 'local', page: '/workspaces?new' });
+    await waitForPrompt();
+    expect((await run('open_desk', { id: 'local' })).ok, 'the current workspace could not be selected');
+    await until('the first route to be superseded', 5000, () => done.get(replaced)?.error === 'superseded');
+    await until('the superseded prompt to close', 5000, () =>
+      evaluate(`!document.querySelector(${JSON.stringify(prompt)})`));
+    const cog = send('open_desk', { id: 'local', page: '/workspaces?edit=local' });
+    await waitForPrompt();
+    expect(!done.has(cog) && await evaluate('location.href') === at, 'the cog completed while asking');
+    expect(await click(`${prompt} button`, 'Discard and close'), 'the discard button was unavailable');
+    const opened = await until('the requested route to open', 5000, () => done.get(cog));
+    expect(opened.ok && await evaluate("location.pathname + location.search") === '/workspaces?edit=local', JSON.stringify(opened));
+    await until('the local workspace settings', 5000, () => click('.desk-edit button', 'Close'));
+    expect(await click('.desks-page button', 'Back'), 'the Back button was unavailable');
+    expect(await evaluate('location.href') === at, 'Back did not return to the project');
+    if (new URL(String(at)).searchParams.has('settings')) {
+      await until('the project settings to reopen', 5000, () => click('button[aria-expanded=true]', 'Settings of this project'));
     }
   });
   await check('an address of no Seismic is refused', async () => {

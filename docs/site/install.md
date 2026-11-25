@@ -27,6 +27,8 @@ cannot be reached, Seismic shows a message and keeps your current workspace open
 or pairing a workspace again, enter the address first. If you change the address, enter a fresh
 code for that machine.
 Pairing keeps the current form open until the connection succeeds or reports a problem.
+If project settings have an unsaved draft, **Stay** keeps the draft open and **Discard and close**
+opens the requested Workspaces page.
 
 When a draft attachment is still uploading, choose **Switch after upload** to keep it in your
 draft. **Discard and switch** cancels the pending attachment. **Go back** keeps the current

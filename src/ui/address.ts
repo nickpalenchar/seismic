@@ -71,13 +71,15 @@ export function cameByGoTo(): boolean {
  * loading it again: a step in the history, Back returns.
  */
 export function goTo(path: string) {
-  const go = () => {
-    if (leavesPage(location.href, path)) wentTo = true;
-    history.pushState(null, '', path);
-    dispatchEvent(new PopStateEvent('popstate', { state: null }));
-  };
   // another project's page (or another page of the app) replaces this one: an unsaved draft on it asks first (`leaving`)
-  leave(go, path);
+  leave(() => pushAddress(path), path);
+}
+
+/** Changes the address after the caller has resolved any leave guard. */
+export function pushAddress(path: string) {
+  if (leavesPage(location.href, path)) wentTo = true;
+  history.pushState(null, '', path);
+  dispatchEvent(new PopStateEvent('popstate', { state: null }));
 }
 
 /** A plain click on a link switches within the page, without loading it again; one for a new tab or window stays the link's. */

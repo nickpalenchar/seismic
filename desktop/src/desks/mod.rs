@@ -932,16 +932,19 @@ pub fn open(app: &AppHandle, id: &str, handed_over: bool, waiter: Option<OpenWai
 }
 
 /// Ask the running UI to navigate in place. A queued evaluation can reach a blank,
-/// sign-in or reloading document, so only the app's acknowledgement settles the switch.
+/// sign-in or reloading document. Wait for the leave decision, then commit while
+/// this request still owns the selection and report the navigation's outcome.
 fn open_local_page(app: AppHandle, state: Arc<Shell>, turn: u64, label: String, origin: String, page: String) {
-  let script = format!(
-    "location.origin === {} && window.seismicDeskPage?.({}) === true", json!(origin), json!(page),
+  let script = move |action: &str| format!(
+    "location.origin === {} && window.seismicDeskPage?.({}, {}, {})",
+    json!(origin), json!(page), json!(turn.to_string()), json!(action),
   );
   thread::spawn(move || {
-    let deadline = Instant::now() + LOAD_PATIENCE;
+    let mut deadline = Instant::now() + LOAD_PATIENCE;
+    let mut action = "ask";
     let result = loop {
       let (send, receive) = mpsc::channel();
-      let (state, label, script) = (state.clone(), label.clone(), script.clone());
+      let (state, label, script) = (state.clone(), label.clone(), script(action));
       let queued = tauri::async_runtime::block_on(on_ui(app.clone(), move |app| {
         let views = state.views.lock().unwrap();
         let active = views.active.as_ref().filter(|v| v.label == label && v.own == Own::Local(views.local_port));
@@ -956,16 +959,37 @@ fn open_local_page(app: AppHandle, state: Arc<Shell>, turn: u64, label: String, 
         let view = app.get_webview(&label).ok_or("window")?;
         Ok(view.eval_with_callback(script, move |value| { let _ = send.send(value); }).is_ok())
       }));
-      match queued {
+      let answer = match queued {
         Err(error) => break Err(error),
-        Ok(true) if receive.recv_timeout(Duration::from_secs(1)).is_ok_and(|value| value == "true") => break Ok(()),
-        _ => {}
+        Ok(true) => receive.recv_timeout(Duration::from_secs(1)).unwrap_or_default(),
+        Ok(false) => String::new(),
+      };
+      match answer.as_str() {
+        r#""opened""# => break Ok(()),
+        r#""cancelled""# => break Err("cancelled".into()),
+        r#""ready""# if action == "ask" => {
+          action = "commit";
+          continue;
+        }
+        r#""pending""# => deadline = Instant::now() + LOAD_PATIENCE,
+        _ => action = "ask",
       }
       if Instant::now() >= deadline {
         break Err("window".into());
       }
       thread::sleep(Duration::from_millis(100));
     };
+    if result.is_err() {
+      let script = script("cancel");
+      let _ = app.run_on_main_thread({
+        let app = app.clone();
+        move || {
+          if let Some(view) = app.get_webview(&label) {
+            let _ = view.eval(script);
+          }
+        }
+      });
+    }
     let mut views = state.views.lock().unwrap();
     if views.turn == turn {
       views.finish(result);

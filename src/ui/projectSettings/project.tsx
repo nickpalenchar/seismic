@@ -249,8 +249,26 @@ type Entry = ReturnType<typeof useProjectEntry>;
  * `ask`, for a leaving of the draft's own (its pop-up's Cancel), and `release`, once it is saved.
  */
 function useLeaveGuard(unsaved: boolean, discard: () => void): [ReactNode, (proceed: () => void) => void, () => void] {
-  const [asking, setAsking] = useState<(() => void) | null>(null);
-  const ask = (proceed: () => void) => setAsking(() => proceed);
+  type Question = { proceed: () => void; dismiss: (cancelled: boolean) => void };
+  const [asking, setAsking] = useState<Question | null>(null);
+  const current = useRef<Question | null>(null);
+  const ask = (proceed: () => void, cancel = () => {}, signal?: AbortSignal) => {
+    current.current?.dismiss(true);
+    const abort = () => question.dismiss(true);
+    const question: Question = {
+      proceed,
+      dismiss: (cancelled) => {
+        if (current.current !== question) return;
+        signal?.removeEventListener('abort', abort);
+        current.current = null;
+        setAsking(null);
+        if (cancelled) cancel();
+      },
+    };
+    current.current = question;
+    signal?.addEventListener('abort', abort, { once: true });
+    setAsking(question);
+  };
   const held = useRef<(() => void) | null>(null);
   const release = () => {
     held.current?.();
@@ -258,27 +276,29 @@ function useLeaveGuard(unsaved: boolean, discard: () => void): [ReactNode, (proc
   };
   useEffect(() => {
     if (!unsaved) return;
-    held.current = holdLeaving((proceed) => (ask(proceed), true));
+    held.current = holdLeaving((proceed, cancel, signal) => (ask(proceed, cancel, signal), true));
     return release;
   }, [unsaved]);
+  useEffect(() => () => current.current?.dismiss(true), []);
   const l = t.projectSettings;
   const question = (
     <ConfirmDialog
       open={!!asking}
-      onOpenChange={(o) => !o && setAsking(null)}
+      onOpenChange={(o) => !o && asking?.dismiss(true)}
       title={l.unsavedTitle}
       className="cs-unsaved"
       confirm={{
         label: l.discardClose,
         variant: 'warning',
         className: 'cs-discard',
+        keepOpen: true,
         onClick: () => {
-          const go = asking;
-          setAsking(null);
+          if (!asking || current.current !== asking) return;
+          asking.dismiss(false);
           discard();
           // discarded: what goes on asks nothing more of it
           release();
-          go?.();
+          asking.proceed();
         },
       }}
       cancel={l.stay}

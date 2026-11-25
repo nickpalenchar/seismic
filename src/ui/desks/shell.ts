@@ -4,8 +4,8 @@
 // page may change it. A browser or a phone has no shell: none of this shows there.
 
 import { useSyncExternalStore } from 'react';
-import { goTo } from '../address';
-import { holdLeaving } from '../leaving';
+import { goTo, pushAddress } from '../address';
+import { holdLeaving, leave } from '../leaving';
 import { t } from '../strings';
 
 export interface Desk {
@@ -32,10 +32,13 @@ export const LOCAL = 'local';
 /** This machine's page that lists the workspaces; `?new` opens the form to pair one, `?edit=<id>` the dialog of one. */
 export const WORKSPACES_PATH = '/workspaces';
 
+type DeskPageAction = 'ask' | 'commit' | 'cancel';
+type DeskPageResult = 'waiting' | 'pending' | 'ready' | 'opened' | 'cancelled';
+
 declare global {
   interface Window {
-    /** Accepts a native Workspaces route once this document can handle it. */
-    seismicDeskPage?: (page: string) => boolean;
+    /** Resolves the leave guard and commits the route only while its native selection is current. */
+    seismicDeskPage?: (page: string, id: string, action: DeskPageAction) => DeskPageResult;
   }
 }
 
@@ -140,11 +143,20 @@ export const onThisMachine = (all: DeskList | null) => all?.current === LOCAL;
 export function openWorkspaces(all: DeskList | null, query = '') {
   const path = `${WORKSPACES_PATH}${query}`;
   if (onThisMachine(all)) {
-    rememberBack();
-    goTo(path);
-    return Promise.resolve();
+    if (pairing) return Promise.resolve(false);
+    return new Promise<boolean>((resolve) => {
+      leave(() => {
+        showWorkspaces(path);
+        resolve(true);
+      }, path, () => resolve(false));
+    });
   }
-  return desks.open(LOCAL, path);
+  return desks.open(LOCAL, path).then(() => true);
+}
+
+function showWorkspaces(path: string) {
+  rememberBack();
+  pushAddress(path);
 }
 
 const BACK = 'seismic-workspaces-back';
@@ -171,11 +183,29 @@ export function followShell() {
     if (location.pathname === WORKSPACES_PATH) history.replaceState(history.state, '', '/');
     return;
   }
-  window.seismicDeskPage = (page) => {
-    if (pairing || !(page === WORKSPACES_PATH || page.startsWith(`${WORKSPACES_PATH}?`))) return false;
-    rememberBack();
-    goTo(page);
-    return true;
+  let request: { id: string; from: string; decision: DeskPageResult; controller: AbortController } | undefined;
+  window.seismicDeskPage = (page, id, action) => {
+    if (action === 'cancel') {
+      if (request?.id === id) {
+        request.controller.abort();
+        request.decision = 'cancelled';
+      }
+      return 'cancelled';
+    }
+    if (pairing || !(page === WORKSPACES_PATH || page.startsWith(`${WORKSPACES_PATH}?`))) return 'waiting';
+    if (request?.id !== id) {
+      if (action !== 'ask') return 'waiting';
+      request?.controller.abort();
+      const next = { id, from: location.href, decision: 'pending' as DeskPageResult, controller: new AbortController() };
+      request = next;
+      leave(() => { next.decision = 'ready'; }, page, () => { next.decision = 'cancelled'; }, next.controller.signal);
+    }
+    if (action === 'commit' && request.decision === 'ready') {
+      if (request.from !== location.href) return 'cancelled';
+      showWorkspaces(page);
+      request.decision = 'opened';
+    }
+    return request.decision;
   };
 }
 
