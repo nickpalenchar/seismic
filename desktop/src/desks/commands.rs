@@ -70,14 +70,20 @@ async fn prepare_pairing(
     let (outgoing, link) = capture_after(&app, turn, OnBack::Cancel, true, |_| {
       let verify = verify.take().ok_or("drafts")?;
       let caller = webview.clone();
-      tauri::async_runtime::block_on(on_ui(app.clone(), move |app| {
+      // The health check may take seconds: whether the pairing is still the one asked for is
+      // checked after it, right before the code is redeemed.
+      remote::pair(&origin, &code, || tauri::async_runtime::block_on(on_ui(app.clone(), move |app| {
         from_this_machine(app, &caller)?;
-        if shell(app).views.lock().unwrap().turn != turn {
+        let state = shell(app);
+        let current = {
+          let views = state.views.lock().unwrap();
+          views.turn == turn && views.active.as_ref().is_some_and(|v| v.label == caller.label() && v.departure.activation == activation)
+        };
+        if !current {
           return Err("superseded".into());
         }
         verify(app)
-      }))?;
-      remote::pair(&origin, &code).map_err(String::from)
+      })))
     })?;
     let views = state.views.lock().unwrap();
     if !views.active.as_ref().is_some_and(|v| v.label == webview.label() && v.departure.activation == activation) {

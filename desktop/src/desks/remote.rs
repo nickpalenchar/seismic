@@ -68,21 +68,40 @@ fn get(origin: &str, path: &str) -> Result<ureq::Response, Health> {
 /// know it (a 404, or its "Not connected" page to a device it does not know) and is asked for its
 /// projects instead.
 pub fn health(origin: &str) -> Health {
+  match probe(origin) {
+    Probe::Health(health) => health,
+    // no window opens on this machine's own Seismic at an address of its own
+    Probe::ThisMachine => Health::NotSeismic,
+  }
+}
+
+/// What the health check found: a [`Health`], or this machine's own Seismic, which refuses a request
+/// without the owner key (`401 notOwner`, src/server/owner.ts) where another one asks for pairing.
+#[derive(Debug, PartialEq)]
+enum Probe {
+  Health(Health),
+  ThisMachine,
+}
+
+fn probe(origin: &str) -> Probe {
   let res = match get(origin, "/api/v1/health") {
     Ok(res) => res,
-    Err(problem) => return problem,
+    Err(problem) => return Probe::Health(problem),
   };
   let status = res.status();
   let body = response_json(res, HEALTH_LIMIT);
+  if status == 401 && body.as_ref().is_some_and(|b| b["code"].as_str() == Some("notOwner")) {
+    return Probe::ThisMachine;
+  }
   // A Seismic health reply that reports a non-OK state must not be overridden by
   // a successful projects response from the same origin.
   if body.as_ref().is_some_and(|b| b["service"].as_str() == Some("seismic")) {
-    return judge(status, body.as_ref());
+    return Probe::Health(judge(status, body.as_ref()));
   }
-  match judge(status, body.as_ref()) {
+  Probe::Health(match judge(status, body.as_ref()) {
     Health::Seismic => Health::Seismic,
     _ => earlier_health(origin),
-  }
+  })
 }
 
 /// A Seismic from before `/api/v1/health` marks its projects response (`X-Seismic: projects`); the
@@ -111,25 +130,29 @@ fn judge(status: u16, body: Option<&Value>) -> Health {
 
 /// Pairs with the Seismic at `origin` by `code`: the one-time link its window opens, at that very
 /// origin; else why not, as the pages say it (`wrongCode`, `codeExpired`, `onThisMachine`,
-/// `unreachable`, `notSeismic`, `invalid`).
-pub fn pair(origin: &str, code: &str) -> Result<Url, &'static str> {
+/// `unreachable`, `notSeismic`, `invalid`), or what `current` refuses. `current` runs once the
+/// destination answered, right before the code is redeemed: whether the pairing is still wanted.
+pub fn pair(origin: &str, code: &str, current: impl FnOnce() -> Result<(), String>) -> Result<Url, String> {
+  // A same-origin URL in the pairing response is not proof that the origin serves Seismic, so verify
+  // it first; checking before redeeming keeps the code usable when that check fails in passing.
+  match probe(origin) {
+    Probe::Health(Health::Seismic) => {}
+    // its `/api/pair` refuses this machine just the same
+    Probe::ThisMachine => return Err("onThisMachine".into()),
+    Probe::Health(problem) => return Err(problem.code().into()),
+  }
+  current()?;
   let res = agent()
     .post(&format!("{origin}/api/pair"))
     .set("content-type", "application/json")
     .send_string(&serde_json::json!({ "code": code.trim() }).to_string());
   let res = match res {
     Ok(res) | Err(ureq::Error::Status(_, res)) => res,
-    Err(_) => return Err("unreachable"),
+    Err(_) => return Err("unreachable".into()),
   };
   let status = res.status();
   let body = response_json(res, PAIR_LIMIT);
-  let link = paired(origin, status, body.as_ref())?;
-  // A same-origin URL in the pairing response is not proof that the origin
-  // serves Seismic. Verify it before saving or granting a workspace webview.
-  match health(origin) {
-    Health::Seismic => Ok(link),
-    problem => Err(problem.code()),
-  }
+  Ok(paired(origin, status, body.as_ref())?)
 }
 
 fn paired(origin: &str, status: u16, body: Option<&Value>) -> Result<Url, &'static str> {
@@ -267,7 +290,7 @@ mod tests {
         ("/api/pair", "200 OK", r#"{"url":"{origin}/pair?token=abc"}"#.into()),
       ]);
       assert_eq!(health(&studio), Health::NotSeismic);
-      assert_eq!(pair(&studio, "123456"), Err("notSeismic"));
+      assert_eq!(pair(&studio, "123456", || Ok(())), Err("notSeismic".into()));
     }
     let refused = serve(vec![
       ("/api/v1/health", "503 Service Unavailable", r#"{"service":"seismic","status":"down"}"#.into()),
@@ -301,7 +324,7 @@ mod tests {
       ("/api/pair", "200 OK", r#"{"url":"{origin}/pair?token=abc"}"#.into()),
     ]);
     assert_eq!(health(&studio), Health::NotSeismic);
-    assert_eq!(pair(&studio, "123456"), Err("notSeismic"));
+    assert_eq!(pair(&studio, "123456", || Ok(())), Err("notSeismic".into()));
     let earlier = serve(vec![("/api/projects", "401 Unauthorized", unhealthy.into())]);
     assert_eq!(health(&earlier), Health::NotSeismic);
   }
@@ -341,7 +364,7 @@ mod tests {
       ("/api/projects", "200 OK\r\nX-Seismic: projects\r\nContent-Type: text/html", "<!doctype html><title>Sign in</title>".into()),
       ("/api/pair", "200 OK", r#"{"url":"{origin}/pair?token=abc"}"#.into()),
     ]);
-    assert_eq!(pair(&studio, "123456"), Err("notSeismic"));
+    assert_eq!(pair(&studio, "123456", || Ok(())), Err("notSeismic".into()));
   }
 
   #[test]
@@ -352,8 +375,88 @@ mod tests {
     assert_eq!(health(&refused), Health::NotSeismic);
     let earlier = serve(vec![("/api/projects", "401 Unauthorized", format!("{NOT_PAIRED}{}", " ".repeat(PAIR_LIMIT as usize)))]);
     assert_eq!(health(&earlier), Health::NotSeismic);
-    let pairing = serve(vec![("/api/pair", "401 Unauthorized", format!(r#"{{"code":"wrongCode"}}{}"#, " ".repeat(PAIR_LIMIT as usize)))]);
-    assert_eq!(pair(&pairing, "123456"), Err("notSeismic"));
+    let pairing = serve(vec![
+      ("/api/v1/health", "200 OK", HEALTHY.into()),
+      ("/api/pair", "401 Unauthorized", format!(r#"{{"code":"wrongCode"}}{}"#, " ".repeat(PAIR_LIMIT as usize))),
+    ]);
+    assert_eq!(pair(&pairing, "123456", || Ok(())), Err("notSeismic".into()));
+  }
+
+  /// A server answering one request after another with `answers` (status line and body), in order;
+  /// the request lines it saw.
+  fn replies(answers: Vec<(&str, &str)>) -> (TestServer, std::sync::Arc<std::sync::Mutex<Vec<String>>>) {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    listener.set_nonblocking(true).unwrap();
+    let origin = format!("http://{}", listener.local_addr().unwrap());
+    let answers: Vec<(String, String)> = answers.into_iter().map(|(h, b)| (h.into(), b.replace("{origin}", &origin))).collect();
+    let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let requests = seen.clone();
+    let (shutdown, stopped) = mpsc::channel();
+    let thread = std::thread::spawn(move || {
+      let mut answers = answers.into_iter();
+      loop {
+        let stream = match listener.accept() {
+          Ok((stream, _)) => stream,
+          Err(error) if error.kind() == io::ErrorKind::WouldBlock => match stopped.recv_timeout(Duration::from_millis(10)) {
+            Ok(()) | Err(mpsc::RecvTimeoutError::Disconnected) => break,
+            Err(mpsc::RecvTimeoutError::Timeout) => continue,
+          },
+          Err(error) => panic!("test server accept failed: {error}"),
+        };
+        stream.set_nonblocking(false).unwrap();
+        let mut stream = BufReader::new(stream);
+        let mut line = String::new();
+        let _ = stream.read_line(&mut line);
+        requests.lock().unwrap().push(line.trim().to_string());
+        let mut length = 0;
+        line.clear();
+        while stream.read_line(&mut line).unwrap_or(0) != 0 && !line.trim().is_empty() {
+          if let Some((name, value)) = line.split_once(':') {
+            if name.eq_ignore_ascii_case("content-length") {
+              length = value.trim().parse().unwrap();
+            }
+          }
+          line.clear();
+        }
+        let _ = io::copy(&mut stream.by_ref().take(length), &mut io::sink());
+        let (header, body) = answers.next().unwrap_or(("404 Not Found".into(), "{}".into()));
+        let _ = write!(stream.get_mut(), "HTTP/1.1 {header}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len());
+      }
+    });
+    (TestServer { origin, shutdown, thread: Some(thread) }, seen)
+  }
+
+  #[test]
+  fn a_failed_health_check_leaves_the_code_unredeemed() {
+    let (studio, seen) = replies(vec![
+      ("503 Service Unavailable", ""),
+      ("503 Service Unavailable", ""),
+      ("200 OK", HEALTHY),
+      ("200 OK", r#"{"url":"{origin}/pair?token=abc"}"#),
+    ]);
+    assert_eq!(pair(&studio, "123456", || Ok(())), Err("notSeismic".into()));
+    assert!(seen.lock().unwrap().iter().all(|r| !r.starts_with("POST")), "{:?}", seen.lock().unwrap());
+    assert_eq!(pair(&studio, "123456", || Ok(())).unwrap().as_str(), format!("{}/pair?token=abc", &*studio));
+    let seen = seen.lock().unwrap();
+    assert!(seen[2].starts_with("GET /api/v1/health") && seen[3].starts_with("POST /api/pair"), "{seen:?}");
+  }
+
+  #[test]
+  fn a_pairing_superseded_during_the_health_check_leaves_the_code_unredeemed() {
+    let (studio, seen) = replies(vec![("200 OK", HEALTHY)]);
+    assert_eq!(pair(&studio, "123456", || Err("superseded".into())), Err("superseded".into()));
+    assert_eq!(*seen.lock().unwrap(), vec!["GET /api/v1/health HTTP/1.1".to_string()]);
+  }
+
+  #[test]
+  fn this_machine_is_refused_as_such_before_its_code_is_redeemed() {
+    let not_owner = r#"{"code":"notOwner","error":"only the owner talks to Seismic"}"#;
+    let (here, seen) = replies(vec![("401 Unauthorized", not_owner)]);
+    assert_eq!(pair(&here, "123456", || Ok(())), Err("onThisMachine".into()));
+    assert_eq!(seen.lock().unwrap().len(), 1);
+    // no window opens on it either
+    let (here, _) = replies(vec![("401 Unauthorized", not_owner)]);
+    assert_eq!(health(&here), Health::NotSeismic);
   }
 
   #[test]

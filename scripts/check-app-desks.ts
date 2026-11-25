@@ -514,6 +514,18 @@ const pairAfterUpload = async (cmd: 'add_desk' | 'pair_desk', args: Record<strin
     if (!uploadReleased) await releaseLocalScreenshot();
   }
 };
+// A destination whose health check fails in passing refuses the pairing without redeeming the code.
+const healthFailsOnce = async (cmd: 'add_desk' | 'pair_desk', args: Record<string, string>) => {
+  const [attempts, previous] = [pairRequests, rejectedHealthChecks];
+  rejectHealth = true;
+  try {
+    const result = await run(cmd, args);
+    expect(result.error === 'notSeismic' && rejectedHealthChecks > previous, JSON.stringify(result));
+    expect(pairRequests === attempts, 'the code was redeemed before the health check passed');
+  } finally {
+    rejectHealth = false;
+  }
+};
 type Desks = { current: string | null; problem: string | null; list: { id: string; name: string; origin: string | null; local: boolean; open: boolean }[] };
 const expectStatusCopy = (report: (typeof reports)[number]) => {
   const desks = (report.desks as { value?: Desks }).value;
@@ -790,6 +802,13 @@ async function checkApp() {
     expect(!r.ok && r.error === 'wrongCode', JSON.stringify(r));
     expect((await desks()).list.length === 1, 'the list grew');
   });
+  await check("Add names this machine's own address as such, and spends no code", async () => {
+    const attempts = pairRequests;
+    const here = new URL(String(displayed()?.href)).origin;
+    const result = await run('add_desk', { address: here, code: '123456' });
+    expect(result.error === 'onThisMachine' && (await desks()).list.length === 1, JSON.stringify(result));
+    expect(pairRequests === attempts, 'the remote was asked');
+  });
   await check('Add refuses a pairing reply from an unrelated service', async () => {
     const label = displayed()?.label;
     unrelatedPairing = true;
@@ -816,9 +835,17 @@ async function checkApp() {
       expect(saved.list.some((w) => w.id === id && w.url === REMOTE), 'the new workspace was not saved');
     });
   }
+  const pairing = { ...(id ? { id } : { address: REMOTE, name: 'Studio' }), code: await code() };
+  if (!id) {
+    await check('Add keeps the code usable when the health check fails', async () => {
+      await healthFailsOnce('add_desk', pairing);
+      expect((await desks()).list.length === 1, 'the list grew');
+    });
+  }
   const pairBefore = reports.length;
   const attempts = pairRequests;
-  await pairAfterUpload(id ? 'pair_desk' : 'add_desk', { ...(id ? { id } : { address: REMOTE, name: 'Studio' }), code: await code() });
+  // the same code as the refused attempt
+  await pairAfterUpload(id ? 'pair_desk' : 'add_desk', pairing);
   const first = await report('remote', pairBefore) as Record<string, { ok: boolean; value?: unknown; error?: string }>;
   id ||= (first.desks!.value as Desks).current!;
   await check('pairing loads the remote address in the same native window', () => {
@@ -918,6 +945,42 @@ async function checkApp() {
       other.stop(true);
     }
     await select(id, 'remote');
+  });
+  await check('Pair again keeps the code usable when the health check fails', async () => {
+    await select('local', 'local');
+    const again = { id, code: await code() };
+    await healthFailsOnce('pair_desk', again);
+    const [before, attempts] = [reports.length, pairRequests];
+    // the window switches away from the page that asked, so the remote page reports the outcome
+    send('pair_desk', again);
+    const remote = await report('remote', before, 15_000);
+    expect(String(remote.href).startsWith(`${REMOTE}/`) && remote.projects === 200, JSON.stringify(remote));
+    expect(pairRequests === attempts + 1, `${pairRequests - attempts} pairing requests`);
+  });
+  await check('a selection during the health check supersedes Pair again before the code is spent', async () => {
+    await select('local', 'local');
+    const again = { id, code: await code() };
+    const hit = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    const attempts = pairRequests;
+    onHealth = () => { hit.resolve(); return release.promise; };
+    try {
+      const stale = send('pair_desk', again);
+      await Promise.race([hit.promise, sleep(6000).then(() => { throw new Error('no held health check'); })]);
+      expect((await run('open_desk', { id: 'local' })).ok, 'selecting the current workspace failed');
+      onHealth = undefined;
+      release.resolve();
+      const result = await until('the superseded pairing to settle', 5000, () => done.get(stale));
+      expect(result.error === 'superseded' && pairRequests === attempts, JSON.stringify({ result, requests: pairRequests - attempts }));
+    } finally {
+      onHealth = undefined;
+      release.resolve();
+    }
+    // the code is still good
+    const before = reports.length;
+    send('pair_desk', again);
+    const remote = await report('remote', before, 15_000);
+    expect(String(remote.href).startsWith(`${REMOTE}/`) && pairRequests === attempts + 1, JSON.stringify(remote));
   });
   await check('switching local and back keeps the window, pairing, route, and drafts', async () => {
     const edited = await run('check_eval', { js: `history.replaceState(null, '', ${JSON.stringify(LAST_PAGE)}); sessionStorage.setItem('seismic-drafts-check', 'Draft before switching')` });
