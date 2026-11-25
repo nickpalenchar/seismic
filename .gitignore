@@ -6,7 +6,6 @@ node_modules/
 !plugin/skills/demo/voices/*.wav
 __pycache__/
 dist/
-site/media/
 .voice/
 /.local/state/gh/
 # secrets (signing keys, tokens) stay out of git

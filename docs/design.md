@@ -87,11 +87,11 @@ cycling through terminals.
   `v<version>`, the owner publishes it, and the live seismic.im (built from the separate
   `seismic-site` repository) links its version-less downloads. macOS signed and notarised; Windows
   and Linux unsigned, with `SHA256SUMS`. The upstream's machinery came back as it was (switched off
-  on 2026-11-13) without its hero video, site screenshots and Pages site; `site/` here stays
-  unpublished (`SITE` in `scripts/distribution.ts`) and holds only what other files use: the
-  README's images, the logo's sources and fonts, and `style.css` for `scripts/social-preview.ts`;
-  its pages went on 2026-11-25. Release notes are a curated `CHANGELOG.md`
-  section per version, each entry linking its demo, with the commits folded under it; rejected:
+  on 2026-11-13) without its hero video, site screenshots and Pages site; the old site's
+  `site/` went on 2026-11-25 (the README's images are in `.github/readme/`, the wordmark's font
+  in `src/ui/logo/`); the scripts that made its media (`scripts/hero-video/`, `site-shots.ts`,
+  `social-preview.ts`) stay behind `SITE` in `scripts/distribution.ts`. Release notes are a
+  curated `CHANGELOG.md` section per version, each entry linking its demo, with the commits folded under it; rejected:
   commit subjects as notes (hundreds of lines per release, unreadable for users). Kill switches:
   `DISTRIBUTION` in `scripts/distribution.ts`, `CHECK_RELEASES` in `desktop/src/update.rs`,
   `UPDATES_ENABLED` in `src/server/app-update.ts`. `docs/release.md` has the process.

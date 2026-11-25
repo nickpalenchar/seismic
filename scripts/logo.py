@@ -2,8 +2,8 @@
 # src/ui/logo/seismic_logo.png is the one source. From it: logo.svg (the favicon), wordmark.svg and
 # wordmark-dark.svg (the sign with "Seismic" in Newsreader SemiBold as outlines, the letters in the ink of
 # either theme), logo.png (where SVG is not taken), apple-touch-icon.png and icon-512.png (the sign on a
-# square for home screens), glyphs.ts (what the UI's Sign and Wordmark draw), the site's copies in
-# site/img/ and the app's icons in desktop/icons/.
+# square for home screens), glyphs.ts (what the UI's Sign and Wordmark draw) and the app's icons in
+# desktop/icons/. The Newsreader font is beside the source, in src/ui/logo/.
 # /// script
 # dependencies = ["pillow", "fonttools", "brotli"]
 # ///
@@ -17,7 +17,6 @@ from fontTools.pens.transformPen import TransformPen
 
 root = Path(__file__).resolve().parent.parent
 logo_dir = root / 'src/ui/logo'
-site_img = root / 'site/img'
 icons = root / 'desktop/icons'
 BG = (11, 18, 32)  # the ink the sign sits on in icons: the sign is light, so it needs a dark square
 
@@ -40,7 +39,7 @@ def sized(px):
 data_uri = 'data:image/png;base64,' + base64.b64encode(png_bytes(sized(192))).decode()
 
 # the letters, as outlines, at 2000 units per em like the cards' titles' font
-font = instancer.instantiateVariableFont(TTFont(root / 'site/fonts/newsreader-latin-opsz-normal.woff2'), {'wght': 600, 'opsz': 24})
+font = instancer.instantiateVariableFont(TTFont(logo_dir / 'newsreader-latin-opsz-normal.woff2'), {'wght': 600, 'opsz': 24})
 gs, cmap = font.getGlyphSet(), font.getBestCmap()
 SCALE, X0, GAP = 0.0142, 37.0, 0.3
 x, letters = X0, []
@@ -68,7 +67,6 @@ def wordmark(ink):
 files = {'logo.svg': sign_svg, 'wordmark.svg': wordmark('#1f1b14'), 'wordmark-dark.svg': wordmark('#efe9dc')}
 for name, svg in files.items():
     (logo_dir / name).write_text(svg)
-    (site_img / name).write_text(svg)
 
 def on_square(px, margin, radius=0.0):
     """The sign on a dark square of `px`, `margin` being the share of the width left empty on each side."""
@@ -85,7 +83,6 @@ def on_square(px, margin, radius=0.0):
 sized(64).save(logo_dir / 'logo.png', optimize=True)
 touch = on_square(180, 0.16).convert('RGB')
 touch.save(logo_dir / 'apple-touch-icon.png', optimize=True)
-touch.save(site_img / 'apple-touch-icon.png', optimize=True)
 on_square(512, 0.16).convert('RGB').save(logo_dir / 'icon-512.png', optimize=True)
 
 # an app icon is the sign on a rounded square, with the margin macOS draws its icons with

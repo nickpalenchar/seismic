@@ -27,7 +27,7 @@ on:
     tags: ['v*']
     # what leaves the running code as it is (as INERT in src/server/self-update.ts); path filters
     # do not apply to tags
-    paths-ignore: ['docs/**', 'design/**', 'site/**', '**/*.md']
+    paths-ignore: ['docs/**', 'design/**', '**/*.md']
   workflow_dispatch:
     inputs:
       sign:
