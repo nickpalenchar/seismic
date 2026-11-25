@@ -213,6 +213,29 @@ cog's dialog (`edit.tsx`) and the workspaces page (`page.tsx`); the switcher is 
   `docs/site/workspaces.md` so that link holds.
 - The connect form names "Connect a phone", the label the other machine shows today.
 
+## W5 results (2026-11-25)
+
+- **Windows in CI:** the Build workflow installs the NSIS build on the Windows runner and runs
+  `scripts/check-app.ts` and `scripts/check-app-desks.ts` in WebView2 (fake microphone), their
+  output an artifact of the run (`app-check-windows-x64`). Every desks check passes there but one:
+  pausing this machine's server takes SIGSTOP, which Windows lacks, so that check prints itself as
+  not run on Windows.
+- **Linux in its container:** `desktop/linux-run.sh` runs `check-app-desks.ts` on the installed
+  .deb after `check-app.ts`; every desks check passes in WebKitGTK 2.50. The image builds with the
+  Bun CI uses (1.4.3): Bun 1.3.14's compiled UI left out a chunk its page imports, and the window
+  stayed blank. The image has `lsof` for the paused-server check.
+- **Linux IPC fallback:** Tauri's script takes postMessage for every later call of a document once
+  one fetch of its IPC failed (a server restart, a page leaving), and Linux windows have no
+  postMessage (W1). `desktop/src/window/linux_ipc.js` answers a failed fetch of the IPC as the
+  shell's error for that call alone, so the next call fetches again; without it a page could call
+  nothing of the shell until a reload (seen in the container: every check after an offline
+  rebuild failed on `window.webkit.messageHandlers.ipc`).
+- **Open in browser** moved into Preferences, About Seismic; `check-app.ts` looks for it there.
+- Still failing in the container, outside this plan: the microphone check (`check-app.ts`) gets
+  Web Audio samples that are all silence from the PulseAudio sine source.
+- The guide is `docs/site/workspaces.md` (the Install page links to it). Its sidebar entry is in
+  `seismic-site`'s `astro.config.mjs`, which lists the top-level pages of the Start group.
+
 ## Boundaries
 
 The web app does not change how it reaches its server: every page is served by the Seismic it talks to, over relative REST paths and a WebSocket at `location.host`. The shell is a container that keeps the list and pairs over HTTP. What carries over from the first attempt is listed per workstream; the rest of `desktop/src/desks.rs` does not. No syncing of the list between machines.
