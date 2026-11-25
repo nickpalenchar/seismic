@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-libav gstreamer1.0-pulseaudio \
     xvfb xauth pulseaudio dbus-x11 ffmpeg x11-apps imagemagick \
   && rm -rf /var/lib/apt/lists/*
-RUN curl -fsSL https://bun.sh/install | bash -s bun-v1.3.14 && ln -s /root/.bun/bin/bun /usr/local/bin/bun
+RUN curl -fsSL https://bun.sh/install | bash -s bun-v1.4.3 && ln -s /root/.bun/bin/bun /usr/local/bin/bun
 RUN curl -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal
 ENV PATH=/root/.cargo/bin:$PATH
 COPY linux-run.sh /usr/local/bin/seismic-linux-run
