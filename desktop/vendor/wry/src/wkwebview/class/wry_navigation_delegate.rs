@@ -8,7 +8,7 @@ use std::{
 };
 
 use objc2::{DeclaredClass, Message, MainThreadOnly, define_class, msg_send, rc::Retained, runtime::NSObject};
-use objc2_foundation::{MainThreadMarker, NSObjectProtocol};
+use objc2_foundation::{MainThreadMarker, NSError, NSObjectProtocol};
 use objc2_web_kit::{
   WKDownload, WKNavigation, WKNavigationAction, WKNavigationActionPolicy, WKNavigationDelegate,
   WKNavigationResponse, WKNavigationResponsePolicy,
@@ -33,7 +33,7 @@ use crate::{
 use super::wry_download_delegate::WryDownloadDelegate;
 
 pub struct WryNavigationDelegateIvars {
-  pub started: RefCell<Option<Retained<WKNavigation>>>,
+  started: RefCell<Option<Retained<WKNavigation>>>,
   pub pending_scripts: Arc<Mutex<Option<Vec<String>>>>,
   pub has_download_handler: bool,
   pub navigation_policy_function: Box<dyn Fn(String) -> bool>,
@@ -76,6 +76,28 @@ define_class!(
       self.ivars().started.replace(navigation.map(WKNavigation::retain));
       if let Some(on_page_load) = &self.ivars().on_page_load_handler {
         on_page_load(PageLoadEvent::Started);
+      }
+    }
+
+    #[unsafe(method(webView:didFailProvisionalNavigation:withError:))]
+    fn did_fail_provisional_navigation(
+      &self,
+      _webview: &WKWebView,
+      navigation: Option<&WKNavigation>,
+      error: &NSError,
+    ) {
+      let current = self.ivars().started.borrow().as_deref().map(std::ptr::from_ref);
+      if current.is_none() || current != navigation.map(std::ptr::from_ref) {
+        return;
+      }
+      // A rejected redirect can end a load that started before the policy decision.
+      // Match the failed navigation so a rejected link or subframe cannot end another load.
+      let domain = error.domain();
+      if matches!(
+        (domain.to_string().as_str(), error.code()),
+        ("WebKitErrorDomain", 102) | ("NSURLErrorDomain", -999)
+      ) {
+        self.cancel_started_navigation();
       }
     }
 
@@ -127,6 +149,14 @@ define_class!(
 );
 
 impl WryNavigationDelegate {
+  pub(crate) fn cancel_started_navigation(&self) {
+    if self.ivars().started.take().is_some() {
+      if let Some(on_page_load) = &self.ivars().on_page_load_handler {
+        crate::desktop_load(crate::DesktopLoadEvent::Cancelled, || on_page_load(PageLoadEvent::Started));
+      }
+    }
+  }
+
   #[allow(clippy::too_many_arguments)]
   pub fn new(
     webview: Retained<WryWebView>,

@@ -196,7 +196,7 @@ let pageError: 'http' | 'legacy' | undefined;
 // A proxy's own page: at every workspace route, or behind a redirect to /maintenance; hideTiming
 // gives it the timing entries of older webviews, which omit the HTTP status; cache lets the
 // browser keep it, and the redirect, for ten minutes.
-let placeholder: { redirect: boolean; hideTiming: boolean; cache?: boolean } | undefined;
+let placeholder: { redirect: boolean; hideTiming: boolean; cache?: boolean; fragment?: string } | undefined;
 let signedOut = false;
 let placeholdersServed = 0;
 const startProxy = (port = proxyPort) => {
@@ -243,6 +243,9 @@ const startProxy = (port = proxyPort) => {
         nextPage = undefined;
         await held();
       }
+      if (url.pathname === '/__seismic-check-browser-redirect') {
+        return Response.redirect('https://example.invalid/workspace-export', 302);
+      }
       if (placeholder && req.headers.get('accept')?.includes('text/html')) {
         if (placeholder.redirect && url.pathname !== '/maintenance') {
           const cache = placeholder.cache ? { 'cache-control': 'max-age=600' } : { 'cache-control': 'no-store' };
@@ -251,7 +254,8 @@ const startProxy = (port = proxyPort) => {
         // The root element and manifest any web app has.
         placeholdersServed++;
         const timing = placeholder.hideTiming ? '<script>performance.getEntriesByType = () => []</script>' : '';
-        const page = `${timing}<title>Down for maintenance</title><link rel="manifest" href="/manifest.webmanifest"><div id="root">Back soon</div>`;
+        const fragment = placeholder.fragment === undefined ? '' : `<script>history.replaceState(null, '', ${JSON.stringify(placeholder.fragment)})</script>`;
+        const page = `${timing}${fragment}<title>Down for maintenance</title><link rel="manifest" href="/manifest.webmanifest"><div id="root">Back soon</div>`;
         return new Response(page, { headers: { 'content-type': 'text/html', 'cache-control': placeholder.cache ? 'max-age=600' : 'no-store' } });
       }
       if (pageError && req.headers.get('accept')?.includes('text/html')) {
@@ -1845,6 +1849,65 @@ async function checkApp() {
     }
     const restored = await reconnect(true);
     expect(restored.href === moved.href, JSON.stringify(restored));
+  });
+  if (process.platform === 'darwin' && existsSync(join(home, 'check-browser-handoffs-active'))) {
+    await check('a redirected browser handoff leaves the workspace open', async () => {
+      await sleep(800);
+      const handoffs = join(home, 'check-browser-handoffs');
+      rmSync(handoffs, { force: true });
+      const before = reports.length;
+      const kept = displayed();
+      const reached = Promise.withResolvers<void>(), redirect = Promise.withResolvers<void>();
+      const rejected = rejectedHealthChecks;
+      try {
+        rejectHealth = true;
+        nextPage = () => { reached.resolve(); return redirect.promise; };
+        send('check_eval', { js: "location.assign('/__seismic-check-browser-redirect')" });
+        await Promise.race([reached.promise, sleep(5000).then(() => { throw new Error('no redirect request'); })]);
+        redirect.resolve();
+        await until('the redirect to be handed to the browser', 5000, () =>
+          existsSync(handoffs) && readFileSync(handoffs, 'utf8').includes('https://example.invalid/workspace-export'));
+        await sleep(16_000);
+        expect(displayed() === kept && !reports.slice(before).some(r => r.kind === 'status'), 'the handoff replaced the workspace');
+        expect(rejectedHealthChecks === rejected && (await desks()).problem === null, 'the handoff left a workspace check armed');
+      } finally {
+        rejectHealth = false;
+        nextPage = undefined;
+        redirect.resolve();
+      }
+    });
+  }
+  await check('a cache refresh restores the saved fragment when only the fragment differs', async () => {
+    const canvas = await asOwner('/api/c/lab/canvases', { method: 'POST', body: JSON.stringify({ name: 'Release' }) });
+    expect(canvas.ok, 'could not create the Release canvas');
+    const saved = new URL('/p/lab?check-navigation=fragment#Release', REMOTE);
+    const maintenance = new URL(saved);
+    maintenance.hash = '#main';
+    const before = reports.length;
+    send('check_eval', { js: `location.assign(${JSON.stringify(saved.href)})` });
+    const original = await report('remote', before);
+    expect(original.href === saved.href, JSON.stringify(original));
+    await sleep(800);
+    const checked = Promise.withResolvers<void>();
+    const served = placeholdersServed;
+    let held = false;
+    onHealth = async () => { if (placeholdersServed > served && !held) { held = true; await checked.promise; } };
+    try {
+      placeholder = { redirect: false, hideTiming: false, fragment: maintenance.hash };
+      const reloading = reports.length;
+      send('check_eval', { js: 'location.reload()' });
+      await until('the placeholder to change its fragment', 10_000, () =>
+        reports.slice(reloading).find(r => r.href === maintenance.href && r.mounted === false));
+      placeholder = undefined;
+      checked.resolve();
+      const recovered = await until('the refreshed workspace to display', 15_000, () =>
+        reports.slice(reloading).find(r => r.kind === 'remote' && r.mounted === true));
+      expect(recovered.href === saved.href && (await desks()).problem === null, JSON.stringify(recovered));
+    } finally {
+      placeholder = undefined;
+      onHealth = undefined;
+      checked.resolve();
+    }
   });
   await check('removing a workspace cancels a pending switch without closing the window', async () => {
     const local = await select('local', 'local');

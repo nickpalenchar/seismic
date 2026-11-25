@@ -113,10 +113,8 @@ pub(crate) fn navigation_policy_response(
       if has_download_handler {
         // The response policy runs before conversion and still identifies the main resource.
         // A download from a subframe must never disarm the main document's watchdog.
-        if response.isForMainFrame() && this.ivars().started.take().is_some() {
-          if let Some(on_page_load) = &this.ivars().on_page_load_handler {
-            crate::desktop_load(crate::DesktopLoadEvent::Cancelled, || on_page_load(PageLoadEvent::Started));
-          }
+        if response.isForMainFrame() {
+          this.cancel_started_navigation();
         }
         (*handler).call((WKNavigationResponsePolicy::Download,));
         return;

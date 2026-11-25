@@ -19,7 +19,8 @@ WKWebView's provisional navigation, WebKitGTK's `LoadEvent::Started`, or an allo
 WKWebView and WebView2 match completions to their latest start by navigation identity, so a late
 completion cannot supersede a newer load. The synchronous desktop event context distinguishes
 commit from provisional start through Tauri's page-load callback. It also reports when
-WKWebView turns a main-frame response into a download, WebKitGTK reports a provisional policy
+WKWebView turns a main-frame response into a download or reports a cancellation for the
+current provisional navigation, WebKitGTK reports a provisional policy
 interruption, or WebView2 reports cancellation of the current navigation ID.
 
 Moving to a newer wry: copy its crate from `~/.cargo/registry/src/*/wry-<version>/` (src, build.rs,

@@ -1291,24 +1291,7 @@ fn refresh_cache(app: &AppHandle, webview: Webview, route: Url, token: u64) {
         return;
       }
       if receive.recv_timeout(Duration::from_secs(1)).is_ok_and(|value| value == "true") {
-        let label = label.to_string();
-        let result = tauri::async_runtime::block_on(on_ui(app.clone(), move |app| {
-          let state = shell(app);
-          let views = state.views.lock().unwrap();
-          if !views.active.as_ref().is_some_and(|v| v.label == label && v.loading == Some(token)) {
-            return Ok(());
-          }
-          drop(views);
-          let webview = app.get_webview(&label).ok_or("window")?;
-          let mut current = webview.url().map_err(|e| e.to_string())?;
-          let mut plain = route.clone();
-          current.set_fragment(None);
-          plain.set_fragment(None);
-          // Navigating to another fragment alone would leave the rejected document in place.
-          let opened = if current == plain { webview.reload() } else { webview.navigate(route) };
-          opened.map_err(|e| e.to_string())
-        }));
-        if let Err(error) = result {
+        if let Err(error) = open_refreshed_route(&app, label, token, route) {
           eprintln!("seismic: the workspace could not be reloaded: {error}");
         }
         return;
@@ -1316,6 +1299,52 @@ fn refresh_cache(app: &AppHandle, webview: Webview, route: Url, token: u64) {
       thread::sleep(Duration::from_millis(100));
     }
   });
+}
+
+/// Keep the saved fragment even when the engine would treat Navigate as a
+/// same-document move. Set the address first, then reload under the same guard.
+fn open_refreshed_route(app: &AppHandle, label: &str, token: u64, route: Url) -> Result<(), String> {
+  let label = label.to_string();
+  let current_view = move |app: &AppHandle| {
+    let state = shell(app);
+    let views = state.views.lock().unwrap();
+    views.active.as_ref()
+      .filter(|v| v.label == label && v.loading == Some(token))
+      .and_then(|_| app.get_webview(&label))
+  };
+  let target = route.clone();
+  let (sent, updated) = mpsc::channel();
+  let finish_reload = tauri::async_runtime::block_on(on_ui(app.clone(), {
+    let current_view = current_view.clone();
+    move |app| {
+      let Some(webview) = current_view(app) else { return Ok(false); };
+      let current = webview.url().map_err(|e| e.to_string())?;
+      if current == target {
+        webview.reload().map_err(|e| e.to_string())?;
+        return Ok(false);
+      }
+      if current.path() != target.path() || current.query() != target.query() || current.origin() != target.origin()
+      {
+        webview.navigate(target).map_err(|e| e.to_string())?;
+        return Ok(false);
+      }
+      let script = format!(
+        "(() => {{ if (location.href !== {}) return false; history.replaceState(history.state, '', {}); return true; }})()",
+        json!(current.as_str()), json!(target.as_str()),
+      );
+      webview.eval_with_callback(script, move |value| { let _ = sent.send(value); }).map_err(|e| e.to_string())?;
+      Ok(true)
+    }
+  }))?;
+  if finish_reload && updated.recv_timeout(Duration::from_secs(2)).is_ok_and(|value| value == "true") {
+    tauri::async_runtime::block_on(on_ui(app.clone(), move |app| {
+      if let Some(webview) = current_view(app).filter(|w| w.url().is_ok_and(|url| url == route)) {
+        webview.reload().map_err(|e| e.to_string())?;
+      }
+      Ok(())
+    }))?;
+  }
+  Ok(())
 }
 
 /// Only the remote capability for this exact window label and origin grants the checkpoint command.
