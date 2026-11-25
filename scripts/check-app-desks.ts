@@ -822,12 +822,18 @@ async function checkApp() {
       unrelatedPairing = false;
     }
   });
+  // Whichever Add comes first redeems the code refused here.
+  const addition = { address: REMOTE, name: 'Studio', code: await code() };
+  await check('Add keeps the code usable when the health check fails', async () => {
+    await healthFailsOnce('add_desk', addition);
+    expect((await desks()).list.length === 1, 'the list grew');
+  });
   if (debugFailures) {
     await check('a saved workspace is reported and listed even if its first window fails', async () => {
       const before = reports.length;
       const attempts = pairRequests;
       writeFileSync(join(home, 'check-window-open-error'), '');
-      const request = await pairAfterUpload('add_desk', { address: REMOTE, code: await code(), name: 'Studio' });
+      const request = await pairAfterUpload('add_desk', addition);
       const result = await until('the accepted add to report its failed open', 5000, () => done.get(request));
       const value = result.value as { id: string; opened: boolean } | undefined;
       expect(result.ok && value?.opened === false && pairRequests === attempts + 1, JSON.stringify(result));
@@ -837,16 +843,11 @@ async function checkApp() {
       expect(saved.list.some((w) => w.id === id && w.url === REMOTE), 'the new workspace was not saved');
     });
   }
-  const pairing = { ...(id ? { id } : { address: REMOTE, name: 'Studio' }), code: await code() };
-  if (!id) {
-    await check('Add keeps the code usable when the health check fails', async () => {
-      await healthFailsOnce('add_desk', pairing);
-      expect((await desks()).list.length === 1, 'the list grew');
-    });
-  }
+  // after the injected failed open, the first pairing is Pair again, with a code of its own
+  const pairing = id ? { id, code: await code() } : addition;
   const pairBefore = reports.length;
   const attempts = pairRequests;
-  // the same code as the refused attempt
+  // without the injected failure, the same code as the refused Add
   await pairAfterUpload(id ? 'pair_desk' : 'add_desk', pairing);
   const first = await report('remote', pairBefore) as Record<string, { ok: boolean; value?: unknown; error?: string }>;
   id ||= (first.desks!.value as Desks).current!;
