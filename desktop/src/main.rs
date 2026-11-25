@@ -294,8 +294,7 @@ pub(crate) fn next_of(url: &Url) -> String {
 /// A link out of Seismic, in the system's browser. Other schemes stay closed: the system would hand
 /// `file:`, `smb:` or an app's own scheme to whatever program claims it, and a worker's page may link anywhere.
 pub(crate) fn open_in_browser(url: &str) {
-  let scheme = url.split(':').next().unwrap_or("").to_ascii_lowercase();
-  if matches!(scheme.as_str(), "http" | "https" | "mailto") && Url::parse(url).is_ok_and(|u| u.host_str() != Some("tauri.localhost")) {
+  if Url::parse(url).is_ok_and(|u| window::browser_handoff_url(&u)) {
     #[cfg(debug_assertions)]
     if seismic_env("APP_CHECK").is_some() {
       if let Ok(mut file) = fs::OpenOptions::new().create(true).append(true).open(home().join("check-browser-handoffs")) {

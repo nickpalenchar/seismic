@@ -129,13 +129,24 @@ fn bundled(url: &Url) -> bool {
 }
 
 fn bundled_at(bundle: &str, url: &Url) -> bool {
+  bundled_origin_at(bundle, url) && matches!(url.path(), "/" | "/index.html" | "/status.html")
+}
+
+fn bundled_origin_at(bundle: &str, url: &Url) -> bool {
   let entry = bundled_url_at(bundle, "/");
   url.scheme() == entry.scheme()
     && url.host_str() == entry.host_str()
-    && url.port().is_none()
-    && url.username().is_empty()
-    && url.password().is_none()
-    && matches!(url.path(), "/" | "/index.html" | "/status.html")
+    && url.port() == entry.port()
+    && url.username() == entry.username()
+    && url.password() == entry.password()
+}
+
+pub(crate) fn browser_handoff_url(url: &Url) -> bool {
+  browser_handoff_url_at(BUNDLE, url)
+}
+
+fn browser_handoff_url_at(bundle: &str, url: &Url) -> bool {
+  matches!(url.scheme(), "http" | "https" | "mailto") && !bundled_origin_at(bundle, url)
 }
 
 /// Where the shell turns a window's requests away to the system's browser: at most once a second.
@@ -146,7 +157,11 @@ const HANDOFF_GAP: Duration = Duration::from_secs(1);
 
 impl Handoff {
   fn may(&self, url: &Url, now: Instant) -> bool {
-    if !matches!(url.scheme(), "http" | "https" | "mailto") || url.host_str() == Some("tauri.localhost") {
+    self.may_at(BUNDLE, url, now)
+  }
+
+  fn may_at(&self, bundle: &str, url: &Url, now: Instant) -> bool {
+    if !browser_handoff_url_at(bundle, url) {
       return false;
     }
     let mut last = self.0.lock().unwrap();
@@ -165,11 +180,11 @@ enum Navigation {
   Block,
 }
 
-fn decide_navigation_with(admitted: bool, handoff: &Handoff, url: &Url, now: Instant) -> Navigation {
+fn decide_navigation_with(admitted: bool, handoff: &Handoff, bundle: &str, url: &Url, now: Instant) -> Navigation {
   if admitted {
     return Navigation::Allow;
   }
-  if handoff.may(url, now) {
+  if handoff.may_at(bundle, url, now) {
     Navigation::OpenInBrowser
   } else {
     Navigation::Block
@@ -177,12 +192,12 @@ fn decide_navigation_with(admitted: bool, handoff: &Handoff, url: &Url, now: Ins
 }
 
 fn decide_navigation(own: &Own, handoff: &Handoff, url: &Url, now: Instant) -> Navigation {
-  decide_navigation_with(own.admits(url), handoff, url, now)
+  decide_navigation_with(own.admits(url), handoff, BUNDLE, url, now)
 }
 
 #[cfg(test)]
 fn decide_navigation_at(own: &Own, handoff: &Handoff, bundle: &str, url: &Url, now: Instant) -> Navigation {
-  decide_navigation_with(own.admits_at(bundle, url), handoff, url, now)
+  decide_navigation_with(own.admits_at(bundle, url), handoff, bundle, url, now)
 }
 
 /// A file name in `dir` that is not taken yet: `name`, else `name (2)` and so on.
@@ -323,6 +338,11 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
   } else {
     None
   };
+  #[cfg(debug_assertions)]
+  if check.is_some() {
+    // The native check trusts an empty handoff log only when this debug recorder is present.
+    let _ = std::fs::write(crate::home().join("check-browser-handoffs-active"), "");
+  }
   let check_bundled = seismic_env("APP_CHECK_BUNDLED").is_some();
   let blank = Url::parse("about:blank").unwrap();
   #[cfg(target_os = "linux")]
@@ -545,9 +565,9 @@ mod tests {
       assert_eq!(nav(url("/index.html").as_str()), Navigation::Block);
       assert_eq!(nav(url("/index.html?updating").as_str()), Navigation::Block);
       assert_eq!(nav(url("/other.html").as_str()), Navigation::Block);
-      assert_eq!(nav(&format!("{other}/status.html")), Navigation::Block);
-      assert_eq!(nav("http://tauri.localhost:8000/status.html"), Navigation::Block);
-      assert_eq!(nav("https://tauri.localhost/status.html"), Navigation::Block);
+      assert_eq!(nav(&format!("{other}/status.html")), if other == BUNDLE_WINDOWS { Navigation::OpenInBrowser } else { Navigation::Block });
+      assert_eq!(nav("http://tauri.localhost:8000/status.html"), Navigation::OpenInBrowser);
+      assert_eq!(nav("https://tauri.localhost/status.html"), Navigation::OpenInBrowser);
       assert_eq!(nav("tauri://other/status.html"), Navigation::Block);
       assert_eq!(nav("http://studio/"), Navigation::OpenInBrowser);
       assert_eq!(nav("https://studio:8443/"), Navigation::OpenInBrowser);
@@ -575,8 +595,8 @@ mod tests {
         assert_eq!(nav(url("/status.html?x").as_str()), Navigation::Block);
         assert_eq!(nav(url("/status.html#y").as_str()), Navigation::Block);
         assert_eq!(nav(url("/other.html").as_str()), Navigation::Block);
-        assert_eq!(nav(&format!("{other}/index.html?updating")), Navigation::Block);
-        assert_eq!(nav("https://tauri.localhost/"), Navigation::Block);
+        assert_eq!(nav(&format!("{other}/index.html?updating")), if other == BUNDLE_WINDOWS { Navigation::OpenInBrowser } else { Navigation::Block });
+        assert_eq!(nav("https://tauri.localhost/"), Navigation::OpenInBrowser);
         assert_eq!(nav("https://example.com/"), Navigation::OpenInBrowser);
       }
       assert_eq!(
@@ -648,11 +668,22 @@ mod tests {
     let bundled_win = Url::parse("http://tauri.localhost/index.html?updating").unwrap();
     let start = Instant::now();
     assert!(!popup.may(&blank, start));
-    assert!(!navigation.may(&bundled_win, start));
+    assert!(!navigation.may_at(BUNDLE_WINDOWS, &bundled_win, start));
     assert!(navigation.may(&url, start));
     assert!(!popup.may(&url, start + Duration::from_millis(500)));
     assert!(popup.may(&url, start + HANDOFF_GAP));
     assert!(!navigation.may(&url, start + HANDOFF_GAP));
     assert!(Handoff::default().may(&url, start));
+  }
+
+  #[test]
+  fn browser_handoffs_exclude_only_the_actual_bundled_origin() {
+    for (bundle, other) in BUNDLES {
+      assert!(!browser_handoff_url_at(bundle, &bundled_url_at(bundle, "/status.html")));
+      assert!(browser_handoff_url_at(bundle, &bundled_url_at(other, "/status.html")) == (other == BUNDLE_WINDOWS));
+      assert!(browser_handoff_url_at(bundle, &Url::parse("http://tauri.localhost:8000/").unwrap()));
+      assert!(browser_handoff_url_at(bundle, &Url::parse("https://tauri.localhost/").unwrap()));
+    }
+    assert!(!browser_handoff_url(&bundled_url("/index.html?updating")));
   }
 }

@@ -1341,6 +1341,7 @@ async function checkApp() {
   const rejectBundledNavigations = async (paths: string[], expectedOrigin: string) => {
     const before = reports.length;
     const handoffs = join(home, 'check-browser-handoffs');
+    const handoffRecorder = join(home, 'check-browser-handoffs-active');
     rmSync(handoffs, { force: true });
     const href = await run('check_eval', {
       js: `(async () => {
@@ -1353,7 +1354,10 @@ async function checkApp() {
     });
     expect(href.ok && String(href.value).startsWith(expectedOrigin), JSON.stringify(href));
     await sleep(250);
-    expect(!existsSync(handoffs), `blocked bundled URL opened in browser: ${existsSync(handoffs) ? readFileSync(handoffs, 'utf8') : ''}`);
+    if (debugFailures) expect(existsSync(handoffRecorder), 'the debug app did not activate the browser handoff recorder');
+    if (existsSync(handoffRecorder)) {
+      expect(!existsSync(handoffs), `blocked bundled URL opened in browser: ${existsSync(handoffs) ? readFileSync(handoffs, 'utf8') : ''}`);
+    }
     expect(
       !reports.slice(before).some((r) => ['startup', 'updating', 'status'].includes(String(r.kind))),
       `blocked navigation loaded a bundled screen: ${JSON.stringify(reports.slice(before))}`,
