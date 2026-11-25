@@ -12,7 +12,7 @@ use tauri::{AppHandle, Webview};
 
 use crate::{
   desks,
-  window::{drafts::{self, RESTART_HELD, SESSION_DRAFTS}, Own},
+  window::{drafts::{self, RESTART_HELD}, Own},
 };
 
 fn page(app: &AppHandle) -> Option<(Webview, Own)> {
@@ -21,7 +21,7 @@ fn page(app: &AppHandle) -> Option<(Webview, Own)> {
   own.at(&webview.url().ok()?).then_some((webview, own))
 }
 
-pub type Drafts = HashMap<String, Vec<(String, String)>>;
+pub type Drafts = HashMap<String, drafts::Sample>;
 
 pub fn ready(app: &AppHandle, hand_over: bool) -> Option<Drafts> {
   probe(app, hand_over, hand_over)
@@ -38,8 +38,8 @@ fn probe_page(app: &AppHandle, w: Webview, own: Own, snapshot: bool, hand_over: 
     // The local server is checked by the caller. Read drafts here, including when
     // that server has already stopped and its page is still displaying.
     if snapshot {
-      let (_, entries) = drafts::sample(&w, &origin, Duration::from_secs(2))?;
-      return Some(HashMap::from([(w.label().to_string(), entries)]));
+      let sample = drafts::sample(&w, &origin, Duration::from_secs(2))?;
+      return Some(HashMap::from([(w.label().to_string(), sample)]));
     }
     return Some(HashMap::new());
   }
@@ -92,6 +92,7 @@ fn probe_page(app: &AppHandle, w: Webview, own: Own, snapshot: bool, hand_over: 
     );
   w.eval(js).ok()?;
   let deadline = Instant::now() + Duration::from_secs(3);
+  let sample = drafts::sample_expression();
   loop {
     let (send, receive) = mpsc::channel();
     let js = format!(
@@ -99,7 +100,7 @@ fn probe_page(app: &AppHandle, w: Webview, own: Own, snapshot: bool, hand_over: 
         const check = window.seismicRebuildCheck;
         if (location.origin !== {origin:?} || check?.token !== {token:?} || ({RESTART_HELD})()) return false;
         if (check.ready !== true || !{snapshot}) return check.ready;
-        return ({SESSION_DRAFTS})();
+        return {sample};
       }})()"#
     );
     w.eval_with_callback(js, move |value| {
@@ -110,7 +111,7 @@ fn probe_page(app: &AppHandle, w: Webview, own: Own, snapshot: bool, hand_over: 
       "false" => return None,
       "" | "null" => None,
       "true" => Some(HashMap::new()),
-      _ => Some(HashMap::from([(w.label().to_string(), serde_json::from_str(&value).ok()?)])),
+      _ => Some(HashMap::from([(w.label().to_string(), drafts::parse_sample(&value, &origin)?)])),
     };
     if let Some(entries) = entries {
       return (page(app) == Some((w, own))).then_some(entries);
@@ -130,8 +131,8 @@ pub fn hold_for_rebuild(app: &AppHandle) -> Option<(Drafts, Option<desks::Captur
     probe_page(app, w.clone(), own.clone(), false, false)?;
   }
   let hold = desks::CaptureHold::acquire(app, w.label().to_string()).ok()?;
-  let (_, entries) = drafts::sample_for_rebuild(&w, &own.origin()?)?;
+  let sample = drafts::sample_for_rebuild(&w, &own.origin()?)?;
   (page(app).as_ref() == Some(&(w.clone(), own))).then(|| {
-    (HashMap::from([(w.label().to_string(), entries)]), Some(hold))
+    (HashMap::from([(w.label().to_string(), sample)]), Some(hold))
   })
 }

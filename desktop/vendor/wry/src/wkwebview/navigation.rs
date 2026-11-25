@@ -111,6 +111,13 @@ pub(crate) fn navigation_policy_response(
     if !can_show_mime_type || is_attachment(&response.response()) {
       let has_download_handler = this.ivars().has_download_handler;
       if has_download_handler {
+        // The response policy runs before conversion and still identifies the main resource.
+        // A download from a subframe must never disarm the main document's watchdog.
+        if response.isForMainFrame() && this.ivars().started.take().is_some() {
+          if let Some(on_page_load) = &this.ivars().on_page_load_handler {
+            crate::desktop_load(crate::DesktopLoadEvent::Cancelled, || on_page_load(PageLoadEvent::Started));
+          }
+        }
         (*handler).call((WKNavigationResponsePolicy::Download,));
         return;
       }

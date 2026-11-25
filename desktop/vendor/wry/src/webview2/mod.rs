@@ -779,6 +779,25 @@ impl InnerWebView {
       }
 
       if let Some(on_page_load) = on_page_load_handler {
+        let loading = started.clone();
+        let committed = on_page_load.clone();
+        webview.add_ContentLoading(
+          &ContentLoadingEventHandler::create(Box::new(move |webview, args| {
+            let (Some(webview), Some(args)) = (webview, args) else {
+              return Ok(());
+            };
+            let mut id = 0;
+            args.NavigationId(&mut id)?;
+            if loading.get() == Some(id) {
+              let url = Self::url_from_webview(&webview)?;
+              crate::desktop_load(crate::DesktopLoadEvent::Committed, || {
+                committed(PageLoadEvent::Started, url);
+              });
+            }
+            Ok(())
+          })),
+          token,
+        )?;
         webview.add_NavigationCompleted(
           &NavigationCompletedEventHandler::create(Box::new(move |webview, args| {
             let (Some(webview), Some(args)) = (webview, args) else {
@@ -789,7 +808,16 @@ impl InnerWebView {
             // A cancelled or superseded load can complete after a newer one starts.
             if started.get() == Some(id) {
               started.set(None);
-              on_page_load(PageLoadEvent::Finished, Self::url_from_webview(&webview)?);
+              let mut error = COREWEBVIEW2_WEB_ERROR_STATUS::default();
+              args.WebErrorStatus(&mut error)?;
+              let url = Self::url_from_webview(&webview)?;
+              if error == COREWEBVIEW2_WEB_ERROR_STATUS_OPERATION_CANCELED {
+                crate::desktop_load(crate::DesktopLoadEvent::Cancelled, || {
+                  on_page_load(PageLoadEvent::Started, url);
+                });
+              } else {
+                on_page_load(PageLoadEvent::Finished, url);
+              }
             }
             Ok(())
           })),

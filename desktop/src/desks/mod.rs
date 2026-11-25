@@ -67,6 +67,8 @@ struct WorkspaceView {
   verified_activation: Option<f64>,
   /// The current main-document load, verification, or cache refresh (`verify_load`).
   loading: Option<u64>,
+  /// The last main-document commit, kept while a replacement load is provisional.
+  committed_load: Option<u64>,
   /// A same-origin sign-in has been queued and can still replace the old local document.
   local_reloading: Option<Instant>,
   /// The check reloaded a rejected page once: a fresh cached copy of a placeholder answers a plain
@@ -571,11 +573,10 @@ fn capture_after<T>(
 }
 
 /// The outgoing view's drafts and route take precedence over any older parked copy.
-fn saved_view(view: &WorkspaceView, sample: Option<(String, Vec<(String, String)>)>) -> Result<Placed, String> {
+fn saved_view(view: &WorkspaceView, sample: Option<window::drafts::Sample>) -> Result<Placed, String> {
   let (next, sampled) = match sample {
-    // A page still being checked may be a proxy's own (verify_load): it keeps the route before it.
-    Some((_, entries)) if view.loading.is_some() => (view.next.clone(), entries),
-    Some((next, entries)) => (next, entries),
+    Some(sample) if matches!(view.own, Own::Remote(_)) && !sample.workspace => (view.next.clone(), sample.entries),
+    Some(sample) => (sample.next, sample.entries),
     // Only a workspace document that reported its activation owes a departure checkpoint.
     None if view.departure.activation > 0.0 => (view.next.clone(), view.departure.drafts.clone().ok_or("drafts")?),
     None => (view.next.clone(), vec![]),
@@ -642,6 +643,7 @@ fn mount(app: &AppHandle, target: Destination, turn: u64, mut outgoing: Capture)
       departure: Departure::default(),
       verified_activation: None,
       loading,
+      committed_load: None,
       local_reloading: None,
       revalidated: false,
     };
@@ -1063,16 +1065,18 @@ pub fn page_loaded(app: &AppHandle, label: &str, url: &Url) {
     window.local_reloading = None;
   }
   if matches!(window.own, Own::Remote(_)) {
-    if window.problem.is_some() {
+    if window.problem.is_some() || window.loading.is_none() || window.loading != window.committed_load {
       return;
     }
     // A proxy's own page (a maintenance redirect, say) must not become the route Try again opens:
     // the route counts once the document proves to be the workspace. A Finished event supersedes
     // even a verification already waiting for the server.
     let token = windows.load();
-    windows.active.as_mut().unwrap().loading = Some(token);
+    let window = windows.active.as_mut().unwrap();
+    window.loading = Some(token);
+    window.committed_load = Some(token);
     let (app, label) = (app.clone(), label.to_string());
-    thread::spawn(move || verify_load(&app, &label, token, Some(next)));
+    thread::spawn(move || verify_load(&app, &label, token));
     return;
   }
   if window.next != next {
@@ -1097,6 +1101,22 @@ pub fn navigation_started(app: &AppHandle, label: &str) {
   watch_load(app, label, token);
 }
 
+pub fn navigation_committed(app: &AppHandle, label: &str) {
+  let state = shell(app);
+  let mut views = state.views.lock().unwrap();
+  if let Some(view) = views.active.as_mut().filter(|v| v.label == label) {
+    view.committed_load = view.loading;
+  }
+}
+
+pub fn navigation_cancelled(app: &AppHandle, label: &str) {
+  let state = shell(app);
+  let mut views = state.views.lock().unwrap();
+  if let Some(view) = views.active.as_mut().filter(|v| v.label == label && v.committed_load.is_some() && v.loading != v.committed_load) {
+    view.loading = None;
+  }
+}
+
 /// How long a workspace page may take before the shell looks at what its window shows. A failed
 /// load can leave WebKit on the page before, without a Finished event.
 const LOAD_PATIENCE: Duration = Duration::from_secs(15);
@@ -1105,13 +1125,13 @@ pub(super) fn watch_load(app: &AppHandle, label: &str, token: u64) {
   let (app, label) = (app.clone(), label.to_string());
   thread::spawn(move || {
     thread::sleep(LOAD_PATIENCE);
-    verify_load(&app, &label, token, None);
+    verify_load(&app, &label, token);
   });
 }
 
 /// Finishing and timing out both check the document and the server. A main-document start
 /// supersedes either check, including while the check is waiting on the network or webview.
-fn verify_load(app: &AppHandle, label: &str, token: u64, next: Option<String>) {
+fn verify_load(app: &AppHandle, label: &str, token: u64) {
   let state = shell(app);
   let origin = {
     let views = state.views.lock().unwrap();
@@ -1120,11 +1140,15 @@ fn verify_load(app: &AppHandle, label: &str, token: u64, next: Option<String>) {
     origin
   };
   let health = remote::health(&origin);
-  let activation = app.get_webview(label).and_then(|w| window::workspace_activation(&w, &origin, Duration::from_secs(2)));
-  let problem = match health {
-    Health::Seismic if activation.is_some() => None,
-    Health::Seismic => Some("notLoaded"),
-    other => Some(other.code()),
+  let committed = {
+    let views = state.views.lock().unwrap();
+    let Some(view) = views.active.as_ref().filter(|v| v.label == label && v.loading == Some(token)) else { return };
+    view.committed_load == Some(token)
+  };
+  let document = if committed && health == Health::Seismic {
+    app.get_webview(label).and_then(|w| window::workspace_document(&w, &origin, Duration::from_secs(2)))
+  } else {
+    None
   };
   let label = label.to_string();
   let result = tauri::async_runtime::block_on(on_ui(app.clone(), move |app| {
@@ -1133,19 +1157,27 @@ fn verify_load(app: &AppHandle, label: &str, token: u64, next: Option<String>) {
     let Some(view) = views.active.as_mut().filter(|v| v.label == label && v.loading == Some(token)) else {
       return Ok(());
     };
+    // The old page can still be visible after a provisional load fails. A commit
+    // racing the timeout needs a fresh sample instead of a verdict about that old page.
+    if !committed && view.committed_load == Some(token) {
+      let app = app.clone();
+      thread::spawn(move || verify_load(&app, &label, token));
+      return Ok(());
+    }
     view.loading = None;
-    let Some(problem) = problem else {
+    if let Some((next, activation)) = document {
       view.revalidated = false;
-      view.verified_activation = activation.filter(|a| *a > 0.0 && a.is_finite());
-      let adopted = next.filter(|next| *next != view.next).map(|next| view.next = next).is_some();
-      if adopted {
+      view.verified_activation = (activation > 0.0 && activation.is_finite()).then_some(activation);
+      if next != view.next {
+        view.next = next;
         views.draft_generation += 1;
       }
       return Ok(());
-    };
+    }
+    let problem = if health == Health::Seismic { "notLoaded" } else { health.code() };
     let webview = app.get_webview(&label).ok_or("window")?;
     let at_origin = webview.url().is_ok_and(|url| view.own.at(&url));
-    if problem == "notLoaded" && at_origin && !view.revalidated {
+    if problem == "notLoaded" && committed && at_origin && !view.revalidated {
       // A plain navigation reuses what the proxy let the cache keep, a placeholder or a redirect
       // to one: fetch the workspace route past the cache, then open it (a reload where only the
       // fragment differs, which would not load the page again).
@@ -1271,7 +1303,7 @@ pub fn changed(app: &AppHandle) {
 }
 
 /// Capture the native window once and keep the drafts and routes of the parked workspaces.
-pub fn placed(app: &AppHandle, draft_generation: u64, mut drafts: HashMap<String, Vec<(String, String)>>) -> io::Result<Option<Vec<Placed>>> {
+pub fn placed(app: &AppHandle, draft_generation: u64, mut drafts: HashMap<String, window::drafts::Sample>) -> io::Result<Option<Vec<Placed>>> {
   let state = shell(app);
   let (active, parked, restore) = {
     let views = state.views.lock().unwrap();
@@ -1286,8 +1318,8 @@ pub fn placed(app: &AppHandle, draft_generation: u64, mut drafts: HashMap<String
     let Some(w) = app.get_webview(&active.label) else { return Ok(None) };
     let Ok(url) = w.url() else { return Ok(None) };
     let sample = if active.own.at(&url) {
-      let Some(entries) = drafts.remove(&active.label) else { return Ok(None) };
-      Some((crate::next_of(&url), entries))
+      let Some(sample) = drafts.remove(&active.label) else { return Ok(None) };
+      Some(sample)
     } else {
       None
     };
@@ -1315,17 +1347,18 @@ mod tests {
   use super::*;
 
   #[test]
-  fn a_page_still_being_checked_keeps_the_route_before_it() {
-    let mut view = WorkspaceView {
+  fn capture_accepts_a_live_workspace_route_during_verification() {
+    let view = WorkspaceView {
       label: "desk-1".into(), desk: "studio".into(), own: Own::Remote("https://studio".into()), next: "/p/lab".into(),
       problem: None, drafts: vec![], draft_checkpoint: None, awaiting_drafts: false, departure: Departure::default(),
-      verified_activation: None, loading: Some(1), local_reloading: None, revalidated: false,
+      verified_activation: None, loading: Some(1), committed_load: None, local_reloading: None, revalidated: false,
     };
-    let sample = || Some(("/maintenance".to_string(), vec![("seismic-drafts-lab".to_string(), "kept".to_string())]));
-    let saved = saved_view(&view, sample()).unwrap();
+    let sample = |workspace, next: &str| Some(window::drafts::Sample {
+      next: next.into(), entries: vec![("seismic-drafts-lab".into(), "kept".into())], workspace,
+    });
+    let saved = saved_view(&view, sample(false, "/maintenance")).unwrap();
     assert_eq!((saved.next.as_str(), saved.drafts.len()), ("/p/lab", 1));
-    view.loading = None;
-    assert_eq!(saved_view(&view, sample()).unwrap().next, "/maintenance");
+    assert_eq!(saved_view(&view, sample(true, "/p/new")).unwrap().next, "/p/new");
   }
 
   #[test]
@@ -1333,7 +1366,7 @@ mod tests {
     let mut view = WorkspaceView {
       label: "desk-1".into(), desk: "studio".into(), own: Own::Remote("https://studio".into()), next: "/p/lab".into(),
       problem: Some("notLoaded"), drafts: vec![("seismic-drafts-lab".into(), "saved".into())], draft_checkpoint: None,
-      awaiting_drafts: true, departure: Departure::default(), verified_activation: None, loading: None, local_reloading: None, revalidated: false,
+      awaiting_drafts: true, departure: Departure::default(), verified_activation: None, loading: None, committed_load: None, local_reloading: None, revalidated: false,
     };
     let saved = saved_view(&view, None).unwrap();
     assert_eq!(saved.drafts, view.drafts);
@@ -1400,10 +1433,10 @@ mod tests {
     assert!(departure.receive(1.0, Some(vec![draft("older"), wish("unfinished")])));
     let view = |departure: &Departure| WorkspaceView {
       label: "desk-1".into(), desk: "studio".into(), own: Own::Remote("https://studio".into()), next: "/".into(),
-      problem: None, drafts: vec![], draft_checkpoint: None, awaiting_drafts: false, departure: departure.clone(), verified_activation: None, loading: None, local_reloading: None, revalidated: false,
+      problem: None, drafts: vec![], draft_checkpoint: None, awaiting_drafts: false, departure: departure.clone(), verified_activation: None, loading: None, committed_load: None, local_reloading: None, revalidated: false,
     };
     // A relaunch while that page is open keeps its newer edit and the draft it lacks.
-    let saved = saved_view(&view(&departure), Some(("/".into(), vec![draft("newer")]))).unwrap();
+    let saved = saved_view(&view(&departure), Some(window::drafts::Sample { next: "/".into(), entries: vec![draft("newer")], workspace: true })).unwrap();
     assert_eq!(saved.drafts, vec![draft("newer"), wish("unfinished")]);
     // So do Back and Try again.
     assert!(departure.receive(2.0, Some(vec![draft("newer")])));

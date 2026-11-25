@@ -178,6 +178,8 @@ let busyChecks = 0;
 let seedDraft = true;
 
 let nextPage: (() => Promise<void>) | undefined;
+let dropReloadAt: string | undefined;
+let droppedReloads = 0;
 let holdCacheRefresh: { route: string; wait: () => Promise<void> } | undefined;
 const previewPath = '/__seismic-check-preview';
 let liveComposer = false;
@@ -223,6 +225,17 @@ const startProxy = (port = proxyPort) => {
         const held = holdCacheRefresh;
         holdCacheRefresh = undefined;
         await held.wait();
+      }
+      if (url.pathname === '/__seismic-check-download') {
+        return new Response('Workspace export', {
+          headers: { 'content-type': 'text/plain', 'content-disposition': 'attachment; filename="workspace-export.txt"' },
+        });
+      }
+      if (url.pathname + url.search === dropReloadAt && req.headers.get('accept')?.includes('text/html')) {
+        // Let the connection time out before sending headers while the health route still answers.
+        droppedReloads++;
+        server.timeout(req, 1);
+        return new Promise<Response>(() => {});
       }
       if (nextPage && req.headers.get('accept')?.includes('text/html')) {
         server.timeout(req, 0);
@@ -288,6 +301,7 @@ const startProxy = (port = proxyPort) => {
       const back = new Headers(res.headers);
       back.delete('content-encoding');
       back.delete('content-length');
+      if (url.searchParams.get('check-navigation') === 'checking') back.set('cache-control', 'no-store');
       return new Response(res.body, { status: res.status, headers: back });
     },
     websocket: {
@@ -1700,6 +1714,66 @@ async function checkApp() {
     }
   });
   if (displayed()?.kind === 'status') await reconnect();
+  await check('switching during verification keeps the live workspace route', async () => {
+    const checking = Promise.withResolvers<void>(), checked = Promise.withResolvers<void>();
+    const route = new URL(String(displayed()?.href));
+    route.pathname = '/p/lab';
+    route.searchParams.set('check-navigation', 'checking');
+    const moved = new URL(route);
+    moved.searchParams.set('view', route.searchParams.get('view') === 'table' ? 'canvas' : 'table');
+    onHealth = async () => { checking.resolve(); await checked.promise; };
+    try {
+      const before = reports.length;
+      send('check_eval', { js: `location.replace(${JSON.stringify(route.href)})` });
+      await report('remote', before);
+      await Promise.race([checking.promise, sleep(5000).then(() => { throw new Error('no verification to hold'); })]);
+      const live = await run('check_eval', { js: `history.replaceState(null, '', ${JSON.stringify(moved.href)}); location.href` });
+      expect(live.value === moved.href, JSON.stringify(live));
+      await select('local', 'local');
+    } finally {
+      onHealth = undefined;
+      checked.resolve();
+    }
+    const resumed = await select(id, 'remote');
+    expect(resumed.href === moved.href, JSON.stringify(resumed));
+  });
+  if (process.platform === 'darwin') {
+    await check('a reload dropped before commit shows recovery while health stays green', async () => {
+      const route = await run('check_eval', { js: 'location.pathname + location.search' });
+      expect(typeof route.value === 'string', JSON.stringify(route));
+      const rejected = rejectedHealthChecks;
+      const dropped = droppedReloads;
+      dropReloadAt = String(route.value);
+      try {
+        const before = reports.length;
+        send('check_eval', { js: 'location.reload()' });
+        await until('the reload to reach the proxy', 5000, () => droppedReloads > dropped);
+        await report('status', before, 25_000);
+        expect((await desks()).problem === 'notLoaded' && rejectedHealthChecks === rejected, 'the live old document hid the failed reload');
+      } finally {
+        dropReloadAt = undefined;
+      }
+      await reconnect(true);
+    });
+  }
+  if (process.platform === 'darwin' && existsSync(join(home, 'check-browser-handoffs-active'))) {
+    await check('a top-level attachment download leaves the workspace open during a health failure', async () => {
+      await sleep(800);
+      const before = reports.length;
+      const rejected = rejectedHealthChecks;
+      const file = join(home, 'check-download.txt');
+      try {
+        rejectHealth = true;
+        send('check_eval', { js: "location.assign('/__seismic-check-download')" });
+        await until('the attachment to download', 8000, () => existsSync(file) && readFileSync(file, 'utf8') === 'Workspace export');
+        await sleep(16_000);
+        expect(!reports.slice(before).some((r) => r.kind === 'status'), 'the download sent the workspace to recovery');
+        expect(rejectedHealthChecks === rejected && (await desks()).problem === null, 'the download left a workspace check armed');
+      } finally {
+        rejectHealth = false;
+      }
+    });
+  }
   await check('removing a workspace cancels a pending switch without closing the window', async () => {
     const local = await select('local', 'local');
     const hit = Promise.withResolvers<void>();

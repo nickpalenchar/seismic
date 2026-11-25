@@ -345,6 +345,8 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
     // The native check trusts an empty handoff log only when this debug recorder is present.
     let _ = std::fs::write(crate::home().join("check-browser-handoffs-active"), "");
   }
+  #[cfg(debug_assertions)]
+  let check_download = check.is_some();
   let check_bundled = seismic_env("APP_CHECK_BUNDLED").is_some();
   let blank = Url::parse("about:blank").unwrap();
   #[cfg(target_os = "linux")]
@@ -389,6 +391,11 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
     .on_download(move |_, event| {
       match event {
         DownloadEvent::Requested { url, destination } => {
+          #[cfg(debug_assertions)]
+          if check_download && url.path() == "/__seismic-check-download" {
+            *destination = crate::home().join("check-download.txt");
+            return true;
+          }
           if let Some(dir) = &downloads {
             let name = destination
               .file_name()
@@ -399,6 +406,10 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
           }
         }
         DownloadEvent::Finished { url, path, success } => {
+          #[cfg(debug_assertions)]
+          if check_download && url.path() == "/__seismic-check-download" {
+            return true;
+          }
           let path = path.or_else(|| saved.lock().unwrap().remove(url.as_str()));
           if let (true, Some(path)) = (success, path) {
             let _ = tauri_plugin_opener::reveal_item_in_dir(path);
@@ -410,7 +421,11 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
     })
     .on_page_load(move |webview, payload| {
       if let PageLoadEvent::Started = payload.event() {
-        crate::desks::navigation_started(webview.app_handle(), webview.label());
+        match wry::desktop_load_event() {
+          Some(wry::DesktopLoadEvent::Committed) => crate::desks::navigation_committed(webview.app_handle(), webview.label()),
+          Some(wry::DesktopLoadEvent::Cancelled) => crate::desks::navigation_cancelled(webview.app_handle(), webview.label()),
+          None => crate::desks::navigation_started(webview.app_handle(), webview.label()),
+        }
       } else {
         let own_page = loaded.at(payload.url());
         if own_page {
@@ -525,25 +540,29 @@ fn guard_frames(webview: &Webview, own: Own) -> tauri::Result<()> {
     .map_err(|e| std::io::Error::other(e.to_string()).into())
 }
 
-/// Verify the displayed document, returning its draft activation or zero if it has no draft bridge.
-pub fn workspace_activation(webview: &Webview, origin: &str, timeout: Duration) -> Option<f64> {
+/// Recognize Seismic's document even on engines that omit the navigation response status.
+const WORKSPACE_DOCUMENT: &str = r#"() => {
+  const status = performance.getEntriesByType('navigation')[0]?.responseStatus || 0;
+  if ((!status || status === 401) && document.querySelector('form[action="/pair"] input[name="code"]')) return true;
+  return !!(
+    (!status || (status >= 200 && status < 300)) &&
+    document.getElementById('root') && document.querySelector('link[rel="manifest"]') &&
+    document.querySelector('meta[name="apple-mobile-web-app-title"][content="Seismic"]')
+  );
+}"#;
+
+/// Read the live route and draft activation of the same document that passed the marker check.
+pub fn workspace_document(webview: &Webview, origin: &str, timeout: Duration) -> Option<(String, f64)> {
   let (send, receive) = std::sync::mpsc::channel();
-  // The navigation entry describes this response, including redirects and the device cookie.
-  // Older engines omit responseStatus. Recognize the workspace and its signed-out pairing form:
-  // a proxy can answer the workspace route with a page of its own while /api/projects is healthy.
-  let script = format!(r#"(() => {{
-    if (location.origin !== {}) return null;
-    const status = performance.getEntriesByType('navigation')[0]?.responseStatus || 0;
-    const pairing = (!status || status === 401) && document.querySelector('form[action="/pair"] input[name="code"]');
-    const workspace = !!(document.getElementById('root') && document.querySelector('link[rel="manifest"]')
-      && document.querySelector('meta[name="apple-mobile-web-app-title"][content="Seismic"]'));
-    if (pairing || (workspace && (!status || (status >= 200 && status < 300)))) return window.seismicDraftActivation?.() ?? 0;
-    return null;
-  }})()"#, serde_json::json!(origin));
-  if webview.eval_with_callback(script, move |value| { let _ = send.send(value); }).is_err() {
-    return None;
-  }
-  receive.recv_timeout(timeout).ok()?.parse().ok()
+  let script = format!(
+    "location.origin === {} && ({WORKSPACE_DOCUMENT})() ? [location.href, window.seismicDraftActivation?.() ?? 0] : null",
+    serde_json::json!(origin),
+  );
+  webview.eval_with_callback(script, move |value| { let _ = send.send(value); }).ok()?;
+  // Draft checkpoint IPC also uses serde_json, with exact round-trip float decoding.
+  let (url, activation): (String, f64) = serde_json::from_str(&receive.recv_timeout(timeout).ok()?).ok()?;
+  let url = Url::parse(&url).ok()?;
+  (url.origin().ascii_serialization() == origin).then(|| (crate::next_of(&url), activation))
 }
 
 /// The window's page, where it is at the window's own origin: its path, query and fragment.
@@ -556,6 +575,16 @@ mod tests {
   use super::*;
 
   const BUNDLES: [(&str, &str); 2] = [(BUNDLE_UNIX, BUNDLE_WINDOWS), (BUNDLE_WINDOWS, BUNDLE_UNIX)];
+
+  #[test]
+  fn checkpoint_activation_round_trips_the_browser_timestamp() {
+    // Values around this millisecond can decode a tick away without float_roundtrip.
+    let timestamp = "1764069353722.0003";
+    let (_, activation): (String, f64) = serde_json::from_str(&format!(r#"["https://studio/",{timestamp}]"#)).unwrap();
+    let ipc: serde_json::Value = serde_json::from_str(&format!(r#"{{"activation":{timestamp}}}"#)).unwrap();
+    assert_eq!(activation, timestamp.parse::<f64>().unwrap());
+    assert_eq!(ipc["activation"].as_f64(), Some(activation));
+  }
 
   #[test]
   fn a_window_admits_its_origin_and_the_bundled_pages_alone() {

@@ -33,7 +33,7 @@ use crate::{
 use super::wry_download_delegate::WryDownloadDelegate;
 
 pub struct WryNavigationDelegateIvars {
-  started: RefCell<Option<Retained<WKNavigation>>>,
+  pub started: RefCell<Option<Retained<WKNavigation>>>,
   pub pending_scripts: Arc<Mutex<Option<Vec<String>>>>,
   pub has_download_handler: bool,
   pub navigation_policy_function: Box<dyn Fn(String) -> bool>,
@@ -90,6 +90,12 @@ define_class!(
 
     #[unsafe(method(webView:didCommitNavigation:))]
     fn did_commit_navigation(&self, webview: &WKWebView, navigation: &WKNavigation) {
+      let current = self.ivars().started.borrow().as_deref().map(std::ptr::from_ref);
+      if current == Some(std::ptr::from_ref(navigation)) {
+        if let Some(on_page_load) = &self.ivars().on_page_load_handler {
+          crate::desktop_load(crate::DesktopLoadEvent::Committed, || on_page_load(PageLoadEvent::Started));
+        }
+      }
       did_commit_navigation(self, webview, navigation);
     }
 

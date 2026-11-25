@@ -2595,6 +2595,34 @@ pub enum PageLoadEvent {
   Finished,
 }
 
+/// Additional desktop lifecycle notifications tunneled through Tauri's two-event API.
+#[doc(hidden)]
+#[derive(Clone, Copy)]
+pub enum DesktopLoadEvent {
+  Committed,
+  Cancelled,
+}
+
+thread_local! {
+  static DESKTOP_LOAD_EVENT: std::cell::Cell<Option<DesktopLoadEvent>> = const { std::cell::Cell::new(None) };
+}
+
+#[doc(hidden)]
+pub fn desktop_load_event() -> Option<DesktopLoadEvent> {
+  DESKTOP_LOAD_EVENT.get()
+}
+
+fn desktop_load(event: DesktopLoadEvent, notify: impl FnOnce()) {
+  struct Restore(Option<DesktopLoadEvent>);
+  impl Drop for Restore {
+    fn drop(&mut self) {
+      DESKTOP_LOAD_EVENT.set(self.0);
+    }
+  }
+  let _restore = Restore(DESKTOP_LOAD_EVENT.replace(Some(event)));
+  notify();
+}
+
 /// Background throttling policy
 #[derive(Debug, Clone)]
 pub enum BackgroundThrottlingPolicy {

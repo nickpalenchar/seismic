@@ -23,28 +23,42 @@ pub const SESSION_DRAFTS: &str = r#"(entries) => {
 pub const RESTART_HELD: &str = r#"() => window.seismicRestartHeld?.() ||
   Array.from(document.querySelectorAll('video')).some(video => !video.paused && !video.ended)"#;
 
-/// Read the current document's route and drafts before the old webview closes.
-pub fn sample(webview: &Webview, origin: &str, timeout: std::time::Duration) -> Option<(String, Vec<(String, String)>)> {
+pub struct Sample {
+  pub next: String,
+  pub entries: Vec<(String, String)>,
+  pub workspace: bool,
+}
+
+/// Sample route, drafts and document markers in one evaluation, even while verification is pending.
+pub fn sample_expression() -> String {
+  format!("[location.href, ({SESSION_DRAFTS})(), ({})()]", super::WORKSPACE_DOCUMENT)
+}
+
+pub fn parse_sample(value: &str, origin: &str) -> Option<Sample> {
+  let (url, entries, workspace): (String, Vec<(String, String)>, bool) = serde_json::from_str(value).ok()?;
+  let url = tauri::Url::parse(&url).ok()?;
+  (url.origin().ascii_serialization() == origin).then(|| Sample { next: crate::next_of(&url), entries, workspace })
+}
+
+pub fn sample(webview: &Webview, origin: &str, timeout: std::time::Duration) -> Option<Sample> {
   sample_with_guard(webview, origin, timeout, false)
 }
 
-pub fn sample_for_rebuild(webview: &Webview, origin: &str) -> Option<(String, Vec<(String, String)>)> {
+pub fn sample_for_rebuild(webview: &Webview, origin: &str) -> Option<Sample> {
   sample_with_guard(webview, origin, std::time::Duration::from_secs(2), true)
 }
 
-fn sample_with_guard(webview: &Webview, origin: &str, timeout: std::time::Duration, require_idle: bool) -> Option<(String, Vec<(String, String)>)> {
+fn sample_with_guard(webview: &Webview, origin: &str, timeout: std::time::Duration, require_idle: bool) -> Option<Sample> {
   let (send, receive) = std::sync::mpsc::channel();
   let script = format!(
-    r#"location.origin === {} && (!{require_idle} || !({RESTART_HELD})()) ? [location.href, ({SESSION_DRAFTS})()] : null"#,
+    r#"location.origin === {} && (!{require_idle} || !({RESTART_HELD})()) ? {} : null"#,
     serde_json::json!(origin),
+    sample_expression(),
   );
   webview.eval_with_callback(script, move |value| {
     let _ = send.send(value);
   }).ok()?;
-  let text = receive.recv_timeout(timeout).ok()?;
-  let (url, entries): (String, Vec<(String, String)>) = serde_json::from_str(&text).ok()?;
-  let url = tauri::Url::parse(&url).ok()?;
-  (url.origin().ascii_serialization() == origin).then(|| (crate::next_of(&url), entries))
+  parse_sample(&receive.recv_timeout(timeout).ok()?, origin)
 }
 
 #[tauri::command]

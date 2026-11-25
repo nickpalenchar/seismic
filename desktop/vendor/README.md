@@ -17,7 +17,10 @@ On desktop, the page-load handler reports `Started` at the start of a main-docum
 WKWebView's provisional navigation, WebKitGTK's `LoadEvent::Started`, or an allowed WebView2
 `NavigationStarting`. The navigation policy still checks subframes where the engine reports them.
 WKWebView and WebView2 match completions to their latest start by navigation identity, so a late
-completion cannot supersede a newer load.
+completion cannot supersede a newer load. The synchronous desktop event context distinguishes
+commit from provisional start through Tauri's page-load callback. It also reports when
+WKWebView turns a main-frame response into a download, WebKitGTK reports a provisional policy
+interruption, or WebView2 reports cancellation of the current navigation ID.
 
 Moving to a newer wry: copy its crate from `~/.cargo/registry/src/*/wry-<version>/` (src, build.rs,
 the licenses, Cargo.toml without its `[[example]]` tables), then reapply these changes. On macOS,

@@ -491,13 +491,33 @@ impl InnerWebView {
 
     // Page load handler
     if let Some(on_page_load_handler) = attributes.on_page_load_handler.take() {
+      let on_page_load_handler = Rc::new(on_page_load_handler);
+      let cancelled = on_page_load_handler.clone();
+      webview.connect_load_failed(move |_webview, event, uri, error| {
+        // WebKitGTK uses this main-document signal when a response becomes a download.
+        if event == LoadEvent::Started && error.matches(webkit2gtk::PolicyError::FrameLoadInterruptedByPolicyChange) {
+          crate::desktop_load(crate::DesktopLoadEvent::Cancelled, || {
+            cancelled(PageLoadEvent::Started, uri.to_string());
+          });
+        }
+        false
+      });
       webview.connect_load_changed(move |webview, load_event| match load_event {
         LoadEvent::Started => {
-          let url = webview.uri().map(|uri| uri.to_string()).unwrap_or_default();
+          let url = webview.uri().map_or_else(|| "about:blank".into(), |uri| uri.to_string());
           on_page_load_handler(PageLoadEvent::Started, url);
         }
+        LoadEvent::Committed => {
+          if let Some(uri) = webview.uri() {
+            crate::desktop_load(crate::DesktopLoadEvent::Committed, || {
+              on_page_load_handler(PageLoadEvent::Started, uri.to_string());
+            });
+          }
+        }
         LoadEvent::Finished => {
-          on_page_load_handler(PageLoadEvent::Finished, webview.uri().unwrap().to_string());
+          if let Some(uri) = webview.uri() {
+            on_page_load_handler(PageLoadEvent::Finished, uri.to_string());
+          }
         }
         _ => (),
       });
